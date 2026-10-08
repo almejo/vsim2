@@ -23,35 +23,74 @@ public final class VsimV1Importer {
 
     public CircuitDocument importDocument(JsonNode root) throws CircuitFormatException {
         CircuitDocument document = new CircuitDocument();
-        for (JsonNode gate : root.path("gates")) {
-            String typeId = gate.path("type").asText();
+        JsonNode gates = root.path("gates");
+        JsonNode connections = root.path("connections");
+        if (!gates.isMissingNode() && !gates.isArray()) {
+            throw invalid("gates must be an array");
+        }
+        if (!connections.isMissingNode() && !connections.isArray()) {
+            throw invalid("connections must be an array");
+        }
+        for (JsonNode gate : gates) {
+            if (!gate.isObject()) {
+                throw invalid("gate must be an object");
+            }
+            JsonNode typeNode = gate.path("type");
+            if (!typeNode.isTextual() || typeNode.asText().isBlank()) {
+                throw invalid("gate type must be a non-blank string");
+            }
+            String typeId = typeNode.asText();
             ComponentType type = registry.find(typeId).orElseThrow(() -> new CircuitFormatException(
                     CircuitFormatException.Reason.UNKNOWN_COMPONENT_TYPE, typeId));
             JsonNode position = gate.path("position");
+            if (!position.isObject()) {
+                throw invalid("gate position must be an object");
+            }
             JsonNode parameters = gate.path("parameters");
+            JsonNode text = parameters.path("text");
+            String label = (typeId.equals("switch") || typeId.equals("led")) && text.isTextual() ? text.asText() : "";
             try {
                 document.add(new Component(document.newComponentId(), type.id(),
-                        GridPoint.fromPixels(position.path("x").asInt(), position.path("y").asInt()),
+                        GridPoint.fromPixels(pixel(position, "x"), pixel(position, "y")),
                         Rotation.R0,
                         type.resolveParameters(parameters(typeId, parameters)),
-                        parameters.path("text").asText("")));
+                        label));
             } catch (IllegalArgumentException exception) {
                 throw new CircuitFormatException(CircuitFormatException.Reason.INVALID_ELEMENT, exception.getMessage(), exception);
             }
         }
-        for (JsonNode connection : root.path("connections")) {
-            GridPoint start = GridPoint.fromPixels(connection.path("xi").asInt(), connection.path("yi").asInt());
-            GridPoint end = GridPoint.fromPixels(connection.path("xf").asInt(), connection.path("yf").asInt());
-            if (start.equals(end)) {
-                continue;
+        for (JsonNode connection : connections) {
+            if (!connection.isObject()) {
+                throw invalid("connection must be an object");
             }
+            int startX = pixel(connection, "xi");
+            int startY = pixel(connection, "yi");
+            int endX = pixel(connection, "xf");
+            int endY = pixel(connection, "yf");
             try {
+                GridPoint start = GridPoint.fromPixels(startX, startY);
+                GridPoint end = GridPoint.fromPixels(endX, endY);
+                if (start.equals(end)) {
+                    continue;
+                }
                 document.add(new Wire(document.newWireId(), start, end));
             } catch (IllegalArgumentException exception) {
                 throw new CircuitFormatException(CircuitFormatException.Reason.INVALID_ELEMENT, exception.getMessage(), exception);
             }
         }
         return document;
+    }
+
+    private static int pixel(JsonNode parent, String field) throws CircuitFormatException {
+        JsonNode node = parent.path(field);
+        if (!node.isNumber() || !node.canConvertToInt()) {
+            throw invalid("'" + field + "' must be an integer");
+        }
+        return node.asInt();
+    }
+
+    private static CircuitFormatException invalid(String message) {
+        return new CircuitFormatException(CircuitFormatException.Reason.INVALID_ELEMENT, message);
     }
 
     private static Map<String, Object> parameters(String typeId, JsonNode parameters) {

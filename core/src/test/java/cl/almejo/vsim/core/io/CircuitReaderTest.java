@@ -57,4 +57,21 @@ class CircuitReaderTest {
                 .satisfies(exception -> assertThat(((CircuitFormatException) exception).reason())
                         .isEqualTo(CircuitFormatException.Reason.READ_ERROR));
     }
+
+    @Test
+    void nullAndEmptyContentAreInvalidJson() {
+        for (String content : new String[]{null, "", "   "}) {
+            assertThatThrownBy(() -> reader.read(content))
+                    .isInstanceOf(CircuitFormatException.class)
+                    .satisfies(exception -> assertThat(((CircuitFormatException) exception).reason())
+                            .isEqualTo(CircuitFormatException.Reason.INVALID_JSON));
+        }
+    }
+
+    @Test
+    void readingAVersionOneFileNamesTheDocumentAfterIt(@TempDir Path directory) throws Exception {
+        Path file = directory.resolve("viejo.json");
+        Files.writeString(file, "{\"gates\":[],\"connections\":[]}");
+        assertThat(reader.read(file).name()).isEqualTo("viejo");
+    }
 }

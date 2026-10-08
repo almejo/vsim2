@@ -23,16 +23,22 @@ public final class CircuitReader {
     }
 
     public CircuitDocument read(String content) throws CircuitFormatException {
+        if (content == null || content.isBlank()) {
+            throw new CircuitFormatException(CircuitFormatException.Reason.INVALID_JSON, "empty content");
+        }
         JsonNode root;
         try {
             root = mapper.readTree(content);
         } catch (JsonProcessingException exception) {
             throw new CircuitFormatException(CircuitFormatException.Reason.INVALID_JSON, exception.getOriginalMessage(), exception);
         }
-        if (root != null && root.isObject() && root.has("formatVersion")) {
+        if (root == null || root.isMissingNode()) {
+            throw new CircuitFormatException(CircuitFormatException.Reason.INVALID_JSON, "empty content");
+        }
+        if (root.isObject() && root.has("formatVersion")) {
             return format.read(root);
         }
-        if (root != null && root.isObject() && root.path("gates").isArray()) {
+        if (root.isObject() && root.path("gates").isArray()) {
             return importer.importDocument(root);
         }
         throw new CircuitFormatException(CircuitFormatException.Reason.INVALID_ELEMENT, "not a VSim circuit");

@@ -83,4 +83,47 @@ class VsimV1ImporterTest {
                 .satisfies(exception -> assertThat(((CircuitFormatException) exception).reason())
                         .isEqualTo(CircuitFormatException.Reason.INVALID_ELEMENT));
     }
+
+    private void assertInvalid(String json) {
+        assertThatThrownBy(() -> importJson(json))
+                .isInstanceOf(CircuitFormatException.class)
+                .satisfies(exception -> assertThat(((CircuitFormatException) exception).reason())
+                        .isEqualTo(CircuitFormatException.Reason.INVALID_ELEMENT));
+    }
+
+    @Test
+    void gateWithoutPositionFails() {
+        assertInvalid("{\"gates\":[{\"type\":\"not\"}],\"connections\":[]}");
+    }
+
+    @Test
+    void gateWithoutTypeFails() {
+        assertInvalid("{\"gates\":[{\"position\":{\"x\":0,\"y\":0}}],\"connections\":[]}");
+    }
+
+    @Test
+    void connectionMissingACoordinateFails() {
+        assertInvalid("{\"gates\":[],\"connections\":[{\"xi\":0,\"yi\":0,\"xf\":8}]}");
+    }
+
+    @Test
+    void connectionsMustBeAnArray() {
+        assertInvalid("{\"gates\":[],\"connections\":{}}");
+    }
+
+    @Test
+    void outOfRangeParameterFails() {
+        assertInvalid("{\"gates\":[{\"type\":\"not\",\"position\":{\"x\":0,\"y\":0},\"parameters\":{\"delay\":0}}],\"connections\":[]}");
+    }
+
+    @Test
+    void nullTextGivesEmptyLabelAndTextOnOtherGatesIsIgnored() throws Exception {
+        CircuitDocument document = importJson("""
+                {"gates":[
+                  {"type":"led","position":{"x":0,"y":0},"parameters":{"text":null}},
+                  {"type":"not","position":{"x":0,"y":0},"parameters":{"text":"ignored"}}
+                ],"connections":[]}
+                """);
+        assertThat(document.components()).extracting(Component::label).containsExactly("", "");
+    }
 }
