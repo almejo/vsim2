@@ -11,7 +11,7 @@ import java.util.Map;
 
 /**
  * Event-driven simulator. Single-threaded: call it only from one thread
- * (see {@code SimulationThread}). State of unchanged components survives {@link #update}.
+ * (see {@link SimulationThread}). State of unchanged components survives {@link #update}.
  */
 public final class SimulationEngine {
 
