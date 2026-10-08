@@ -31,7 +31,8 @@ public final class SimulationThread implements AutoCloseable {
     private boolean running;
     private double speed = 1.0;
     private double pendingUnits;
-    private long lastTickNanos = -1;
+    private boolean firstTick = true;
+    private long lastTickNanos;
 
     public SimulationThread(SimulationEngine engine) {
         this(engine, System::nanoTime);
@@ -88,7 +89,8 @@ public final class SimulationThread implements AutoCloseable {
 
     void tick() {
         long now = nanoClock.getAsLong();
-        long elapsedNanos = lastTickNanos < 0 ? 0 : now - lastTickNanos;
+        long elapsedNanos = firstTick ? 0 : now - lastTickNanos;
+        firstTick = false;
         lastTickNanos = now;
         try {
             Runnable request;
@@ -105,11 +107,12 @@ public final class SimulationThread implements AutoCloseable {
                     engine.advance(units);
                 }
             }
+            latestSnapshot = engine.snapshot().withRunning(running);
         } catch (RuntimeException exception) {
             LOGGER.error("Simulation failed; pausing", exception);
             running = false;
+            latestSnapshot = latestSnapshot.withRunning(false);
         }
-        latestSnapshot = engine.snapshot().withRunning(running);
     }
 
     private void loop() {

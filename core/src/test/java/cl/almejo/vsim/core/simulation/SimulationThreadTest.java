@@ -103,6 +103,33 @@ class SimulationThreadTest {
     }
 
     @Test
+    void stepIsIgnoredWhileRunning() {
+        thread.resume();
+        thread.tick();
+        thread.step(100);
+        thread.tick();
+        assertThat(thread.latestSnapshot().time()).isZero();
+    }
+
+    @Test
+    void engineFailurePausesAndTheThreadKeepsServing() {
+        FlatCircuit broken = new FlatCircuit(List.of(),
+                List.of(new FlatNet("bad", List.of(new FlatPinRef("missing", 0)), 1, false)));
+        thread.update(broken);
+        thread.resume();
+        thread.tick();
+        assertThat(thread.latestSnapshot().running()).isFalse();
+
+        thread.update(FlatCircuit.EMPTY);
+        thread.resume();
+        thread.tick();
+        nanos.addAndGet(5 * MILLISECOND);
+        thread.tick();
+        assertThat(thread.latestSnapshot().running()).isTrue();
+        assertThat(thread.latestSnapshot().time()).isEqualTo(5);
+    }
+
+    @Test
     void speedMustBePositive() {
         assertThatThrownBy(() -> thread.setSpeed(0)).isInstanceOf(IllegalArgumentException.class);
     }
@@ -112,7 +139,7 @@ class SimulationThreadTest {
         try (SimulationThread realThread = new SimulationThread(new SimulationEngine())) {
             realThread.start();
             realThread.update(inverterLoop());
-            realThread.setSpeed(1000.0);
+            realThread.setSpeed(50.0);
             realThread.resume();
             waitUntil(() -> realThread.latestSnapshot().time() > 100);
             realThread.pause();
