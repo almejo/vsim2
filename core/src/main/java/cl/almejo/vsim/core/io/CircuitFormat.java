@@ -72,10 +72,13 @@ public final class CircuitFormat {
     }
 
     public CircuitDocument read(String json) throws CircuitFormatException {
+        if (json == null) {
+            throw new CircuitFormatException(CircuitFormatException.Reason.INVALID_JSON, "json is null");
+        }
         try {
             return read(mapper.readTree(json));
-        } catch (JsonProcessingException exception) {
-            throw new CircuitFormatException(CircuitFormatException.Reason.INVALID_JSON, exception.getOriginalMessage(), exception);
+        } catch (JsonProcessingException | IllegalArgumentException exception) {
+            throw new CircuitFormatException(CircuitFormatException.Reason.INVALID_JSON, exception.getMessage(), exception);
         }
     }
 
@@ -99,16 +102,25 @@ public final class CircuitFormat {
         CircuitDocument document = new CircuitDocument();
         document.setName(file.name());
         for (ComponentEntry entry : Optional.ofNullable(file.components()).orElse(List.of())) {
+            if (entry == null) {
+                throw new CircuitFormatException(CircuitFormatException.Reason.INVALID_ELEMENT, "null entry in components");
+            }
             ComponentType type = registry.find(entry.type()).orElseThrow(() -> new CircuitFormatException(
                     CircuitFormatException.Reason.UNKNOWN_COMPONENT_TYPE, String.valueOf(entry.type())));
             add(document, () -> new Component(new ElementId(entry.id()), type.id(), new GridPoint(entry.x(), entry.y()),
                     Rotation.fromQuarterTurns(entry.rotation()), type.resolveParameters(entry.parameters()), entry.label()));
         }
         for (WireEntry entry : Optional.ofNullable(file.wires()).orElse(List.of())) {
+            if (entry == null) {
+                throw new CircuitFormatException(CircuitFormatException.Reason.INVALID_ELEMENT, "null entry in wires");
+            }
             add(document, () -> new Wire(new ElementId(entry.id()), new GridPoint(entry.x1(), entry.y1()),
                     new GridPoint(entry.x2(), entry.y2())));
         }
         for (LabelEntry entry : Optional.ofNullable(file.labels()).orElse(List.of())) {
+            if (entry == null) {
+                throw new CircuitFormatException(CircuitFormatException.Reason.INVALID_ELEMENT, "null entry in labels");
+            }
             add(document, () -> new TextLabel(new ElementId(entry.id()), new GridPoint(entry.x(), entry.y()), entry.text()));
         }
         return document;

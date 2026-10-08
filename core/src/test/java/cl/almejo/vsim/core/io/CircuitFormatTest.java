@@ -52,6 +52,14 @@ class CircuitFormatTest {
         assertThat(loaded.wires()).isEmpty();
     }
 
+    @Test
+    void nullJsonStringFailsWithInvalidJson() {
+        assertThatThrownBy(() -> format.read((String) null))
+                .isInstanceOf(CircuitFormatException.class)
+                .satisfies(exception -> assertThat(((CircuitFormatException) exception).reason())
+                        .isEqualTo(CircuitFormatException.Reason.INVALID_JSON));
+    }
+
     static Stream<org.junit.jupiter.params.provider.Arguments> brokenFiles() {
         return Stream.of(
                 arguments("{", CircuitFormatException.Reason.INVALID_JSON),
@@ -66,6 +74,12 @@ class CircuitFormatTest {
                 arguments("{\"formatVersion\":2,\"kind\":\"circuit\",\"labels\":[{\"id\":\"l1\",\"x\":0,\"y\":0},{\"id\":\"l1\",\"x\":1,\"y\":1}]}",
                         CircuitFormatException.Reason.INVALID_ELEMENT),
                 arguments("{\"formatVersion\":2,\"kind\":\"circuit\",\"components\":[{\"type\":\"and2\",\"x\":0,\"y\":0}]}",
+                        CircuitFormatException.Reason.INVALID_ELEMENT),
+                arguments("{\"formatVersion\":2,\"kind\":\"circuit\",\"components\":[null]}",
+                        CircuitFormatException.Reason.INVALID_ELEMENT),
+                arguments("{\"formatVersion\":2,\"kind\":\"circuit\",\"wires\":[null]}",
+                        CircuitFormatException.Reason.INVALID_ELEMENT),
+                arguments("{\"formatVersion\":2,\"kind\":\"circuit\",\"labels\":[null]}",
                         CircuitFormatException.Reason.INVALID_ELEMENT));
     }
 
