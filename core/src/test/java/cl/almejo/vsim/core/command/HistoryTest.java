@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class HistoryTest {
 
@@ -84,5 +85,63 @@ class HistoryTest {
         history.redo();
         history.markSaved();
         assertThat(notifications).hasValue(4);
+    }
+
+    @Test
+    void droppingTheSavedCommandMakesTheEmptyStackTheSavedState() {
+        CircuitDocument document = new CircuitDocument();
+        History history = new History(document, 2);
+        history.execute(addLabel(document));
+        history.markSaved();
+        history.execute(addLabel(document));
+        history.execute(addLabel(document));
+        assertThat(history.isModified()).isTrue();
+        history.undo();
+        history.undo();
+        assertThat(history.canUndo()).isFalse();
+        assertThat(history.isModified()).isFalse();
+    }
+
+    @Test
+    void failingUndoAndRedoLeaveTheStacksUnchanged() {
+        CircuitDocument document = new CircuitDocument();
+        History history = new History(document);
+        FailingCommand command = new FailingCommand();
+        history.execute(command);
+
+        command.failing = true;
+        assertThatThrownBy(history::undo).isInstanceOf(IllegalStateException.class);
+        assertThat(history.canUndo()).isTrue();
+        assertThat(history.canRedo()).isFalse();
+
+        command.failing = false;
+        history.undo();
+        command.failing = true;
+        assertThatThrownBy(history::redo).isInstanceOf(IllegalStateException.class);
+        assertThat(history.canUndo()).isFalse();
+        assertThat(history.canRedo()).isTrue();
+    }
+
+    private static final class FailingCommand implements Command {
+        private boolean failing;
+
+        @Override
+        public void apply(CircuitDocument document) {
+            if (failing) {
+                throw new IllegalStateException("apply failed");
+            }
+        }
+
+        @Override
+        public void revert(CircuitDocument document) {
+            if (failing) {
+                throw new IllegalStateException("revert failed");
+            }
+        }
+
+        @Override
+        public String description() {
+            return "command.failing";
+        }
     }
 }

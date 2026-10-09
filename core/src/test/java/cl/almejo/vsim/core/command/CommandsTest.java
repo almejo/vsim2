@@ -1,5 +1,6 @@
 package cl.almejo.vsim.core.command;
 
+import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
@@ -8,6 +9,8 @@ import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
+import cl.almejo.vsim.core.netlist.Netlist;
+import cl.almejo.vsim.core.netlist.NetlistCompiler;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -16,6 +19,7 @@ import java.util.Map;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class CommandsTest {
 
@@ -125,5 +129,59 @@ class CommandsTest {
                 new RotateComponentCommand(gate.id(), true)));
         assertApplyAndRevertRestore(command);
         assertThat(command.description()).isEqualTo("command.paste");
+    }
+
+    private long netCount() {
+        Netlist netlist = new NetlistCompiler(StandardComponentTypes.registry()).compile(document);
+        return document.wires().stream()
+                .map(each -> netlist.netForWire(each.id()).orElseThrow())
+                .distinct()
+                .count();
+    }
+
+    @Test
+    void addWireDoesNotBreakATJunctionByAbsorbingItsBranch() {
+        document.add(new Wire(document.newWireId(), new GridPoint(4, -2), new GridPoint(4, 2)));
+        assertThat(netCount()).isEqualTo(1);
+        Wire extension = new Wire(document.newWireId(), new GridPoint(2, 0), new GridPoint(6, 0));
+        AddWireCommand command = new AddWireCommand(extension);
+        assertApplyAndRevertRestore(command);
+        command.apply(document);
+        assertThat(netCount()).isEqualTo(1);
+        assertThat(document.wire(wire.id())).contains(wire);
+        assertThat(document.wire(extension.id())).contains(extension);
+    }
+
+    @Test
+    void addWireStillMergesTheSafeWiresWhenOneIsKept() {
+        document.add(new Wire(document.newWireId(), new GridPoint(4, -2), new GridPoint(4, 2)));
+        Wire farRight = new Wire(document.newWireId(), new GridPoint(5, 0), new GridPoint(9, 0));
+        document.add(farRight);
+        Wire extension = new Wire(document.newWireId(), new GridPoint(2, 0), new GridPoint(6, 0));
+        new AddWireCommand(extension).apply(document);
+        assertThat(netCount()).isEqualTo(1);
+        assertThat(document.wire(wire.id())).contains(wire);
+        assertThat(document.wire(farRight.id())).isEmpty();
+        assertThat(document.wire(extension.id())).contains(
+                new Wire(extension.id(), new GridPoint(2, 0), new GridPoint(9, 0)));
+    }
+
+    @Test
+    void addWireWithATakenIdFailsWithoutTouchingTheDocument() {
+        Wire clash = new Wire(label.id(), new GridPoint(2, 0), new GridPoint(6, 0));
+        Set<DocumentElement> before = contents();
+        assertThatThrownBy(() -> new AddWireCommand(clash).apply(document))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThat(contents()).isEqualTo(before);
+    }
+
+    @Test
+    void addElementsRollsBackWhenOneFails() {
+        TextLabel fresh = new TextLabel(document.newLabelId(), GridPoint.ORIGIN, "nueva");
+        TextLabel duplicate = new TextLabel(label.id(), GridPoint.ORIGIN, "repetida");
+        Set<DocumentElement> before = contents();
+        AddElementsCommand command = new AddElementsCommand(List.of(fresh, duplicate));
+        assertThatThrownBy(() -> command.apply(document)).isInstanceOf(IllegalArgumentException.class);
+        assertThat(contents()).isEqualTo(before);
     }
 }

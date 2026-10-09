@@ -39,8 +39,11 @@ public final class History {
         redoStack.clear();
         while (undoStack.size() > limit) {
             Command dropped = undoStack.removeLast();
-            if (savedTop == null || dropped == savedTop) {
+            if (savedTop == null) {
                 savedTop = UNREACHABLE;
+            } else if (dropped == savedTop) {
+                // The saved state is the one right after the dropped command: the new empty-stack base.
+                savedTop = null;
             }
         }
         notifyListeners();
@@ -50,8 +53,9 @@ public final class History {
         if (!canUndo()) {
             return;
         }
-        Command command = undoStack.pop();
+        Command command = undoStack.peek();
         command.revert(document);
+        undoStack.pop();
         redoStack.push(command);
         notifyListeners();
     }
@@ -60,8 +64,9 @@ public final class History {
         if (!canRedo()) {
             return;
         }
-        Command command = redoStack.pop();
+        Command command = redoStack.peek();
         command.apply(document);
+        redoStack.pop();
         undoStack.push(command);
         notifyListeners();
     }
