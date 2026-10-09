@@ -272,6 +272,11 @@ public final class PalettePanel extends JPanel {
         return transferHandler.createTransferable(tree);
     }
 
+    /** The drop actions a drag from the palette offers. Package-private for tests. */
+    int dragSourceActions() {
+        return transferHandler.getSourceActions(tree);
+    }
+
     /** The context menu for the entry at {@code path} (null: no entry). Package-private for tests. */
     Optional<JPopupMenu> popupFor(TreePath path) {
         return userMenuProvider.apply(path == null ? Optional.empty() : userComponentOf(path));

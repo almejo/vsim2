@@ -6,12 +6,14 @@ import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.geometry.GridPoint;
+import cl.almejo.vsim.core.library.DefinitionBundle;
 import cl.almejo.vsim.core.library.ExampleDefinitions;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
+import cl.almejo.vsim.ui.panels.PalettePanelAccess;
 import cl.almejo.vsim.ui.tools.FloatingSelectionTool;
 import cl.almejo.vsim.ui.tree.ComponentTreeExtension;
 import cl.almejo.vsim.ui.tree.ComponentTreePanel;
@@ -23,6 +25,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import javax.swing.JTree;
+import javax.swing.TransferHandler;
 import javax.swing.tree.TreeModel;
 import java.awt.Container;
 import java.awt.Point;
@@ -144,6 +147,28 @@ class DragBetweenViewsTest {
                 .satisfies(copy -> assertThat(copy.position()).isEqualTo(new GridPoint(20, 20)));
         assertThat(positionOf(first, gate)).isEqualTo(new GridPoint(5, 5));
         assertThat(first.document().components()).hasSize(1);
+    }
+
+    /**
+     * B's copyRequested ruling with A's palette: a user component dragged from the palette (a COPY-only fragment)
+     * floats where it is dropped; AWT's COPY user action for a COPY-only source is not Ctrl, so it is not pasted.
+     */
+    @Test
+    void aUserComponentDraggedFromThePaletteFloatsInsteadOfBeingPasted() {
+        DefinitionBundle inverter = new DefinitionBundle(ExampleDefinitions.inverter(), List.of());
+        secondView.palette().setUserComponents(List.of(inverter), List.of());
+        secondView.palette().choose(SubcircuitTypes.typeIdOf(ExampleDefinitions.INVERTER));
+        Transferable transferable = PalettePanelAccess.dragTransferable(secondView.palette());
+        int sourceActions = PalettePanelAccess.dragSourceActions(secondView.palette());
+        assertThat(sourceActions).isEqualTo(TransferHandler.COPY);
+
+        boolean copyRequested = CanvasTransferHandler.copyRequested(TransferHandler.COPY, sourceActions);
+        assertThat(handlerOf(secondView.canvas()).importFragment(transferable, new Point(160, 160), copyRequested))
+                .isTrue();
+
+        assertThat(secondView.canvas().tool()).isInstanceOf(FloatingSelectionTool.class);
+        assertThat(second.document().components()).isEmpty();
+        assertThat(second.document().definitions()).isEmpty();
     }
 
     /** The tree of the "Componentes" tab: the first JTree inside the inspector's ComponentTreePanel. */
