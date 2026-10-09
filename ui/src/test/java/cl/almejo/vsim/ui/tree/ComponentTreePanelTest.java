@@ -197,6 +197,17 @@ class ComponentTreePanelTest {
     }
 
     @Test
+    void anEditDropsTheValuesOfTheSnapshotFromTheRevisionBefore() {
+        Component instance = inverterInstance();
+        String input = InstancePath.child(instance.id().value(), "c1");
+        panel.showSnapshot(snapshotWith(Map.of(input, new VisibleState.LedState(Value.ONE))));
+        assertThat(panel.rowText(input)).contains("a · Pin de entrada = 1");
+
+        place(openDocument, StandardComponentTypes.NOT, 20, 10, Map.of()); // bumps the token and rebuilds
+        assertThat(panel.rowText(input)).contains("a · Pin de entrada");
+    }
+
+    @Test
     void aDisposedPanelStopsFollowingTheDocument() {
         panel.dispose();
         Component gate = place(openDocument, StandardComponentTypes.NOT, 20, 10, Map.of());

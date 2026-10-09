@@ -80,6 +80,7 @@ class ComponentTreeExtensionTest {
             int documentListenersPlain = listenerCount(openDocument, "changeListeners");
             int canvasListenersPlain = listenerCount(plainView.canvas(), "snapshotListeners");
             plainView.dispose();
+            int canvasListenersPlainDisposed = listenerCount(plainView.canvas(), "snapshotListeners");
 
             EditorServices services = withoutTree.withExtensions(List.of(new ComponentTreeExtension()));
             EditorView view = new EditorView(openDocument, services, WINDOW);
@@ -90,7 +91,7 @@ class ComponentTreeExtensionTest {
                 view.dispose();
             }
             assertThat(listenerCount(openDocument, "changeListeners")).isEqualTo(documentListenersBefore);
-            assertThat(listenerCount(view.canvas(), "snapshotListeners")).isEqualTo(canvasListenersPlain - 1);
+            assertThat(listenerCount(view.canvas(), "snapshotListeners")).isEqualTo(canvasListenersPlainDisposed);
         }
     }
 
