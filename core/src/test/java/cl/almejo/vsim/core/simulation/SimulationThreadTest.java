@@ -131,6 +131,7 @@ class SimulationThreadTest {
                 message -> assertThat(message).contains("missing"));
         thread.tick();
         assertThat(thread.latestSnapshot().failure()).isPresent();
+        assertThat(thread.latestSnapshot().running()).isFalse();
 
         thread.update(FlatCircuit.EMPTY);
         thread.resume();
