@@ -3,6 +3,13 @@ package cl.almejo.vsim.ui.panels;
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
+import cl.almejo.vsim.core.document.Component;
+import cl.almejo.vsim.core.io.CircuitFragment;
+import cl.almejo.vsim.core.io.FragmentFormat;
+import cl.almejo.vsim.core.library.ComponentDefinition;
+import cl.almejo.vsim.core.library.DefinitionBundle;
+import cl.almejo.vsim.core.library.ExampleDefinitions;
+import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.ui.clipboard.FragmentTransferable;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.Appearance;
@@ -13,12 +20,15 @@ import cl.almejo.vsim.ui.paint.PainterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import javax.swing.Icon;
 import javax.swing.JTextField;
 import javax.swing.TransferHandler;
 import java.awt.Color;
 import java.awt.datatransfer.StringSelection;
+import java.awt.datatransfer.Transferable;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -26,6 +36,9 @@ class PalettePanelTest {
 
     private final ComponentTypeRegistry registry = StandardComponentTypes.registry();
     private final List<String> chosen = new ArrayList<>();
+    private final DefinitionBundle inverterBundle = new DefinitionBundle(ExampleDefinitions.inverter(), List.of());
+    private final DefinitionBundle doubleInverterBundle = DefinitionBundle.of(ExampleDefinitions.doubleInverter(),
+            id -> Optional.of(ExampleDefinitions.inverter()));
     private PalettePanel palette;
 
     @BeforeEach
@@ -127,5 +140,63 @@ class PalettePanelTest {
 
         themed.dispose();
         assertThat(appearance.listenerCount()).isZero();
+    }
+
+    @Test
+    void userComponentsFollowTheCategoriesInTheirOwnSections() {
+        List<String> chosenUser = new ArrayList<>();
+        palette.setUserComponentChooser(component -> chosenUser.add(component.bundle().root().id()));
+        palette.setUserComponents(List.of(inverterBundle), List.of(doubleInverterBundle));
+
+        assertThat(palette.visibleSections()).containsExactly("Básicas", "Entrada/Salida", "Depuración",
+                "Pines de componente", "Mis componentes", "Componentes de este circuito");
+        assertThat(palette.visibleTypeIds()).endsWith("subcircuit:inverter", "subcircuit:double-inverter");
+        palette.setFilter("inversor");
+        assertThat(palette.visibleTypeIds()).containsExactly("subcircuit:inverter", "subcircuit:double-inverter");
+        palette.setFilter("doble inv");
+        assertThat(palette.visibleTypeIds()).containsExactly("subcircuit:double-inverter");
+
+        palette.choose("subcircuit:double-inverter");
+
+        assertThat(chosenUser).containsExactly(ExampleDefinitions.DOUBLE_INVERTER);
+        assertThat(chosen).isEmpty();
+    }
+
+    @Test
+    void draggingAUserComponentCarriesItsDefinitions() throws Exception {
+        palette.setUserComponents(List.of(doubleInverterBundle), List.of());
+        palette.choose("subcircuit:double-inverter");
+
+        Transferable transferable = palette.dragTransferable();
+
+        String json = (String) transferable.getTransferData(FragmentTransferable.FRAGMENT_FLAVOR);
+        CircuitFragment fragment = new FragmentFormat(registry).read(json);
+        assertThat(fragment.definitions())
+                .containsExactly(ExampleDefinitions.inverter(), ExampleDefinitions.doubleInverter());
+        assertThat(fragment.components()).singleElement()
+                .extracting(Component::typeId).isEqualTo("subcircuit:double-inverter");
+    }
+
+    /** Preflight S6: an edit that changes no definition must not rebuild the tree (collapsed rows, highlight). */
+    @Test
+    void theSameUserComponentsKeepTheTreeAndOnlyChangedDefinitionsRedrawTheirIcons() {
+        palette.setUserComponents(List.of(inverterBundle), List.of(doubleInverterBundle));
+        Object model = palette.treeModel();
+        Icon inverterIcon = palette.icon(SubcircuitTypes.typeOf(ExampleDefinitions.inverter()));
+        Icon doubleInverterIcon = palette.icon(SubcircuitTypes.typeOf(ExampleDefinitions.doubleInverter()));
+
+        palette.setUserComponents(List.of(new DefinitionBundle(ExampleDefinitions.inverter(), List.of())),
+                List.of(doubleInverterBundle));
+        assertThat(palette.treeModel()).isSameAs(model);
+
+        ComponentDefinition original = ExampleDefinitions.inverter();
+        ComponentDefinition renamed = new ComponentDefinition(original.id(), "Negador", "", original.size(),
+                original.pinout(), original.body());
+        palette.setUserComponents(List.of(new DefinitionBundle(renamed, List.of())), List.of(doubleInverterBundle));
+
+        assertThat(palette.treeModel()).isNotSameAs(model);
+        assertThat(palette.icon(SubcircuitTypes.typeOf(renamed))).isNotSameAs(inverterIcon);
+        assertThat(palette.icon(SubcircuitTypes.typeOf(ExampleDefinitions.doubleInverter())))
+                .isSameAs(doubleInverterIcon);
     }
 }
