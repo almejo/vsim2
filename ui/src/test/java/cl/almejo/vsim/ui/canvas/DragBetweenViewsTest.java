@@ -14,6 +14,7 @@ import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.tools.FloatingSelectionTool;
 import cl.almejo.vsim.ui.tree.ComponentTreeExtension;
+import cl.almejo.vsim.ui.tree.ComponentTreePanel;
 import cl.almejo.vsim.ui.window.EditorServices;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.WindowCommands;
@@ -145,13 +146,19 @@ class DragBetweenViewsTest {
         assertThat(first.document().components()).hasSize(1);
     }
 
+    /** The tree of the "Componentes" tab: the first JTree inside the inspector's ComponentTreePanel. */
     private static JTree treeOf(java.awt.Component root) {
-        if (root instanceof JTree tree) {
-            return tree;
+        ComponentTreePanel panel = first(root, ComponentTreePanel.class);
+        return panel == null ? null : first(panel, JTree.class);
+    }
+
+    private static <T> T first(java.awt.Component root, Class<T> kind) {
+        if (kind.isInstance(root)) {
+            return kind.cast(root);
         }
         if (root instanceof Container container) {
             for (java.awt.Component child : container.getComponents()) {
-                JTree found = treeOf(child);
+                T found = first(child, kind);
                 if (found != null) {
                     return found;
                 }
