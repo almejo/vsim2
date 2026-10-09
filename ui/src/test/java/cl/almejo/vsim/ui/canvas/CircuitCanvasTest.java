@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.canvas;
 
+import cl.almejo.vsim.core.command.RemoveElementsCommand;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
@@ -555,7 +556,7 @@ class CircuitCanvasTest {
         String json = (String) transferable.getTransferData(FragmentTransferable.FRAGMENT_FLAVOR);
         assertThat(new FragmentFormat(openDocument.registry()).read(json).components())
                 .singleElement().satisfies(copy -> assertThat(copy.typeId()).isEqualTo(StandardComponentTypes.NOT));
-        assertThat(handler.getSourceActions(canvas)).isEqualTo(TransferHandler.COPY);
+        assertThat(handler.getSourceActions(canvas)).isEqualTo(TransferHandler.COPY_OR_MOVE);
     }
 
     @Test
@@ -709,7 +710,7 @@ class CircuitCanvasTest {
         Transferable transferable = dragOut(canvas, 56, 56);
         canvas.endDragOut(); // exportDone arrived before the drop was handled
 
-        assertThat(handlerOf(canvas).importFragment(transferable, new Point(80, 72))).isTrue();
+        assertThat(handlerOf(canvas).importFragment(transferable, new Point(80, 72), false)).isTrue();
 
         assertThat(openDocument.document().components()).singleElement()
                 .satisfies(moved -> assertThat(moved.position()).isEqualTo(new GridPoint(8, 7)));
@@ -740,5 +741,154 @@ class CircuitCanvasTest {
         canvas.setSize(400, 300);
         canvas.dragOutOver(new Point(200, 160));
         assertThat(canvas.dragOutPreview()).isEmpty();
+    }
+
+    @Test
+    void onlyACopyFromASourceThatAlsoOffersMoveCountsAsCtrl() {
+        assertThat(CanvasTransferHandler.copyRequested(TransferHandler.COPY, TransferHandler.COPY_OR_MOVE)).isTrue();
+        assertThat(CanvasTransferHandler.copyRequested(TransferHandler.MOVE, TransferHandler.COPY_OR_MOVE)).isFalse();
+        assertThat(CanvasTransferHandler.copyRequested(TransferHandler.COPY, TransferHandler.COPY)).isFalse();
+    }
+
+    private final CanvasHost quietHost = new CanvasHost() {
+        @Override
+        public void showContextMenu(CircuitCanvas source, Optional<DocumentElement> target, Point2D screenPosition) {
+        }
+
+        @Override
+        public void configure(Component component) {
+        }
+    };
+
+    private CircuitCanvas canvasOf(OpenDocument document) {
+        CircuitCanvas view = new CircuitCanvas(document,
+                new CircuitRenderer(document.registry(), PainterRegistry.standard(), ColorScheme.LIGHT), quietHost);
+        view.setSize(400, 300);
+        return view;
+    }
+
+    @Test
+    void aDropOnAnotherViewOfTheSameDocumentMovesAsOneStep() {
+        canvas.setSize(400, 300);
+        Component gate = place(openDocument, StandardComponentTypes.NOT, 5, 5, Map.of());
+        CircuitCanvas secondView = canvasOf(openDocument);
+        try {
+            Transferable transferable = dragOut(canvas, 56, 56);
+            assertThat(handlerOf(secondView).importFragment(transferable, new Point(160, 160), false)).isTrue();
+
+            assertThat(openDocument.document().components()).singleElement()
+                    .satisfies(moved -> assertThat(moved.position()).isEqualTo(new GridPoint(18, 18)));
+            assertThat(openDocument.history().undoDescription()).contains("command.move");
+            assertThat(secondView.selection().ids()).containsExactly(gate.id());
+            assertThat(canvas.isDraggingOut()).isFalse();
+            openDocument.history().undo();
+            assertThat(openDocument.document().component(gate.id()).orElseThrow().position())
+                    .isEqualTo(new GridPoint(5, 5));
+        } finally {
+            secondView.dispose();
+        }
+    }
+
+    @Test
+    void controlAtTheDropCopiesIntoTheSameDocument() {
+        canvas.setSize(400, 300);
+        Component gate = place(openDocument, StandardComponentTypes.NOT, 5, 5, Map.of());
+        CircuitCanvas secondView = canvasOf(openDocument);
+        try {
+            Transferable transferable = dragOut(canvas, 56, 56);
+            assertThat(handlerOf(secondView).importFragment(transferable, new Point(160, 160), true)).isTrue();
+
+            assertThat(openDocument.document().components()).hasSize(2);
+            assertThat(openDocument.document().component(gate.id()).orElseThrow().position())
+                    .isEqualTo(new GridPoint(5, 5));
+            Component copy = openDocument.document().components().get(1);
+            assertThat(copy.position()).isEqualTo(new GridPoint(18, 18));
+            assertThat(secondView.selection().ids()).containsExactly(copy.id());
+            assertThat(openDocument.history().undoDescription()).contains("command.paste");
+            openDocument.history().undo();
+            assertThat(openDocument.document().components()).containsExactly(gate);
+        } finally {
+            secondView.dispose();
+        }
+    }
+
+    @Test
+    void controlAtTheDropOnItsOwnCanvasCopiesToo() {
+        canvas.setSize(400, 300);
+        place(openDocument, StandardComponentTypes.NOT, 5, 5, Map.of());
+        Transferable transferable = dragOut(canvas, 56, 56);
+        assertThat(handlerOf(canvas).importFragment(transferable, new Point(160, 160), true)).isTrue();
+        assertThat(openDocument.document().components()).extracting(Component::position)
+                .containsExactly(new GridPoint(5, 5), new GridPoint(18, 18));
+        assertThat(canvas.isDraggingOut()).isFalse();
+    }
+
+    @Test
+    void controlAtTheDropCopiesIntoAnotherDocumentWhereTheGrabbedPointLands() {
+        canvas.setSize(400, 300);
+        place(openDocument, StandardComponentTypes.NOT, 5, 5, Map.of());
+        try (OpenDocument other = OpenDocument.createEmpty(StandardComponentTypes.registry())) {
+            CircuitCanvas otherView = canvasOf(other);
+            try {
+                Transferable transferable = dragOut(canvas, 56, 56);
+                assertThat(handlerOf(otherView).importFragment(transferable, new Point(160, 160), true)).isTrue();
+
+                assertThat(other.document().components()).singleElement()
+                        .satisfies(copy -> assertThat(copy.position()).isEqualTo(new GridPoint(18, 18)));
+                assertThat(other.history().undoDescription()).contains("command.paste");
+                assertThat(otherView.tool()).isSameAs(otherView.defaultTool());
+                assertThat(openDocument.document().components()).singleElement()
+                        .satisfies(original -> assertThat(original.position()).isEqualTo(new GridPoint(5, 5)));
+            } finally {
+                otherView.dispose();
+            }
+        }
+    }
+
+    @Test
+    void aDropOnAnotherDocumentFloatsACopy() {
+        canvas.setSize(400, 300);
+        place(openDocument, StandardComponentTypes.NOT, 5, 5, Map.of());
+        try (OpenDocument other = OpenDocument.createEmpty(StandardComponentTypes.registry())) {
+            CircuitCanvas otherView = canvasOf(other);
+            try {
+                Transferable transferable = dragOut(canvas, 56, 56);
+                assertThat(handlerOf(otherView).importFragment(transferable, new Point(160, 160), false)).isTrue();
+
+                assertThat(otherView.tool()).isInstanceOfSatisfying(FloatingSelectionTool.class,
+                        floating -> assertThat(floating.position()).isEqualTo(new GridPoint(20, 20)));
+                assertThat(other.document().isEmpty()).isTrue();
+                assertThat(openDocument.document().components()).hasSize(1);
+            } finally {
+                otherView.dispose();
+            }
+        }
+    }
+
+    @Test
+    void aMoveSkipsElementsThatNoLongerExist() {
+        canvas.setSize(400, 300);
+        Component gate = place(openDocument, StandardComponentTypes.NOT, 5, 5, Map.of());
+        Component led = place(openDocument, StandardComponentTypes.LED, 20, 5, Map.of());
+        canvas.selection().set(List.of(gate.id(), led.id()));
+        CircuitCanvas secondView = canvasOf(openDocument);
+        try {
+            Transferable transferable = dragOut(canvas, 56, 56);
+            openDocument.execute(new RemoveElementsCommand(List.of(led.id())));
+
+            assertThat(handlerOf(secondView).importFragment(transferable, new Point(160, 160), false)).isTrue();
+            assertThat(openDocument.document().components()).singleElement()
+                    .satisfies(moved -> assertThat(moved.position()).isEqualTo(new GridPoint(18, 18)));
+            assertThat(openDocument.history().undoDescription()).contains("command.move");
+
+            Transferable second = dragOut(canvas, 160, 160);
+            openDocument.execute(new RemoveElementsCommand(List.of(gate.id())));
+            Optional<String> lastStep = openDocument.history().undoDescription();
+            assertThat(handlerOf(secondView).importFragment(second, new Point(80, 80), false)).isTrue();
+            assertThat(openDocument.history().undoDescription()).isEqualTo(lastStep);
+            assertThat(openDocument.document().components()).isEmpty();
+        } finally {
+            secondView.dispose();
+        }
     }
 }

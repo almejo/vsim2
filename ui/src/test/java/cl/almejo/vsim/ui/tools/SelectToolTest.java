@@ -679,4 +679,23 @@ class SelectToolTest {
         tool.mousePressed(context, TestToolContext.at(0, 2)); // the NOT input pin: draws a wire
         assertThat(tool.autoscrolls()).isFalse();
     }
+
+    @Test
+    void controlHeldAtTheReleaseCopiesTheSelectionAsOneUndoStep() {
+        Component gate = not(0, 0);
+        tool.mousePressed(context, TestToolContext.at(2, 2));
+        tool.mouseDragged(context, TestToolContext.at(5, 3));
+        tool.mouseReleased(context, TestToolContext.withModifiers(5, 3, false, true));
+
+        List<Component> components = context.openDocument().document().components();
+        assertThat(components).hasSize(2);
+        assertThat(context.openDocument().document().component(gate.id()).orElseThrow().position())
+                .isEqualTo(GridPoint.ORIGIN);
+        Component copy = components.get(1);
+        assertThat(copy.position()).isEqualTo(new GridPoint(3, 1));
+        assertThat(context.selection.ids()).containsExactly(copy.id());
+        assertThat(context.openDocument().history().undoDescription()).contains("command.paste");
+        context.openDocument().history().undo();
+        assertThat(context.openDocument().document().components()).containsExactly(gate);
+    }
 }

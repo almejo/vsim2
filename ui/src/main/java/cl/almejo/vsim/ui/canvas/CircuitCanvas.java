@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.canvas;
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.command.MoveElementsCommand;
+import cl.almejo.vsim.core.command.PasteCommand;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentChange;
@@ -175,14 +176,22 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         return dropFragment(fragmentJson, Optional.empty(), screenPoint);
     }
 
-    /**
-     * Like {@link #dropFragment(String, Point)}, with the {@code origin} the drag carried. A drag out of this canvas
-     * ({@code origin}, or the drag out still in progress) is a move by the distance from its press to the drop.
-     */
+    /** Like {@link #dropFragment(String, Optional, Point, boolean)} without Ctrl. */
     boolean dropFragment(String fragmentJson, Optional<DragOrigin> origin, Point screenPoint) {
+        return dropFragment(fragmentJson, origin, screenPoint, false);
+    }
+
+    /**
+     * Drops a fragment at {@code screenPoint}, with the {@code origin} the drag carried (or this canvas's own drag out
+     * in progress). From a view of this document and without {@code copyRequested}: the dragged elements move by the
+     * distance from the press to the drop (one step). With {@code copyRequested} (Ctrl): a copy is pasted at once so
+     * the grabbed point lands under the pointer, and selected (one step). Otherwise the fragment floats with its
+     * top-left at the drop point. False, changing nothing, when the text is not a usable fragment.
+     */
+    boolean dropFragment(String fragmentJson, Optional<DragOrigin> origin, Point screenPoint, boolean copyRequested) {
         GridPoint at = viewport.snap(screenPoint.x, screenPoint.y);
         Optional<DragOrigin> source = origin.or(() -> Optional.ofNullable(dragOut));
-        if (source.isPresent() && source.get().canvas() == this) {
+        if (source.isPresent() && !copyRequested && source.get().canvas().openDocument() == openDocument) {
             moveHere(source.get(), at);
             return true;
         }
@@ -190,7 +199,16 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         if (fragment.isEmpty()) {
             return false;
         }
-        setTool(new FloatingSelectionTool(fragment.get(), at));
+        source.ifPresent(drag -> drag.canvas().endDragOut());
+        if (copyRequested) {
+            GridPoint offset = source.map(DragOrigin::grabOffset).orElse(GridPoint.ORIGIN);
+            useDefaultTool();
+            PasteCommand paste = new PasteCommand(fragment.get(), at.translate(-offset.x(), -offset.y()));
+            openDocument.execute(paste);
+            selection.set(paste.pastedIds());
+        } else {
+            setTool(new FloatingSelectionTool(fragment.get(), at));
+        }
         requestFocusInWindow();
         return true;
     }
@@ -773,7 +791,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
             if (!CircuitCanvas.this.contains(event.getPoint()) && overAnotherWindow.test(event.getPoint())
                     && beginDragOut()) {
                 stopAutoscroll();
-                getTransferHandler().exportAsDrag(CircuitCanvas.this, event, TransferHandler.COPY);
+                getTransferHandler().exportAsDrag(CircuitCanvas.this, event, TransferHandler.MOVE);
                 return;
             }
             tool.mouseDragged(CircuitCanvas.this, convert(event));
