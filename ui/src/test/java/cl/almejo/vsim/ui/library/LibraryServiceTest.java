@@ -174,6 +174,37 @@ class LibraryServiceTest {
         assertThat(library.entries()).isEmpty();
     }
 
+    /** Review M8: a watcher load that began before a save must not hide the saved component. */
+    @Test
+    void aLoadThatBeganBeforeASaveDoesNotHideTheSavedComponent() throws Exception {
+        Path components = directory.resolve("components");
+        preferences.setLibraryDirectory(Optional.of(components));
+        Queue<Runnable> handedOver = new ConcurrentLinkedQueue<>();
+        service = new LibraryService(preferences, library, registry, handedOver::add);
+        service.start();
+        DefinitionBundle external = new DefinitionBundle(ExampleDefinitions.doubleInverter(),
+                List.of(ExampleDefinitions.inverter()));
+
+        new LibraryDirectory(components, registry).write(external); // an outside change: the watcher loads it
+        LibraryWatcherTest.eventually(() -> !handedOver.isEmpty());
+        List<Runnable> staleLoads = List.copyOf(handedOver);
+        handedOver.clear();
+        service.save(inverter); // on the EDT, while the stale load waits to be applied
+        staleLoads.forEach(Runnable::run);
+
+        assertThat(library.find("inverter")).contains(inverter);
+
+        // the save's own watch event brings a fresh load with both
+        LibraryWatcherTest.eventually(() -> {
+            Runnable next = handedOver.poll();
+            if (next != null) {
+                next.run();
+            }
+            return library.find(ExampleDefinitions.DOUBLE_INVERTER).isPresent();
+        });
+        assertThat(library.find("inverter")).contains(inverter);
+    }
+
     @Test
     void aDeletedLibraryDirectoryIsReportedUntilAnotherDirectoryIsWatched() throws Exception {
         Path components = directory.resolve("components");

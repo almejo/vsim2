@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executor;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * The user's component library for the whole application (spec §5.6): the directory chosen in the preferences,
@@ -36,6 +37,11 @@ public final class LibraryService implements AutoCloseable {
     private final Executor uiExecutor;
     private final List<Runnable> problemListeners = new CopyOnWriteArrayList<>();
     private final Runnable preferencesListener = this::followDirectoryPreference;
+    /**
+     * Counts the writes made through this service (save, remove, rename). A watcher load that began before the last
+     * one is stale: applying it would hide what was just written until the write's own watch event reloads.
+     */
+    private final AtomicLong writes = new AtomicLong();
     private volatile LibraryDirectory directory;
     private volatile List<LibraryProblem> problems = List.of();
     private List<LibraryProblem> loadProblems = List.of();
@@ -106,16 +112,19 @@ public final class LibraryService implements AutoCloseable {
     /** Writes the file (creating the directory) and puts the bundle in the library. */
     public void save(DefinitionBundle bundle) throws IOException {
         directory.write(bundle);
+        writes.incrementAndGet();
         library.put(bundle);
     }
 
     public void remove(String id) throws IOException {
         directory.delete(id);
+        writes.incrementAndGet();
         library.remove(id);
     }
 
     public DefinitionBundle rename(String id, String newName) throws IOException {
         DefinitionBundle renamed = directory.rename(require(id), newName);
+        writes.incrementAndGet();
         library.put(renamed);
         return renamed;
     }
@@ -182,9 +191,12 @@ public final class LibraryService implements AutoCloseable {
         }
     }
 
-    /** A load the watcher handed over: dropped once the service is closed. */
-    private synchronized void applyWatched(LibraryDirectory source, LibraryLoad load) {
-        if (started) {
+    /**
+     * A load the watcher handed over: dropped once the service is closed, and when a write was made after it began
+     * ({@code writesBefore} is the count it saw). The write's own watch event brings a fresh load.
+     */
+    private synchronized void applyWatched(LibraryDirectory source, LibraryLoad load, long writesBefore) {
+        if (started && writesBefore == writes.get()) {
             apply(source, load);
         }
     }
@@ -211,8 +223,9 @@ public final class LibraryService implements AutoCloseable {
     private void startWatcher() {
         LibraryDirectory watched = directory;
         LibraryWatcher next = new LibraryWatcher(watched.directory(), LibraryWatcher.DEBOUNCE, () -> {
+            long writesBefore = writes.get(); // read before the directory, so a write during the load drops it
             LibraryLoad load = watched.load();
-            uiExecutor.execute(() -> applyWatched(watched, load));
+            uiExecutor.execute(() -> applyWatched(watched, load, writesBefore));
         }, () -> uiExecutor.execute(() -> watcherGone(watched)));
         try {
             next.start();
