@@ -96,9 +96,7 @@ final class PainterSupport {
      */
     static void uprightText(Graphics2D graphics, String text, double anchorX, double anchorY, float size, Color color,
                             double alignment) {
-        AffineTransform transform = graphics.getTransform();
-        double angle = Math.atan2(transform.getShearY(), transform.getScaleX());
-        double quarterTurns = Math.round(angle / (Math.PI / 2));
+        int quarterTurns = quarterTurns(graphics);
         Graphics2D upright = (Graphics2D) graphics.create();
         try {
             upright.rotate(-quarterTurns * Math.PI / 2, anchorX, anchorY);
@@ -110,6 +108,29 @@ final class PainterSupport {
                     (float) (anchorY + (metrics.getAscent() - metrics.getDescent()) / 2.0));
         } finally {
             upright.dispose();
+        }
+    }
+
+    /** The rotation of {@code graphics}' transform in quarter turns, from -2 to 2 (0 and ±2: texts run along local x). */
+    static int quarterTurns(Graphics2D graphics) {
+        AffineTransform transform = graphics.getTransform();
+        return (int) Math.round(Math.atan2(transform.getShearY(), transform.getScaleX()) / (Math.PI / 2));
+    }
+
+    /** True when the local x axis is vertical on screen (R90, R270), so an upright text runs along local y. */
+    static boolean turnedSideways(Graphics2D graphics) {
+        return Math.abs(quarterTurns(graphics)) % 2 == 1;
+    }
+
+    /** Like {@link #centeredText} but nothing is drawn outside {@code area} (local coordinates). */
+    static void centeredText(Graphics2D graphics, Shape area, String text, double centerX, double centerY, float size,
+                             Color color) {
+        Graphics2D clipped = (Graphics2D) graphics.create();
+        try {
+            clipped.clip(area);
+            centeredText(clipped, text, centerX, centerY, size, color);
+        } finally {
+            clipped.dispose();
         }
     }
 
