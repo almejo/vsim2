@@ -16,6 +16,8 @@ final class ComponentInstance implements BehaviorContext {
     final Behavior behavior;
     final PinState[] pins;
     boolean removed;
+    /** Set when the update that created this instance failed; such an instance is never reused. */
+    boolean initializationFailed;
     private final SimulationEngine engine;
 
     ComponentInstance(SimulationEngine engine, FlatComponent component) {
@@ -31,7 +33,8 @@ final class ComponentInstance implements BehaviorContext {
     }
 
     boolean matches(FlatComponent component) {
-        return type.id().equals(component.type().id())
+        return !initializationFailed
+                && type.id().equals(component.type().id())
                 && type.resolveParameters(parameters).equals(type.resolveParameters(component.parameters()));
     }
 

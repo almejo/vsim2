@@ -58,6 +58,17 @@ public final class SimulationEngine {
             }
         }
         instances = nextInstances;
+        try {
+            rewireAndInitialize(circuit, created);
+        } catch (RuntimeException exception) {
+            created.forEach(instance -> instance.initializationFailed = true);
+            throw exception;
+        }
+        token = circuit.token();
+        revision++;
+    }
+
+    private void rewireAndInitialize(FlatCircuit circuit, List<ComponentInstance> created) {
         for (ComponentInstance instance : instances.values()) {
             for (PinState pin : instance.pins) {
                 pin.net = null;
@@ -102,8 +113,6 @@ public final class SimulationEngine {
         // so replacing a component never exposes a transient Z to its neighbours.
         scheduler.runUntil(now());
         nets.values().forEach(this::deliver);
-        token = circuit.token();
-        revision++;
     }
 
     private static void validate(FlatCircuit circuit) {
