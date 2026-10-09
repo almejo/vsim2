@@ -3,6 +3,7 @@ package cl.almejo.vsim.core.io;
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.document.CircuitDocument;
+import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.TextLabel;
@@ -36,6 +37,20 @@ public final class CircuitFormat {
     record LabelEntry(String id, int x, int y, String text) {
     }
 
+    static ComponentEntry componentEntry(Component component) {
+        return new ComponentEntry(component.id().value(), component.typeId(), component.position().x(),
+                component.position().y(), component.rotation().quarterTurns(), component.label(),
+                new TreeMap<>(component.parameters()));
+    }
+
+    static WireEntry wireEntry(Wire wire) {
+        return new WireEntry(wire.id().value(), wire.start().x(), wire.start().y(), wire.end().x(), wire.end().y());
+    }
+
+    static LabelEntry labelEntry(TextLabel label) {
+        return new LabelEntry(label.id().value(), label.position().x(), label.position().y(), label.text());
+    }
+
     record CircuitFile(int formatVersion, String kind, String name, List<ComponentEntry> components,
                        List<WireEntry> wires, List<LabelEntry> labels) {
     }
@@ -51,20 +66,9 @@ public final class CircuitFormat {
 
     public String write(CircuitDocument document) {
         CircuitFile file = new CircuitFile(FORMAT_VERSION, KIND_CIRCUIT, document.name(),
-                document.components().stream()
-                        .map(component -> new ComponentEntry(component.id().value(), component.typeId(),
-                                component.position().x(), component.position().y(),
-                                component.rotation().quarterTurns(), component.label(),
-                                new TreeMap<>(component.parameters())))
-                        .toList(),
-                document.wires().stream()
-                        .map(wire -> new WireEntry(wire.id().value(), wire.start().x(), wire.start().y(),
-                                wire.end().x(), wire.end().y()))
-                        .toList(),
-                document.labels().stream()
-                        .map(label -> new LabelEntry(label.id().value(), label.position().x(), label.position().y(),
-                                label.text()))
-                        .toList());
+                document.components().stream().map(CircuitFormat::componentEntry).toList(),
+                document.wires().stream().map(CircuitFormat::wireEntry).toList(),
+                document.labels().stream().map(CircuitFormat::labelEntry).toList());
         try {
             return mapper.writeValueAsString(file);
         } catch (JsonProcessingException exception) {
