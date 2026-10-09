@@ -189,4 +189,18 @@ class CircuitFlattenerTest {
         assertThat(InstancePath.depth("c5/c2/c1")).isEqualTo(2);
         assertThat(InstancePath.segments("c5/c2")).containsExactly("c5", "c2");
     }
+
+    @Test
+    void componentsReachTheEngineWithTheShapeOfTheirParameters() {
+        Component splitter = registry.require(StandardComponentTypes.BUS_SPLITTER).newComponent(new ElementId("c1"),
+                GridPoint.ORIGIN, Rotation.R0, Map.of(StandardComponentTypes.WIDTH, 2), "");
+        document.add(splitter);
+        FlatCircuit flat = new CircuitFlattener(registry).flatten(document,
+                new NetlistCompiler(registry).compile(document));
+        assertThat(flat.components()).singleElement().satisfies(component -> {
+            assertThat(component.type().pinCount()).isEqualTo(3);
+            assertThat(component.type().pin(0).width()).isEqualTo(2);
+        });
+        assertThat(simulate(flat).failure()).isEmpty();
+    }
 }

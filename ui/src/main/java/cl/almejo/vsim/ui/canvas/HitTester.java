@@ -35,7 +35,7 @@ public final class HitTester {
         List<Component> components = document.components();
         for (int index = components.size() - 1; index >= 0; index--) {
             Component component = components.get(index);
-            Bounds bounds = registry.require(component.typeId()).bounds(component);
+            Bounds bounds = registry.typeOf(component).bounds(component);
             if (gridPoint.getX() >= bounds.x() && gridPoint.getX() <= bounds.maximumX()
                     && gridPoint.getY() >= bounds.y() && gridPoint.getY() <= bounds.maximumY()) {
                 return Optional.of(component);

@@ -159,4 +159,16 @@ class ProblemTextTest {
         assertThat(ProblemText.describe(mismatch, nested, types))
                 .isEqualTo("⚠ Anchos incompatibles: U1 › U3 (NOT) (1 bit)");
     }
+
+    @Test
+    void aMismatchNamesTheWidthOfEachPinAsItsComponentHasIt() {
+        Component splitter = registry.require(StandardComponentTypes.BUS_SPLITTER).newComponent(
+                document.newComponentId(), new GridPoint(20, 0), Rotation.R0,
+                Map.of(StandardComponentTypes.WIDTH, 4), "");
+        document.add(splitter);
+        WidthMismatch mismatch = new WidthMismatch("n:1", List.of(new FlatPinRef(splitter.id().value(), 0),
+                new FlatPinRef(notGate.id().value(), 0)));
+        assertThat(ProblemText.describe(mismatch, document, registry))
+                .isEqualTo("⚠ Anchos incompatibles: Separador de bus (4 bits) · NOT (1 bit)");
+    }
 }

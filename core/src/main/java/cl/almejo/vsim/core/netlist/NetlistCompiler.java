@@ -38,7 +38,7 @@ public final class NetlistCompiler {
         Map<GridPoint, List<PinRef>> pinsAtPoint = new LinkedHashMap<>();
         Map<PinRef, Integer> pinWidths = new HashMap<>();
         for (Component component : document.components()) {
-            ComponentType type = registry.require(component.typeId());
+            ComponentType type = registry.typeOf(component);
             for (int pinIndex = 0; pinIndex < type.pinCount(); pinIndex++) {
                 PinRef pin = new PinRef(component.id(), pinIndex);
                 pinsAtPoint.computeIfAbsent(type.pinLocation(component, pinIndex), point -> new ArrayList<>()).add(pin);

@@ -140,7 +140,7 @@ public final class TemplateActions {
      */
     public void disassemble(Component instance) {
         ComponentTypeRegistry registry = openDocument.registry();
-        Optional<ComponentDefinition> definition = SubcircuitTypes.definitionOf(registry.require(instance.typeId()));
+        Optional<ComponentDefinition> definition = SubcircuitTypes.definitionOf(registry.typeOf(instance));
         if (definition.isEmpty()) {
             return;
         }

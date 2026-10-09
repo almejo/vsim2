@@ -1,5 +1,9 @@
 package cl.almejo.vsim.core.netlist;
 
+import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
+import cl.almejo.vsim.core.component.ComponentTypeRegistry;
+import cl.almejo.vsim.core.component.ComponentType;
+import cl.almejo.vsim.core.command.ChangeParametersCommand;
 import cl.almejo.vsim.core.TestComponentTypes;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
@@ -154,5 +158,43 @@ class NetlistCompilerTest {
         assertThat(net.width()).isEqualTo(1);
         assertThat(net.widthMismatch()).isFalse();
         assertThat(net.points()).containsExactlyInAnyOrder(new GridPoint(0, 0), new GridPoint(4, 0));
+    }
+
+    private final ComponentTypeRegistry standard = StandardComponentTypes.registry();
+
+    private Component splitter(int width) {
+        Component splitter = standard.require(StandardComponentTypes.BUS_SPLITTER).newComponent(new ElementId("c1"),
+                GridPoint.ORIGIN, Rotation.R0, Map.of(StandardComponentTypes.WIDTH, width), "");
+        document.add(splitter);
+        return splitter;
+    }
+
+    @Test
+    void aSplitterNarrowerThanItsDefaultHasOnlyItsOwnPins() {
+        Component splitter = splitter(2);
+        Netlist netlist = new NetlistCompiler(standard).compile(document);
+        assertThat(netlist.nets()).hasSize(3);
+        assertThat(netlist.netForPin(new PinRef(splitter.id(), 0)))
+                .hasValueSatisfying(net -> assertThat(net.width()).isEqualTo(2));
+        assertThat(netlist.netForPin(new PinRef(splitter.id(), 3))).isEmpty();
+    }
+
+    @Test
+    void changingAWidthMovesThePinsAndUndoRestoresThem() {
+        Component splitter = splitter(4);
+        ElementId tap = wire(2, 4, 6, 4); // b3 of the 4-bit splitter is at (2, 4)
+        NetlistCompiler standardCompiler = new NetlistCompiler(standard);
+        assertThat(standardCompiler.compile(document).netForWire(tap).orElseThrow().pins())
+                .containsExactly(new PinRef(splitter.id(), 4));
+
+        ComponentType splitterType = standard.require(StandardComponentTypes.BUS_SPLITTER);
+        ChangeParametersCommand narrower = new ChangeParametersCommand(splitter.id(), splitterType,
+                Map.of(StandardComponentTypes.WIDTH, 2));
+        narrower.apply(document);
+        assertThat(standardCompiler.compile(document).netForWire(tap).orElseThrow().pins()).isEmpty();
+
+        narrower.revert(document);
+        assertThat(standardCompiler.compile(document).netForWire(tap).orElseThrow().pins())
+                .containsExactly(new PinRef(splitter.id(), 4));
     }
 }

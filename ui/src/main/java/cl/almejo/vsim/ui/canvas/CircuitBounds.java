@@ -18,7 +18,7 @@ public final class CircuitBounds {
     public static Optional<Bounds> of(CircuitDocument document, ComponentTypeRegistry registry) {
         Bounds result = null;
         for (Component component : document.components()) {
-            Bounds bounds = registry.require(component.typeId()).bounds(component);
+            Bounds bounds = registry.typeOf(component).bounds(component);
             result = result == null ? bounds : result.union(bounds);
         }
         for (Wire wire : document.wires()) {

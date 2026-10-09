@@ -98,7 +98,7 @@ public final class SimulateCommandLine {
     private static List<Probe> terminalOutputs(CircuitDocument document, ComponentTypeRegistry registry, Netlist netlist) {
         List<Probe> probes = new ArrayList<>();
         for (Component component : document.components()) {
-            ComponentType type = registry.require(component.typeId());
+            ComponentType type = registry.typeOf(component);
             List<Integer> terminalPins = new ArrayList<>();
             for (int pinIndex = 0; pinIndex < type.pinCount(); pinIndex++) {
                 if (!type.pin(pinIndex).isDriver() || component.typeId().equals(StandardComponentTypes.SWITCH)) {
@@ -106,7 +106,7 @@ public final class SimulateCommandLine {
                 }
                 Net net = netlist.netForPin(new PinRef(component.id(), pinIndex)).orElseThrow();
                 boolean feedsSomething = net.pins().stream().anyMatch(pin -> !pin.componentId().equals(component.id())
-                        && registry.require(document.component(pin.componentId()).orElseThrow().typeId())
+                        && registry.typeOf(document.component(pin.componentId()).orElseThrow())
                         .pin(pin.pinIndex()).isInput());
                 if (!feedsSomething) {
                     terminalPins.add(pinIndex);

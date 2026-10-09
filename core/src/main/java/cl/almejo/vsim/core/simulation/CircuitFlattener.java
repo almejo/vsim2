@@ -94,7 +94,7 @@ public final class CircuitFlattener {
             }
             for (Component component : levelComponents) {
                 String flatId = prefix + component.id().value();
-                ComponentType type = registry.require(component.typeId());
+                ComponentType type = registry.typeOf(component);
                 Optional<ComponentDefinition> definition = SubcircuitTypes.definitionOf(type);
                 if (definition.isPresent()) {
                     expand(flatId, component, definition.get(), levelNetlist, prefix, depth);

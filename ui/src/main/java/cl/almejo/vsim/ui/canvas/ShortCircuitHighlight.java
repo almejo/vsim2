@@ -41,7 +41,7 @@ public record ShortCircuitHighlight(Set<ElementId> wires, Set<ElementId> compone
                 document.component(componentId).ifPresent(component -> {
                     components.add(componentId);
                     if (!nested) {
-                        driverPins.add(registry.require(component.typeId()).pinLocation(component, driver.pinIndex()));
+                        driverPins.add(registry.typeOf(component).pinLocation(component, driver.pinIndex()));
                     }
                 });
             }

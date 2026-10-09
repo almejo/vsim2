@@ -113,7 +113,7 @@ public final class RemoveWireSegmentCommand implements Command {
             }
         }
         for (Component component : document.components()) {
-            ComponentType type = registry.require(component.typeId());
+            ComponentType type = registry.typeOf(component);
             for (int pinIndex = 0; pinIndex < type.pinCount(); pinIndex++) {
                 GridPoint pin = type.pinLocation(component, pinIndex);
                 if (wire.contains(pin)) {

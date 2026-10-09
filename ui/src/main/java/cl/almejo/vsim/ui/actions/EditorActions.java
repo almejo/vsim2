@@ -138,7 +138,7 @@ public final class EditorActions {
 
     /** Opens the Configure dialog for {@code component}; an accepted change becomes one undo step. */
     public void configure(Component component) {
-        ComponentType type = openDocument.registry().require(component.typeId());
+        ComponentType type = openDocument.registry().typeOf(component);
         if (type.parameters().isEmpty()) {
             return;
         }
@@ -268,7 +268,7 @@ public final class EditorActions {
             return Optional.empty();
         }
         Component component = components.get(0);
-        return openDocument.registry().require(component.typeId()).parameters().isEmpty()
+        return openDocument.registry().typeOf(component).parameters().isEmpty()
                 ? Optional.empty() : Optional.of(component);
     }
 

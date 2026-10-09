@@ -65,7 +65,7 @@ public final class PinBridges {
         for (DefinitionPin pin : definition.pinout()) {
             names.add(pin.spec().name());
             sources.add(document.component(pin.source())
-                    .map(source -> registry.require(source.typeId()).pinLocation(source, 0))
+                    .map(source -> registry.typeOf(source).pinLocation(source, 0))
                     .orElseThrow(() -> new IllegalArgumentException("no interface pin " + pin.source())));
             targets.add(instancePosition.plus(pin.spec().position()));
         }
@@ -148,7 +148,7 @@ public final class PinBridges {
     }
 
     static List<GridPoint> pinPoints(Component component, ComponentTypeRegistry registry) {
-        ComponentType type = registry.require(component.typeId());
+        ComponentType type = registry.typeOf(component);
         List<GridPoint> points = new ArrayList<>();
         for (int pinIndex = 0; pinIndex < type.pinCount(); pinIndex++) {
             points.add(type.pinLocation(component, pinIndex));

@@ -110,7 +110,7 @@ public final class ProblemNavigator {
                 .toList();
         Bounds result = null;
         for (Component instance : instances) {
-            Optional<ComponentType> type = registry.find(instance.typeId());
+            Optional<ComponentType> type = registry.findTypeOf(instance);
             if (type.isPresent()) {
                 Bounds bounds = type.get().bounds(instance);
                 result = result == null ? bounds : result.union(bounds);

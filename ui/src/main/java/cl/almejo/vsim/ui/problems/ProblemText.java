@@ -79,7 +79,7 @@ public final class ProblemText {
             return pin.componentId();
         }
         Component found = chain.get().get(chain.get().size() - 1);
-        Optional<ComponentType> type = registry.find(found.typeId());
+        Optional<ComponentType> type = registry.findTypeOf(found);
         if (type.isEmpty() || pin.pinIndex() < 0 || pin.pinIndex() >= type.get().pinCount()) {
             return pin.componentId();
         }

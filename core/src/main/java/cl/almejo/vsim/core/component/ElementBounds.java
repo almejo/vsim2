@@ -17,7 +17,7 @@ public final class ElementBounds {
 
     public static Bounds of(DocumentElement element, ComponentTypeRegistry registry) {
         return switch (element) {
-            case Component component -> registry.require(component.typeId()).bounds(component);
+            case Component component -> registry.typeOf(component).bounds(component);
             case Wire wire -> Bounds.of(wire.start(), wire.end());
             case TextLabel label -> new Bounds(label.position().x(), label.position().y(), 0, 0);
         };

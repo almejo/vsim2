@@ -42,7 +42,7 @@ public final class Disassembly {
     /** The plan for {@code instance} of {@code definition}, with fresh wire ids from {@code document}. */
     public static Plan plan(CircuitDocument document, Component instance, ComponentDefinition definition,
                             ComponentTypeRegistry registry) {
-        ComponentType type = registry.require(instance.typeId());
+        ComponentType type = registry.typeOf(instance);
         Bounds bodyBounds = definition.body().bounds(registry);
         Bounds instanceBounds = type.bounds(instance);
         GridPoint offset = new GridPoint(instanceBounds.x() - bodyBounds.x(), instanceBounds.y() - bodyBounds.y());
@@ -76,7 +76,7 @@ public final class Disassembly {
                     .filter(component -> component.id().equals(pin.source()))
                     .findFirst()
                     .orElseThrow(() -> new IllegalArgumentException("no interface pin " + pin.source()));
-            targets.add(registry.require(pasted.typeId()).pinLocation(pasted, 0));
+            targets.add(registry.typeOf(pasted).pinLocation(pasted, 0));
         }
         PinBridges.Bridging bridging = PinBridges.bridges(document, names, sources, targets, outsideWires,
                 outsidePins, pastedPoints, body.wires());

@@ -75,7 +75,7 @@ public final class LibraryVersionBadge implements CanvasOverlay {
                 boolean marked = SubcircuitTypes.definitionIdOf(component.typeId())
                         .filter(current::contains)
                         .isPresent();
-                Optional<ComponentType> type = openDocument.registry().find(component.typeId());
+                Optional<ComponentType> type = openDocument.registry().findTypeOf(component);
                 if (!marked || type.isEmpty()) {
                     continue;
                 }

@@ -30,7 +30,7 @@ public final class ConnectionPoints {
         PinHit closest = null;
         double closestDistance = PIN_RADIUS;
         for (Component component : document.components()) {
-            ComponentType type = registry.require(component.typeId());
+            ComponentType type = registry.typeOf(component);
             for (int pinIndex = 0; pinIndex < type.pinCount(); pinIndex++) {
                 GridPoint pin = type.pinLocation(component, pinIndex);
                 double distance = gridPoint.distance(pin.x(), pin.y());

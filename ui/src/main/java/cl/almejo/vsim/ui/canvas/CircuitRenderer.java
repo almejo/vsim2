@@ -111,7 +111,7 @@ public final class CircuitRenderer {
         }
 
         for (Component component : state.document().components()) {
-            ComponentType type = registry.require(component.typeId());
+            ComponentType type = registry.typeOf(component);
             ComponentDrawing.paint(graphics, type, component, state.snapshot().componentState(component.id().value()),
                     scheme, painters);
             if (highlight.components().contains(component.id())) {
@@ -148,7 +148,7 @@ public final class CircuitRenderer {
         graphics.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.5f));
         try {
             switch (element) {
-                case Component component -> ComponentDrawing.paint(graphics, types.require(component.typeId()),
+                case Component component -> ComponentDrawing.paint(graphics, types.typeOf(component),
                         component, VisibleState.NONE, scheme, painters);
                 case Wire wire -> {
                     graphics.setStroke(WIRE);
@@ -168,7 +168,7 @@ public final class CircuitRenderer {
         graphics.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
         graphics.setColor(scheme.text());
         for (Component component : state.document().components()) {
-            LabelLayout.componentLabel(registry.require(component.typeId()), component)
+            LabelLayout.componentLabel(registry.typeOf(component), component)
                     .ifPresent(placed -> graphics.drawString(placed.text(), placed.baselineX(), placed.baselineY()));
         }
     }
