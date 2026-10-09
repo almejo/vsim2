@@ -113,6 +113,11 @@ public final class AppPreferences {
         listeners.remove(listener);
     }
 
+    /** For tests: views and extensions must remove the listeners they add when disposed. */
+    public int listenerCount() {
+        return listeners.size();
+    }
+
     private Optional<String> optional(String key) {
         String value = node.get(key, "");
         return value.isBlank() ? Optional.empty() : Optional.of(value);

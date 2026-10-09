@@ -55,7 +55,9 @@ class ComponentLibraryTest {
     void removedListenersHearNothing() {
         Runnable listener = notifications::incrementAndGet;
         library.addListener(listener);
+        assertThat(library.listenerCount()).isEqualTo(1);
         library.removeListener(listener);
+        assertThat(library.listenerCount()).isZero();
         library.put(inverter);
         assertThat(notifications).hasValue(0);
     }

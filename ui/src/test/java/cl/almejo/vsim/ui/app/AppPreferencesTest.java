@@ -25,6 +25,17 @@ class AppPreferencesTest {
     }
 
     @Test
+    void removedListenersAreCountedOutAndHearNothing() {
+        Runnable listener = changes::incrementAndGet;
+        preferences.addListener(listener);
+        assertThat(preferences.listenerCount()).isEqualTo(1);
+        preferences.removeListener(listener);
+        assertThat(preferences.listenerCount()).isZero();
+        preferences.setTheme(AppPreferences.Theme.DARK);
+        assertThat(changes).hasValue(0);
+    }
+
+    @Test
     void valuesAreStoredAndListenersHearOnlyRealChanges() {
         preferences.addListener(changes::incrementAndGet);
         preferences.setTheme(AppPreferences.Theme.DARK);

@@ -85,6 +85,11 @@ public final class ComponentLibrary {
         listeners.remove(listener);
     }
 
+    /** For tests: views and extensions must remove the listeners they add when disposed. */
+    public int listenerCount() {
+        return listeners.size();
+    }
+
     private void fire() {
         RuntimeException failure = null;
         for (Runnable listener : listeners) {
