@@ -78,6 +78,19 @@ class AppPreferencesTest {
     }
 
     @Test
+    void aFailingListenerDoesNotKeepTheOthersFromHearingTheChange() {
+        preferences.addListener(() -> {
+            throw new IllegalStateException("broken listener");
+        });
+        preferences.addListener(changes::incrementAndGet);
+
+        preferences.setTheme(AppPreferences.Theme.DARK);
+
+        assertThat(changes).hasValue(1);
+        assertThat(new AppPreferences(node).theme()).isEqualTo(AppPreferences.Theme.DARK);
+    }
+
+    @Test
     void valuesAreStoredAndListenersHearOnlyRealChanges() {
         preferences.addListener(changes::incrementAndGet);
         preferences.setTheme(AppPreferences.Theme.DARK);

@@ -5,6 +5,7 @@ import org.slf4j.LoggerFactory;
 
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -148,6 +149,24 @@ public final class AppPreferences {
         } catch (BackingStoreException exception) {
             LOGGER.warn("Could not save preference {}", key, exception);
         }
-        listeners.forEach(Runnable::run);
+        notifyListeners(key);
+    }
+
+    /**
+     * Every listener hears of the change even when an earlier one fails (a theme or library listener must not keep
+     * the others from following it); the failures are logged once all have run, and the setter returns normally.
+     */
+    private void notifyListeners(String key) {
+        List<RuntimeException> failures = new ArrayList<>();
+        for (Runnable listener : listeners) {
+            try {
+                listener.run();
+            } catch (RuntimeException exception) {
+                failures.add(exception);
+            }
+        }
+        for (RuntimeException failure : failures) {
+            LOGGER.error("A listener failed to follow the change of preference {}", key, failure);
+        }
     }
 }
