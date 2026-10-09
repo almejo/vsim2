@@ -2,6 +2,7 @@ package cl.almejo.vsim.ui.paint;
 
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
+import cl.almejo.vsim.core.component.PinSpec;
 import cl.almejo.vsim.core.component.TimeDiagramSample;
 import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
@@ -281,5 +282,50 @@ class PaintersTest {
         new LedPainter().paint(graphics, type, Map.of("color", 7), new VisibleState.LedState(Value.ONE), SCHEME);
         graphics.dispose();
         assertThat(new Color(image.getRGB(18, 22))).isEqualTo(LedPainter.colorFor("red"));
+    }
+
+    /** {@code typeId} placed at grid (12, 12), R0, with {@code parameters}, drawn with the type they give. */
+    private BufferedImage drawWith(String typeId, Map<String, Object> parameters) {
+        Component component = registry.require(typeId).newComponent(new ElementId("c1"), new GridPoint(12, 12),
+                Rotation.R0, parameters, "");
+        BufferedImage image = blankImage(200, 200);
+        Graphics2D graphics = image.createGraphics();
+        ComponentDrawing.paint(graphics, registry.typeOf(component), component, VisibleState.NONE, SCHEME, painters);
+        graphics.dispose();
+        return image;
+    }
+
+    @Test
+    void busPinsGetASquareMarkAndOneBitPinsARoundDot() {
+        // the input pin's pin is local (16, 8) = screen (112, 104); pixel (113, 105) is fully inside a square mark only
+        assertThat(new Color(drawWith(InterfacePins.INPUT_PIN, Map.of(InterfacePins.WIDTH, 8)).getRGB(113, 105)))
+                .isEqualTo(SCHEME.componentStroke());
+        assertThat(new Color(drawWith(InterfacePins.INPUT_PIN, Map.of()).getRGB(113, 105)))
+                .isNotEqualTo(SCHEME.componentStroke());
+    }
+
+    @Test
+    void wideInterfacePinsWriteTheirWidthInsideTheTag() {
+        BufferedImage oneBit = drawWith(InterfacePins.INPUT_PIN, Map.of());
+        BufferedImage eightBits = drawWith(InterfacePins.INPUT_PIN, Map.of(InterfacePins.WIDTH, 8));
+        int changed = 0;
+        for (int x = 98; x < 108; x++) {
+            for (int y = 99; y < 109; y++) {
+                if (eightBits.getRGB(x, y) != oneBit.getRGB(x, y)) {
+                    changed++;
+                }
+            }
+        }
+        assertThat(changed).isGreaterThan(5);
+    }
+
+    @Test
+    void widePinsOfAUserComponentCarryTheirWidthInTheName() {
+        assertThat(SubcircuitPainter.pinText(PinSpec.input("a", 0, 2, 8))).isEqualTo("a[8]");
+        assertThat(SubcircuitPainter.pinText(PinSpec.input("a", 0, 2))).isEqualTo("a");
+        ComponentType byteBuffer = SubcircuitTypes.typeOf(ExampleDefinitions.byteBuffer());
+        for (Rotation rotation : Rotation.values()) {
+            assertDrawsNearItsBounds(byteBuffer, rotation, VisibleState.NONE, 320);
+        }
     }
 }

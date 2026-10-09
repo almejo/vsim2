@@ -39,6 +39,7 @@ class PainterGalleryTest {
     static List<ComponentType> galleryTypes() {
         List<ComponentType> types = new ArrayList<>(StandardComponentTypes.registry().all());
         types.add(SubcircuitTypes.typeOf(ExampleDefinitions.inverter()));
+        types.add(SubcircuitTypes.typeOf(ExampleDefinitions.byteBuffer()));
         return types;
     }
 

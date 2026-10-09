@@ -26,6 +26,8 @@ final class PainterSupport {
     static final double UNIT = GridPoint.PIXELS_PER_UNIT;
     static final BasicStroke STROKE = new BasicStroke(1.6f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
     private static final double PIN_DOT_RADIUS = 1.6;
+    /** Half the side of the square that marks a pin wider than one bit. */
+    private static final double BUS_PIN_HALF_SIDE = 2.2;
     private static final double SHADOW_DISTANCE = 2.0;
     /** The font of every text drawn by painters (sized per use); also for measuring a text before drawing it. */
     static final Font BASE_FONT = new Font(Font.SANS_SERIF, Font.BOLD, 10);
@@ -74,12 +76,19 @@ final class PainterSupport {
         graphics.draw(new Line2D.Double(startX, startY, endX, endY));
     }
 
+    /** A round dot on each 1-bit pin and a square on each wider (bus) pin. */
     static void pinDots(Graphics2D graphics, ComponentType type, ColorScheme scheme) {
         graphics.setColor(scheme.componentStroke());
         for (PinSpec pin : type.pins()) {
             double x = pin.position().x() * UNIT;
             double y = pin.position().y() * UNIT;
-            graphics.fill(new Ellipse2D.Double(x - PIN_DOT_RADIUS, y - PIN_DOT_RADIUS, 2 * PIN_DOT_RADIUS, 2 * PIN_DOT_RADIUS));
+            if (pin.width() > 1) {
+                graphics.fill(new Rectangle2D.Double(x - BUS_PIN_HALF_SIDE, y - BUS_PIN_HALF_SIDE,
+                        2 * BUS_PIN_HALF_SIDE, 2 * BUS_PIN_HALF_SIDE));
+            } else {
+                graphics.fill(new Ellipse2D.Double(x - PIN_DOT_RADIUS, y - PIN_DOT_RADIUS, 2 * PIN_DOT_RADIUS,
+                        2 * PIN_DOT_RADIUS));
+            }
         }
     }
 

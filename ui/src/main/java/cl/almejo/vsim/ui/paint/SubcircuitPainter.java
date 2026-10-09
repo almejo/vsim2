@@ -45,6 +45,7 @@ public final class SubcircuitPainter implements ComponentPainter {
             if (pin.name().isBlank()) {
                 continue;
             }
+            String text = pinText(pin);
             double pinX = pin.position().x() * UNIT;
             double pinY = pin.position().y() * UNIT;
             boolean left = pinX <= 0;
@@ -55,8 +56,8 @@ public final class SubcircuitPainter implements ComponentPainter {
             double gap = gapToNeighbours(type, pin, height);
             Rectangle2D slot = new Rectangle2D.Double(left ? 1 : width / 2, pinY - gap / 2, width / 2 - 1, gap);
             double across = sideways ? gap - 2 : width / 2 - INSET;
-            float size = fitted(graphics, pin.name(), PIN_NAME_SIZE, across);
-            double extent = sideways ? textHeight(graphics, size) : textWidth(graphics, pin.name(), size);
+            float size = fitted(graphics, text, PIN_NAME_SIZE, across);
+            double extent = sideways ? textHeight(graphics, size) : textWidth(graphics, text, size);
             double centerX = left ? INSET + extent / 2 : width - INSET - extent / 2;
             PainterSupport.centeredText(graphics, box.createIntersection(slot), pin.name(), centerX, pinY, size,
                     scheme.text());
@@ -94,5 +95,10 @@ public final class SubcircuitPainter implements ComponentPainter {
 
     private static double textWidth(Graphics2D graphics, String text, float size) {
         return graphics.getFontMetrics(PainterSupport.BASE_FONT.deriveFont(size)).stringWidth(text);
+    }
+
+    /** A pin's name as drawn on the box: wider pins carry their width, as in {@code dato[8]}. */
+    static String pinText(PinSpec pin) {
+        return pin.width() > 1 ? pin.name() + "[" + pin.width() + "]" : pin.name();
     }
 }

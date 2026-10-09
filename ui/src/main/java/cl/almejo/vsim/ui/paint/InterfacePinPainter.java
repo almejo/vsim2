@@ -12,6 +12,10 @@ import java.util.Map;
 /** {@code input-pin} and {@code output-pin}: a tag pointing right, tinted with the value it carries. */
 public final class InterfacePinPainter implements ComponentPainter {
 
+    private static final double WIDTH_TEXT_X = 7;
+    private static final double WIDTH_TEXT_Y = 8;
+    private static final float WIDTH_TEXT_SIZE = 6f;
+
     @Override
     public void paint(Graphics2D graphics, ComponentType type, Map<String, Object> parameters, VisibleState state,
                       ColorScheme scheme) {
@@ -30,6 +34,11 @@ public final class InterfacePinPainter implements ComponentPainter {
         Color fill = value == null ? scheme.componentFill()
                 : PainterSupport.withAlpha(SignalColors.valueColor(value, scheme), 110);
         PainterSupport.body(graphics, tag, scheme, fill);
+        int width = type.pin(0).width();
+        if (width > 1) {
+            PainterSupport.centeredText(graphics, String.valueOf(width), WIDTH_TEXT_X, WIDTH_TEXT_Y, WIDTH_TEXT_SIZE,
+                    scheme.text());
+        }
         PainterSupport.pinDots(graphics, type, scheme);
     }
 }
