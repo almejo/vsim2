@@ -33,6 +33,7 @@ Diseño: `docs/superpowers/specs/2026-10-08-vsim2-design.md`.
 - Dibujos: los textos dentro de los componentes (interruptor, flip-flop, pines) se leen derechos en cualquier rotación. El display de 7 segmentos muestra 0–F con segmentos biselados y un guion en cada dígito que tenga un bit en Z o en conflicto. El diagrama de tiempo dibuja sus propias trazas con el nombre de cada entrada, una línea tenue cada 10 muestras, Z como línea punteada al medio y conflicto en rojo; muestrea cada `sample-interval` unidades de tiempo, así que pulsos más cortos que eso no se ven.
 - Los puntos de unión aparecen solo donde un cable se ramifica (no donde dos cables siguen en línea recta).
 - Íconos nuevos en menús, barra de herramientas y menú contextual (se adaptan al tema oscuro); la barra muestra solo íconos y el nombre aparece al pasar el mouse. La ventana tiene ícono propio.
+- Al pasar el mouse sobre «Pin de entrada» y «Pin de salida» en la paleta, un texto explica que funcionan como interruptor y LED mientras pruebas y que se vuelven los pines del componente; el diálogo de crear o actualizar un componente lo recuerda.
 
 ## Preferencias y distribución
 

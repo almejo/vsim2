@@ -9,6 +9,7 @@ import cl.almejo.vsim.core.io.FragmentFormat;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.DefinitionBundle;
 import cl.almejo.vsim.core.library.ExampleDefinitions;
+import cl.almejo.vsim.core.library.InterfacePins;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.ui.clipboard.FileListTransferable;
 import cl.almejo.vsim.ui.clipboard.FragmentTransferable;
@@ -32,6 +33,7 @@ import java.io.File;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -234,5 +236,27 @@ class PalettePanelTest {
         palette.popupFor(palette.pathOf(StandardComponentTypes.NOT));
 
         assertThat(asked).containsExactly(Optional.of("inverter"), Optional.empty(), Optional.empty());
+    }
+
+    @Test
+    void onlyComponentPinsHaveHelpAndItFollowsTheLanguage() {
+        palette.setUserComponents(List.of(inverterBundle), List.of());
+        assertThat(palette.toolTipFor(InterfacePins.INPUT_PIN)).hasValueSatisfying(text -> assertThat(text)
+                .contains("interruptor").contains("entradas"));
+        assertThat(palette.toolTipFor(InterfacePins.OUTPUT_PIN)).hasValueSatisfying(text -> assertThat(text)
+                .contains("LED").contains("salidas"));
+        assertThat(palette.toolTipFor(StandardComponentTypes.AND2)).isEmpty();
+        assertThat(palette.toolTipFor(SubcircuitTypes.typeIdOf(ExampleDefinitions.INVERTER))).isEmpty();
+        assertThat(palette.toolTipFor("no-such-type")).isEmpty();
+
+        Messages.initialize(Locale.ENGLISH);
+        try {
+            PalettePanel english = new PalettePanel(registry, PainterRegistry.standard(), ColorScheme.LIGHT,
+                    type -> { });
+            assertThat(english.toolTipFor(InterfacePins.INPUT_PIN)).hasValueSatisfying(text -> assertThat(text)
+                    .contains("switch").contains("inputs"));
+        } finally {
+            Messages.initialize(Messages.SPANISH);
+        }
     }
 }

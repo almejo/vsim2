@@ -27,6 +27,9 @@ public final class ComponentFormPanel extends JPanel {
 
     private static final Color ERROR_FALLBACK = new Color(0xDB5860);
 
+    /** Width of the pins note before it wraps, in pixels. */
+    private static final int NOTE_WIDTH = 360;
+
     private final ComponentForm form;
     private final JTextField name = new JTextField(24);
     private final JLabel message = new JLabel(" ");
@@ -40,10 +43,17 @@ public final class ComponentFormPanel extends JPanel {
     private final JButton outputDown = new JButton(Messages.text("template.dialog.down"));
     private final JCheckBox replace = new JCheckBox(Messages.text("template.dialog.replace"));
     private final JComboBox<ComponentDefinition> target = new JComboBox<>();
+    private final JLabel pinsHelp = new JLabel("<html><body style='width:" + NOTE_WIDTH + "px'>"
+            + Messages.text("template.dialog.pinsHelp") + "</body></html>");
+
+    JLabel pinsHelpLabel() {
+        return pinsHelp;
+    }
 
     public ComponentFormPanel(ComponentForm form) {
         super(new MigLayout("insets dialog, wrap 2, fillx", "[grow, fill][grow, fill]"));
         this.form = form;
+        add(pinsHelp, "span 2, gapbottom 6");
         if (form.mode() == ComponentForm.Mode.UPDATE) {
             form.targets().forEach(target::addItem);
             target.setSelectedItem(form.target().orElse(null));

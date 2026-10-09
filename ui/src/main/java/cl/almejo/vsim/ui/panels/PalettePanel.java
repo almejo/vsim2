@@ -31,6 +31,7 @@ import javax.swing.JPopupMenu;
 import javax.swing.JScrollPane;
 import javax.swing.JTextField;
 import javax.swing.JTree;
+import javax.swing.ToolTipManager;
 import javax.swing.TransferHandler;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
@@ -87,6 +88,8 @@ public final class PalettePanel extends JPanel {
     private static final List<ComponentCategory> ORDER = List.of(ComponentCategory.BASIC,
             ComponentCategory.INPUT_OUTPUT, ComponentCategory.DEBUG, ComponentCategory.INTERFACE);
     private static final int ICON_SIZE = 24;
+    /** Width of a help tooltip before it wraps, in pixels. */
+    private static final int HELP_WIDTH = 260;
 
     private final ComponentTypeRegistry registry;
     private final PainterRegistry painters;
@@ -148,6 +151,7 @@ public final class PalettePanel extends JPanel {
         tree.setShowsRootHandles(true);
         tree.setRowHeight(ICON_SIZE + 4);
         tree.setCellRenderer(new Renderer());
+        ToolTipManager.sharedInstance().registerComponent(tree);
         tree.getSelectionModel().setSelectionMode(TreeSelectionModel.SINGLE_TREE_SELECTION);
         tree.addTreeSelectionListener(event -> {
             if (!updating) {
@@ -395,6 +399,27 @@ public final class PalettePanel extends JPanel {
         return null;
     }
 
+    /** The palette tooltip of {@code type}: its help wrapped to {@link #HELP_WIDTH}, or null (no tooltip). */
+    private static String help(ComponentType type) {
+        return Messages.componentHelp(type)
+                .map(text -> "<html><body style='width:" + HELP_WIDTH + "px'>" + text + "</body></html>")
+                .orElse(null);
+    }
+
+    /** The tooltip the palette shows over the entry of {@code typeId}, if any. Package-private for tests. */
+    Optional<String> toolTipFor(String typeId) {
+        for (int row = 0; row < tree.getRowCount(); row++) {
+            DefaultMutableTreeNode node = (DefaultMutableTreeNode) tree.getPathForRow(row).getLastPathComponent();
+            Object item = node.getUserObject();
+            if ((item instanceof ComponentType || item instanceof UserComponent) && typeId.equals(typeIdOf(item))) {
+                Component rendered = tree.getCellRenderer().getTreeCellRendererComponent(tree, node, false, false,
+                        true, row, false);
+                return Optional.ofNullable(((JComponent) rendered).getToolTipText());
+            }
+        }
+        return Optional.empty();
+    }
+
     private static String typeIdOf(Object item) {
         return item instanceof UserComponent component ? component.type().id() : ((ComponentType) item).id();
     }
@@ -462,15 +487,19 @@ public final class PalettePanel extends JPanel {
             if (item instanceof ComponentType type) {
                 setText(Messages.componentName(type));
                 setIcon(icon(type));
+                setToolTipText(help(type));
             } else if (item instanceof UserComponent component) {
                 setText(Messages.componentName(component.type()));
                 setIcon(icon(component.type()));
+                setToolTipText(null);
             } else if (item instanceof UserSection section) {
                 setText(section.title());
                 setIcon(null);
+                setToolTipText(null);
             } else if (item instanceof ComponentCategory category) {
                 setText(Messages.categoryName(category));
                 setIcon(null);
+                setToolTipText(null);
             }
             return this;
         }
