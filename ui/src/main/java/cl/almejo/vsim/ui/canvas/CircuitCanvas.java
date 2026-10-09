@@ -454,7 +454,11 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
 
     /** Called every frame: publishes a new snapshot and repaints only if something visible changed. */
     void refreshSnapshot() {
-        SimulationSnapshot latest = openDocument.latestSnapshot();
+        display(openDocument.latestSnapshot());
+    }
+
+    /** Shows {@code latest}, whatever its token, and hands it to the snapshot listeners (they check the token). */
+    void display(SimulationSnapshot latest) {
         if (latest == displayedSnapshot) {
             return;
         }

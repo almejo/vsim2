@@ -1,6 +1,7 @@
 package cl.almejo.vsim.ui.canvas;
 
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
+import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.ColorScheme;
@@ -60,5 +61,26 @@ class CanvasSnapshotWiringTest {
 
         assertThat(view.problems().navigator().problems()).isNotEmpty();
         assertThat(view.problems().nextProblem().isEnabled()).isTrue();
+    }
+
+    /** Review M5: like the Problems tab, the status bar warning ignores a snapshot of an older netlist. */
+    @Test
+    void theStatusBarCountsShortCircuitsOnlyFromACurrentSnapshot() {
+        waitUntil(() -> openDocument.latestSnapshot().running()
+                && openDocument.latestSnapshot().token() == openDocument.netlistToken()
+                && !openDocument.latestSnapshot().shortCircuits().isEmpty());
+        SimulationSnapshot current = openDocument.latestSnapshot();
+        SimulationSnapshot stale = new SimulationSnapshot(current.revision(), current.token() - 1, current.time(),
+                current.running(), current.netValues(), current.componentStates(), current.problems(),
+                current.failure());
+
+        view.canvas().display(stale);
+        assertThat(view.statusBar().text()).doesNotContain("⚠");
+
+        view.canvas().display(current);
+        assertThat(view.statusBar().text()).contains("⚠ " + current.shortCircuits().size());
+
+        view.canvas().display(stale);
+        assertThat(view.statusBar().text()).contains("⚠ " + current.shortCircuits().size());
     }
 }

@@ -48,8 +48,10 @@ class StatusBarTest {
     void showsShortCircuitsOnlyWhenThereAreSome() {
         statusBar.showZoom(1);
         statusBar.showSnapshot(snapshot(true, 2, Optional.empty()));
+        assertThat(statusBar.text()).doesNotContain("⚠"); // the Problems controller feeds the count
+        statusBar.showShortCircuits(2);
         assertThat(statusBar.text()).contains("⚠ 2 cortocircuitos");
-        statusBar.showSnapshot(snapshot(true, 0, Optional.empty()));
+        statusBar.showShortCircuits(0);
         assertThat(statusBar.text()).doesNotContain("⚠");
     }
 
@@ -77,7 +79,7 @@ class StatusBarTest {
     void clickingTheShortCircuitWarningRunsTheCallback() {
         AtomicInteger clicks = new AtomicInteger();
         statusBar.onShortCircuitsClicked(clicks::incrementAndGet);
-        statusBar.showSnapshot(snapshot(true, 1, Optional.empty()));
+        statusBar.showShortCircuits(1);
         JLabel warning = statusBar.shortCircuitsLabel();
         MouseEvent click = new MouseEvent(warning, MouseEvent.MOUSE_CLICKED, 0, 0, 2, 2, 1, false, MouseEvent.BUTTON1);
         for (MouseListener listener : warning.getMouseListeners()) {

@@ -42,11 +42,17 @@ public final class StatusBar extends JPanel {
     public void showSnapshot(SimulationSnapshot snapshot) {
         simulation.setText(Messages.text(snapshot.running() ? "status.running" : "status.paused"));
         time.setText(Messages.format("status.time", snapshot.time()));
-        int shorts = snapshot.shortCircuits().size();
-        shortCircuits.setText(shorts == 0 ? "" : Messages.format("status.shortCircuits", shorts));
-        shortCircuits.setVisible(shorts > 0);
         failure.setText(snapshot.failure().map(reason -> Messages.format("status.failure", reason)).orElse(""));
         failure.setVisible(snapshot.failure().isPresent());
+    }
+
+    /**
+     * Shows the "⚠ N cortocircuitos" warning, hidden for zero. Kept apart from {@link #showSnapshot} so it is fed by
+     * the Problems controller, which ignores snapshots of an older netlist: the count matches the Problems tab.
+     */
+    public void showShortCircuits(int count) {
+        shortCircuits.setText(count == 0 ? "" : Messages.format("status.shortCircuits", count));
+        shortCircuits.setVisible(count > 0);
     }
 
     /** Clicking the "⚠ N cortocircuitos" warning runs {@code action} (jump to the next problem). */

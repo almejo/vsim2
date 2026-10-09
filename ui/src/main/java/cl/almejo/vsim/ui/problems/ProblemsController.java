@@ -6,6 +6,7 @@ import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.panels.StatusBar;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuId;
 
@@ -26,7 +27,7 @@ import java.util.Optional;
 import java.util.function.Consumer;
 
 /**
- * Short-circuit navigation of one editor window (spec §6.12): F8 / Shift+F8, the clickable status bar warning,
+ * Short-circuit navigation of one editor window (spec §6.12): F8 / Shift+F8, the status bar warning and its click,
  * the Problems tab, the driver tooltip, the pulse of shorted wires and the "pause on short circuit" option.
  * <p>
  * Only snapshots of the current netlist ({@code token == openDocument.netlistToken()}) are shown; a stale snapshot
@@ -39,6 +40,7 @@ public final class ProblemsController {
 
     private final OpenDocument openDocument;
     private final CircuitCanvas canvas;
+    private final StatusBar statusBar;
     private final JMenu viewMenu;
     private final JMenu simulationMenu;
     private final NetBlink blink;
@@ -59,6 +61,7 @@ public final class ProblemsController {
     public ProblemsController(EditorView view) {
         this.openDocument = view.openDocument();
         this.canvas = view.canvas();
+        this.statusBar = view.statusBar();
         this.blink = new NetBlink(canvas.scheme(), canvas::repaint);
         this.pulse = new ShortCircuitPulse(openDocument.registry(), canvas::repaint, System::nanoTime);
         this.navigator = new ProblemNavigator(canvas, blink);
@@ -85,7 +88,7 @@ public final class ProblemsController {
         canvas.addSnapshotListener(snapshotListener);
         canvas.bindKey(NEXT_KEY, "nextProblem", nextProblem);
         canvas.bindKey(PREVIOUS_KEY, "previousProblem", previousProblem);
-        view.statusBar().onShortCircuitsClicked(() -> {
+        statusBar.onShortCircuitsClicked(() -> {
             if (!disposed) {
                 navigator.next();
             }
@@ -129,6 +132,7 @@ public final class ProblemsController {
         navigator.showSnapshot(latest);
         panel.showSnapshot(latest);
         pulse.showSnapshot(latest);
+        statusBar.showShortCircuits(latest.shortCircuits().size());
         boolean anyProblem = !navigator.problems().isEmpty();
         nextProblem.setEnabled(anyProblem);
         previousProblem.setEnabled(anyProblem);
