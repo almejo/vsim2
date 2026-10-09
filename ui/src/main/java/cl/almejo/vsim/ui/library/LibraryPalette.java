@@ -111,24 +111,9 @@ public final class LibraryPalette {
     }
 
     private void place(PalettePanel.UserComponent component) {
-        warnAboutKeptVersions(component.bundle());
+        KeptVersions.warn(view.openDocument().document(), component.bundle(), dialogs, view.canvas());
         view.canvas().setTool(new PlaceDefinitionTool(component.bundle()));
         view.canvas().requestFocusInWindow();
-    }
-
-    /** Placing keeps the circuit's own version of a nested definition (preflight S3): say so once, naming them. */
-    private void warnAboutKeptVersions(DefinitionBundle bundle) {
-        CircuitDocument document = view.openDocument().document();
-        List<String> names = new ArrayList<>();
-        for (ComponentDefinition dependency : bundle.dependencies()) {
-            Optional<ComponentDefinition> existing = document.definition(dependency.id());
-            if (existing.isPresent() && !existing.get().equals(dependency)) {
-                names.add(Messages.format("library.place.componentName", dependency.name()));
-            }
-        }
-        if (!names.isEmpty()) {
-            dialogs.showMessage(view.canvas(), Messages.format("library.place.keptVersion", String.join(", ", names)));
-        }
     }
 
     private void rename(String id) {

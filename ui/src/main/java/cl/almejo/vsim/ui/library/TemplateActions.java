@@ -7,18 +7,17 @@ import cl.almejo.vsim.core.command.PasteCommand;
 import cl.almejo.vsim.core.command.PutDefinitionsCommand;
 import cl.almejo.vsim.core.command.RemoveElementsCommand;
 import cl.almejo.vsim.core.command.ReplaceDefinitionCommand;
-import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.ElementId;
-import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
-import cl.almejo.vsim.core.io.CircuitFragment;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.DefinitionBuilder;
+import cl.almejo.vsim.core.library.DefinitionGraph;
+import cl.almejo.vsim.core.library.Disassembly;
 import cl.almejo.vsim.core.library.DefinitionBundle;
 import cl.almejo.vsim.core.library.LibraryVersions;
 import cl.almejo.vsim.core.library.PinBridges;
@@ -37,6 +36,7 @@ import javax.swing.JMenuItem;
 import java.awt.event.ActionEvent;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -133,31 +133,55 @@ public final class TemplateActions {
     }
 
     /**
-     * "Desarmar": one undo step that removes the instance and pastes its body (interface pins included) unrotated,
-     * with the body's top-left at the instance's top-left; the pasted parts become the selection.
+     * "Desarmar": one undo step that removes the instance, pastes its body (interface pins included) unrotated with
+     * the body's top-left at the instance's top-left, and bridges each instance pin that had an outside connection to
+     * its pasted interface pin ({@link Disassembly}); the pasted parts become the selection. When the body would land
+     * on a foreign wire or pin nothing changes and a message says so; pins that cannot be bridged are named.
      */
     public void disassemble(Component instance) {
         ComponentTypeRegistry registry = openDocument.registry();
-        ComponentType type = registry.require(instance.typeId());
-        Optional<ComponentDefinition> definition = SubcircuitTypes.definitionOf(type);
+        Optional<ComponentDefinition> definition = SubcircuitTypes.definitionOf(registry.require(instance.typeId()));
         if (definition.isEmpty()) {
             return;
         }
-        CircuitFragment body = definition.get().body();
-        Bounds bodyBounds = body.bounds(registry);
-        Bounds instanceBounds = type.bounds(instance);
-        PasteCommand paste = new PasteCommand(body,
-                new GridPoint(instanceBounds.x() - bodyBounds.x(), instanceBounds.y() - bodyBounds.y()));
-        openDocument.execute(new CompositeCommand("command.disassemble",
-                List.of(new RemoveElementsCommand(List.of(instance.id())), paste)));
+        CircuitDocument document = openDocument.document();
+        Disassembly.Plan plan = Disassembly.plan(document, instance, definition.get(), registry);
+        if (plan.blocked()) {
+            dialogs.showMessage(canvas, Messages.format("template.notDisassembled",
+                    Messages.format("library.place.componentName", definition.get().name())));
+            return;
+        }
+        PasteCommand paste = new PasteCommand(definition.get().body(), plan.offset());
+        List<Command> steps = new ArrayList<>(List.of(new RemoveElementsCommand(List.of(instance.id())), paste));
+        if (!plan.bridges().isEmpty()) {
+            steps.add(new AddElementsCommand(List.copyOf(plan.bridges())));
+        }
+        openDocument.execute(new CompositeCommand("command.disassemble", steps));
         canvas.selection().set(paste.pastedIds());
+        if (!plan.unconnectedPins().isEmpty()) {
+            dialogs.showMessage(canvas, Messages.format("template.pinsUnconnected",
+                    String.join(", ", plan.unconnectedPins())));
+        }
     }
 
-    /** "Actualizar desde la librería": the document's copy becomes the library's version, one undo step. */
+    /**
+     * "Actualizar desde la librería": the document's copy becomes the library's version, one undo step. The circuit
+     * keeps its own versions of nested definitions (a message names the ones that differ); a library version that
+     * would then nest itself is refused with a message.
+     */
     public void updateFromLibrary(Component instance) {
-        definitionIdOf(instance)
-                .flatMap(id -> service.library().find(id))
-                .ifPresent(bundle -> openDocument.execute(new ReplaceDefinitionCommand(bundle)));
+        Optional<DefinitionBundle> found = definitionIdOf(instance).flatMap(id -> service.library().find(id));
+        if (found.isEmpty()) {
+            return;
+        }
+        DefinitionBundle bundle = found.get();
+        CircuitDocument document = openDocument.document();
+        if (wouldNestItself(document, bundle)) {
+            dialogs.showError(canvas, Messages.text("template.updateFromLibrary.recursive"));
+            return;
+        }
+        KeptVersions.warn(document, bundle, dialogs, canvas);
+        openDocument.execute(new ReplaceDefinitionCommand(bundle));
     }
 
     /** True when the library holds a different version of the instance's definition (the badge shows). */
@@ -252,6 +276,20 @@ public final class TemplateActions {
         if (service.library().find(bundle.root().id()).isPresent()) {
             saveToLibrary(bundle);
         }
+    }
+
+    /**
+     * True when {@code bundle}'s root, with the document's versions of the definitions it already has and the
+     * bundle's for the others, would reach itself.
+     */
+    private static boolean wouldNestItself(CircuitDocument document, DefinitionBundle bundle) {
+        String rootId = bundle.root().id();
+        Map<String, ComponentDefinition> shipped = new HashMap<>();
+        bundle.dependencies().forEach(dependency -> shipped.put(dependency.id(), dependency));
+        List<ComponentDefinition> reached = DefinitionGraph.knownClosure(bundle.root().usedDefinitionIds(),
+                id -> id.equals(rootId) ? Optional.empty()
+                        : document.definition(id).or(() -> Optional.ofNullable(shipped.get(id))));
+        return reached.stream().anyMatch(definition -> definition.usedDefinitionIds().contains(rootId));
     }
 
     /** True when the selected components instantiate {@code definitionId}, directly or through other definitions. */

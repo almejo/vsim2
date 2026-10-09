@@ -69,8 +69,19 @@ public final class PinBridges {
                     .orElseThrow(() -> new IllegalArgumentException("no interface pin " + pin.source())));
             targets.add(instancePosition.plus(pin.spec().position()));
         }
+        return bridges(document, names, sources, targets, outsideWires, outsidePins, Set.of(), List.of());
+    }
 
+    /**
+     * Bridges from each {@code sources} point that something outside touches to the matching {@code targets} point.
+     * {@code extraObstacles} and {@code extraWires} are what else will be in the circuit (a bridge touches none of
+     * it). A pin whose target touches something outside is blocked.
+     */
+    static Bridging bridges(CircuitDocument document, List<String> names, List<GridPoint> sources,
+                            List<GridPoint> targets, List<Wire> outsideWires, Set<GridPoint> outsidePins,
+                            Collection<GridPoint> extraObstacles, List<Wire> extraWires) {
         Set<GridPoint> obstacles = new HashSet<>(outsidePins);
+        obstacles.addAll(extraObstacles);
         outsideWires.forEach(wire -> {
             obstacles.add(wire.start());
             obstacles.add(wire.end());
@@ -94,6 +105,7 @@ public final class PinBridges {
         }
 
         List<Wire> placed = new ArrayList<>(outsideWires);
+        placed.addAll(extraWires);
         List<Wire> bridges = new ArrayList<>();
         List<String> unconnected = new ArrayList<>();
         List<String> blockedNames = new ArrayList<>();
@@ -135,7 +147,7 @@ public final class PinBridges {
         return false;
     }
 
-    private static List<GridPoint> pinPoints(Component component, ComponentTypeRegistry registry) {
+    static List<GridPoint> pinPoints(Component component, ComponentTypeRegistry registry) {
         ComponentType type = registry.require(component.typeId());
         List<GridPoint> points = new ArrayList<>();
         for (int pinIndex = 0; pinIndex < type.pinCount(); pinIndex++) {
@@ -144,12 +156,12 @@ public final class PinBridges {
         return points;
     }
 
-    private static boolean touchesOutside(GridPoint point, Set<GridPoint> outsidePins, List<Wire> outsideWires) {
+    static boolean touchesOutside(GridPoint point, Set<GridPoint> outsidePins, List<Wire> outsideWires) {
         return outsidePins.contains(point) || outsideWires.stream().anyMatch(wire -> wire.contains(point));
     }
 
     /** True when one outside wire already runs over both points: they stay joined without a bridge. */
-    private static boolean sameWire(GridPoint first, GridPoint second, List<Wire> outsideWires) {
+    static boolean sameWire(GridPoint first, GridPoint second, List<Wire> outsideWires) {
         return outsideWires.stream().anyMatch(wire -> wire.contains(first) && wire.contains(second));
     }
 

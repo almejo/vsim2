@@ -72,7 +72,9 @@ public final class LibraryVersionBadge implements CanvasOverlay {
             badge.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
             badge.setStroke(new BasicStroke(1f));
             for (Component component : state.document().components()) {
-                boolean marked = SubcircuitTypes.definitionIdOf(component.typeId()).filter(current::contains).isPresent();
+                boolean marked = SubcircuitTypes.definitionIdOf(component.typeId())
+                        .filter(current::contains)
+                        .isPresent();
                 Optional<ComponentType> type = openDocument.registry().find(component.typeId());
                 if (!marked || type.isEmpty()) {
                     continue;

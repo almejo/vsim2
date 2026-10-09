@@ -1,20 +1,28 @@
 package cl.almejo.vsim.ui.library;
 
 import cl.almejo.vsim.core.command.AddElementsCommand;
+import cl.almejo.vsim.core.command.AddWireCommand;
+import cl.almejo.vsim.core.command.ChangeParametersCommand;
 import cl.almejo.vsim.core.command.PutDefinitionsCommand;
 import cl.almejo.vsim.core.component.ComponentType;
+import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
+import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.DefinitionBundle;
 import cl.almejo.vsim.core.library.ExampleDefinitions;
+import cl.almejo.vsim.core.io.CircuitFragment;
 import cl.almejo.vsim.core.library.InterfacePins;
 import cl.almejo.vsim.core.netlist.Netlist;
+import cl.almejo.vsim.core.netlist.NetlistCompiler;
+import cl.almejo.vsim.core.netlist.PinRef;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.core.value.Value;
 import cl.almejo.vsim.ui.canvas.RenderState;
@@ -32,6 +40,7 @@ import java.awt.event.ActionEvent;
 import java.awt.geom.Point2D;
 import java.awt.image.BufferedImage;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -90,6 +99,133 @@ class TemplateEditingTest {
         return fixture.single("subcircuit:negador");
     }
 
+    /** A switch wired to the input of an inverter instance at (10, 10) and a LED wired to its output. */
+    private record Wired(Component instance, Component source, Component led) {
+    }
+
+    private Wired wiredInverter(String switchValue) {
+        fixture.openDocument.execute(new PutDefinitionsCommand(List.of(ExampleDefinitions.inverter())));
+        Component instance = fixture.place("subcircuit:inverter", 10, 10, "");
+        ComponentTypeRegistry registry = fixture.openDocument.registry();
+        ComponentType type = registry.require(instance.typeId());
+        GridPoint input = type.pinLocation(instance, 0);
+        GridPoint output = type.pinLocation(instance, 1);
+        GridPoint switchPin = new GridPoint(input.x() - 6, input.y());
+        GridPoint ledPin = new GridPoint(output.x() + 6, output.y());
+        Component source = placeWithPinAt(StandardComponentTypes.SWITCH, switchPin, Map.of("value", switchValue));
+        Component led = placeWithPinAt(StandardComponentTypes.LED, ledPin, Map.of());
+        wire(switchPin, input);
+        wire(output, ledPin);
+        return new Wired(instance, source, led);
+    }
+
+    private Component placeWithPinAt(String typeId, GridPoint pin, Map<String, Object> parameters) {
+        GridPoint offset = fixture.openDocument.registry().require(typeId).pin(0).position();
+        return fixture.place(typeId, pin.x() - offset.x(), pin.y() - offset.y(), parameters);
+    }
+
+    private void wire(GridPoint start, GridPoint end) {
+        fixture.openDocument.execute(new AddWireCommand(new Wire(document.newWireId(), start, end)));
+    }
+
+    private Netlist netlist() {
+        return new NetlistCompiler(fixture.openDocument.registry()).compile(document);
+    }
+
+    @Test
+    void disassemblingKeepsTheOutsideConnections() {
+        Wired wired = wiredInverter("1");
+        waitUntil(() -> fixture.stateOf(wired.led()).equals(LED_ZERO));
+        List<Component> componentsBefore = document.components();
+        List<Wire> wiresBefore = document.wires();
+        fixture.select(wired.instance());
+
+        click(contribute(wired.instance()), "Desarmar");
+
+        assertThat(fixture.dialogs.messages).isEmpty();
+        Component gate = fixture.single(StandardComponentTypes.NOT);
+        Netlist netlist = netlist();
+        PinRef switchPin = new PinRef(wired.source().id(), 0);
+        PinRef ledPin = new PinRef(wired.led().id(), 0);
+        assertThat(netlist.netForPin(switchPin)).isNotEqualTo(netlist.netForPin(ledPin));
+        assertThat(netlist.netForPin(switchPin).orElseThrow().pins()).contains(new PinRef(gate.id(), 0));
+        assertThat(netlist.netForPin(ledPin).orElseThrow().pins()).contains(new PinRef(gate.id(), 1));
+        fixture.openDocument.execute(new ChangeParametersCommand(wired.source().id(),
+                fixture.openDocument.registry().require(StandardComponentTypes.SWITCH), Map.of("value", "0")));
+        waitUntil(() -> fixture.stateOf(wired.led()).equals(LED_ONE));
+
+        fixture.openDocument.history().undo(); // the switch
+        fixture.openDocument.history().undo(); // Desarmar, in one step
+        assertThat(document.components()).containsExactlyInAnyOrderElementsOf(componentsBefore);
+        assertThat(document.wires()).containsExactlyInAnyOrderElementsOf(wiresBefore);
+        waitUntil(() -> fixture.stateOf(wired.led()).equals(LED_ZERO));
+    }
+
+    @Test
+    void disassemblingOntoAForeignWireIsRefused() {
+        Wired wired = wiredInverter("1");
+        wire(new GridPoint(12, 4), new GridPoint(12, 12)); // ends inside the box, where the body's input lands
+        List<Component> componentsBefore = document.components();
+        List<Wire> wiresBefore = document.wires();
+        Optional<String> lastStep = fixture.openDocument.history().undoDescription();
+        fixture.select(wired.instance());
+
+        click(contribute(wired.instance()), "Desarmar");
+
+        assertThat(fixture.dialogs.messages).containsExactly(Messages.format("template.notDisassembled",
+                Messages.format("library.place.componentName", "Inversor")));
+        assertThat(document.components()).containsExactlyElementsOf(componentsBefore);
+        assertThat(document.wires()).containsExactlyElementsOf(wiresBefore);
+        assertThat(fixture.openDocument.history().undoDescription()).isEqualTo(lastStep);
+    }
+
+    @Test
+    void takingALibraryVersionThatWouldNestItselfIsRefused() throws Exception {
+        ComponentDefinition inverter = ExampleDefinitions.inverter();
+        fixture.openDocument.execute(new PutDefinitionsCommand(List.of(inverter, ExampleDefinitions.doubleInverter())));
+        Component instance = fixture.place("subcircuit:inverter", 10, 10, "");
+        // The library's double inverter is plain, but its inverter nests it; this circuit's double inverter nests
+        // the inverter, so taking the library's inverter would put the inverter inside itself.
+        ComponentDefinition plainDouble = new ComponentDefinition(ExampleDefinitions.DOUBLE_INVERTER, "Doble",
+                "", inverter.size(), inverter.pinout(), inverter.body());
+        List<Component> body = new ArrayList<>(inverter.body().components());
+        body.add(new Component(new ElementId("c99"), "subcircuit:" + ExampleDefinitions.DOUBLE_INVERTER,
+                new GridPoint(20, 20), Rotation.R0, Map.of(), ""));
+        ComponentDefinition nesting = new ComponentDefinition(inverter.id(), inverter.name(), inverter.description(),
+                inverter.size(), inverter.pinout(),
+                new CircuitFragment(body, inverter.body().wires(), inverter.body().labels()));
+        fixture.service.save(new DefinitionBundle(nesting, List.of(plainDouble)));
+        fixture.select(instance);
+        Optional<String> lastStep = fixture.openDocument.history().undoDescription();
+
+        JPopupMenu menu = contribute(instance);
+        assertThat(texts(menu)).containsExactly("Desarmar", "Actualizar desde la librería");
+        click(menu, "Actualizar desde la librería");
+
+        assertThat(fixture.dialogs.errors).containsExactly(Messages.text("template.updateFromLibrary.recursive"));
+        assertThat(document.definitions()).containsExactly(inverter, ExampleDefinitions.doubleInverter());
+        assertThat(fixture.openDocument.history().undoDescription()).isEqualTo(lastStep);
+    }
+
+    @Test
+    void takingALibraryVersionSaysWhichNestedVersionsTheCircuitKeeps() throws Exception {
+        ComponentDefinition inverter = ExampleDefinitions.inverter();
+        ComponentDefinition doubleInverter = ExampleDefinitions.doubleInverter();
+        fixture.openDocument.execute(new PutDefinitionsCommand(List.of(inverter, doubleInverter)));
+        Component instance = fixture.place("subcircuit:" + ExampleDefinitions.DOUBLE_INVERTER, 10, 10, "");
+        DefinitionBundle library = new DefinitionBundle(doubleInverter.withName("Doble"),
+                List.of(inverter.withName("Negador")));
+        fixture.service.save(library);
+        fixture.select(instance);
+
+        click(contribute(instance), "Actualizar desde la librería");
+
+        assertThat(fixture.dialogs.messages).containsExactly(Messages.format("library.place.keptVersion",
+                Messages.format("library.place.componentName", "Negador")));
+        assertThat(document.definition(ExampleDefinitions.DOUBLE_INVERTER)).contains(library.root());
+        assertThat(document.definition(ExampleDefinitions.INVERTER)).contains(inverter);
+    }
+
     @Test
     void disassemblingPutsTheBodyBackInOneUndoStep() {
         fixture.openDocument.execute(new PutDefinitionsCommand(List.of(ExampleDefinitions.inverter())));
@@ -134,7 +270,8 @@ class TemplateEditingTest {
         waitUntil(() -> fixture.stateOf(led).equals(LED_ONE));
         fixture.openDocument.history().undo();
         assertThat(document.definition("negador")).contains(before);
-        assertThat(fixture.openDocument.history().undoDescription()).isNotEqualTo(Optional.of("command.updateDefinition"));
+        assertThat(fixture.openDocument.history().undoDescription())
+                .isNotEqualTo(Optional.of("command.updateDefinition"));
         waitUntil(() -> fixture.stateOf(led).equals(LED_ZERO));
     }
 
