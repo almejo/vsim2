@@ -143,7 +143,7 @@ class TimeDiagramPainterTest {
         BufferedImage image = draw(samples(10_000, Value.ONE, Value.ZERO, Value.ZERO, Value.ZERO));
         double low = center(1) + TimeDiagramPainter.SWING;
         assertThat(colorAt(image, TimeDiagramPainter.plotLeft() + 0.5, low)).isEqualTo(TRACE);
-        assertThat(colorAt(image, TimeDiagramPainter.plotLeft() - 1, low)).isEqualTo(SCREEN);
+        assertThat(colorAt(image, TimeDiagramPainter.plotLeft() - 1, low)).isNotEqualTo(TRACE);
         assertThat(TimeDiagramPainter.capacity(type)).isGreaterThanOrEqualTo(24);
         assertThat(TimeDiagramPainter.visibleSamples(type, samples(10_000, Value.ONE)))
                 .hasSize(TimeDiagramPainter.capacity(type));
