@@ -78,6 +78,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     };
     private GridPoint dragOutOrigin;
     private Set<ElementId> dragOutIds = Set.of();
+    private String dragOutJson;
     private Function<Point2D, Optional<String>> toolTipProvider = gridPoint -> Optional.empty();
     private Tool tool = defaultTool;
     private SimulationSnapshot displayedSnapshot = SimulationSnapshot.EMPTY;
@@ -163,7 +164,10 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         return fileDropHandler;
     }
 
-    /** Switches a move of the selection in progress into a drag out of the canvas; false when nothing is moving. */
+    /**
+     * Switches a move of the selection in progress into a drag out of the canvas; false, leaving the move alone, when
+     * nothing is moving or the selection gives no fragment to transfer.
+     */
     boolean beginDragOut() {
         if (!(tool instanceof SelectTool select) || selection.isEmpty()) {
             return false;
@@ -172,15 +176,26 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         if (origin.isEmpty()) {
             return false;
         }
+        Optional<String> fragmentJson = selectionFragmentJson();
+        if (fragmentJson.isEmpty()) {
+            return false;
+        }
         select.cancelMove(this);
         dragOutOrigin = origin.get();
         dragOutIds = selection.ids();
+        dragOutJson = fragmentJson.get();
         return true;
     }
 
     void endDragOut() {
         dragOutOrigin = null;
         dragOutIds = Set.of();
+        dragOutJson = null;
+    }
+
+    /** What a drag out carries: the fragment taken when it began, or the current selection otherwise. */
+    Optional<String> transferFragmentJson() {
+        return dragOutJson != null ? Optional.of(dragOutJson) : selectionFragmentJson();
     }
 
     boolean isDraggingOut() {
@@ -481,6 +496,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         @Override
         public void mousePressed(MouseEvent event) {
             track(event);
+            endDragOut(); // a drag out that never reported its end must not turn a later drop into a move
             requestFocusInWindow();
             if (SwingUtilities.isMiddleMouseButton(event) || (spaceDown && SwingUtilities.isLeftMouseButton(event))) {
                 panAnchor = event.getPoint();

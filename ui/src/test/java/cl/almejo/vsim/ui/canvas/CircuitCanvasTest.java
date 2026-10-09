@@ -466,4 +466,35 @@ class CircuitCanvasTest {
         assertThat(asked).containsExactly(new Point2D.Double(2, 3));
         assertThat(canvas.getToolTipText(mouse(MouseEvent.MOUSE_MOVED, 4, 4, 0, MouseEvent.NOBUTTON))).isNull();
     }
+
+    @Test
+    void aStaleDragOutIsForgottenOnTheNextPress() {
+        canvas.setSize(400, 300);
+        Component gate = place(openDocument, StandardComponentTypes.NOT, 5, 5, Map.of());
+        primaryPress(56, 56);
+        primaryDrag(72, 64);
+        assertThat(canvas.beginDragOut()).isTrue(); // and the toolkit never calls exportDone
+        primaryPress(300, 250);
+        primaryRelease(300, 250);
+        assertThat(canvas.isDraggingOut()).isFalse();
+        try (OpenDocument source = OpenDocument.createEmpty(StandardComponentTypes.registry())) {
+            Component other = place(source, StandardComponentTypes.NOT, 0, 0, Map.of());
+            assertThat(canvas.dropFragment(fragmentJsonOf(source, other), new Point(160, 160))).isTrue();
+        }
+        assertThat(canvas.tool()).isInstanceOf(FloatingSelectionTool.class);
+        assertThat(openDocument.document().component(gate.id()).orElseThrow().position())
+                .isEqualTo(new GridPoint(5, 5));
+    }
+
+    @Test
+    void noDragOutBeginsWithoutAFragmentToTransfer() {
+        canvas.setSize(400, 300);
+        place(openDocument, StandardComponentTypes.NOT, 5, 5, Map.of());
+        primaryPress(56, 56);
+        primaryDrag(72, 64);
+        canvas.selection().set(List.of(new ElementId("c999"))); // nothing that a fragment could carry
+        assertThat(canvas.beginDragOut()).isFalse();
+        assertThat(canvas.isDraggingOut()).isFalse();
+        assertThat(((SelectTool) canvas.tool()).movingFrom()).isPresent();
+    }
 }

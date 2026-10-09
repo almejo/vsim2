@@ -59,7 +59,7 @@ final class CanvasTransferHandler extends TransferHandler {
     /** The selection as a fragment; null (no drag) when nothing is selected. */
     @Override
     public Transferable createTransferable(JComponent source) {
-        return canvas.selectionFragmentJson().map(FragmentTransferable::new).orElse(null);
+        return canvas.transferFragmentJson().map(FragmentTransferable::new).orElse(null);
     }
 
     @Override
