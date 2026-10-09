@@ -17,6 +17,8 @@ import cl.almejo.vsim.core.simulation.SimulationEngine;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.core.simulation.SimulationThread;
 import cl.almejo.vsim.ui.i18n.Messages;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.file.AtomicMoveNotSupportedException;
@@ -37,6 +39,8 @@ public final class OpenDocument implements AutoCloseable {
 
     private final CircuitDocument document;
     private final ComponentTypeRegistry registry;
+    private static final Logger LOGGER = LoggerFactory.getLogger(OpenDocument.class);
+
     private final History history;
     private final NetlistCompiler compiler;
     private final CircuitFlattener flattener;
@@ -231,10 +235,24 @@ public final class OpenDocument implements AutoCloseable {
         }
     }
 
+    /**
+     * Recompiles and republishes the circuit. It runs as a document listener while a command is being applied, so it
+     * never throws: a failure (for example sub-circuits nested too deep) pauses the simulation and shows up as the
+     * snapshot's failure, and the command still reaches the undo history.
+     */
     private void synchronize() {
-        netlist = compiler.compile(document);
-        netlistToken = document.revision();
-        simulation.update(flattener.flatten(document, netlist));
+        try {
+            netlist = compiler.compile(document);
+            netlistToken = document.revision();
+            simulation.update(flattener.flatten(document, netlist));
+        } catch (RuntimeException exception) {
+            LOGGER.error("Could not prepare {} for simulation", displayName(), exception);
+            if (netlistToken != document.revision()) {
+                netlist = Netlist.EMPTY;
+                netlistToken = document.revision();
+            }
+            simulation.reportFailure(exception);
+        }
     }
 
     private void fireChanged() {

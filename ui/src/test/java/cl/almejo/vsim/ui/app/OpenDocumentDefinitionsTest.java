@@ -5,6 +5,11 @@ import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
+import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.core.geometry.GridPoint;
+import cl.almejo.vsim.core.geometry.Rotation;
+import cl.almejo.vsim.core.io.CircuitFragment;
+import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.ExampleDefinitions;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.core.value.Value;
@@ -12,6 +17,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -67,5 +73,44 @@ class OpenDocumentDefinitionsTest {
                     .equals(new VisibleState.LedState(Value.ZERO)));
         }
         assertThat(base.find(SubcircuitTypes.typeIdOf(ExampleDefinitions.INVERTER))).isEmpty();
+    }
+
+    @Test
+    void aHierarchyTooDeepToSimulateFailsTheSimulationButKeepsUndo() {
+        try (OpenDocument openDocument = OpenDocument.createEmpty(StandardComponentTypes.registry())) {
+            openDocument.execute(new PutDefinitionsCommand(nestedChain(40)));
+            List<String> notifications = new ArrayList<>();
+            openDocument.addChangeListener(() -> notifications.add("changed"));
+
+            place(openDocument, SubcircuitTypes.typeIdOf("level-40"), 0, 0, Map.of());
+
+            assertThat(openDocument.document().components()).hasSize(1);
+            assertThat(openDocument.history().undoDescription()).isPresent();
+            assertThat(notifications).isNotEmpty();
+            waitUntil(() -> openDocument.latestSnapshot().failure().isPresent());
+            assertThat(openDocument.latestSnapshot().running()).isFalse();
+
+            openDocument.history().undo();
+            assertThat(openDocument.document().components()).isEmpty();
+            place(openDocument, StandardComponentTypes.SWITCH, 0, 0, Map.of());
+            waitUntil(() -> openDocument.latestSnapshot().failure().isEmpty());
+        }
+    }
+
+    /** level-0 is the inverter; level-k holds one level-(k-1) between its input and output pins. */
+    private static List<ComponentDefinition> nestedChain(int levels) {
+        ComponentDefinition inverter = ExampleDefinitions.inverter();
+        List<Component> inverterBody = inverter.body().components();
+        List<ComponentDefinition> chain = new ArrayList<>();
+        chain.add(new ComponentDefinition("level-0", "Nivel 0", "", inverter.size(), inverter.pinout(),
+                inverter.body()));
+        for (int level = 1; level <= levels; level++) {
+            Component inner = new Component(new ElementId("c2"), SubcircuitTypes.typeIdOf("level-" + (level - 1)),
+                    new GridPoint(2, 0), Rotation.R0, Map.of(), "");
+            chain.add(new ComponentDefinition("level-" + level, "Nivel " + level, "", inverter.size(),
+                    inverter.pinout(), new CircuitFragment(List.of(inverterBody.get(0), inner, inverterBody.get(2)),
+                    List.of(), List.of())));
+        }
+        return chain;
     }
 }

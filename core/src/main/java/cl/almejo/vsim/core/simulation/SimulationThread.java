@@ -73,6 +73,14 @@ public final class SimulationThread implements AutoCloseable {
         });
     }
 
+    /**
+     * The circuit could not be prepared ({@code cause}): pauses and publishes the failure, keeping the last circuit
+     * until the next {@link #update}.
+     */
+    public void reportFailure(Throwable cause) {
+        requests.add(() -> publishFailure(cause));
+    }
+
     public void interact(String componentId) {
         requests.add(() -> engine.interact(componentId));
     }

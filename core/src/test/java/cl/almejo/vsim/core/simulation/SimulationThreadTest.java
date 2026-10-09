@@ -88,6 +88,20 @@ class SimulationThreadTest {
     }
 
     @Test
+    void aReportedFailurePausesUntilTheNextUpdate() {
+        thread.update(FlatCircuit.EMPTY);
+        thread.resume();
+        thread.tick();
+        thread.reportFailure(new IllegalStateException("too deep"));
+        thread.tick();
+        assertThat(thread.latestSnapshot().running()).isFalse();
+        assertThat(thread.latestSnapshot().failure()).contains("IllegalStateException: too deep");
+        thread.update(FlatCircuit.EMPTY);
+        thread.tick();
+        assertThat(thread.latestSnapshot().failure()).isEmpty();
+    }
+
+    @Test
     void catchUpIsCappedPerTick() {
         thread.resume();
         thread.tick();
