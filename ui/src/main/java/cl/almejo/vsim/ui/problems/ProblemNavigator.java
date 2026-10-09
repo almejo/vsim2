@@ -1,16 +1,26 @@
 package cl.almejo.vsim.ui.problems;
 
+import cl.almejo.vsim.core.component.ComponentType;
+import cl.almejo.vsim.core.component.ComponentTypeRegistry;
+import cl.almejo.vsim.core.document.CircuitDocument;
+import cl.almejo.vsim.core.document.Component;
+import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.netlist.Net;
 import cl.almejo.vsim.core.netlist.NetId;
 import cl.almejo.vsim.core.netlist.PinRef;
+import cl.almejo.vsim.core.simulation.InstancePath;
 import cl.almejo.vsim.core.simulation.Problem;
+import cl.almejo.vsim.core.simulation.ShortCircuit;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
+import cl.almejo.vsim.core.simulation.WidthMismatch;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 /** Walks the problems of the displayed snapshot (F8 / Shift+F8) and shows each one on the canvas (spec §6.12). */
 public final class ProblemNavigator {
@@ -56,7 +66,10 @@ public final class ProblemNavigator {
 
     /**
      * Centers the view on the net of {@code problem}, selects its wires (or its components when it has none),
-     * makes the wires blink and focuses the canvas. False, with nothing changed, when the net no longer exists.
+     * makes the wires blink and focuses the canvas. A net that lives only inside templates (its id is hierarchical,
+     * such as {@code c5/n:…}) centers on and selects the top-level instances that hold it, its drivers or its pins,
+     * and stops the blink of the previous net.
+     * False, with nothing changed, when neither the net nor any of those instances exists.
      */
     public boolean navigateTo(Problem problem) {
         int index = problems.indexOf(problem);
@@ -65,7 +78,7 @@ public final class ProblemNavigator {
         }
         Optional<Net> net = canvas.openDocument().netlist().net(new NetId(problem.netId()));
         if (net.isEmpty()) {
-            return false;
+            return navigateToInstances(problem);
         }
         Net found = net.get();
         canvas.centerOn(bounds(found));
@@ -75,6 +88,40 @@ public final class ProblemNavigator {
             canvas.selection().set(found.wires());
         }
         blink.start(found.wires());
+        canvas.requestFocusInWindow();
+        return true;
+    }
+
+    private boolean navigateToInstances(Problem problem) {
+        Set<String> ids = new LinkedHashSet<>();
+        ids.add(problem.netId());
+        switch (problem) {
+            case ShortCircuit shortCircuit -> shortCircuit.drivers().forEach(driver -> ids.add(driver.componentId()));
+            case WidthMismatch mismatch -> mismatch.pins().forEach(pin -> ids.add(pin.componentId()));
+        }
+        CircuitDocument document = canvas.openDocument().document();
+        ComponentTypeRegistry registry = canvas.openDocument().registry();
+        List<Component> instances = ids.stream()
+                .filter(InstancePath::isNested)
+                .map(InstancePath::topLevel)
+                .distinct()
+                .map(id -> document.component(new ElementId(id)))
+                .flatMap(Optional::stream)
+                .toList();
+        Bounds result = null;
+        for (Component instance : instances) {
+            Optional<ComponentType> type = registry.find(instance.typeId());
+            if (type.isPresent()) {
+                Bounds bounds = type.get().bounds(instance);
+                result = result == null ? bounds : result.union(bounds);
+            }
+        }
+        if (result == null) {
+            return false;
+        }
+        canvas.centerOn(result);
+        canvas.selection().set(instances.stream().map(Component::id).toList());
+        blink.stop();
         canvas.requestFocusInWindow();
         return true;
     }

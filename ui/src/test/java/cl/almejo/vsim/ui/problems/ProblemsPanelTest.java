@@ -98,4 +98,21 @@ class ProblemsPanelTest {
         panel.activate(-1);
         assertThat(navigated).containsExactly(shortCircuit);
     }
+
+    @Test
+    void libraryProblemsHaveTheirOwnSectionThatHidesWhenEmpty() {
+        assertThat(panel.libraryHeader().isVisible()).isFalse();
+        assertThat(panel.libraryScroll().isVisible()).isFalse();
+
+        panel.showLibraryProblems(List.of("roto.vsimcomponent.json no es un componente válido: …"));
+        assertThat(panel.libraryProblemTexts()).containsExactly("roto.vsimcomponent.json no es un componente válido: …");
+        assertThat(panel.libraryHeader().isVisible()).isTrue();
+        assertThat(panel.libraryScroll().isVisible()).isTrue();
+
+        panel.showLibraryProblems(List.of());
+
+        assertThat(panel.libraryProblemTexts()).isEmpty();
+        assertThat(panel.libraryHeader().isVisible()).isFalse();
+        assertThat(panel.libraryScroll().isVisible()).isFalse();
+    }
 }

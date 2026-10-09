@@ -2,6 +2,7 @@ package cl.almejo.vsim.ui.problems;
 
 import cl.almejo.vsim.core.command.AddElementsCommand;
 import cl.almejo.vsim.core.command.AddWireCommand;
+import cl.almejo.vsim.core.command.PutDefinitionsCommand;
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
@@ -9,10 +10,17 @@ import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
+import cl.almejo.vsim.core.library.ExampleDefinitions;
+import cl.almejo.vsim.core.library.SubcircuitTypes;
+import cl.almejo.vsim.core.netlist.NetId;
 import cl.almejo.vsim.core.netlist.PinRef;
+import cl.almejo.vsim.core.simulation.DriverRef;
+import cl.almejo.vsim.core.simulation.FlatPinRef;
 import cl.almejo.vsim.core.simulation.Problem;
 import cl.almejo.vsim.core.simulation.ShortCircuit;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
+import cl.almejo.vsim.core.simulation.WidthMismatch;
+import cl.almejo.vsim.core.value.Value;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.CanvasHost;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
@@ -150,5 +158,49 @@ class ProblemNavigatorTest {
         show(shortOn(netOf(right), 7), shortOn(netOf(left), 5), shortOn("n:early", 1));
         assertThat(navigator.problems()).map(Problem::netId).containsExactly("n:early", netOf(left), netOf(right));
         assertThat(navigator.next()).map(Problem::netId).contains(netOf(right));
+    }
+
+    @Test
+    void aShortInsideATemplateCentersOnAndSelectsItsInstance() {
+        openDocument.execute(new PutDefinitionsCommand(List.of(ExampleDefinitions.inverter())));
+        Component instance = place(openDocument, SubcircuitTypes.typeIdOf(ExampleDefinitions.INVERTER), 60, 20,
+                Map.of());
+        String inside = instance.id().value() + "/n:inside";
+        assertThat(openDocument.netlist().net(new NetId(inside))).isEmpty();
+
+        show(new ShortCircuit(inside, List.of(new DriverRef(instance.id().value() + "/c2", 1, Value.ONE)), 1));
+
+        assertThat(navigator.next()).isPresent();
+        assertThat(canvas.selection().ids()).containsExactly(instance.id());
+        // The inverter's box is 4 × 4 from (60, 20): its center goes to the middle of the canvas.
+        assertThat(canvas.viewport().gridToScreen(62, 22)).isEqualTo(new Point2D.Double(200, 150));
+    }
+
+    @Test
+    void goingToAShortInsideATemplateStopsTheBlinkOfThePreviousNet() {
+        openDocument.execute(new PutDefinitionsCommand(List.of(ExampleDefinitions.inverter())));
+        Component instance = place(openDocument, SubcircuitTypes.typeIdOf(ExampleDefinitions.INVERTER), 60, 20,
+                Map.of());
+        assertThat(navigator.navigateTo(shortOn(netOf(left), 1))).isTrue();
+        assertThat(blink.isBlinking()).isTrue();
+
+        assertThat(navigator.navigateTo(new ShortCircuit(instance.id().value() + "/n:inside",
+                List.of(new DriverRef(instance.id().value() + "/c2", 1, Value.ONE)), 2))).isTrue();
+
+        assertThat(blink.isBlinking()).isFalse();
+    }
+
+    @Test
+    void aWidthMismatchInsideTemplatesSelectsEveryInstanceInvolved() {
+        openDocument.execute(new PutDefinitionsCommand(List.of(ExampleDefinitions.inverter())));
+        String typeId = SubcircuitTypes.typeIdOf(ExampleDefinitions.INVERTER);
+        Component first = place(openDocument, typeId, 60, 20, Map.of());
+        Component second = place(openDocument, typeId, 70, 20, Map.of());
+
+        assertThat(navigator.navigateTo(new WidthMismatch(first.id().value() + "/n:inside", List.of(
+                new FlatPinRef(first.id().value() + "/c2", 0), new FlatPinRef(second.id().value() + "/c2", 0)))))
+                .isTrue();
+
+        assertThat(canvas.selection().ids()).containsExactlyInAnyOrder(first.id(), second.id());
     }
 }

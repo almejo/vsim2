@@ -24,6 +24,15 @@ class CircuitFileDropTest {
     }
 
     @Test
+    void keepsTheFilesTheFilterAccepts() {
+        FileListTransferable files = new FileListTransferable(List.of(new File("/tmp/a.vsim"),
+                new File("/tmp/notes.txt")));
+        assertThat(CircuitFileDrop.files(files, path -> path.toString().endsWith(".txt")))
+                .containsExactly(Path.of("/tmp/notes.txt"));
+        assertThat(CircuitFileDrop.files(new StringSelection("/tmp/notes.txt"), path -> true)).isEmpty();
+    }
+
+    @Test
     void somethingThatIsNotAFileListHasNoFiles() {
         assertThat(CircuitFileDrop.circuitFiles(new StringSelection("/tmp/a.vsim"))).isEmpty();
     }

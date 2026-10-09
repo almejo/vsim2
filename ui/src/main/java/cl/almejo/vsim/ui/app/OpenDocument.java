@@ -235,6 +235,11 @@ public final class OpenDocument implements AutoCloseable {
         changeListeners.remove(listener);
     }
 
+    /** For tests: views and extensions must remove the change listeners they add when disposed. */
+    public int changeListenerCount() {
+        return changeListeners.size();
+    }
+
     @Override
     public void close() {
         if (!closed) {

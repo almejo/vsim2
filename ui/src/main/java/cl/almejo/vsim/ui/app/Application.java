@@ -6,6 +6,9 @@ import cl.almejo.vsim.core.io.CircuitFormatException;
 import cl.almejo.vsim.core.library.ComponentLibrary;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.icons.ActionIcons;
+import cl.almejo.vsim.ui.library.LibraryService;
+import cl.almejo.vsim.ui.library.SwingLibraryDialogs;
+import cl.almejo.vsim.ui.library.TemplatesExtension;
 import cl.almejo.vsim.ui.paint.Appearance;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
@@ -36,6 +39,7 @@ public final class Application {
     private final AppPreferences preferences;
     private final Appearance appearance = new Appearance(ColorScheme.LIGHT);
     private final ComponentLibrary library = new ComponentLibrary();
+    private final LibraryService libraryService;
     private final EditorServices services;
     private final ThemeManager themeManager;
     private final DocumentWindows<CircuitWindow> windows = new DocumentWindows<>();
@@ -43,8 +47,10 @@ public final class Application {
 
     public Application(AppPreferences preferences) {
         this.preferences = preferences;
+        this.libraryService = new LibraryService(preferences, library, registry);
         List<EditorExtension> editorExtensions = new ArrayList<>();
         // M4 tracks add one line each here, in the order A, B, C, D (overview R9).
+        editorExtensions.add(new TemplatesExtension(libraryService, SwingLibraryDialogs.INSTANCE));
         editorExtensions.add(new ComponentTreeExtension());
         editorExtensions.add(new ActionIcons());
         editorExtensions.add(new PreferencesFeature());
@@ -70,12 +76,17 @@ public final class Application {
         return library;
     }
 
+    public LibraryService libraryService() {
+        return libraryService;
+    }
+
     public ComponentTypeRegistry registry() {
         return registry;
     }
 
     public void start(List<Path> files) {
         themeManager.start();
+        libraryService.start(); // spec §5.6: read the library before the first palette is shown
         openPaths(files, null);
         if (windows.isEmpty()) {
             newDocument();
@@ -166,6 +177,7 @@ public final class Application {
     public void windowClosed(CircuitWindow window) {
         windows.remove(window).ifPresent(OpenDocument::close);
         if (windows.isEmpty()) {
+            libraryService.close();
             System.exit(0);
         }
     }
