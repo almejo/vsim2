@@ -117,4 +117,17 @@ class RotateElementsCommandTest {
         command.revert(document);
         assertThat(document.revision()).isEqualTo(revision);
     }
+
+    @Test
+    void reportsWhetherTheTurnWouldChangeAnything() {
+        TextLabel label = new TextLabel(document.newLabelId(), new GridPoint(3, 3), "nota");
+        document.add(label);
+        Component gate = gate(0, 0);
+        long revision = document.revision();
+        assertThat(new RotateElementsCommand(List.of(label.id()), true, registry).changes(document)).isFalse();
+        assertThat(new RotateElementsCommand(List.of(new ElementId("c99")), true, registry).changes(document))
+                .isFalse();
+        assertThat(new RotateElementsCommand(List.of(gate.id()), true, registry).changes(document)).isTrue();
+        assertThat(document.revision()).isEqualTo(revision);
+    }
 }

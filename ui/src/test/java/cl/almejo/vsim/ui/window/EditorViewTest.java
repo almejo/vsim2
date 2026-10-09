@@ -326,6 +326,19 @@ class EditorViewTest {
         assertThat(openDocument.history().undoDescription()).contains("command.add");
     }
 
+    /** Review M2: a turn that changes nothing (a lone text label) adds no undo step and leaves the file clean. */
+    @Test
+    void rotatingOnlyATextLabelAddsNoUndoStep() {
+        TextLabel label = new TextLabel(openDocument.document().newLabelId(), new GridPoint(3, 3), "nota");
+        openDocument.document().add(label);
+        view.canvas().selection().select(label.id());
+        perform(view.actions().rotateClockwise());
+        perform(view.actions().rotateCounterClockwise());
+        assertThat(openDocument.document().label(label.id())).contains(label);
+        assertThat(openDocument.history().canUndo()).isFalse();
+        assertThat(openDocument.isModified()).isFalse();
+    }
+
     @Test
     void rotateIsEnabledForAnySelection() {
         Wire wire = new Wire(openDocument.document().newWireId(), new GridPoint(0, 8), new GridPoint(6, 8));

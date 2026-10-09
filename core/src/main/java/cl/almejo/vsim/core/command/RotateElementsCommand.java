@@ -35,30 +35,41 @@ public final class RotateElementsCommand implements Command {
         this.registry = registry;
     }
 
+    /**
+     * Whether applying this command now would change {@code document}. Callers use it to keep a turn that changes
+     * nothing (a lone text label) out of the undo history.
+     */
+    public boolean changes(CircuitDocument document) {
+        return !turned(document).isEmpty();
+    }
+
     @Override
     public void apply(CircuitDocument document) {
+        List<Turn> turned = turned(document);
+        previous = turned.stream().map(Turn::before).toList();
+        if (turned.isEmpty()) {
+            return;
+        }
+        document.batch(() -> turned.forEach(change -> document.replace(change.after())));
+    }
+
+    /** The elements the turn changes, in selection order. */
+    private List<Turn> turned(CircuitDocument document) {
         List<DocumentElement> elements = ids.stream().map(document::element).flatMap(Optional::stream).toList();
-        previous = List.of();
         Optional<Bounds> bounds = ElementBounds.union(elements, registry);
         if (bounds.isEmpty()) {
-            return;
+            return List.of();
         }
         GridPoint pivot = pivotOf(bounds.get());
         Rotation turn = clockwise ? Rotation.R90 : Rotation.R270;
-        List<DocumentElement> changed = new ArrayList<>();
-        List<DocumentElement> turned = new ArrayList<>();
+        List<Turn> turned = new ArrayList<>();
         for (DocumentElement element : elements) {
             DocumentElement rotated = rotated(element, pivot, turn);
             if (!rotated.equals(element)) {
-                changed.add(element);
-                turned.add(rotated);
+                turned.add(new Turn(element, rotated));
             }
         }
-        if (changed.isEmpty()) {
-            return;
-        }
-        previous = changed;
-        document.batch(() -> turned.forEach(document::replace));
+        return turned;
     }
 
     @Override
@@ -88,5 +99,8 @@ public final class RotateElementsCommand implements Command {
 
     private static GridPoint around(GridPoint point, GridPoint pivot, Rotation turn) {
         return pivot.plus(turn.apply(new GridPoint(point.x() - pivot.x(), point.y() - pivot.y())));
+    }
+
+    private record Turn(DocumentElement before, DocumentElement after) {
     }
 }

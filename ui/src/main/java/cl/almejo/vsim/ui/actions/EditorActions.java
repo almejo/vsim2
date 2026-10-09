@@ -249,8 +249,9 @@ public final class EditorActions {
 
     private void rotateSelection(boolean clockwise) {
         Set<ElementId> selected = canvas.selection().ids();
-        if (!selected.isEmpty()) {
-            openDocument.execute(new RotateElementsCommand(selected, clockwise, openDocument.registry()));
+        RotateElementsCommand rotate = new RotateElementsCommand(selected, clockwise, openDocument.registry());
+        if (rotate.changes(openDocument.document())) {
+            openDocument.execute(rotate);
         }
     }
 
