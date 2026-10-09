@@ -12,13 +12,15 @@ import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
 /**
  * Turns components (position and rotation), wires and text labels a quarter turn as a group, around the grid point
- * nearest the center of their bounds. Text labels move but stay upright. Wires are not merged (like a move).
+ * nearest the center of their bounds. Text labels move but stay upright. Wires are not merged (like a move). Elements that look the same after the turn (a lone text label) are left
+ * untouched, and if none changes the document is not touched at all.
  */
 public final class RotateElementsCommand implements Command {
 
@@ -36,14 +38,27 @@ public final class RotateElementsCommand implements Command {
     @Override
     public void apply(CircuitDocument document) {
         List<DocumentElement> elements = ids.stream().map(document::element).flatMap(Optional::stream).toList();
-        previous = elements;
+        previous = List.of();
         Optional<Bounds> bounds = ElementBounds.union(elements, registry);
         if (bounds.isEmpty()) {
             return;
         }
         GridPoint pivot = pivotOf(bounds.get());
         Rotation turn = clockwise ? Rotation.R90 : Rotation.R270;
-        document.batch(() -> elements.forEach(element -> document.replace(rotated(element, pivot, turn))));
+        List<DocumentElement> changed = new ArrayList<>();
+        List<DocumentElement> turned = new ArrayList<>();
+        for (DocumentElement element : elements) {
+            DocumentElement rotated = rotated(element, pivot, turn);
+            if (!rotated.equals(element)) {
+                changed.add(element);
+                turned.add(rotated);
+            }
+        }
+        if (changed.isEmpty()) {
+            return;
+        }
+        previous = changed;
+        document.batch(() -> turned.forEach(document::replace));
     }
 
     @Override

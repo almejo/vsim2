@@ -86,6 +86,12 @@ class RotateElementsCommandTest {
                 List.of(first.id(), second.id(), new ElementId("c99")), false, registry);
         command.apply(document);
         assertThat(Set.copyOf(document.elements())).isNotEqualTo(before);
+        // union bounds are (0,0)-(11,7), so the pivot is the grid point nearest its center (5.5, 3.5): (6, 4)
+        assertThat(RotateElementsCommand.pivotOf(new Bounds(0, 0, 11, 7))).isEqualTo(new GridPoint(6, 4));
+        assertThat(document.component(first.id()).orElseThrow().position()).isEqualTo(new GridPoint(2, 10));
+        assertThat(document.component(first.id()).orElseThrow().rotation()).isEqualTo(Rotation.R270);
+        assertThat(document.component(second.id()).orElseThrow().position()).isEqualTo(new GridPoint(5, 3));
+        assertThat(document.component(second.id()).orElseThrow().rotation()).isEqualTo(Rotation.R270);
         command.revert(document);
         assertThat(Set.copyOf(document.elements())).isEqualTo(before);
         assertThat(command.description()).isEqualTo("command.rotate");
@@ -96,6 +102,19 @@ class RotateElementsCommandTest {
         gate(0, 0);
         long revision = document.revision();
         new RotateElementsCommand(List.of(new ElementId("c99")), true, registry).apply(document);
+        assertThat(document.revision()).isEqualTo(revision);
+    }
+
+    @Test
+    void rotatingOnlyATextLabelChangesNothing() {
+        TextLabel label = new TextLabel(document.newLabelId(), new GridPoint(3, 3), "nota");
+        document.add(label);
+        long revision = document.revision();
+        RotateElementsCommand command = new RotateElementsCommand(List.of(label.id()), true, registry);
+        command.apply(document);
+        assertThat(document.revision()).isEqualTo(revision);
+        assertThat(document.label(label.id()).orElseThrow()).isEqualTo(label);
+        command.revert(document);
         assertThat(document.revision()).isEqualTo(revision);
     }
 }
