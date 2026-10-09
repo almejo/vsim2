@@ -214,17 +214,17 @@ class EditorViewTest {
     void toolButtonsAndPaletteFollowTheCanvasTool() {
         perform(view.actions().wireTool());
         assertThat(view.canvas().tool()).isInstanceOf(WireTool.class);
-        assertThat(toggle("Cable").isSelected()).isTrue();
+        assertThat(toggle(view.actions().wireTool()).isSelected()).isTrue();
         view.palette().choose(StandardComponentTypes.LED);
         assertThat(view.canvas().tool()).isInstanceOf(PlaceComponentTool.class);
-        assertThat(toggle("Cable").isSelected()).isFalse();
-        assertThat(toggle("Selección").isSelected()).isFalse();
+        assertThat(toggle(view.actions().wireTool()).isSelected()).isFalse();
+        assertThat(toggle(view.actions().selectTool()).isSelected()).isFalse();
         perform(view.actions().panTool());
         assertThat(view.canvas().tool()).isInstanceOf(PanTool.class);
         view.palette().choose(StandardComponentTypes.LED);
         assertThat(view.canvas().tool()).isInstanceOf(PlaceComponentTool.class);
         view.canvas().useDefaultTool();
-        assertThat(toggle("Selección").isSelected()).isTrue();
+        assertThat(toggle(view.actions().selectTool()).isSelected()).isTrue();
     }
 
     @Test
@@ -280,13 +280,13 @@ class EditorViewTest {
         assertThat(view.getActionMap().get("zoomIn")).isSameAs(view.actions().zoomIn());
     }
 
-    private AbstractButton toggle(String text) {
+    private AbstractButton toggle(javax.swing.Action action) {
         for (java.awt.Component child : view.toolBar().getComponents()) {
-            if (child instanceof AbstractButton button && text.equals(button.getText())) {
+            if (child instanceof AbstractButton button && button.getAction() == action) {
                 return button;
             }
         }
-        throw new AssertionError("no toolbar button " + text);
+        throw new AssertionError("no toolbar button for " + action.getValue(javax.swing.Action.NAME));
     }
 
     private static void layoutTree(java.awt.Component component) {

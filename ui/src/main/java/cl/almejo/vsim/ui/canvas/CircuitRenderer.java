@@ -41,6 +41,7 @@ public final class CircuitRenderer {
     private static final double OUTLINE_GAP = 3;
     private static final double MINIMUM_DOT_SPACING = 6;
 
+    private final JunctionCache junctionCache = new JunctionCache();
     private final ComponentTypeRegistry registry;
     private final PainterRegistry painters;
     private final Appearance appearance;
@@ -105,7 +106,7 @@ public final class CircuitRenderer {
             graphics.draw(line(wire));
         }
         graphics.setColor(scheme.componentStroke());
-        for (GridPoint junction : Junctions.of(state.document())) {
+        for (GridPoint junction : junctionCache.of(state.document())) {
             graphics.fill(circle(junction, JUNCTION_RADIUS));
         }
 

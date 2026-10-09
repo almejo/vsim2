@@ -10,16 +10,26 @@ import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
 import cl.almejo.vsim.core.library.ExampleDefinitions;
+import cl.almejo.vsim.core.library.InterfacePins;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.core.value.Value;
 import org.junit.jupiter.api.Test;
 
 import java.awt.Color;
 import java.awt.Graphics2D;
+import java.awt.geom.AffineTransform;
+import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -32,18 +42,52 @@ class PaintersTest {
 
     /** A representative "on" state per type, shared with the gallery. */
     static VisibleState sampleState(String typeId) {
+        if (typeId.equals(InterfacePins.INPUT_PIN)) {
+            return new VisibleState.SwitchState(Value.ONE);
+        }
+        if (typeId.equals(InterfacePins.OUTPUT_PIN)) {
+            return new VisibleState.LedState(Value.ONE);
+        }
         return switch (typeId) {
             case StandardComponentTypes.LED -> new VisibleState.LedState(Value.ONE);
             case StandardComponentTypes.SWITCH -> new VisibleState.SwitchState(Value.ONE);
             case StandardComponentTypes.CLOCK -> new VisibleState.ClockState(Value.ONE);
             case StandardComponentTypes.SEVEN_SEGMENTS_DISPLAY -> new VisibleState.SevenSegmentsState(Value.of(4, 0x7));
             case StandardComponentTypes.SEVEN_SEGMENTS_DISPLAY_DOUBLE -> new VisibleState.SevenSegmentsState(Value.of(8, 0x5A));
-            case StandardComponentTypes.TIME_DIAGRAM -> new VisibleState.TimeDiagramState(List.of(
-                    new TimeDiagramSample(0, List.of(Value.ZERO, Value.ONE, Value.HIGH_IMPEDANCE, Value.ZERO)),
-                    new TimeDiagramSample(1, List.of(Value.ONE, Value.ONE, Value.ZERO, Value.ZERO)),
-                    new TimeDiagramSample(2, List.of(Value.ONE, Value.ZERO, Value.ZERO, Value.ONE))));
+            case StandardComponentTypes.TIME_DIAGRAM -> fullTimeDiagramHistory(StandardComponentTypes.registry().require(typeId));
             default -> VisibleState.NONE;
         };
+    }
+
+    /**
+     * A full history for the time diagram: {@link TimeDiagramPainter#capacity} samples plus a few, four channels, with 0/1
+     * transitions on all of them, one stretch of Z and one conflict sample, so the gallery shows the real look.
+     */
+    private static VisibleState fullTimeDiagramHistory(ComponentType type) {
+        int count = TimeDiagramPainter.capacity(type) + 4;
+        long interval = type.parameters().stream()
+                .filter(parameter -> parameter.name().equals("sample-interval"))
+                .map(parameter -> parameter.defaultValue())
+                .filter(Integer.class::isInstance)
+                .map(Integer.class::cast)
+                .findFirst()
+                .orElse(150);
+        List<TimeDiagramSample> samples = new ArrayList<>();
+        for (int index = 0; index < count; index++) {
+            Value first = index / 3 % 2 == 0 ? Value.ZERO : Value.ONE;
+            Value second = index / 5 % 2 == 0 ? Value.ONE : Value.ZERO;
+            Value third = index / 2 % 2 == 0 ? Value.ZERO : Value.ONE;
+            Value fourth = index % 2 == 0 ? Value.ZERO : Value.ONE;
+            // Z over samples count-12..count-8, the conflict at count-5: all inside the visible window
+            if (index >= count - 12 && index < count - 7) {
+                second = Value.HIGH_IMPEDANCE;
+            }
+            if (index == count - 5) {
+                third = Value.ONE.withConflict();
+            }
+            samples.add(new TimeDiagramSample(index * interval, List.of(first, second, third, fourth)));
+        }
+        return new VisibleState.TimeDiagramState(samples);
     }
 
     static BufferedImage blankImage(int width, int height) {
@@ -159,5 +203,65 @@ class PaintersTest {
         assertThat(icon.getIconWidth()).isEqualTo(24);
         assertThat(icon.getIconHeight()).isEqualTo(24);
         assertThat(painted).isGreaterThan(30);
+    }
+
+    /** Half the side of the pixel patch compared around a text. */
+    private static final int PATCH = 5;
+
+    /** The pixels around the screen point where local point (localX, localY) lands; the component is at (12, 12). */
+    private int[] patchAround(String typeId, Rotation rotation, double localX, double localY) {
+        BufferedImage image = draw(typeId, rotation, Map.of(), sampleState(typeId));
+        AffineTransform placement = AffineTransform.getTranslateInstance(96, 96);
+        placement.rotate(rotation.quarterTurns() * Math.PI / 2);
+        Point2D center = placement.transform(new Point2D.Double(localX, localY), null);
+        int left = (int) Math.floor(center.getX()) - PATCH;
+        int top = (int) Math.floor(center.getY()) - PATCH;
+        return image.getRGB(left, top, 2 * PATCH + 1, 2 * PATCH + 1, null, 0, 2 * PATCH + 1);
+    }
+
+    @Test
+    void switchTextReadsTheSameWhenTheSwitchIsTurnedHalfway() {
+        // (13.5, 8) is the middle of the switch body, where its 1/0/Z is centered. R0/R180 (and R90/R270) place
+        // that point at the same sub-pixel offset, so upright text gives identical patches; upside-down text does not.
+        int[] upright = patchAround(StandardComponentTypes.SWITCH, Rotation.R0, 13.5, 8);
+        assertThat(Arrays.stream(upright).filter(rgb -> new Color(rgb).getBlue() > 200).count()).isPositive();
+        assertThat(patchAround(StandardComponentTypes.SWITCH, Rotation.R180, 13.5, 8)).isEqualTo(upright);
+        assertThat(patchAround(StandardComponentTypes.SWITCH, Rotation.R270, 13.5, 8))
+                .isEqualTo(patchAround(StandardComponentTypes.SWITCH, Rotation.R90, 13.5, 8));
+    }
+
+    @Test
+    void paintersDrawTextOnlyThroughTheUprightHelper() throws IOException {
+        try (Stream<Path> sources = Files.list(Path.of("src/main/java/cl/almejo/vsim/ui/paint"))) {
+            List<String> offenders = sources
+                    .filter(path -> !path.getFileName().toString().equals("PainterSupport.java"))
+                    .filter(path -> {
+                        String source = readSource(path);
+                        return source.contains("drawString(") || source.contains("drawGlyphVector(")
+                                || source.contains("TextLayout");
+                    })
+                    .map(path -> path.getFileName().toString())
+                    .toList();
+            assertThat(offenders).as("use PainterSupport.uprightText or centeredText").isEmpty();
+        }
+    }
+
+    private static String readSource(Path path) {
+        try {
+            return Files.readString(path);
+        } catch (IOException exception) {
+            throw new UncheckedIOException(exception);
+        }
+    }
+
+    @Test
+    void ledToleratesAColorParameterThatIsNotText() {
+        ComponentType type = registry.require(StandardComponentTypes.LED);
+        BufferedImage image = blankImage(40, 40);
+        Graphics2D graphics = image.createGraphics();
+        graphics.translate(10, 10);
+        new LedPainter().paint(graphics, type, Map.of("color", 7), new VisibleState.LedState(Value.ONE), SCHEME);
+        graphics.dispose();
+        assertThat(new Color(image.getRGB(18, 22))).isEqualTo(LedPainter.colorFor("red"));
     }
 }

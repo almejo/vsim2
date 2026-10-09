@@ -40,4 +40,28 @@ class PainterSupportTest {
             assertSameImage(renderText(quarterTurns), upright);
         }
     }
+
+    @Test
+    void leftAlignedTextGrowsToTheRightOfItsAnchorOnScreenInEveryRotation() {
+        for (int quarterTurns = 0; quarterTurns < 4; quarterTurns++) {
+            BufferedImage image = new BufferedImage(SIZE, SIZE, BufferedImage.TYPE_INT_ARGB);
+            Graphics2D graphics = image.createGraphics();
+            graphics.setColor(Color.BLACK);
+            graphics.fillRect(0, 0, SIZE, SIZE);
+            graphics.rotate(quarterTurns * Math.PI / 2, CENTER, CENTER);
+            PainterSupport.uprightText(graphics, "FF", CENTER, CENTER, 16f, Color.WHITE, PainterSupport.ALIGN_LEFT);
+            graphics.dispose();
+            int written = 0;
+            for (int y = 0; y < SIZE; y++) {
+                for (int x = 0; x < SIZE; x++) {
+                    if (image.getRGB(x, y) != Color.BLACK.getRGB()) {
+                        written++;
+                        assertThat(x).as("quarter turns %d, pixel %d,%d", quarterTurns, x, y)
+                                .isGreaterThanOrEqualTo((int) CENTER - 1);
+                    }
+                }
+            }
+            assertThat(written).as("quarter turns %d", quarterTurns).isGreaterThan(10);
+        }
+    }
 }
