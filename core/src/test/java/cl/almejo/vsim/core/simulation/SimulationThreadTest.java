@@ -118,6 +118,10 @@ class SimulationThreadTest {
 
     @Test
     void engineFailurePausesAndTheThreadKeepsServing() {
+        thread.resume();
+        thread.tick();
+        assertThat(thread.latestSnapshot().running()).isTrue();
+
         FlatCircuit broken = new FlatCircuit(List.of(),
                 List.of(new FlatNet("bad", List.of(new FlatPinRef("missing", 0)), 1, false)));
         thread.update(broken);
