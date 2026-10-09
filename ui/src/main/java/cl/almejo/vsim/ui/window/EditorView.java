@@ -134,7 +134,11 @@ public final class EditorView extends JPanel implements CanvasHost {
                 extensionDisposers.add(extension.install(this));
             }
         } catch (RuntimeException exception) {
-            dispose(); // undoes the extensions installed so far and leaves no listener on shared objects
+            try {
+                dispose(); // undoes the extensions installed so far and leaves no listener on shared objects
+            } catch (RuntimeException disposeFailure) {
+                exception.addSuppressed(disposeFailure);
+            }
             throw exception;
         }
     }
@@ -186,17 +190,37 @@ public final class EditorView extends JPanel implements CanvasHost {
         return ContextMenuFactory.create(target, actions, canvas.selection(), gridPosition, contextMenuContributors);
     }
 
+    /**
+     * Undoes the extensions (in reverse order) and releases this view. Every step runs even when an earlier one
+     * throws; the first failure is rethrown at the end with the later ones attached as suppressed exceptions.
+     */
     public void dispose() {
+        List<Runnable> steps = new ArrayList<>();
         for (int index = extensionDisposers.size() - 1; index >= 0; index--) {
-            extensionDisposers.get(index).run();
+            steps.add(extensionDisposers.get(index));
         }
         extensionDisposers.clear();
-        services.appearance().removeListener(appearanceListener);
-        palette.dispose();
-        problems.dispose();
-        labelFeatures.dispose();
-        actions.dispose();
-        canvas.dispose();
+        steps.add(() -> services.appearance().removeListener(appearanceListener));
+        steps.add(palette::dispose);
+        steps.add(problems::dispose);
+        steps.add(labelFeatures::dispose);
+        steps.add(actions::dispose);
+        steps.add(canvas::dispose);
+        RuntimeException failure = null;
+        for (Runnable step : steps) {
+            try {
+                step.run();
+            } catch (RuntimeException exception) {
+                if (failure == null) {
+                    failure = exception;
+                } else {
+                    failure.addSuppressed(exception);
+                }
+            }
+        }
+        if (failure != null) {
+            throw failure;
+        }
     }
 
     @Override

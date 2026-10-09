@@ -442,6 +442,31 @@ class EditorViewTest {
     }
 
     @Test
+    void aDisposerThatThrowsStillLetsTheOtherDisposersAndTheViewCleanUp() {
+        List<String> events = new ArrayList<>();
+        Appearance appearance = new Appearance(ColorScheme.LIGHT);
+        EditorExtension first = target -> () -> events.add("dispose first");
+        EditorExtension broken = target -> () -> {
+            events.add("dispose broken");
+            throw new IllegalStateException("broken disposer");
+        };
+        EditorExtension alsoBroken = target -> () -> {
+            throw new IllegalArgumentException("also broken");
+        };
+        EditorExtension last = target -> () -> events.add("dispose last");
+        EditorServices services = new EditorServices(PainterRegistry.standard(), appearance,
+                AppPreferences.inMemory(), new ComponentLibrary(), List.of(first, broken, alsoBroken, last));
+        EditorView extended = new EditorView(openDocument, services, window);
+
+        assertThatThrownBy(extended::dispose)
+                .isInstanceOf(IllegalArgumentException.class).hasMessage("also broken")
+                .satisfies(exception -> assertThat(exception.getSuppressed()).hasSize(1)
+                        .allSatisfy(suppressed -> assertThat(suppressed).hasMessage("broken disposer")));
+        assertThat(events).containsExactly("dispose last", "dispose broken", "dispose first");
+        assertThat(appearance.listenerCount()).isZero();
+    }
+
+    @Test
     void theViewRepaintsWithTheNewSchemeAndForgetsTheAppearanceWhenDisposed() {
         Appearance appearance = new Appearance(ColorScheme.LIGHT);
         EditorServices services = new EditorServices(PainterRegistry.standard(), appearance,

@@ -129,10 +129,16 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
 
     /** Closes this window without asking; the application closes the document after its last window. */
     public void closeQuietly() {
-        openDocument.removeChangeListener(titleUpdater);
-        view.dispose();
-        dispose();
-        application.windowClosed(this);
+        try {
+            openDocument.removeChangeListener(titleUpdater);
+            view.dispose();
+        } catch (RuntimeException exception) {
+            // a broken extension disposer must not keep the window open or stop the application from exiting
+            LOGGER.error("Could not release the editor of {}", openDocument.displayName(), exception);
+        } finally {
+            dispose();
+            application.windowClosed(this);
+        }
     }
 
     private boolean trySave() {
