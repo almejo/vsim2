@@ -115,13 +115,13 @@ public final class DefinitionBuilder {
         List<DefinitionPin> pinout = new ArrayList<>();
         for (int index = 0; index < pinOrder.inputs().size(); index++) {
             ElementId source = pinOrder.inputs().get(index);
-            pinout.add(new DefinitionPin(PinSpec.input(names.get(source), 0, FIRST_PIN_Y + PIN_SPACING * index),
-                    source));
+            pinout.add(new DefinitionPin(PinSpec.input(names.get(source), 0, FIRST_PIN_Y + PIN_SPACING * index,
+                    widthOf(document, source)), source));
         }
         for (int index = 0; index < pinOrder.outputs().size(); index++) {
             ElementId source = pinOrder.outputs().get(index);
-            pinout.add(new DefinitionPin(
-                    PinSpec.output(names.get(source), BOX_WIDTH, FIRST_PIN_Y + PIN_SPACING * index), source));
+            pinout.add(new DefinitionPin(PinSpec.output(names.get(source), BOX_WIDTH,
+                    FIRST_PIN_Y + PIN_SPACING * index, widthOf(document, source)), source));
         }
         CircuitFragment selected = CircuitFragment.of(document, ids, registry);
         CircuitFragment body = new CircuitFragment(selected.components(), selected.wires(), selected.labels());
@@ -167,5 +167,10 @@ public final class DefinitionBuilder {
                 return candidate;
             }
         }
+    }
+
+    /** The width of the selected interface pin {@code id}: the template pin it becomes is as wide. */
+    private static int widthOf(CircuitDocument document, ElementId id) {
+        return InterfacePins.widthOf(document.component(id).orElseThrow());
     }
 }

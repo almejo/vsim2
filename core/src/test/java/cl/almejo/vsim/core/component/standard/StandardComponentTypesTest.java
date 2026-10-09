@@ -198,4 +198,36 @@ class StandardComponentTypesTest {
         engine.advance(1);
         assertThat(engine.snapshot().componentState("out")).isEqualTo(new VisibleState.LedState(Value.ONE));
     }
+
+    @Test
+    void wideInterfacePinsDriveAndToggleEveryBit() {
+        Map<String, Object> eightBits = Map.of(InterfacePins.WIDTH, 8);
+        ComponentType input = registry.require(InterfacePins.INPUT_PIN).specializedFor(eightBits);
+        ComponentType output = registry.require(InterfacePins.OUTPUT_PIN).specializedFor(eightBits);
+        assertThat(input.pin(0).width()).isEqualTo(8);
+        assertThat(output.pin(0).width()).isEqualTo(8);
+        assertThat(registry.require(InterfacePins.INPUT_PIN).pin(0).width()).isEqualTo(1);
+        assertThat(registry.require(InterfacePins.OUTPUT_PIN).resolveParameters(Map.of()))
+                .containsEntry(InterfacePins.WIDTH, 1);
+
+        SimulationEngine engine = new SimulationEngine();
+        engine.update(new FlatCircuit(
+                List.of(new FlatComponent("in", input, Map.of("value", "1", InterfacePins.WIDTH, 8)),
+                        new FlatComponent("out", output, eightBits)),
+                List.of(new FlatNet("n", List.of(new FlatPinRef("in", 0), new FlatPinRef("out", 0)), 8, false))));
+        engine.advance(1);
+        assertThat(engine.snapshot().componentState("out")).isEqualTo(new VisibleState.LedState(Value.of(8, 0xFF)));
+        engine.interact("in");
+        engine.advance(1);
+        assertThat(engine.snapshot().componentState("out")).isEqualTo(new VisibleState.LedState(Value.of(8, 0)));
+        engine.interact("in");
+        engine.advance(1);
+        assertThat(engine.snapshot().componentState("in")).isEqualTo(new VisibleState.SwitchState(Value.of(8, 0xFF)));
+
+        GateHarness floating = new GateHarness(InterfacePins.INPUT_PIN, Map.of("value", "Z", InterfacePins.WIDTH, 4))
+                .advance(0);
+        assertThat(floating.output(0)).isEqualTo(Value.highImpedance(4));
+        floating.interact();
+        assertThat(floating.advance(0).output(0)).isEqualTo(Value.of(4, 0xF));
+    }
 }

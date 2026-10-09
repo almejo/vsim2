@@ -1,5 +1,6 @@
 package cl.almejo.vsim.core.io;
 
+import cl.almejo.vsim.core.library.InterfacePins;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.library.DefinitionBundle;
 import cl.almejo.vsim.core.library.ExampleDefinitions;
@@ -89,5 +90,21 @@ class DefinitionFormatTest {
                 .isInstanceOf(CircuitFormatException.class)
                 .extracting(exception -> ((CircuitFormatException) exception).reason())
                 .isEqualTo(reason);
+    }
+
+    @Test
+    void wideTemplatesRoundTripAndOldFilesReadAsOneBit() throws Exception {
+        DefinitionBundle byteBuffer = new DefinitionBundle(ExampleDefinitions.byteBuffer(), List.of());
+        String json = format.write(byteBuffer);
+        assertThat(pin((ObjectNode) mapper.readTree(json), 0).path("width").asInt()).isEqualTo(8);
+        assertThat(format.read(json)).isEqualTo(byteBuffer);
+
+        String withoutWidths = mutated(format.write(inverterBundle), root -> {
+            root.path("pinout").forEach(pin -> ((ObjectNode) pin).remove("width"));
+            root.path("components").forEach(component -> ((ObjectNode) component.path("parameters")).remove("width"));
+        });
+        JsonNode tree = mapper.readTree(withoutWidths);
+        assertThat(tree.path("pinout").toString() + tree.path("components").toString()).doesNotContain("\"width\"");
+        assertThat(format.read(withoutWidths)).isEqualTo(inverterBundle);
     }
 }

@@ -2,6 +2,7 @@ package cl.almejo.vsim.core.library;
 
 import cl.almejo.vsim.core.component.PinDirection;
 import cl.almejo.vsim.core.component.PinSpec;
+import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.GridSize;
@@ -51,17 +52,26 @@ public record ComponentDefinition(String id, String name, String description, Gr
             }
             String expected = pin.spec().direction() == PinDirection.OUTPUT
                     ? InterfacePins.OUTPUT_PIN : InterfacePins.INPUT_PIN;
-            if (pin.spec().direction() == PinDirection.BIDIRECTIONAL || body.components().stream()
-                    .noneMatch(component -> component.id().equals(pin.source()) && component.typeId().equals(expected))) {
+            Component source = body.components().stream()
+                    .filter(component -> component.id().equals(pin.source()) && component.typeId().equals(expected))
+                    .findFirst()
+                    .orElse(null);
+            if (pin.spec().direction() == PinDirection.BIDIRECTIONAL || source == null) {
                 throw new IllegalArgumentException("pin " + pin.spec().name() + " of " + id + " needs a " + expected
                         + " with id " + pin.source());
+            }
+            int sourceWidth = InterfacePins.widthOf(source);
+            if (pin.spec().width() != sourceWidth) {
+                throw new IllegalArgumentException("pin " + pin.spec().name() + " of " + id + " is "
+                        + pin.spec().width() + " bits wide but its " + expected + " " + pin.source() + " is "
+                        + sourceWidth + " bits wide");
             }
         }
     }
 
     /**
-     * A pin needs a unique, non-blank name, a position on the box ({@code [0..width] x [0..height]}) no other pin
-     * uses (pins at one point would short their outer nets) and width 1 (wider pins come later).
+     * A pin needs a unique, non-blank name and a position on the box ({@code [0..width] x [0..height]}) no other pin
+     * uses (pins at one point would short their outer nets).
      */
     private static void requireValidPin(String id, GridSize size, PinSpec spec, Set<String> names,
                                         Set<GridPoint> positions) {
@@ -79,10 +89,6 @@ public record ComponentDefinition(String id, String name, String description, Gr
         if (!positions.add(position)) {
             throw new IllegalArgumentException("pin " + spec.name() + " of " + id + " shares its position "
                     + position.x() + "," + position.y() + " with another pin");
-        }
-        if (spec.width() != 1) {
-            throw new IllegalArgumentException("pin " + spec.name() + " of " + id + " must be 1 bit wide: "
-                    + spec.width());
         }
     }
 

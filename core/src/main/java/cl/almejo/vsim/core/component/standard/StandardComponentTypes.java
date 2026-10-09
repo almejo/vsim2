@@ -105,13 +105,16 @@ public final class StandardComponentTypes {
                         ParameterSpec.integer("history", 200, 10, 10_000)),
                 parameters -> new TimeDiagramBehavior(4, (Integer) parameters.get("sample-interval"),
                         (Integer) parameters.get("history"))));
-        registry.register(new ComponentType(INPUT_PIN, ComponentCategory.INTERFACE, new GridSize(2, 2),
-                List.of(PinSpec.output("pin", 2, 1)),
-                List.of(ParameterSpec.choice("value", "0", List.of("1", "0", "Z"))),
-                parameters -> new SwitchBehavior(SwitchBehavior.parse((String) parameters.get("value")))));
-        registry.register(new ComponentType(OUTPUT_PIN, ComponentCategory.INTERFACE, new GridSize(2, 2),
-                List.of(PinSpec.input("pin", 0, 1)),
-                List.of(),
+        registry.register(ComponentType.parameterized(INPUT_PIN, ComponentCategory.INTERFACE,
+                List.of(ParameterSpec.choice("value", "0", List.of("1", "0", "Z")), InterfacePins.WIDTH_PARAMETER),
+                parameters -> new ComponentShape(new GridSize(2, 2),
+                        List.of(PinSpec.output("pin", 2, 1, (Integer) parameters.get(InterfacePins.WIDTH)))),
+                parameters -> new SwitchBehavior(SwitchBehavior.parse((String) parameters.get("value"),
+                        (Integer) parameters.get(InterfacePins.WIDTH)))));
+        registry.register(ComponentType.parameterized(OUTPUT_PIN, ComponentCategory.INTERFACE,
+                List.of(InterfacePins.WIDTH_PARAMETER),
+                parameters -> new ComponentShape(new GridSize(2, 2),
+                        List.of(PinSpec.input("pin", 0, 1, (Integer) parameters.get(InterfacePins.WIDTH)))),
                 parameters -> newValueProbe()));
         registry.register(ComponentType.parameterized(BUS_SPLITTER, ComponentCategory.BASIC, List.of(BUS_WIDTH),
                 parameters -> busShape((Integer) parameters.get(WIDTH), false),

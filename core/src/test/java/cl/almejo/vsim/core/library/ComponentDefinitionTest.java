@@ -117,4 +117,19 @@ class ComponentDefinitionTest {
                 id -> id.equals(ExampleDefinitions.DOUBLE_INVERTER) ? Optional.of(doubleInverter) : Optional.empty()))
                 .containsExactly(doubleInverter);
     }
+
+    @Test
+    void eachPinIsExactlyAsWideAsItsInterfacePin() {
+        ComponentDefinition byteBuffer = ExampleDefinitions.byteBuffer();
+        assertThat(byteBuffer.pinout()).extracting(pin -> pin.spec().width()).containsExactly(8, 8);
+        DefinitionPin wideOnNarrow = new DefinitionPin(PinSpec.input("a", 0, 2, 8), new ElementId("c1"));
+        assertThatThrownBy(() -> new ComponentDefinition("bad", "Malo", "", new GridSize(4, 4),
+                List.of(wideOnNarrow, inverter.pinout().get(1)), inverter.body()))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("8 bits");
+        DefinitionPin narrowOnWide = new DefinitionPin(PinSpec.input("a", 0, 2), new ElementId("c1"));
+        assertThatThrownBy(() -> new ComponentDefinition("bad", "Malo", "", new GridSize(4, 4),
+                List.of(narrowOnWide, byteBuffer.pinout().get(1)), byteBuffer.body()))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
 }
