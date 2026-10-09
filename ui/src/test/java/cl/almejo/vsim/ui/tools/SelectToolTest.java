@@ -2,11 +2,11 @@ package cl.almejo.vsim.ui.tools;
 
 import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
-import cl.almejo.vsim.core.document.Component;
-import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.command.AddElementsCommand;
 import cl.almejo.vsim.core.command.AddWireCommand;
+import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.TextLabel;
+import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.value.Value;
 import org.junit.jupiter.api.AfterEach;
@@ -585,5 +585,26 @@ class SelectToolTest {
         tool.paintOverlay(graphics, context);
         graphics.dispose();
         return image;
+    }
+
+    @Test
+    void doubleClickOnAFreeTextEditsIt() {
+        TextLabel label = labelAt(10, 10);
+        tool.mousePressed(context, TestToolContext.at(10.3, 10.5));
+        tool.mouseReleased(context, TestToolContext.at(10.3, 10.5));
+        tool.mousePressed(context, TestToolContext.event(10.3, 10.5, CanvasMouseEvent.PRIMARY, 2, false));
+        tool.mouseReleased(context, TestToolContext.event(10.3, 10.5, CanvasMouseEvent.PRIMARY, 2, false));
+        assertThat(context.editedLabel).isEqualTo(label);
+        assertThat(context.selection.ids()).containsExactly(label.id());
+        assertThat(context.configured).isNull();
+    }
+
+    @Test
+    void draggingAFreeTextMovesIt() {
+        TextLabel label = labelAt(10, 10);
+        context.drag(tool, 10.3, 10.5, 13.3, 12.5);
+        assertThat(context.openDocument().document().label(label.id()).orElseThrow().position())
+                .isEqualTo(new GridPoint(13, 12));
+        assertThat(context.openDocument().history().undoDescription()).contains("command.move");
     }
 }

@@ -116,6 +116,9 @@ public final class CircuitRenderer {
             }
         }
 
+        paintComponentLabels(graphics, state);
+        paintTextLabels(graphics, state);
+
         for (GridPoint pin : highlight.driverPins()) {
             graphics.setColor(withAlpha(scheme.wireConflict(), 90));
             graphics.fill(circle(pin, HALO_RADIUS));
@@ -137,13 +140,42 @@ public final class CircuitRenderer {
                     graphics.setColor(scheme.preview());
                     graphics.draw(line(wire));
                 }
-                case TextLabel label -> {
-                    // Free text labels are drawn from M3 on.
-                }
+                case TextLabel label -> paintText(graphics, label, scheme.preview());
             }
         } finally {
             graphics.setComposite(previous);
         }
+    }
+
+    private void paintComponentLabels(Graphics2D graphics, RenderState state) {
+        graphics.setFont(LabelLayout.FONT);
+        graphics.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+        graphics.setColor(scheme.text());
+        for (Component component : state.document().components()) {
+            LabelLayout.componentLabel(registry.require(component.typeId()), component)
+                    .ifPresent(placed -> graphics.drawString(placed.text(), placed.baselineX(), placed.baselineY()));
+        }
+    }
+
+    private void paintTextLabels(Graphics2D graphics, RenderState state) {
+        for (TextLabel label : state.document().labels()) {
+            paintText(graphics, label, scheme.text());
+            if (state.selection().contains(label.id())) {
+                Rectangle2D bounds = LabelLayout.freeText(label).bounds();
+                MarchingAnts.draw(graphics, new Rectangle2D.Double(bounds.getX() - OUTLINE_GAP,
+                        bounds.getY() - OUTLINE_GAP, bounds.getWidth() + 2 * OUTLINE_GAP,
+                        bounds.getHeight() + 2 * OUTLINE_GAP), scheme.selection(), SELECTION_OUTLINE_WIDTH,
+                        state.selectionDashPhase());
+            }
+        }
+    }
+
+    private static void paintText(Graphics2D graphics, TextLabel label, Color color) {
+        LabelLayout.PlacedText placed = LabelLayout.freeText(label);
+        graphics.setFont(LabelLayout.FONT);
+        graphics.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+        graphics.setColor(color);
+        graphics.drawString(placed.text(), placed.baselineX(), placed.baselineY());
     }
 
     private Rectangle2D outline(ComponentType type, Component component) {

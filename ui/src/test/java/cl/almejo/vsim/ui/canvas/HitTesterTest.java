@@ -5,12 +5,14 @@ import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
+import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
 import org.junit.jupiter.api.Test;
 
 import java.awt.geom.Point2D;
+import java.awt.geom.Rectangle2D;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -74,5 +76,27 @@ class HitTesterTest {
         Component gate = place(StandardComponentTypes.AND2, 0, 0, Rotation.R0);
         wire(0, 2, 10, 2);
         assertThat(at(2, 2)).isEqualTo(gate);
+    }
+
+    private TextLabel text(int x, int y, String value) {
+        TextLabel label = new TextLabel(document.newLabelId(), new GridPoint(x, y), value);
+        document.add(label);
+        return label;
+    }
+
+    @Test
+    void findsAFreeTextByItsTextBounds() {
+        TextLabel label = text(10, 10, "hola mundo");
+        Rectangle2D bounds = LabelLayout.gridBounds(label);
+        assertThat(at(bounds.getCenterX(), bounds.getCenterY())).isEqualTo(label);
+        assertThat(at(bounds.getMaxX() + 0.5, bounds.getCenterY())).isNull();
+        assertThat(at(bounds.getCenterX(), bounds.getMinY() - 0.5)).isNull();
+    }
+
+    @Test
+    void aFreeTextOverAComponentWinsTheHit() {
+        place(StandardComponentTypes.AND2, 10, 10, Rotation.R0);
+        TextLabel label = text(11, 11, "x");
+        assertThat(at(11.3, 11.5)).isEqualTo(label);
     }
 }

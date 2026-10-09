@@ -91,23 +91,23 @@ class EditorViewTest {
     }
 
     @Test
-    void theInspectorDividerIsOnlyDrawnWhileThereAreTabs() {
+    void theInspectorDividerIsDrawnOnceTheEditorHasTabs() {
         InspectorPanel inspector = view.inspector();
         JSplitPane inspectorSplit = (JSplitPane) inspector.getParent();
-        assertThat(inspectorSplit.getDividerSize()).isZero();
-        inspector.addTab("Uno", new JLabel("1"));
+        assertThat(inspector.tabCount()).isEqualTo(1); // the Properties tab of the label features
         assertThat(inspectorSplit.getDividerSize()).isPositive();
     }
 
     @Test
-    void inspectorStartsHiddenNextToTheCanvasAndShowsItsTabs() {
+    void inspectorSitsNextToTheCanvasAndShowsItsTabs() {
         InspectorPanel inspector = view.inspector();
-        assertThat(inspector.isVisible()).isFalse();
+        assertThat(inspector.isVisible()).isTrue();
+        assertThat(inspector.tabCount()).isEqualTo(1); // the Properties tab of the label features
         assertThat(((JSplitPane) inspector.getParent()).getLeftComponent()).isSameAs(view.canvas());
         inspector.addTab("Uno", new JLabel("1"));
         inspector.addTab("Dos", new JLabel("2"));
         assertThat(inspector.isVisible()).isTrue();
-        assertThat(inspector.tabCount()).isEqualTo(2);
+        assertThat(inspector.tabCount()).isEqualTo(3);
         inspector.showTab("Dos");
         assertThat(inspector.selectedTab()).contains("Dos");
         assertThatThrownBy(() -> inspector.showTab("Tres")).isInstanceOf(IllegalArgumentException.class);

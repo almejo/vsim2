@@ -5,6 +5,7 @@ import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
@@ -20,6 +21,7 @@ import org.junit.jupiter.api.Test;
 
 import java.awt.Color;
 import java.awt.Graphics2D;
+import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
 import java.util.List;
 import java.util.Map;
@@ -139,5 +141,64 @@ class CircuitRendererTest {
         assertThat(new Color(image.getRGB(24, 9))).as("thick conflict wire").isEqualTo(SCHEME.wireConflict());
         Color halo = new Color(image.getRGB(8, 3));
         assertThat(halo.getRed()).as("halo above the driver pin").isGreaterThan(halo.getGreen() + 40);
+    }
+
+    private BufferedImage renderPlain(Set<ElementId> selected) {
+        BufferedImage image = new BufferedImage(120, 120, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D graphics = image.createGraphics();
+        graphics.setColor(SCHEME.background());
+        graphics.fillRect(0, 0, 120, 120);
+        renderer.paint(graphics, new RenderState(document, new NetlistCompiler(registry).compile(document),
+                document.revision(), SimulationSnapshot.EMPTY, selected, 0));
+        graphics.dispose();
+        return image;
+    }
+
+    private static int inkInside(BufferedImage image, Rectangle2D area) {
+        int count = 0;
+        for (int x = Math.max(0, (int) Math.floor(area.getMinX())); x < Math.min(image.getWidth(), Math.ceil(area.getMaxX())); x++) {
+            for (int y = Math.max(0, (int) Math.floor(area.getMinY())); y < Math.min(image.getHeight(), Math.ceil(area.getMaxY())); y++) {
+                if (image.getRGB(x, y) != SCHEME.background().getRGB()) {
+                    count++;
+                }
+            }
+        }
+        return count;
+    }
+
+    @Test
+    void componentLabelIsDrawnAboveTheComponent() {
+        Component gate = registry.require(StandardComponentTypes.NOT).newComponent(document.newComponentId(),
+                new GridPoint(2, 6), Rotation.R0, Map.of(), "");
+        document.add(gate);
+        Rectangle2D area = LabelLayout.componentLabel(registry.require(StandardComponentTypes.NOT),
+                gate.withLabel("WW")).orElseThrow().bounds();
+        assertThat(inkInside(renderPlain(Set.of()), area)).isZero();
+        document.replace(gate.withLabel("WW"));
+        assertThat(inkInside(renderPlain(Set.of()), area)).isPositive();
+    }
+
+    @Test
+    void freeTextIsDrawnAndOutlinedWhenSelected() {
+        TextLabel label = new TextLabel(document.newLabelId(), new GridPoint(2, 2), "nota");
+        document.add(label);
+        Rectangle2D text = LabelLayout.freeText(label).bounds();
+        Rectangle2D around = new Rectangle2D.Double(text.getX() - 6, text.getY() - 6, text.getWidth() + 12,
+                text.getHeight() + 12);
+        BufferedImage plain = renderPlain(Set.of());
+        assertThat(inkInside(plain, text)).isPositive();
+        assertThat(inkInside(renderPlain(Set.of(label.id())), around)).isGreaterThan(inkInside(plain, around));
+    }
+
+    @Test
+    void freeTextGhostIsPainted() {
+        TextLabel label = new TextLabel(new ElementId("l1"), new GridPoint(2, 2), "nota");
+        BufferedImage image = new BufferedImage(120, 120, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D graphics = image.createGraphics();
+        graphics.setColor(SCHEME.background());
+        graphics.fillRect(0, 0, 120, 120);
+        renderer.paintGhost(graphics, label);
+        graphics.dispose();
+        assertThat(inkInside(image, LabelLayout.freeText(label).bounds())).isPositive();
     }
 }

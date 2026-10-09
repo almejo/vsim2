@@ -141,8 +141,24 @@ class ContextMenuFactoryTest {
     }
 
     @Test
-    void theRealViewMenuIncludesTheClipboardContributor() {
+    void theRealViewMenuIncludesTheClipboardAndLabelContributors() {
         assertThat(texts(view.contextMenu(Optional.empty(), CLICK)))
-                .containsExactly("Centrar circuito", "---", "Pegar", "Seleccionar todo");
+                .containsExactly("Centrar circuito", "---", "Pegar", "Seleccionar todo", "---", "Agregar texto aquí");
+    }
+
+    @Test
+    void theRealComponentMenuOffersClipboardAndLabelEntries() {
+        Component gate = place(openDocument, StandardComponentTypes.NOT, 0, 0, Map.of());
+        view.canvas().selection().select(gate.id());
+        assertThat(texts(view.contextMenu(Optional.of(gate), CLICK)))
+                .containsExactly("Configurar…", "Rotar ↻", "Rotar ↺", "---", "Borrar",
+                        "---", "Cortar", "Copiar", "Duplicar", "---", "Etiqueta…");
+    }
+
+    @Test
+    void theRealWireMenuOffersDeleteSegment() {
+        Wire wire = new Wire(new ElementId("w9"), GridPoint.ORIGIN, new GridPoint(3, 0));
+        assertThat(texts(view.contextMenu(Optional.of(wire), CLICK)))
+                .containsExactly("Borrar cable", "---", "Borrar tramo");
     }
 }

@@ -8,8 +8,10 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import javax.swing.JComboBox;
+import javax.swing.JFormattedTextField;
 import javax.swing.JSpinner;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -89,5 +91,35 @@ class ParameterFormTest {
         ParameterForm form = new ParameterForm(display, Map.of());
         assertThat(form.rawValues()).isEmpty();
         assertThat(form.hasChanges()).isFalse();
+    }
+
+    @Test
+    void choiceWithNothingSelectedReportsAnInvalidValue() {
+        ParameterForm form = form(StandardComponentTypes.LED, Map.of());
+        ((JComboBox<?>) form.editor("color")).setSelectedItem(null);
+        assertThat(form.validationError()).contains("Valor inválido para Color");
+    }
+
+    @Test
+    void spinnerTextFieldsKeepInvalidTextWhenFocusIsLost() {
+        ParameterForm form = form(StandardComponentTypes.NOT, Map.of());
+        JFormattedTextField field = ((JSpinner.DefaultEditor) ((JSpinner) form.editor("delay")).getEditor()).getTextField();
+        assertThat(field.getFocusLostBehavior()).isEqualTo(JFormattedTextField.COMMIT);
+    }
+
+    @Test
+    void commitListenersHearSpinnerAndChoiceChanges() {
+        ParameterForm clock = form(StandardComponentTypes.CLOCK, Map.of());
+        AtomicInteger commits = new AtomicInteger();
+        clock.addCommitListener(commits::incrementAndGet);
+        ((JSpinner) clock.editor("time-up")).setValue(250);
+        assertThat(commits.get()).isPositive();
+        assertThat(clock.rawValues()).containsEntry("time-up", 250);
+
+        ParameterForm led = form(StandardComponentTypes.LED, Map.of());
+        AtomicInteger choices = new AtomicInteger();
+        led.addCommitListener(choices::incrementAndGet);
+        ((JComboBox<?>) led.editor("color")).setSelectedItem("green");
+        assertThat(choices.get()).isPositive();
     }
 }
