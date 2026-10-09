@@ -23,6 +23,7 @@ public final class StatusBar extends JPanel {
     private final JLabel selection = new JLabel();
     private final JLabel shortCircuits = new JLabel();
     private final JLabel failure = new JLabel();
+    private boolean clickable;
 
     public StatusBar() {
         super(new MigLayout("insets 2 8 2 8", "[][][][]push[][]"));
@@ -46,19 +47,42 @@ public final class StatusBar extends JPanel {
         failure.setVisible(snapshot.failure().isPresent());
     }
 
-    /**
-     * Shows the "⚠ N cortocircuitos" warning, hidden for zero. Kept apart from {@link #showSnapshot} so it is fed by
-     * the Problems controller, which ignores snapshots of an older netlist: the count matches the Problems tab.
-     */
     public void showShortCircuits(int count) {
-        shortCircuits.setText(count == 0 ? "" : Messages.format("status.shortCircuits", count));
-        shortCircuits.setVisible(count > 0);
+        showProblems(count, 0);
+    }
+
+    /**
+     * Shows "⚠ N cortocircuitos", "⚠ N anchos incompatibles" or both, hidden when there is neither. Fed by the Problems
+     * controller, which ignores snapshots of an older netlist, so the counts match the Problems tab. Once clickable,
+     * its tooltip only names short circuits when no width mismatch is counted.
+     */
+    public void showProblems(int shortCircuitCount, int widthMismatchCount) {
+        String text;
+        if (shortCircuitCount > 0 && widthMismatchCount > 0) {
+            text = Messages.format("status.shortCircuitsAndWidthMismatches", shortCircuitCount, widthMismatchCount);
+        } else if (shortCircuitCount > 0) {
+            text = Messages.format("status.shortCircuits", shortCircuitCount);
+        } else if (widthMismatchCount > 0) {
+            text = Messages.format("status.widthMismatches", widthMismatchCount);
+        } else {
+            text = "";
+        }
+        shortCircuits.setText(text);
+        shortCircuits.setVisible(!text.isEmpty());
+        if (clickable) {
+            shortCircuits.setToolTipText(clickTooltip(widthMismatchCount));
+        }
+    }
+
+    private static String clickTooltip(int widthMismatchCount) {
+        return Messages.text(widthMismatchCount > 0 ? "tooltip.problems" : "tooltip.shortCircuits");
     }
 
     /** Clicking the "⚠ N cortocircuitos" warning runs {@code action} (jump to the next problem). */
     public void onShortCircuitsClicked(Runnable action) {
         shortCircuits.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-        shortCircuits.setToolTipText(Messages.text("tooltip.shortCircuits"));
+        clickable = true;
+        shortCircuits.setToolTipText(clickTooltip(0));
         shortCircuits.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent event) {

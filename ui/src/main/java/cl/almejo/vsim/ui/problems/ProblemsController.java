@@ -2,7 +2,12 @@ package cl.almejo.vsim.ui.problems;
 
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Wire;
+import cl.almejo.vsim.core.netlist.Net;
+import cl.almejo.vsim.core.simulation.FlatPinRef;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
+import cl.almejo.vsim.core.simulation.WidthMismatch;
+import cl.almejo.vsim.core.value.Value;
+import cl.almejo.vsim.ui.canvas.BusValueText;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.i18n.Messages;
@@ -133,7 +138,7 @@ public final class ProblemsController {
         navigator.showSnapshot(latest);
         panel.showSnapshot(latest);
         pulse.showSnapshot(latest);
-        statusBar.showShortCircuits(latest.shortCircuits().size());
+        statusBar.showProblems(latest.shortCircuits().size(), latest.widthMismatches().size());
         boolean anyProblem = !navigator.problems().isEmpty();
         nextProblem.setEnabled(anyProblem);
         previousProblem.setEnabled(anyProblem);
@@ -201,20 +206,49 @@ public final class ProblemsController {
         simulationMenu.removeMenuListener(pauseListener);
     }
 
-    /** The drivers of the shorted net under {@code gridPoint}, when the snapshot matches the current netlist. */
+    /**
+     * For the wire under {@code gridPoint}, when the snapshot matches the current netlist: the drivers of its short
+     * circuit, else the pins of its width mismatch, else the value of its bus. The engine reports a mismatch under one
+     * id for the whole merged net, so a wire of another top-level net merged into it falls back to the netlist's own
+     * mismatch flag and its pins.
+     */
     Optional<String> tooltipAt(Point2D gridPoint) {
-        if (snapshot.token() != openDocument.netlistToken() || snapshot.shortCircuits().isEmpty()) {
+        if (snapshot.token() != openDocument.netlistToken()) {
             return Optional.empty();
         }
         CircuitDocument document = openDocument.document();
-        return canvas.hitTester().elementAt(document, gridPoint)
+        Optional<Net> found = canvas.hitTester().elementAt(document, gridPoint)
                 .filter(Wire.class::isInstance)
                 .map(Wire.class::cast)
-                .flatMap(wire -> openDocument.netlist().netForWire(wire.id()))
-                .flatMap(net -> snapshot.shortCircuits().stream()
-                        .filter(shortCircuit -> shortCircuit.netId().equals(net.id().value()))
-                        .findFirst())
+                .flatMap(wire -> openDocument.netlist().netForWire(wire.id()));
+        if (found.isEmpty()) {
+            return Optional.empty();
+        }
+        Net net = found.get();
+        String netId = net.id().value();
+        Optional<String> drivers = snapshot.shortCircuits().stream()
+                .filter(shortCircuit -> shortCircuit.netId().equals(netId))
+                .findFirst()
                 .map(shortCircuit -> ProblemText.drivers(shortCircuit, document));
+        if (drivers.isPresent()) {
+            return drivers;
+        }
+        Optional<WidthMismatch> mismatch = snapshot.widthMismatches().stream()
+                .filter(widthMismatch -> widthMismatch.netId().equals(netId))
+                .findFirst();
+        if (mismatch.isEmpty() && net.widthMismatch()) {
+            mismatch = Optional.of(new WidthMismatch(netId, net.pins().stream()
+                    .map(pin -> new FlatPinRef(pin.componentId().value(), pin.pinIndex()))
+                    .toList()));
+        }
+        if (mismatch.isPresent()) {
+            return Optional.of(ProblemText.describe(mismatch.get(), document, openDocument.registry()));
+        }
+        Value value = snapshot.netValues().get(netId);
+        if (net.width() > 1 && value != null) {
+            return Optional.of(Messages.format("bus.tooltip", net.width(), BusValueText.of(value)));
+        }
+        return Optional.empty();
     }
 
     private static Action action(String name, Runnable behavior) {

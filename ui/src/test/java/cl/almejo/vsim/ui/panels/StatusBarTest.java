@@ -89,4 +89,31 @@ class StatusBarTest {
         assertThat(warning.getCursor().getType()).isEqualTo(Cursor.HAND_CURSOR);
         assertThat(warning.getToolTipText()).isEqualTo("Clic para ir al siguiente problema (F8)");
     }
+
+    @Test
+    void showsWidthMismatchesWithOrWithoutShortCircuits() {
+        statusBar.showZoom(1);
+        statusBar.showProblems(0, 1);
+        assertThat(statusBar.text()).contains("⚠ 1 ancho incompatible");
+        statusBar.showProblems(2, 3);
+        assertThat(statusBar.text()).contains("⚠ 2 cortocircuitos · 3 anchos incompatibles");
+        statusBar.showProblems(1, 0);
+        assertThat(statusBar.text()).contains("⚠ 1 cortocircuito").doesNotContain("ancho");
+        statusBar.showProblems(0, 0);
+        assertThat(statusBar.text()).doesNotContain("⚠");
+    }
+
+    @Test
+    void theWarningTooltipIsNeutralWhenWidthMismatchesAreCounted() {
+        statusBar.onShortCircuitsClicked(() -> { });
+        JLabel warning = statusBar.shortCircuitsLabel();
+        statusBar.showProblems(1, 0);
+        assertThat(warning.getToolTipText()).isEqualTo("Clic para ir al siguiente problema (F8)");
+        statusBar.showProblems(0, 1);
+        assertThat(warning.getToolTipText()).isEqualTo("Clic para ir al siguiente problema o ancho incompatible (F8)");
+        statusBar.showProblems(2, 1);
+        assertThat(warning.getToolTipText()).isEqualTo("Clic para ir al siguiente problema o ancho incompatible (F8)");
+        statusBar.showProblems(1, 0);
+        assertThat(warning.getToolTipText()).isEqualTo("Clic para ir al siguiente problema (F8)");
+    }
 }

@@ -11,6 +11,7 @@ import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.core.simulation.InstancePath;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.core.value.Value;
+import cl.almejo.vsim.ui.canvas.BusValueText;
 import cl.almejo.vsim.ui.i18n.Messages;
 
 import java.util.ArrayList;
@@ -53,9 +54,12 @@ public final class ComponentTreeModel {
         return values;
     }
 
-    /** "0", "1", "Z" per bit; "X" for a conflict. */
+    /** "0", "1", "Z" for one bit; a bus in hex ("0x3F"); "X" for a conflict. */
     public static String valueText(Value value) {
-        return value.conflict() ? "X" : value.toString();
+        if (value.conflict()) {
+            return "X";
+        }
+        return value.width() > 1 ? BusValueText.of(value) : value.toString();
     }
 
     private static void collectValues(ComponentTreeNode node, SimulationSnapshot snapshot, Map<String, String> values) {
