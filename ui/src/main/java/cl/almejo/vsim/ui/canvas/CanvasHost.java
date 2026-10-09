@@ -12,4 +12,8 @@ public interface CanvasHost {
     void showContextMenu(CircuitCanvas canvas, Optional<DocumentElement> target, Point2D screenPosition);
 
     void configure(Component component);
+
+    /** Edits the label of a component, or the text of a free text label. Hosts without label editing ignore it. */
+    default void editLabel(DocumentElement element) {
+    }
 }

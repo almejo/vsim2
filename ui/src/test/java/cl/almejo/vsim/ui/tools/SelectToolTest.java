@@ -2,7 +2,9 @@ package cl.almejo.vsim.ui.tools;
 
 import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
+import cl.almejo.vsim.core.command.AddElementsCommand;
 import cl.almejo.vsim.core.document.Component;
+import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.command.AddWireCommand;
 import cl.almejo.vsim.core.geometry.GridPoint;
@@ -11,6 +13,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 import java.awt.event.KeyEvent;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -330,5 +333,32 @@ class SelectToolTest {
         tool.mouseReleased(context, TestToolContext.event(2, 2, CanvasMouseEvent.PRIMARY, 2, false));
         assertThat(context.configured).isNull();
         assertThat(context.selection.ids()).containsExactly(gate.id());
+    }
+
+    private TextLabel note(int x, int y) {
+        TextLabel label = new TextLabel(context.openDocument().document().newLabelId(), new GridPoint(x, y), "nota");
+        context.openDocument().execute(new AddElementsCommand(List.of(label)));
+        return label;
+    }
+
+    @Test
+    void doubleClickOnAFreeTextEditsIt() {
+        TextLabel label = note(10, 10);
+        tool.mousePressed(context, TestToolContext.at(10.3, 10.5));
+        tool.mouseReleased(context, TestToolContext.at(10.3, 10.5));
+        tool.mousePressed(context, TestToolContext.event(10.3, 10.5, CanvasMouseEvent.PRIMARY, 2, false));
+        tool.mouseReleased(context, TestToolContext.event(10.3, 10.5, CanvasMouseEvent.PRIMARY, 2, false));
+        assertThat(context.editedLabel).isEqualTo(label);
+        assertThat(context.selection.ids()).containsExactly(label.id());
+        assertThat(context.configured).isNull();
+    }
+
+    @Test
+    void draggingAFreeTextMovesIt() {
+        TextLabel label = note(10, 10);
+        context.drag(tool, 10.3, 10.5, 13.3, 12.5);
+        assertThat(context.openDocument().document().label(label.id()).orElseThrow().position())
+                .isEqualTo(new GridPoint(13, 12));
+        assertThat(context.openDocument().history().undoDescription()).contains("command.move");
     }
 }

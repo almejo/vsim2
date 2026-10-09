@@ -27,6 +27,7 @@ public final class TestToolContext implements ToolContext, AutoCloseable {
     public Tool tool = defaultTool;
     public Optional<DocumentElement> contextMenuTarget;
     public Component configured;
+    public DocumentElement editedLabel;
     public int repaints;
     private final OpenDocument openDocument;
     private final HitTester hitTester;
@@ -119,6 +120,11 @@ public final class TestToolContext implements ToolContext, AutoCloseable {
     @Override
     public void configure(Component component) {
         configured = component;
+    }
+
+    @Override
+    public void editLabel(DocumentElement element) {
+        editedLabel = element;
     }
 
     @Override

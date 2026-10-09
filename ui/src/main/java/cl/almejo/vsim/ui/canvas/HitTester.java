@@ -4,6 +4,7 @@ import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
+import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.Bounds;
 
@@ -24,6 +25,13 @@ public final class HitTester {
     }
 
     public Optional<DocumentElement> elementAt(CircuitDocument document, Point2D gridPoint) {
+        List<TextLabel> labels = document.labels();
+        for (int index = labels.size() - 1; index >= 0; index--) {
+            TextLabel label = labels.get(index);
+            if (LabelLayout.gridBounds(label).contains(gridPoint)) {
+                return Optional.of(label);
+            }
+        }
         List<Component> components = document.components();
         for (int index = components.size() - 1; index >= 0; index--) {
             Component component = components.get(index);

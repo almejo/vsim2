@@ -37,4 +37,7 @@ public interface ToolContext {
     void showContextMenu(Optional<DocumentElement> target, Point2D screenPosition);
 
     void configure(Component component);
+
+    /** Edits the label of a component, or the text of a free text label. */
+    void editLabel(DocumentElement element);
 }

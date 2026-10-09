@@ -4,6 +4,7 @@ import cl.almejo.vsim.core.command.MoveElementsCommand;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.ui.canvas.ConnectionPoints;
@@ -70,10 +71,17 @@ public final class SelectTool implements Tool {
         reset();
         boolean continuesOwnClick = ownPressSeen;
         ownPressSeen = true;
-        if (event.clickCount() >= 2 && continuesOwnClick && hit.isPresent() && hit.get() instanceof Component component) {
-            context.selection().select(component.id());
-            context.configure(component);
-            return;
+        if (event.clickCount() >= 2 && continuesOwnClick && hit.isPresent()) {
+            if (hit.get() instanceof Component component) {
+                context.selection().select(component.id());
+                context.configure(component);
+                return;
+            }
+            if (hit.get() instanceof TextLabel label) {
+                context.selection().select(label.id());
+                context.editLabel(label);
+                return;
+            }
         }
         Optional<ConnectionPoints.PinHit> pin = connectionPoints(context)
                 .pinNear(context.openDocument().document(), event.gridPosition());
