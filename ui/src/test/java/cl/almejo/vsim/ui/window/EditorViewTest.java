@@ -485,4 +485,42 @@ class EditorViewTest {
         themed.dispose();
         assertThat(appearance.listenerCount()).isZero();
     }
+
+    @Test
+    void twoViewsSharingServicesFollowTheSchemeAndEachDisposeRemovesOnlyItsOwnListeners() {
+        Appearance appearance = new Appearance(ColorScheme.LIGHT);
+        AppPreferences preferences = AppPreferences.inMemory();
+        ComponentLibrary library = new ComponentLibrary();
+        EditorServices services = new EditorServices(PainterRegistry.standard(), appearance, preferences, library,
+                List.of());
+        try (OpenDocument otherDocument = OpenDocument.createEmpty(StandardComponentTypes.registry())) {
+            EditorView first = new EditorView(openDocument, services, window);
+            int perView = appearance.listenerCount();
+            EditorView second = new EditorView(otherDocument, services, window);
+            assertThat(appearance.listenerCount()).isEqualTo(2 * perView);
+
+            appearance.setScheme(AppearanceTestSupport.withBackground(ColorScheme.LIGHT, Color.MAGENTA));
+            assertThat(backgroundOf(first)).isEqualTo(Color.MAGENTA.getRGB());
+            assertThat(backgroundOf(second)).isEqualTo(Color.MAGENTA.getRGB());
+
+            first.dispose();
+            assertThat(appearance.listenerCount()).isEqualTo(perView);
+            appearance.setScheme(AppearanceTestSupport.withBackground(ColorScheme.LIGHT, Color.CYAN));
+            assertThat(backgroundOf(second)).isEqualTo(Color.CYAN.getRGB());
+
+            second.dispose();
+            assertThat(appearance.listenerCount()).isZero();
+            assertThat(library.listenerCount()).isZero();
+            assertThat(preferences.listenerCount()).isZero();
+        }
+    }
+
+    private static int backgroundOf(EditorView editor) {
+        editor.canvas().setSize(40, 40);
+        BufferedImage image = new BufferedImage(40, 40, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D graphics = image.createGraphics();
+        editor.canvas().paint(graphics);
+        graphics.dispose();
+        return image.getRGB(3, 3);
+    }
 }

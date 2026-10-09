@@ -88,4 +88,42 @@ class DefinitionCommandsTest {
         command.revert(document);
         assertThat(document.definitions()).isEmpty();
     }
+
+    @Test
+    void aFailedReplaceTakesAwayTheDependenciesItAdded() {
+        ComponentDefinition helperUsingInverter = wrapping("helper", ExampleDefinitions.INVERTER);
+        document.putDefinition(inverter);
+        document.putDefinition(helperUsingInverter);
+        List<ComponentDefinition> before = document.definitions();
+        // The new inverter uses helper, which in this document uses inverter: a cycle only the document reveals.
+        Component input = inverter.body().components().get(0);
+        Component output = inverter.body().components().get(2);
+        ComponentDefinition recursiveInverter = new ComponentDefinition(ExampleDefinitions.INVERTER, "Inversor", "",
+                inverter.size(), inverter.pinout(), new CircuitFragment(List.of(input,
+                instance("c2", "helper", 2, 0), instance("c4", "extra", 20, 20), output), List.of(), List.of()));
+        ReplaceDefinitionCommand command = new ReplaceDefinitionCommand(new DefinitionBundle(recursiveInverter,
+                List.of(plain("helper"), plain("extra"))));
+
+        assertThatThrownBy(() -> command.apply(document))
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("recursive");
+        assertThat(document.definitions()).isEqualTo(before);
+        assertThat(document.definition("extra")).isEmpty();
+        assertThat(document.definition(ExampleDefinitions.INVERTER)).containsSame(inverter);
+    }
+
+    private ComponentDefinition plain(String id) {
+        return new ComponentDefinition(id, id, "", inverter.size(), inverter.pinout(), inverter.body());
+    }
+
+    /** input-pin c1, one instance of {@code innerId}, output-pin c3: the inverter's layout around another box. */
+    private ComponentDefinition wrapping(String id, String innerId) {
+        List<Component> body = inverter.body().components();
+        return new ComponentDefinition(id, id, "", inverter.size(), inverter.pinout(), new CircuitFragment(
+                List.of(body.get(0), instance("c2", innerId, 2, 0), body.get(2)), List.of(), List.of()));
+    }
+
+    private static Component instance(String id, String definitionId, int x, int y) {
+        return new Component(new ElementId(id), SubcircuitTypes.typeIdOf(definitionId), new GridPoint(x, y),
+                Rotation.R0, Map.of(), "");
+    }
 }
