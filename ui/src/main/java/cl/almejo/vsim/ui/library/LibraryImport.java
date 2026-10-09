@@ -7,6 +7,7 @@ import cl.almejo.vsim.core.library.DefinitionBundle;
 import cl.almejo.vsim.core.library.DefinitionIds;
 import cl.almejo.vsim.core.library.DefinitionNames;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.icons.Icons;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -51,12 +52,14 @@ public final class LibraryImport {
 
     /** The menu action: chooses files with {@code parent} as dialog owner and imports them. */
     public Action action(java.awt.Component parent) {
-        return new AbstractAction(Messages.text("action.importComponent")) {
+        Action action = new AbstractAction(Messages.text("action.importComponent")) {
             @Override
             public void actionPerformed(ActionEvent event) {
                 importFiles(parent, dialogs.chooseImportFiles(parent));
             }
         };
+        Icons.install(action, TemplateIcons.IMPORT_COMPONENT);
+        return action;
     }
 
     /** Imports each file; the ones that fail are reported together at the end, the others are still imported. */
