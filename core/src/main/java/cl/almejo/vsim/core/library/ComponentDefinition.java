@@ -1,7 +1,6 @@
 package cl.almejo.vsim.core.library;
 
 import cl.almejo.vsim.core.component.PinDirection;
-import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.geometry.GridSize;
 import cl.almejo.vsim.core.io.CircuitFragment;
@@ -9,7 +8,6 @@ import cl.almejo.vsim.core.io.CircuitFragment;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Pattern;
 
@@ -62,11 +60,6 @@ public record ComponentDefinition(String id, String name, String description, Gr
 
     /** Ids of the definitions instantiated directly in the body, in body order, without repeats. */
     public List<String> usedDefinitionIds() {
-        return body.components().stream()
-                .map(Component::typeId)
-                .map(SubcircuitTypes::definitionIdOf)
-                .flatMap(Optional::stream)
-                .distinct()
-                .toList();
+        return SubcircuitTypes.definitionIds(body.components());
     }
 }

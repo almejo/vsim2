@@ -1,7 +1,14 @@
 package cl.almejo.vsim.core.document;
 
+import cl.almejo.vsim.core.library.ComponentDefinition;
+import cl.almejo.vsim.core.library.DefinitionGraph;
+import cl.almejo.vsim.core.library.SubcircuitTypes;
+
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -23,6 +30,7 @@ public final class CircuitDocument {
     private final NavigableMap<Long, Wire> wires = new TreeMap<>();
     private final NavigableMap<Long, TextLabel> labels = new TreeMap<>();
     private final Map<ElementId, Long> orders = new HashMap<>();
+    private final Map<String, ComponentDefinition> definitions = new LinkedHashMap<>();
     private final List<DocumentListener> listeners = new CopyOnWriteArrayList<>();
     private final Set<ElementId> pendingAdded = new LinkedHashSet<>();
     private final Set<ElementId> pendingRemoved = new LinkedHashSet<>();
@@ -164,6 +172,76 @@ public final class CircuitDocument {
 
     public boolean isEmpty() {
         return orders.isEmpty();
+    }
+
+    public Optional<ComponentDefinition> definition(String id) {
+        return Optional.ofNullable(definitions.get(id));
+    }
+
+    /** Every definition the document holds, in the order they were first added. */
+    public List<ComponentDefinition> definitions() {
+        return List.copyOf(definitions.values());
+    }
+
+    /**
+     * Adds or replaces a definition; its instances, and the instances of definitions that nest it, are reported as
+     * changed. A definition that would make the hierarchy recursive throws IllegalArgumentException and changes nothing.
+     * Use it through commands only.
+     */
+    public Optional<ComponentDefinition> putDefinition(ComponentDefinition definition) {
+        DefinitionGraph.knownClosure(List.of(definition.id()),
+                id -> id.equals(definition.id()) ? Optional.of(definition) : definition(id));
+        ComponentDefinition previous = definitions.put(definition.id(), definition);
+        // Computed after the put: which definitions nest this id depends only on the others, and a definition that
+        // names a missing id only reaches it once it is in the map.
+        recordChangedInstances(affectedInstances(definition.id()));
+        return Optional.ofNullable(previous);
+    }
+
+    /**
+     * Removes a definition; its instances, and the instances of definitions that nest it, are reported as changed.
+     * Use it through commands only.
+     */
+    public Optional<ComponentDefinition> removeDefinition(String id) {
+        if (!definitions.containsKey(id)) {
+            return Optional.empty();
+        }
+        // Computed before the removal: afterwards the nesting definitions no longer reach it.
+        List<ElementId> affected = affectedInstances(id);
+        ComponentDefinition removed = definitions.remove(id);
+        recordChangedInstances(affected);
+        return Optional.of(removed);
+    }
+
+    /** The definitions {@code users} instantiate, directly or nested, dependencies first; unknown ids are skipped. */
+    public List<ComponentDefinition> definitionsUsedBy(Collection<Component> users) {
+        return DefinitionGraph.knownClosure(SubcircuitTypes.definitionIds(users), this::definition);
+    }
+
+    /** What a saved file embeds: the definitions used by this document's components. */
+    public List<ComponentDefinition> usedDefinitions() {
+        return definitionsUsedBy(components.values());
+    }
+
+    /** Instances of {@code definitionId} and of every definition that nests it, with the current definitions. */
+    private List<ElementId> affectedInstances(String definitionId) {
+        Set<String> affectedTypeIds = new HashSet<>();
+        affectedTypeIds.add(SubcircuitTypes.typeIdOf(definitionId));
+        for (ComponentDefinition candidate : definitions.values()) {
+            boolean nests = DefinitionGraph.knownClosure(List.of(candidate.id()), this::definition).stream()
+                    .anyMatch(used -> used.id().equals(definitionId));
+            if (nests) {
+                affectedTypeIds.add(SubcircuitTypes.typeIdOf(candidate.id()));
+            }
+        }
+        return components.values().stream()
+                .filter(component -> affectedTypeIds.contains(component.typeId()))
+                .map(Component::id)
+                .toList();
+    }
+
+    private void recordChangedInstances(List<ElementId> instances) {
+        batch(() -> instances.forEach(this::recordChanged));
     }
 
     /** Runs {@code changes} and notifies listeners once at the end (batches may nest). */

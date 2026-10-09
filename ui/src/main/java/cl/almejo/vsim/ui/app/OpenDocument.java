@@ -9,6 +9,7 @@ import cl.almejo.vsim.core.io.CircuitFormat;
 import cl.almejo.vsim.core.io.CircuitFormatException;
 import cl.almejo.vsim.core.io.CircuitReader;
 import cl.almejo.vsim.core.io.OpenedCircuit;
+import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.core.netlist.Netlist;
 import cl.almejo.vsim.core.netlist.NetlistCompiler;
 import cl.almejo.vsim.core.simulation.CircuitFlattener;
@@ -49,14 +50,17 @@ public final class OpenDocument implements AutoCloseable {
     private boolean closed;
     private boolean pauseOnShortCircuit;
 
-    public OpenDocument(CircuitDocument document, ComponentTypeRegistry registry, Path path, boolean importedFromVsim1) {
+    public OpenDocument(CircuitDocument document, ComponentTypeRegistry baseRegistry, Path path,
+                        boolean importedFromVsim1) {
         this.document = document;
-        this.registry = registry;
+        // Each document resolves the subcircuit:<id> types of its own definitions (spec §5.6 embedded copies).
+        this.registry = baseRegistry.copy();
+        this.registry.addResolver(SubcircuitTypes.resolverFor(document));
         this.path = path == null ? null : path.toAbsolutePath();
         this.importedFromVsim1 = importedFromVsim1;
         this.history = new History(document);
-        this.compiler = new NetlistCompiler(registry);
-        this.flattener = new CircuitFlattener(registry);
+        this.compiler = new NetlistCompiler(this.registry);
+        this.flattener = new CircuitFlattener(this.registry);
         this.simulation = new SimulationThread(new SimulationEngine());
         document.addListener((changed, change) -> synchronize());
         history.addListener(changed -> fireChanged());
