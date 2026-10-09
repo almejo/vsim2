@@ -45,7 +45,6 @@ public final class TemplateActions {
     private final LibraryService service;
     private final LibraryDialogs dialogs;
     private final Action createComponent;
-    private final Runnable refresher = this::refresh;
 
     public TemplateActions(OpenDocument openDocument, CircuitCanvas canvas, LibraryService service,
                            LibraryDialogs dialogs) {
@@ -54,8 +53,7 @@ public final class TemplateActions {
         this.service = service;
         this.dialogs = dialogs;
         this.createComponent = action(Messages.text("action.createComponent"), this::createFromSelection);
-        canvas.selection().addListener(refresher);
-        openDocument.addChangeListener(refresher);
+        canvas.selection().addListener(this::refresh);
         refresh();
     }
 
@@ -63,16 +61,16 @@ public final class TemplateActions {
         return createComponent;
     }
 
-    /** Stops following the shared document (the selection dies with the view). */
+    /** Nothing to undo yet: the only listener is on the view's own selection, which dies with the view. */
     public void dispose() {
-        openDocument.removeChangeListener(refresher);
     }
 
     /**
      * Without interface pins the dialog does not open and a message says why. Otherwise, once accepted: one undo step
      * that adds the definitions and, if asked, replaces the selection by one instance at its top-left, with
-     * {@link PinBridges} keeping what was connected to the interface pins from outside; then the bundle is written to
-     * the library (a write failure is reported, the circuit keeps the component).
+     * {@link PinBridges} keeping what was connected to the interface pins from outside (pins it cannot connect safely
+     * are named in a message); then the bundle is written to the library (a write failure is reported, the circuit
+     * keeps the component).
      */
     public void createFromSelection() {
         CircuitDocument document = openDocument.document();
@@ -114,18 +112,25 @@ public final class TemplateActions {
         List<Command> steps = new ArrayList<>();
         steps.add(new PutDefinitionsCommand(bundle.all()));
         Component instance = null;
+        List<String> unconnectedPins = List.of();
         if (result.replaceSelection()) {
             GridPoint origin = DefinitionBuilder.origin(document, ids, registry);
             instance = new Component(document.newComponentId(), SubcircuitTypes.typeIdOf(bundle.root().id()),
                     origin, Rotation.R0, Map.of(), "");
+            PinBridges.Bridging bridging = PinBridges.wires(document, ids, bundle.root(), origin, registry);
+            unconnectedPins = bridging.unconnectedPins();
             List<DocumentElement> added = new ArrayList<>(List.of(instance));
-            added.addAll(PinBridges.wires(document, ids, bundle.root(), origin, registry));
+            added.addAll(bridging.wires());
             steps.add(new RemoveElementsCommand(ids));
             steps.add(new AddElementsCommand(added));
         }
         openDocument.execute(new CompositeCommand("command.createComponent", steps));
         if (instance != null) {
             canvas.selection().select(instance.id());
+        }
+        if (!unconnectedPins.isEmpty()) {
+            dialogs.showMessage(canvas,
+                    Messages.format("template.pinsUnconnected", String.join(", ", unconnectedPins)));
         }
         saveToLibrary(bundle);
     }

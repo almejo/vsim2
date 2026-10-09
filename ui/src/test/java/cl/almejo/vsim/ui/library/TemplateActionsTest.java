@@ -13,6 +13,9 @@ import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.DefinitionBundle;
 import cl.almejo.vsim.core.library.ExampleDefinitions;
+import cl.almejo.vsim.core.library.InterfacePins;
+import cl.almejo.vsim.core.netlist.NetId;
+import cl.almejo.vsim.core.netlist.NetlistCompiler;
 import cl.almejo.vsim.core.value.Value;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.i18n.Messages;
@@ -140,9 +143,10 @@ class TemplateActionsTest {
         fixture.drawInverter(0, 0);
         Component source = fixture.place(StandardComponentTypes.SWITCH, -2, -5, Map.of("value", "0"));
         Component led = fixture.place(StandardComponentTypes.LED, 9, -1, Map.of());
-        fixture.openDocument.execute(new AddElementsCommand(List.of(
+        List<Wire> outside = List.of(
                 new Wire(fixture.openDocument.document().newWireId(), new GridPoint(2, -4), new GridPoint(2, 2)),
-                new Wire(fixture.openDocument.document().newWireId(), new GridPoint(6, 2), new GridPoint(10, 2)))));
+                new Wire(fixture.openDocument.document().newWireId(), new GridPoint(6, 2), new GridPoint(10, 2)));
+        fixture.openDocument.execute(new AddElementsCommand(outside));
         waitUntil(() -> fixture.stateOf(led).equals(new VisibleState.LedState(Value.ONE)));
         fixture.dialogs.acceptForm(form -> form.setName("Negador"));
 
@@ -154,6 +158,8 @@ class TemplateActionsTest {
                 .containsExactlyInAnyOrder(StandardComponentTypes.SWITCH, StandardComponentTypes.LED,
                         "subcircuit:negador");
         assertThat(document.wires()).hasSize(3); // the two outside wires and the bridge to the instance input
+        assertThat(fixture.dialogs.messages).isEmpty();
+        assertThat(netOf(outside.get(0))).isNotEqualTo(netOf(outside.get(1)));
         fixture.openDocument.execute(new ChangeParametersCommand(source.id(), switchType, Map.of("value", "1")));
         waitUntil(() -> fixture.stateOf(led).equals(new VisibleState.LedState(Value.ZERO)));
         fixture.openDocument.execute(new ChangeParametersCommand(source.id(), switchType, Map.of("value", "0")));
@@ -164,6 +170,32 @@ class TemplateActionsTest {
         fixture.openDocument.history().undo(); // the creation, bridges included
         assertThat(document.wires()).hasSize(2);
         assertThat(document.components()).hasSize(5);
+    }
+
+    @Test
+    void pinsThatCannotBeBridgedSafelyAreReportedAndNoOutsideNetsMerge() {
+        Component input = fixture.place(InterfacePins.INPUT_PIN, 0, 0, "a");
+        Component first = fixture.place(InterfacePins.OUTPUT_PIN, 6, 3, "y1");   // point (6,4)
+        Component second = fixture.place(InterfacePins.OUTPUT_PIN, 6, 5, "y2");  // point (6,6)
+        List<Wire> outside = List.of(
+                new Wire(fixture.openDocument.document().newWireId(), new GridPoint(6, 4), new GridPoint(12, 4)),
+                new Wire(fixture.openDocument.document().newWireId(), new GridPoint(6, 6), new GridPoint(12, 6)));
+        fixture.openDocument.execute(new AddElementsCommand(outside));
+        fixture.select(input, first, second);
+        assertThat(netOf(outside.get(0))).isNotEqualTo(netOf(outside.get(1)));
+        fixture.dialogs.acceptForm(form -> form.setName("Doble salida"));
+
+        perform(fixture.features.actions().createComponent());
+
+        assertThat(fixture.openDocument.document().wires()).containsExactlyInAnyOrderElementsOf(outside);
+        assertThat(netOf(outside.get(0))).isNotEqualTo(netOf(outside.get(1)));
+        assertThat(fixture.dialogs.messages)
+                .containsExactly("Estos pines quedaron sin conectar: y1, y2. Conéctalos a mano.");
+    }
+
+    private NetId netOf(Wire wire) {
+        return new NetlistCompiler(fixture.openDocument.registry()).compile(fixture.openDocument.document())
+                .netForWire(wire.id()).orElseThrow().id();
     }
 
     @Test

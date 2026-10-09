@@ -19,21 +19,33 @@ import java.util.Set;
  * Keeps the outside connections of a selection that an instance replaces. Wires and pins outside the selection
  * touched its interface pins; the instance's pins sit elsewhere (on its box), so each interface pin that had an
  * outside connection gets a bridge: a straight or one-bend wire from the interface pin's point to the instance pin
- * that stands for it. A bridge never touches anything else (another pin, a wire end, a wire under its bend); a pin
- * without such a route gets no bridge.
+ * that stands for it. A bridge never touches anything else (another pin, a wire end, a wire under its bend).
+ * <p>
+ * A pin is reported as unconnected, and gets no bridge, when no such route exists, when its instance pin lands on
+ * something outside that was not its own connection, or when its outside connection sits where another instance pin
+ * lands. Bridges therefore never join two outside nets; an instance pin dropped onto a foreign net is reported.
  */
 public final class PinBridges {
+
+    /** The bridge wires to add, and the definition pins whose outside connection could not be kept safely. */
+    public record Bridging(List<Wire> wires, List<String> unconnectedPins) {
+        public Bridging {
+            wires = List.copyOf(wires);
+            unconnectedPins = List.copyOf(unconnectedPins);
+        }
+    }
 
     private PinBridges() {
     }
 
     /**
      * The bridges for replacing {@code replaced} by an instance of {@code definition} (unrotated) at
-     * {@code instancePosition}, in pinout order, with fresh wire ids from {@code document}.
+     * {@code instancePosition}, in pinout order, with fresh wire ids from {@code document}, and the names of the
+     * pins left unconnected (pinout order).
      */
-    public static List<Wire> wires(CircuitDocument document, Collection<ElementId> replaced,
-                                   ComponentDefinition definition, GridPoint instancePosition,
-                                   ComponentTypeRegistry registry) {
+    public static Bridging wires(CircuitDocument document, Collection<ElementId> replaced,
+                                 ComponentDefinition definition, GridPoint instancePosition,
+                                 ComponentTypeRegistry registry) {
         Set<ElementId> removed = Set.copyOf(replaced);
         List<Wire> outsideWires = document.wires().stream().filter(wire -> !removed.contains(wire.id())).toList();
         Set<GridPoint> outsidePins = new HashSet<>();
@@ -42,9 +54,11 @@ public final class PinBridges {
                 outsidePins.addAll(pinPoints(component, registry));
             }
         }
+        List<String> names = new ArrayList<>();
         List<GridPoint> sources = new ArrayList<>();
         List<GridPoint> targets = new ArrayList<>();
         for (DefinitionPin pin : definition.pinout()) {
+            names.add(pin.spec().name());
             sources.add(document.component(pin.source())
                     .map(source -> registry.require(source.typeId()).pinLocation(source, 0))
                     .orElseThrow(() -> new IllegalArgumentException("no interface pin " + pin.source())));
@@ -57,31 +71,57 @@ public final class PinBridges {
             obstacles.add(wire.end());
         });
         obstacles.addAll(targets);
-        List<Integer> connected = new ArrayList<>();
+        boolean[] connected = new boolean[sources.size()];
+        boolean[] conflicting = new boolean[sources.size()];
         for (int index = 0; index < sources.size(); index++) {
             GridPoint source = sources.get(index);
-            if (!source.equals(targets.get(index)) && touchesOutside(source, outsidePins, outsideWires)
-                    && !sameWire(source, targets.get(index), outsideWires)) {
-                connected.add(index);
+            GridPoint target = targets.get(index);
+            if (source.equals(target) || sameWire(source, target, outsideWires)) {
+                continue; // the outside already reaches the instance pin on its own
+            }
+            connected[index] = touchesOutside(source, outsidePins, outsideWires);
+            conflicting[index] = touchesOutside(target, outsidePins, outsideWires)
+                    || connected[index] && isAnotherTarget(source, index, targets);
+            if (connected[index]) {
                 obstacles.add(source);
             }
         }
 
         List<Wire> placed = new ArrayList<>(outsideWires);
         List<Wire> bridges = new ArrayList<>();
-        for (int index : connected) {
-            GridPoint source = sources.get(index);
-            GridPoint target = targets.get(index);
-            route(source, target, obstacles, placed).ifPresent(points -> {
-                for (int point = 0; point + 1 < points.size(); point++) {
-                    Wire bridge = new Wire(document.newWireId(), points.get(point), points.get(point + 1));
-                    bridges.add(bridge);
-                    placed.add(bridge);
-                }
-                obstacles.addAll(points);
-            });
+        List<String> unconnected = new ArrayList<>();
+        for (int index = 0; index < sources.size(); index++) {
+            if (conflicting[index]) {
+                unconnected.add(names.get(index));
+                continue;
+            }
+            if (!connected[index]) {
+                continue;
+            }
+            Optional<List<GridPoint>> route = route(sources.get(index), targets.get(index), obstacles, placed);
+            if (route.isEmpty()) {
+                unconnected.add(names.get(index));
+                continue;
+            }
+            List<GridPoint> points = route.get();
+            for (int point = 0; point + 1 < points.size(); point++) {
+                Wire bridge = new Wire(document.newWireId(), points.get(point), points.get(point + 1));
+                bridges.add(bridge);
+                placed.add(bridge);
+            }
+            obstacles.addAll(points);
         }
-        return bridges;
+        return new Bridging(bridges, unconnected);
+    }
+
+    /** True when {@code point} is where an instance pin other than {@code index} sits. */
+    private static boolean isAnotherTarget(GridPoint point, int index, List<GridPoint> targets) {
+        for (int other = 0; other < targets.size(); other++) {
+            if (other != index && targets.get(other).equals(point)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static List<GridPoint> pinPoints(Component component, ComponentTypeRegistry registry) {

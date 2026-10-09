@@ -36,12 +36,22 @@ class PinBridgesTest {
         return Arrays.stream(components).map(Component::id).toList();
     }
 
-    /** The bridges for replacing {@code selection} by an instance at the selection's top-left. */
-    private List<Wire> bridges(List<ElementId> selection) {
-        ComponentDefinition definition = DefinitionBuilder.fromSelection(document, selection, "box", "Box",
-                DefinitionBuilder.defaultPinOrder(document, selection), registry).root();
+    /** The bridging for replacing {@code selection} by an instance at the selection's top-left. */
+    private PinBridges.Bridging bridging(List<ElementId> selection, PinOrder order) {
+        ComponentDefinition definition = DefinitionBuilder.fromSelection(document, selection, "box", "Box", order,
+                registry).root();
         return PinBridges.wires(document, selection, definition,
                 DefinitionBuilder.origin(document, selection, registry), registry);
+    }
+
+    private PinBridges.Bridging bridging(List<ElementId> selection) {
+        return bridging(selection, DefinitionBuilder.defaultPinOrder(document, selection));
+    }
+
+    private List<Wire> bridges(List<ElementId> selection) {
+        PinBridges.Bridging bridging = bridging(selection);
+        assertThat(bridging.unconnectedPins()).isEmpty();
+        return bridging.wires();
     }
 
     private static List<String> segments(List<Wire> wires) {
@@ -111,7 +121,7 @@ class PinBridgesTest {
     }
 
     @Test
-    void aPinWithoutAClearRouteIsLeftAlone() {
+    void aPinWithoutAClearRouteIsLeftAloneAndReported() {
         Component first = place(InterfacePins.INPUT_PIN, 0, 0, "a");
         Component output = place(InterfacePins.OUTPUT_PIN, 6, 0, "y");
         List<ElementId> selection = ids(first, output);
@@ -119,6 +129,45 @@ class PinBridgesTest {
         wire(1, 2, 1, 3);   // blocks (2,1)-(2,2)-(0,2)
         wire(-3, 1, 0, 1);  // blocks (2,1)-(0,1)-(0,2)
 
-        assertThat(bridges(selection)).isEmpty();
+        assertThat(bridging(selection)).isEqualTo(new PinBridges.Bridging(List.of(), List.of("a")));
+    }
+
+    @Test
+    void anInstancePinOnAnotherPinsOutsideNetIsNeverBridgedIntoIt() {
+        Component input = place(InterfacePins.INPUT_PIN, 0, 0, "a");
+        Component first = place(InterfacePins.OUTPUT_PIN, 6, 3, "y1");   // point (6,4) → instance pin (6,2)
+        Component second = place(InterfacePins.OUTPUT_PIN, 6, 5, "y2");  // point (6,6) → instance pin (6,4)
+        wire(6, 4, 12, 4);
+        wire(6, 6, 12, 6);
+
+        // "y2" lands on y1's outside wire, so y1's net already reaches the wrong pin: neither can be bridged
+        assertThat(bridging(ids(input, first, second)))
+                .isEqualTo(new PinBridges.Bridging(List.of(), List.of("y1", "y2")));
+    }
+
+    @Test
+    void anInstancePinLandingOnAnUnrelatedOutsideWireIsReported() {
+        Component input = place(InterfacePins.INPUT_PIN, 10, 11, "a");
+        Component gate = place(StandardComponentTypes.NOT, 12, 10, "");
+        Component output = place(InterfacePins.OUTPUT_PIN, 16, 11, "y");
+        wire(10, 12, 10, 20); // runs down from where the instance input will be; nothing touched "a" before
+
+        assertThat(bridging(ids(input, gate, output)).unconnectedPins()).containsExactly("a");
+    }
+
+    @Test
+    void swappedInputsGetWhatRoutesFitAndTheRestIsReported() {
+        Component first = place(InterfacePins.INPUT_PIN, 0, 0, "a");   // point (2,1)
+        Component second = place(InterfacePins.INPUT_PIN, 0, 4, "b");  // point (2,5)
+        Component output = place(InterfacePins.OUTPUT_PIN, 6, 0, "y");
+        wire(2, -4, 2, 1);
+        wire(2, 5, 2, 10);
+
+        // b now goes first, to (0,2); a goes to (0,4) and every route of a crosses b's bridge
+        PinBridges.Bridging bridging = bridging(ids(first, second, output),
+                new PinOrder(List.of(second.id(), first.id()), List.of(output.id())));
+
+        assertThat(segments(bridging.wires())).containsExactly(segment(2, 2, 2, 5), segment(0, 2, 2, 2));
+        assertThat(bridging.unconnectedPins()).containsExactly("a");
     }
 }
