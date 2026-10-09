@@ -6,6 +6,7 @@ import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentChange;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.DocumentListener;
+import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.geometry.Rotation;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.ui.app.OpenDocument;
@@ -22,6 +23,7 @@ import javax.swing.JComponent;
 import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
 import javax.swing.Timer;
+import javax.swing.ToolTipManager;
 import javax.swing.TransferHandler;
 import java.awt.Dimension;
 import java.awt.Graphics;
@@ -42,6 +44,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 /** The drawing surface of one window. Mouse input goes to the current {@link Tool}. */
 public final class CircuitCanvas extends JComponent implements ToolContext {
@@ -60,7 +63,9 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     private final List<Consumer<Tool>> toolListeners = new CopyOnWriteArrayList<>();
     private final List<Consumer<SimulationSnapshot>> snapshotListeners = new CopyOnWriteArrayList<>();
     private final List<Runnable> viewListeners = new CopyOnWriteArrayList<>();
+    private final List<CanvasOverlay> overlays = new CopyOnWriteArrayList<>();
     private final DocumentListener documentListener;
+    private Function<Point2D, Optional<String>> toolTipProvider = gridPoint -> Optional.empty();
     private Tool tool = defaultTool;
     private SimulationSnapshot displayedSnapshot = SimulationSnapshot.EMPTY;
     private boolean spaceDown;
@@ -189,6 +194,28 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         viewChanged();
     }
 
+    /** Centers the view on {@code bounds} (grid units) without changing the zoom. */
+    public void centerOn(Bounds bounds) {
+        viewport.center(bounds, getWidth(), getHeight());
+        viewChanged();
+    }
+
+    public void addOverlay(CanvasOverlay overlay) {
+        overlays.add(overlay);
+        repaint();
+    }
+
+    /** {@code provider} receives the mouse position in grid units; empty means no tooltip. */
+    public void setToolTipProvider(Function<Point2D, Optional<String>> provider) {
+        toolTipProvider = provider;
+        ToolTipManager.sharedInstance().registerComponent(this);
+    }
+
+    @Override
+    public String getToolTipText(MouseEvent event) {
+        return toolTipProvider.apply(viewport.screenToGrid(event.getX(), event.getY())).orElse(null);
+    }
+
     // ToolContext
 
     @Override
@@ -254,8 +281,12 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         try {
             renderer.paintBackground(local, viewport, getWidth(), getHeight());
             local.transform(viewport.documentTransform());
-            renderer.paint(local, new RenderState(openDocument.document(), openDocument.netlist(),
-                    openDocument.netlistToken(), displayedSnapshot, selection.ids()));
+            RenderState state = new RenderState(openDocument.document(), openDocument.netlist(),
+                    openDocument.netlistToken(), displayedSnapshot, selection.ids());
+            renderer.paint(local, state);
+            for (CanvasOverlay overlay : overlays) {
+                overlay.paint(local, state);
+            }
             tool.paintOverlay(local, this);
         } finally {
             local.dispose();

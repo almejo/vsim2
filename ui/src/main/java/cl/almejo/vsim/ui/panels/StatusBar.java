@@ -7,6 +7,9 @@ import net.miginfocom.swing.MigLayout;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import java.awt.Color;
+import java.awt.Cursor;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -41,6 +44,22 @@ public final class StatusBar extends JPanel {
         shortCircuits.setVisible(shorts > 0);
         failure.setText(snapshot.failure().map(reason -> Messages.format("status.failure", reason)).orElse(""));
         failure.setVisible(snapshot.failure().isPresent());
+    }
+
+    /** Clicking the "⚠ N cortocircuitos" warning runs {@code action} (jump to the next problem). */
+    public void onShortCircuitsClicked(Runnable action) {
+        shortCircuits.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        shortCircuits.setToolTipText(Messages.text("tooltip.shortCircuits"));
+        shortCircuits.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent event) {
+                action.run();
+            }
+        });
+    }
+
+    JLabel shortCircuitsLabel() {
+        return shortCircuits;
     }
 
     public void showZoom(double zoomFactor) {
