@@ -1,5 +1,6 @@
 package cl.almejo.vsim.core.simulation;
 
+import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.PinSpec;
 import cl.almejo.vsim.core.component.VisibleState;
@@ -25,6 +26,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -115,6 +117,66 @@ class CircuitFlattenerTest {
         assertThat(snapshot.netValue(switchNet)).isEqualTo(Value.ONE);
         assertThat(snapshot.netValue(ledNet)).isEqualTo(Value.ONE);
         assertThat(snapshot.componentState("c3")).isEqualTo(new VisibleState.LedState(Value.ONE));
+    }
+
+    @Test
+    void aShortCircuitInsideATemplateNamesTheNestedDrivers() {
+        // Body: input-pin c1 → NOT c2 (in 2,2; out 6,2), and switch c3 (value 1, out 6,2) joined to the NOT output and
+        // to output-pin c4. The outer switch drives 1, so the NOT drives 0 against the inner switch's 1.
+        Component input = registry.require(InterfacePins.INPUT_PIN).newComponent(new ElementId("c1"),
+                new GridPoint(0, 1), Rotation.R0, Map.of(), "a");
+        Component gate = registry.require(StandardComponentTypes.NOT).newComponent(new ElementId("c2"),
+                new GridPoint(2, 0), Rotation.R0, Map.of(), "");
+        Component innerSwitch = registry.require(StandardComponentTypes.SWITCH).newComponent(new ElementId("c3"),
+                new GridPoint(2, 1), Rotation.R0, Map.of("value", "1"), "");
+        Component output = registry.require(InterfacePins.OUTPUT_PIN).newComponent(new ElementId("c4"),
+                new GridPoint(6, 1), Rotation.R0, Map.of(), "y");
+        document.putDefinition(new ComponentDefinition("shorted", "Cortocircuito", "", new GridSize(4, 4),
+                List.of(new DefinitionPin(PinSpec.input("a", 0, 2), input.id()),
+                        new DefinitionPin(PinSpec.output("y", 4, 2), output.id())),
+                new CircuitFragment(List.of(input, gate, innerSwitch, output), List.of(), List.of())));
+        switchThroughInstanceToLed("shorted");
+
+        SimulationSnapshot snapshot = simulate(
+                new CircuitFlattener(registry).flatten(document, new NetlistCompiler(registry).compile(document)));
+
+        assertThat(snapshot.shortCircuits()).singleElement()
+                .satisfies(shortCircuit -> assertThat(shortCircuit.drivers()).extracting(DriverRef::componentId)
+                        .containsExactlyInAnyOrder("c2/c2", "c2/c3"));
+    }
+
+    @Test
+    void innerInstancesKeepTheirEngineInstancesAcrossAnUnrelatedTopLevelEdit() {
+        ComponentType not = registry.require(StandardComponentTypes.NOT);
+        AtomicInteger created = new AtomicInteger();
+        registry.register(new ComponentType("counted-not", not.category(), not.size(), not.pins(), not.parameters(),
+                parameters -> {
+                    created.incrementAndGet();
+                    return not.behaviorFactory().create(parameters);
+                }));
+        ComponentDefinition inverter = ExampleDefinitions.inverter();
+        List<Component> body = inverter.body().components().stream()
+                .map(component -> component.typeId().equals(StandardComponentTypes.NOT)
+                        ? new Component(component.id(), "counted-not", component.position(), component.rotation(),
+                        component.parameters(), component.label())
+                        : component)
+                .toList();
+        document.putDefinition(new ComponentDefinition("counted", "Contado", "", inverter.size(), inverter.pinout(),
+                new CircuitFragment(body, List.of(), List.of())));
+        switchThroughInstanceToLed("counted");
+        CircuitFlattener flattener = new CircuitFlattener(registry);
+        NetlistCompiler compiler = new NetlistCompiler(registry);
+        SimulationEngine engine = new SimulationEngine();
+        engine.update(flattener.flatten(document, compiler.compile(document)));
+        engine.runUntil(20);
+        assertThat(created).hasValue(1);
+
+        add(StandardComponentTypes.NOT, "c4", 20, 20);
+        engine.update(flattener.flatten(document, compiler.compile(document)));
+        engine.runUntil(40);
+
+        assertThat(created).hasValue(1);
+        assertThat(engine.snapshot().componentState("c3")).isEqualTo(new VisibleState.LedState(Value.ZERO));
     }
 
     @Test

@@ -51,8 +51,10 @@ public final class SubcircuitTypes {
 
     /**
      * Resolves {@code subcircuit:<id>} through {@code document}'s definitions, with one type object per definition
-     * object (a replaced definition gets a new type, so the engine recreates its instances). Only the type of each
-     * id's current definition is kept, so replaced definitions are not retained.
+     * object: a replaced definition gets a new type, carrying its new size and pins. The instance type never reaches
+     * the engine (the flattener expands instances into their bodies), so after a replacement the engine keeps the
+     * inner components whose id, type and parameters did not change, with their state, and recreates only the rest.
+     * Only the type of each id's current definition is kept, so replaced definitions are not retained.
      *
      * <p>The resolver reads {@code document}'s definitions, which are not thread-safe: a registry that has it must be
      * used from the document's thread (the EDT in the application) only. Flatten there and hand the simulation thread
