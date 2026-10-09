@@ -3,7 +3,6 @@ package cl.almejo.vsim.core.io;
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.document.CircuitDocument;
-import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.TextLabel;
@@ -19,6 +18,7 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.TreeMap;
 
 /** Reads and writes the VSim 2 circuit file format (JSON, formatVersion 2). */
 public final class CircuitFormat {
@@ -54,7 +54,8 @@ public final class CircuitFormat {
                 document.components().stream()
                         .map(component -> new ComponentEntry(component.id().value(), component.typeId(),
                                 component.position().x(), component.position().y(),
-                                component.rotation().quarterTurns(), component.label(), component.parameters()))
+                                component.rotation().quarterTurns(), component.label(),
+                                new TreeMap<>(component.parameters())))
                         .toList(),
                 document.wires().stream()
                         .map(wire -> new WireEntry(wire.id().value(), wire.start().x(), wire.start().y(),
@@ -86,9 +87,10 @@ public final class CircuitFormat {
         if (root == null || !root.isObject()) {
             throw new CircuitFormatException(CircuitFormatException.Reason.INVALID_ELEMENT, "root must be a JSON object");
         }
-        int version = root.path("formatVersion").asInt(-1);
-        if (version != FORMAT_VERSION) {
-            throw new CircuitFormatException(CircuitFormatException.Reason.UNSUPPORTED_VERSION, "formatVersion " + version);
+        JsonNode version = root.path("formatVersion");
+        if (!version.isIntegralNumber() || !version.canConvertToInt() || version.intValue() != FORMAT_VERSION) {
+            throw new CircuitFormatException(CircuitFormatException.Reason.UNSUPPORTED_VERSION,
+                    "formatVersion " + (version.isMissingNode() ? "missing" : version.toString()));
         }
         CircuitFile file;
         try {
@@ -107,8 +109,12 @@ public final class CircuitFormat {
             }
             ComponentType type = registry.find(entry.type()).orElseThrow(() -> new CircuitFormatException(
                     CircuitFormatException.Reason.UNKNOWN_COMPONENT_TYPE, String.valueOf(entry.type())));
-            add(document, () -> new Component(new ElementId(entry.id()), type.id(), new GridPoint(entry.x(), entry.y()),
-                    Rotation.fromQuarterTurns(entry.rotation()), type.resolveParameters(entry.parameters()), entry.label()));
+            if (entry.rotation() < 0 || entry.rotation() > 3) {
+                throw new CircuitFormatException(CircuitFormatException.Reason.INVALID_ELEMENT,
+                        "rotation must be 0..3 for " + entry.id() + ": " + entry.rotation());
+            }
+            add(document, () -> type.newComponent(new ElementId(entry.id()), new GridPoint(entry.x(), entry.y()),
+                    Rotation.fromQuarterTurns(entry.rotation()), entry.parameters(), entry.label()));
         }
         for (WireEntry entry : Optional.ofNullable(file.wires()).orElse(List.of())) {
             if (entry == null) {

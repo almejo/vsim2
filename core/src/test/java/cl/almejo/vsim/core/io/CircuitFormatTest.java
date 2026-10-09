@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Stream;
@@ -64,6 +65,13 @@ class CircuitFormatTest {
         return Stream.of(
                 arguments("{", CircuitFormatException.Reason.INVALID_JSON),
                 arguments("{\"formatVersion\":3,\"kind\":\"circuit\"}", CircuitFormatException.Reason.UNSUPPORTED_VERSION),
+                arguments("{\"formatVersion\":\"2\",\"kind\":\"circuit\"}", CircuitFormatException.Reason.UNSUPPORTED_VERSION),
+                arguments("{\"formatVersion\":2.5,\"kind\":\"circuit\"}", CircuitFormatException.Reason.UNSUPPORTED_VERSION),
+                arguments("{\"kind\":\"circuit\"}", CircuitFormatException.Reason.UNSUPPORTED_VERSION),
+                arguments("{\"formatVersion\":2,\"kind\":\"circuit\",\"components\":[{\"id\":\"c1\",\"type\":\"and2\",\"x\":0,\"y\":0,\"rotation\":4}]}",
+                        CircuitFormatException.Reason.INVALID_ELEMENT),
+                arguments("{\"formatVersion\":2,\"kind\":\"circuit\",\"components\":[{\"id\":\"c1\",\"type\":\"and2\",\"x\":0,\"y\":0,\"rotation\":-1}]}",
+                        CircuitFormatException.Reason.INVALID_ELEMENT),
                 arguments("{\"formatVersion\":2,\"kind\":\"component\"}", CircuitFormatException.Reason.INVALID_ELEMENT),
                 arguments("{\"formatVersion\":2,\"kind\":\"circuit\",\"components\":[{\"id\":\"c1\",\"type\":\"foo\",\"x\":0,\"y\":0}]}",
                         CircuitFormatException.Reason.UNKNOWN_COMPONENT_TYPE),
@@ -89,5 +97,20 @@ class CircuitFormatTest {
         assertThatThrownBy(() -> format.read(json))
                 .isInstanceOf(CircuitFormatException.class)
                 .satisfies(exception -> assertThat(((CircuitFormatException) exception).reason()).isEqualTo(reason));
+    }
+
+    @Test
+    void parametersAreWrittenWithSortedKeys() {
+        CircuitDocument document = new CircuitDocument();
+        Map<String, Object> parameters = new java.util.HashMap<>();
+        for (String key : List.of("h", "c", "f", "a", "g", "b", "e", "d")) {
+            parameters.put(key, 1);
+        }
+        document.add(new Component(document.newComponentId(), "and2", GridPoint.ORIGIN, Rotation.R0, parameters, ""));
+        String json = format.write(document);
+        List<Integer> positions = List.of("a", "b", "c", "d", "e", "f", "g", "h").stream()
+                .map(key -> json.indexOf("\"" + key + "\" : 1"))
+                .toList();
+        assertThat(positions).doesNotContain(-1).isSorted();
     }
 }
