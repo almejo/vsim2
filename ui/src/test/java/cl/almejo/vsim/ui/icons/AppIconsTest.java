@@ -20,8 +20,15 @@ class AppIconsTest {
             assertThat(image.getWidth()).isEqualTo(size);
             assertThat(image.getHeight()).isEqualTo(size);
             assertThat(image.getRGB(size / 2, size / 2) >>> 24).as("middle at " + size).isEqualTo(255);
+            assertThat(image.getRGB(size / 2, size / 2) & 0xFFFFFF).as("middle is not the background at " + size)
+                    .isNotEqualTo(0x22272E);
             assertThat(image.getRGB(0, 0) >>> 24).as("corner at " + size).isZero();
         }
         assertThat(AppIcons.images()).isSameAs(images);
+    }
+
+    @Test
+    void aMissingIconYieldsNoImagesInsteadOfAnException() {
+        assertThat(AppIcons.load("icons/app/missing.svg")).isEmpty();
     }
 }
