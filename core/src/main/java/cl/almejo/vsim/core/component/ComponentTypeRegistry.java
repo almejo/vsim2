@@ -9,7 +9,9 @@ import java.util.concurrent.CopyOnWriteArrayList;
 /**
  * Component types by id. Registered types are listed by {@link #all()}. Resolvers add types computed on demand (the
  * {@code subcircuit:<id>} types of one document): {@link #find} and {@link #require} see them, {@link #all()} does not.
- * Thread-safe: the library watcher works on its own thread.
+ * Thread-safe as long as its resolvers are: the base registry (no resolvers) may be used from the library watcher's
+ * own thread. A per-document copy with a document resolver ({@code OpenDocument.registry()},
+ * {@code SubcircuitTypes.resolverFor}) reads that document and is EDT-only; never hand it to another thread.
  */
 public final class ComponentTypeRegistry {
 
