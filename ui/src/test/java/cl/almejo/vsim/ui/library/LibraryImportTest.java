@@ -193,6 +193,22 @@ class LibraryImportTest {
         assertThat(fixture.dialogs.errors).isEmpty();
     }
 
+    /** Archivo ▸ Abrir and the command line split files as a drop does (CircuitWindow.openOrImport). */
+    @Test
+    void openingAComponentFileImportsItAndOpensOnlyTheCircuits() throws Exception {
+        Path file = outside("inverter.vsimcomponent.json", inverter);
+        Path circuit = directory.resolve("outside").resolve("circuit.vsim");
+        List<Path> opened = new ArrayList<>();
+        fixture.view.setCircuitOpener(opened::addAll); // CircuitWindow: Application.openPaths
+
+        fixture.view.openOrImport(List.of(file, circuit));
+
+        assertThat(fixture.library.find("inverter")).contains(inverter);
+        assertThat(fixture.view.palette().visibleTypeIds()).contains("subcircuit:inverter");
+        assertThat(opened).containsExactly(circuit);
+        assertThat(fixture.dialogs.errors).isEmpty();
+    }
+
     @Test
     void withoutAComponentImporterAComponentFileIsHandedToTheOpenerAsBefore() throws Exception {
         Path file = outside("inverter.vsimcomponent.json", inverter);

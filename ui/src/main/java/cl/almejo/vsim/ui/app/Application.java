@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.app;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.io.CircuitFormatException;
+import cl.almejo.vsim.core.io.LibraryDirectory;
 import cl.almejo.vsim.core.library.ComponentLibrary;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.icons.ActionIcons;
@@ -87,9 +88,14 @@ public final class Application {
     public void start(List<Path> files) {
         themeManager.start();
         libraryService.start(); // spec §5.6: read the library before the first palette is shown
-        openPaths(files, null);
+        List<Path> components = files.stream().filter(LibraryDirectory::isComponentFile).toList();
+        openPaths(files.stream().filter(file -> !components.contains(file)).toList(), null);
         if (windows.isEmpty()) {
             newDocument();
+        }
+        if (!components.isEmpty()) {
+            // A component file on the command line is imported into the library, as a drop on the window would.
+            windows.all().get(0).openOrImport(components);
         }
     }
 
@@ -103,11 +109,8 @@ public final class Application {
     }
 
     public void open(CircuitWindow requester) {
-        FileDialogs.chooseOpen(requester, initialDirectory()).ifPresent(path -> openPath(path, requester));
-    }
-
-    public void openPath(Path path, CircuitWindow requester) {
-        openPaths(List.of(path), requester);
+        // A chosen component file is imported into the library instead of being read as a circuit (as a drop does).
+        FileDialogs.chooseOpen(requester, initialDirectory()).ifPresent(path -> requester.openOrImport(List.of(path)));
     }
 
     /**

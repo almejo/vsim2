@@ -43,6 +43,7 @@ import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
@@ -77,6 +78,8 @@ public final class EditorView extends JPanel implements CanvasHost {
     private final Runnable appearanceListener;
     private final List<Runnable> extensionDisposers = new ArrayList<>();
     private Consumer<List<Path>> componentFileImporter;
+    private Consumer<List<Path>> circuitOpener = files -> {
+    };
 
     public EditorView(OpenDocument openDocument, PainterRegistry painters, ColorScheme scheme, WindowCommands window) {
         this(openDocument, EditorServices.of(painters, scheme), window);
@@ -193,6 +196,19 @@ public final class EditorView extends JPanel implements CanvasHost {
     /** Where dropped component files ({@code .vsimcomponent.json}) go; null (the default) when nothing imports them. */
     public void setComponentFileImporter(Consumer<List<Path>> importer) {
         componentFileImporter = importer;
+    }
+
+    /** Where {@link #openOrImport} sends circuit files (a window: open them); by default they are ignored. */
+    public void setCircuitOpener(Consumer<List<Path>> opener) {
+        circuitOpener = Objects.requireNonNull(opener);
+    }
+
+    /**
+     * Files chosen in Archivo ▸ Abrir, given on the command line or dropped: component files are imported into the
+     * library (when an importer is set), the others go to the circuit opener.
+     */
+    public void openOrImport(List<Path> files) {
+        openOrImportFiles(files, circuitOpener);
     }
 
     /**

@@ -43,8 +43,8 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
                 () -> application.windowEntries(this));
         // Open after the drop finishes: an error dialog inside a drop transaction can hang the drag source.
         // Component files are imported into the library instead of being opened as circuits (M4-A ruling).
-        Consumer<List<Path>> openDropped = files -> SwingUtilities.invokeLater(
-                () -> view.openOrImportFiles(files, circuits -> application.openPaths(circuits, this)));
+        view.setCircuitOpener(circuits -> application.openPaths(circuits, this));
+        Consumer<List<Path>> openDropped = files -> SwingUtilities.invokeLater(() -> view.openOrImport(files));
         setTransferHandler(new FileDropHandler(openDropped));
         view.canvas().setFileDropHandler(openDropped);
         setDefaultCloseOperation(DO_NOTHING_ON_CLOSE);
@@ -82,6 +82,11 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
     @Override
     public void open() {
         application.open(this);
+    }
+
+    /** Opens the circuit files in new windows and imports the component files into the library (as a drop does). */
+    public void openOrImport(List<Path> files) {
+        view.openOrImport(files);
     }
 
     @Override
