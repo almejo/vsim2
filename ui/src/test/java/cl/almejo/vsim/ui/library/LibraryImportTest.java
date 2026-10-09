@@ -15,6 +15,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import javax.swing.JTree;
+import javax.swing.SwingUtilities;
 import javax.swing.TransferHandler;
 import java.awt.Container;
 import java.io.IOException;
@@ -23,6 +24,8 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static cl.almejo.vsim.ui.library.TemplateActionsTest.texts;
 import static cl.almejo.vsim.ui.library.TemplateFixture.perform;
@@ -163,11 +166,19 @@ class LibraryImportTest {
     void droppingAComponentFileOnThePaletteImportsItIntoTheLibrary() throws Exception {
         Path file = outside("inverter.vsimcomponent.json", inverter);
         JTree tree = find(fixture.view.palette(), JTree.class);
+        AtomicBoolean imported = new AtomicBoolean();
+        AtomicReference<Optional<DefinitionBundle>> duringTheDrop = new AtomicReference<>();
 
-        boolean imported = tree.getTransferHandler().importData(
-                new TransferHandler.TransferSupport(tree, new FileListTransferable(List.of(file.toFile()))));
+        SwingUtilities.invokeAndWait(() -> {
+            imported.set(tree.getTransferHandler().importData(
+                    new TransferHandler.TransferSupport(tree, new FileListTransferable(List.of(file.toFile())))));
+            duringTheDrop.set(fixture.library.find("inverter"));
+        });
+        SwingUtilities.invokeAndWait(() -> {
+        }); // the import runs after the drop transaction
 
         assertThat(imported).isTrue();
+        assertThat(duringTheDrop.get()).as("nothing is imported (and no dialog opens) inside the drop").isEmpty();
         assertThat(fixture.library.find("inverter")).contains(inverter);
         assertThat(directory.resolve("library").resolve("inverter.vsimcomponent.json")).isRegularFile();
         assertThat(fixture.view.palette().visibleTypeIds()).contains("subcircuit:inverter");

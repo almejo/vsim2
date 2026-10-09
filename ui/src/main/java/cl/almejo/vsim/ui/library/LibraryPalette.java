@@ -15,6 +15,7 @@ import javax.swing.AbstractAction;
 import javax.swing.Action;
 import javax.swing.JMenuItem;
 import javax.swing.JPopupMenu;
+import javax.swing.SwingUtilities;
 import java.awt.event.ActionEvent;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -55,7 +56,8 @@ public final class LibraryPalette {
         PalettePanel palette = view.palette();
         palette.setUserComponentChooser(this::place);
         palette.setUserMenuProvider(this::menuFor);
-        palette.setComponentFileDropHandler(files -> importer.importFiles(view, files));
+        // After the drop finishes: a collision or error dialog inside a drop transaction can hang the drag source.
+        palette.setComponentFileDropHandler(files -> SwingUtilities.invokeLater(() -> importer.importFiles(view, files)));
         service.library().addListener(refresher);
         view.openDocument().addChangeListener(refresher);
         refresh();
