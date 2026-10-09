@@ -1,15 +1,18 @@
 package cl.almejo.vsim.ui.canvas;
 
+import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.DocumentChange;
+import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.ElementId;
 
+import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 
-/** Selected element ids of one canvas. Single element in M2; a set so M3 can add multi-selection. */
+/** Selected element ids of one canvas. Listeners run only when the set of ids really changes. */
 public final class Selection {
 
     private final Set<ElementId> ids = new LinkedHashSet<>();
@@ -27,6 +30,11 @@ public final class Selection {
         return ids.isEmpty();
     }
 
+    public int size() {
+        return ids.size();
+    }
+
+    /** Replaces the selection with {@code id} alone. */
     public void select(ElementId id) {
         if (ids.size() == 1 && ids.contains(id)) {
             return;
@@ -34,6 +42,40 @@ public final class Selection {
         ids.clear();
         ids.add(id);
         fire();
+    }
+
+    public void add(ElementId id) {
+        if (ids.add(id)) {
+            fire();
+        }
+    }
+
+    public void remove(ElementId id) {
+        if (ids.remove(id)) {
+            fire();
+        }
+    }
+
+    public void toggle(ElementId id) {
+        if (!ids.remove(id)) {
+            ids.add(id);
+        }
+        fire();
+    }
+
+    /** Replaces the selection with {@code newIds}. */
+    public void set(Collection<ElementId> newIds) {
+        Set<ElementId> next = new LinkedHashSet<>(newIds);
+        if (next.equals(ids)) {
+            return;
+        }
+        ids.clear();
+        ids.addAll(next);
+        fire();
+    }
+
+    public void selectAll(CircuitDocument document) {
+        set(document.elements().stream().map(DocumentElement::id).toList());
     }
 
     public void clear() {

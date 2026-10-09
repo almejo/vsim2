@@ -3,13 +3,17 @@ package cl.almejo.vsim.ui.canvas;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
+import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.geometry.GridPoint;
+import cl.almejo.vsim.core.geometry.Rotation;
+import cl.almejo.vsim.core.io.CircuitFragment;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.panels.PaletteTransfer;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.tools.CanvasMouseEvent;
+import cl.almejo.vsim.ui.tools.FloatingSelectionTool;
 import cl.almejo.vsim.ui.tools.PanTool;
 import cl.almejo.vsim.ui.tools.Tool;
 import cl.almejo.vsim.ui.tools.ToolContext;
@@ -196,5 +200,19 @@ class CircuitCanvasTest {
         canvas.selection().select(gate.id());
         openDocument.history().undo();
         assertThat(canvas.selection().isEmpty()).isTrue();
+    }
+
+    @Test
+    void switchingToolCommitsAFloatingFragment() {
+        CircuitFragment fragment = new CircuitFragment(
+                List.of(openDocument.registry().require(StandardComponentTypes.NOT)
+                        .newComponent(new ElementId("c1"), GridPoint.ORIGIN, Rotation.R0, Map.of(), "")),
+                List.of(), List.of());
+        canvas.setTool(new FloatingSelectionTool(fragment, new GridPoint(3, 3)));
+        canvas.setTool(new FloatingSelectionTool(fragment, new GridPoint(20, 3)));
+        assertThat(openDocument.document().components()).hasSize(1);
+        canvas.setTool(new PanTool());
+        assertThat(openDocument.document().components()).hasSize(2);
+        assertThat(openDocument.history().undoDescription()).contains("command.paste");
     }
 }
