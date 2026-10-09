@@ -121,7 +121,7 @@ class EditorViewTest {
     void theInspectorDividerIsDrawnOnceTheEditorHasTabs() {
         InspectorPanel inspector = view.inspector();
         JSplitPane inspectorSplit = (JSplitPane) inspector.getParent();
-        assertThat(inspector.tabCount()).isEqualTo(1); // the Properties tab of the label features
+        assertThat(inspector.tabCount()).isEqualTo(2); // the Properties (labels) and Problems tabs
         assertThat(inspectorSplit.getDividerSize()).isPositive();
     }
 
@@ -129,12 +129,12 @@ class EditorViewTest {
     void inspectorSitsNextToTheCanvasAndShowsItsTabs() {
         InspectorPanel inspector = view.inspector();
         assertThat(inspector.isVisible()).isTrue();
-        assertThat(inspector.tabCount()).isEqualTo(1); // the Properties tab of the label features
+        assertThat(inspector.tabCount()).isEqualTo(2); // the Properties and Problems tabs
         assertThat(((JSplitPane) inspector.getParent()).getLeftComponent()).isSameAs(view.canvas());
         inspector.addTab("Uno", new JLabel("1"));
         inspector.addTab("Dos", new JLabel("2"));
         assertThat(inspector.isVisible()).isTrue();
-        assertThat(inspector.tabCount()).isEqualTo(3);
+        assertThat(inspector.tabCount()).isEqualTo(4);
         inspector.showTab("Dos");
         assertThat(inspector.selectedTab()).contains("Dos");
         assertThatThrownBy(() -> inspector.showTab("Tres")).isInstanceOf(IllegalArgumentException.class);

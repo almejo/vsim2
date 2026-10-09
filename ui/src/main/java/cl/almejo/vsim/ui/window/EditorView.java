@@ -17,6 +17,7 @@ import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.panels.PalettePanel;
 import cl.almejo.vsim.ui.panels.StatusBar;
+import cl.almejo.vsim.ui.problems.ProblemsController;
 import cl.almejo.vsim.ui.tools.PanTool;
 import cl.almejo.vsim.ui.tools.PlaceComponentTool;
 import cl.almejo.vsim.ui.tools.SelectTool;
@@ -58,6 +59,7 @@ public final class EditorView extends JPanel implements CanvasHost {
     private final PalettePanel palette;
     private final StatusBar statusBar = new StatusBar();
     private final InspectorPanel inspector = new InspectorPanel();
+    private final ProblemsController problems;
     private final JMenuBar menuBar;
     private final Map<MenuId, JMenu> menus = new EnumMap<>(MenuId.class);
     private final List<ContextMenuContributor> contextMenuContributors = new CopyOnWriteArrayList<>();
@@ -114,6 +116,7 @@ public final class EditorView extends JPanel implements CanvasHost {
         toolChanged(canvas.tool());
         installSelectionActions();
         labelFeatures = LabelFeatures.install(this, TextPrompt.DIALOG);
+        problems = new ProblemsController(this);
     }
 
     /** Edit menu entries (platform shortcuts, so text fields keep their own Ctrl+X/C/V/A) and context menu items. */
@@ -137,6 +140,7 @@ public final class EditorView extends JPanel implements CanvasHost {
     public StatusBar statusBar() { return statusBar; }
     public InspectorPanel inspector() { return inspector; }
     public LabelFeatures labelFeatures() { return labelFeatures; }
+    public ProblemsController problems() { return problems; }
     public JMenuBar menuBar() { return menuBar; }
     public JToolBar toolBar() { return toolBar; }
 
@@ -162,6 +166,7 @@ public final class EditorView extends JPanel implements CanvasHost {
     }
 
     public void dispose() {
+        problems.dispose();
         labelFeatures.dispose();
         actions.dispose();
         canvas.dispose();

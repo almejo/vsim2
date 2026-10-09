@@ -9,6 +9,7 @@ import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.DocumentListener;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.geometry.GridPoint;
+import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.geometry.Rotation;
 import cl.almejo.vsim.core.io.CircuitFormatException;
 import cl.almejo.vsim.core.io.CircuitFragment;
@@ -29,6 +30,7 @@ import javax.swing.JComponent;
 import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
 import javax.swing.Timer;
+import javax.swing.ToolTipManager;
 import javax.swing.TransferHandler;
 import java.awt.Dimension;
 import java.awt.Graphics;
@@ -48,6 +50,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 /** The drawing surface of one window. Mouse input goes to the current {@link Tool}. */
 public final class CircuitCanvas extends JComponent implements ToolContext {
@@ -69,11 +72,13 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     private final List<Consumer<Tool>> toolListeners = new CopyOnWriteArrayList<>();
     private final List<Consumer<SimulationSnapshot>> snapshotListeners = new CopyOnWriteArrayList<>();
     private final List<Runnable> viewListeners = new CopyOnWriteArrayList<>();
+    private final List<CanvasOverlay> overlays = new CopyOnWriteArrayList<>();
     private final DocumentListener documentListener;
     private Consumer<List<Path>> fileDropHandler = files -> {
     };
     private GridPoint dragOutOrigin;
     private Set<ElementId> dragOutIds = Set.of();
+    private Function<Point2D, Optional<String>> toolTipProvider = gridPoint -> Optional.empty();
     private Tool tool = defaultTool;
     private SimulationSnapshot displayedSnapshot = SimulationSnapshot.EMPTY;
     private boolean animationSuspended;
@@ -246,12 +251,22 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         getActionMap().put(name, action);
     }
 
+    /** Removes the binding made by {@link #bindKey}. */
+    public void unbindKey(KeyStroke stroke, String name) {
+        getInputMap(WHEN_FOCUSED).remove(stroke);
+        getActionMap().remove(name);
+    }
+
     public void addToolListener(Consumer<Tool> listener) {
         toolListeners.add(listener);
     }
 
     public void addSnapshotListener(Consumer<SimulationSnapshot> listener) {
         snapshotListeners.add(listener);
+    }
+
+    public void removeSnapshotListener(Consumer<SimulationSnapshot> listener) {
+        snapshotListeners.remove(listener);
     }
 
     public void addViewListener(Runnable listener) {
@@ -277,6 +292,33 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         CircuitBounds.of(openDocument.document(), openDocument.registry())
                 .ifPresent(bounds -> viewport.center(bounds, getWidth(), getHeight()));
         viewChanged();
+    }
+
+    /** Centers the view on {@code bounds} (grid units) without changing the zoom. */
+    public void centerOn(Bounds bounds) {
+        viewport.center(bounds, getWidth(), getHeight());
+        viewChanged();
+    }
+
+    public void addOverlay(CanvasOverlay overlay) {
+        overlays.add(overlay);
+        repaint();
+    }
+
+    public void removeOverlay(CanvasOverlay overlay) {
+        overlays.remove(overlay);
+        repaint();
+    }
+
+    /** {@code provider} receives the mouse position in grid units; empty means no tooltip. */
+    public void setToolTipProvider(Function<Point2D, Optional<String>> provider) {
+        toolTipProvider = provider;
+        ToolTipManager.sharedInstance().registerComponent(this);
+    }
+
+    @Override
+    public String getToolTipText(MouseEvent event) {
+        return toolTipProvider.apply(viewport.screenToGrid(event.getX(), event.getY())).orElse(null);
     }
 
     // ToolContext
@@ -378,8 +420,12 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         try {
             renderer.paintBackground(local, viewport, getWidth(), getHeight());
             local.transform(viewport.documentTransform());
-            renderer.paint(local, new RenderState(openDocument.document(), openDocument.netlist(),
-                    openDocument.netlistToken(), displayedSnapshot, selection.ids(), marchingAnts.phase()));
+            RenderState state = new RenderState(openDocument.document(), openDocument.netlist(),
+                    openDocument.netlistToken(), displayedSnapshot, selection.ids(), marchingAnts.phase());
+            renderer.paint(local, state);
+            for (CanvasOverlay overlay : overlays) {
+                overlay.paint(local, state);
+            }
             tool.paintOverlay(local, this);
         } finally {
             local.dispose();

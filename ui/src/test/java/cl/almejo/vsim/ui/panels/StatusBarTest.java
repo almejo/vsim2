@@ -8,9 +8,14 @@ import cl.almejo.vsim.ui.i18n.Messages;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import javax.swing.JLabel;
+import java.awt.Cursor;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseListener;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -66,5 +71,20 @@ class StatusBarTest {
         assertThat(statusBar.text()).endsWith("3 seleccionados");
         statusBar.showSelection(0);
         assertThat(statusBar.text()).doesNotContain("seleccionado");
+    }
+
+    @Test
+    void clickingTheShortCircuitWarningRunsTheCallback() {
+        AtomicInteger clicks = new AtomicInteger();
+        statusBar.onShortCircuitsClicked(clicks::incrementAndGet);
+        statusBar.showSnapshot(snapshot(true, 1, Optional.empty()));
+        JLabel warning = statusBar.shortCircuitsLabel();
+        MouseEvent click = new MouseEvent(warning, MouseEvent.MOUSE_CLICKED, 0, 0, 2, 2, 1, false, MouseEvent.BUTTON1);
+        for (MouseListener listener : warning.getMouseListeners()) {
+            listener.mouseClicked(click);
+        }
+        assertThat(clicks).hasValue(1);
+        assertThat(warning.getCursor().getType()).isEqualTo(Cursor.HAND_CURSOR);
+        assertThat(warning.getToolTipText()).isEqualTo("Clic para ir al siguiente problema (F8)");
     }
 }

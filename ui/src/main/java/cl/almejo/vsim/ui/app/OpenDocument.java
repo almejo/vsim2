@@ -47,6 +47,7 @@ public final class OpenDocument implements AutoCloseable {
     private Netlist netlist = Netlist.EMPTY;
     private long netlistToken = -1;
     private boolean closed;
+    private boolean pauseOnShortCircuit;
 
     public OpenDocument(CircuitDocument document, ComponentTypeRegistry registry, Path path, boolean importedFromVsim1) {
         this.document = document;
@@ -159,6 +160,16 @@ public final class OpenDocument implements AutoCloseable {
 
     public void setSpeed(double unitsPerMillisecond) {
         simulation.setSpeed(unitsPerMillisecond);
+    }
+
+    /** Session option, off by default and not saved: pause the simulation when a new short circuit appears. */
+    public boolean pauseOnShortCircuit() {
+        return pauseOnShortCircuit;
+    }
+
+    public void setPauseOnShortCircuit(boolean enabled) {
+        pauseOnShortCircuit = enabled;
+        simulation.setPauseOnShortCircuit(enabled);
     }
 
     public SimulationSnapshot latestSnapshot() {

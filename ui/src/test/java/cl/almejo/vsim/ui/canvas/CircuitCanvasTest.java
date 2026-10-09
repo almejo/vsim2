@@ -4,6 +4,7 @@ import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
 import cl.almejo.vsim.core.io.CircuitFragment;
@@ -25,6 +26,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 import javax.swing.TransferHandler;
+import java.awt.Graphics2D;
 import java.awt.Point;
 import java.awt.datatransfer.StringSelection;
 import java.awt.datatransfer.Transferable;
@@ -32,9 +34,11 @@ import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseWheelEvent;
+import java.awt.geom.AffineTransform;
 import java.awt.geom.Point2D;
 import java.io.File;
 import java.nio.file.Path;
+import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -417,5 +421,49 @@ class CircuitCanvasTest {
         assertThat(canvas.tool()).isInstanceOf(SelectTool.class);
         assertThat(canvas.isDraggingOut()).isFalse();
         assertThat(openDocument.document().components()).hasSize(1);
+    }
+
+    @Test
+    void overlaysPaintAfterTheCircuitInDocumentCoordinates() {
+        List<RenderState> states = new ArrayList<>();
+        List<AffineTransform> transforms = new ArrayList<>();
+        canvas.addOverlay((graphics, state) -> {
+            states.add(state);
+            transforms.add(graphics.getTransform());
+        });
+        canvas.viewport().panBy(10, 20);
+        canvas.setSize(100, 100);
+        BufferedImage image = new BufferedImage(100, 100, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D graphics = image.createGraphics();
+        canvas.paint(graphics);
+        graphics.dispose();
+        assertThat(states).singleElement()
+                .satisfies(state -> assertThat(state.document()).isSameAs(openDocument.document()));
+        assertThat(transforms.get(0).getTranslateX()).isEqualTo(10);
+        assertThat(transforms.get(0).getTranslateY()).isEqualTo(20);
+    }
+
+    @Test
+    void centerOnPutsTheBoundsInTheMiddleAndNotifiesViewListeners() {
+        List<Double> zooms = new ArrayList<>();
+        canvas.addViewListener(() -> zooms.add(canvas.viewport().zoom()));
+        canvas.setSize(400, 200);
+        canvas.centerOn(new Bounds(10, 20, 4, 2));
+        assertThat(canvas.viewport().gridToScreen(12, 21)).isEqualTo(new Point2D.Double(200, 100));
+        assertThat(zooms).containsExactly(1.0);
+    }
+
+    @Test
+    void tooltipComesFromTheProviderInGridCoordinates() {
+        MouseEvent hover = mouse(MouseEvent.MOUSE_MOVED, 16, 24, 0, MouseEvent.NOBUTTON);
+        assertThat(canvas.getToolTipText(hover)).isNull();
+        List<Point2D> asked = new ArrayList<>();
+        canvas.setToolTipProvider(gridPoint -> {
+            asked.add(gridPoint);
+            return gridPoint.getX() > 1 ? Optional.of("drivers") : Optional.empty();
+        });
+        assertThat(canvas.getToolTipText(hover)).isEqualTo("drivers");
+        assertThat(asked).containsExactly(new Point2D.Double(2, 3));
+        assertThat(canvas.getToolTipText(mouse(MouseEvent.MOUSE_MOVED, 4, 4, 0, MouseEvent.NOBUTTON))).isNull();
     }
 }

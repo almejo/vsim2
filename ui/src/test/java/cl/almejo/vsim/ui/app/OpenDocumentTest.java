@@ -1,9 +1,12 @@
 package cl.almejo.vsim.ui.app;
 
+import cl.almejo.vsim.core.command.AddWireCommand;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
+import cl.almejo.vsim.core.document.Wire;
+import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.netlist.PinRef;
 import cl.almejo.vsim.core.value.Value;
 import cl.almejo.vsim.ui.i18n.Messages;
@@ -186,5 +189,22 @@ class OpenDocumentTest {
         OpenDocument document = track(OpenDocument.open(legacy, registry));
         assertThat(document.path()).isEmpty();
         assertThat(document.isBackedBy(legacy.toAbsolutePath())).isTrue();
+    }
+
+    @Test
+    void pauseOnShortCircuitStopsTheSimulationWhenTwoOutputsAreJoined() {
+        OpenDocument document = track(OpenDocument.createEmpty(registry));
+        assertThat(document.pauseOnShortCircuit()).isFalse();
+        document.setPauseOnShortCircuit(true);
+        assertThat(document.pauseOnShortCircuit()).isTrue();
+        place(document, StandardComponentTypes.SWITCH, 0, 0, Map.of("value", "1"));
+        place(document, StandardComponentTypes.SWITCH, 0, 6, Map.of("value", "0"));
+        waitUntil(() -> document.latestSnapshot().running()
+                && document.latestSnapshot().token() == document.netlistToken());
+
+        document.execute(new AddWireCommand(new Wire(document.document().newWireId(),
+                new GridPoint(4, 1), new GridPoint(4, 7))));
+        waitUntil(() -> !document.latestSnapshot().shortCircuits().isEmpty());
+        assertThat(document.latestSnapshot().running()).isFalse();
     }
 }
