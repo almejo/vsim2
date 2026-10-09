@@ -1,13 +1,17 @@
 package cl.almejo.vsim.ui.canvas;
 
+import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.DocumentListener;
+import cl.almejo.vsim.core.geometry.Rotation;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.paint.ColorScheme;
+import cl.almejo.vsim.ui.panels.PaletteTransfer;
 import cl.almejo.vsim.ui.tools.CanvasMouseEvent;
+import cl.almejo.vsim.ui.tools.ComponentPlacement;
 import cl.almejo.vsim.ui.tools.SelectTool;
 import cl.almejo.vsim.ui.tools.Tool;
 import cl.almejo.vsim.ui.tools.ToolContext;
@@ -17,10 +21,13 @@ import javax.swing.JComponent;
 import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
 import javax.swing.Timer;
+import javax.swing.TransferHandler;
 import java.awt.Dimension;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Point;
+import java.awt.datatransfer.DataFlavor;
+import java.awt.datatransfer.UnsupportedFlavorException;
 import java.awt.event.FocusAdapter;
 import java.awt.event.FocusEvent;
 import java.awt.event.KeyAdapter;
@@ -29,6 +36,7 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseWheelEvent;
 import java.awt.geom.Point2D;
+import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -80,7 +88,41 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
                 panAnchor = null;
             }
         });
+        setTransferHandler(new TransferHandler() {
+            @Override
+            public boolean canImport(TransferSupport support) {
+                return support.isDataFlavorSupported(DataFlavor.stringFlavor);
+            }
+
+            @Override
+            public boolean importData(TransferSupport support) {
+                if (!canImport(support)) {
+                    return false;
+                }
+                try {
+                    String text = (String) support.getTransferable().getTransferData(DataFlavor.stringFlavor);
+                    Point point = support.isDrop() ? support.getDropLocation().getDropPoint()
+                            : new Point(getWidth() / 2, getHeight() / 2);
+                    return dropComponent(text, point);
+                } catch (UnsupportedFlavorException | IOException exception) {
+                    return false;
+                }
+            }
+        });
         frameTimer = new Timer(FRAME_MILLISECONDS, event -> refreshSnapshot());
+    }
+
+    /** Places the palette entry encoded in {@code transferText} at {@code screenPoint}; false when it is not one. */
+    public boolean dropComponent(String transferText, Point screenPoint) {
+        Optional<ComponentType> type = PaletteTransfer.decode(transferText)
+                .flatMap(typeId -> openDocument.registry().find(typeId));
+        if (type.isEmpty()) {
+            return false;
+        }
+        ComponentPlacement.place(this, type.get(), viewport.snap(screenPoint.x, screenPoint.y), Rotation.R0);
+        useDefaultTool();
+        requestFocusInWindow();
+        return true;
     }
 
     @Override

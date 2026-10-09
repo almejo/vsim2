@@ -9,6 +9,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 import java.awt.event.KeyEvent;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -24,18 +25,26 @@ class PlaceComponentToolTest {
     }
 
     @Test
-    void eachClickPlacesOneComponentAtTheSnappedPointAndSelectsIt() {
+    void aClickPlacesOneComponentAndReturnsToTheDefaultTool() {
         context.tool = tool;
         tool.mousePressed(context, TestToolContext.at(3.4, 4.6));
-        tool.mousePressed(context, TestToolContext.at(10, 10));
         assertThat(context.openDocument().document().components()).extracting(Component::position)
-                .containsExactly(new GridPoint(3, 5), new GridPoint(10, 10));
-        Component last = context.openDocument().document().components().get(1);
-        assertThat(last.parameters()).isEqualTo(clock.resolveParameters(java.util.Map.of()));
-        assertThat(context.selection.ids()).containsExactly(last.id());
-        assertThat(context.tool).isSameAs(tool);
+                .containsExactly(new GridPoint(3, 5));
+        Component placed = context.openDocument().document().components().get(0);
+        assertThat(placed.parameters()).isEqualTo(clock.resolveParameters(Map.of()));
+        assertThat(context.selection.ids()).containsExactly(placed.id());
+        assertThat(context.tool).isSameAs(context.defaultTool);
         context.openDocument().history().undo();
-        assertThat(context.openDocument().document().components()).hasSize(1);
+        assertThat(context.openDocument().document().components()).isEmpty();
+    }
+
+    @Test
+    void shiftClickPlacesAndKeepsPlacing() {
+        context.tool = tool;
+        tool.mousePressed(context, TestToolContext.event(1, 1, CanvasMouseEvent.PRIMARY, 1, true));
+        tool.mousePressed(context, TestToolContext.event(9, 1, CanvasMouseEvent.PRIMARY, 1, true));
+        assertThat(context.openDocument().document().components()).hasSize(2);
+        assertThat(context.tool).isSameAs(tool);
     }
 
     @Test

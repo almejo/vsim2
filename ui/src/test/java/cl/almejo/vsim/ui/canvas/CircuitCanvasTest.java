@@ -3,9 +3,11 @@ package cl.almejo.vsim.ui.canvas;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
+import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.paint.ColorScheme;
+import cl.almejo.vsim.ui.panels.PaletteTransfer;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.tools.CanvasMouseEvent;
 import cl.almejo.vsim.ui.tools.PanTool;
@@ -14,6 +16,7 @@ import cl.almejo.vsim.ui.tools.ToolContext;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
+import java.awt.Point;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
@@ -168,5 +171,22 @@ class CircuitCanvasTest {
         canvas.selection().select(gate.id());
         openDocument.history().undo();
         assertThat(canvas.selection().isEmpty()).isTrue();
+    }
+
+    @Test
+    void droppingAPaletteEntryPlacesItAtTheDropPoint() {
+        canvas.setTool(new PanTool());
+        assertThat(canvas.dropComponent(PaletteTransfer.encode("led"), new Point(41, 23))).isTrue();
+        assertThat(openDocument.document().components()).singleElement()
+                .satisfies(led -> assertThat(led.position()).isEqualTo(new GridPoint(5, 3)));
+        assertThat(canvas.tool()).isSameAs(canvas.defaultTool());
+        assertThat(openDocument.history().undoDescription()).contains("command.add");
+    }
+
+    @Test
+    void dropOfForeignTextIsRejected() {
+        assertThat(canvas.dropComponent("hello", new Point(10, 10))).isFalse();
+        assertThat(canvas.dropComponent(PaletteTransfer.encode("no-such-type"), new Point(10, 10))).isFalse();
+        assertThat(openDocument.document().isEmpty()).isTrue();
     }
 }

@@ -1,8 +1,6 @@
 package cl.almejo.vsim.ui.tools;
 
-import cl.almejo.vsim.core.command.AddElementsCommand;
 import cl.almejo.vsim.core.component.ComponentType;
-import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
@@ -10,10 +8,9 @@ import cl.almejo.vsim.core.geometry.Rotation;
 import java.awt.Cursor;
 import java.awt.Graphics2D;
 import java.awt.event.KeyEvent;
-import java.util.List;
 import java.util.Map;
 
-/** Places components of one type, one per click, until Esc or right click. */
+/** Places a component where the user clicks, then returns to the default tool (Shift keeps placing). */
 public final class PlaceComponentTool implements Tool {
 
     private static final ElementId PREVIEW_ID = new ElementId("preview");
@@ -54,11 +51,10 @@ public final class PlaceComponentTool implements Tool {
         if (event.button() != CanvasMouseEvent.PRIMARY) {
             return;
         }
-        Component component = type.newComponent(context.openDocument().document().newComponentId(), event.snapped(),
-                rotation, Map.of(), "");
-        context.openDocument().execute(new AddElementsCommand(List.of(component)));
-        context.selection().select(component.id());
-        context.repaint();
+        ComponentPlacement.place(context, type, event.snapped(), rotation);
+        if (!event.shiftDown()) {
+            context.useDefaultTool();
+        }
     }
 
     @Override

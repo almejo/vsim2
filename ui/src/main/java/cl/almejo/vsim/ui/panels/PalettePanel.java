@@ -17,6 +17,7 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextField;
 import javax.swing.JTree;
+import javax.swing.TransferHandler;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import javax.swing.tree.DefaultMutableTreeNode;
@@ -27,6 +28,8 @@ import javax.swing.tree.TreeSelectionModel;
 import java.awt.Component;
 import java.awt.GraphicsEnvironment;
 import java.awt.Toolkit;
+import java.awt.datatransfer.StringSelection;
+import java.awt.datatransfer.Transferable;
 import java.awt.event.ActionEvent;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
@@ -91,6 +94,20 @@ public final class PalettePanel extends JPanel {
             }
         });
         add(search);
+        if (!GraphicsEnvironment.isHeadless()) {
+            tree.setDragEnabled(true); // Swing refuses to enable dragging without a display
+        }
+        tree.setTransferHandler(new TransferHandler() {
+            @Override
+            public int getSourceActions(JComponent source) {
+                return COPY;
+            }
+
+            @Override
+            protected Transferable createTransferable(JComponent source) {
+                return selectedType().map(type -> new StringSelection(PaletteTransfer.encode(type.id()))).orElse(null);
+            }
+        });
         add(new JScrollPane(tree));
         rebuild();
     }
