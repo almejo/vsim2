@@ -4,13 +4,17 @@ import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.Wire;
+import cl.almejo.vsim.core.command.AddElementsCommand;
 import cl.almejo.vsim.core.command.AddWireCommand;
+import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.value.Value;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 import java.awt.event.KeyEvent;
+import java.awt.geom.Rectangle2D;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -330,5 +334,256 @@ class SelectToolTest {
         tool.mouseReleased(context, TestToolContext.event(2, 2, CanvasMouseEvent.PRIMARY, 2, false));
         assertThat(context.configured).isNull();
         assertThat(context.selection.ids()).containsExactly(gate.id());
+    }
+
+    @Test
+    void shiftClickAddsAndRemovesElements() {
+        Component first = not(0, 0);
+        Component second = not(10, 0);
+        context.click(tool, 2, 2);
+        context.clickWith(tool, 12, 2, true, false);
+        assertThat(context.selection.ids()).containsExactlyInAnyOrder(first.id(), second.id());
+        context.clickWith(tool, 2, 2, true, false);
+        assertThat(context.selection.ids()).containsExactly(second.id());
+    }
+
+    @Test
+    void controlClickTogglesToo() {
+        Component first = not(0, 0);
+        Component second = not(10, 0);
+        context.clickWith(tool, 2, 2, false, true);
+        context.clickWith(tool, 12, 2, false, true);
+        assertThat(context.selection.ids()).containsExactlyInAnyOrder(first.id(), second.id());
+        context.clickWith(tool, 12, 2, false, true);
+        assertThat(context.selection.ids()).containsExactly(first.id());
+    }
+
+    @Test
+    void shiftClickOnAPinTogglesItsComponentWithoutDrawing() {
+        Component gate = not(0, 0);
+        context.clickWith(tool, 4.1, 2, true, false);
+        assertThat(context.selection.ids()).containsExactly(gate.id());
+        assertThat(context.openDocument().document().wires()).isEmpty();
+    }
+
+    @Test
+    void plainClickOnAnUnselectedElementReplacesTheSelection() {
+        not(0, 0);
+        not(10, 0);
+        Component third = not(20, 0);
+        context.clickWith(tool, 2, 2, true, false);
+        context.clickWith(tool, 12, 2, true, false);
+        context.click(tool, 22, 2);
+        assertThat(context.selection.ids()).containsExactly(third.id());
+    }
+
+    @Test
+    void plainClickOnAnElementOfAMultiSelectionNarrowsTheSelectionToIt() {
+        Component first = not(0, 0);
+        Component second = not(10, 0);
+        context.selection.set(List.of(first.id(), second.id()));
+        tool.mousePressed(context, TestToolContext.at(2, 2));
+        assertThat(context.selection.ids()).containsExactlyInAnyOrder(first.id(), second.id());
+        tool.mouseReleased(context, TestToolContext.at(2, 2));
+        assertThat(context.selection.ids()).containsExactly(first.id());
+        context.selection.set(List.of(first.id(), second.id()));
+        context.click(tool, 14.1, 2);
+        assertThat(context.selection.ids()).containsExactly(second.id());
+        assertThat(context.openDocument().document().wires()).isEmpty();
+    }
+
+    @Test
+    void draggingAnElementOfAMultiSelectionMovesTheWholeGroupAsOneStep() {
+        Component first = not(0, 0);
+        Component second = not(10, 0);
+        Wire wire = new Wire(context.openDocument().document().newWireId(), new GridPoint(0, 8), new GridPoint(6, 8));
+        context.openDocument().execute(new AddWireCommand(wire));
+        context.selection.set(List.of(first.id(), second.id(), wire.id()));
+        context.drag(tool, 2, 2, 5, 3);
+        var document = context.openDocument().document();
+        assertThat(document.component(first.id()).orElseThrow().position()).isEqualTo(new GridPoint(3, 1));
+        assertThat(document.component(second.id()).orElseThrow().position()).isEqualTo(new GridPoint(13, 1));
+        assertThat(document.wire(wire.id()).orElseThrow().start()).isEqualTo(new GridPoint(3, 9));
+        assertThat(context.openDocument().history().undoDescription()).contains("command.move");
+        context.openDocument().history().undo();
+        assertThat(document.component(first.id()).orElseThrow().position()).isEqualTo(GridPoint.ORIGIN);
+        assertThat(document.component(second.id()).orElseThrow().position()).isEqualTo(new GridPoint(10, 0));
+        assertThat(document.wire(wire.id()).orElseThrow().start()).isEqualTo(new GridPoint(0, 8));
+    }
+
+    @Test
+    void pressOnAPinOfASelectedComponentInAMultiSelectionMovesTheGroup() {
+        Component first = not(0, 0);
+        Component second = not(10, 0);
+        context.selection.set(List.of(first.id(), second.id()));
+        context.drag(tool, 4.1, 2, 7.1, 2);
+        var document = context.openDocument().document();
+        assertThat(document.wires()).isEmpty();
+        assertThat(document.component(first.id()).orElseThrow().position()).isEqualTo(new GridPoint(3, 0));
+        assertThat(document.component(second.id()).orElseThrow().position()).isEqualTo(new GridPoint(13, 0));
+        assertThat(context.openDocument().history().undoDescription()).contains("command.move");
+    }
+
+    @Test
+    void pinOfAComponentOutsideTheSelectionStillStartsAWire() {
+        Component first = not(0, 0);
+        Component second = not(10, 0);
+        not(20, 0);
+        context.selection.set(List.of(first.id(), second.id()));
+        context.drag(tool, 24.1, 2, 28, 2);
+        assertThat(context.openDocument().document().wires()).singleElement().satisfies(wire -> {
+            assertThat(wire.start()).isEqualTo(new GridPoint(24, 2));
+            assertThat(wire.end()).isEqualTo(new GridPoint(28, 2));
+        });
+        assertThat(context.openDocument().document().component(first.id()).orElseThrow().position())
+                .isEqualTo(GridPoint.ORIGIN);
+    }
+
+    @Test
+    void pinOfTheOnlySelectedComponentStillStartsAWire() {
+        Component gate = not(0, 0);
+        context.click(tool, 2, 2);
+        context.drag(tool, 4.1, 2, 9, 2);
+        assertThat(context.openDocument().document().wires()).hasSize(1);
+        assertThat(context.openDocument().document().component(gate.id()).orElseThrow().position())
+                .isEqualTo(GridPoint.ORIGIN);
+    }
+
+    @Test
+    void modifierPressDoesNotDrag() {
+        Component gate = not(0, 0);
+        context.click(tool, 2, 2);
+        context.dragWith(tool, 2, 2, 5, 3, true, false);
+        assertThat(context.openDocument().document().component(gate.id()).orElseThrow().position())
+                .isEqualTo(GridPoint.ORIGIN);
+        assertThat(context.selection.isEmpty()).isTrue();
+        context.dragWith(tool, 4.1, 2, 9, 2, false, true);
+        assertThat(context.openDocument().document().wires()).isEmpty();
+        assertThat(context.selection.ids()).containsExactly(gate.id());
+        assertThat(context.openDocument().history().undoDescription()).contains("command.add");
+    }
+
+    private Wire wireFrom(int startX, int startY, int endX, int endY) {
+        Wire wire = new Wire(context.openDocument().document().newWireId(), new GridPoint(startX, startY),
+                new GridPoint(endX, endY));
+        context.openDocument().execute(new AddWireCommand(wire));
+        return wire;
+    }
+
+    private TextLabel labelAt(int x, int y) {
+        TextLabel label = new TextLabel(context.openDocument().document().newLabelId(), new GridPoint(x, y), "nota");
+        context.openDocument().execute(new AddElementsCommand(List.of(label)));
+        return label;
+    }
+
+    @Test
+    void bandSelectsEverythingFullyInsideWithoutAnUndoStep() {
+        Component inside = not(0, 0);
+        not(10, 0);
+        Wire wire = wireFrom(0, 8, 6, 8);
+        TextLabel note = labelAt(2, 10);
+        String before = context.openDocument().history().undoDescription().toString();
+        context.drag(tool, -1, -1, 7, 11);
+        assertThat(context.selection.ids()).containsExactlyInAnyOrder(inside.id(), wire.id(), note.id());
+        assertThat(context.openDocument().history().undoDescription().toString()).isEqualTo(before);
+    }
+
+    @Test
+    void partlyCoveredElementsAreLeftOut() {
+        Component inside = not(0, 0);
+        not(10, 0);
+        wireFrom(0, 8, 20, 8);
+        context.drag(tool, -1, -1, 12, 9);
+        assertThat(context.selection.ids()).containsExactly(inside.id());
+    }
+
+    @Test
+    void bandWorksInAnyDirection() {
+        Component gate = not(0, 0);
+        context.drag(tool, 5, 5, -1, -1);
+        assertThat(context.selection.ids()).containsExactly(gate.id());
+        context.selection.clear();
+        context.drag(tool, 5, -1, -1, 5);
+        assertThat(context.selection.ids()).containsExactly(gate.id());
+        context.selection.clear();
+        context.drag(tool, -1, 5, 5, -1);
+        assertThat(context.selection.ids()).containsExactly(gate.id());
+    }
+
+    @Test
+    void plainBandReplacesAndShiftOrControlBandAdds() {
+        Component first = not(0, 0);
+        Component second = not(10, 0);
+        context.click(tool, 12, 2);
+        context.drag(tool, -1, -1, 5, 5);
+        assertThat(context.selection.ids()).containsExactly(first.id());
+        context.click(tool, 12, 2);
+        context.dragWith(tool, -1, -1, 5, 5, true, false);
+        assertThat(context.selection.ids()).containsExactlyInAnyOrder(first.id(), second.id());
+        context.selection.select(second.id());
+        context.dragWith(tool, -1, -1, 5, 5, false, true);
+        assertThat(context.selection.ids()).containsExactlyInAnyOrder(first.id(), second.id());
+    }
+
+    @Test
+    void shiftClickOnEmptySpaceKeepsTheSelection() {
+        Component gate = not(0, 0);
+        context.click(tool, 2, 2);
+        context.clickWith(tool, 30, 30, true, false);
+        assertThat(context.selection.ids()).containsExactly(gate.id());
+    }
+
+    @Test
+    void escapeCancelsTheBand() {
+        Component gate = not(0, 0);
+        not(10, 0);
+        context.click(tool, 2, 2);
+        tool.mousePressed(context, TestToolContext.at(-1, -1));
+        tool.mouseDragged(context, TestToolContext.at(15, 5));
+        assertThat(tool.keyPressed(context, KeyEvent.VK_ESCAPE, false)).isTrue();
+        assertThat(tool.rubberBand()).isNull();
+        tool.mouseReleased(context, TestToolContext.at(15, 5));
+        assertThat(context.selection.ids()).containsExactly(gate.id());
+    }
+
+    @Test
+    void theBandIsPaintedWhileDragging() {
+        not(0, 0);
+        tool.mousePressed(context, TestToolContext.at(-1, -1));
+        tool.mouseDragged(context, TestToolContext.at(5, 3));
+        assertThat(tool.rubberBand()).isEqualTo(new Rectangle2D.Double(-1, -1, 6, 4));
+        tool.paintOverlay(TestToolContext.scratchGraphics(), context);
+        tool.mouseReleased(context, TestToolContext.at(5, 3));
+        assertThat(tool.rubberBand()).isNull();
+    }
+
+    @Test
+    void theBandIsPaintedWithThePhaseFromTheContext() {
+        not(0, 0);
+        tool.mousePressed(context, TestToolContext.at(-1, -1));
+        tool.mouseDragged(context, TestToolContext.at(5, 3));
+        assertThat(tool.animatesOutline()).isTrue();
+        java.awt.image.BufferedImage first = paintBandWithPhase(0);
+        java.awt.image.BufferedImage second = paintBandWithPhase(3);
+        boolean different = false;
+        for (int y = 0; y < first.getHeight() && !different; y++) {
+            for (int x = 0; x < first.getWidth() && !different; x++) {
+                different = first.getRGB(x, y) != second.getRGB(x, y);
+            }
+        }
+        assertThat(different).isTrue();
+        tool.mouseReleased(context, TestToolContext.at(5, 3));
+        assertThat(tool.animatesOutline()).isFalse();
+    }
+
+    private java.awt.image.BufferedImage paintBandWithPhase(double phase) {
+        context.selectionDashPhase = phase;
+        java.awt.image.BufferedImage image = new java.awt.image.BufferedImage(200, 150,
+                java.awt.image.BufferedImage.TYPE_INT_ARGB);
+        java.awt.Graphics2D graphics = image.createGraphics();
+        graphics.translate(40, 40);
+        tool.paintOverlay(graphics, context);
+        graphics.dispose();
+        return image;
     }
 }

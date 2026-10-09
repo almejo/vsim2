@@ -215,4 +215,73 @@ class CircuitCanvasTest {
         assertThat(openDocument.document().components()).hasSize(2);
         assertThat(openDocument.history().undoDescription()).contains("command.paste");
     }
+    @Test
+    void tracksTheGridPointUnderTheMouse() {
+        canvas.setSize(400, 300);
+        assertThat(canvas.mouseGridPoint()).isEmpty();
+        canvas.getMouseMotionListeners()[0].mouseMoved(mouse(MouseEvent.MOUSE_MOVED, 80, 48, 0, MouseEvent.NOBUTTON));
+        assertThat(canvas.mouseGridPoint()).contains(new GridPoint(10, 6));
+        canvas.getMouseMotionListeners()[0].mouseDragged(
+                mouse(MouseEvent.MOUSE_DRAGGED, 500, 48, InputEvent.BUTTON1_DOWN_MASK, MouseEvent.NOBUTTON));
+        assertThat(canvas.mouseGridPoint()).isEmpty();
+        canvas.getMouseMotionListeners()[0].mouseMoved(mouse(MouseEvent.MOUSE_MOVED, 80, 48, 0, MouseEvent.NOBUTTON));
+        canvas.getMouseListeners()[0].mouseExited(mouse(MouseEvent.MOUSE_EXITED, 80, 48, 0, MouseEvent.NOBUTTON));
+        assertThat(canvas.mouseGridPoint()).isEmpty();
+    }
+
+    @Test
+    void theAntsClockRunsOnlyWhileSomethingIsSelected() {
+        Component gate = place(openDocument, StandardComponentTypes.NOT, 0, 0, Map.of());
+        assertThat(canvas.isAnimatingSelection()).isFalse();
+        canvas.selection().select(gate.id());
+        assertThat(canvas.isAnimatingSelection()).isTrue();
+        canvas.selection().clear();
+        assertThat(canvas.isAnimatingSelection()).isFalse();
+    }
+
+    @Test
+    void theAntsClockRunsWhileABandIsBeingDragged() {
+        canvas.getMouseListeners()[0].mousePressed(mouse(MouseEvent.MOUSE_PRESSED, 300, 300, InputEvent.BUTTON1_DOWN_MASK, MouseEvent.BUTTON1));
+        canvas.getMouseMotionListeners()[0].mouseDragged(mouse(MouseEvent.MOUSE_DRAGGED, 400, 380, InputEvent.BUTTON1_DOWN_MASK, MouseEvent.NOBUTTON));
+        assertThat(canvas.isAnimatingSelection()).isTrue();
+        canvas.getMouseListeners()[0].mouseReleased(mouse(MouseEvent.MOUSE_RELEASED, 400, 380, 0, MouseEvent.BUTTON1));
+        assertThat(canvas.isAnimatingSelection()).isFalse();
+    }
+
+    @Test
+    void aTickStopsTheClockWhenNothingIsLeftToAnimate() {
+        canvas.getMouseListeners()[0].mousePressed(mouse(MouseEvent.MOUSE_PRESSED, 300, 300, InputEvent.BUTTON1_DOWN_MASK, MouseEvent.BUTTON1));
+        assertThat(canvas.isAnimatingSelection()).isTrue();
+        canvas.tool().keyPressed(canvas, KeyEvent.VK_ESCAPE, false); // the band ends without going through the canvas
+        assertThat(canvas.isAnimatingSelection()).as("still running until the next tick").isTrue();
+        canvas.animationTick();
+        assertThat(canvas.isAnimatingSelection()).isFalse();
+    }
+
+    @Test
+    void aTickAdvancesThePhaseWhileSomethingIsSelected() {
+        Component gate = place(openDocument, StandardComponentTypes.NOT, 0, 0, Map.of());
+        canvas.selection().select(gate.id());
+        canvas.animationTick();
+        assertThat(canvas.selectionDashPhase()).isEqualTo(1.0);
+    }
+
+    @Test
+    void aDisposedCanvasNeverRestartsTheClock() {
+        Component gate = place(openDocument, StandardComponentTypes.NOT, 0, 0, Map.of());
+        canvas.selection().select(gate.id());
+        canvas.dispose();
+        assertThat(canvas.isAnimatingSelection()).isFalse();
+        canvas.selection().clear();
+        canvas.selection().select(gate.id());
+        assertThat(canvas.isAnimatingSelection()).isFalse();
+    }
+
+    @Test
+    void removingTheCanvasFromItsWindowStopsTheClock() {
+        Component gate = place(openDocument, StandardComponentTypes.NOT, 0, 0, Map.of());
+        canvas.selection().select(gate.id());
+        canvas.removeNotify();
+        assertThat(canvas.isAnimatingSelection()).isFalse();
+    }
 }

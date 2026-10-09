@@ -19,6 +19,7 @@ import java.awt.Color;
 import java.awt.Composite;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
+import java.awt.Shape;
 import java.awt.geom.Ellipse2D;
 import java.awt.geom.Line2D;
 import java.awt.geom.Point2D;
@@ -31,8 +32,9 @@ public final class CircuitRenderer {
     private static final BasicStroke WIRE = new BasicStroke(2.5f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
     private static final BasicStroke CONFLICT_WIRE = new BasicStroke(5f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
     private static final BasicStroke SELECTED_WIRE = new BasicStroke(8f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
-    private static final BasicStroke OUTLINE = new BasicStroke(1.5f, BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER,
-            10f, new float[]{4f, 3f}, 0f);
+    private static final BasicStroke CONFLICT_OUTLINE = new BasicStroke(1.5f, BasicStroke.CAP_BUTT,
+            BasicStroke.JOIN_MITER, 10f, new float[]{4f, 3f}, 0f);
+    private static final float SELECTION_OUTLINE_WIDTH = 1.5f;
     private static final double JUNCTION_RADIUS = 3.5;
     private static final double HALO_RADIUS = 7;
     private static final double OUTLINE_GAP = 3;
@@ -77,11 +79,13 @@ public final class CircuitRenderer {
         ShortCircuitHighlight highlight = ShortCircuitHighlight.of(state.snapshot(), state.netlist(),
                 state.netlistToken(), state.document(), registry);
 
-        graphics.setStroke(SELECTED_WIRE);
-        graphics.setColor(withAlpha(scheme.selection(), 90));
         for (Wire wire : state.document().wires()) {
             if (state.selection().contains(wire.id())) {
-                graphics.draw(line(wire));
+                Shape halo = SELECTED_WIRE.createStrokedShape(line(wire));
+                graphics.setColor(withAlpha(scheme.selection(), 90));
+                graphics.fill(halo);
+                MarchingAnts.draw(graphics, halo, scheme.selection(), SELECTION_OUTLINE_WIDTH,
+                        state.selectionDashPhase());
             }
         }
         for (Wire wire : state.document().wires()) {
@@ -102,10 +106,13 @@ public final class CircuitRenderer {
             ComponentDrawing.paint(graphics, type, component, state.snapshot().componentState(component.id().value()),
                     scheme, painters);
             if (highlight.components().contains(component.id())) {
-                outline(graphics, type, component, scheme.wireConflict());
+                graphics.setStroke(CONFLICT_OUTLINE);
+                graphics.setColor(scheme.wireConflict());
+                graphics.draw(outline(type, component));
             }
             if (state.selection().contains(component.id())) {
-                outline(graphics, type, component, scheme.selection());
+                MarchingAnts.draw(graphics, outline(type, component), scheme.selection(), SELECTION_OUTLINE_WIDTH,
+                        state.selectionDashPhase());
             }
         }
 
@@ -139,12 +146,10 @@ public final class CircuitRenderer {
         }
     }
 
-    private void outline(Graphics2D graphics, ComponentType type, Component component, Color color) {
+    private Rectangle2D outline(ComponentType type, Component component) {
         Rectangle2D bounds = ComponentDrawing.documentBounds(type, component);
-        graphics.setStroke(OUTLINE);
-        graphics.setColor(color);
-        graphics.draw(new Rectangle2D.Double(bounds.getX() - OUTLINE_GAP, bounds.getY() - OUTLINE_GAP,
-                bounds.getWidth() + 2 * OUTLINE_GAP, bounds.getHeight() + 2 * OUTLINE_GAP));
+        return new Rectangle2D.Double(bounds.getX() - OUTLINE_GAP, bounds.getY() - OUTLINE_GAP,
+                bounds.getWidth() + 2 * OUTLINE_GAP, bounds.getHeight() + 2 * OUTLINE_GAP);
     }
 
     private static Line2D line(Wire wire) {

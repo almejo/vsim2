@@ -76,4 +76,19 @@ class PalettePanelTest {
             assertThat(field.getActionMap().get(actionKey)).isNotNull();
         }
     }
+
+    @Test
+    void searchFieldKeepsItsOwnClipboardKeys() {
+        int mask = java.awt.GraphicsEnvironment.isHeadless() ? java.awt.event.InputEvent.CTRL_DOWN_MASK
+                : java.awt.Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx();
+        javax.swing.JTextField field = palette.searchField();
+        for (int keyCode : new int[]{java.awt.event.KeyEvent.VK_X, java.awt.event.KeyEvent.VK_C,
+                java.awt.event.KeyEvent.VK_V, java.awt.event.KeyEvent.VK_A}) {
+            Object actionKey = field.getInputMap(javax.swing.JComponent.WHEN_FOCUSED)
+                    .get(javax.swing.KeyStroke.getKeyStroke(keyCode, mask));
+            assertThat(actionKey).as("binding for key code %d", keyCode).isNotNull();
+            assertThat(field.getActionMap().get(actionKey)).isNotNull();
+            assertThat(field.getActionMap().get(actionKey).isEnabled()).isTrue();
+        }
+    }
 }

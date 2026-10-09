@@ -28,6 +28,7 @@ public final class TestToolContext implements ToolContext, AutoCloseable {
     public Optional<DocumentElement> contextMenuTarget;
     public Component configured;
     public int repaints;
+    public double selectionDashPhase;
     private final OpenDocument openDocument;
     private final HitTester hitTester;
 
@@ -66,6 +67,25 @@ public final class TestToolContext implements ToolContext, AutoCloseable {
         target.mouseReleased(this, at(toX, toY));
     }
 
+    public static CanvasMouseEvent withModifiers(double gridX, double gridY, boolean shiftDown, boolean controlDown) {
+        return new CanvasMouseEvent(new Point2D.Double(gridX, gridY),
+                new GridPoint((int) Math.round(gridX), (int) Math.round(gridY)),
+                new Point2D.Double(gridX * GridPoint.PIXELS_PER_UNIT, gridY * GridPoint.PIXELS_PER_UNIT),
+                CanvasMouseEvent.PRIMARY, shiftDown, controlDown, 1);
+    }
+
+    public void clickWith(Tool target, double gridX, double gridY, boolean shiftDown, boolean controlDown) {
+        target.mousePressed(this, withModifiers(gridX, gridY, shiftDown, controlDown));
+        target.mouseReleased(this, withModifiers(gridX, gridY, shiftDown, controlDown));
+    }
+
+    public void dragWith(Tool target, double fromX, double fromY, double toX, double toY,
+                         boolean shiftDown, boolean controlDown) {
+        target.mousePressed(this, withModifiers(fromX, fromY, shiftDown, controlDown));
+        target.mouseDragged(this, withModifiers(toX, toY, shiftDown, controlDown));
+        target.mouseReleased(this, withModifiers(toX, toY, shiftDown, controlDown));
+    }
+
     @Override
     public OpenDocument openDocument() {
         return openDocument;
@@ -89,6 +109,11 @@ public final class TestToolContext implements ToolContext, AutoCloseable {
     @Override
     public ColorScheme scheme() {
         return ColorScheme.LIGHT;
+    }
+
+    @Override
+    public double selectionDashPhase() {
+        return selectionDashPhase;
     }
 
     @Override

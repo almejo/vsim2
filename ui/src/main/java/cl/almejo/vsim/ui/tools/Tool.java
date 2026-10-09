@@ -12,6 +12,11 @@ public interface Tool {
     default void deactivated(ToolContext context) {
     }
 
+    /** True while the tool paints a marching-ants outline of its own (the canvas keeps its animation clock running). */
+    default boolean animatesOutline() {
+        return false;
+    }
+
     default void mousePressed(ToolContext context, CanvasMouseEvent event) {
     }
 

@@ -25,6 +25,9 @@ public interface ToolContext {
 
     ColorScheme scheme();
 
+    /** The current dash phase of marching-ants outlines. */
+    double selectionDashPhase();
+
     /** Paints {@code element} semi-transparent (drag and placement previews). */
     void paintGhost(Graphics2D graphics, DocumentElement element);
 

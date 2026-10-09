@@ -6,10 +6,12 @@ import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.ui.actions.ContextMenuContributor;
 import cl.almejo.vsim.ui.actions.ContextMenuFactory;
 import cl.almejo.vsim.ui.actions.EditorActions;
+import cl.almejo.vsim.ui.actions.SelectionActions;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.CanvasHost;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.canvas.CircuitRenderer;
+import cl.almejo.vsim.ui.clipboard.FragmentClipboard;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.panels.PalettePanel;
@@ -51,6 +53,7 @@ public final class EditorView extends JPanel implements CanvasHost {
     private final OpenDocument openDocument;
     private final CircuitCanvas canvas;
     private final EditorActions actions;
+    private final SelectionActions selectionActions;
     private final PalettePanel palette;
     private final StatusBar statusBar = new StatusBar();
     private final InspectorPanel inspector = new InspectorPanel();
@@ -69,6 +72,7 @@ public final class EditorView extends JPanel implements CanvasHost {
         CircuitRenderer renderer = new CircuitRenderer(openDocument.registry(), painters, scheme);
         this.canvas = new CircuitCanvas(openDocument, renderer, this);
         this.actions = new EditorActions(openDocument, canvas, window);
+        this.selectionActions = new SelectionActions(openDocument, canvas, actions, FragmentClipboard.system());
         this.palette = new PalettePanel(openDocument.registry(), painters, scheme, type -> {
             canvas.setTool(new PlaceComponentTool(type));
             canvas.requestFocusInWindow();
@@ -96,6 +100,7 @@ public final class EditorView extends JPanel implements CanvasHost {
         canvas.addToolListener(this::toolChanged);
         canvas.addSnapshotListener(statusBar::showSnapshot);
         canvas.addViewListener(() -> statusBar.showZoom(canvas.viewport().zoom()));
+        canvas.selection().addListener(() -> statusBar.showSelection(canvas.selection().ids().size()));
         statusBar.showSnapshot(SimulationSnapshot.EMPTY);
         statusBar.showZoom(canvas.viewport().zoom());
         canvas.bindKey(KeyStroke.getKeyStroke(KeyEvent.VK_DELETE, 0), "delete", actions.delete());
@@ -105,11 +110,26 @@ public final class EditorView extends JPanel implements CanvasHost {
                 actions.rotateCounterClockwise());
         bindZoomKeys();
         toolChanged(canvas.tool());
+        installSelectionActions();
+    }
+
+    /** Edit menu entries (platform shortcuts, so text fields keep their own Ctrl+X/C/V/A) and context menu items. */
+    private void installSelectionActions() {
+        JMenu edit = menu(MenuId.EDIT);
+        edit.addSeparator();
+        edit.add(selectionActions.cut());
+        edit.add(selectionActions.copy());
+        edit.add(selectionActions.paste());
+        edit.add(selectionActions.duplicate());
+        edit.addSeparator();
+        edit.add(selectionActions.selectAll());
+        addContextMenuContributor(selectionActions.contributor());
     }
 
     public OpenDocument openDocument() { return openDocument; }
     public CircuitCanvas canvas() { return canvas; }
     public EditorActions actions() { return actions; }
+    public SelectionActions selectionActions() { return selectionActions; }
     public PalettePanel palette() { return palette; }
     public StatusBar statusBar() { return statusBar; }
     public InspectorPanel inspector() { return inspector; }
