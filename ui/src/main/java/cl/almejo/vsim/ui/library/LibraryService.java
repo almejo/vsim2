@@ -84,7 +84,7 @@ public final class LibraryService implements AutoCloseable {
     }
 
     /** For tests: views and extensions must remove the problems listeners they add when disposed. */
-    int problemsListenerCount() {
+    public int problemsListenerCount() {
         return problemListeners.size();
     }
 

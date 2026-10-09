@@ -7,6 +7,7 @@ import cl.almejo.vsim.core.io.LibraryDirectory;
 import cl.almejo.vsim.core.library.ComponentLibrary;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.icons.ActionIcons;
+import cl.almejo.vsim.ui.library.LibraryDialogs;
 import cl.almejo.vsim.ui.library.LibraryService;
 import cl.almejo.vsim.ui.library.SwingLibraryDialogs;
 import cl.almejo.vsim.ui.library.TemplatesExtension;
@@ -49,16 +50,21 @@ public final class Application {
     public Application(AppPreferences preferences) {
         this.preferences = preferences;
         this.libraryService = new LibraryService(preferences, library, registry);
+        this.services = new EditorServices(PainterRegistry.standard(), appearance, preferences, library,
+                editorExtensions(libraryService, SwingLibraryDialogs.INSTANCE));
+        // Lives as long as the application: it follows the preferences and is never disposed.
+        this.themeManager = ThemeManager.forCurrentPlatform(preferences, appearance);
+    }
+
+    /** The extensions of every editor view, in install order. Package-private so a test can install them all. */
+    static List<EditorExtension> editorExtensions(LibraryService libraryService, LibraryDialogs libraryDialogs) {
         List<EditorExtension> editorExtensions = new ArrayList<>();
         // M4 tracks add one line each here, in the order A, B, C, D (overview R9).
-        editorExtensions.add(new TemplatesExtension(libraryService, SwingLibraryDialogs.INSTANCE));
+        editorExtensions.add(new TemplatesExtension(libraryService, libraryDialogs));
         editorExtensions.add(new ComponentTreeExtension());
         editorExtensions.add(new ActionIcons());
         editorExtensions.add(new PreferencesFeature());
-        this.services = new EditorServices(PainterRegistry.standard(), appearance, preferences, library,
-                editorExtensions);
-        // Lives as long as the application: it follows the preferences and is never disposed.
-        this.themeManager = ThemeManager.forCurrentPlatform(preferences, appearance);
+        return List.copyOf(editorExtensions);
     }
 
     public EditorServices services() {
