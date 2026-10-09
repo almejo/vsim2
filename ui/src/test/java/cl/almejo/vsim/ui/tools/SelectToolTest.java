@@ -11,6 +11,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 import java.awt.event.KeyEvent;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -330,5 +331,132 @@ class SelectToolTest {
         tool.mouseReleased(context, TestToolContext.event(2, 2, CanvasMouseEvent.PRIMARY, 2, false));
         assertThat(context.configured).isNull();
         assertThat(context.selection.ids()).containsExactly(gate.id());
+    }
+
+    @Test
+    void shiftClickAddsAndRemovesElements() {
+        Component first = not(0, 0);
+        Component second = not(10, 0);
+        context.click(tool, 2, 2);
+        context.clickWith(tool, 12, 2, true, false);
+        assertThat(context.selection.ids()).containsExactlyInAnyOrder(first.id(), second.id());
+        context.clickWith(tool, 2, 2, true, false);
+        assertThat(context.selection.ids()).containsExactly(second.id());
+    }
+
+    @Test
+    void controlClickTogglesToo() {
+        Component first = not(0, 0);
+        Component second = not(10, 0);
+        context.clickWith(tool, 2, 2, false, true);
+        context.clickWith(tool, 12, 2, false, true);
+        assertThat(context.selection.ids()).containsExactlyInAnyOrder(first.id(), second.id());
+        context.clickWith(tool, 12, 2, false, true);
+        assertThat(context.selection.ids()).containsExactly(first.id());
+    }
+
+    @Test
+    void shiftClickOnAPinTogglesItsComponentWithoutDrawing() {
+        Component gate = not(0, 0);
+        context.clickWith(tool, 4.1, 2, true, false);
+        assertThat(context.selection.ids()).containsExactly(gate.id());
+        assertThat(context.openDocument().document().wires()).isEmpty();
+    }
+
+    @Test
+    void plainClickOnAnUnselectedElementReplacesTheSelection() {
+        not(0, 0);
+        not(10, 0);
+        Component third = not(20, 0);
+        context.clickWith(tool, 2, 2, true, false);
+        context.clickWith(tool, 12, 2, true, false);
+        context.click(tool, 22, 2);
+        assertThat(context.selection.ids()).containsExactly(third.id());
+    }
+
+    @Test
+    void plainClickOnAnElementOfAMultiSelectionNarrowsTheSelectionToIt() {
+        Component first = not(0, 0);
+        Component second = not(10, 0);
+        context.selection.set(List.of(first.id(), second.id()));
+        tool.mousePressed(context, TestToolContext.at(2, 2));
+        assertThat(context.selection.ids()).containsExactlyInAnyOrder(first.id(), second.id());
+        tool.mouseReleased(context, TestToolContext.at(2, 2));
+        assertThat(context.selection.ids()).containsExactly(first.id());
+        context.selection.set(List.of(first.id(), second.id()));
+        context.click(tool, 14.1, 2);
+        assertThat(context.selection.ids()).containsExactly(second.id());
+        assertThat(context.openDocument().document().wires()).isEmpty();
+    }
+
+    @Test
+    void draggingAnElementOfAMultiSelectionMovesTheWholeGroupAsOneStep() {
+        Component first = not(0, 0);
+        Component second = not(10, 0);
+        Wire wire = new Wire(context.openDocument().document().newWireId(), new GridPoint(0, 8), new GridPoint(6, 8));
+        context.openDocument().execute(new AddWireCommand(wire));
+        context.selection.set(List.of(first.id(), second.id(), wire.id()));
+        context.drag(tool, 2, 2, 5, 3);
+        var document = context.openDocument().document();
+        assertThat(document.component(first.id()).orElseThrow().position()).isEqualTo(new GridPoint(3, 1));
+        assertThat(document.component(second.id()).orElseThrow().position()).isEqualTo(new GridPoint(13, 1));
+        assertThat(document.wire(wire.id()).orElseThrow().start()).isEqualTo(new GridPoint(3, 9));
+        assertThat(context.openDocument().history().undoDescription()).contains("command.move");
+        context.openDocument().history().undo();
+        assertThat(document.component(first.id()).orElseThrow().position()).isEqualTo(GridPoint.ORIGIN);
+        assertThat(document.component(second.id()).orElseThrow().position()).isEqualTo(new GridPoint(10, 0));
+        assertThat(document.wire(wire.id()).orElseThrow().start()).isEqualTo(new GridPoint(0, 8));
+    }
+
+    @Test
+    void pressOnAPinOfASelectedComponentInAMultiSelectionMovesTheGroup() {
+        Component first = not(0, 0);
+        Component second = not(10, 0);
+        context.selection.set(List.of(first.id(), second.id()));
+        context.drag(tool, 4.1, 2, 7.1, 2);
+        var document = context.openDocument().document();
+        assertThat(document.wires()).isEmpty();
+        assertThat(document.component(first.id()).orElseThrow().position()).isEqualTo(new GridPoint(3, 0));
+        assertThat(document.component(second.id()).orElseThrow().position()).isEqualTo(new GridPoint(13, 0));
+        assertThat(context.openDocument().history().undoDescription()).contains("command.move");
+    }
+
+    @Test
+    void pinOfAComponentOutsideTheSelectionStillStartsAWire() {
+        Component first = not(0, 0);
+        Component second = not(10, 0);
+        not(20, 0);
+        context.selection.set(List.of(first.id(), second.id()));
+        context.drag(tool, 24.1, 2, 28, 2);
+        assertThat(context.openDocument().document().wires()).singleElement().satisfies(wire -> {
+            assertThat(wire.start()).isEqualTo(new GridPoint(24, 2));
+            assertThat(wire.end()).isEqualTo(new GridPoint(28, 2));
+        });
+        assertThat(context.openDocument().document().component(first.id()).orElseThrow().position())
+                .isEqualTo(GridPoint.ORIGIN);
+    }
+
+    @Test
+    void pinOfTheOnlySelectedComponentStillStartsAWire() {
+        Component gate = not(0, 0);
+        context.click(tool, 2, 2);
+        context.drag(tool, 4.1, 2, 9, 2);
+        assertThat(context.openDocument().document().wires()).hasSize(1);
+        assertThat(context.openDocument().document().component(gate.id()).orElseThrow().position())
+                .isEqualTo(GridPoint.ORIGIN);
+    }
+
+    @Test
+    void modifierPressDoesNotDrag() {
+        Component gate = not(0, 0);
+        context.click(tool, 2, 2);
+        context.dragWith(tool, 2, 2, 5, 3, true, false);
+        assertThat(context.openDocument().document().component(gate.id()).orElseThrow().position())
+                .isEqualTo(GridPoint.ORIGIN);
+        assertThat(context.selection.isEmpty()).isTrue();
+        context.dragWith(tool, 4.1, 2, 9, 2, false, true);
+        assertThat(context.openDocument().document().wires()).isEmpty();
+        assertThat(context.selection.ids()).containsExactly(gate.id());
+        assertThat(context.openDocument().history().undoDescription()).contains("command.add");
     }
 }

@@ -18,11 +18,14 @@ import java.util.Objects;
 import java.util.Optional;
 
 /**
- * Everyday tool: select, move by dragging a body, draw wires by dragging from a pin or an unselected wire,
- * toggle switches, context menu, double click to configure.
+ * Everyday tool: select (Shift/Ctrl+click toggles), move the selection by dragging any selected element, draw
+ * wires by dragging from a pin or an unselected wire, toggle switches, context menu, double click to configure.
  *
- * <p>What a primary press grabs, in priority order: a pin (within the pin radius), then an unselected wire, then
- * the body of an element or an already selected element.
+ * <p>What a plain primary press grabs, in priority order: a pin (within the pin radius), then an unselected wire,
+ * then the body of an element or an already selected element. Exception: a pin of a selected component grabs the
+ * whole selection (instead of starting a wire) while the selection has more than one element. A press on an
+ * element of a multi-selection that is released without moving (a plain click) narrows the selection to that
+ * element; a press-and-drag moves the whole group.
  */
 public final class SelectTool implements Tool {
 
@@ -36,6 +39,7 @@ public final class SelectTool implements Tool {
     private WireDrawing wire;
     private GridPoint hoverPin;
     private boolean ownPressSeen;
+    private boolean narrowOnRelease;
     private int deltaX;
     private int deltaY;
 
@@ -77,9 +81,19 @@ public final class SelectTool implements Tool {
         }
         Optional<ConnectionPoints.PinHit> pin = connectionPoints(context)
                 .pinNear(context.openDocument().document(), event.gridPosition());
+        if (event.shiftDown() || event.controlDown()) {
+            pin.<DocumentElement>map(ConnectionPoints.PinHit::component).or(() -> hit)
+                    .ifPresent(element -> context.selection().toggle(element.id()));
+            return;
+        }
         if (pin.isPresent()) {
             pressedElement = pin.get().component();
-            wire = new WireDrawing(pin.get().point(), event.gridPosition());
+            if (grabsSelection(context, pin.get().component())) {
+                pressPoint = event.snapped();
+                narrowOnRelease = true;
+            } else {
+                wire = new WireDrawing(pin.get().point(), event.gridPosition());
+            }
             return;
         }
         pressedElement = hit.orElse(null);
@@ -93,7 +107,11 @@ public final class SelectTool implements Tool {
             context.selection().clear();
             return;
         }
-        context.selection().select(hit.get().id());
+        if (context.selection().contains(hit.get().id())) {
+            narrowOnRelease = context.selection().size() > 1;
+        } else {
+            context.selection().select(hit.get().id());
+        }
         pressPoint = event.snapped();
     }
 
@@ -128,6 +146,9 @@ public final class SelectTool implements Tool {
                     context.openDocument().execute(new MoveElementsCommand(context.selection().ids(), deltaX, deltaY));
                 }
             } else {
+                if (narrowOnRelease) {
+                    context.selection().select(pressedElement.id());
+                }
                 toggleIfInteractive(context);
             }
         }
@@ -199,6 +220,11 @@ public final class SelectTool implements Tool {
         return hoverPin;
     }
 
+    /** A pin of a selected component moves the selection when the selection holds more than one element. */
+    private static boolean grabsSelection(ToolContext context, Component component) {
+        return context.selection().contains(component.id()) && context.selection().size() > 1;
+    }
+
     /** A press on a pin or wire that did not become a wire: behave like a plain click on what was under it. */
     private void click(ToolContext context) {
         if (pressedElement == null) {
@@ -214,6 +240,7 @@ public final class SelectTool implements Tool {
             context.openDocument().interact(component.id());
         }
     }
+
     private ConnectionPoints connectionPoints(ToolContext context) {
         if (connectionPoints == null) {
             connectionPoints = new ConnectionPoints(context.openDocument().registry());
@@ -229,6 +256,7 @@ public final class SelectTool implements Tool {
     private void reset() {
         pressedElement = null;
         pressPoint = null;
+        narrowOnRelease = false;
         wire = null;
         deltaX = 0;
         deltaY = 0;
