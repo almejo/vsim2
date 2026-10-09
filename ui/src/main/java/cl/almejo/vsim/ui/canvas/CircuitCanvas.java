@@ -161,12 +161,22 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         getActionMap().put(name, action);
     }
 
+    /** Removes the binding made by {@link #bindKey}. */
+    public void unbindKey(KeyStroke stroke, String name) {
+        getInputMap(WHEN_FOCUSED).remove(stroke);
+        getActionMap().remove(name);
+    }
+
     public void addToolListener(Consumer<Tool> listener) {
         toolListeners.add(listener);
     }
 
     public void addSnapshotListener(Consumer<SimulationSnapshot> listener) {
         snapshotListeners.add(listener);
+    }
+
+    public void removeSnapshotListener(Consumer<SimulationSnapshot> listener) {
+        snapshotListeners.remove(listener);
     }
 
     public void addViewListener(Runnable listener) {
@@ -202,6 +212,11 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
 
     public void addOverlay(CanvasOverlay overlay) {
         overlays.add(overlay);
+        repaint();
+    }
+
+    public void removeOverlay(CanvasOverlay overlay) {
+        overlays.remove(overlay);
         repaint();
     }
 

@@ -21,7 +21,7 @@ Diseño: `docs/superpowers/specs/2026-10-08-vsim2-design.md`.
 - Selección: click selecciona, arrastrar el cuerpo mueve, Supr borra, R / Mayús+R rota, doble click configura, botón derecho abre el menú.
 - Click sobre un interruptor lo cambia mientras simula.
 - Ctrl+rueda o Ctrl + / Ctrl − (también en el teclado numérico): zoom; rueda / Mayús+rueda: desplazar; botón del medio o Espacio+arrastrar: mover la vista.
-- Los cortocircuitos se ven en rojo, con un halo en cada pin que maneja la red.
+- Los cortocircuitos se ven en rojo pulsante, con un halo en cada pin que maneja la red; al pasar el mouse sobre el cable se listan los drivers. Click en "⚠ N cortocircuitos" o F8 / Mayús+F8 salta al siguiente/anterior; la pestaña Problemas los lista (doble click navega). Simulación → "Pausar al detectar cortocircuito" detiene la simulación cuando aparece uno nuevo.
 
 ## Demo de consola (M1)
 
