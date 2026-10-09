@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.tools;
 
+import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.ui.app.OpenDocument;
@@ -30,6 +31,11 @@ public interface ToolContext {
 
     /** Paints {@code element} semi-transparent (drag and placement previews). */
     void paintGhost(Graphics2D graphics, DocumentElement element);
+
+    /** Like {@link #paintGhost(Graphics2D, DocumentElement)}, resolving component types with {@code registry}. */
+    default void paintGhost(Graphics2D graphics, DocumentElement element, ComponentTypeRegistry registry) {
+        paintGhost(graphics, element);
+    }
 
     void repaint();
 

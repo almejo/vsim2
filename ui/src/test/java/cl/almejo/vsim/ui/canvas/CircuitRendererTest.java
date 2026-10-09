@@ -9,6 +9,9 @@ import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
+import cl.almejo.vsim.core.io.CircuitFragment;
+import cl.almejo.vsim.core.library.ExampleDefinitions;
+import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.core.netlist.Netlist;
 import cl.almejo.vsim.core.netlist.NetlistCompiler;
 import cl.almejo.vsim.core.simulation.DriverRef;
@@ -200,5 +203,30 @@ class CircuitRendererTest {
         renderer.paintGhost(graphics, label);
         graphics.dispose();
         assertThat(inkInside(image, LabelLayout.freeText(label).bounds())).isPositive();
+    }
+
+    @Test
+    void ghostsResolveTypesWithTheRegistryTheyAreGiven() {
+        Component instance = new Component(new ElementId("c1"), SubcircuitTypes.typeIdOf(ExampleDefinitions.INVERTER),
+                new GridPoint(2, 2), Rotation.R0, Map.of(), "");
+        CircuitFragment fragment = new CircuitFragment(List.of(instance), List.of(), List.of(),
+                List.of(ExampleDefinitions.inverter()));
+        ComponentTypeRegistry base = StandardComponentTypes.registry();
+        CircuitRenderer ghostRenderer = new CircuitRenderer(base, PainterRegistry.standard(), ColorScheme.LIGHT);
+        BufferedImage image = new BufferedImage(80, 80, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D graphics = image.createGraphics();
+
+        ghostRenderer.paintGhost(graphics, instance, fragment.registryFor(base));
+        graphics.dispose();
+
+        int painted = 0;
+        for (int x = 0; x < image.getWidth(); x++) {
+            for (int y = 0; y < image.getHeight(); y++) {
+                if ((image.getRGB(x, y) >>> 24) != 0) {
+                    painted++;
+                }
+            }
+        }
+        assertThat(painted).isGreaterThan(20);
     }
 }

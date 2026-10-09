@@ -2,11 +2,14 @@ package cl.almejo.vsim.core.io;
 
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
+import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
+import cl.almejo.vsim.core.library.ExampleDefinitions;
+import cl.almejo.vsim.core.library.SubcircuitTypes;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -69,5 +72,19 @@ class FragmentFormatTest {
                 arguments("{\"formatVersion\":2,\"kind\":\"fragment\",\"wires\":"
                         + "[{\"id\":\"w1\",\"x1\":0,\"y1\":0,\"x2\":3,\"y2\":3}]}",
                         CircuitFormatException.Reason.INVALID_ELEMENT));
+    }
+
+    @Test
+    void definitionsTravelWithTheFragment() throws CircuitFormatException {
+        Component instance = new Component(new ElementId("c1"), SubcircuitTypes.typeIdOf(ExampleDefinitions.INVERTER),
+                new GridPoint(5, 7), Rotation.R0, Map.of(), "U1");
+        CircuitFragment fragment = new CircuitFragment(List.of(instance), List.of(), List.of(),
+                List.of(ExampleDefinitions.inverter()));
+        FragmentFormat format = new FragmentFormat(StandardComponentTypes.registry());
+
+        CircuitFragment read = format.read(format.write(fragment));
+
+        assertThat(read.definitions()).containsExactly(ExampleDefinitions.inverter());
+        assertThat(read.components()).singleElement().extracting(Component::position).isEqualTo(GridPoint.ORIGIN);
     }
 }

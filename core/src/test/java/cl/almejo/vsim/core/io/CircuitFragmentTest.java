@@ -10,6 +10,8 @@ import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
+import cl.almejo.vsim.core.library.ExampleDefinitions;
+import cl.almejo.vsim.core.library.SubcircuitTypes;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -64,5 +66,28 @@ class CircuitFragmentTest {
         CircuitFragment fragment = CircuitFragment.of(document, List.of(gate.id(), label.id()), registry)
                 .translate(3, 5);
         assertThat(fragment.bounds(registry)).isEqualTo(new Bounds(3, 5, 4, 6));
+    }
+
+    @Test
+    void aFragmentCarriesTheDefinitionsItsInstancesNeed() {
+        CircuitDocument source = new CircuitDocument();
+        source.putDefinition(ExampleDefinitions.inverter());
+        source.putDefinition(ExampleDefinitions.doubleInverter());
+        ComponentTypeRegistry sourceTypes = StandardComponentTypes.registry();
+        sourceTypes.addResolver(SubcircuitTypes.resolverFor(source));
+        Component instance = new Component(new ElementId("c1"),
+                SubcircuitTypes.typeIdOf(ExampleDefinitions.DOUBLE_INVERTER), new GridPoint(10, 10), Rotation.R0,
+                Map.of(), "");
+        source.add(instance);
+
+        CircuitFragment fragment = CircuitFragment.of(source, List.of(instance.id()), sourceTypes);
+
+        assertThat(fragment.definitions()).containsExactly(ExampleDefinitions.inverter(),
+                ExampleDefinitions.doubleInverter());
+        assertThat(fragment.translate(3, 3).definitions()).isEqualTo(fragment.definitions());
+        ComponentTypeRegistry bare = StandardComponentTypes.registry();
+        assertThat(bare.find(instance.typeId())).isEmpty();
+        assertThat(fragment.registryFor(bare).find(instance.typeId())).isPresent();
+        assertThat(new CircuitFragment(List.of(), List.of(), List.of()).registryFor(bare)).isSameAs(bare);
     }
 }

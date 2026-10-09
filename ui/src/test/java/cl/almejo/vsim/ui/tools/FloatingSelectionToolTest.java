@@ -10,6 +10,9 @@ import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
 import cl.almejo.vsim.core.io.CircuitFragment;
+import cl.almejo.vsim.core.library.ComponentDefinition;
+import cl.almejo.vsim.core.library.ExampleDefinitions;
+import cl.almejo.vsim.core.library.SubcircuitTypes;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
@@ -202,5 +205,26 @@ class FloatingSelectionToolTest {
         assertThat(document.components()).singleElement()
                 .satisfies(component -> assertThat(component.position()).isEqualTo(new GridPoint(11, 5)));
         assertThat(context.tool).isSameAs(context.defaultTool);
+    }
+
+    @Test
+    void aFragmentWithItsOwnDefinitionFloatsAndCommitsInADocumentWithoutIt() {
+        ComponentDefinition inverter = ExampleDefinitions.inverter();
+        Component instance = new Component(new ElementId("c1"), SubcircuitTypes.typeIdOf(inverter.id()),
+                GridPoint.ORIGIN, Rotation.R0, Map.of(), "");
+        CircuitFragment fragment = new CircuitFragment(List.of(instance), List.of(), List.of(), List.of(inverter));
+        FloatingSelectionTool tool = new FloatingSelectionTool(fragment, new GridPoint(10, 10));
+        context.setTool(tool);
+
+        tool.paintOverlay(TestToolContext.scratchGraphics(), context);
+        tool.mousePressed(context, TestToolContext.at(11, 11));
+        tool.mouseDragged(context, TestToolContext.at(13, 13));
+        tool.mouseReleased(context, TestToolContext.at(13, 13));
+        tool.mousePressed(context, TestToolContext.at(40, 40));
+
+        assertThat(document.definition(inverter.id())).contains(inverter);
+        assertThat(document.components()).singleElement()
+                .extracting(Component::typeId).isEqualTo("subcircuit:inverter");
+        assertThat(context.ghosts).isNotEmpty();
     }
 }

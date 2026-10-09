@@ -74,6 +74,10 @@ public final class PasteCommand implements Command {
             ids.add(placed.id());
         }
         List<Command> commands = new ArrayList<>();
+        if (!fragment.definitions().isEmpty()) {
+            // A definition the target already has is kept (PutDefinitionsCommand), so its instances follow the target.
+            commands.add(new PutDefinitionsCommand(fragment.definitions()));
+        }
         commands.add(new AddElementsCommand(elements));
         for (Wire wire : fragment.wires()) {
             Wire placed = new Wire(document.newWireId(), wire.start().plus(at), wire.end().plus(at));

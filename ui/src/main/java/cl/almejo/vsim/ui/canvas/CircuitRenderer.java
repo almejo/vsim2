@@ -129,11 +129,16 @@ public final class CircuitRenderer {
     }
 
     public void paintGhost(Graphics2D graphics, DocumentElement element) {
+        paintGhost(graphics, element, registry);
+    }
+
+    /** A semi-transparent preview; {@code types} resolves components (a pasted fragment brings its own definitions). */
+    public void paintGhost(Graphics2D graphics, DocumentElement element, ComponentTypeRegistry types) {
         Composite previous = graphics.getComposite();
         graphics.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.5f));
         try {
             switch (element) {
-                case Component component -> ComponentDrawing.paint(graphics, registry.require(component.typeId()),
+                case Component component -> ComponentDrawing.paint(graphics, types.require(component.typeId()),
                         component, VisibleState.NONE, scheme, painters);
                 case Wire wire -> {
                     graphics.setStroke(WIRE);

@@ -11,6 +11,9 @@ import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
 import cl.almejo.vsim.core.io.CircuitFragment;
+import cl.almejo.vsim.core.library.ComponentDefinition;
+import cl.almejo.vsim.core.library.ExampleDefinitions;
+import cl.almejo.vsim.core.library.SubcircuitTypes;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -100,5 +103,43 @@ class PasteCommandTest {
         command.apply(target);
         assertThat(target.isEmpty()).isTrue();
         assertThat(command.pastedIds()).isEmpty();
+    }
+
+    @Test
+    void pastingBringsTheDefinitionAndUndoTakesItAway() {
+        CircuitDocument target = new CircuitDocument();
+        History history = new History(target);
+        Component instance = new Component(new ElementId("c1"), SubcircuitTypes.typeIdOf(ExampleDefinitions.INVERTER),
+                GridPoint.ORIGIN, Rotation.R0, Map.of(), "");
+        CircuitFragment fragment = new CircuitFragment(List.of(instance), List.of(), List.of(),
+                List.of(ExampleDefinitions.inverter()));
+
+        history.execute(new PasteCommand(fragment, new GridPoint(10, 10)));
+        assertThat(target.definitions()).containsExactly(ExampleDefinitions.inverter());
+        assertThat(target.components()).hasSize(1);
+
+        history.undo();
+        assertThat(target.definitions()).isEmpty();
+        assertThat(target.components()).isEmpty();
+
+        history.redo();
+        assertThat(target.definitions()).containsExactly(ExampleDefinitions.inverter());
+        assertThat(target.components()).hasSize(1);
+    }
+
+    @Test
+    void pastingKeepsTheTargetsOwnVersion() {
+        CircuitDocument target = new CircuitDocument();
+        ComponentDefinition own = ExampleDefinitions.inverter().withName("Mío");
+        target.putDefinition(own);
+        Component instance = new Component(new ElementId("c1"), SubcircuitTypes.typeIdOf(ExampleDefinitions.INVERTER),
+                GridPoint.ORIGIN, Rotation.R0, Map.of(), "");
+        PasteCommand paste = new PasteCommand(new CircuitFragment(List.of(instance), List.of(), List.of(),
+                List.of(ExampleDefinitions.inverter())), new GridPoint(2, 2));
+
+        paste.apply(target);
+        assertThat(target.definition(ExampleDefinitions.INVERTER)).containsSame(own);
+        paste.revert(target);
+        assertThat(target.definition(ExampleDefinitions.INVERTER)).containsSame(own);
     }
 }

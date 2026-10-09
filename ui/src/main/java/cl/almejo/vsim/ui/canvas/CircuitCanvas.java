@@ -1,6 +1,7 @@
 package cl.almejo.vsim.ui.canvas;
 
 import cl.almejo.vsim.core.component.ComponentType;
+import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.command.MoveElementsCommand;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
@@ -445,6 +446,11 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     @Override
     public void paintGhost(Graphics2D graphics, DocumentElement element) {
         renderer.paintGhost(graphics, element);
+    }
+
+    @Override
+    public void paintGhost(Graphics2D graphics, DocumentElement element, ComponentTypeRegistry registry) {
+        renderer.paintGhost(graphics, element, registry);
     }
 
     @Override

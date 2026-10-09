@@ -1,5 +1,6 @@
 package cl.almejo.vsim.core.io;
 
+import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.ElementBounds;
 import cl.almejo.vsim.core.document.CircuitDocument;
@@ -10,10 +11,14 @@ import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.library.ComponentDefinition;
+import cl.almejo.vsim.core.library.SubcircuitTypes;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -38,16 +43,36 @@ public record CircuitFragment(List<Component> components, List<Wire> wires, List
         this(components, wires, labels, List.of());
     }
 
-    /** The listed elements of {@code document} (unknown ids are ignored), moved so their bounds start at (0,0). */
+    /**
+     * The listed elements of {@code document} (unknown ids are ignored), moved so their bounds start at (0,0), with the
+     * definitions their instances need.
+     */
     public static CircuitFragment of(CircuitDocument document, Collection<ElementId> ids,
                                      ComponentTypeRegistry registry) {
         Set<ElementId> wanted = Set.copyOf(ids);
-        CircuitFragment selected = new CircuitFragment(
-                document.components().stream().filter(component -> wanted.contains(component.id())).toList(),
+        List<Component> components = document.components().stream()
+                .filter(component -> wanted.contains(component.id())).toList();
+        CircuitFragment selected = new CircuitFragment(components,
                 document.wires().stream().filter(wire -> wanted.contains(wire.id())).toList(),
-                document.labels().stream().filter(label -> wanted.contains(label.id())).toList());
+                document.labels().stream().filter(label -> wanted.contains(label.id())).toList(),
+                document.definitionsUsedBy(components));
         Bounds bounds = selected.bounds(registry);
         return selected.translate(-bounds.x(), -bounds.y());
+    }
+
+    /**
+     * Types for this fragment's elements: {@code base} when it carries no definitions, otherwise {@code base} extended
+     * with its own sub-circuit types. {@code base} wins on equal ids, like a paste does.
+     */
+    public ComponentTypeRegistry registryFor(ComponentTypeRegistry base) {
+        if (definitions.isEmpty()) {
+            return base;
+        }
+        Map<String, ComponentType> types = new HashMap<>();
+        for (ComponentDefinition definition : definitions) {
+            types.put(SubcircuitTypes.typeIdOf(definition.id()), SubcircuitTypes.typeOf(definition));
+        }
+        return base.extendedWith(typeId -> Optional.ofNullable(types.get(typeId)));
     }
 
     public List<DocumentElement> elements() {

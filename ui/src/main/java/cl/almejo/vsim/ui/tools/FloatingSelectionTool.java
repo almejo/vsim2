@@ -1,6 +1,7 @@
 package cl.almejo.vsim.ui.tools;
 
 import cl.almejo.vsim.core.command.PasteCommand;
+import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.geometry.GridPoint;
@@ -35,6 +36,7 @@ public final class FloatingSelectionTool implements Tool {
     private boolean draggedSincePress;
     private Point2D pressPoint;
     private boolean finished;
+    private ComponentTypeRegistry types;
 
     public FloatingSelectionTool(CircuitFragment fragment, GridPoint position) {
         this.fragment = fragment;
@@ -140,7 +142,7 @@ public final class FloatingSelectionTool implements Tool {
             return;
         }
         for (DocumentElement element : fragment.elements()) {
-            context.paintGhost(graphics, element.translate(position.x(), position.y()));
+            context.paintGhost(graphics, element.translate(position.x(), position.y()), types(context));
         }
     }
 
@@ -158,11 +160,19 @@ public final class FloatingSelectionTool implements Tool {
     }
 
     private boolean covers(ToolContext context, Point2D gridPoint) {
-        Bounds bounds = fragment.bounds(context.openDocument().registry());
+        Bounds bounds = fragment.bounds(types(context));
         return gridPoint.getX() >= position.x() + bounds.x() - GRAB_MARGIN
                 && gridPoint.getX() <= position.x() + bounds.maximumX() + GRAB_MARGIN
                 && gridPoint.getY() >= position.y() + bounds.y() - GRAB_MARGIN
                 && gridPoint.getY() <= position.y() + bounds.maximumY() + GRAB_MARGIN;
+    }
+
+    /** The document's types plus the fragment's own definitions (it is not pasted yet). */
+    private ComponentTypeRegistry types(ToolContext context) {
+        if (types == null) {
+            types = fragment.registryFor(context.openDocument().registry());
+        }
+        return types;
     }
 
     /** Adds the fragment as one undo step and selects it; {@code switchTool} is false when called on deactivation. */
