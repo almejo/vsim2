@@ -33,10 +33,11 @@ Diseño: `docs/superpowers/specs/2026-10-08-vsim2-design.md`.
 - Dibujos: los textos dentro de los componentes (interruptor, flip-flop, pines) se leen derechos en cualquier rotación. El display de 7 segmentos muestra 0–F con segmentos biselados y un guion en cada dígito que tenga un bit en Z o en conflicto. El diagrama de tiempo dibuja sus propias trazas con el nombre de cada entrada, una línea tenue cada 10 muestras, Z como línea punteada al medio y conflicto en rojo; muestrea cada `sample-interval` unidades de tiempo, así que pulsos más cortos que eso no se ven.
 - Los puntos de unión aparecen solo donde un cable se ramifica (no donde dos cables siguen en línea recta).
 - Íconos nuevos en menús, barra de herramientas y menú contextual (se adaptan al tema oscuro); la barra muestra solo íconos y el nombre aparece al pasar el mouse. La ventana tiene ícono propio.
+- Al pasar el mouse sobre «Pin de entrada» y «Pin de salida» en la paleta, un texto explica que funcionan como interruptor y LED mientras pruebas y que se vuelven los pines del componente; el diálogo de crear o actualizar un componente lo recuerda.
 
 ## Preferencias y distribución
 
-- Archivo → Preferencias… (en macOS también VSim 2 → Ajustes…): tema Claro, Oscuro o Seguir sistema; esquema de color del circuito (Según el tema, VSim clásico, Claro, Oscuro); idioma (Sistema, Español, English; se aplica al reiniciar); directorio de la librería de componentes (Elegir… / Restaurar predeterminado). El tema y el esquema cambian al instante en todas las ventanas.
+- Archivo → Preferencias… (en macOS también VSim 2 → Ajustes…): tema Claro, Oscuro o Seguir sistema; esquema de color del circuito (Según el tema, VSim clásico, Claro, Oscuro y los otros esquemas del VSim original: Pastel, CSim y Twilight); idioma (Sistema, Español, English; se aplica al reiniciar); directorio de la librería de componentes (Elegir… / Restaurar predeterminado). El tema y el esquema cambian al instante en todas las ventanas.
 - "Seguir sistema" consulta el modo oscuro del sistema al iniciar y al elegir esa opción (macOS, Windows y GNOME); si no puede saberlo, usa el tema claro.
 - `-Dvsim.language=en` (o `./gradlew :ui:run -PvsimLanguage=en`) manda sobre el idioma guardado.
 - Las preferencias se guardan con `java.util.prefs` (nodo `cl/almejo/vsim2`).

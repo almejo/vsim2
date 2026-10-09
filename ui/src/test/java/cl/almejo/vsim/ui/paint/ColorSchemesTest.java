@@ -20,8 +20,19 @@ class ColorSchemesTest {
     private static final double DARK_WIRES = 3.0;
     /** Minimum RGB distance between two wire states of one scheme. */
     private static final double DISTINCT = 80;
+    /** Labels and gate outlines of the VSim ports on their board, as VSim drew them: pastel's blue gates are 1.63. */
+    private static final double PORT_LEGIBLE = 1.5;
+    /** Text on the component fill of a port (a fill we chose): Twilight's blue labels reach 3.96 on its dark fill. */
+    private static final double PORT_TEXT_ON_FILL = 3.0;
 
-    private static final List<ColorScheme> ALL = List.of(ColorSchemes.CLASSIC, ColorSchemes.LIGHT, ColorSchemes.DARK);
+    private static final List<ColorScheme> ALL = List.of(ColorSchemes.CLASSIC, ColorSchemes.LIGHT, ColorSchemes.DARK,
+            ColorSchemes.PASTEL, ColorSchemes.CSIM, ColorSchemes.TWILIGHT);
+    /** Schemes whose labels and outlines must read as body text. */
+    private static final List<ColorScheme> STRICT = List.of(ColorSchemes.CLASSIC, ColorSchemes.LIGHT,
+            ColorSchemes.DARK);
+    /** VSim's other schemes, ported with their own colors. */
+    private static final List<ColorScheme> PORTS = List.of(ColorSchemes.PASTEL, ColorSchemes.CSIM,
+            ColorSchemes.TWILIGHT);
     private static final List<Function<ColorScheme, Color>> WIRE_STATES = List.of(ColorScheme::wireZero,
             ColorScheme::wireOne, ColorScheme::wireHighImpedance, ColorScheme::wireConflict, ColorScheme::wireUnknown);
 
@@ -32,10 +43,14 @@ class ColorSchemesTest {
 
     @Test
     void schemesAreFoundByIdInMenuOrder() {
-        assertThat(ColorSchemes.ids()).containsExactly("classic", "light", "dark");
+        assertThat(ColorSchemes.ids()).containsExactly("classic", "light", "dark", "pastel", "csim", "twilight");
         assertThat(ColorSchemes.byId("classic")).containsSame(ColorSchemes.CLASSIC);
         assertThat(ColorSchemes.byId("light")).containsSame(ColorScheme.LIGHT);
         assertThat(ColorSchemes.byId("dark")).containsSame(ColorSchemes.DARK);
+        assertThat(ColorSchemes.byId("pastel")).containsSame(ColorSchemes.PASTEL);
+        assertThat(ColorSchemes.byId("csim")).containsSame(ColorSchemes.CSIM);
+        assertThat(ColorSchemes.byId("twilight")).containsSame(ColorSchemes.TWILIGHT);
+        assertThat(ColorSchemes.byId("Twilight")).isEmpty();
         assertThat(ColorSchemes.byId("neon")).isEmpty();
         assertThat(ColorSchemes.byId("")).isEmpty();
     }
@@ -49,8 +64,31 @@ class ColorSchemesTest {
     @Test
     void schemesHaveSpanishNames() {
         assertThat(ColorSchemes.ids().stream().map(ColorSchemes::displayName))
-                .containsExactly("VSim clásico", "Claro", "Oscuro");
+                .containsExactly("VSim clásico", "Claro", "Oscuro", "Pastel (VSim)", "CSim (VSim)", "Twilight (VSim)");
         assertThat(ColorSchemes.displayName("neon")).isEqualTo("neon");
+    }
+
+    @Test
+    void portsTakeTheColorsOfVSim() {
+        assertVSimColors(ColorSchemes.PASTEL, 0xBDBDBD, 0xCCCCCC, 0x000000, 0xDB5340, 0x00FF00, 0x389CD1, 0xCC6600,
+                0x990033);
+        assertVSimColors(ColorSchemes.CSIM, 0x0033CC, 0x0033CC, 0x000000, 0xFFFFFF, 0x00FF00, 0xFF9933, 0xFFFF00,
+                0xFF0000);
+        assertVSimColors(ColorSchemes.TWILIGHT, 0x000000, 0x1C1C1C, 0x808080, 0x800000, 0x008000, 0x004680, 0x0066FF,
+                0x990099);
+    }
+
+    /** The colors.json keys in order: background, grid, off, wires-on, ground, gates, label, signal. */
+    private static void assertVSimColors(ColorScheme scheme, int background, int grid, int off, int wiresOn,
+                                         int ground, int gates, int label, int signal) {
+        assertThat(scheme.background()).isEqualTo(new Color(background));
+        assertThat(scheme.grid()).isEqualTo(new Color(grid));
+        assertThat(scheme.wireZero()).isEqualTo(new Color(off));
+        assertThat(scheme.wireOne()).isEqualTo(new Color(wiresOn));
+        assertThat(scheme.wireHighImpedance()).isEqualTo(new Color(ground));
+        assertThat(scheme.componentStroke()).isEqualTo(new Color(gates));
+        assertThat(scheme.text()).isEqualTo(new Color(label));
+        assertThat(scheme.diagramTrace()).isEqualTo(new Color(signal));
     }
 
     @Test
@@ -84,10 +122,22 @@ class ColorSchemesTest {
 
     @Test
     void textAndOutlinesAreReadable() {
-        for (ColorScheme scheme : ALL) {
+        for (ColorScheme scheme : STRICT) {
             assertThat(contrast(scheme.text(), scheme.background())).isGreaterThanOrEqualTo(READABLE);
             assertThat(contrast(scheme.componentStroke(), scheme.background())).isGreaterThanOrEqualTo(READABLE);
             assertThat(contrast(scheme.text(), scheme.componentFill())).isGreaterThanOrEqualTo(READABLE);
+        }
+    }
+
+    @Test
+    void portsKeepTheirLabelsLegibleAndTheirTextReadableInsideComponents() {
+        for (ColorScheme scheme : PORTS) {
+            assertThat(contrast(scheme.text(), scheme.background())).as("%s", scheme)
+                    .isGreaterThanOrEqualTo(PORT_LEGIBLE);
+            assertThat(contrast(scheme.componentStroke(), scheme.background())).as("%s", scheme)
+                    .isGreaterThanOrEqualTo(PORT_LEGIBLE);
+            assertThat(contrast(scheme.text(), scheme.componentFill())).as("%s", scheme)
+                    .isGreaterThanOrEqualTo(PORT_TEXT_ON_FILL);
         }
     }
 
