@@ -79,13 +79,23 @@ final class PainterSupport {
         }
     }
 
+    /** Draws {@code text} centered on the local point, but always upright on screen whatever the rotation. */
     static void centeredText(Graphics2D graphics, String text, double centerX, double centerY, float size, Color color) {
-        graphics.setFont(BASE_FONT.deriveFont(size));
-        graphics.setColor(color);
-        FontMetrics metrics = graphics.getFontMetrics();
-        Rectangle2D textBounds = metrics.getStringBounds(text, graphics);
-        graphics.drawString(text, (float) (centerX - textBounds.getWidth() / 2),
-                (float) (centerY + (metrics.getAscent() - metrics.getDescent()) / 2.0));
+        AffineTransform transform = graphics.getTransform();
+        double angle = Math.atan2(transform.getShearY(), transform.getScaleX());
+        double quarterTurns = Math.round(angle / (Math.PI / 2));
+        Graphics2D upright = (Graphics2D) graphics.create();
+        try {
+            upright.rotate(-quarterTurns * Math.PI / 2, centerX, centerY);
+            upright.setFont(BASE_FONT.deriveFont(size));
+            upright.setColor(color);
+            FontMetrics metrics = upright.getFontMetrics();
+            Rectangle2D textBounds = metrics.getStringBounds(text, upright);
+            upright.drawString(text, (float) (centerX - textBounds.getWidth() / 2),
+                    (float) (centerY + (metrics.getAscent() - metrics.getDescent()) / 2.0));
+        } finally {
+            upright.dispose();
+        }
     }
 
     static Value valueOf(VisibleState state) {
