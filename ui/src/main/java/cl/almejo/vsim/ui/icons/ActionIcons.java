@@ -30,6 +30,7 @@ public final class ActionIcons implements EditorExtension {
                 removals.add(showOnlyTheIcon(button));
             }
         }
+        // Icons and hideActionText stay on purpose: the actions and buttons are per view and go away with it.
         return () -> removals.forEach(Runnable::run);
     }
 
