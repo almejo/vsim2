@@ -5,6 +5,10 @@ public record ElementId(String value) {
         if (value == null || value.isBlank()) {
             throw new IllegalArgumentException("element id must not be blank");
         }
+        // "/" separates hierarchical simulation ids (InstancePath); a document id must never look like one.
+        if (value.contains("/")) {
+            throw new IllegalArgumentException("element id must not contain '/': " + value);
+        }
     }
 
     @Override

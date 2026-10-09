@@ -7,6 +7,7 @@ import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.simulation.DriverRef;
 import cl.almejo.vsim.core.simulation.FlatPinRef;
+import cl.almejo.vsim.core.simulation.InstancePath;
 import cl.almejo.vsim.core.simulation.Problem;
 import cl.almejo.vsim.core.simulation.ShortCircuit;
 import cl.almejo.vsim.core.simulation.WidthMismatch;
@@ -53,7 +54,8 @@ public final class ProblemText {
     }
 
     private static String driver(DriverRef driver, CircuitDocument document) {
-        Optional<Component> component = document.component(new ElementId(driver.componentId()));
+        Optional<Component> component = InstancePath.isNested(driver.componentId()) ? Optional.empty()
+                : document.component(new ElementId(driver.componentId()));
         String value = driver.driven().toString();
         if (component.isEmpty()) {
             return Messages.format("problem.driver", driver.componentId(), value);
@@ -65,7 +67,8 @@ public final class ProblemText {
     }
 
     private static String pin(FlatPinRef pin, CircuitDocument document, ComponentTypeRegistry registry) {
-        Optional<Component> component = document.component(new ElementId(pin.componentId()));
+        Optional<Component> component = InstancePath.isNested(pin.componentId()) ? Optional.empty()
+                : document.component(new ElementId(pin.componentId()));
         if (component.isEmpty()) {
             return pin.componentId();
         }

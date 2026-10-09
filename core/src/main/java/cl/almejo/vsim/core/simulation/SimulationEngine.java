@@ -79,6 +79,7 @@ public final class SimulationEngine {
         Map<String, RuntimeNet> nextNets = new LinkedHashMap<>();
         for (FlatNet flatNet : circuit.nets()) {
             RuntimeNet net = new RuntimeNet(flatNet.id(), flatNet.width(), flatNet.widthMismatch());
+            net.aliases = flatNet.aliases();
             RuntimeNet previous = previousNets.get(flatNet.id());
             if (previous != null) {
                 net.conflictSince = previous.conflictSince;
@@ -178,6 +179,9 @@ public final class SimulationEngine {
         List<Problem> problems = new ArrayList<>();
         for (RuntimeNet net : nets.values()) {
             netValues.put(net.id, net.value);
+            for (String alias : net.aliases) {
+                netValues.put(alias, net.value);
+            }
             if (net.widthMismatch) {
                 problems.add(new WidthMismatch(net.id, net.pins.stream()
                         .map(pin -> new FlatPinRef(pin.instance.id, pin.index))

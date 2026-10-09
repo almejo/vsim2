@@ -4,9 +4,12 @@ import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
+import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
+import cl.almejo.vsim.core.library.ExampleDefinitions;
+import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.core.netlist.Net;
 import cl.almejo.vsim.core.netlist.Netlist;
 import cl.almejo.vsim.core.netlist.NetlistCompiler;
@@ -66,5 +69,25 @@ class ShortCircuitHighlightTest {
     void staleSnapshotHighlightsNothing() {
         assertThat(ShortCircuitHighlight.of(snapshotWithShort(document.revision() - 1), netlist, document.revision(),
                 document, registry)).isEqualTo(ShortCircuitHighlight.NONE);
+    }
+
+    @Test
+    void aDriverInsideATemplateOutlinesItsTopLevelInstance() {
+        CircuitDocument document = new CircuitDocument();
+        document.putDefinition(ExampleDefinitions.inverter());
+        ComponentTypeRegistry registry = StandardComponentTypes.registry();
+        registry.addResolver(SubcircuitTypes.resolverFor(document));
+        Component instance = new Component(new ElementId("c5"), SubcircuitTypes.typeIdOf(ExampleDefinitions.INVERTER),
+                GridPoint.ORIGIN, Rotation.R0, Map.of(), "");
+        document.add(instance);
+        SimulationSnapshot snapshot = new SimulationSnapshot(1, 7, 0, true, Map.of(), Map.of(),
+                List.of(new ShortCircuit("c5/n:p:c2#1", List.of(new DriverRef("c5/c2", 1, Value.ONE),
+                        new DriverRef("c5/c9", 0, Value.ZERO)), 0)),
+                Optional.empty());
+
+        ShortCircuitHighlight highlight = ShortCircuitHighlight.of(snapshot, Netlist.EMPTY, 7, document, registry);
+
+        assertThat(highlight.components()).containsExactly(instance.id());
+        assertThat(highlight.driverPins()).isEmpty();
     }
 }

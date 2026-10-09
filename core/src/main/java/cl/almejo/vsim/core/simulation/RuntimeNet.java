@@ -11,6 +11,8 @@ final class RuntimeNet {
     final String id;
     final int width;
     final boolean widthMismatch;
+    /** Other ids under which the snapshot publishes this net's value (see FlatNet#aliases). */
+    List<String> aliases = List.of();
     final List<PinState> pins = new ArrayList<>();
     Value value;
     long conflictSince = -1;

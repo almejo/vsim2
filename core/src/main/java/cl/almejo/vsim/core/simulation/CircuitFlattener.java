@@ -1,42 +1,187 @@
 package cl.almejo.vsim.core.simulation;
 
+import cl.almejo.vsim.core.component.ComponentCategory;
+import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
+import cl.almejo.vsim.core.component.PinDirection;
+import cl.almejo.vsim.core.component.PinSpec;
+import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
+import cl.almejo.vsim.core.geometry.GridPoint;
+import cl.almejo.vsim.core.geometry.GridSize;
+import cl.almejo.vsim.core.library.ComponentDefinition;
+import cl.almejo.vsim.core.library.InterfacePins;
+import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.core.netlist.Net;
 import cl.almejo.vsim.core.netlist.Netlist;
+import cl.almejo.vsim.core.netlist.NetlistCompiler;
+import cl.almejo.vsim.core.netlist.PinRef;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
+import java.util.IdentityHashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
-/** Turns a document and its netlist into a {@link FlatCircuit}. Sub-circuits are expanded here in M4. */
+/**
+ * Turns a document and its netlist into a {@link FlatCircuit}. Sub-circuit instances are expanded recursively: child
+ * {@code c2} of instance {@code c5} becomes {@code c5/c2} ({@link InstancePath}), the instance itself disappears, and
+ * each instance pin joins the outer net with the net of the matching interface pin inside. Interface pins inside an
+ * instance become passive {@link #INTERFACE_PROBE}s, so their value stays visible under their own id. Merged nets keep
+ * the id closest to the top level; the others become {@link FlatNet#aliases()}.
+ */
 public final class CircuitFlattener {
 
+    public static final String INTERFACE_PROBE_ID = "interface-probe";
+    public static final ComponentType INTERFACE_PROBE = new ComponentType(INTERFACE_PROBE_ID,
+            ComponentCategory.INTERFACE, new GridSize(1, 1),
+            List.of(new PinSpec("pin", GridPoint.ORIGIN, PinDirection.INPUT, 1)), List.of(),
+            parameters -> StandardComponentTypes.newValueProbe());
+    private static final int MAXIMUM_DEPTH = 32;
+
     private final ComponentTypeRegistry registry;
+    private final NetlistCompiler compiler;
 
     public CircuitFlattener(ComponentTypeRegistry registry) {
         this.registry = registry;
+        this.compiler = new NetlistCompiler(registry);
     }
 
     public FlatCircuit flatten(CircuitDocument document, Netlist netlist) {
-        List<FlatComponent> components = document.components().stream()
-                .map(this::flatten)
-                .toList();
-        List<FlatNet> nets = netlist.nets().stream()
-                .map(CircuitFlattener::flatten)
-                .toList();
-        return new FlatCircuit(document.revision(), components, nets);
+        Expansion expansion = new Expansion();
+        expansion.addLevel("", document.components(), netlist, 0);
+        return new FlatCircuit(document.revision(), expansion.components, expansion.flatNets());
     }
 
-    private FlatComponent flatten(Component component) {
-        return new FlatComponent(component.id().value(), registry.require(component.typeId()), component.parameters());
+    private record Body(List<Component> components, Netlist netlist) {
     }
 
-    private static FlatNet flatten(Net net) {
-        List<FlatPinRef> pins = net.pins().stream()
-                .map(pin -> new FlatPinRef(pin.componentId().value(), pin.pinIndex()))
-                .sorted(Comparator.comparing(FlatPinRef::componentId).thenComparingInt(FlatPinRef::pinIndex))
-                .toList();
-        return new FlatNet(net.id().value(), pins, net.width(), net.widthMismatch());
+    private Body compileBody(ComponentDefinition definition) {
+        CircuitDocument body = new CircuitDocument();
+        definition.body().elements().forEach(body::add);
+        return new Body(body.components(), compiler.compile(body));
+    }
+
+    private static final class NetBuilder {
+        final int width;
+        final boolean widthMismatch;
+        final List<FlatPinRef> pins = new ArrayList<>();
+
+        NetBuilder(int width, boolean widthMismatch) {
+            this.width = width;
+            this.widthMismatch = widthMismatch;
+        }
+    }
+
+    /** State of one flatten call; bodies are compiled once per call because nested definitions may have changed. */
+    private final class Expansion {
+        final List<FlatComponent> components = new ArrayList<>();
+        final Map<String, NetBuilder> nets = new LinkedHashMap<>();
+        final Map<String, String> parents = new HashMap<>();
+        final Map<ComponentDefinition, Body> bodies = new IdentityHashMap<>();
+
+        void addLevel(String prefix, List<Component> levelComponents, Netlist levelNetlist, int depth) {
+            if (depth > MAXIMUM_DEPTH) {
+                throw new IllegalStateException("sub-circuits nest more than " + MAXIMUM_DEPTH + " levels");
+            }
+            for (Net net : levelNetlist.nets()) {
+                nets.put(prefix + net.id().value(), new NetBuilder(net.width(), net.widthMismatch()));
+            }
+            for (Component component : levelComponents) {
+                String flatId = prefix + component.id().value();
+                ComponentType type = registry.require(component.typeId());
+                Optional<ComponentDefinition> definition = SubcircuitTypes.definitionOf(type);
+                if (definition.isPresent()) {
+                    expand(flatId, component, definition.get(), levelNetlist, prefix, depth);
+                } else if (!prefix.isEmpty() && InterfacePins.isInterface(type.id())) {
+                    addComponent(new FlatComponent(flatId, INTERFACE_PROBE, Map.of()), component, levelNetlist, prefix);
+                } else {
+                    addComponent(new FlatComponent(flatId, type, component.parameters()), component, levelNetlist,
+                            prefix);
+                }
+            }
+        }
+
+        private void addComponent(FlatComponent flat, Component component, Netlist levelNetlist, String prefix) {
+            components.add(flat);
+            for (int pinIndex = 0; pinIndex < flat.type().pinCount(); pinIndex++) {
+                FlatPinRef reference = new FlatPinRef(flat.id(), pinIndex);
+                levelNetlist.netForPin(new PinRef(component.id(), pinIndex))
+                        .ifPresent(net -> nets.get(prefix + net.id().value()).pins.add(reference));
+            }
+        }
+
+        private void expand(String instanceId, Component instance, ComponentDefinition definition,
+                            Netlist levelNetlist, String prefix, int depth) {
+            Body body = bodies.computeIfAbsent(definition, CircuitFlattener.this::compileBody);
+            String innerPrefix = instanceId + InstancePath.SEPARATOR;
+            addLevel(innerPrefix, body.components(), body.netlist(), depth + 1);
+            for (int pinIndex = 0; pinIndex < definition.pinout().size(); pinIndex++) {
+                Optional<Net> outer = levelNetlist.netForPin(new PinRef(instance.id(), pinIndex));
+                Optional<Net> inner = body.netlist()
+                        .netForPin(new PinRef(definition.pinout().get(pinIndex).source(), 0));
+                if (outer.isPresent() && inner.isPresent()) {
+                    union(prefix + outer.get().id().value(), innerPrefix + inner.get().id().value());
+                }
+            }
+        }
+
+        private String find(String netId) {
+            String current = netId;
+            while (parents.containsKey(current)) {
+                current = parents.get(current);
+            }
+            return current;
+        }
+
+        private void union(String first, String second) {
+            String firstRoot = find(first);
+            String secondRoot = find(second);
+            if (firstRoot.equals(secondRoot)) {
+                return;
+            }
+            if (closerToTop(secondRoot, firstRoot)) {
+                parents.put(firstRoot, secondRoot);
+            } else {
+                parents.put(secondRoot, firstRoot);
+            }
+        }
+
+        private static boolean closerToTop(String candidate, String other) {
+            int candidateDepth = InstancePath.depth(candidate);
+            int otherDepth = InstancePath.depth(other);
+            return candidateDepth != otherDepth ? candidateDepth < otherDepth : candidate.compareTo(other) < 0;
+        }
+
+        List<FlatNet> flatNets() {
+            Map<String, List<String>> members = new LinkedHashMap<>();
+            for (String netId : nets.keySet()) {
+                members.computeIfAbsent(find(netId), root -> new ArrayList<>()).add(netId);
+            }
+            List<FlatNet> result = new ArrayList<>();
+            members.forEach((root, ids) -> {
+                NetBuilder rootNet = nets.get(root);
+                List<FlatPinRef> pins = new ArrayList<>();
+                List<String> aliases = new ArrayList<>();
+                boolean mismatch = false;
+                for (String id : ids) {
+                    NetBuilder member = nets.get(id);
+                    pins.addAll(member.pins);
+                    mismatch |= member.widthMismatch || member.width != rootNet.width;
+                    if (!id.equals(root)) {
+                        aliases.add(id);
+                    }
+                }
+                pins.sort(Comparator.comparing(FlatPinRef::componentId).thenComparingInt(FlatPinRef::pinIndex));
+                Collections.sort(aliases);
+                result.add(new FlatNet(root, pins, rootNet.width, mismatch, aliases));
+            });
+            return result;
+        }
     }
 }

@@ -7,6 +7,7 @@ import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.netlist.NetId;
 import cl.almejo.vsim.core.netlist.Netlist;
 import cl.almejo.vsim.core.simulation.DriverRef;
+import cl.almejo.vsim.core.simulation.InstancePath;
 import cl.almejo.vsim.core.simulation.ShortCircuit;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 
@@ -35,10 +36,13 @@ public record ShortCircuitHighlight(Set<ElementId> wires, Set<ElementId> compone
         for (ShortCircuit shortCircuit : snapshot.shortCircuits()) {
             netlist.net(new NetId(shortCircuit.netId())).ifPresent(net -> wires.addAll(net.wires()));
             for (DriverRef driver : shortCircuit.drivers()) {
-                ElementId componentId = new ElementId(driver.componentId());
+                boolean nested = InstancePath.isNested(driver.componentId());
+                ElementId componentId = new ElementId(InstancePath.topLevel(driver.componentId()));
                 document.component(componentId).ifPresent(component -> {
                     components.add(componentId);
-                    driverPins.add(registry.require(component.typeId()).pinLocation(component, driver.pinIndex()));
+                    if (!nested) {
+                        driverPins.add(registry.require(component.typeId()).pinLocation(component, driver.pinIndex()));
+                    }
                 });
             }
         }

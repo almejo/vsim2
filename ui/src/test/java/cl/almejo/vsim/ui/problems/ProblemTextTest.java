@@ -90,4 +90,13 @@ class ProblemTextTest {
         assertThat(ProblemText.ordered(List.of(mismatch, late, lateTie, early)))
                 .containsExactly(early, lateTie, late, mismatch);
     }
+
+    @Test
+    void aDriverInsideATemplateIsDescribedByItsPath() {
+        CircuitDocument document = new CircuitDocument();
+        ShortCircuit shortCircuit = new ShortCircuit("c5/n:p:c2#1",
+                List.of(new DriverRef("c5/c2", 1, Value.ONE), new DriverRef("c5/c9", 0, Value.ZERO)), 3);
+        String text = ProblemText.describe(shortCircuit, document, StandardComponentTypes.registry());
+        assertThat(text).contains("c5/c2").contains("c5/c9");
+    }
 }

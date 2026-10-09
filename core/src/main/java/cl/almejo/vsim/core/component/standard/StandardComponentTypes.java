@@ -1,5 +1,6 @@
 package cl.almejo.vsim.core.component.standard;
 
+import cl.almejo.vsim.core.component.Behavior;
 import cl.almejo.vsim.core.component.ComponentCategory;
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
@@ -103,7 +104,12 @@ public final class StandardComponentTypes {
         registry.register(new ComponentType(OUTPUT_PIN, ComponentCategory.INTERFACE, new GridSize(2, 2),
                 List.of(PinSpec.input("pin", 0, 1)),
                 List.of(),
-                parameters -> new LedBehavior()));
+                parameters -> newValueProbe()));
+    }
+
+    /** A passive behavior that only shows the value at its single input, like an LED or an output pin. */
+    public static Behavior newValueProbe() {
+        return new LedBehavior();
     }
 
     private static ComponentType logicGate(LogicOperation operation, int inputCount) {
