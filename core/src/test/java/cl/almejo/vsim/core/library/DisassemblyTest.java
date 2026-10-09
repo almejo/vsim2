@@ -69,4 +69,30 @@ class DisassemblyTest {
 
         assertThat(Disassembly.plan(document, instance, ExampleDefinitions.inverter(), registry).blocked()).isTrue();
     }
+
+    @Test
+    void anOutsideWireRunningThroughTheInstancePinAndTheBodyPinIsNotBlocked() {
+        Component instance = inverterAt10();
+        wire(4, 12, 10, 12);
+        wire(13, 12, 20, 12); // passes mid-wire through the output pin (14, 12) and the body's output (16, 12)
+
+        Disassembly.Plan plan = Disassembly.plan(document, instance, ExampleDefinitions.inverter(), registry);
+
+        assertThat(plan.blocked()).isFalse();
+        assertThat(plan.bridges()).extracting(Wire::start, Wire::end)
+                .containsExactly(tuple(new GridPoint(10, 12), new GridPoint(12, 12)));
+    }
+
+    @Test
+    void aBridgeFromAPinOnTheMiddleOfAnOutsideWireJoinsThatWire() {
+        Component instance = inverterAt10();
+        wire(4, 12, 10, 12);
+        wire(14, 6, 14, 18); // a bus passing mid-wire through the output pin (14, 12)
+
+        Disassembly.Plan plan = Disassembly.plan(document, instance, ExampleDefinitions.inverter(), registry);
+
+        assertThat(plan.blocked()).isFalse();
+        assertThat(plan.bridges()).extracting(Wire::start, Wire::end).containsExactly(
+                tuple(new GridPoint(10, 12), new GridPoint(12, 12)), tuple(new GridPoint(14, 12), new GridPoint(16, 12)));
+    }
 }

@@ -81,19 +81,30 @@ public final class Disassembly {
         PinBridges.Bridging bridging = PinBridges.bridges(document, names, sources, targets, outsideWires,
                 outsidePins, pastedPoints, body.wires());
 
+        List<Integer> joined = new ArrayList<>();
+        for (int index = 0; index < names.size(); index++) {
+            if (!bridging.unconnectedPins().contains(names.get(index))
+                    && !bridging.blockedPins().contains(names.get(index))) {
+                joined.add(index);
+            }
+        }
         Nets intended = new Nets();
         Set<GridPoint> outsidePoints = new HashSet<>(outsidePins);
         outsideWires.forEach(wire -> {
             outsidePoints.add(wire.start());
             outsidePoints.add(wire.end());
         });
+        // A kept pin that something outside touches (even mid-wire) is a connection point of the outside net: its
+        // bridge starts there, so anything of the body there must be on the pin's own net.
+        for (int index : joined) {
+            if (PinBridges.touchesOutside(sources.get(index), outsidePins, outsideWires)) {
+                outsidePoints.add(sources.get(index));
+            }
+        }
         intended.join(true, outsideWires, outsidePoints);
         intended.join(false, body.wires(), pastedPoints);
-        for (int index = 0; index < names.size(); index++) {
-            if (!bridging.unconnectedPins().contains(names.get(index))
-                    && !bridging.blockedPins().contains(names.get(index))) {
-                intended.union(new Node(true, sources.get(index)), new Node(false, targets.get(index)));
-            }
+        for (int index : joined) {
+            intended.union(new Node(true, sources.get(index)), new Node(false, targets.get(index)));
         }
         boolean blocked = !bridging.blockedPins().isEmpty()
                 || touchesForeign(intended, outsideWires, outsidePoints, body.wires(), pastedPoints);
