@@ -10,6 +10,8 @@ import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
+import cl.almejo.vsim.core.library.ComponentDefinition;
+import cl.almejo.vsim.core.library.DefinitionGraph;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -68,12 +70,22 @@ public final class CircuitFormat {
         this.registry = registry;
     }
 
+    /**
+     * Serializes {@code document} with the definitions its components use. Throws IllegalStateException, writing
+     * nothing, when a used definition is missing from the document: such a file could not be reopened.
+     */
     public String write(CircuitDocument document) {
+        List<ComponentDefinition> used;
+        try {
+            used = DefinitionGraph.closure(SubcircuitTypes.definitionIds(document.components()), document::definition);
+        } catch (IllegalArgumentException exception) {
+            throw new IllegalStateException("the circuit cannot be saved: " + exception.getMessage(), exception);
+        }
         CircuitFile file = new CircuitFile(FORMAT_VERSION, KIND_CIRCUIT, document.name(),
                 document.components().stream().map(CircuitFormat::componentEntry).toList(),
                 document.wires().stream().map(CircuitFormat::wireEntry).toList(),
                 document.labels().stream().map(CircuitFormat::labelEntry).toList(),
-                document.usedDefinitions().stream().map(DefinitionEntries::entry).toList());
+                used.stream().map(DefinitionEntries::entry).toList());
         try {
             return mapper.writeValueAsString(file);
         } catch (JsonProcessingException exception) {

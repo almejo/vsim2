@@ -189,9 +189,17 @@ public final class OpenDocument implements AutoCloseable {
         return simulation.latestSnapshot();
     }
 
-    /** Writes format v2 atomically (temporary file + move); on failure nothing changes. */
+    /**
+     * Writes format v2 atomically (temporary file + move); on failure nothing changes. A document that could not be
+     * reopened (an instance whose definition is missing) fails with an IOException before anything is written.
+     */
     public void save(Path target) throws IOException {
-        String content = new CircuitFormat(registry).write(document);
+        String content;
+        try {
+            content = new CircuitFormat(registry).write(document);
+        } catch (IllegalStateException exception) {
+            throw new IOException(exception.getMessage(), exception);
+        }
         Path absolute = target.toAbsolutePath();
         Path temporary = absolute.getParent().resolve(".vsim2-" + UUID.randomUUID() + ".tmp");
         Files.createFile(temporary);

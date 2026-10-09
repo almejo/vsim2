@@ -111,6 +111,22 @@ class CircuitFormatDefinitionsTest {
         assertReason(inBody, CircuitFormatException.Reason.INVALID_ELEMENT);
     }
 
+    @Test
+    void aDocumentWhoseInstanceLacksItsDefinitionCannotBeWritten() {
+        CircuitDocument topLevel = new CircuitDocument();
+        topLevel.add(new Component(new ElementId("c1"), SubcircuitTypes.typeIdOf("missing"), new GridPoint(0, 0),
+                Rotation.R0, Map.of(), ""));
+        assertThatThrownBy(() -> format.write(topLevel))
+                .isInstanceOf(IllegalStateException.class).hasMessageContaining("missing");
+
+        CircuitDocument nested = new CircuitDocument();
+        nested.putDefinition(ExampleDefinitions.doubleInverter()); // its inverter is missing
+        nested.add(new Component(new ElementId("c1"), SubcircuitTypes.typeIdOf(ExampleDefinitions.DOUBLE_INVERTER),
+                new GridPoint(0, 0), Rotation.R0, Map.of(), ""));
+        assertThatThrownBy(() -> format.write(nested))
+                .isInstanceOf(IllegalStateException.class).hasMessageContaining(ExampleDefinitions.INVERTER);
+    }
+
     private void assertReason(JsonNode root, CircuitFormatException.Reason reason) {
         assertThatThrownBy(() -> format.read(root.toString()))
                 .isInstanceOf(CircuitFormatException.class)

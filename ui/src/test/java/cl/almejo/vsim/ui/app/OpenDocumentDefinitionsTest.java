@@ -16,6 +16,8 @@ import cl.almejo.vsim.core.value.Value;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -24,6 +26,7 @@ import java.util.Map;
 import static cl.almejo.vsim.ui.UiTestSupport.place;
 import static cl.almejo.vsim.ui.UiTestSupport.waitUntil;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class OpenDocumentDefinitionsTest {
 
@@ -112,5 +115,22 @@ class OpenDocumentDefinitionsTest {
                     List.of(), List.of())));
         }
         return chain;
+    }
+
+    @Test
+    void savingAnInstanceWithoutItsDefinitionFailsAndKeepsTheOldFile(@TempDir Path directory) throws Exception {
+        Path file = directory.resolve("broken.vsim");
+        Files.writeString(file, "previous content");
+        try (OpenDocument openDocument = OpenDocument.createEmpty(StandardComponentTypes.registry())) {
+            // No command leads here; this stands for a broken invariant.
+            openDocument.document().add(new Component(new ElementId("c1"), SubcircuitTypes.typeIdOf("missing"),
+                    new GridPoint(0, 0), Rotation.R0, Map.of(), ""));
+            assertThatThrownBy(() -> openDocument.save(file))
+                    .isInstanceOf(IOException.class).hasMessageContaining("missing");
+        }
+        assertThat(Files.readString(file)).isEqualTo("previous content");
+        try (var leftovers = Files.list(directory)) {
+            assertThat(leftovers).containsExactly(file);
+        }
     }
 }
