@@ -325,6 +325,21 @@ public final class SelectTool implements Tool {
         return context.selection().contains(component.id()) && context.selection().size() > 1;
     }
 
+    /**
+     * The snapped point where the current press on a selected element started, while that press may still become a
+     * move of the selection; empty with no press, while drawing a wire or while dragging a rubber band. The canvas
+     * uses it to start a drag out.
+     */
+    public Optional<GridPoint> movingFrom() {
+        return wire == null && bandStart == null ? Optional.ofNullable(pressPoint) : Optional.empty();
+    }
+
+    /** Forgets the press in progress without changing the document: the drag goes on outside the canvas. */
+    public void cancelMove(ToolContext context) {
+        reset();
+        context.repaint();
+    }
+
     /** A press on a pin or wire that did not become a wire: behave like a plain click on what was under it. */
     private void click(ToolContext context) {
         if (pressedElement == null) {

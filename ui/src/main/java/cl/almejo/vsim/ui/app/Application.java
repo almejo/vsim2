@@ -7,16 +7,18 @@ import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.window.CircuitWindow;
+import cl.almejo.vsim.ui.window.WindowMenu;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.swing.JOptionPane;
+import java.awt.Frame;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
-/** Open windows and documents of the running application (EDT only). */
+/** Open windows and documents of the running application (EDT only). A document closes with its last window. */
 public final class Application {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(Application.class);
@@ -24,11 +26,11 @@ public final class Application {
     private final ComponentTypeRegistry registry = StandardComponentTypes.registry();
     private final PainterRegistry painters = PainterRegistry.standard();
     private final ColorScheme scheme = ColorScheme.LIGHT;
-    private final List<CircuitWindow> windows = new ArrayList<>();
+    private final DocumentWindows<CircuitWindow> windows = new DocumentWindows<>();
     private Path lastDirectory;
 
     public void start(List<Path> files) {
-        files.forEach(file -> openPath(file, null));
+        openPaths(files, null);
         if (windows.isEmpty()) {
             newDocument();
         }
@@ -38,36 +40,60 @@ public final class Application {
         return show(OpenDocument.createEmpty(registry));
     }
 
+    /** Ventana → Nueva ventana de este circuito: another view of the same document. */
+    public CircuitWindow newWindow(CircuitWindow source) {
+        return show(source.openDocument());
+    }
+
     public void open(CircuitWindow requester) {
         FileDialogs.chooseOpen(requester, initialDirectory()).ifPresent(path -> openPath(path, requester));
     }
 
     public void openPath(Path path, CircuitWindow requester) {
-        OpenDocument document;
-        try {
-            document = OpenDocument.open(path, registry);
-        } catch (CircuitFormatException exception) {
-            LOGGER.warn("Could not open {}", path, exception);
-            JOptionPane.showMessageDialog(requester, Messages.readError(exception), Messages.text("error.open.title"),
-                    JOptionPane.ERROR_MESSAGE);
-            return;
+        openPaths(List.of(path), requester);
+    }
+
+    /**
+     * Opens each file in a new window, or focuses the window already showing it. When something new was opened
+     * from a pristine window, that placeholder document and its windows go away.
+     */
+    public void openPaths(List<Path> paths, CircuitWindow requester) {
+        boolean openedAny = false;
+        for (Path path : paths) {
+            Optional<CircuitWindow> showing = windows.firstShowing(path);
+            if (showing.isPresent()) {
+                focus(showing.get());
+                continue;
+            }
+            Optional<OpenDocument> document = read(path, requester);
+            if (document.isPresent()) {
+                rememberDirectory(path);
+                show(document.get());
+                openedAny = true;
+            }
         }
-        rememberDirectory(path);
-        show(document);
-        if (requester != null && requester.openDocument().isPristine()) {
-            requester.closeQuietly();
+        if (openedAny && requester != null && requester.openDocument().isPristine()) {
+            windows.windowsOf(requester.openDocument()).forEach(CircuitWindow::closeQuietly);
         }
     }
 
-    /** Asks to save every modified document; true when all windows were closed. */
+    /** Asks once per modified document; true when all windows were closed. */
     public boolean exit() {
-        for (CircuitWindow window : List.copyOf(windows)) {
-            if (!window.confirmClose()) {
+        for (OpenDocument document : windows.documents()) {
+            if (!windows.windowsOf(document).get(0).confirmSave()) {
                 return false;
             }
         }
-        List.copyOf(windows).forEach(CircuitWindow::closeQuietly);
+        windows.all().forEach(CircuitWindow::closeQuietly);
         return true;
+    }
+
+    public boolean isLastWindow(CircuitWindow window) {
+        return windows.isLastWindow(window);
+    }
+
+    public List<WindowMenu.Entry> windowEntries(CircuitWindow current) {
+        return windows.menuEntries(current, this::focus);
     }
 
     public Path initialDirectory() {
@@ -90,17 +116,37 @@ public final class Application {
         }
     }
 
+    /** Called by a window after disposing itself; the document stops (simulation thread included) with its last window. */
     public void windowClosed(CircuitWindow window) {
-        windows.remove(window);
+        windows.remove(window).ifPresent(OpenDocument::close);
         if (windows.isEmpty()) {
             System.exit(0);
         }
     }
 
+    private Optional<OpenDocument> read(Path path, CircuitWindow requester) {
+        try {
+            return Optional.of(OpenDocument.open(path, registry));
+        } catch (CircuitFormatException exception) {
+            LOGGER.warn("Could not open {}", path, exception);
+            JOptionPane.showMessageDialog(requester, Messages.readError(exception), Messages.text("error.open.title"),
+                    JOptionPane.ERROR_MESSAGE);
+            return Optional.empty();
+        }
+    }
+
     private CircuitWindow show(OpenDocument document) {
         CircuitWindow window = new CircuitWindow(this, document, painters, scheme);
-        windows.add(window);
+        windows.add(document, window);
         window.setVisible(true);
         return window;
+    }
+
+    private void focus(CircuitWindow window) {
+        if ((window.getExtendedState() & Frame.ICONIFIED) != 0) {
+            window.setExtendedState(window.getExtendedState() & ~Frame.ICONIFIED);
+        }
+        window.toFront();
+        window.requestFocus();
     }
 }

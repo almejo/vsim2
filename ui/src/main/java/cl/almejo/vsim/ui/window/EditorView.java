@@ -163,6 +163,7 @@ public final class EditorView extends JPanel implements CanvasHost {
 
     public void dispose() {
         labelFeatures.dispose();
+        actions.dispose();
         canvas.dispose();
     }
 

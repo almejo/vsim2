@@ -73,6 +73,33 @@ class EditorViewTest {
     }
 
     @Test
+    void twoViewsOfOneDocumentFollowItWithTheirOwnSelection() {
+        EditorView second = new EditorView(openDocument, PainterRegistry.standard(), ColorScheme.LIGHT, window);
+        try {
+            Component gate = place(openDocument, StandardComponentTypes.NOT, 0, 0, Map.of());
+            assertThat(view.actions().undo().isEnabled()).isTrue();
+            assertThat(second.actions().undo().isEnabled()).isTrue();
+            view.canvas().selection().select(gate.id());
+            assertThat(second.canvas().selection().isEmpty()).isTrue();
+            perform(second.actions().undo());
+            assertThat(view.canvas().selection().isEmpty()).isTrue();
+            assertThat(view.actions().undo().isEnabled()).isFalse();
+        } finally {
+            second.dispose();
+        }
+    }
+
+    @Test
+    void aDisposedViewStopsFollowingTheDocument() {
+        EditorView second = new EditorView(openDocument, PainterRegistry.standard(), ColorScheme.LIGHT, window);
+        second.dispose();
+        place(openDocument, StandardComponentTypes.NOT, 0, 0, Map.of());
+        assertThat(second.actions().undo().isEnabled()).isFalse();
+        assertThat(view.actions().undo().isEnabled()).isTrue();
+        second.dispose();
+    }
+
+    @Test
     void menuBarHasTheSixMenusInOrder() {
         List<String> titles = new ArrayList<>();
         for (int index = 0; index < view.menuBar().getMenuCount(); index++) {

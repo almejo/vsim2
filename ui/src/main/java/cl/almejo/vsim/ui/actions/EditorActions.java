@@ -2,6 +2,7 @@ package cl.almejo.vsim.ui.actions;
 
 import cl.almejo.vsim.core.command.ChangeParametersCommand;
 import cl.almejo.vsim.core.command.History;
+import cl.almejo.vsim.core.command.HistoryListener;
 import cl.almejo.vsim.core.command.RemoveElementsCommand;
 import cl.almejo.vsim.core.command.RotateElementsCommand;
 import cl.almejo.vsim.core.component.ComponentType;
@@ -43,6 +44,7 @@ public final class EditorActions {
     private final OpenDocument openDocument;
     private final CircuitCanvas canvas;
     private final int menuMask = menuShortcutMask();
+    private final HistoryListener historyListener = history -> refresh();
 
     private final Action newDocument;
     private final Action open;
@@ -103,7 +105,7 @@ public final class EditorActions {
         about = action(Messages.text("action.about"), null, () -> JOptionPane.showMessageDialog(canvas,
                 Messages.text("dialog.about.message"), Messages.text("action.about"), JOptionPane.INFORMATION_MESSAGE));
 
-        openDocument.history().addListener(history -> refresh());
+        openDocument.history().addListener(historyListener);
         canvas.selection().addListener(this::refresh);
         canvas.addSnapshotListener(snapshot -> refreshSimulationButtons(snapshot.running()));
         refresh();
@@ -142,6 +144,11 @@ public final class EditorActions {
         }
         ConfigureDialog.show(canvas, type, component)
                 .ifPresent(values -> openDocument.execute(new ChangeParametersCommand(component.id(), type, values)));
+    }
+
+    /** Stops following the shared document: the window showing these actions closed, the document may live on. */
+    public void dispose() {
+        openDocument.history().removeListener(historyListener);
     }
 
     public JMenuBar createMenuBar() {

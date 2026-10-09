@@ -42,6 +42,7 @@ public final class OpenDocument implements AutoCloseable {
     private final SimulationThread simulation;
     private final List<Runnable> changeListeners = new CopyOnWriteArrayList<>();
     private Path path;
+    private Path backingFile;
     private boolean importedFromVsim1;
     private Netlist netlist = Netlist.EMPTY;
     private long netlistToken = -1;
@@ -69,8 +70,10 @@ public final class OpenDocument implements AutoCloseable {
 
     public static OpenDocument open(Path path, ComponentTypeRegistry registry) throws CircuitFormatException {
         OpenedCircuit opened = new CircuitReader(registry).open(path);
-        return new OpenDocument(opened.document(), registry, opened.importedFromVsim1() ? null : path,
-                opened.importedFromVsim1());
+        OpenDocument openDocument = new OpenDocument(opened.document(), registry,
+                opened.importedFromVsim1() ? null : path, opened.importedFromVsim1());
+        openDocument.backingFile = FileNames.normalized(path);
+        return openDocument;
     }
 
     public CircuitDocument document() {
@@ -87,6 +90,11 @@ public final class OpenDocument implements AutoCloseable {
 
     public Optional<Path> path() {
         return Optional.ofNullable(path);
+    }
+
+    /** True for the file this document was opened from (also a VSim 1 import) or last saved to, in any spelling. */
+    public boolean isBackedBy(Path file) {
+        return backingFile != null && backingFile.equals(FileNames.normalized(file));
     }
 
     public boolean isImportedFromVsim1() {
@@ -175,6 +183,7 @@ public final class OpenDocument implements AutoCloseable {
             Files.deleteIfExists(temporary);
         }
         path = absolute;
+        backingFile = FileNames.normalized(absolute);
         importedFromVsim1 = false;
         history.markSaved();
     }
