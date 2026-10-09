@@ -101,8 +101,10 @@ public final class SelectTool implements Tool {
                 return;
             }
         }
-        Optional<ConnectionPoints.PinHit> pin = connectionPoints(context)
-                .pinNear(context.openDocument().document(), event.gridPosition());
+        // A free text is drawn on top of everything, so a press on it never reaches a pin underneath.
+        Optional<ConnectionPoints.PinHit> pin = hit.isPresent() && hit.get() instanceof TextLabel
+                ? Optional.empty()
+                : connectionPoints(context).pinNear(context.openDocument().document(), event.gridPosition());
         if (event.shiftDown() || event.controlDown()) {
             Optional<DocumentElement> target = pin.<DocumentElement>map(ConnectionPoints.PinHit::component).or(() -> hit);
             if (target.isPresent()) {

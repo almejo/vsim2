@@ -13,6 +13,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 import java.awt.event.KeyEvent;
+import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 import java.util.List;
 import java.util.Map;
@@ -648,5 +649,18 @@ class SelectToolTest {
         tool.mouseDragged(context, TestToolContext.at(5, 3));
         assertThat(tool.movingFrom()).isEmpty();
         tool.mouseReleased(context, TestToolContext.at(5, 3));
+    }
+
+    @Test
+    void pressOnAFreeTextOverAPinMovesTheTextInsteadOfStartingAWire() {
+        not(0, 0); // output pin at (4, 2)
+        TextLabel label = labelAt(4, 2);
+        assertThat(context.hitTester().elementAt(context.openDocument().document(), new Point2D.Double(4.2, 2.4)))
+                .contains(label);
+        context.drag(tool, 4.2, 2.4, 8.2, 6.4);
+        assertThat(context.openDocument().document().wires()).isEmpty();
+        assertThat(context.openDocument().document().label(label.id()).orElseThrow().position())
+                .isEqualTo(new GridPoint(8, 6));
+        assertThat(context.selection.ids()).containsExactly(label.id());
     }
 }
