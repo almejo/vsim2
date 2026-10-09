@@ -26,6 +26,20 @@ Diseño: `docs/superpowers/specs/2026-10-08-vsim2-design.md`.
 - Ctrl+rueda o Ctrl + / Ctrl − (también en el teclado numérico): zoom; rueda / Mayús+rueda: desplazar; botón del medio o Espacio+arrastrar: mover la vista.
 - Los cortocircuitos se ven en rojo pulsante, con un halo en cada pin que maneja la red; al pasar el mouse sobre el cable se listan los drivers. Click en "⚠ N cortocircuitos" o F8 / Mayús+F8 salta al siguiente/anterior; la pestaña Problemas los lista (doble click navega). Simulación → "Pausar al detectar cortocircuito" detiene la simulación cuando aparece uno nuevo.
 
+## Preferencias y distribución
+
+- Archivo → Preferencias… (en macOS también VSim 2 → Ajustes…): tema Claro, Oscuro o Seguir sistema; esquema de color del circuito (Según el tema, VSim clásico, Claro, Oscuro); idioma (Sistema, Español, English; se aplica al reiniciar); directorio de la librería de componentes (Elegir… / Restaurar predeterminado). El tema y el esquema cambian al instante en todas las ventanas.
+- "Seguir sistema" consulta el modo oscuro del sistema al iniciar y al elegir esa opción (macOS, Windows y GNOME); si no puede saberlo, usa el tema claro.
+- `-Dvsim.language=en` (o `./gradlew :ui:run -PvsimLanguage=en`) manda sobre el idioma guardado.
+- Las preferencias se guardan con `java.util.prefs` (nodo `cl/almejo/vsim2`).
+
+Jar ejecutable, con todas las dependencias adentro:
+
+    ./gradlew :ui:executableJar
+    java -jar ui/build/libs/vsim2-2.0.0-SNAPSHOT.jar
+
+`./gradlew check` construye el jar y verifica su manifiesto y contenido (`:ui:executableJarTest`).
+
 ## Demo de consola (M1)
 
     ./gradlew :core:run --args="../examples/vsim1/4-bit-adder.json"
