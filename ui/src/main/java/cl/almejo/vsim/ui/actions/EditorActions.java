@@ -1,11 +1,9 @@
 package cl.almejo.vsim.ui.actions;
 
 import cl.almejo.vsim.core.command.ChangeParametersCommand;
-import cl.almejo.vsim.core.command.Command;
-import cl.almejo.vsim.core.command.CompositeCommand;
 import cl.almejo.vsim.core.command.History;
 import cl.almejo.vsim.core.command.RemoveElementsCommand;
-import cl.almejo.vsim.core.command.RotateComponentCommand;
+import cl.almejo.vsim.core.command.RotateElementsCommand;
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
@@ -224,9 +222,8 @@ public final class EditorActions {
                 .orElse(Messages.text("action.redo")));
         Set<ElementId> selected = canvas.selection().ids();
         delete.setEnabled(!selected.isEmpty());
-        boolean anyComponent = !selectedComponents().isEmpty();
-        rotateClockwise.setEnabled(anyComponent);
-        rotateCounterClockwise.setEnabled(anyComponent);
+        rotateClockwise.setEnabled(!selected.isEmpty());
+        rotateCounterClockwise.setEnabled(!selected.isEmpty());
         configure.setEnabled(singleConfigurable().isPresent());
     }
 
@@ -244,13 +241,9 @@ public final class EditorActions {
     }
 
     private void rotateSelection(boolean clockwise) {
-        List<Command> commands = selectedComponents().stream()
-                .map(component -> (Command) new RotateComponentCommand(component.id(), clockwise))
-                .toList();
-        if (commands.size() == 1) {
-            openDocument.execute(commands.get(0));
-        } else if (!commands.isEmpty()) {
-            openDocument.execute(new CompositeCommand("command.rotate", commands));
+        Set<ElementId> selected = canvas.selection().ids();
+        if (!selected.isEmpty()) {
+            openDocument.execute(new RotateElementsCommand(selected, clockwise, openDocument.registry()));
         }
     }
 

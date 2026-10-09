@@ -1,7 +1,12 @@
 package cl.almejo.vsim.ui.window;
 
+import cl.almejo.vsim.core.command.AddElementsCommand;
+import cl.almejo.vsim.core.command.AddWireCommand;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
+import cl.almejo.vsim.core.document.TextLabel;
+import cl.almejo.vsim.core.document.Wire;
+import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.i18n.Messages;
@@ -259,5 +264,60 @@ class EditorViewTest {
                 layoutTree(child);
             }
         }
+    }
+
+    @Test
+    void deleteRemovesAMultiSelectionAsOneStep() {
+        Component gate = place(openDocument, StandardComponentTypes.NOT, 0, 0, Map.of());
+        Wire wire = new Wire(openDocument.document().newWireId(), new GridPoint(0, 8), new GridPoint(6, 8));
+        openDocument.execute(new AddWireCommand(wire));
+        TextLabel note = new TextLabel(openDocument.document().newLabelId(), new GridPoint(0, 10), "nota");
+        openDocument.execute(new AddElementsCommand(List.of(note)));
+        view.canvas().selection().set(List.of(gate.id(), wire.id(), note.id()));
+        perform(view.actions().delete());
+        assertThat(openDocument.document().isEmpty()).isTrue();
+        assertThat(view.canvas().selection().isEmpty()).isTrue();
+        assertThat(openDocument.history().undoDescription()).contains("command.remove");
+        openDocument.history().undo();
+        assertThat(openDocument.document().elements()).hasSize(3);
+    }
+
+    @Test
+    void rotateTurnsAMultiSelectionAsAGroupInOneStep() {
+        Component first = place(openDocument, StandardComponentTypes.NOT, 0, 0, Map.of());
+        Component second = place(openDocument, StandardComponentTypes.NOT, 8, 0, Map.of());
+        view.canvas().selection().set(List.of(first.id(), second.id()));
+        perform(view.actions().rotateClockwise());
+        Component rotatedFirst = openDocument.document().component(first.id()).orElseThrow();
+        Component rotatedSecond = openDocument.document().component(second.id()).orElseThrow();
+        assertThat(List.of(rotatedFirst, rotatedSecond)).allSatisfy(component ->
+                assertThat(component.rotation()).isEqualTo(Rotation.R90));
+        assertThat(rotatedFirst.position().y()).isNotEqualTo(rotatedSecond.position().y());
+        assertThat(openDocument.history().undoDescription()).contains("command.rotate");
+        openDocument.history().undo();
+        assertThat(openDocument.document().components()).containsExactly(first, second);
+        assertThat(openDocument.history().undoDescription()).contains("command.add");
+    }
+
+    @Test
+    void rotateIsEnabledForAnySelection() {
+        Wire wire = new Wire(openDocument.document().newWireId(), new GridPoint(0, 8), new GridPoint(6, 8));
+        openDocument.execute(new AddWireCommand(wire));
+        assertThat(view.actions().rotateClockwise().isEnabled()).isFalse();
+        view.canvas().selection().select(wire.id());
+        assertThat(view.actions().rotateClockwise().isEnabled()).isTrue();
+        assertThat(view.actions().rotateCounterClockwise().isEnabled()).isTrue();
+        view.canvas().selection().clear();
+        assertThat(view.actions().rotateCounterClockwise().isEnabled()).isFalse();
+    }
+
+    @Test
+    void statusBarCountsTheSelection() {
+        Component first = place(openDocument, StandardComponentTypes.NOT, 0, 0, Map.of());
+        Component second = place(openDocument, StandardComponentTypes.NOT, 8, 0, Map.of());
+        view.canvas().selection().set(List.of(first.id(), second.id()));
+        assertThat(view.statusBar().text()).contains("2 seleccionados");
+        view.canvas().selection().clear();
+        assertThat(view.statusBar().text()).doesNotContain("seleccionado");
     }
 }

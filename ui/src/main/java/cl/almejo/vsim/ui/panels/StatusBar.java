@@ -17,18 +17,21 @@ public final class StatusBar extends JPanel {
     private final JLabel simulation = new JLabel();
     private final JLabel time = new JLabel();
     private final JLabel zoom = new JLabel();
+    private final JLabel selection = new JLabel();
     private final JLabel shortCircuits = new JLabel();
     private final JLabel failure = new JLabel();
 
     public StatusBar() {
-        super(new MigLayout("insets 2 8 2 8", "[][][]push[][]"));
+        super(new MigLayout("insets 2 8 2 8", "[][][][]push[][]"));
         shortCircuits.setForeground(WARNING);
         failure.setForeground(WARNING);
         add(simulation);
         add(time);
         add(zoom);
+        add(selection);
         add(shortCircuits);
         add(failure);
+        selection.setVisible(false);
         shortCircuits.setVisible(false);
         failure.setVisible(false);
     }
@@ -47,9 +50,14 @@ public final class StatusBar extends JPanel {
         zoom.setText(Messages.format("status.zoom", Math.round(zoomFactor * 100)));
     }
 
+    public void showSelection(int count) {
+        selection.setText(count == 0 ? "" : Messages.format("status.selected", count));
+        selection.setVisible(count > 0);
+    }
+
     /** Visible texts joined with " · " (what the user reads, left to right). */
     public String text() {
-        return List.of(simulation, time, zoom, shortCircuits, failure).stream()
+        return List.of(simulation, time, zoom, selection, shortCircuits, failure).stream()
                 .filter(JLabel::isVisible)
                 .map(JLabel::getText)
                 .filter(text -> !text.isEmpty())

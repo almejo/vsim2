@@ -54,4 +54,17 @@ class StatusBarTest {
         statusBar.showSnapshot(snapshot(false, 0, Optional.of("IllegalStateException: boom")));
         assertThat(statusBar.text()).contains("Simulación detenida: IllegalStateException: boom");
     }
+
+    @Test
+    void showsHowManyElementsAreSelectedOnlyWhenThereAreSome() {
+        statusBar.showZoom(1);
+        statusBar.showSelection(0);
+        assertThat(statusBar.text()).doesNotContain("seleccionado");
+        statusBar.showSelection(1);
+        assertThat(statusBar.text()).endsWith("zoom 100 % · 1 seleccionado");
+        statusBar.showSelection(3);
+        assertThat(statusBar.text()).endsWith("3 seleccionados");
+        statusBar.showSelection(0);
+        assertThat(statusBar.text()).doesNotContain("seleccionado");
+    }
 }
