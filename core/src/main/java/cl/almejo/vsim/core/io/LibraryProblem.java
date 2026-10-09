@@ -25,9 +25,14 @@ public record LibraryProblem(Path file, Kind kind, Optional<CircuitFormatExcepti
         return new LibraryProblem(file, Kind.INVALID, Optional.of(exception.reason()), exception.detail());
     }
 
-    /** A file the reader failed on in a way the format does not describe (a bug): invalid, with no reason. */
+    /**
+     * A file the reader failed on in a way the format does not describe (a bug): invalid, with no reason. The detail is
+     * the exception's message, or its class name when it has none.
+     */
     static LibraryProblem invalid(Path file, RuntimeException exception) {
-        return new LibraryProblem(file, Kind.INVALID, Optional.empty(), String.valueOf(exception.getMessage()));
+        String message = exception.getMessage();
+        return new LibraryProblem(file, Kind.INVALID, Optional.empty(),
+                message == null ? exception.getClass().getSimpleName() : message);
     }
 
     static LibraryProblem duplicate(Path file, String id) {

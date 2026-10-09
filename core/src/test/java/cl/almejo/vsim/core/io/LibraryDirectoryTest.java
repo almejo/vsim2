@@ -157,4 +157,16 @@ class LibraryDirectoryTest {
         assertThat(library.locate(ExampleDefinitions.INVERTER)).contains(library.fileOf(ExampleDefinitions.INVERTER));
         assertThat(library.locate("missing")).isEmpty();
     }
+
+    @Test
+    void aReaderBugWithoutAMessageIsNamedByItsClass(@TempDir Path directory) throws Exception {
+        LibraryDirectory library = new LibraryDirectory(directory, new DefinitionFormat(registry), json -> {
+            throw new NullPointerException();
+        });
+        Path trap = directory.resolve("trap.vsimcomponent.json");
+        Files.writeString(trap, "trap");
+
+        assertThat(library.load().problems()).containsExactly(
+                new LibraryProblem(trap, LibraryProblem.Kind.INVALID, Optional.empty(), "NullPointerException"));
+    }
 }

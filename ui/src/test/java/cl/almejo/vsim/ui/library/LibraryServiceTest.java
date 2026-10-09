@@ -16,6 +16,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Optional;
+import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -140,5 +142,35 @@ class LibraryServiceTest {
         Thread.sleep(500);
         assertThat(library.entries()).isEmpty();
         assertThat(closing.directory()).isEqualTo(components.toAbsolutePath().normalize());
+    }
+
+    @Test
+    void startReadsTheDirectoryChosenAfterTheServiceWasMade() throws Exception {
+        Path first = directory.resolve("first");
+        Path second = directory.resolve("second");
+        new LibraryDirectory(second, registry).write(inverter);
+        LibraryService late = serviceOn(first);
+        preferences.setLibraryDirectory(Optional.of(second));
+
+        late.start();
+
+        assertThat(late.directory()).isEqualTo(second.toAbsolutePath().normalize());
+        assertThat(library.entries()).containsExactly(inverter);
+    }
+
+    @Test
+    void aLoadHandedOverAfterCloseIsDropped() throws Exception {
+        Path components = directory.resolve("components");
+        preferences.setLibraryDirectory(Optional.of(components));
+        Queue<Runnable> handedOver = new ConcurrentLinkedQueue<>();
+        service = new LibraryService(preferences, library, registry, handedOver::add);
+        service.start();
+
+        new LibraryDirectory(components, registry).write(inverter);
+        LibraryWatcherTest.eventually(() -> !handedOver.isEmpty());
+        service.close();
+        handedOver.forEach(Runnable::run);
+
+        assertThat(library.entries()).isEmpty();
     }
 }

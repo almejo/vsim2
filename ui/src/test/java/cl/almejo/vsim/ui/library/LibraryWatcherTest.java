@@ -31,12 +31,13 @@ class LibraryWatcherTest {
 
     @Test
     void aBurstOfChangesSettlesIntoOneCall(@TempDir Path directory) throws Exception {
-        try (LibraryWatcher watcher = new LibraryWatcher(directory, Duration.ofMillis(100), settled::incrementAndGet)) {
+        // A wide debounce: the five calls must land within it even on a slow, busy machine.
+        try (LibraryWatcher watcher = new LibraryWatcher(directory, Duration.ofSeconds(1), settled::incrementAndGet)) {
             for (int index = 0; index < 5; index++) {
                 watcher.changed();
             }
             eventually(() -> settled.get() == 1);
-            Thread.sleep(300);
+            Thread.sleep(1200); // longer than the debounce: a split burst would settle again by now
             assertThat(settled).hasValue(1);
         }
     }

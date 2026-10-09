@@ -74,12 +74,16 @@ public final class LibraryService implements AutoCloseable {
         problemListeners.remove(listener);
     }
 
-    /** Reads the directory, starts watching it and follows the directory preference. Call once, on the EDT. */
+    /**
+     * Reads the directory the preferences name now, starts watching it and follows the directory preference. Call
+     * once, on the EDT.
+     */
     public synchronized void start() {
         if (started) {
             return;
         }
         started = true;
+        useDirectoryOfPreferences();
         reload();
         startWatcher();
         preferences.addListener(preferencesListener);
@@ -155,22 +159,37 @@ public final class LibraryService implements AutoCloseable {
         }
     }
 
+    /** A load the watcher handed over: dropped once the service is closed. */
+    private synchronized void applyWatched(LibraryDirectory source, LibraryLoad load) {
+        if (started) {
+            apply(source, load);
+        }
+    }
+
     private synchronized void followDirectoryPreference() {
-        Path next = preferences.libraryDirectory().toAbsolutePath().normalize();
-        if (next.equals(directory.directory())) {
+        if (!useDirectoryOfPreferences()) {
             return;
         }
         stopWatcher();
-        directory = new LibraryDirectory(next, registry);
         reload();
         startWatcher();
+    }
+
+    /** Switches to the directory the preferences name; false when it already is the library. */
+    private boolean useDirectoryOfPreferences() {
+        Path next = preferences.libraryDirectory().toAbsolutePath().normalize();
+        if (next.equals(directory.directory())) {
+            return false;
+        }
+        directory = new LibraryDirectory(next, registry);
+        return true;
     }
 
     private void startWatcher() {
         LibraryDirectory watched = directory;
         LibraryWatcher next = new LibraryWatcher(watched.directory(), LibraryWatcher.DEBOUNCE, () -> {
             LibraryLoad load = watched.load();
-            uiExecutor.execute(() -> apply(watched, load));
+            uiExecutor.execute(() -> applyWatched(watched, load));
         });
         try {
             next.start();
