@@ -1,0 +1,253 @@
+{
+  "formatVersion": 2,
+  "kind": "circuit",
+  "name": "cortocircuitos",
+  "components": [
+    {
+      "id": "c1",
+      "type": "switch",
+      "x": 0,
+      "y": 0,
+      "rotation": 0,
+      "label": "S1 (1)",
+      "parameters": {
+        "value": "1"
+      }
+    },
+    {
+      "id": "c2",
+      "type": "switch",
+      "x": 0,
+      "y": 4,
+      "rotation": 0,
+      "label": "S2 (0)",
+      "parameters": {
+        "value": "0"
+      }
+    },
+    {
+      "id": "c3",
+      "type": "led",
+      "x": 9,
+      "y": -2,
+      "rotation": 0,
+      "label": "Corto 1",
+      "parameters": {
+        "color": "red"
+      }
+    },
+    {
+      "id": "c4",
+      "type": "time-diagram",
+      "x": 20,
+      "y": 0,
+      "rotation": 0,
+      "label": "Diagrama 1",
+      "parameters": {
+        "sample-interval": 150,
+        "history": 200
+      }
+    },
+    {
+      "id": "c5",
+      "type": "clock",
+      "x": 16,
+      "y": 4,
+      "rotation": 0,
+      "label": "Reloj",
+      "parameters": {
+        "time-up": 300,
+        "time-down": 300
+      }
+    },
+    {
+      "id": "c6",
+      "type": "switch",
+      "x": 0,
+      "y": 10,
+      "rotation": 0,
+      "label": "S3 (0)",
+      "parameters": {
+        "value": "0"
+      }
+    },
+    {
+      "id": "c7",
+      "type": "clock",
+      "x": 0,
+      "y": 14,
+      "rotation": 0,
+      "label": "Reloj 2",
+      "parameters": {
+        "time-up": 600,
+        "time-down": 600
+      }
+    },
+    {
+      "id": "c8",
+      "type": "time-diagram",
+      "x": 20,
+      "y": 10,
+      "rotation": 0,
+      "label": "Diagrama 2",
+      "parameters": {
+        "sample-interval": 150,
+        "history": 200
+      }
+    },
+    {
+      "id": "c9",
+      "type": "switch",
+      "x": 0,
+      "y": 22,
+      "rotation": 0,
+      "label": "S4 (1)",
+      "parameters": {
+        "value": "1"
+      }
+    },
+    {
+      "id": "c10",
+      "type": "not",
+      "x": 8,
+      "y": 21,
+      "rotation": 0,
+      "label": "N1",
+      "parameters": {
+        "delay": 1
+      }
+    },
+    {
+      "id": "c11",
+      "type": "switch",
+      "x": 0,
+      "y": 30,
+      "rotation": 0,
+      "label": "S5 (1)",
+      "parameters": {
+        "value": "1"
+      }
+    }
+  ],
+  "wires": [
+    {
+      "id": "w1",
+      "x1": 4,
+      "y1": 1,
+      "x2": 8,
+      "y2": 1
+    },
+    {
+      "id": "w2",
+      "x1": 4,
+      "y1": 5,
+      "x2": 8,
+      "y2": 5
+    },
+    {
+      "id": "w3",
+      "x1": 8,
+      "y1": 1,
+      "x2": 8,
+      "y2": 5
+    },
+    {
+      "id": "w4",
+      "x1": 8,
+      "y1": 1,
+      "x2": 10,
+      "y2": 1
+    },
+    {
+      "id": "w5",
+      "x1": 8,
+      "y1": 5,
+      "x2": 14,
+      "y2": 5
+    },
+    {
+      "id": "w6",
+      "x1": 14,
+      "y1": 5,
+      "x2": 14,
+      "y2": 0
+    },
+    {
+      "id": "w7",
+      "x1": 14,
+      "y1": 0,
+      "x2": 20,
+      "y2": 0
+    },
+    {
+      "id": "w8",
+      "x1": 18,
+      "y1": 6,
+      "x2": 20,
+      "y2": 6
+    },
+    {
+      "id": "w9",
+      "x1": 4,
+      "y1": 11,
+      "x2": 12,
+      "y2": 11
+    },
+    {
+      "id": "w10",
+      "x1": 2,
+      "y1": 16,
+      "x2": 12,
+      "y2": 16
+    },
+    {
+      "id": "w11",
+      "x1": 12,
+      "y1": 10,
+      "x2": 12,
+      "y2": 16
+    },
+    {
+      "id": "w12",
+      "x1": 12,
+      "y1": 10,
+      "x2": 20,
+      "y2": 10
+    },
+    {
+      "id": "w13",
+      "x1": 4,
+      "y1": 23,
+      "x2": 8,
+      "y2": 23
+    },
+    {
+      "id": "w14",
+      "x1": 12,
+      "y1": 23,
+      "x2": 16,
+      "y2": 23
+    },
+    {
+      "id": "w15",
+      "x1": 4,
+      "y1": 31,
+      "x2": 16,
+      "y2": 31
+    },
+    {
+      "id": "w16",
+      "x1": 16,
+      "y1": 12,
+      "x2": 16,
+      "y2": 31
+    },
+    {
+      "id": "w17",
+      "x1": 16,
+      "y1": 12,
+      "x2": 20,
+      "y2": 12
+    }
+  ]
+}
