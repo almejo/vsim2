@@ -33,22 +33,27 @@ import javax.swing.Timer;
 import javax.swing.ToolTipManager;
 import javax.swing.TransferHandler;
 import java.awt.Dimension;
+import java.awt.Frame;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Point;
+import java.awt.Window;
 import java.awt.event.FocusAdapter;
 import java.awt.event.FocusEvent;
+import java.awt.event.HierarchyEvent;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseWheelEvent;
+import java.awt.event.WindowStateListener;
 import java.awt.geom.Point2D;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -83,6 +88,9 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     private Tool tool = defaultTool;
     private SimulationSnapshot displayedSnapshot = SimulationSnapshot.EMPTY;
     private boolean animationSuspended;
+    private BooleanSupplier onScreen = this::isOnScreen;
+    private final WindowStateListener windowStateListener = event -> updateAnimation();
+    private Window watchedWindow;
     private boolean spaceDown;
     private Point panAnchor;
     private GridPoint mousePoint;
@@ -114,6 +122,11 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
             }
         });
         setTransferHandler(new CanvasTransferHandler(this));
+        addHierarchyListener(event -> {
+            if ((event.getChangeFlags() & HierarchyEvent.SHOWING_CHANGED) != 0) {
+                updateAnimation();
+            }
+        });
         frameTimer = new Timer(FRAME_MILLISECONDS, event -> refreshSnapshot());
         antsTimer = new Timer(ANTS_MILLISECONDS, event -> animationTick());
     }
@@ -231,6 +244,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         super.addNotify();
         frameTimer.start();
         animationSuspended = false;
+        watchWindow(SwingUtilities.getWindowAncestor(this));
         updateAnimation();
     }
 
@@ -239,6 +253,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         frameTimer.stop();
         animationSuspended = true;
         antsTimer.stop();
+        watchWindow(null);
         super.removeNotify();
     }
 
@@ -246,6 +261,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         frameTimer.stop();
         animationSuspended = true;
         antsTimer.stop();
+        watchWindow(null);
         openDocument.document().removeListener(documentListener);
     }
 
@@ -360,9 +376,36 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         return marchingAnts.phase();
     }
 
-    /** True while the marching-ants clock runs: a selection exists or the tool is dragging a band. */
+    /**
+     * True while the marching-ants clock runs: the canvas is on screen and a selection exists or the tool is dragging
+     * a band.
+     */
     boolean isAnimatingSelection() {
         return antsTimer.isRunning();
+    }
+
+    /** Replaces the on-screen check (showing and not minimized), so headless tests can show or hide the canvas. */
+    void overrideOnScreen(BooleanSupplier check) {
+        onScreen = check;
+        updateAnimation();
+    }
+
+    /** Showing, and its window is not minimized: only then are the marching ants worth a repaint. */
+    private boolean isOnScreen() {
+        Window window = SwingUtilities.getWindowAncestor(this);
+        boolean minimized = window instanceof Frame frame && (frame.getExtendedState() & Frame.ICONIFIED) != 0;
+        return isShowing() && !minimized;
+    }
+
+    /** Follows minimize and restore of {@code window} (null: of none), which do not change {@code isShowing}. */
+    private void watchWindow(Window window) {
+        if (watchedWindow != null) {
+            watchedWindow.removeWindowStateListener(windowStateListener);
+        }
+        watchedWindow = window;
+        if (window != null) {
+            window.addWindowStateListener(windowStateListener);
+        }
     }
 
     /** One clock tick: re-checks that the animation is still needed, so it stops by itself when nothing is left. */
@@ -375,7 +418,8 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     }
 
     private void updateAnimation() {
-        boolean needed = !animationSuspended && (!selection.isEmpty() || tool.animatesOutline());
+        boolean needed = !animationSuspended && onScreen.getAsBoolean()
+                && (!selection.isEmpty() || tool.animatesOutline());
         if (needed && !antsTimer.isRunning()) {
             antsTimer.start();
         } else if (!needed && antsTimer.isRunning()) {

@@ -23,6 +23,7 @@ import cl.almejo.vsim.ui.tools.SelectTool;
 import cl.almejo.vsim.ui.tools.Tool;
 import cl.almejo.vsim.ui.tools.ToolContext;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import javax.swing.TransferHandler;
@@ -65,6 +66,14 @@ class CircuitCanvasTest {
                 public void configure(Component component) {
                 }
             });
+
+    /** Headless, the canvas never shows: the tests decide whether it counts as on screen (review M9). */
+    private boolean onScreen = true;
+
+    @BeforeEach
+    void showOnScreen() {
+        canvas.overrideOnScreen(() -> onScreen);
+    }
 
     @AfterEach
     void close() {
@@ -241,6 +250,42 @@ class CircuitCanvasTest {
         canvas.getMouseMotionListeners()[0].mouseMoved(mouse(MouseEvent.MOUSE_MOVED, 80, 48, 0, MouseEvent.NOBUTTON));
         canvas.getMouseListeners()[0].mouseExited(mouse(MouseEvent.MOUSE_EXITED, 80, 48, 0, MouseEvent.NOBUTTON));
         assertThat(canvas.mouseGridPoint()).isEmpty();
+    }
+
+    /** Review M9: a hidden or minimized window does not tick; showing it again restarts the clock. */
+    @Test
+    void theAntsClockRunsOnlyWhileTheCanvasIsOnScreen() {
+        onScreen = false;
+        Component gate = place(openDocument, StandardComponentTypes.NOT, 0, 0, Map.of());
+        canvas.selection().select(gate.id());
+        assertThat(canvas.isAnimatingSelection()).isFalse();
+        onScreen = true;
+        canvas.overrideOnScreen(() -> onScreen);
+        assertThat(canvas.isAnimatingSelection()).isTrue();
+        onScreen = false;
+        canvas.animationTick();
+        assertThat(canvas.isAnimatingSelection()).isFalse();
+        assertThat(canvas.selectionDashPhase()).isZero();
+    }
+
+    @Test
+    void aCanvasThatWasNeverShownDoesNotAnimate() {
+        CircuitCanvas hidden = new CircuitCanvas(openDocument,
+                new CircuitRenderer(openDocument.registry(), PainterRegistry.standard(), ColorScheme.LIGHT),
+                new CanvasHost() {
+                    @Override
+                    public void showContextMenu(CircuitCanvas source, Optional<DocumentElement> target,
+                                                Point2D screenPosition) {
+                    }
+
+                    @Override
+                    public void configure(Component component) {
+                    }
+                });
+        Component gate = place(openDocument, StandardComponentTypes.NOT, 0, 0, Map.of());
+        hidden.selection().select(gate.id());
+        assertThat(hidden.isAnimatingSelection()).isFalse();
+        hidden.dispose();
     }
 
     @Test
