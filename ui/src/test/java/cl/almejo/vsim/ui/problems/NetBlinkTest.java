@@ -81,6 +81,24 @@ class NetBlinkTest {
     }
 
     @Test
+    void stoppingEndsTheBlinkAndClearsTheWires() throws Exception {
+        document.add(wire);
+        SwingUtilities.invokeAndWait(() -> {
+            NetBlink blink = new NetBlink(() -> ColorScheme.LIGHT, repaints::incrementAndGet);
+            blink.start(Set.of(wire.id()));
+            int repaintsBefore = repaints.get();
+
+            blink.stop();
+
+            assertThat(blink.isBlinking()).isFalse();
+            assertThat(blink.isLit()).isFalse();
+            assertThat(pixelOnTheWire(blink)).isZero();
+            assertThat(repaints.get()).isGreaterThan(repaintsBefore);
+            blink.dispose();
+        });
+    }
+
+    @Test
     void eachPaintUsesTheSchemeInUseAtThatMoment() throws Exception {
         document.add(wire);
         ColorScheme magenta = AppearanceTestSupport.withSelection(ColorScheme.LIGHT, Color.MAGENTA);

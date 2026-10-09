@@ -15,6 +15,7 @@ import org.junit.jupiter.api.io.TempDir;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -52,7 +53,20 @@ class LibraryProblemsTest {
         Path gone = Path.of("home", "user", "library");
         assertThat(LibraryProblemText.describe(LibraryProblem.directoryGone(gone)))
                 .isEqualTo("La carpeta de la librería " + gone + " ya no existe: VSim dejó de seguir sus cambios"
-                        + " hasta que lo vuelvas a abrir o elijas otra carpeta");
+                        + " hasta que reinicies VSim o elijas otra carpeta");
+    }
+
+    @Test
+    void aGoneLibraryFolderIsDescribedInEnglishToo() {
+        Path gone = Path.of("home", "user", "library");
+        Messages.initialize(Locale.ENGLISH);
+        try {
+            assertThat(LibraryProblemText.describe(LibraryProblem.directoryGone(gone)))
+                    .isEqualTo("The library folder " + gone + " no longer exists: VSim stopped following its changes"
+                            + " until you restart VSim or choose another folder");
+        } finally {
+            Messages.initialize(Messages.SPANISH);
+        }
     }
 
     @Test

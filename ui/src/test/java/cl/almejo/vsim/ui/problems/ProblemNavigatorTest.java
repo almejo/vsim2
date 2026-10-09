@@ -177,6 +177,20 @@ class ProblemNavigatorTest {
     }
 
     @Test
+    void goingToAShortInsideATemplateStopsTheBlinkOfThePreviousNet() {
+        openDocument.execute(new PutDefinitionsCommand(List.of(ExampleDefinitions.inverter())));
+        Component instance = place(openDocument, SubcircuitTypes.typeIdOf(ExampleDefinitions.INVERTER), 60, 20,
+                Map.of());
+        assertThat(navigator.navigateTo(shortOn(netOf(left), 1))).isTrue();
+        assertThat(blink.isBlinking()).isTrue();
+
+        assertThat(navigator.navigateTo(new ShortCircuit(instance.id().value() + "/n:inside",
+                List.of(new DriverRef(instance.id().value() + "/c2", 1, Value.ONE)), 2))).isTrue();
+
+        assertThat(blink.isBlinking()).isFalse();
+    }
+
+    @Test
     void aWidthMismatchInsideTemplatesSelectsEveryInstanceInvolved() {
         openDocument.execute(new PutDefinitionsCommand(List.of(ExampleDefinitions.inverter())));
         String typeId = SubcircuitTypes.typeIdOf(ExampleDefinitions.INVERTER);

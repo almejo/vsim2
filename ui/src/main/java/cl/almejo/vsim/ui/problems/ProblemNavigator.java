@@ -67,7 +67,8 @@ public final class ProblemNavigator {
     /**
      * Centers the view on the net of {@code problem}, selects its wires (or its components when it has none),
      * makes the wires blink and focuses the canvas. A net that lives only inside templates (its id is hierarchical,
-     * such as {@code c5/n:…}) centers on and selects the top-level instances that hold it, its drivers or its pins.
+     * such as {@code c5/n:…}) centers on and selects the top-level instances that hold it, its drivers or its pins,
+     * and stops the blink of the previous net.
      * False, with nothing changed, when neither the net nor any of those instances exists.
      */
     public boolean navigateTo(Problem problem) {
@@ -120,6 +121,7 @@ public final class ProblemNavigator {
         }
         canvas.centerOn(result);
         canvas.selection().set(instances.stream().map(Component::id).toList());
+        blink.stop();
         canvas.requestFocusInWindow();
         return true;
     }

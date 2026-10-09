@@ -91,6 +91,14 @@ public final class ProblemsPanel extends JPanel {
         return Collections.list(libraryModel.elements());
     }
 
+    JLabel libraryHeader() {
+        return libraryHeader;
+    }
+
+    JScrollPane libraryScroll() {
+        return libraryScroll;
+    }
+
     void activate(int index) {
         if (index >= 0 && index < model.size()) {
             navigate.accept(model.get(index));

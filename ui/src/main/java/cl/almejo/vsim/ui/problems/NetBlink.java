@@ -47,6 +47,15 @@ public final class NetBlink implements CanvasOverlay {
         repaint.run();
     }
 
+    /** Ends a running blink at once, with nothing lit. */
+    public void stop() {
+        timer.stop();
+        remainingToggles = 0;
+        lit = false;
+        wires = Set.of();
+        repaint.run();
+    }
+
     public boolean isBlinking() {
         return remainingToggles > 0;
     }
