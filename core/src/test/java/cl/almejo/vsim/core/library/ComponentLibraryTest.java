@@ -1,0 +1,62 @@
+package cl.almejo.vsim.core.library;
+
+import org.junit.jupiter.api.Test;
+
+import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.atomic.AtomicInteger;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+class ComponentLibraryTest {
+
+    private final ComponentLibrary library = new ComponentLibrary();
+    private final AtomicInteger notifications = new AtomicInteger();
+    private final DefinitionBundle inverter = new DefinitionBundle(ExampleDefinitions.inverter(), List.of());
+    private final DefinitionBundle doubleInverter = DefinitionBundle.of(ExampleDefinitions.doubleInverter(),
+            id -> Optional.of(ExampleDefinitions.inverter()));
+
+    @Test
+    void entriesAreSortedByNameAndChangesNotifyOnce() {
+        library.addListener(notifications::incrementAndGet);
+        library.put(inverter);
+        library.put(doubleInverter);
+        assertThat(library.entries()).containsExactly(doubleInverter, inverter);
+        assertThat(library.ids()).containsExactlyInAnyOrder("inverter", "double-inverter");
+        assertThat(notifications).hasValue(2);
+
+        library.put(inverter);
+        assertThat(notifications).hasValue(2);
+
+        DefinitionBundle renamed = new DefinitionBundle(ExampleDefinitions.inverter().withName("Abc"), List.of());
+        library.put(renamed);
+        assertThat(library.find("inverter")).contains(renamed);
+        assertThat(library.entries()).first().isEqualTo(renamed);
+        assertThat(notifications).hasValue(3);
+    }
+
+    @Test
+    void removeAndReplaceAllNotifyOnlyOnRealChanges() {
+        library.put(inverter);
+        library.addListener(notifications::incrementAndGet);
+        assertThat(library.remove("missing")).isFalse();
+        assertThat(notifications).hasValue(0);
+        library.replaceAll(List.of(inverter));
+        assertThat(notifications).hasValue(0);
+        library.replaceAll(List.of(doubleInverter));
+        assertThat(library.ids()).containsExactly("double-inverter");
+        assertThat(notifications).hasValue(1);
+        assertThat(library.remove("double-inverter")).isTrue();
+        assertThat(library.entries()).isEmpty();
+        assertThat(notifications).hasValue(2);
+    }
+
+    @Test
+    void removedListenersHearNothing() {
+        Runnable listener = notifications::incrementAndGet;
+        library.addListener(listener);
+        library.removeListener(listener);
+        library.put(inverter);
+        assertThat(notifications).hasValue(0);
+    }
+}
