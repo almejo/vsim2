@@ -189,4 +189,12 @@ class CircuitCanvasTest {
         assertThat(canvas.dropComponent(PaletteTransfer.encode("no-such-type"), new Point(10, 10))).isFalse();
         assertThat(openDocument.document().isEmpty()).isTrue();
     }
+
+    @Test
+    void removingASelectedElementDropsItFromTheSelection() {
+        Component gate = place(openDocument, StandardComponentTypes.NOT, 0, 0, Map.of());
+        canvas.selection().select(gate.id());
+        openDocument.history().undo();
+        assertThat(canvas.selection().isEmpty()).isTrue();
+    }
 }

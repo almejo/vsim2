@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.canvas;
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
+import cl.almejo.vsim.core.document.DocumentChange;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.DocumentListener;
 import cl.almejo.vsim.core.geometry.Rotation;
@@ -282,8 +283,8 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         snapshotListeners.forEach(listener -> listener.accept(latest));
     }
 
-    private void documentChanged(CircuitDocument document) {
-        selection.retainExisting(document);
+    private void documentChanged(CircuitDocument document, DocumentChange change) {
+        selection.retain(change);
         repaint();
     }
 

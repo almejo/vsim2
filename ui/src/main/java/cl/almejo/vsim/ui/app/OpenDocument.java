@@ -56,7 +56,7 @@ public final class OpenDocument implements AutoCloseable {
         this.compiler = new NetlistCompiler(registry);
         this.flattener = new CircuitFlattener(registry);
         this.simulation = new SimulationThread(new SimulationEngine());
-        document.addListener(changed -> synchronize());
+        document.addListener((changed, change) -> synchronize());
         history.addListener(changed -> fireChanged());
         synchronize();
         simulation.start();

@@ -1,11 +1,10 @@
 package cl.almejo.vsim.ui.canvas;
 
-import cl.almejo.vsim.core.document.CircuitDocument;
+import cl.almejo.vsim.core.document.DocumentChange;
 import cl.almejo.vsim.core.document.ElementId;
-import cl.almejo.vsim.core.document.TextLabel;
-import cl.almejo.vsim.core.geometry.GridPoint;
 import org.junit.jupiter.api.Test;
 
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -28,17 +27,15 @@ class SelectionTest {
     }
 
     @Test
-    void retainExistingDropsRemovedElements() {
-        CircuitDocument document = new CircuitDocument();
-        TextLabel label = new TextLabel(document.newLabelId(), GridPoint.ORIGIN, "x");
-        document.add(label);
-        selection.select(label.id());
+    void retainDropsOnlyRemovedElements() {
+        ElementId selected = new ElementId("l1");
+        selection.select(selected);
         selection.addListener(changes::incrementAndGet);
-        selection.retainExisting(document);
+        selection.retain(new DocumentChange(Set.of(new ElementId("c2")), Set.of(new ElementId("w3")), Set.of(selected)));
+        assertThat(selection.contains(selected)).isTrue();
         assertThat(changes).hasValue(0);
-        document.remove(label.id());
-        selection.retainExisting(document);
-        assertThat(selection.contains(label.id())).isFalse();
+        selection.retain(new DocumentChange(Set.of(), Set.of(selected), Set.of()));
+        assertThat(selection.isEmpty()).isTrue();
         assertThat(changes).hasValue(1);
     }
 }

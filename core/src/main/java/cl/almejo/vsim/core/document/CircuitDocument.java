@@ -2,9 +2,11 @@ package cl.almejo.vsim.core.document;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
@@ -19,7 +21,9 @@ public final class CircuitDocument {
     private final List<DocumentListener> listeners = new CopyOnWriteArrayList<>();
     private long nextIdNumber = 1;
     private int batchDepth;
-    private boolean changedDuringBatch;
+    private final Set<ElementId> pendingAdded = new LinkedHashSet<>();
+    private final Set<ElementId> pendingRemoved = new LinkedHashSet<>();
+    private final Set<ElementId> pendingChanged = new LinkedHashSet<>();
     private long revision;
     private String name = "";
 
@@ -31,7 +35,7 @@ public final class CircuitDocument {
         name = newName == null ? "" : newName;
     }
 
-    /** Grows by one every time listeners are notified: once per change, or once per batch. */
+    /** Grows by one every time listeners are notified: once per non-empty change, or once per batch. */
     public long revision() {
         return revision;
     }
@@ -54,7 +58,7 @@ public final class CircuitDocument {
         }
         reserveId(element.id());
         put(element);
-        changed();
+        recordAdded(element.id());
     }
 
     public void replace(DocumentElement element) {
@@ -65,7 +69,7 @@ public final class CircuitDocument {
                     + " with " + element.getClass().getSimpleName());
         }
         put(element);
-        changed();
+        recordChanged(element.id());
     }
 
     public Optional<DocumentElement> remove(ElementId id) {
@@ -77,7 +81,7 @@ public final class CircuitDocument {
             removed = labels.remove(id);
         }
         if (removed != null) {
-            changed();
+            recordRemoved(id);
         }
         return Optional.ofNullable(removed);
     }
@@ -135,8 +139,7 @@ public final class CircuitDocument {
             changes.run();
         } finally {
             batchDepth--;
-            if (batchDepth == 0 && changedDuringBatch) {
-                changedDuringBatch = false;
+            if (batchDepth == 0) {
                 notifyListeners();
             }
         }
@@ -165,16 +168,45 @@ public final class CircuitDocument {
         }
     }
 
-    private void changed() {
-        if (batchDepth > 0) {
-            changedDuringBatch = true;
+    private void recordAdded(ElementId id) {
+        if (pendingRemoved.remove(id)) {
+            pendingChanged.add(id);
         } else {
+            pendingAdded.add(id);
+        }
+        notifyUnlessBatching();
+    }
+
+    private void recordRemoved(ElementId id) {
+        if (!pendingAdded.remove(id)) {
+            pendingChanged.remove(id);
+            pendingRemoved.add(id);
+        }
+        notifyUnlessBatching();
+    }
+
+    private void recordChanged(ElementId id) {
+        if (!pendingAdded.contains(id)) {
+            pendingChanged.add(id);
+        }
+        notifyUnlessBatching();
+    }
+
+    private void notifyUnlessBatching() {
+        if (batchDepth == 0) {
             notifyListeners();
         }
     }
 
     private void notifyListeners() {
+        DocumentChange change = new DocumentChange(pendingAdded, pendingRemoved, pendingChanged);
+        pendingAdded.clear();
+        pendingRemoved.clear();
+        pendingChanged.clear();
+        if (change.isEmpty()) {
+            return;
+        }
         revision++;
-        listeners.forEach(listener -> listener.documentChanged(this));
+        listeners.forEach(listener -> listener.documentChanged(this, change));
     }
 }

@@ -1,6 +1,6 @@
 package cl.almejo.vsim.ui.canvas;
 
-import cl.almejo.vsim.core.document.CircuitDocument;
+import cl.almejo.vsim.core.document.DocumentChange;
 import cl.almejo.vsim.core.document.ElementId;
 
 import java.util.Collections;
@@ -43,8 +43,9 @@ public final class Selection {
         }
     }
 
-    public void retainExisting(CircuitDocument document) {
-        if (ids.removeIf(id -> document.element(id).isEmpty())) {
+    /** Drops the ids that {@code change} reports as removed. */
+    public void retain(DocumentChange change) {
+        if (ids.removeAll(change.removed())) {
             fire();
         }
     }

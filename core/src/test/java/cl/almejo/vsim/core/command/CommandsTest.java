@@ -4,6 +4,7 @@ import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
+import cl.almejo.vsim.core.document.DocumentChange;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.TextLabel;
@@ -15,6 +16,7 @@ import cl.almejo.vsim.core.netlist.NetlistCompiler;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -197,5 +199,16 @@ class CommandsTest {
 
     private static ComponentType and2() {
         return StandardComponentTypes.registry().require("and2");
+    }
+
+    @Test
+    void addElementsRollbackNotifiesNobody() {
+        List<DocumentChange> changes = new ArrayList<>();
+        document.addListener((changed, change) -> changes.add(change));
+        TextLabel fresh = new TextLabel(document.newLabelId(), GridPoint.ORIGIN, "nueva");
+        TextLabel duplicate = new TextLabel(label.id(), GridPoint.ORIGIN, "repetida");
+        AddElementsCommand command = new AddElementsCommand(List.of(fresh, duplicate));
+        assertThatThrownBy(() -> command.apply(document)).isInstanceOf(IllegalArgumentException.class);
+        assertThat(changes).isEmpty();
     }
 }

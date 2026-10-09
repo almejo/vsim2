@@ -4,7 +4,10 @@ import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -80,7 +83,7 @@ class CircuitDocumentTest {
     void batchNotifiesOnceAndNestedBatchesToo() {
         CircuitDocument document = new CircuitDocument();
         AtomicInteger notifications = new AtomicInteger();
-        document.addListener(changed -> notifications.incrementAndGet());
+        document.addListener((changed, change) -> notifications.incrementAndGet());
         document.batch(() -> {
             document.add(andGate(document.newComponentId()));
             document.batch(() -> document.add(andGate(document.newComponentId())));
@@ -97,7 +100,7 @@ class CircuitDocumentTest {
         document.add(andGate(document.newComponentId()));
         assertThat(document.revision()).isEqualTo(1);
         AtomicInteger seenRevision = new AtomicInteger();
-        document.addListener(changed -> seenRevision.set((int) changed.revision()));
+        document.addListener((changed, change) -> seenRevision.set((int) changed.revision()));
         document.batch(() -> {
             document.add(andGate(document.newComponentId()));
             document.add(andGate(document.newComponentId()));
@@ -107,5 +110,75 @@ class CircuitDocumentTest {
         document.batch(() -> { });
         document.remove(new ElementId("c999"));
         assertThat(document.revision()).isEqualTo(2);
+    }
+
+    private static List<DocumentChange> record(CircuitDocument document) {
+        List<DocumentChange> changes = new ArrayList<>();
+        document.addListener((changed, change) -> changes.add(change));
+        return changes;
+    }
+
+    @Test
+    void eachChangeReportsTheAffectedIds() {
+        CircuitDocument document = new CircuitDocument();
+        List<DocumentChange> changes = record(document);
+        ElementId id = document.newComponentId();
+        document.add(andGate(id));
+        document.replace(andGate(id).withLabel("U1"));
+        document.remove(id);
+        assertThat(changes).containsExactly(
+                new DocumentChange(Set.of(id), Set.of(), Set.of()),
+                new DocumentChange(Set.of(), Set.of(), Set.of(id)),
+                new DocumentChange(Set.of(), Set.of(id), Set.of()));
+    }
+
+    @Test
+    void batchReportsTheUnionOfItsChanges() {
+        CircuitDocument document = new CircuitDocument();
+        ElementId kept = new ElementId("c1");
+        ElementId dropped = new ElementId("c2");
+        document.add(andGate(kept));
+        document.add(andGate(dropped));
+        List<DocumentChange> changes = record(document);
+        ElementId fresh = document.newComponentId();
+        document.batch(() -> {
+            document.add(andGate(fresh));
+            document.replace(andGate(kept).withLabel("U1"));
+            document.remove(dropped);
+        });
+        assertThat(changes).containsExactly(new DocumentChange(Set.of(fresh), Set.of(dropped), Set.of(kept)));
+    }
+
+    @Test
+    void addedThenRemovedInOneBatchNotifiesNobody() {
+        CircuitDocument document = new CircuitDocument();
+        List<DocumentChange> changes = record(document);
+        document.batch(() -> {
+            ElementId temporary = document.newComponentId();
+            document.add(andGate(temporary));
+            document.replace(andGate(temporary).withLabel("U1"));
+            document.remove(temporary);
+        });
+        assertThat(changes).isEmpty();
+        assertThat(document.revision()).isZero();
+    }
+
+    @Test
+    void removedAndAddedAgainInOneBatchIsAChange() {
+        CircuitDocument document = new CircuitDocument();
+        ElementId id = new ElementId("c1");
+        document.add(andGate(id));
+        List<DocumentChange> changes = record(document);
+        document.batch(() -> {
+            document.remove(id);
+            document.add(andGate(id).withLabel("U2"));
+        });
+        assertThat(changes).containsExactly(new DocumentChange(Set.of(), Set.of(), Set.of(id)));
+    }
+
+    @Test
+    void emptyChangeIsEmpty() {
+        assertThat(DocumentChange.EMPTY.isEmpty()).isTrue();
+        assertThat(new DocumentChange(Set.of(), Set.of(new ElementId("c1")), Set.of()).isEmpty()).isFalse();
     }
 }
