@@ -5,6 +5,7 @@ import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.ui.clipboard.FragmentRefusingTransferHandler;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.paint.Appearance;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.ComponentIcon;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
@@ -52,7 +53,8 @@ public final class PalettePanel extends JPanel {
 
     private final ComponentTypeRegistry registry;
     private final PainterRegistry painters;
-    private final ColorScheme scheme;
+    private final Appearance appearance;
+    private final Runnable appearanceListener;
     private final Consumer<ComponentType> onChoose;
     private final JTextField search = new JTextField();
     private final JTree tree = new JTree(new DefaultMutableTreeNode());
@@ -61,11 +63,21 @@ public final class PalettePanel extends JPanel {
 
     public PalettePanel(ComponentTypeRegistry registry, PainterRegistry painters, ColorScheme scheme,
                         Consumer<ComponentType> onChoose) {
+        this(registry, painters, new Appearance(scheme), onChoose);
+    }
+
+    public PalettePanel(ComponentTypeRegistry registry, PainterRegistry painters, Appearance appearance,
+                        Consumer<ComponentType> onChoose) {
         super(new MigLayout("insets 4, fill, wrap 1", "[grow, fill]", "[][grow, fill]"));
         this.registry = registry;
         this.painters = painters;
-        this.scheme = scheme;
+        this.appearance = appearance;
         this.onChoose = onChoose;
+        this.appearanceListener = () -> {
+            icons.clear();
+            tree.repaint();
+        };
+        appearance.addListener(appearanceListener);
         FragmentRefusingTransferHandler.install(search);
         search.putClientProperty("JTextField.placeholderText", Messages.text("palette.search"));
         search.putClientProperty("JTextField.showClearButton", true);
@@ -113,6 +125,17 @@ public final class PalettePanel extends JPanel {
         });
         add(new JScrollPane(tree));
         rebuild();
+    }
+
+    /** Stops following the shared appearance: the window showing this palette closed. */
+    public void dispose() {
+        appearance.removeListener(appearanceListener);
+    }
+
+    /** The icon drawn for {@code type} with the current scheme. Package-private for tests. */
+    Icon icon(ComponentType type) {
+        return icons.computeIfAbsent(type.id(),
+                id -> new ComponentIcon(type, painters.painterFor(id), appearance.scheme(), ICON_SIZE));
     }
 
     /** Package-private for tests. */
@@ -214,9 +237,8 @@ public final class PalettePanel extends JPanel {
             super.getTreeCellRendererComponent(owner, value, selected, expanded, leaf, row, focused);
             Object item = ((DefaultMutableTreeNode) value).getUserObject();
             if (item instanceof ComponentType type) {
-                setText(Messages.componentName(type.id()));
-                setIcon(icons.computeIfAbsent(type.id(),
-                        id -> new ComponentIcon(type, painters.painterFor(id), scheme, ICON_SIZE)));
+                setText(Messages.componentName(type));
+                setIcon(icon(type));
             } else if (item instanceof ComponentCategory category) {
                 setText(Messages.categoryName(category));
                 setIcon(null);

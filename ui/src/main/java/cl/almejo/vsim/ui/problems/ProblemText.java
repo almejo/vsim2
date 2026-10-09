@@ -37,30 +37,31 @@ public final class ProblemText {
     }
 
     /** "AND de 2 entradas 'U3' → 1 · NOT → 0": each driver by type name and label, with the value it imposes. */
-    public static String drivers(ShortCircuit shortCircuit, CircuitDocument document) {
+    public static String drivers(ShortCircuit shortCircuit, CircuitDocument document,
+                                 ComponentTypeRegistry registry) {
         return shortCircuit.drivers().stream()
-                .map(driver -> driver(driver, document))
+                .map(driver -> driver(driver, document, registry))
                 .collect(Collectors.joining(SEPARATOR));
     }
 
     public static String describe(Problem problem, CircuitDocument document, ComponentTypeRegistry registry) {
         return switch (problem) {
             case ShortCircuit shortCircuit -> Messages.format("problem.shortCircuit", shortCircuit.sinceTime(),
-                    drivers(shortCircuit, document));
+                    drivers(shortCircuit, document, registry));
             case WidthMismatch mismatch -> Messages.format("problem.widthMismatch", mismatch.pins().stream()
                     .map(pin -> pin(pin, document, registry))
                     .collect(Collectors.joining(SEPARATOR)));
         };
     }
 
-    private static String driver(DriverRef driver, CircuitDocument document) {
+    private static String driver(DriverRef driver, CircuitDocument document, ComponentTypeRegistry registry) {
         Optional<Component> component = InstancePath.isNested(driver.componentId()) ? Optional.empty()
                 : document.component(new ElementId(driver.componentId()));
         String value = driver.driven().toString();
         if (component.isEmpty()) {
             return Messages.format("problem.driver", driver.componentId(), value);
         }
-        String name = Messages.componentName(component.get().typeId());
+        String name = Messages.componentName(registry.require(component.get().typeId()));
         String label = component.get().label();
         return label.isBlank() ? Messages.format("problem.driver", name, value)
                 : Messages.format("problem.driverLabeled", name, label, value);
@@ -78,7 +79,7 @@ public final class ProblemText {
             return pin.componentId();
         }
         int width = type.pin(pin.pinIndex()).width();
-        String name = Messages.componentName(found.typeId());
+        String name = Messages.componentName(type);
         return found.label().isBlank() ? Messages.format("problem.pin", name, width)
                 : Messages.format("problem.pinLabeled", name, found.label(), width);
     }

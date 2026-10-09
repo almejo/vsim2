@@ -5,13 +5,17 @@ import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.ui.clipboard.FragmentTransferable;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.paint.Appearance;
+import cl.almejo.vsim.ui.paint.AppearanceTestSupport;
 import cl.almejo.vsim.ui.paint.ColorScheme;
+import cl.almejo.vsim.ui.paint.ComponentIcon;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import javax.swing.JTextField;
 import javax.swing.TransferHandler;
+import java.awt.Color;
 import java.awt.datatransfer.StringSelection;
 import java.util.ArrayList;
 import java.util.List;
@@ -107,5 +111,21 @@ class PalettePanelTest {
         assertThat(search.getText()).isEmpty();
         assertThat(handler.canImport(new TransferHandler.TransferSupport(search, new StringSelection("not"))))
                 .isTrue();
+    }
+
+    @Test
+    void aSchemeChangeRedrawsIconsWithTheNewScheme() {
+        Appearance appearance = new Appearance(ColorScheme.LIGHT);
+        PalettePanel themed = new PalettePanel(registry, PainterRegistry.standard(), appearance, type -> {
+        });
+        ComponentType not = registry.require(StandardComponentTypes.NOT);
+        assertThat(((ComponentIcon) themed.icon(not)).scheme()).isSameAs(ColorScheme.LIGHT);
+
+        ColorScheme magenta = AppearanceTestSupport.withBackground(ColorScheme.LIGHT, Color.MAGENTA);
+        appearance.setScheme(magenta);
+        assertThat(((ComponentIcon) themed.icon(not)).scheme()).isSameAs(magenta);
+
+        themed.dispose();
+        assertThat(appearance.listenerCount()).isZero();
     }
 }

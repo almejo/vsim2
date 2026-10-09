@@ -62,7 +62,7 @@ public final class ProblemsController {
         this.openDocument = view.openDocument();
         this.canvas = view.canvas();
         this.statusBar = view.statusBar();
-        this.blink = new NetBlink(canvas.scheme(), canvas::repaint);
+        this.blink = new NetBlink(canvas::scheme, canvas::repaint);
         this.pulse = new ShortCircuitPulse(openDocument.registry(), canvas::repaint, System::nanoTime);
         this.navigator = new ProblemNavigator(canvas, blink);
         this.panel = new ProblemsPanel(openDocument, navigator::navigateTo);
@@ -202,7 +202,7 @@ public final class ProblemsController {
                 .flatMap(net -> snapshot.shortCircuits().stream()
                         .filter(shortCircuit -> shortCircuit.netId().equals(net.id().value()))
                         .findFirst())
-                .map(shortCircuit -> ProblemText.drivers(shortCircuit, document));
+                .map(shortCircuit -> ProblemText.drivers(shortCircuit, document, openDocument.registry()));
     }
 
     private static Action action(String name, Runnable behavior) {

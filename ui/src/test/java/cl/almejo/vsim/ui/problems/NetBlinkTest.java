@@ -6,14 +6,18 @@ import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.netlist.Netlist;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.ui.canvas.RenderState;
+import cl.almejo.vsim.ui.paint.AppearanceTestSupport;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import org.junit.jupiter.api.Test;
 
 import javax.swing.SwingUtilities;
+import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -35,7 +39,7 @@ class NetBlinkTest {
     void blinksTheWiresForSixStepsAndThenStops() throws Exception {
         document.add(wire);
         SwingUtilities.invokeAndWait(() -> {
-            NetBlink blink = new NetBlink(ColorScheme.LIGHT, repaints::incrementAndGet);
+            NetBlink blink = new NetBlink(() -> ColorScheme.LIGHT, repaints::incrementAndGet);
             assertThat(blink.isBlinking()).isFalse();
             assertThat(pixelOnTheWire(blink)).isZero();
 
@@ -63,7 +67,7 @@ class NetBlinkTest {
     void startingAgainRestartsTheBlink() throws Exception {
         document.add(wire);
         SwingUtilities.invokeAndWait(() -> {
-            NetBlink blink = new NetBlink(ColorScheme.LIGHT, repaints::incrementAndGet);
+            NetBlink blink = new NetBlink(() -> ColorScheme.LIGHT, repaints::incrementAndGet);
             blink.start(Set.of(wire.id()));
             blink.toggle();
             blink.toggle();
@@ -73,6 +77,29 @@ class NetBlinkTest {
             }
             assertThat(blink.isBlinking()).isTrue();
             blink.dispose();
+        });
+    }
+
+    @Test
+    void eachPaintUsesTheSchemeInUseAtThatMoment() throws Exception {
+        document.add(wire);
+        ColorScheme magenta = AppearanceTestSupport.withSelection(ColorScheme.LIGHT, Color.MAGENTA);
+        AtomicReference<ColorScheme> scheme = new AtomicReference<>(ColorScheme.LIGHT);
+        SwingUtilities.invokeAndWait(() -> {
+            NetBlink blink = new NetBlink(scheme::get, repaints::incrementAndGet);
+            NetBlink lightReference = new NetBlink(() -> ColorScheme.LIGHT, repaints::incrementAndGet);
+            NetBlink magentaReference = new NetBlink(() -> magenta, repaints::incrementAndGet);
+            for (NetBlink started : List.of(blink, lightReference, magentaReference)) {
+                started.start(Set.of(wire.id()));
+            }
+            assertThat(pixelOnTheWire(blink)).isEqualTo(pixelOnTheWire(lightReference));
+
+            scheme.set(magenta);
+            assertThat(pixelOnTheWire(blink)).isEqualTo(pixelOnTheWire(magentaReference))
+                    .isNotEqualTo(pixelOnTheWire(lightReference));
+            for (NetBlink started : List.of(blink, lightReference, magentaReference)) {
+                started.dispose();
+            }
         });
     }
 }

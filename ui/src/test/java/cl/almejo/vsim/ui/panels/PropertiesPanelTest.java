@@ -2,12 +2,15 @@ package cl.almejo.vsim.ui.panels;
 
 import cl.almejo.vsim.core.command.AddElementsCommand;
 import cl.almejo.vsim.core.command.AddWireCommand;
+import cl.almejo.vsim.core.command.PutDefinitionsCommand;
 import cl.almejo.vsim.core.command.SetLabelCommand;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
+import cl.almejo.vsim.core.library.ExampleDefinitions;
+import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.Selection;
 import cl.almejo.vsim.ui.clipboard.FragmentTransferable;
@@ -78,6 +81,15 @@ class PropertiesPanelTest {
         openDocument.execute(new AddWireCommand(wire));
         selection.select(wire.id());
         assertThat(panel.heading()).isEqualTo("Cable · largo 6");
+    }
+
+    @Test
+    void aSubcircuitInstanceIsHeadedByItsDefinitionName() {
+        openDocument.execute(new PutDefinitionsCommand(List.of(ExampleDefinitions.inverter())));
+        Component instance = place(openDocument, SubcircuitTypes.typeIdOf(ExampleDefinitions.INVERTER), 0, 0,
+                Map.of());
+        selection.select(instance.id());
+        assertThat(panel.heading()).isEqualTo("Inversor");
     }
 
     @Test

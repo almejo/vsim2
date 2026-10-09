@@ -58,7 +58,8 @@ public final class LabelActions {
         }
         switch (current.get()) {
             case Component component -> prompt.ask(parent, Messages.text("dialog.label.title"),
-                            Messages.format("dialog.label.message", Messages.componentName(component.typeId())),
+                            Messages.format("dialog.label.message",
+                                    Messages.componentName(openDocument.registry().require(component.typeId()))),
                             component.label())
                     .map(String::strip)
                     .filter(text -> !text.equals(component.label()))

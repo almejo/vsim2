@@ -27,7 +27,7 @@ public final class Main {
         List<Path> files = Arrays.stream(arguments).map(Path::of).toList();
         SwingUtilities.invokeLater(() -> {
             FlatLightLaf.setup();
-            Application application = new Application();
+            Application application = new Application(AppPreferences.system());
             installQuitHandler(application);
             application.start(files);
         });

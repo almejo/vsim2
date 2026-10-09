@@ -5,8 +5,6 @@ import cl.almejo.vsim.ui.app.FileDialogs;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.clipboard.FileDropHandler;
 import cl.almejo.vsim.ui.i18n.Messages;
-import cl.almejo.vsim.ui.paint.ColorScheme;
-import cl.almejo.vsim.ui.paint.PainterRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,10 +31,10 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
     private final EditorView view;
     private final Runnable titleUpdater = this::updateTitle;
 
-    public CircuitWindow(Application application, OpenDocument openDocument, PainterRegistry painters, ColorScheme scheme) {
+    public CircuitWindow(Application application, OpenDocument openDocument, EditorServices services) {
         this.application = application;
         this.openDocument = openDocument;
-        this.view = new EditorView(openDocument, painters, scheme, this);
+        this.view = new EditorView(openDocument, services, this);
         setJMenuBar(view.menuBar());
         setContentPane(view);
         new WindowMenu(view.menu(MenuId.WINDOW), () -> application.newWindow(this),

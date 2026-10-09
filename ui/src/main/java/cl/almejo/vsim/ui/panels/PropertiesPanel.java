@@ -137,7 +137,7 @@ public final class PropertiesPanel extends JPanel {
 
     private void showComponent(Component component) {
         ComponentType type = openDocument.registry().require(component.typeId());
-        heading.setText(Messages.componentName(type.id()));
+        heading.setText(Messages.componentName(type));
         JTextField field = addTextRow(Messages.text("properties.label"), component.label());
         ElementId id = component.id();
         int built = generation;

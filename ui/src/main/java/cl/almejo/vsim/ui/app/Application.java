@@ -3,10 +3,14 @@ package cl.almejo.vsim.ui.app;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.io.CircuitFormatException;
+import cl.almejo.vsim.core.library.ComponentLibrary;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.paint.Appearance;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.window.CircuitWindow;
+import cl.almejo.vsim.ui.window.EditorExtension;
+import cl.almejo.vsim.ui.window.EditorServices;
 import cl.almejo.vsim.ui.window.WindowMenu;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,6 +19,7 @@ import javax.swing.JOptionPane;
 import java.awt.Frame;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -24,10 +29,40 @@ public final class Application {
     private static final Logger LOGGER = LoggerFactory.getLogger(Application.class);
 
     private final ComponentTypeRegistry registry = StandardComponentTypes.registry();
-    private final PainterRegistry painters = PainterRegistry.standard();
-    private final ColorScheme scheme = ColorScheme.LIGHT;
+    private final AppPreferences preferences;
+    private final Appearance appearance = new Appearance(ColorScheme.LIGHT);
+    private final ComponentLibrary library = new ComponentLibrary();
+    private final EditorServices services;
     private final DocumentWindows<CircuitWindow> windows = new DocumentWindows<>();
     private Path lastDirectory;
+
+    public Application(AppPreferences preferences) {
+        this.preferences = preferences;
+        List<EditorExtension> editorExtensions = new ArrayList<>();
+        // M4 tracks add one line each here, in the order A, B, C, D (overview R9).
+        this.services = new EditorServices(PainterRegistry.standard(), appearance, preferences, library,
+                editorExtensions);
+    }
+
+    public EditorServices services() {
+        return services;
+    }
+
+    public AppPreferences preferences() {
+        return preferences;
+    }
+
+    public Appearance appearance() {
+        return appearance;
+    }
+
+    public ComponentLibrary library() {
+        return library;
+    }
+
+    public ComponentTypeRegistry registry() {
+        return registry;
+    }
 
     public void start(List<Path> files) {
         openPaths(files, null);
@@ -136,7 +171,7 @@ public final class Application {
     }
 
     private CircuitWindow show(OpenDocument document) {
-        CircuitWindow window = new CircuitWindow(this, document, painters, scheme);
+        CircuitWindow window = new CircuitWindow(this, document, services);
         windows.add(document, window);
         window.setVisible(true);
         return window;

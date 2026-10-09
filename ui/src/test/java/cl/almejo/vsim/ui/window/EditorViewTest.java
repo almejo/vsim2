@@ -8,8 +8,12 @@ import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
+import cl.almejo.vsim.core.library.ComponentLibrary;
+import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.paint.Appearance;
+import cl.almejo.vsim.ui.paint.AppearanceTestSupport;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.tools.PanTool;
@@ -26,6 +30,7 @@ import javax.swing.JLabel;
 import javax.swing.JMenu;
 import javax.swing.JSplitPane;
 import javax.swing.KeyStroke;
+import java.awt.Color;
 import java.awt.Container;
 import java.awt.Graphics2D;
 import java.awt.event.ActionEvent;
@@ -396,5 +401,44 @@ class EditorViewTest {
             }
         }
         assertThat(texts).contains("Stub", "Pegar");
+    }
+
+    @Test
+    void extensionsAreInstalledInOrderAndDisposedInReverse() {
+        List<String> events = new ArrayList<>();
+        EditorExtension first = target -> {
+            events.add("install first " + (target.canvas() != null));
+            return () -> events.add("dispose first");
+        };
+        EditorExtension second = target -> {
+            events.add("install second");
+            return () -> events.add("dispose second");
+        };
+        EditorServices services = EditorServices.of(PainterRegistry.standard(), ColorScheme.LIGHT)
+                .withExtensions(List.of(first, second));
+        EditorView extended = new EditorView(openDocument, services, window);
+        assertThat(extended.services()).isSameAs(services);
+        extended.dispose();
+        assertThat(events).containsExactly("install first true", "install second", "dispose second", "dispose first");
+    }
+
+    @Test
+    void theViewRepaintsWithTheNewSchemeAndForgetsTheAppearanceWhenDisposed() {
+        Appearance appearance = new Appearance(ColorScheme.LIGHT);
+        EditorServices services = new EditorServices(PainterRegistry.standard(), appearance,
+                AppPreferences.inMemory(), new ComponentLibrary(), List.of());
+        EditorView themed = new EditorView(openDocument, services, window);
+        assertThat(appearance.listenerCount()).isGreaterThan(0);
+
+        appearance.setScheme(AppearanceTestSupport.withBackground(ColorScheme.LIGHT, Color.MAGENTA));
+        themed.canvas().setSize(40, 40);
+        BufferedImage image = new BufferedImage(40, 40, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D graphics = image.createGraphics();
+        themed.canvas().paint(graphics);
+        graphics.dispose();
+        assertThat(image.getRGB(3, 3)).isEqualTo(Color.MAGENTA.getRGB());
+
+        themed.dispose();
+        assertThat(appearance.listenerCount()).isZero();
     }
 }

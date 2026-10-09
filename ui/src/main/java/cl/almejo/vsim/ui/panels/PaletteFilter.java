@@ -16,6 +16,6 @@ public final class PaletteFilter {
         }
         String needle = query.strip().toLowerCase(Locale.ROOT);
         return type.id().toLowerCase(Locale.ROOT).contains(needle)
-                || Messages.componentName(type.id()).toLowerCase(Locale.ROOT).contains(needle);
+                || Messages.componentName(type).toLowerCase(Locale.ROOT).contains(needle);
     }
 }

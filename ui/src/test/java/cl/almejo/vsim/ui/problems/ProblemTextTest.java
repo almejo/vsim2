@@ -54,9 +54,9 @@ class ProblemTextTest {
 
     @Test
     void driversAreNamedByTypeAndLabelWithTheValueTheyImpose() {
-        assertThat(ProblemText.drivers(fight(), document)).isEqualTo("AND de 2 entradas 'U3' → 1 · NOT → 0");
+        assertThat(ProblemText.drivers(fight(), document, registry)).isEqualTo("AND de 2 entradas 'U3' → 1 · NOT → 0");
         Messages.initialize(Locale.ENGLISH);
-        assertThat(ProblemText.drivers(fight(), document)).isEqualTo("AND (2 inputs) 'U3' → 1 · NOT → 0");
+        assertThat(ProblemText.drivers(fight(), document, registry)).isEqualTo("AND (2 inputs) 'U3' → 1 · NOT → 0");
     }
 
     @Test
@@ -76,7 +76,7 @@ class ProblemTextTest {
     @Test
     void driverOfADeletedComponentFallsBackToItsId() {
         ShortCircuit stale = new ShortCircuit("n", List.of(new DriverRef("c99", 0, Value.ZERO)), 1);
-        assertThat(ProblemText.drivers(stale, document)).isEqualTo("c99 → 0");
+        assertThat(ProblemText.drivers(stale, document, registry)).isEqualTo("c99 → 0");
         WidthMismatch staleMismatch = new WidthMismatch("n", List.of(new FlatPinRef("c99", 3)));
         assertThat(ProblemText.describe(staleMismatch, document, registry)).isEqualTo("⚠ Anchos incompatibles: c99");
     }

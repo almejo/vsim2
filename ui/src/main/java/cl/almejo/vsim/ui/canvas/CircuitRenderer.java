@@ -8,6 +8,7 @@ import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
+import cl.almejo.vsim.ui.paint.Appearance;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.ComponentDrawing;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
@@ -42,20 +43,26 @@ public final class CircuitRenderer {
 
     private final ComponentTypeRegistry registry;
     private final PainterRegistry painters;
-    private final ColorScheme scheme;
+    private final Appearance appearance;
 
     public CircuitRenderer(ComponentTypeRegistry registry, PainterRegistry painters, ColorScheme scheme) {
-        this.registry = registry;
-        this.painters = painters;
-        this.scheme = scheme;
+        this(registry, painters, new Appearance(scheme));
     }
 
+    public CircuitRenderer(ComponentTypeRegistry registry, PainterRegistry painters, Appearance appearance) {
+        this.registry = registry;
+        this.painters = painters;
+        this.appearance = appearance;
+    }
+
+    /** The scheme in use right now; it changes when the user picks another one. */
     public ColorScheme scheme() {
-        return scheme;
+        return appearance.scheme();
     }
 
     /** Background and grid dots, in screen coordinates. */
     public void paintBackground(Graphics2D graphics, Viewport viewport, int width, int height) {
+        ColorScheme scheme = scheme();
         graphics.setColor(scheme.background());
         graphics.fillRect(0, 0, width, height);
         int step = viewport.pixelsPerUnit() < MINIMUM_DOT_SPACING ? 4 : 1;
@@ -74,6 +81,7 @@ public final class CircuitRenderer {
     }
 
     public void paint(Graphics2D graphics, RenderState state) {
+        ColorScheme scheme = scheme();
         graphics.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         graphics.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
         ShortCircuitHighlight highlight = ShortCircuitHighlight.of(state.snapshot(), state.netlist(),
@@ -134,6 +142,7 @@ public final class CircuitRenderer {
 
     /** A semi-transparent preview; {@code types} resolves components (a pasted fragment brings its own definitions). */
     public void paintGhost(Graphics2D graphics, DocumentElement element, ComponentTypeRegistry types) {
+        ColorScheme scheme = scheme();
         Composite previous = graphics.getComposite();
         graphics.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.5f));
         try {
@@ -153,6 +162,7 @@ public final class CircuitRenderer {
     }
 
     private void paintComponentLabels(Graphics2D graphics, RenderState state) {
+        ColorScheme scheme = scheme();
         graphics.setFont(LabelLayout.FONT);
         graphics.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
         graphics.setColor(scheme.text());
@@ -163,6 +173,7 @@ public final class CircuitRenderer {
     }
 
     private void paintTextLabels(Graphics2D graphics, RenderState state) {
+        ColorScheme scheme = scheme();
         for (TextLabel label : state.document().labels()) {
             paintText(graphics, label, scheme.text());
             if (state.selection().contains(label.id())) {

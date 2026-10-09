@@ -37,6 +37,7 @@ import java.awt.BorderLayout;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.awt.geom.Point2D;
+import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
@@ -46,7 +47,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 /**
  * Content of an editor window: toolbar, palette, canvas, inspector and status bar, wired to one {@link OpenDocument}.
  * Feature code adds menu items through {@link #menu(MenuId)}, inspector tabs through {@link #inspector()} and
- * context-menu items through {@link #addContextMenuContributor}.
+ * context-menu items through {@link #addContextMenuContributor}, from an {@link EditorExtension}.
  */
 public final class EditorView extends JPanel implements CanvasHost {
 
@@ -69,15 +70,24 @@ public final class EditorView extends JPanel implements CanvasHost {
     private final JToggleButton wireButton;
     private final JToggleButton panButton;
     private final LabelFeatures labelFeatures;
+    private final EditorServices services;
+    private final Runnable appearanceListener;
+    private final List<Runnable> extensionDisposers = new ArrayList<>();
 
     public EditorView(OpenDocument openDocument, PainterRegistry painters, ColorScheme scheme, WindowCommands window) {
+        this(openDocument, EditorServices.of(painters, scheme), window);
+    }
+
+    public EditorView(OpenDocument openDocument, EditorServices services, WindowCommands window) {
         super(new BorderLayout());
         this.openDocument = openDocument;
-        CircuitRenderer renderer = new CircuitRenderer(openDocument.registry(), painters, scheme);
+        this.services = services;
+        CircuitRenderer renderer = new CircuitRenderer(openDocument.registry(), services.painters(),
+                services.appearance());
         this.canvas = new CircuitCanvas(openDocument, renderer, this);
         this.actions = new EditorActions(openDocument, canvas, window);
         this.selectionActions = new SelectionActions(openDocument, canvas, actions, FragmentClipboard.system());
-        this.palette = new PalettePanel(openDocument.registry(), painters, scheme, type -> {
+        this.palette = new PalettePanel(openDocument.registry(), services.painters(), services.appearance(), type -> {
             canvas.setTool(new PlaceComponentTool(type));
             canvas.requestFocusInWindow();
         });
@@ -117,6 +127,11 @@ public final class EditorView extends JPanel implements CanvasHost {
         installSelectionActions();
         labelFeatures = LabelFeatures.install(this, TextPrompt.DIALOG);
         problems = new ProblemsController(this);
+        appearanceListener = canvas::repaint;
+        services.appearance().addListener(appearanceListener);
+        for (EditorExtension extension : services.extensions()) {
+            extensionDisposers.add(extension.install(this));
+        }
     }
 
     /** Edit menu entries (platform shortcuts, so text fields keep their own Ctrl+X/C/V/A) and context menu items. */
@@ -133,6 +148,7 @@ public final class EditorView extends JPanel implements CanvasHost {
     }
 
     public OpenDocument openDocument() { return openDocument; }
+    public EditorServices services() { return services; }
     public CircuitCanvas canvas() { return canvas; }
     public EditorActions actions() { return actions; }
     public SelectionActions selectionActions() { return selectionActions; }
@@ -166,6 +182,12 @@ public final class EditorView extends JPanel implements CanvasHost {
     }
 
     public void dispose() {
+        for (int index = extensionDisposers.size() - 1; index >= 0; index--) {
+            extensionDisposers.get(index).run();
+        }
+        extensionDisposers.clear();
+        services.appearance().removeListener(appearanceListener);
+        palette.dispose();
         problems.dispose();
         labelFeatures.dispose();
         actions.dispose();

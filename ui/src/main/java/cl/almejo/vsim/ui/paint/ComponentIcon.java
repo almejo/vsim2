@@ -28,6 +28,10 @@ public final class ComponentIcon implements Icon {
         this.size = size;
     }
 
+    public ColorScheme scheme() {
+        return scheme;
+    }
+
     @Override
     public void paintIcon(java.awt.Component owner, Graphics graphics, int x, int y) {
         Graphics2D local = (Graphics2D) graphics.create();

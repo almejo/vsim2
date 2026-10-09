@@ -15,4 +15,13 @@ public final class AppearanceTestSupport {
                 base.displayBackground(), base.segmentOn(), base.segmentOff(), base.diagramBackground(),
                 base.diagramGrid(), base.diagramTrace());
     }
+
+    /** {@code base} with another selection color (also used by the problem blink). */
+    public static ColorScheme withSelection(ColorScheme base, Color selection) {
+        return new ColorScheme(base.background(), base.grid(), base.wireZero(), base.wireOne(),
+                base.wireHighImpedance(), base.wireConflict(), base.wireUnknown(), base.componentStroke(),
+                base.componentFill(), base.componentShade(), base.shadow(), base.text(), selection, base.preview(),
+                base.displayBackground(), base.segmentOn(), base.segmentOff(), base.diagramBackground(),
+                base.diagramGrid(), base.diagramTrace());
+    }
 }
