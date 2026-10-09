@@ -1,10 +1,15 @@
 package cl.almejo.vsim.core.component;
 
+import cl.almejo.vsim.core.document.Component;
+import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.GridSize;
+import cl.almejo.vsim.core.geometry.Rotation;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -85,5 +90,23 @@ class ComponentTypeRegistryTest {
             executor.shutdownNow();
         }
         assertThat(registry.all()).hasSize(1600);
+    }
+
+    @Test
+    void theTypeOfAComponentFollowsItsParameters() {
+        ComponentTypeRegistry registry = new ComponentTypeRegistry();
+        registry.register(ComponentType.parameterized("ribbon", ComponentCategory.BASIC,
+                List.of(ParameterSpec.integer("width", 1, 1, 8)),
+                parameters -> new ComponentShape(new GridSize(1, (Integer) parameters.get("width")), List.of()),
+                parameters -> (context, pinIndex) -> {
+                }));
+        Component tall = new Component(new ElementId("c1"), "ribbon", GridPoint.ORIGIN, Rotation.R0,
+                Map.of("width", 3), "");
+        assertThat(registry.typeOf(tall).size()).isEqualTo(new GridSize(1, 3));
+        assertThat(registry.findTypeOf(tall)).hasValueSatisfying(type ->
+                assertThat(type.size()).isEqualTo(new GridSize(1, 3)));
+        Component unknown = new Component(new ElementId("c2"), "lamp", GridPoint.ORIGIN, Rotation.R0, Map.of(), "");
+        assertThat(registry.findTypeOf(unknown)).isEmpty();
+        assertThatThrownBy(() -> registry.typeOf(unknown)).isInstanceOf(UnknownComponentTypeException.class);
     }
 }

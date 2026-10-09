@@ -25,6 +25,14 @@ public record PinSpec(String name, GridPoint position, PinDirection direction, i
         return new PinSpec(name, new GridPoint(x, y), PinDirection.OUTPUT, 1);
     }
 
+    public static PinSpec input(String name, int x, int y, int width) {
+        return new PinSpec(name, new GridPoint(x, y), PinDirection.INPUT, width);
+    }
+
+    public static PinSpec output(String name, int x, int y, int width) {
+        return new PinSpec(name, new GridPoint(x, y), PinDirection.OUTPUT, width);
+    }
+
     public boolean isInput() {
         return direction != PinDirection.OUTPUT;
     }

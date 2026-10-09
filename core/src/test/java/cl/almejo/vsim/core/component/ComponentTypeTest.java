@@ -5,6 +5,7 @@ import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.geometry.GridPoint;
+import cl.almejo.vsim.core.geometry.GridSize;
 import cl.almejo.vsim.core.geometry.Rotation;
 import org.junit.jupiter.api.Test;
 
@@ -89,5 +90,66 @@ class ComponentTypeTest {
                 .isEqualTo(Map.of("delay", 1));
         assertThatThrownBy(() -> buffer.newComponent(new ElementId("c9"), GridPoint.ORIGIN, Rotation.R0,
                 Map.of("delay", 0), "")).isInstanceOf(IllegalArgumentException.class);
+    }
+
+    /** A test type whose bus pin and box follow {@code width}: "bus" at the origin, "last" at (2, width). */
+    private static final ComponentType RIBBON = ComponentType.parameterized("test-ribbon", ComponentCategory.BASIC,
+            List.of(ParameterSpec.integer("width", 2, 1, 8)),
+            parameters -> {
+                int width = (Integer) parameters.get("width");
+                return new ComponentShape(new GridSize(2, width),
+                        List.of(new PinSpec("bus", GridPoint.ORIGIN, PinDirection.INPUT, width),
+                                PinSpec.output("last", 2, width)));
+            },
+            parameters -> (context, pinIndex) -> {
+            });
+
+    private static Component ribbonAt(Rotation rotation, int width) {
+        return RIBBON.newComponent(new ElementId("c1"), new GridPoint(10, 10), rotation, Map.of("width", width), "");
+    }
+
+    @Test
+    void aParameterizedTypeShowsTheShapeOfItsDefaults() {
+        assertThat(RIBBON.isParameterized()).isTrue();
+        assertThat(buffer.isParameterized()).isFalse();
+        assertThat(RIBBON.size()).isEqualTo(new GridSize(2, 2));
+        assertThat(RIBBON.pins()).containsExactly(new PinSpec("bus", GridPoint.ORIGIN, PinDirection.INPUT, 2),
+                PinSpec.output("last", 2, 2));
+    }
+
+    @Test
+    void specializingFollowsTheParametersAndKeepsTheTypeWhenNothingChanges() {
+        ComponentType wide = RIBBON.specializedFor(Map.of("width", 5));
+        assertThat(wide.id()).isEqualTo(RIBBON.id());
+        assertThat(wide.size()).isEqualTo(new GridSize(2, 5));
+        assertThat(wide.pin(0).width()).isEqualTo(5);
+        assertThat(wide.pin(1).position()).isEqualTo(new GridPoint(2, 5));
+        assertThat(wide).isEqualTo(RIBBON.specializedFor(Map.of("width", "5")));
+        assertThat(wide.specializedFor(Map.of("width", 2))).isEqualTo(RIBBON);
+        assertThat(RIBBON.specializedFor(Map.of())).isSameAs(RIBBON);
+        assertThat(RIBBON.specializedFor(Map.of("width", 2))).isSameAs(RIBBON);
+        assertThat(buffer.specializedFor(Map.of("delay", 4))).isSameAs(buffer);
+        assertThatThrownBy(() -> RIBBON.specializedFor(Map.of("width", 9)))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void pinsAndBoundsOfAComponentFollowItsOwnParameters() {
+        Component wide = ribbonAt(Rotation.R0, 5);
+        assertThat(RIBBON.forComponent(wide).size()).isEqualTo(new GridSize(2, 5));
+        assertThat(RIBBON.forComponent(wide).pin(0).width()).isEqualTo(5);
+        assertThat(RIBBON.pinLocation(wide, 1)).isEqualTo(new GridPoint(12, 15));
+        assertThat(RIBBON.bounds(wide)).isEqualTo(new Bounds(10, 10, 2, 5));
+        Component turned = ribbonAt(Rotation.R90, 5);
+        assertThat(RIBBON.pinLocation(turned, 1)).isEqualTo(new GridPoint(5, 12));
+        assertThat(RIBBON.bounds(turned))
+                .isEqualTo(Bounds.rotated(new GridPoint(10, 10), new GridSize(2, 5), Rotation.R90));
+    }
+
+    @Test
+    void pinFactoriesTakeAWidth() {
+        assertThat(PinSpec.input("a", 0, 2, 8)).isEqualTo(new PinSpec("a", new GridPoint(0, 2), PinDirection.INPUT, 8));
+        assertThat(PinSpec.output("y", 4, 2, 8))
+                .isEqualTo(new PinSpec("y", new GridPoint(4, 2), PinDirection.OUTPUT, 8));
     }
 }

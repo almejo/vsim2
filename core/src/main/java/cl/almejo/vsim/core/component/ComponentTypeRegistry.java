@@ -1,5 +1,7 @@
 package cl.almejo.vsim.core.component;
 
+import cl.almejo.vsim.core.document.Component;
+
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -50,6 +52,16 @@ public final class ComponentTypeRegistry {
 
     public ComponentType require(String id) {
         return find(id).orElseThrow(() -> new UnknownComponentTypeException(id));
+    }
+
+    /** The type of a placed component, with the size and pins its parameters give (bus widths). */
+    public ComponentType typeOf(Component component) {
+        return require(component.typeId()).forComponent(component);
+    }
+
+    /** Like {@link #typeOf}, or empty when the component's type is unknown. */
+    public Optional<ComponentType> findTypeOf(Component component) {
+        return find(component.typeId()).map(type -> type.forComponent(component));
     }
 
     /** Registered types in registration order; resolved types are never listed. */

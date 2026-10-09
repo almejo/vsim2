@@ -12,9 +12,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-/** Describes a kind of component: geometry, pins, parameters and behavior. Drawing lives in the UI. */
+/**
+ * Describes a kind of component: geometry, pins, parameters and behavior. Drawing lives in the UI. A type with a
+ * {@code layout} (bus widths) has the size and pins of its default parameters; {@link #forComponent} and
+ * {@link ComponentTypeRegistry#typeOf} give the ones of a placed component. {@code layout} is null for fixed types.
+ */
 public record ComponentType(String id, ComponentCategory category, GridSize size, List<PinSpec> pins,
-                            List<ParameterSpec> parameters, BehaviorFactory behaviorFactory) {
+                            List<ParameterSpec> parameters, BehaviorFactory behaviorFactory,
+                            ComponentLayout layout) {
 
     public ComponentType {
         Objects.requireNonNull(id, "id");
@@ -23,6 +28,46 @@ public record ComponentType(String id, ComponentCategory category, GridSize size
         Objects.requireNonNull(behaviorFactory, "behaviorFactory");
         pins = List.copyOf(pins);
         parameters = List.copyOf(parameters);
+    }
+
+    /** A type whose size and pins never change. */
+    public ComponentType(String id, ComponentCategory category, GridSize size, List<PinSpec> pins,
+                         List<ParameterSpec> parameters, BehaviorFactory behaviorFactory) {
+        this(id, category, size, pins, parameters, behaviorFactory, null);
+    }
+
+    /** A type whose size and pins follow its parameters; its own {@code size()} and {@code pins()} are the defaults'. */
+    public static ComponentType parameterized(String id, ComponentCategory category, List<ParameterSpec> parameters,
+                                              ComponentLayout layout, BehaviorFactory behaviorFactory) {
+        Objects.requireNonNull(layout, "layout");
+        Map<String, Object> defaults = new LinkedHashMap<>();
+        parameters.forEach(parameter -> defaults.put(parameter.name(), parameter.defaultValue()));
+        ComponentShape shape = layout.shapeFor(Map.copyOf(defaults));
+        return new ComponentType(id, category, shape.size(), shape.pins(), parameters, behaviorFactory, layout);
+    }
+
+    public boolean isParameterized() {
+        return layout != null;
+    }
+
+    /**
+     * This type with the size and pins {@code rawParameters} give (normalized first; invalid values throw
+     * IllegalArgumentException). Returns {@code this} for a fixed type and whenever the shape does not change.
+     */
+    public ComponentType specializedFor(Map<String, Object> rawParameters) {
+        if (layout == null) {
+            return this;
+        }
+        ComponentShape shape = layout.shapeFor(resolveParameters(rawParameters));
+        if (shape.size().equals(size) && shape.pins().equals(pins)) {
+            return this;
+        }
+        return new ComponentType(id, category, shape.size(), shape.pins(), parameters, behaviorFactory, layout);
+    }
+
+    /** This type as {@code component} has it: {@link #specializedFor} its parameters. */
+    public ComponentType forComponent(Component component) {
+        return specializedFor(component.parameters());
     }
 
     public int pinCount() {
@@ -48,12 +93,15 @@ public record ComponentType(String id, ComponentCategory category, GridSize size
         return new Component(id, this.id, position, rotation, resolveParameters(rawParameters), label);
     }
 
+    /** Where pin {@code pinIndex} of {@code component} is, with the pins {@code component}'s parameters give. */
     public GridPoint pinLocation(Component component, int pinIndex) {
-        return component.position().plus(component.rotation().apply(pins.get(pinIndex).position()));
+        PinSpec pin = forComponent(component).pins.get(pinIndex);
+        return component.position().plus(component.rotation().apply(pin.position()));
     }
 
+    /** The box of {@code component}, with the size its parameters give. */
     public Bounds bounds(Component component) {
-        return Bounds.rotated(component.position(), size, component.rotation());
+        return Bounds.rotated(component.position(), forComponent(component).size, component.rotation());
     }
 
     public Behavior createBehavior(Map<String, Object> rawParameters) {
