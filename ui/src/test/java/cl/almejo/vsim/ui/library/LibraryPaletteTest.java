@@ -78,6 +78,19 @@ class LibraryPaletteTest {
         assertThat(document.components()).isEmpty();
     }
 
+    /** Integration ruling (preflight C8): placing a library component keeps its palette entry highlighted. */
+    @Test
+    void thePaletteKeepsTheLibraryComponentHighlightedWhilePlacing() throws Exception {
+        fixture.service.save(inverter);
+
+        fixture.view.palette().choose("subcircuit:inverter");
+
+        assertThat(fixture.view.canvas().tool()).isInstanceOf(PlaceDefinitionTool.class);
+        assertThat(PalettePanelAccess.hasSelection(fixture.view.palette())).isTrue();
+        fixture.view.canvas().useDefaultTool();
+        assertThat(PalettePanelAccess.hasSelection(fixture.view.palette())).isFalse();
+    }
+
     /** Preflight S3: the circuit keeps its own version of a nested definition; the user is told so. */
     @Test
     void placingWarnsWhenTheCircuitHasAnotherVersionOfANestedComponent() throws Exception {

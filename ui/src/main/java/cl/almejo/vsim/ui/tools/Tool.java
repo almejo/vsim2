@@ -17,6 +17,11 @@ public interface Tool {
         return false;
     }
 
+    /** True when the tool places what the palette has highlighted, so the palette keeps its highlight. */
+    default boolean placesFromPalette() {
+        return false;
+    }
+
     default void mousePressed(ToolContext context, CanvasMouseEvent event) {
     }
 

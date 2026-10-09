@@ -309,6 +309,11 @@ public final class PalettePanel extends JPanel {
         }
     }
 
+    /** True while an entry is highlighted. Package-private for tests. */
+    boolean hasSelection() {
+        return tree.getSelectionPath() != null;
+    }
+
     private void rebuild() {
         String query = search.getText();
         DefaultMutableTreeNode root = new DefaultMutableTreeNode();

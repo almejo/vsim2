@@ -32,6 +32,11 @@ public final class PlaceComponentTool implements Tool {
     }
 
     @Override
+    public boolean placesFromPalette() {
+        return true;
+    }
+
+    @Override
     public void mouseMoved(ToolContext context, CanvasMouseEvent event) {
         hover = event.snapped();
         context.repaint();

@@ -10,4 +10,9 @@ public final class PalettePanelAccess {
     public static Object treeModel(PalettePanel palette) {
         return palette.treeModel();
     }
+
+    /** True while an entry of the palette is highlighted. */
+    public static boolean hasSelection(PalettePanel palette) {
+        return palette.hasSelection();
+    }
 }

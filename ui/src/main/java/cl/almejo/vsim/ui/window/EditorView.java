@@ -289,7 +289,7 @@ public final class EditorView extends JPanel implements CanvasHost {
             case PanTool pan -> panButton.setSelected(true);
             default -> toolButtons.clearSelection();
         }
-        if (!(tool instanceof PlaceComponentTool)) {
+        if (!tool.placesFromPalette()) {
             palette.clearSelection();
         }
     }
