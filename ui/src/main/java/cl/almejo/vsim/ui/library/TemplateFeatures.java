@@ -10,14 +10,19 @@ import javax.swing.JSeparator;
 /** The M4-A features of one editor view. Installed by {@link TemplatesExtension}; {@link #dispose()} undoes it. */
 public final class TemplateFeatures {
 
+    private final EditorView view;
     private final TemplateActions actions;
     private final LibraryPalette palette;
     private final Action importComponent;
+    private final LibraryVersionBadge badge;
 
-    private TemplateFeatures(TemplateActions actions, LibraryPalette palette, Action importComponent) {
+    private TemplateFeatures(EditorView view, TemplateActions actions, LibraryPalette palette, Action importComponent,
+                             LibraryVersionBadge badge) {
+        this.view = view;
         this.actions = actions;
         this.palette = palette;
         this.importComponent = importComponent;
+        this.badge = badge;
     }
 
     public static TemplateFeatures install(EditorView view, LibraryService service, LibraryDialogs dialogs) {
@@ -25,6 +30,7 @@ public final class TemplateFeatures {
         JMenu edit = view.menu(MenuId.EDIT);
         edit.addSeparator();
         edit.add(actions.createComponent());
+        edit.add(actions.updateComponent());
         view.addContextMenuContributor(actions.contributor());
 
         LibraryImport importer = new LibraryImport(service, dialogs);
@@ -33,7 +39,12 @@ public final class TemplateFeatures {
 
         LibraryPalette palette = new LibraryPalette(view, service, dialogs, importer, importComponent);
         palette.install();
-        return new TemplateFeatures(actions, palette, importComponent);
+
+        LibraryVersionBadge badge = new LibraryVersionBadge(view.openDocument(), service.library(),
+                view.canvas()::scheme, view.canvas()::repaint);
+        badge.install();
+        view.canvas().addOverlay(badge);
+        return new TemplateFeatures(view, actions, palette, importComponent, badge);
     }
 
     public TemplateActions actions() {
@@ -49,8 +60,14 @@ public final class TemplateFeatures {
         return importComponent;
     }
 
-    /** Removes every listener registered on shared objects (document, library, service). */
+    public LibraryVersionBadge badge() {
+        return badge;
+    }
+
+    /** Removes every listener registered on shared objects (document, library, service) and the overlay. */
     public void dispose() {
+        view.canvas().removeOverlay(badge);
+        badge.dispose();
         palette.dispose();
         actions.dispose();
     }
