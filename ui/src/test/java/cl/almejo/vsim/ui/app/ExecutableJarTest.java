@@ -66,6 +66,14 @@ class ExecutableJarTest {
     }
 
     @Test
+    void itCarriesTheLoggingProviderTheSvgIconSupportAndTheApplicationIcon() throws IOException {
+        assertThat(entryNames()).contains(
+                "META-INF/services/org.slf4j.spi.SLF4JServiceProvider",
+                "com/formdev/flatlaf/extras/FlatSVGIcon.class",
+                "icons/app/vsim.svg");
+    }
+
+    @Test
     void hasNoSignatureFiles() throws IOException {
         assertThat(entryNames()).noneMatch(name -> name.matches("META-INF/[^/]+\\.(SF|DSA|RSA|EC)"));
     }
