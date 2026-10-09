@@ -57,12 +57,14 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.Predicate;
 
 /** The drawing surface of one window. Mouse input goes to the current {@link Tool}. */
 public final class CircuitCanvas extends JComponent implements ToolContext {
 
     private static final int FRAME_MILLISECONDS = 16;
     private static final int ANTS_MILLISECONDS = 90;
+    private static final int AUTOSCROLL_MILLISECONDS = 30;
     private static final double WHEEL_SCROLL_PIXELS = 40;
 
     private final OpenDocument openDocument;
@@ -75,6 +77,10 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     private final Timer frameTimer;
     private final MarchingAnts marchingAnts = new MarchingAnts();
     private final Timer antsTimer;
+    private final Timer autoscrollTimer;
+    private MouseEvent autoscrollEvent;
+    private boolean automaticAutoscrollClock = true;
+    private Predicate<Point> overAnotherWindow = this::isOverAnotherWindow;
     private final List<Consumer<Tool>> toolListeners = new CopyOnWriteArrayList<>();
     private final List<Consumer<SimulationSnapshot>> snapshotListeners = new CopyOnWriteArrayList<>();
     private final List<Runnable> viewListeners = new CopyOnWriteArrayList<>();
@@ -130,6 +136,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         });
         frameTimer = new Timer(FRAME_MILLISECONDS, event -> refreshSnapshot());
         antsTimer = new Timer(ANTS_MILLISECONDS, event -> animationTick());
+        autoscrollTimer = new Timer(AUTOSCROLL_MILLISECONDS, event -> autoscrollTick());
     }
 
     /** Places the palette entry encoded in {@code transferText} at {@code screenPoint}; false when it is not one. */
@@ -217,6 +224,88 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         return dragOutOrigin != null;
     }
 
+    /** True while a move or a rubber band is held at the edge and the view scrolls under it. */
+    boolean isAutoscrolling() {
+        return autoscrollEvent != null;
+    }
+
+    /** Tests call {@link #autoscrollTick()} themselves instead of the Swing timer, so positions are exact. */
+    void useManualAutoscrollClock() {
+        automaticAutoscrollClock = false;
+        autoscrollTimer.stop();
+    }
+
+    /** Replaces the "this point (canvas coordinates) is over another window" check, for headless tests. */
+    void overrideWindowProbe(Predicate<Point> check) {
+        overAnotherWindow = check;
+    }
+
+    /** One autoscroll step: scrolls the view and replays the last drag, so the move or the band follows the pointer. */
+    void autoscrollTick() {
+        if (autoscrollEvent == null || !(tool instanceof SelectTool select) || !select.autoscrolls()) {
+            stopAutoscroll();
+            return;
+        }
+        Point step = EdgeAutoscroll.step(getWidth(), getHeight(), autoscrollEvent.getPoint());
+        if (step.x == 0 && step.y == 0) {
+            stopAutoscroll();
+            return;
+        }
+        viewport.panBy(step.x, step.y);
+        tool.mouseDragged(this, convert(autoscrollEvent));
+        repaint();
+    }
+
+    /** Starts or stops the autoscroll after a drag to {@code event}. */
+    private void followEdge(MouseEvent event) {
+        Point step = EdgeAutoscroll.step(getWidth(), getHeight(), event.getPoint());
+        boolean wanted = tool instanceof SelectTool select && select.autoscrolls() && (step.x != 0 || step.y != 0);
+        if (!wanted) {
+            stopAutoscroll();
+            return;
+        }
+        autoscrollEvent = event;
+        if (automaticAutoscrollClock && !autoscrollTimer.isRunning()) {
+            autoscrollTimer.start();
+        }
+    }
+
+    private void stopAutoscroll() {
+        autoscrollEvent = null;
+        autoscrollTimer.stop();
+    }
+
+    /**
+     * The point is over a showing window of this application that is neither this canvas's window nor owned by it
+     * (popups, tooltips). Windows of other programs are invisible here, so dragging over them keeps the move.
+     */
+    private boolean isOverAnotherWindow(Point canvasPoint) {
+        if (!isShowing()) {
+            return false;
+        }
+        Point screenPoint = new Point(canvasPoint);
+        SwingUtilities.convertPointToScreen(screenPoint, this);
+        Window own = SwingUtilities.getWindowAncestor(this);
+        if (own == null || own.getBounds().contains(screenPoint)) {
+            return false;
+        }
+        for (Window window : Window.getWindows()) {
+            if (window.isShowing() && !isOwnedBy(window, own) && window.getBounds().contains(screenPoint)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean isOwnedBy(Window window, Window own) {
+        for (Window current = window; current != null; current = current.getOwner()) {
+            if (current == own) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     Optional<String> selectionFragmentJson() {
         if (selection.isEmpty()) {
             return Optional.empty();
@@ -251,6 +340,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
 
     @Override
     public void removeNotify() {
+        stopAutoscroll();
         frameTimer.stop();
         animationSuspended = true;
         antsTimer.stop();
@@ -259,6 +349,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     }
 
     public void dispose() {
+        stopAutoscroll();
         frameTimer.stop();
         animationSuspended = true;
         antsTimer.stop();
@@ -576,16 +667,20 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
                 repaint();
                 return;
             }
-            if (!CircuitCanvas.this.contains(event.getPoint()) && beginDragOut()) {
+            if (!CircuitCanvas.this.contains(event.getPoint()) && overAnotherWindow.test(event.getPoint())
+                    && beginDragOut()) {
+                stopAutoscroll();
                 getTransferHandler().exportAsDrag(CircuitCanvas.this, event, TransferHandler.COPY);
                 return;
             }
             tool.mouseDragged(CircuitCanvas.this, convert(event));
+            followEdge(event);
             updateAnimation();
         }
 
         @Override
         public void mouseReleased(MouseEvent event) {
+            stopAutoscroll();
             if (panAnchor != null) {
                 panAnchor = null;
                 return;

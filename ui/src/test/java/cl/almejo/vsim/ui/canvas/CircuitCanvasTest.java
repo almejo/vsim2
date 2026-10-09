@@ -76,6 +76,7 @@ class CircuitCanvasTest {
     @BeforeEach
     void showOnScreen() {
         canvas.overrideOnScreen(() -> onScreen);
+        canvas.useManualAutoscrollClock();
     }
 
     @AfterEach
@@ -425,12 +426,16 @@ class CircuitCanvasTest {
     }
 
     @Test
-    void draggingTheSelectionOutOfTheCanvasAbandonsTheMove() {
+    void draggingTheSelectionOverAnotherWindowStartsTheDragOut() {
         canvas.setSize(400, 300);
+        canvas.overrideWindowProbe(point -> true);
         Component gate = place(openDocument, StandardComponentTypes.NOT, 5, 5, Map.of());
         primaryPress(56, 56);
         primaryDrag(72, 64);
+        primaryDrag(392, 64);
+        assertThat(canvas.isAutoscrolling()).isTrue();
         primaryDrag(-16, 64);
+        assertThat(canvas.isAutoscrolling()).isFalse(); // the drag out stops it, not only the release
         primaryRelease(-16, 64);
         assertThat(openDocument.document().component(gate.id()).orElseThrow().position())
                 .isEqualTo(new GridPoint(5, 5));
@@ -438,6 +443,87 @@ class CircuitCanvasTest {
         assertThat(canvas.selection().ids()).containsExactly(gate.id());
         assertThat(((SelectTool) canvas.tool()).movingFrom()).isEmpty();
         assertThat(canvas.isDraggingOut()).isFalse(); // headless Swing ends the drag at once (exportDone, NONE)
+        assertThat(canvas.isAutoscrolling()).isFalse();
+    }
+
+    @Test
+    void aMoveHeldAtTheEdgeScrollsTheViewAndKeepsMoving() {
+        canvas.setSize(400, 300);
+        Component gate = place(openDocument, StandardComponentTypes.NOT, 5, 5, Map.of());
+        primaryPress(56, 56);
+        primaryDrag(392, 64);
+        assertThat(canvas.isAutoscrolling()).isTrue();
+        canvas.autoscrollTick();
+        assertThat(canvas.viewport().gridToScreen(0, 0)).isEqualTo(new Point2D.Double(-7, 0));
+        primaryRelease(392, 64);
+        assertThat(canvas.isAutoscrolling()).isFalse();
+        assertThat(openDocument.document().component(gate.id()).orElseThrow().position())
+                .isEqualTo(new GridPoint(48, 6));
+        assertThat(openDocument.history().undoDescription()).contains("command.move");
+    }
+
+    @Test
+    void aMovePastTheEdgeOverItsOwnWindowKeepsMovingInsteadOfDraggingOut() {
+        canvas.setSize(400, 300);
+        List<Point> asked = new ArrayList<>();
+        canvas.overrideWindowProbe(point -> {
+            asked.add(point);
+            return false;
+        });
+        Component gate = place(openDocument, StandardComponentTypes.NOT, 5, 5, Map.of());
+        primaryPress(56, 56);
+        primaryDrag(72, 64);
+        primaryDrag(-16, 64);
+        assertThat(asked).containsExactly(new Point(-16, 64));
+        assertThat(canvas.isDraggingOut()).isFalse();
+        assertThat(((SelectTool) canvas.tool()).movingFrom()).isPresent();
+        primaryRelease(-16, 64);
+        assertThat(canvas.isAutoscrolling()).isFalse();
+        assertThat(openDocument.document().component(gate.id()).orElseThrow().position())
+                .isEqualTo(new GridPoint(-4, 6));
+    }
+
+    @Test
+    void aRubberBandHeldAtTheEdgeScrollsAndReachesWhatWasOffScreen() {
+        canvas.setSize(400, 300);
+        Component gate = place(openDocument, StandardComponentTypes.NOT, 24, 36, Map.of());
+        primaryPress(180, 150);
+        primaryDrag(240, 295);
+        assertThat(canvas.isAutoscrolling()).isTrue();
+        for (int tick = 0; tick < 4; tick++) {
+            canvas.autoscrollTick();
+        }
+        assertThat(canvas.viewport().gridToScreen(0, 0)).isEqualTo(new Point2D.Double(0, -32));
+        primaryRelease(240, 295);
+        assertThat(canvas.selection().ids()).containsExactly(gate.id());
+    }
+
+    @Test
+    void comingBackInsideOrReleasingStopsTheAutoscroll() {
+        canvas.setSize(400, 300);
+        place(openDocument, StandardComponentTypes.NOT, 5, 5, Map.of());
+        primaryPress(56, 56);
+        primaryDrag(392, 64);
+        assertThat(canvas.isAutoscrolling()).isTrue();
+        primaryDrag(200, 150);
+        assertThat(canvas.isAutoscrolling()).isFalse();
+        primaryDrag(5, 150);
+        assertThat(canvas.isAutoscrolling()).isTrue();
+        primaryRelease(5, 150);
+        assertThat(canvas.isAutoscrolling()).isFalse();
+        Point2D origin = canvas.viewport().gridToScreen(0, 0);
+        canvas.autoscrollTick();
+        assertThat(canvas.viewport().gridToScreen(0, 0)).isEqualTo(origin);
+    }
+
+    @Test
+    void aDisposedCanvasStopsAutoscrolling() {
+        canvas.setSize(400, 300);
+        place(openDocument, StandardComponentTypes.NOT, 5, 5, Map.of());
+        primaryPress(56, 56);
+        primaryDrag(392, 64);
+        canvas.dispose();
+        assertThat(canvas.isAutoscrolling()).isFalse();
     }
 
     @Test

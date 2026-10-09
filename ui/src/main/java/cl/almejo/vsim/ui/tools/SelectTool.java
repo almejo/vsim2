@@ -342,6 +342,11 @@ public final class SelectTool implements Tool {
         context.repaint();
     }
 
+    /** True while a drag moves the selection or a rubber band: the canvas scrolls when the pointer nears its edge. */
+    public boolean autoscrolls() {
+        return bandStart != null || movingFrom().isPresent();
+    }
+
     /** A press on a pin or wire that did not become a wire: behave like a plain click on what was under it. */
     private void click(ToolContext context) {
         if (pressedElement == null) {

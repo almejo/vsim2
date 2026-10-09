@@ -663,4 +663,20 @@ class SelectToolTest {
                 .isEqualTo(new GridPoint(8, 6));
         assertThat(context.selection.ids()).containsExactly(label.id());
     }
+
+    @Test
+    void autoscrollsOnlyWhileMovingTheSelectionOrDraggingABand() {
+        not(0, 0);
+        assertThat(tool.autoscrolls()).isFalse();
+        tool.mousePressed(context, TestToolContext.at(2, 2));
+        assertThat(tool.autoscrolls()).isTrue();
+        tool.mouseReleased(context, TestToolContext.at(2, 2));
+        assertThat(tool.autoscrolls()).isFalse();
+        tool.mousePressed(context, TestToolContext.at(30, 30));
+        tool.mouseDragged(context, TestToolContext.at(34, 34));
+        assertThat(tool.autoscrolls()).isTrue();
+        tool.mouseReleased(context, TestToolContext.at(34, 34));
+        tool.mousePressed(context, TestToolContext.at(0, 2)); // the NOT input pin: draws a wire
+        assertThat(tool.autoscrolls()).isFalse();
+    }
 }
