@@ -262,6 +262,11 @@ public final class EditorActions {
                 ? Optional.empty() : Optional.of(component);
     }
 
+    /** The platform menu modifier (Ctrl, or ⌘ on macOS); Ctrl when headless. */
+    public int menuShortcutMaskForBindings() {
+        return menuMask;
+    }
+
     private KeyStroke shortcut(int keyCode, int extraModifiers) {
         return KeyStroke.getKeyStroke(keyCode, menuMask | extraModifiers);
     }

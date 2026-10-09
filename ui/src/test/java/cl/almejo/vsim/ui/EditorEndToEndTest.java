@@ -74,4 +74,23 @@ class EditorEndToEndTest {
             assertThat(document.latestSnapshot().shortCircuits()).isEmpty();
         }
     }
+
+    @Test
+    void wiringWithTheSelectionToolAlone() {
+        try (TestToolContext context = TestToolContext.withNewDocument()) {
+            OpenDocument document = context.openDocument();
+            SelectTool select = new SelectTool();
+            new PlaceComponentTool(document.registry().require(StandardComponentTypes.SWITCH))
+                    .mousePressed(context, TestToolContext.at(0, 0));
+            new PlaceComponentTool(document.registry().require(StandardComponentTypes.LED))
+                    .mousePressed(context, TestToolContext.at(10, 0));
+            Component led = document.document().components().get(1);
+            select.mousePressed(context, TestToolContext.at(4, 1));
+            select.mouseDragged(context, TestToolContext.at(11, 1.2));
+            select.mouseDragged(context, TestToolContext.at(11, 3));
+            select.mouseReleased(context, TestToolContext.at(11, 3));
+            assertThat(document.document().wires()).hasSize(2);
+            waitUntil(() -> synced(document) && ledState(document, led).equals(new VisibleState.LedState(Value.ONE)));
+        }
+    }
 }

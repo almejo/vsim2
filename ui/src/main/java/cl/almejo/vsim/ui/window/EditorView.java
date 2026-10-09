@@ -83,6 +83,7 @@ public final class EditorView extends JPanel implements CanvasHost {
         canvas.bindKey(KeyStroke.getKeyStroke(KeyEvent.VK_R, 0), "rotateClockwise", actions.rotateClockwise());
         canvas.bindKey(KeyStroke.getKeyStroke(KeyEvent.VK_R, InputEvent.SHIFT_DOWN_MASK), "rotateCounterClockwise",
                 actions.rotateCounterClockwise());
+        bindZoomKeys();
         toolChanged(canvas.tool());
     }
 
@@ -107,6 +108,20 @@ public final class EditorView extends JPanel implements CanvasHost {
     @Override
     public void configure(Component component) {
         actions.configure(component);
+    }
+
+    /** Menu accelerators allow one keystroke each; these cover "+" on non-US layouts and the keypad. */
+    private void bindZoomKeys() {
+        int mask = actions.menuShortcutMaskForBindings();
+        var keys = getInputMap(WHEN_ANCESTOR_OF_FOCUSED_COMPONENT);
+        keys.put(KeyStroke.getKeyStroke(KeyEvent.VK_PLUS, mask), "zoomIn");
+        keys.put(KeyStroke.getKeyStroke(KeyEvent.VK_ADD, mask), "zoomIn");
+        keys.put(KeyStroke.getKeyStroke(KeyEvent.VK_EQUALS, mask | InputEvent.SHIFT_DOWN_MASK), "zoomIn");
+        keys.put(KeyStroke.getKeyStroke(KeyEvent.VK_SUBTRACT, mask), "zoomOut");
+        keys.put(KeyStroke.getKeyStroke(KeyEvent.VK_NUMPAD0, mask), "zoomReset");
+        getActionMap().put("zoomIn", actions.zoomIn());
+        getActionMap().put("zoomOut", actions.zoomOut());
+        getActionMap().put("zoomReset", actions.zoomReset());
     }
 
     private void buildToolBar() {

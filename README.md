@@ -15,11 +15,11 @@ Diseño: `docs/superpowers/specs/2026-10-08-vsim2-design.md`.
     ./gradlew :ui:run --args="../examples/vsim1/4-bit-adder.json"
     ./gradlew :ui:run -PvsimLanguage=en
 
-- Paleta a la izquierda: elegir un componente y hacer click en el canvas para colocarlo (R / Mayús+R rota antes de colocar, Esc termina).
-- Herramienta Cable: arrastrar desde un pin; el cable sale en "L".
-- Selección: click selecciona, arrastrar mueve, Supr borra, R / Mayús+R rota, doble click configura, botón derecho abre el menú.
+- Paleta: click en un componente y luego click en el canvas para colocarlo (vuelve solo a Selección; con Mayús se siguen colocando). También se puede arrastrar desde la paleta al canvas. R / Mayús+R rota antes de colocar.
+- Cables: arrastrar desde un pin (se marca con un anillo al pasar el mouse) o desde un cable dibuja un cable en "L". Para mover un cable, primero click para seleccionarlo y luego arrastrarlo.
+- Selección: click selecciona, arrastrar el cuerpo mueve, Supr borra, R / Mayús+R rota, doble click configura, botón derecho abre el menú.
 - Click sobre un interruptor lo cambia mientras simula.
-- Ctrl+rueda: zoom; rueda / Mayús+rueda: desplazar; botón del medio o Espacio+arrastrar: mover la vista.
+- Ctrl+rueda o Ctrl + / Ctrl − (también en el teclado numérico): zoom; rueda / Mayús+rueda: desplazar; botón del medio o Espacio+arrastrar: mover la vista.
 - Los cortocircuitos se ven en rojo, con un halo en cada pin que maneja la red.
 
 ## Demo de consola (M1)

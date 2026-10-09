@@ -195,6 +195,19 @@ class EditorViewTest {
         assertThat(image.getRGB(600, 400)).isNotZero();
     }
 
+    @Test
+    void zoomAcceptsPlusAndKeypadKeys() {
+        var keys = view.getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT);
+        int control = InputEvent.CTRL_DOWN_MASK;
+        assertThat(keys.get(KeyStroke.getKeyStroke(KeyEvent.VK_PLUS, control))).isEqualTo("zoomIn");
+        assertThat(keys.get(KeyStroke.getKeyStroke(KeyEvent.VK_ADD, control))).isEqualTo("zoomIn");
+        assertThat(keys.get(KeyStroke.getKeyStroke(KeyEvent.VK_EQUALS, control | InputEvent.SHIFT_DOWN_MASK)))
+                .isEqualTo("zoomIn");
+        assertThat(keys.get(KeyStroke.getKeyStroke(KeyEvent.VK_SUBTRACT, control))).isEqualTo("zoomOut");
+        assertThat(keys.get(KeyStroke.getKeyStroke(KeyEvent.VK_NUMPAD0, control))).isEqualTo("zoomReset");
+        assertThat(view.getActionMap().get("zoomIn")).isSameAs(view.actions().zoomIn());
+    }
+
     private AbstractButton toggle(String text) {
         for (java.awt.Component child : view.toolBar().getComponents()) {
             if (child instanceof AbstractButton button && text.equals(button.getText())) {
