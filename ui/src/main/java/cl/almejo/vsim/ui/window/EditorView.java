@@ -98,11 +98,7 @@ public final class EditorView extends JPanel implements CanvasHost {
         panButton = new JToggleButton(actions.panTool());
         buildToolBar();
 
-        JSplitPane inspectorSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, canvas, inspector);
-        inspectorSplit.setContinuousLayout(true);
-        inspectorSplit.setResizeWeight(1);
-        inspectorSplit.setOneTouchExpandable(true);
-        inspectorSplit.setDividerSize(0); // no divider while the inspector is hidden; InspectorPanel restores it
+        JSplitPane inspectorSplit = new InspectorSplit(canvas, inspector);
         JSplitPane split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, palette, inspectorSplit);
         split.setDividerLocation(PALETTE_WIDTH);
         split.setContinuousLayout(true);

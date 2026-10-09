@@ -2,16 +2,16 @@ package cl.almejo.vsim.ui.window;
 
 import javax.swing.JComponent;
 import javax.swing.JPanel;
-import javax.swing.JSplitPane;
 import javax.swing.JTabbedPane;
 import java.awt.BorderLayout;
 import java.awt.Dimension;
 import java.util.Optional;
 
-/** Right-hand side panel of an editor window: one tab per inspector (Propiedades, Problemas, …). Hidden while empty. */
+/** Right-hand side panel of an editor window: one tab per inspector (Propiedades, Problemas, …). Hidden while empty; opens at
+ * {@link #PREFERRED_WIDTH} with its first tab. */
 public final class InspectorPanel extends JPanel {
 
-    public static final int PREFERRED_WIDTH = 260;
+    public static final int PREFERRED_WIDTH = 280;
 
     private final JTabbedPane tabs = new JTabbedPane();
 
@@ -29,9 +29,8 @@ public final class InspectorPanel extends JPanel {
         }
         tabs.addTab(title, content);
         setVisible(true);
-        if (tabs.getTabCount() == 1 && getParent() instanceof JSplitPane split) {
-            split.setDividerSize(new JSplitPane().getDividerSize());
-            split.resetToPreferredSizes();
+        if (tabs.getTabCount() == 1 && getParent() instanceof InspectorSplit split) {
+            split.openInspector();
         }
         revalidate();
     }
@@ -44,8 +43,8 @@ public final class InspectorPanel extends JPanel {
         }
         tabs.setSelectedIndex(index);
         setVisible(true);
-        if (getWidth() == 0 && getParent() instanceof JSplitPane split) {
-            split.resetToPreferredSizes();
+        if (getWidth() == 0 && getParent() instanceof InspectorSplit split) {
+            split.openInspector();
         }
     }
 

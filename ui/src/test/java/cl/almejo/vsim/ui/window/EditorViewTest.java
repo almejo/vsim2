@@ -131,6 +131,36 @@ class EditorViewTest {
     }
 
     @Test
+    void aNewViewOpensTheInspectorAtItsPreferredWidthWithAVisibleDivider() {
+        InspectorPanel inspector = view.inspector();
+        JSplitPane inspectorSplit = (JSplitPane) inspector.getParent();
+        view.setSize(1280, 760);
+        layoutTree(view);
+
+        assertThat(inspector.getWidth()).isEqualTo(InspectorPanel.PREFERRED_WIDTH);
+        assertThat(inspectorSplit.getDividerSize()).isGreaterThanOrEqualTo(InspectorSplit.DIVIDER_SIZE);
+        assertThat(inspectorSplit.getDividerLocation()).isEqualTo(inspectorSplit.getWidth()
+                - inspectorSplit.getInsets().right - inspectorSplit.getDividerSize() - InspectorPanel.PREFERRED_WIDTH);
+        assertThat(view.canvas().getWidth()).isGreaterThan(InspectorPanel.PREFERRED_WIDTH);
+    }
+
+    @Test
+    void showingATabReopensACollapsedInspectorAtItsPreferredWidth() {
+        InspectorPanel inspector = view.inspector();
+        JSplitPane inspectorSplit = (JSplitPane) inspector.getParent();
+        view.setSize(1280, 760);
+        layoutTree(view);
+        inspectorSplit.setDividerLocation(inspectorSplit.getWidth());
+        layoutTree(view);
+        assertThat(inspector.getWidth()).isZero();
+
+        inspector.showTab(inspector.selectedTab().orElseThrow());
+        layoutTree(view);
+
+        assertThat(inspector.getWidth()).isEqualTo(InspectorPanel.PREFERRED_WIDTH);
+    }
+
+    @Test
     void inspectorSitsNextToTheCanvasAndShowsItsTabs() {
         InspectorPanel inspector = view.inspector();
         assertThat(inspector.isVisible()).isTrue();
