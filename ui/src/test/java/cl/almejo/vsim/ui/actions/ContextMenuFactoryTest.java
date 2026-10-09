@@ -33,6 +33,8 @@ class ContextMenuFactoryTest {
 
     private OpenDocument openDocument;
     private EditorView view;
+    /** Only the contributors a test adds: the view's own (clipboard) contributor is not under test here. */
+    private final List<ContextMenuContributor> contributors = new ArrayList<>();
 
     @BeforeEach
     void create() {
@@ -54,6 +56,10 @@ class ContextMenuFactoryTest {
         openDocument.close();
     }
 
+    private JPopupMenu contextMenu(Optional<cl.almejo.vsim.core.document.DocumentElement> target, Point2D gridPosition) {
+        return ContextMenuFactory.create(target, view.actions(), view.canvas().selection(), gridPosition, contributors);
+    }
+
     private static List<String> texts(JPopupMenu menu) {
         List<String> texts = new ArrayList<>();
         for (java.awt.Component child : menu.getComponents()) {
@@ -66,41 +72,41 @@ class ContextMenuFactoryTest {
     void componentMenuOffersConfigureRotateAndDelete() {
         Component gate = place(openDocument, StandardComponentTypes.NOT, 0, 0, Map.of());
         view.canvas().selection().select(gate.id());
-        assertThat(texts(view.contextMenu(Optional.of(gate), CLICK)))
+        assertThat(texts(contextMenu(Optional.of(gate), CLICK)))
                 .containsExactly("Configurar…", "Rotar ↻", "Rotar ↺", "---", "Borrar");
     }
 
     @Test
     void wireMenuOffersDeleteWire() {
         Wire wire = new Wire(new ElementId("w9"), GridPoint.ORIGIN, new GridPoint(3, 0));
-        assertThat(texts(view.contextMenu(Optional.of(wire), CLICK))).containsExactly("Borrar cable");
+        assertThat(texts(contextMenu(Optional.of(wire), CLICK))).containsExactly("Borrar cable");
     }
 
     @Test
     void emptyCanvasMenuOffersCenterView() {
-        assertThat(texts(view.contextMenu(Optional.empty(), CLICK))).containsExactly("Centrar circuito");
+        assertThat(texts(contextMenu(Optional.empty(), CLICK))).containsExactly("Centrar circuito");
     }
 
     @Test
     void contributorsAddTheirGroupsInOrderSeparatedFromTheRest() {
         List<Selection> seen = new ArrayList<>();
         List<Point2D> positions = new ArrayList<>();
-        view.addContextMenuContributor((menu, target, selection, gridPosition) -> {
+        contributors.add((menu, target, selection, gridPosition) -> {
             seen.add(selection);
             positions.add(gridPosition);
             menu.add(new JMenuItem("Uno"));
         });
-        view.addContextMenuContributor((menu, target, selection, gridPosition) -> { });
-        view.addContextMenuContributor((menu, target, selection, gridPosition) -> {
+        contributors.add((menu, target, selection, gridPosition) -> { });
+        contributors.add((menu, target, selection, gridPosition) -> {
             if (target.isEmpty()) {
                 menu.add(new JMenuItem("Dos"));
                 menu.add(new JMenuItem("Tres"));
             }
         });
-        assertThat(texts(view.contextMenu(Optional.empty(), CLICK)))
+        assertThat(texts(contextMenu(Optional.empty(), CLICK)))
                 .containsExactly("Centrar circuito", "---", "Uno", "---", "Dos", "Tres");
         Wire wire = new Wire(new ElementId("w9"), GridPoint.ORIGIN, new GridPoint(3, 0));
-        assertThat(texts(view.contextMenu(Optional.of(wire), CLICK))).containsExactly("Borrar cable", "---", "Uno");
+        assertThat(texts(contextMenu(Optional.of(wire), CLICK))).containsExactly("Borrar cable", "---", "Uno");
         assertThat(seen).hasSize(2).allMatch(selection -> selection == view.canvas().selection());
         assertThat(positions).containsExactly(CLICK, CLICK);
     }
@@ -110,27 +116,27 @@ class ContextMenuFactoryTest {
         Component first = place(openDocument, StandardComponentTypes.NOT, 0, 0, Map.of());
         Component second = place(openDocument, StandardComponentTypes.NOT, 10, 0, Map.of());
         view.canvas().selection().set(List.of(first.id(), second.id()));
-        assertThat(texts(view.contextMenu(Optional.of(first), CLICK))).isEmpty();
-        view.addContextMenuContributor((menu, target, selection, gridPosition) -> menu.add(new JMenuItem("Uno")));
-        assertThat(texts(view.contextMenu(Optional.of(first), CLICK))).containsExactly("Uno");
+        assertThat(texts(contextMenu(Optional.of(first), CLICK))).isEmpty();
+        contributors.add((menu, target, selection, gridPosition) -> menu.add(new JMenuItem("Uno")));
+        assertThat(texts(contextMenu(Optional.of(first), CLICK))).containsExactly("Uno");
         Component outsider = place(openDocument, StandardComponentTypes.NOT, 20, 0, Map.of());
-        assertThat(texts(view.contextMenu(Optional.of(outsider), CLICK)))
+        assertThat(texts(contextMenu(Optional.of(outsider), CLICK)))
                 .containsExactly("Configurar…", "Rotar ↻", "Rotar ↺", "---", "Borrar", "---", "Uno");
     }
 
     @Test
     void contributorsCannotAddAnActionThatIsAlreadyInTheMenu() {
-        view.addContextMenuContributor((menu, target, selection, gridPosition) -> {
+        contributors.add((menu, target, selection, gridPosition) -> {
             menu.add(new JMenuItem(view.actions().delete()));
             menu.add(new JMenuItem(view.actions().rotateClockwise()));
             menu.add(new JMenuItem(view.actions().delete()));
         });
         Component gate = place(openDocument, StandardComponentTypes.NOT, 0, 0, Map.of());
         view.canvas().selection().select(gate.id());
-        assertThat(texts(view.contextMenu(Optional.of(gate), CLICK)))
+        assertThat(texts(contextMenu(Optional.of(gate), CLICK)))
                 .containsExactly("Configurar…", "Rotar ↻", "Rotar ↺", "---", "Borrar");
         Component other = place(openDocument, StandardComponentTypes.NOT, 10, 0, Map.of());
         view.canvas().selection().set(List.of(gate.id(), other.id()));
-        assertThat(texts(view.contextMenu(Optional.of(gate), CLICK))).containsExactly("Borrar", "Rotar ↻");
+        assertThat(texts(contextMenu(Optional.of(gate), CLICK))).containsExactly("Borrar", "Rotar ↻");
     }
 }

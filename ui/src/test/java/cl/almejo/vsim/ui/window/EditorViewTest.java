@@ -320,4 +320,27 @@ class EditorViewTest {
         view.canvas().selection().clear();
         assertThat(view.statusBar().text()).doesNotContain("seleccionado");
     }
+
+    @Test
+    void editMenuOffersTheClipboardWithPlatformShortcuts() {
+        JMenu edit = view.menu(MenuId.EDIT);
+        List<String> texts = new ArrayList<>();
+        for (int index = 0; index < edit.getItemCount(); index++) {
+            if (edit.getItem(index) != null) {
+                texts.add(edit.getItem(index).getText());
+            }
+        }
+        assertThat(texts).contains("Cortar", "Copiar", "Pegar", "Duplicar", "Seleccionar todo");
+        int control = InputEvent.CTRL_DOWN_MASK;
+        assertThat(view.selectionActions().cut().getValue(Action.ACCELERATOR_KEY))
+                .isEqualTo(KeyStroke.getKeyStroke(KeyEvent.VK_X, control));
+        assertThat(view.selectionActions().copy().getValue(Action.ACCELERATOR_KEY))
+                .isEqualTo(KeyStroke.getKeyStroke(KeyEvent.VK_C, control));
+        assertThat(view.selectionActions().paste().getValue(Action.ACCELERATOR_KEY))
+                .isEqualTo(KeyStroke.getKeyStroke(KeyEvent.VK_V, control));
+        assertThat(view.selectionActions().duplicate().getValue(Action.ACCELERATOR_KEY))
+                .isEqualTo(KeyStroke.getKeyStroke(KeyEvent.VK_D, control));
+        assertThat(view.selectionActions().selectAll().getValue(Action.ACCELERATOR_KEY))
+                .isEqualTo(KeyStroke.getKeyStroke(KeyEvent.VK_A, control));
+    }
 }

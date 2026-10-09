@@ -4,6 +4,7 @@ import cl.almejo.vsim.core.command.RemoveElementsCommand;
 import cl.almejo.vsim.core.component.ElementBounds;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.io.CircuitFormatException;
@@ -19,6 +20,8 @@ import org.slf4j.LoggerFactory;
 
 import javax.swing.AbstractAction;
 import javax.swing.Action;
+import javax.swing.JMenuItem;
+import javax.swing.JPopupMenu;
 import javax.swing.KeyStroke;
 import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
@@ -97,6 +100,40 @@ public final class SelectionActions {
                 .or(() -> clipboard.originOf(json.get()).map(origin -> origin.translate(PASTE_OFFSET, PASTE_OFFSET)))
                 .orElseGet(() -> canvas.viewport().snap(canvas.getWidth() / 2.0, canvas.getHeight() / 2.0));
         startFloating(fragment, position);
+    }
+
+    /** Clipboard entries of the canvas context menu (see the class tests for what each target gets). */
+    public ContextMenuContributor contributor() {
+        return (menu, target, selection, gridPosition) -> {
+            if (target.isEmpty()) {
+                Optional<GridPoint> openedAt = Optional.of(new GridPoint(
+                        (int) Math.round(gridPosition.getX()), (int) Math.round(gridPosition.getY())));
+                menu.add(new JMenuItem(action(Messages.text("action.paste"), null, () -> pasteAt(openedAt))));
+                addOnce(menu, selectAll);
+                return;
+            }
+            boolean multiple = selection.ids().size() > 1;
+            if (!multiple && target.get() instanceof Wire) {
+                return;
+            }
+            addOnce(menu, cut);
+            addOnce(menu, copy);
+            addOnce(menu, duplicate);
+            if (multiple) {
+                addOnce(menu, editorActions.delete());
+                addOnce(menu, editorActions.rotateClockwise());
+                addOnce(menu, editorActions.rotateCounterClockwise());
+            }
+        };
+    }
+
+    private static void addOnce(JPopupMenu menu, Action action) {
+        for (java.awt.Component child : menu.getComponents()) {
+            if (child instanceof JMenuItem item && item.getAction() == action) {
+                return;
+            }
+        }
+        menu.add(new JMenuItem(action));
     }
 
     private void refresh() {

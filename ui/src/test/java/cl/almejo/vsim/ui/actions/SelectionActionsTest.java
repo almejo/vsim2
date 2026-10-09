@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.actions;
 import cl.almejo.vsim.core.command.AddWireCommand;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
+import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.io.CircuitFragment;
@@ -21,6 +22,11 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import javax.swing.Action;
+import javax.swing.JMenuItem;
+import javax.swing.JPopupMenu;
+import java.awt.geom.Point2D;
+import java.util.ArrayList;
+import java.util.Optional;
 import java.awt.datatransfer.Clipboard;
 import java.awt.datatransfer.DataFlavor;
 import java.awt.datatransfer.StringSelection;
@@ -225,5 +231,65 @@ class SelectionActionsTest {
         openDocument.execute(new AddWireCommand(wire));
         perform(actions.selectAll());
         assertThat(view.canvas().selection().ids()).containsExactlyInAnyOrder(first.id(), second.id(), wire.id());
+    }
+
+    private static List<String> texts(JPopupMenu menu) {
+        List<String> texts = new ArrayList<>();
+        for (java.awt.Component child : menu.getComponents()) {
+            texts.add(child instanceof JMenuItem item ? item.getText() : "---");
+        }
+        return texts;
+    }
+
+    private JPopupMenu contribute(JPopupMenu menu, Optional<DocumentElement> target) {
+        return contribute(menu, target, new Point2D.Double());
+    }
+
+    private JPopupMenu contribute(JPopupMenu menu, Optional<DocumentElement> target, Point2D gridPosition) {
+        actions.contributor().contribute(menu, target, view.canvas().selection(), gridPosition);
+        return menu;
+    }
+
+    @Test
+    void emptyCanvasMenuPastesWhereItWasOpened() {
+        copyGateAt(10, 4);
+        view.canvas().selection().clear();
+        moveMouseOut();
+        JPopupMenu menu = contribute(new JPopupMenu(), Optional.empty(), new Point2D.Double(9.8, 6.2));
+        assertThat(texts(menu)).containsExactly("Pegar", "Seleccionar todo");
+        perform(((JMenuItem) menu.getComponent(0)).getAction());
+        assertThat(floating().position()).isEqualTo(new GridPoint(10, 6));
+    }
+
+    @Test
+    void componentMenuOffersCutCopyAndDuplicate() {
+        Component gate = gateAt(0, 0);
+        view.canvas().selection().select(gate.id());
+        assertThat(texts(contribute(new JPopupMenu(), Optional.of(gate))))
+                .containsExactly("Cortar", "Copiar", "Duplicar");
+    }
+
+    @Test
+    void aLoneWireGetsNoClipboardItems() {
+        Wire wire = new Wire(openDocument.document().newWireId(), new GridPoint(0, 8), new GridPoint(6, 8));
+        openDocument.execute(new AddWireCommand(wire));
+        view.canvas().selection().select(wire.id());
+        assertThat(texts(contribute(new JPopupMenu(), Optional.of(wire)))).isEmpty();
+    }
+
+    @Test
+    void multiSelectionMenuOffersEveryGroupOperationOnce() {
+        Component gate = gateAt(0, 0);
+        Wire wire = new Wire(openDocument.document().newWireId(), new GridPoint(0, 8), new GridPoint(6, 8));
+        openDocument.execute(new AddWireCommand(wire));
+        view.canvas().selection().set(List.of(gate.id(), wire.id()));
+        assertThat(texts(contribute(new JPopupMenu(), Optional.of(wire))))
+                .containsExactly("Cortar", "Copiar", "Duplicar", "Borrar", "Rotar ↻", "Rotar ↺");
+        JPopupMenu withM2Entries = new JPopupMenu();
+        withM2Entries.add(new JMenuItem(view.actions().rotateClockwise()));
+        withM2Entries.add(new JMenuItem(view.actions().rotateCounterClockwise()));
+        withM2Entries.add(new JMenuItem(view.actions().delete()));
+        assertThat(texts(contribute(withM2Entries, Optional.of(gate))))
+                .containsExactly("Rotar ↻", "Rotar ↺", "Borrar", "Cortar", "Copiar", "Duplicar");
     }
 }
