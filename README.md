@@ -35,6 +35,14 @@ Diseño: `docs/superpowers/specs/2026-10-08-vsim2-design.md`.
 - Íconos nuevos en menús, barra de herramientas y menú contextual (se adaptan al tema oscuro); la barra muestra solo íconos y el nombre aparece al pasar el mouse. La ventana tiene ícono propio.
 - Al pasar el mouse sobre «Pin de entrada» y «Pin de salida» en la paleta, un texto explica que funcionan como interruptor y LED mientras pruebas y que se vuelven los pines del componente; el diálogo de crear o actualizar un componente lo recuerda.
 
+## Buses (M5)
+
+- Un cable es un bus cuando une pines de más de un bit: se dibuja más grueso y muestra su valor en hexadecimal (`0x3F`; `Z` en un dígito con todos sus bits en alta impedancia, `?` si solo algunos lo están). Al pasar el mouse se ve «Bus de 8 bits = 0x3F»; el árbol de componentes también muestra los buses en hexadecimal.
+- «Separador de bus» y «Unión de bus» (en Básicas) pasan de un bus a sus bits y al revés, sin retardo. «Ancho (bits)» (2 a 32, 8 por omisión) se cambia con doble click y los pines aparecen o desaparecen al instante; el bit 0 es el de arriba. Los pines de más de un bit se marcan con un cuadrado.
+- «Pin de entrada» y «Pin de salida» tienen «Ancho (bits)» (1 a 64): un componente creado con ellos tiene pines de ese ancho (en la caja se leen como `a[8]`). Al probar el circuito, un pin de entrada de varios bits pone todos sus bits en 0, 1 o Z y un click alterna entre todo 0 y todo 1.
+- Unir pines de anchos distintos es un problema: el cable se ve rojo y punteado, junto a cada pin aparece su ancho, la barra de estado cuenta «⚠ 1 ancho incompatible» (junto a los cortocircuitos), F8 lleva a él y al pasar el mouse se listan los pines. Esa red queda en Z.
+- Los circuitos y componentes guardados antes de M5 se abren igual: todo es de 1 bit.
+
 ## Preferencias y distribución
 
 - Archivo → Preferencias… (en macOS también VSim 2 → Ajustes…): tema Claro, Oscuro o Seguir sistema; esquema de color del circuito (Según el tema, VSim clásico, Claro, Oscuro y los otros esquemas del VSim original: Pastel, CSim y Twilight); idioma (Sistema, Español, English; se aplica al reiniciar); directorio de la librería de componentes (Elegir… / Restaurar predeterminado). El tema y el esquema cambian al instante en todas las ventanas.
