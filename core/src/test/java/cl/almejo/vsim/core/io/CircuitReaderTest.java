@@ -74,4 +74,20 @@ class CircuitReaderTest {
         Files.writeString(file, "{\"gates\":[],\"connections\":[]}");
         assertThat(reader.read(file).name()).isEqualTo("viejo");
     }
+
+    @Test
+    void openMarksVsimOneFilesAsImported() throws Exception {
+        OpenedCircuit opened = reader.open(Path.of("src/test/resources/vsim1/one-gate.json"));
+        assertThat(opened.importedFromVsim1()).isTrue();
+        assertThat(opened.document().name()).isEqualTo("one-gate");
+    }
+
+    @Test
+    void openKeepsVersionTwoFilesAsNative(@TempDir Path directory) throws Exception {
+        Path file = directory.resolve("adder.vsim");
+        Files.writeString(file, format.write(new CircuitDocument()));
+        OpenedCircuit opened = reader.open(file);
+        assertThat(opened.importedFromVsim1()).isFalse();
+        assertThat(opened.document().name()).isEqualTo("adder");
+    }
 }

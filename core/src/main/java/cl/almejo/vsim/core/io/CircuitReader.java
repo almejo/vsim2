@@ -23,6 +23,31 @@ public final class CircuitReader {
     }
 
     public CircuitDocument read(String content) throws CircuitFormatException {
+        return parse(content).document();
+    }
+
+    public CircuitDocument read(Path path) throws CircuitFormatException {
+        return open(path).document();
+    }
+
+    public OpenedCircuit open(Path path) throws CircuitFormatException {
+        String content;
+        try {
+            content = Files.readString(path);
+        } catch (IOException exception) {
+            throw new CircuitFormatException(CircuitFormatException.Reason.READ_ERROR, path.toString(), exception);
+        }
+        OpenedCircuit opened = parse(content);
+        CircuitDocument document = opened.document();
+        if (document.name().isBlank()) {
+            String fileName = path.getFileName().toString();
+            int dot = fileName.lastIndexOf('.');
+            document.setName(dot > 0 ? fileName.substring(0, dot) : fileName);
+        }
+        return opened;
+    }
+
+    private OpenedCircuit parse(String content) throws CircuitFormatException {
         if (content == null || content.isBlank()) {
             throw new CircuitFormatException(CircuitFormatException.Reason.INVALID_JSON, "empty content");
         }
@@ -36,27 +61,11 @@ public final class CircuitReader {
             throw new CircuitFormatException(CircuitFormatException.Reason.INVALID_JSON, "empty content");
         }
         if (root.isObject() && root.has("formatVersion")) {
-            return format.read(root);
+            return new OpenedCircuit(format.read(root), false);
         }
         if (root.isObject() && root.path("gates").isArray()) {
-            return importer.importDocument(root);
+            return new OpenedCircuit(importer.importDocument(root), true);
         }
         throw new CircuitFormatException(CircuitFormatException.Reason.INVALID_ELEMENT, "not a VSim circuit");
-    }
-
-    public CircuitDocument read(Path path) throws CircuitFormatException {
-        String content;
-        try {
-            content = Files.readString(path);
-        } catch (IOException exception) {
-            throw new CircuitFormatException(CircuitFormatException.Reason.READ_ERROR, path.toString(), exception);
-        }
-        CircuitDocument document = read(content);
-        if (document.name().isBlank()) {
-            String fileName = path.getFileName().toString();
-            int dot = fileName.lastIndexOf('.');
-            document.setName(dot > 0 ? fileName.substring(0, dot) : fileName);
-        }
-        return document;
     }
 }
