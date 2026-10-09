@@ -1,0 +1,66 @@
+package cl.almejo.vsim.ui.panels;
+
+import cl.almejo.vsim.core.component.ComponentType;
+import cl.almejo.vsim.core.component.ComponentTypeRegistry;
+import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
+import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.paint.ColorScheme;
+import cl.almejo.vsim.ui.paint.PainterRegistry;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+class PalettePanelTest {
+
+    private final ComponentTypeRegistry registry = StandardComponentTypes.registry();
+    private final List<String> chosen = new ArrayList<>();
+    private PalettePanel palette;
+
+    @BeforeEach
+    void create() {
+        Messages.initialize(Messages.SPANISH);
+        palette = new PalettePanel(registry, PainterRegistry.standard(), ColorScheme.LIGHT,
+                type -> chosen.add(type.id()));
+    }
+
+    @Test
+    void listsEveryStandardTypeGroupedByCategory() {
+        assertThat(palette.visibleTypeIds()).containsExactlyElementsOf(
+                registry.all().stream()
+                        .sorted(java.util.Comparator.comparing(ComponentType::category))
+                        .map(ComponentType::id).toList());
+    }
+
+    @Test
+    void filterMatchesIdsAndLocalizedNames() {
+        palette.setFilter("and");
+        assertThat(palette.visibleTypeIds()).containsExactly("and2", "and3", "and4", "nand2", "nand3", "nand4");
+        palette.setFilter("RELOJ");
+        assertThat(palette.visibleTypeIds()).containsExactly(StandardComponentTypes.CLOCK);
+        palette.setFilter("zzz");
+        assertThat(palette.visibleTypeIds()).isEmpty();
+        palette.setFilter("  ");
+        assertThat(palette.visibleTypeIds()).hasSize(registry.all().size());
+    }
+
+    @Test
+    void choosingATypeCallsBackAndCanBeRepeatedAfterClearing() {
+        palette.choose(StandardComponentTypes.LED);
+        palette.clearSelection();
+        palette.choose(StandardComponentTypes.LED);
+        assertThat(chosen).containsExactly(StandardComponentTypes.LED, StandardComponentTypes.LED);
+    }
+
+    @Test
+    void filterHelperIgnoresCase() {
+        ComponentType clock = registry.require(StandardComponentTypes.CLOCK);
+        assertThat(PaletteFilter.matches(clock, "")).isTrue();
+        assertThat(PaletteFilter.matches(clock, "CLO")).isTrue();
+        assertThat(PaletteFilter.matches(clock, "reL")).isTrue();
+        assertThat(PaletteFilter.matches(clock, "led")).isFalse();
+    }
+}

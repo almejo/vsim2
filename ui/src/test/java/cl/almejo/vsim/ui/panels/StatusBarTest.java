@@ -1,0 +1,57 @@
+package cl.almejo.vsim.ui.panels;
+
+import cl.almejo.vsim.core.simulation.DriverRef;
+import cl.almejo.vsim.core.simulation.ShortCircuit;
+import cl.almejo.vsim.core.simulation.SimulationSnapshot;
+import cl.almejo.vsim.core.value.Value;
+import cl.almejo.vsim.ui.i18n.Messages;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+class StatusBarTest {
+
+    private final StatusBar statusBar = new StatusBar();
+
+    @BeforeEach
+    void spanish() {
+        Messages.initialize(Messages.SPANISH);
+    }
+
+    private static SimulationSnapshot snapshot(boolean running, int shorts, Optional<String> failure) {
+        List<ShortCircuit> problems = java.util.stream.IntStream.range(0, shorts)
+                .mapToObj(index -> new ShortCircuit("n" + index, List.of(new DriverRef("c1", 0, Value.ONE)), 0))
+                .toList();
+        return new SimulationSnapshot(1, 1, 1234, running, Map.of(), Map.of(), List.copyOf(problems), failure);
+    }
+
+    @Test
+    void showsStateTimeAndZoom() {
+        statusBar.showSnapshot(snapshot(true, 0, Optional.empty()));
+        statusBar.showZoom(1.25);
+        assertThat(statusBar.text()).isEqualTo("▶ corriendo · t = 1.234 · zoom 125 %");
+        statusBar.showSnapshot(snapshot(false, 0, Optional.empty()));
+        assertThat(statusBar.text()).startsWith("⏸ en pausa");
+    }
+
+    @Test
+    void showsShortCircuitsOnlyWhenThereAreSome() {
+        statusBar.showZoom(1);
+        statusBar.showSnapshot(snapshot(true, 2, Optional.empty()));
+        assertThat(statusBar.text()).contains("⚠ 2 cortocircuitos");
+        statusBar.showSnapshot(snapshot(true, 0, Optional.empty()));
+        assertThat(statusBar.text()).doesNotContain("⚠");
+    }
+
+    @Test
+    void showsTheSimulationFailure() {
+        statusBar.showZoom(1);
+        statusBar.showSnapshot(snapshot(false, 0, Optional.of("IllegalStateException: boom")));
+        assertThat(statusBar.text()).contains("Simulación detenida: IllegalStateException: boom");
+    }
+}
