@@ -73,7 +73,7 @@ class ContextMenuFactoryTest {
         Component gate = place(openDocument, StandardComponentTypes.NOT, 0, 0, Map.of());
         view.canvas().selection().select(gate.id());
         assertThat(texts(contextMenu(Optional.of(gate), CLICK)))
-                .containsExactly("Configurar…", "Rotar ↻", "Rotar ↺", "---", "Borrar");
+                .containsExactly("Configurar…", "---", "Rotar ↻", "Rotar ↺", "---", "Borrar");
     }
 
     @Test
@@ -121,7 +121,7 @@ class ContextMenuFactoryTest {
         assertThat(texts(contextMenu(Optional.of(first), CLICK))).containsExactly("Uno");
         Component outsider = place(openDocument, StandardComponentTypes.NOT, 20, 0, Map.of());
         assertThat(texts(contextMenu(Optional.of(outsider), CLICK)))
-                .containsExactly("Configurar…", "Rotar ↻", "Rotar ↺", "---", "Borrar", "---", "Uno");
+                .containsExactly("Configurar…", "---", "Rotar ↻", "Rotar ↺", "---", "Borrar", "---", "Uno");
     }
 
     @Test
@@ -134,25 +134,27 @@ class ContextMenuFactoryTest {
         Component gate = place(openDocument, StandardComponentTypes.NOT, 0, 0, Map.of());
         view.canvas().selection().select(gate.id());
         assertThat(texts(contextMenu(Optional.of(gate), CLICK)))
-                .containsExactly("Configurar…", "Rotar ↻", "Rotar ↺", "---", "Borrar");
+                .containsExactly("Configurar…", "---", "Rotar ↻", "Rotar ↺", "---", "Borrar");
         Component other = place(openDocument, StandardComponentTypes.NOT, 10, 0, Map.of());
         view.canvas().selection().set(List.of(gate.id(), other.id()));
         assertThat(texts(contextMenu(Optional.of(gate), CLICK))).containsExactly("Borrar", "Rotar ↻");
     }
 
+    /** Spec §6.6 order, review M6: Pegar, Agregar texto aquí, Seleccionar todo, Centrar vista. */
     @Test
     void theRealViewMenuIncludesTheClipboardAndLabelContributors() {
         assertThat(texts(view.contextMenu(Optional.empty(), CLICK)))
-                .containsExactly("Centrar circuito", "---", "Pegar", "Seleccionar todo", "---", "Agregar texto aquí");
+                .containsExactly("Pegar", "Agregar texto aquí", "---", "Seleccionar todo", "Centrar circuito");
     }
 
+    /** Spec §6.6 order, review M6: Configurar…, Etiqueta…, Rotar ↻ / ↺, Cortar, Copiar, Duplicar, Borrar. */
     @Test
     void theRealComponentMenuOffersClipboardAndLabelEntries() {
         Component gate = place(openDocument, StandardComponentTypes.NOT, 0, 0, Map.of());
         view.canvas().selection().select(gate.id());
         assertThat(texts(view.contextMenu(Optional.of(gate), CLICK)))
-                .containsExactly("Configurar…", "Rotar ↻", "Rotar ↺", "---", "Borrar",
-                        "---", "Cortar", "Copiar", "Duplicar", "---", "Etiqueta…");
+                .containsExactly("Configurar…", "Etiqueta…", "---", "Rotar ↻", "Rotar ↺",
+                        "---", "Cortar", "Copiar", "Duplicar", "---", "Borrar");
     }
 
     @Test

@@ -109,32 +109,33 @@ public final class SelectionActions {
             if (target.isEmpty()) {
                 Optional<GridPoint> openedAt = Optional.of(new GridPoint(
                         (int) Math.round(gridPosition.getX()), (int) Math.round(gridPosition.getY())));
-                menu.add(new JMenuItem(action(Messages.text("action.paste"), null, () -> pasteAt(openedAt))));
-                addOnce(menu, selectAll);
+                menu.add(ContextMenuEntry.PASTE.tag(
+                        new JMenuItem(action(Messages.text("action.paste"), null, () -> pasteAt(openedAt)))));
+                addOnce(menu, selectAll, ContextMenuEntry.SELECT_ALL);
                 return;
             }
             boolean multiple = selection.ids().size() > 1;
             if (!multiple && target.get() instanceof Wire) {
                 return;
             }
-            addOnce(menu, cut);
-            addOnce(menu, copy);
-            addOnce(menu, duplicate);
+            addOnce(menu, cut, ContextMenuEntry.CUT);
+            addOnce(menu, copy, ContextMenuEntry.COPY);
+            addOnce(menu, duplicate, ContextMenuEntry.DUPLICATE);
             if (multiple) {
-                addOnce(menu, editorActions.delete());
-                addOnce(menu, editorActions.rotateClockwise());
-                addOnce(menu, editorActions.rotateCounterClockwise());
+                addOnce(menu, editorActions.delete(), ContextMenuEntry.DELETE);
+                addOnce(menu, editorActions.rotateClockwise(), ContextMenuEntry.ROTATE_CLOCKWISE);
+                addOnce(menu, editorActions.rotateCounterClockwise(), ContextMenuEntry.ROTATE_COUNTER_CLOCKWISE);
             }
         };
     }
 
-    private static void addOnce(JPopupMenu menu, Action action) {
+    private static void addOnce(JPopupMenu menu, Action action, ContextMenuEntry entry) {
         for (java.awt.Component child : menu.getComponents()) {
             if (child instanceof JMenuItem item && item.getAction() == action) {
                 return;
             }
         }
-        menu.add(new JMenuItem(action));
+        menu.add(entry.tag(new JMenuItem(action)));
     }
 
     private void refresh() {

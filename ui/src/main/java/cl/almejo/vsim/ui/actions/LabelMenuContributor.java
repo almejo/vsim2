@@ -30,14 +30,16 @@ public final class LabelMenuContributor implements ContextMenuContributor {
                            Point2D gridPosition) {
         GridPoint point = new GridPoint((int) Math.round(gridPosition.getX()), (int) Math.round(gridPosition.getY()));
         if (target.isEmpty()) {
-            menu.add(item(Messages.text("action.addText"), () -> actions.addTextAt(point)));
+            menu.add(ContextMenuEntry.ADD_TEXT.tag(
+                    item(Messages.text("action.addText"), () -> actions.addTextAt(point))));
             return;
         }
         boolean single = selection.ids().size() <= 1;
         switch (target.get()) {
             case Component component -> {
                 if (single) {
-                    menu.add(item(Messages.text("action.label"), () -> actions.editLabel(component)));
+                    menu.add(ContextMenuEntry.LABEL.tag(
+                            item(Messages.text("action.label"), () -> actions.editLabel(component))));
                 }
             }
             case TextLabel label -> {
