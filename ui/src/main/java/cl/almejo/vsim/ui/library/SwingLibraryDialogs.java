@@ -135,20 +135,35 @@ public final class SwingLibraryDialogs implements LibraryDialogs {
 
     @Override
     public void showInFolder(java.awt.Component parent, Path file) {
+        if (!openFolder(file)) {
+            showMessage(parent, Messages.format("library.folder.message", file.toAbsolutePath()));
+        }
+    }
+
+    /**
+     * Shows the folder of {@code file} in the system's file manager; false when the platform cannot (headless, no
+     * desktop integration, a missing folder), so the caller says where the file is instead. Never throws.
+     */
+    static boolean openFolder(Path file) {
         try {
-            if (Desktop.isDesktopSupported() && Desktop.getDesktop().isSupported(Desktop.Action.BROWSE_FILE_DIR)) {
-                Desktop.getDesktop().browseFileDirectory(file.toFile());
-                return;
+            if (!Desktop.isDesktopSupported()) {
+                return false;
             }
-            if (Desktop.isDesktopSupported() && Desktop.getDesktop().isSupported(Desktop.Action.OPEN)
-                    && file.getParent() != null) {
-                Desktop.getDesktop().open(file.getParent().toFile());
-                return;
+            Desktop desktop = Desktop.getDesktop();
+            if (desktop.isSupported(Desktop.Action.BROWSE_FILE_DIR)) {
+                desktop.browseFileDirectory(file.toFile());
+                return true;
             }
-        } catch (IOException | UnsupportedOperationException exception) {
+            Path folder = file.toAbsolutePath().getParent();
+            if (desktop.isSupported(Desktop.Action.OPEN) && folder != null) {
+                desktop.open(folder.toFile());
+                return true;
+            }
+        } catch (IOException | UnsupportedOperationException | SecurityException
+                 | IllegalArgumentException exception) { // HeadlessException is unsupported; a missing folder is illegal
             LOGGER.warn("Could not show {} in its folder", file, exception);
         }
-        showMessage(parent, Messages.format("library.folder.message", file.toAbsolutePath()));
+        return false;
     }
 
     @Override

@@ -10,6 +10,7 @@ import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.DefinitionBundle;
 import cl.almejo.vsim.core.library.ExampleDefinitions;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
+import cl.almejo.vsim.ui.clipboard.FileListTransferable;
 import cl.almejo.vsim.ui.clipboard.FragmentTransferable;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.Appearance;
@@ -21,11 +22,14 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import javax.swing.Icon;
+import javax.swing.JPopupMenu;
 import javax.swing.JTextField;
 import javax.swing.TransferHandler;
 import java.awt.Color;
 import java.awt.datatransfer.StringSelection;
 import java.awt.datatransfer.Transferable;
+import java.io.File;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -198,5 +202,36 @@ class PalettePanelTest {
         assertThat(palette.icon(SubcircuitTypes.typeOf(renamed))).isNotSameAs(inverterIcon);
         assertThat(palette.icon(SubcircuitTypes.typeOf(ExampleDefinitions.doubleInverter())))
                 .isSameAs(doubleInverterIcon);
+    }
+
+    @Test
+    void droppedComponentFilesGoToTheHandler() {
+        List<List<Path>> received = new ArrayList<>();
+        FileListTransferable mixed = new FileListTransferable(List.of(new File("a.vsimcomponent.json"),
+                new File("notes.txt"), new File("circuit.vsim")));
+        assertThat(palette.importFiles(mixed)).isFalse();
+
+        palette.setComponentFileDropHandler(received::add);
+
+        assertThat(palette.importFiles(mixed)).isTrue();
+        assertThat(received).containsExactly(List.of(Path.of("a.vsimcomponent.json")));
+        assertThat(palette.importFiles(new FileListTransferable(List.of(new File("circuit.vsim"))))).isFalse();
+        assertThat(received).hasSize(1);
+    }
+
+    @Test
+    void theMenuProviderGetsTheEntryUnderTheMouse() {
+        palette.setUserComponents(List.of(inverterBundle), List.of());
+        List<Optional<String>> asked = new ArrayList<>();
+        palette.setUserMenuProvider(entry -> {
+            asked.add(entry.map(component -> component.bundle().root().id()));
+            return Optional.of(new JPopupMenu());
+        });
+
+        assertThat(palette.popupFor(palette.pathOf("subcircuit:inverter"))).isPresent();
+        palette.popupFor(null);
+        palette.popupFor(palette.pathOf(StandardComponentTypes.NOT));
+
+        assertThat(asked).containsExactly(Optional.of("inverter"), Optional.empty(), Optional.empty());
     }
 }

@@ -8,9 +8,11 @@ import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
 import cl.almejo.vsim.core.io.CircuitFragment;
 import cl.almejo.vsim.core.io.FragmentFormat;
+import cl.almejo.vsim.core.io.LibraryDirectory;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.DefinitionBundle;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
+import cl.almejo.vsim.ui.clipboard.CircuitFileDrop;
 import cl.almejo.vsim.ui.clipboard.FragmentRefusingTransferHandler;
 import cl.almejo.vsim.ui.clipboard.FragmentTransferable;
 import cl.almejo.vsim.ui.i18n.Messages;
@@ -21,10 +23,12 @@ import cl.almejo.vsim.ui.paint.PainterRegistry;
 import net.miginfocom.swing.MigLayout;
 
 import javax.swing.AbstractAction;
+import javax.swing.DropMode;
 import javax.swing.Icon;
 import javax.swing.JComponent;
 import javax.swing.KeyStroke;
 import javax.swing.JPanel;
+import javax.swing.JPopupMenu;
 import javax.swing.JScrollPane;
 import javax.swing.JTextField;
 import javax.swing.JTree;
@@ -45,6 +49,9 @@ import java.awt.datatransfer.Transferable;
 import java.awt.event.ActionEvent;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -53,6 +60,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 /**
  * Component palette: search box plus a tree of categories, then "Mis componentes" (the user's library) and
@@ -96,6 +104,8 @@ public final class PalettePanel extends JPanel {
     private List<UserComponent> documentComponents = List.of();
     private Consumer<UserComponent> userChooser = component -> {
     };
+    private Function<Optional<UserComponent>, Optional<JPopupMenu>> userMenuProvider = component -> Optional.empty();
+    private Consumer<List<Path>> componentFileDropHandler;
     private boolean updating;
 
     public PalettePanel(ComponentTypeRegistry registry, PainterRegistry painters, ColorScheme scheme,
@@ -151,6 +161,18 @@ public final class PalettePanel extends JPanel {
             tree.setDragEnabled(true); // Swing refuses to enable dragging without a display
         }
         tree.setTransferHandler(transferHandler);
+        tree.setDropMode(DropMode.ON); // a file dragged over the tree must not change the selection (it starts placing)
+        tree.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mousePressed(MouseEvent event) {
+                showPopup(event);
+            }
+
+            @Override
+            public void mouseReleased(MouseEvent event) {
+                showPopup(event);
+            }
+        });
         add(new JScrollPane(tree));
         rebuild();
     }
@@ -224,6 +246,16 @@ public final class PalettePanel extends JPanel {
         userChooser = Objects.requireNonNull(chooser);
     }
 
+    /** Builds the right-click menu for the user component under the mouse (empty: elsewhere in the palette). */
+    public void setUserMenuProvider(Function<Optional<UserComponent>, Optional<JPopupMenu>> provider) {
+        userMenuProvider = Objects.requireNonNull(provider);
+    }
+
+    /** Receives the {@code .vsimcomponent.json} files dropped on the palette; without a handler drops are refused. */
+    public void setComponentFileDropHandler(Consumer<List<Path>> handler) {
+        componentFileDropHandler = handler;
+    }
+
     /** Titles of the visible sections, top to bottom. */
     public List<String> visibleSections() {
         List<String> titles = new ArrayList<>();
@@ -240,6 +272,16 @@ public final class PalettePanel extends JPanel {
         return transferHandler.createTransferable(tree);
     }
 
+    /** The context menu for the entry at {@code path} (null: no entry). Package-private for tests. */
+    Optional<JPopupMenu> popupFor(TreePath path) {
+        return userMenuProvider.apply(path == null ? Optional.empty() : userComponentOf(path));
+    }
+
+    /** What a paste or drop of {@code transferable} on the tree does. Package-private for tests. */
+    boolean importFiles(Transferable transferable) {
+        return transferHandler.importData(new TransferHandler.TransferSupport(tree, transferable));
+    }
+
     public List<String> visibleTypeIds() {
         List<String> ids = new ArrayList<>();
         for (DefaultMutableTreeNode section : sections()) {
@@ -251,7 +293,10 @@ public final class PalettePanel extends JPanel {
     }
 
     public void choose(String typeId) {
-        pathOf(typeId).ifPresent(tree::setSelectionPath);
+        TreePath path = pathOf(typeId);
+        if (path != null) {
+            tree.setSelectionPath(path);
+        }
     }
 
     /** Clears the highlighted entry without calling back (the canvas left placement mode). */
@@ -312,9 +357,10 @@ public final class PalettePanel extends JPanel {
 
     private Optional<UserComponent> selectedUserComponent() {
         TreePath path = tree.getSelectionPath();
-        if (path == null) {
-            return Optional.empty();
-        }
+        return path == null ? Optional.empty() : userComponentOf(path);
+    }
+
+    private static Optional<UserComponent> userComponentOf(TreePath path) {
         Object value = ((DefaultMutableTreeNode) path.getLastPathComponent()).getUserObject();
         return value instanceof UserComponent component ? Optional.of(component) : Optional.empty();
     }
@@ -324,20 +370,28 @@ public final class PalettePanel extends JPanel {
         return Collections.list(root.children()).stream().map(DefaultMutableTreeNode.class::cast).toList();
     }
 
-    private Optional<TreePath> pathOf(String typeId) {
+    /** The tree path of the visible entry with {@code typeId}, or null. Package-private for tests. */
+    TreePath pathOf(String typeId) {
         for (DefaultMutableTreeNode section : sections()) {
             for (Object leaf : Collections.list(section.children())) {
                 DefaultMutableTreeNode node = (DefaultMutableTreeNode) leaf;
                 if (typeIdOf(node.getUserObject()).equals(typeId)) {
-                    return Optional.of(new TreePath(node.getPath()));
+                    return new TreePath(node.getPath());
                 }
             }
         }
-        return Optional.empty();
+        return null;
     }
 
     private static String typeIdOf(Object item) {
         return item instanceof UserComponent component ? component.type().id() : ((ComponentType) item).id();
+    }
+
+    private void showPopup(MouseEvent event) {
+        if (event.isPopupTrigger()) {
+            popupFor(tree.getPathForLocation(event.getX(), event.getY()))
+                    .ifPresent(menu -> menu.show(tree, event.getX(), event.getY()));
+        }
     }
 
     private static Map<String, ComponentDefinition> rootsById(List<DefinitionBundle> library,
@@ -357,7 +411,10 @@ public final class PalettePanel extends JPanel {
                 component.bundle().all()));
     }
 
-    /** Drags entries to a canvas: a standard type as text, a user component as a fragment with its definitions. */
+    /**
+     * Drags entries to a canvas (a standard type as text, a user component as a fragment with its definitions) and
+     * accepts dropped component files.
+     */
     private final class PaletteTransferHandler extends TransferHandler {
         @Override
         public int getSourceActions(JComponent source) {
@@ -371,6 +428,17 @@ public final class PalettePanel extends JPanel {
                 return new FragmentTransferable(fragmentJson(user.get()));
             }
             return selectedType().map(type -> new StringSelection(PaletteTransfer.encode(type.id()))).orElse(null);
+        }
+
+        @Override
+        public boolean canImport(TransferSupport support) {
+            return componentFileDropHandler != null && CircuitFileDrop.canImport(support);
+        }
+
+        @Override
+        public boolean importData(TransferSupport support) {
+            return componentFileDropHandler != null
+                    && CircuitFileDrop.importData(support, LibraryDirectory::isComponentFile, componentFileDropHandler);
         }
     }
 

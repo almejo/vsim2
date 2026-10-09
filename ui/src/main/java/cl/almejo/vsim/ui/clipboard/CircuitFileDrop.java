@@ -12,6 +12,7 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.Locale;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 
 /** Circuit files ({@code .vsim}, {@code .json}) dropped from a file manager. */
 public final class CircuitFileDrop {
@@ -25,18 +26,29 @@ public final class CircuitFileDrop {
 
     /** Hands the circuit files of the drop to {@code opener}; false (and no call) when it carries none. */
     public static boolean importData(TransferHandler.TransferSupport support, Consumer<List<Path>> opener) {
+        return importData(support, CircuitFileDrop::isCircuitFile, opener);
+    }
+
+    /** Hands the dropped files {@code accepted} keeps to {@code receiver}; false (and no call) when none are left. */
+    public static boolean importData(TransferHandler.TransferSupport support, Predicate<Path> accepted,
+                                     Consumer<List<Path>> receiver) {
         if (!canImport(support)) {
             return false;
         }
-        List<Path> files = circuitFiles(support.getTransferable());
+        List<Path> files = files(support.getTransferable(), accepted);
         if (files.isEmpty()) {
             return false;
         }
-        opener.accept(files);
+        receiver.accept(files);
         return true;
     }
 
     public static List<Path> circuitFiles(Transferable transferable) {
+        return files(transferable, CircuitFileDrop::isCircuitFile);
+    }
+
+    /** The files of a file list that {@code accepted} keeps; empty when the transferable is not a file list. */
+    public static List<Path> files(Transferable transferable, Predicate<Path> accepted) {
         if (!transferable.isDataFlavorSupported(DataFlavor.javaFileListFlavor)) {
             return List.of();
         }
@@ -45,7 +57,7 @@ public final class CircuitFileDrop {
             return files.stream()
                     .filter(File.class::isInstance)
                     .map(file -> ((File) file).toPath())
-                    .filter(CircuitFileDrop::isCircuitFile)
+                    .filter(accepted)
                     .toList();
         } catch (UnsupportedFlavorException | IOException exception) {
             return List.of();
