@@ -62,7 +62,7 @@ class ParameterFormTest {
         ParameterForm form = form(StandardComponentTypes.LED, Map.of());
         @SuppressWarnings("unchecked")
         JComboBox<String> colors = (JComboBox<String>) form.editor("color");
-        assertThat(colors.getItemCount()).isEqualTo(4);
+        assertThat(colors.getItemCount()).isEqualTo(8);
         assertThat(colors.getSelectedItem()).isEqualTo("red");
         colors.setSelectedItem("green");
         assertThat(form.rawValues()).containsEntry("color", "green");
