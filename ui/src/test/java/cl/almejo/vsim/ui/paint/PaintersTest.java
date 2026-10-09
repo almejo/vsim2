@@ -25,6 +25,7 @@ import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
@@ -46,12 +47,32 @@ class PaintersTest {
             case StandardComponentTypes.CLOCK -> new VisibleState.ClockState(Value.ONE);
             case StandardComponentTypes.SEVEN_SEGMENTS_DISPLAY -> new VisibleState.SevenSegmentsState(Value.of(4, 0x7));
             case StandardComponentTypes.SEVEN_SEGMENTS_DISPLAY_DOUBLE -> new VisibleState.SevenSegmentsState(Value.of(8, 0x5A));
-            case StandardComponentTypes.TIME_DIAGRAM -> new VisibleState.TimeDiagramState(List.of(
-                    new TimeDiagramSample(0, List.of(Value.ZERO, Value.ONE, Value.HIGH_IMPEDANCE, Value.ZERO)),
-                    new TimeDiagramSample(1, List.of(Value.ONE, Value.ONE, Value.ZERO, Value.ZERO)),
-                    new TimeDiagramSample(2, List.of(Value.ONE, Value.ZERO, Value.ZERO, Value.ONE))));
+            case StandardComponentTypes.TIME_DIAGRAM -> fullTimeDiagramHistory(StandardComponentTypes.registry().require(typeId));
             default -> VisibleState.NONE;
         };
+    }
+
+    /**
+     * A full history for the time diagram: {@link TimeDiagramPainter#capacity} samples plus a few, four channels, with 0/1
+     * transitions on all of them, one stretch of Z and one conflict sample, so the gallery shows the real look.
+     */
+    private static VisibleState fullTimeDiagramHistory(ComponentType type) {
+        int count = TimeDiagramPainter.capacity(type) + 4;
+        List<TimeDiagramSample> samples = new ArrayList<>();
+        for (int index = 0; index < count; index++) {
+            Value first = index / 3 % 2 == 0 ? Value.ZERO : Value.ONE;
+            Value second = index / 5 % 2 == 0 ? Value.ONE : Value.ZERO;
+            Value third = index / 2 % 2 == 0 ? Value.ZERO : Value.ONE;
+            Value fourth = index % 2 == 0 ? Value.ZERO : Value.ONE;
+            if (index >= count - 12 && index < count - 7) {
+                second = Value.HIGH_IMPEDANCE;
+            }
+            if (index == count - 5) {
+                third = Value.ONE.withConflict();
+            }
+            samples.add(new TimeDiagramSample(index, List.of(first, second, third, fourth)));
+        }
+        return new VisibleState.TimeDiagramState(samples);
     }
 
     static BufferedImage blankImage(int width, int height) {
