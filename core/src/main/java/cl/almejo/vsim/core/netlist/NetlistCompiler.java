@@ -17,8 +17,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.stream.Stream;
 
-/** Computes which pins and wires are electrically joined (union-find over grid points). */
+/**
+ * Computes which pins and wires are electrically joined (union-find over grid points).
+ * Each net is named {@code "n:" + anchor}, where the anchor is the smallest of {@code "w:" + wireId} and
+ * {@code "p:" + componentId + "#" + pinIndex} over its wires and pins, so the id survives edits that keep it.
+ */
 public final class NetlistCompiler {
 
     private final ComponentTypeRegistry registry;
@@ -81,9 +86,15 @@ public final class NetlistCompiler {
             Set<Integer> widths = new HashSet<>();
             pins.forEach(pin -> widths.add(pinWidths.get(pin)));
             int width = widths.stream().mapToInt(Integer::intValue).max().orElse(1);
-            GridPoint first = points.first();
-            NetId id = new NetId("n" + first.x() + "_" + first.y());
-            return new Net(id, pins, wires, points, width, widths.size() > 1);
+            return new Net(new NetId("n:" + anchor()), pins, wires, points, width, widths.size() > 1);
+        }
+
+        private String anchor() {
+            return Stream.concat(
+                            wires.stream().map(wire -> "w:" + wire.value()),
+                            pins.stream().map(pin -> "p:" + pin.componentId().value() + "#" + pin.pinIndex()))
+                    .min(Comparator.naturalOrder())
+                    .orElseThrow(() -> new IllegalStateException("net without pins or wires at " + points));
         }
     }
 

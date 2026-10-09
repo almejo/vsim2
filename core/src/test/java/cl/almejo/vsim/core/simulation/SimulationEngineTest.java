@@ -320,4 +320,20 @@ class SimulationEngineTest {
         engine.advance(20);
         assertThat(repeaterRuns).hasValue(runsBeforeRemoval);
     }
+
+    @Test
+    void shortCircuitKeepsItsStartTimeWhenTheNetGrows() {
+        ElementId low = place(TestComponentTypes.SOURCE, 0, 0, Map.of("value", "0"));
+        place(TestComponentTypes.SOURCE, 4, 0, Map.of("value", "1"));
+        wire(2, 1, 6, 1);
+        synchronize();
+        engine.advance(10);
+        wire(2, -4, 2, 1);
+        synchronize();
+        engine.advance(5);
+        assertThat(engine.snapshot().shortCircuits()).singleElement().satisfies(shortCircuit -> {
+            assertThat(shortCircuit.netId()).isEqualTo("n:p:" + low.value() + "#0");
+            assertThat(shortCircuit.sinceTime()).isZero();
+        });
+    }
 }

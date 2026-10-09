@@ -87,7 +87,31 @@ class NetlistCompilerTest {
         Netlist netlist = compiler.compile(document);
         assertThat(netlist.nets()).hasSize(2);
         assertThat(netOf(lonely, 0, netlist).pins()).containsExactly(new PinRef(lonely, 0));
-        assertThat(netOf(lonely, 0, netlist).id()).isEqualTo(new NetId("n0_1"));
+        assertThat(netOf(lonely, 0, netlist).id()).isEqualTo(new NetId("n:p:" + lonely.value() + "#0"));
+    }
+
+    @Test
+    void netIsNamedAfterItsSmallestAnchorAndPinsComeFirst() {
+        ElementId alone = wire(0, 0, 4, 0);
+        assertThat(compiler.compile(document).netForWire(alone).orElseThrow().id())
+                .isEqualTo(new NetId("n:w:" + alone.value()));
+        ElementId gate = buffer(4, -1);
+        assertThat(compiler.compile(document).netForWire(alone).orElseThrow().id())
+                .isEqualTo(new NetId("n:p:" + gate.value() + "#0"));
+    }
+
+    @Test
+    void netIdSurvivesEditsThatKeepItsAnchor() {
+        ElementId first = buffer(0, 0);
+        buffer(10, 0);
+        wire(2, 1, 10, 1);
+        NetId before = netOf(first, 1, compiler.compile(document)).id();
+        ElementId unrelated = buffer(30, 30);
+        document.replace(document.component(unrelated).orElseThrow().translate(-40, -40));
+        wire(2, -3, 2, 1);
+        assertThat(netOf(first, 1, compiler.compile(document)).id())
+                .isEqualTo(before)
+                .isEqualTo(new NetId("n:p:" + first.value() + "#1"));
     }
 
     @Test
