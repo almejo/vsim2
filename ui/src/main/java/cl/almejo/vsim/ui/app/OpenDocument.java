@@ -85,6 +85,11 @@ public final class OpenDocument implements AutoCloseable {
         return document;
     }
 
+    /**
+     * This document's own registry: a copy of the base registry plus a resolver for the document's definitions
+     * ({@link SubcircuitTypes#resolverFor}). Because it reads the document, use it from the EDT only; the base registry
+     * stays thread-safe. Flattening happens on the EDT, so the simulation thread receives already-resolved components.
+     */
     public ComponentTypeRegistry registry() {
         return registry;
     }

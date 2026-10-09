@@ -78,6 +78,18 @@ class CircuitDocumentDefinitionsTest {
     }
 
     @Test
+    void puttingAMissingInnerDefinitionReportsTheInstancesOfDefinitionsThatNestIt() {
+        document.putDefinition(doubleInverter);
+        Component nesting = instance("c1", ExampleDefinitions.DOUBLE_INVERTER);
+        List<DocumentChange> changes = record();
+
+        document.putDefinition(inverter);
+
+        assertThat(changes).singleElement()
+                .satisfies(change -> assertThat(change.changed()).contains(nesting.id()));
+    }
+
+    @Test
     void theResolverKeepsOneTypePerDefinitionObject() {
         ComponentTypeRegistry.TypeResolver resolver = SubcircuitTypes.resolverFor(document);
         String typeId = SubcircuitTypes.typeIdOf(ExampleDefinitions.INVERTER);

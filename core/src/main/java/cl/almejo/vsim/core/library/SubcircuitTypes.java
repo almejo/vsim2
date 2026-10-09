@@ -53,6 +53,10 @@ public final class SubcircuitTypes {
      * Resolves {@code subcircuit:<id>} through {@code document}'s definitions, with one type object per definition
      * object (a replaced definition gets a new type, so the engine recreates its instances). Only the type of each
      * id's current definition is kept, so replaced definitions are not retained.
+     *
+     * <p>The resolver reads {@code document}'s definitions, which are not thread-safe: a registry that has it must be
+     * used from the document's thread (the EDT in the application) only. Flatten there and hand the simulation thread
+     * already-resolved components; a base registry without document resolvers stays safe on any thread.
      */
     public static ComponentTypeRegistry.TypeResolver resolverFor(CircuitDocument document) {
         Map<String, ComponentType> types = new ConcurrentHashMap<>();
