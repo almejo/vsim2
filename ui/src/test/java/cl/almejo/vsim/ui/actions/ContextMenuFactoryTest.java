@@ -67,18 +67,18 @@ class ContextMenuFactoryTest {
         Component gate = place(openDocument, StandardComponentTypes.NOT, 0, 0, Map.of());
         view.canvas().selection().select(gate.id());
         assertThat(texts(view.contextMenu(Optional.of(gate), CLICK)))
-                .containsExactly("Configurar…", "Rotar ↻", "Rotar ↺", "---", "Borrar");
+                .containsExactly("Configurar…", "Rotar ↻", "Rotar ↺", "---", "Borrar", "---", "Etiqueta…");
     }
 
     @Test
     void wireMenuOffersDeleteWire() {
         Wire wire = new Wire(new ElementId("w9"), GridPoint.ORIGIN, new GridPoint(3, 0));
-        assertThat(texts(view.contextMenu(Optional.of(wire), CLICK))).containsExactly("Borrar cable");
+        assertThat(texts(view.contextMenu(Optional.of(wire), CLICK))).containsExactly("Borrar cable", "---", "Borrar tramo");
     }
 
     @Test
     void emptyCanvasMenuOffersCenterView() {
-        assertThat(texts(view.contextMenu(Optional.empty(), CLICK))).containsExactly("Centrar circuito");
+        assertThat(texts(view.contextMenu(Optional.empty(), CLICK))).containsExactly("Centrar circuito", "---", "Agregar texto aquí");
     }
 
     @Test
@@ -98,9 +98,9 @@ class ContextMenuFactoryTest {
             }
         });
         assertThat(texts(view.contextMenu(Optional.empty(), CLICK)))
-                .containsExactly("Centrar circuito", "---", "Uno", "---", "Dos", "Tres");
+                .containsExactly("Centrar circuito", "---", "Agregar texto aquí", "---", "Uno", "---", "Dos", "Tres");
         Wire wire = new Wire(new ElementId("w9"), GridPoint.ORIGIN, new GridPoint(3, 0));
-        assertThat(texts(view.contextMenu(Optional.of(wire), CLICK))).containsExactly("Borrar cable", "---", "Uno");
+        assertThat(texts(view.contextMenu(Optional.of(wire), CLICK))).containsExactly("Borrar cable", "---", "Borrar tramo", "---", "Uno");
         assertThat(seen).hasSize(2).allMatch(selection -> selection == view.canvas().selection());
         assertThat(positions).containsExactly(CLICK, CLICK);
     }
@@ -128,7 +128,7 @@ class ContextMenuFactoryTest {
         Component gate = place(openDocument, StandardComponentTypes.NOT, 0, 0, Map.of());
         view.canvas().selection().select(gate.id());
         assertThat(texts(view.contextMenu(Optional.of(gate), CLICK)))
-                .containsExactly("Configurar…", "Rotar ↻", "Rotar ↺", "---", "Borrar");
+                .containsExactly("Configurar…", "Rotar ↻", "Rotar ↺", "---", "Borrar", "---", "Etiqueta…");
         Component other = place(openDocument, StandardComponentTypes.NOT, 10, 0, Map.of());
         view.canvas().selection().set(List.of(gate.id(), other.id()));
         assertThat(texts(view.contextMenu(Optional.of(gate), CLICK))).containsExactly("Borrar", "Rotar ↻");

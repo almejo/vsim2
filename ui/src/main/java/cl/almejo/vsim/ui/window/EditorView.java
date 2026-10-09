@@ -6,6 +6,7 @@ import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.ui.actions.ContextMenuContributor;
 import cl.almejo.vsim.ui.actions.ContextMenuFactory;
 import cl.almejo.vsim.ui.actions.EditorActions;
+import cl.almejo.vsim.ui.actions.TextPrompt;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.CanvasHost;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
@@ -62,6 +63,7 @@ public final class EditorView extends JPanel implements CanvasHost {
     private final JToggleButton selectButton;
     private final JToggleButton wireButton;
     private final JToggleButton panButton;
+    private final LabelFeatures labelFeatures;
 
     public EditorView(OpenDocument openDocument, PainterRegistry painters, ColorScheme scheme, WindowCommands window) {
         super(new BorderLayout());
@@ -105,6 +107,7 @@ public final class EditorView extends JPanel implements CanvasHost {
                 actions.rotateCounterClockwise());
         bindZoomKeys();
         toolChanged(canvas.tool());
+        labelFeatures = LabelFeatures.install(this, TextPrompt.DIALOG);
     }
 
     public OpenDocument openDocument() { return openDocument; }
@@ -113,6 +116,7 @@ public final class EditorView extends JPanel implements CanvasHost {
     public PalettePanel palette() { return palette; }
     public StatusBar statusBar() { return statusBar; }
     public InspectorPanel inspector() { return inspector; }
+    public LabelFeatures labelFeatures() { return labelFeatures; }
     public JMenuBar menuBar() { return menuBar; }
     public JToolBar toolBar() { return toolBar; }
 
@@ -138,6 +142,7 @@ public final class EditorView extends JPanel implements CanvasHost {
     }
 
     public void dispose() {
+        labelFeatures.dispose();
         canvas.dispose();
     }
 
@@ -150,6 +155,11 @@ public final class EditorView extends JPanel implements CanvasHost {
     @Override
     public void configure(Component component) {
         actions.configure(component);
+    }
+
+    @Override
+    public void editLabel(DocumentElement element) {
+        labelFeatures.actions().editLabel(element);
     }
 
     private void indexMenus() {
