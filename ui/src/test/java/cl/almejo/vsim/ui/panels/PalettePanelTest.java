@@ -3,12 +3,16 @@ package cl.almejo.vsim.ui.panels;
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
+import cl.almejo.vsim.ui.clipboard.FragmentTransferable;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import javax.swing.JTextField;
+import javax.swing.TransferHandler;
+import java.awt.datatransfer.StringSelection;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -90,5 +94,18 @@ class PalettePanelTest {
             assertThat(field.getActionMap().get(actionKey)).isNotNull();
             assertThat(field.getActionMap().get(actionKey).isEnabled()).isTrue();
         }
+    }
+
+    /** Review I1: a drag out released over the search box must not fill it with fragment JSON. */
+    @Test
+    void theSearchBoxRefusesCircuitFragmentsButAcceptsPlainText() {
+        JTextField search = palette.searchField();
+        TransferHandler handler = search.getTransferHandler();
+        FragmentTransferable fragment = new FragmentTransferable("{\"formatVersion\":2,\"kind\":\"fragment\"}");
+        assertThat(handler.canImport(new TransferHandler.TransferSupport(search, fragment))).isFalse();
+        assertThat(handler.importData(new TransferHandler.TransferSupport(search, fragment))).isFalse();
+        assertThat(search.getText()).isEmpty();
+        assertThat(handler.canImport(new TransferHandler.TransferSupport(search, new StringSelection("not"))))
+                .isTrue();
     }
 }

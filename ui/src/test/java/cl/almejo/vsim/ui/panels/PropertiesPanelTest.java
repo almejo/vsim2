@@ -10,13 +10,18 @@ import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.Selection;
+import cl.almejo.vsim.ui.clipboard.FragmentTransferable;
 import cl.almejo.vsim.ui.i18n.Messages;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import javax.swing.JFormattedTextField;
 import javax.swing.JSpinner;
 import javax.swing.JTextField;
+import javax.swing.TransferHandler;
+import javax.swing.text.JTextComponent;
+import java.awt.datatransfer.StringSelection;
 import java.util.List;
 import java.util.Map;
 
@@ -186,5 +191,24 @@ class PropertiesPanelTest {
         panel.commitEdits();
         assertThat(current(gate).label()).isEmpty();
         assertThat(openDocument.history().undoDescription().toString()).isEqualTo(before);
+    }
+
+    /** Review I1: a drag out released over the label field must not write the fragment JSON into it. */
+    @Test
+    void editorFieldsRefuseCircuitFragmentsButAcceptPlainText() {
+        Component gate = gate(0);
+        selection.select(gate.id());
+        JFormattedTextField delayField =
+                ((JSpinner.DefaultEditor) ((JSpinner) panel.parameterForm().editor("delay")).getEditor()).getTextField();
+        for (JTextComponent field : List.of(panel.textField(), delayField)) {
+            TransferHandler handler = field.getTransferHandler();
+            FragmentTransferable fragment = new FragmentTransferable("{\"formatVersion\":2,\"kind\":\"fragment\"}");
+            assertThat(handler.canImport(new TransferHandler.TransferSupport(field, fragment))).isFalse();
+            assertThat(handler.importData(new TransferHandler.TransferSupport(field, fragment))).isFalse();
+            assertThat(handler.canImport(new TransferHandler.TransferSupport(field, new StringSelection("U7"))))
+                    .isTrue();
+        }
+        panel.commitEdits();
+        assertThat(current(gate).label()).isEmpty();
     }
 }

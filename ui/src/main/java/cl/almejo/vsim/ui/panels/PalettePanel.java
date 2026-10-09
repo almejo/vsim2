@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.panels;
 import cl.almejo.vsim.core.component.ComponentCategory;
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
+import cl.almejo.vsim.ui.clipboard.FragmentRefusingTransferHandler;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.ComponentIcon;
@@ -64,6 +65,7 @@ public final class PalettePanel extends JPanel {
         this.painters = painters;
         this.scheme = scheme;
         this.onChoose = onChoose;
+        FragmentRefusingTransferHandler.install(search);
         search.putClientProperty("JTextField.placeholderText", Messages.text("palette.search"));
         search.putClientProperty("JTextField.showClearButton", true);
         search.getDocument().addDocumentListener(new DocumentListener() {

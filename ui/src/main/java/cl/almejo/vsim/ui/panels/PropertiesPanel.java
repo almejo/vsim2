@@ -13,6 +13,7 @@ import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.Selection;
+import cl.almejo.vsim.ui.clipboard.FragmentRefusingTransferHandler;
 import cl.almejo.vsim.ui.i18n.Messages;
 import net.miginfocom.swing.MigLayout;
 
@@ -171,7 +172,7 @@ public final class PropertiesPanel extends JPanel {
 
     private JTextField addTextRow(String caption, String value) {
         JLabel label = new JLabel(caption);
-        JTextField field = new JTextField(value, 16);
+        JTextField field = FragmentRefusingTransferHandler.install(new JTextField(value, 16));
         label.setLabelFor(field);
         add(label);
         add(field);

@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.panels;
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.ParameterKind;
 import cl.almejo.vsim.core.component.ParameterSpec;
+import cl.almejo.vsim.ui.clipboard.FragmentRefusingTransferHandler;
 import cl.almejo.vsim.ui.i18n.Messages;
 import net.miginfocom.swing.MigLayout;
 
@@ -135,9 +136,10 @@ public final class ParameterForm extends JPanel {
                         parameter.minimum(), parameter.maximum(), 1));
                 spinner.setEditor(new JSpinner.NumberEditor(spinner, "#"));
                 spinnerField(spinner).setFocusLostBehavior(JFormattedTextField.COMMIT);
+                FragmentRefusingTransferHandler.install(spinnerField(spinner));
                 yield spinner;
             }
-            case TEXT -> new JTextField(value.toString(), 16);
+            case TEXT -> FragmentRefusingTransferHandler.install(new JTextField(value.toString(), 16));
             case CHOICE -> {
                 JComboBox<String> box = new JComboBox<>(parameter.choices().toArray(String[]::new));
                 box.setSelectedItem(value);
