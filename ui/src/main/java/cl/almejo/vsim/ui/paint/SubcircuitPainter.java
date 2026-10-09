@@ -59,7 +59,7 @@ public final class SubcircuitPainter implements ComponentPainter {
             float size = fitted(graphics, text, PIN_NAME_SIZE, across);
             double extent = sideways ? textHeight(graphics, size) : textWidth(graphics, text, size);
             double centerX = left ? INSET + extent / 2 : width - INSET - extent / 2;
-            PainterSupport.centeredText(graphics, box.createIntersection(slot), pin.name(), centerX, pinY, size,
+            PainterSupport.centeredText(graphics, box.createIntersection(slot), text, centerX, pinY, size,
                     scheme.text());
         }
         PainterSupport.pinDots(graphics, type, scheme);

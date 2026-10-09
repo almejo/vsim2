@@ -40,6 +40,9 @@ class PainterGalleryTest {
         List<ComponentType> types = new ArrayList<>(StandardComponentTypes.registry().all());
         types.add(SubcircuitTypes.typeOf(ExampleDefinitions.inverter()));
         types.add(SubcircuitTypes.typeOf(ExampleDefinitions.byteBuffer()));
+        for (String pinTypeId : List.of(InterfacePins.INPUT_PIN, InterfacePins.OUTPUT_PIN)) {
+            types.add(StandardComponentTypes.registry().require(pinTypeId).specializedFor(Map.of(InterfacePins.WIDTH, 8)));
+        }
         return types;
     }
 

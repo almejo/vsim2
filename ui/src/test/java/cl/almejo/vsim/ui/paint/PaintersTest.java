@@ -328,4 +328,38 @@ class PaintersTest {
             assertDrawsNearItsBounds(byteBuffer, rotation, VisibleState.NONE, 320);
         }
     }
+
+    @Test
+    void widePinNamesAreDrawnWithTheirWidthSuffix() {
+        ComponentType wide = SubcircuitTypes.typeOf(ExampleDefinitions.byteBuffer());
+        // the same box with 1-bit pins whose names already carry the suffix must look the same away from the pin marks
+        List<PinSpec> literalPins = wide.pins().stream()
+                .map(pin -> new PinSpec(SubcircuitPainter.pinText(pin), pin.position(), pin.direction(), 1)).toList();
+        ComponentType literal = new ComponentType(wide.id(), wide.category(), wide.size(), literalPins,
+                wide.parameters(), wide.behaviorFactory());
+        BufferedImage wideImage = drawType(wide);
+        BufferedImage literalImage = drawType(literal);
+        int markHalfSide = 6;
+        for (int x = 0; x < wideImage.getWidth(); x++) {
+            for (int y = 0; y < wideImage.getHeight(); y++) {
+                boolean nearPin = false;
+                for (PinSpec pin : wide.pins()) {
+                    nearPin |= Math.abs(x - (96 + pin.position().x() * PainterSupport.UNIT)) <= markHalfSide
+                            && Math.abs(y - (96 + pin.position().y() * PainterSupport.UNIT)) <= markHalfSide;
+                }
+                if (!nearPin) {
+                    assertThat(wideImage.getRGB(x, y)).as("pixel " + x + "," + y).isEqualTo(literalImage.getRGB(x, y));
+                }
+            }
+        }
+    }
+
+    private BufferedImage drawType(ComponentType type) {
+        Component component = type.newComponent(new ElementId("c1"), new GridPoint(12, 12), Rotation.R0, Map.of(), "");
+        BufferedImage image = blankImage(320, 320);
+        Graphics2D graphics = image.createGraphics();
+        ComponentDrawing.paint(graphics, type, component, VisibleState.NONE, SCHEME, painters);
+        graphics.dispose();
+        return image;
+    }
 }
