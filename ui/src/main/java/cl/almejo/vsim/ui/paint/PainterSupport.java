@@ -27,7 +27,8 @@ final class PainterSupport {
     static final BasicStroke STROKE = new BasicStroke(1.6f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
     private static final double PIN_DOT_RADIUS = 1.6;
     private static final double SHADOW_DISTANCE = 2.0;
-    private static final Font BASE_FONT = new Font(Font.SANS_SERIF, Font.BOLD, 10);
+    /** The font of every text drawn by painters (sized per use); also for measuring a text before drawing it. */
+    static final Font BASE_FONT = new Font(Font.SANS_SERIF, Font.BOLD, 10);
 
     private PainterSupport() {
     }

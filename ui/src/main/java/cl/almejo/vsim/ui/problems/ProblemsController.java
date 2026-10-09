@@ -23,6 +23,7 @@ import java.awt.event.ActionEvent;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.awt.geom.Point2D;
+import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
 
@@ -136,6 +137,17 @@ public final class ProblemsController {
         boolean anyProblem = !navigator.problems().isEmpty();
         nextProblem.setEnabled(anyProblem);
         previousProblem.setEnabled(anyProblem);
+    }
+
+    /** Shows the component library's load problems in the Problems tab (texts already localized). */
+    public void showLibraryProblems(List<String> descriptions) {
+        if (!disposed) {
+            panel.showLibraryProblems(descriptions);
+        }
+    }
+
+    public List<String> libraryProblems() {
+        return panel.libraryProblemTexts();
     }
 
     public Action nextProblem() {

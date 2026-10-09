@@ -173,4 +173,24 @@ class LibraryServiceTest {
 
         assertThat(library.entries()).isEmpty();
     }
+
+    @Test
+    void aDeletedLibraryDirectoryIsReportedUntilAnotherDirectoryIsWatched() throws Exception {
+        Path components = directory.resolve("components");
+        LibraryService watching = serviceOn(components);
+        watching.start();
+
+        Files.delete(components);
+
+        LibraryWatcherTest.eventually(() -> !watching.problems().isEmpty());
+        assertThat(watching.problems()).containsExactly(
+                LibraryProblem.directoryGone(components.toAbsolutePath().normalize()));
+        watching.reload();
+        assertThat(watching.problems()).extracting(LibraryProblem::kind)
+                .containsExactly(LibraryProblem.Kind.DIRECTORY_GONE);
+
+        preferences.setLibraryDirectory(Optional.of(directory.resolve("other")));
+
+        assertThat(watching.problems()).isEmpty();
+    }
 }

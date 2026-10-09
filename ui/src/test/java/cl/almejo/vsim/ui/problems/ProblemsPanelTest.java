@@ -98,4 +98,14 @@ class ProblemsPanelTest {
         panel.activate(-1);
         assertThat(navigated).containsExactly(shortCircuit);
     }
+
+    @Test
+    void libraryProblemsHaveTheirOwnSectionThatHidesWhenEmpty() {
+        panel.showLibraryProblems(List.of("roto.vsimcomponent.json no es un componente válido: …"));
+        assertThat(panel.libraryProblemTexts()).containsExactly("roto.vsimcomponent.json no es un componente válido: …");
+
+        panel.showLibraryProblems(List.of());
+
+        assertThat(panel.libraryProblemTexts()).isEmpty();
+    }
 }

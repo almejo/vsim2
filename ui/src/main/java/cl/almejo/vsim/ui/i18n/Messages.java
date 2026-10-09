@@ -88,7 +88,11 @@ public final class Messages {
     }
 
     public static String readError(CircuitFormatException exception) {
-        return format("error.read." + exception.reason().name(), exception.detail());
+        return readError(exception.reason(), exception.detail());
+    }
+
+    public static String readError(CircuitFormatException.Reason reason, String detail) {
+        return format("error.read." + reason.name(), detail);
     }
 
     private static String textOr(String key, String fallback) {

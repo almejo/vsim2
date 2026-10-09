@@ -19,6 +19,8 @@ import java.util.concurrent.TimeUnit;
 /**
  * Watches one directory on its own daemon thread and runs {@code onSettled} (on another daemon thread) once a burst
  * of file changes has been quiet for {@code debounce}. Never touches Swing. {@link #close()} stops both threads.
+ * <p>
+ * When the directory itself is deleted the watch cannot go on: the watching thread runs {@code onGone} and ends.
  */
 public final class LibraryWatcher implements AutoCloseable {
 
@@ -29,6 +31,7 @@ public final class LibraryWatcher implements AutoCloseable {
     private final Path directory;
     private final Duration debounce;
     private final Runnable onSettled;
+    private final Runnable onGone;
     private final ScheduledExecutorService scheduler;
     private WatchService watchService;
     private Thread thread;
@@ -36,9 +39,15 @@ public final class LibraryWatcher implements AutoCloseable {
     private volatile boolean closed;
 
     public LibraryWatcher(Path directory, Duration debounce, Runnable onSettled) {
+        this(directory, debounce, onSettled, () -> {
+        });
+    }
+
+    public LibraryWatcher(Path directory, Duration debounce, Runnable onSettled, Runnable onGone) {
         this.directory = directory;
         this.debounce = debounce;
         this.onSettled = onSettled;
+        this.onGone = onGone;
         this.scheduler = Executors.newSingleThreadScheduledExecutor(runnable -> {
             Thread worker = new Thread(runnable, "vsim-library-reload");
             worker.setDaemon(true);
@@ -90,6 +99,14 @@ public final class LibraryWatcher implements AutoCloseable {
         }
     }
 
+    private void gone() {
+        try {
+            onGone.run();
+        } catch (RuntimeException exception) {
+            LOGGER.warn("Reporting that the component library {} is gone failed", directory, exception);
+        }
+    }
+
     private void watch() {
         while (!closed) {
             WatchKey key;
@@ -104,7 +121,10 @@ public final class LibraryWatcher implements AutoCloseable {
             key.pollEvents();
             changed();
             if (!key.reset()) {
-                LOGGER.warn("Stopped watching the component library {}: it is gone", directory);
+                if (!closed) {
+                    LOGGER.warn("Stopped watching the component library {}: it is gone", directory);
+                    gone();
+                }
                 return;
             }
         }

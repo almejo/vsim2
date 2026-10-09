@@ -11,18 +11,22 @@ import javax.swing.JSeparator;
 public final class TemplateFeatures {
 
     private final EditorView view;
+    private final LibraryService service;
     private final TemplateActions actions;
     private final LibraryPalette palette;
     private final Action importComponent;
     private final LibraryVersionBadge badge;
+    private final Runnable problemsListener;
 
-    private TemplateFeatures(EditorView view, TemplateActions actions, LibraryPalette palette, Action importComponent,
-                             LibraryVersionBadge badge) {
+    private TemplateFeatures(EditorView view, LibraryService service, TemplateActions actions, LibraryPalette palette,
+                             Action importComponent, LibraryVersionBadge badge, Runnable problemsListener) {
         this.view = view;
+        this.service = service;
         this.actions = actions;
         this.palette = palette;
         this.importComponent = importComponent;
         this.badge = badge;
+        this.problemsListener = problemsListener;
     }
 
     public static TemplateFeatures install(EditorView view, LibraryService service, LibraryDialogs dialogs) {
@@ -44,7 +48,15 @@ public final class TemplateFeatures {
                 view.canvas()::scheme, view.canvas()::repaint);
         badge.install();
         view.canvas().addOverlay(badge);
-        return new TemplateFeatures(view, actions, palette, importComponent, badge);
+
+        // Also on library changes: whether a broken file "can be deleted" depends on what the library holds.
+        Runnable problemsListener = () -> view.problems().showLibraryProblems(service.problems().stream()
+                .map(problem -> LibraryProblemText.describe(problem, service.library()::find))
+                .toList());
+        service.addProblemsListener(problemsListener);
+        service.library().addListener(problemsListener);
+        problemsListener.run();
+        return new TemplateFeatures(view, service, actions, palette, importComponent, badge, problemsListener);
     }
 
     public TemplateActions actions() {
@@ -66,6 +78,8 @@ public final class TemplateFeatures {
 
     /** Removes every listener registered on shared objects (document, library, service) and the overlay. */
     public void dispose() {
+        service.removeProblemsListener(problemsListener);
+        service.library().removeListener(problemsListener);
         view.canvas().removeOverlay(badge);
         badge.dispose();
         palette.dispose();

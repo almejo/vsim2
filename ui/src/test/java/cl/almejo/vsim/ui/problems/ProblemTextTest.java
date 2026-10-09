@@ -4,8 +4,11 @@ import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
+import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
+import cl.almejo.vsim.core.io.CircuitFragment;
+import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.ExampleDefinitions;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.core.simulation.DriverRef;
@@ -19,6 +22,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -113,5 +117,46 @@ class ProblemTextTest {
                 List.of(new DriverRef("c5/c2", 1, Value.ONE), new DriverRef("c5/c9", 0, Value.ZERO)), 3);
         String text = ProblemText.describe(shortCircuit, document, StandardComponentTypes.registry());
         assertThat(text).contains("c5/c2").contains("c5/c9");
+    }
+
+    /** Instances c5 "U1" and c6 (unlabeled) of an inverter whose NOT is labeled U3, and c7 "D" of a double inverter. */
+    private CircuitDocument nestedDocument() {
+        ComponentDefinition inverter = ExampleDefinitions.inverter();
+        List<Component> body = new ArrayList<>(inverter.body().components());
+        body.set(1, body.get(1).withLabel("U3"));
+        CircuitDocument nested = new CircuitDocument();
+        nested.putDefinition(new ComponentDefinition(inverter.id(), inverter.name(), "", inverter.size(),
+                inverter.pinout(), new CircuitFragment(body, List.of(), List.of())));
+        nested.putDefinition(ExampleDefinitions.doubleInverter());
+        nested.add(new Component(new ElementId("c5"), SubcircuitTypes.typeIdOf(ExampleDefinitions.INVERTER),
+                GridPoint.ORIGIN, Rotation.R0, Map.of(), "U1"));
+        nested.add(new Component(new ElementId("c6"), SubcircuitTypes.typeIdOf(ExampleDefinitions.INVERTER),
+                new GridPoint(10, 0), Rotation.R0, Map.of(), ""));
+        nested.add(new Component(new ElementId("c7"), SubcircuitTypes.typeIdOf(ExampleDefinitions.DOUBLE_INVERTER),
+                new GridPoint(20, 0), Rotation.R0, Map.of(), "D"));
+        return nested;
+    }
+
+    @Test
+    void driversInsideTemplatesAreDescribedByTheirPath() {
+        ShortCircuit shortCircuit = new ShortCircuit("c5/n", List.of(
+                new DriverRef("c5/c2", 1, Value.ONE),
+                new DriverRef("c6/c2", 1, Value.ZERO),
+                new DriverRef("c7/c2/c2", 1, Value.ONE),
+                new DriverRef("c9/c2", 1, Value.ZERO)), 4);
+
+        assertThat(ProblemText.drivers(shortCircuit, nestedDocument())).isEqualTo(
+                "U1 › U3 (NOT) → 1 · Inversor › U3 (NOT) → 0 · D › Inversor › U3 (NOT) → 1 · c9/c2 → 0");
+    }
+
+    @Test
+    void pinsInsideTemplatesAreDescribedByTheirPath() {
+        CircuitDocument nested = nestedDocument();
+        ComponentTypeRegistry types = StandardComponentTypes.registry();
+        types.addResolver(SubcircuitTypes.resolverFor(nested));
+        WidthMismatch mismatch = new WidthMismatch("n", List.of(new FlatPinRef("c5/c2", 0)));
+
+        assertThat(ProblemText.describe(mismatch, nested, types))
+                .isEqualTo("⚠ Anchos incompatibles: U1 › U3 (NOT) (1 bit)");
     }
 }

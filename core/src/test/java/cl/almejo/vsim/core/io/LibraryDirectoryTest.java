@@ -9,6 +9,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -168,5 +169,14 @@ class LibraryDirectoryTest {
 
         assertThat(library.load().problems()).containsExactly(
                 new LibraryProblem(trap, LibraryProblem.Kind.INVALID, Optional.empty(), "NullPointerException"));
+    }
+
+    @Test
+    void anUnreadableFileWithoutAMessageIsNamedByTheExceptionClass() {
+        Path file = Path.of("broken.vsimcomponent.json");
+
+        assertThat(LibraryProblem.unreadable(file, new IOException()).detail()).isEqualTo("IOException");
+        assertThat(LibraryProblem.unreadable(file, new IOException("Is a directory")).detail())
+                .isEqualTo("Is a directory");
     }
 }

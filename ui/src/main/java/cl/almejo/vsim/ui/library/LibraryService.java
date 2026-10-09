@@ -15,6 +15,7 @@ import org.slf4j.LoggerFactory;
 import javax.swing.SwingUtilities;
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -37,6 +38,8 @@ public final class LibraryService implements AutoCloseable {
     private final Runnable preferencesListener = this::followDirectoryPreference;
     private volatile LibraryDirectory directory;
     private volatile List<LibraryProblem> problems = List.of();
+    private List<LibraryProblem> loadProblems = List.of();
+    private Optional<LibraryProblem> watchProblem = Optional.empty();
     private LibraryWatcher watcher;
     private boolean started;
 
@@ -61,7 +64,7 @@ public final class LibraryService implements AutoCloseable {
         return directory.directory();
     }
 
-    /** The files skipped by the last load. */
+    /** The files skipped by the last load, then the directory when it is no longer watched (it was deleted). */
     public List<LibraryProblem> problems() {
         return problems;
     }
@@ -72,6 +75,11 @@ public final class LibraryService implements AutoCloseable {
 
     public void removeProblemsListener(Runnable listener) {
         problemListeners.remove(listener);
+    }
+
+    /** For tests: views and extensions must remove the problems listeners they add when disposed. */
+    int problemsListenerCount() {
+        return problemListeners.size();
     }
 
     /**
@@ -153,9 +161,24 @@ public final class LibraryService implements AutoCloseable {
             return; // a load of a directory that is no longer the library
         }
         library.replaceAll(load.bundles());
-        if (!load.problems().equals(problems)) {
-            problems = load.problems();
+        loadProblems = load.problems();
+        publishProblems();
+    }
+
+    private void publishProblems() {
+        List<LibraryProblem> next = new ArrayList<>(loadProblems);
+        watchProblem.ifPresent(next::add);
+        if (!next.equals(problems)) {
+            problems = List.copyOf(next);
             problemListeners.forEach(Runnable::run);
+        }
+    }
+
+    /** The watcher of {@code source} ended because the directory was deleted: reported until another one starts. */
+    private synchronized void watcherGone(LibraryDirectory source) {
+        if (started && source == directory) {
+            watchProblem = Optional.of(LibraryProblem.directoryGone(source.directory()));
+            publishProblems();
         }
     }
 
@@ -190,7 +213,7 @@ public final class LibraryService implements AutoCloseable {
         LibraryWatcher next = new LibraryWatcher(watched.directory(), LibraryWatcher.DEBOUNCE, () -> {
             LibraryLoad load = watched.load();
             uiExecutor.execute(() -> applyWatched(watched, load));
-        });
+        }, () -> uiExecutor.execute(() -> watcherGone(watched)));
         try {
             next.start();
             watcher = next;
@@ -205,5 +228,6 @@ public final class LibraryService implements AutoCloseable {
             watcher.close();
             watcher = null;
         }
+        watchProblem = Optional.empty();
     }
 }

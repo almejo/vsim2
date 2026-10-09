@@ -77,4 +77,20 @@ class LibraryWatcherTest {
         thread.join(TimeUnit.SECONDS.toMillis(5));
         assertThat(thread.isAlive()).isFalse();
     }
+
+    @Test
+    void aDeletedDirectoryStopsTheWatcherAndSaysSo(@TempDir Path directory) throws Exception {
+        Path library = directory.resolve("library");
+        AtomicInteger gone = new AtomicInteger();
+        try (LibraryWatcher watcher = new LibraryWatcher(library, Duration.ofMillis(50), settled::incrementAndGet,
+                gone::incrementAndGet)) {
+            watcher.start();
+
+            Files.delete(library);
+
+            eventually(() -> gone.get() == 1);
+            watcher.watchingThread().join(TimeUnit.SECONDS.toMillis(5));
+            assertThat(watcher.watchingThread().isAlive()).isFalse();
+        }
+    }
 }
