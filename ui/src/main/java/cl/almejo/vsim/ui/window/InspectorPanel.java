@@ -29,6 +29,10 @@ public final class InspectorPanel extends JPanel {
         }
         tabs.addTab(title, content);
         setVisible(true);
+        if (tabs.getTabCount() == 1 && getParent() instanceof JSplitPane split) {
+            split.setDividerSize(new JSplitPane().getDividerSize());
+            split.resetToPreferredSizes();
+        }
         revalidate();
     }
 

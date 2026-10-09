@@ -86,6 +86,15 @@ class EditorViewTest {
     }
 
     @Test
+    void theInspectorDividerIsOnlyDrawnWhileThereAreTabs() {
+        InspectorPanel inspector = view.inspector();
+        JSplitPane inspectorSplit = (JSplitPane) inspector.getParent();
+        assertThat(inspectorSplit.getDividerSize()).isZero();
+        inspector.addTab("Uno", new JLabel("1"));
+        assertThat(inspectorSplit.getDividerSize()).isPositive();
+    }
+
+    @Test
     void inspectorStartsHiddenNextToTheCanvasAndShowsItsTabs() {
         InspectorPanel inspector = view.inspector();
         assertThat(inspector.isVisible()).isFalse();
