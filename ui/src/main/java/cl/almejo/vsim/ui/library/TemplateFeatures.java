@@ -1,11 +1,14 @@
 package cl.almejo.vsim.ui.library;
 
+import cl.almejo.vsim.core.io.CircuitFragment;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuId;
 
 import javax.swing.Action;
 import javax.swing.JMenu;
 import javax.swing.JSeparator;
+import javax.swing.SwingUtilities;
+import java.util.function.Consumer;
 
 /** The M4-A features of one editor view. Installed by {@link TemplatesExtension}; {@link #dispose()} undoes it. */
 public final class TemplateFeatures {
@@ -17,9 +20,11 @@ public final class TemplateFeatures {
     private final Action importComponent;
     private final LibraryVersionBadge badge;
     private final Runnable problemsListener;
+    private final Consumer<CircuitFragment> keptVersionsWarning;
 
     private TemplateFeatures(EditorView view, LibraryService service, TemplateActions actions, LibraryPalette palette,
-                             Action importComponent, LibraryVersionBadge badge, Runnable problemsListener) {
+                             Action importComponent, LibraryVersionBadge badge, Runnable problemsListener,
+                             Consumer<CircuitFragment> keptVersionsWarning) {
         this.view = view;
         this.service = service;
         this.actions = actions;
@@ -27,6 +32,7 @@ public final class TemplateFeatures {
         this.importComponent = importComponent;
         this.badge = badge;
         this.problemsListener = problemsListener;
+        this.keptVersionsWarning = keptVersionsWarning;
     }
 
     public static TemplateFeatures install(EditorView view, LibraryService service, LibraryDialogs dialogs) {
@@ -58,7 +64,15 @@ public final class TemplateFeatures {
         service.addProblemsListener(problemsListener);
         service.library().addListener(problemsListener);
         problemsListener.run();
-        return new TemplateFeatures(view, service, actions, palette, importComponent, badge, problemsListener);
+
+        // A drop or paste keeps this circuit's version of a nested definition (R4); say so as a palette click does.
+        // The message is worked out now and shown after the drop finishes (a dialog inside a drop can hang it).
+        Consumer<CircuitFragment> keptVersionsWarning = fragment -> KeptVersions
+                .message(view.openDocument().document(), fragment)
+                .ifPresent(message -> SwingUtilities.invokeLater(() -> dialogs.showMessage(view.canvas(), message)));
+        view.canvas().addIncomingFragmentListener(keptVersionsWarning);
+        return new TemplateFeatures(view, service, actions, palette, importComponent, badge, problemsListener,
+                keptVersionsWarning);
     }
 
     public TemplateActions actions() {
@@ -81,6 +95,7 @@ public final class TemplateFeatures {
     /** Removes every listener registered on shared objects (document, library, service) and the overlay. */
     public void dispose() {
         view.setComponentFileImporter(null);
+        view.canvas().removeIncomingFragmentListener(keptVersionsWarning);
         service.removeProblemsListener(problemsListener);
         service.library().removeListener(problemsListener);
         view.canvas().removeOverlay(badge);

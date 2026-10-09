@@ -97,6 +97,7 @@ public final class SelectionActions {
         if (fragment.isEmpty()) {
             return;
         }
+        canvas.announceIncomingFragment(fragment);
         GridPoint position = mousePoint
                 .or(() -> clipboard.originOf(json.get()).map(origin -> origin.translate(PASTE_OFFSET, PASTE_OFFSET)))
                 .orElseGet(() -> canvas.viewport().snap(canvas.getWidth() / 2.0, canvas.getHeight() / 2.0));

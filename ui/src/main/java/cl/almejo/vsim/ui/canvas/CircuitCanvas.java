@@ -88,6 +88,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     private final List<Consumer<Tool>> toolListeners = new CopyOnWriteArrayList<>();
     private final List<Consumer<SimulationSnapshot>> snapshotListeners = new CopyOnWriteArrayList<>();
     private final List<Runnable> viewListeners = new CopyOnWriteArrayList<>();
+    private final List<Consumer<CircuitFragment>> incomingFragmentListeners = new CopyOnWriteArrayList<>();
     private final List<CanvasOverlay> overlays = new CopyOnWriteArrayList<>();
     private final DocumentListener documentListener;
     private Consumer<List<Path>> fileDropHandler = files -> {
@@ -200,6 +201,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
             return false;
         }
         source.ifPresent(drag -> drag.canvas().endDragOut());
+        announceIncomingFragment(fragment.get());
         if (copyRequested) {
             GridPoint offset = source.map(DragOrigin::grabOffset).orElse(GridPoint.ORIGIN);
             useDefaultTool();
@@ -494,6 +496,20 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     public void unbindKey(KeyStroke stroke, String name) {
         getInputMap(WHEN_FOCUSED).remove(stroke);
         getActionMap().remove(name);
+    }
+
+    /** Told about each fragment dropped or pasted on this canvas, before it is pasted or starts floating. */
+    public void addIncomingFragmentListener(Consumer<CircuitFragment> listener) {
+        incomingFragmentListeners.add(listener);
+    }
+
+    public void removeIncomingFragmentListener(Consumer<CircuitFragment> listener) {
+        incomingFragmentListeners.remove(listener);
+    }
+
+    /** Tells the incoming-fragment listeners that {@code fragment} is about to be placed (a drop or a paste). */
+    public void announceIncomingFragment(CircuitFragment fragment) {
+        incomingFragmentListeners.forEach(listener -> listener.accept(fragment));
     }
 
     public void addToolListener(Consumer<Tool> listener) {
