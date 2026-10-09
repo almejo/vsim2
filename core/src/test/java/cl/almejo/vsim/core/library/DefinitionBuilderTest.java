@@ -173,4 +173,21 @@ class DefinitionBuilderTest {
                 new PinOrder(List.of(), List.of(input.id())), registry))
                 .isInstanceOf(IllegalArgumentException.class);
     }
+
+    @Test
+    void pinsTakeTheWidthOfTheirInterfacePins() {
+        Component input = registry.require(InterfacePins.INPUT_PIN).newComponent(document.newComponentId(),
+                new GridPoint(0, 1), Rotation.R0, Map.of(InterfacePins.WIDTH, 8), "dato");
+        Component output = registry.require(InterfacePins.OUTPUT_PIN).newComponent(document.newComponentId(),
+                new GridPoint(2, 1), Rotation.R0, Map.of(InterfacePins.WIDTH, 8), "copia");
+        document.add(input);
+        document.add(output);
+        List<ElementId> selection = ids(input, output);
+
+        DefinitionBundle bundle = DefinitionBuilder.fromSelection(document, selection, "copia", "Copia",
+                DefinitionBuilder.defaultPinOrder(document, selection), registry);
+
+        assertThat(bundle.root().pinout()).extracting(DefinitionPin::spec)
+                .containsExactly(PinSpec.input("dato", 0, 2, 8), PinSpec.output("copia", 6, 2, 8));
+    }
 }

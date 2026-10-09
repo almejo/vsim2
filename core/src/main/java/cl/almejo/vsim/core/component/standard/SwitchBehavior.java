@@ -13,12 +13,17 @@ final class SwitchBehavior implements Behavior {
         this.value = initialValue;
     }
 
-    static Value parse(String text) {
+    /** {@code "1"} is all ones, {@code "0"} all zeros, anything else all Z, {@code width} bits wide. */
+    static Value parse(String text, int width) {
         return switch (text) {
-            case "1" -> Value.ONE;
-            case "0" -> Value.ZERO;
-            default -> Value.HIGH_IMPEDANCE;
+            case "1" -> Value.of(width, Value.maskFor(width));
+            case "0" -> Value.of(width, 0L);
+            default -> Value.highImpedance(width);
         };
+    }
+
+    static Value parse(String text) {
+        return parse(text, 1);
     }
 
     @Override
@@ -35,9 +40,11 @@ final class SwitchBehavior implements Behavior {
         return true;
     }
 
+    /** Toggles between all ones and all zeros (Z or a mixed value becomes all ones). */
     @Override
     public void interact(BehaviorContext context) {
-        value = value.equals(Value.ONE) ? Value.ZERO : Value.ONE;
+        Value allOnes = Value.of(value.width(), Value.maskFor(value.width()));
+        value = value.equals(allOnes) ? Value.of(value.width(), 0L) : allOnes;
         context.drive(0, value, 0);
     }
 

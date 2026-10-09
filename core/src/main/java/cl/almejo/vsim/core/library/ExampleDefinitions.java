@@ -13,11 +13,12 @@ import cl.almejo.vsim.core.io.CircuitFragment;
 import java.util.List;
 import java.util.Map;
 
-/** Small valid definitions for tests, the painter gallery and demos. Both are 4 x 4 boxes with pins a (0,2) and y (4,2). */
+/** Small valid definitions for tests, the painter gallery and demos. All are 4 x 4 boxes with pins a (0,2) and y (4,2). */
 public final class ExampleDefinitions {
 
     public static final String INVERTER = "inverter";
     public static final String DOUBLE_INVERTER = "double-inverter";
+    public static final String BYTE_BUFFER = "byte-buffer";
 
     private static final ComponentTypeRegistry STANDARD = StandardComponentTypes.registry();
 
@@ -47,8 +48,25 @@ public final class ExampleDefinitions {
                 new CircuitFragment(List.of(input, first, second, output), List.of(), List.of()));
     }
 
+    /** An 8-bit pass-through: 8-bit input-pin c1 (pin at 2,2) touching 8-bit output-pin c2 (pin at 2,2). */
+    public static ComponentDefinition byteBuffer() {
+        Map<String, Object> eightBits = Map.of(InterfacePins.WIDTH, 8);
+        Component input = standard(InterfacePins.INPUT_PIN, "c1", 0, 1, "a", eightBits);
+        Component output = standard(InterfacePins.OUTPUT_PIN, "c2", 2, 1, "y", eightBits);
+        return new ComponentDefinition(BYTE_BUFFER, "Búfer de 8 bits", "", new GridSize(4, 4),
+                List.of(new DefinitionPin(PinSpec.input("a", 0, 2, 8), input.id()),
+                        new DefinitionPin(PinSpec.output("y", 4, 2, 8), output.id())),
+                new CircuitFragment(List.of(input, output), List.of(), List.of()));
+    }
+
     private static Component standard(String typeId, String id, int x, int y, String label) {
-        return STANDARD.require(typeId).newComponent(new ElementId(id), new GridPoint(x, y), Rotation.R0, Map.of(), label);
+        return standard(typeId, id, x, y, label, Map.of());
+    }
+
+    private static Component standard(String typeId, String id, int x, int y, String label,
+                                      Map<String, Object> parameters) {
+        return STANDARD.require(typeId).newComponent(new ElementId(id), new GridPoint(x, y), Rotation.R0, parameters,
+                label);
     }
 
     private static Component instance(String id, int x, int y) {
