@@ -9,6 +9,8 @@ import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
+import cl.almejo.vsim.core.library.ExampleDefinitions;
+import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.core.value.Value;
 import org.junit.jupiter.api.Test;
 
@@ -74,26 +76,43 @@ class PaintersTest {
 
     @Test
     void everyStandardTypeDrawsSomethingCloseToItsBoundsInEveryRotation() {
-        int background = SCHEME.background().getRGB();
         for (ComponentType type : registry.all()) {
             for (Rotation rotation : Rotation.values()) {
-                BufferedImage image = draw(type.id(), rotation, Map.of(), sampleState(type.id()));
-                Component component = type.newComponent(new ElementId("c1"), new GridPoint(12, 12), rotation, Map.of(), "");
-                Rectangle2D allowed = ComponentDrawing.documentBounds(type, component);
-                allowed.setRect(allowed.getX() - MARGIN, allowed.getY() - MARGIN,
-                        allowed.getWidth() + 2 * MARGIN, allowed.getHeight() + 2 * MARGIN);
-                int drawn = 0;
-                for (int x = 0; x < image.getWidth(); x++) {
-                    for (int y = 0; y < image.getHeight(); y++) {
-                        if (image.getRGB(x, y) != background) {
-                            drawn++;
-                            assertThat(allowed.contains(x, y)).as(type.id() + " " + rotation + " pixel " + x + "," + y).isTrue();
-                        }
-                    }
-                }
-                assertThat(drawn).as(type.id() + " " + rotation).isGreaterThan(20);
+                assertDrawsNearItsBounds(type, rotation, sampleState(type.id()), 200);
             }
         }
+    }
+
+    @Test
+    void subcircuitTypesGetTheSubcircuitPainterAndDrawInsideTheirBox() {
+        ComponentType type = SubcircuitTypes.typeOf(ExampleDefinitions.inverter());
+        assertThat(painters.painterFor(type.id())).isInstanceOf(SubcircuitPainter.class);
+        assertThat(painters.hasDedicatedPainter(type.id())).isFalse();
+        for (Rotation rotation : Rotation.values()) {
+            assertDrawsNearItsBounds(type, rotation, VisibleState.NONE, 320);
+        }
+    }
+
+    private void assertDrawsNearItsBounds(ComponentType type, Rotation rotation, VisibleState state, int imageSize) {
+        Component component = type.newComponent(new ElementId("c1"), new GridPoint(12, 12), rotation, Map.of(), "");
+        BufferedImage image = blankImage(imageSize, imageSize);
+        Graphics2D graphics = image.createGraphics();
+        ComponentDrawing.paint(graphics, type, component, state, SCHEME, painters);
+        graphics.dispose();
+        Rectangle2D allowed = ComponentDrawing.documentBounds(type, component);
+        allowed.setRect(allowed.getX() - MARGIN, allowed.getY() - MARGIN,
+                allowed.getWidth() + 2 * MARGIN, allowed.getHeight() + 2 * MARGIN);
+        int background = SCHEME.background().getRGB();
+        int drawn = 0;
+        for (int x = 0; x < image.getWidth(); x++) {
+            for (int y = 0; y < image.getHeight(); y++) {
+                if (image.getRGB(x, y) != background) {
+                    drawn++;
+                    assertThat(allowed.contains(x, y)).as(type.id() + " " + rotation + " pixel " + x + "," + y).isTrue();
+                }
+            }
+        }
+        assertThat(drawn).as(type.id() + " " + rotation).isGreaterThan(20);
     }
 
     @Test

@@ -2,16 +2,24 @@ package cl.almejo.vsim.core.component.standard;
 
 import cl.almejo.vsim.core.GateHarness;
 import cl.almejo.vsim.core.TestComponentTypes;
+import cl.almejo.vsim.core.component.ComponentCategory;
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.PinSpec;
 import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.geometry.GridPoint;
+import cl.almejo.vsim.core.library.InterfacePins;
+import cl.almejo.vsim.core.simulation.FlatCircuit;
+import cl.almejo.vsim.core.simulation.FlatComponent;
+import cl.almejo.vsim.core.simulation.FlatNet;
+import cl.almejo.vsim.core.simulation.FlatPinRef;
+import cl.almejo.vsim.core.simulation.SimulationEngine;
 import cl.almejo.vsim.core.value.Value;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
+import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -30,7 +38,7 @@ class StandardComponentTypesTest {
 
     @Test
     void registryHasEveryType() {
-        assertThat(registry.all()).hasSize(24);
+        assertThat(registry.all()).hasSize(26);
         assertThat(registry.all()).extracting(ComponentType::id).contains(
                 "and2", "or3", "xor4", "nand2", "nor4", "not", "flip-flop-data", "tri-state", "clock",
                 "switch", "led", "seven-segments-display", "seven-segments-display-double", "time-diagram");
@@ -167,5 +175,27 @@ class StandardComponentTypesTest {
         assertThat(state.samples()).hasSize(10);
         assertThat(state.samples().getLast().values().getFirst()).isEqualTo(Value.ONE);
         assertThat(state.samples().getLast().time() - state.samples().get(8).time()).isEqualTo(10);
+    }
+
+    @Test
+    void interfacePinsActLikeASwitchAndALedAtTheTopLevel() {
+        ComponentTypeRegistry standard = StandardComponentTypes.registry();
+        ComponentType input = standard.require(InterfacePins.INPUT_PIN);
+        ComponentType output = standard.require(InterfacePins.OUTPUT_PIN);
+        assertThat(input.category()).isEqualTo(ComponentCategory.INTERFACE);
+        assertThat(output.category()).isEqualTo(ComponentCategory.INTERFACE);
+        assertThat(input.pin(0).isDriver()).isTrue();
+        assertThat(output.pin(0).isDriver()).isFalse();
+        assertThat(input.resolveParameters(Map.of())).containsEntry("value", "0");
+
+        SimulationEngine engine = new SimulationEngine();
+        engine.update(new FlatCircuit(
+                List.of(new FlatComponent("in", input, Map.of()), new FlatComponent("out", output, Map.of())),
+                List.of(new FlatNet("n", List.of(new FlatPinRef("in", 0), new FlatPinRef("out", 0)), 1, false))));
+        engine.advance(1);
+        assertThat(engine.snapshot().componentState("out")).isEqualTo(new VisibleState.LedState(Value.ZERO));
+        engine.interact("in");
+        engine.advance(1);
+        assertThat(engine.snapshot().componentState("out")).isEqualTo(new VisibleState.LedState(Value.ONE));
     }
 }

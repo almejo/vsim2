@@ -9,6 +9,7 @@ import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.Bounds;
+import cl.almejo.vsim.core.library.ComponentDefinition;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -16,10 +17,12 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * Part of a circuit (clipboard, drag and drop). Coordinates are relative: {@link #of} moves the top-left of the
+ * Part of a circuit (clipboard, drag and drop, template body), with the definitions its instances need
+ * (dependencies first). Coordinates are relative: {@link #of} moves the top-left of the
  * fragment's bounds to (0,0). The elements keep the ids they had in their source document.
  */
-public record CircuitFragment(List<Component> components, List<Wire> wires, List<TextLabel> labels) {
+public record CircuitFragment(List<Component> components, List<Wire> wires, List<TextLabel> labels,
+                              List<ComponentDefinition> definitions) {
 
     private static final Bounds EMPTY_BOUNDS = new Bounds(0, 0, 0, 0);
 
@@ -27,6 +30,12 @@ public record CircuitFragment(List<Component> components, List<Wire> wires, List
         components = List.copyOf(components);
         wires = List.copyOf(wires);
         labels = List.copyOf(labels);
+        definitions = List.copyOf(definitions);
+    }
+
+    /** A fragment that needs no definitions (or whose definitions the target already has). */
+    public CircuitFragment(List<Component> components, List<Wire> wires, List<TextLabel> labels) {
+        this(components, wires, labels, List.of());
     }
 
     /** The listed elements of {@code document} (unknown ids are ignored), moved so their bounds start at (0,0). */
@@ -61,6 +70,7 @@ public record CircuitFragment(List<Component> components, List<Wire> wires, List
         return new CircuitFragment(
                 components.stream().map(component -> component.translate(deltaX, deltaY)).toList(),
                 wires.stream().map(wire -> wire.translate(deltaX, deltaY)).toList(),
-                labels.stream().map(label -> label.translate(deltaX, deltaY)).toList());
+                labels.stream().map(label -> label.translate(deltaX, deltaY)).toList(),
+                definitions);
     }
 }

@@ -6,6 +6,7 @@ import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.ParameterSpec;
 import cl.almejo.vsim.core.component.PinSpec;
 import cl.almejo.vsim.core.geometry.GridSize;
+import cl.almejo.vsim.core.library.InterfacePins;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -37,6 +38,8 @@ public final class StandardComponentTypes {
     public static final String SEVEN_SEGMENTS_DISPLAY = "seven-segments-display";
     public static final String SEVEN_SEGMENTS_DISPLAY_DOUBLE = "seven-segments-display-double";
     public static final String TIME_DIAGRAM = "time-diagram";
+    public static final String INPUT_PIN = InterfacePins.INPUT_PIN;
+    public static final String OUTPUT_PIN = InterfacePins.OUTPUT_PIN;
 
     private static final GridSize GATE_SIZE = new GridSize(4, 4);
     private static final ParameterSpec DELAY = ParameterSpec.integer("delay", 1, 1, 1_000_000);
@@ -93,6 +96,14 @@ public final class StandardComponentTypes {
                         ParameterSpec.integer("history", 200, 10, 10_000)),
                 parameters -> new TimeDiagramBehavior(4, (Integer) parameters.get("sample-interval"),
                         (Integer) parameters.get("history"))));
+        registry.register(new ComponentType(INPUT_PIN, ComponentCategory.INTERFACE, new GridSize(2, 2),
+                List.of(PinSpec.output("pin", 2, 1)),
+                List.of(ParameterSpec.choice("value", "0", List.of("1", "0", "Z"))),
+                parameters -> new SwitchBehavior(SwitchBehavior.parse((String) parameters.get("value")))));
+        registry.register(new ComponentType(OUTPUT_PIN, ComponentCategory.INTERFACE, new GridSize(2, 2),
+                List.of(PinSpec.input("pin", 0, 1)),
+                List.of(),
+                parameters -> new LedBehavior()));
     }
 
     private static ComponentType logicGate(LogicOperation operation, int inputCount) {

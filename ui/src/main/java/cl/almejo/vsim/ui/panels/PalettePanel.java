@@ -45,8 +45,9 @@ import java.util.function.Consumer;
 /** Component palette: search box plus a tree of categories. Choosing an entry starts placing it. */
 public final class PalettePanel extends JPanel {
 
-    private static final List<ComponentCategory> ORDER = List.of(
-            ComponentCategory.BASIC, ComponentCategory.INPUT_OUTPUT, ComponentCategory.DEBUG, ComponentCategory.CUSTOM);
+    private static final List<ComponentCategory> ORDER = List.of(ComponentCategory.BASIC,
+            ComponentCategory.INPUT_OUTPUT, ComponentCategory.DEBUG, ComponentCategory.INTERFACE,
+            ComponentCategory.CUSTOM);
     private static final int ICON_SIZE = 24;
 
     private final ComponentTypeRegistry registry;
