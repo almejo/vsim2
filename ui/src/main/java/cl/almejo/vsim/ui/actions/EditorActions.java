@@ -15,6 +15,7 @@ import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.panels.ConfigureDialog;
 import cl.almejo.vsim.ui.tools.PanTool;
 import cl.almejo.vsim.ui.tools.WireTool;
+import cl.almejo.vsim.ui.window.MenuId;
 import cl.almejo.vsim.ui.window.WindowCommands;
 
 import javax.swing.AbstractAction;
@@ -147,7 +148,7 @@ public final class EditorActions {
 
     public JMenuBar createMenuBar() {
         JMenuBar menuBar = new JMenuBar();
-        JMenu file = new JMenu(Messages.text("menu.file"));
+        JMenu file = tagged(new JMenu(Messages.text("menu.file")), MenuId.FILE);
         file.add(newDocument);
         file.add(open);
         file.add(save);
@@ -155,7 +156,7 @@ public final class EditorActions {
         file.addSeparator();
         file.add(closeWindow);
         file.add(exit);
-        JMenu edit = new JMenu(Messages.text("menu.edit"));
+        JMenu edit = tagged(new JMenu(Messages.text("menu.edit")), MenuId.EDIT);
         edit.add(undo);
         edit.add(redo);
         edit.addSeparator();
@@ -163,7 +164,7 @@ public final class EditorActions {
         edit.add(rotateClockwise);
         edit.add(rotateCounterClockwise);
         edit.add(configure);
-        JMenu view = new JMenu(Messages.text("menu.view"));
+        JMenu view = tagged(new JMenu(Messages.text("menu.view")), MenuId.VIEW);
         view.add(selectTool);
         view.add(wireTool);
         view.add(panTool);
@@ -172,18 +173,26 @@ public final class EditorActions {
         view.add(zoomOut);
         view.add(zoomReset);
         view.add(centerView);
-        JMenu simulation = new JMenu(Messages.text("menu.simulation"));
+        JMenu simulation = tagged(new JMenu(Messages.text("menu.simulation")), MenuId.SIMULATION);
         simulation.add(start);
         simulation.add(pause);
         simulation.add(step);
-        JMenu help = new JMenu(Messages.text("menu.help"));
+        JMenu windowMenu = tagged(new JMenu(Messages.text("menu.window")), MenuId.WINDOW);
+        JMenu help = tagged(new JMenu(Messages.text("menu.help")), MenuId.HELP);
         help.add(about);
         menuBar.add(file);
         menuBar.add(edit);
         menuBar.add(view);
         menuBar.add(simulation);
+        menuBar.add(windowMenu);
         menuBar.add(help);
         return menuBar;
+    }
+
+    /** Marks {@code menu} with its {@link MenuId} so {@code EditorView.menu(id)} can find it. */
+    private static JMenu tagged(JMenu menu, MenuId id) {
+        menu.putClientProperty(MenuId.class, id);
+        return menu;
     }
 
     public JComboBox<Double> createSpeedSelector() {

@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.window;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
+import cl.almejo.vsim.ui.actions.ContextMenuContributor;
 import cl.almejo.vsim.ui.actions.ContextMenuFactory;
 import cl.almejo.vsim.ui.actions.EditorActions;
 import cl.almejo.vsim.ui.app.OpenDocument;
@@ -20,8 +21,10 @@ import cl.almejo.vsim.ui.tools.Tool;
 import cl.almejo.vsim.ui.tools.WireTool;
 
 import javax.swing.ButtonGroup;
+import javax.swing.JMenu;
 import javax.swing.JMenuBar;
 import javax.swing.JPanel;
+import javax.swing.JPopupMenu;
 import javax.swing.JSplitPane;
 import javax.swing.JToggleButton;
 import javax.swing.JToolBar;
@@ -30,9 +33,17 @@ import java.awt.BorderLayout;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.awt.geom.Point2D;
+import java.util.EnumMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CopyOnWriteArrayList;
 
-/** Content of an editor window: toolbar, palette, canvas and status bar, wired to one {@link OpenDocument}. */
+/**
+ * Content of an editor window: toolbar, palette, canvas, inspector and status bar, wired to one {@link OpenDocument}.
+ * Feature code adds menu items through {@link #menu(MenuId)}, inspector tabs through {@link #inspector()} and
+ * context-menu items through {@link #addContextMenuContributor}.
+ */
 public final class EditorView extends JPanel implements CanvasHost {
 
     private static final int PALETTE_WIDTH = 230;
@@ -42,7 +53,10 @@ public final class EditorView extends JPanel implements CanvasHost {
     private final EditorActions actions;
     private final PalettePanel palette;
     private final StatusBar statusBar = new StatusBar();
+    private final InspectorPanel inspector = new InspectorPanel();
     private final JMenuBar menuBar;
+    private final Map<MenuId, JMenu> menus = new EnumMap<>(MenuId.class);
+    private final List<ContextMenuContributor> contextMenuContributors = new CopyOnWriteArrayList<>();
     private final JToolBar toolBar = new JToolBar();
     private final ButtonGroup toolButtons = new ButtonGroup();
     private final JToggleButton selectButton;
@@ -60,12 +74,17 @@ public final class EditorView extends JPanel implements CanvasHost {
             canvas.requestFocusInWindow();
         });
         this.menuBar = actions.createMenuBar();
+        indexMenus();
         selectButton = new JToggleButton(actions.selectTool());
         wireButton = new JToggleButton(actions.wireTool());
         panButton = new JToggleButton(actions.panTool());
         buildToolBar();
 
-        JSplitPane split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, palette, canvas);
+        JSplitPane inspectorSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, canvas, inspector);
+        inspectorSplit.setContinuousLayout(true);
+        inspectorSplit.setResizeWeight(1);
+        inspectorSplit.setOneTouchExpandable(true);
+        JSplitPane split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, palette, inspectorSplit);
         split.setDividerLocation(PALETTE_WIDTH);
         split.setContinuousLayout(true);
         split.setResizeWeight(0);
@@ -92,8 +111,30 @@ public final class EditorView extends JPanel implements CanvasHost {
     public EditorActions actions() { return actions; }
     public PalettePanel palette() { return palette; }
     public StatusBar statusBar() { return statusBar; }
+    public InspectorPanel inspector() { return inspector; }
     public JMenuBar menuBar() { return menuBar; }
     public JToolBar toolBar() { return toolBar; }
+
+    /** The menu {@code id} of this window's menu bar. */
+    public JMenu menu(MenuId id) {
+        JMenu menu = menus.get(id);
+        if (menu == null) {
+            throw new IllegalStateException("the menu bar has no " + id + " menu");
+        }
+        return menu;
+    }
+
+    public void addContextMenuContributor(ContextMenuContributor contributor) {
+        contextMenuContributors.add(contributor);
+    }
+
+    /**
+     * Builds the right-click menu for {@code target} (the element under the mouse) clicked at {@code gridPosition}
+     * (grid units) without showing it.
+     */
+    public JPopupMenu contextMenu(Optional<DocumentElement> target, Point2D gridPosition) {
+        return ContextMenuFactory.create(target, actions, canvas.selection(), gridPosition, contextMenuContributors);
+    }
 
     public void dispose() {
         canvas.dispose();
@@ -101,13 +142,22 @@ public final class EditorView extends JPanel implements CanvasHost {
 
     @Override
     public void showContextMenu(CircuitCanvas source, Optional<DocumentElement> target, Point2D screenPosition) {
-        ContextMenuFactory.create(target, actions)
-                .show(source, (int) screenPosition.getX(), (int) screenPosition.getY());
+        Point2D gridPosition = canvas.viewport().screenToGrid(screenPosition.getX(), screenPosition.getY());
+        contextMenu(target, gridPosition).show(source, (int) screenPosition.getX(), (int) screenPosition.getY());
     }
 
     @Override
     public void configure(Component component) {
         actions.configure(component);
+    }
+
+    private void indexMenus() {
+        for (int index = 0; index < menuBar.getMenuCount(); index++) {
+            JMenu menu = menuBar.getMenu(index);
+            if (menu.getClientProperty(MenuId.class) instanceof MenuId id) {
+                menus.put(id, menu);
+            }
+        }
     }
 
     /** Menu accelerators allow one keystroke each; these cover "+" on non-US layouts and the keypad. */

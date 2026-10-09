@@ -17,7 +17,9 @@ import org.junit.jupiter.api.Test;
 import javax.swing.AbstractButton;
 import javax.swing.Action;
 import javax.swing.JComponent;
+import javax.swing.JLabel;
 import javax.swing.JMenu;
+import javax.swing.JSplitPane;
 import javax.swing.KeyStroke;
 import java.awt.Container;
 import java.awt.Graphics2D;
@@ -32,6 +34,7 @@ import java.util.Map;
 
 import static cl.almejo.vsim.ui.UiTestSupport.place;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class EditorViewTest {
 
@@ -65,13 +68,36 @@ class EditorViewTest {
     }
 
     @Test
-    void menuBarHasTheFiveMenusInOrder() {
+    void menuBarHasTheSixMenusInOrder() {
         List<String> titles = new ArrayList<>();
         for (int index = 0; index < view.menuBar().getMenuCount(); index++) {
             JMenu menu = view.menuBar().getMenu(index);
             titles.add(menu.getText());
         }
-        assertThat(titles).containsExactly("Archivo", "Editar", "Ver", "Simulación", "Ayuda");
+        assertThat(titles).containsExactly("Archivo", "Editar", "Ver", "Simulación", "Ventana", "Ayuda");
+    }
+
+    @Test
+    void menuReturnsEachMenuOfTheBarById() {
+        for (MenuId id : MenuId.values()) {
+            assertThat(view.menu(id)).isSameAs(view.menuBar().getMenu(id.ordinal()));
+        }
+        assertThat(view.menu(MenuId.WINDOW).getItemCount()).isZero();
+    }
+
+    @Test
+    void inspectorStartsHiddenNextToTheCanvasAndShowsItsTabs() {
+        InspectorPanel inspector = view.inspector();
+        assertThat(inspector.isVisible()).isFalse();
+        assertThat(((JSplitPane) inspector.getParent()).getLeftComponent()).isSameAs(view.canvas());
+        inspector.addTab("Uno", new JLabel("1"));
+        inspector.addTab("Dos", new JLabel("2"));
+        assertThat(inspector.isVisible()).isTrue();
+        assertThat(inspector.tabCount()).isEqualTo(2);
+        inspector.showTab("Dos");
+        assertThat(inspector.selectedTab()).contains("Dos");
+        assertThatThrownBy(() -> inspector.showTab("Tres")).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> inspector.addTab("Uno", new JLabel())).isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
