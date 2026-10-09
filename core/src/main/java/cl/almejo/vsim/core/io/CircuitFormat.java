@@ -145,8 +145,9 @@ public final class CircuitFormat {
         } catch (JsonProcessingException | IllegalArgumentException exception) {
             throw new CircuitFormatException(CircuitFormatException.Reason.INVALID_ELEMENT, exception.getMessage(), exception);
         }
-        if (!kind.equals(kindOf.apply(file))) {
-            throw new CircuitFormatException(CircuitFormatException.Reason.INVALID_ELEMENT, "kind " + kindOf.apply(file));
+        String fileKind = kindOf.apply(file);
+        if (!kind.equals(fileKind)) {
+            throw new CircuitFormatException(CircuitFormatException.Reason.INVALID_ELEMENT, "kind " + fileKind);
         }
         return file;
     }

@@ -9,6 +9,9 @@ import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
 import cl.almejo.vsim.core.io.CircuitFragment;
 import cl.almejo.vsim.core.io.FragmentFormat;
+import cl.almejo.vsim.core.library.ComponentDefinition;
+import cl.almejo.vsim.core.library.ExampleDefinitions;
+import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.clipboard.FileListTransferable;
@@ -486,6 +489,28 @@ class CircuitCanvasTest {
                 .satisfies(state -> assertThat(state.document()).isSameAs(openDocument.document()));
         assertThat(transforms.get(0).getTranslateX()).isEqualTo(10);
         assertThat(transforms.get(0).getTranslateY()).isEqualTo(20);
+    }
+
+    @Test
+    void aFloatingFragmentWithItsOwnDefinitionPaintsEvenThoughTheDocumentDoesNotHoldIt() {
+        ComponentDefinition inverter = ExampleDefinitions.inverter();
+        Component instance = new Component(new ElementId("c1"), SubcircuitTypes.typeIdOf(inverter.id()),
+                new GridPoint(0, 0), Rotation.R0, Map.of(), "");
+        String json = new FragmentFormat(openDocument.registry())
+                .write(new CircuitFragment(List.of(instance), List.of(), List.of(), List.of(inverter)));
+        assertThat(openDocument.document().definition(inverter.id())).isEmpty();
+        canvas.setSize(400, 300);
+        assertThat(canvas.dropFragment(json, new Point(80, 72))).isTrue();
+
+        BufferedImage image = new BufferedImage(400, 300, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D graphics = image.createGraphics();
+        try {
+            canvas.paint(graphics);
+        } finally {
+            graphics.dispose();
+        }
+
+        assertThat(openDocument.document().definition(inverter.id())).isEmpty();
     }
 
     @Test

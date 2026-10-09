@@ -14,7 +14,8 @@ import java.util.List;
 
 /**
  * Clipboard form of a {@link CircuitFragment}: compact JSON {@code {"formatVersion":2,"kind":"fragment",...}} with the
- * same component, wire and label entries as the circuit file format.
+ * same component, wire and label entries as the circuit file format. A fragment also carries the definitions its
+ * instances use, so it can be pasted into a document that does not hold them.
  */
 public final class FragmentFormat {
 
@@ -51,6 +52,7 @@ public final class FragmentFormat {
     /** Reads a fragment, validating it like a circuit file, and moves its bounds to start at (0,0). */
     public CircuitFragment read(String json) throws CircuitFormatException {
         JsonNode root = CircuitFormat.parse(mapper, json);
+        // Called only for its checks (format version, kind, shape of the file); the parsed file itself is not used.
         CircuitFormat.readFile(mapper, root, FragmentFile.class, KIND_FRAGMENT, FragmentFile::kind);
         // Reuse CircuitFormat.read for validation and element parsing: it only accepts a circuit file, so the fragment
         // is presented as one (kind rewritten to "circuit", and the circuit-only "name" dropped).

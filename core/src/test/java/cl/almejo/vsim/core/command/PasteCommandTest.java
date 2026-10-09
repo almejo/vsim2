@@ -8,12 +8,19 @@ import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.document.Wire;
+import cl.almejo.vsim.core.component.PinSpec;
 import cl.almejo.vsim.core.geometry.GridPoint;
+import cl.almejo.vsim.core.geometry.GridSize;
 import cl.almejo.vsim.core.geometry.Rotation;
 import cl.almejo.vsim.core.io.CircuitFragment;
 import cl.almejo.vsim.core.library.ComponentDefinition;
+import cl.almejo.vsim.core.library.DefinitionPin;
 import cl.almejo.vsim.core.library.ExampleDefinitions;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
+import cl.almejo.vsim.core.netlist.NetlistCompiler;
+import cl.almejo.vsim.core.simulation.CircuitFlattener;
+import cl.almejo.vsim.core.simulation.FlatCircuit;
+import cl.almejo.vsim.core.simulation.SimulationEngine;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -141,5 +148,34 @@ class PasteCommandTest {
         assertThat(target.definition(ExampleDefinitions.INVERTER)).containsSame(own);
         paste.revert(target);
         assertThat(target.definition(ExampleDefinitions.INVERTER)).containsSame(own);
+    }
+
+    @Test
+    void aPastedDefinitionNestingOneTheDocumentHoldsWithAnotherPinoutStillFlattensAndSimulates() {
+        ComponentDefinition original = ExampleDefinitions.inverter();
+        ComponentDefinition differentPinout = new ComponentDefinition(original.id(), original.name(), "",
+                new GridSize(4, 4),
+                List.of(new DefinitionPin(PinSpec.input("in", 0, 1), original.pinout().get(0).source()),
+                        new DefinitionPin(PinSpec.output("out", 4, 3), original.pinout().get(1).source())),
+                original.body());
+        CircuitDocument target = new CircuitDocument();
+        target.putDefinition(differentPinout);
+        Component instance = new Component(new ElementId("c1"),
+                SubcircuitTypes.typeIdOf(ExampleDefinitions.DOUBLE_INVERTER), GridPoint.ORIGIN, Rotation.R0, Map.of(), "");
+        CircuitFragment fragment = new CircuitFragment(List.of(instance), List.of(), List.of(),
+                List.of(ExampleDefinitions.doubleInverter(), original));
+
+        new PasteCommand(fragment, new GridPoint(10, 10)).apply(target);
+
+        assertThat(target.definition(ExampleDefinitions.INVERTER)).contains(differentPinout);
+        assertThat(target.definition(ExampleDefinitions.DOUBLE_INVERTER)).contains(ExampleDefinitions.doubleInverter());
+        ComponentTypeRegistry targetRegistry = StandardComponentTypes.registry();
+        targetRegistry.addResolver(SubcircuitTypes.resolverFor(target));
+        FlatCircuit flat = new CircuitFlattener(targetRegistry).flatten(target,
+                new NetlistCompiler(targetRegistry).compile(target));
+        SimulationEngine engine = new SimulationEngine();
+        engine.update(flat);
+        engine.runUntil(20);
+        assertThat(engine.snapshot()).isNotNull();
     }
 }

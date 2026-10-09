@@ -69,6 +69,8 @@ final class DefinitionEntries {
                 try {
                     normalized.add(component.withParameters(type.resolveParameters(component.parameters())));
                 } catch (IllegalArgumentException | NullPointerException exception) {
+                    // A malformed parameter value can surface as a NullPointerException; no unchecked exception may
+                    // escape to the caller (on a paste that would reach the EDT), so it becomes INVALID_ELEMENT.
                     throw invalid("definition " + definition.id() + ": " + exception.getMessage(), exception);
                 }
             }
