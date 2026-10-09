@@ -210,6 +210,19 @@ class SelectionActionsTest {
         assertThat(openDocument.document().components()).hasSize(1);
     }
 
+    /** Review M1: like a drop, a paste must swallow the reader's unchecked exceptions. */
+    @Test
+    void pastingAFragmentTheReaderChokesOnDoesNothing() {
+        // Valid JSON whose bounds overflow an int: the reader throws an unchecked exception, not a format error.
+        String overflowing = "{\"formatVersion\":2,\"kind\":\"fragment\",\"components\":["
+                + "{\"id\":\"c1\",\"type\":\"not\",\"x\":-2147483648,\"y\":0},"
+                + "{\"id\":\"c2\",\"type\":\"not\",\"x\":2147483600,\"y\":0}],\"wires\":[],\"labels\":[]}";
+        systemClipboard.setContents(new FragmentTransferable(overflowing), null);
+        perform(actions.paste());
+        assertThat(view.canvas().tool()).isSameAs(view.canvas().defaultTool());
+        assertThat(openDocument.document().isEmpty()).isTrue();
+    }
+
     @Test
     void duplicateFloatsACopyOffsetFromTheOriginalAndLeavesTheClipboardAlone() {
         Component gate = gateAt(10, 4);

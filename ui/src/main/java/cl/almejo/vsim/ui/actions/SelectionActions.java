@@ -89,8 +89,9 @@ public final class SelectionActions {
         CircuitFragment fragment;
         try {
             fragment = format.read(json.get());
-        } catch (CircuitFormatException exception) {
-            LOGGER.debug("Clipboard does not hold a circuit fragment: {}", exception.getMessage());
+        } catch (CircuitFormatException | RuntimeException exception) {
+            // Like a drop: valid JSON can still make the reader throw (bounds overflowing an int, for one).
+            LOGGER.debug("Clipboard does not hold a usable circuit fragment: {}", exception.getMessage());
             return;
         }
         if (fragment.isEmpty()) {
