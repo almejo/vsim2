@@ -119,4 +119,22 @@ class ValueTest {
         assertThat(new Value(4, 0b0101, 0b1000, false).toString()).isEqualTo("Z101");
         assertThat(Value.ONE.withConflict().toString()).isEqualTo("X!1");
     }
+
+    @Test
+    void hexShowsEveryNibbleMostSignificantFirst() {
+        assertThat(Value.of(8, 0x3F).hex()).isEqualTo("3F");
+        assertThat(Value.of(4, 0xA).hex()).isEqualTo("A");
+        assertThat(Value.of(5, 0x1A).hex()).isEqualTo("1A");
+        assertThat(Value.of(12, 0x0A0).hex()).isEqualTo("0A0");
+        assertThat(Value.ONE.hex()).isEqualTo("1");
+        assertThat(Value.of(64, -1L).hex()).isEqualTo("FFFFFFFFFFFFFFFF");
+    }
+
+    @Test
+    void hexMarksHighImpedanceNibbles() {
+        assertThat(Value.highImpedance(8).hex()).isEqualTo("ZZ");
+        assertThat(new Value(8, 0x0F, 0x30, false).hex()).isEqualTo("?F");
+        assertThat(new Value(6, 0, 0b110000, false).hex()).isEqualTo("Z0");
+        assertThat(Value.of(8, 0x5A).withConflict().hex()).isEqualTo("5A");
+    }
 }

@@ -33,6 +33,9 @@ public final class PainterRegistry {
         registry.register(StandardComponentTypes.SEVEN_SEGMENTS_DISPLAY, display);
         registry.register(StandardComponentTypes.SEVEN_SEGMENTS_DISPLAY_DOUBLE, display);
         registry.register(StandardComponentTypes.TIME_DIAGRAM, new TimeDiagramPainter());
+        BusSplitterPainter bus = new BusSplitterPainter();
+        registry.register(StandardComponentTypes.BUS_SPLITTER, bus);
+        registry.register(StandardComponentTypes.BUS_JOINER, bus);
         InterfacePinPainter interfacePin = new InterfacePinPainter();
         registry.register(InterfacePins.INPUT_PIN, interfacePin);
         registry.register(InterfacePins.OUTPUT_PIN, interfacePin);

@@ -2,10 +2,13 @@ package cl.almejo.vsim.core.component.standard;
 
 import cl.almejo.vsim.core.component.Behavior;
 import cl.almejo.vsim.core.component.ComponentCategory;
+import cl.almejo.vsim.core.component.ComponentShape;
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.ParameterSpec;
+import cl.almejo.vsim.core.component.PinDirection;
 import cl.almejo.vsim.core.component.PinSpec;
+import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.GridSize;
 import cl.almejo.vsim.core.library.InterfacePins;
 
@@ -41,9 +44,14 @@ public final class StandardComponentTypes {
     public static final String TIME_DIAGRAM = "time-diagram";
     public static final String INPUT_PIN = InterfacePins.INPUT_PIN;
     public static final String OUTPUT_PIN = InterfacePins.OUTPUT_PIN;
+    public static final String BUS_SPLITTER = "bus-splitter";
+    public static final String BUS_JOINER = "bus-joiner";
+    /** The parameter that sets a bus component's width in bits. */
+    public static final String WIDTH = "width";
 
     private static final GridSize GATE_SIZE = new GridSize(4, 4);
     private static final ParameterSpec DELAY = ParameterSpec.integer("delay", 1, 1, 1_000_000);
+    private static final ParameterSpec BUS_WIDTH = ParameterSpec.integer(WIDTH, 8, 2, 32);
 
     private StandardComponentTypes() {
     }
@@ -105,6 +113,12 @@ public final class StandardComponentTypes {
                 List.of(PinSpec.input("pin", 0, 1)),
                 List.of(),
                 parameters -> newValueProbe()));
+        registry.register(ComponentType.parameterized(BUS_SPLITTER, ComponentCategory.BASIC, List.of(BUS_WIDTH),
+                parameters -> busShape((Integer) parameters.get(WIDTH), false),
+                parameters -> new BusSplitterBehavior((Integer) parameters.get(WIDTH))));
+        registry.register(ComponentType.parameterized(BUS_JOINER, ComponentCategory.BASIC, List.of(BUS_WIDTH),
+                parameters -> busShape((Integer) parameters.get(WIDTH), true),
+                parameters -> new BusJoinerBehavior((Integer) parameters.get(WIDTH))));
     }
 
     /** A passive behavior that only shows the value at its single input, like an LED or an output pin. */
@@ -131,5 +145,20 @@ public final class StandardComponentTypes {
         }
         return new ComponentType(id, ComponentCategory.INPUT_OUTPUT, new GridSize(pinCount, 6), pins, List.of(),
                 parameters -> new SevenSegmentsDisplayBehavior(pinCount));
+    }
+
+    /**
+     * A splitter of {@code width} bits: a 2 x width box, the bus pin at (0, 0) and bits b0..b(width-1) at (2, 1)..
+     * (2, width). The joiner mirrors it: bits in at (0, 1)..(0, width), the bus out at (2, 0).
+     */
+    private static ComponentShape busShape(int width, boolean joining) {
+        List<PinSpec> pins = new ArrayList<>();
+        pins.add(new PinSpec("bus", new GridPoint(joining ? 2 : 0, 0),
+                joining ? PinDirection.OUTPUT : PinDirection.INPUT, width));
+        for (int bit = 0; bit < width; bit++) {
+            pins.add(new PinSpec("b" + bit, new GridPoint(joining ? 0 : 2, bit + 1),
+                    joining ? PinDirection.INPUT : PinDirection.OUTPUT, 1));
+        }
+        return new ComponentShape(new GridSize(2, width), pins);
     }
 }

@@ -128,6 +128,19 @@ class PaintersTest {
     }
 
     @Test
+    void busSplittersAndJoinersOfAnyWidthDrawNearTheirBounds() {
+        for (String typeId : List.of(StandardComponentTypes.BUS_SPLITTER, StandardComponentTypes.BUS_JOINER)) {
+            for (int width : new int[]{2, 32}) {
+                Map<String, Object> parameters = Map.of(StandardComponentTypes.WIDTH, width);
+                ComponentType type = registry.require(typeId).specializedFor(parameters);
+                for (Rotation rotation : Rotation.values()) {
+                    assertDrawsNearItsBounds(type, rotation, VisibleState.NONE, 400, parameters);
+                }
+            }
+        }
+    }
+
+    @Test
     void subcircuitTypesGetTheSubcircuitPainterAndDrawInsideTheirBox() {
         ComponentType type = SubcircuitTypes.typeOf(ExampleDefinitions.inverter());
         assertThat(painters.painterFor(type.id())).isInstanceOf(SubcircuitPainter.class);
@@ -138,7 +151,12 @@ class PaintersTest {
     }
 
     private void assertDrawsNearItsBounds(ComponentType type, Rotation rotation, VisibleState state, int imageSize) {
-        Component component = type.newComponent(new ElementId("c1"), new GridPoint(12, 12), rotation, Map.of(), "");
+        assertDrawsNearItsBounds(type, rotation, state, imageSize, Map.of());
+    }
+
+    private void assertDrawsNearItsBounds(ComponentType type, Rotation rotation, VisibleState state, int imageSize,
+                                          Map<String, Object> parameters) {
+        Component component = type.newComponent(new ElementId("c1"), new GridPoint(12, 12), rotation, parameters, "");
         BufferedImage image = blankImage(imageSize, imageSize);
         Graphics2D graphics = image.createGraphics();
         ComponentDrawing.paint(graphics, type, component, state, SCHEME, painters);

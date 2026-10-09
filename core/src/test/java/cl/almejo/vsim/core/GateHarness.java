@@ -31,7 +31,7 @@ public final class GateHarness {
 
     public GateHarness(String typeId, Map<String, Object> parameters) {
         ComponentTypeRegistry registry = StandardComponentTypes.registry();
-        this.type = registry.require(typeId);
+        this.type = registry.require(typeId).specializedFor(parameters);
         this.sourceType = TestComponentTypes.registry().require(TestComponentTypes.SOURCE);
         this.parameters = parameters;
         rebuild();

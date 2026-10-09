@@ -80,6 +80,28 @@ public record Value(int width, long bits, long highImpedanceMask, boolean confli
         return highImpedanceMask == 0L && !conflict;
     }
 
+    /**
+     * The value in hexadecimal, most significant digit first, one digit per 4 bits (the top digit may cover fewer):
+     * a digit whose bits are all Z is {@code Z}, one only partly in Z is {@code ?}. The conflict flag is not shown.
+     */
+    public String hex() {
+        int digits = (width + 3) / 4;
+        StringBuilder builder = new StringBuilder(digits);
+        for (int digit = digits - 1; digit >= 0; digit--) {
+            int shift = digit * 4;
+            long nibbleMask = (maskFor(width) >>> shift) & 0xFL;
+            long highImpedance = (highImpedanceMask >>> shift) & nibbleMask;
+            if (highImpedance == 0) {
+                builder.append(Character.toUpperCase(Character.forDigit((int) ((bits >>> shift) & nibbleMask), 16)));
+            } else if (highImpedance == nibbleMask) {
+                builder.append('Z');
+            } else {
+                builder.append('?');
+            }
+        }
+        return builder.toString();
+    }
+
     public Value and(Value other) {
         return combine(other, (left, right) -> left & right);
     }
