@@ -96,6 +96,41 @@ class LibraryPaletteTest {
         assertThat(fixture.openDocument.document().definition(original.id())).contains(otherVersion);
     }
 
+    /** Undoing the placement removes what it added and nothing else: the circuit's own version stays. */
+    @Test
+    void undoingAPlacementOverAnotherVersionKeepsTheCircuitsVersion() throws Exception {
+        ComponentDefinition original = ExampleDefinitions.inverter();
+        ComponentDefinition otherVersion = new ComponentDefinition(original.id(), original.name(), "otra versión",
+                original.size(), original.pinout(), original.body());
+        fixture.openDocument.execute(new PutDefinitionsCommand(List.of(otherVersion)));
+        fixture.service.save(DefinitionBundle.of(ExampleDefinitions.doubleInverter(),
+                id -> Optional.of(ExampleDefinitions.inverter())));
+        fixture.view.palette().choose("subcircuit:double-inverter");
+        fixture.view.canvas().tool().mousePressed(fixture.view.canvas(), TestToolContext.at(4, 4));
+
+        fixture.openDocument.history().undo();
+
+        CircuitDocument document = fixture.openDocument.document();
+        assertThat(document.components()).isEmpty();
+        assertThat(document.definitions()).containsExactly(otherVersion);
+    }
+
+    /** Removing from the library never touches a circuit: the placed component becomes this circuit's own. */
+    @Test
+    void removingAUsedLibraryComponentListsItAsThisCircuitsOwn() throws Exception {
+        fixture.service.save(inverter);
+        fixture.view.palette().choose("subcircuit:inverter");
+        fixture.view.canvas().tool().mousePressed(fixture.view.canvas(), TestToolContext.at(4, 4));
+        assertThat(fixture.view.palette().visibleSections()).endsWith("Mis componentes");
+
+        fixture.service.remove(ExampleDefinitions.INVERTER);
+
+        assertThat(fixture.openDocument.document().definitions()).containsExactly(ExampleDefinitions.inverter());
+        assertThat(fixture.view.palette().visibleSections()).doesNotContain("Mis componentes")
+                .endsWith("Componentes de este circuito");
+        assertThat(fixture.view.palette().visibleTypeIds()).contains("subcircuit:inverter");
+    }
+
     @Test
     void everyWindowFollowsTheLibrary() throws Exception {
         try (TemplateFixture second = new TemplateFixture(fixture,

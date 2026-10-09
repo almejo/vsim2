@@ -14,7 +14,6 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 /**
  * Keeps one view's palette in step with the library (every window) and with its document's own definitions, and
@@ -31,8 +30,6 @@ public final class LibraryPalette {
     private final LibraryService service;
     private final LibraryDialogs dialogs;
     private final Runnable refresher = this::refresh;
-    private List<DefinitionBundle> pushedLibrary;
-    private List<DefinitionBundle> pushedOwn;
 
     public LibraryPalette(EditorView view, LibraryService service, LibraryDialogs dialogs) {
         this.view = view;
@@ -55,10 +52,9 @@ public final class LibraryPalette {
     /**
      * "Mis componentes" = the library; "Componentes de este circuito" = the definitions this circuit uses (nested
      * ones included) that the library lacks. Unused definitions are left out: saving drops them (preflight S5).
-     * Nothing is pushed when both lists are unchanged, so ordinary edits leave the palette alone (preflight S6).
+     * The palette ignores unchanged lists, so ordinary edits leave it alone (preflight S6).
      */
     public void refresh() {
-        List<DefinitionBundle> library = service.library().entries();
         Set<String> libraryIds = service.library().ids();
         CircuitDocument document = view.openDocument().document();
         List<DefinitionBundle> own = new ArrayList<>();
@@ -73,12 +69,7 @@ public final class LibraryPalette {
                         exception);
             }
         }
-        if (library.equals(pushedLibrary) && own.equals(pushedOwn)) {
-            return;
-        }
-        pushedLibrary = library;
-        pushedOwn = List.copyOf(own);
-        view.palette().setUserComponents(pushedLibrary, pushedOwn);
+        view.palette().setUserComponents(service.library().entries(), own);
     }
 
     private void place(PalettePanel.UserComponent component) {
@@ -98,8 +89,7 @@ public final class LibraryPalette {
             }
         }
         if (!names.isEmpty()) {
-            dialogs.showMessage(view.canvas(), Messages.format("library.place.keptVersion",
-                    names.stream().collect(Collectors.joining(", "))));
+            dialogs.showMessage(view.canvas(), Messages.format("library.place.keptVersion", String.join(", ", names)));
         }
     }
 }
