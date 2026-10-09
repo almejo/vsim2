@@ -16,7 +16,7 @@ import java.awt.geom.Point2D;
  * one {@link PasteCommand}. It follows the mouse (its origin at the pointer) until the first primary press. If that
  * first press is released without dragging, the fragment is committed right there (one click drops a paste). If it is
  * dragged, the fragment moves with the drag and stays floating; afterwards a press outside it commits and a press on
- * it grabs and drags it. Enter commits, Esc cancels. Leaving the tool any other way (pasting again, choosing another
+ * it grabs and drags it. Enter commits; Esc, Delete and Backspace cancel; R is consumed (no rotation while floating). Leaving the tool any other way (pasting again, choosing another
  * tool) commits it.
  */
 public final class FloatingSelectionTool implements Tool {
@@ -48,6 +48,12 @@ public final class FloatingSelectionTool implements Tool {
     /** Where the fragment's (0,0) currently is, in grid units. */
     public GridPoint position() {
         return position;
+    }
+
+    /** The document selection is cleared so that nothing but the floating fragment can be acted upon. */
+    @Override
+    public void activated(ToolContext context) {
+        context.selection().clear();
     }
 
     @Override
@@ -115,10 +121,14 @@ public final class FloatingSelectionTool implements Tool {
             commit(context, true);
             return true;
         }
-        if (keyCode == KeyEvent.VK_ESCAPE) {
+        if (keyCode == KeyEvent.VK_ESCAPE || keyCode == KeyEvent.VK_DELETE || keyCode == KeyEvent.VK_BACK_SPACE) {
             finished = true;
             context.repaint();
             context.useDefaultTool();
+            return true;
+        }
+        if (keyCode == KeyEvent.VK_R) {
+            // Rotating a floating fragment is not supported; consume the key so canvas bindings do not act on the document.
             return true;
         }
         return false;

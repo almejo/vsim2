@@ -6,6 +6,7 @@ import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
 import cl.almejo.vsim.core.io.CircuitFragment;
@@ -143,5 +144,63 @@ class FloatingSelectionToolTest {
         assertThat(document.isEmpty()).isTrue();
         tool.mouseMoved(context, TestToolContext.at(6, 6));
         assertThat(tool.position()).isEqualTo(new GridPoint(6, 6));
+    }
+
+    @Test
+    void activationClearsTheDocumentSelection() {
+        context.selection.set(List.of(new ElementId("c99")));
+        FloatingSelectionTool tool = floating(0, 0);
+        tool.activated(context);
+        assertThat(context.selection.isEmpty()).isTrue();
+    }
+
+    @Test
+    void deleteAndBackspaceCancelWithoutTouchingTheDocument() {
+        for (int keyCode : new int[] {KeyEvent.VK_DELETE, KeyEvent.VK_BACK_SPACE}) {
+            FloatingSelectionTool tool = floating(0, 0);
+            assertThat(tool.keyPressed(context, keyCode, false)).isTrue();
+            tool.deactivated(context);
+            assertThat(document.isEmpty()).isTrue();
+            assertThat(history.canUndo()).isFalse();
+            assertThat(context.tool).isSameAs(context.defaultTool);
+        }
+    }
+
+    @Test
+    void rotateKeysAreConsumedAndChangeNothing() {
+        FloatingSelectionTool tool = floating(3, 3);
+        assertThat(tool.keyPressed(context, KeyEvent.VK_R, false)).isTrue();
+        assertThat(tool.keyPressed(context, KeyEvent.VK_R, true)).isTrue();
+        assertThat(tool.position()).isEqualTo(new GridPoint(3, 3));
+        assertThat(document.isEmpty()).isTrue();
+        assertThat(history.canUndo()).isFalse();
+        assertThat(context.tool).isSameAs(tool);
+    }
+
+    @Test
+    void aWireOnlyFragmentCanBeGrabbedWithinTheMargin() {
+        CircuitFragment wireOnly = new CircuitFragment(List.of(),
+                List.of(new Wire(new ElementId("w1"), new GridPoint(0, 0), new GridPoint(10, 0))), List.of());
+        FloatingSelectionTool tool = new FloatingSelectionTool(wireOnly, new GridPoint(5, 5));
+        context.setTool(tool);
+        context.drag(tool, 7, 5, 9, 5);
+        assertThat(tool.position()).isEqualTo(new GridPoint(7, 5));
+        double justInside = 7 + 10 + FloatingSelectionTool.GRAB_MARGIN - 0.1;
+        context.drag(tool, justInside, 5.3, justInside + 2, 5.3);
+        assertThat(tool.position()).isEqualTo(new GridPoint(9, 5));
+        assertThat(document.isEmpty()).isTrue();
+        context.click(tool, 40, 40);
+        assertThat(document.wires()).hasSize(1);
+    }
+
+    @Test
+    void enterAfterADraggedFirstPressCommitsAtTheDraggedPosition() {
+        FloatingSelectionTool tool = floating(8, 3);
+        context.drag(tool, 9, 4, 12, 6);
+        assertThat(document.isEmpty()).isTrue();
+        assertThat(tool.keyPressed(context, KeyEvent.VK_ENTER, false)).isTrue();
+        assertThat(document.components()).singleElement()
+                .satisfies(component -> assertThat(component.position()).isEqualTo(new GridPoint(11, 5)));
+        assertThat(context.tool).isSameAs(context.defaultTool);
     }
 }
