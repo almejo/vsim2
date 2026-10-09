@@ -6,6 +6,8 @@ import cl.almejo.vsim.core.io.CircuitFormatException;
 import cl.almejo.vsim.core.library.ComponentLibrary;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.library.LibraryService;
+import cl.almejo.vsim.ui.library.SwingLibraryDialogs;
+import cl.almejo.vsim.ui.library.TemplatesExtension;
 import cl.almejo.vsim.ui.paint.Appearance;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
@@ -43,6 +45,7 @@ public final class Application {
         this.libraryService = new LibraryService(preferences, library, registry);
         List<EditorExtension> editorExtensions = new ArrayList<>();
         // M4 tracks add one line each here, in the order A, B, C, D (overview R9).
+        editorExtensions.add(new TemplatesExtension(libraryService, SwingLibraryDialogs.INSTANCE));
         this.services = new EditorServices(PainterRegistry.standard(), appearance, preferences, library,
                 editorExtensions);
     }

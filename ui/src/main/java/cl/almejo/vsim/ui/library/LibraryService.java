@@ -8,6 +8,7 @@ import cl.almejo.vsim.core.io.LibraryProblem;
 import cl.almejo.vsim.core.library.ComponentLibrary;
 import cl.almejo.vsim.core.library.DefinitionBundle;
 import cl.almejo.vsim.ui.app.AppPreferences;
+import cl.almejo.vsim.ui.i18n.Messages;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -119,6 +120,11 @@ public final class LibraryService implements AutoCloseable {
     public Path fileOf(String id) {
         LibraryDirectory current = directory;
         return current.locate(id).orElse(current.fileOf(id));
+    }
+
+    /** The visible text for a failed write of {@code id}: its file and the reason. */
+    String writeError(String id, IOException exception) {
+        return Messages.format("library.error.write", fileOf(id), String.valueOf(exception.getMessage()));
     }
 
     /** Stops watching the directory and following the preference; the library keeps its entries. */
