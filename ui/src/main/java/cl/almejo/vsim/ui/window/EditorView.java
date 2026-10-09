@@ -34,6 +34,7 @@ import javax.swing.JSplitPane;
 import javax.swing.JToggleButton;
 import javax.swing.JToolBar;
 import javax.swing.KeyStroke;
+import javax.swing.SwingUtilities;
 import java.awt.BorderLayout;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
@@ -127,6 +128,8 @@ public final class EditorView extends JPanel implements CanvasHost {
                 actions.rotateCounterClockwise());
         bindZoomKeys();
         toolChanged(canvas.tool());
+        canvas.setFileDropHandler(this::dropFiles);
+        palette.setFileDropHandler(this::dropFiles);
         installSelectionActions();
         labelFeatures = LabelFeatures.install(this, TextPrompt.DIALOG);
         problems = new ProblemsController(this);
@@ -209,6 +212,14 @@ public final class EditorView extends JPanel implements CanvasHost {
      */
     public void openOrImport(List<Path> files) {
         openOrImportFiles(files, circuitOpener);
+    }
+
+    /**
+     * Files dropped on the window, the canvas or the palette: {@link #openOrImport} runs after the drop finishes,
+     * because a dialog inside a drop transaction can hang the drag source.
+     */
+    public void dropFiles(List<Path> files) {
+        SwingUtilities.invokeLater(() -> openOrImport(files));
     }
 
     /**

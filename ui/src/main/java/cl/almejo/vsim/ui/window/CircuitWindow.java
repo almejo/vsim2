@@ -11,13 +11,11 @@ import org.slf4j.LoggerFactory;
 
 import javax.swing.JFrame;
 import javax.swing.JOptionPane;
-import javax.swing.SwingUtilities;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
-import java.util.function.Consumer;
 
 /** A top-level window showing one {@link OpenDocument}. */
 public final class CircuitWindow extends JFrame implements WindowCommands {
@@ -41,12 +39,10 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
         setIconImages(AppIcons.images());
         new WindowMenu(view.menu(MenuId.WINDOW), () -> application.newWindow(this),
                 () -> application.windowEntries(this));
-        // Open after the drop finishes: an error dialog inside a drop transaction can hang the drag source.
-        // Component files are imported into the library instead of being opened as circuits (M4-A ruling).
+        // Component files are imported into the library instead of being opened as circuits (M4-A ruling); drops on
+        // the window, the canvas and the palette are handled after the drop finishes (EditorView.dropFiles).
         view.setCircuitOpener(circuits -> application.openPaths(circuits, this));
-        Consumer<List<Path>> openDropped = files -> SwingUtilities.invokeLater(() -> view.openOrImport(files));
-        setTransferHandler(new FileDropHandler(openDropped));
-        view.canvas().setFileDropHandler(openDropped);
+        setTransferHandler(new FileDropHandler(view::dropFiles));
         setDefaultCloseOperation(DO_NOTHING_ON_CLOSE);
         addWindowListener(new WindowAdapter() {
             @Override

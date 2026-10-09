@@ -8,7 +8,6 @@ import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
 import cl.almejo.vsim.core.io.CircuitFragment;
 import cl.almejo.vsim.core.io.FragmentFormat;
-import cl.almejo.vsim.core.io.LibraryDirectory;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.DefinitionBundle;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
@@ -105,7 +104,7 @@ public final class PalettePanel extends JPanel {
     private Consumer<UserComponent> userChooser = component -> {
     };
     private Function<Optional<UserComponent>, Optional<JPopupMenu>> userMenuProvider = component -> Optional.empty();
-    private Consumer<List<Path>> componentFileDropHandler;
+    private Consumer<List<Path>> fileDropHandler;
     private boolean updating;
 
     public PalettePanel(ComponentTypeRegistry registry, PainterRegistry painters, ColorScheme scheme,
@@ -251,9 +250,12 @@ public final class PalettePanel extends JPanel {
         userMenuProvider = Objects.requireNonNull(provider);
     }
 
-    /** Receives the {@code .vsimcomponent.json} files dropped on the palette; without a handler drops are refused. */
-    public void setComponentFileDropHandler(Consumer<List<Path>> handler) {
-        componentFileDropHandler = handler;
+    /**
+     * Receives the circuit and component files dropped on the palette, as the canvas and the window do; without a
+     * handler drops are refused.
+     */
+    public void setFileDropHandler(Consumer<List<Path>> handler) {
+        fileDropHandler = handler;
     }
 
     /** Titles of the visible sections, top to bottom. */
@@ -423,7 +425,7 @@ public final class PalettePanel extends JPanel {
 
     /**
      * Drags entries to a canvas (a standard type as text, a user component as a fragment with its definitions) and
-     * accepts dropped component files.
+     * accepts dropped circuit and component files.
      */
     private final class PaletteTransferHandler extends TransferHandler {
         @Override
@@ -442,13 +444,12 @@ public final class PalettePanel extends JPanel {
 
         @Override
         public boolean canImport(TransferSupport support) {
-            return componentFileDropHandler != null && CircuitFileDrop.canImport(support);
+            return fileDropHandler != null && CircuitFileDrop.canImport(support);
         }
 
         @Override
         public boolean importData(TransferSupport support) {
-            return componentFileDropHandler != null
-                    && CircuitFileDrop.importData(support, LibraryDirectory::isComponentFile, componentFileDropHandler);
+            return fileDropHandler != null && CircuitFileDrop.importData(support, fileDropHandler);
         }
     }
 

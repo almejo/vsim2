@@ -205,18 +205,19 @@ class PalettePanelTest {
     }
 
     @Test
-    void droppedComponentFilesGoToTheHandler() {
+    void droppedCircuitAndComponentFilesGoToTheHandler() {
         List<List<Path>> received = new ArrayList<>();
         FileListTransferable mixed = new FileListTransferable(List.of(new File("a.vsimcomponent.json"),
                 new File("notes.txt"), new File("circuit.vsim")));
         assertThat(palette.importFiles(mixed)).isFalse();
 
-        palette.setComponentFileDropHandler(received::add);
+        palette.setFileDropHandler(received::add);
 
         assertThat(palette.importFiles(mixed)).isTrue();
-        assertThat(received).containsExactly(List.of(Path.of("a.vsimcomponent.json")));
-        assertThat(palette.importFiles(new FileListTransferable(List.of(new File("circuit.vsim"))))).isFalse();
-        assertThat(received).hasSize(1);
+        assertThat(received).containsExactly(List.of(Path.of("a.vsimcomponent.json"), Path.of("circuit.vsim")));
+        assertThat(palette.importFiles(new FileListTransferable(List.of(new File("circuit.vsim"))))).isTrue();
+        assertThat(palette.importFiles(new FileListTransferable(List.of(new File("notes.txt"))))).isFalse();
+        assertThat(received).hasSize(2);
     }
 
     @Test

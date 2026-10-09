@@ -185,6 +185,24 @@ class LibraryImportTest {
         assertThat(fixture.dialogs.errors).isEmpty();
     }
 
+    /** A circuit dropped on the palette opens as it would anywhere else in the window (after the drop). */
+    @Test
+    void aCircuitDroppedOnThePaletteOpens() throws Exception {
+        Path circuit = directory.resolve("outside").resolve("circuit.vsim");
+        List<Path> opened = new ArrayList<>();
+        fixture.view.setCircuitOpener(opened::addAll);
+        JTree tree = find(fixture.view.palette(), JTree.class);
+        AtomicBoolean accepted = new AtomicBoolean();
+
+        SwingUtilities.invokeAndWait(() -> accepted.set(tree.getTransferHandler().importData(
+                new TransferHandler.TransferSupport(tree, new FileListTransferable(List.of(circuit.toFile()))))));
+        SwingUtilities.invokeAndWait(() -> {
+        });
+
+        assertThat(accepted).isTrue();
+        assertThat(opened).containsExactly(circuit);
+    }
+
     /** Ruling: a component file dropped on the canvas (or the window) is imported, not opened as a circuit. */
     @Test
     void droppingAComponentFileOnTheCanvasImportsItAndOpensOnlyTheCircuits() throws Exception {

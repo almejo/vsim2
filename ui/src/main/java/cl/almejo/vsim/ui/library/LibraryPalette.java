@@ -15,7 +15,6 @@ import javax.swing.AbstractAction;
 import javax.swing.Action;
 import javax.swing.JMenuItem;
 import javax.swing.JPopupMenu;
-import javax.swing.SwingUtilities;
 import java.awt.event.ActionEvent;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -26,7 +25,7 @@ import java.util.Set;
 
 /**
  * Keeps one view's palette in step with the library (every window) and with its document's own definitions, starts
- * placing a user component when it is chosen, and runs the palette's context menu and file drops (spec §5.6).
+ * placing a user component when it is chosen, and runs the palette's context menu (spec §5.6; file drops go through {@link EditorView#dropFiles}).
  * Listeners run on the EDT; {@link #dispose()} removes them.
  */
 public final class LibraryPalette {
@@ -56,8 +55,6 @@ public final class LibraryPalette {
         PalettePanel palette = view.palette();
         palette.setUserComponentChooser(this::place);
         palette.setUserMenuProvider(this::menuFor);
-        // After the drop finishes: a collision or error dialog inside a drop transaction can hang the drag source.
-        palette.setComponentFileDropHandler(files -> SwingUtilities.invokeLater(() -> importer.importFiles(view, files)));
         service.library().addListener(refresher);
         view.openDocument().addChangeListener(refresher);
         refresh();
