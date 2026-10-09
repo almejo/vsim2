@@ -1,7 +1,6 @@
 package cl.almejo.vsim.ui.app;
 
 import cl.almejo.vsim.ui.i18n.Messages;
-import com.formdev.flatlaf.FlatLightLaf;
 
 import javax.swing.JComponent;
 import javax.swing.SwingUtilities;
@@ -26,7 +25,6 @@ public final class Main {
         JComponent.setDefaultLocale(Messages.locale());
         List<Path> files = Arrays.stream(arguments).map(Path::of).toList();
         SwingUtilities.invokeLater(() -> {
-            FlatLightLaf.setup();
             Application application = new Application(AppPreferences.system());
             installQuitHandler(application);
             application.start(files);

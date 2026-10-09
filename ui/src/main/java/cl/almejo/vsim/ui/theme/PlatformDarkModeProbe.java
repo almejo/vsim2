@@ -5,6 +5,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -33,8 +34,8 @@ public final class PlatformDarkModeProbe implements DarkModeProbe {
 
     @Override
     public boolean prefersDark() {
-        String system = osName.toLowerCase(Locale.ROOT);
         try {
+            String system = Objects.requireNonNullElse(osName, "").toLowerCase(Locale.ROOT);
             if (system.contains("mac")) {
                 return runner.run(MAC_COMMAND).map(output -> output.strip().equalsIgnoreCase("dark")).orElse(false);
             }

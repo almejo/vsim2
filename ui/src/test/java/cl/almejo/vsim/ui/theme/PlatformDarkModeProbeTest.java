@@ -75,4 +75,10 @@ class PlatformDarkModeProbeTest {
         assertThat(new PlatformDarkModeProbe("", answering(Optional.of("Dark"))).prefersDark()).isFalse();
         assertThat(commands).isEmpty();
     }
+
+    @Test
+    void aMissingSystemNameMeansLight() {
+        assertThat(new PlatformDarkModeProbe(null, answering(Optional.of("Dark"))).prefersDark()).isFalse();
+        assertThat(commands).isEmpty();
+    }
 }
