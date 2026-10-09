@@ -203,4 +203,48 @@ class CircuitFlattenerTest {
         });
         assertThat(simulate(flat).failure()).isEmpty();
     }
+
+    private Component addWith(String typeId, String id, int x, int y, Map<String, Object> parameters) {
+        Component component = registry.require(typeId).newComponent(new ElementId(id), new GridPoint(x, y),
+                Rotation.R0, parameters, "");
+        document.add(component);
+        return component;
+    }
+
+    /** 8-bit input-pin c1 (pin 2,1, value 1) → byte-buffer c2 at (2,-1) (a 2,1; y 6,1) → 8-bit output-pin c3 at (6,0). */
+    @Test
+    void aBusPassesThroughAWideTemplate() {
+        document.putDefinition(ExampleDefinitions.byteBuffer());
+        addWith(InterfacePins.INPUT_PIN, "c1", 0, 0, Map.of("value", "1", InterfacePins.WIDTH, 8));
+        add(SubcircuitTypes.typeIdOf(ExampleDefinitions.BYTE_BUFFER), "c2", 2, -1);
+        addWith(InterfacePins.OUTPUT_PIN, "c3", 6, 0, Map.of(InterfacePins.WIDTH, 8));
+        Netlist netlist = new NetlistCompiler(registry).compile(document);
+
+        FlatCircuit flat = new CircuitFlattener(registry).flatten(document, netlist);
+
+        assertThat(flat.components()).filteredOn(component -> component.id().equals("c2/c1")).singleElement()
+                .satisfies(probe -> assertThat(probe.type()).isSameAs(CircuitFlattener.interfaceProbe(8)));
+        assertThat(flat.nets()).allSatisfy(net -> assertThat(net.widthMismatch()).isFalse());
+        SimulationSnapshot snapshot = simulate(flat);
+        assertThat(snapshot.componentState("c3")).isEqualTo(new VisibleState.LedState(Value.of(8, 0xFF)));
+        assertThat(snapshot.componentState("c2/c2")).isEqualTo(new VisibleState.LedState(Value.of(8, 0xFF)));
+        assertThat(CircuitFlattener.interfaceProbe(1)).isSameAs(CircuitFlattener.INTERFACE_PROBE);
+        assertThat(CircuitFlattener.interfaceProbe(8).pin(0).width()).isEqualTo(8);
+    }
+
+    @Test
+    void aOneBitNetOnAWideTemplatePinIsAWidthMismatchAndStaysZ() {
+        document.putDefinition(ExampleDefinitions.byteBuffer());
+        add(StandardComponentTypes.SWITCH, "c1", -2, 0); // out at (2, 1), on the instance's 8-bit pin a
+        add(SubcircuitTypes.typeIdOf(ExampleDefinitions.BYTE_BUFFER), "c2", 2, -1);
+        Netlist netlist = new NetlistCompiler(registry).compile(document);
+        String netId = netlist.netForPin(new PinRef(new ElementId("c1"), 0)).orElseThrow().id().value();
+
+        SimulationSnapshot snapshot = simulate(new CircuitFlattener(registry).flatten(document, netlist));
+
+        assertThat(snapshot.failure()).isEmpty();
+        assertThat(snapshot.problems()).filteredOn(WidthMismatch.class::isInstance).extracting(Problem::netId)
+                .containsExactly(netId);
+        assertThat(snapshot.netValue(netId).isFullyHighImpedance()).isTrue();
+    }
 }

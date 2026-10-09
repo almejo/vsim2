@@ -27,12 +27,13 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Turns a document and its netlist into a {@link FlatCircuit}. Sub-circuit instances are expanded recursively: child
  * {@code c2} of instance {@code c5} becomes {@code c5/c2} ({@link InstancePath}), the instance itself disappears, and
  * each instance pin joins the outer net with the net of the matching interface pin inside. Interface pins inside an
- * instance become passive {@link #INTERFACE_PROBE}s, so their value stays visible under their own id. Merged nets keep
+ * instance become passive probes as wide as they are ({@link #interfaceProbe}), so their value stays visible under their own id. Merged nets keep
  * the id closest to the top level; the others become {@link FlatNet#aliases()}.
  */
 public final class CircuitFlattener {
@@ -42,6 +43,7 @@ public final class CircuitFlattener {
             ComponentCategory.INTERFACE, new GridSize(1, 1),
             List.of(new PinSpec("pin", GridPoint.ORIGIN, PinDirection.INPUT, 1)), List.of(),
             parameters -> StandardComponentTypes.newValueProbe());
+    private static final Map<Integer, ComponentType> WIDE_PROBES = new ConcurrentHashMap<>();
     private static final int MAXIMUM_DEPTH = 32;
 
     private final ComponentTypeRegistry registry;
@@ -50,6 +52,20 @@ public final class CircuitFlattener {
     public CircuitFlattener(ComponentTypeRegistry registry) {
         this.registry = registry;
         this.compiler = new NetlistCompiler(registry);
+    }
+
+    /**
+     * The passive stand-in for an interface pin of {@code width} bits inside an instance: {@link #INTERFACE_PROBE} for
+     * one bit, otherwise one cached type per width with a single input pin of that width.
+     */
+    public static ComponentType interfaceProbe(int width) {
+        if (width == 1) {
+            return INTERFACE_PROBE;
+        }
+        return WIDE_PROBES.computeIfAbsent(width, key -> new ComponentType(INTERFACE_PROBE_ID,
+                ComponentCategory.INTERFACE, new GridSize(1, 1),
+                List.of(new PinSpec("pin", GridPoint.ORIGIN, PinDirection.INPUT, key)), List.of(),
+                parameters -> StandardComponentTypes.newValueProbe()));
     }
 
     public FlatCircuit flatten(CircuitDocument document, Netlist netlist) {
@@ -99,7 +115,8 @@ public final class CircuitFlattener {
                 if (definition.isPresent()) {
                     expand(flatId, component, definition.get(), levelNetlist, prefix, depth);
                 } else if (!prefix.isEmpty() && InterfacePins.isInterface(type.id())) {
-                    addComponent(new FlatComponent(flatId, INTERFACE_PROBE, Map.of()), component, levelNetlist, prefix);
+                    addComponent(new FlatComponent(flatId, interfaceProbe(type.pin(0).width()), Map.of()), component,
+                            levelNetlist, prefix);
                 } else {
                     addComponent(new FlatComponent(flatId, type, component.parameters()), component, levelNetlist,
                             prefix);

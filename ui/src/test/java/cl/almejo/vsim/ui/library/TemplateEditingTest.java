@@ -162,6 +162,41 @@ class TemplateEditingTest {
     }
 
     @Test
+    void disassemblingAWideTemplateKeepsTheWidthOfItsPinsAndBridgesTheOutside() {
+        fixture.openDocument.execute(new PutDefinitionsCommand(List.of(ExampleDefinitions.byteBuffer())));
+        Component instance = fixture.place("subcircuit:byte-buffer", 10, 10, "");
+        ComponentType type = fixture.openDocument.registry().typeOf(instance);
+        GridPoint input = type.pinLocation(instance, 0);
+        GridPoint output = type.pinLocation(instance, 1);
+        Map<String, Object> eightBits = Map.of(InterfacePins.WIDTH, 8);
+        GridPoint sourcePin = new GridPoint(input.x() - 6, input.y());
+        GridPoint sinkPin = new GridPoint(output.x() + 6, output.y());
+        Component source = placeWithPinAt(InterfacePins.INPUT_PIN, sourcePin, eightBits);
+        Component sink = placeWithPinAt(InterfacePins.OUTPUT_PIN, sinkPin, eightBits);
+        wire(sourcePin, input);
+        wire(output, sinkPin);
+        fixture.select(instance);
+
+        click(contribute(instance), "Desarmar");
+
+        assertThat(fixture.dialogs.messages).isEmpty();
+        List<Component> pasted = document.components().stream()
+                .filter(component -> InterfacePins.isInterface(component.typeId()))
+                .filter(component -> !component.id().equals(source.id()) && !component.id().equals(sink.id()))
+                .toList();
+        assertThat(pasted).hasSize(2).allSatisfy(component -> assertThat(InterfacePins.widthOf(component)).isEqualTo(8));
+        Netlist netlist = netlist();
+        Component pastedInput = pasted.stream().filter(component -> component.typeId().equals(InterfacePins.INPUT_PIN)).findFirst()
+                .orElseThrow();
+        Component pastedOutput = pasted.stream().filter(component -> component.typeId().equals(InterfacePins.OUTPUT_PIN)).findFirst()
+                .orElseThrow();
+        assertThat(netlist.netForPin(new PinRef(source.id(), 0)).orElseThrow().pins())
+                .contains(new PinRef(pastedInput.id(), 0));
+        assertThat(netlist.netForPin(new PinRef(sink.id(), 0)).orElseThrow().pins())
+                .contains(new PinRef(pastedOutput.id(), 0));
+    }
+
+    @Test
     void disassemblingOntoAForeignWireIsRefused() {
         Wired wired = wiredInverter("1");
         wire(new GridPoint(12, 4), new GridPoint(12, 12)); // ends inside the box, where the body's input lands

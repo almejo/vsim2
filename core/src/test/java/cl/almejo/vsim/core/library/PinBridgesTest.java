@@ -172,4 +172,24 @@ class PinBridgesTest {
         assertThat(segments(bridging.wires())).containsExactly(segment(2, 2, 2, 5), segment(0, 2, 2, 2));
         assertThat(bridging.unconnectedPins()).containsExactly("a");
     }
+
+    @Test
+    void busPinsAreBridgedLikeOneBitPins() {
+        Map<String, Object> eightBits = Map.of(InterfacePins.WIDTH, 8);
+        Component input = registry.require(InterfacePins.INPUT_PIN).newComponent(document.newComponentId(),
+                new GridPoint(10, 11), Rotation.R0, eightBits, "a"); // pin at (12, 12)
+        Component output = registry.require(InterfacePins.OUTPUT_PIN).newComponent(document.newComponentId(),
+                new GridPoint(16, 11), Rotation.R0, eightBits, "y"); // pin at (16, 12)
+        document.add(input);
+        document.add(output);
+        Wire inside = new Wire(document.newWireId(), new GridPoint(12, 12), new GridPoint(16, 12));
+        document.add(inside);
+        wire(12, 4, 12, 12);
+        wire(16, 12, 20, 12);
+        List<ElementId> selection = List.of(input.id(), output.id(), inside.id());
+
+        // the box goes at the selection's top-left (10, 11): pin a at (10, 13), pin y at (16, 13)
+        assertThat(segments(bridges(selection))).containsExactly(segment(12, 12, 12, 13), segment(12, 13, 10, 13),
+                segment(16, 12, 16, 13));
+    }
 }

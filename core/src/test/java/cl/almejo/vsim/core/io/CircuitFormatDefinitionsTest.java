@@ -133,4 +133,17 @@ class CircuitFormatDefinitionsTest {
                 .extracting(exception -> ((CircuitFormatException) exception).reason())
                 .isEqualTo(reason);
     }
+
+    @Test
+    void aWideTemplateAndItsInstanceRoundTrip() throws Exception {
+        CircuitDocument document = new CircuitDocument();
+        document.putDefinition(ExampleDefinitions.byteBuffer());
+        document.add(new Component(new ElementId("c1"), SubcircuitTypes.typeIdOf(ExampleDefinitions.BYTE_BUFFER),
+                new GridPoint(4, 4), Rotation.R0, Map.of(), "U1"));
+
+        CircuitDocument read = format.read(format.write(document));
+
+        assertThat(read.definition(ExampleDefinitions.BYTE_BUFFER)).contains(ExampleDefinitions.byteBuffer());
+        assertThat(read.components()).containsExactlyElementsOf(document.components());
+    }
 }
