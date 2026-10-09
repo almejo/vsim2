@@ -1,11 +1,13 @@
 package cl.almejo.vsim.ui.app;
 
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.preferences.PreferencesDialog;
 
 import javax.swing.JComponent;
 import javax.swing.SwingUtilities;
 import java.awt.Desktop;
 import java.awt.GraphicsEnvironment;
+import java.awt.KeyboardFocusManager;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
@@ -27,6 +29,7 @@ public final class Main {
         SwingUtilities.invokeLater(() -> {
             Application application = new Application(AppPreferences.system());
             installQuitHandler(application);
+            installPreferencesHandler(application);
             application.start(files);
         });
     }
@@ -44,5 +47,15 @@ public final class Main {
                 response.cancelQuit();
             }
         });
+    }
+
+    /** macOS application menu ▸ Settings…: the same dialog as Archivo ▸ Preferencias…. No-op elsewhere. */
+    private static void installPreferencesHandler(Application application) {
+        if (GraphicsEnvironment.isHeadless() || !Desktop.isDesktopSupported()
+                || !Desktop.getDesktop().isSupported(Desktop.Action.APP_PREFERENCES)) {
+            return;
+        }
+        Desktop.getDesktop().setPreferencesHandler(event -> SwingUtilities.invokeLater(() -> PreferencesDialog.show(
+                KeyboardFocusManager.getCurrentKeyboardFocusManager().getActiveWindow(), application.preferences())));
     }
 }

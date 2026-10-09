@@ -8,6 +8,7 @@ import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.Appearance;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
+import cl.almejo.vsim.ui.preferences.PreferencesFeature;
 import cl.almejo.vsim.ui.theme.ThemeManager;
 import cl.almejo.vsim.ui.window.CircuitWindow;
 import cl.almejo.vsim.ui.window.EditorExtension;
@@ -42,6 +43,7 @@ public final class Application {
         this.preferences = preferences;
         List<EditorExtension> editorExtensions = new ArrayList<>();
         // M4 tracks add one line each here, in the order A, B, C, D (overview R9).
+        editorExtensions.add(new PreferencesFeature());
         this.services = new EditorServices(PainterRegistry.standard(), appearance, preferences, library,
                 editorExtensions);
         // Lives as long as the application: it follows the preferences and is never disposed.
