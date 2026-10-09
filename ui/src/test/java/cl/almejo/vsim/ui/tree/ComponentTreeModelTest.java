@@ -142,6 +142,9 @@ class ComponentTreeModelTest {
         assertThat(ComponentTreeModel.values(root, SimulationSnapshot.EMPTY)).isEmpty();
         assertThat(ComponentTreeModel.valueText(Value.ZERO)).isEqualTo("0");
         assertThat(ComponentTreeModel.valueText(Value.ONE.withConflict())).isEqualTo("X");
+        assertThat(ComponentTreeModel.valueText(Value.of(8, 0x3F))).isEqualTo("0x3F");
+        assertThat(ComponentTreeModel.valueText(Value.highImpedance(4))).isEqualTo("0xZ");
+        assertThat(ComponentTreeModel.valueText(Value.of(8, 1).withConflict())).isEqualTo("X");
     }
 
     @Test

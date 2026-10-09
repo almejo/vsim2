@@ -49,4 +49,11 @@ public record SimulationSnapshot(long revision, long token, long time, boolean r
                 .map(ShortCircuit.class::cast)
                 .toList();
     }
+
+    public List<WidthMismatch> widthMismatches() {
+        return problems.stream()
+                .filter(WidthMismatch.class::isInstance)
+                .map(WidthMismatch.class::cast)
+                .toList();
+    }
 }

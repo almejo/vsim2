@@ -8,6 +8,8 @@ import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
+import cl.almejo.vsim.core.netlist.Net;
+import cl.almejo.vsim.core.netlist.Netlist;
 import cl.almejo.vsim.ui.paint.Appearance;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.ComponentDrawing;
@@ -18,6 +20,8 @@ import java.awt.AlphaComposite;
 import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Composite;
+import java.awt.Font;
+import java.awt.FontMetrics;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.Shape;
@@ -25,6 +29,13 @@ import java.awt.geom.Ellipse2D;
 import java.awt.geom.Line2D;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
+import java.awt.geom.RoundRectangle2D;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /** Paints a circuit. {@link #paint} and {@link #paintGhost} work in document coordinates (8 px per grid unit). */
 public final class CircuitRenderer {
@@ -32,12 +43,22 @@ public final class CircuitRenderer {
     private static final double UNIT = GridPoint.PIXELS_PER_UNIT;
     private static final BasicStroke WIRE = new BasicStroke(2.5f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
     private static final BasicStroke CONFLICT_WIRE = new BasicStroke(5f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
+    private static final BasicStroke BUS_WIRE = new BasicStroke(4.5f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
     private static final BasicStroke SELECTED_WIRE = new BasicStroke(8f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
     private static final BasicStroke CONFLICT_OUTLINE = new BasicStroke(1.5f, BasicStroke.CAP_BUTT,
             BasicStroke.JOIN_MITER, 10f, new float[]{4f, 3f}, 0f);
     private static final float SELECTION_OUTLINE_WIDTH = 1.5f;
+    private static final BasicStroke MISMATCH_WIRE = new BasicStroke(4.5f, BasicStroke.CAP_BUTT,
+            BasicStroke.JOIN_ROUND, 10f, new float[]{6f, 4f}, 0f);
+    /** Where a mismatched pin's width is written, from the pin, in document pixels. */
+    private static final double PIN_WIDTH_OFFSET = 4;
     private static final double JUNCTION_RADIUS = 3.5;
+    private static final double BUS_JUNCTION_RADIUS = 5;
     private static final double HALO_RADIUS = 7;
+    private static final Font BUS_FONT = LabelLayout.FONT.deriveFont(Font.BOLD, 9f);
+    /** Gap between a bus and its value, in document pixels. */
+    private static final double BUS_LABEL_GAP = 4;
+    private static final int BUS_LABEL_BACKDROP_ALPHA = 200;
     private static final double OUTLINE_GAP = 3;
     private static final double MINIMUM_DOT_SPACING = 6;
 
@@ -87,6 +108,8 @@ public final class CircuitRenderer {
         graphics.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
         ShortCircuitHighlight highlight = ShortCircuitHighlight.of(state.snapshot(), state.netlist(),
                 state.netlistToken(), state.document(), registry);
+        WidthMismatchHighlight mismatches = WidthMismatchHighlight.of(state.snapshot(), state.netlist(),
+                state.netlistToken(), state.document(), registry);
 
         for (Wire wire : state.document().wires()) {
             if (state.selection().contains(wire.id())) {
@@ -98,16 +121,19 @@ public final class CircuitRenderer {
             }
         }
         for (Wire wire : state.document().wires()) {
+            Optional<Net> net = state.netlist().netForWire(wire.id());
+            boolean bus = net.map(found -> found.width() > 1).orElse(false);
             boolean shorted = highlight.wires().contains(wire.id());
-            graphics.setStroke(shorted ? CONFLICT_WIRE : WIRE);
-            graphics.setColor(shorted ? scheme.wireConflict()
-                    : SignalColors.wireColor(state.netlist().netForWire(wire.id()), state.snapshot(),
-                    state.netlistToken(), scheme));
+            boolean mismatched = mismatches.wires().contains(wire.id());
+            graphics.setStroke(shorted ? CONFLICT_WIRE : mismatched ? MISMATCH_WIRE : bus ? BUS_WIRE : WIRE);
+            graphics.setColor(shorted || mismatched ? scheme.wireConflict()
+                    : SignalColors.wireColor(net, state.snapshot(), state.netlistToken(), scheme));
             graphics.draw(line(wire));
         }
+        Set<GridPoint> busPoints = busPoints(state.netlist());
         graphics.setColor(scheme.componentStroke());
         for (GridPoint junction : junctionCache.of(state.document())) {
-            graphics.fill(circle(junction, JUNCTION_RADIUS));
+            graphics.fill(circle(junction, busPoints.contains(junction) ? BUS_JUNCTION_RADIUS : JUNCTION_RADIUS));
         }
 
         for (Component component : state.document().components()) {
@@ -127,6 +153,7 @@ public final class CircuitRenderer {
 
         paintComponentLabels(graphics, state);
         paintTextLabels(graphics, state);
+        paintBusValues(graphics, state);
 
         for (GridPoint pin : highlight.driverPins()) {
             graphics.setColor(withAlpha(scheme.wireConflict(), 90));
@@ -134,6 +161,21 @@ public final class CircuitRenderer {
             graphics.setStroke(WIRE);
             graphics.setColor(scheme.wireConflict());
             graphics.draw(circle(pin, HALO_RADIUS));
+        }
+        paintPinWidths(graphics, mismatches);
+    }
+
+    /** The widths of the pins of mismatched nets ("1", "8", or "1/8" for pins touching at one point). */
+    private void paintPinWidths(Graphics2D graphics, WidthMismatchHighlight mismatches) {
+        ColorScheme scheme = scheme();
+        graphics.setFont(BUS_FONT);
+        graphics.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+        FontMetrics metrics = graphics.getFontMetrics();
+        for (Map.Entry<GridPoint, List<Integer>> entry : mismatches.pinWidths().entrySet()) {
+            String text = entry.getValue().stream().map(String::valueOf).collect(Collectors.joining("/"));
+            double left = entry.getKey().x() * UNIT + PIN_WIDTH_OFFSET;
+            double baseline = entry.getKey().y() * UNIT - PIN_WIDTH_OFFSET;
+            paintTag(graphics, metrics, text, left, baseline, scheme.wireConflict());
         }
     }
 
@@ -171,6 +213,39 @@ public final class CircuitRenderer {
             LabelLayout.componentLabel(registry.typeOf(component), component)
                     .ifPresent(placed -> graphics.drawString(placed.text(), placed.baselineX(), placed.baselineY()));
         }
+    }
+
+    /** Every point of every bus: junctions there get the bigger dot. */
+    private static Set<GridPoint> busPoints(Netlist netlist) {
+        Set<GridPoint> points = new HashSet<>();
+        netlist.nets().stream().filter(net -> net.width() > 1).forEach(net -> points.addAll(net.points()));
+        return points;
+    }
+
+    /** Each bus's value in hex, above its longest wire (beside it when vertical), on a backdrop of the board color. */
+    private void paintBusValues(Graphics2D graphics, RenderState state) {
+        ColorScheme scheme = scheme();
+        graphics.setFont(BUS_FONT);
+        graphics.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+        FontMetrics metrics = graphics.getFontMetrics();
+        for (BusLabels.BusLabel label : BusLabels.of(state)) {
+            double textWidth = metrics.stringWidth(label.text());
+            double left = label.vertical() ? label.x() + BUS_LABEL_GAP : label.x() - textWidth / 2;
+            double baseline = label.vertical() ? label.y() + (metrics.getAscent() - metrics.getDescent()) / 2.0
+                    : label.y() - BUS_LABEL_GAP;
+            paintTag(graphics, metrics, label.text(), left, baseline, scheme.text());
+        }
+    }
+
+    /** Text on a translucent backdrop of the board color, so it stays legible over wires. */
+    private void paintTag(Graphics2D graphics, FontMetrics metrics, String text, double left, double baseline,
+                          Color color) {
+        double textWidth = metrics.stringWidth(text);
+        graphics.setColor(withAlpha(scheme().background(), BUS_LABEL_BACKDROP_ALPHA));
+        graphics.fill(new RoundRectangle2D.Double(left - 2, baseline - metrics.getAscent(), textWidth + 4,
+                metrics.getAscent() + metrics.getDescent(), 4, 4));
+        graphics.setColor(color);
+        graphics.drawString(text, (float) left, (float) baseline);
     }
 
     private void paintTextLabels(Graphics2D graphics, RenderState state) {

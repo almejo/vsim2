@@ -229,4 +229,84 @@ class CircuitRendererTest {
         }
         assertThat(painted).isGreaterThan(20);
     }
+
+    private Component splitterAt(int x, int y) {
+        Component splitter = registry.require(StandardComponentTypes.BUS_SPLITTER).newComponent(
+                document.newComponentId(), new GridPoint(x, y), Rotation.R0, Map.of(StandardComponentTypes.WIDTH, 4),
+                "");
+        document.add(splitter);
+        return splitter;
+    }
+
+    @Test
+    void busWiresAreThickerThanOneBitWires() {
+        // the wire is at y = 8 px: row 9 is fully covered by a 4.5 px bus stroke, only partly by a 2.5 px wire
+        document.add(wire);
+        Netlist thin = new NetlistCompiler(registry).compile(document);
+        String thinNet = thin.netForWire(wire.id()).orElseThrow().id().value();
+        BufferedImage oneBit = render(snapshot(document.revision(), Map.of(thinNet, Value.ONE), List.of()), thin,
+                document.revision());
+        assertThat(new Color(oneBit.getRGB(24, 9))).isNotEqualTo(SCHEME.wireOne());
+
+        splitterAt(5, 1); // its bus pin ends the wire at (5, 1)
+        Netlist bus = new NetlistCompiler(registry).compile(document);
+        String busNet = bus.netForWire(wire.id()).orElseThrow().id().value();
+        BufferedImage fourBits = render(snapshot(document.revision(), Map.of(busNet, Value.of(4, 0x5)), List.of()),
+                bus, document.revision());
+        assertThat(new Color(fourBits.getRGB(24, 9))).isEqualTo(SCHEME.wireOne());
+    }
+
+    @Test
+    void aBusWritesItsValueAboveItsWireOnlyWhileTheSnapshotIsCurrent() {
+        document.add(wire);
+        splitterAt(5, 1);
+        Netlist netlist = new NetlistCompiler(registry).compile(document);
+        String busNet = netlist.netForWire(wire.id()).orElseThrow().id().value();
+        Map<String, Value> values = Map.of(busNet, Value.of(4, 0x5));
+        BufferedImage current = render(snapshot(document.revision(), values, List.of()), netlist, document.revision());
+        BufferedImage stale = render(snapshot(document.revision() - 1, values, List.of()), netlist,
+                document.revision());
+        int written = 0;
+        for (int x = 10; x < 40; x++) {
+            for (int y = 0; y < 5; y++) {
+                if (current.getRGB(x, y) != stale.getRGB(x, y)) {
+                    written++;
+                }
+            }
+        }
+        assertThat(written).isGreaterThan(5);
+    }
+
+    @Test
+    void busJunctionsAreBigger() {
+        // a T at (5, 1): screen (40, 8); pixel (40, 4) is inside a 5 px dot but outside a 3.5 px one and the wire
+        Wire through = new Wire(document.newWireId(), new GridPoint(1, 1), new GridPoint(9, 1));
+        Wire branch = new Wire(document.newWireId(), new GridPoint(5, 1), new GridPoint(5, 5));
+        document.add(through);
+        document.add(branch);
+        Netlist thin = new NetlistCompiler(registry).compile(document);
+        SimulationSnapshot stale = snapshot(document.revision() - 1, Map.of(), List.of());
+        assertThat(new Color(render(stale, thin, document.revision()).getRGB(40, 4)))
+                .isNotEqualTo(SCHEME.componentStroke());
+
+        splitterAt(9, 1);
+        Netlist bus = new NetlistCompiler(registry).compile(document);
+        SimulationSnapshot staleBus = snapshot(document.revision() - 1, Map.of(), List.of());
+        assertThat(new Color(render(staleBus, bus, document.revision()).getRGB(40, 4)))
+                .isEqualTo(SCHEME.componentStroke());
+    }
+
+    @Test
+    void aMismatchedNetIsDrawnDashedInTheConflictColorWithoutASimulation() {
+        document.add(wire);
+        splitterAt(5, 1); // 4-bit bus pin at (5, 1)
+        document.add(registry.require(StandardComponentTypes.LED).newComponent(document.newComponentId(),
+                new GridPoint(0, -2), Rotation.R0, Map.of(), "")); // 1-bit pin at (1, 1)
+        Netlist netlist = new NetlistCompiler(registry).compile(document);
+
+        BufferedImage image = render(SimulationSnapshot.EMPTY, netlist, document.revision());
+
+        // the first dash covers x 8..14 px of the wire at y = 8 px
+        assertThat(new Color(image.getRGB(10, 8))).isEqualTo(SCHEME.wireConflict());
+    }
 }
