@@ -42,7 +42,9 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
         new WindowMenu(view.menu(MenuId.WINDOW), () -> application.newWindow(this),
                 () -> application.windowEntries(this));
         // Open after the drop finishes: an error dialog inside a drop transaction can hang the drag source.
-        Consumer<List<Path>> openDropped = files -> SwingUtilities.invokeLater(() -> application.openPaths(files, this));
+        // Component files are imported into the library instead of being opened as circuits (M4-A ruling).
+        Consumer<List<Path>> openDropped = files -> SwingUtilities.invokeLater(
+                () -> view.openOrImportFiles(files, circuits -> application.openPaths(circuits, this)));
         setTransferHandler(new FileDropHandler(openDropped));
         view.canvas().setFileDropHandler(openDropped);
         setDefaultCloseOperation(DO_NOTHING_ON_CLOSE);

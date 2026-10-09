@@ -43,6 +43,8 @@ public final class TemplateFeatures {
 
         LibraryPalette palette = new LibraryPalette(view, service, dialogs, importer, importComponent);
         palette.install();
+        // Ruling: a component file dropped on the canvas or the window is imported, not opened as a circuit.
+        view.setComponentFileImporter(files -> importer.importFiles(view, files));
 
         LibraryVersionBadge badge = new LibraryVersionBadge(view.openDocument(), service.library(),
                 view.canvas()::scheme, view.canvas()::repaint);
@@ -78,6 +80,7 @@ public final class TemplateFeatures {
 
     /** Removes every listener registered on shared objects (document, library, service) and the overlay. */
     public void dispose() {
+        view.setComponentFileImporter(null);
         service.removeProblemsListener(problemsListener);
         service.library().removeListener(problemsListener);
         view.canvas().removeOverlay(badge);

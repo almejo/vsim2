@@ -2,6 +2,7 @@ package cl.almejo.vsim.ui.window;
 
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
+import cl.almejo.vsim.core.io.LibraryDirectory;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.ui.actions.ContextMenuContributor;
 import cl.almejo.vsim.ui.actions.ContextMenuFactory;
@@ -37,12 +38,14 @@ import java.awt.BorderLayout;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.awt.geom.Point2D;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.function.Consumer;
 
 /**
  * Content of an editor window: toolbar, palette, canvas, inspector and status bar, wired to one {@link OpenDocument}.
@@ -73,6 +76,7 @@ public final class EditorView extends JPanel implements CanvasHost {
     private final EditorServices services;
     private final Runnable appearanceListener;
     private final List<Runnable> extensionDisposers = new ArrayList<>();
+    private Consumer<List<Path>> componentFileImporter;
 
     public EditorView(OpenDocument openDocument, PainterRegistry painters, ColorScheme scheme, WindowCommands window) {
         this(openDocument, EditorServices.of(painters, scheme), window);
@@ -184,6 +188,28 @@ public final class EditorView extends JPanel implements CanvasHost {
      */
     public JPopupMenu contextMenu(Optional<DocumentElement> target, Point2D gridPosition) {
         return ContextMenuFactory.create(target, actions, canvas.selection(), gridPosition, contextMenuContributors);
+    }
+
+    /** Where dropped component files ({@code .vsimcomponent.json}) go; null (the default) when nothing imports them. */
+    public void setComponentFileImporter(Consumer<List<Path>> importer) {
+        componentFileImporter = importer;
+    }
+
+    /**
+     * Files dropped on the window or the canvas: component files go to the component importer (when one is set),
+     * the others to {@code circuitOpener}. Each receiver is called only when it gets at least one file.
+     */
+    public void openOrImportFiles(List<Path> files, Consumer<List<Path>> circuitOpener) {
+        Consumer<List<Path>> importer = componentFileImporter;
+        List<Path> components = importer == null ? List.of()
+                : files.stream().filter(LibraryDirectory::isComponentFile).toList();
+        List<Path> circuits = files.stream().filter(file -> !components.contains(file)).toList();
+        if (!components.isEmpty()) {
+            importer.accept(components);
+        }
+        if (!circuits.isEmpty()) {
+            circuitOpener.accept(circuits);
+        }
     }
 
     /**

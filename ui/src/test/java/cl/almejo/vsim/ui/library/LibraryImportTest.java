@@ -20,6 +20,7 @@ import java.awt.Container;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -171,6 +172,37 @@ class LibraryImportTest {
         assertThat(directory.resolve("library").resolve("inverter.vsimcomponent.json")).isRegularFile();
         assertThat(fixture.view.palette().visibleTypeIds()).contains("subcircuit:inverter");
         assertThat(fixture.dialogs.errors).isEmpty();
+    }
+
+    /** Ruling: a component file dropped on the canvas (or the window) is imported, not opened as a circuit. */
+    @Test
+    void droppingAComponentFileOnTheCanvasImportsItAndOpensOnlyTheCircuits() throws Exception {
+        Path file = outside("inverter.vsimcomponent.json", inverter);
+        Path circuit = directory.resolve("outside").resolve("circuit.vsim");
+        List<Path> opened = new ArrayList<>();
+        // Wired as CircuitWindow wires it (without the invokeLater).
+        fixture.view.canvas().setFileDropHandler(files -> fixture.view.openOrImportFiles(files, opened::addAll));
+
+        boolean dropped = fixture.view.canvas().getTransferHandler().importData(new TransferHandler.TransferSupport(
+                fixture.view.canvas(), new FileListTransferable(List.of(file.toFile(), circuit.toFile()))));
+
+        assertThat(dropped).isTrue();
+        assertThat(fixture.library.find("inverter")).contains(inverter);
+        assertThat(fixture.view.palette().visibleTypeIds()).contains("subcircuit:inverter");
+        assertThat(opened).containsExactly(circuit);
+        assertThat(fixture.dialogs.errors).isEmpty();
+    }
+
+    @Test
+    void withoutAComponentImporterAComponentFileIsHandedToTheOpenerAsBefore() throws Exception {
+        Path file = outside("inverter.vsimcomponent.json", inverter);
+        List<Path> opened = new ArrayList<>();
+        fixture.view.setComponentFileImporter(null); // what TemplateFeatures.dispose leaves
+
+        fixture.view.openOrImportFiles(List.of(file), opened::addAll);
+
+        assertThat(opened).containsExactly(file);
+        assertThat(fixture.library.find("inverter")).isEmpty();
     }
 
     private static <T> T find(Container container, Class<T> kind) {
