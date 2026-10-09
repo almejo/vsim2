@@ -21,13 +21,14 @@ public final class Main {
     public static void main(String[] arguments) {
         System.setProperty("apple.laf.useScreenMenuBar", "true");
         System.setProperty("apple.awt.application.name", "VSim 2");
-        String language = System.getProperty("vsim.language", "");
-        Messages.initialize(language.isBlank() ? Locale.getDefault() : Locale.forLanguageTag(language));
+        AppPreferences preferences = AppPreferences.system();
+        Messages.initialize(StartupLanguage.choose(System.getProperty("vsim.language", ""), preferences.language(),
+                Locale.getDefault()));
         Locale.setDefault(Messages.locale());
         JComponent.setDefaultLocale(Messages.locale());
         List<Path> files = Arrays.stream(arguments).map(Path::of).toList();
         SwingUtilities.invokeLater(() -> {
-            Application application = new Application(AppPreferences.system());
+            Application application = new Application(preferences);
             installQuitHandler(application);
             installPreferencesHandler(application);
             application.start(files);
