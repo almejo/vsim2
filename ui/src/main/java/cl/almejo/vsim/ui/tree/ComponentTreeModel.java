@@ -1,0 +1,120 @@
+package cl.almejo.vsim.ui.tree;
+
+import cl.almejo.vsim.core.component.ComponentTypeRegistry;
+import cl.almejo.vsim.core.component.VisibleState;
+import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
+import cl.almejo.vsim.core.document.CircuitDocument;
+import cl.almejo.vsim.core.document.Component;
+import cl.almejo.vsim.core.library.ComponentDefinition;
+import cl.almejo.vsim.core.library.InterfacePins;
+import cl.almejo.vsim.core.library.SubcircuitTypes;
+import cl.almejo.vsim.core.simulation.InstancePath;
+import cl.almejo.vsim.core.simulation.SimulationSnapshot;
+import cl.almejo.vsim.core.value.Value;
+import cl.almejo.vsim.ui.i18n.Messages;
+
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+
+/**
+ * The component tree of a document (spec §6.9), without Swing: the document, its components in document order (or
+ * grouped by type) and, for instances of user components, their parts with hierarchical ids. Also reads the values
+ * that nested interface pins and LEDs show.
+ */
+public final class ComponentTreeModel {
+
+    /** Deeper nesting is cut off; the document already rejects recursive definitions. */
+    public static final int MAXIMUM_DEPTH = 32;
+
+    private ComponentTreeModel() {
+    }
+
+    public static ComponentTreeNode build(String documentName, CircuitDocument document,
+                                          ComponentTypeRegistry registry, boolean groupByType) {
+        List<Component> components = document.components();
+        List<ComponentTreeNode> nodes = new ArrayList<>();
+        for (Component component : components) {
+            nodes.add(componentNode(component, component.id().value(), document, registry, 0));
+        }
+        List<ComponentTreeNode> children = groupByType ? groups(components, nodes, registry) : nodes;
+        return new ComponentTreeNode(ComponentTreeNode.Kind.DOCUMENT, ComponentTreeNode.DOCUMENT_PATH, documentName,
+                false, children);
+    }
+
+    /** Path → value text of every row under {@code root} that shows a value and has one in {@code snapshot}. */
+    public static Map<String, String> values(ComponentTreeNode root, SimulationSnapshot snapshot) {
+        Map<String, String> values = new HashMap<>();
+        collectValues(root, snapshot, values);
+        return values;
+    }
+
+    /** "0", "1", "Z" per bit; "X" for a conflict. */
+    public static String valueText(Value value) {
+        return value.conflict() ? "X" : value.toString();
+    }
+
+    private static void collectValues(ComponentTreeNode node, SimulationSnapshot snapshot, Map<String, String> values) {
+        if (node.showsValue()) {
+            switch (snapshot.componentState(node.path())) {
+                case VisibleState.LedState led -> values.put(node.path(), valueText(led.value()));
+                case VisibleState.SwitchState switchState -> values.put(node.path(), valueText(switchState.value()));
+                default -> {
+                }
+            }
+        }
+        for (ComponentTreeNode child : node.children()) {
+            collectValues(child, snapshot, values);
+        }
+    }
+
+    private static ComponentTreeNode componentNode(Component component, String path, CircuitDocument document,
+                                                   ComponentTypeRegistry registry, int depth) {
+        String name = typeName(component.typeId(), registry);
+        String text = component.label().isBlank() ? name
+                : Messages.format("tree.component.labeled", component.label(), name);
+        List<ComponentTreeNode> children = new ArrayList<>();
+        Optional<ComponentDefinition> definition = SubcircuitTypes.definitionIdOf(component.typeId())
+                .flatMap(document::definition);
+        if (definition.isPresent() && depth < MAXIMUM_DEPTH) {
+            for (Component child : definition.get().body().components()) {
+                children.add(componentNode(child, InstancePath.child(path, child.id().value()), document, registry,
+                        depth + 1));
+            }
+        }
+        return new ComponentTreeNode(ComponentTreeNode.Kind.COMPONENT, path, text,
+                showsValue(path, component.typeId()), children);
+    }
+
+    private static boolean showsValue(String path, String typeId) {
+        return InstancePath.isNested(path)
+                && (InterfacePins.isInterface(typeId) || StandardComponentTypes.LED.equals(typeId));
+    }
+
+    private static List<ComponentTreeNode> groups(List<Component> components, List<ComponentTreeNode> nodes,
+                                                  ComponentTypeRegistry registry) {
+        Map<String, List<ComponentTreeNode>> byType = new LinkedHashMap<>();
+        for (int index = 0; index < components.size(); index++) {
+            byType.computeIfAbsent(components.get(index).typeId(), typeId -> new ArrayList<>()).add(nodes.get(index));
+        }
+        record Group(String typeId, String name, List<ComponentTreeNode> members) {
+        }
+        return byType.entrySet().stream()
+                .map(entry -> new Group(entry.getKey(), typeName(entry.getKey(), registry), entry.getValue()))
+                .sorted(Comparator.comparing(Group::name, String.CASE_INSENSITIVE_ORDER)
+                        .thenComparing(Group::typeId))
+                .map(group -> new ComponentTreeNode(ComponentTreeNode.Kind.GROUP,
+                        ComponentTreeNode.groupPath(group.typeId()),
+                        Messages.format("tree.group", group.name(), group.members().size()), false, group.members()))
+                .toList();
+    }
+
+    /** The visible type name (the definition name for user components); the raw id when the type is unknown. */
+    private static String typeName(String typeId, ComponentTypeRegistry registry) {
+        return registry.find(typeId).map(type -> Messages.componentName(type)).orElse(typeId);
+    }
+}

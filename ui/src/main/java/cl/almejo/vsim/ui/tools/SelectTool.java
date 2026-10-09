@@ -1,6 +1,7 @@
 package cl.almejo.vsim.ui.tools;
 
 import cl.almejo.vsim.core.command.MoveElementsCommand;
+import cl.almejo.vsim.core.command.PasteCommand;
 import cl.almejo.vsim.core.component.ElementBounds;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
@@ -9,8 +10,10 @@ import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.geometry.GridPoint;
+import cl.almejo.vsim.core.io.CircuitFragment;
 import cl.almejo.vsim.ui.canvas.ConnectionPoints;
 import cl.almejo.vsim.ui.canvas.MarchingAnts;
+import cl.almejo.vsim.ui.canvas.SelectionBounds;
 
 import java.awt.BasicStroke;
 import java.awt.Color;
@@ -34,7 +37,8 @@ import java.util.Set;
  * then the body of an element or an already selected element. Exception: a pin of a selected component grabs the
  * whole selection (instead of starting a wire) while the selection has more than one element. A press on an
  * element of a multi-selection that is released without moving (a plain click) narrows the selection to that
- * element; a press-and-drag moves the whole group.
+ * element; a press-and-drag moves the whole group. Ctrl held when a move is released copies the selection there
+ * instead (one undo step).
  */
 public final class SelectTool implements Tool {
 
@@ -178,7 +182,12 @@ public final class SelectTool implements Tool {
         } else if (pressPoint != null) {
             if (deltaX != 0 || deltaY != 0) {
                 if (!context.selection().isEmpty()) {
-                    context.openDocument().execute(new MoveElementsCommand(context.selection().ids(), deltaX, deltaY));
+                    if (event.controlDown()) {
+                        copySelection(context);
+                    } else {
+                        context.openDocument().execute(
+                                new MoveElementsCommand(context.selection().ids(), deltaX, deltaY));
+                    }
                 }
             } else {
                 if (narrowOnRelease) {
@@ -342,6 +351,11 @@ public final class SelectTool implements Tool {
         context.repaint();
     }
 
+    /** True while a drag moves the selection or a rubber band: the canvas scrolls when the pointer nears its edge. */
+    public boolean autoscrolls() {
+        return bandStart != null || movingFrom().isPresent();
+    }
+
     /** A press on a pin or wire that did not become a wire: behave like a plain click on what was under it. */
     private void click(ToolContext context) {
         if (pressedElement == null) {
@@ -350,6 +364,20 @@ public final class SelectTool implements Tool {
         }
         context.selection().select(pressedElement.id());
         toggleIfInteractive(context);
+    }
+
+    /** Ctrl held at the release: the selection stays put and a copy lands where the move would have put it. */
+    private void copySelection(ToolContext context) {
+        Set<ElementId> ids = context.selection().ids();
+        Optional<GridPoint> topLeft = SelectionBounds.topLeft(context.openDocument(), ids);
+        if (topLeft.isEmpty()) {
+            return;
+        }
+        CircuitFragment fragment = CircuitFragment.of(context.openDocument().document(), ids,
+                context.openDocument().registry());
+        PasteCommand paste = new PasteCommand(fragment, topLeft.get().translate(deltaX, deltaY));
+        context.openDocument().execute(paste);
+        context.selection().set(paste.pastedIds());
     }
 
     private void toggleIfInteractive(ToolContext context) {

@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.canvas;
 
+import cl.almejo.vsim.core.command.RemoveElementsCommand;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
@@ -34,6 +35,8 @@ import java.awt.Graphics2D;
 import java.awt.Point;
 import java.awt.datatransfer.StringSelection;
 import java.awt.datatransfer.Transferable;
+import java.awt.event.FocusEvent;
+import java.awt.event.FocusListener;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
@@ -49,6 +52,10 @@ import java.util.Map;
 import java.util.Optional;
 
 import static cl.almejo.vsim.ui.UiTestSupport.place;
+import static cl.almejo.vsim.ui.canvas.CanvasDragSupport.differingPixels;
+import static cl.almejo.vsim.ui.canvas.CanvasDragSupport.dragOut;
+import static cl.almejo.vsim.ui.canvas.CanvasDragSupport.handlerOf;
+import static cl.almejo.vsim.ui.canvas.CanvasDragSupport.paint;
 import static cl.almejo.vsim.ui.UiTestSupport.waitUntil;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
@@ -76,6 +83,7 @@ class CircuitCanvasTest {
     @BeforeEach
     void showOnScreen() {
         canvas.overrideOnScreen(() -> onScreen);
+        canvas.useManualAutoscrollClock();
     }
 
     @AfterEach
@@ -425,12 +433,16 @@ class CircuitCanvasTest {
     }
 
     @Test
-    void draggingTheSelectionOutOfTheCanvasAbandonsTheMove() {
+    void draggingTheSelectionOverAnotherWindowStartsTheDragOut() {
         canvas.setSize(400, 300);
+        canvas.overrideWindowProbe(point -> true);
         Component gate = place(openDocument, StandardComponentTypes.NOT, 5, 5, Map.of());
         primaryPress(56, 56);
         primaryDrag(72, 64);
+        primaryDrag(392, 64);
+        assertThat(canvas.isAutoscrolling()).isTrue();
         primaryDrag(-16, 64);
+        assertThat(canvas.isAutoscrolling()).isFalse(); // the drag out stops it, not only the release
         primaryRelease(-16, 64);
         assertThat(openDocument.document().component(gate.id()).orElseThrow().position())
                 .isEqualTo(new GridPoint(5, 5));
@@ -438,6 +450,100 @@ class CircuitCanvasTest {
         assertThat(canvas.selection().ids()).containsExactly(gate.id());
         assertThat(((SelectTool) canvas.tool()).movingFrom()).isEmpty();
         assertThat(canvas.isDraggingOut()).isFalse(); // headless Swing ends the drag at once (exportDone, NONE)
+        assertThat(canvas.isAutoscrolling()).isFalse();
+    }
+
+    @Test
+    void aMoveHeldAtTheEdgeScrollsTheViewAndKeepsMoving() {
+        canvas.setSize(400, 300);
+        Component gate = place(openDocument, StandardComponentTypes.NOT, 5, 5, Map.of());
+        primaryPress(56, 56);
+        primaryDrag(392, 64);
+        assertThat(canvas.isAutoscrolling()).isTrue();
+        canvas.autoscrollTick();
+        assertThat(canvas.viewport().gridToScreen(0, 0)).isEqualTo(new Point2D.Double(-7, 0));
+        primaryRelease(392, 64);
+        assertThat(canvas.isAutoscrolling()).isFalse();
+        assertThat(openDocument.document().component(gate.id()).orElseThrow().position())
+                .isEqualTo(new GridPoint(48, 6));
+        assertThat(openDocument.history().undoDescription()).contains("command.move");
+    }
+
+    @Test
+    void aMovePastTheEdgeOverItsOwnWindowKeepsMovingInsteadOfDraggingOut() {
+        canvas.setSize(400, 300);
+        List<Point> asked = new ArrayList<>();
+        canvas.overrideWindowProbe(point -> {
+            asked.add(point);
+            return false;
+        });
+        Component gate = place(openDocument, StandardComponentTypes.NOT, 5, 5, Map.of());
+        primaryPress(56, 56);
+        primaryDrag(72, 64);
+        primaryDrag(-16, 64);
+        assertThat(asked).containsExactly(new Point(-16, 64));
+        assertThat(canvas.isDraggingOut()).isFalse();
+        assertThat(((SelectTool) canvas.tool()).movingFrom()).isPresent();
+        primaryRelease(-16, 64);
+        assertThat(canvas.isAutoscrolling()).isFalse();
+        assertThat(openDocument.document().component(gate.id()).orElseThrow().position())
+                .isEqualTo(new GridPoint(-4, 6));
+    }
+
+    @Test
+    void aRubberBandHeldAtTheEdgeScrollsAndReachesWhatWasOffScreen() {
+        canvas.setSize(400, 300);
+        Component gate = place(openDocument, StandardComponentTypes.NOT, 24, 36, Map.of());
+        primaryPress(180, 150);
+        primaryDrag(240, 295);
+        assertThat(canvas.isAutoscrolling()).isTrue();
+        for (int tick = 0; tick < 4; tick++) {
+            canvas.autoscrollTick();
+        }
+        assertThat(canvas.viewport().gridToScreen(0, 0)).isEqualTo(new Point2D.Double(0, -32));
+        primaryRelease(240, 295);
+        assertThat(canvas.selection().ids()).containsExactly(gate.id());
+    }
+
+    @Test
+    void comingBackInsideOrReleasingStopsTheAutoscroll() {
+        canvas.setSize(400, 300);
+        place(openDocument, StandardComponentTypes.NOT, 5, 5, Map.of());
+        primaryPress(56, 56);
+        primaryDrag(392, 64);
+        assertThat(canvas.isAutoscrolling()).isTrue();
+        primaryDrag(200, 150);
+        assertThat(canvas.isAutoscrolling()).isFalse();
+        primaryDrag(5, 150);
+        assertThat(canvas.isAutoscrolling()).isTrue();
+        primaryRelease(5, 150);
+        assertThat(canvas.isAutoscrolling()).isFalse();
+        Point2D origin = canvas.viewport().gridToScreen(0, 0);
+        canvas.autoscrollTick();
+        assertThat(canvas.viewport().gridToScreen(0, 0)).isEqualTo(origin);
+    }
+
+    @Test
+    void losingFocusStopsTheAutoscroll() {
+        canvas.setSize(400, 300);
+        place(openDocument, StandardComponentTypes.NOT, 5, 5, Map.of());
+        primaryPress(56, 56);
+        primaryDrag(392, 64);
+        assertThat(canvas.isAutoscrolling()).isTrue();
+        for (FocusListener listener : canvas.getFocusListeners()) {
+            listener.focusLost(new FocusEvent(canvas, FocusEvent.FOCUS_LOST));
+        }
+        assertThat(canvas.isAutoscrolling()).isFalse();
+    }
+
+    @Test
+    void aDisposedCanvasStopsAutoscrolling() {
+        canvas.setSize(400, 300);
+        place(openDocument, StandardComponentTypes.NOT, 5, 5, Map.of());
+        primaryPress(56, 56);
+        primaryDrag(392, 64);
+        canvas.dispose();
+        assertThat(canvas.isAutoscrolling()).isFalse();
     }
 
     @Test
@@ -450,7 +556,7 @@ class CircuitCanvasTest {
         String json = (String) transferable.getTransferData(FragmentTransferable.FRAGMENT_FLAVOR);
         assertThat(new FragmentFormat(openDocument.registry()).read(json).components())
                 .singleElement().satisfies(copy -> assertThat(copy.typeId()).isEqualTo(StandardComponentTypes.NOT));
-        assertThat(handler.getSourceActions(canvas)).isEqualTo(TransferHandler.COPY);
+        assertThat(handler.getSourceActions(canvas)).isEqualTo(TransferHandler.COPY_OR_MOVE);
     }
 
     @Test
@@ -579,5 +685,210 @@ class CircuitCanvasTest {
                 new FragmentTransferable(overflowing)))).isFalse();
         assertThat(canvas.tool()).isInstanceOf(SelectTool.class);
         assertThat(openDocument.document().isEmpty()).isTrue();
+    }
+
+    @Test
+    void theDragOutCarriesItsOrigin() throws Exception {
+        canvas.setSize(400, 300);
+        Component gate = place(openDocument, StandardComponentTypes.NOT, 5, 5, Map.of());
+        Transferable transferable = dragOut(canvas, 56, 56);
+
+        assertThat(transferable.isDataFlavorSupported(CanvasDragTransferable.ORIGIN_FLAVOR)).isTrue();
+        DragOrigin origin = CanvasDragTransferable.originOf(transferable).orElseThrow();
+        assertThat(origin.canvas()).isSameAs(canvas);
+        assertThat(origin.ids()).containsExactly(gate.id());
+        assertThat(origin.pressPoint()).isEqualTo(new GridPoint(7, 7));
+        assertThat(origin.grabOffset()).isEqualTo(new GridPoint(2, 2));
+        assertThat(transferable.getTransferData(FragmentTransferable.FRAGMENT_FLAVOR)).isInstanceOf(String.class);
+        assertThat(CanvasDragTransferable.originOf(new StringSelection("hello"))).isEmpty();
+    }
+
+    @Test
+    void aDropBackOnItsOwnCanvasMovesEvenAfterTheToolkitEndedTheDrag() {
+        canvas.setSize(400, 300);
+        Component gate = place(openDocument, StandardComponentTypes.NOT, 5, 5, Map.of());
+        Transferable transferable = dragOut(canvas, 56, 56);
+        canvas.endDragOut(); // exportDone arrived before the drop was handled
+
+        assertThat(handlerOf(canvas).importFragment(transferable, new Point(80, 72), false)).isTrue();
+
+        assertThat(openDocument.document().components()).singleElement()
+                .satisfies(moved -> assertThat(moved.position()).isEqualTo(new GridPoint(8, 7)));
+        assertThat(openDocument.history().undoDescription()).contains("command.move");
+        assertThat(canvas.selection().ids()).containsExactly(gate.id());
+    }
+
+    @Test
+    void aDragOutBackOverItsCanvasPreviewsTheMove() {
+        canvas.setSize(400, 300);
+        place(openDocument, StandardComponentTypes.NOT, 5, 5, Map.of());
+        dragOut(canvas, 56, 56);
+        BufferedImage before = paint(canvas);
+
+        canvas.dragOutOver(new Point(200, 160));
+
+        assertThat(canvas.dragOutPreview()).contains(new GridPoint(18, 13));
+        assertThat(differingPixels(before, paint(canvas), 184, 144, 216, 176)).isGreaterThan(20);
+        canvas.dragOutLeft();
+        assertThat(canvas.dragOutPreview()).isEmpty();
+        canvas.dragOutOver(new Point(200, 160));
+        canvas.endDragOut();
+        assertThat(canvas.dragOutPreview()).isEmpty();
+    }
+
+    @Test
+    void thereIsNoPreviewWithoutADragOut() {
+        canvas.setSize(400, 300);
+        canvas.dragOutOver(new Point(200, 160));
+        assertThat(canvas.dragOutPreview()).isEmpty();
+    }
+
+    @Test
+    void onlyACopyFromASourceThatAlsoOffersMoveCountsAsCtrl() {
+        assertThat(CanvasTransferHandler.copyRequested(TransferHandler.COPY, TransferHandler.COPY_OR_MOVE)).isTrue();
+        assertThat(CanvasTransferHandler.copyRequested(TransferHandler.MOVE, TransferHandler.COPY_OR_MOVE)).isFalse();
+        assertThat(CanvasTransferHandler.copyRequested(TransferHandler.COPY, TransferHandler.COPY)).isFalse();
+    }
+
+    private final CanvasHost quietHost = new CanvasHost() {
+        @Override
+        public void showContextMenu(CircuitCanvas source, Optional<DocumentElement> target, Point2D screenPosition) {
+        }
+
+        @Override
+        public void configure(Component component) {
+        }
+    };
+
+    private CircuitCanvas canvasOf(OpenDocument document) {
+        CircuitCanvas view = new CircuitCanvas(document,
+                new CircuitRenderer(document.registry(), PainterRegistry.standard(), ColorScheme.LIGHT), quietHost);
+        view.setSize(400, 300);
+        return view;
+    }
+
+    @Test
+    void aDropOnAnotherViewOfTheSameDocumentMovesAsOneStep() {
+        canvas.setSize(400, 300);
+        Component gate = place(openDocument, StandardComponentTypes.NOT, 5, 5, Map.of());
+        CircuitCanvas secondView = canvasOf(openDocument);
+        try {
+            Transferable transferable = dragOut(canvas, 56, 56);
+            assertThat(handlerOf(secondView).importFragment(transferable, new Point(160, 160), false)).isTrue();
+
+            assertThat(openDocument.document().components()).singleElement()
+                    .satisfies(moved -> assertThat(moved.position()).isEqualTo(new GridPoint(18, 18)));
+            assertThat(openDocument.history().undoDescription()).contains("command.move");
+            assertThat(secondView.selection().ids()).containsExactly(gate.id());
+            assertThat(canvas.isDraggingOut()).isFalse();
+            openDocument.history().undo();
+            assertThat(openDocument.document().component(gate.id()).orElseThrow().position())
+                    .isEqualTo(new GridPoint(5, 5));
+        } finally {
+            secondView.dispose();
+        }
+    }
+
+    @Test
+    void controlAtTheDropCopiesIntoTheSameDocument() {
+        canvas.setSize(400, 300);
+        Component gate = place(openDocument, StandardComponentTypes.NOT, 5, 5, Map.of());
+        CircuitCanvas secondView = canvasOf(openDocument);
+        try {
+            Transferable transferable = dragOut(canvas, 56, 56);
+            assertThat(handlerOf(secondView).importFragment(transferable, new Point(160, 160), true)).isTrue();
+
+            assertThat(openDocument.document().components()).hasSize(2);
+            assertThat(openDocument.document().component(gate.id()).orElseThrow().position())
+                    .isEqualTo(new GridPoint(5, 5));
+            Component copy = openDocument.document().components().get(1);
+            assertThat(copy.position()).isEqualTo(new GridPoint(18, 18));
+            assertThat(secondView.selection().ids()).containsExactly(copy.id());
+            assertThat(openDocument.history().undoDescription()).contains("command.paste");
+            openDocument.history().undo();
+            assertThat(openDocument.document().components()).containsExactly(gate);
+        } finally {
+            secondView.dispose();
+        }
+    }
+
+    @Test
+    void controlAtTheDropOnItsOwnCanvasCopiesToo() {
+        canvas.setSize(400, 300);
+        place(openDocument, StandardComponentTypes.NOT, 5, 5, Map.of());
+        Transferable transferable = dragOut(canvas, 56, 56);
+        assertThat(handlerOf(canvas).importFragment(transferable, new Point(160, 160), true)).isTrue();
+        assertThat(openDocument.document().components()).extracting(Component::position)
+                .containsExactly(new GridPoint(5, 5), new GridPoint(18, 18));
+        assertThat(canvas.isDraggingOut()).isFalse();
+    }
+
+    @Test
+    void controlAtTheDropCopiesIntoAnotherDocumentWhereTheGrabbedPointLands() {
+        canvas.setSize(400, 300);
+        place(openDocument, StandardComponentTypes.NOT, 5, 5, Map.of());
+        try (OpenDocument other = OpenDocument.createEmpty(StandardComponentTypes.registry())) {
+            CircuitCanvas otherView = canvasOf(other);
+            try {
+                Transferable transferable = dragOut(canvas, 56, 56);
+                assertThat(handlerOf(otherView).importFragment(transferable, new Point(160, 160), true)).isTrue();
+
+                assertThat(other.document().components()).singleElement()
+                        .satisfies(copy -> assertThat(copy.position()).isEqualTo(new GridPoint(18, 18)));
+                assertThat(other.history().undoDescription()).contains("command.paste");
+                assertThat(otherView.tool()).isSameAs(otherView.defaultTool());
+                assertThat(openDocument.document().components()).singleElement()
+                        .satisfies(original -> assertThat(original.position()).isEqualTo(new GridPoint(5, 5)));
+            } finally {
+                otherView.dispose();
+            }
+        }
+    }
+
+    @Test
+    void aDropOnAnotherDocumentFloatsACopy() {
+        canvas.setSize(400, 300);
+        place(openDocument, StandardComponentTypes.NOT, 5, 5, Map.of());
+        try (OpenDocument other = OpenDocument.createEmpty(StandardComponentTypes.registry())) {
+            CircuitCanvas otherView = canvasOf(other);
+            try {
+                Transferable transferable = dragOut(canvas, 56, 56);
+                assertThat(handlerOf(otherView).importFragment(transferable, new Point(160, 160), false)).isTrue();
+
+                assertThat(otherView.tool()).isInstanceOfSatisfying(FloatingSelectionTool.class,
+                        floating -> assertThat(floating.position()).isEqualTo(new GridPoint(20, 20)));
+                assertThat(other.document().isEmpty()).isTrue();
+                assertThat(openDocument.document().components()).hasSize(1);
+            } finally {
+                otherView.dispose();
+            }
+        }
+    }
+
+    @Test
+    void aMoveSkipsElementsThatNoLongerExist() {
+        canvas.setSize(400, 300);
+        Component gate = place(openDocument, StandardComponentTypes.NOT, 5, 5, Map.of());
+        Component led = place(openDocument, StandardComponentTypes.LED, 20, 5, Map.of());
+        canvas.selection().set(List.of(gate.id(), led.id()));
+        CircuitCanvas secondView = canvasOf(openDocument);
+        try {
+            Transferable transferable = dragOut(canvas, 56, 56);
+            openDocument.execute(new RemoveElementsCommand(List.of(led.id())));
+
+            assertThat(handlerOf(secondView).importFragment(transferable, new Point(160, 160), false)).isTrue();
+            assertThat(openDocument.document().components()).singleElement()
+                    .satisfies(moved -> assertThat(moved.position()).isEqualTo(new GridPoint(18, 18)));
+            assertThat(openDocument.history().undoDescription()).contains("command.move");
+
+            Transferable second = dragOut(canvas, 160, 160);
+            openDocument.execute(new RemoveElementsCommand(List.of(gate.id())));
+            Optional<String> lastStep = openDocument.history().undoDescription();
+            assertThat(handlerOf(secondView).importFragment(second, new Point(80, 80), false)).isTrue();
+            assertThat(openDocument.history().undoDescription()).isEqualTo(lastStep);
+            assertThat(openDocument.document().components()).isEmpty();
+        } finally {
+            secondView.dispose();
+        }
     }
 }
