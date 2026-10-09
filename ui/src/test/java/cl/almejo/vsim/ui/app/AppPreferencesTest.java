@@ -49,6 +49,14 @@ class AppPreferencesTest {
     }
 
     @Test
+    void settingTheCurrentThemeStoresNothingAndNotifiesNoListener() {
+        preferences.addListener(changes::incrementAndGet);
+        preferences.setTheme(AppPreferences.Theme.SYSTEM);
+        assertThat(node.get(AppPreferences.THEME, null)).isNull();
+        assertThat(changes).hasValue(0);
+    }
+
+    @Test
     void anUnknownStoredThemeFallsBackToTheSystemOne() {
         node.put(AppPreferences.THEME, "NEON");
         assertThat(preferences.theme()).isEqualTo(AppPreferences.Theme.SYSTEM);
@@ -66,5 +74,7 @@ class AppPreferencesTest {
                 .isEqualTo(Path.of("/appdata/VSim2/components"));
         assertThat(AppPreferences.defaultLibraryDirectory("Windows 11", Map.of(), home))
                 .isEqualTo(Path.of("/home/ana/AppData/Roaming/VSim2/components"));
+        assertThat(AppPreferences.defaultLibraryDirectory("Darwin", Map.of("APPDATA", "/appdata"), home))
+                .isEqualTo(Path.of("/home/ana/.local/share/vsim2/components"));
     }
 }

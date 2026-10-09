@@ -9,12 +9,11 @@ final class MemoryPreferences extends AbstractPreferences {
 
     private final Map<String, String> values = new HashMap<>();
     private final Map<String, MemoryPreferences> children = new HashMap<>();
+    private final MemoryPreferences parent;
 
     MemoryPreferences() {
         this(null, "");
     }
-
-    private final MemoryPreferences parent;
 
     private MemoryPreferences(MemoryPreferences parent, String name) {
         super(parent, name);
