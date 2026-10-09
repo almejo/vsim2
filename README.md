@@ -31,6 +31,20 @@ Diseño: `docs/superpowers/specs/2026-10-08-vsim2-design.md`.
 - Los puntos de unión aparecen solo donde un cable se ramifica (no donde dos cables siguen en línea recta).
 - Íconos nuevos en menús, barra de herramientas y menú contextual (se adaptan al tema oscuro); la barra muestra solo íconos y el nombre aparece al pasar el mouse. La ventana tiene ícono propio.
 
+## Preferencias y distribución
+
+- Archivo → Preferencias… (en macOS también VSim 2 → Ajustes…): tema Claro, Oscuro o Seguir sistema; esquema de color del circuito (Según el tema, VSim clásico, Claro, Oscuro); idioma (Sistema, Español, English; se aplica al reiniciar); directorio de la librería de componentes (Elegir… / Restaurar predeterminado). El tema y el esquema cambian al instante en todas las ventanas.
+- "Seguir sistema" consulta el modo oscuro del sistema al iniciar y al elegir esa opción (macOS, Windows y GNOME); si no puede saberlo, usa el tema claro.
+- `-Dvsim.language=en` (o `./gradlew :ui:run -PvsimLanguage=en`) manda sobre el idioma guardado.
+- Las preferencias se guardan con `java.util.prefs` (nodo `cl/almejo/vsim2`).
+
+Jar ejecutable, con todas las dependencias adentro:
+
+    ./gradlew :ui:executableJar
+    java -jar ui/build/libs/vsim2-2.0.0-SNAPSHOT.jar
+
+`./gradlew check` construye el jar y verifica su manifiesto y contenido (`:ui:executableJarTest`).
+
 ## Demo de consola (M1)
 
     ./gradlew :core:run --args="../examples/vsim1/4-bit-adder.json"

@@ -9,6 +9,8 @@ import cl.almejo.vsim.ui.icons.ActionIcons;
 import cl.almejo.vsim.ui.paint.Appearance;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
+import cl.almejo.vsim.ui.preferences.PreferencesFeature;
+import cl.almejo.vsim.ui.theme.ThemeManager;
 import cl.almejo.vsim.ui.tree.ComponentTreeExtension;
 import cl.almejo.vsim.ui.window.CircuitWindow;
 import cl.almejo.vsim.ui.window.EditorExtension;
@@ -35,6 +37,7 @@ public final class Application {
     private final Appearance appearance = new Appearance(ColorScheme.LIGHT);
     private final ComponentLibrary library = new ComponentLibrary();
     private final EditorServices services;
+    private final ThemeManager themeManager;
     private final DocumentWindows<CircuitWindow> windows = new DocumentWindows<>();
     private Path lastDirectory;
 
@@ -44,8 +47,11 @@ public final class Application {
         // M4 tracks add one line each here, in the order A, B, C, D (overview R9).
         editorExtensions.add(new ComponentTreeExtension());
         editorExtensions.add(new ActionIcons());
+        editorExtensions.add(new PreferencesFeature());
         this.services = new EditorServices(PainterRegistry.standard(), appearance, preferences, library,
                 editorExtensions);
+        // Lives as long as the application: it follows the preferences and is never disposed.
+        this.themeManager = ThemeManager.forCurrentPlatform(preferences, appearance);
     }
 
     public EditorServices services() {
@@ -69,6 +75,7 @@ public final class Application {
     }
 
     public void start(List<Path> files) {
+        themeManager.start();
         openPaths(files, null);
         if (windows.isEmpty()) {
             newDocument();
