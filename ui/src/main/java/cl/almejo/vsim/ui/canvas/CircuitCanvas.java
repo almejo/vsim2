@@ -47,6 +47,8 @@ import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseWheelEvent;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import java.awt.event.WindowStateListener;
 import java.awt.geom.Point2D;
 import java.nio.file.Path;
@@ -78,9 +80,6 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     private final MarchingAnts marchingAnts = new MarchingAnts();
     private final Timer antsTimer;
     private final Timer autoscrollTimer;
-    private MouseEvent autoscrollEvent;
-    private boolean automaticAutoscrollClock = true;
-    private Predicate<Point> overAnotherWindow = this::isOverAnotherWindow;
     private final List<Consumer<Tool>> toolListeners = new CopyOnWriteArrayList<>();
     private final List<Consumer<SimulationSnapshot>> snapshotListeners = new CopyOnWriteArrayList<>();
     private final List<Runnable> viewListeners = new CopyOnWriteArrayList<>();
@@ -97,7 +96,16 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     private boolean animationSuspended;
     private BooleanSupplier onScreen = this::isOnScreen;
     private final WindowStateListener windowStateListener = event -> updateAnimation();
+    private final WindowAdapter windowDeactivationListener = new WindowAdapter() {
+        @Override
+        public void windowDeactivated(WindowEvent event) {
+            stopAutoscroll(); // the release may never reach this canvas
+        }
+    };
     private Window watchedWindow;
+    private MouseEvent autoscrollEvent;
+    private boolean automaticAutoscrollClock = true;
+    private Predicate<Point> overAnotherWindow = this::isOverAnotherWindow;
     private boolean spaceDown;
     private Point panAnchor;
     private GridPoint mousePoint;
@@ -126,6 +134,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
             public void focusLost(FocusEvent event) {
                 spaceDown = false;
                 panAnchor = null;
+                stopAutoscroll(); // a modal dialog or another window took the release
             }
         });
         setTransferHandler(new CanvasTransferHandler(this));
@@ -277,7 +286,8 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
 
     /**
      * The point is over a showing window of this application that is neither this canvas's window nor owned by it
-     * (popups, tooltips). Windows of other programs are invisible here, so dragging over them keeps the move.
+     * (popups, tooltips). Windows of other programs are invisible here, so dragging over them keeps the move. A VSim
+     * window overlapping this canvas's own frame is not detected there: AWT gives no z-order between windows.
      */
     private boolean isOverAnotherWindow(Point canvasPoint) {
         if (!isShowing()) {
@@ -489,14 +499,19 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         return isShowing() && !minimized;
     }
 
-    /** Follows minimize and restore of {@code window} (null: of none), which do not change {@code isShowing}. */
+    /**
+     * Follows minimize and restore of {@code window} (null: of none), which do not change {@code isShowing}, and its
+     * deactivation, which ends an autoscroll whose release will not arrive.
+     */
     private void watchWindow(Window window) {
         if (watchedWindow != null) {
             watchedWindow.removeWindowStateListener(windowStateListener);
+            watchedWindow.removeWindowListener(windowDeactivationListener);
         }
         watchedWindow = window;
         if (window != null) {
             window.addWindowStateListener(windowStateListener);
+            window.addWindowListener(windowDeactivationListener);
         }
     }
 

@@ -34,6 +34,8 @@ import java.awt.Graphics2D;
 import java.awt.Point;
 import java.awt.datatransfer.StringSelection;
 import java.awt.datatransfer.Transferable;
+import java.awt.event.FocusEvent;
+import java.awt.event.FocusListener;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
@@ -514,6 +516,19 @@ class CircuitCanvasTest {
         Point2D origin = canvas.viewport().gridToScreen(0, 0);
         canvas.autoscrollTick();
         assertThat(canvas.viewport().gridToScreen(0, 0)).isEqualTo(origin);
+    }
+
+    @Test
+    void losingFocusStopsTheAutoscroll() {
+        canvas.setSize(400, 300);
+        place(openDocument, StandardComponentTypes.NOT, 5, 5, Map.of());
+        primaryPress(56, 56);
+        primaryDrag(392, 64);
+        assertThat(canvas.isAutoscrolling()).isTrue();
+        for (FocusListener listener : canvas.getFocusListeners()) {
+            listener.focusLost(new FocusEvent(canvas, FocusEvent.FOCUS_LOST));
+        }
+        assertThat(canvas.isAutoscrolling()).isFalse();
     }
 
     @Test
