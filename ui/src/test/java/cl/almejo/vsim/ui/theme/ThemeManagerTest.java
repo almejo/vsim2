@@ -141,4 +141,18 @@ class ThemeManagerTest {
         assertThat(failing.dark()).isTrue();
         failing.dispose();
     }
+
+    @Test
+    void aFailedInstallKeepsTheSchemeOfTheLookInPlace() {
+        AtomicBoolean installSucceeds = new AtomicBoolean(true);
+        ThemeManager failing = new ThemeManager(preferences, appearance, probe, dark -> installSucceeds.get());
+        failing.start();
+        assertThat(appearance.scheme()).isSameAs(ColorSchemes.LIGHT);
+
+        installSucceeds.set(false);
+        preferences.setTheme(AppPreferences.Theme.DARK);
+        assertThat(failing.dark()).isFalse();
+        assertThat(appearance.scheme()).isSameAs(ColorSchemes.LIGHT);
+        failing.dispose();
+    }
 }

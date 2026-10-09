@@ -89,6 +89,6 @@ public final class ThemeManager {
                 installedDark = dark;
             }
         }
-        appearance.setScheme(schemeFor(preferences.colorScheme(), dark));
+        appearance.setScheme(schemeFor(preferences.colorScheme(), installedDark));
     }
 }
