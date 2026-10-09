@@ -163,4 +163,88 @@ class SelectToolTest {
         assertThat(context.selection.isEmpty()).isTrue();
         assertThat(context.contextMenuTarget).isEqualTo(Optional.empty());
     }
+
+    @Test
+    void dragFromAPinDrawsAWireAsOneUndoStep() {
+        place(context.openDocument(), StandardComponentTypes.NOT, 0, 0, Map.of());
+        context.drag(tool, 4.2, 2.1, 9, 2);
+        assertThat(context.openDocument().document().wires()).singleElement()
+                .satisfies(wire -> {
+                    assertThat(wire.start()).isEqualTo(new GridPoint(4, 2));
+                    assertThat(wire.end()).isEqualTo(new GridPoint(9, 2));
+                });
+        assertThat(context.openDocument().history().undoDescription()).contains("command.wire");
+        assertThat(context.openDocument().document().components().get(0).position()).isEqualTo(GridPoint.ORIGIN);
+    }
+
+    @Test
+    void tinyDragFromAPinIsAClick() {
+        Component gate = not(0, 0);
+        context.drag(tool, 4.1, 2, 4.3, 2.2);
+        assertThat(context.openDocument().document().wires()).isEmpty();
+        assertThat(context.selection.ids()).containsExactly(gate.id());
+        assertThat(context.openDocument().history().undoDescription()).contains("command.add");
+    }
+
+    @Test
+    void pressOnTheBodyAwayFromPinsStillMoves() {
+        Component gate = not(0, 0);
+        context.drag(tool, 2, 1, 5, 1);
+        assertThat(context.openDocument().document().component(gate.id()).orElseThrow().position())
+                .isEqualTo(new GridPoint(3, 0));
+        assertThat(context.openDocument().document().wires()).isEmpty();
+    }
+
+    @Test
+    void dragFromAnUnselectedWireStartsANewWireThere() {
+        Wire existing = new Wire(context.openDocument().document().newWireId(), new GridPoint(0, 0),
+                new GridPoint(10, 0));
+        context.openDocument().execute(new AddWireCommand(existing));
+        context.drag(tool, 5.2, 0.1, 5, 6);
+        assertThat(context.openDocument().document().wires()).hasSize(2)
+                .anySatisfy(wire -> {
+                    assertThat(wire.start()).isEqualTo(new GridPoint(5, 0));
+                    assertThat(wire.end()).isEqualTo(new GridPoint(5, 6));
+                });
+    }
+
+    @Test
+    void dragOfASelectedWireMovesIt() {
+        Wire existing = new Wire(context.openDocument().document().newWireId(), new GridPoint(0, 0),
+                new GridPoint(10, 0));
+        context.openDocument().execute(new AddWireCommand(existing));
+        context.click(tool, 5, 0.1);
+        assertThat(context.selection.ids()).containsExactly(existing.id());
+        context.drag(tool, 5, 0.1, 5, 3);
+        assertThat(context.openDocument().document().wires()).singleElement()
+                .satisfies(wire -> assertThat(wire.start()).isEqualTo(new GridPoint(0, 3)));
+    }
+
+    @Test
+    void escapeCancelsAWireInProgress() {
+        not(0, 0);
+        tool.mousePressed(context, TestToolContext.at(4, 2));
+        tool.mouseDragged(context, TestToolContext.at(9, 2));
+        assertThat(tool.keyPressed(context, KeyEvent.VK_ESCAPE, false)).isTrue();
+        tool.mouseReleased(context, TestToolContext.at(9, 2));
+        assertThat(context.openDocument().document().wires()).isEmpty();
+    }
+
+    @Test
+    void hoveringNearAPinHighlightsIt() {
+        not(0, 0);
+        tool.mouseMoved(context, TestToolContext.at(3.8, 2.3));
+        assertThat(tool.hoverPin()).isEqualTo(new GridPoint(4, 2));
+        tool.mouseMoved(context, TestToolContext.at(2, 2));
+        assertThat(tool.hoverPin()).isNull();
+    }
+
+    @Test
+    void wirePreviewIsPaintedWhileDragging() {
+        not(0, 0);
+        tool.mousePressed(context, TestToolContext.at(4, 2));
+        tool.mouseDragged(context, TestToolContext.at(8, 5));
+        tool.paintOverlay(TestToolContext.scratchGraphics(), context);
+        assertThat(context.ghosts).hasSize(2).allMatch(Wire.class::isInstance);
+    }
 }
