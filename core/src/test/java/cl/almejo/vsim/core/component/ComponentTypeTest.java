@@ -78,4 +78,16 @@ class ComponentTypeTest {
                 .containsExactly(TestComponentTypes.SOURCE, TestComponentTypes.BUFFER,
                         TestComponentTypes.INVERTER, TestComponentTypes.WIDE_PROBE);
     }
+
+    @Test
+    void newComponentStoresResolvedParametersAndRejectsInvalidOnes() {
+        Component component = buffer.newComponent(new ElementId("c7"), new GridPoint(1, 2), Rotation.R90,
+                Map.of("delay", "3", "unknown", "x"), "B1");
+        assertThat(component).isEqualTo(new Component(new ElementId("c7"), buffer.id(), new GridPoint(1, 2),
+                Rotation.R90, Map.of("delay", 3), "B1"));
+        assertThat(buffer.newComponent(new ElementId("c8"), GridPoint.ORIGIN, Rotation.R0, null, null).parameters())
+                .isEqualTo(Map.of("delay", 1));
+        assertThatThrownBy(() -> buffer.newComponent(new ElementId("c9"), GridPoint.ORIGIN, Rotation.R0,
+                Map.of("delay", 0), "")).isInstanceOf(IllegalArgumentException.class);
+    }
 }

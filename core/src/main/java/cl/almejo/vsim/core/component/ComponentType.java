@@ -1,9 +1,11 @@
 package cl.almejo.vsim.core.component;
 
 import cl.almejo.vsim.core.document.Component;
+import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.GridSize;
+import cl.almejo.vsim.core.geometry.Rotation;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -38,6 +40,12 @@ public record ComponentType(String id, ComponentCategory category, GridSize size
             resolved.put(parameter.name(), rawValue == null ? parameter.defaultValue() : parameter.normalize(rawValue));
         }
         return Map.copyOf(resolved);
+    }
+
+    /** Creates a document component of this type, normalizing {@code rawParameters} (invalid values throw). */
+    public Component newComponent(ElementId id, GridPoint position, Rotation rotation,
+                                  Map<String, Object> rawParameters, String label) {
+        return new Component(id, this.id, position, rotation, resolveParameters(rawParameters), label);
     }
 
     public GridPoint pinLocation(Component component, int pinIndex) {

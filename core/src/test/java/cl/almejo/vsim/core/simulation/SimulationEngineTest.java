@@ -183,4 +183,17 @@ class SimulationEngineTest {
         assertThat(engine.revision()).isEqualTo(first + 1);
         assertThat(engine.snapshot().revision()).isEqualTo(engine.revision());
     }
+
+    @Test
+    void explicitDefaultParametersKeepTheInstanceState() {
+        ElementId source = place(TestComponentTypes.SOURCE, 0, 0, Map.of());
+        synchronize();
+        engine.interact(source.value());
+        engine.advance(1);
+        assertThat(valueAt(source, 0)).isEqualTo(Value.ONE);
+        document.replace(document.component(source).orElseThrow().withParameters(Map.of("value", "0")));
+        synchronize();
+        engine.advance(1);
+        assertThat(valueAt(source, 0)).isEqualTo(Value.ONE);
+    }
 }

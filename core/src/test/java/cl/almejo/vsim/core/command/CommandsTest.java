@@ -1,5 +1,6 @@
 package cl.almejo.vsim.core.command;
 
+import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
@@ -89,7 +90,7 @@ class CommandsTest {
 
     @Test
     void changeParameters() {
-        assertApplyAndRevertRestore(new ChangeParametersCommand(gate.id(), Map.of("delay", 5)));
+        assertApplyAndRevertRestore(new ChangeParametersCommand(gate.id(), and2(), Map.of("delay", 5)));
     }
 
     @Test
@@ -183,5 +184,18 @@ class CommandsTest {
         AddElementsCommand command = new AddElementsCommand(List.of(fresh, duplicate));
         assertThatThrownBy(() -> command.apply(document)).isInstanceOf(IllegalArgumentException.class);
         assertThat(contents()).isEqualTo(before);
+    }
+
+    @Test
+    void changeParametersNormalizesAndRejectsInvalidValuesAtConstruction() {
+        ComponentType switchType = StandardComponentTypes.registry().require("switch");
+        assertThatThrownBy(() -> new ChangeParametersCommand(gate.id(), switchType, Map.of("value", "7")))
+                .isInstanceOf(IllegalArgumentException.class);
+        new ChangeParametersCommand(gate.id(), and2(), Map.of("delay", "5")).apply(document);
+        assertThat(document.component(gate.id()).orElseThrow().parameters()).isEqualTo(Map.of("delay", 5));
+    }
+
+    private static ComponentType and2() {
+        return StandardComponentTypes.registry().require("and2");
     }
 }
