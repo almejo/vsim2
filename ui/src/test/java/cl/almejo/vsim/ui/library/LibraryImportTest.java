@@ -1,20 +1,27 @@
 package cl.almejo.vsim.ui.library;
 
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
+import cl.almejo.vsim.core.io.CircuitFormatException;
 import cl.almejo.vsim.core.io.DefinitionFormat;
 import cl.almejo.vsim.core.library.ComponentLibrary;
 import cl.almejo.vsim.core.library.DefinitionBundle;
 import cl.almejo.vsim.core.library.ExampleDefinitions;
+import cl.almejo.vsim.ui.clipboard.FileListTransferable;
+import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.window.MenuId;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import javax.swing.JTree;
+import javax.swing.TransferHandler;
+import java.awt.Container;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Optional;
 
 import static cl.almejo.vsim.ui.library.TemplateActionsTest.texts;
 import static cl.almejo.vsim.ui.library.TemplateFixture.perform;
@@ -102,5 +109,82 @@ class LibraryImportTest {
 
         assertThat(fixture.dialogs.errors).singleElement().asString().contains("broken.vsimcomponent.json");
         assertThat(fixture.library.find("inverter")).isPresent();
+    }
+
+    @Test
+    void aComponentWhoseNestedDefinitionIsMissingGivesOneCleanMessage() throws Exception {
+        DefinitionBundle doubleInverter = DefinitionBundle.of(ExampleDefinitions.doubleInverter(),
+                id -> Optional.of(ExampleDefinitions.inverter()));
+        Path file = outside("double.vsimcomponent.json", doubleInverter);
+        String json = Files.readString(file);
+        assertThat(json.split("\"definitions\"", -1)).hasSize(2);
+        Files.writeString(file, json.replace("\"definitions\"", "\"dropped\""));
+
+        importer.importFiles(fixture.view, List.of(file));
+
+        assertThat(fixture.dialogs.errors).singleElement().asString()
+                .startsWith("No se pudo importar double.vsimcomponent.json: ")
+                .doesNotContain("Exception");
+        assertThat(fixture.library.entries()).isEmpty();
+    }
+
+    @Test
+    void anUnreadableFileIsReportedAndTheOthersStillImported() throws Exception {
+        Path unreadable = Files.createDirectories(directory.resolve("unreadable.vsimcomponent.json"));
+
+        importer.importFiles(fixture.view, List.of(unreadable, outside("inverter.vsimcomponent.json", inverter)));
+
+        assertThat(fixture.dialogs.errors).singleElement().asString()
+                .startsWith("No se pudo importar unreadable.vsimcomponent.json: ");
+        assertThat(fixture.library.find("inverter")).isPresent();
+    }
+
+    @Test
+    void anUnexpectedFailureWhileReadingIsReportedLikeAFormatError() throws Exception {
+        Path good = outside("inverter.vsimcomponent.json", inverter);
+        Path bad = outside("bad.vsimcomponent.json", inverter);
+        LibraryImport failing = new LibraryImport(fixture.service, fixture.dialogs, file -> {
+            if (file.equals(bad)) {
+                throw new IllegalStateException("boom");
+            }
+            return fixture.service.read(file);
+        });
+
+        failing.importFiles(fixture.view, List.of(bad, good));
+
+        assertThat(fixture.dialogs.errors).containsExactly(Messages.format("library.import.failed",
+                "bad.vsimcomponent.json", Messages.readError(new CircuitFormatException(
+                        CircuitFormatException.Reason.INVALID_ELEMENT, "boom"))));
+        assertThat(fixture.library.find("inverter")).contains(inverter);
+    }
+
+    @Test
+    void droppingAComponentFileOnThePaletteImportsItIntoTheLibrary() throws Exception {
+        Path file = outside("inverter.vsimcomponent.json", inverter);
+        JTree tree = find(fixture.view.palette(), JTree.class);
+
+        boolean imported = tree.getTransferHandler().importData(
+                new TransferHandler.TransferSupport(tree, new FileListTransferable(List.of(file.toFile()))));
+
+        assertThat(imported).isTrue();
+        assertThat(fixture.library.find("inverter")).contains(inverter);
+        assertThat(directory.resolve("library").resolve("inverter.vsimcomponent.json")).isRegularFile();
+        assertThat(fixture.view.palette().visibleTypeIds()).contains("subcircuit:inverter");
+        assertThat(fixture.dialogs.errors).isEmpty();
+    }
+
+    private static <T> T find(Container container, Class<T> kind) {
+        for (java.awt.Component child : container.getComponents()) {
+            if (kind.isInstance(child)) {
+                return kind.cast(child);
+            }
+            if (child instanceof Container nested) {
+                T found = find(nested, kind);
+                if (found != null) {
+                    return found;
+                }
+            }
+        }
+        return null;
     }
 }

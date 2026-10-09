@@ -102,7 +102,7 @@ public final class LibraryPalette {
                         () -> dialogs.showInFolder(view, service.fileOf(id))));
                 menu.add(item(Messages.text("action.removeFromLibrary"), () -> remove(bundle)));
             } else {
-                menu.add(item(Messages.text("action.addToLibrary"), () -> save(bundle)));
+                menu.add(item(Messages.text("action.addToLibrary"), () -> addToLibrary(bundle)));
             }
             menu.addSeparator();
         });
@@ -178,7 +178,14 @@ public final class LibraryPalette {
         }
     }
 
-    /** "Agregar a mi librería". */
+    /**
+     * "Agregar a mi librería". The id is checked again now: another window may have put it in the library since the
+     * menu was built, and then the user chooses as on an import.
+     */
+    private void addToLibrary(DefinitionBundle bundle) {
+        importer.resolveCollision(view, bundle).ifPresent(this::save);
+    }
+
     private void save(DefinitionBundle bundle) {
         try {
             service.save(bundle);

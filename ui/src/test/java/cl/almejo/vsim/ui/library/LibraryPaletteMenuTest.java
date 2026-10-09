@@ -145,4 +145,23 @@ class LibraryPaletteMenuTest {
         assertThat(libraryFile("inverter")).isRegularFile();
         assertThat(fixture.view.palette().visibleSections()).doesNotContain("Componentes de este circuito");
     }
+
+    @Test
+    void addingAComponentTheLibraryGainedMeanwhileAsksFirst() throws Exception {
+        fixture.openDocument.execute(new PutDefinitionsCommand(List.of(ExampleDefinitions.inverter())));
+        fixture.place("subcircuit:inverter", 30, 30, "");
+        JPopupMenu menu = menuFor(inverter, false);
+        DefinitionBundle renamed = new DefinitionBundle(ExampleDefinitions.inverter().withName("Negador"), List.of());
+        fixture.service.save(renamed); // another window added it after this menu was built
+
+        fixture.dialogs.collisions.add(LibraryDialogs.ImportChoice.CANCEL);
+        click(menu, "Agregar a mi librería");
+        assertThat(fixture.dialogs.collisionNames).containsExactly("Inversor");
+        assertThat(fixture.library.find("inverter")).contains(renamed);
+
+        fixture.dialogs.collisions.add(LibraryDialogs.ImportChoice.REPLACE);
+        click(menu, "Agregar a mi librería");
+        assertThat(fixture.library.find("inverter")).contains(inverter);
+        assertThat(fixture.dialogs.errors).isEmpty();
+    }
 }

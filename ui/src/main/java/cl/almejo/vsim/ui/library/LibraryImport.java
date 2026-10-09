@@ -29,12 +29,24 @@ public final class LibraryImport {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(LibraryImport.class);
 
+    /** Reads one component file; the service in the application, a stand-in in tests. */
+    @FunctionalInterface
+    interface BundleReader {
+        DefinitionBundle read(Path file) throws IOException, CircuitFormatException;
+    }
+
     private final LibraryService service;
     private final LibraryDialogs dialogs;
+    private final BundleReader reader;
 
     public LibraryImport(LibraryService service, LibraryDialogs dialogs) {
+        this(service, dialogs, service::read);
+    }
+
+    LibraryImport(LibraryService service, LibraryDialogs dialogs, BundleReader reader) {
         this.service = service;
         this.dialogs = dialogs;
+        this.reader = reader;
     }
 
     /** The menu action: chooses files with {@code parent} as dialog owner and imports them. */
@@ -53,7 +65,7 @@ public final class LibraryImport {
         for (Path file : files) {
             DefinitionBundle bundle;
             try {
-                bundle = service.read(file);
+                bundle = reader.read(file);
             } catch (IOException exception) {
                 LOGGER.warn("Could not import {}", file, exception);
                 failures.add(Messages.format("library.import.failed", file.getFileName(),
@@ -62,6 +74,14 @@ public final class LibraryImport {
             } catch (CircuitFormatException exception) {
                 LOGGER.warn("Could not import {}", file, exception);
                 failures.add(Messages.format("library.import.failed", file.getFileName(), Messages.readError(exception)));
+                continue;
+            } catch (RuntimeException exception) {
+                // Nothing a file holds may escape to the EDT: an unexpected failure reads as an invalid element.
+                LOGGER.warn("Could not import {}", file, exception);
+                String detail = exception.getMessage() == null
+                        ? exception.getClass().getName() : exception.getMessage();
+                failures.add(Messages.format("library.import.failed", file.getFileName(), Messages.readError(
+                        new CircuitFormatException(CircuitFormatException.Reason.INVALID_ELEMENT, detail, exception))));
                 continue;
             }
             Optional<DefinitionBundle> accepted = resolveCollision(parent, bundle);
@@ -92,7 +112,11 @@ public final class LibraryImport {
         return new DefinitionBundle(copy, bundle.dependencies());
     }
 
-    private Optional<DefinitionBundle> resolveCollision(java.awt.Component parent, DefinitionBundle bundle) {
+    /**
+     * {@code bundle} as it may enter the library: as is when its id is free, otherwise as the user chooses (replace,
+     * keep both under a new identity, or nothing).
+     */
+    Optional<DefinitionBundle> resolveCollision(java.awt.Component parent, DefinitionBundle bundle) {
         if (service.library().find(bundle.root().id()).isEmpty()) {
             return Optional.of(bundle);
         }
