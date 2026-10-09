@@ -27,6 +27,7 @@ import cl.almejo.vsim.ui.actions.ContextMenuContributor;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.icons.Icons;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -67,6 +68,8 @@ public final class TemplateActions {
         this.dialogs = dialogs;
         this.createComponent = action(Messages.text("action.createComponent"), this::createFromSelection);
         this.updateComponent = action(Messages.text("action.updateComponent"), this::updateFromSelection);
+        Icons.install(createComponent, TemplateIcons.CREATE_COMPONENT);
+        Icons.install(updateComponent, TemplateIcons.UPDATE_COMPONENT);
         canvas.selection().addListener(refresher);
         openDocument.addChangeListener(refresher);
         refresh();
@@ -210,13 +213,26 @@ public final class TemplateActions {
                 }
             }
             if (!multiple && target.get() instanceof Component instance && definitionIdOf(instance).isPresent()) {
-                menu.add(new JMenuItem(action(Messages.text("action.disassemble"), () -> disassemble(instance))));
+                menu.add(new JMenuItem(disassembleAction(instance)));
                 if (isOutdated(instance)) {
-                    menu.add(new JMenuItem(action(Messages.text("action.updateFromLibrary"),
-                            () -> updateFromLibrary(instance))));
+                    menu.add(new JMenuItem(updateFromLibraryAction(instance)));
                 }
             }
         };
+    }
+
+    /** "Desarmar" for {@code instance}, with its icon. */
+    Action disassembleAction(Component instance) {
+        Action action = action(Messages.text("action.disassemble"), () -> disassemble(instance));
+        Icons.install(action, TemplateIcons.DISASSEMBLE);
+        return action;
+    }
+
+    /** "Actualizar desde la librería" for {@code instance}, with its icon. */
+    Action updateFromLibraryAction(Component instance) {
+        Action action = action(Messages.text("action.updateFromLibrary"), () -> updateFromLibrary(instance));
+        Icons.install(action, TemplateIcons.UPDATE_FROM_LIBRARY);
+        return action;
     }
 
     void refresh() {
