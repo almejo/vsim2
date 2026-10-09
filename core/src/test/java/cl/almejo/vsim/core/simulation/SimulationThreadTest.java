@@ -232,4 +232,94 @@ class SimulationThreadTest {
         waitUntil(interrupted::get);
         waitUntil(() -> !realThread.isAlive());
     }
+
+    private FlatCircuit twoSourcesOnOneNet() {
+        ComponentType source = registry.require(TestComponentTypes.SOURCE);
+        return new FlatCircuit(List.of(new FlatComponent("a", source, Map.of("value", "0")),
+                new FlatComponent("b", source, Map.of("value", "0"))),
+                List.of(new FlatNet("out", List.of(new FlatPinRef("a", 0), new FlatPinRef("b", 0)), 1, false)));
+    }
+
+    private void runWithTwoSources() {
+        thread.update(twoSourcesOnOneNet());
+        thread.resume();
+        thread.tick();
+        assertThat(thread.latestSnapshot().running()).isTrue();
+        assertThat(thread.latestSnapshot().shortCircuits()).isEmpty();
+    }
+
+    @Test
+    void pausesWhenANewShortCircuitAppears() {
+        thread.setPauseOnShortCircuit(true);
+        runWithTwoSources();
+        thread.interact("a");
+        thread.tick();
+        assertThat(thread.latestSnapshot().shortCircuits()).hasSize(1);
+        assertThat(thread.latestSnapshot().running()).isFalse();
+        nanos.addAndGet(10 * MILLISECOND);
+        thread.tick();
+        assertThat(thread.latestSnapshot().running()).isFalse();
+        assertThat(thread.latestSnapshot().time()).isZero();
+    }
+
+    @Test
+    void resumingKeepsRunningWhileTheSameShortCircuitLasts() {
+        thread.setPauseOnShortCircuit(true);
+        runWithTwoSources();
+        thread.interact("a");
+        thread.tick();
+        assertThat(thread.latestSnapshot().running()).isFalse();
+
+        thread.resume();
+        thread.tick();
+        nanos.addAndGet(5 * MILLISECOND);
+        thread.tick();
+        assertThat(thread.latestSnapshot().shortCircuits()).hasSize(1);
+        assertThat(thread.latestSnapshot().running()).isTrue();
+        assertThat(thread.latestSnapshot().time()).isEqualTo(5);
+    }
+
+    @Test
+    void aShortCircuitThatComesBackPausesAgain() {
+        thread.setPauseOnShortCircuit(true);
+        runWithTwoSources();
+        thread.interact("a");
+        thread.tick();
+        thread.resume();
+        thread.interact("a");
+        thread.tick();
+        assertThat(thread.latestSnapshot().shortCircuits()).isEmpty();
+        assertThat(thread.latestSnapshot().running()).isTrue();
+
+        thread.interact("a");
+        thread.tick();
+        assertThat(thread.latestSnapshot().running()).isFalse();
+    }
+
+    @Test
+    void shortCircuitsDoNotPauseByDefault() {
+        runWithTwoSources();
+        thread.interact("a");
+        thread.tick();
+        assertThat(thread.latestSnapshot().shortCircuits()).hasSize(1);
+        assertThat(thread.latestSnapshot().running()).isTrue();
+    }
+
+    @Test
+    void turningTheOptionOnWhileAShortExistsDoesNotPause() {
+        runWithTwoSources();
+        thread.interact("a");
+        thread.tick();
+        thread.setPauseOnShortCircuit(true);
+        thread.tick();
+        assertThat(thread.latestSnapshot().running()).isTrue();
+
+        thread.setPauseOnShortCircuit(false);
+        thread.interact("a");
+        thread.tick();
+        thread.interact("a");
+        thread.tick();
+        assertThat(thread.latestSnapshot().shortCircuits()).hasSize(1);
+        assertThat(thread.latestSnapshot().running()).isTrue();
+    }
 }

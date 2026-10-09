@@ -5,10 +5,12 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Optional;
 import java.util.Queue;
+import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.LockSupport;
 import java.util.function.LongSupplier;
+import java.util.stream.Collectors;
 
 /**
  * Runs a {@link SimulationEngine} on its own thread. Every request is queued and applied there;
@@ -36,6 +38,8 @@ public final class SimulationThread implements AutoCloseable {
     private boolean firstTick = true;
     private long lastTickNanos;
     private String failure;
+    private boolean pauseOnShortCircuit;
+    private Set<String> shortCircuitNets = Set.of();
 
     public SimulationThread(SimulationEngine engine) {
         this(engine, System::nanoTime);
@@ -97,6 +101,11 @@ public final class SimulationThread implements AutoCloseable {
         requests.add(() -> speed = unitsPerMillisecond);
     }
 
+    /** When on, a running simulation pauses as soon as a net that was not shorted becomes shorted (spec §6.12). */
+    public void setPauseOnShortCircuit(boolean enabled) {
+        requests.add(() -> pauseOnShortCircuit = enabled);
+    }
+
     public SimulationSnapshot latestSnapshot() {
         return latestSnapshot;
     }
@@ -121,10 +130,24 @@ public final class SimulationThread implements AutoCloseable {
                     engine.advance(units);
                 }
             }
-            latestSnapshot = engine.snapshot().withRunning(running).withFailure(Optional.ofNullable(failure));
+            SimulationSnapshot snapshot = engine.snapshot();
+            pauseOnNewShortCircuit(snapshot);
+            latestSnapshot = snapshot.withRunning(running).withFailure(Optional.ofNullable(failure));
         } catch (RuntimeException exception) {
             LOGGER.error("Simulation failed; pausing", exception);
             publishFailure(exception);
+        }
+    }
+
+    private void pauseOnNewShortCircuit(SimulationSnapshot snapshot) {
+        Set<String> current = snapshot.shortCircuits().stream()
+                .map(ShortCircuit::netId)
+                .collect(Collectors.toUnmodifiableSet());
+        boolean appeared = !shortCircuitNets.containsAll(current);
+        shortCircuitNets = current;
+        if (appeared && pauseOnShortCircuit && running) {
+            running = false;
+            LOGGER.info("Short circuit detected at t = {}; pausing", snapshot.time());
         }
     }
 
