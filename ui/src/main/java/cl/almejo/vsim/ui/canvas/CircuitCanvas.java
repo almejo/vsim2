@@ -332,6 +332,12 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         ToolTipManager.sharedInstance().registerComponent(this);
     }
 
+    /** Drops the tooltip provider and takes the canvas off the tooltip manager. */
+    public void clearToolTipProvider() {
+        toolTipProvider = gridPoint -> Optional.empty();
+        ToolTipManager.sharedInstance().unregisterComponent(this);
+    }
+
     @Override
     public String getToolTipText(MouseEvent event) {
         return toolTipProvider.apply(viewport.screenToGrid(event.getX(), event.getY())).orElse(null);

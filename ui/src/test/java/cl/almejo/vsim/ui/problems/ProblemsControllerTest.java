@@ -28,6 +28,7 @@ import javax.swing.JMenu;
 import javax.swing.JMenuItem;
 import javax.swing.JTabbedPane;
 import javax.swing.KeyStroke;
+import javax.swing.ToolTipManager;
 import javax.swing.event.MenuEvent;
 import javax.swing.event.MenuListener;
 import java.awt.Container;
@@ -255,5 +256,14 @@ class ProblemsControllerTest {
         assertThat(view.canvas().getActionMap().get("nextProblem")).isNull();
         assertThat(view.canvas().getInputMap(JComponent.WHEN_FOCUSED)
                 .get(KeyStroke.getKeyStroke(KeyEvent.VK_F8, 0))).isNull();
+    }
+
+    /** Review M8: dispose takes the canvas off the tooltip manager instead of registering it again. */
+    @Test
+    void disposeUnregistersTheCanvasFromTheTooltipManager() {
+        assertThat(view.canvas().getMouseListeners()).contains(ToolTipManager.sharedInstance());
+        view.problems().dispose();
+        assertThat(view.canvas().getMouseListeners()).doesNotContain(ToolTipManager.sharedInstance());
+        assertThat(view.canvas().getToolTipText(hoverAt(10, 10))).isNull();
     }
 }

@@ -180,7 +180,7 @@ public final class ProblemsController {
         canvas.removeSnapshotListener(snapshotListener);
         canvas.removeOverlay(pulse);
         canvas.removeOverlay(blink);
-        canvas.setToolTipProvider(gridPoint -> Optional.empty());
+        canvas.clearToolTipProvider();
         canvas.unbindKey(NEXT_KEY, "nextProblem");
         canvas.unbindKey(PREVIOUS_KEY, "previousProblem");
         viewMenu.remove(nextItem);
