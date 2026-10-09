@@ -1,0 +1,73 @@
+package cl.almejo.vsim.core.io;
+
+import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
+import cl.almejo.vsim.core.library.DefinitionBundle;
+import cl.almejo.vsim.core.library.ExampleDefinitions;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import org.junit.jupiter.api.Test;
+
+import java.util.List;
+import java.util.Optional;
+import java.util.function.Consumer;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+class DefinitionFormatTest {
+
+    private final DefinitionFormat format = new DefinitionFormat(StandardComponentTypes.registry());
+    private final ObjectMapper mapper = new ObjectMapper();
+    private final DefinitionBundle doubleBundle = DefinitionBundle.of(ExampleDefinitions.doubleInverter(),
+            id -> Optional.of(ExampleDefinitions.inverter()));
+    private final DefinitionBundle inverterBundle = new DefinitionBundle(ExampleDefinitions.inverter(), List.of());
+
+    @Test
+    void roundTripKeepsTheBundle() throws Exception {
+        String json = format.write(doubleBundle);
+        JsonNode root = mapper.readTree(json);
+        assertThat(root.path("formatVersion").asInt()).isEqualTo(2);
+        assertThat(root.path("kind").asText()).isEqualTo("component");
+        assertThat(root.path("id").asText()).isEqualTo(ExampleDefinitions.DOUBLE_INVERTER);
+        assertThat(root.path("definitions")).hasSize(1);
+        assertThat(format.read(json)).isEqualTo(doubleBundle);
+        assertThat(mapper.readTree(format.write(inverterBundle)).has("definitions")).isFalse();
+        assertThat(DefinitionFormat.FILE_SUFFIX).isEqualTo(".vsimcomponent.json");
+    }
+
+    @Test
+    void badFilesFailWithAReason() throws Exception {
+        String inverter = format.write(inverterBundle);
+        assertReason("no json", CircuitFormatException.Reason.INVALID_JSON);
+        assertReason("[1, 2]", CircuitFormatException.Reason.INVALID_ELEMENT);
+        assertReason(mutated(inverter, root -> root.put("kind", "circuit")), CircuitFormatException.Reason.INVALID_ELEMENT);
+        assertReason(mutated(inverter, root -> root.put("formatVersion", 3)),
+                CircuitFormatException.Reason.UNSUPPORTED_VERSION);
+        assertReason(mutated(format.write(doubleBundle), root -> root.remove("definitions")),
+                CircuitFormatException.Reason.UNKNOWN_COMPONENT_TYPE);
+        assertReason(mutated(inverter, root -> ((ObjectNode) root.path("pinout").get(0)).put("source", "c99")),
+                CircuitFormatException.Reason.INVALID_ELEMENT);
+        assertReason(mutated(inverter, root -> ((ObjectNode) root.path("components").get(1))
+                .put("type", "subcircuit:inverter")), CircuitFormatException.Reason.INVALID_ELEMENT);
+        assertReason(mutated(inverter, root -> root.put("id", "Not A Slug")), CircuitFormatException.Reason.INVALID_ELEMENT);
+        assertReason(mutated(inverter, root -> root.put("name", " ")), CircuitFormatException.Reason.INVALID_ELEMENT);
+        assertReason(mutated(inverter, root -> ((ArrayNode) root.path("pinout")).removeAll()),
+                CircuitFormatException.Reason.INVALID_ELEMENT);
+        assertThatThrownBy(() -> format.read(null)).isInstanceOf(CircuitFormatException.class);
+    }
+
+    private String mutated(String json, Consumer<ObjectNode> change) throws Exception {
+        ObjectNode root = (ObjectNode) mapper.readTree(json);
+        change.accept(root);
+        return root.toString();
+    }
+
+    private void assertReason(String json, CircuitFormatException.Reason reason) {
+        assertThatThrownBy(() -> format.read(json))
+                .isInstanceOf(CircuitFormatException.class)
+                .extracting(exception -> ((CircuitFormatException) exception).reason())
+                .isEqualTo(reason);
+    }
+}

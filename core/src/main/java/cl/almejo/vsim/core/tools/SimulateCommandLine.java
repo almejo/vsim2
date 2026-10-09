@@ -7,6 +7,7 @@ import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.io.CircuitFormatException;
 import cl.almejo.vsim.core.io.CircuitReader;
+import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.core.netlist.Net;
 import cl.almejo.vsim.core.netlist.Netlist;
 import cl.almejo.vsim.core.netlist.NetlistCompiler;
@@ -55,6 +56,8 @@ public final class SimulateCommandLine {
             error.println("error: " + exception.reason() + ": " + exception.detail());
             return 1;
         }
+        // The instances of the file's templates resolve through the definitions it embeds (single thread here).
+        registry.addResolver(SubcircuitTypes.resolverFor(document));
 
         NetlistCompiler compiler = new NetlistCompiler(registry);
         CircuitFlattener flattener = new CircuitFlattener(registry);

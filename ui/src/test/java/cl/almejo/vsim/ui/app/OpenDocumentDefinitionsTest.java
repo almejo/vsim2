@@ -9,7 +9,9 @@ import cl.almejo.vsim.core.library.ExampleDefinitions;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.core.value.Value;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 
@@ -43,5 +45,27 @@ class OpenDocumentDefinitionsTest {
             waitUntil(() -> openDocument.latestSnapshot().componentState(led.id().value())
                     .equals(new VisibleState.LedState(Value.ZERO)));
         }
+    }
+
+    @Test
+    void aSavedFileWithTemplatesReopensWithItsDefinitionsAndSimulates(@TempDir Path directory) throws Exception {
+        ComponentTypeRegistry base = StandardComponentTypes.registry();
+        Path file = directory.resolve("template.vsim");
+        try (OpenDocument openDocument = OpenDocument.createEmpty(base)) {
+            openDocument.execute(new PutDefinitionsCommand(List.of(ExampleDefinitions.inverter())));
+            place(openDocument, StandardComponentTypes.SWITCH, 0, 0, Map.of("value", "1"));
+            place(openDocument, SubcircuitTypes.typeIdOf(ExampleDefinitions.INVERTER), 4, -1, Map.of());
+            place(openDocument, StandardComponentTypes.LED, 7, -2, Map.of());
+            openDocument.save(file);
+        }
+        try (OpenDocument reopened = OpenDocument.open(file, base)) {
+            assertThat(reopened.document().definitions()).containsExactly(ExampleDefinitions.inverter());
+            assertThat(reopened.registry().find(SubcircuitTypes.typeIdOf(ExampleDefinitions.INVERTER))).isPresent();
+            Component led = reopened.document().components().stream()
+                    .filter(component -> component.typeId().equals(StandardComponentTypes.LED)).findFirst().orElseThrow();
+            waitUntil(() -> reopened.latestSnapshot().componentState(led.id().value())
+                    .equals(new VisibleState.LedState(Value.ZERO)));
+        }
+        assertThat(base.find(SubcircuitTypes.typeIdOf(ExampleDefinitions.INVERTER))).isEmpty();
     }
 }
