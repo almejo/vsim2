@@ -22,7 +22,9 @@ import java.util.stream.Stream;
 /**
  * Computes which pins and wires are electrically joined (union-find over grid points).
  * Each net is named {@code "n:" + anchor}, where the anchor is the smallest of {@code "w:" + wireId} and
- * {@code "p:" + componentId + "#" + pinIndex} over its wires and pins, so the id survives edits that keep it.
+ * {@code "p:" + componentId + "#" + pinIndex} over its wires and pins, so the id survives edits that keep it. Anchors
+ * order pins before wires, then by the numeric part of the element id (so {@code c10} comes after {@code c9}), then by
+ * pin index.
  */
 public final class NetlistCompiler {
 
@@ -91,10 +93,31 @@ public final class NetlistCompiler {
 
         private String anchor() {
             return Stream.concat(
-                            wires.stream().map(wire -> "w:" + wire.value()),
-                            pins.stream().map(pin -> "p:" + pin.componentId().value() + "#" + pin.pinIndex()))
-                    .min(Comparator.naturalOrder())
+                            wires.stream().map(wire -> new Anchor("w:", wire.value(), 0)),
+                            pins.stream().map(pin -> new Anchor("p:", pin.componentId().value(), pin.pinIndex())))
+                    .min(ANCHOR_ORDER)
+                    .map(Anchor::text)
                     .orElseThrow(() -> new IllegalStateException("net without pins or wires at " + points));
+        }
+    }
+
+    /** Orders anchors: pins before wires, then by the numeric part of the element id, then by pin index. */
+    private static final Comparator<Anchor> ANCHOR_ORDER = Comparator
+            .comparing(Anchor::kind)
+            .thenComparing(Anchor::idNumber)
+            .thenComparing(Anchor::elementId)
+            .thenComparingInt(Anchor::pinIndex);
+
+    private record Anchor(String kind, String elementId, int pinIndex) {
+
+        /** The digits of an id such as {@code c10}; ids without digits sort before all numbered ones. */
+        long idNumber() {
+            String digits = elementId.replaceAll("\\D", "");
+            return digits.isEmpty() ? -1 : Long.parseLong(digits);
+        }
+
+        String text() {
+            return kind + elementId + ("p:".equals(kind) ? "#" + pinIndex : "");
         }
     }
 

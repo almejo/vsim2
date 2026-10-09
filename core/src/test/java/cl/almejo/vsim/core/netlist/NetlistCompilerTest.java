@@ -101,6 +101,19 @@ class NetlistCompilerTest {
     }
 
     @Test
+    void anchorsCompareElementNumbersNumericallySoNewerComponentsNeverDisplaceOlderOnes() {
+        ElementId older = new ElementId("c9");
+        ElementId newer = new ElementId("c10");
+        document.add(new Component(older, TestComponentTypes.BUFFER, new GridPoint(0, 0), Rotation.R0, Map.of(), ""));
+        NetId before = netOf(older, 1, compiler.compile(document)).id();
+        assertThat(before).isEqualTo(new NetId("n:p:c9#1"));
+        document.add(new Component(newer, TestComponentTypes.BUFFER, new GridPoint(2, 0), Rotation.R0, Map.of(), ""));
+        Net joined = netOf(older, 1, compiler.compile(document));
+        assertThat(joined.pins()).contains(new PinRef(newer, 0));
+        assertThat(joined.id()).isEqualTo(before);
+    }
+
+    @Test
     void netIdSurvivesEditsThatKeepItsAnchor() {
         ElementId first = buffer(0, 0);
         buffer(10, 0);
