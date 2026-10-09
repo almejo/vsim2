@@ -202,7 +202,7 @@ public final class ProblemsController {
                 .flatMap(net -> snapshot.shortCircuits().stream()
                         .filter(shortCircuit -> shortCircuit.netId().equals(net.id().value()))
                         .findFirst())
-                .map(shortCircuit -> ProblemText.drivers(shortCircuit, document, openDocument.registry()));
+                .map(shortCircuit -> ProblemText.drivers(shortCircuit, document));
     }
 
     private static Action action(String name, Runnable behavior) {

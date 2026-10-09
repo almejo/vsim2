@@ -423,6 +423,25 @@ class EditorViewTest {
     }
 
     @Test
+    void anExtensionThatFailsToInstallUndoesTheEarlierOnesAndLeavesNoListener() {
+        List<String> events = new ArrayList<>();
+        Appearance appearance = new Appearance(ColorScheme.LIGHT);
+        EditorExtension first = target -> {
+            events.add("install first");
+            return () -> events.add("dispose first");
+        };
+        EditorExtension failing = target -> {
+            throw new IllegalStateException("broken extension");
+        };
+        EditorServices services = new EditorServices(PainterRegistry.standard(), appearance,
+                AppPreferences.inMemory(), new ComponentLibrary(), List.of(first, failing));
+        assertThatThrownBy(() -> new EditorView(openDocument, services, window))
+                .isInstanceOf(IllegalStateException.class).hasMessage("broken extension");
+        assertThat(events).containsExactly("install first", "dispose first");
+        assertThat(appearance.listenerCount()).isZero();
+    }
+
+    @Test
     void theViewRepaintsWithTheNewSchemeAndForgetsTheAppearanceWhenDisposed() {
         Appearance appearance = new Appearance(ColorScheme.LIGHT);
         EditorServices services = new EditorServices(PainterRegistry.standard(), appearance,

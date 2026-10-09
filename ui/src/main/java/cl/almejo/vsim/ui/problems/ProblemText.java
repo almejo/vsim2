@@ -5,6 +5,8 @@ import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.core.library.ComponentDefinition;
+import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.core.simulation.DriverRef;
 import cl.almejo.vsim.core.simulation.FlatPinRef;
 import cl.almejo.vsim.core.simulation.InstancePath;
@@ -37,34 +39,39 @@ public final class ProblemText {
     }
 
     /** "AND de 2 entradas 'U3' → 1 · NOT → 0": each driver by type name and label, with the value it imposes. */
-    public static String drivers(ShortCircuit shortCircuit, CircuitDocument document,
-                                 ComponentTypeRegistry registry) {
+    public static String drivers(ShortCircuit shortCircuit, CircuitDocument document) {
         return shortCircuit.drivers().stream()
-                .map(driver -> driver(driver, document, registry))
+                .map(driver -> driver(driver, document))
                 .collect(Collectors.joining(SEPARATOR));
     }
 
     public static String describe(Problem problem, CircuitDocument document, ComponentTypeRegistry registry) {
         return switch (problem) {
             case ShortCircuit shortCircuit -> Messages.format("problem.shortCircuit", shortCircuit.sinceTime(),
-                    drivers(shortCircuit, document, registry));
+                    drivers(shortCircuit, document));
             case WidthMismatch mismatch -> Messages.format("problem.widthMismatch", mismatch.pins().stream()
                     .map(pin -> pin(pin, document, registry))
                     .collect(Collectors.joining(SEPARATOR)));
         };
     }
 
-    private static String driver(DriverRef driver, CircuitDocument document, ComponentTypeRegistry registry) {
+    private static String driver(DriverRef driver, CircuitDocument document) {
         Optional<Component> component = InstancePath.isNested(driver.componentId()) ? Optional.empty()
                 : document.component(new ElementId(driver.componentId()));
         String value = driver.driven().toString();
         if (component.isEmpty()) {
             return Messages.format("problem.driver", driver.componentId(), value);
         }
-        String name = Messages.componentName(registry.require(component.get().typeId()));
+        String name = typeName(component.get().typeId(), document);
         String label = component.get().label();
         return label.isBlank() ? Messages.format("problem.driver", name, value)
                 : Messages.format("problem.driverLabeled", name, label, value);
+    }
+
+    /** The bundle name of a standard type, or the name of the document's definition for a sub-circuit type. */
+    private static String typeName(String typeId, CircuitDocument document) {
+        return SubcircuitTypes.definitionIdOf(typeId).flatMap(document::definition).map(ComponentDefinition::name)
+                .orElseGet(() -> Messages.componentName(typeId));
     }
 
     private static String pin(FlatPinRef pin, CircuitDocument document, ComponentTypeRegistry registry) {

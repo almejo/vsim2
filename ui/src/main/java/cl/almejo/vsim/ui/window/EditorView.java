@@ -129,8 +129,13 @@ public final class EditorView extends JPanel implements CanvasHost {
         problems = new ProblemsController(this);
         appearanceListener = canvas::repaint;
         services.appearance().addListener(appearanceListener);
-        for (EditorExtension extension : services.extensions()) {
-            extensionDisposers.add(extension.install(this));
+        try {
+            for (EditorExtension extension : services.extensions()) {
+                extensionDisposers.add(extension.install(this));
+            }
+        } catch (RuntimeException exception) {
+            dispose(); // undoes the extensions installed so far and leaves no listener on shared objects
+            throw exception;
         }
     }
 
