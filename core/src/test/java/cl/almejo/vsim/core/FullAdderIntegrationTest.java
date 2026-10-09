@@ -10,6 +10,7 @@ import cl.almejo.vsim.core.netlist.NetlistCompiler;
 import cl.almejo.vsim.core.netlist.PinRef;
 import cl.almejo.vsim.core.simulation.CircuitFlattener;
 import cl.almejo.vsim.core.simulation.SimulationEngine;
+import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.core.value.Value;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -87,5 +88,24 @@ class FullAdderIntegrationTest {
 
     private void setSwitch(String label, int value) {
         document.replace(labeled(label).withParameters(Map.of("value", String.valueOf(value))));
+    }
+
+    @Test
+    void vsimExampleCircuitImportsAndSimulatesWithoutProblems() throws Exception {
+        load("circuit.json");
+        assertThat(document.components()).hasSize(21);
+        engine.advance(5000);
+        SimulationSnapshot snapshot = engine.snapshot();
+        assertThat(snapshot.problems()).isEmpty();
+        assertThat(snapshot.time()).isEqualTo(5000);
+        for (Component component : document.components()) {
+            int pinCount = registry.require(component.typeId()).pinCount();
+            for (int pinIndex = 0; pinIndex < pinCount; pinIndex++) {
+                String netId = netlist.netForPin(new PinRef(component.id(), pinIndex))
+                        .map(net -> net.id().value())
+                        .orElse("p:" + component.id().value() + "#" + pinIndex);
+                assertThat(snapshot.netValues()).as("net of %s pin %d", component.id(), pinIndex).containsKey(netId);
+            }
+        }
     }
 }
