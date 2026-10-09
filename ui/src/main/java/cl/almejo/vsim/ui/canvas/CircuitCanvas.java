@@ -7,12 +7,16 @@ import cl.almejo.vsim.core.document.DocumentChange;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.DocumentListener;
 import cl.almejo.vsim.core.geometry.Rotation;
+import cl.almejo.vsim.core.io.CircuitFormatException;
+import cl.almejo.vsim.core.io.CircuitFragment;
+import cl.almejo.vsim.core.io.FragmentFormat;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.panels.PaletteTransfer;
 import cl.almejo.vsim.ui.tools.CanvasMouseEvent;
 import cl.almejo.vsim.ui.tools.ComponentPlacement;
+import cl.almejo.vsim.ui.tools.FloatingSelectionTool;
 import cl.almejo.vsim.ui.tools.SelectTool;
 import cl.almejo.vsim.ui.tools.Tool;
 import cl.almejo.vsim.ui.tools.ToolContext;
@@ -22,13 +26,10 @@ import javax.swing.JComponent;
 import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
 import javax.swing.Timer;
-import javax.swing.TransferHandler;
 import java.awt.Dimension;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Point;
-import java.awt.datatransfer.DataFlavor;
-import java.awt.datatransfer.UnsupportedFlavorException;
 import java.awt.event.FocusAdapter;
 import java.awt.event.FocusEvent;
 import java.awt.event.KeyAdapter;
@@ -37,7 +38,7 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseWheelEvent;
 import java.awt.geom.Point2D;
-import java.io.IOException;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -61,6 +62,8 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     private final List<Consumer<SimulationSnapshot>> snapshotListeners = new CopyOnWriteArrayList<>();
     private final List<Runnable> viewListeners = new CopyOnWriteArrayList<>();
     private final DocumentListener documentListener;
+    private Consumer<List<Path>> fileDropHandler = files -> {
+    };
     private Tool tool = defaultTool;
     private SimulationSnapshot displayedSnapshot = SimulationSnapshot.EMPTY;
     private boolean spaceDown;
@@ -89,27 +92,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
                 panAnchor = null;
             }
         });
-        setTransferHandler(new TransferHandler() {
-            @Override
-            public boolean canImport(TransferSupport support) {
-                return support.isDataFlavorSupported(DataFlavor.stringFlavor);
-            }
-
-            @Override
-            public boolean importData(TransferSupport support) {
-                if (!canImport(support)) {
-                    return false;
-                }
-                try {
-                    String text = (String) support.getTransferable().getTransferData(DataFlavor.stringFlavor);
-                    Point point = support.isDrop() ? support.getDropLocation().getDropPoint()
-                            : new Point(getWidth() / 2, getHeight() / 2);
-                    return dropComponent(text, point);
-                } catch (UnsupportedFlavorException | IOException exception) {
-                    return false;
-                }
-            }
-        });
+        setTransferHandler(new CanvasTransferHandler(this));
         frameTimer = new Timer(FRAME_MILLISECONDS, event -> refreshSnapshot());
     }
 
@@ -124,6 +107,34 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         useDefaultTool();
         requestFocusInWindow();
         return true;
+    }
+
+    /**
+     * Shows the fragment encoded in {@code fragmentJson} floating at {@code screenPoint} (its top-left there), ready
+     * to be fixed with a click; false, changing nothing, when the text is not a usable fragment.
+     */
+    public boolean dropFragment(String fragmentJson, Point screenPoint) {
+        CircuitFragment fragment;
+        try {
+            fragment = new FragmentFormat(openDocument.registry()).read(fragmentJson);
+        } catch (CircuitFormatException exception) {
+            return false;
+        }
+        if (fragment.isEmpty()) {
+            return false;
+        }
+        setTool(new FloatingSelectionTool(fragment, viewport.snap(screenPoint.x, screenPoint.y)));
+        requestFocusInWindow();
+        return true;
+    }
+
+    /** Where dropped circuit files go (the window opens them). */
+    public void setFileDropHandler(Consumer<List<Path>> handler) {
+        fileDropHandler = handler;
+    }
+
+    Consumer<List<Path>> fileDropHandler() {
+        return fileDropHandler;
     }
 
     @Override

@@ -7,25 +7,33 @@ import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
 import cl.almejo.vsim.core.io.CircuitFragment;
+import cl.almejo.vsim.core.io.FragmentFormat;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.ui.app.OpenDocument;
+import cl.almejo.vsim.ui.clipboard.FileListTransferable;
+import cl.almejo.vsim.ui.clipboard.FragmentTransferable;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.panels.PaletteTransfer;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.tools.CanvasMouseEvent;
 import cl.almejo.vsim.ui.tools.FloatingSelectionTool;
 import cl.almejo.vsim.ui.tools.PanTool;
+import cl.almejo.vsim.ui.tools.SelectTool;
 import cl.almejo.vsim.ui.tools.Tool;
 import cl.almejo.vsim.ui.tools.ToolContext;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
+import javax.swing.TransferHandler;
 import java.awt.Point;
+import java.awt.datatransfer.StringSelection;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseWheelEvent;
 import java.awt.geom.Point2D;
+import java.io.File;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -214,5 +222,68 @@ class CircuitCanvasTest {
         canvas.setTool(new PanTool());
         assertThat(openDocument.document().components()).hasSize(2);
         assertThat(openDocument.history().undoDescription()).contains("command.paste");
+    }
+
+    private static String fragmentJsonOf(OpenDocument source, Component component) {
+        return new FragmentFormat(source.registry())
+                .write(CircuitFragment.of(source.document(), List.of(component.id()), source.registry()));
+    }
+
+    @Test
+    void droppingAFragmentFromAnotherWindowFloatsItAtTheDropPoint() {
+        try (OpenDocument source = OpenDocument.createEmpty(StandardComponentTypes.registry())) {
+            Component gate = place(source, StandardComponentTypes.NOT, 3, 3, Map.of());
+            assertThat(canvas.dropFragment(fragmentJsonOf(source, gate), new Point(80, 72))).isTrue();
+            assertThat(canvas.tool()).isInstanceOfSatisfying(FloatingSelectionTool.class, floating -> {
+                assertThat(floating.position()).isEqualTo(new GridPoint(10, 9));
+                assertThat(floating.fragment().components()).hasSize(1);
+            });
+            assertThat(openDocument.document().isEmpty()).isTrue();
+        }
+    }
+
+    @Test
+    void theTransferHandlerTakesTheFragmentFlavorAndFragmentText() {
+        canvas.setSize(400, 300);
+        try (OpenDocument source = OpenDocument.createEmpty(StandardComponentTypes.registry())) {
+            String json = fragmentJsonOf(source, place(source, StandardComponentTypes.NOT, 0, 0, Map.of()));
+            TransferHandler handler = canvas.getTransferHandler();
+            assertThat(handler.importData(new TransferHandler.TransferSupport(canvas, new FragmentTransferable(json))))
+                    .isTrue();
+            assertThat(canvas.tool()).isInstanceOfSatisfying(FloatingSelectionTool.class,
+                    floating -> assertThat(floating.position()).isEqualTo(canvas.viewport().snap(200, 150)));
+            canvas.useDefaultTool();
+            assertThat(handler.importData(new TransferHandler.TransferSupport(canvas, new StringSelection(json))))
+                    .isTrue();
+            assertThat(canvas.tool()).isInstanceOf(FloatingSelectionTool.class);
+        }
+    }
+
+    @Test
+    void theTransferHandlerStillPlacesPaletteEntries() {
+        canvas.setSize(400, 300);
+        assertThat(canvas.getTransferHandler().importData(new TransferHandler.TransferSupport(canvas,
+                new StringSelection(PaletteTransfer.encode("led"))))).isTrue();
+        assertThat(openDocument.document().components()).hasSize(1);
+    }
+
+    @Test
+    void droppedCircuitFilesGoToTheFileDropHandler() {
+        List<Path> dropped = new ArrayList<>();
+        canvas.setFileDropHandler(dropped::addAll);
+        assertThat(canvas.getTransferHandler().importData(new TransferHandler.TransferSupport(canvas,
+                new FileListTransferable(List.of(new File("/tmp/a.vsim"), new File("/tmp/b.txt")))))).isTrue();
+        assertThat(dropped).containsExactly(Path.of("/tmp/a.vsim"));
+    }
+
+    @Test
+    void dropOfForeignTextOrABrokenFragmentIsRefused() {
+        assertThat(canvas.dropFragment("hello", new Point(10, 10))).isFalse();
+        assertThat(canvas.dropFragment("{}", new Point(10, 10))).isFalse();
+        assertThat(canvas.dropFragment("[1, 2]", new Point(10, 10))).isFalse();
+        assertThat(canvas.getTransferHandler().importData(new TransferHandler.TransferSupport(canvas,
+                new StringSelection("hello")))).isFalse();
+        assertThat(canvas.tool()).isInstanceOf(SelectTool.class);
+        assertThat(openDocument.document().isEmpty()).isTrue();
     }
 }

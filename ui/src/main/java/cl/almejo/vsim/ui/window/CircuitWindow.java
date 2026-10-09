@@ -44,6 +44,7 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
         // Open after the drop finishes: an error dialog inside a drop transaction can hang the drag source.
         Consumer<List<Path>> openDropped = files -> SwingUtilities.invokeLater(() -> application.openPaths(files, this));
         setTransferHandler(new FileDropHandler(openDropped));
+        view.canvas().setFileDropHandler(openDropped);
         setDefaultCloseOperation(DO_NOTHING_ON_CLOSE);
         addWindowListener(new WindowAdapter() {
             @Override
