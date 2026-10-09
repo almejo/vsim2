@@ -343,4 +343,18 @@ class EditorViewTest {
         assertThat(view.selectionActions().selectAll().getValue(Action.ACCELERATOR_KEY))
                 .isEqualTo(KeyStroke.getKeyStroke(KeyEvent.VK_A, control));
     }
+
+    @Test
+    void contextMenuForwardsRegisteredContributors() {
+        view.addContextMenuContributor((menu, target, selection, gridPosition) ->
+                menu.add(new javax.swing.JMenuItem("Stub")));
+        javax.swing.JPopupMenu menu = view.contextMenu(java.util.Optional.empty(), new java.awt.geom.Point2D.Double());
+        List<String> texts = new ArrayList<>();
+        for (java.awt.Component child : menu.getComponents()) {
+            if (child instanceof javax.swing.JMenuItem item) {
+                texts.add(item.getText());
+            }
+        }
+        assertThat(texts).contains("Stub", "Pegar");
+    }
 }

@@ -139,4 +139,10 @@ class ContextMenuFactoryTest {
         view.canvas().selection().set(List.of(gate.id(), other.id()));
         assertThat(texts(contextMenu(Optional.of(gate), CLICK))).containsExactly("Borrar", "Rotar ↻");
     }
+
+    @Test
+    void theRealViewMenuIncludesTheClipboardContributor() {
+        assertThat(texts(view.contextMenu(Optional.empty(), CLICK)))
+                .containsExactly("Centrar circuito", "---", "Pegar", "Seleccionar todo");
+    }
 }
