@@ -7,6 +7,9 @@ import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
+import cl.almejo.vsim.core.library.ExampleDefinitions;
+import cl.almejo.vsim.core.library.InterfacePins;
+import cl.almejo.vsim.core.library.SubcircuitTypes;
 import org.junit.jupiter.api.Test;
 
 import javax.imageio.ImageIO;
@@ -32,9 +35,11 @@ class PainterGalleryTest {
     /** Painters may draw this far outside their bounds (leads, shadows, glows); see PaintersTest. */
     private static final int MARGIN = 8;
 
-    /** Types shown, one per row. */
+    /** Types shown, one per row: every standard type (interface pins included) and a user component. */
     static List<ComponentType> galleryTypes() {
-        return new ArrayList<>(StandardComponentTypes.registry().all());
+        List<ComponentType> types = new ArrayList<>(StandardComponentTypes.registry().all());
+        types.add(SubcircuitTypes.typeOf(ExampleDefinitions.inverter()));
+        return types;
     }
 
     /** Side of the square area a type needs below its label, in image pixels, in any rotation. */
@@ -47,6 +52,8 @@ class PainterGalleryTest {
     void writesAGalleryOfEveryComponentForVisualReview() throws Exception {
         PainterRegistry painters = PainterRegistry.standard();
         List<ComponentType> types = galleryTypes();
+        assertThat(types).extracting(ComponentType::id).contains(InterfacePins.INPUT_PIN, InterfacePins.OUTPUT_PIN,
+                SubcircuitTypes.typeIdOf(ExampleDefinitions.INVERTER));
         int columns = Rotation.values().length + 1;
         int cellWidth = types.stream().mapToInt(PainterGalleryTest::drawingSide).max().orElseThrow();
         int[] rowTops = new int[types.size() + 1];

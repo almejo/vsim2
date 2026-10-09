@@ -10,6 +10,7 @@ import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
 import cl.almejo.vsim.core.library.ExampleDefinitions;
+import cl.almejo.vsim.core.library.InterfacePins;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.core.value.Value;
 import org.junit.jupiter.api.Test;
@@ -41,6 +42,12 @@ class PaintersTest {
 
     /** A representative "on" state per type, shared with the gallery. */
     static VisibleState sampleState(String typeId) {
+        if (typeId.equals(InterfacePins.INPUT_PIN)) {
+            return new VisibleState.SwitchState(Value.ONE);
+        }
+        if (typeId.equals(InterfacePins.OUTPUT_PIN)) {
+            return new VisibleState.LedState(Value.ONE);
+        }
         return switch (typeId) {
             case StandardComponentTypes.LED -> new VisibleState.LedState(Value.ONE);
             case StandardComponentTypes.SWITCH -> new VisibleState.SwitchState(Value.ONE);

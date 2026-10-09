@@ -25,6 +25,9 @@ Diseño: `docs/superpowers/specs/2026-10-08-vsim2-design.md`.
 - Click sobre un interruptor lo cambia mientras simula.
 - Ctrl+rueda o Ctrl + / Ctrl − (también en el teclado numérico): zoom; rueda / Mayús+rueda: desplazar; botón del medio o Espacio+arrastrar: mover la vista.
 - Los cortocircuitos se ven en rojo pulsante, con un halo en cada pin que maneja la red; al pasar el mouse sobre el cable se listan los drivers. Click en "⚠ N cortocircuitos" o F8 / Mayús+F8 salta al siguiente/anterior; la pestaña Problemas los lista (doble click navega). Simulación → "Pausar al detectar cortocircuito" detiene la simulación cuando aparece uno nuevo.
+- Dibujos: los textos dentro de los componentes (interruptor, flip-flop, pines) se leen derechos en cualquier rotación. El display de 7 segmentos muestra 0–F con segmentos biselados y un guion en cada dígito que tenga un bit en Z o en conflicto. El diagrama de tiempo dibuja sus propias trazas con el nombre de cada entrada, una línea tenue cada 10 muestras, Z como línea punteada al medio y conflicto en rojo; muestrea cada `sample-interval` unidades de tiempo, así que pulsos más cortos que eso no se ven.
+- Los puntos de unión aparecen solo donde un cable se ramifica (no donde dos cables siguen en línea recta).
+- Íconos nuevos en menús, barra de herramientas y menú contextual (se adaptan al tema oscuro); la barra muestra solo íconos y el nombre aparece al pasar el mouse. La ventana tiene ícono propio.
 
 ## Demo de consola (M1)
 

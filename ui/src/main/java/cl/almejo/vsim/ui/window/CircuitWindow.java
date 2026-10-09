@@ -5,6 +5,7 @@ import cl.almejo.vsim.ui.app.FileDialogs;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.clipboard.FileDropHandler;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.icons.AppIcons;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,6 +38,7 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
         this.view = new EditorView(openDocument, services, this);
         setJMenuBar(view.menuBar());
         setContentPane(view);
+        setIconImages(AppIcons.images());
         new WindowMenu(view.menu(MenuId.WINDOW), () -> application.newWindow(this),
                 () -> application.windowEntries(this));
         // Open after the drop finishes: an error dialog inside a drop transaction can hang the drag source.
