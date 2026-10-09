@@ -4,6 +4,8 @@ slf4j = "2.0.16"
 logback = "1.5.16"
 junit = "5.11.4"
 assertj = "3.27.3"
+flatlaf = "3.5.4"
+miglayout = "11.4.2"
 
 [libraries]
 jackson-databind = { module = "com.fasterxml.jackson.core:jackson-databind", version.ref = "jackson" }
@@ -13,3 +15,5 @@ junit-bom = { module = "org.junit:junit-bom", version.ref = "junit" }
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter" }
 junit-launcher = { module = "org.junit.platform:junit-platform-launcher" }
 assertj-core = { module = "org.assertj:assertj-core", version.ref = "assertj" }
+flatlaf = { module = "com.formdev:flatlaf", version.ref = "flatlaf" }
+miglayout-swing = { module = "com.miglayout:miglayout-swing", version.ref = "miglayout" }
