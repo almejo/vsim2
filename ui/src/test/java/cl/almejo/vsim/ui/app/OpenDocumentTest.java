@@ -166,4 +166,25 @@ class OpenDocumentTest {
         document.close();
         document.close();
     }
+
+    @Test
+    void aDocumentIsBackedByTheFileItWasOpenedFromOrLastSavedTo(@TempDir Path directory) throws Exception {
+        Path first = directory.resolve("primero.vsim");
+        track(OpenDocument.createEmpty(registry)).save(first);
+        OpenDocument document = track(OpenDocument.open(first, registry));
+        assertThat(document.isBackedBy(directory.resolve("./primero.vsim"))).isTrue();
+        Path second = directory.resolve("segundo.vsim");
+        document.save(second);
+        assertThat(document.isBackedBy(first)).isFalse();
+        assertThat(document.isBackedBy(second)).isTrue();
+        assertThat(track(OpenDocument.createEmpty(registry)).isBackedBy(first)).isFalse();
+    }
+
+    @Test
+    void anImportedVsim1DocumentIsBackedByItsSourceUntilSaved() throws Exception {
+        Path legacy = Path.of("../examples/vsim1/4-bit-adder.json");
+        OpenDocument document = track(OpenDocument.open(legacy, registry));
+        assertThat(document.path()).isEmpty();
+        assertThat(document.isBackedBy(legacy.toAbsolutePath())).isTrue();
+    }
 }
