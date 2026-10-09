@@ -68,7 +68,7 @@ final class DefinitionEntries {
                         component.typeId() + " in definition " + definition.id()));
                 try {
                     normalized.add(component.withParameters(type.resolveParameters(component.parameters())));
-                } catch (IllegalArgumentException exception) {
+                } catch (IllegalArgumentException | NullPointerException exception) {
                     throw invalid("definition " + definition.id() + ": " + exception.getMessage(), exception);
                 }
             }

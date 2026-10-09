@@ -33,7 +33,10 @@ public final class SubcircuitTypes {
         return Optional.of(typeId.substring(PREFIX.length()));
     }
 
-    /** Equal definitions give equal types (the engine treats them as the same component). */
+    /**
+     * Equal definitions give equal types. The instance type never reaches the engine (the flattener expands instances
+     * into their bodies); see {@link #resolverFor}.
+     */
     public static ComponentType typeOf(ComponentDefinition definition) {
         return new ComponentType(typeIdOf(definition.id()), ComponentCategory.CUSTOM, definition.size(),
                 definition.pinout().stream().map(DefinitionPin::spec).toList(), List.of(), new Factory(definition));

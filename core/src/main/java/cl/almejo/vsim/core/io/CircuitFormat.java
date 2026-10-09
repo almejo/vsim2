@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.TreeMap;
+import java.util.function.Function;
 
 /** Reads and writes the VSim 2 circuit file format (JSON, formatVersion 2). */
 public final class CircuitFormat {
@@ -81,30 +82,16 @@ public final class CircuitFormat {
     }
 
     public CircuitDocument read(String json) throws CircuitFormatException {
-        if (json == null) {
-            throw new CircuitFormatException(CircuitFormatException.Reason.INVALID_JSON, "json is null");
-        }
+        JsonNode root = parse(mapper, json);
         try {
-            return read(mapper.readTree(json));
-        } catch (JsonProcessingException | IllegalArgumentException exception) {
+            return read(root);
+        } catch (IllegalArgumentException exception) {
             throw new CircuitFormatException(CircuitFormatException.Reason.INVALID_JSON, exception.getMessage(), exception);
         }
     }
 
     public CircuitDocument read(JsonNode root) throws CircuitFormatException {
-        if (root == null || !root.isObject()) {
-            throw new CircuitFormatException(CircuitFormatException.Reason.INVALID_ELEMENT, "root must be a JSON object");
-        }
-        requireFormatVersion(root);
-        CircuitFile file;
-        try {
-            file = mapper.treeToValue(root, CircuitFile.class);
-        } catch (JsonProcessingException | IllegalArgumentException exception) {
-            throw new CircuitFormatException(CircuitFormatException.Reason.INVALID_ELEMENT, exception.getMessage(), exception);
-        }
-        if (!KIND_CIRCUIT.equals(file.kind())) {
-            throw new CircuitFormatException(CircuitFormatException.Reason.INVALID_ELEMENT, "kind " + file.kind());
-        }
+        CircuitFile file = readFile(mapper, root, CircuitFile.class, KIND_CIRCUIT, CircuitFile::kind);
         CircuitDocument document = new CircuitDocument();
         document.setName(file.name());
         // The file's own definitions resolve its subcircuit:<id> types; the caller's resolvers are not consulted.
@@ -127,6 +114,41 @@ public final class CircuitFormat {
             add(document, () -> label(entry));
         }
         return document;
+    }
+
+    /** The JSON tree of {@code json}; {@code null} or malformed text is {@code INVALID_JSON}. */
+    static JsonNode parse(ObjectMapper mapper, String json) throws CircuitFormatException {
+        if (json == null) {
+            throw new CircuitFormatException(CircuitFormatException.Reason.INVALID_JSON, "json is null");
+        }
+        try {
+            return mapper.readTree(json);
+        } catch (JsonProcessingException exception) {
+            throw new CircuitFormatException(CircuitFormatException.Reason.INVALID_JSON, exception.getMessage(), exception);
+        }
+    }
+
+    /**
+     * {@code root} as a {@code fileType} record, after the checks every VSim 2 file shares: an object root
+     * ({@code INVALID_ELEMENT}), the format version ({@code UNSUPPORTED_VERSION}), a well-formed record and the
+     * expected {@code kind} (both {@code INVALID_ELEMENT}).
+     */
+    static <T> T readFile(ObjectMapper mapper, JsonNode root, Class<T> fileType, String kind,
+                          Function<T, String> kindOf) throws CircuitFormatException {
+        if (root == null || !root.isObject()) {
+            throw new CircuitFormatException(CircuitFormatException.Reason.INVALID_ELEMENT, "root must be a JSON object");
+        }
+        requireFormatVersion(root);
+        T file;
+        try {
+            file = mapper.treeToValue(root, fileType);
+        } catch (JsonProcessingException | IllegalArgumentException exception) {
+            throw new CircuitFormatException(CircuitFormatException.Reason.INVALID_ELEMENT, exception.getMessage(), exception);
+        }
+        if (!kind.equals(kindOf.apply(file))) {
+            throw new CircuitFormatException(CircuitFormatException.Reason.INVALID_ELEMENT, "kind " + kindOf.apply(file));
+        }
+        return file;
     }
 
     static void requireFormatVersion(JsonNode root) throws CircuitFormatException {

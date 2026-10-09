@@ -50,27 +50,11 @@ public final class FragmentFormat {
 
     /** Reads a fragment, validating it like a circuit file, and moves its bounds to start at (0,0). */
     public CircuitFragment read(String json) throws CircuitFormatException {
-        if (json == null) {
-            throw new CircuitFormatException(CircuitFormatException.Reason.INVALID_JSON, "json is null");
-        }
-        JsonNode root;
-        try {
-            root = mapper.readTree(json);
-        } catch (JsonProcessingException exception) {
-            throw new CircuitFormatException(CircuitFormatException.Reason.INVALID_JSON, exception.getMessage(),
-                    exception);
-        }
-        if (!(root instanceof ObjectNode object)) {
-            throw new CircuitFormatException(CircuitFormatException.Reason.INVALID_ELEMENT,
-                    "root must be a JSON object");
-        }
-        JsonNode kind = object.path("kind");
-        if (!kind.isTextual() || !KIND_FRAGMENT.equals(kind.textValue())) {
-            throw new CircuitFormatException(CircuitFormatException.Reason.INVALID_ELEMENT, "kind " + kind);
-        }
+        JsonNode root = CircuitFormat.parse(mapper, json);
+        CircuitFormat.readFile(mapper, root, FragmentFile.class, KIND_FRAGMENT, FragmentFile::kind);
         // Reuse CircuitFormat.read for validation and element parsing: it only accepts a circuit file, so the fragment
         // is presented as one (kind rewritten to "circuit", and the circuit-only "name" dropped).
-        ObjectNode asCircuit = object.deepCopy();
+        ObjectNode asCircuit = ((ObjectNode) root).deepCopy();
         asCircuit.put("kind", CircuitFormat.KIND_CIRCUIT);
         asCircuit.remove("name");
         CircuitDocument document = circuitFormat.read(asCircuit);
