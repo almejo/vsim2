@@ -1,6 +1,5 @@
 package cl.almejo.vsim.core.io;
 
-import cl.almejo.vsim.core.library.InterfacePins;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.library.DefinitionBundle;
 import cl.almejo.vsim.core.library.ExampleDefinitions;

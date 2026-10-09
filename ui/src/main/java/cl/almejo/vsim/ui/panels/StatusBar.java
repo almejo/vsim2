@@ -15,6 +15,7 @@ import java.util.stream.Collectors;
 
 public final class StatusBar extends JPanel {
 
+    private static final String CLICK_TOOLTIP = "tooltip.shortCircuits";
     private static final Color WARNING = new Color(0xE53935);
 
     private final JLabel simulation = new JLabel();
@@ -54,7 +55,7 @@ public final class StatusBar extends JPanel {
     /**
      * Shows "⚠ N cortocircuitos", "⚠ N anchos incompatibles" or both, hidden when there is neither. Fed by the Problems
      * controller, which ignores snapshots of an older netlist, so the counts match the Problems tab. Once clickable,
-     * its tooltip only names short circuits when no width mismatch is counted.
+     * its tooltip is always the generic "next problem" one.
      */
     public void showProblems(int shortCircuitCount, int widthMismatchCount) {
         String text;
@@ -70,19 +71,15 @@ public final class StatusBar extends JPanel {
         shortCircuits.setText(text);
         shortCircuits.setVisible(!text.isEmpty());
         if (clickable) {
-            shortCircuits.setToolTipText(clickTooltip(widthMismatchCount));
+            shortCircuits.setToolTipText(Messages.text(CLICK_TOOLTIP));
         }
-    }
-
-    private static String clickTooltip(int widthMismatchCount) {
-        return Messages.text(widthMismatchCount > 0 ? "tooltip.problems" : "tooltip.shortCircuits");
     }
 
     /** Clicking the "⚠ N cortocircuitos" warning runs {@code action} (jump to the next problem). */
     public void onShortCircuitsClicked(Runnable action) {
         shortCircuits.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         clickable = true;
-        shortCircuits.setToolTipText(clickTooltip(0));
+        shortCircuits.setToolTipText(Messages.text(CLICK_TOOLTIP));
         shortCircuits.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent event) {

@@ -47,6 +47,16 @@ class BusLabelsTest {
     }
 
     @Test
+    void aShortedBusIsMarkedAsAConflictInsteadOfShowingTheFirstDriversBits() {
+        String bus = busOfFourBits();
+        Value shorted = Value.resolve(4, List.of(Value.of(4, 0x5), Value.of(4, 0xA)));
+        assertThat(shorted.conflict()).isTrue();
+        assertThat(labels(document.revision(), Map.of(bus, shorted), List.of()))
+                .singleElement().satisfies(label -> assertThat(label.text()).isEqualTo("X"));
+        assertThat(BusValueText.of(shorted)).isEqualTo("X");
+    }
+
+    @Test
     void aBusWritesItsValueInHexAtTheMiddleOfItsLongestWire() {
         String bus = busOfFourBits();
         assertThat(labels(document.revision(), Map.of(bus, Value.of(4, 0xA)), List.of()))

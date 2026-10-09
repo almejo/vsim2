@@ -31,6 +31,7 @@ final class BusJoinerBehavior implements Behavior {
                 case ONE -> bits |= 1L << bit;
                 case HIGH_IMPEDANCE -> highImpedance |= 1L << bit;
                 case ZERO -> {
+                    // A zero bit sets neither mask: it stays clear in both.
                 }
             }
         }

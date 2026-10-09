@@ -104,15 +104,15 @@ class StatusBarTest {
     }
 
     @Test
-    void theWarningTooltipIsNeutralWhenWidthMismatchesAreCounted() {
+    void theWarningTooltipStaysTheGenericOneWhenOnlyMismatchesAreCounted() {
         statusBar.onShortCircuitsClicked(() -> { });
         JLabel warning = statusBar.shortCircuitsLabel();
         statusBar.showProblems(1, 0);
         assertThat(warning.getToolTipText()).isEqualTo("Clic para ir al siguiente problema (F8)");
         statusBar.showProblems(0, 1);
-        assertThat(warning.getToolTipText()).isEqualTo("Clic para ir al siguiente problema o ancho incompatible (F8)");
+        assertThat(warning.getToolTipText()).isEqualTo("Clic para ir al siguiente problema (F8)");
         statusBar.showProblems(2, 1);
-        assertThat(warning.getToolTipText()).isEqualTo("Clic para ir al siguiente problema o ancho incompatible (F8)");
+        assertThat(warning.getToolTipText()).isEqualTo("Clic para ir al siguiente problema (F8)");
         statusBar.showProblems(1, 0);
         assertThat(warning.getToolTipText()).isEqualTo("Clic para ir al siguiente problema (F8)");
     }

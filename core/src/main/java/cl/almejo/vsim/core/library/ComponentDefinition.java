@@ -63,10 +63,14 @@ public record ComponentDefinition(String id, String name, String description, Gr
             int sourceWidth = InterfacePins.widthOf(source);
             if (pin.spec().width() != sourceWidth) {
                 throw new IllegalArgumentException("pin " + pin.spec().name() + " of " + id + " is "
-                        + pin.spec().width() + " bits wide but its " + expected + " " + pin.source() + " is "
-                        + sourceWidth + " bits wide");
+                        + bitCount(pin.spec().width()) + " wide but its " + expected + " " + pin.source() + " is "
+                        + bitCount(sourceWidth) + " wide");
             }
         }
+    }
+
+    private static String bitCount(int width) {
+        return width + (width == 1 ? " bit" : " bits");
     }
 
     /**

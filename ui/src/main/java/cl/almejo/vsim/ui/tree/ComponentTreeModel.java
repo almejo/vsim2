@@ -57,7 +57,7 @@ public final class ComponentTreeModel {
     /** "0", "1", "Z" for one bit; a bus in hex ("0x3F"); "X" for a conflict. */
     public static String valueText(Value value) {
         if (value.conflict()) {
-            return "X";
+            return BusValueText.of(value);
         }
         return value.width() > 1 ? BusValueText.of(value) : value.toString();
     }
