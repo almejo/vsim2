@@ -24,8 +24,8 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Arrays;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
@@ -58,19 +58,27 @@ class PaintersTest {
      */
     private static VisibleState fullTimeDiagramHistory(ComponentType type) {
         int count = TimeDiagramPainter.capacity(type) + 4;
+        long interval = type.parameters().stream()
+                .filter(parameter -> parameter.name().equals("sample-interval"))
+                .map(parameter -> parameter.defaultValue())
+                .filter(Integer.class::isInstance)
+                .map(Integer.class::cast)
+                .findFirst()
+                .orElse(150);
         List<TimeDiagramSample> samples = new ArrayList<>();
         for (int index = 0; index < count; index++) {
             Value first = index / 3 % 2 == 0 ? Value.ZERO : Value.ONE;
             Value second = index / 5 % 2 == 0 ? Value.ONE : Value.ZERO;
             Value third = index / 2 % 2 == 0 ? Value.ZERO : Value.ONE;
             Value fourth = index % 2 == 0 ? Value.ZERO : Value.ONE;
+            // Z over samples count-12..count-8, the conflict at count-5: all inside the visible window
             if (index >= count - 12 && index < count - 7) {
                 second = Value.HIGH_IMPEDANCE;
             }
             if (index == count - 5) {
                 third = Value.ONE.withConflict();
             }
-            samples.add(new TimeDiagramSample(index, List.of(first, second, third, fourth)));
+            samples.add(new TimeDiagramSample(index * interval, List.of(first, second, third, fourth)));
         }
         return new VisibleState.TimeDiagramState(samples);
     }
