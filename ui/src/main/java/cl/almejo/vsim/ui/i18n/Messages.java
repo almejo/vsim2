@@ -10,6 +10,7 @@ import org.slf4j.LoggerFactory;
 
 import java.text.MessageFormat;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.MissingResourceException;
 import java.util.ResourceBundle;
 
@@ -68,6 +69,12 @@ public final class Messages {
     public static String componentName(ComponentType type) {
         return SubcircuitTypes.definitionOf(type).map(ComponentDefinition::name)
                 .orElseGet(() -> componentName(type.id()));
+    }
+
+    /** The help a type shows as a palette tooltip (key {@code help.component.<type id>}), when it has one. */
+    public static Optional<String> componentHelp(ComponentType type) {
+        String key = "help.component." + type.id();
+        return current.containsKey(key) ? Optional.of(current.getString(key)) : Optional.empty();
     }
 
     public static String categoryName(ComponentCategory category) {

@@ -86,4 +86,15 @@ class ComponentFormPanelTest {
         assertThat(updating.target()).contains(doubleInverter);
         assertThat(updatePanel.nameField().getText()).isEqualTo("Doble inversor");
     }
+
+    @Test
+    void bothDialogsExplainWhatComponentPinsDo() {
+        ComponentFormPanel creating = new ComponentFormPanel(ComponentForm.create(order, names, List.of(), Set.of()));
+        assertThat(creating.pinsHelpLabel().getParent()).isSameAs(creating);
+        assertThat(creating.pinsHelpLabel().getText()).contains("interruptor y LED").contains("conexiones");
+
+        ComponentFormPanel updating = new ComponentFormPanel(ComponentForm.update(order, names, List.of(),
+                List.of(ExampleDefinitions.inverter())));
+        assertThat(updating.pinsHelpLabel().getParent()).isSameAs(updating);
+    }
 }
