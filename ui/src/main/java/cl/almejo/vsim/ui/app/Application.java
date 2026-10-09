@@ -9,6 +9,7 @@ import cl.almejo.vsim.ui.paint.Appearance;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.window.CircuitWindow;
+import cl.almejo.vsim.ui.tree.ComponentTreeExtension;
 import cl.almejo.vsim.ui.window.EditorExtension;
 import cl.almejo.vsim.ui.window.EditorServices;
 import cl.almejo.vsim.ui.window.WindowMenu;
@@ -40,6 +41,7 @@ public final class Application {
         this.preferences = preferences;
         List<EditorExtension> editorExtensions = new ArrayList<>();
         // M4 tracks add one line each here, in the order A, B, C, D (overview R9).
+        editorExtensions.add(new ComponentTreeExtension());
         this.services = new EditorServices(PainterRegistry.standard(), appearance, preferences, library,
                 editorExtensions);
     }
