@@ -1,7 +1,9 @@
 package cl.almejo.vsim.core.library;
 
 import cl.almejo.vsim.core.component.PinDirection;
+import cl.almejo.vsim.core.component.PinSpec;
 import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.GridSize;
 import cl.almejo.vsim.core.io.CircuitFragment;
 
@@ -40,7 +42,10 @@ public record ComponentDefinition(String id, String name, String description, Gr
             throw new IllegalArgumentException("the body of " + id + " must not carry definitions");
         }
         Set<ElementId> sources = new HashSet<>();
+        Set<String> pinNames = new HashSet<>();
+        Set<GridPoint> pinPositions = new HashSet<>();
         for (DefinitionPin pin : pinout) {
+            requireValidPin(id, size, pin.spec(), pinNames, pinPositions);
             if (!sources.add(pin.source())) {
                 throw new IllegalArgumentException("pin source used twice in " + id + ": " + pin.source());
             }
@@ -51,6 +56,33 @@ public record ComponentDefinition(String id, String name, String description, Gr
                 throw new IllegalArgumentException("pin " + pin.spec().name() + " of " + id + " needs a " + expected
                         + " with id " + pin.source());
             }
+        }
+    }
+
+    /**
+     * A pin needs a unique, non-blank name, a position on the box ({@code [0..width] x [0..height]}) no other pin
+     * uses (pins at one point would short their outer nets) and width 1 (wider pins come later).
+     */
+    private static void requireValidPin(String id, GridSize size, PinSpec spec, Set<String> names,
+                                        Set<GridPoint> positions) {
+        if (spec.name().isBlank()) {
+            throw new IllegalArgumentException("a pin of " + id + " has no name");
+        }
+        if (!names.add(spec.name())) {
+            throw new IllegalArgumentException("pin name used twice in " + id + ": " + spec.name());
+        }
+        GridPoint position = spec.position();
+        if (position.x() < 0 || position.x() > size.width() || position.y() < 0 || position.y() > size.height()) {
+            throw new IllegalArgumentException("pin " + spec.name() + " of " + id + " is outside the " + size.width()
+                    + " x " + size.height() + " box: " + position.x() + "," + position.y());
+        }
+        if (!positions.add(position)) {
+            throw new IllegalArgumentException("pin " + spec.name() + " of " + id + " shares its position "
+                    + position.x() + "," + position.y() + " with another pin");
+        }
+        if (spec.width() != 1) {
+            throw new IllegalArgumentException("pin " + spec.name() + " of " + id + " must be 1 bit wide: "
+                    + spec.width());
         }
     }
 

@@ -58,6 +58,26 @@ class DefinitionFormatTest {
         assertThatThrownBy(() -> format.read(null)).isInstanceOf(CircuitFormatException.class);
     }
 
+    @Test
+    void pinsReadFromAFileAreCheckedLikeBuiltOnes() throws Exception {
+        String inverter = format.write(inverterBundle);
+        Consumer<ObjectNode> secondPinNamedA = root -> pin(root, 1).put("name", "a");
+        Consumer<ObjectNode> blankName = root -> pin(root, 0).put("name", " ");
+        Consumer<ObjectNode> samePosition = root -> pin(root, 1).put("x", 0);
+        Consumer<ObjectNode> outsideTheBox = root -> pin(root, 1).put("x", 5);
+        Consumer<ObjectNode> aboveTheBox = root -> pin(root, 0).put("y", -1);
+        Consumer<ObjectNode> wide = root -> pin(root, 0).put("width", 8);
+        for (Consumer<ObjectNode> change : List.of(secondPinNamedA, blankName, samePosition, outsideTheBox,
+                aboveTheBox, wide)) {
+            assertReason(mutated(inverter, change), CircuitFormatException.Reason.INVALID_ELEMENT);
+        }
+        assertThat(format.read(mutated(inverter, root -> pin(root, 1).put("y", 4)))).isNotNull();
+    }
+
+    private static ObjectNode pin(ObjectNode root, int index) {
+        return (ObjectNode) root.path("pinout").get(index);
+    }
+
     private String mutated(String json, Consumer<ObjectNode> change) throws Exception {
         ObjectNode root = (ObjectNode) mapper.readTree(json);
         change.accept(root);
