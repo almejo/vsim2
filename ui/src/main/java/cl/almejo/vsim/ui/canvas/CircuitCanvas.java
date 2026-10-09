@@ -21,6 +21,8 @@ import java.awt.Dimension;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Point;
+import java.awt.event.FocusAdapter;
+import java.awt.event.FocusEvent;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
@@ -71,6 +73,13 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         addMouseMotionListener(mouseHandler);
         addMouseWheelListener(mouseHandler);
         addKeyListener(new KeyHandler());
+        addFocusListener(new FocusAdapter() {
+            @Override
+            public void focusLost(FocusEvent event) {
+                spaceDown = false;
+                panAnchor = null;
+            }
+        });
         frameTimer = new Timer(FRAME_MILLISECONDS, event -> refreshSnapshot());
     }
 

@@ -121,7 +121,6 @@ class SimulationThreadTest {
         FlatCircuit broken = new FlatCircuit(List.of(),
                 List.of(new FlatNet("bad", List.of(new FlatPinRef("missing", 0)), 1, false)));
         thread.update(broken);
-        thread.resume();
         thread.tick();
         assertThat(thread.latestSnapshot().running()).isFalse();
         assertThat(thread.latestSnapshot().failure()).hasValueSatisfying(
@@ -137,6 +136,20 @@ class SimulationThreadTest {
         thread.tick();
         assertThat(thread.latestSnapshot().running()).isTrue();
         assertThat(thread.latestSnapshot().time()).isEqualTo(5);
+    }
+
+    @Test
+    void resumeClearsAnOldFailure() {
+        FlatCircuit broken = new FlatCircuit(List.of(),
+                List.of(new FlatNet("bad", List.of(new FlatPinRef("missing", 0)), 1, false)));
+        thread.update(broken);
+        thread.tick();
+        assertThat(thread.latestSnapshot().failure()).isPresent();
+
+        thread.resume();
+        thread.tick();
+        assertThat(thread.latestSnapshot().failure()).isEmpty();
+        assertThat(thread.latestSnapshot().running()).isTrue();
     }
 
     @Test

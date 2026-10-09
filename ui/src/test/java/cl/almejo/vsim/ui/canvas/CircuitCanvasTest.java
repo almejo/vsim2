@@ -108,6 +108,21 @@ class CircuitCanvasTest {
     }
 
     @Test
+    void losingFocusForgetsSpaceAndAPanInProgress() {
+        RecordingTool tool = new RecordingTool();
+        canvas.setTool(tool);
+        canvas.getKeyListeners()[0].keyPressed(new KeyEvent(canvas, KeyEvent.KEY_PRESSED, 0, 0, KeyEvent.VK_SPACE, ' '));
+        canvas.getFocusListeners()[0].focusLost(new java.awt.event.FocusEvent(canvas, java.awt.event.FocusEvent.FOCUS_LOST));
+        canvas.getMouseListeners()[0].mousePressed(mouse(MouseEvent.MOUSE_PRESSED, 10, 10, InputEvent.BUTTON1_DOWN_MASK, MouseEvent.BUTTON1));
+        assertThat(tool.pressed).hasSize(1);
+
+        canvas.getMouseListeners()[0].mousePressed(mouse(MouseEvent.MOUSE_PRESSED, 10, 10, InputEvent.BUTTON2_DOWN_MASK, MouseEvent.BUTTON2));
+        canvas.getFocusListeners()[0].focusLost(new java.awt.event.FocusEvent(canvas, java.awt.event.FocusEvent.FOCUS_LOST));
+        canvas.getMouseMotionListeners()[0].mouseDragged(mouse(MouseEvent.MOUSE_DRAGGED, 30, 15, InputEvent.BUTTON2_DOWN_MASK, MouseEvent.NOBUTTON));
+        assertThat(canvas.viewport().gridToScreen(0, 0)).isEqualTo(new Point2D.Double(0, 0));
+    }
+
+    @Test
     void keysGoToTheToolFirst() {
         RecordingTool tool = new RecordingTool();
         canvas.setTool(tool);

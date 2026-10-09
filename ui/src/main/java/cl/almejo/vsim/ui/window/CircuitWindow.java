@@ -125,7 +125,8 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
     }
 
     private boolean trySaveAs() {
-        return FileDialogs.chooseSave(this, application.initialDirectory(), openDocument.suggestedFileName())
+        return FileDialogs.chooseSave(this,
+                openDocument.path().map(Path::getParent).orElseGet(application::initialDirectory), openDocument.suggestedFileName())
                 .map(this::writeTo)
                 .orElse(false);
     }

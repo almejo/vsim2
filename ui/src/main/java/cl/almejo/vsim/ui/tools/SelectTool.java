@@ -63,11 +63,13 @@ public final class SelectTool implements Tool {
 
     @Override
     public void mouseReleased(ToolContext context, CanvasMouseEvent event) {
-        if (pressPoint == null) {
+        if (pressPoint == null || event.button() != CanvasMouseEvent.PRIMARY) {
             return;
         }
         if (deltaX != 0 || deltaY != 0) {
-            context.openDocument().execute(new MoveElementsCommand(context.selection().ids(), deltaX, deltaY));
+            if (!context.selection().isEmpty()) {
+                context.openDocument().execute(new MoveElementsCommand(context.selection().ids(), deltaX, deltaY));
+            }
         } else if (pressedElement instanceof Component component && isInteractive(context, component)) {
             context.openDocument().interact(component.id());
         }

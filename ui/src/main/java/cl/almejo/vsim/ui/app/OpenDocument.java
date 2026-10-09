@@ -19,11 +19,13 @@ import cl.almejo.vsim.ui.i18n.Messages;
 
 import java.io.IOException;
 import java.nio.file.AtomicMoveNotSupportedException;
+import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
@@ -106,7 +108,7 @@ public final class OpenDocument implements AutoCloseable {
     }
 
     public String suggestedFileName() {
-        return displayName() + FileNames.EXTENSION;
+        return displayName().replaceAll("[/\\\\:*?\"<>|]", "_") + FileNames.EXTENSION;
     }
 
     public boolean isModified() {
@@ -159,8 +161,10 @@ public final class OpenDocument implements AutoCloseable {
     public void save(Path target) throws IOException {
         String content = new CircuitFormat(registry).write(document);
         Path absolute = target.toAbsolutePath();
-        Path temporary = Files.createTempFile(absolute.getParent(), ".vsim2-", ".tmp");
+        Path temporary = absolute.getParent().resolve(".vsim2-" + UUID.randomUUID() + ".tmp");
+        Files.createFile(temporary);
         try {
+            copyPermissions(absolute, temporary);
             Files.writeString(temporary, content);
             try {
                 Files.move(temporary, absolute, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
@@ -173,6 +177,13 @@ public final class OpenDocument implements AutoCloseable {
         path = absolute;
         importedFromVsim1 = false;
         history.markSaved();
+    }
+
+    /** Keeps the permissions of the file being replaced; a new file keeps the umask-based ones of createFile. */
+    private static void copyPermissions(Path existing, Path temporary) throws IOException {
+        if (Files.exists(existing) && FileSystems.getDefault().supportedFileAttributeViews().contains("posix")) {
+            Files.setPosixFilePermissions(temporary, Files.getPosixFilePermissions(existing));
+        }
     }
 
     public void addChangeListener(Runnable listener) {

@@ -72,7 +72,10 @@ public final class SimulationThread implements AutoCloseable {
     }
 
     public void resume() {
-        requests.add(() -> running = true);
+        requests.add(() -> {
+            running = true;
+            failure = null;
+        });
     }
 
     public void pause() {

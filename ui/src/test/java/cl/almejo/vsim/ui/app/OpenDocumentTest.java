@@ -13,8 +13,10 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
+import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -24,6 +26,7 @@ import static cl.almejo.vsim.ui.UiTestSupport.place;
 import static cl.almejo.vsim.ui.UiTestSupport.waitUntil;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 class OpenDocumentTest {
 
@@ -53,6 +56,31 @@ class OpenDocumentTest {
         assertThat(document.displayName()).isEqualTo("Sin título");
         assertThat(document.needsSaveAs()).isTrue();
         assertThat(document.suggestedFileName()).isEqualTo("Sin título.vsim");
+    }
+
+    @Test
+    void suggestedFileNameReplacesCharactersInvalidInFileNames() {
+        OpenDocument document = track(OpenDocument.createEmpty(registry));
+        document.document().setName("a/b\\c:d*e?f\"g<h>i|j");
+        assertThat(document.suggestedFileName()).isEqualTo("a_b_c_d_e_f_g_h_i_j.vsim");
+    }
+
+    @Test
+    void savingOverAnExistingFileKeepsItsPermissions(@TempDir Path directory) throws Exception {
+        assumeTrue(FileSystems.getDefault().supportedFileAttributeViews().contains("posix"));
+        Path file = directory.resolve("kept.vsim");
+        Files.writeString(file, "old");
+        Files.setPosixFilePermissions(file, PosixFilePermissions.fromString("rw-r--r--"));
+        track(OpenDocument.createEmpty(registry)).save(file);
+        assertThat(PosixFilePermissions.toString(Files.getPosixFilePermissions(file))).isEqualTo("rw-r--r--");
+    }
+
+    @Test
+    void aNewFileIsNotCreatedWithOwnerOnlyPermissions(@TempDir Path directory) throws Exception {
+        assumeTrue(FileSystems.getDefault().supportedFileAttributeViews().contains("posix"));
+        Path file = directory.resolve("fresh.vsim");
+        track(OpenDocument.createEmpty(registry)).save(file);
+        assertThat(PosixFilePermissions.toString(Files.getPosixFilePermissions(file))).isNotEqualTo("rw-------");
     }
 
     @Test

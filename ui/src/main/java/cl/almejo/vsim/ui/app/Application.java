@@ -59,21 +59,28 @@ public final class Application {
         }
     }
 
-    public void exit() {
+    /** Asks to save every modified document; true when all windows were closed. */
+    public boolean exit() {
         for (CircuitWindow window : List.copyOf(windows)) {
             if (!window.confirmClose()) {
-                return;
+                return false;
             }
         }
         List.copyOf(windows).forEach(CircuitWindow::closeQuietly);
+        return true;
     }
 
     public Path initialDirectory() {
         if (lastDirectory != null) {
             return lastDirectory;
         }
-        Path examples = Path.of("examples").toAbsolutePath();
-        return Files.isDirectory(examples) ? examples : Path.of(System.getProperty("user.home"));
+        for (String candidate : List.of("examples", "../examples")) {
+            Path examples = Path.of(candidate).toAbsolutePath().normalize();
+            if (Files.isDirectory(examples)) {
+                return examples;
+            }
+        }
+        return Path.of(System.getProperty("user.home"));
     }
 
     public void rememberDirectory(Path file) {

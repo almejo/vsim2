@@ -95,6 +95,30 @@ class SelectToolTest {
     }
 
     @Test
+    void releasingANonPrimaryButtonDoesNotEndTheDrag() {
+        Component gate = not(0, 0);
+        tool.mousePressed(context, TestToolContext.at(2, 2));
+        tool.mouseDragged(context, TestToolContext.at(5, 3));
+        tool.mouseReleased(context, TestToolContext.event(5, 3, CanvasMouseEvent.SECONDARY, 1, false));
+        assertThat(context.openDocument().document().component(gate.id()).orElseThrow().position()).isEqualTo(GridPoint.ORIGIN);
+        tool.mouseReleased(context, TestToolContext.at(5, 3));
+        assertThat(context.openDocument().document().component(gate.id()).orElseThrow().position())
+                .isEqualTo(new GridPoint(3, 1));
+    }
+
+    @Test
+    void releasingWithAnEmptySelectionExecutesNothing() {
+        Component gate = not(0, 0);
+        tool.mousePressed(context, TestToolContext.at(2, 2));
+        tool.mouseDragged(context, TestToolContext.at(5, 3));
+        context.selection.clear();
+        String before = context.openDocument().history().undoDescription().toString();
+        tool.mouseReleased(context, TestToolContext.at(5, 3));
+        assertThat(context.openDocument().history().undoDescription().toString()).isEqualTo(before);
+        assertThat(context.openDocument().document().component(gate.id()).orElseThrow().position()).isEqualTo(GridPoint.ORIGIN);
+    }
+
+    @Test
     void escapeClearsTheSelection() {
         not(0, 0);
         context.click(tool, 2, 2);
