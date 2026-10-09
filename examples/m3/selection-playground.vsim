@@ -1,0 +1,296 @@
+{
+  "formatVersion" : 2,
+  "kind" : "circuit",
+  "name" : "selection-playground",
+  "components" : [ {
+    "id" : "c2",
+    "type" : "clock",
+    "x" : 4,
+    "y" : 8,
+    "rotation" : 0,
+    "label" : "Reloj",
+    "parameters" : {
+      "time-down" : 30,
+      "time-up" : 30
+    }
+  }, {
+    "id" : "c3",
+    "type" : "not",
+    "x" : 10,
+    "y" : 8,
+    "rotation" : 0,
+    "label" : "N1",
+    "parameters" : {
+      "delay" : 1
+    }
+  }, {
+    "id" : "c4",
+    "type" : "not",
+    "x" : 18,
+    "y" : 8,
+    "rotation" : 0,
+    "label" : "N2",
+    "parameters" : {
+      "delay" : 1
+    }
+  }, {
+    "id" : "c5",
+    "type" : "not",
+    "x" : 26,
+    "y" : 8,
+    "rotation" : 0,
+    "label" : "N3",
+    "parameters" : {
+      "delay" : 1
+    }
+  }, {
+    "id" : "c11",
+    "type" : "led",
+    "x" : 9,
+    "y" : 17,
+    "rotation" : 2,
+    "label" : "L0",
+    "parameters" : {
+      "color" : "green"
+    }
+  }, {
+    "id" : "c13",
+    "type" : "led",
+    "x" : 17,
+    "y" : 17,
+    "rotation" : 2,
+    "label" : "L1",
+    "parameters" : {
+      "color" : "green"
+    }
+  }, {
+    "id" : "c15",
+    "type" : "led",
+    "x" : 25,
+    "y" : 17,
+    "rotation" : 2,
+    "label" : "L2",
+    "parameters" : {
+      "color" : "green"
+    }
+  }, {
+    "id" : "c17",
+    "type" : "led",
+    "x" : 33,
+    "y" : 17,
+    "rotation" : 2,
+    "label" : "L3",
+    "parameters" : {
+      "color" : "green"
+    }
+  }, {
+    "id" : "c18",
+    "type" : "switch",
+    "x" : 2,
+    "y" : 24,
+    "rotation" : 0,
+    "label" : "b0",
+    "parameters" : {
+      "value" : "1"
+    }
+  }, {
+    "id" : "c19",
+    "type" : "switch",
+    "x" : 2,
+    "y" : 28,
+    "rotation" : 0,
+    "label" : "b1",
+    "parameters" : {
+      "value" : "0"
+    }
+  }, {
+    "id" : "c20",
+    "type" : "switch",
+    "x" : 2,
+    "y" : 32,
+    "rotation" : 0,
+    "label" : "b2",
+    "parameters" : {
+      "value" : "1"
+    }
+  }, {
+    "id" : "c21",
+    "type" : "switch",
+    "x" : 2,
+    "y" : 36,
+    "rotation" : 0,
+    "label" : "b3",
+    "parameters" : {
+      "value" : "0"
+    }
+  }, {
+    "id" : "c22",
+    "type" : "seven-segments-display",
+    "x" : 20,
+    "y" : 46,
+    "rotation" : 0,
+    "label" : "Display",
+    "parameters" : { }
+  } ],
+  "wires" : [ {
+    "id" : "w6",
+    "x1" : 6,
+    "y1" : 10,
+    "x2" : 10,
+    "y2" : 10
+  }, {
+    "id" : "w7",
+    "x1" : 14,
+    "y1" : 10,
+    "x2" : 18,
+    "y2" : 10
+  }, {
+    "id" : "w8",
+    "x1" : 22,
+    "y1" : 10,
+    "x2" : 26,
+    "y2" : 10
+  }, {
+    "id" : "w9",
+    "x1" : 30,
+    "y1" : 10,
+    "x2" : 32,
+    "y2" : 10
+  }, {
+    "id" : "w10",
+    "x1" : 8,
+    "y1" : 10,
+    "x2" : 8,
+    "y2" : 14
+  }, {
+    "id" : "w12",
+    "x1" : 16,
+    "y1" : 10,
+    "x2" : 16,
+    "y2" : 14
+  }, {
+    "id" : "w14",
+    "x1" : 24,
+    "y1" : 10,
+    "x2" : 24,
+    "y2" : 14
+  }, {
+    "id" : "w16",
+    "x1" : 32,
+    "y1" : 10,
+    "x2" : 32,
+    "y2" : 14
+  }, {
+    "id" : "w23",
+    "x1" : 6,
+    "y1" : 25,
+    "x2" : 16,
+    "y2" : 25
+  }, {
+    "id" : "w24",
+    "x1" : 16,
+    "y1" : 25,
+    "x2" : 16,
+    "y2" : 39
+  }, {
+    "id" : "w25",
+    "x1" : 16,
+    "y1" : 39,
+    "x2" : 24,
+    "y2" : 39
+  }, {
+    "id" : "w26",
+    "x1" : 24,
+    "y1" : 39,
+    "x2" : 24,
+    "y2" : 46
+  }, {
+    "id" : "w27",
+    "x1" : 6,
+    "y1" : 29,
+    "x2" : 14,
+    "y2" : 29
+  }, {
+    "id" : "w28",
+    "x1" : 14,
+    "y1" : 29,
+    "x2" : 14,
+    "y2" : 40
+  }, {
+    "id" : "w29",
+    "x1" : 14,
+    "y1" : 40,
+    "x2" : 23,
+    "y2" : 40
+  }, {
+    "id" : "w30",
+    "x1" : 23,
+    "y1" : 40,
+    "x2" : 23,
+    "y2" : 46
+  }, {
+    "id" : "w31",
+    "x1" : 6,
+    "y1" : 33,
+    "x2" : 12,
+    "y2" : 33
+  }, {
+    "id" : "w32",
+    "x1" : 12,
+    "y1" : 33,
+    "x2" : 12,
+    "y2" : 41
+  }, {
+    "id" : "w33",
+    "x1" : 12,
+    "y1" : 41,
+    "x2" : 22,
+    "y2" : 41
+  }, {
+    "id" : "w34",
+    "x1" : 22,
+    "y1" : 41,
+    "x2" : 22,
+    "y2" : 46
+  }, {
+    "id" : "w35",
+    "x1" : 6,
+    "y1" : 37,
+    "x2" : 10,
+    "y2" : 37
+  }, {
+    "id" : "w36",
+    "x1" : 10,
+    "y1" : 37,
+    "x2" : 10,
+    "y2" : 42
+  }, {
+    "id" : "w37",
+    "x1" : 10,
+    "y1" : 42,
+    "x2" : 21,
+    "y2" : 42
+  }, {
+    "id" : "w38",
+    "x1" : 21,
+    "y1" : 42,
+    "x2" : 21,
+    "y2" : 46
+  } ],
+  "labels" : [ {
+    "id" : "l1",
+    "x" : 2,
+    "y" : 3,
+    "text" : "Selecciona con rectangulo, copia, duplica, rota y mueve"
+  }, {
+    "id" : "l39",
+    "x" : 2,
+    "y" : 22,
+    "text" : "Interruptores b0..b3"
+  }, {
+    "id" : "l40",
+    "x" : 28,
+    "y" : 49,
+    "text" : "Display de 7 segmentos"
+  } ]
+}

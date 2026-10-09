@@ -1,0 +1,201 @@
+{
+  "formatVersion" : 2,
+  "kind" : "circuit",
+  "name" : "windows-demo",
+  "components" : [ {
+    "id" : "c2",
+    "type" : "clock",
+    "x" : 4,
+    "y" : 12,
+    "rotation" : 0,
+    "label" : "Reloj",
+    "parameters" : {
+      "time-down" : 30,
+      "time-up" : 30
+    }
+  }, {
+    "id" : "c3",
+    "type" : "not",
+    "x" : 10,
+    "y" : 12,
+    "rotation" : 0,
+    "label" : "N1",
+    "parameters" : {
+      "delay" : 5
+    }
+  }, {
+    "id" : "c4",
+    "type" : "not",
+    "x" : 18,
+    "y" : 12,
+    "rotation" : 0,
+    "label" : "N2",
+    "parameters" : {
+      "delay" : 5
+    }
+  }, {
+    "id" : "c5",
+    "type" : "not",
+    "x" : 26,
+    "y" : 12,
+    "rotation" : 0,
+    "label" : "N3",
+    "parameters" : {
+      "delay" : 5
+    }
+  }, {
+    "id" : "c11",
+    "type" : "led",
+    "x" : 9,
+    "y" : 21,
+    "rotation" : 2,
+    "label" : "L0",
+    "parameters" : {
+      "color" : "green"
+    }
+  }, {
+    "id" : "c13",
+    "type" : "led",
+    "x" : 17,
+    "y" : 21,
+    "rotation" : 2,
+    "label" : "L1",
+    "parameters" : {
+      "color" : "green"
+    }
+  }, {
+    "id" : "c15",
+    "type" : "led",
+    "x" : 25,
+    "y" : 21,
+    "rotation" : 2,
+    "label" : "L2",
+    "parameters" : {
+      "color" : "green"
+    }
+  }, {
+    "id" : "c17",
+    "type" : "led",
+    "x" : 33,
+    "y" : 21,
+    "rotation" : 2,
+    "label" : "L3",
+    "parameters" : {
+      "color" : "green"
+    }
+  }, {
+    "id" : "c18",
+    "type" : "time-diagram",
+    "x" : 42,
+    "y" : 2,
+    "rotation" : 0,
+    "label" : "Diagrama",
+    "parameters" : {
+      "history" : 200,
+      "sample-interval" : 5
+    }
+  } ],
+  "wires" : [ {
+    "id" : "w6",
+    "x1" : 6,
+    "y1" : 14,
+    "x2" : 10,
+    "y2" : 14
+  }, {
+    "id" : "w7",
+    "x1" : 14,
+    "y1" : 14,
+    "x2" : 18,
+    "y2" : 14
+  }, {
+    "id" : "w8",
+    "x1" : 22,
+    "y1" : 14,
+    "x2" : 26,
+    "y2" : 14
+  }, {
+    "id" : "w9",
+    "x1" : 30,
+    "y1" : 14,
+    "x2" : 32,
+    "y2" : 14
+  }, {
+    "id" : "w10",
+    "x1" : 8,
+    "y1" : 14,
+    "x2" : 8,
+    "y2" : 18
+  }, {
+    "id" : "w12",
+    "x1" : 16,
+    "y1" : 14,
+    "x2" : 16,
+    "y2" : 18
+  }, {
+    "id" : "w14",
+    "x1" : 24,
+    "y1" : 14,
+    "x2" : 24,
+    "y2" : 18
+  }, {
+    "id" : "w16",
+    "x1" : 32,
+    "y1" : 14,
+    "x2" : 32,
+    "y2" : 18
+  }, {
+    "id" : "w19",
+    "x1" : 8,
+    "y1" : 2,
+    "x2" : 8,
+    "y2" : 14
+  }, {
+    "id" : "w20",
+    "x1" : 8,
+    "y1" : 2,
+    "x2" : 42,
+    "y2" : 2
+  }, {
+    "id" : "w21",
+    "x1" : 16,
+    "y1" : 4,
+    "x2" : 16,
+    "y2" : 14
+  }, {
+    "id" : "w22",
+    "x1" : 16,
+    "y1" : 4,
+    "x2" : 42,
+    "y2" : 4
+  }, {
+    "id" : "w23",
+    "x1" : 24,
+    "y1" : 6,
+    "x2" : 24,
+    "y2" : 14
+  }, {
+    "id" : "w24",
+    "x1" : 24,
+    "y1" : 6,
+    "x2" : 42,
+    "y2" : 6
+  }, {
+    "id" : "w25",
+    "x1" : 32,
+    "y1" : 8,
+    "x2" : 32,
+    "y2" : 14
+  }, {
+    "id" : "w26",
+    "x1" : 32,
+    "y1" : 8,
+    "x2" : 42,
+    "y2" : 8
+  } ],
+  "labels" : [ {
+    "id" : "l1",
+    "x" : 2,
+    "y" : 1,
+    "text" : "Ventana / Nueva ventana: abre dos ventanas y mira ambas"
+  } ]
+}
