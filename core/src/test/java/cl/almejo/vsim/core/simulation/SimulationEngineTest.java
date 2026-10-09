@@ -1,13 +1,19 @@
 package cl.almejo.vsim.core.simulation;
 
 import cl.almejo.vsim.core.TestComponentTypes;
+import cl.almejo.vsim.core.component.Behavior;
+import cl.almejo.vsim.core.component.BehaviorContext;
+import cl.almejo.vsim.core.component.ComponentCategory;
+import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
+import cl.almejo.vsim.core.component.PinSpec;
 import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
+import cl.almejo.vsim.core.geometry.GridSize;
 import cl.almejo.vsim.core.geometry.Rotation;
 import cl.almejo.vsim.core.netlist.Netlist;
 import cl.almejo.vsim.core.netlist.NetlistCompiler;
@@ -16,8 +22,10 @@ import cl.almejo.vsim.core.value.Value;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -247,5 +255,69 @@ class SimulationEngineTest {
         engine.interact(source.value());
         engine.advance(1);
         assertThat(valueAt(buffer, 1)).isEqualTo(Value.ONE);
+    }
+
+    private final List<Value> recorded = new ArrayList<>();
+    private final AtomicInteger repeaterRuns = new AtomicInteger();
+
+    private final ComponentType recorder = new ComponentType("test-recorder", ComponentCategory.DEBUG,
+            new GridSize(2, 2), List.of(PinSpec.input("in", 0, 0)), List.of(),
+            parameters -> (context, pinIndex) -> recorded.add(context.input(pinIndex)));
+
+    /** Drives ONE on its output every unit, forever. */
+    private final ComponentType repeater = new ComponentType("test-repeater", ComponentCategory.DEBUG,
+            new GridSize(2, 2), List.of(PinSpec.output("out", 2, 0)), List.of(),
+            parameters -> new Behavior() {
+                @Override
+                public void initialize(BehaviorContext context) {
+                    repeat(context);
+                }
+
+                private void repeat(BehaviorContext context) {
+                    repeaterRuns.incrementAndGet();
+                    context.drive(0, Value.ONE, 0);
+                    context.schedule(1, () -> repeat(context));
+                }
+
+                @Override
+                public void inputChanged(BehaviorContext context, int pinIndex) {
+                }
+            });
+
+    private FlatCircuit sourceAndRecorder(String value) {
+        ComponentType source = registry.require(TestComponentTypes.SOURCE);
+        return new FlatCircuit(List.of(new FlatComponent("s", source, Map.of("value", value)),
+                new FlatComponent("r", recorder, Map.of())),
+                List.of(new FlatNet("n", List.of(new FlatPinRef("r", 0), new FlatPinRef("s", 0)), 1, false)));
+    }
+
+    @Test
+    void replacingADriverNeverExposesATransientHighImpedance() {
+        engine.update(sourceAndRecorder("0"));
+        assertThat(recorded).containsExactly(Value.ZERO);
+        engine.update(sourceAndRecorder("1"));
+        engine.advance(5);
+        assertThat(recorded).containsExactly(Value.ZERO, Value.ONE);
+    }
+
+    @Test
+    void inputsAreNotifiedOnlyWhenTheirValueChanges() {
+        engine.update(new FlatCircuit(List.of(new FlatComponent("p", repeater, Map.of()),
+                new FlatComponent("r", recorder, Map.of())),
+                List.of(new FlatNet("n", List.of(new FlatPinRef("p", 0), new FlatPinRef("r", 0)), 1, false))));
+        engine.advance(10);
+        assertThat(repeaterRuns.get()).isGreaterThanOrEqualTo(10);
+        assertThat(recorded).containsExactly(Value.ONE);
+    }
+
+    @Test
+    void aRemovedSelfReschedulingBehaviorStopsRunning() {
+        engine.update(new FlatCircuit(List.of(new FlatComponent("p", repeater, Map.of())), List.of()));
+        engine.advance(5);
+        int runsBeforeRemoval = repeaterRuns.get();
+        assertThat(runsBeforeRemoval).isGreaterThanOrEqualTo(5);
+        engine.update(FlatCircuit.EMPTY);
+        engine.advance(20);
+        assertThat(repeaterRuns).hasValue(runsBeforeRemoval);
     }
 }

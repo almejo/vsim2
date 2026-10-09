@@ -58,4 +58,33 @@ class GeometryTest {
         Bounds bounds = Bounds.rotated(new GridPoint(10, 10), new GridSize(4, 2), Rotation.R90);
         assertThat(bounds).isEqualTo(new Bounds(8, 10, 2, 4));
     }
+
+    @Test
+    void rotatedBoundsForHalfAndThreeQuarterTurns() {
+        GridPoint origin = new GridPoint(10, 10);
+        GridSize size = new GridSize(4, 2);
+        assertThat(Bounds.rotated(origin, size, Rotation.R0)).isEqualTo(new Bounds(10, 10, 4, 2));
+        assertThat(Bounds.rotated(origin, size, Rotation.R180)).isEqualTo(new Bounds(6, 8, 4, 2));
+        assertThat(Bounds.rotated(origin, size, Rotation.R270)).isEqualTo(new Bounds(10, 6, 2, 4));
+    }
+
+    @Test
+    void boundsContainBounds() {
+        Bounds outer = new Bounds(0, 0, 10, 10);
+        assertThat(outer.contains(new Bounds(2, 2, 3, 3))).isTrue();
+        assertThat(outer.contains(outer)).isTrue();
+        assertThat(outer.contains(new Bounds(8, 8, 3, 1))).isFalse();
+        assertThat(outer.contains(new Bounds(-1, 0, 2, 2))).isFalse();
+        assertThat(new Bounds(2, 2, 3, 3).contains(outer)).isFalse();
+    }
+
+    @Test
+    void intersectsIncludesTouchingEdgesAndCorners() {
+        Bounds bounds = new Bounds(0, 0, 2, 2);
+        assertThat(bounds.intersects(new Bounds(2, 0, 3, 2))).isTrue();
+        assertThat(bounds.intersects(new Bounds(2, 2, 1, 1))).isTrue();
+        assertThat(bounds.intersects(new Bounds(-3, 0, 3, 1))).isTrue();
+        assertThat(bounds.intersects(new Bounds(3, 0, 1, 1))).isFalse();
+        assertThat(bounds.intersects(new Bounds(0, -2, 2, 1))).isFalse();
+    }
 }

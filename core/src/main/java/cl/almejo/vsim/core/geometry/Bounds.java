@@ -1,6 +1,9 @@
 package cl.almejo.vsim.core.geometry;
 
-/** Axis-aligned rectangle in grid units; edges are inclusive for {@link #contains}. */
+/**
+ * Axis-aligned rectangle in grid units. Edges are inclusive: {@link #contains} accepts points and bounds on
+ * the border, and {@link #intersects} is true for rectangles that only touch along an edge or at a corner.
+ */
 public record Bounds(int x, int y, int width, int height) {
 
     public Bounds {
@@ -37,6 +40,7 @@ public record Bounds(int x, int y, int width, int height) {
         return other.x >= x && other.maximumX() <= maximumX() && other.y >= y && other.maximumY() <= maximumY();
     }
 
+    /** True when the rectangles share at least one point; touching edges or corners count. */
     public boolean intersects(Bounds other) {
         return other.x <= maximumX() && other.maximumX() >= x && other.y <= maximumY() && other.maximumY() >= y;
     }
