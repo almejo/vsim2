@@ -31,8 +31,11 @@ import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 import java.awt.geom.RoundRectangle2D;
 import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /** Paints a circuit. {@link #paint} and {@link #paintGhost} work in document coordinates (8 px per grid unit). */
 public final class CircuitRenderer {
@@ -45,6 +48,10 @@ public final class CircuitRenderer {
     private static final BasicStroke CONFLICT_OUTLINE = new BasicStroke(1.5f, BasicStroke.CAP_BUTT,
             BasicStroke.JOIN_MITER, 10f, new float[]{4f, 3f}, 0f);
     private static final float SELECTION_OUTLINE_WIDTH = 1.5f;
+    private static final BasicStroke MISMATCH_WIRE = new BasicStroke(4.5f, BasicStroke.CAP_BUTT,
+            BasicStroke.JOIN_ROUND, 10f, new float[]{6f, 4f}, 0f);
+    /** Where a mismatched pin's width is written, from the pin, in document pixels. */
+    private static final double PIN_WIDTH_OFFSET = 4;
     private static final double JUNCTION_RADIUS = 3.5;
     private static final double BUS_JUNCTION_RADIUS = 5;
     private static final double HALO_RADIUS = 7;
@@ -101,6 +108,8 @@ public final class CircuitRenderer {
         graphics.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
         ShortCircuitHighlight highlight = ShortCircuitHighlight.of(state.snapshot(), state.netlist(),
                 state.netlistToken(), state.document(), registry);
+        WidthMismatchHighlight mismatches = WidthMismatchHighlight.of(state.snapshot(), state.netlist(),
+                state.netlistToken(), state.document(), registry);
 
         for (Wire wire : state.document().wires()) {
             if (state.selection().contains(wire.id())) {
@@ -115,8 +124,9 @@ public final class CircuitRenderer {
             Optional<Net> net = state.netlist().netForWire(wire.id());
             boolean bus = net.map(found -> found.width() > 1).orElse(false);
             boolean shorted = highlight.wires().contains(wire.id());
-            graphics.setStroke(shorted ? CONFLICT_WIRE : bus ? BUS_WIRE : WIRE);
-            graphics.setColor(shorted ? scheme.wireConflict()
+            boolean mismatched = mismatches.wires().contains(wire.id());
+            graphics.setStroke(shorted ? CONFLICT_WIRE : mismatched ? MISMATCH_WIRE : bus ? BUS_WIRE : WIRE);
+            graphics.setColor(shorted || mismatched ? scheme.wireConflict()
                     : SignalColors.wireColor(net, state.snapshot(), state.netlistToken(), scheme));
             graphics.draw(line(wire));
         }
@@ -151,6 +161,21 @@ public final class CircuitRenderer {
             graphics.setStroke(WIRE);
             graphics.setColor(scheme.wireConflict());
             graphics.draw(circle(pin, HALO_RADIUS));
+        }
+        paintPinWidths(graphics, mismatches);
+    }
+
+    /** The widths of the pins of mismatched nets ("1", "8", or "1/8" for pins touching at one point). */
+    private void paintPinWidths(Graphics2D graphics, WidthMismatchHighlight mismatches) {
+        ColorScheme scheme = scheme();
+        graphics.setFont(BUS_FONT);
+        graphics.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+        FontMetrics metrics = graphics.getFontMetrics();
+        for (Map.Entry<GridPoint, List<Integer>> entry : mismatches.pinWidths().entrySet()) {
+            String text = entry.getValue().stream().map(String::valueOf).collect(Collectors.joining("/"));
+            double left = entry.getKey().x() * UNIT + PIN_WIDTH_OFFSET;
+            double baseline = entry.getKey().y() * UNIT - PIN_WIDTH_OFFSET;
+            paintTag(graphics, metrics, text, left, baseline, scheme.wireConflict());
         }
     }
 

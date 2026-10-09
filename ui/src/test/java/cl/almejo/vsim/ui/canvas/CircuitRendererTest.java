@@ -295,4 +295,18 @@ class CircuitRendererTest {
         assertThat(new Color(render(staleBus, bus, document.revision()).getRGB(40, 4)))
                 .isEqualTo(SCHEME.componentStroke());
     }
+
+    @Test
+    void aMismatchedNetIsDrawnDashedInTheConflictColorWithoutASimulation() {
+        document.add(wire);
+        splitterAt(5, 1); // 4-bit bus pin at (5, 1)
+        document.add(registry.require(StandardComponentTypes.LED).newComponent(document.newComponentId(),
+                new GridPoint(0, -2), Rotation.R0, Map.of(), "")); // 1-bit pin at (1, 1)
+        Netlist netlist = new NetlistCompiler(registry).compile(document);
+
+        BufferedImage image = render(SimulationSnapshot.EMPTY, netlist, document.revision());
+
+        // the first dash covers x 8..14 px of the wire at y = 8 px
+        assertThat(new Color(image.getRGB(10, 8))).isEqualTo(SCHEME.wireConflict());
+    }
 }
