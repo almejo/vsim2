@@ -69,8 +69,9 @@ public final class TemplateActions {
      * Without interface pins the dialog does not open and a message says why. Otherwise, once accepted: one undo step
      * that adds the definitions and, if asked, replaces the selection by one instance at its top-left, with
      * {@link PinBridges} keeping what was connected to the interface pins from outside (pins it cannot connect safely
-     * are named in a message); then the bundle is written to the library (a write failure is reported, the circuit
-     * keeps the component).
+     * are named in a message). When an instance pin would land on something outside, the selection is kept and only
+     * the definitions are added, with a message. Then the bundle is written to the library (a write failure is
+     * reported, the circuit keeps the component).
      */
     public void createFromSelection() {
         CircuitDocument document = openDocument.document();
@@ -112,25 +113,31 @@ public final class TemplateActions {
         List<Command> steps = new ArrayList<>();
         steps.add(new PutDefinitionsCommand(bundle.all()));
         Component instance = null;
-        List<String> unconnectedPins = List.of();
+        String message = null;
         if (result.replaceSelection()) {
             GridPoint origin = DefinitionBuilder.origin(document, ids, registry);
-            instance = new Component(document.newComponentId(), SubcircuitTypes.typeIdOf(bundle.root().id()),
-                    origin, Rotation.R0, Map.of(), "");
             PinBridges.Bridging bridging = PinBridges.wires(document, ids, bundle.root(), origin, registry);
-            unconnectedPins = bridging.unconnectedPins();
-            List<DocumentElement> added = new ArrayList<>(List.of(instance));
-            added.addAll(bridging.wires());
-            steps.add(new RemoveElementsCommand(ids));
-            steps.add(new AddElementsCommand(added));
+            if (!bridging.blockedPins().isEmpty()) {
+                message = Messages.format("template.notReplaced", String.join(", ", bridging.blockedPins()));
+            } else {
+                instance = new Component(document.newComponentId(), SubcircuitTypes.typeIdOf(bundle.root().id()),
+                        origin, Rotation.R0, Map.of(), "");
+                List<DocumentElement> added = new ArrayList<>(List.of(instance));
+                added.addAll(bridging.wires());
+                steps.add(new RemoveElementsCommand(ids));
+                steps.add(new AddElementsCommand(added));
+                if (!bridging.unconnectedPins().isEmpty()) {
+                    message = Messages.format("template.pinsUnconnected",
+                            String.join(", ", bridging.unconnectedPins()));
+                }
+            }
         }
         openDocument.execute(new CompositeCommand("command.createComponent", steps));
         if (instance != null) {
             canvas.selection().select(instance.id());
         }
-        if (!unconnectedPins.isEmpty()) {
-            dialogs.showMessage(canvas,
-                    Messages.format("template.pinsUnconnected", String.join(", ", unconnectedPins)));
+        if (message != null) {
+            dialogs.showMessage(canvas, message);
         }
         saveToLibrary(bundle);
     }

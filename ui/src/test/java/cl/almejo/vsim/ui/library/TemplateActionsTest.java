@@ -173,24 +173,73 @@ class TemplateActionsTest {
     }
 
     @Test
-    void pinsThatCannotBeBridgedSafelyAreReportedAndNoOutsideNetsMerge() {
+    void aPinThatWouldLandOnAnOutsideWireKeepsThePartsAndOnlyAddsTheComponent() {
         Component input = fixture.place(InterfacePins.INPUT_PIN, 0, 0, "a");
         Component first = fixture.place(InterfacePins.OUTPUT_PIN, 6, 3, "y1");   // point (6,4)
-        Component second = fixture.place(InterfacePins.OUTPUT_PIN, 6, 5, "y2");  // point (6,6)
+        Component second = fixture.place(InterfacePins.OUTPUT_PIN, 6, 5, "y2");  // point (6,6) → instance pin (6,4)
         List<Wire> outside = List.of(
                 new Wire(fixture.openDocument.document().newWireId(), new GridPoint(6, 4), new GridPoint(12, 4)),
                 new Wire(fixture.openDocument.document().newWireId(), new GridPoint(6, 6), new GridPoint(12, 6)));
         fixture.openDocument.execute(new AddElementsCommand(outside));
         fixture.select(input, first, second);
-        assertThat(netOf(outside.get(0))).isNotEqualTo(netOf(outside.get(1)));
         fixture.dialogs.acceptForm(form -> form.setName("Doble salida"));
 
         perform(fixture.features.actions().createComponent());
 
-        assertThat(fixture.openDocument.document().wires()).containsExactlyInAnyOrderElementsOf(outside);
+        assertNotReplaced(List.of(input, first, second), outside, "doble-salida");
         assertThat(netOf(outside.get(0))).isNotEqualTo(netOf(outside.get(1)));
+        assertThat(fixture.dialogs.messages).containsExactly("No se reemplazó la selección: el pin y2 quedaría sobre "
+                + "otro cable o pin. El componente quedó en la librería.");
+        fixture.openDocument.history().undo();
+        assertThat(fixture.openDocument.document().definitions()).isEmpty();
+        assertThat(fixture.openDocument.document().components()).hasSize(3);
+    }
+
+    @Test
+    void aPinThatWouldLandOnAnUnrelatedWireKeepsTheParts() {
+        List<Component> parts = fixture.drawInverter(10, 10);
+        Wire unrelated = new Wire(fixture.openDocument.document().newWireId(), new GridPoint(10, 12),
+                new GridPoint(10, 20)); // where the instance input will be; nothing touched "a" before
+        fixture.openDocument.execute(new AddElementsCommand(List.of(unrelated)));
+        fixture.select(parts.toArray(Component[]::new));
+        fixture.dialogs.acceptForm(form -> form.setName("Negador"));
+
+        perform(fixture.features.actions().createComponent());
+
+        assertNotReplaced(parts, List.of(unrelated), "negador");
+        assertThat(fixture.dialogs.messages).singleElement().asString()
+                .startsWith("No se reemplazó la selección: el pin a ");
+    }
+
+    @Test
+    void pinsWithoutAClearRouteAreNamedAfterTheReplace() {
+        Component first = fixture.place(InterfacePins.INPUT_PIN, 0, 0, "a");   // point (2,1)
+        Component second = fixture.place(InterfacePins.INPUT_PIN, 0, 4, "b");  // point (2,5)
+        Component output = fixture.place(InterfacePins.OUTPUT_PIN, 6, 0, "y");
+        fixture.openDocument.execute(new AddElementsCommand(List.of(
+                new Wire(fixture.openDocument.document().newWireId(), new GridPoint(2, -4), new GridPoint(2, 1)),
+                new Wire(fixture.openDocument.document().newWireId(), new GridPoint(2, 5), new GridPoint(2, 10)))));
+        fixture.select(first, second, output);
+        fixture.dialogs.acceptForm(form -> {
+            form.setName("Par");
+            form.moveInput(0, 1); // b first: every route of a then crosses b's bridge
+        });
+
+        perform(fixture.features.actions().createComponent());
+
+        assertThat(fixture.openDocument.document().components()).singleElement()
+                .extracting(Component::typeId).isEqualTo("subcircuit:par");
+        assertThat(fixture.openDocument.document().wires()).hasSize(4); // two outside wires and b's two-piece bridge
         assertThat(fixture.dialogs.messages)
-                .containsExactly("Estos pines quedaron sin conectar: y1, y2. Conéctalos a mano.");
+                .containsExactly("Estos pines quedaron sin conectar: a. Conéctalos a mano.");
+    }
+
+    private void assertNotReplaced(List<Component> parts, List<Wire> wires, String definitionId) {
+        CircuitDocument document = fixture.openDocument.document();
+        assertThat(document.components()).containsExactlyInAnyOrderElementsOf(parts);
+        assertThat(document.wires()).containsExactlyInAnyOrderElementsOf(wires);
+        assertThat(document.definition(definitionId)).isPresent();
+        assertThat(fixture.library.find(definitionId)).isPresent();
     }
 
     private NetId netOf(Wire wire) {

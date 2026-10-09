@@ -51,6 +51,7 @@ class PinBridgesTest {
     private List<Wire> bridges(List<ElementId> selection) {
         PinBridges.Bridging bridging = bridging(selection);
         assertThat(bridging.unconnectedPins()).isEmpty();
+        assertThat(bridging.blockedPins()).isEmpty();
         return bridging.wires();
     }
 
@@ -129,30 +130,31 @@ class PinBridgesTest {
         wire(1, 2, 1, 3);   // blocks (2,1)-(2,2)-(0,2)
         wire(-3, 1, 0, 1);  // blocks (2,1)-(0,1)-(0,2)
 
-        assertThat(bridging(selection)).isEqualTo(new PinBridges.Bridging(List.of(), List.of("a")));
+        assertThat(bridging(selection)).isEqualTo(new PinBridges.Bridging(List.of(), List.of("a"), List.of()));
     }
 
     @Test
-    void anInstancePinOnAnotherPinsOutsideNetIsNeverBridgedIntoIt() {
+    void anInstancePinOnAnotherPinsOutsideNetIsBlockedAndNeverBridgedIntoIt() {
         Component input = place(InterfacePins.INPUT_PIN, 0, 0, "a");
         Component first = place(InterfacePins.OUTPUT_PIN, 6, 3, "y1");   // point (6,4) → instance pin (6,2)
         Component second = place(InterfacePins.OUTPUT_PIN, 6, 5, "y2");  // point (6,6) → instance pin (6,4)
         wire(6, 4, 12, 4);
         wire(6, 6, 12, 6);
 
-        // "y2" lands on y1's outside wire, so y1's net already reaches the wrong pin: neither can be bridged
+        // "y2" lands on y1's outside wire (blocked), so y1's net already reaches the wrong pin: no bridge for y1
         assertThat(bridging(ids(input, first, second)))
-                .isEqualTo(new PinBridges.Bridging(List.of(), List.of("y1", "y2")));
+                .isEqualTo(new PinBridges.Bridging(List.of(), List.of("y1"), List.of("y2")));
     }
 
     @Test
-    void anInstancePinLandingOnAnUnrelatedOutsideWireIsReported() {
+    void anInstancePinLandingOnAnUnrelatedOutsideWireIsBlocked() {
         Component input = place(InterfacePins.INPUT_PIN, 10, 11, "a");
         Component gate = place(StandardComponentTypes.NOT, 12, 10, "");
         Component output = place(InterfacePins.OUTPUT_PIN, 16, 11, "y");
         wire(10, 12, 10, 20); // runs down from where the instance input will be; nothing touched "a" before
 
-        assertThat(bridging(ids(input, gate, output)).unconnectedPins()).containsExactly("a");
+        assertThat(bridging(ids(input, gate, output)))
+                .isEqualTo(new PinBridges.Bridging(List.of(), List.of(), List.of("a")));
     }
 
     @Test
