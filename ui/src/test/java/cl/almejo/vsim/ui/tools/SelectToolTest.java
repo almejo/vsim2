@@ -4,13 +4,16 @@ import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.Wire;
+import cl.almejo.vsim.core.command.AddElementsCommand;
 import cl.almejo.vsim.core.command.AddWireCommand;
+import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.value.Value;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 import java.awt.event.KeyEvent;
+import java.awt.geom.Rectangle2D;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -458,5 +461,99 @@ class SelectToolTest {
         assertThat(context.openDocument().document().wires()).isEmpty();
         assertThat(context.selection.ids()).containsExactly(gate.id());
         assertThat(context.openDocument().history().undoDescription()).contains("command.add");
+    }
+
+    private Wire wireFrom(int startX, int startY, int endX, int endY) {
+        Wire wire = new Wire(context.openDocument().document().newWireId(), new GridPoint(startX, startY),
+                new GridPoint(endX, endY));
+        context.openDocument().execute(new AddWireCommand(wire));
+        return wire;
+    }
+
+    private TextLabel labelAt(int x, int y) {
+        TextLabel label = new TextLabel(context.openDocument().document().newLabelId(), new GridPoint(x, y), "nota");
+        context.openDocument().execute(new AddElementsCommand(List.of(label)));
+        return label;
+    }
+
+    @Test
+    void bandSelectsEverythingFullyInsideWithoutAnUndoStep() {
+        Component inside = not(0, 0);
+        not(10, 0);
+        Wire wire = wireFrom(0, 8, 6, 8);
+        TextLabel note = labelAt(2, 10);
+        String before = context.openDocument().history().undoDescription().toString();
+        context.drag(tool, -1, -1, 7, 11);
+        assertThat(context.selection.ids()).containsExactlyInAnyOrder(inside.id(), wire.id(), note.id());
+        assertThat(context.openDocument().history().undoDescription().toString()).isEqualTo(before);
+    }
+
+    @Test
+    void partlyCoveredElementsAreLeftOut() {
+        Component inside = not(0, 0);
+        not(10, 0);
+        wireFrom(0, 8, 20, 8);
+        context.drag(tool, -1, -1, 12, 9);
+        assertThat(context.selection.ids()).containsExactly(inside.id());
+    }
+
+    @Test
+    void bandWorksInAnyDirection() {
+        Component gate = not(0, 0);
+        context.drag(tool, 5, 5, -1, -1);
+        assertThat(context.selection.ids()).containsExactly(gate.id());
+        context.selection.clear();
+        context.drag(tool, 5, -1, -1, 5);
+        assertThat(context.selection.ids()).containsExactly(gate.id());
+        context.selection.clear();
+        context.drag(tool, -1, 5, 5, -1);
+        assertThat(context.selection.ids()).containsExactly(gate.id());
+    }
+
+    @Test
+    void plainBandReplacesAndShiftOrControlBandAdds() {
+        Component first = not(0, 0);
+        Component second = not(10, 0);
+        context.click(tool, 12, 2);
+        context.drag(tool, -1, -1, 5, 5);
+        assertThat(context.selection.ids()).containsExactly(first.id());
+        context.click(tool, 12, 2);
+        context.dragWith(tool, -1, -1, 5, 5, true, false);
+        assertThat(context.selection.ids()).containsExactlyInAnyOrder(first.id(), second.id());
+        context.selection.select(second.id());
+        context.dragWith(tool, -1, -1, 5, 5, false, true);
+        assertThat(context.selection.ids()).containsExactlyInAnyOrder(first.id(), second.id());
+    }
+
+    @Test
+    void shiftClickOnEmptySpaceKeepsTheSelection() {
+        Component gate = not(0, 0);
+        context.click(tool, 2, 2);
+        context.clickWith(tool, 30, 30, true, false);
+        assertThat(context.selection.ids()).containsExactly(gate.id());
+    }
+
+    @Test
+    void escapeCancelsTheBand() {
+        Component gate = not(0, 0);
+        not(10, 0);
+        context.click(tool, 2, 2);
+        tool.mousePressed(context, TestToolContext.at(-1, -1));
+        tool.mouseDragged(context, TestToolContext.at(15, 5));
+        assertThat(tool.keyPressed(context, KeyEvent.VK_ESCAPE, false)).isTrue();
+        assertThat(tool.rubberBand()).isNull();
+        tool.mouseReleased(context, TestToolContext.at(15, 5));
+        assertThat(context.selection.ids()).containsExactly(gate.id());
+    }
+
+    @Test
+    void theBandIsPaintedWhileDragging() {
+        not(0, 0);
+        tool.mousePressed(context, TestToolContext.at(-1, -1));
+        tool.mouseDragged(context, TestToolContext.at(5, 3));
+        assertThat(tool.rubberBand()).isEqualTo(new Rectangle2D.Double(-1, -1, 6, 4));
+        tool.paintOverlay(TestToolContext.scratchGraphics(), context);
+        tool.mouseReleased(context, TestToolContext.at(5, 3));
+        assertThat(tool.rubberBand()).isNull();
     }
 }

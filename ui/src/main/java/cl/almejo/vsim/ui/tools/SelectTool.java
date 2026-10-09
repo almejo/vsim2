@@ -1,24 +1,31 @@
 package cl.almejo.vsim.ui.tools;
 
 import cl.almejo.vsim.core.command.MoveElementsCommand;
+import cl.almejo.vsim.core.component.ElementBounds;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.Wire;
+import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.ui.canvas.ConnectionPoints;
 
 import java.awt.BasicStroke;
+import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.event.KeyEvent;
 import java.awt.geom.Ellipse2D;
+import java.awt.geom.Point2D;
+import java.awt.geom.Rectangle2D;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 
 /**
- * Everyday tool: select (Shift/Ctrl+click toggles), move the selection by dragging any selected element, draw
+ * Everyday tool: select (Shift/Ctrl+click toggles, drag in empty space for a rubber band), move the selection by dragging any selected element, draw
  * wires by dragging from a pin or an unselected wire, toggle switches, context menu, double click to configure.
  *
  * <p>What a plain primary press grabs, in priority order: a pin (within the pin radius), then an unselected wire,
@@ -31,6 +38,10 @@ public final class SelectTool implements Tool {
 
     private static final double HOVER_RING_RADIUS = 4.5;
     private static final BasicStroke HOVER_RING = new BasicStroke(1.5f);
+    private static final double BAND_THRESHOLD = 0.5;
+    private static final BasicStroke BAND_STROKE = new BasicStroke(1f, BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER,
+            10f, new float[]{4f, 3f}, 0f);
+    private static final int BAND_FILL_ALPHA = 40;
 
     private final Map<String, Boolean> interactiveByType = new HashMap<>();
     private ConnectionPoints connectionPoints;
@@ -38,6 +49,9 @@ public final class SelectTool implements Tool {
     private GridPoint pressPoint;
     private WireDrawing wire;
     private GridPoint hoverPin;
+    private Point2D bandStart;
+    private Point2D bandEnd;
+    private boolean bandAdditive;
     private boolean ownPressSeen;
     private boolean narrowOnRelease;
     private int deltaX;
@@ -82,8 +96,12 @@ public final class SelectTool implements Tool {
         Optional<ConnectionPoints.PinHit> pin = connectionPoints(context)
                 .pinNear(context.openDocument().document(), event.gridPosition());
         if (event.shiftDown() || event.controlDown()) {
-            pin.<DocumentElement>map(ConnectionPoints.PinHit::component).or(() -> hit)
-                    .ifPresent(element -> context.selection().toggle(element.id()));
+            Optional<DocumentElement> target = pin.<DocumentElement>map(ConnectionPoints.PinHit::component).or(() -> hit);
+            if (target.isPresent()) {
+                context.selection().toggle(target.get().id());
+            } else {
+                startBand(event, true);
+            }
             return;
         }
         if (pin.isPresent()) {
@@ -104,7 +122,7 @@ public final class SelectTool implements Tool {
             return;
         }
         if (hit.isEmpty()) {
-            context.selection().clear();
+            startBand(event, false);
             return;
         }
         if (context.selection().contains(hit.get().id())) {
@@ -117,6 +135,11 @@ public final class SelectTool implements Tool {
 
     @Override
     public void mouseDragged(ToolContext context, CanvasMouseEvent event) {
+        if (bandStart != null) {
+            bandEnd = event.gridPosition();
+            context.repaint();
+            return;
+        }
         if (wire != null) {
             wire.dragTo(event);
             context.repaint();
@@ -135,7 +158,9 @@ public final class SelectTool implements Tool {
         if (event.button() != CanvasMouseEvent.PRIMARY) {
             return;
         }
-        if (wire != null) {
+        if (bandStart != null) {
+            finishBand(context);
+        } else if (wire != null) {
             boolean added = wire.hasMoved() && wire.commit(context, event.snapped());
             if (!added) {
                 click(context);
@@ -185,7 +210,7 @@ public final class SelectTool implements Tool {
         if (keyCode != KeyEvent.VK_ESCAPE) {
             return false;
         }
-        if (pressPoint != null || wire != null) {
+        if (pressPoint != null || wire != null || bandStart != null) {
             reset();
             context.repaint();
         } else {
@@ -196,6 +221,11 @@ public final class SelectTool implements Tool {
 
     @Override
     public void paintOverlay(Graphics2D graphics, ToolContext context) {
+        Rectangle2D band = rubberBand();
+        if (band != null) {
+            paintBand(graphics, context, band);
+            return;
+        }
         if (hoverPin != null && wire == null) {
             double unit = GridPoint.PIXELS_PER_UNIT;
             graphics.setColor(context.scheme().selection());
@@ -218,6 +248,65 @@ public final class SelectTool implements Tool {
 
     GridPoint hoverPin() {
         return hoverPin;
+    }
+
+    /** The rubber band in grid units, or {@code null} when none is being dragged. */
+    Rectangle2D rubberBand() {
+        if (bandStart == null) {
+            return null;
+        }
+        return new Rectangle2D.Double(Math.min(bandStart.getX(), bandEnd.getX()),
+                Math.min(bandStart.getY(), bandEnd.getY()),
+                Math.abs(bandEnd.getX() - bandStart.getX()), Math.abs(bandEnd.getY() - bandStart.getY()));
+    }
+
+    private void startBand(CanvasMouseEvent event, boolean additive) {
+        bandStart = event.gridPosition();
+        bandEnd = event.gridPosition();
+        bandAdditive = additive;
+    }
+
+    /** A band smaller than half a grid unit is a click: it clears the selection unless it was additive. */
+    private void finishBand(ToolContext context) {
+        Rectangle2D band = rubberBand();
+        if (Math.max(band.getWidth(), band.getHeight()) < BAND_THRESHOLD) {
+            if (!bandAdditive) {
+                context.selection().clear();
+            }
+            return;
+        }
+        Set<ElementId> inside = elementsInside(context, band);
+        if (bandAdditive) {
+            Set<ElementId> combined = new LinkedHashSet<>(context.selection().ids());
+            combined.addAll(inside);
+            context.selection().set(combined);
+        } else {
+            context.selection().set(inside);
+        }
+    }
+
+    private static Set<ElementId> elementsInside(ToolContext context, Rectangle2D band) {
+        Set<ElementId> inside = new LinkedHashSet<>();
+        for (DocumentElement element : context.openDocument().document().elements()) {
+            Bounds bounds = ElementBounds.of(element, context.openDocument().registry());
+            if (bounds.x() >= band.getMinX() && bounds.maximumX() <= band.getMaxX()
+                    && bounds.y() >= band.getMinY() && bounds.maximumY() <= band.getMaxY()) {
+                inside.add(element.id());
+            }
+        }
+        return inside;
+    }
+
+    private static void paintBand(Graphics2D graphics, ToolContext context, Rectangle2D band) {
+        double unit = GridPoint.PIXELS_PER_UNIT;
+        Rectangle2D pixels = new Rectangle2D.Double(band.getX() * unit, band.getY() * unit,
+                band.getWidth() * unit, band.getHeight() * unit);
+        Color color = context.scheme().selection();
+        graphics.setColor(new Color(color.getRed(), color.getGreen(), color.getBlue(), BAND_FILL_ALPHA));
+        graphics.fill(pixels);
+        graphics.setColor(color);
+        graphics.setStroke(BAND_STROKE);
+        graphics.draw(pixels);
     }
 
     /** A pin of a selected component moves the selection when the selection holds more than one element. */
@@ -258,6 +347,9 @@ public final class SelectTool implements Tool {
         pressPoint = null;
         narrowOnRelease = false;
         wire = null;
+        bandStart = null;
+        bandEnd = null;
+        bandAdditive = false;
         deltaX = 0;
         deltaY = 0;
     }
