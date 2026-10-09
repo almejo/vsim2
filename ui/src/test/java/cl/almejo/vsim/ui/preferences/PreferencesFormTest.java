@@ -59,7 +59,8 @@ class PreferencesFormTest {
     void choicesAreNamedInSpanish() {
         PreferencesForm form = form();
         assertThat(labels(form.themeChoice())).containsExactly("Seguir sistema", "Claro", "Oscuro");
-        assertThat(labels(form.schemeChoice())).containsExactly("Según el tema", "VSim clásico", "Claro", "Oscuro");
+        assertThat(labels(form.schemeChoice())).containsExactly("Según el tema", "VSim clásico", "Claro", "Oscuro",
+                "Pastel (VSim)", "CSim (VSim)", "Twilight (VSim)");
         assertThat(labels(form.languageChoice())).containsExactly("Sistema", "Español", "English");
     }
 

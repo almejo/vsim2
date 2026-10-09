@@ -2,12 +2,14 @@ package cl.almejo.vsim.ui.theme;
 
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.paint.Appearance;
+import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.ColorSchemes;
 import org.junit.jupiter.api.Test;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -85,6 +87,21 @@ class ThemeManagerTest {
         assertThat(appearance.scheme()).isSameAs(ColorSchemes.DARK);
         assertThat(ThemeManager.schemeFor(Optional.of("neon"), false)).isSameAs(ColorSchemes.LIGHT);
         assertThat(ThemeManager.schemeFor(Optional.of("classic"), true)).isSameAs(ColorSchemes.CLASSIC);
+    }
+
+    @Test
+    void everyStoredSchemeIdComesBackAsItsScheme() {
+        Map<String, ColorScheme> expected = Map.of("classic", ColorSchemes.CLASSIC, "light", ColorSchemes.LIGHT,
+                "dark", ColorSchemes.DARK, "pastel", ColorSchemes.PASTEL, "csim", ColorSchemes.CSIM,
+                "twilight", ColorSchemes.TWILIGHT);
+        for (Map.Entry<String, ColorScheme> entry : expected.entrySet()) {
+            preferences.setColorScheme(Optional.of(entry.getKey()));
+            assertThat(ThemeManager.schemeFor(preferences.colorScheme(), false)).isSameAs(entry.getValue());
+            assertThat(ThemeManager.schemeFor(preferences.colorScheme(), true)).isSameAs(entry.getValue());
+        }
+        preferences.setColorScheme(Optional.of("Twilight"));
+        assertThat(ThemeManager.schemeFor(preferences.colorScheme(), false)).isSameAs(ColorSchemes.LIGHT);
+        assertThat(ThemeManager.schemeFor(preferences.colorScheme(), true)).isSameAs(ColorSchemes.DARK);
     }
 
     @Test
