@@ -3,6 +3,7 @@ package cl.almejo.vsim.core.simulation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Optional;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
@@ -22,6 +23,7 @@ public final class SimulationThread implements AutoCloseable {
 
     private final SimulationEngine engine;
     private final LongSupplier nanoClock;
+    private final long closeTimeoutMillis;
     private final Queue<Runnable> requests = new ConcurrentLinkedQueue<>();
     private volatile SimulationSnapshot latestSnapshot = SimulationSnapshot.EMPTY;
     private volatile boolean stopRequested;
@@ -33,14 +35,20 @@ public final class SimulationThread implements AutoCloseable {
     private double pendingUnits;
     private boolean firstTick = true;
     private long lastTickNanos;
+    private String failure;
 
     public SimulationThread(SimulationEngine engine) {
         this(engine, System::nanoTime);
     }
 
     SimulationThread(SimulationEngine engine, LongSupplier nanoClock) {
+        this(engine, nanoClock, TimeUnit.SECONDS.toMillis(2));
+    }
+
+    SimulationThread(SimulationEngine engine, LongSupplier nanoClock, long closeTimeoutMillis) {
         this.engine = engine;
         this.nanoClock = nanoClock;
+        this.closeTimeoutMillis = closeTimeoutMillis;
     }
 
     public synchronized void start() {
@@ -53,7 +61,10 @@ public final class SimulationThread implements AutoCloseable {
     }
 
     public void update(FlatCircuit circuit) {
-        requests.add(() -> engine.update(circuit));
+        requests.add(() -> {
+            engine.update(circuit);
+            failure = null;
+        });
     }
 
     public void interact(String componentId) {
@@ -107,17 +118,32 @@ public final class SimulationThread implements AutoCloseable {
                     engine.advance(units);
                 }
             }
-            latestSnapshot = engine.snapshot().withRunning(running);
+            latestSnapshot = engine.snapshot().withRunning(running).withFailure(Optional.ofNullable(failure));
         } catch (RuntimeException exception) {
             LOGGER.error("Simulation failed; pausing", exception);
-            running = false;
-            latestSnapshot = latestSnapshot.withRunning(false);
+            publishFailure(exception);
         }
+    }
+
+    private void publishFailure(Throwable throwable) {
+        running = false;
+        failure = throwable.getMessage() == null
+                ? throwable.getClass().getSimpleName()
+                : throwable.getClass().getSimpleName() + ": " + throwable.getMessage();
+        latestSnapshot = latestSnapshot.withRunning(false).withFailure(Optional.of(failure));
     }
 
     private void loop() {
         while (!stopRequested) {
-            tick();
+            try {
+                tick();
+            } catch (Throwable throwable) {
+                LOGGER.error("Simulation thread failed", throwable);
+                publishFailure(throwable);
+                if (throwable instanceof Error) {
+                    return;
+                }
+            }
             LockSupport.parkNanos(PARK_NANOS);
         }
     }
@@ -139,9 +165,13 @@ public final class SimulationThread implements AutoCloseable {
         }
         if (current != null) {
             try {
-                current.join(TimeUnit.SECONDS.toMillis(2));
+                current.join(closeTimeoutMillis);
             } catch (InterruptedException exception) {
                 Thread.currentThread().interrupt();
+            }
+            if (current.isAlive()) {
+                LOGGER.warn("Simulation thread did not stop within {} ms; interrupting it", closeTimeoutMillis);
+                current.interrupt();
             }
         }
     }

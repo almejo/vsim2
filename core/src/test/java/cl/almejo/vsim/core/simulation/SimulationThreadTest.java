@@ -1,13 +1,18 @@
 package cl.almejo.vsim.core.simulation;
 
 import cl.almejo.vsim.core.TestComponentTypes;
+import cl.almejo.vsim.core.component.BehaviorFactory;
+import cl.almejo.vsim.core.component.ComponentCategory;
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
+import cl.almejo.vsim.core.geometry.GridSize;
 import cl.almejo.vsim.core.value.Value;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -97,9 +102,9 @@ class SimulationThreadTest {
         thread.tick();
         assertThat(thread.latestSnapshot().netValue("out")).isEqualTo(Value.ZERO);
         thread.interact("s");
-        thread.step(1);
         thread.tick();
         assertThat(thread.latestSnapshot().netValue("out")).isEqualTo(Value.ONE);
+        assertThat(thread.latestSnapshot().time()).isZero();
     }
 
     @Test
@@ -119,10 +124,15 @@ class SimulationThreadTest {
         thread.resume();
         thread.tick();
         assertThat(thread.latestSnapshot().running()).isFalse();
+        assertThat(thread.latestSnapshot().failure()).hasValueSatisfying(
+                message -> assertThat(message).contains("missing"));
+        thread.tick();
+        assertThat(thread.latestSnapshot().failure()).isPresent();
 
         thread.update(FlatCircuit.EMPTY);
         thread.resume();
         thread.tick();
+        assertThat(thread.latestSnapshot().failure()).isEmpty();
         nanos.addAndGet(5 * MILLISECOND);
         thread.tick();
         assertThat(thread.latestSnapshot().running()).isTrue();
@@ -160,5 +170,48 @@ class SimulationThreadTest {
             }
             Thread.sleep(5);
         }
+    }
+
+    private static FlatCircuit single(BehaviorFactory factory) {
+        ComponentType type = new ComponentType("test-special", ComponentCategory.DEBUG, new GridSize(2, 2),
+                List.of(), List.of(), factory);
+        return new FlatCircuit(List.of(new FlatComponent("x", type, Map.of())), List.of());
+    }
+
+    @Test
+    void anErrorIsPublishedAndStopsTheLoop() throws Exception {
+        try (SimulationThread realThread = new SimulationThread(new SimulationEngine())) {
+            realThread.start();
+            realThread.update(single(parameters -> {
+                throw new AssertionError("broken behavior");
+            }));
+            waitUntil(() -> realThread.latestSnapshot().failure().isPresent());
+            assertThat(realThread.latestSnapshot().failure().orElseThrow()).contains("broken behavior");
+            assertThat(realThread.latestSnapshot().running()).isFalse();
+            waitUntil(() -> !realThread.isAlive());
+        }
+    }
+
+    @Test
+    void closeInterruptsAThreadThatDoesNotStopInTime() throws Exception {
+        CountDownLatch entered = new CountDownLatch(1);
+        CountDownLatch never = new CountDownLatch(1);
+        AtomicBoolean interrupted = new AtomicBoolean();
+        SimulationThread realThread = new SimulationThread(new SimulationEngine(), System::nanoTime, 50);
+        realThread.start();
+        realThread.update(single(parameters -> {
+            entered.countDown();
+            try {
+                never.await();
+            } catch (InterruptedException exception) {
+                interrupted.set(true);
+            }
+            return (context, pinIndex) -> {
+            };
+        }));
+        entered.await();
+        realThread.close();
+        waitUntil(interrupted::get);
+        waitUntil(() -> !realThread.isAlive());
     }
 }

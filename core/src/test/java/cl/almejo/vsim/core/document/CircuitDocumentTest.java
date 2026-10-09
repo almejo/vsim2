@@ -89,4 +89,23 @@ class CircuitDocumentTest {
         document.add(andGate(document.newComponentId()));
         assertThat(notifications).hasValue(2);
     }
+
+    @Test
+    void revisionGrowsOncePerNotification() {
+        CircuitDocument document = new CircuitDocument();
+        assertThat(document.revision()).isZero();
+        document.add(andGate(document.newComponentId()));
+        assertThat(document.revision()).isEqualTo(1);
+        AtomicInteger seenRevision = new AtomicInteger();
+        document.addListener(changed -> seenRevision.set((int) changed.revision()));
+        document.batch(() -> {
+            document.add(andGate(document.newComponentId()));
+            document.add(andGate(document.newComponentId()));
+        });
+        assertThat(document.revision()).isEqualTo(2);
+        assertThat(seenRevision).hasValue(2);
+        document.batch(() -> { });
+        document.remove(new ElementId("c999"));
+        assertThat(document.revision()).isEqualTo(2);
+    }
 }

@@ -20,6 +20,7 @@ public final class CircuitDocument {
     private long nextIdNumber = 1;
     private int batchDepth;
     private boolean changedDuringBatch;
+    private long revision;
     private String name = "";
 
     public String name() {
@@ -28,6 +29,11 @@ public final class CircuitDocument {
 
     public void setName(String newName) {
         name = newName == null ? "" : newName;
+    }
+
+    /** Grows by one every time listeners are notified: once per change, or once per batch. */
+    public long revision() {
+        return revision;
     }
 
     public ElementId newComponentId() {
@@ -168,6 +174,7 @@ public final class CircuitDocument {
     }
 
     private void notifyListeners() {
+        revision++;
         listeners.forEach(listener -> listener.documentChanged(this));
     }
 }

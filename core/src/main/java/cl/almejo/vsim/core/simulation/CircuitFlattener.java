@@ -25,7 +25,7 @@ public final class CircuitFlattener {
         List<FlatNet> nets = netlist.nets().stream()
                 .map(CircuitFlattener::flatten)
                 .toList();
-        return new FlatCircuit(components, nets);
+        return new FlatCircuit(document.revision(), components, nets);
     }
 
     private FlatComponent flatten(Component component) {

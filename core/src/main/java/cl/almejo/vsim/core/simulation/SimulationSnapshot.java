@@ -5,21 +5,34 @@ import cl.almejo.vsim.core.value.Value;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 
-/** Immutable picture of the simulation, safe to read from any thread. */
-public record SimulationSnapshot(long revision, long time, boolean running, Map<String, Value> netValues,
-                                 Map<String, VisibleState> componentStates, List<Problem> problems) {
+/**
+ * Immutable picture of the simulation, safe to read from any thread.
+ * {@code token} is the token of the last {@link FlatCircuit} applied; {@code failure} describes why the
+ * simulation stopped, if it did.
+ */
+public record SimulationSnapshot(long revision, long token, long time, boolean running, Map<String, Value> netValues,
+                                 Map<String, VisibleState> componentStates, List<Problem> problems,
+                                 Optional<String> failure) {
 
-    public static final SimulationSnapshot EMPTY = new SimulationSnapshot(0, 0, false, Map.of(), Map.of(), List.of());
+    public static final SimulationSnapshot EMPTY =
+            new SimulationSnapshot(0, 0, 0, false, Map.of(), Map.of(), List.of(), Optional.empty());
 
     public SimulationSnapshot {
         netValues = Map.copyOf(netValues);
         componentStates = Map.copyOf(componentStates);
         problems = List.copyOf(problems);
+        Objects.requireNonNull(failure, "failure");
     }
 
     public SimulationSnapshot withRunning(boolean isRunning) {
-        return new SimulationSnapshot(revision, time, isRunning, netValues, componentStates, problems);
+        return new SimulationSnapshot(revision, token, time, isRunning, netValues, componentStates, problems, failure);
+    }
+
+    public SimulationSnapshot withFailure(Optional<String> newFailure) {
+        return new SimulationSnapshot(revision, token, time, running, netValues, componentStates, problems, newFailure);
     }
 
     public Value netValue(String netId) {

@@ -16,9 +16,11 @@ import cl.almejo.vsim.core.value.Value;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
+import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 
 class SimulationEngineTest {
@@ -195,5 +197,55 @@ class SimulationEngineTest {
         synchronize();
         engine.advance(1);
         assertThat(valueAt(source, 0)).isEqualTo(Value.ONE);
+    }
+
+    @Test
+    void pausedInteractionIsVisibleWithoutAdvancing() {
+        ElementId source = place(TestComponentTypes.SOURCE, 0, 0, Map.of("value", "0"));
+        synchronize();
+        engine.interact(source.value());
+        assertThat(engine.now()).isZero();
+        assertThat(valueAt(source, 0)).isEqualTo(Value.ONE);
+        assertThat(engine.snapshot().componentState(source.value()))
+                .isEqualTo(new VisibleState.SwitchState(Value.ONE));
+    }
+
+    @Test
+    void flattenCarriesTheDocumentRevisionAndTheSnapshotEchoesIt() {
+        assertThat(FlatCircuit.EMPTY.token()).isZero();
+        assertThat(SimulationSnapshot.EMPTY.token()).isZero();
+        place(TestComponentTypes.SOURCE, 0, 0, Map.of());
+        wire(10, 10, 12, 10);
+        netlist = compiler.compile(document);
+        FlatCircuit circuit = flattener.flatten(document, netlist);
+        assertThat(circuit.token()).isEqualTo(document.revision()).isEqualTo(2);
+        engine.update(circuit);
+        assertThat(engine.snapshot().token()).isEqualTo(2);
+        engine.update(new FlatCircuit(7, circuit.components(), circuit.nets()));
+        assertThat(engine.snapshot().token()).isEqualTo(7);
+    }
+
+    @Test
+    void invalidUpdateIsRejectedAndThePreviousCircuitKeepsRunning() {
+        ElementId source = place(TestComponentTypes.SOURCE, 0, 0, Map.of("value", "0"));
+        ElementId buffer = place(TestComponentTypes.BUFFER, 2, 0, Map.of("delay", 1));
+        synchronize();
+        engine.advance(2);
+        FlatCircuit good = flattener.flatten(document, netlist);
+        FlatComponent sourceComponent = good.components().get(0);
+        long revision = engine.revision();
+
+        List<FlatCircuit> invalid = List.of(
+                new FlatCircuit(good.components(), List.of(new FlatNet("bad", List.of(new FlatPinRef("missing", 0)), 1, false))),
+                new FlatCircuit(good.components(), List.of(new FlatNet("bad", List.of(new FlatPinRef(source.value(), 5)), 1, false))),
+                new FlatCircuit(List.of(sourceComponent, sourceComponent), List.of()));
+        for (FlatCircuit circuit : invalid) {
+            assertThatThrownBy(() -> engine.update(circuit)).isInstanceOf(IllegalArgumentException.class);
+        }
+
+        assertThat(engine.revision()).isEqualTo(revision);
+        engine.interact(source.value());
+        engine.advance(1);
+        assertThat(valueAt(buffer, 1)).isEqualTo(Value.ONE);
     }
 }
