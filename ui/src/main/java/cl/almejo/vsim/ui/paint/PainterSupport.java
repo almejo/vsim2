@@ -28,6 +28,9 @@ final class PainterSupport {
     private static final double PIN_DOT_RADIUS = 1.6;
     private static final double SHADOW_DISTANCE = 2.0;
     private static final Font BASE_FONT = new Font(Font.SANS_SERIF, Font.BOLD, 10);
+    static final double ALIGN_LEFT = 0;
+    static final double ALIGN_CENTER = 0.5;
+    static final double ALIGN_RIGHT = 1;
 
     private PainterSupport() {
     }
@@ -81,18 +84,29 @@ final class PainterSupport {
 
     /** Draws {@code text} centered on the local point, but always upright on screen whatever the rotation. */
     static void centeredText(Graphics2D graphics, String text, double centerX, double centerY, float size, Color color) {
+        uprightText(graphics, text, centerX, centerY, size, color, ALIGN_CENTER);
+    }
+
+    /**
+     * Draws {@code text} upright on screen whatever the rotation, vertically centered on the local anchor point.
+     * {@code alignment} is the part of the text, measured along the screen's horizontal, that sits on the anchor:
+     * {@link #ALIGN_LEFT} its left end, {@link #ALIGN_CENTER} its middle, {@link #ALIGN_RIGHT} its right end. Painters
+     * must draw every text through this method so no text is ever upside down.
+     */
+    static void uprightText(Graphics2D graphics, String text, double anchorX, double anchorY, float size, Color color,
+                            double alignment) {
         AffineTransform transform = graphics.getTransform();
         double angle = Math.atan2(transform.getShearY(), transform.getScaleX());
         double quarterTurns = Math.round(angle / (Math.PI / 2));
         Graphics2D upright = (Graphics2D) graphics.create();
         try {
-            upright.rotate(-quarterTurns * Math.PI / 2, centerX, centerY);
+            upright.rotate(-quarterTurns * Math.PI / 2, anchorX, anchorY);
             upright.setFont(BASE_FONT.deriveFont(size));
             upright.setColor(color);
             FontMetrics metrics = upright.getFontMetrics();
             Rectangle2D textBounds = metrics.getStringBounds(text, upright);
-            upright.drawString(text, (float) (centerX - textBounds.getWidth() / 2),
-                    (float) (centerY + (metrics.getAscent() - metrics.getDescent()) / 2.0));
+            upright.drawString(text, (float) (anchorX - textBounds.getWidth() * alignment),
+                    (float) (anchorY + (metrics.getAscent() - metrics.getDescent()) / 2.0));
         } finally {
             upright.dispose();
         }

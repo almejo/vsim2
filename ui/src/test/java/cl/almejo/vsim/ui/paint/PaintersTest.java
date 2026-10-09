@@ -21,6 +21,14 @@ import java.awt.image.BufferedImage;
 import java.util.List;
 import java.util.Map;
 
+import java.awt.geom.AffineTransform;
+import java.awt.geom.Point2D;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Arrays;
+import java.util.stream.Stream;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class PaintersTest {
@@ -159,5 +167,65 @@ class PaintersTest {
         assertThat(icon.getIconWidth()).isEqualTo(24);
         assertThat(icon.getIconHeight()).isEqualTo(24);
         assertThat(painted).isGreaterThan(30);
+    }
+
+    /** Half the side of the pixel patch compared around a text. */
+    private static final int PATCH = 5;
+
+    /** The pixels around the screen point where local point (localX, localY) lands; the component is at (12, 12). */
+    private int[] patchAround(String typeId, Rotation rotation, double localX, double localY) {
+        BufferedImage image = draw(typeId, rotation, Map.of(), sampleState(typeId));
+        AffineTransform placement = AffineTransform.getTranslateInstance(96, 96);
+        placement.rotate(rotation.quarterTurns() * Math.PI / 2);
+        Point2D center = placement.transform(new Point2D.Double(localX, localY), null);
+        int left = (int) Math.floor(center.getX()) - PATCH;
+        int top = (int) Math.floor(center.getY()) - PATCH;
+        return image.getRGB(left, top, 2 * PATCH + 1, 2 * PATCH + 1, null, 0, 2 * PATCH + 1);
+    }
+
+    @Test
+    void switchTextReadsTheSameWhenTheSwitchIsTurnedHalfway() {
+        // (13.5, 8) is the middle of the switch body, where its 1/0/Z is centered. R0/R180 (and R90/R270) place
+        // that point at the same sub-pixel offset, so upright text gives identical patches; upside-down text does not.
+        int[] upright = patchAround(StandardComponentTypes.SWITCH, Rotation.R0, 13.5, 8);
+        assertThat(Arrays.stream(upright).filter(rgb -> new Color(rgb).getBlue() > 200).count()).isPositive();
+        assertThat(patchAround(StandardComponentTypes.SWITCH, Rotation.R180, 13.5, 8)).isEqualTo(upright);
+        assertThat(patchAround(StandardComponentTypes.SWITCH, Rotation.R270, 13.5, 8))
+                .isEqualTo(patchAround(StandardComponentTypes.SWITCH, Rotation.R90, 13.5, 8));
+    }
+
+    @Test
+    void paintersDrawTextOnlyThroughTheUprightHelper() throws IOException {
+        try (Stream<Path> sources = Files.list(Path.of("src/main/java/cl/almejo/vsim/ui/paint"))) {
+            List<String> offenders = sources
+                    .filter(path -> !path.getFileName().toString().equals("PainterSupport.java"))
+                    .filter(path -> {
+                        String source = readSource(path);
+                        return source.contains("drawString(") || source.contains("drawGlyphVector(")
+                                || source.contains("TextLayout");
+                    })
+                    .map(path -> path.getFileName().toString())
+                    .toList();
+            assertThat(offenders).as("use PainterSupport.uprightText or centeredText").isEmpty();
+        }
+    }
+
+    private static String readSource(Path path) {
+        try {
+            return Files.readString(path);
+        } catch (IOException exception) {
+            throw new UncheckedIOException(exception);
+        }
+    }
+
+    @Test
+    void ledToleratesAColorParameterThatIsNotText() {
+        ComponentType type = registry.require(StandardComponentTypes.LED);
+        BufferedImage image = blankImage(40, 40);
+        Graphics2D graphics = image.createGraphics();
+        graphics.translate(10, 10);
+        new LedPainter().paint(graphics, type, Map.of("color", 7), new VisibleState.LedState(Value.ONE), SCHEME);
+        graphics.dispose();
+        assertThat(new Color(image.getRGB(18, 22))).isEqualTo(LedPainter.colorFor("red"));
     }
 }

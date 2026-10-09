@@ -23,7 +23,7 @@ public final class LedPainter implements ComponentPainter {
     @Override
     public void paint(Graphics2D graphics, ComponentType type, Map<String, Object> parameters, VisibleState state,
                       ColorScheme scheme) {
-        Color color = colorFor((String) parameters.get("color"));
+        Color color = colorFor(String.valueOf(parameters.get("color")));
         boolean lit = PainterSupport.valueOf(state).equals(Value.ONE);
         PainterSupport.lead(graphics, 8, 16, 8, 24, scheme);
         if (lit) {
