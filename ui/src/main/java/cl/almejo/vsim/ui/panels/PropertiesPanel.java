@@ -188,9 +188,9 @@ public final class PropertiesPanel extends JPanel {
         });
     }
 
-    /** Runs {@code work} only for editors of the current build, and never re-entrantly. */
+    /** Runs {@code work} only for editors of the current build, never re-entrantly and never after dispose. */
     private void applyIfCurrent(int built, Runnable work) {
-        if (built != generation || applying) {
+        if (disposed || built != generation || applying) {
             return;
         }
         applying = true;

@@ -173,4 +173,18 @@ class PropertiesPanelTest {
         assertThat(panel.textField()).isSameAs(shown);
         assertThat(panel.textField().getText()).isEmpty();
     }
+
+    @Test
+    void editorsDoNothingOnceThePanelIsDisposed() {
+        Component gate = gate(0);
+        selection.select(gate.id());
+        JTextField field = panel.textField();
+        String before = openDocument.history().undoDescription().toString();
+        panel.dispose();
+        field.setText("U9");
+        field.postActionEvent();
+        panel.commitEdits();
+        assertThat(current(gate).label()).isEmpty();
+        assertThat(openDocument.history().undoDescription().toString()).isEqualTo(before);
+    }
 }
