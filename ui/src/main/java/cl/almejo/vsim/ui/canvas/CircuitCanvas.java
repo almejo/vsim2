@@ -144,7 +144,8 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         CircuitFragment fragment;
         try {
             fragment = new FragmentFormat(openDocument.registry()).read(fragmentJson);
-        } catch (CircuitFormatException exception) {
+        } catch (CircuitFormatException | RuntimeException exception) {
+            // Dropped text comes from anywhere: a fragment the reader cannot handle is just not accepted.
             return false;
         }
         if (fragment.isEmpty()) {

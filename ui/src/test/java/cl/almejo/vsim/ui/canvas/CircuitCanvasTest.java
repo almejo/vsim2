@@ -497,4 +497,17 @@ class CircuitCanvasTest {
         assertThat(canvas.isDraggingOut()).isFalse();
         assertThat(((SelectTool) canvas.tool()).movingFrom()).isPresent();
     }
+
+    @Test
+    void aFragmentTheReaderChokesOnIsRefusedWithoutAnException() {
+        // Valid JSON whose bounds overflow an int: the reader throws an unchecked exception, not a format error.
+        String overflowing = "{\"formatVersion\":2,\"kind\":\"fragment\",\"components\":["
+                + "{\"id\":\"c1\",\"type\":\"not\",\"x\":-2147483648,\"y\":0},"
+                + "{\"id\":\"c2\",\"type\":\"not\",\"x\":2147483600,\"y\":0}],\"wires\":[],\"labels\":[]}";
+        assertThat(canvas.dropFragment(overflowing, new Point(10, 10))).isFalse();
+        assertThat(canvas.getTransferHandler().importData(new TransferHandler.TransferSupport(canvas,
+                new FragmentTransferable(overflowing)))).isFalse();
+        assertThat(canvas.tool()).isInstanceOf(SelectTool.class);
+        assertThat(openDocument.document().isEmpty()).isTrue();
+    }
 }
