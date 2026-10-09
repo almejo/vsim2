@@ -27,6 +27,7 @@ import org.junit.jupiter.api.Test;
 import javax.swing.TransferHandler;
 import java.awt.Point;
 import java.awt.datatransfer.StringSelection;
+import java.awt.datatransfer.Transferable;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
@@ -285,5 +286,66 @@ class CircuitCanvasTest {
                 new StringSelection("hello")))).isFalse();
         assertThat(canvas.tool()).isInstanceOf(SelectTool.class);
         assertThat(openDocument.document().isEmpty()).isTrue();
+    }
+
+    private void primaryPress(int x, int y) {
+        canvas.getMouseListeners()[0].mousePressed(
+                mouse(MouseEvent.MOUSE_PRESSED, x, y, InputEvent.BUTTON1_DOWN_MASK, MouseEvent.BUTTON1));
+    }
+
+    private void primaryDrag(int x, int y) {
+        canvas.getMouseMotionListeners()[0].mouseDragged(
+                mouse(MouseEvent.MOUSE_DRAGGED, x, y, InputEvent.BUTTON1_DOWN_MASK, MouseEvent.NOBUTTON));
+    }
+
+    private void primaryRelease(int x, int y) {
+        canvas.getMouseListeners()[0].mouseReleased(mouse(MouseEvent.MOUSE_RELEASED, x, y, 0, MouseEvent.BUTTON1));
+    }
+
+    @Test
+    void draggingTheSelectionOutOfTheCanvasAbandonsTheMove() {
+        canvas.setSize(400, 300);
+        Component gate = place(openDocument, StandardComponentTypes.NOT, 5, 5, Map.of());
+        primaryPress(56, 56);
+        primaryDrag(72, 64);
+        primaryDrag(-16, 64);
+        primaryRelease(-16, 64);
+        assertThat(openDocument.document().component(gate.id()).orElseThrow().position())
+                .isEqualTo(new GridPoint(5, 5));
+        assertThat(openDocument.history().undoDescription()).contains("command.add");
+        assertThat(canvas.selection().ids()).containsExactly(gate.id());
+        assertThat(((SelectTool) canvas.tool()).movingFrom()).isEmpty();
+        assertThat(canvas.isDraggingOut()).isFalse(); // headless Swing ends the drag at once (exportDone, NONE)
+    }
+
+    @Test
+    void theSelectionIsExportedAsAFragment() throws Exception {
+        Component gate = place(openDocument, StandardComponentTypes.NOT, 5, 5, Map.of());
+        CanvasTransferHandler handler = (CanvasTransferHandler) canvas.getTransferHandler();
+        assertThat(handler.createTransferable(canvas)).isNull();
+        canvas.selection().select(gate.id());
+        Transferable transferable = handler.createTransferable(canvas);
+        String json = (String) transferable.getTransferData(FragmentTransferable.FRAGMENT_FLAVOR);
+        assertThat(new FragmentFormat(openDocument.registry()).read(json).components())
+                .singleElement().satisfies(copy -> assertThat(copy.typeId()).isEqualTo(StandardComponentTypes.NOT));
+        assertThat(handler.getSourceActions(canvas)).isEqualTo(TransferHandler.COPY);
+    }
+
+    @Test
+    void droppingADraggedOutSelectionBackOnItsCanvasMovesIt() throws Exception {
+        canvas.setSize(400, 300);
+        Component gate = place(openDocument, StandardComponentTypes.NOT, 5, 5, Map.of());
+        primaryPress(56, 56);
+        primaryDrag(72, 64);
+        assertThat(canvas.beginDragOut()).isTrue();
+        Transferable transferable = ((CanvasTransferHandler) canvas.getTransferHandler()).createTransferable(canvas);
+        String json = (String) transferable.getTransferData(FragmentTransferable.FRAGMENT_FLAVOR);
+        assertThat(canvas.dropFragment(json, new Point(80, 72))).isTrue();
+        assertThat(openDocument.document().component(gate.id()).orElseThrow().position())
+                .isEqualTo(new GridPoint(8, 7));
+        assertThat(openDocument.history().undoDescription()).contains("command.move");
+        assertThat(canvas.tool()).isInstanceOf(SelectTool.class);
+        assertThat(canvas.isDraggingOut()).isFalse();
+        assertThat(openDocument.document().components()).hasSize(1);
     }
 }

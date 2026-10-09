@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.canvas;
 import cl.almejo.vsim.ui.clipboard.CircuitFileDrop;
 import cl.almejo.vsim.ui.clipboard.FragmentTransferable;
 
+import javax.swing.JComponent;
 import javax.swing.TransferHandler;
 import java.awt.Point;
 import java.awt.datatransfer.DataFlavor;
@@ -48,5 +49,21 @@ final class CanvasTransferHandler extends TransferHandler {
         } catch (UnsupportedFlavorException | IOException exception) {
             return false;
         }
+    }
+
+    @Override
+    public int getSourceActions(JComponent source) {
+        return COPY;
+    }
+
+    /** The selection as a fragment; null (no drag) when nothing is selected. */
+    @Override
+    public Transferable createTransferable(JComponent source) {
+        return canvas.selectionFragmentJson().map(FragmentTransferable::new).orElse(null);
+    }
+
+    @Override
+    protected void exportDone(JComponent source, Transferable data, int action) {
+        canvas.endDragOut();
     }
 }

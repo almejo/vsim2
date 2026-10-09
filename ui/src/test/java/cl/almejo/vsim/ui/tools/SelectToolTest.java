@@ -331,4 +331,37 @@ class SelectToolTest {
         assertThat(context.configured).isNull();
         assertThat(context.selection.ids()).containsExactly(gate.id());
     }
+
+    @Test
+    void movingFromIsKnownOnlyWhileTheSelectionMayBeMoved() {
+        not(0, 0);
+        assertThat(tool.movingFrom()).isEmpty();
+        tool.mousePressed(context, TestToolContext.at(2, 2));
+        tool.mouseDragged(context, TestToolContext.at(5, 3));
+        assertThat(tool.movingFrom()).contains(new GridPoint(2, 2));
+        tool.mouseReleased(context, TestToolContext.at(5, 3));
+        assertThat(tool.movingFrom()).isEmpty();
+    }
+
+    @Test
+    void drawingAWireFromAPinIsNotAMove() {
+        not(0, 0);
+        tool.mousePressed(context, TestToolContext.at(4, 2));
+        tool.mouseDragged(context, TestToolContext.at(8, 2));
+        assertThat(tool.movingFrom()).isEmpty();
+    }
+
+    @Test
+    void cancelMoveAbandonsTheDragWithoutAnUndoStep() {
+        Component gate = not(0, 0);
+        tool.mousePressed(context, TestToolContext.at(2, 2));
+        tool.mouseDragged(context, TestToolContext.at(5, 3));
+        tool.cancelMove(context);
+        tool.mouseReleased(context, TestToolContext.at(5, 3));
+        assertThat(context.openDocument().document().component(gate.id()).orElseThrow().position())
+                .isEqualTo(GridPoint.ORIGIN);
+        assertThat(context.openDocument().history().undoDescription()).contains("command.add");
+        assertThat(context.selection.ids()).containsExactly(gate.id());
+        assertThat(tool.movingFrom()).isEmpty();
+    }
 }
