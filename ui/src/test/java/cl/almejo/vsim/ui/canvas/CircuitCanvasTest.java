@@ -215,4 +215,17 @@ class CircuitCanvasTest {
         assertThat(openDocument.document().components()).hasSize(2);
         assertThat(openDocument.history().undoDescription()).contains("command.paste");
     }
+    @Test
+    void tracksTheGridPointUnderTheMouse() {
+        canvas.setSize(400, 300);
+        assertThat(canvas.mouseGridPoint()).isEmpty();
+        canvas.getMouseMotionListeners()[0].mouseMoved(mouse(MouseEvent.MOUSE_MOVED, 80, 48, 0, MouseEvent.NOBUTTON));
+        assertThat(canvas.mouseGridPoint()).contains(new GridPoint(10, 6));
+        canvas.getMouseMotionListeners()[0].mouseDragged(
+                mouse(MouseEvent.MOUSE_DRAGGED, 500, 48, InputEvent.BUTTON1_DOWN_MASK, MouseEvent.NOBUTTON));
+        assertThat(canvas.mouseGridPoint()).isEmpty();
+        canvas.getMouseMotionListeners()[0].mouseMoved(mouse(MouseEvent.MOUSE_MOVED, 80, 48, 0, MouseEvent.NOBUTTON));
+        canvas.getMouseListeners()[0].mouseExited(mouse(MouseEvent.MOUSE_EXITED, 80, 48, 0, MouseEvent.NOBUTTON));
+        assertThat(canvas.mouseGridPoint()).isEmpty();
+    }
 }

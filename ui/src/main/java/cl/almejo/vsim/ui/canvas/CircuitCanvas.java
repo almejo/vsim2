@@ -6,6 +6,7 @@ import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentChange;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.DocumentListener;
+import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.ui.app.OpenDocument;
@@ -65,6 +66,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     private SimulationSnapshot displayedSnapshot = SimulationSnapshot.EMPTY;
     private boolean spaceDown;
     private Point panAnchor;
+    private GridPoint mousePoint;
 
     public CircuitCanvas(OpenDocument openDocument, CircuitRenderer renderer, CanvasHost host) {
         this.openDocument = openDocument;
@@ -145,6 +147,11 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
 
     public Tool tool() {
         return tool;
+    }
+
+    /** The snapped grid point under the mouse while the mouse is over the canvas. */
+    public Optional<GridPoint> mouseGridPoint() {
+        return Optional.ofNullable(mousePoint);
     }
 
     public Tool defaultTool() {
@@ -304,8 +311,13 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
 
     private final class MouseHandler extends MouseAdapter {
 
+        private void track(MouseEvent event) {
+            mousePoint = contains(event.getPoint()) ? viewport.snap(event.getX(), event.getY()) : null;
+        }
+
         @Override
         public void mousePressed(MouseEvent event) {
+            track(event);
             requestFocusInWindow();
             if (SwingUtilities.isMiddleMouseButton(event) || (spaceDown && SwingUtilities.isLeftMouseButton(event))) {
                 panAnchor = event.getPoint();
@@ -316,6 +328,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
 
         @Override
         public void mouseDragged(MouseEvent event) {
+            track(event);
             if (panAnchor != null) {
                 viewport.panBy(event.getX() - panAnchor.x, event.getY() - panAnchor.y);
                 panAnchor = event.getPoint();
@@ -336,11 +349,13 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
 
         @Override
         public void mouseMoved(MouseEvent event) {
+            track(event);
             tool.mouseMoved(CircuitCanvas.this, convert(event));
         }
 
         @Override
         public void mouseExited(MouseEvent event) {
+            mousePoint = null;
             tool.mouseExited(CircuitCanvas.this);
         }
 
