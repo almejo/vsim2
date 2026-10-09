@@ -63,4 +63,17 @@ class PalettePanelTest {
         assertThat(PaletteFilter.matches(clock, "reL")).isTrue();
         assertThat(PaletteFilter.matches(clock, "led")).isFalse();
     }
+
+    @Test
+    void searchFieldConsumesUndoAndRedoKeystrokes() {
+        int mask = java.awt.GraphicsEnvironment.isHeadless() ? java.awt.event.InputEvent.CTRL_DOWN_MASK
+                : java.awt.Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx();
+        javax.swing.JTextField field = palette.searchField();
+        for (int modifiers : new int[]{mask, mask | java.awt.event.InputEvent.SHIFT_DOWN_MASK}) {
+            Object actionKey = field.getInputMap(javax.swing.JComponent.WHEN_FOCUSED)
+                    .get(javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_Z, modifiers));
+            assertThat(actionKey).isNotNull();
+            assertThat(field.getActionMap().get(actionKey)).isNotNull();
+        }
+    }
 }

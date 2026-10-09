@@ -9,7 +9,10 @@ import cl.almejo.vsim.ui.paint.ComponentIcon;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
 import net.miginfocom.swing.MigLayout;
 
+import javax.swing.AbstractAction;
 import javax.swing.Icon;
+import javax.swing.JComponent;
+import javax.swing.KeyStroke;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextField;
@@ -22,6 +25,11 @@ import javax.swing.tree.DefaultTreeModel;
 import javax.swing.tree.TreePath;
 import javax.swing.tree.TreeSelectionModel;
 import java.awt.Component;
+import java.awt.GraphicsEnvironment;
+import java.awt.Toolkit;
+import java.awt.event.ActionEvent;
+import java.awt.event.InputEvent;
+import java.awt.event.KeyEvent;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -71,6 +79,7 @@ public final class PalettePanel extends JPanel {
                 rebuild();
             }
         });
+        swallowUndoKeystrokes();
         tree.setRootVisible(false);
         tree.setShowsRootHandles(true);
         tree.setRowHeight(ICON_SIZE + 4);
@@ -84,6 +93,27 @@ public final class PalettePanel extends JPanel {
         add(search);
         add(new JScrollPane(tree));
         rebuild();
+    }
+
+    /** Package-private for tests. */
+    JTextField searchField() {
+        return search;
+    }
+
+    /** Keeps Ctrl+Z / Ctrl+Shift+Z in the search box from reaching the circuit's undo menu accelerators. */
+    private void swallowUndoKeystrokes() {
+        int mask = GraphicsEnvironment.isHeadless() ? InputEvent.CTRL_DOWN_MASK
+                : Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx();
+        String actionKey = "palette.ignoreUndo";
+        search.getInputMap(JComponent.WHEN_FOCUSED).put(KeyStroke.getKeyStroke(KeyEvent.VK_Z, mask), actionKey);
+        search.getInputMap(JComponent.WHEN_FOCUSED)
+                .put(KeyStroke.getKeyStroke(KeyEvent.VK_Z, mask | InputEvent.SHIFT_DOWN_MASK), actionKey);
+        search.getActionMap().put(actionKey, new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent event) {
+                // intentionally empty: consuming the keystroke is the point
+            }
+        });
     }
 
     public void setFilter(String text) {
