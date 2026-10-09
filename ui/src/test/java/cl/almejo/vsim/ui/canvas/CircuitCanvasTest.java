@@ -247,4 +247,41 @@ class CircuitCanvasTest {
         canvas.getMouseListeners()[0].mouseReleased(mouse(MouseEvent.MOUSE_RELEASED, 400, 380, 0, MouseEvent.BUTTON1));
         assertThat(canvas.isAnimatingSelection()).isFalse();
     }
+
+    @Test
+    void aTickStopsTheClockWhenNothingIsLeftToAnimate() {
+        canvas.getMouseListeners()[0].mousePressed(mouse(MouseEvent.MOUSE_PRESSED, 300, 300, InputEvent.BUTTON1_DOWN_MASK, MouseEvent.BUTTON1));
+        assertThat(canvas.isAnimatingSelection()).isTrue();
+        canvas.tool().keyPressed(canvas, KeyEvent.VK_ESCAPE, false); // the band ends without going through the canvas
+        assertThat(canvas.isAnimatingSelection()).as("still running until the next tick").isTrue();
+        canvas.animationTick();
+        assertThat(canvas.isAnimatingSelection()).isFalse();
+    }
+
+    @Test
+    void aTickAdvancesThePhaseWhileSomethingIsSelected() {
+        Component gate = place(openDocument, StandardComponentTypes.NOT, 0, 0, Map.of());
+        canvas.selection().select(gate.id());
+        canvas.animationTick();
+        assertThat(canvas.selectionDashPhase()).isEqualTo(1.0);
+    }
+
+    @Test
+    void aDisposedCanvasNeverRestartsTheClock() {
+        Component gate = place(openDocument, StandardComponentTypes.NOT, 0, 0, Map.of());
+        canvas.selection().select(gate.id());
+        canvas.dispose();
+        assertThat(canvas.isAnimatingSelection()).isFalse();
+        canvas.selection().clear();
+        canvas.selection().select(gate.id());
+        assertThat(canvas.isAnimatingSelection()).isFalse();
+    }
+
+    @Test
+    void removingTheCanvasFromItsWindowStopsTheClock() {
+        Component gate = place(openDocument, StandardComponentTypes.NOT, 0, 0, Map.of());
+        canvas.selection().select(gate.id());
+        canvas.removeNotify();
+        assertThat(canvas.isAnimatingSelection()).isFalse();
+    }
 }

@@ -67,6 +67,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     private final DocumentListener documentListener;
     private Tool tool = defaultTool;
     private SimulationSnapshot displayedSnapshot = SimulationSnapshot.EMPTY;
+    private boolean animationSuspended;
     private boolean spaceDown;
     private Point panAnchor;
     private GridPoint mousePoint;
@@ -119,10 +120,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
             }
         });
         frameTimer = new Timer(FRAME_MILLISECONDS, event -> refreshSnapshot());
-        antsTimer = new Timer(ANTS_MILLISECONDS, event -> {
-            marchingAnts.advance();
-            repaint();
-        });
+        antsTimer = new Timer(ANTS_MILLISECONDS, event -> animationTick());
     }
 
     /** Places the palette entry encoded in {@code transferText} at {@code screenPoint}; false when it is not one. */
@@ -142,18 +140,21 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     public void addNotify() {
         super.addNotify();
         frameTimer.start();
+        animationSuspended = false;
         updateAnimation();
     }
 
     @Override
     public void removeNotify() {
         frameTimer.stop();
+        animationSuspended = true;
         antsTimer.stop();
         super.removeNotify();
     }
 
     public void dispose() {
         frameTimer.stop();
+        animationSuspended = true;
         antsTimer.stop();
         openDocument.document().removeListener(documentListener);
     }
@@ -231,8 +232,17 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         return antsTimer.isRunning();
     }
 
+    /** One clock tick: re-checks that the animation is still needed, so it stops by itself when nothing is left. */
+    void animationTick() {
+        updateAnimation();
+        if (antsTimer.isRunning()) {
+            marchingAnts.advance();
+            repaint();
+        }
+    }
+
     private void updateAnimation() {
-        boolean needed = !selection.isEmpty() || tool.animatesOutline();
+        boolean needed = !animationSuspended && (!selection.isEmpty() || tool.animatesOutline());
         if (needed && !antsTimer.isRunning()) {
             antsTimer.start();
         } else if (!needed && antsTimer.isRunning()) {
