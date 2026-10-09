@@ -30,16 +30,18 @@ public final class FlatLafInstaller implements LookAndFeelInstaller {
     }
 
     @Override
-    public void install(boolean dark) {
+    public boolean install(boolean dark) {
         // A failing theme switch must never break the other preference listeners (it runs inside one).
         try {
             if (!FlatLaf.setup(lookAndFeel(osName, dark))) {
                 LOGGER.warn("Could not install the {} look and feel", dark ? "dark" : "light");
-                return;
+                return false;
             }
             FlatLaf.updateUI();
+            return true;
         } catch (RuntimeException exception) {
             LOGGER.warn("Could not switch to the {} look and feel", dark ? "dark" : "light", exception);
+            return false;
         }
     }
 }

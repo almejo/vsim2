@@ -84,9 +84,10 @@ public final class ThemeManager {
             case SYSTEM -> systemDark;
         };
         if (!installed || dark != installedDark) {
-            installer.install(dark);
-            installed = true;
-            installedDark = dark;
+            if (installer.install(dark)) {
+                installed = true;
+                installedDark = dark;
+            }
         }
         appearance.setScheme(schemeFor(preferences.colorScheme(), dark));
     }

@@ -4,5 +4,6 @@ package cl.almejo.vsim.ui.theme;
 @FunctionalInterface
 public interface LookAndFeelInstaller {
 
-    void install(boolean dark);
+    /** Installs the light or dark look and feel; true on success, false when it could not be installed. */
+    boolean install(boolean dark);
 }

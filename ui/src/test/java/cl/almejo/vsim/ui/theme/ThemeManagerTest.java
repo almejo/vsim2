@@ -119,4 +119,26 @@ class ThemeManagerTest {
         assertThat(installs).containsExactly(false);
         assertThat(appearance.scheme()).isSameAs(ColorSchemes.LIGHT);
     }
+
+    @Test
+    void aFailedInstallIsRetriedOnTheNextChange() {
+        AtomicBoolean installSucceeds = new AtomicBoolean(false);
+        List<Boolean> attempts = new ArrayList<>();
+        ThemeManager failing = new ThemeManager(preferences, appearance, probe, dark -> {
+            attempts.add(dark);
+            return installSucceeds.get();
+        });
+        failing.start();
+        assertThat(attempts).containsExactly(false);
+        assertThat(failing.dark()).isFalse();
+
+        installSucceeds.set(true);
+        preferences.setColorScheme(Optional.of("classic"));
+        assertThat(attempts).containsExactly(false, false);
+
+        preferences.setTheme(AppPreferences.Theme.DARK);
+        assertThat(attempts).containsExactly(false, false, true);
+        assertThat(failing.dark()).isTrue();
+        failing.dispose();
+    }
 }

@@ -44,6 +44,7 @@ public final class Application {
         // M4 tracks add one line each here, in the order A, B, C, D (overview R9).
         this.services = new EditorServices(PainterRegistry.standard(), appearance, preferences, library,
                 editorExtensions);
+        // Lives as long as the application: it follows the preferences and is never disposed.
         this.themeManager = ThemeManager.forCurrentPlatform(preferences, appearance);
     }
 
