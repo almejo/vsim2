@@ -9,7 +9,8 @@ import java.util.Optional;
 
 /**
  * Adds items to the canvas context menu. Contributors run in registration order after the basic entries; each
- * non-empty group is separated from what precedes it. {@code target} is the element under the mouse, if any.
+ * non-empty group is separated from what precedes it. Do not add leading or trailing separators: the factory
+ * separates the groups. {@code target} is the element under the mouse, if any.
  */
 @FunctionalInterface
 public interface ContextMenuContributor {

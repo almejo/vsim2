@@ -45,7 +45,11 @@ public final class PasteCommand implements Command {
         }
     }
 
-    /** Ids of the pasted elements present in the document after the last {@link #apply}. */
+    /**
+     * Ids of the pasted elements present in the document after the last {@link #apply}. A pasted wire that was absorbed
+     * by another pasted wire (collinear wires are merged) is no longer in the document, so the absorbing wire
+     * represents it.
+     */
     public List<ElementId> pastedIds() {
         return pastedIds;
     }

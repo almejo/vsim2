@@ -65,6 +65,8 @@ public final class FragmentFormat {
         if (!kind.isTextual() || !KIND_FRAGMENT.equals(kind.textValue())) {
             throw new CircuitFormatException(CircuitFormatException.Reason.INVALID_ELEMENT, "kind " + kind);
         }
+        // Reuse CircuitFormat.read for validation and element parsing: it only accepts a circuit file, so the fragment
+        // is presented as one (kind rewritten to "circuit", and the circuit-only "name" dropped).
         ObjectNode asCircuit = object.deepCopy();
         asCircuit.put("kind", CircuitFormat.KIND_CIRCUIT);
         asCircuit.remove("name");
