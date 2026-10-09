@@ -18,7 +18,7 @@ import java.util.Map;
 import static cl.almejo.vsim.ui.paint.PainterSupport.UNIT;
 
 /**
- * A small scope screen that draws its own traces: one per input, its name at the left, the newest sample at the right
+ * A small scope screen that draws its own traces: one per input, its name overlaid at the left, the newest sample at the right
  * edge, one sample per pixel and a faint grid line every {@link #GRID_EVERY} samples. Z is a dashed middle line and a
  * conflict a red band. Sampling is periodic ({@code sample-interval}), so pulses shorter than the interval never show.
  */
@@ -26,6 +26,8 @@ public final class TimeDiagramPainter implements ComponentPainter {
 
     static final double SCREEN_LEFT = 4;
     static final double SCREEN_OVERHANG = 5;
+    static final double PLOT_INSET = 1;
+    /** Width of the name overlay at the left of the plot; the traces run underneath it. */
     static final double NAME_COLUMN = 9;
     static final double RIGHT_PADDING = 2;
     static final double PITCH = 1;
@@ -33,7 +35,7 @@ public final class TimeDiagramPainter implements ComponentPainter {
     static final int GRID_EVERY = 10;
     private static final double GRID_INSET = 2;
     private static final float NAME_SIZE = 4f;
-    private static final int NAME_ALPHA = 190;
+    private static final int NAME_ALPHA = 140;
     private static final int DEFAULT_SAMPLE_INTERVAL = 150;
     private static final BasicStroke TRACE = new BasicStroke(1f, BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER);
     private static final BasicStroke HIGH_IMPEDANCE = new BasicStroke(1f, BasicStroke.CAP_BUTT,
@@ -59,21 +61,23 @@ public final class TimeDiagramPainter implements ComponentPainter {
         paintGrid(graphics, type, visible, sampleInterval(type, parameters), scheme);
         for (int channel = 0; channel < type.pinCount(); channel++) {
             paintChannel(graphics, type, channel, visible, scheme);
-            PainterSupport.centeredText(graphics, type.pin(channel).name(), SCREEN_LEFT + NAME_COLUMN / 2,
+        }
+        for (int channel = 0; channel < type.pinCount(); channel++) {
+            PainterSupport.centeredText(graphics, type.pin(channel).name(), plotLeft() + NAME_COLUMN / 2,
                     channelCenter(type, channel), NAME_SIZE, PainterSupport.withAlpha(scheme.diagramTrace(), NAME_ALPHA));
         }
         PainterSupport.pinDots(graphics, type, scheme);
     }
 
     static double plotLeft() {
-        return SCREEN_LEFT + NAME_COLUMN;
+        return SCREEN_LEFT + PLOT_INSET;
     }
 
     static double plotRight(ComponentType type) {
         return type.size().width() * UNIT - RIGHT_PADDING;
     }
 
-    /** How many samples fit between the names and the right edge. */
+    /** How many samples fit between the left inset and the right edge. */
     static int capacity(ComponentType type) {
         return (int) Math.floor((plotRight(type) - plotLeft()) / PITCH);
     }

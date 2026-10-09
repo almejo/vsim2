@@ -127,7 +127,7 @@ class TimeDiagramPainterTest {
         BufferedImage image = draw(VisibleState.NONE);
         for (int channel = 0; channel < type.pinCount(); channel++) {
             int written = 0;
-            for (double x = TimeDiagramPainter.SCREEN_LEFT + 1; x < TimeDiagramPainter.plotLeft(); x += 0.25) {
+            for (double x = TimeDiagramPainter.plotLeft(); x < TimeDiagramPainter.plotLeft() + TimeDiagramPainter.NAME_COLUMN; x += 0.25) {
                 for (double y = center(channel) - 2; y < center(channel) + 2; y += 0.25) {
                     if (!colorAt(image, x, y).equals(SCREEN)) {
                         written++;
@@ -141,9 +141,10 @@ class TimeDiagramPainterTest {
     @Test
     void aLongHistoryShowsOnlyTheNewestSamplesThatFit() {
         BufferedImage image = draw(samples(10_000, Value.ONE, Value.ZERO, Value.ZERO, Value.ZERO));
-        double high = center(0) - TimeDiagramPainter.SWING;
-        assertThat(colorAt(image, TimeDiagramPainter.plotLeft() + 0.5, high)).isEqualTo(TRACE);
-        assertThat(colorAt(image, TimeDiagramPainter.plotLeft() - 1, high)).isEqualTo(SCREEN);
+        double low = center(1) + TimeDiagramPainter.SWING;
+        assertThat(colorAt(image, TimeDiagramPainter.plotLeft() + 0.5, low)).isEqualTo(TRACE);
+        assertThat(colorAt(image, TimeDiagramPainter.plotLeft() - 1, low)).isEqualTo(SCREEN);
+        assertThat(TimeDiagramPainter.capacity(type)).isGreaterThanOrEqualTo(24);
         assertThat(TimeDiagramPainter.visibleSamples(type, samples(10_000, Value.ONE)))
                 .hasSize(TimeDiagramPainter.capacity(type));
     }
