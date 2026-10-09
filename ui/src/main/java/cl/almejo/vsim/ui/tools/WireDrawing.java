@@ -10,19 +10,25 @@ import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.ui.tools.WireRouting.Segment;
 
 import java.awt.Graphics2D;
+import java.awt.geom.Point2D;
 import java.util.List;
 
-/** One wire being drawn with the mouse: an "L" from {@link #start()} to the mouse. */
+/**
+ * One wire being drawn with the mouse: an "L" from {@link #start()} to the mouse. Movement is measured from where
+ * the mouse went down, which may be up to a pin radius away from where the mouse went down.
+ */
 public final class WireDrawing {
 
     private static final double MOVEMENT_THRESHOLD = 0.5;
 
     private final GridPoint start;
+    private final Point2D pressPosition;
     private GridPoint current;
     private Boolean horizontalFirst;
 
-    public WireDrawing(GridPoint start) {
+    public WireDrawing(GridPoint start, Point2D pressPosition) {
         this.start = start;
+        this.pressPosition = pressPosition;
         this.current = start;
     }
 
@@ -32,8 +38,8 @@ public final class WireDrawing {
 
     public void dragTo(CanvasMouseEvent event) {
         if (horizontalFirst == null) {
-            double movedX = Math.abs(event.gridPosition().getX() - start.x());
-            double movedY = Math.abs(event.gridPosition().getY() - start.y());
+            double movedX = Math.abs(event.gridPosition().getX() - pressPosition.getX());
+            double movedY = Math.abs(event.gridPosition().getY() - pressPosition.getY());
             if (Math.max(movedX, movedY) >= MOVEMENT_THRESHOLD) {
                 horizontalFirst = movedX >= movedY;
             }

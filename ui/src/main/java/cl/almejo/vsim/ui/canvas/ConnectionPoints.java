@@ -21,9 +21,13 @@ public final class ConnectionPoints {
         this.registry = registry;
     }
 
-    /** The closest pin location within {@link #PIN_RADIUS} grid units of {@code gridPoint}. */
-    public Optional<GridPoint> pinNear(CircuitDocument document, Point2D gridPoint) {
-        GridPoint closest = null;
+    /** A pin location together with the component that owns it. */
+    public record PinHit(GridPoint point, Component component) {
+    }
+
+    /** The closest pin within {@link #PIN_RADIUS} grid units of {@code gridPoint}, with its owner. */
+    public Optional<PinHit> pinNear(CircuitDocument document, Point2D gridPoint) {
+        PinHit closest = null;
         double closestDistance = PIN_RADIUS;
         for (Component component : document.components()) {
             ComponentType type = registry.require(component.typeId());
@@ -31,7 +35,7 @@ public final class ConnectionPoints {
                 GridPoint pin = type.pinLocation(component, pinIndex);
                 double distance = gridPoint.distance(pin.x(), pin.y());
                 if (distance <= closestDistance) {
-                    closest = pin;
+                    closest = new PinHit(pin, component);
                     closestDistance = distance;
                 }
             }

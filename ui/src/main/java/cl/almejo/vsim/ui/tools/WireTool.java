@@ -16,7 +16,7 @@ public final class WireTool implements Tool {
             return;
         }
         if (event.button() == CanvasMouseEvent.PRIMARY) {
-            drawing = new WireDrawing(event.snapped());
+            drawing = new WireDrawing(event.snapped(), event.gridPosition());
         }
     }
 

@@ -28,8 +28,8 @@ class ConnectionPointsTest {
     @Test
     void findsAPinWithinTheRadius() {
         place(StandardComponentTypes.NOT, 0, 0);
-        assertThat(points.pinNear(document, new Point2D.Double(4.3, 2.2))).contains(new GridPoint(4, 2));
-        assertThat(points.pinNear(document, new Point2D.Double(0.4, 2.4))).contains(new GridPoint(0, 2));
+        assertThat(points.pinNear(document, new Point2D.Double(4.3, 2.2))).map(ConnectionPoints.PinHit::point).contains(new GridPoint(4, 2));
+        assertThat(points.pinNear(document, new Point2D.Double(0.4, 2.4))).map(ConnectionPoints.PinHit::point).contains(new GridPoint(0, 2));
         assertThat(points.pinNear(document, new Point2D.Double(2, 2))).isEmpty();
     }
 
@@ -37,9 +37,9 @@ class ConnectionPointsTest {
     void pinNearChoosesTheClosestPin() {
         place(StandardComponentTypes.NOT, 0, 0);
         place(StandardComponentTypes.NOT, 4, 0);
-        assertThat(points.pinNear(document, new Point2D.Double(4.1, 2))).contains(new GridPoint(4, 2));
+        assertThat(points.pinNear(document, new Point2D.Double(4.1, 2))).map(ConnectionPoints.PinHit::point).contains(new GridPoint(4, 2));
         place(StandardComponentTypes.NOT, 0, 1);
-        assertThat(points.pinNear(document, new Point2D.Double(0.1, 2.6))).contains(new GridPoint(0, 3));
+        assertThat(points.pinNear(document, new Point2D.Double(0.1, 2.6))).map(ConnectionPoints.PinHit::point).contains(new GridPoint(0, 3));
     }
 
     @Test

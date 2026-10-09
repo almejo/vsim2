@@ -24,6 +24,9 @@ public interface Tool {
     default void mouseMoved(ToolContext context, CanvasMouseEvent event) {
     }
 
+    default void mouseExited(ToolContext context) {
+    }
+
     /** @return true when the tool consumed the key, so canvas key bindings must not run */
     default boolean keyPressed(ToolContext context, int keyCode, boolean shiftDown) {
         return false;

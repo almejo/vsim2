@@ -339,6 +339,11 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         }
 
         @Override
+        public void mouseExited(MouseEvent event) {
+            tool.mouseExited(CircuitCanvas.this);
+        }
+
+        @Override
         public void mouseWheelMoved(MouseWheelEvent event) {
             double rotation = event.getPreciseWheelRotation();
             if (event.isControlDown()) {

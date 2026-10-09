@@ -1,7 +1,6 @@
 package cl.almejo.vsim.ui.tools;
 
 import cl.almejo.vsim.core.command.MoveElementsCommand;
-import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.ElementId;
@@ -21,6 +20,9 @@ import java.util.Optional;
 /**
  * Everyday tool: select, move by dragging a body, draw wires by dragging from a pin or an unselected wire,
  * toggle switches, context menu, double click to configure.
+ *
+ * <p>What a primary press grabs, in priority order: a pin (within the pin radius), then an unselected wire, then
+ * the body of an element or an already selected element.
  */
 public final class SelectTool implements Tool {
 
@@ -33,8 +35,21 @@ public final class SelectTool implements Tool {
     private GridPoint pressPoint;
     private WireDrawing wire;
     private GridPoint hoverPin;
+    private boolean ownPressSeen;
     private int deltaX;
     private int deltaY;
+
+    @Override
+    public void activated(ToolContext context) {
+        ownPressSeen = false;
+    }
+
+    @Override
+    public void deactivated(ToolContext context) {
+        hoverPin = null;
+        reset();
+        context.repaint();
+    }
 
     @Override
     public void mousePressed(ToolContext context, CanvasMouseEvent event) {
@@ -53,23 +68,25 @@ public final class SelectTool implements Tool {
             return;
         }
         reset();
-        if (event.clickCount() >= 2 && hit.isPresent() && hit.get() instanceof Component component) {
+        boolean continuesOwnClick = ownPressSeen;
+        ownPressSeen = true;
+        if (event.clickCount() >= 2 && continuesOwnClick && hit.isPresent() && hit.get() instanceof Component component) {
             context.selection().select(component.id());
             context.configure(component);
             return;
         }
-        Optional<GridPoint> wireStart = connectionPoints(context)
+        Optional<ConnectionPoints.PinHit> pin = connectionPoints(context)
                 .pinNear(context.openDocument().document(), event.gridPosition());
-        if (wireStart.isEmpty() && hit.isPresent() && hit.get() instanceof Wire pressedWire
-                && !context.selection().contains(pressedWire.id())) {
-            wireStart = Optional.of(ConnectionPoints.pointOnWire(pressedWire, event.gridPosition()));
+        if (pin.isPresent()) {
+            pressedElement = pin.get().component();
+            wire = new WireDrawing(pin.get().point(), event.gridPosition());
+            return;
         }
         pressedElement = hit.orElse(null);
-        if (wireStart.isPresent()) {
-            if (pressedElement == null) {
-                pressedElement = componentWithPinAt(context, wireStart.get()).orElse(null);
-            }
-            wire = new WireDrawing(wireStart.get());
+        if (hit.isPresent() && hit.get() instanceof Wire pressedWire
+                && !context.selection().contains(pressedWire.id())) {
+            wire = new WireDrawing(ConnectionPoints.pointOnWire(pressedWire, event.gridPosition()),
+                    event.gridPosition());
             return;
         }
         if (hit.isEmpty()) {
@@ -115,13 +132,27 @@ public final class SelectTool implements Tool {
             }
         }
         reset();
+        updateHover(context, event);
         context.repaint();
     }
 
     @Override
     public void mouseMoved(ToolContext context, CanvasMouseEvent event) {
+        updateHover(context, event);
+    }
+
+    @Override
+    public void mouseExited(ToolContext context) {
+        if (hoverPin != null) {
+            hoverPin = null;
+            context.repaint();
+        }
+    }
+
+    private void updateHover(ToolContext context, CanvasMouseEvent event) {
         GridPoint nearest = connectionPoints(context)
-                .pinNear(context.openDocument().document(), event.gridPosition()).orElse(null);
+                .pinNear(context.openDocument().document(), event.gridPosition())
+                .map(ConnectionPoints.PinHit::point).orElse(null);
         if (!Objects.equals(nearest, hoverPin)) {
             hoverPin = nearest;
             context.repaint();
@@ -183,20 +214,6 @@ public final class SelectTool implements Tool {
             context.openDocument().interact(component.id());
         }
     }
-
-    /** A pin sits on the edge of its component, so a press near it can miss the body: find the owner. */
-    private Optional<Component> componentWithPinAt(ToolContext context, GridPoint pin) {
-        for (Component component : context.openDocument().document().components()) {
-            ComponentType type = context.openDocument().registry().require(component.typeId());
-            for (int pinIndex = 0; pinIndex < type.pinCount(); pinIndex++) {
-                if (type.pinLocation(component, pinIndex).equals(pin)) {
-                    return Optional.of(component);
-                }
-            }
-        }
-        return Optional.empty();
-    }
-
     private ConnectionPoints connectionPoints(ToolContext context) {
         if (connectionPoints == null) {
             connectionPoints = new ConnectionPoints(context.openDocument().registry());

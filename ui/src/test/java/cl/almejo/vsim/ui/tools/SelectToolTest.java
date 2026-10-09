@@ -247,4 +247,88 @@ class SelectToolTest {
         tool.paintOverlay(TestToolContext.scratchGraphics(), context);
         assertThat(context.ghosts).hasSize(2).allMatch(Wire.class::isInstance);
     }
+
+    @Test
+    void pinJitterBetweenPressAndReleaseDrawsNoWire() {
+        Component gate = not(4, 0);
+        tool.mousePressed(context, TestToolContext.at(4.45, 2));
+        tool.mouseDragged(context, TestToolContext.at(4.55, 2));
+        tool.mouseReleased(context, TestToolContext.at(4.55, 2));
+        assertThat(context.openDocument().document().wires()).isEmpty();
+        assertThat(context.openDocument().history().undoDescription()).contains("command.add");
+        assertThat(context.selection.ids()).containsExactly(gate.id());
+    }
+
+    @Test
+    void clickingAWiredPinSelectsTheComponentNotTheWire() {
+        Component gate = not(0, 0);
+        context.openDocument().execute(new AddWireCommand(new Wire(context.openDocument().document().newWireId(),
+                new GridPoint(4, 2), new GridPoint(9, 2))));
+        context.click(tool, 4.3, 2);
+        assertThat(context.selection.ids()).containsExactly(gate.id());
+    }
+
+    @Test
+    void clickingAWiredSwitchNextToItsOutputPinTogglesIt() {
+        Component lever = place(context.openDocument(), StandardComponentTypes.SWITCH, 0, 0, Map.of("value", "1"));
+        GridPoint output = context.openDocument().registry().require(lever.typeId()).pinLocation(lever, 0);
+        context.openDocument().execute(new AddWireCommand(new Wire(context.openDocument().document().newWireId(),
+                output, new GridPoint(output.x() + 5, output.y()))));
+        waitUntil(() -> context.openDocument().latestSnapshot().componentState(lever.id().value())
+                .equals(new VisibleState.SwitchState(Value.ONE)));
+        context.click(tool, output.x() + 0.2, output.y());
+        waitUntil(() -> context.openDocument().latestSnapshot().componentState(lever.id().value())
+                .equals(new VisibleState.SwitchState(Value.ZERO)));
+        assertThat(context.selection.ids()).containsExactly(lever.id());
+    }
+
+    @Test
+    void deactivatingClearsTheHoverRingAndAnyPressInProgress() {
+        not(0, 0);
+        tool.mouseMoved(context, TestToolContext.at(3.8, 2.3));
+        tool.mousePressed(context, TestToolContext.at(4, 2));
+        tool.mouseDragged(context, TestToolContext.at(9, 2));
+        tool.deactivated(context);
+        assertThat(tool.hoverPin()).isNull();
+        tool.mouseReleased(context, TestToolContext.at(9, 2));
+        assertThat(context.openDocument().document().wires()).isEmpty();
+    }
+
+    @Test
+    void releaseRecomputesTheHoverRing() {
+        not(0, 0);
+        tool.mouseMoved(context, TestToolContext.at(3.8, 2.3));
+        tool.mousePressed(context, TestToolContext.at(2, 2));
+        tool.mouseDragged(context, TestToolContext.at(2.2, 2));
+        tool.mouseReleased(context, TestToolContext.at(2.2, 2));
+        assertThat(tool.hoverPin()).isNull();
+    }
+
+    @Test
+    void releaseNextToAPinShowsTheRing() {
+        not(0, 0);
+        tool.mousePressed(context, TestToolContext.at(2, 2));
+        tool.mouseDragged(context, TestToolContext.at(2.2, 2));
+        tool.mouseReleased(context, TestToolContext.at(4.2, 2));
+        assertThat(tool.hoverPin()).isEqualTo(new GridPoint(4, 2));
+    }
+
+    @Test
+    void leavingTheCanvasClearsTheHoverRing() {
+        not(0, 0);
+        tool.mouseMoved(context, TestToolContext.at(3.8, 2.3));
+        assertThat(tool.hoverPin()).isNotNull();
+        tool.mouseExited(context);
+        assertThat(tool.hoverPin()).isNull();
+    }
+
+    @Test
+    void aFirstPressWithClickCountTwoAfterActivationDoesNotConfigure() {
+        Component gate = not(0, 0);
+        tool.activated(context);
+        tool.mousePressed(context, TestToolContext.event(2, 2, CanvasMouseEvent.PRIMARY, 2, false));
+        tool.mouseReleased(context, TestToolContext.event(2, 2, CanvasMouseEvent.PRIMARY, 2, false));
+        assertThat(context.configured).isNull();
+        assertThat(context.selection.ids()).containsExactly(gate.id());
+    }
 }
