@@ -51,6 +51,10 @@ import java.util.Map;
 import java.util.Optional;
 
 import static cl.almejo.vsim.ui.UiTestSupport.place;
+import static cl.almejo.vsim.ui.canvas.CanvasDragSupport.differingPixels;
+import static cl.almejo.vsim.ui.canvas.CanvasDragSupport.dragOut;
+import static cl.almejo.vsim.ui.canvas.CanvasDragSupport.handlerOf;
+import static cl.almejo.vsim.ui.canvas.CanvasDragSupport.paint;
 import static cl.almejo.vsim.ui.UiTestSupport.waitUntil;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
@@ -680,5 +684,61 @@ class CircuitCanvasTest {
                 new FragmentTransferable(overflowing)))).isFalse();
         assertThat(canvas.tool()).isInstanceOf(SelectTool.class);
         assertThat(openDocument.document().isEmpty()).isTrue();
+    }
+
+    @Test
+    void theDragOutCarriesItsOrigin() throws Exception {
+        canvas.setSize(400, 300);
+        Component gate = place(openDocument, StandardComponentTypes.NOT, 5, 5, Map.of());
+        Transferable transferable = dragOut(canvas, 56, 56);
+
+        assertThat(transferable.isDataFlavorSupported(CanvasDragTransferable.ORIGIN_FLAVOR)).isTrue();
+        DragOrigin origin = CanvasDragTransferable.originOf(transferable).orElseThrow();
+        assertThat(origin.canvas()).isSameAs(canvas);
+        assertThat(origin.ids()).containsExactly(gate.id());
+        assertThat(origin.pressPoint()).isEqualTo(new GridPoint(7, 7));
+        assertThat(origin.grabOffset()).isEqualTo(new GridPoint(2, 2));
+        assertThat(transferable.getTransferData(FragmentTransferable.FRAGMENT_FLAVOR)).isInstanceOf(String.class);
+        assertThat(CanvasDragTransferable.originOf(new StringSelection("hello"))).isEmpty();
+    }
+
+    @Test
+    void aDropBackOnItsOwnCanvasMovesEvenAfterTheToolkitEndedTheDrag() {
+        canvas.setSize(400, 300);
+        Component gate = place(openDocument, StandardComponentTypes.NOT, 5, 5, Map.of());
+        Transferable transferable = dragOut(canvas, 56, 56);
+        canvas.endDragOut(); // exportDone arrived before the drop was handled
+
+        assertThat(handlerOf(canvas).importFragment(transferable, new Point(80, 72))).isTrue();
+
+        assertThat(openDocument.document().components()).singleElement()
+                .satisfies(moved -> assertThat(moved.position()).isEqualTo(new GridPoint(8, 7)));
+        assertThat(openDocument.history().undoDescription()).contains("command.move");
+        assertThat(canvas.selection().ids()).containsExactly(gate.id());
+    }
+
+    @Test
+    void aDragOutBackOverItsCanvasPreviewsTheMove() {
+        canvas.setSize(400, 300);
+        place(openDocument, StandardComponentTypes.NOT, 5, 5, Map.of());
+        dragOut(canvas, 56, 56);
+        BufferedImage before = paint(canvas);
+
+        canvas.dragOutOver(new Point(200, 160));
+
+        assertThat(canvas.dragOutPreview()).contains(new GridPoint(18, 13));
+        assertThat(differingPixels(before, paint(canvas), 184, 144, 216, 176)).isGreaterThan(20);
+        canvas.dragOutLeft();
+        assertThat(canvas.dragOutPreview()).isEmpty();
+        canvas.dragOutOver(new Point(200, 160));
+        canvas.endDragOut();
+        assertThat(canvas.dragOutPreview()).isEmpty();
+    }
+
+    @Test
+    void thereIsNoPreviewWithoutADragOut() {
+        canvas.setSize(400, 300);
+        canvas.dragOutOver(new Point(200, 160));
+        assertThat(canvas.dragOutPreview()).isEmpty();
     }
 }

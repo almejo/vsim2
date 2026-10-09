@@ -10,6 +10,7 @@ import java.awt.datatransfer.DataFlavor;
 import java.awt.datatransfer.Transferable;
 import java.awt.datatransfer.UnsupportedFlavorException;
 import java.io.IOException;
+import java.util.Optional;
 
 /** Drag and drop for one canvas: circuit fragments, circuit files and palette entries come in. */
 final class CanvasTransferHandler extends TransferHandler {
@@ -25,7 +26,14 @@ final class CanvasTransferHandler extends TransferHandler {
         boolean known = support.isDataFlavorSupported(FragmentTransferable.FRAGMENT_FLAVOR)
                 || support.isDataFlavorSupported(DataFlavor.javaFileListFlavor)
                 || support.isDataFlavorSupported(DataFlavor.stringFlavor);
-        return known && CircuitFileDrop.acceptAsCopy(support);
+        if (!known || !CircuitFileDrop.acceptAsCopy(support)) {
+            return false;
+        }
+        if (support.isDrop() && canvas.isDraggingOut()
+                && support.isDataFlavorSupported(FragmentTransferable.FRAGMENT_FLAVOR)) {
+            canvas.dragOutOver(support.getDropLocation().getDropPoint()); // our own drag is back over us
+        }
+        return true;
     }
 
     @Override
@@ -38,8 +46,7 @@ final class CanvasTransferHandler extends TransferHandler {
         Transferable transferable = support.getTransferable();
         try {
             if (support.isDataFlavorSupported(FragmentTransferable.FRAGMENT_FLAVOR)) {
-                return canvas.dropFragment(
-                        (String) transferable.getTransferData(FragmentTransferable.FRAGMENT_FLAVOR), point);
+                return importFragment(transferable, point);
             }
             if (support.isDataFlavorSupported(DataFlavor.javaFileListFlavor)) {
                 return CircuitFileDrop.importData(support, canvas.fileDropHandler());
@@ -56,10 +63,26 @@ final class CanvasTransferHandler extends TransferHandler {
         return COPY;
     }
 
-    /** The selection as a fragment; null (no drag) when nothing is selected. */
+    /** Drops the fragment {@code transferable} carries at {@code point} (canvas pixels), with its drag origin if any. */
+    boolean importFragment(Transferable transferable, Point point) {
+        try {
+            String fragmentJson = (String) transferable.getTransferData(FragmentTransferable.FRAGMENT_FLAVOR);
+            return canvas.dropFragment(fragmentJson, CanvasDragTransferable.originOf(transferable), point);
+        } catch (UnsupportedFlavorException | IOException exception) {
+            return false;
+        }
+    }
+
+    /** The selection as a fragment, with its origin while a drag out is in progress; null (no drag) when empty. */
     @Override
     public Transferable createTransferable(JComponent source) {
-        return canvas.transferFragmentJson().map(FragmentTransferable::new).orElse(null);
+        Optional<String> fragmentJson = canvas.transferFragmentJson();
+        if (fragmentJson.isEmpty()) {
+            return null;
+        }
+        return canvas.dragOrigin()
+                .<Transferable>map(origin -> new CanvasDragTransferable(fragmentJson.get(), origin))
+                .orElseGet(() -> new FragmentTransferable(fragmentJson.get()));
     }
 
     @Override

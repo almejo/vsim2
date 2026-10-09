@@ -39,6 +39,10 @@ import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Point;
 import java.awt.Window;
+import java.awt.dnd.DropTarget;
+import java.awt.dnd.DropTargetAdapter;
+import java.awt.dnd.DropTargetDropEvent;
+import java.awt.dnd.DropTargetEvent;
 import java.awt.event.FocusAdapter;
 import java.awt.event.FocusEvent;
 import java.awt.event.HierarchyEvent;
@@ -54,7 +58,7 @@ import java.awt.geom.Point2D;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
+import java.util.TooManyListenersException;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
@@ -87,9 +91,9 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     private final DocumentListener documentListener;
     private Consumer<List<Path>> fileDropHandler = files -> {
     };
-    private GridPoint dragOutOrigin;
-    private Set<ElementId> dragOutIds = Set.of();
+    private DragOrigin dragOut;
     private String dragOutJson;
+    private GridPoint dragOutPreview;
     private Function<Point2D, Optional<String>> toolTipProvider = gridPoint -> Optional.empty();
     private Tool tool = defaultTool;
     private SimulationSnapshot displayedSnapshot = SimulationSnapshot.EMPTY;
@@ -138,6 +142,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
             }
         });
         setTransferHandler(new CanvasTransferHandler(this));
+        listenForDragExit();
         addHierarchyListener(event -> {
             if ((event.getChangeFlags() & HierarchyEvent.SHOWING_CHANGED) != 0) {
                 updateAnimation();
@@ -167,23 +172,37 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
      * on this canvas and comes back here moves the dragged elements instead.
      */
     public boolean dropFragment(String fragmentJson, Point screenPoint) {
-        if (dragOutOrigin != null) {
-            finishDragOutHere(viewport.snap(screenPoint.x, screenPoint.y));
+        return dropFragment(fragmentJson, Optional.empty(), screenPoint);
+    }
+
+    /**
+     * Like {@link #dropFragment(String, Point)}, with the {@code origin} the drag carried. A drag out of this canvas
+     * ({@code origin}, or the drag out still in progress) is a move by the distance from its press to the drop.
+     */
+    boolean dropFragment(String fragmentJson, Optional<DragOrigin> origin, Point screenPoint) {
+        GridPoint at = viewport.snap(screenPoint.x, screenPoint.y);
+        Optional<DragOrigin> source = origin.or(() -> Optional.ofNullable(dragOut));
+        if (source.isPresent() && source.get().canvas() == this) {
+            moveHere(source.get(), at);
             return true;
         }
-        CircuitFragment fragment;
-        try {
-            fragment = new FragmentFormat(openDocument.registry()).read(fragmentJson);
-        } catch (CircuitFormatException | RuntimeException exception) {
-            // Dropped text comes from anywhere: a fragment the reader cannot handle is just not accepted.
-            return false;
-        }
+        Optional<CircuitFragment> fragment = readFragment(fragmentJson);
         if (fragment.isEmpty()) {
             return false;
         }
-        setTool(new FloatingSelectionTool(fragment, viewport.snap(screenPoint.x, screenPoint.y)));
+        setTool(new FloatingSelectionTool(fragment.get(), at));
         requestFocusInWindow();
         return true;
+    }
+
+    private Optional<CircuitFragment> readFragment(String fragmentJson) {
+        try {
+            CircuitFragment fragment = new FragmentFormat(openDocument.registry()).read(fragmentJson);
+            return fragment.isEmpty() ? Optional.empty() : Optional.of(fragment);
+        } catch (CircuitFormatException | RuntimeException exception) {
+            // Dropped text comes from anywhere: a fragment the reader cannot handle is just not accepted.
+            return Optional.empty();
+        }
     }
 
     /** Where dropped circuit files go (the window opens them). */
@@ -203,25 +222,31 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         if (!(tool instanceof SelectTool select) || selection.isEmpty()) {
             return false;
         }
-        Optional<GridPoint> origin = select.movingFrom();
-        if (origin.isEmpty()) {
+        Optional<GridPoint> pressed = select.movingFrom();
+        if (pressed.isEmpty()) {
             return false;
         }
         Optional<String> fragmentJson = selectionFragmentJson();
-        if (fragmentJson.isEmpty()) {
+        Optional<GridPoint> topLeft = SelectionBounds.topLeft(openDocument, selection.ids());
+        if (fragmentJson.isEmpty() || topLeft.isEmpty()) {
             return false;
         }
         select.cancelMove(this);
-        dragOutOrigin = origin.get();
-        dragOutIds = selection.ids();
+        GridPoint pressPoint = pressed.get();
+        dragOut = new DragOrigin(this, selection.ids(), pressPoint,
+                new GridPoint(pressPoint.x() - topLeft.get().x(), pressPoint.y() - topLeft.get().y()));
         dragOutJson = fragmentJson.get();
         return true;
     }
 
     void endDragOut() {
-        dragOutOrigin = null;
-        dragOutIds = Set.of();
+        dragOut = null;
         dragOutJson = null;
+        dragOutLeft();
+    }
+
+    Optional<DragOrigin> dragOrigin() {
+        return Optional.ofNullable(dragOut);
     }
 
     /** What a drag out carries: the fragment taken when it began, or the current selection otherwise. */
@@ -230,7 +255,33 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     }
 
     boolean isDraggingOut() {
-        return dragOutOrigin != null;
+        return dragOut != null;
+    }
+
+    /** The drag out is over this canvas again at {@code point} (canvas pixels): preview the move it would make. */
+    void dragOutOver(Point point) {
+        if (dragOut == null) {
+            return;
+        }
+        GridPoint at = viewport.snap(point.x, point.y);
+        GridPoint delta = new GridPoint(at.x() - dragOut.pressPoint().x(), at.y() - dragOut.pressPoint().y());
+        if (!delta.equals(dragOutPreview)) {
+            dragOutPreview = delta;
+            repaint();
+        }
+    }
+
+    /** The drag out left this canvas (or ended): no preview. */
+    void dragOutLeft() {
+        if (dragOutPreview != null) {
+            dragOutPreview = null;
+            repaint();
+        }
+    }
+
+    /** The move being previewed, as a delta in grid units. */
+    Optional<GridPoint> dragOutPreview() {
+        return Optional.ofNullable(dragOutPreview);
     }
 
     /** True while a move or a rubber band is held at the edge and the view scrolls under it. */
@@ -325,18 +376,54 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
                 : Optional.of(new FragmentFormat(openDocument.registry()).write(fragment));
     }
 
-    /** The drag out came back to this canvas: it stays a move, by the distance from the press to the drop. */
-    private void finishDragOutHere(GridPoint at) {
-        int deltaX = at.x() - dragOutOrigin.x();
-        int deltaY = at.y() - dragOutOrigin.y();
-        List<ElementId> existing = dragOutIds.stream()
+    /** A drag out of {@code origin}'s canvas ends here: a move by the distance from its press to {@code at}. */
+    private void moveHere(DragOrigin origin, GridPoint at) {
+        int deltaX = at.x() - origin.pressPoint().x();
+        int deltaY = at.y() - origin.pressPoint().y();
+        List<ElementId> existing = origin.ids().stream()
                 .filter(id -> openDocument.document().element(id).isPresent())
                 .toList();
-        endDragOut();
+        origin.canvas().endDragOut();
         if ((deltaX != 0 || deltaY != 0) && !existing.isEmpty()) {
             openDocument.execute(new MoveElementsCommand(existing, deltaX, deltaY));
         }
+        if (!existing.isEmpty()) {
+            selection.set(existing);
+        }
         requestFocusInWindow();
+    }
+
+    private void paintDragOutPreview(Graphics2D graphics) {
+        if (dragOut == null || dragOutPreview == null || dragOutPreview.equals(GridPoint.ORIGIN)) {
+            return;
+        }
+        for (ElementId id : dragOut.ids()) {
+            openDocument.document().element(id).ifPresent(element ->
+                    renderer.paintGhost(graphics, element.translate(dragOutPreview.x(), dragOutPreview.y())));
+        }
+    }
+
+    /** Hides the preview when the drag leaves the canvas; Swing's drop target takes extra listeners. */
+    private void listenForDragExit() {
+        DropTarget dropTarget = getDropTarget();
+        if (dropTarget == null) {
+            return; // headless: there is no drop target and no drag ever enters
+        }
+        try {
+            dropTarget.addDropTargetListener(new DropTargetAdapter() {
+                @Override
+                public void dragExit(DropTargetEvent event) {
+                    dragOutLeft();
+                }
+
+                @Override
+                public void drop(DropTargetDropEvent event) {
+                    // The transfer handler takes the drop.
+                }
+            });
+        } catch (TooManyListenersException exception) {
+            // A plain DropTarget takes one listener only; the preview then stays until the drag ends.
+        }
     }
 
     @Override
@@ -604,6 +691,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
             for (CanvasOverlay overlay : overlays) {
                 overlay.paint(local, state);
             }
+            paintDragOutPreview(local);
             tool.paintOverlay(local, this);
         } finally {
             local.dispose();
