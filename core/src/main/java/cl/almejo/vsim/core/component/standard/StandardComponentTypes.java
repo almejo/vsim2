@@ -83,7 +83,8 @@ public final class StandardComponentTypes {
                 parameters -> new SwitchBehavior(SwitchBehavior.parse((String) parameters.get("value")))));
         registry.register(new ComponentType(LED, ComponentCategory.INPUT_OUTPUT, new GridSize(2, 3),
                 List.of(PinSpec.input("in", 1, 3)),
-                List.of(ParameterSpec.choice("color", "red", List.of("red", "green", "yellow", "blue"))),
+                List.of(ParameterSpec.choice("color", "red",
+                        List.of("red", "green", "yellow", "blue", "orange", "white", "purple", "cyan"))),
                 parameters -> new LedBehavior()));
         registry.register(sevenSegments(SEVEN_SEGMENTS_DISPLAY, 4));
         registry.register(sevenSegments(SEVEN_SEGMENTS_DISPLAY_DOUBLE, 8));
