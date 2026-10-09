@@ -5,13 +5,17 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * The user's components in memory (spec §5.6 "Mis componentes"), mirrored from the library directory by M4-A.
- * Thread-safe. Listeners run on the thread that made the change, once per call that changed something.
+ * Thread-safe for reads. Mutators ({@link #put}, {@link #remove}, {@link #replaceAll}) must be called on the EDT (the
+ * directory watcher thread hands off to the EDT before mutating), so listeners run on the EDT, once per call that
+ * changed something and outside the lock. A notification only means "something changed, re-read {@link #entries()}",
+ * never a delta. A listener that throws does not stop the others nor reach the caller of the mutator.
  */
 public final class ComponentLibrary {
 
@@ -74,7 +78,7 @@ public final class ComponentLibrary {
     }
 
     public void addListener(Runnable listener) {
-        listeners.add(listener);
+        listeners.add(Objects.requireNonNull(listener));
     }
 
     public void removeListener(Runnable listener) {
@@ -82,6 +86,22 @@ public final class ComponentLibrary {
     }
 
     private void fire() {
-        listeners.forEach(Runnable::run);
+        RuntimeException failure = null;
+        for (Runnable listener : listeners) {
+            try {
+                listener.run();
+            } catch (RuntimeException exception) {
+                if (failure == null) {
+                    failure = exception;
+                } else {
+                    failure.addSuppressed(exception);
+                }
+            }
+        }
+        if (failure != null) {
+            Thread thread = Thread.currentThread();
+            Thread.UncaughtExceptionHandler handler = thread.getUncaughtExceptionHandler();
+            handler.uncaughtException(thread, failure);
+        }
     }
 }

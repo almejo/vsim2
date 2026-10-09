@@ -59,4 +59,43 @@ class ComponentLibraryTest {
         library.put(inverter);
         assertThat(notifications).hasValue(0);
     }
+
+    @Test
+    void aThrowingListenerDoesNotStopTheOthersNorTheCaller() {
+        Thread thread = Thread.currentThread();
+        Thread.UncaughtExceptionHandler previous = thread.getUncaughtExceptionHandler();
+        AtomicInteger reported = new AtomicInteger();
+        thread.setUncaughtExceptionHandler((failedThread, exception) -> reported.incrementAndGet());
+        try {
+            library.addListener(() -> {
+                throw new IllegalStateException("boom");
+            });
+            library.addListener(notifications::incrementAndGet);
+            library.put(inverter);
+            assertThat(notifications).hasValue(1);
+            assertThat(reported).hasValue(1);
+            assertThat(library.find("inverter")).contains(inverter);
+        } finally {
+            thread.setUncaughtExceptionHandler(previous);
+        }
+    }
+
+    @Test
+    void aListenerMayReadAndChangeTheLibraryFromItsCallback() {
+        List<Integer> sizes = new java.util.ArrayList<>();
+        library.addListener(() -> {
+            sizes.add(library.entries().size());
+            if (library.find("double-inverter").isEmpty()) {
+                library.put(doubleInverter);
+            }
+        });
+        library.put(inverter);
+        assertThat(library.ids()).containsExactlyInAnyOrder("inverter", "double-inverter");
+        assertThat(sizes).containsExactly(1, 2);
+    }
+
+    @Test
+    void aNullListenerIsRejected() {
+        org.assertj.core.api.Assertions.assertThatNullPointerException().isThrownBy(() -> library.addListener(null));
+    }
 }

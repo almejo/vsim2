@@ -1,6 +1,8 @@
 package cl.almejo.vsim.core.command;
 
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
+import cl.almejo.vsim.core.component.PinSpec;
+import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
@@ -8,7 +10,6 @@ import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.document.Wire;
-import cl.almejo.vsim.core.component.PinSpec;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.GridSize;
 import cl.almejo.vsim.core.geometry.Rotation;
@@ -20,7 +21,9 @@ import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.core.netlist.NetlistCompiler;
 import cl.almejo.vsim.core.simulation.CircuitFlattener;
 import cl.almejo.vsim.core.simulation.FlatCircuit;
+import cl.almejo.vsim.core.simulation.FlatComponent;
 import cl.almejo.vsim.core.simulation.SimulationEngine;
+import cl.almejo.vsim.core.value.Value;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -171,11 +174,24 @@ class PasteCommandTest {
         assertThat(target.definition(ExampleDefinitions.DOUBLE_INVERTER)).contains(ExampleDefinitions.doubleInverter());
         ComponentTypeRegistry targetRegistry = StandardComponentTypes.registry();
         targetRegistry.addResolver(SubcircuitTypes.resolverFor(target));
+        ElementId pasted = target.components().get(0).id();
+        // The pasted instance sits at (10,10): its input pin is at (10,12) and its output pin at (14,12).
+        Component source = targetRegistry.require(StandardComponentTypes.SWITCH).newComponent(target.newComponentId(),
+                new GridPoint(6, 11), Rotation.R0, Map.of(), "");
+        Component lamp = targetRegistry.require(StandardComponentTypes.LED).newComponent(target.newComponentId(),
+                new GridPoint(13, 9), Rotation.R0, Map.of(), "");
+        target.add(source);
+        target.add(lamp);
         FlatCircuit flat = new CircuitFlattener(targetRegistry).flatten(target,
                 new NetlistCompiler(targetRegistry).compile(target));
+        assertThat(flat.components()).extracting(FlatComponent::id).contains(
+                pasted.value() + "/c2/c2", pasted.value() + "/c3/c2");
         SimulationEngine engine = new SimulationEngine();
         engine.update(flat);
         engine.runUntil(20);
-        assertThat(engine.snapshot()).isNotNull();
+        // The document's inverter was kept with its moved pins, so the pasted body's wiring no longer meets them:
+        // the signal does not reach the lamp (it would read ONE with the original pinout).
+        assertThat(engine.snapshot().componentState(lamp.id().value()))
+                .isEqualTo(new VisibleState.LedState(Value.HIGH_IMPEDANCE));
     }
 }
