@@ -228,4 +228,23 @@ class CircuitCanvasTest {
         canvas.getMouseListeners()[0].mouseExited(mouse(MouseEvent.MOUSE_EXITED, 80, 48, 0, MouseEvent.NOBUTTON));
         assertThat(canvas.mouseGridPoint()).isEmpty();
     }
+
+    @Test
+    void theAntsClockRunsOnlyWhileSomethingIsSelected() {
+        Component gate = place(openDocument, StandardComponentTypes.NOT, 0, 0, Map.of());
+        assertThat(canvas.isAnimatingSelection()).isFalse();
+        canvas.selection().select(gate.id());
+        assertThat(canvas.isAnimatingSelection()).isTrue();
+        canvas.selection().clear();
+        assertThat(canvas.isAnimatingSelection()).isFalse();
+    }
+
+    @Test
+    void theAntsClockRunsWhileABandIsBeingDragged() {
+        canvas.getMouseListeners()[0].mousePressed(mouse(MouseEvent.MOUSE_PRESSED, 300, 300, InputEvent.BUTTON1_DOWN_MASK, MouseEvent.BUTTON1));
+        canvas.getMouseMotionListeners()[0].mouseDragged(mouse(MouseEvent.MOUSE_DRAGGED, 400, 380, InputEvent.BUTTON1_DOWN_MASK, MouseEvent.NOBUTTON));
+        assertThat(canvas.isAnimatingSelection()).isTrue();
+        canvas.getMouseListeners()[0].mouseReleased(mouse(MouseEvent.MOUSE_RELEASED, 400, 380, 0, MouseEvent.BUTTON1));
+        assertThat(canvas.isAnimatingSelection()).isFalse();
+    }
 }

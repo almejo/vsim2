@@ -9,6 +9,7 @@ import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.ui.canvas.ConnectionPoints;
+import cl.almejo.vsim.ui.canvas.MarchingAnts;
 
 import java.awt.BasicStroke;
 import java.awt.Color;
@@ -39,8 +40,7 @@ public final class SelectTool implements Tool {
     private static final double HOVER_RING_RADIUS = 4.5;
     private static final BasicStroke HOVER_RING = new BasicStroke(1.5f);
     private static final double BAND_THRESHOLD = 0.5;
-    private static final BasicStroke BAND_STROKE = new BasicStroke(1f, BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER,
-            10f, new float[]{4f, 3f}, 0f);
+    private static final float BAND_WIDTH = 1f;
     private static final int BAND_FILL_ALPHA = 40;
 
     private final Map<String, Boolean> interactiveByType = new HashMap<>();
@@ -246,6 +246,11 @@ public final class SelectTool implements Tool {
         }
     }
 
+    @Override
+    public boolean animatesOutline() {
+        return bandStart != null;
+    }
+
     GridPoint hoverPin() {
         return hoverPin;
     }
@@ -304,9 +309,7 @@ public final class SelectTool implements Tool {
         Color color = context.scheme().selection();
         graphics.setColor(new Color(color.getRed(), color.getGreen(), color.getBlue(), BAND_FILL_ALPHA));
         graphics.fill(pixels);
-        graphics.setColor(color);
-        graphics.setStroke(BAND_STROKE);
-        graphics.draw(pixels);
+        MarchingAnts.draw(graphics, pixels, color, BAND_WIDTH, context.selectionDashPhase());
     }
 
     /** A pin of a selected component moves the selection when the selection holds more than one element. */

@@ -28,6 +28,7 @@ public final class TestToolContext implements ToolContext, AutoCloseable {
     public Optional<DocumentElement> contextMenuTarget;
     public Component configured;
     public int repaints;
+    public double selectionDashPhase;
     private final OpenDocument openDocument;
     private final HitTester hitTester;
 
@@ -108,6 +109,11 @@ public final class TestToolContext implements ToolContext, AutoCloseable {
     @Override
     public ColorScheme scheme() {
         return ColorScheme.LIGHT;
+    }
+
+    @Override
+    public double selectionDashPhase() {
+        return selectionDashPhase;
     }
 
     @Override

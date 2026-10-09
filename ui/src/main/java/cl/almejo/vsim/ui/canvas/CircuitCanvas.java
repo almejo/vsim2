@@ -48,6 +48,7 @@ import java.util.function.Consumer;
 public final class CircuitCanvas extends JComponent implements ToolContext {
 
     private static final int FRAME_MILLISECONDS = 16;
+    private static final int ANTS_MILLISECONDS = 90;
     private static final double WHEEL_SCROLL_PIXELS = 40;
 
     private final OpenDocument openDocument;
@@ -58,6 +59,8 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     private final Viewport viewport = new Viewport();
     private final Tool defaultTool = new SelectTool();
     private final Timer frameTimer;
+    private final MarchingAnts marchingAnts = new MarchingAnts();
+    private final Timer antsTimer;
     private final List<Consumer<Tool>> toolListeners = new CopyOnWriteArrayList<>();
     private final List<Consumer<SimulationSnapshot>> snapshotListeners = new CopyOnWriteArrayList<>();
     private final List<Runnable> viewListeners = new CopyOnWriteArrayList<>();
@@ -78,7 +81,10 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         setOpaque(true);
         setPreferredSize(new Dimension(900, 650));
         openDocument.document().addListener(documentListener);
-        selection.addListener(this::repaint);
+        selection.addListener(() -> {
+            updateAnimation();
+            repaint();
+        });
         MouseHandler mouseHandler = new MouseHandler();
         addMouseListener(mouseHandler);
         addMouseMotionListener(mouseHandler);
@@ -113,6 +119,10 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
             }
         });
         frameTimer = new Timer(FRAME_MILLISECONDS, event -> refreshSnapshot());
+        antsTimer = new Timer(ANTS_MILLISECONDS, event -> {
+            marchingAnts.advance();
+            repaint();
+        });
     }
 
     /** Places the palette entry encoded in {@code transferText} at {@code screenPoint}; false when it is not one. */
@@ -132,16 +142,19 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     public void addNotify() {
         super.addNotify();
         frameTimer.start();
+        updateAnimation();
     }
 
     @Override
     public void removeNotify() {
         frameTimer.stop();
+        antsTimer.stop();
         super.removeNotify();
     }
 
     public void dispose() {
         frameTimer.stop();
+        antsTimer.stop();
         openDocument.document().removeListener(documentListener);
     }
 
@@ -209,6 +222,25 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     }
 
     @Override
+    public double selectionDashPhase() {
+        return marchingAnts.phase();
+    }
+
+    /** True while the marching-ants clock runs: a selection exists or the tool is dragging a band. */
+    boolean isAnimatingSelection() {
+        return antsTimer.isRunning();
+    }
+
+    private void updateAnimation() {
+        boolean needed = !selection.isEmpty() || tool.animatesOutline();
+        if (needed && !antsTimer.isRunning()) {
+            antsTimer.start();
+        } else if (!needed && antsTimer.isRunning()) {
+            antsTimer.stop();
+        }
+    }
+
+    @Override
     public HitTester hitTester() {
         return hitTester;
     }
@@ -234,6 +266,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         tool = next;
         next.activated(this);
         setCursor(next.cursor());
+        updateAnimation();
         toolListeners.forEach(listener -> listener.accept(next));
         repaint();
     }
@@ -262,7 +295,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
             renderer.paintBackground(local, viewport, getWidth(), getHeight());
             local.transform(viewport.documentTransform());
             renderer.paint(local, new RenderState(openDocument.document(), openDocument.netlist(),
-                    openDocument.netlistToken(), displayedSnapshot, selection.ids()));
+                    openDocument.netlistToken(), displayedSnapshot, selection.ids(), marchingAnts.phase()));
             tool.paintOverlay(local, this);
         } finally {
             local.dispose();
@@ -324,6 +357,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
                 return;
             }
             tool.mousePressed(CircuitCanvas.this, convert(event));
+            updateAnimation();
         }
 
         @Override
@@ -336,6 +370,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
                 return;
             }
             tool.mouseDragged(CircuitCanvas.this, convert(event));
+            updateAnimation();
         }
 
         @Override
@@ -345,6 +380,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
                 return;
             }
             tool.mouseReleased(CircuitCanvas.this, convert(event));
+            updateAnimation();
         }
 
         @Override
@@ -387,6 +423,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
             if (tool.keyPressed(CircuitCanvas.this, event.getKeyCode(), event.isShiftDown())) {
                 event.consume();
             }
+            updateAnimation();
         }
 
         @Override

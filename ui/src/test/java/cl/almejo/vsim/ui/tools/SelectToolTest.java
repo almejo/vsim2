@@ -556,4 +556,34 @@ class SelectToolTest {
         tool.mouseReleased(context, TestToolContext.at(5, 3));
         assertThat(tool.rubberBand()).isNull();
     }
+
+    @Test
+    void theBandIsPaintedWithThePhaseFromTheContext() {
+        not(0, 0);
+        tool.mousePressed(context, TestToolContext.at(-1, -1));
+        tool.mouseDragged(context, TestToolContext.at(5, 3));
+        assertThat(tool.animatesOutline()).isTrue();
+        java.awt.image.BufferedImage first = paintBandWithPhase(0);
+        java.awt.image.BufferedImage second = paintBandWithPhase(3);
+        boolean different = false;
+        for (int y = 0; y < first.getHeight() && !different; y++) {
+            for (int x = 0; x < first.getWidth() && !different; x++) {
+                different = first.getRGB(x, y) != second.getRGB(x, y);
+            }
+        }
+        assertThat(different).isTrue();
+        tool.mouseReleased(context, TestToolContext.at(5, 3));
+        assertThat(tool.animatesOutline()).isFalse();
+    }
+
+    private java.awt.image.BufferedImage paintBandWithPhase(double phase) {
+        context.selectionDashPhase = phase;
+        java.awt.image.BufferedImage image = new java.awt.image.BufferedImage(200, 150,
+                java.awt.image.BufferedImage.TYPE_INT_ARGB);
+        java.awt.Graphics2D graphics = image.createGraphics();
+        graphics.translate(40, 40);
+        tool.paintOverlay(graphics, context);
+        graphics.dispose();
+        return image;
+    }
 }

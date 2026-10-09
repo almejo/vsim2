@@ -4,6 +4,7 @@ import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
+import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
@@ -40,9 +41,65 @@ class CircuitRendererTest {
         Graphics2D graphics = image.createGraphics();
         graphics.setColor(SCHEME.background());
         graphics.fillRect(0, 0, 120, 120);
-        renderer.paint(graphics, new RenderState(document, netlist, token, snapshot, Set.of()));
+        renderer.paint(graphics, new RenderState(document, netlist, token, snapshot, Set.of(), 0));
         graphics.dispose();
         return image;
+    }
+
+    private BufferedImage renderSelected(Set<ElementId> selection, double phase, SimulationSnapshot snapshot) {
+        BufferedImage image = new BufferedImage(120, 120, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D graphics = image.createGraphics();
+        graphics.setColor(SCHEME.background());
+        graphics.fillRect(0, 0, 120, 120);
+        Netlist netlist = new NetlistCompiler(registry).compile(document);
+        renderer.paint(graphics, new RenderState(document, netlist, document.revision(), snapshot, selection, phase));
+        graphics.dispose();
+        return image;
+    }
+
+    private static boolean sameImage(BufferedImage first, BufferedImage second) {
+        for (int y = 0; y < first.getHeight(); y++) {
+            for (int x = 0; x < first.getWidth(); x++) {
+                if (first.getRGB(x, y) != second.getRGB(x, y)) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    @Test
+    void theSelectionOutlineOfAComponentMovesWithThePhase() {
+        Component gate = registry.require(StandardComponentTypes.NOT).newComponent(document.newComponentId(),
+                new GridPoint(3, 3), Rotation.R0, Map.of(), "");
+        document.add(gate);
+        SimulationSnapshot empty = snapshot(document.revision(), Map.of(), List.of());
+        assertThat(sameImage(renderSelected(Set.of(gate.id()), 0, empty), renderSelected(Set.of(gate.id()), 3, empty)))
+                .isFalse();
+        assertThat(sameImage(renderSelected(Set.of(gate.id()), 0, empty), renderSelected(Set.of(gate.id()), 0, empty)))
+                .isTrue();
+    }
+
+    @Test
+    void theSelectionHighlightOfAWireMovesWithThePhase() {
+        document.add(wire);
+        SimulationSnapshot empty = snapshot(document.revision(), Map.of(), List.of());
+        assertThat(sameImage(renderSelected(Set.of(wire.id()), 0, empty), renderSelected(Set.of(wire.id()), 3, empty)))
+                .isFalse();
+    }
+
+    @Test
+    void theShortCircuitOutlineDoesNotDependOnThePhase() {
+        Component high = registry.require(StandardComponentTypes.SWITCH).newComponent(document.newComponentId(),
+                new GridPoint(3, 3), Rotation.R0, Map.of("value", "1"), "");
+        document.add(high);
+        document.add(wire);
+        Netlist netlist = new NetlistCompiler(registry).compile(document);
+        String netId = netlist.netForWire(wire.id()).orElseThrow().id().value();
+        ShortCircuit shortCircuit = new ShortCircuit(netId, List.of(new DriverRef(high.id().value(), 0, Value.ONE)), 0);
+        SimulationSnapshot shorted = snapshot(document.revision(), Map.of(netId, Value.ONE.withConflict()),
+                List.of(shortCircuit));
+        assertThat(sameImage(renderSelected(Set.of(), 0, shorted), renderSelected(Set.of(), 3, shorted))).isTrue();
     }
 
     private static SimulationSnapshot snapshot(long token, Map<String, Value> values, List<ShortCircuit> shorts) {
