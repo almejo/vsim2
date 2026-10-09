@@ -8,10 +8,14 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
+/** Removes elements; undo puts each one back at its original paint and file position. */
 public final class RemoveElementsCommand implements Command {
 
+    private record RemovedElement(DocumentElement element, long order) {
+    }
+
     private final List<ElementId> ids;
-    private final List<DocumentElement> removed = new ArrayList<>();
+    private final List<RemovedElement> removed = new ArrayList<>();
 
     public RemoveElementsCommand(Collection<ElementId> ids) {
         this.ids = List.copyOf(ids);
@@ -20,12 +24,19 @@ public final class RemoveElementsCommand implements Command {
     @Override
     public void apply(CircuitDocument document) {
         removed.clear();
-        document.batch(() -> ids.forEach(id -> document.remove(id).ifPresent(removed::add)));
+        document.batch(() -> {
+            for (ElementId id : ids) {
+                if (document.element(id).isPresent()) {
+                    long order = document.orderOf(id);
+                    document.remove(id).ifPresent(element -> removed.add(new RemovedElement(element, order)));
+                }
+            }
+        });
     }
 
     @Override
     public void revert(CircuitDocument document) {
-        document.batch(() -> removed.forEach(document::add));
+        document.batch(() -> removed.forEach(entry -> document.restore(entry.element(), entry.order())));
     }
 
     @Override

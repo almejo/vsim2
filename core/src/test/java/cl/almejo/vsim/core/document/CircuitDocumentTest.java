@@ -181,4 +181,49 @@ class CircuitDocumentTest {
         assertThat(DocumentChange.EMPTY.isEmpty()).isTrue();
         assertThat(new DocumentChange(Set.of(), Set.of(new ElementId("c1")), Set.of()).isEmpty()).isFalse();
     }
+
+    @Test
+    void restorePutsAnElementBackAtItsOrder() {
+        CircuitDocument document = new CircuitDocument();
+        Wire first = new Wire(document.newWireId(), new GridPoint(0, 0), new GridPoint(2, 0));
+        Wire second = new Wire(document.newWireId(), new GridPoint(0, 1), new GridPoint(2, 1));
+        Wire third = new Wire(document.newWireId(), new GridPoint(0, 2), new GridPoint(2, 2));
+        document.add(first);
+        document.add(second);
+        document.add(third);
+        assertThat(document.orderOf(first.id())).isLessThan(document.orderOf(second.id()));
+        long order = document.orderOf(second.id());
+        document.remove(second.id());
+        List<DocumentChange> changes = record(document);
+        document.restore(second, order);
+        assertThat(document.wires()).containsExactly(first, second, third);
+        assertThat(document.orderOf(second.id())).isEqualTo(order);
+        assertThat(changes).containsExactly(new DocumentChange(Set.of(second.id()), Set.of(), Set.of()));
+        Wire fourth = new Wire(document.newWireId(), new GridPoint(0, 3), new GridPoint(2, 3));
+        document.add(fourth);
+        assertThat(document.wires()).containsExactly(first, second, third, fourth);
+    }
+
+    @Test
+    void restoreRejectsATakenIdOrOrderAndOrderOfRejectsUnknownIds() {
+        CircuitDocument document = new CircuitDocument();
+        Component gate = andGate(document.newComponentId());
+        document.add(gate);
+        long order = document.orderOf(gate.id());
+        assertThatThrownBy(() -> document.restore(gate, 99)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> document.restore(andGate(new ElementId("c7")), order))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> document.orderOf(new ElementId("c8"))).isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void replaceKeepsTheOrder() {
+        CircuitDocument document = new CircuitDocument();
+        Component first = andGate(document.newComponentId());
+        Component second = andGate(document.newComponentId());
+        document.add(first);
+        document.add(second);
+        document.replace(first.withLabel("U1"));
+        assertThat(document.components()).containsExactly(first.withLabel("U1"), second);
+    }
 }

@@ -1,29 +1,35 @@
 package cl.almejo.vsim.core.document;
 
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.NavigableMap;
 import java.util.Optional;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * Editable circuit: plain data. Mutate it only through commands so undo/redo stays exact.
+ * Every element has an order number (paint and file order) that never changes while it stays in the document;
+ * {@link #restore} puts a removed element back at its old order.
  * Not thread-safe: use it from one thread (the Swing event thread in the UI).
  */
 public final class CircuitDocument {
 
-    private final Map<ElementId, Component> components = new LinkedHashMap<>();
-    private final Map<ElementId, Wire> wires = new LinkedHashMap<>();
-    private final Map<ElementId, TextLabel> labels = new LinkedHashMap<>();
+    private final NavigableMap<Long, Component> components = new TreeMap<>();
+    private final NavigableMap<Long, Wire> wires = new TreeMap<>();
+    private final NavigableMap<Long, TextLabel> labels = new TreeMap<>();
+    private final Map<ElementId, Long> orders = new HashMap<>();
     private final List<DocumentListener> listeners = new CopyOnWriteArrayList<>();
-    private long nextIdNumber = 1;
-    private int batchDepth;
     private final Set<ElementId> pendingAdded = new LinkedHashSet<>();
     private final Set<ElementId> pendingRemoved = new LinkedHashSet<>();
     private final Set<ElementId> pendingChanged = new LinkedHashSet<>();
+    private long nextIdNumber = 1;
+    private long nextOrder;
+    private int batchDepth;
     private long revision;
     private String name = "";
 
@@ -53,12 +59,31 @@ public final class CircuitDocument {
     }
 
     public void add(DocumentElement element) {
-        if (element(element.id()).isPresent()) {
-            throw new IllegalArgumentException("duplicate element id " + element.id());
+        rejectDuplicate(element.id());
+        reserveId(element.id());
+        put(element, nextOrder++);
+        recordAdded(element.id());
+    }
+
+    /** Re-adds {@code element} at the paint and file position {@code order} it had (see {@link #orderOf}). */
+    public void restore(DocumentElement element, long order) {
+        rejectDuplicate(element.id());
+        if (order < 0 || components.containsKey(order) || wires.containsKey(order) || labels.containsKey(order)) {
+            throw new IllegalArgumentException("order " + order + " is not free");
         }
         reserveId(element.id());
-        put(element);
+        nextOrder = Math.max(nextOrder, order + 1);
+        put(element, order);
         recordAdded(element.id());
+    }
+
+    /** Paint and file position of the element; it never changes while the element stays in the document. */
+    public long orderOf(ElementId id) {
+        Long order = orders.get(id);
+        if (order == null) {
+            throw new IllegalArgumentException("no element with id " + id);
+        }
+        return order;
     }
 
     public void replace(DocumentElement element) {
@@ -68,45 +93,54 @@ public final class CircuitDocument {
             throw new IllegalArgumentException("cannot replace " + existing.getClass().getSimpleName()
                     + " with " + element.getClass().getSimpleName());
         }
-        put(element);
+        put(element, orders.get(element.id()));
         recordChanged(element.id());
     }
 
     public Optional<DocumentElement> remove(ElementId id) {
-        DocumentElement removed = components.remove(id);
+        Long order = orders.remove(id);
+        if (order == null) {
+            return Optional.empty();
+        }
+        DocumentElement removed = components.remove(order);
         if (removed == null) {
-            removed = wires.remove(id);
+            removed = wires.remove(order);
         }
         if (removed == null) {
-            removed = labels.remove(id);
+            removed = labels.remove(order);
         }
-        if (removed != null) {
-            recordRemoved(id);
-        }
+        recordRemoved(id);
         return Optional.ofNullable(removed);
     }
 
     public Optional<DocumentElement> element(ElementId id) {
-        DocumentElement found = components.get(id);
+        Long order = orders.get(id);
+        if (order == null) {
+            return Optional.empty();
+        }
+        DocumentElement found = components.get(order);
         if (found == null) {
-            found = wires.get(id);
+            found = wires.get(order);
         }
         if (found == null) {
-            found = labels.get(id);
+            found = labels.get(order);
         }
         return Optional.ofNullable(found);
     }
 
     public Optional<Component> component(ElementId id) {
-        return Optional.ofNullable(components.get(id));
+        Long order = orders.get(id);
+        return order == null ? Optional.empty() : Optional.ofNullable(components.get(order));
     }
 
     public Optional<Wire> wire(ElementId id) {
-        return Optional.ofNullable(wires.get(id));
+        Long order = orders.get(id);
+        return order == null ? Optional.empty() : Optional.ofNullable(wires.get(order));
     }
 
     public Optional<TextLabel> label(ElementId id) {
-        return Optional.ofNullable(labels.get(id));
+        Long order = orders.get(id);
+        return order == null ? Optional.empty() : Optional.ofNullable(labels.get(order));
     }
 
     public List<Component> components() {
@@ -129,7 +163,7 @@ public final class CircuitDocument {
     }
 
     public boolean isEmpty() {
-        return components.isEmpty() && wires.isEmpty() && labels.isEmpty();
+        return orders.isEmpty();
     }
 
     /** Runs {@code changes} and notifies listeners once at the end (batches may nest). */
@@ -153,11 +187,18 @@ public final class CircuitDocument {
         listeners.remove(listener);
     }
 
-    private void put(DocumentElement element) {
+    private void rejectDuplicate(ElementId id) {
+        if (orders.containsKey(id)) {
+            throw new IllegalArgumentException("duplicate element id " + id);
+        }
+    }
+
+    private void put(DocumentElement element, long order) {
+        orders.put(element.id(), order);
         switch (element) {
-            case Component component -> components.put(component.id(), component);
-            case Wire wire -> wires.put(wire.id(), wire);
-            case TextLabel label -> labels.put(label.id(), label);
+            case Component component -> components.put(order, component);
+            case Wire wire -> wires.put(order, wire);
+            case TextLabel label -> labels.put(order, label);
         }
     }
 

@@ -17,7 +17,10 @@ import java.util.List;
 public final class AddWireCommand implements Command {
 
     private final Wire wire;
-    private List<Wire> absorbed = List.of();
+    private record AbsorbedWire(Wire wire, long order) {
+    }
+
+    private List<AbsorbedWire> absorbed = List.of();
     private Wire added;
 
     public AddWireCommand(Wire wire) {
@@ -50,11 +53,14 @@ public final class AddWireCommand implements Command {
             throw new IllegalArgumentException("duplicate element id " + wire.id());
         }
         Wire result = merged;
+        List<AbsorbedWire> absorbedWithOrder = toAbsorb.stream()
+                .map(existing -> new AbsorbedWire(existing, document.orderOf(existing.id())))
+                .toList();
         document.batch(() -> {
             toAbsorb.forEach(existing -> document.remove(existing.id()));
             document.add(result);
         });
-        absorbed = List.copyOf(toAbsorb);
+        absorbed = absorbedWithOrder;
         added = result;
     }
 
@@ -80,7 +86,7 @@ public final class AddWireCommand implements Command {
     public void revert(CircuitDocument document) {
         document.batch(() -> {
             document.remove(added.id());
-            absorbed.forEach(document::add);
+            absorbed.forEach(entry -> document.restore(entry.wire(), entry.order()));
         });
     }
 

@@ -11,6 +11,7 @@ import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
+import cl.almejo.vsim.core.io.CircuitFormat;
 import cl.almejo.vsim.core.netlist.Netlist;
 import cl.almejo.vsim.core.netlist.NetlistCompiler;
 import org.junit.jupiter.api.BeforeEach;
@@ -210,5 +211,34 @@ class CommandsTest {
         AddElementsCommand command = new AddElementsCommand(List.of(fresh, duplicate));
         assertThatThrownBy(() -> command.apply(document)).isInstanceOf(IllegalArgumentException.class);
         assertThat(changes).isEmpty();
+    }
+
+    @Test
+    void undoOfRemoveKeepsPaintAndFileOrder() {
+        Wire later = new Wire(document.newWireId(), new GridPoint(0, 6), new GridPoint(4, 6));
+        Component second = new Component(document.newComponentId(), "and2", new GridPoint(20, 2), Rotation.R0,
+                Map.of("delay", 1), "U2");
+        document.add(later);
+        document.add(second);
+        CircuitFormat format = new CircuitFormat(StandardComponentTypes.registry());
+        String before = format.write(document);
+        RemoveElementsCommand command = new RemoveElementsCommand(List.of(wire.id(), gate.id(), label.id()));
+        command.apply(document);
+        command.revert(document);
+        assertThat(document.wires()).containsExactly(wire, later);
+        assertThat(document.components()).containsExactly(gate, second);
+        assertThat(format.write(document)).isEqualTo(before);
+    }
+
+    @Test
+    void undoOfAMergingWireRestoresTheAbsorbedWireInPlace() {
+        Wire other = new Wire(document.newWireId(), new GridPoint(10, 10), new GridPoint(10, 14));
+        document.add(other);
+        AddWireCommand command = new AddWireCommand(
+                new Wire(document.newWireId(), new GridPoint(2, 0), new GridPoint(8, 0)));
+        command.apply(document);
+        assertThat(document.wires()).hasSize(2);
+        command.revert(document);
+        assertThat(document.wires()).containsExactly(wire, other);
     }
 }
