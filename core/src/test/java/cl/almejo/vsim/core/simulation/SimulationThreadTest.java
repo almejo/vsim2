@@ -322,4 +322,20 @@ class SimulationThreadTest {
         assertThat(thread.latestSnapshot().shortCircuits()).hasSize(1);
         assertThat(thread.latestSnapshot().running()).isTrue();
     }
+
+    @Test
+    void aPausedSimulationWithNothingToDoKeepsTheSameSnapshot() {
+        thread.update(singleSource());
+        thread.tick();
+        SimulationSnapshot published = thread.latestSnapshot();
+        nanos.addAndGet(50 * MILLISECOND);
+        thread.tick();
+        thread.tick();
+        assertThat(thread.latestSnapshot()).isSameAs(published);
+
+        thread.step(5);
+        thread.tick();
+        assertThat(thread.latestSnapshot()).isNotSameAs(published);
+        assertThat(thread.latestSnapshot().time()).isEqualTo(5);
+    }
 }

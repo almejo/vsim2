@@ -44,6 +44,9 @@ public final class Viewport {
     }
 
     public void zoomAt(double screenX, double screenY, double requestedZoom) {
+        if (!Double.isFinite(screenX) || !Double.isFinite(screenY) || !Double.isFinite(requestedZoom)) {
+            return;
+        }
         Point2D anchor = screenToGrid(screenX, screenY);
         zoom = Math.max(MINIMUM_ZOOM, Math.min(MAXIMUM_ZOOM, requestedZoom));
         originX = screenX - anchor.getX() * pixelsPerUnit();

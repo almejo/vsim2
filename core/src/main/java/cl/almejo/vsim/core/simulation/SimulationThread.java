@@ -40,6 +40,8 @@ public final class SimulationThread implements AutoCloseable {
     private String failure;
     private boolean pauseOnShortCircuit;
     private Set<String> shortCircuitNets = Set.of();
+    /** True when the engine or the run state changed since the last published snapshot. */
+    private boolean snapshotStale = true;
 
     public SimulationThread(SimulationEngine engine) {
         this(engine, System::nanoTime);
@@ -119,6 +121,7 @@ public final class SimulationThread implements AutoCloseable {
             Runnable request;
             while ((request = requests.poll()) != null) {
                 request.run();
+                snapshotStale = true;
             }
             if (running) {
                 double elapsedMilliseconds = Math.min(elapsedNanos / (double) NANOS_PER_MILLISECOND,
@@ -129,10 +132,14 @@ public final class SimulationThread implements AutoCloseable {
                 if (units > 0) {
                     engine.advance(units);
                 }
+                snapshotStale = true;
             }
-            SimulationSnapshot snapshot = engine.snapshot();
-            pauseOnNewShortCircuit(snapshot);
-            latestSnapshot = snapshot.withRunning(running).withFailure(Optional.ofNullable(failure));
+            if (snapshotStale) {
+                SimulationSnapshot snapshot = engine.snapshot();
+                pauseOnNewShortCircuit(snapshot);
+                latestSnapshot = snapshot.withRunning(running).withFailure(Optional.ofNullable(failure));
+                snapshotStale = false;
+            }
         } catch (RuntimeException exception) {
             LOGGER.error("Simulation failed; pausing", exception);
             publishFailure(exception);

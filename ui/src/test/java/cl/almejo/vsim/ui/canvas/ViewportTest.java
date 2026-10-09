@@ -84,4 +84,16 @@ class ViewportTest {
         assertThat(viaTransform.getX()).isCloseTo(viaGrid.getX(), within(1e-9));
         assertThat(viaTransform.getY()).isCloseTo(viaGrid.getY(), within(1e-9));
     }
+
+    @Test
+    void zoomAtIgnoresValuesThatAreNotNumbers() {
+        viewport.zoomAt(10, 10, 2.0);
+        Point2D before = viewport.gridToScreen(3, 4);
+        viewport.zoomAt(10, 10, Double.NaN);
+        viewport.zoomAt(Double.NaN, 10, 2.0);
+        viewport.zoomAt(10, Double.POSITIVE_INFINITY, 2.0);
+        viewport.zoomAt(10, 10, Double.NEGATIVE_INFINITY);
+        assertThat(viewport.zoom()).isEqualTo(2.0);
+        assertThat(viewport.gridToScreen(3, 4)).isEqualTo(before);
+    }
 }
