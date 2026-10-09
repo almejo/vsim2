@@ -34,7 +34,7 @@ final class ComponentInstance implements BehaviorContext {
 
     boolean matches(FlatComponent component) {
         return !initializationFailed
-                && type.id().equals(component.type().id())
+                && type.equals(component.type())
                 && type.resolveParameters(parameters).equals(type.resolveParameters(component.parameters()));
     }
 
