@@ -24,8 +24,15 @@ public final class DefinitionNames {
         return key(first).equals(key(second));
     }
 
-    /** {@code name} stripped when free, otherwise the first free {@code "name 2"}, {@code "name 3"}, … */
+    /**
+     * {@code name} stripped when free, otherwise the first free {@code "name 2"}, {@code "name 3"}, …
+     *
+     * @throws IllegalArgumentException when {@code name} is null or blank: there is nothing to number
+     */
     public static String unique(String name, Collection<String> takenNames) {
+        if (name == null || name.isBlank()) {
+            throw new IllegalArgumentException("a definition name to make unique cannot be blank: \"" + name + "\"");
+        }
         String base = name.strip();
         if (problem(base, takenNames).isEmpty()) {
             return base;

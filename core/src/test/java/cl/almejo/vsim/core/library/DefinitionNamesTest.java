@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class DefinitionNamesTest {
 
@@ -22,5 +23,13 @@ class DefinitionNamesTest {
     void uniqueAppendsTheFirstFreeNumber() {
         assertThat(DefinitionNames.unique(" Inversor ", List.of("inversor", "Inversor 2"))).isEqualTo("Inversor 3");
         assertThat(DefinitionNames.unique("Negador", List.of("Inversor"))).isEqualTo("Negador");
+    }
+
+    @Test
+    void uniqueNeedsANameToNumber() {
+        assertThatThrownBy(() -> DefinitionNames.unique(null, List.of()))
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("blank");
+        assertThatThrownBy(() -> DefinitionNames.unique("  ", List.of()))
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("blank");
     }
 }

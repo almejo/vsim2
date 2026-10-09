@@ -17,6 +17,7 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.entry;
 
 class DefinitionBuilderTest {
 
@@ -135,10 +136,10 @@ class DefinitionBuilderTest {
         Map<ElementId, String> names = DefinitionBuilder.pinNames(document,
                 DefinitionBuilder.defaultPinOrder(document, selection));
 
-        assertThat(names.values()).doesNotHaveDuplicates();
-        assertThat(names).containsEntry(labeled.id(), "in1");
-        DefinitionBuilder.fromSelection(document, selection, "dos", "Dos",
+        assertThat(names).containsExactly(entry(blank.id(), "in2"), entry(labeled.id(), "in1"));
+        DefinitionBundle bundle = DefinitionBuilder.fromSelection(document, selection, "dos", "Dos",
                 DefinitionBuilder.defaultPinOrder(document, selection), registry);
+        assertThat(bundle.root().pinout()).extracting(pin -> pin.spec().name()).containsExactly("in2", "in1");
     }
 
     @Test
