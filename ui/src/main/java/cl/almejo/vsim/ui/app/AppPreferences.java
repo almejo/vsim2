@@ -3,10 +3,12 @@ package cl.almejo.vsim.ui.app;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.prefs.BackingStoreException;
@@ -50,6 +52,7 @@ public final class AppPreferences {
     }
 
     public void setTheme(Theme theme) {
+        Objects.requireNonNull(theme, "theme");
         if (theme() == theme) {
             return;
         }
@@ -62,6 +65,7 @@ public final class AppPreferences {
     }
 
     public void setColorScheme(Optional<String> schemeId) {
+        Objects.requireNonNull(schemeId, "schemeId");
         put(COLOR_SCHEME, schemeId.orElse(""));
     }
 
@@ -71,12 +75,22 @@ public final class AppPreferences {
     }
 
     public void setLanguage(Optional<String> languageTag) {
+        Objects.requireNonNull(languageTag, "languageTag");
         put(LANGUAGE, languageTag.orElse(""));
     }
 
+    /** The stored directory, or the platform default when none is stored or the stored one is not a valid path here. */
     public Path libraryDirectory() {
-        return optional(LIBRARY_DIRECTORY).map(Path::of).orElseGet(() -> defaultLibraryDirectory(
-                System.getProperty("os.name", ""), System.getenv(), Path.of(System.getProperty("user.home"))));
+        Optional<String> stored = optional(LIBRARY_DIRECTORY);
+        if (stored.isPresent()) {
+            try {
+                return Path.of(stored.get());
+            } catch (InvalidPathException exception) {
+                LOGGER.warn("Ignoring the stored library directory {}; using the default", stored.get(), exception);
+            }
+        }
+        return defaultLibraryDirectory(System.getProperty("os.name", ""), System.getenv(),
+                Path.of(System.getProperty("user.home")));
     }
 
     public boolean usesDefaultLibraryDirectory() {
@@ -85,6 +99,7 @@ public final class AppPreferences {
 
     /** Empty restores the platform default. */
     public void setLibraryDirectory(Optional<Path> directory) {
+        Objects.requireNonNull(directory, "directory");
         put(LIBRARY_DIRECTORY, directory.map(path -> path.toAbsolutePath().toString()).orElse(""));
     }
 

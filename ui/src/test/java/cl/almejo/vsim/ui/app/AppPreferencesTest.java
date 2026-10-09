@@ -6,8 +6,10 @@ import java.nio.file.Path;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.prefs.AbstractPreferences;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class AppPreferencesTest {
 
@@ -22,6 +24,46 @@ class AppPreferencesTest {
         assertThat(preferences.colorScheme()).isEmpty();
         assertThat(preferences.language()).isEmpty();
         assertThat(preferences.usesDefaultLibraryDirectory()).isTrue();
+    }
+
+    @Test
+    void aStoredLibraryDirectoryThatIsNotAPathFallsBackToTheDefault() {
+        AppPreferences unparseable = new AppPreferences(new FixedPreferences(
+                Map.of(AppPreferences.LIBRARY_DIRECTORY, "components\u0000broken")));
+        AppPreferences unset = new AppPreferences(new MemoryPreferences());
+        assertThat(unparseable.libraryDirectory()).isEqualTo(unset.libraryDirectory());
+    }
+
+    @Test
+    void settersRejectNull() {
+        preferences.addListener(changes::incrementAndGet);
+        assertThatThrownBy(() -> preferences.setTheme(null)).isInstanceOf(NullPointerException.class)
+                .hasMessage("theme");
+        assertThatThrownBy(() -> preferences.setColorScheme(null)).isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> preferences.setLanguage(null)).isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> preferences.setLibraryDirectory(null)).isInstanceOf(NullPointerException.class);
+        assertThat(preferences.theme()).isEqualTo(AppPreferences.Theme.SYSTEM);
+        assertThat(changes).hasValue(0);
+    }
+
+    /** Read-only values that {@link java.util.prefs.Preferences#put} would refuse to store (it rejects U+0000). */
+    private static final class FixedPreferences extends AbstractPreferences {
+        private final Map<String, String> values;
+
+        FixedPreferences(Map<String, String> values) {
+            super(null, "");
+            this.values = values;
+        }
+
+        @Override protected void putSpi(String key, String value) { throw new UnsupportedOperationException(); }
+        @Override protected String getSpi(String key) { return values.get(key); }
+        @Override protected void removeSpi(String key) { throw new UnsupportedOperationException(); }
+        @Override protected void removeNodeSpi() { throw new UnsupportedOperationException(); }
+        @Override protected String[] keysSpi() { return values.keySet().toArray(String[]::new); }
+        @Override protected String[] childrenNamesSpi() { return new String[0]; }
+        @Override protected AbstractPreferences childSpi(String name) { throw new UnsupportedOperationException(); }
+        @Override protected void syncSpi() { }
+        @Override protected void flushSpi() { }
     }
 
     @Test
