@@ -5,6 +5,7 @@ plugins {
 dependencies {
     implementation(project(":core"))
     implementation(libs.flatlaf)
+    implementation(libs.flatlaf.extras)
     implementation(libs.miglayout.swing)
     implementation(libs.slf4j.api)
     runtimeOnly(libs.logback.classic)
