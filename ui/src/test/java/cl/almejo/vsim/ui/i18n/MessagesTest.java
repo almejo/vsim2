@@ -5,6 +5,8 @@ import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.ParameterSpec;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.io.CircuitFormatException;
+import cl.almejo.vsim.core.library.ExampleDefinitions;
+import cl.almejo.vsim.core.library.SubcircuitTypes;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
@@ -102,6 +104,13 @@ class MessagesTest {
         assertThat(Messages.text("no.such.key")).isEqualTo("!no.such.key!");
         assertThat(Messages.readError(new CircuitFormatException(CircuitFormatException.Reason.UNKNOWN_COMPONENT_TYPE, "lamp")))
                 .isEqualTo("Tipo de componente desconocido: lamp");
+    }
+
+    @Test
+    void subcircuitTypesAreNamedAfterTheirDefinition() {
+        Messages.initialize(Messages.SPANISH);
+        assertThat(Messages.componentName(SubcircuitTypes.typeOf(ExampleDefinitions.inverter()))).isEqualTo("Inversor");
+        assertThat(Messages.componentName(StandardComponentTypes.registry().require("not"))).isEqualTo("NOT");
     }
 
     private static Set<String> literalKeysIn(Path root, Pattern pattern) throws IOException {

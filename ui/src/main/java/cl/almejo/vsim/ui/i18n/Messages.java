@@ -1,7 +1,10 @@
 package cl.almejo.vsim.ui.i18n;
 
 import cl.almejo.vsim.core.component.ComponentCategory;
+import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.io.CircuitFormatException;
+import cl.almejo.vsim.core.library.ComponentDefinition;
+import cl.almejo.vsim.core.library.SubcircuitTypes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -59,6 +62,12 @@ public final class Messages {
 
     public static String componentName(String typeId) {
         return textOr("component." + typeId, typeId);
+    }
+
+    /** Visible name of a type: the definition name for a user component, the bundle name otherwise. */
+    public static String componentName(ComponentType type) {
+        return SubcircuitTypes.definitionOf(type).map(ComponentDefinition::name)
+                .orElseGet(() -> componentName(type.id()));
     }
 
     public static String categoryName(ComponentCategory category) {
