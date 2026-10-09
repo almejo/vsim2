@@ -121,4 +121,40 @@ class LibraryDirectoryTest {
         assertThat(library.locate(ExampleDefinitions.DOUBLE_INVERTER)).contains(misnamed);
         assertThat(library.load().bundles()).containsExactlyInAnyOrder(inverter, doubleInverter);
     }
+
+    @Test
+    void deleteRemovesEveryFileThatHoldsTheId(@TempDir Path directory) throws Exception {
+        LibraryDirectory library = new LibraryDirectory(directory, registry);
+        Path named = library.write(inverter);
+        Path copy = directory.resolve("a-copy.vsimcomponent.json");
+        Files.copy(named, copy);
+
+        assertThat(library.delete(ExampleDefinitions.INVERTER)).isTrue();
+
+        assertThat(named).doesNotExist();
+        assertThat(copy).doesNotExist();
+        assertThat(library.load()).isEqualTo(new LibraryLoad(List.of(), List.of()));
+    }
+
+    @Test
+    void aFileThatBreaksTheReaderIsReportedInvalidAndTheRestStillLoads(@TempDir Path directory) throws Exception {
+        DefinitionFormat format = new DefinitionFormat(registry);
+        LibraryDirectory library = new LibraryDirectory(directory, format, json -> {
+            if (json.equals("trap")) {
+                throw new IllegalStateException("reader bug");
+            }
+            return format.read(json);
+        });
+        library.write(inverter);
+        Path trap = directory.resolve("trap.vsimcomponent.json");
+        Files.writeString(trap, "trap");
+
+        LibraryLoad load = library.load();
+
+        assertThat(load.bundles()).containsExactly(inverter);
+        assertThat(load.problems()).containsExactly(
+                new LibraryProblem(trap, LibraryProblem.Kind.INVALID, Optional.empty(), "reader bug"));
+        assertThat(library.locate(ExampleDefinitions.INVERTER)).contains(library.fileOf(ExampleDefinitions.INVERTER));
+        assertThat(library.locate("missing")).isEmpty();
+    }
 }

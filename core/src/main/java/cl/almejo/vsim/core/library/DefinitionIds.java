@@ -25,26 +25,20 @@ public final class DefinitionIds {
         String slug = withoutAccents
                 .replaceAll("[^a-z0-9]+", "-")
                 .replaceAll("^-+|-+$", "");
-        String baseId = slug.isEmpty() ? FALLBACK : slug;
+        return unique(slug.isEmpty() ? FALLBACK : slug, takenIds);
+    }
+
+    /**
+     * {@code baseId} itself when free, otherwise the first free {@code baseId-2}, {@code baseId-3}, … Like
+     * {@link #slug}, the result (number included) is at most {@link #MAX_LENGTH} characters.
+     */
+    public static String unique(String baseId, Set<String> takenIds) {
         String candidate = cut(baseId, MAX_LENGTH);
         for (int suffix = 2; takenIds.contains(candidate); suffix++) {
             String number = "-" + suffix;
             candidate = cut(baseId, MAX_LENGTH - number.length()) + number;
         }
         return candidate;
-    }
-
-    /** {@code baseId} itself when free, otherwise the first free {@code baseId-2}, {@code baseId-3}, … */
-    public static String unique(String baseId, Set<String> takenIds) {
-        if (!takenIds.contains(baseId)) {
-            return baseId;
-        }
-        for (int suffix = 2; ; suffix++) {
-            String candidate = baseId + "-" + suffix;
-            if (!takenIds.contains(candidate)) {
-                return candidate;
-            }
-        }
     }
 
     /** The longest prefix of {@code slug} within {@code length}, ending at a dash boundary unless a word is too long. */

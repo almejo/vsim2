@@ -52,4 +52,16 @@ class DefinitionIdsTest {
         assertThat(numbered).isEqualTo("x".repeat(DefinitionIds.MAX_LENGTH - 2) + "-2");
         assertThat(numbered).matches(ComponentDefinition.ID_PATTERN);
     }
+
+    @Test
+    void uniqueStaysWithinTheMaximumLength() {
+        String longest = "x".repeat(DefinitionIds.MAX_LENGTH);
+
+        String numbered = DefinitionIds.unique(longest, Set.of(longest));
+
+        assertThat(numbered).isEqualTo("x".repeat(DefinitionIds.MAX_LENGTH - 2) + "-2");
+        assertThat(DefinitionIds.unique("x".repeat(80), Set.of())).isEqualTo(longest);
+        assertThat(DefinitionIds.unique(longest, Set.of(longest, numbered))).hasSize(DefinitionIds.MAX_LENGTH)
+                .endsWith("-3");
+    }
 }

@@ -6,6 +6,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
@@ -29,12 +30,28 @@ public final class LibraryDirectory {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(LibraryDirectory.class);
 
+    /** Turns a file's text into a bundle; a seam so tests can make reading fail in unexpected ways. */
+    @FunctionalInterface
+    interface BundleReader {
+        DefinitionBundle read(String json) throws CircuitFormatException;
+    }
+
     private final Path directory;
     private final DefinitionFormat format;
+    private final BundleReader reader;
 
     public LibraryDirectory(Path directory, ComponentTypeRegistry registry) {
+        this(directory, new DefinitionFormat(registry));
+    }
+
+    private LibraryDirectory(Path directory, DefinitionFormat format) {
+        this(directory, format, format::read);
+    }
+
+    LibraryDirectory(Path directory, DefinitionFormat format, BundleReader reader) {
         this.directory = directory.toAbsolutePath().normalize();
-        this.format = new DefinitionFormat(registry);
+        this.format = format;
+        this.reader = reader;
     }
 
     public Path directory() {
@@ -66,6 +83,9 @@ public final class LibraryDirectory {
         } catch (IOException exception) {
             LOGGER.warn("Could not list the component library {}", directory, exception);
             return new LibraryLoad(List.of(), List.of(LibraryProblem.unreadable(directory, exception)));
+        } catch (UncheckedIOException exception) {
+            LOGGER.warn("Could not list the component library {}", directory, exception);
+            return new LibraryLoad(List.of(), List.of(LibraryProblem.unreadable(directory, exception.getCause())));
         }
         List<LibraryProblem> problems = new ArrayList<>();
         List<Loaded> loaded = new ArrayList<>();
@@ -75,6 +95,9 @@ public final class LibraryDirectory {
             } catch (IOException exception) {
                 problems.add(LibraryProblem.unreadable(file, exception));
             } catch (CircuitFormatException exception) {
+                problems.add(LibraryProblem.invalid(file, exception));
+            } catch (RuntimeException exception) {
+                LOGGER.warn("Reading the library file {} failed unexpectedly", file, exception);
                 problems.add(LibraryProblem.invalid(file, exception));
             }
         }
@@ -98,7 +121,7 @@ public final class LibraryDirectory {
     }
 
     public DefinitionBundle read(Path file) throws IOException, CircuitFormatException {
-        return format.read(Files.readString(file));
+        return reader.read(Files.readString(file));
     }
 
     /**
@@ -114,10 +137,13 @@ public final class LibraryDirectory {
         return target;
     }
 
-    /** Deletes the file holding {@code id}; false when there is none. */
+    /** Deletes every file holding {@code id}, so a duplicate does not take its place; false when there is none. */
     public boolean delete(String id) throws IOException {
-        Optional<Path> file = locate(id);
-        return file.isPresent() && Files.deleteIfExists(file.get());
+        boolean deleted = false;
+        for (Path file : holders(id)) {
+            deleted |= Files.deleteIfExists(file);
+        }
+        return deleted;
     }
 
     /** Same id, new visible name, same file. */
@@ -137,18 +163,23 @@ public final class LibraryDirectory {
         if (Files.isRegularFile(named) && holds(named, id)) {
             return Optional.of(named);
         }
+        return holders(id).stream().findFirst();
+    }
+
+    /** Every component file that holds {@code id}, by file name. */
+    private List<Path> holders(String id) {
         if (!Files.isDirectory(directory)) {
-            return Optional.empty();
+            return List.of();
         }
         try (Stream<Path> listing = Files.list(directory)) {
             return listing.filter(LibraryDirectory::isComponentFile)
                     .filter(Files::isRegularFile)
                     .sorted()
                     .filter(file -> holds(file, id))
-                    .findFirst();
-        } catch (IOException exception) {
+                    .toList();
+        } catch (IOException | UncheckedIOException exception) {
             LOGGER.warn("Could not list the component library {}", directory, exception);
-            return Optional.empty();
+            return List.of();
         }
     }
 
@@ -163,7 +194,7 @@ public final class LibraryDirectory {
     private boolean holds(Path file, String id) {
         try {
             return read(file).root().id().equals(id);
-        } catch (IOException | CircuitFormatException exception) {
+        } catch (IOException | CircuitFormatException | RuntimeException exception) {
             return false;
         }
     }
@@ -171,8 +202,8 @@ public final class LibraryDirectory {
     /** Temporary file next to the target, then a move, as {@code OpenDocument.save}: a reader never sees half a file. */
     private static void writeAtomically(Path target, String content) throws IOException {
         Path temporary = target.getParent().resolve(".vsim2-" + UUID.randomUUID() + ".tmp");
-        Files.writeString(temporary, content);
         try {
+            Files.writeString(temporary, content);
             try {
                 Files.move(temporary, target, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
             } catch (AtomicMoveNotSupportedException exception) {
