@@ -13,6 +13,7 @@ import cl.almejo.vsim.core.simulation.DriverRef;
 import cl.almejo.vsim.core.simulation.ShortCircuit;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.core.value.Value;
+import cl.almejo.vsim.ui.canvas.HighlightCache;
 import cl.almejo.vsim.ui.canvas.RenderState;
 import org.junit.jupiter.api.Test;
 
@@ -78,7 +79,7 @@ class ShortCircuitPulseTest {
 
     @Test
     void paintsAVeilOverShortedWiresThatFollowsTheClock() {
-        ShortCircuitPulse pulse = new ShortCircuitPulse(registry, () -> { }, nanos::get);
+        ShortCircuitPulse pulse = new ShortCircuitPulse(new HighlightCache(registry), () -> { }, nanos::get);
         assertThat(pixelOnTheWire(pulse, withShort())).isZero();
         nanos.set(ShortCircuitPulse.PERIOD_NANOS / 2);
         assertThat(pixelOnTheWire(pulse, withShort())).isNotZero();
@@ -88,7 +89,7 @@ class ShortCircuitPulseTest {
     @Test
     void theRepaintTimerRunsOnlyWhileShortsExist() throws Exception {
         SwingUtilities.invokeAndWait(() -> {
-            ShortCircuitPulse pulse = new ShortCircuitPulse(registry, () -> { }, nanos::get);
+            ShortCircuitPulse pulse = new ShortCircuitPulse(new HighlightCache(registry), () -> { }, nanos::get);
             assertThat(pulse.isPulsing()).isFalse();
             pulse.showSnapshot(withShort());
             assertThat(pulse.isPulsing()).isTrue();

@@ -127,7 +127,7 @@ public final class CircuitRenderer {
         for (Wire wire : state.document().wires()) {
             if (state.selection().contains(wire.id())) {
                 Shape halo = SELECTED_WIRE.createStrokedShape(line(wire));
-                graphics.setColor(withAlpha(scheme.selection(), 90));
+                graphics.setColor(PainterSupport.withAlpha(scheme.selection(), 90));
                 graphics.fill(halo);
                 MarchingAnts.draw(graphics, halo, scheme.selection(), SELECTION_OUTLINE_WIDTH,
                         state.selectionDashPhase());
@@ -141,7 +141,7 @@ public final class CircuitRenderer {
             }
         }
         graphics.setStroke(PROBLEM_GLOW);
-        graphics.setColor(withAlpha(scheme.wireConflict(), ProblemPulse.alpha(state.problemPulsePhase())));
+        graphics.setColor(PainterSupport.withAlpha(scheme.wireConflict(), ProblemPulse.alpha(state.problemPulsePhase())));
         graphics.draw(glow);
         for (Wire wire : state.document().wires()) {
             Optional<Net> net = state.netlist().netForWire(wire.id());
@@ -179,7 +179,7 @@ public final class CircuitRenderer {
         paintBusValues(graphics, state);
 
         for (GridPoint pin : highlight.driverPins()) {
-            graphics.setColor(withAlpha(scheme.wireConflict(), 90));
+            graphics.setColor(PainterSupport.withAlpha(scheme.wireConflict(), 90));
             graphics.fill(circle(pin, HALO_RADIUS));
             graphics.setStroke(WIRE);
             graphics.setColor(scheme.wireConflict());
@@ -282,7 +282,7 @@ public final class CircuitRenderer {
         graphics.setFont(BUS_FONT);
         graphics.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
         FontMetrics metrics = graphics.getFontMetrics();
-        for (BusLabels.BusLabel label : BusLabels.of(state)) {
+        for (BusLabels.BusLabel label : highlights.busLabels(state)) {
             double textWidth = metrics.stringWidth(label.text());
             double left = label.vertical() ? label.x() + BUS_LABEL_GAP : label.x() - textWidth / 2;
             double baseline = label.vertical() ? label.y() + (metrics.getAscent() - metrics.getDescent()) / 2.0
@@ -332,9 +332,5 @@ public final class CircuitRenderer {
 
     private static Ellipse2D circle(GridPoint center, double radius) {
         return new Ellipse2D.Double(center.x() * UNIT - radius, center.y() * UNIT - radius, 2 * radius, 2 * radius);
-    }
-
-    private static Color withAlpha(Color color, int alpha) {
-        return new Color(color.getRed(), color.getGreen(), color.getBlue(), alpha);
     }
 }

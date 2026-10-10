@@ -18,7 +18,6 @@ import java.awt.event.ComponentEvent;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.util.List;
 
 /**
  * The traces of the waveform panel. Click: select the row and put the cursor (snapped to an edge); hover: «t = … ·
@@ -42,11 +41,7 @@ final class WaveformPlot extends JComponent implements Scrollable {
             public void mousePressed(MouseEvent event) {
                 requestFocusInWindow();
                 if (SwingUtilities.isLeftMouseButton(event)) {
-                    List<String> ids = panel.channelIds();
-                    int row = event.getY() / WaveformPainter.ROW_HEIGHT;
-                    if (row < ids.size()) {
-                        panel.selectProbe(ids.get(row));
-                    }
+                    panel.probeAt(event.getY()).ifPresent(panel::selectProbe);
                     panel.placeCursor(event.getX());
                 }
             }

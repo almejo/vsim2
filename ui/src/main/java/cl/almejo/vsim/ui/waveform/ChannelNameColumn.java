@@ -3,10 +3,10 @@ package cl.almejo.vsim.ui.waveform;
 import cl.almejo.vsim.core.waveform.WaveformSnapshot;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.ColorScheme;
+import cl.almejo.vsim.ui.paint.PainterSupport;
 
 import javax.swing.JComponent;
 import javax.swing.SwingUtilities;
-import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.FontMetrics;
 import java.awt.Graphics;
@@ -61,9 +61,7 @@ final class ChannelNameColumn extends JComponent {
     }
 
     Optional<String> probeAt(int y) {
-        List<String> ids = panel.channelIds();
-        int row = y / WaveformPainter.ROW_HEIGHT;
-        return y >= 0 && row < ids.size() ? Optional.of(ids.get(row)) : Optional.empty();
+        return panel.probeAt(y);
     }
 
     /** What each row shows after its name. */
@@ -100,9 +98,7 @@ final class ChannelNameColumn extends JComponent {
                 int top = index * WaveformPainter.ROW_HEIGHT;
                 boolean selected = panel.selectedProbe().filter(row.probeId()::equals).isPresent();
                 if (selected || panel.isBlinkLit(row.probeId())) {
-                    Color highlight = scheme.selection();
-                    graphics2D.setColor(new Color(highlight.getRed(), highlight.getGreen(), highlight.getBlue(),
-                            HIGHLIGHT_ALPHA));
+                    graphics2D.setColor(PainterSupport.withAlpha(scheme.selection(), HIGHLIGHT_ALPHA));
                     graphics2D.fillRect(0, top, getWidth(), WaveformPainter.ROW_HEIGHT);
                 }
                 int baseline = top + (WaveformPainter.ROW_HEIGHT + metrics.getAscent() - metrics.getDescent()) / 2;

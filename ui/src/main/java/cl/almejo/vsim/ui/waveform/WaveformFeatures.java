@@ -1,15 +1,13 @@
 package cl.almejo.vsim.ui.waveform;
 
-import cl.almejo.vsim.core.geometry.Bounds;
-import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.netlist.Net;
 import cl.almejo.vsim.core.netlist.NetId;
-import cl.almejo.vsim.core.netlist.PinRef;
 import cl.almejo.vsim.ui.actions.TextPrompt;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.problems.NetBlink;
+import cl.almejo.vsim.ui.problems.ProblemNavigator;
 import cl.almejo.vsim.ui.window.BottomDock;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuId;
@@ -18,6 +16,7 @@ import javax.swing.AbstractAction;
 import javax.swing.Action;
 import javax.swing.JCheckBoxMenuItem;
 import javax.swing.JMenu;
+import java.awt.Component;
 import java.awt.event.ActionEvent;
 import java.util.Optional;
 import java.util.function.BiConsumer;
@@ -30,20 +29,20 @@ import java.util.function.BiConsumer;
 public final class WaveformFeatures {
 
     private final EditorView view;
-    private final BiConsumer<java.awt.Component, String> messages;
+    private final BiConsumer<Component, String> messages;
     private final ProbeActions actions;
     private final NetBlink blink;
     private final WaveformPanel panel;
     private final Action toggle;
     private final Runnable dockListener;
     private final JMenu viewMenu;
-    private final java.awt.Component separator;
+    private final Component separator;
     private final JCheckBoxMenuItem toggleItem;
     private final Runnable shortcutRemover;
     private final Runnable probeListener;
     private boolean disposed;
 
-    public WaveformFeatures(EditorView view, TextPrompt prompt, BiConsumer<java.awt.Component, String> messages) {
+    public WaveformFeatures(EditorView view, TextPrompt prompt, BiConsumer<Component, String> messages) {
         this.view = view;
         this.messages = messages;
         OpenDocument openDocument = view.openDocument();
@@ -80,11 +79,6 @@ public final class WaveformFeatures {
         if (!openDocument.document().probes().isEmpty()) {
             dock.showDock();
         }
-    }
-
-    /** Ver ▸ Formas de onda (a check item that follows the dock). */
-    public Action toggleAction() {
-        return toggle;
     }
 
     public WaveformPanel panel() {
@@ -130,23 +124,7 @@ public final class WaveformFeatures {
         if (net.isEmpty()) {
             return;
         }
-        Net found = net.get();
-        CircuitCanvas canvas = view.canvas();
-        Bounds bounds = null;
-        for (GridPoint point : found.points()) {
-            Bounds single = Bounds.of(point, point);
-            bounds = bounds == null ? single : bounds.union(single);
-        }
-        if (bounds != null) {
-            canvas.centerOn(bounds);
-        }
-        if (found.wires().isEmpty()) {
-            canvas.selection().set(found.pins().stream().map(PinRef::componentId).distinct().toList());
-        } else {
-            canvas.selection().set(found.wires());
-        }
-        blink.start(found.wires());
-        canvas.requestFocusInWindow();
+        ProblemNavigator.focusNet(view.canvas(), blink, net.get());
     }
 
     public void dispose() {

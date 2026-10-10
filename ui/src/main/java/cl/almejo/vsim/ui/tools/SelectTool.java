@@ -57,6 +57,7 @@ public final class SelectTool implements Tool {
 
     private final Map<String, Boolean> interactiveByType = new HashMap<>();
     private ConnectionPoints connectionPoints;
+    private int pinSearches;
     private DocumentElement pressedElement;
     private GridPoint pressPoint;
     private WireDrawing wire;
@@ -124,7 +125,7 @@ public final class SelectTool implements Tool {
         // A free text is drawn on top of everything, so a press on it never reaches a pin underneath.
         Optional<ConnectionPoints.PinHit> pin = hit.isPresent() && hit.get() instanceof TextLabel
                 ? Optional.empty()
-                : connectionPoints(context).pinNear(context.openDocument().document(), event.gridPosition());
+                : pinNear(context, event.gridPosition());
         if (event.shiftDown() || event.controlDown()) {
             Optional<DocumentElement> target = pin.<DocumentElement>map(ConnectionPoints.PinHit::component).or(() -> hit);
             if (target.isPresent()) {
@@ -232,25 +233,29 @@ public final class SelectTool implements Tool {
     }
 
     private void updateHover(ToolContext context, CanvasMouseEvent event) {
-        GridPoint nearest = connectionPoints(context)
-                .pinNear(context.openDocument().document(), event.gridPosition())
-                .map(ConnectionPoints.PinHit::point).orElse(null);
+        Optional<ConnectionPoints.PinHit> pin = pinNear(context, event.gridPosition());
+        GridPoint nearest = pin.map(ConnectionPoints.PinHit::point).orElse(null);
         if (!Objects.equals(nearest, hoverPin)) {
             hoverPin = nearest;
             hoverWidth = nearest == null ? 1
                     : connectionPoints(context).widthAt(context.openDocument().document(), nearest);
             context.repaint();
         }
-        showCursor(context, cursorAt(context, event.gridPosition()));
+        showCursor(context, cursorAt(context, event.gridPosition(), pin));
     }
 
-    /** What a plain primary press at {@code gridPosition} would do, as a cursor: the priority of {@link #press}. */
-    CanvasCursor cursorAt(ToolContext context, Point2D gridPosition) {
+    /**
+     * What a plain primary press at {@code gridPosition} would do, as a cursor: the priority of {@link #press}.
+     * {@code nearestPin} is the pin nearest to {@code gridPosition}, if any.
+     */
+    private CanvasCursor cursorAt(ToolContext context, Point2D gridPosition,
+                                  Optional<ConnectionPoints.PinHit> nearestPin) {
         CircuitDocument document = context.openDocument().document();
         Optional<DocumentElement> hit = context.hitTester().elementAt(document, gridPosition);
+        // A free text is drawn on top of everything, so it hides a pin underneath.
         Optional<ConnectionPoints.PinHit> pin = hit.isPresent() && hit.get() instanceof TextLabel
                 ? Optional.empty()
-                : connectionPoints(context).pinNear(document, gridPosition);
+                : nearestPin;
         if (pin.isPresent()) {
             return grabsSelection(context, pin.get().component()) ? CanvasCursor.MOVE : CanvasCursor.CROSSHAIR;
         }
@@ -408,7 +413,7 @@ public final class SelectTool implements Tool {
         Rectangle2D pixels = new Rectangle2D.Double(band.getX() * unit, band.getY() * unit,
                 band.getWidth() * unit, band.getHeight() * unit);
         Color color = context.scheme().selection();
-        graphics.setColor(new Color(color.getRed(), color.getGreen(), color.getBlue(), BAND_FILL_ALPHA));
+        graphics.setColor(PainterSupport.withAlpha(color, BAND_FILL_ALPHA));
         graphics.fill(pixels);
         MarchingAnts.draw(graphics, pixels, color, BAND_WIDTH, context.selectionDashPhase());
     }
@@ -466,6 +471,17 @@ public final class SelectTool implements Tool {
         if (pressedElement instanceof Component component && isInteractive(context, component)) {
             context.openDocument().interact(component.id());
         }
+    }
+
+    /** The pin nearest to {@code gridPosition}: a scan of every pin of the document, counted for tests. */
+    private Optional<ConnectionPoints.PinHit> pinNear(ToolContext context, Point2D gridPosition) {
+        pinSearches++;
+        return connectionPoints(context).pinNear(context.openDocument().document(), gridPosition);
+    }
+
+    /** For tests: how many times the nearest pin was looked for. */
+    int pinSearches() {
+        return pinSearches;
     }
 
     private ConnectionPoints connectionPoints(ToolContext context) {

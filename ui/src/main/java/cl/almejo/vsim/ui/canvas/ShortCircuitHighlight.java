@@ -29,12 +29,6 @@ public record ShortCircuitHighlight(Set<ElementId> wires, Set<ElementId> compone
         driverPins = Set.copyOf(driverPins);
     }
 
-    public static ShortCircuitHighlight of(SimulationSnapshot snapshot, Netlist netlist, long netlistToken,
-                                           CircuitDocument document, ComponentTypeRegistry registry) {
-        return of(snapshot, netlist, netlistToken, document, registry,
-                () -> TopLevelNets.of(document, netlist, registry));
-    }
-
     /** {@code merged} is asked only when the snapshot has short circuits for the shown netlist. */
     public static ShortCircuitHighlight of(SimulationSnapshot snapshot, Netlist netlist, long netlistToken,
                                            CircuitDocument document, ComponentTypeRegistry registry,

@@ -19,6 +19,7 @@ import cl.almejo.vsim.ui.paint.Appearance;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.ComponentIcon;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
+import cl.almejo.vsim.ui.shortcuts.ShortcutCatalog;
 import net.miginfocom.swing.MigLayout;
 
 import javax.swing.AbstractAction;
@@ -43,7 +44,6 @@ import javax.swing.tree.TreeModel;
 import javax.swing.tree.TreeSelectionModel;
 import java.awt.Component;
 import java.awt.GraphicsEnvironment;
-import java.awt.Toolkit;
 import java.awt.datatransfer.StringSelection;
 import java.awt.datatransfer.Transferable;
 import java.awt.event.ActionEvent;
@@ -203,8 +203,7 @@ public final class PalettePanel extends JPanel {
 
     /** Keeps Ctrl+Z / Ctrl+Shift+Z in the search box from reaching the circuit's undo menu accelerators. */
     private void swallowUndoKeystrokes() {
-        int mask = GraphicsEnvironment.isHeadless() ? InputEvent.CTRL_DOWN_MASK
-                : Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx();
+        int mask = ShortcutCatalog.menuMask();
         String actionKey = "palette.ignoreUndo";
         search.getInputMap(JComponent.WHEN_FOCUSED).put(KeyStroke.getKeyStroke(KeyEvent.VK_Z, mask), actionKey);
         search.getInputMap(JComponent.WHEN_FOCUSED)

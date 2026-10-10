@@ -23,6 +23,7 @@ public final class SimulationEngine {
     private long revision;
     private long token;
     private final WaveformRecorder recorder = new WaveformRecorder();
+    private int waveformRebinds;
     /** Alias id → the root net that carries it (FlatNet#aliases), rebuilt with the nets. */
     private Map<String, RuntimeNet> aliasRoots = Map.of();
 
@@ -75,10 +76,36 @@ public final class SimulationEngine {
         revision++;
     }
 
+    /**
+     * Replaces the circuit and sets the waveform channels with a single rebind (as {@link #update(FlatCircuit)} then
+     * {@link #setProbes}, which would rebind twice). The channels are bound even when the circuit is rejected.
+     */
+    public void update(FlatCircuit circuit, Map<String, String> channels) {
+        recorder.setChannels(channels);
+        int before = waveformRebinds;
+        try {
+            update(circuit);
+        } finally {
+            if (waveformRebinds == before) {
+                rebind();
+            }
+        }
+    }
+
     private void rebindWaveforms() {
         if (recorder.hasChannels()) {
-            recorder.rebind(this::netWithId, nets.values(), now());
+            rebind();
         }
+    }
+
+    private void rebind() {
+        recorder.rebind(this::netWithId, nets.values(), now());
+        waveformRebinds++;
+    }
+
+    /** For tests: how many times the waveform channels were attached to the nets again. */
+    int waveformRebinds() {
+        return waveformRebinds;
     }
 
     private void rewireAndInitialize(FlatCircuit circuit, List<ComponentInstance> created) {
@@ -180,13 +207,13 @@ public final class SimulationEngine {
      */
     public void setProbes(Map<String, String> channels) {
         recorder.setChannels(channels);
-        recorder.rebind(this::netWithId, nets.values(), now());
+        rebind();
     }
 
     /** «Limpiar trazas»: drops every recorded event; each channel starts again at its current value. */
     public void clearWaveforms() {
         recorder.clear();
-        recorder.rebind(this::netWithId, nets.values(), now());
+        rebind();
     }
 
     /** Grows whenever a trace or the set of channels changes. */

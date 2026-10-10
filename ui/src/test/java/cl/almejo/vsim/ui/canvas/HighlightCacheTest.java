@@ -5,6 +5,7 @@ import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
@@ -91,8 +92,78 @@ class HighlightCacheTest {
 
         cache.widthMismatches(document, netlist, document.revision(), shorted);
         cache.shortCircuits(document, netlist, document.revision(), again);
-        assertThat(cache.highlightComputations()).isEqualTo(3);
+        assertThat(cache.highlightComputations()).as("a snapshot with the same problems keeps them").isEqualTo(2);
+        assertThat(cache.topLevelNets(document, netlist)).isSameAs(cache.topLevelNets(document, netlist));
         assertThat(cache.mergedComputations()).isEqualTo(1);
+    }
+
+    @Test
+    void newSnapshotsWithTheSameProblemsKeepTheFrameWhileNewProblemsOrEditsRecomputeIt() {
+        Component high = highSwitch();
+        Wire wire = wire(4, 1, 10, 1);
+        Netlist netlist = new NetlistCompiler(registry).compile(document);
+        SimulationSnapshot shorted = shortedSnapshot(netlist, high, wire);
+        ShortCircuitHighlight first = cache.shortCircuits(document, netlist, document.revision(), shorted);
+
+        for (int step = 0; step < 5; step++) { // a running simulation: new snapshot, new values, same short
+            SimulationSnapshot running = new SimulationSnapshot(10 + step, document.revision(), step, true,
+                    Map.of("n", Value.of(1, step % 2)), Map.of(), shorted.problems(), Optional.empty());
+            assertThat(cache.shortCircuits(document, netlist, document.revision(), running)).isSameAs(first);
+        }
+        assertThat(cache.computations()).isEqualTo(1);
+
+        SimulationSnapshot healed = new SimulationSnapshot(20, document.revision(), 9, true, Map.of(), Map.of(),
+                List.of(), Optional.empty());
+        assertThat(cache.shortCircuits(document, netlist, document.revision(), healed))
+                .isEqualTo(ShortCircuitHighlight.NONE);
+        assertThat(cache.computations()).isEqualTo(2);
+
+        assertThat(cache.shortCircuits(document, netlist, document.revision(), shorted).wires())
+                .containsExactly(wire.id());
+        long revision = document.revision();
+        document.add(new TextLabel(document.newLabelId(), new GridPoint(30, 30), "nota"));
+        assertThat(document.revision()).isNotEqualTo(revision);
+        cache.shortCircuits(document, netlist, revision, shorted);
+        assertThat(cache.computations()).as("an edit of the document recomputes").isEqualTo(4);
+    }
+
+    /** A 4-bit splitter's bus pin (10, 0) ends wire (0, 0)-(10, 0). */
+    private String busOfFourBits() {
+        document.add(registry.require(StandardComponentTypes.BUS_SPLITTER).newComponent(new ElementId("c1"),
+                new GridPoint(10, 0), Rotation.R0, Map.of(StandardComponentTypes.WIDTH, 4), ""));
+        Wire bus = wire(0, 0, 10, 0);
+        return new NetlistCompiler(registry).compile(document).netForWire(bus.id()).orElseThrow().id().value();
+    }
+
+    private RenderState state(Netlist netlist, Map<String, Value> values) {
+        SimulationSnapshot snapshot = new SimulationSnapshot(1, document.revision(), 0, true, values, Map.of(),
+                List.of(), Optional.empty());
+        return new RenderState(document, netlist, document.revision(), snapshot, Set.of(), 0);
+    }
+
+    @Test
+    void busLabelsPlaceTheirBusesOncePerRevisionAndNetlistAndFollowEverySnapshotsValues() {
+        String bus = busOfFourBits();
+        Netlist netlist = new NetlistCompiler(registry).compile(document);
+
+        RenderState first = state(netlist, Map.of(bus, Value.of(4, 0x3)));
+        assertThat(cache.busLabels(first)).singleElement()
+                .satisfies(label -> assertThat(label.text()).isEqualTo("0x3"));
+        assertThat(cache.busLabels(first)).isSameAs(cache.busLabels(first));
+        assertThat(cache.busLabels(state(netlist, Map.of(bus, Value.of(4, 0xA))))).singleElement()
+                .satisfies(label -> assertThat(label.text()).isEqualTo("0xA"));
+        assertThat(cache.busAnchorComputations()).isEqualTo(1);
+
+        Wire longer = wire(0, 0, 0, 30);
+        Netlist next = new NetlistCompiler(registry).compile(document);
+        String nextBus = next.netForWire(longer.id()).orElseThrow().id().value();
+        RenderState edited = state(next, Map.of(nextBus, Value.of(4, 0x5)));
+        assertThat(cache.busLabels(edited)).singleElement().satisfies(label -> {
+            assertThat(label.text()).isEqualTo("0x5");
+            assertThat(label.vertical()).as("moved to the new longest wire").isTrue();
+        });
+        assertThat(cache.busLabels(edited)).isEqualTo(BusLabels.of(edited));
+        assertThat(cache.busAnchorComputations()).isEqualTo(2);
     }
 
     @Test

@@ -53,6 +53,17 @@ class SelectToolCursorTest {
     }
 
     @Test
+    void eachMouseMoveLooksForTheNearestPinOnce() {
+        not(0, 0);
+        hover(0, 2);
+        assertThat(tool.pinSearches()).isEqualTo(1);
+        assertThat(context.lastCursor()).isEqualTo(CanvasCursor.CROSSHAIR);
+        hover(20, 20);
+        assertThat(tool.pinSearches()).isEqualTo(2);
+        assertThat(context.lastCursor()).isEqualTo(CanvasCursor.DEFAULT);
+    }
+
+    @Test
     void aSwitchShowsTheHand() {
         place(context.openDocument(), StandardComponentTypes.SWITCH, 0, 0, Map.of("value", "1"));
         hover(1, 1);

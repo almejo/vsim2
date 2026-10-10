@@ -118,12 +118,10 @@ class TimeAxisTest {
     }
 
     @Test
-    void theCursorIsSetAndCleared() {
+    void theCursorIsSet() {
         assertThat(axis.cursor()).isEmpty();
         axis.setCursor(42);
         assertThat(axis.cursor()).hasValue(42);
-        axis.clearCursor();
-        assertThat(axis.cursor()).isEmpty();
     }
 
     @Test

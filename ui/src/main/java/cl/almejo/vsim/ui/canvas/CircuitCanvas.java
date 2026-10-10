@@ -59,9 +59,7 @@ import java.awt.event.WindowEvent;
 import java.awt.event.WindowStateListener;
 import java.awt.geom.Point2D;
 import java.nio.file.Path;
-import java.util.EnumMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.TooManyListenersException;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -77,8 +75,6 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     private static final int ANTS_MILLISECONDS = 90;
     private static final int AUTOSCROLL_MILLISECONDS = 30;
     private static final double WHEEL_SCROLL_PIXELS = 40;
-    private static final Cursor PAN_CURSOR = Cursor.getPredefinedCursor(Cursor.MOVE_CURSOR);
-    private static final Map<CanvasCursor, Cursor> AWT_CURSORS = awtCursors();
 
     private final OpenDocument openDocument;
     private final CircuitRenderer renderer;
@@ -688,6 +684,14 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         }
     }
 
+    /**
+     * The highlights, bus labels and merged top-level nets of this canvas's frames, shared by its renderer, its
+     * overlays and its tooltips so a frame is worked out once.
+     */
+    public HighlightCache highlights() {
+        return renderer.highlights();
+    }
+
     /** Whether a wire of a short circuit or a width mismatch is on the canvas now (what the renderer glows). */
     private boolean problemWireShown() {
         HighlightCache highlights = renderer.highlights();
@@ -761,26 +765,23 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
 
     @Override
     public void setCursor(CanvasCursor cursor) {
-        toolCursor = AWT_CURSORS.get(cursor);
+        toolCursor = awtCursor(cursor);
         showCursor();
     }
 
     /** The tool's cursor, or MOVE while Espacio is held or the middle button pans. */
     private void showCursor() {
-        setCursor(spaceDown || panAnchor != null ? PAN_CURSOR : toolCursor);
+        setCursor(spaceDown || panAnchor != null ? awtCursor(CanvasCursor.MOVE) : toolCursor);
     }
 
-    private static Map<CanvasCursor, Cursor> awtCursors() {
-        Map<CanvasCursor, Cursor> cursors = new EnumMap<>(CanvasCursor.class);
-        for (CanvasCursor cursor : CanvasCursor.values()) {
-            cursors.put(cursor, switch (cursor) {
-                case DEFAULT -> Cursor.getDefaultCursor();
-                case MOVE -> Cursor.getPredefinedCursor(Cursor.MOVE_CURSOR);
-                case CROSSHAIR -> Cursor.getPredefinedCursor(Cursor.CROSSHAIR_CURSOR);
-                case HAND -> Cursor.getPredefinedCursor(Cursor.HAND_CURSOR);
-            });
-        }
-        return cursors;
+    /** The AWT cursor of {@code cursor} (AWT keeps one instance of each predefined cursor). */
+    private static Cursor awtCursor(CanvasCursor cursor) {
+        return switch (cursor) {
+            case DEFAULT -> Cursor.getDefaultCursor();
+            case MOVE -> Cursor.getPredefinedCursor(Cursor.MOVE_CURSOR);
+            case CROSSHAIR -> Cursor.getPredefinedCursor(Cursor.CROSSHAIR_CURSOR);
+            case HAND -> Cursor.getPredefinedCursor(Cursor.HAND_CURSOR);
+        };
     }
 
     @Override

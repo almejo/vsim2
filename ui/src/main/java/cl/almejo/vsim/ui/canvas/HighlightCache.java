@@ -4,17 +4,20 @@ import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.netlist.Netlist;
+import cl.almejo.vsim.core.simulation.Problem;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 /**
- * The problem highlights and bus points of the frame being painted, worked out again only when the document (identity
- * and revision), the netlist (identity and token) or the snapshot (identity) changes: an animated canvas repaints many
- * times a second with the same ones. Each highlight is worked out only when asked for, and the merged top-level nets
- * ({@link TopLevelNets}) once per document revision and netlist. One per renderer or overlay; EDT only. Holds
- * geometry and ids only, never scheme colors.
+ * The problem highlights, bus points and bus labels of the frame being painted. The highlights are worked out again
+ * only when the document (identity and revision), the netlist (identity and token) or the snapshot's token and
+ * problems change, so a running simulation (a new snapshot many times a second, usually with the same problems) keeps
+ * them. Each highlight is worked out only when asked for, and the merged top-level nets ({@link TopLevelNets}) and the
+ * bus label anchors once per document revision and netlist. One per canvas, shared by its renderer, its overlays and
+ * its tooltips; EDT only. Holds geometry and ids only, never scheme colors.
  */
 public final class HighlightCache {
 
@@ -23,7 +26,8 @@ public final class HighlightCache {
     private long revision;
     private Netlist netlist;
     private long netlistToken;
-    private SimulationSnapshot snapshot;
+    private long snapshotToken;
+    private List<Problem> problems;
     private boolean frameComputed;
     private ShortCircuitHighlight shortCircuits;
     private WidthMismatchHighlight widthMismatches;
@@ -33,6 +37,14 @@ public final class HighlightCache {
     private TopLevelNets merged;
     private Netlist busNetlist;
     private Set<GridPoint> busPoints;
+    private CircuitDocument anchorDocument;
+    private long anchorRevision;
+    private Netlist anchorNetlist;
+    private List<BusLabels.Anchor> anchors;
+    private SimulationSnapshot labelSnapshot;
+    private long labelToken;
+    private List<BusLabels.BusLabel> labels;
+    private int busAnchorComputations;
     private int computations;
     private int highlightComputations;
     private int mergedComputations;
@@ -50,7 +62,7 @@ public final class HighlightCache {
         useFrame(document, netlist, netlistToken, snapshot);
         if (shortCircuits == null) {
             shortCircuits = ShortCircuitHighlight.of(snapshot, netlist, netlistToken, document, registry,
-                    () -> merged(document, netlist));
+                    () -> topLevelNets(document, netlist));
             counted();
         }
         return shortCircuits;
@@ -65,7 +77,7 @@ public final class HighlightCache {
         useFrame(document, netlist, netlistToken, snapshot);
         if (widthMismatches == null) {
             widthMismatches = WidthMismatchHighlight.of(snapshot, netlist, netlistToken, document, registry,
-                    () -> merged(document, netlist));
+                    () -> topLevelNets(document, netlist));
             counted();
         }
         return widthMismatches;
@@ -80,6 +92,32 @@ public final class HighlightCache {
             busNetlist = netlist;
         }
         return busPoints;
+    }
+
+    /** Where each bus of {@code state} writes its value ({@link BusLabels}); the anchors once per revision and netlist. */
+    public List<BusLabels.BusLabel> busLabels(RenderState state) {
+        CircuitDocument document = state.document();
+        Netlist netlist = state.netlist();
+        if (anchors == null || document != anchorDocument || document.revision() != anchorRevision
+                || netlist != anchorNetlist) {
+            anchors = BusLabels.anchors(document, netlist);
+            anchorDocument = document;
+            anchorRevision = document.revision();
+            anchorNetlist = netlist;
+            labels = null;
+            busAnchorComputations++;
+        }
+        if (labels == null || state.snapshot() != labelSnapshot || state.netlistToken() != labelToken) {
+            labels = BusLabels.of(state, anchors);
+            labelSnapshot = state.snapshot();
+            labelToken = state.netlistToken();
+        }
+        return labels;
+    }
+
+    /** For tests: how many times the bus label anchors were worked out. */
+    int busAnchorComputations() {
+        return busAnchorComputations;
     }
 
     /** For tests: how many frames had their highlights worked out. */
@@ -100,7 +138,8 @@ public final class HighlightCache {
     /** Forgets the highlights when the frame changes. */
     private void useFrame(CircuitDocument document, Netlist netlist, long netlistToken, SimulationSnapshot snapshot) {
         boolean same = document == this.document && document.revision() == revision && netlist == this.netlist
-                && netlistToken == this.netlistToken && snapshot == this.snapshot;
+                && netlistToken == this.netlistToken && snapshot.token() == snapshotToken
+                && snapshot.problems().equals(problems);
         if (same) {
             return;
         }
@@ -108,7 +147,8 @@ public final class HighlightCache {
         this.revision = document.revision();
         this.netlist = netlist;
         this.netlistToken = netlistToken;
-        this.snapshot = snapshot;
+        this.snapshotToken = snapshot.token();
+        this.problems = snapshot.problems();
         frameComputed = false;
         shortCircuits = null;
         widthMismatches = null;
@@ -122,7 +162,11 @@ public final class HighlightCache {
         }
     }
 
-    private TopLevelNets merged(CircuitDocument document, Netlist netlist) {
+    /**
+     * The top-level nets of {@code document} merged through templates; flattening is costly, so worked out once per
+     * document revision and netlist and shared by the highlights and the tooltips.
+     */
+    public TopLevelNets topLevelNets(CircuitDocument document, Netlist netlist) {
         if (merged == null || document != mergedDocument || document.revision() != mergedRevision
                 || netlist != mergedNetlist) {
             merged = TopLevelNets.of(document, netlist, registry);

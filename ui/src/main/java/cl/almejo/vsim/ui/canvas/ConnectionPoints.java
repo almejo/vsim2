@@ -21,8 +21,8 @@ public final class ConnectionPoints {
         this.registry = registry;
     }
 
-    /** A pin location together with the component that owns it. */
-    public record PinHit(GridPoint point, Component component) {
+    /** A pin location together with the component that owns it and the pin's index in its type. */
+    public record PinHit(GridPoint point, Component component, int pinIndex) {
     }
 
     /** The closest pin within {@link #PIN_RADIUS} grid units of {@code gridPoint}, with its owner. */
@@ -35,7 +35,7 @@ public final class ConnectionPoints {
                 GridPoint pin = type.pinLocation(component, pinIndex);
                 double distance = gridPoint.distance(pin.x(), pin.y());
                 if (distance <= closestDistance) {
-                    closest = new PinHit(pin, component);
+                    closest = new PinHit(pin, component, pinIndex);
                     closestDistance = distance;
                 }
             }

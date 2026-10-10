@@ -48,17 +48,17 @@ class NetBlinkTest {
             assertThat(blink.isLit()).isTrue();
             assertThat(pixelOnTheWire(blink)).isNotZero();
 
-            blink.toggle();
+            blink.steps().tick();
             assertThat(blink.isLit()).isFalse();
             assertThat(pixelOnTheWire(blink)).isZero();
 
-            for (int step = 1; step < NetBlink.TOGGLES; step++) {
-                blink.toggle();
+            for (int step = 1; step < Blink.TOGGLES; step++) {
+                blink.steps().tick();
             }
             assertThat(blink.isBlinking()).isFalse();
             assertThat(blink.isLit()).isFalse();
             assertThat(pixelOnTheWire(blink)).isZero();
-            assertThat(repaints.get()).isEqualTo(1 + NetBlink.TOGGLES);
+            assertThat(repaints.get()).isEqualTo(1 + Blink.TOGGLES);
             blink.dispose();
         });
     }
@@ -69,11 +69,11 @@ class NetBlinkTest {
         SwingUtilities.invokeAndWait(() -> {
             NetBlink blink = new NetBlink(() -> ColorScheme.LIGHT, repaints::incrementAndGet);
             blink.start(Set.of(wire.id()));
-            blink.toggle();
-            blink.toggle();
+            blink.steps().tick();
+            blink.steps().tick();
             blink.start(Set.of(wire.id()));
-            for (int step = 1; step < NetBlink.TOGGLES; step++) {
-                blink.toggle();
+            for (int step = 1; step < Blink.TOGGLES; step++) {
+                blink.steps().tick();
             }
             assertThat(blink.isBlinking()).isTrue();
             blink.dispose();

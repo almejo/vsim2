@@ -87,12 +87,8 @@ public final class SimulationThread implements AutoCloseable {
     public void update(FlatCircuit circuit, Map<String, String> channels) {
         Map<String, String> copy = Map.copyOf(channels);
         requests.add(() -> {
-            try {
-                engine.update(circuit);
-                failure = null;
-            } finally {
-                engine.setProbes(copy);
-            }
+            engine.update(circuit, copy);
+            failure = null;
         });
     }
 

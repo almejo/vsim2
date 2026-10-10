@@ -92,7 +92,7 @@ final class TimeRuler extends JComponent {
                 graphics2D.drawLine(x, getHeight() - TICK_LENGTH, x, getHeight());
                 graphics2D.drawString(TimeAxis.format(tick), x + 3, baseline);
             }
-            String now = "t = " + TimeAxis.format(panel.displayed().time());
+            String now = TimeAxis.timeLabel(panel.displayed().time());
             int nowWidth = metrics.stringWidth(now);
             graphics2D.setColor(scheme.diagramBackground());
             graphics2D.fillRect(getWidth() - nowWidth - 2 * PADDING, 0, nowWidth + 2 * PADDING, getHeight());

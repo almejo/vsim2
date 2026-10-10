@@ -193,6 +193,17 @@ class ProblemsControllerTest {
     }
 
     @Test
+    void theRendererThePulseAndTheTooltipsShareOneHighlightCache() {
+        assertThat(view.problems().pulse().highlights()).isSameAs(view.canvas().highlights());
+        view.problems().showSnapshot(shortSnapshot(openDocument.netlistToken()));
+        view.canvas().getToolTipText(hoverAt(32, 32));
+        assertThat(view.canvas().highlights().topLevelNets(openDocument.document(), openDocument.netlist()))
+                .as("the tooltip filled the shared memo").isSameAs(view.canvas().highlights()
+                        .topLevelNets(openDocument.document(), openDocument.netlist()));
+        assertThat(view.canvas().getToolTipText(hoverAt(32, 32))).isEqualTo("Interruptor → 1 · Interruptor → 0");
+    }
+
+    @Test
     void aStaleSnapshotShowsNoTooltip() {
         view.problems().showSnapshot(shortSnapshot(openDocument.netlistToken() - 1));
         assertThat(view.canvas().getToolTipText(hoverAt(32, 32))).isNull();

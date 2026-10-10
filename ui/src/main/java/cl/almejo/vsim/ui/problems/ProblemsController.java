@@ -1,6 +1,5 @@
 package cl.almejo.vsim.ui.problems;
 
-import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.Wire;
@@ -70,7 +69,6 @@ public final class ProblemsController {
     private SimulationSnapshot snapshot = SimulationSnapshot.EMPTY;
     private boolean disposed;
     private final ConnectionPoints connectionPoints;
-    private Memo memo;
 
     public ProblemsController(EditorView view) {
         this.openDocument = view.openDocument();
@@ -78,7 +76,7 @@ public final class ProblemsController {
         this.connectionPoints = new ConnectionPoints(openDocument.registry());
         this.statusBar = view.statusBar();
         this.blink = new NetBlink(canvas::scheme, canvas::repaint);
-        this.pulse = new ShortCircuitPulse(openDocument.registry(), canvas::repaint, System::nanoTime);
+        this.pulse = new ShortCircuitPulse(canvas.highlights(), canvas::repaint, System::nanoTime);
         this.navigator = new ProblemNavigator(canvas, blink);
         this.panel = new ProblemsPanel(openDocument, navigator::navigateTo);
 
@@ -153,14 +151,10 @@ public final class ProblemsController {
         previousProblem.setEnabled(anyProblem);
     }
 
-    /** Shows the component library's load problems in the Problems tab (texts already localized). */
-    public void showLibraryProblems(List<String> descriptions) {
-        if (!disposed) {
-            panel.showLibraryProblems(descriptions);
-        }
-    }
-
-    /** Like {@link #showLibraryProblems(List)}; only {@code fileCount} of them count as files in the header. */
+    /**
+     * Shows the component library's load problems in the Problems tab (texts already localized); only
+     * {@code fileCount} of them count as files in the header.
+     */
     public void showLibraryProblems(List<String> descriptions, int fileCount) {
         if (!disposed) {
             panel.showLibraryProblems(descriptions, fileCount);
@@ -271,20 +265,9 @@ public final class ProblemsController {
     /** The id the engine reports the problems of {@code net} under (the merged net's root through a template). */
     private String reportedId(CircuitDocument document, Net net) {
         String netId = net.id().value();
-        return snapshot.problems().isEmpty() ? netId : topLevelNets(document).rootOf(netId);
-    }
-
-    /** Flattening is costly and tooltips are asked on every mouse move: memoized per compiled netlist. */
-    private TopLevelNets topLevelNets(CircuitDocument document) {
-        long token = openDocument.netlistToken();
-        Netlist netlist = openDocument.netlist();
-        if (memo == null || memo.token() != token || memo.netlist() != netlist) {
-            memo = new Memo(token, netlist, TopLevelNets.of(document, netlist, openDocument.registry()));
-        }
-        return memo.nets();
-    }
-
-    private record Memo(long token, Netlist netlist, TopLevelNets nets) {
+        // Tooltips are asked on every mouse move: the canvas's cache flattens once per revision and netlist.
+        return snapshot.problems().isEmpty() ? netId
+                : canvas.highlights().topLevelNets(document, openDocument.netlist()).rootOf(netId);
     }
 
     /** The width-mismatch text of {@code net}: the one reported under {@code reportedId}, else its own pins'. */
@@ -302,15 +285,8 @@ public final class ProblemsController {
 
     /** The net of the pin nearest to {@code gridPoint} (within {@link ConnectionPoints#PIN_RADIUS}), if any. */
     private Optional<Net> pinNetAt(CircuitDocument document, Point2D gridPoint) {
-        return connectionPoints.pinNear(document, gridPoint).flatMap(hit -> {
-            ComponentType type = openDocument.registry().typeOf(hit.component());
-            for (int pinIndex = 0; pinIndex < type.pinCount(); pinIndex++) {
-                if (type.pinLocation(hit.component(), pinIndex).equals(hit.point())) {
-                    return openDocument.netlist().netForPin(new PinRef(hit.component().id(), pinIndex));
-                }
-            }
-            return Optional.empty();
-        });
+        return connectionPoints.pinNear(document, gridPoint)
+                .flatMap(hit -> openDocument.netlist().netForPin(new PinRef(hit.component().id(), hit.pinIndex())));
     }
 
     private static Action action(String name, Runnable behavior) {

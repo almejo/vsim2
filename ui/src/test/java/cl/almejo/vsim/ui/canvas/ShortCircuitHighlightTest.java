@@ -57,9 +57,15 @@ class ShortCircuitHighlightTest {
                 Map.of(), List.of(shortCircuit), Optional.empty());
     }
 
+    private static ShortCircuitHighlight highlightOf(SimulationSnapshot snapshot, Netlist netlist, long token,
+                                                     CircuitDocument document, ComponentTypeRegistry registry) {
+        return ShortCircuitHighlight.of(snapshot, netlist, token, document, registry,
+                () -> TopLevelNets.of(document, netlist, registry));
+    }
+
     @Test
     void marksTheNetsWiresTheDriversAndTheirPins() {
-        ShortCircuitHighlight highlight = ShortCircuitHighlight.of(snapshotWithShort(document.revision()), netlist,
+        ShortCircuitHighlight highlight = highlightOf(snapshotWithShort(document.revision()), netlist,
                 document.revision(), document, registry);
         assertThat(highlight.wires()).containsExactly(joint.id());
         assertThat(highlight.components()).containsExactlyInAnyOrder(high.id(), low.id());
@@ -68,7 +74,7 @@ class ShortCircuitHighlightTest {
 
     @Test
     void staleSnapshotHighlightsNothing() {
-        assertThat(ShortCircuitHighlight.of(snapshotWithShort(document.revision() - 1), netlist, document.revision(),
+        assertThat(highlightOf(snapshotWithShort(document.revision() - 1), netlist, document.revision(),
                 document, registry)).isEqualTo(ShortCircuitHighlight.NONE);
     }
 
@@ -86,7 +92,7 @@ class ShortCircuitHighlightTest {
                         new DriverRef("c5/c9", 0, Value.ZERO)), 0)),
                 Optional.empty());
 
-        ShortCircuitHighlight highlight = ShortCircuitHighlight.of(snapshot, Netlist.EMPTY, 7, document, registry);
+        ShortCircuitHighlight highlight = highlightOf(snapshot, Netlist.EMPTY, 7, document, registry);
 
         assertThat(highlight.components()).containsExactly(instance.id());
         assertThat(highlight.driverPins()).isEmpty();
@@ -99,7 +105,7 @@ class ShortCircuitHighlightTest {
             PassThroughCircuit circuit = PassThroughCircuit.addTo(openDocument);
             assertThat(circuit.leftNetId(openDocument)).isNotEqualTo(circuit.rightNetId(openDocument));
 
-            ShortCircuitHighlight highlight = ShortCircuitHighlight.of(circuit.shortSnapshot(openDocument),
+            ShortCircuitHighlight highlight = highlightOf(circuit.shortSnapshot(openDocument),
                     openDocument.netlist(), openDocument.netlistToken(), openDocument.document(),
                     openDocument.registry());
 

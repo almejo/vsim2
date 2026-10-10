@@ -10,6 +10,7 @@ import cl.almejo.vsim.core.waveform.WaveformSnapshot;
 import cl.almejo.vsim.ui.actions.TextPrompt;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.problems.Blink;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -331,11 +332,11 @@ class WaveformPanelTest {
             panel.blinkRow(ids.get(1));
             assertThat(panel.isBlinkLit(ids.get(1))).isTrue();
             assertThat(panel.isBlinkLit(ids.get(0))).isFalse();
-            for (int toggle = 1; toggle < WaveformPanel.BLINK_TOGGLES; toggle++) {
-                panel.blinkTick();
+            for (int toggle = 1; toggle < Blink.TOGGLES; toggle++) {
+                panel.rowBlink().tick();
                 assertThat(panel.isBlinkLit(ids.get(1))).isEqualTo(toggle % 2 == 0);
             }
-            panel.blinkTick();
+            panel.rowBlink().tick();
             assertThat(panel.isBlinkLit(ids.get(1))).isFalse();
         });
     }
