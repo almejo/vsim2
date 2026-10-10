@@ -1,6 +1,5 @@
 package cl.almejo.vsim.ui.problems;
 
-import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.Wire;
@@ -286,15 +285,8 @@ public final class ProblemsController {
 
     /** The net of the pin nearest to {@code gridPoint} (within {@link ConnectionPoints#PIN_RADIUS}), if any. */
     private Optional<Net> pinNetAt(CircuitDocument document, Point2D gridPoint) {
-        return connectionPoints.pinNear(document, gridPoint).flatMap(hit -> {
-            ComponentType type = openDocument.registry().typeOf(hit.component());
-            for (int pinIndex = 0; pinIndex < type.pinCount(); pinIndex++) {
-                if (type.pinLocation(hit.component(), pinIndex).equals(hit.point())) {
-                    return openDocument.netlist().netForPin(new PinRef(hit.component().id(), pinIndex));
-                }
-            }
-            return Optional.empty();
-        });
+        return connectionPoints.pinNear(document, gridPoint)
+                .flatMap(hit -> openDocument.netlist().netForPin(new PinRef(hit.component().id(), hit.pinIndex())));
     }
 
     private static Action action(String name, Runnable behavior) {
