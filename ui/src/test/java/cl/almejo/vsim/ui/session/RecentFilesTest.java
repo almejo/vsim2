@@ -118,4 +118,13 @@ class RecentFilesTest {
         assertThat(recentFiles.stateFor(first)).isEmpty();
         assertThat(recentFiles.stateFor(third)).contains(new WindowState(1, 2, 300, 200, true, new ViewState(1.0, 0.5, -2)));
     }
+
+    @Test
+    void aRootPathIsSkippedLikeABrokenEntry() throws IOException {
+        Path file = create("a");
+        Path root = directory.getRoot();
+        preferences.recentNode().node("0").put("path", root.toString());
+        preferences.recentNode().node("1").put("path", file.toString());
+        assertThat(recentFiles.entries()).containsExactly(file);
+    }
 }

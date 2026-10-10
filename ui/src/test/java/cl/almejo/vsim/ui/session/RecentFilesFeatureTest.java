@@ -181,4 +181,10 @@ class RecentFilesFeatureTest {
         assertThat(entries(recent)).containsExactly("No hay circuitos recientes", "—", "Limpiar lista");
         disposer.run();
     }
+
+    @Test
+    void theTextOfARootPathIsThePathItself() {
+        Path root = Path.of("").toAbsolutePath().getRoot();
+        assertThat(RecentFilesFeature.entryText(root)).contains(root.toString());
+    }
 }

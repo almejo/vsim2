@@ -84,7 +84,8 @@ public final class RecentFilesFeature implements EditorExtension {
 
     /** «nombre — carpeta»: the file name without extension and the name of its folder. */
     static String entryText(Path path) {
-        String fileName = path.getFileName().toString();
+        // A root has no file name; RecentFiles skips one, and its text is then the path itself.
+        String fileName = path.getFileName() == null ? path.toString() : path.getFileName().toString();
         int dot = fileName.lastIndexOf('.');
         String name = dot > 0 ? fileName.substring(0, dot) : fileName;
         Path parent = path.getParent();

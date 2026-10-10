@@ -101,6 +101,9 @@ public final class RecentFiles {
                 } catch (InvalidPathException exception) {
                     continue;
                 }
+                if (path.getFileName() == null) {
+                    continue; // a root ("/", "C:\\") is not a circuit file
+                }
                 if (entries.stream().noneMatch(entry -> entry.path().equals(path))) {
                     entries.add(new Entry(path, SessionKeys.readWindowState(entryNode)));
                 }
