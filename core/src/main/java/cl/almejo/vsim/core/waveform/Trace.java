@@ -4,6 +4,7 @@ import cl.almejo.vsim.core.value.Value;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalLong;
 
@@ -81,6 +82,27 @@ public final class Trace {
     public OptionalLong nextEdge(long time) {
         int index = lastIndexAtOrBefore(time) + 1;
         return index >= eventCount ? OptionalLong.empty() : OptionalLong.of(timeAt(index));
+    }
+
+    /**
+     * The index of the earliest event at or after {@code time}, or {@link #eventCount()} when there is none. A painter
+     * uses it to jump to the first event of the next pixel column without visiting (or allocating) the events in
+     * between, so drawing a dense history costs the width of the plot, not its number of events.
+     */
+    public int firstIndexAtOrAfter(long time) {
+        return time == Long.MIN_VALUE ? 0 : lastIndexAtOrBefore(time - 1) + 1;
+    }
+
+    /** The time of the event at {@code index} (0 is the oldest kept). */
+    public long eventTime(int index) {
+        Objects.checkIndex(index, eventCount);
+        return timeAt(index);
+    }
+
+    /** The value of the event at {@code index}: empty for a gap. */
+    public Optional<Value> eventValue(int index) {
+        Objects.checkIndex(index, eventCount);
+        return Optional.ofNullable(valueAtIndex(index));
     }
 
     /** For tests: the chunks, to check that snapshots share them. */
