@@ -1024,6 +1024,12 @@ class CircuitCanvasTest {
     }
 
     @Test
+    void choosingTheWireToolShowsTheCrosshair() {
+        canvas.setTool(new cl.almejo.vsim.ui.tools.WireTool());
+        assertThat(cursorType()).isEqualTo(Cursor.CROSSHAIR_CURSOR);
+    }
+
+    @Test
     void spaceAndTheMiddleButtonShowMoveAndThenGiveTheToolItsCursorBack() {
         canvas.setCursor(CanvasCursor.CROSSHAIR);
         spaceKey(KeyEvent.KEY_PRESSED);

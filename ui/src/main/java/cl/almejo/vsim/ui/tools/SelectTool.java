@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.tools;
 import cl.almejo.vsim.core.command.MoveElementsCommand;
 import cl.almejo.vsim.core.command.PasteCommand;
 import cl.almejo.vsim.core.component.ElementBounds;
+import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.ElementId;
@@ -68,10 +69,12 @@ public final class SelectTool implements Tool {
     private boolean narrowOnRelease;
     private int deltaX;
     private int deltaY;
+    private CanvasCursor cursor = CanvasCursor.DEFAULT;
 
     @Override
     public void activated(ToolContext context) {
         ownPressSeen = false;
+        cursor = CanvasCursor.DEFAULT; // the canvas shows cursor(), the arrow, on activation
     }
 
     @Override
@@ -84,6 +87,11 @@ public final class SelectTool implements Tool {
 
     @Override
     public void mousePressed(ToolContext context, CanvasMouseEvent event) {
+        press(context, event);
+        pressCursor().ifPresent(next -> showCursor(context, next));
+    }
+
+    private void press(ToolContext context, CanvasMouseEvent event) {
         Optional<DocumentElement> hit = context.hitTester()
                 .elementAt(context.openDocument().document(), event.gridPosition());
         if (event.button() == CanvasMouseEvent.SECONDARY) {
@@ -232,6 +240,52 @@ public final class SelectTool implements Tool {
             hoverWidth = nearest == null ? 1
                     : connectionPoints(context).widthAt(context.openDocument().document(), nearest);
             context.repaint();
+        }
+        showCursor(context, cursorAt(context, event.gridPosition()));
+    }
+
+    /** What a plain primary press at {@code gridPosition} would do, as a cursor: the priority of {@link #press}. */
+    CanvasCursor cursorAt(ToolContext context, Point2D gridPosition) {
+        CircuitDocument document = context.openDocument().document();
+        Optional<DocumentElement> hit = context.hitTester().elementAt(document, gridPosition);
+        Optional<ConnectionPoints.PinHit> pin = hit.isPresent() && hit.get() instanceof TextLabel
+                ? Optional.empty()
+                : connectionPoints(context).pinNear(document, gridPosition);
+        if (pin.isPresent()) {
+            return grabsSelection(context, pin.get().component()) ? CanvasCursor.MOVE : CanvasCursor.CROSSHAIR;
+        }
+        if (hit.isEmpty()) {
+            return CanvasCursor.DEFAULT;
+        }
+        DocumentElement element = hit.get();
+        boolean selected = context.selection().contains(element.id());
+        if (element instanceof Wire && !selected) {
+            return CanvasCursor.CROSSHAIR;
+        }
+        if (element instanceof Component component && isInteractive(context, component)) {
+            return CanvasCursor.HAND;
+        }
+        return selected ? CanvasCursor.MOVE : CanvasCursor.DEFAULT;
+    }
+
+    /** While a press drags: a wire (crosshair), a rubber band (arrow) or a move (move). */
+    private Optional<CanvasCursor> pressCursor() {
+        if (wire != null) {
+            return Optional.of(CanvasCursor.CROSSHAIR);
+        }
+        if (bandStart != null) {
+            return Optional.of(CanvasCursor.DEFAULT);
+        }
+        if (pressPoint != null) {
+            return Optional.of(CanvasCursor.MOVE);
+        }
+        return Optional.empty();
+    }
+
+    private void showCursor(ToolContext context, CanvasCursor next) {
+        if (next != cursor) {
+            cursor = next;
+            context.setCursor(next);
         }
     }
 
