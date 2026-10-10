@@ -1,6 +1,5 @@
 package cl.almejo.vsim.ui.session;
 
-import cl.almejo.vsim.core.io.CircuitFormat;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -138,7 +137,7 @@ public final class AutosaveService {
             String name = document.displayName();
             String content;
             try {
-                content = new CircuitFormat(document.registry()).write(document.document());
+                content = document.serialized();
             } catch (RuntimeException exception) {
                 reportFailure(id, name, exception);
                 continue;

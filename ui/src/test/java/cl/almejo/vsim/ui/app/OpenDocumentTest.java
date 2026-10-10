@@ -80,6 +80,14 @@ class OpenDocumentTest {
     }
 
     @Test
+    void aSavedFileHoldsExactlyTheSerializedDocument(@TempDir Path directory) throws Exception {
+        OpenDocument document = track(OpenDocument.createEmpty(registry));
+        Path file = directory.resolve("serialized.vsim");
+        document.save(file);
+        assertThat(Files.readString(file)).isEqualTo(document.serialized());
+    }
+
+    @Test
     void aNewFileIsNotCreatedWithOwnerOnlyPermissions(@TempDir Path directory) throws Exception {
         assumeTrue(FileSystems.getDefault().supportedFileAttributeViews().contains("posix"));
         Path file = directory.resolve("fresh.vsim");

@@ -248,13 +248,23 @@ public final class OpenDocument implements AutoCloseable {
     }
 
     /**
+     * The document as format v2 text: what {@link #save} writes and what autosave copies, so the two never differ.
+     * EDT only.
+     *
+     * @throws IllegalStateException when the document cannot be written (an instance whose definition is missing)
+     */
+    public String serialized() {
+        return new CircuitFormat(registry).write(document);
+    }
+
+    /**
      * Writes format v2 atomically (temporary file + move); on failure nothing changes. A document that could not be
      * reopened (an instance whose definition is missing) fails with an IOException before anything is written.
      */
     public void save(Path target) throws IOException {
         String content;
         try {
-            content = new CircuitFormat(registry).write(document);
+            content = serialized();
         } catch (IllegalStateException exception) {
             throw new IOException(exception.getMessage(), exception);
         }
