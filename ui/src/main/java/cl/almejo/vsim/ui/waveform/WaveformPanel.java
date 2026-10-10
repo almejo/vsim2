@@ -6,6 +6,7 @@ import cl.almejo.vsim.core.waveform.WaveformSnapshot;
 import cl.almejo.vsim.ui.actions.TextPrompt;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.problems.Blink;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 
 import javax.swing.AbstractAction;
@@ -39,8 +40,6 @@ public final class WaveformPanel extends JPanel {
     static final int TIMER_MILLISECONDS = 33;
     static final double WHEEL_SCROLL_PIXELS = 60;
     static final double WHEEL_ZOOM_FACTOR = 1.25;
-    static final int BLINK_MILLISECONDS = 250;
-    static final int BLINK_TOGGLES = 6;
 
     private final OpenDocument openDocument;
     private final ProbeActions actions;
@@ -54,13 +53,11 @@ public final class WaveformPanel extends JPanel {
     private final WaveformPlot plot;
     private final TimeRuler ruler;
     private final Timer timer;
-    private final Timer blinkTimer;
+    private final Blink rowBlink;
     private BooleanSupplier showing = this::isShowing;
     private WaveformSnapshot displayed = WaveformSnapshot.EMPTY;
     private String selectedProbe;
     private String blinkingProbe;
-    private int blinkTogglesLeft;
-    private boolean blinkLit;
     private int repaintCount;
     private boolean disposed;
 
@@ -92,7 +89,7 @@ public final class WaveformPanel extends JPanel {
         add(toolBar, BorderLayout.NORTH);
         add(scroll, BorderLayout.CENTER);
         timer = new Timer(TIMER_MILLISECONDS, event -> timerTick());
-        blinkTimer = new Timer(BLINK_MILLISECONDS, event -> blinkTick());
+        rowBlink = new Blink(names::repaint);
         addHierarchyListener(event -> {
             if ((event.getChangeFlags() & HierarchyEvent.SHOWING_CHANGED) != 0) {
                 updateTimer();
@@ -121,10 +118,7 @@ public final class WaveformPanel extends JPanel {
             return;
         }
         blinkingProbe = probeId;
-        blinkTogglesLeft = BLINK_TOGGLES;
-        blinkLit = true;
-        blinkTimer.restart();
-        names.repaint();
+        rowBlink.start();
     }
 
     /** The names the rows show, in order. */
@@ -135,8 +129,7 @@ public final class WaveformPanel extends JPanel {
     public void dispose() {
         disposed = true;
         timer.stop();
-        blinkTimer.stop();
-        blinkLit = false;
+        rowBlink.dispose();
         blinkingProbe = null;
     }
 
@@ -168,20 +161,9 @@ public final class WaveformPanel extends JPanel {
         }
     }
 
-    /** One blink step; after {@link #BLINK_TOGGLES} steps the row is lit no more. */
-    void blinkTick() {
-        if (blinkTogglesLeft <= 0) {
-            return;
-        }
-        blinkTogglesLeft--;
-        if (blinkTogglesLeft == 0) {
-            blinkLit = false;
-            blinkingProbe = null;
-            blinkTimer.stop();
-        } else {
-            blinkLit = !blinkLit;
-        }
-        names.repaint();
+    /** For tests: the on/off steps of a row blink. */
+    Blink rowBlink() {
+        return rowBlink;
     }
 
     /** Replaces the on-screen check, so headless tests can run the timer. */
@@ -220,7 +202,7 @@ public final class WaveformPanel extends JPanel {
     }
 
     boolean isBlinkLit(String probeId) {
-        return blinkLit && probeId.equals(blinkingProbe);
+        return rowBlink.isLit() && probeId.equals(blinkingProbe);
     }
 
     /** A click in the plot: the cursor goes to the nearest edge of any channel within 4 px, else under the mouse. */
