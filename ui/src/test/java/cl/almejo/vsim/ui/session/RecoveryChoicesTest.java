@@ -89,4 +89,30 @@ class RecoveryChoicesTest {
         assertThat(choices.outcome(RecoveryChoices.Decision.DISCARD))
                 .isEqualTo(new RecoveryChoices.Outcome<>(List.of(), List.of("a")));
     }
+
+    @Test
+    void ofTwoCopiesOfTheSameOriginalOnlyTheNewestStartsChecked() {
+        RecoveryChoices<String> choices = choices(List.of(
+                candidate("older", "contador", Optional.of(ORIGINAL), "2026-10-09T14:32:00Z", true),
+                candidate("other", "sumador", Optional.of(Path.of("/home/ana/sumador.vsim")), "2026-10-09T14:00:00Z",
+                        true),
+                candidate("newer", "contador", Optional.of(Path.of("/home/ana/./contador.vsim")),
+                        "2026-10-09T15:10:00Z", true),
+                candidate("untitled1", "Sin título", Optional.empty(), "2026-10-09T14:00:00Z", true),
+                candidate("untitled2", "Sin título", Optional.empty(), "2026-10-09T14:05:00Z", true)));
+        assertThat(choices.isSelected(0)).isFalse();
+        assertThat(choices.isSelected(1)).isTrue();
+        assertThat(choices.isSelected(2)).isTrue();
+        assertThat(choices.isSelected(3)).isTrue();
+        assertThat(choices.isSelected(4)).isTrue();
+    }
+
+    @Test
+    void anUnreadableNewerCopyDoesNotUncheckTheReadableOne() {
+        RecoveryChoices<String> choices = choices(List.of(
+                candidate("readable", "contador", Optional.of(ORIGINAL), "2026-10-09T14:32:00Z", true),
+                candidate("broken", "contador", Optional.of(ORIGINAL), "2026-10-09T15:10:00Z", false)));
+        assertThat(choices.isSelected(0)).isTrue();
+        assertThat(choices.isSelected(1)).isFalse();
+    }
 }

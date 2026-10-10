@@ -40,8 +40,12 @@ class StartupSequenceTest {
     }
 
     private RecoveryCopy copyOf(Path original) {
+        return copyOf(original, Instant.EPOCH);
+    }
+
+    private RecoveryCopy copyOf(Path original, Instant savedAt) {
         return new RecoveryCopy(directory.resolve("recovery").resolve(UUID.randomUUID() + ".vsim"),
-                Optional.ofNullable(original), "copia", Instant.EPOCH);
+                Optional.ofNullable(original), "copia", savedAt);
     }
 
     @Test
@@ -100,5 +104,19 @@ class StartupSequenceTest {
 
         assertThat(plan.openings()).containsExactly(new Recovered(copy, List.of()));
         assertThat(plan.missing()).isEmpty();
+    }
+
+    @Test
+    void ofSeveralRecoveredCopiesOfOneFileOnlyTheNewestOpens() {
+        RecoveryCopy older = copyOf(counter, Instant.parse("2026-10-09T14:00:00Z"));
+        RecoveryCopy newer = copyOf(directory.resolve(".").resolve("contador.vsim"),
+                Instant.parse("2026-10-09T15:00:00Z"));
+        RecoveryCopy untitled = copyOf(null, Instant.parse("2026-10-09T13:00:00Z"));
+        RecoveryCopy untitledToo = copyOf(null, Instant.parse("2026-10-09T13:30:00Z"));
+        Plan plan = StartupSequence.plan(List.of(older, untitled, newer, untitledToo), true,
+                List.of(new SessionDocument(counter, List.of(LEFT))), List.of(), exists);
+
+        assertThat(plan.openings()).containsExactly(new Recovered(untitled, List.of()),
+                new Recovered(newer, List.of(LEFT)), new Recovered(untitledToo, List.of()));
     }
 }

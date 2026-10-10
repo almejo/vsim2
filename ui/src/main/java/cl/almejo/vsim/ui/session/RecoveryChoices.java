@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.session;
 
+import cl.almejo.vsim.ui.app.FileNames;
 import cl.almejo.vsim.ui.i18n.Messages;
 
 import java.nio.file.Path;
@@ -17,7 +18,7 @@ import java.util.function.Function;
 
 /**
  * The model behind the recovery dialog (spec §4.1): one row with a check box per copy left by a run that did not
- * close properly. Readable copies start checked; an unreadable one starts unchecked and only «Descartar» applies to
+ * close properly. Readable copies start checked (of several copies of one original, only the newest); an unreadable one starts unchecked and only «Descartar» applies to
  * it. «Recuperar» opens the checked readable copies, «Descartar» deletes the checked copies, «Decidir después» keeps
  * them all; whatever a decision does not take stays for the next start.
  *
@@ -57,7 +58,7 @@ public final class RecoveryChoices<C> {
             Candidate<C> candidate = candidates.get(index);
             built.add(new Row<>(candidate.copy(), text(candidate, today, clock.getZone()),
                     note(candidate, fileModified), candidate.readable()));
-            selected[index] = candidate.readable();
+            selected[index] = candidate.readable() && isNewestReadableCopy(candidate, candidates);
         }
         rows = List.copyOf(built);
     }
@@ -94,6 +95,31 @@ public final class RecoveryChoices<C> {
             }
         }
         return new Outcome<>(List.copyOf(recover), List.copyOf(discard));
+    }
+
+    /**
+     * Whether no other readable copy of the same original is newer (the first one wins a tie): recovering two copies
+     * of one file would open two documents saving to the same place. An untitled copy has no original to share.
+     */
+    private static <C> boolean isNewestReadableCopy(Candidate<C> candidate, List<Candidate<C>> candidates) {
+        if (candidate.originalPath().isEmpty()) {
+            return true;
+        }
+        Path original = FileNames.normalized(candidate.originalPath().get());
+        boolean before = true;
+        for (Candidate<C> other : candidates) {
+            if (other == candidate) {
+                before = false;
+                continue;
+            }
+            boolean sameOriginal = other.originalPath().map(FileNames::normalized).filter(original::equals).isPresent();
+            boolean newer = other.savedAt().isAfter(candidate.savedAt())
+                    || (before && other.savedAt().equals(candidate.savedAt()));
+            if (other.readable() && sameOriginal && newer) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private static String text(Candidate<?> candidate, LocalDate today, ZoneId zone) {
