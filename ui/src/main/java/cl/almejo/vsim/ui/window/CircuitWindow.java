@@ -37,6 +37,8 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
     private final EditorView view;
     private final Runnable titleUpdater = this::updateTitle;
     private ViewState initialViewState;
+    /** Applies the initial view when the window opens, and again after a restored maximized window's layout. */
+    private final InitialView initialView = new InitialView(this::showInitialView);
     private final RecentFiles recentFiles;
     /** The bounds while not maximized: what Recientes and the session store for a maximized window. */
     private Rectangle normalBounds;
@@ -63,12 +65,15 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
 
             @Override
             public void windowOpened(WindowEvent event) {
-                if (initialViewState != null) {
-                    view.canvas().applyViewState(initialViewState);
-                } else {
-                    view.canvas().centerCircuit();
-                }
+                initialView.opened(isMaximized());
                 view.canvas().requestFocusInWindow();
+            }
+        });
+        view.canvas().addViewListener(initialView::viewChanged);
+        view.canvas().addComponentListener(new ComponentAdapter() {
+            @Override
+            public void componentResized(ComponentEvent event) {
+                initialView.canvasResized(isMaximized());
             }
         });
         addComponentListener(new ComponentAdapter() {
@@ -115,14 +120,14 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
 
     /** Where this window is and what it shows (M6-B); a maximized window reports the bounds it had before. */
     public WindowState windowState() {
-        boolean maximized = (getExtendedState() & MAXIMIZED_BOTH) == MAXIMIZED_BOTH;
+        boolean maximized = isMaximized();
         Rectangle bounds = maximized && normalBounds != null ? normalBounds : getBounds();
         return WindowState.of(bounds, maximized, viewState());
     }
 
     /**
      * Applies an (already clamped) state: the normal bounds are set before maximizing so that un-maximizing returns
-     * to them. The zoom and center are applied when the window opens.
+     * to them. The zoom and center are applied when the window opens ({@link InitialView}).
      */
     public void restoreWindowState(WindowState state) {
         normalBounds = state.bounds();
@@ -131,6 +136,18 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
         if (state.maximized()) {
             setExtendedState(getExtendedState() | MAXIMIZED_BOTH);
         }
+    }
+
+    private void showInitialView() {
+        if (initialViewState != null) {
+            view.canvas().applyViewState(initialViewState);
+        } else {
+            view.canvas().centerCircuit();
+        }
+    }
+
+    private boolean isMaximized() {
+        return (getExtendedState() & MAXIMIZED_BOTH) == MAXIMIZED_BOTH;
     }
 
     private void rememberNormalBounds() {
