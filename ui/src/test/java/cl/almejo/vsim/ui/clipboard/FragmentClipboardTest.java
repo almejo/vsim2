@@ -77,14 +77,20 @@ class FragmentClipboardTest {
     }
 
     @Test
-    void originIsRememberedOnlyForTheLastCopiedJson() {
-        assertThat(clipboard.originOf(JSON)).isEmpty();
-        clipboard.put(JSON, new GridPoint(3, 4));
-        assertThat(clipboard.originOf(JSON)).contains(new GridPoint(3, 4));
-        assertThat(clipboard.originOf("{}")).isEmpty();
-        clipboard.put("{}", new GridPoint(7, 8));
-        assertThat(clipboard.originOf(JSON)).isEmpty();
-        assertThat(clipboard.originOf("{}")).contains(new GridPoint(7, 8));
+    void originIsRememberedOnlyForTheLastCopiedJsonAndItsSource() {
+        Object first = new Object();
+        Object second = new Object();
+        assertThat(clipboard.originOf(JSON, first)).isEmpty();
+        clipboard.put(JSON, new GridPoint(3, 4), first);
+        assertThat(clipboard.originOf(JSON, first)).contains(new GridPoint(3, 4));
+        assertThat(clipboard.originOf(JSON, second)).isEmpty();
+        assertThat(clipboard.originOf("{}", first)).isEmpty();
+        clipboard.put("{}", new GridPoint(7, 8), first);
+        assertThat(clipboard.originOf(JSON, first)).isEmpty();
+        assertThat(clipboard.originOf("{}", first)).contains(new GridPoint(7, 8));
+        clipboard.put(JSON, new GridPoint(1, 1)); // no source: never "next to the original"
+        assertThat(clipboard.originOf(JSON, null)).isEmpty();
+        assertThat(clipboard.originOf(JSON, first)).isEmpty();
     }
 
     @Test
@@ -108,7 +114,7 @@ class FragmentClipboardTest {
         FragmentClipboard locked = new FragmentClipboard(busy);
         locked.put(JSON, GridPoint.ORIGIN);
         assertThat(locked.read()).isEmpty();
-        assertThat(locked.originOf(JSON)).isEmpty();
+        assertThat(locked.originOf(JSON, null)).isEmpty();
     }
 
     @Test
