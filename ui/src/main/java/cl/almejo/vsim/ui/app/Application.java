@@ -69,7 +69,8 @@ public final class Application {
     private final SessionStore sessionStore;
     private final RecoveryStore recoveryStore;
     private final AutosaveService autosave;
-    private boolean sessionSaved;
+    // Autosave shutdown stops the timer, drains the pending writes, then deletes this run's recovery folder.
+    private final SessionEnding sessionEnding = new SessionEnding(this::saveSession, this::shutdownAutosave);
     private Path lastDirectory;
 
     public Application(AppPreferences preferences) {
@@ -130,43 +131,66 @@ public final class Application {
         libraryService.start(); // spec §5.6: read the library before the first palette is shown
         // Not a daemon: it keeps the JVM alive until the EDT has the rest of the start queued.
         Thread scan = new Thread(() -> {
-            Optional<RecoveryChoices<RecoveryCopy>> choices = scanRecoveryCopies();
-            SwingUtilities.invokeLater(() -> finishStart(files, choices));
+            Optional<RecoveryChoices<RecoveryCopy>> choices = Optional.empty();
+            try {
+                choices = scanRecoveryCopies();
+            } finally {
+                // Even after an Error on this thread the application starts, then without a recovery offer.
+                Optional<RecoveryChoices<RecoveryCopy>> offered = choices;
+                SwingUtilities.invokeLater(() -> finishStart(files, offered));
+            }
         }, "vsim-recovery-scan");
         scan.start();
     }
 
+    /**
+     * The EDT half of the start. Each opening is guarded, and whatever fails the start ends with at least one window
+     * and autosave running ({@link StartupSteps}).
+     */
     private void finishStart(List<Path> files, Optional<RecoveryChoices<RecoveryCopy>> choices) {
         List<Path> components = files.stream().filter(LibraryDirectory::isComponentFile).toList();
         List<Path> circuits = files.stream().filter(file -> !components.contains(file)).toList();
-        List<RecoveryCopy> recovered = choices.map(this::askAboutRecoveryCopies).orElse(List.of());
-        StartupSequence.Plan plan = StartupSequence.plan(recovered, preferences.restoreSession(), sessionStore.load(),
-                circuits, Files::isRegularFile);
         List<RecoveryCopy> reopened = new ArrayList<>();
-        for (StartupSequence.Opening opening : plan.openings()) {
-            switch (opening) {
-                case StartupSequence.Recovered copy -> openRecovered(copy).ifPresent(reopened::add);
-                case StartupSequence.FromSession session -> openFromSession(session);
+        StartupSteps.run(() -> {
+            List<RecoveryCopy> recovered = choices.map(this::askAboutRecoveryCopies).orElse(List.of());
+            StartupSequence.Plan plan = StartupSequence.plan(recovered, preferences.restoreSession(), loadSession(),
+                    circuits, Files::isRegularFile);
+            StartupSteps.openEach(plan.openings(), opening -> {
+                switch (opening) {
+                    case StartupSequence.Recovered copy -> openRecovered(copy).ifPresent(reopened::add);
+                    case StartupSequence.FromSession session -> openFromSession(session);
+                }
+            });
+            if (!plan.missing().isEmpty()) {
+                JOptionPane.showMessageDialog(null, Messages.format("session.missing",
+                                String.join(", ", plan.missing().stream().map(Path::toString).toList())),
+                        Messages.text("session.missing.title"), JOptionPane.WARNING_MESSAGE);
             }
-        }
-        if (!plan.missing().isEmpty()) {
-            JOptionPane.showMessageDialog(null, Messages.format("session.missing",
-                            String.join(", ", plan.missing().stream().map(Path::toString).toList())),
-                    Messages.text("session.missing.title"), JOptionPane.WARNING_MESSAGE);
-        }
-        openPaths(plan.commandLineFiles(), null); // through the already-open check: no file opens twice
-        if (windows.isEmpty()) {
-            newDocument();
-        }
-        if (!components.isEmpty()) {
-            // A component file on the command line is imported into the library, as a drop on the window would.
-            windows.all().get(0).openOrImport(components);
-        }
+            // Through the already-open check (no file opens twice); one file each so a failure skips only that one.
+            StartupSteps.openEach(plan.commandLineFiles(), file -> openPaths(List.of(file), null));
+        }, () -> !windows.isEmpty(), this::newDocument, () -> {
+            if (!components.isEmpty()) {
+                // A component file on the command line is imported into the library, as a drop on the window would.
+                windows.all().get(0).openOrImport(components);
+            }
+        }, () -> startAutosave(reopened));
+    }
+
+    private void startAutosave(List<RecoveryCopy> reopened) {
         autosave.start();
         if (!reopened.isEmpty()) {
             // The recovered documents get a copy of this run first; their old copies go only once it is on disk.
             autosave.tick();
             autosave.afterPendingWrites(() -> reopened.forEach(this::discardQuietly));
+        }
+    }
+
+    private List<SessionDocument> loadSession() {
+        try {
+            return sessionStore.load();
+        } catch (RuntimeException exception) {
+            LOGGER.warn("Could not read the last session", exception);
+            return List.of();
         }
     }
 
@@ -216,7 +240,7 @@ public final class Application {
                 return false;
             }
         }
-        saveSession();
+        sessionEnding.exiting();
         windows.all().forEach(CircuitWindow::closeQuietly);
         return true;
     }
@@ -255,16 +279,14 @@ public final class Application {
      * application also ends the session (Assumption 22) and, on a clean exit, this run's recovery folder goes.
      */
     public void windowClosed(CircuitWindow window) {
-        if (!sessionSaved && windows.all().equals(List.of(window))) {
-            saveSession();
-        }
+        sessionEnding.windowClosing(windows.all().equals(List.of(window)));
         rememberWindowState(window);
         windows.remove(window).ifPresent(document -> {
             autosave.untrack(document);
             document.close();
         });
+        sessionEnding.windowClosed(windows.isEmpty());
         if (windows.isEmpty()) {
-            autosave.shutdown(); // stops, drains the pending writes, then deletes this run's recovery folder
             libraryService.close();
             System.exit(0);
         }
@@ -310,6 +332,8 @@ public final class Application {
         RecoveryChoices.Outcome<RecoveryCopy> outcome = choices.outcome(RecoveryPrompt.ask(null, choices));
         List<RecoveryCopy> discarded = outcome.discard();
         if (!discarded.isEmpty()) {
+            // Queued on the writer before autosave.start(), which is fine: the writer runs from creation, and these
+            // deletes touch only old runs' folders, never this run's, so their order against its copies is irrelevant.
             autosave.afterPendingWrites(() -> discarded.forEach(this::discardQuietly));
         }
         return outcome.recover();
@@ -319,7 +343,8 @@ public final class Application {
         try {
             reader.read(copy.content());
             return true;
-        } catch (CircuitFormatException exception) {
+        } catch (CircuitFormatException | RuntimeException exception) {
+            // A malformed copy is shown as unreadable; it must not hide the other copies.
             LOGGER.warn("The recovery copy {} cannot be read", copy.content(), exception);
             return false;
         }
@@ -379,8 +404,11 @@ public final class Application {
         states.forEach(state -> show(document, Optional.of(state)));
     }
 
+    private void shutdownAutosave() {
+        autosave.shutdown();
+    }
+
     private void saveSession() {
-        sessionSaved = true;
         try {
             sessionStore.save(SessionDocument.capture(windows, CircuitWindow::windowState));
         } catch (RuntimeException exception) {
