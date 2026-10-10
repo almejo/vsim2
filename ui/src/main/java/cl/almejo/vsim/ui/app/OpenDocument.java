@@ -6,6 +6,7 @@ import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.Probe;
+import cl.almejo.vsim.core.io.AtomicFiles;
 import cl.almejo.vsim.core.io.CircuitFormat;
 import cl.almejo.vsim.core.io.CircuitFormatException;
 import cl.almejo.vsim.core.io.CircuitReader;
@@ -24,11 +25,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.nio.file.AtomicMoveNotSupportedException;
-import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -261,30 +259,11 @@ public final class OpenDocument implements AutoCloseable {
             throw new IOException(exception.getMessage(), exception);
         }
         Path absolute = target.toAbsolutePath();
-        Path temporary = absolute.getParent().resolve(".vsim2-" + UUID.randomUUID() + ".tmp");
-        Files.createFile(temporary);
-        try {
-            copyPermissions(absolute, temporary);
-            Files.writeString(temporary, content);
-            try {
-                Files.move(temporary, absolute, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
-            } catch (AtomicMoveNotSupportedException exception) {
-                Files.move(temporary, absolute, StandardCopyOption.REPLACE_EXISTING);
-            }
-        } finally {
-            Files.deleteIfExists(temporary);
-        }
+        AtomicFiles.writeString(absolute, content);
         path = absolute;
         backingFile = FileNames.normalized(absolute);
         importedFromVsim1 = false;
         history.markSaved();
-    }
-
-    /** Keeps the permissions of the file being replaced; a new file keeps the umask-based ones of createFile. */
-    private static void copyPermissions(Path existing, Path temporary) throws IOException {
-        if (Files.exists(existing) && FileSystems.getDefault().supportedFileAttributeViews().contains("posix")) {
-            Files.setPosixFilePermissions(temporary, Files.getPosixFilePermissions(existing));
-        }
     }
 
     public void addChangeListener(Runnable listener) {

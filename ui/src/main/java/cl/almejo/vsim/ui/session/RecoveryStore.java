@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.session;
 
+import cl.almejo.vsim.core.io.AtomicFiles;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -9,11 +10,9 @@ import java.io.StringWriter;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
 import java.nio.channels.OverlappingFileLockException;
-import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
 import java.time.DateTimeException;
 import java.time.Duration;
@@ -78,8 +77,8 @@ public final class RecoveryStore {
     public synchronized void write(UUID documentId, String content, RecoveryMetadata metadata) throws IOException {
         openSession();
         Path target = contentPath(documentId);
-        writeAtomically(target, content);
-        writeAtomically(metadataFor(target), metadataText(metadata));
+        AtomicFiles.writeString(target, content);
+        AtomicFiles.writeString(metadataFor(target), metadataText(metadata));
     }
 
     public synchronized void delete(UUID documentId) throws IOException {
@@ -263,18 +262,6 @@ public final class RecoveryStore {
         StringWriter text = new StringWriter();
         properties.store(text, null);
         return text.toString();
-    }
-
-    private static void writeAtomically(Path target, String text) throws IOException {
-        Path temporary = target.resolveSibling("." + target.getFileName() + ".tmp");
-        Files.writeString(temporary, text);
-        try {
-            Files.move(temporary, target, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
-        } catch (AtomicMoveNotSupportedException exception) {
-            Files.move(temporary, target, StandardCopyOption.REPLACE_EXISTING);
-        } finally {
-            Files.deleteIfExists(temporary);
-        }
     }
 
     private static void deleteQuietly(RecoveryCopy copy) {

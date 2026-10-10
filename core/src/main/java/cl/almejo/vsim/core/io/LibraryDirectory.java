@@ -7,11 +7,9 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
-import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -19,7 +17,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
-import java.util.UUID;
 import java.util.stream.Stream;
 
 /**
@@ -133,7 +130,7 @@ public final class LibraryDirectory {
         Files.createDirectories(directory);
         String id = bundle.root().id();
         Path target = locate(id).orElseGet(() -> freeFileFor(id));
-        writeAtomically(target, format.write(bundle));
+        AtomicFiles.writeString(target, format.write(bundle));
         return target;
     }
 
@@ -154,7 +151,7 @@ public final class LibraryDirectory {
     }
 
     public void export(DefinitionBundle bundle, Path target) throws IOException {
-        writeAtomically(target.toAbsolutePath(), format.write(bundle));
+        AtomicFiles.writeString(target.toAbsolutePath(), format.write(bundle));
     }
 
     /** The file that holds {@code id}: {@link #fileOf} when it holds it, otherwise any component file with that id. */
@@ -196,21 +193,6 @@ public final class LibraryDirectory {
             return read(file).root().id().equals(id);
         } catch (IOException | CircuitFormatException | RuntimeException exception) {
             return false;
-        }
-    }
-
-    /** Temporary file next to the target, then a move, as {@code OpenDocument.save}: a reader never sees half a file. */
-    private static void writeAtomically(Path target, String content) throws IOException {
-        Path temporary = target.getParent().resolve(".vsim2-" + UUID.randomUUID() + ".tmp");
-        try {
-            Files.writeString(temporary, content);
-            try {
-                Files.move(temporary, target, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
-            } catch (AtomicMoveNotSupportedException exception) {
-                Files.move(temporary, target, StandardCopyOption.REPLACE_EXISTING);
-            }
-        } finally {
-            Files.deleteIfExists(temporary);
         }
     }
 
