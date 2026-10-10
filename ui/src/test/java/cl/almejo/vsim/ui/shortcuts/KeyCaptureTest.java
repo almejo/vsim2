@@ -54,4 +54,16 @@ class KeyCaptureTest {
         assertThat(captured).isEmpty();
         assertThat(capture.isActive()).isFalse();
     }
+
+    @Test
+    void stopDeactivatesWithoutReportingAnything() {
+        capture.start();
+        capture.stop();
+        assertThat(capture.isActive()).isFalse();
+        KeyEvent controlG = press(KeyEvent.VK_G, InputEvent.CTRL_DOWN_MASK);
+        capture.keyPressed(controlG);
+        assertThat(controlG.isConsumed()).isFalse();
+        assertThat(captured).isEmpty();
+        assertThat(cancelled).isEmpty();
+    }
 }

@@ -29,6 +29,11 @@ final class KeyCapture extends KeyAdapter {
         active = true;
     }
 
+    /** Deactivates without reporting: the owner abandoned the capture (focus lost, another row, a button). */
+    void stop() {
+        active = false;
+    }
+
     boolean isActive() {
         return active;
     }
