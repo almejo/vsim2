@@ -322,4 +322,20 @@ class ProblemsControllerTest {
         assertThat(leftSide).isEqualTo("Interruptor → 1 · Interruptor → 0");
         assertThat(rightSide).isEqualTo(leftSide);
     }
+
+    @Test
+    void hoveringAPinThatSitsOnAPinOfAnotherWidthNamesBothWidths() {
+        place(openDocument, StandardComponentTypes.BUS_SPLITTER, 30, 0, Map.of(StandardComponentTypes.WIDTH, 4)); // bus pin at (30, 0)
+        place(openDocument, StandardComponentTypes.LED, 29, -3, Map.of()); // its pin is at (30, 0): pin on pin, no wire
+        assertThat(openDocument.netlist().nets().stream().anyMatch(net -> net.widthMismatch() && net.wires().isEmpty()))
+                .isTrue();
+        view.problems().showSnapshot(new SimulationSnapshot(1, openDocument.netlistToken(), 10, true, Map.of(),
+                Map.of(), List.of(), Optional.empty()));
+
+        assertThat(view.canvas().getToolTipText(hoverAt(240, 0)))
+                .startsWith("⚠ Anchos incompatibles: ")
+                .contains("Separador de bus (4 bits)")
+                .contains("LED (1 bit)");
+        assertThat(view.canvas().getToolTipText(hoverAt(256, 16))).isNull(); // the healthy splitter bit b1
+    }
 }
