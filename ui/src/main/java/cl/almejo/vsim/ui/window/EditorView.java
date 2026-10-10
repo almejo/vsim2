@@ -65,6 +65,7 @@ public final class EditorView extends JPanel implements CanvasHost {
     private final PalettePanel palette;
     private final StatusBar statusBar = new StatusBar();
     private final InspectorPanel inspector = new InspectorPanel();
+    private final BottomDock bottomDock;
     private final ProblemsController problems;
     private final JMenuBar menuBar;
     private final Map<MenuId, JMenu> menus = new EnumMap<>(MenuId.class);
@@ -106,7 +107,8 @@ public final class EditorView extends JPanel implements CanvasHost {
         panButton = new JToggleButton(actions.panTool());
         buildToolBar();
 
-        JSplitPane inspectorSplit = new InspectorSplit(canvas, inspector);
+        this.bottomDock = new BottomDock(canvas);
+        JSplitPane inspectorSplit = new InspectorSplit(bottomDock, inspector);
         JSplitPane split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, palette, inspectorSplit);
         split.setDividerLocation(PALETTE_WIDTH);
         split.setContinuousLayout(true);
@@ -170,6 +172,7 @@ public final class EditorView extends JPanel implements CanvasHost {
     public PalettePanel palette() { return palette; }
     public StatusBar statusBar() { return statusBar; }
     public InspectorPanel inspector() { return inspector; }
+    public BottomDock bottomDock() { return bottomDock; }
     public LabelFeatures labelFeatures() { return labelFeatures; }
     public ProblemsController problems() { return problems; }
     public JMenuBar menuBar() { return menuBar; }
