@@ -34,13 +34,15 @@ public final class ShortcutsTableModel extends AbstractTableModel {
     private record ActionRow(ShortcutEntry entry) implements Row {
     }
 
+    /** A stroke offered for {@code entry} that {@code conflict} holds, waiting for «Reasignar» / «Cancelar». */
+    private record PendingReassign(ShortcutEntry entry, KeyStroke stroke, ShortcutEntry conflict) {
+    }
+
     private final KeyBindings bindings;
     private List<Row> rows = List.of();
     private String filter = "";
     private String capturingId;
-    private ShortcutEntry pendingEntry;
-    private KeyStroke pendingStroke;
-    private ShortcutEntry pendingConflict;
+    private PendingReassign pending;
     private String message = "";
 
     public ShortcutsTableModel(KeyBindings bindings) {
@@ -106,7 +108,7 @@ public final class ShortcutsTableModel extends AbstractTableModel {
 
     /** «Cambiar…»: the row of {@code id} reads «Presiona la combinación…» until {@link #offer} or a cancel. */
     public void beginCapture(String id) {
-        forgetPending();
+        pending = null;
         message = "";
         capturingId = id;
         rowsChanged();
@@ -138,9 +140,7 @@ public final class ShortcutsTableModel extends AbstractTableModel {
         } else {
             Optional<ShortcutEntry> conflict = bindings.conflictFor(stroke, entry.id());
             if (conflict.isPresent()) {
-                pendingEntry = entry;
-                pendingStroke = stroke;
-                pendingConflict = conflict.get();
+                pending = new PendingReassign(entry, stroke, conflict.get());
                 message = Messages.format("shortcuts.conflict", KeyBindings.describe(stroke),
                         Messages.text(conflict.get().nameKey()));
                 outcome = Outcome.CONFLICT;
@@ -156,47 +156,34 @@ public final class ShortcutsTableModel extends AbstractTableModel {
 
     /** The action that holds the stroke waiting for «Reasignar» / «Cancelar». */
     public Optional<ShortcutEntry> pendingConflict() {
-        return Optional.ofNullable(pendingConflict);
+        return Optional.ofNullable(pending).map(PendingReassign::conflict);
     }
 
     /** «Reasignar»: the stroke moves; the other action is left without a shortcut. */
     public void confirmReassign() {
-        if (pendingEntry != null) {
-            bindings.assign(pendingEntry.id(), pendingStroke);
-        }
-        forgetPending();
-        message = "";
-        rowsChanged();
+        PendingReassign confirmed = pending;
+        settle(() -> {
+            if (confirmed != null) {
+                bindings.assign(confirmed.entry().id(), confirmed.stroke());
+            }
+        });
     }
 
     public void cancelReassign() {
-        forgetPending();
-        message = "";
-        rowsChanged();
+        settle(() -> {
+        });
     }
 
     public void clear(String id) {
-        capturingId = null;
-        forgetPending();
-        message = "";
-        bindings.clear(id);
-        rowsChanged();
+        edit(() -> bindings.clear(id));
     }
 
     public void reset(String id) {
-        capturingId = null;
-        forgetPending();
-        message = "";
-        bindings.reset(id);
-        rowsChanged();
+        edit(() -> bindings.reset(id));
     }
 
     public void resetAll() {
-        capturingId = null;
-        forgetPending();
-        message = "";
-        bindings.resetAll();
-        rowsChanged();
+        edit(bindings::resetAll);
     }
 
     /** The text the tab shows under the table: a conflict question, a refusal, or empty. */
@@ -251,10 +238,18 @@ public final class ShortcutsTableModel extends AbstractTableModel {
         return Normalizer.normalize(text, Normalizer.Form.NFD).replaceAll("\\p{M}", "").toLowerCase(Locale.ROOT);
     }
 
-    private void forgetPending() {
-        pendingEntry = null;
-        pendingStroke = null;
-        pendingConflict = null;
+    /** A row button (Quitar, Restaurar, Restaurar todos): abandons a capture in progress, then {@link #settle}. */
+    private void edit(Runnable change) {
+        capturingId = null;
+        settle(change);
+    }
+
+    /** Forgets the conflict question and the message, applies {@code change}, then repaints the rows. */
+    private void settle(Runnable change) {
+        pending = null;
+        message = "";
+        change.run();
+        rowsChanged();
     }
 
     /** Values changed but not the rows: keeps the table's selection (a data-changed event would clear it). */

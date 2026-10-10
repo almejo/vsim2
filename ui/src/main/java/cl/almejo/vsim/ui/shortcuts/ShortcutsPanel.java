@@ -88,21 +88,11 @@ public final class ShortcutsPanel extends JPanel {
             }
         });
         changeButton.addActionListener(event -> startCapture());
-        clearButton.addActionListener(event -> selectedEntry().ifPresent(entry -> {
-            capture.stop();
-            model.clear(entry.id());
-            showMessage();
-        }));
-        resetButton.addActionListener(event -> selectedEntry().ifPresent(entry -> {
-            capture.stop();
-            model.reset(entry.id());
-            showMessage();
-        }));
-        resetAllButton.addActionListener(event -> {
-            capture.stop();
-            model.resetAll();
-            showMessage();
-        });
+        clearButton.addActionListener(event -> selectedEntry().ifPresent(entry -> stopCaptureAnd(
+                () -> model.clear(entry.id()))));
+        resetButton.addActionListener(event -> selectedEntry().ifPresent(entry -> stopCaptureAnd(
+                () -> model.reset(entry.id()))));
+        resetAllButton.addActionListener(event -> stopCaptureAnd(model::resetAll));
         reassignButton.addActionListener(event -> {
             model.confirmReassign();
             showMessage();
@@ -175,6 +165,13 @@ public final class ShortcutsPanel extends JPanel {
         capture.stop();
         model.setFilter(searchField.getText());
         refreshButtons();
+    }
+
+    /** A row button: the key capture stops, the model changes, and the message under the table follows. */
+    private void stopCaptureAnd(Runnable change) {
+        capture.stop();
+        change.run();
+        showMessage();
     }
 
     private void showMessage() {
