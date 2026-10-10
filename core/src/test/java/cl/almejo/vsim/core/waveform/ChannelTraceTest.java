@@ -149,4 +149,20 @@ class ChannelTraceTest {
         assertThat(WaveformSnapshot.EMPTY.trace("p1")).isEmpty();
         assertThat(WaveformSnapshot.EMPTY.version()).isZero();
     }
+
+    @Test
+    void oneBitEventsShareTheValueConstants() {
+        ChannelTrace channel = new ChannelTrace(1);
+        channel.append(1, new Value(1, 1L, 0L, false));
+        channel.append(2, new Value(1, 0L, 1L, false));
+        channel.append(3, new Value(1, 0L, 0L, false));
+        channel.append(4, new Value(1, 1L, 0L, false));
+
+        Trace trace = channel.snapshot();
+
+        assertThat(trace.valueAt(1).orElseThrow()).isSameAs(Value.ONE);
+        assertThat(trace.valueAt(4).orElseThrow()).isSameAs(Value.ONE).isSameAs(trace.valueAt(1).orElseThrow());
+        assertThat(trace.valueAt(2).orElseThrow()).isSameAs(Value.HIGH_IMPEDANCE);
+        assertThat(trace.valueAt(3).orElseThrow()).isSameAs(Value.ZERO);
+    }
 }

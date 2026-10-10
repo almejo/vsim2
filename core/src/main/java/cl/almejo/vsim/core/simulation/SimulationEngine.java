@@ -2,6 +2,7 @@ package cl.almejo.vsim.core.simulation;
 
 import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.value.Value;
+import cl.almejo.vsim.core.waveform.WaveformSnapshot;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -21,6 +22,9 @@ public final class SimulationEngine {
     private Map<String, RuntimeNet> nets = new LinkedHashMap<>();
     private long revision;
     private long token;
+    private final WaveformRecorder recorder = new WaveformRecorder();
+    /** Alias id → the root net that carries it (FlatNet#aliases), rebuilt with the nets. */
+    private Map<String, RuntimeNet> aliasRoots = Map.of();
 
     Scheduler scheduler() {
         return scheduler;
@@ -66,6 +70,7 @@ public final class SimulationEngine {
         }
         token = circuit.token();
         revision++;
+        recorder.rebind(this::netWithId, nets.values(), now());
     }
 
     private void rewireAndInitialize(FlatCircuit circuit, List<ComponentInstance> created) {
@@ -77,9 +82,13 @@ public final class SimulationEngine {
 
         Map<String, RuntimeNet> previousNets = nets;
         Map<String, RuntimeNet> nextNets = new LinkedHashMap<>();
+        Map<String, RuntimeNet> nextAliases = new HashMap<>();
         for (FlatNet flatNet : circuit.nets()) {
             RuntimeNet net = new RuntimeNet(flatNet.id(), flatNet.width(), flatNet.widthMismatch());
             net.aliases = flatNet.aliases();
+            for (String alias : flatNet.aliases()) {
+                nextAliases.put(alias, net);
+            }
             RuntimeNet previous = previousNets.get(flatNet.id());
             if (previous != null) {
                 net.conflictSince = previous.conflictSince;
@@ -103,6 +112,7 @@ public final class SimulationEngine {
             }
         }
         nets = nextNets;
+        aliasRoots = nextAliases;
         nets.values().forEach(net -> net.resolve(now()));
         for (ComponentInstance instance : created) {
             for (PinState pin : instance.pins) {
@@ -155,8 +165,45 @@ public final class SimulationEngine {
         }
     }
 
+    /**
+     * Binds waveform channels: channel id → net id (a top-level id, an alias or a nested id; an empty or unknown id
+     * records a gap). Channels left out are dropped with their history; the others keep it, even when their net id
+     * changed (spec §3.3). Every channel is sampled now.
+     */
+    public void setProbes(Map<String, String> channels) {
+        recorder.setChannels(channels);
+        recorder.rebind(this::netWithId, nets.values(), now());
+    }
+
+    /** «Limpiar trazas»: drops every recorded event; each channel starts again at its current value. */
+    public void clearWaveforms() {
+        recorder.clear();
+        recorder.rebind(this::netWithId, nets.values(), now());
+    }
+
+    /** Grows whenever a trace or the set of channels changes. */
+    public long waveformVersion() {
+        return recorder.version();
+    }
+
+    public boolean hasWaveformChannels() {
+        return recorder.hasChannels();
+    }
+
+    public WaveformSnapshot waveforms() {
+        return recorder.snapshot(now());
+    }
+
+    private RuntimeNet netWithId(String id) {
+        RuntimeNet net = nets.get(id);
+        return net != null ? net : aliasRoots.get(id);
+    }
+
     void netChanged(RuntimeNet net) {
         if (net != null && net.resolve(now())) {
+            if (!net.recorders.isEmpty()) {
+                recorder.record(net, now());
+            }
             deliver(net);
         }
     }
