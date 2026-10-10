@@ -35,6 +35,51 @@ class AppPreferencesTest {
     }
 
     @Test
+    void restoringTheSessionIsOnByDefaultAndOnlyRealChangesNotify() {
+        preferences.addListener(changes::incrementAndGet);
+        assertThat(preferences.restoreSession()).isTrue();
+        preferences.setRestoreSession(true);
+        assertThat(changes).hasValue(0);
+
+        preferences.setRestoreSession(false);
+        assertThat(preferences.restoreSession()).isFalse();
+        assertThat(node.get("restoreSession", null)).isEqualTo("false");
+        assertThat(changes).hasValue(1);
+
+        preferences.setRestoreSession(true);
+        assertThat(preferences.restoreSession()).isTrue();
+        assertThat(changes).hasValue(2);
+    }
+
+    @Test
+    void theDataDirectoryIsTheParentOfTheDefaultLibraryOnEveryPlatform() {
+        assertThat(AppPreferences.dataDirectory("Linux", Map.of(), home)).isEqualTo(home.resolve(".local/share/vsim2"));
+        assertThat(AppPreferences.dataDirectory("Linux", Map.of("XDG_DATA_HOME", "/data"), home))
+                .isEqualTo(Path.of("/data/vsim2"));
+        assertThat(AppPreferences.dataDirectory("Mac OS X", Map.of(), home))
+                .isEqualTo(home.resolve("Library/Application Support/VSim2"));
+        assertThat(AppPreferences.dataDirectory("Windows 11", Map.of("APPDATA", "/appdata"), home))
+                .isEqualTo(Path.of("/appdata/VSim2"));
+    }
+
+    @Test
+    void theDataDirectoryIgnoresACustomLibraryFolder() {
+        Path before = preferences.dataDirectory();
+        preferences.setLibraryDirectory(Optional.of(Path.of("/elsewhere/components")));
+        assertThat(preferences.dataDirectory()).isEqualTo(before);
+        assertThat(before).isEqualTo(AppPreferences.dataDirectory(System.getProperty("os.name", ""), System.getenv(),
+                Path.of(System.getProperty("user.home"))));
+    }
+
+    @Test
+    void recentFilesAndTheSessionLiveInChildNodes() throws Exception {
+        preferences.recentNode().node("0").put("path", "/a.vsim");
+        preferences.sessionNode().node("0").node("0").put("x", "1");
+        assertThat(node.childrenNames()).contains("recent", "session");
+        assertThat(node.node("session").node("0").node("0").get("x", null)).isEqualTo("1");
+    }
+
+    @Test
     void settersRejectNull() {
         preferences.addListener(changes::incrementAndGet);
         assertThatThrownBy(() -> preferences.setTheme(null)).isInstanceOf(NullPointerException.class)
