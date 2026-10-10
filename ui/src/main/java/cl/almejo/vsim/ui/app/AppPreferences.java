@@ -24,6 +24,7 @@ public final class AppPreferences {
     static final String COLOR_SCHEME = "colorScheme";
     static final String LANGUAGE = "language";
     static final String LIBRARY_DIRECTORY = "libraryDirectory";
+    static final String SHORTCUTS = "shortcuts";
 
     private static final Logger LOGGER = LoggerFactory.getLogger(AppPreferences.class);
     private static final String NODE = "cl/almejo/vsim2";
@@ -132,6 +133,23 @@ public final class AppPreferences {
     /** For tests: views and extensions must remove the listeners they add when disposed. */
     public int listenerCount() {
         return listeners.size();
+    }
+
+    // M6-C shortcuts (overview contract C4)
+
+    /** Shortcut overrides: key = catalog id, value = {@code KeyStroke.toString()} form, {@code ""} = no shortcut. */
+    public Preferences shortcutsNode() {
+        return node.node(SHORTCUTS);
+    }
+
+    /** Saves the shortcut overrides and tells every listener (key {@code shortcuts}); every window re-applies. */
+    public void shortcutsChanged() {
+        try {
+            shortcutsNode().flush();
+        } catch (BackingStoreException exception) {
+            LOGGER.warn("Could not save the keyboard shortcuts", exception);
+        }
+        notifyListeners(SHORTCUTS);
     }
 
     private Optional<String> optional(String key) {
