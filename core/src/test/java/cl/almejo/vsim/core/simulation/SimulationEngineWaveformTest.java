@@ -247,6 +247,32 @@ class SimulationEngineWaveformTest {
     }
 
     @Test
+    void updatingTheCircuitWithItsChannelsRebindsOnceAndRecordsLikeUpdateThenSetProbes() {
+        place(TestComponentTypes.SOURCE, 0, 0, Map.of("value", "1"));                // out (2,1)
+        ElementId inverter = place(TestComponentTypes.INVERTER, 4, 0, Map.of());     // in (4,1)
+        netlist = compiler.compile(document);
+        engine.update(flattener.flatten(document, netlist), Map.of("in", netOf(inverter, 0)));
+        engine.advance(5);
+
+        wire(2, 1, 4, 1);
+        netlist = compiler.compile(document);
+        int before = engine.waveformRebinds();
+        engine.update(flattener.flatten(document, netlist), Map.of("in", netOf(inverter, 0)));
+        assertThat(engine.waveformRebinds() - before).isEqualTo(1);
+        engine.advance(1);
+
+        assertThat(trace("in").firstTime()).hasValue(0);
+        assertThat(trace("in").edgesBetween(0, 6))
+                .containsExactly(TraceEvent.of(0, Value.HIGH_IMPEDANCE), TraceEvent.of(5, Value.ONE));
+
+        before = engine.waveformRebinds();
+        engine.update(flattener.flatten(document, netlist), Map.of());
+        assertThat(engine.waveformRebinds() - before).isEqualTo(1);
+        assertThat(engine.hasWaveformChannels()).isFalse();
+        assertThat(engine.waveforms().traces()).isEmpty();
+    }
+
+    @Test
     void droppingAChannelForgetsItAndClearingRestartsFromTheCurrentValue() {
         ElementId source = place(TestComponentTypes.SOURCE, 0, 0, Map.of("value", "0"));
         synchronize();
