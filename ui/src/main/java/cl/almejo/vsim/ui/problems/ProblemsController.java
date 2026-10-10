@@ -10,6 +10,7 @@ import cl.almejo.vsim.core.value.Value;
 import cl.almejo.vsim.ui.canvas.BusValueText;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
+import cl.almejo.vsim.ui.canvas.TopLevelNets;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.panels.StatusBar;
 import cl.almejo.vsim.ui.window.EditorView;
@@ -208,9 +209,9 @@ public final class ProblemsController {
 
     /**
      * For the wire under {@code gridPoint}, when the snapshot matches the current netlist: the drivers of its short
-     * circuit, else the pins of its width mismatch, else the value of its bus. The engine reports a mismatch under one
-     * id for the whole merged net, so a wire of another top-level net merged into it falls back to the netlist's own
-     * mismatch flag and its pins.
+     * circuit, else the pins of its width mismatch, else the value of its bus. Problems are looked up under the id the
+     * engine reports them with: a top-level net joined to another through a template uses the merged net's root id
+     * ({@link TopLevelNets}); a net whose own pins disagree falls back to the netlist's mismatch flag and its pins.
      */
     Optional<String> tooltipAt(Point2D gridPoint) {
         if (snapshot.token() != openDocument.netlistToken()) {
@@ -226,15 +227,17 @@ public final class ProblemsController {
         }
         Net net = found.get();
         String netId = net.id().value();
+        String reportedId = snapshot.problems().isEmpty() ? netId
+                : TopLevelNets.of(document, openDocument.netlist(), openDocument.registry()).rootOf(netId);
         Optional<String> drivers = snapshot.shortCircuits().stream()
-                .filter(shortCircuit -> shortCircuit.netId().equals(netId))
+                .filter(shortCircuit -> shortCircuit.netId().equals(reportedId))
                 .findFirst()
                 .map(shortCircuit -> ProblemText.drivers(shortCircuit, document));
         if (drivers.isPresent()) {
             return drivers;
         }
         Optional<WidthMismatch> mismatch = snapshot.widthMismatches().stream()
-                .filter(widthMismatch -> widthMismatch.netId().equals(netId))
+                .filter(widthMismatch -> widthMismatch.netId().equals(reportedId))
                 .findFirst();
         if (mismatch.isEmpty() && net.widthMismatch()) {
             mismatch = Optional.of(new WidthMismatch(netId, net.pins().stream()
