@@ -6,6 +6,8 @@ import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.core.document.Probe;
+import cl.almejo.vsim.core.document.ProbeTarget;
 import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
@@ -20,9 +22,12 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.function.Function;
 
@@ -56,9 +61,24 @@ public final class CircuitFormat {
         return new LabelEntry(label.id().value(), label.position().x(), label.position().y(), label.text());
     }
 
+    /** One waveform channel: exactly one of {@code component} + {@code pin} or {@code wire}. */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    record ProbeEntry(String id, String name, String component, Integer pin, String wire) {
+    }
+
+    static ProbeEntry probeEntry(Probe probe) {
+        return switch (probe.target()) {
+            case ProbeTarget.PinTarget pin -> new ProbeEntry(probe.id(), probe.name(), pin.componentId().value(),
+                    pin.pinIndex(), null);
+            case ProbeTarget.WireTarget wire -> new ProbeEntry(probe.id(), probe.name(), null, null,
+                    wire.wireId().value());
+        };
+    }
+
     record CircuitFile(int formatVersion, String kind, String name, List<ComponentEntry> components,
                        List<WireEntry> wires, List<LabelEntry> labels,
-                       @JsonInclude(JsonInclude.Include.NON_EMPTY) List<DefinitionEntries.DefinitionEntry> definitions) {
+                       @JsonInclude(JsonInclude.Include.NON_EMPTY) List<DefinitionEntries.DefinitionEntry> definitions,
+                       @JsonInclude(JsonInclude.Include.NON_EMPTY) List<ProbeEntry> probes) {
     }
 
     private final ComponentTypeRegistry registry;
@@ -85,7 +105,8 @@ public final class CircuitFormat {
                 document.components().stream().map(CircuitFormat::componentEntry).toList(),
                 document.wires().stream().map(CircuitFormat::wireEntry).toList(),
                 document.labels().stream().map(CircuitFormat::labelEntry).toList(),
-                used.stream().map(DefinitionEntries::entry).toList());
+                used.stream().map(DefinitionEntries::entry).toList(),
+                document.probes().stream().map(CircuitFormat::probeEntry).toList());
         try {
             return mapper.writeValueAsString(file);
         } catch (JsonProcessingException exception) {
@@ -125,6 +146,7 @@ public final class CircuitFormat {
             requireEntry(entry, "labels");
             add(document, () -> label(entry));
         }
+        document.setProbes(probes(entries(file.probes())));
         return document;
     }
 
@@ -204,6 +226,55 @@ public final class CircuitFormat {
 
     static TextLabel label(LabelEntry entry) {
         return new TextLabel(new ElementId(entry.id()), new GridPoint(entry.x(), entry.y()), entry.text());
+    }
+
+    /**
+     * The probes of a file, in order. A malformed entry fails with {@code INVALID_ELEMENT} and a detail that starts
+     * with {@code probes[<index>]: }; a probe on a component or wire that does not exist is kept (it shows as not
+     * connected), since VSim itself writes these files.
+     */
+    static List<Probe> probes(List<ProbeEntry> entries) throws CircuitFormatException {
+        List<Probe> probes = new ArrayList<>();
+        Set<String> ids = new HashSet<>();
+        for (int index = 0; index < entries.size(); index++) {
+            ProbeEntry entry = entries.get(index);
+            String where = "probes[" + index + "]: ";
+            if (entry == null) {
+                throw invalidProbe(where + "null entry");
+            }
+            if (entry.id() == null || entry.id().isBlank()) {
+                throw invalidProbe(where + "missing id");
+            }
+            if (!ids.add(entry.id())) {
+                throw invalidProbe(where + "duplicate id " + entry.id());
+            }
+            probes.add(new Probe(entry.id(), probeTarget(entry, where), entry.name()));
+        }
+        return probes;
+    }
+
+    private static ProbeTarget probeTarget(ProbeEntry entry, String where) throws CircuitFormatException {
+        boolean pinShape = entry.component() != null && entry.pin() != null && entry.wire() == null;
+        boolean wireShape = entry.wire() != null && entry.component() == null && entry.pin() == null;
+        try {
+            if (pinShape) {
+                if (entry.pin() < 0) {
+                    throw invalidProbe(where + "negative pin " + entry.pin());
+                }
+                return new ProbeTarget.PinTarget(new ElementId(entry.component()), entry.pin());
+            }
+            if (wireShape) {
+                return new ProbeTarget.WireTarget(new ElementId(entry.wire()));
+            }
+        } catch (IllegalArgumentException exception) {
+            throw new CircuitFormatException(CircuitFormatException.Reason.INVALID_ELEMENT,
+                    where + exception.getMessage(), exception);
+        }
+        throw invalidProbe(where + "a probe needs either component and pin, or wire");
+    }
+
+    private static CircuitFormatException invalidProbe(String detail) {
+        return new CircuitFormatException(CircuitFormatException.Reason.INVALID_ELEMENT, detail);
     }
 
     private interface ElementSupplier {
