@@ -11,6 +11,7 @@ import cl.almejo.vsim.core.document.ProbeTarget;
 import cl.almejo.vsim.core.netlist.Netlist;
 import cl.almejo.vsim.core.netlist.ProbeResolver;
 import cl.almejo.vsim.ui.app.OpenDocument;
+import cl.almejo.vsim.ui.canvas.TopLevelNets;
 import cl.almejo.vsim.ui.i18n.Messages;
 
 import java.util.ArrayList;
@@ -163,17 +164,21 @@ public final class ProbeActions {
         return inputs;
     }
 
-    /** One channel per net: a target whose net already has a channel (or got one in this add) is skipped. */
+    /**
+     * One channel per net: a target whose net already has a channel (or got one in this add) is skipped. Top-level
+     * nets the simulation joins through a template count as one net ({@link TopLevelNets#rootOf}).
+     */
     private AddResult add(List<ProbeTarget> targets) {
         CircuitDocument document = openDocument.document();
         Netlist netlist = openDocument.netlist();
+        TopLevelNets merged = TopLevelNets.of(document, netlist, openDocument.registry());
         List<Probe> before = document.probes();
         Map<String, String> existingNets = ProbeResolver.resolve(before, document, netlist);
         Map<String, String> probeOnNet = new HashMap<>();
         for (Probe probe : before) {
             String netId = existingNets.get(probe.id());
             if (netId != null) {
-                probeOnNet.putIfAbsent(netId, probe.id());
+                probeOnNet.putIfAbsent(merged.rootOf(netId), probe.id());
             }
         }
         Set<String> takenNets = new HashSet<>(probeOnNet.keySet());
@@ -182,7 +187,7 @@ public final class ProbeActions {
         Optional<String> existingId = Optional.empty();
         boolean capReached = false;
         for (ProbeTarget target : targets) {
-            Optional<String> netId = ProbeResolver.netOf(target, document, netlist);
+            Optional<String> netId = ProbeResolver.netOf(target, document, netlist).map(merged::rootOf);
             if (netId.isEmpty()) {
                 continue;
             }

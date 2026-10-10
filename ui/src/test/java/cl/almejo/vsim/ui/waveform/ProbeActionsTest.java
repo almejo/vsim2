@@ -9,6 +9,7 @@ import cl.almejo.vsim.core.document.ProbeTarget;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.ui.app.OpenDocument;
+import cl.almejo.vsim.ui.canvas.PassThroughCircuit;
 import cl.almejo.vsim.ui.i18n.Messages;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -169,5 +170,18 @@ class ProbeActionsTest {
         assertThat(openDocument.history().undoDescription()).contains("command.removeAllProbes");
         openDocument.history().undo();
         assertThat(ids()).containsExactly(first, original.get(2));
+    }
+
+    @Test
+    void topLevelNetsJoinedThroughATemplateGetOneChannel() {
+        PassThroughCircuit circuit = PassThroughCircuit.addTo(openDocument);
+
+        ProbeActions.AddResult first = actions.addWire(circuit.left().id());
+        ProbeActions.AddResult second = actions.addWire(circuit.rightAcross().id());
+
+        assertThat(first.addedIds()).hasSize(1);
+        assertThat(second.addedAny()).isFalse();
+        assertThat(second.existingId()).contains(first.addedIds().get(0));
+        assertThat(probes()).hasSize(1);
     }
 }
