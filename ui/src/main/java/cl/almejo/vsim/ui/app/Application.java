@@ -20,6 +20,7 @@ import cl.almejo.vsim.ui.tree.ComponentTreeExtension;
 import cl.almejo.vsim.ui.window.CircuitWindow;
 import cl.almejo.vsim.ui.window.EditorExtension;
 import cl.almejo.vsim.ui.window.EditorServices;
+import cl.almejo.vsim.ui.window.NewViewPlacement;
 import cl.almejo.vsim.ui.window.WindowMenu;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -110,9 +111,11 @@ public final class Application {
         return show(OpenDocument.createEmpty(registry));
     }
 
-    /** Ventana → Nueva ventana de este circuito: another view of the same document. */
+    /** Ventana ▸ Nueva vista: another view of the same document, 30 px down-right of its source, same zoom and center. */
     public CircuitWindow newWindow(CircuitWindow source) {
-        return show(source.openDocument());
+        NewViewPlacement placement = NewViewPlacement.after(source.getLocation(), source.viewState());
+        // setLocation also cancels the platform placement of the constructor
+        return show(source.openDocument(), window -> placement.applyTo(window::setInitialViewState, window::setLocation));
     }
 
     public void open(CircuitWindow requester) {
