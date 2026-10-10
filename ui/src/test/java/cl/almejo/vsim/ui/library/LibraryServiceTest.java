@@ -42,7 +42,7 @@ class LibraryServiceTest {
         service = new LibraryService(preferences, library, registry, task -> {
             uiRuns.incrementAndGet();
             task.run();
-        });
+        }, LibraryWatcherTest.POLL);
         return service;
     }
 
@@ -223,5 +223,19 @@ class LibraryServiceTest {
         preferences.setLibraryDirectory(Optional.of(directory.resolve("other")));
 
         assertThat(watching.problems()).isEmpty();
+    }
+
+    @Test
+    void aDeletedLibraryDirectoryIsFollowedAgainOnceItComesBack() throws Exception {
+        Path components = directory.resolve("components");
+        LibraryService watching = serviceOn(components);
+        watching.start();
+        Files.delete(components);
+        LibraryWatcherTest.eventually(() -> !watching.problems().isEmpty());
+
+        new LibraryDirectory(components, registry).write(inverter); // recreates the folder with a component in it
+
+        LibraryWatcherTest.eventually(() -> watching.problems().isEmpty() && library.find("inverter").isPresent(),
+                LibraryWatcherTest.BACK_TIMEOUT);
     }
 }

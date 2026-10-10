@@ -78,9 +78,19 @@ public final class ProblemsPanel extends JPanel {
 
     /** Component library files that could not be loaded (spec §5.6); the section hides when there are none. */
     public void showLibraryProblems(List<String> descriptions) {
+        showLibraryProblems(descriptions, descriptions.size());
+    }
+
+    /**
+     * Like {@link #showLibraryProblems(List)}; only {@code fileCount} of the entries are files, so the header does not
+     * count the others (a missing library folder) as files.
+     */
+    public void showLibraryProblems(List<String> descriptions, int fileCount) {
         libraryModel.clear();
         libraryModel.addAll(descriptions);
-        libraryHeader.setText(Messages.format("problems.library", descriptions.size()));
+        libraryHeader.setText(fileCount > 0 || descriptions.isEmpty()
+                ? Messages.format("problems.library", fileCount)
+                : Messages.text("problems.libraryFolder"));
         boolean visible = !descriptions.isEmpty();
         libraryHeader.setVisible(visible);
         libraryScroll.setVisible(visible);

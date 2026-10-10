@@ -1,6 +1,7 @@
 package cl.almejo.vsim.ui.library;
 
 import cl.almejo.vsim.core.io.CircuitFragment;
+import cl.almejo.vsim.core.io.LibraryProblem;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuId;
 
@@ -8,6 +9,7 @@ import javax.swing.Action;
 import javax.swing.JMenu;
 import javax.swing.JSeparator;
 import javax.swing.SwingUtilities;
+import java.util.List;
 import java.util.function.Consumer;
 
 /** The M4-A features of one editor view. Installed by {@link TemplatesExtension}; {@link #dispose()} undoes it. */
@@ -58,9 +60,15 @@ public final class TemplateFeatures {
         view.canvas().addOverlay(badge);
 
         // Also on library changes: whether a broken file "can be deleted" depends on what the library holds.
-        Runnable problemsListener = () -> view.problems().showLibraryProblems(service.problems().stream()
-                .map(problem -> LibraryProblemText.describe(problem, service.library()::find))
-                .toList());
+        Runnable problemsListener = () -> {
+            List<LibraryProblem> problems = service.problems();
+            int fileCount = (int) problems.stream()
+                    .filter(problem -> problem.kind() != LibraryProblem.Kind.DIRECTORY_GONE)
+                    .count();
+            view.problems().showLibraryProblems(problems.stream()
+                    .map(problem -> LibraryProblemText.describe(problem, service.library()::find))
+                    .toList(), fileCount);
+        };
         service.addProblemsListener(problemsListener);
         service.library().addListener(problemsListener);
         problemsListener.run();

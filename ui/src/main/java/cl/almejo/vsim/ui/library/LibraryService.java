@@ -15,6 +15,7 @@ import org.slf4j.LoggerFactory;
 import javax.swing.SwingUtilities;
 import java.io.IOException;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -35,6 +36,8 @@ public final class LibraryService implements AutoCloseable {
     private final ComponentLibrary library;
     private final ComponentTypeRegistry registry;
     private final Executor uiExecutor;
+    /** How often a deleted library directory is looked for ({@link LibraryWatcher#POLL}; shorter in tests). */
+    private final Duration poll;
     private final List<Runnable> problemListeners = new CopyOnWriteArrayList<>();
     private final Runnable preferencesListener = this::followDirectoryPreference;
     /**
@@ -55,7 +58,14 @@ public final class LibraryService implements AutoCloseable {
 
     public LibraryService(AppPreferences preferences, ComponentLibrary library, ComponentTypeRegistry registry,
                           Executor uiExecutor) {
+        this(preferences, library, registry, uiExecutor, LibraryWatcher.POLL);
+    }
+
+    /** For tests: {@code poll} is how often a deleted library directory is looked for. */
+    LibraryService(AppPreferences preferences, ComponentLibrary library, ComponentTypeRegistry registry,
+                   Executor uiExecutor, Duration poll) {
         this.preferences = preferences;
+        this.poll = poll;
         this.library = library;
         this.registry = registry;
         this.uiExecutor = uiExecutor;
@@ -70,7 +80,7 @@ public final class LibraryService implements AutoCloseable {
         return directory.directory();
     }
 
-    /** The files skipped by the last load, then the directory when it is no longer watched (it was deleted). */
+    /** The files skipped by the last load, then the directory while it is deleted (until it comes back). */
     public List<LibraryProblem> problems() {
         return problems;
     }
@@ -183,10 +193,18 @@ public final class LibraryService implements AutoCloseable {
         }
     }
 
-    /** The watcher of {@code source} ended because the directory was deleted: reported until another one starts. */
+    /** The directory of {@code source} was deleted: reported until it comes back or another one is watched. */
     private synchronized void watcherGone(LibraryDirectory source) {
         if (started && source == directory) {
             watchProblem = Optional.of(LibraryProblem.directoryGone(source.directory()));
+            publishProblems();
+        }
+    }
+
+    /** The deleted directory of {@code source} exists and is watched again; the reload that follows fills the library. */
+    private synchronized void watcherBack(LibraryDirectory source) {
+        if (started && source == directory) {
+            watchProblem = Optional.empty();
             publishProblems();
         }
     }
@@ -222,11 +240,14 @@ public final class LibraryService implements AutoCloseable {
 
     private void startWatcher() {
         LibraryDirectory watched = directory;
-        LibraryWatcher next = new LibraryWatcher(watched.directory(), LibraryWatcher.DEBOUNCE, () -> {
-            long writesBefore = writes.get(); // read before the directory, so a write during the load drops it
-            LibraryLoad load = watched.load();
-            uiExecutor.execute(() -> applyWatched(watched, load, writesBefore));
-        }, () -> uiExecutor.execute(() -> watcherGone(watched)));
+        LibraryWatcher next = new LibraryWatcher(watched.directory(), LibraryWatcher.DEBOUNCE, poll,
+                () -> {
+                    long writesBefore = writes.get(); // read before the directory, so a write during the load drops it
+                    LibraryLoad load = watched.load();
+                    uiExecutor.execute(() -> applyWatched(watched, load, writesBefore));
+                },
+                () -> uiExecutor.execute(() -> watcherGone(watched)),
+                () -> uiExecutor.execute(() -> watcherBack(watched)));
         try {
             next.start();
             watcher = next;

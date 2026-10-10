@@ -160,6 +160,18 @@ public final class ProblemsController {
         }
     }
 
+    /** Like {@link #showLibraryProblems(List)}; only {@code fileCount} of them count as files in the header. */
+    public void showLibraryProblems(List<String> descriptions, int fileCount) {
+        if (!disposed) {
+            panel.showLibraryProblems(descriptions, fileCount);
+        }
+    }
+
+    /** The heading of the library section of the Problems tab. */
+    public String libraryProblemsHeader() {
+        return panel.libraryHeader().getText();
+    }
+
     public List<String> libraryProblems() {
         return panel.libraryProblemTexts();
     }

@@ -52,8 +52,8 @@ class LibraryProblemsTest {
                 .isEqualTo("No se pudo leer roto.vsimcomponent.json: Is a directory");
         Path gone = Path.of("home", "user", "library");
         assertThat(LibraryProblemText.describe(LibraryProblem.directoryGone(gone)))
-                .isEqualTo("La carpeta de la librería " + gone + " ya no existe: VSim dejó de seguir sus cambios"
-                        + " hasta que reinicies VSim o elijas otra carpeta");
+                .isEqualTo("La carpeta de la librería " + gone + " ya no existe: VSim volverá a seguir sus cambios"
+                        + " cuando vuelva a existir");
     }
 
     @Test
@@ -62,8 +62,8 @@ class LibraryProblemsTest {
         Messages.initialize(Locale.ENGLISH);
         try {
             assertThat(LibraryProblemText.describe(LibraryProblem.directoryGone(gone)))
-                    .isEqualTo("The library folder " + gone + " no longer exists: VSim stopped following its changes"
-                            + " until you restart VSim or choose another folder");
+                    .isEqualTo("The library folder " + gone + " no longer exists: VSim will follow its changes again"
+                            + " once it is back");
         } finally {
             Messages.initialize(Messages.SPANISH);
         }
@@ -84,6 +84,24 @@ class LibraryProblemsTest {
         fixture.service.reload();
 
         assertThat(fixture.view.problems().libraryProblems()).isEmpty();
+    }
+
+    /** Ruling P3: a missing library folder is listed, but the header does not count it as a file. */
+    @Test
+    void aMissingLibraryFolderIsNotCountedAsAFile() throws Exception {
+        Path library = directory.resolve("library");
+        fixture.service.start();
+        try {
+            Files.delete(library);
+
+            LibraryWatcherTest.eventually(() -> !fixture.view.problems().libraryProblems().isEmpty());
+
+            assertThat(fixture.view.problems().libraryProblems()).singleElement().asString()
+                    .startsWith("La carpeta de la librería");
+            assertThat(fixture.view.problems().libraryProblemsHeader()).isEqualTo("Librería");
+        } finally {
+            fixture.service.close();
+        }
     }
 
     @Test
