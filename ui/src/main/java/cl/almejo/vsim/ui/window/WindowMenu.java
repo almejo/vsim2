@@ -3,8 +3,6 @@ package cl.almejo.vsim.ui.window;
 import javax.swing.JCheckBoxMenuItem;
 import javax.swing.JMenu;
 import javax.swing.JPopupMenu;
-import javax.swing.event.MenuEvent;
-import javax.swing.event.MenuListener;
 import java.awt.Component;
 import java.util.ArrayList;
 import java.util.List;
@@ -27,20 +25,7 @@ public final class WindowMenu {
     public WindowMenu(JMenu menu, Supplier<List<Entry>> entries) {
         this.menu = menu;
         this.entries = entries;
-        menu.addMenuListener(new MenuListener() {
-            @Override
-            public void menuSelected(MenuEvent event) {
-                rebuild();
-            }
-
-            @Override
-            public void menuDeselected(MenuEvent event) {
-            }
-
-            @Override
-            public void menuCanceled(MenuEvent event) {
-            }
-        });
+        Menus.onOpen(menu, this::rebuild);
         rebuild();
     }
 

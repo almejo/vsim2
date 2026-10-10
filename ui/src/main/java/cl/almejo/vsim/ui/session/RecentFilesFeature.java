@@ -4,12 +4,12 @@ import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.window.EditorExtension;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuId;
+import cl.almejo.vsim.ui.window.Menus;
 
 import javax.swing.Action;
 import javax.swing.JMenu;
 import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
-import javax.swing.event.MenuEvent;
 import javax.swing.event.MenuListener;
 import java.awt.Component;
 import java.nio.file.Files;
@@ -38,21 +38,7 @@ public final class RecentFilesFeature implements EditorExtension {
     public Runnable install(EditorView view) {
         JMenu file = view.menu(MenuId.FILE);
         JMenu recent = new JMenu(Messages.text("menu.file.recent"));
-        MenuListener rebuilder = new MenuListener() {
-            @Override
-            public void menuSelected(MenuEvent event) {
-                rebuild(recent, view);
-            }
-
-            @Override
-            public void menuDeselected(MenuEvent event) {
-            }
-
-            @Override
-            public void menuCanceled(MenuEvent event) {
-            }
-        };
-        recent.addMenuListener(rebuilder);
+        MenuListener rebuilder = Menus.onOpen(recent, () -> rebuild(recent, view));
         file.add(recent, positionAfter(file, view.actions().open()));
         return () -> {
             recent.removeMenuListener(rebuilder);
@@ -96,12 +82,8 @@ public final class RecentFilesFeature implements EditorExtension {
 
     /** Right after the item of {@code action}, or at the end when the menu has no such item. */
     static int positionAfter(JMenu menu, Action action) {
-        for (int index = 0; index < menu.getMenuComponentCount(); index++) {
-            if (menu.getMenuComponent(index) instanceof JMenuItem item && item.getAction() == action) {
-                return index + 1;
-            }
-        }
-        return menu.getMenuComponentCount();
+        int index = Menus.indexOf(menu, action);
+        return index < 0 ? menu.getMenuComponentCount() : index + 1;
     }
 
     private void openRecent(Path path, EditorView view, RecentFiles recentFiles) {

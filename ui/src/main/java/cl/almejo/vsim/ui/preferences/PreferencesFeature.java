@@ -5,6 +5,7 @@ import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.window.EditorExtension;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuId;
+import cl.almejo.vsim.ui.window.Menus;
 
 import javax.swing.AbstractAction;
 import javax.swing.Action;
@@ -53,11 +54,10 @@ public final class PreferencesFeature implements EditorExtension {
 
     /** Before the separator that precedes {@code closeWindow}, or at the end when the menu has no such item. */
     static int insertionIndex(JMenu menu, Action closeWindow) {
-        for (int index = 0; index < menu.getMenuComponentCount(); index++) {
-            if (menu.getMenuComponent(index) instanceof JMenuItem item && item.getAction() == closeWindow) {
-                return index > 0 && menu.getMenuComponent(index - 1) instanceof JSeparator ? index - 1 : index;
-            }
+        int index = Menus.indexOf(menu, closeWindow);
+        if (index < 0) {
+            return menu.getMenuComponentCount();
         }
-        return menu.getMenuComponentCount();
+        return index > 0 && menu.getMenuComponent(index - 1) instanceof JSeparator ? index - 1 : index;
     }
 }
