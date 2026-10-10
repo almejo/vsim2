@@ -80,16 +80,27 @@ public final class ProblemNavigator {
         if (net.isEmpty()) {
             return navigateToInstances(problem);
         }
-        Net found = net.get();
-        canvas.centerOn(bounds(found));
-        if (found.wires().isEmpty()) {
-            canvas.selection().set(found.pins().stream().map(PinRef::componentId).distinct().toList());
-        } else {
-            canvas.selection().set(found.wires());
-        }
-        blink.start(found.wires());
-        canvas.requestFocusInWindow();
+        focusNet(canvas, blink, net.get());
         return true;
+    }
+
+    /**
+     * Centers {@code canvas} on {@code net} (when it has points), selects its wires (or the components of its pins
+     * when it has none), makes the wires blink and focuses the canvas. Shared by problem navigation and the
+     * waveforms' «Mostrar en el circuito».
+     */
+    public static void focusNet(CircuitCanvas canvas, NetBlink blink, Net net) {
+        Bounds bounds = bounds(net);
+        if (bounds != null) {
+            canvas.centerOn(bounds);
+        }
+        if (net.wires().isEmpty()) {
+            canvas.selection().set(net.pins().stream().map(PinRef::componentId).distinct().toList());
+        } else {
+            canvas.selection().set(net.wires());
+        }
+        blink.start(net.wires());
+        canvas.requestFocusInWindow();
     }
 
     private boolean navigateToInstances(Problem problem) {

@@ -153,14 +153,10 @@ public final class ProblemsController {
         previousProblem.setEnabled(anyProblem);
     }
 
-    /** Shows the component library's load problems in the Problems tab (texts already localized). */
-    public void showLibraryProblems(List<String> descriptions) {
-        if (!disposed) {
-            panel.showLibraryProblems(descriptions);
-        }
-    }
-
-    /** Like {@link #showLibraryProblems(List)}; only {@code fileCount} of them count as files in the header. */
+    /**
+     * Shows the component library's load problems in the Problems tab (texts already localized); only
+     * {@code fileCount} of them count as files in the header.
+     */
     public void showLibraryProblems(List<String> descriptions, int fileCount) {
         if (!disposed) {
             panel.showLibraryProblems(descriptions, fileCount);

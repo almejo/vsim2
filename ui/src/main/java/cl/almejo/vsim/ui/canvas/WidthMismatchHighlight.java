@@ -38,12 +38,6 @@ public record WidthMismatchHighlight(Set<ElementId> wires, Map<GridPoint, List<I
         pinWidths = Map.copyOf(copy);
     }
 
-    public static WidthMismatchHighlight of(SimulationSnapshot snapshot, Netlist netlist, long netlistToken,
-                                            CircuitDocument document, ComponentTypeRegistry registry) {
-        return of(snapshot, netlist, netlistToken, document, registry,
-                () -> TopLevelNets.of(document, netlist, registry));
-    }
-
     /** {@code merged} is asked only when the snapshot reports width mismatches for the shown netlist. */
     public static WidthMismatchHighlight of(SimulationSnapshot snapshot, Netlist netlist, long netlistToken,
                                             CircuitDocument document, ComponentTypeRegistry registry,

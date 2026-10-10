@@ -42,7 +42,7 @@ class FragmentClipboardTest {
 
     @Test
     void putPlacesTheJsonUnderBothFlavors() throws Exception {
-        clipboard.put(JSON, new GridPoint(3, 4));
+        clipboard.put(JSON, new GridPoint(3, 4), null);
         assertThat(systemClipboard.getData(FragmentTransferable.FRAGMENT_FLAVOR)).isEqualTo(JSON);
         assertThat(systemClipboard.getData(DataFlavor.stringFlavor)).isEqualTo(JSON);
         assertThat(clipboard.read()).contains(JSON);
@@ -88,7 +88,7 @@ class FragmentClipboardTest {
         clipboard.put("{}", new GridPoint(7, 8), first);
         assertThat(clipboard.originOf(JSON, first)).isEmpty();
         assertThat(clipboard.originOf("{}", first)).contains(new GridPoint(7, 8));
-        clipboard.put(JSON, new GridPoint(1, 1)); // no source: never "next to the original"
+        clipboard.put(JSON, new GridPoint(1, 1), null); // no source: never "next to the original"
         assertThat(clipboard.originOf(JSON, null)).isEmpty();
         assertThat(clipboard.originOf(JSON, first)).isEmpty();
     }
@@ -112,7 +112,7 @@ class FragmentClipboardTest {
             }
         };
         FragmentClipboard locked = new FragmentClipboard(busy);
-        locked.put(JSON, GridPoint.ORIGIN);
+        locked.put(JSON, GridPoint.ORIGIN, null);
         assertThat(locked.read()).isEmpty();
         assertThat(locked.originOf(JSON, null)).isEmpty();
     }

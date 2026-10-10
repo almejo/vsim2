@@ -175,10 +175,6 @@ public final class TimeAxis {
         cursor = OptionalLong.of(time);
     }
 
-    public void clearCursor() {
-        cursor = OptionalLong.empty();
-    }
-
     /** Where a click at {@code x} puts the cursor: the nearest of {@code edgeTimes} within {@link #SNAP_PIXELS}, else the time under x. */
     public long snap(double x, Collection<Long> edgeTimes) {
         long result = Math.round(timeAt(x));

@@ -1,15 +1,13 @@
 package cl.almejo.vsim.ui.waveform;
 
-import cl.almejo.vsim.core.geometry.Bounds;
-import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.netlist.Net;
 import cl.almejo.vsim.core.netlist.NetId;
-import cl.almejo.vsim.core.netlist.PinRef;
 import cl.almejo.vsim.ui.actions.TextPrompt;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.problems.NetBlink;
+import cl.almejo.vsim.ui.problems.ProblemNavigator;
 import cl.almejo.vsim.ui.window.BottomDock;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuId;
@@ -82,11 +80,6 @@ public final class WaveformFeatures {
         }
     }
 
-    /** Ver ▸ Formas de onda (a check item that follows the dock). */
-    public Action toggleAction() {
-        return toggle;
-    }
-
     public WaveformPanel panel() {
         return panel;
     }
@@ -130,23 +123,7 @@ public final class WaveformFeatures {
         if (net.isEmpty()) {
             return;
         }
-        Net found = net.get();
-        CircuitCanvas canvas = view.canvas();
-        Bounds bounds = null;
-        for (GridPoint point : found.points()) {
-            Bounds single = Bounds.of(point, point);
-            bounds = bounds == null ? single : bounds.union(single);
-        }
-        if (bounds != null) {
-            canvas.centerOn(bounds);
-        }
-        if (found.wires().isEmpty()) {
-            canvas.selection().set(found.pins().stream().map(PinRef::componentId).distinct().toList());
-        } else {
-            canvas.selection().set(found.wires());
-        }
-        blink.start(found.wires());
-        canvas.requestFocusInWindow();
+        ProblemNavigator.focusNet(view.canvas(), blink, net.get());
     }
 
     public void dispose() {

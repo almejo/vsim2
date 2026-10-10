@@ -83,7 +83,7 @@ class KeptVersionsDropTest {
 
     @Test
     void pastingAFragmentWithAnotherNestedVersionSaysTheCircuitKeepsItsOwn() throws Exception {
-        FragmentClipboard.system().put(doubleInverterFragment(inverter.withName("Negador")), GridPoint.ORIGIN);
+        FragmentClipboard.system().put(doubleInverterFragment(inverter.withName("Negador")), GridPoint.ORIGIN, null);
 
         fixture.view.selectionActions().pasteAt(Optional.of(new GridPoint(5, 5)));
         flushEventQueue();

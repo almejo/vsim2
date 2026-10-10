@@ -43,15 +43,10 @@ public final class FragmentClipboard {
         return system;
     }
 
-    /** Puts {@code fragmentJson} on the clipboard with no source document: a paste never lands next to it. */
-    public void put(String fragmentJson, GridPoint origin) {
-        put(fragmentJson, origin, null);
-    }
-
     /**
      * Puts {@code fragmentJson} on the clipboard and remembers that it was copied from {@code origin} of {@code
      * source} (the document, compared by identity, so every view of one circuit shares it). The source is held
-     * weakly: the clipboard never keeps a closed document alive.
+     * weakly: the clipboard never keeps a closed document alive. With a null source a paste never lands next to it.
      */
     public void put(String fragmentJson, GridPoint origin, Object source) {
         try {

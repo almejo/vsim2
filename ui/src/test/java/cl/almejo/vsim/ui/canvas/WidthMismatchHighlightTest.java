@@ -36,7 +36,13 @@ class WidthMismatchHighlightTest {
 
     private WidthMismatchHighlight highlight(SimulationSnapshot snapshot, long token) {
         Netlist netlist = new NetlistCompiler(registry).compile(document);
-        return WidthMismatchHighlight.of(snapshot, netlist, token, document, registry);
+        return highlightOf(snapshot, netlist, token, document, registry);
+    }
+
+    private static WidthMismatchHighlight highlightOf(SimulationSnapshot snapshot, Netlist netlist, long token,
+                                                      CircuitDocument document, ComponentTypeRegistry registry) {
+        return WidthMismatchHighlight.of(snapshot, netlist, token, document, registry,
+                () -> TopLevelNets.of(document, netlist, registry));
     }
 
     @Test
@@ -72,7 +78,7 @@ class WidthMismatchHighlightTest {
             SimulationSnapshot reported = new SimulationSnapshot(1, openDocument.netlistToken(), 0, true, Map.of(),
                     Map.of(), List.of(new WidthMismatch(circuit.rootNetId(openDocument), List.of())), Optional.empty());
 
-            WidthMismatchHighlight marked = WidthMismatchHighlight.of(reported, openDocument.netlist(),
+            WidthMismatchHighlight marked = highlightOf(reported, openDocument.netlist(),
                     openDocument.netlistToken(), openDocument.document(), openDocument.registry());
 
             assertThat(marked.wires()).containsExactlyInAnyOrder(circuit.left().id(), circuit.rightAcross().id(),
