@@ -43,6 +43,14 @@ class SelectionActionsTest {
 
     private final Clipboard systemClipboard = new Clipboard("test");
     private final FragmentClipboard clipboard = new FragmentClipboard(systemClipboard);
+    private static final WindowCommands NO_WINDOW = new WindowCommands() {
+        @Override public void newDocument() { }
+        @Override public void open() { }
+        @Override public void save() { }
+        @Override public void saveAs() { }
+        @Override public void closeWindow() { }
+        @Override public void exit() { }
+    };
     private OpenDocument openDocument;
     private EditorView view;
     private SelectionActions actions;
@@ -51,14 +59,7 @@ class SelectionActionsTest {
     void create() {
         Messages.initialize(Messages.SPANISH);
         openDocument = OpenDocument.createEmpty(StandardComponentTypes.registry());
-        view = new EditorView(openDocument, PainterRegistry.standard(), ColorScheme.LIGHT, new WindowCommands() {
-            @Override public void newDocument() { }
-            @Override public void open() { }
-            @Override public void save() { }
-            @Override public void saveAs() { }
-            @Override public void closeWindow() { }
-            @Override public void exit() { }
-        });
+        view = new EditorView(openDocument, PainterRegistry.standard(), ColorScheme.LIGHT, NO_WINDOW);;
         view.canvas().setSize(400, 300);
         actions = new SelectionActions(openDocument, view.canvas(), view.actions(), clipboard);
     }
@@ -119,7 +120,7 @@ class SelectionActionsTest {
         });
         assertThat(systemClipboard.isDataFlavorAvailable(FragmentTransferable.FRAGMENT_FLAVOR)).isTrue();
         assertThat(systemClipboard.isDataFlavorAvailable(DataFlavor.stringFlavor)).isTrue();
-        assertThat(clipboard.originOf(json)).contains(new GridPoint(10, 4));
+        assertThat(clipboard.originOf(json, openDocument.document())).contains(new GridPoint(10, 4));
         assertThat(openDocument.document().components()).hasSize(1);
         assertThat(openDocument.history().undoDescription()).contains("command.add");
     }
@@ -195,6 +196,52 @@ class SelectionActionsTest {
         moveMouseOut();
         perform(actions.paste());
         assertThat(floating().position()).isEqualTo(view.canvas().viewport().snap(200, 150));
+    }
+
+    @Test
+    void pasteFromAnotherCircuitWithTheMouseOutsideFloatsAtTheCenterOfTheView() {
+        OpenDocument other = OpenDocument.createEmpty(StandardComponentTypes.registry());
+        EditorView otherView = new EditorView(other, PainterRegistry.standard(), ColorScheme.LIGHT, NO_WINDOW);
+        try {
+            otherView.canvas().setSize(400, 300);
+            SelectionActions otherActions = new SelectionActions(other, otherView.canvas(), otherView.actions(),
+                    clipboard);
+            Component gate = place(other, StandardComponentTypes.NOT, 10, 4, Map.of());
+            otherView.canvas().selection().select(gate.id());
+            perform(otherActions.copy());
+
+            perform(actions.paste());
+
+            assertThat(floating().position()).isEqualTo(view.canvas().viewport().snap(200, 150));
+        } finally {
+            otherView.dispose();
+            other.close();
+        }
+    }
+
+    @Test
+    void pasteOfAnOriginalOutOfViewFloatsAtTheCenterOfTheView() {
+        copyGateAt(100, 100); // the canvas shows grid 0..50 x 0..37
+        perform(actions.paste());
+        assertThat(floating().position()).isEqualTo(view.canvas().viewport().snap(200, 150));
+    }
+
+    @Test
+    void pasteInAnotherViewOfTheSameCircuitStaysNextToTheOriginal() {
+        EditorView second = new EditorView(openDocument, PainterRegistry.standard(), ColorScheme.LIGHT, NO_WINDOW);
+        try {
+            second.canvas().setSize(400, 300);
+            SelectionActions secondActions = new SelectionActions(openDocument, second.canvas(), second.actions(),
+                    clipboard);
+            copyGateAt(10, 4);
+
+            perform(secondActions.paste());
+
+            assertThat(second.canvas().tool()).isInstanceOf(FloatingSelectionTool.class);
+            assertThat(((FloatingSelectionTool) second.canvas().tool()).position()).isEqualTo(new GridPoint(12, 6));
+        } finally {
+            second.dispose();
+        }
     }
 
     @Test

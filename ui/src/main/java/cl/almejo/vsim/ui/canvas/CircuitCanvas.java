@@ -690,11 +690,11 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
 
     /** Whether a wire of a short circuit or a width mismatch is on the canvas now (what the renderer glows). */
     private boolean problemWireShown() {
-        ComponentTypeRegistry registry = openDocument.registry();
-        return !ShortCircuitHighlight.of(displayedSnapshot, openDocument.netlist(), openDocument.netlistToken(),
-                openDocument.document(), registry).wires().isEmpty()
-                || !WidthMismatchHighlight.of(displayedSnapshot, openDocument.netlist(), openDocument.netlistToken(),
-                openDocument.document(), registry).wires().isEmpty();
+        HighlightCache highlights = renderer.highlights();
+        return !highlights.shortCircuits(openDocument.document(), openDocument.netlist(), openDocument.netlistToken(),
+                displayedSnapshot).wires().isEmpty()
+                || !highlights.widthMismatches(openDocument.document(), openDocument.netlist(),
+                openDocument.netlistToken(), displayedSnapshot).wires().isEmpty();
     }
 
     private void updateProblemPulse() {

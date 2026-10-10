@@ -5,6 +5,7 @@ import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.ui.canvas.CanvasOverlay;
+import cl.almejo.vsim.ui.canvas.HighlightCache;
 import cl.almejo.vsim.ui.canvas.RenderState;
 import cl.almejo.vsim.ui.canvas.ShortCircuitHighlight;
 
@@ -28,12 +29,12 @@ public final class ShortCircuitPulse implements CanvasOverlay {
     private static final double UNIT = GridPoint.PIXELS_PER_UNIT;
     private static final BasicStroke STROKE = new BasicStroke(5f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
 
-    private final ComponentTypeRegistry registry;
+    private final HighlightCache highlights;
     private final LongSupplier nanoClock;
     private final Timer timer;
 
     public ShortCircuitPulse(ComponentTypeRegistry registry, Runnable repaint, LongSupplier nanoClock) {
-        this.registry = registry;
+        this.highlights = new HighlightCache(registry);
         this.nanoClock = nanoClock;
         this.timer = new Timer(REPAINT_MILLISECONDS, event -> repaint.run());
     }
@@ -67,8 +68,7 @@ public final class ShortCircuitPulse implements CanvasOverlay {
         if (alpha == 0) {
             return;
         }
-        ShortCircuitHighlight highlight = ShortCircuitHighlight.of(state.snapshot(), state.netlist(),
-                state.netlistToken(), state.document(), registry);
+        ShortCircuitHighlight highlight = highlights.shortCircuits(state);
         if (highlight.wires().isEmpty()) {
             return;
         }

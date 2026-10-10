@@ -11,6 +11,7 @@ import cl.almejo.vsim.core.netlist.Netlist;
 import cl.almejo.vsim.core.netlist.NetlistCompiler;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.core.simulation.WidthMismatch;
+import cl.almejo.vsim.ui.app.OpenDocument;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -61,5 +62,23 @@ class WidthMismatchHighlightTest {
                 List.of(new WidthMismatch(netId, List.of())), Optional.empty());
         assertThat(highlight(reported, document.revision()).wires()).containsExactly(bus.id());
         assertThat(highlight(reported, document.revision() + 1)).isEqualTo(WidthMismatchHighlight.NONE);
+    }
+
+    @Test
+    void aMismatchReportedForANetMergedThroughATemplateMarksTheWiresOnBothSides() {
+        OpenDocument openDocument = OpenDocument.createEmpty(StandardComponentTypes.registry());
+        try {
+            PassThroughCircuit circuit = PassThroughCircuit.addTo(openDocument);
+            SimulationSnapshot reported = new SimulationSnapshot(1, openDocument.netlistToken(), 0, true, Map.of(),
+                    Map.of(), List.of(new WidthMismatch(circuit.rootNetId(openDocument), List.of())), Optional.empty());
+
+            WidthMismatchHighlight marked = WidthMismatchHighlight.of(reported, openDocument.netlist(),
+                    openDocument.netlistToken(), openDocument.document(), openDocument.registry());
+
+            assertThat(marked.wires()).containsExactlyInAnyOrder(circuit.left().id(), circuit.rightAcross().id(),
+                    circuit.rightDown().id());
+        } finally {
+            openDocument.close();
+        }
     }
 }

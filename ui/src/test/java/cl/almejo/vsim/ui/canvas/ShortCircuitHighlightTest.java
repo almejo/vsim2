@@ -18,6 +18,7 @@ import cl.almejo.vsim.core.simulation.DriverRef;
 import cl.almejo.vsim.core.simulation.ShortCircuit;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.core.value.Value;
+import cl.almejo.vsim.ui.app.OpenDocument;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -89,5 +90,24 @@ class ShortCircuitHighlightTest {
 
         assertThat(highlight.components()).containsExactly(instance.id());
         assertThat(highlight.driverPins()).isEmpty();
+    }
+
+    @Test
+    void aShortThroughATemplateMarksTheWiresOnBothSides() {
+        OpenDocument openDocument = OpenDocument.createEmpty(StandardComponentTypes.registry());
+        try {
+            PassThroughCircuit circuit = PassThroughCircuit.addTo(openDocument);
+            assertThat(circuit.leftNetId(openDocument)).isNotEqualTo(circuit.rightNetId(openDocument));
+
+            ShortCircuitHighlight highlight = ShortCircuitHighlight.of(circuit.shortSnapshot(openDocument),
+                    openDocument.netlist(), openDocument.netlistToken(), openDocument.document(),
+                    openDocument.registry());
+
+            assertThat(highlight.wires()).containsExactlyInAnyOrder(circuit.left().id(), circuit.rightAcross().id(),
+                    circuit.rightDown().id());
+            assertThat(highlight.components()).containsExactlyInAnyOrder(circuit.high().id(), circuit.low().id());
+        } finally {
+            openDocument.close();
+        }
     }
 }
