@@ -96,4 +96,15 @@ class ViewportTest {
         assertThat(viewport.zoom()).isEqualTo(2.0);
         assertThat(viewport.gridToScreen(3, 4)).isEqualTo(before);
     }
+
+    @Test
+    void showAtPutsTheCenterInTheMiddleOfTheScreenAndClampsTheZoom() {
+        viewport.showAt(2.0, 10.5, -4.0, 800, 600);
+        assertThat(viewport.zoom()).isEqualTo(2.0);
+        assertThat(viewport.screenToGrid(400, 300)).isEqualTo(new Point2D.Double(10.5, -4.0));
+        viewport.showAt(100.0, 0, 0, 800, 600);
+        assertThat(viewport.zoom()).isEqualTo(Viewport.MAXIMUM_ZOOM);
+        viewport.showAt(0.01, 0, 0, 800, 600);
+        assertThat(viewport.zoom()).isEqualTo(Viewport.MINIMUM_ZOOM);
+    }
 }

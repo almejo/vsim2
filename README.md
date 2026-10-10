@@ -43,6 +43,12 @@ Diseño: `docs/superpowers/specs/2026-10-08-vsim2-design.md`.
 - Unir pines de anchos distintos es un problema: el cable se ve rojo y punteado, junto a cada pin aparece su ancho, la barra de estado cuenta «⚠ 1 ancho incompatible» (junto a los cortocircuitos), F8 lleva a él y al pasar el mouse se listan los pines. Esa red queda en Z.
 - Los circuitos y componentes guardados antes de M5 se abren igual: todo es de 1 bit.
 
+## Formas de onda (M6)
+
+## Sesión y recuperación (M6)
+
+## Atajos y vistas (M6)
+
 ## Preferencias y distribución
 
 - Archivo → Preferencias… (en macOS también VSim 2 → Ajustes…): tema Claro, Oscuro o Seguir sistema; esquema de color del circuito (Según el tema, VSim clásico, Claro, Oscuro y los otros esquemas del VSim original: Pastel, CSim y Twilight); idioma (Sistema, Español, English; se aplica al reiniciar); directorio de la librería de componentes (Elegir… / Restaurar predeterminado). El tema y el esquema cambian al instante en todas las ventanas.

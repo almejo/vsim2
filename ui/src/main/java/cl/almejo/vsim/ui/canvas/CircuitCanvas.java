@@ -554,6 +554,18 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         viewChanged();
     }
 
+    /** The zoom and the grid point in the middle of the canvas, to restore later or to copy into another view. */
+    public ViewState viewState() {
+        Point2D center = viewport.screenToGrid(getWidth() / 2.0, getHeight() / 2.0);
+        return new ViewState(viewport.zoom(), center.getX(), center.getY());
+    }
+
+    /** Shows {@code state}: its zoom (clamped to the viewport limits) with its center in the middle of the canvas. */
+    public void applyViewState(ViewState state) {
+        viewport.showAt(state.zoom(), state.centerX(), state.centerY(), getWidth(), getHeight());
+        viewChanged();
+    }
+
     /** Centers the view on {@code bounds} (grid units) without changing the zoom. */
     public void centerOn(Bounds bounds) {
         viewport.center(bounds, getWidth(), getHeight());

@@ -152,6 +152,32 @@ class CircuitCanvasTest {
     }
 
     @Test
+    void aViewStateComesBackAfterPanningAndZoomingAndNotifiesViewListeners() {
+        canvas.setSize(800, 600);
+        List<Double> zooms = new ArrayList<>();
+        canvas.addViewListener(() -> zooms.add(canvas.viewport().zoom()));
+        canvas.applyViewState(new ViewState(2.0, 10.5, -4.0));
+        ViewState shown = canvas.viewState();
+        canvas.viewport().panBy(123, -45);
+        canvas.zoomIn();
+        canvas.applyViewState(shown);
+        assertThat(canvas.viewState().zoom()).isCloseTo(2.0, within(1e-9));
+        assertThat(canvas.viewState().centerX()).isCloseTo(10.5, within(1e-9));
+        assertThat(canvas.viewState().centerY()).isCloseTo(-4.0, within(1e-9));
+        assertThat(canvas.viewport().gridToScreen(10.5, -4.0)).isEqualTo(new Point2D.Double(400, 300));
+        assertThat(zooms).containsExactly(2.0, 2.5, 2.0);
+    }
+
+    @Test
+    void applyingAViewStateClampsItsZoomToTheViewportLimits() {
+        canvas.setSize(800, 600);
+        canvas.applyViewState(new ViewState(100.0, 0, 0));
+        assertThat(canvas.viewState().zoom()).isEqualTo(Viewport.MAXIMUM_ZOOM);
+        canvas.applyViewState(new ViewState(0.01, 0, 0));
+        assertThat(canvas.viewState().zoom()).isEqualTo(Viewport.MINIMUM_ZOOM);
+    }
+
+    @Test
     void losingFocusForgetsSpaceAndAPanInProgress() {
         RecordingTool tool = new RecordingTool();
         canvas.setTool(tool);

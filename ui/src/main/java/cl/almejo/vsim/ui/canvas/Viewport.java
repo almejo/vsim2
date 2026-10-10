@@ -72,6 +72,13 @@ public final class Viewport {
         originY = screenHeight / 2.0 - centerY * pixelsPerUnit();
     }
 
+    /** Shows grid point ({@code centerX}, {@code centerY}) in the middle of a screen of the given size, at the clamped zoom. */
+    public void showAt(double requestedZoom, double centerX, double centerY, int screenWidth, int screenHeight) {
+        zoom = Math.max(MINIMUM_ZOOM, Math.min(MAXIMUM_ZOOM, requestedZoom));
+        originX = screenWidth / 2.0 - centerX * pixelsPerUnit();
+        originY = screenHeight / 2.0 - centerY * pixelsPerUnit();
+    }
+
     /** Maps document coordinates (8 px per grid unit, what painters draw in) to the screen. */
     public AffineTransform documentTransform() {
         AffineTransform transform = AffineTransform.getTranslateInstance(originX, originY);

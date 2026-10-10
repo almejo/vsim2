@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.window;
 import cl.almejo.vsim.ui.app.Application;
 import cl.almejo.vsim.ui.app.FileDialogs;
 import cl.almejo.vsim.ui.app.OpenDocument;
+import cl.almejo.vsim.ui.canvas.ViewState;
 import cl.almejo.vsim.ui.clipboard.FileDropHandler;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.icons.AppIcons;
@@ -29,6 +30,7 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
     private final OpenDocument openDocument;
     private final EditorView view;
     private final Runnable titleUpdater = this::updateTitle;
+    private ViewState initialViewState;
 
     public CircuitWindow(Application application, OpenDocument openDocument, EditorServices services) {
         this.application = application;
@@ -52,7 +54,11 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
 
             @Override
             public void windowOpened(WindowEvent event) {
-                view.canvas().centerCircuit();
+                if (initialViewState != null) {
+                    view.canvas().applyViewState(initialViewState);
+                } else {
+                    view.canvas().centerCircuit();
+                }
                 view.canvas().requestFocusInWindow();
             }
         });
@@ -68,6 +74,16 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
 
     public OpenDocument openDocument() {
         return openDocument;
+    }
+
+    /** Shows {@code state} instead of centering the circuit when the window opens; call it before {@code setVisible}. */
+    public void setInitialViewState(ViewState state) {
+        this.initialViewState = state;
+    }
+
+    /** The zoom and center this window's canvas shows now. */
+    public ViewState viewState() {
+        return view.canvas().viewState();
     }
 
     @Override
