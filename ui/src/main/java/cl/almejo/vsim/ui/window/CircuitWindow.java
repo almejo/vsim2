@@ -7,11 +7,16 @@ import cl.almejo.vsim.ui.canvas.ViewState;
 import cl.almejo.vsim.ui.clipboard.FileDropHandler;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.icons.AppIcons;
+import cl.almejo.vsim.ui.session.RecentFiles;
+import cl.almejo.vsim.ui.session.WindowState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.swing.JFrame;
 import javax.swing.JOptionPane;
+import java.awt.Rectangle;
+import java.awt.event.ComponentAdapter;
+import java.awt.event.ComponentEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.IOException;
@@ -31,10 +36,14 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
     private final EditorView view;
     private final Runnable titleUpdater = this::updateTitle;
     private ViewState initialViewState;
+    private final RecentFiles recentFiles;
+    /** The bounds while not maximized: what Recientes and the session store for a maximized window. */
+    private Rectangle normalBounds;
 
     public CircuitWindow(Application application, OpenDocument openDocument, EditorServices services) {
         this.application = application;
         this.openDocument = openDocument;
+        this.recentFiles = new RecentFiles(services.preferences());
         this.view = new EditorView(openDocument, services, this);
         setJMenuBar(view.menuBar());
         setContentPane(view);
@@ -62,6 +71,17 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
                 view.canvas().requestFocusInWindow();
             }
         });
+        addComponentListener(new ComponentAdapter() {
+            @Override
+            public void componentMoved(ComponentEvent event) {
+                rememberNormalBounds();
+            }
+
+            @Override
+            public void componentResized(ComponentEvent event) {
+                rememberNormalBounds();
+            }
+        });
         openDocument.addChangeListener(titleUpdater);
         updateTitle();
         setSize(1280, 820);
@@ -84,6 +104,32 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
     /** The zoom and center this window's canvas shows now. */
     public ViewState viewState() {
         return view.canvas().viewState();
+    }
+
+    /** Where this window is and what it shows (M6-B); a maximized window reports the bounds it had before. */
+    public WindowState windowState() {
+        boolean maximized = (getExtendedState() & MAXIMIZED_BOTH) == MAXIMIZED_BOTH;
+        Rectangle bounds = maximized && normalBounds != null ? normalBounds : getBounds();
+        return WindowState.of(bounds, maximized, viewState());
+    }
+
+    /**
+     * Applies an (already clamped) state: the normal bounds are set before maximizing so that un-maximizing returns
+     * to them. The zoom and center are applied when the window opens.
+     */
+    public void restoreWindowState(WindowState state) {
+        normalBounds = state.bounds();
+        setBounds(normalBounds);
+        setInitialViewState(state.view());
+        if (state.maximized()) {
+            setExtendedState(getExtendedState() | MAXIMIZED_BOTH);
+        }
+    }
+
+    private void rememberNormalBounds() {
+        if ((getExtendedState() & MAXIMIZED_BOTH) == 0) {
+            normalBounds = getBounds();
+        }
     }
 
     @Override
@@ -180,12 +226,22 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
         try {
             openDocument.save(target);
             application.rememberDirectory(target);
+            rememberRecent(target);
             return true;
         } catch (IOException exception) {
             LOGGER.warn("Could not save {}", target, exception);
             JOptionPane.showMessageDialog(this, Messages.format("error.write", target, exception.getMessage()),
                     Messages.text("error.save.title"), JOptionPane.ERROR_MESSAGE);
             return false;
+        }
+    }
+
+    /** A recents failure must never block saving, closing or exiting. */
+    private void rememberRecent(Path target) {
+        try {
+            recentFiles.remember(target, windowState());
+        } catch (RuntimeException exception) {
+            LOGGER.warn("Could not add {} to the recent files", target, exception);
         }
     }
 
