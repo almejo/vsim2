@@ -69,13 +69,13 @@ public final class ProblemsController {
     private final Consumer<SimulationSnapshot> snapshotListener = this::showSnapshot;
     private SimulationSnapshot snapshot = SimulationSnapshot.EMPTY;
     private boolean disposed;
-    private TopLevelNets memoizedTopLevelNets;
-    private long memoizedToken;
-    private Netlist memoizedNetlist;
+    private final ConnectionPoints connectionPoints;
+    private Memo memo;
 
     public ProblemsController(EditorView view) {
         this.openDocument = view.openDocument();
         this.canvas = view.canvas();
+        this.connectionPoints = new ConnectionPoints(openDocument.registry());
         this.statusBar = view.statusBar();
         this.blink = new NetBlink(canvas::scheme, canvas::repaint);
         this.pulse = new ShortCircuitPulse(openDocument.registry(), canvas::repaint, System::nanoTime);
@@ -266,12 +266,13 @@ public final class ProblemsController {
     private TopLevelNets topLevelNets(CircuitDocument document) {
         long token = openDocument.netlistToken();
         Netlist netlist = openDocument.netlist();
-        if (memoizedTopLevelNets == null || memoizedToken != token || memoizedNetlist != netlist) {
-            memoizedTopLevelNets = TopLevelNets.of(document, netlist, openDocument.registry());
-            memoizedToken = token;
-            memoizedNetlist = netlist;
+        if (memo == null || memo.token() != token || memo.netlist() != netlist) {
+            memo = new Memo(token, netlist, TopLevelNets.of(document, netlist, openDocument.registry()));
         }
-        return memoizedTopLevelNets;
+        return memo.nets();
+    }
+
+    private record Memo(long token, Netlist netlist, TopLevelNets nets) {
     }
 
     /** The width-mismatch text of {@code net}: the one reported under {@code reportedId}, else its own pins'. */
@@ -289,7 +290,7 @@ public final class ProblemsController {
 
     /** The net of the pin nearest to {@code gridPoint} (within {@link ConnectionPoints#PIN_RADIUS}), if any. */
     private Optional<Net> pinNetAt(CircuitDocument document, Point2D gridPoint) {
-        return new ConnectionPoints(openDocument.registry()).pinNear(document, gridPoint).flatMap(hit -> {
+        return connectionPoints.pinNear(document, gridPoint).flatMap(hit -> {
             ComponentType type = openDocument.registry().typeOf(hit.component());
             for (int pinIndex = 0; pinIndex < type.pinCount(); pinIndex++) {
                 if (type.pinLocation(hit.component(), pinIndex).equals(hit.point())) {

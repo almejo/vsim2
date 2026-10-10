@@ -1,6 +1,7 @@
 package cl.almejo.vsim.ui.problems;
 
 import cl.almejo.vsim.core.command.AddWireCommand;
+import cl.almejo.vsim.core.command.RemoveElementsCommand;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.Wire;
@@ -300,7 +301,8 @@ class ProblemsControllerTest {
 
     @Test
     void aMismatchReportedUnderAnotherNetIdStillTooltipsItsMergedWire() {
-        place(openDocument, StandardComponentTypes.BUS_SPLITTER, 20, 1, Map.of(StandardComponentTypes.WIDTH, 4)); // bus pin at (20, 1)
+        // bus pin at (20, 1)
+        place(openDocument, StandardComponentTypes.BUS_SPLITTER, 20, 1, Map.of(StandardComponentTypes.WIDTH, 4));
         Wire bus = new Wire(openDocument.document().newWireId(), new GridPoint(4, 1), new GridPoint(20, 1));
         openDocument.execute(new AddWireCommand(bus));
         assertThat(openDocument.netlist().netForWire(bus.id()).orElseThrow().widthMismatch()).isTrue();
@@ -325,7 +327,8 @@ class ProblemsControllerTest {
 
     @Test
     void hoveringAPinThatSitsOnAPinOfAnotherWidthNamesBothWidths() {
-        place(openDocument, StandardComponentTypes.BUS_SPLITTER, 30, 0, Map.of(StandardComponentTypes.WIDTH, 4)); // bus pin at (30, 0)
+        // bus pin at (30, 0)
+        place(openDocument, StandardComponentTypes.BUS_SPLITTER, 30, 0, Map.of(StandardComponentTypes.WIDTH, 4));
         place(openDocument, StandardComponentTypes.LED, 29, -3, Map.of()); // its pin is at (30, 0): pin on pin, no wire
         assertThat(openDocument.netlist().nets().stream().anyMatch(net -> net.widthMismatch() && net.wires().isEmpty()))
                 .isTrue();
@@ -337,5 +340,27 @@ class ProblemsControllerTest {
                 .contains("Separador de bus (4 bits)")
                 .contains("LED (1 bit)");
         assertThat(view.canvas().getToolTipText(hoverAt(256, 16))).isNull(); // the healthy splitter bit b1
+    }
+
+    @Test
+    void theMergedNetsMemoRefreshesWhenTheNetlistChanges() {
+        PassThroughCircuit circuit = PassThroughCircuit.addTo(openDocument);
+        view.problems().showSnapshot(circuit.shortSnapshot(openDocument));
+        String expected = "Interruptor → 1 · Interruptor → 0";
+        assertThat(view.canvas().getToolTipText(hoverAt(56, 160))).isEqualTo(expected);
+        assertThat(view.canvas().getToolTipText(hoverAt(152, 160))).isEqualTo(expected);
+
+        // The side that is not the reported root: a stale memo would still send it to the old root id.
+        boolean rootIsLeft = circuit.rootNetId(openDocument).equals(circuit.leftNetId(openDocument));
+        Wire survivor = rootIsLeft ? circuit.rightAcross() : circuit.left();
+        int hoverX = rootIsLeft ? 152 : 56;
+        openDocument.execute(new RemoveElementsCommand(List.of(circuit.instance().id())));
+        String survivorNetId = openDocument.netlist().netForWire(survivor.id()).orElseThrow().id().value();
+        view.problems().showSnapshot(new SimulationSnapshot(2, openDocument.netlistToken(), 10, true, Map.of(),
+                Map.of(), List.of(new ShortCircuit(survivorNetId, List.of(
+                        new DriverRef(circuit.high().id().value(), 0, Value.ONE),
+                        new DriverRef(circuit.low().id().value(), 0, Value.ZERO)), 5)), Optional.empty()));
+
+        assertThat(view.canvas().getToolTipText(hoverAt(hoverX, 160))).isEqualTo(expected);
     }
 }
