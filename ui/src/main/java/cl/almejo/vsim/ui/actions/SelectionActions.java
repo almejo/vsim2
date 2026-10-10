@@ -24,6 +24,7 @@ import javax.swing.JMenuItem;
 import javax.swing.JPopupMenu;
 import javax.swing.KeyStroke;
 import java.awt.event.ActionEvent;
+import java.awt.geom.Point2D;
 import java.awt.event.KeyEvent;
 import java.util.List;
 import java.util.Optional;
@@ -35,7 +36,7 @@ import java.util.Set;
  */
 public final class SelectionActions {
 
-    /** How far a paste without the mouse over the canvas, or a duplicate, lands from the original (grid units). */
+    /** How far a duplicate, or a paste without the mouse over the canvas next to an original in view, lands from it. */
     public static final int PASTE_OFFSET = 2;
 
     private static final Logger LOGGER = LoggerFactory.getLogger(SelectionActions.class);
@@ -78,8 +79,9 @@ public final class SelectionActions {
     public Action selectAll() { return selectAll; }
 
     /**
-     * Floats the clipboard's fragment at {@code mousePoint}; without one, next to where it was copied from, or at
-     * the center of the view when it was copied elsewhere. Anything that is not a fragment is ignored.
+     * Floats the clipboard's fragment at {@code mousePoint}; without one, next to where it was copied from when it was
+     * copied from this circuit (any of its views) and that spot is in view, otherwise at the center of the view.
+     * Anything that is not a fragment is ignored.
      */
     public void pasteAt(Optional<GridPoint> mousePoint) {
         Optional<String> json = clipboard.read();
@@ -98,10 +100,21 @@ public final class SelectionActions {
             return;
         }
         canvas.announceIncomingFragment(fragment);
-        GridPoint position = mousePoint
-                .or(() -> clipboard.originOf(json.get()).map(origin -> origin.translate(PASTE_OFFSET, PASTE_OFFSET)))
+        startFloating(fragment, mousePoint.orElseGet(() -> positionWithoutMouse(json.get())));
+    }
+
+    /** Next to the original when it was copied from this circuit and that spot is in view; else the view's center. */
+    private GridPoint positionWithoutMouse(String json) {
+        return clipboard.originOf(json, openDocument.document())
+                .map(origin -> origin.translate(PASTE_OFFSET, PASTE_OFFSET))
+                .filter(this::inView)
                 .orElseGet(() -> canvas.viewport().snap(canvas.getWidth() / 2.0, canvas.getHeight() / 2.0));
-        startFloating(fragment, position);
+    }
+
+    private boolean inView(GridPoint point) {
+        Point2D screen = canvas.viewport().gridToScreen(point.x(), point.y());
+        return screen.getX() >= 0 && screen.getY() >= 0 && screen.getX() <= canvas.getWidth()
+                && screen.getY() <= canvas.getHeight();
     }
 
     /** Clipboard entries of the canvas context menu (see the class tests for what each target gets). */
@@ -154,7 +167,8 @@ public final class SelectionActions {
             return false;
         }
         CircuitFragment fragment = CircuitFragment.of(openDocument.document(), ids, openDocument.registry());
-        clipboard.put(format.write(fragment), new GridPoint(bounds.get().x(), bounds.get().y()));
+        clipboard.put(format.write(fragment), new GridPoint(bounds.get().x(), bounds.get().y()),
+                openDocument.document());
         return true;
     }
 

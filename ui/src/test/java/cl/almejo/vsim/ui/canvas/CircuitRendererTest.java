@@ -43,11 +43,16 @@ class CircuitRendererTest {
     private final Wire wire = new Wire(document.newWireId(), new GridPoint(1, 1), new GridPoint(5, 1));
 
     private BufferedImage render(SimulationSnapshot snapshot, Netlist netlist, long token) {
+        return renderWith(renderer, snapshot, netlist, token);
+    }
+
+    private BufferedImage renderWith(CircuitRenderer painter, SimulationSnapshot snapshot, Netlist netlist,
+                                     long token) {
         BufferedImage image = new BufferedImage(120, 120, BufferedImage.TYPE_INT_ARGB);
         Graphics2D graphics = image.createGraphics();
         graphics.setColor(SCHEME.background());
         graphics.fillRect(0, 0, 120, 120);
-        renderer.paint(graphics, new RenderState(document, netlist, token, snapshot, Set.of(), 0));
+        painter.paint(graphics, new RenderState(document, netlist, token, snapshot, Set.of(), 0));
         graphics.dispose();
         return image;
     }
@@ -444,5 +449,35 @@ assertThat(pinCenter(image, joiner, 3)).isEqualTo(SCHEME.background());
         BufferedImage image = render(SimulationSnapshot.EMPTY, netlist, document.revision() - 1);
 
         assertThat(pinCenter(image, joiner, 2)).isEqualTo(SCHEME.componentStroke());
+    }
+
+    @Test
+    void cachedHighlightsPaintLikeAFreshRendererAndFollowANewNetlist() {
+        Component high = registry.require(StandardComponentTypes.SWITCH).newComponent(document.newComponentId(),
+                new GridPoint(3, 3), Rotation.R0, Map.of("value", "1"), "");
+        document.add(high);
+        document.add(wire);
+        Netlist netlist = new NetlistCompiler(registry).compile(document);
+        String netId = netlist.netForWire(wire.id()).orElseThrow().id().value();
+        SimulationSnapshot shorted = snapshot(document.revision(), Map.of(netId, Value.ONE.withConflict()),
+                List.of(new ShortCircuit(netId, List.of(new DriverRef(high.id().value(), 0, Value.ONE)), 0)));
+
+        BufferedImage first = render(shorted, netlist, document.revision());
+        BufferedImage again = render(shorted, netlist, document.revision());
+
+        assertThat(renderer.highlights().computations()).isEqualTo(1);
+        assertThat(sameImage(first, again)).isTrue();
+        assertThat(sameImage(again, renderWith(new CircuitRenderer(registry, PainterRegistry.standard(), SCHEME),
+                shorted, netlist, document.revision()))).isTrue();
+
+        document.remove(high.id());
+        Netlist next = new NetlistCompiler(registry).compile(document);
+        SimulationSnapshot healthy = snapshot(document.revision(), Map.of(), List.of());
+        BufferedImage after = render(healthy, next, document.revision());
+
+        assertThat(renderer.highlights().computations()).isEqualTo(2);
+        assertThat(sameImage(after, first)).isFalse();
+        assertThat(sameImage(after, renderWith(new CircuitRenderer(registry, PainterRegistry.standard(), SCHEME),
+                healthy, next, document.revision()))).isTrue();
     }
 }

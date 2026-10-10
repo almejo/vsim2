@@ -6,6 +6,7 @@ import cl.almejo.vsim.ui.paint.ColorSchemes;
 import net.miginfocom.swing.MigLayout;
 
 import javax.swing.JButton;
+import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
@@ -54,6 +55,7 @@ public final class PreferencesForm extends JPanel {
     private final JTextField libraryField = new JTextField(32);
     private final JButton chooseLibraryButton = new JButton(Messages.text("preferences.library.choose"));
     private final JButton restoreLibraryButton = new JButton(Messages.text("preferences.library.restore"));
+    private final JCheckBox restoreSessionBox = new JCheckBox(Messages.text("preferences.restoreSession"));
 
     public PreferencesForm(AppPreferences preferences, DirectoryChooser directoryChooser) {
         super(new MigLayout("insets dialog, wrap 2", "[right][grow, fill]"));
@@ -88,6 +90,8 @@ public final class PreferencesForm extends JPanel {
             refreshLibrary();
         });
         refreshLibrary();
+        restoreSessionBox.setSelected(preferences.restoreSession());
+        restoreSessionBox.addActionListener(event -> preferences.setRestoreSession(restoreSessionBox.isSelected()));
 
         add(new JLabel(Messages.text("preferences.theme")));
         add(themeChoice);
@@ -100,6 +104,7 @@ public final class PreferencesForm extends JPanel {
         add(libraryField);
         add(chooseLibraryButton, "skip 1, split 2, growx 0");
         add(restoreLibraryButton, "growx 0");
+        add(restoreSessionBox, "skip 1, gaptop 12");
     }
 
     JComboBox<Choice<AppPreferences.Theme>> themeChoice() {
@@ -124,6 +129,10 @@ public final class PreferencesForm extends JPanel {
 
     JButton restoreLibraryButton() {
         return restoreLibraryButton;
+    }
+
+    JCheckBox restoreSessionBox() {
+        return restoreSessionBox;
     }
 
     static String themeName(AppPreferences.Theme theme) {

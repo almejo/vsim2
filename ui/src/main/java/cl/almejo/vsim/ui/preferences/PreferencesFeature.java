@@ -39,11 +39,13 @@ public final class PreferencesFeature implements EditorExtension {
             }
         };
         JMenuItem item = new JMenuItem(preferences);
+        Runnable unregisterShortcut = view.registerShortcutAction("file.preferences", preferences);
         JSeparator separator = new JPopupMenu.Separator();
         int position = insertionIndex(file, view.actions().closeWindow());
         file.add(separator, position);
         file.add(item, position + 1);
         return () -> {
+            unregisterShortcut.run();
             file.remove(item);
             file.remove(separator);
         };

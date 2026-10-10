@@ -51,6 +51,7 @@ public final class OpenDocument implements AutoCloseable {
     private final CircuitFlattener flattener;
     private final SimulationThread simulation;
     private final List<Runnable> changeListeners = new CopyOnWriteArrayList<>();
+    private final UUID recoveryId = UUID.randomUUID();
     private Path path;
     private Path backingFile;
     private boolean importedFromVsim1;
@@ -59,6 +60,7 @@ public final class OpenDocument implements AutoCloseable {
     private boolean closed;
     private boolean pauseOnShortCircuit;
     private Map<String, String> probeNets = Map.of();
+    private long changeCount;
 
     public OpenDocument(CircuitDocument document, ComponentTypeRegistry baseRegistry, Path path,
                         boolean importedFromVsim1) {
@@ -73,7 +75,10 @@ public final class OpenDocument implements AutoCloseable {
         this.flattener = new CircuitFlattener(this.registry);
         this.simulation = new SimulationThread(new SimulationEngine());
         document.addListener((changed, change) -> synchronize());
-        history.addListener(changed -> fireChanged());
+        history.addListener(changed -> {
+            changeCount++;
+            fireChanged();
+        });
         document.addProbeListener(() -> simulation.setProbes(resolveProbes()));
         synchronize();
         simulation.start();
@@ -89,6 +94,26 @@ public final class OpenDocument implements AutoCloseable {
         OpenDocument openDocument = new OpenDocument(opened.document(), registry,
                 opened.importedFromVsim1() ? null : path, opened.importedFromVsim1());
         openDocument.backingFile = FileNames.normalized(path);
+        return openDocument;
+    }
+
+    /**
+     * A recovery copy (M6-B) reopened as the document it was copied from: {@code originalPath} (null for an untitled
+     * document) is where Guardar writes, and the document reports {@link #isModified()} until it is saved.
+     */
+    public static OpenDocument openRecovered(Path copy, Path originalPath, ComponentTypeRegistry registry)
+            throws CircuitFormatException {
+        // Not CircuitReader.open: it would name a nameless document after the copy file.
+        String content;
+        try {
+            content = Files.readString(copy);
+        } catch (IOException exception) {
+            throw new CircuitFormatException(CircuitFormatException.Reason.READ_ERROR, copy.toString(), exception);
+        }
+        CircuitDocument recoveredDocument = new CircuitReader(registry).read(content);
+        OpenDocument openDocument = new OpenDocument(recoveredDocument, registry, originalPath, false);
+        openDocument.backingFile = originalPath == null ? null : FileNames.normalized(originalPath);
+        openDocument.history.markUnsaved();
         return openDocument;
     }
 
@@ -147,6 +172,19 @@ public final class OpenDocument implements AutoCloseable {
     /** A fresh, empty, untouched document — opening a file may replace its window. */
     public boolean isPristine() {
         return path == null && !importedFromVsim1 && document.isEmpty() && !isModified();
+    }
+
+    /** Stable id of this document's recovery copy (M6-B); it never changes while the document is open. */
+    public UUID recoveryId() {
+        return recoveryId;
+    }
+
+    /**
+     * Grows on every undo-history notification (execute, undo, redo, save, {@code markUnsaved}). Autosave copies a
+     * modified document when this moved since its last copy, so every change made through {@link #execute} counts.
+     */
+    public long changeCount() {
+        return changeCount;
     }
 
     public Netlist netlist() {

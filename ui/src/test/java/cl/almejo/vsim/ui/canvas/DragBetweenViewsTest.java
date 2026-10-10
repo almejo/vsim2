@@ -19,6 +19,7 @@ import cl.almejo.vsim.ui.tree.ComponentTreeExtension;
 import cl.almejo.vsim.ui.tree.ComponentTreePanel;
 import cl.almejo.vsim.ui.window.EditorServices;
 import cl.almejo.vsim.ui.window.EditorView;
+import cl.almejo.vsim.ui.window.NewViewPlacement;
 import cl.almejo.vsim.ui.window.WindowCommands;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -29,6 +30,7 @@ import javax.swing.TransferHandler;
 import javax.swing.tree.TreeModel;
 import java.awt.Container;
 import java.awt.Point;
+import java.awt.geom.Point2D;
 import java.awt.datatransfer.Transferable;
 import java.awt.event.InputEvent;
 import java.awt.event.MouseEvent;
@@ -42,8 +44,7 @@ import static cl.almejo.vsim.ui.canvas.CanvasDragSupport.handlerOf;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * The agreed drag semantics on full editor views, headless: two views of one document (Ventana ▸ Nueva ventana de
- * este circuito) and a view of a second document. Swing's DnD is replaced by handing the dragged transferable to the
+ * The agreed drag semantics on full editor views, headless: two views of one document (Ventana ▸ Nueva vista) and a view of a second document. Swing's DnD is replaced by handing the dragged transferable to the
  * target's transfer handler, as a drop would.
  */
 class DragBetweenViewsTest {
@@ -239,5 +240,29 @@ class DragBetweenViewsTest {
         assertThat(second.document().definition(ExampleDefinitions.INVERTER)).isEmpty();
         assertThat(first.document().definition(ExampleDefinitions.INVERTER)).isPresent();
         assertThat(first.document().components()).hasSize(2);
+    }
+
+    @Test
+    void aNewViewKeepsTheZoomOfItsSourceAndDragsBetweenThemStillMoveOrCopy() {
+        // the source is zoomed and panned; the placement (what Application.newWindow applies) carries that to the new view
+        firstView.canvas().applyViewState(new ViewState(3.0, 12, 9));
+        ViewState shown = firstView.canvas().viewState();
+        assertThat(firstOtherView.canvas().viewState()).isNotEqualTo(shown);
+        NewViewPlacement.after(new Point(100, 80), shown)
+                .applyTo(firstOtherView.canvas()::applyViewState, location -> { });
+        assertThat(firstOtherView.canvas().viewState()).isEqualTo(shown);
+        assertThat(firstOtherView.canvas().viewport().gridToScreen(5, 5))
+                .isEqualTo(firstView.canvas().viewport().gridToScreen(5, 5));
+
+        // the user then zooms the new view: grid (20, 20) is now in its middle, 16 px per unit
+        firstOtherView.canvas().applyViewState(new ViewState(2.0, 20, 20));
+        Point2D gate5 = firstView.canvas().viewport().gridToScreen(5, 5);
+        Transferable transferable = dragOut(firstView.canvas(), (int) gate5.getX(), (int) gate5.getY());
+        assertThat(handlerOf(firstOtherView.canvas()).importFragment(transferable, new Point(200, 150), false))
+                .isTrue();
+        assertThat(first.document().components()).hasSize(1);
+        assertThat(positionOf(first, gate)).isNotEqualTo(new GridPoint(5, 5));
+        first.history().undo();
+        assertThat(positionOf(first, gate)).isEqualTo(new GridPoint(5, 5));
     }
 }

@@ -1,17 +1,23 @@
 package cl.almejo.vsim.ui.window;
 
 import cl.almejo.vsim.ui.app.Application;
+import cl.almejo.vsim.ui.app.DocumentWindows;
 import cl.almejo.vsim.ui.app.FileDialogs;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.ViewState;
 import cl.almejo.vsim.ui.clipboard.FileDropHandler;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.icons.AppIcons;
+import cl.almejo.vsim.ui.session.RecentFiles;
+import cl.almejo.vsim.ui.session.WindowState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.swing.JFrame;
 import javax.swing.JOptionPane;
+import java.awt.Rectangle;
+import java.awt.event.ComponentAdapter;
+import java.awt.event.ComponentEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.IOException;
@@ -31,16 +37,19 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
     private final EditorView view;
     private final Runnable titleUpdater = this::updateTitle;
     private ViewState initialViewState;
+    private final RecentFiles recentFiles;
+    /** The bounds while not maximized: what Recientes and the session store for a maximized window. */
+    private Rectangle normalBounds;
 
     public CircuitWindow(Application application, OpenDocument openDocument, EditorServices services) {
         this.application = application;
         this.openDocument = openDocument;
+        this.recentFiles = new RecentFiles(services.preferences());
         this.view = new EditorView(openDocument, services, this);
         setJMenuBar(view.menuBar());
         setContentPane(view);
         setIconImages(AppIcons.images());
-        new WindowMenu(view.menu(MenuId.WINDOW), () -> application.newWindow(this),
-                () -> application.windowEntries(this));
+        new WindowMenu(view.menu(MenuId.WINDOW), () -> application.windowEntries(this));
         // Component files are imported into the library instead of being opened as circuits (M4-A ruling); drops on
         // the window, the canvas and the palette are handled after the drop finishes (EditorView.dropFiles).
         view.setCircuitOpener(circuits -> application.openPaths(circuits, this));
@@ -62,14 +71,32 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
                 view.canvas().requestFocusInWindow();
             }
         });
+        addComponentListener(new ComponentAdapter() {
+            @Override
+            public void componentMoved(ComponentEvent event) {
+                rememberNormalBounds();
+            }
+
+            @Override
+            public void componentResized(ComponentEvent event) {
+                rememberNormalBounds();
+            }
+        });
         openDocument.addChangeListener(titleUpdater);
+        application.addWindowsListener(titleUpdater);
         updateTitle();
         setSize(1280, 820);
         setLocationByPlatform(true);
     }
 
     public static String titleFor(OpenDocument openDocument) {
-        return (openDocument.isModified() ? "*" : "") + Messages.format("window.title", openDocument.displayName());
+        return titleFor(openDocument, 0);
+    }
+
+    /** «contador (2) — VSim 2» for view 2 of a document with several views, «*» first when modified. */
+    public static String titleFor(OpenDocument openDocument, int viewNumber) {
+        return (openDocument.isModified() ? "*" : "") + Messages.format("window.title",
+                DocumentWindows.viewTitle(openDocument.displayName(), viewNumber));
     }
 
     public OpenDocument openDocument() {
@@ -86,6 +113,32 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
         return view.canvas().viewState();
     }
 
+    /** Where this window is and what it shows (M6-B); a maximized window reports the bounds it had before. */
+    public WindowState windowState() {
+        boolean maximized = (getExtendedState() & MAXIMIZED_BOTH) == MAXIMIZED_BOTH;
+        Rectangle bounds = maximized && normalBounds != null ? normalBounds : getBounds();
+        return WindowState.of(bounds, maximized, viewState());
+    }
+
+    /**
+     * Applies an (already clamped) state: the normal bounds are set before maximizing so that un-maximizing returns
+     * to them. The zoom and center are applied when the window opens.
+     */
+    public void restoreWindowState(WindowState state) {
+        normalBounds = state.bounds();
+        setBounds(normalBounds);
+        setInitialViewState(state.view());
+        if (state.maximized()) {
+            setExtendedState(getExtendedState() | MAXIMIZED_BOTH);
+        }
+    }
+
+    private void rememberNormalBounds() {
+        if ((getExtendedState() & MAXIMIZED_BOTH) == 0) {
+            normalBounds = getBounds();
+        }
+    }
+
     @Override
     public void newDocument() {
         application.newDocument();
@@ -94,6 +147,11 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
     @Override
     public void open() {
         application.open(this);
+    }
+
+    @Override
+    public void newView() {
+        application.newWindow(this);
     }
 
     /** Opens the circuit files in new windows and imports the component files into the library (as a drop does). */
@@ -152,6 +210,7 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
     public void closeQuietly() {
         try {
             openDocument.removeChangeListener(titleUpdater);
+            application.removeWindowsListener(titleUpdater);
             view.dispose();
         } catch (RuntimeException exception) {
             // a broken extension disposer must not keep the window open or stop the application from exiting
@@ -180,6 +239,7 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
         try {
             openDocument.save(target);
             application.rememberDirectory(target);
+            rememberRecent(target);
             return true;
         } catch (IOException exception) {
             LOGGER.warn("Could not save {}", target, exception);
@@ -189,8 +249,17 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
         }
     }
 
+    /** A recents failure must never block saving, closing or exiting. */
+    private void rememberRecent(Path target) {
+        try {
+            recentFiles.remember(target, windowState());
+        } catch (RuntimeException exception) {
+            LOGGER.warn("Could not add {} to the recent files", target, exception);
+        }
+    }
+
     private void updateTitle() {
-        setTitle(titleFor(openDocument));
+        setTitle(titleFor(openDocument, application.viewNumber(this)));
         getRootPane().putClientProperty("Window.documentModified", openDocument.isModified());
     }
 }

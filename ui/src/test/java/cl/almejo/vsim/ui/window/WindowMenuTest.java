@@ -28,8 +28,12 @@ class WindowMenuTest {
         menu = new JMenu("Ventana");
     }
 
+    /** The Ventana menu as EditorActions builds it: «Nueva vista» is already there. */
     private WindowMenu windowMenu() {
-        return new WindowMenu(menu, () -> calls.add("new"), () -> List.copyOf(entries));
+        JMenuItem newView = new JMenuItem("Nueva vista");
+        newView.addActionListener(event -> calls.add("new"));
+        menu.add(newView);
+        return new WindowMenu(menu, () -> List.copyOf(entries));
     }
 
     private WindowMenu.Entry entry(String title, boolean current) {
@@ -37,35 +41,35 @@ class WindowMenuTest {
     }
 
     @Test
-    void listsTheNewWindowItemAndEveryOpenWindow() {
-        entries.add(entry("sumador — 1", true));
-        entries.add(entry("sumador — 2", false));
+    void listsEveryOpenWindowAfterTheItemsAlreadyInTheMenu() {
+        entries.add(entry("sumador (1)", true));
+        entries.add(entry("sumador (2)", false));
         windowMenu();
-        assertThat(texts()).containsExactly("Nueva ventana de este circuito", "-", "sumador — 1", "sumador — 2");
+        assertThat(texts()).containsExactly("Nueva vista", "-", "sumador (1)", "sumador (2)");
         assertThat(((JCheckBoxMenuItem) menu.getMenuComponent(2)).isSelected()).isTrue();
         assertThat(((JCheckBoxMenuItem) menu.getMenuComponent(3)).isSelected()).isFalse();
         click(0);
         click(3);
-        assertThat(calls).containsExactly("new", "sumador — 2");
+        assertThat(calls).containsExactly("new", "sumador (2)");
     }
 
     @Test
     void openingTheMenuRebuildsTheListWithoutDuplicates() {
-        entries.add(entry("sumador — 1", true));
+        entries.add(entry("sumador", true));
         windowMenu();
-        entries.add(entry("Sin título — 1", false));
+        entries.add(entry("Sin título", false));
         openMenu();
         openMenu();
-        assertThat(texts()).containsExactly("Nueva ventana de este circuito", "-", "sumador — 1", "Sin título — 1");
+        assertThat(texts()).containsExactly("Nueva vista", "-", "sumador", "Sin título");
     }
 
     @Test
     void rebuildingKeepsItemsAddedByOthers() {
         menu.add(new JMenuItem("Otra cosa"));
-        entries.add(entry("sumador — 1", true));
+        entries.add(entry("sumador", true));
         WindowMenu windowMenu = windowMenu();
         windowMenu.rebuild();
-        assertThat(texts()).containsExactly("Otra cosa", "Nueva ventana de este circuito", "-", "sumador — 1");
+        assertThat(texts()).containsExactly("Otra cosa", "Nueva vista", "-", "sumador");
     }
 
     private void openMenu() {

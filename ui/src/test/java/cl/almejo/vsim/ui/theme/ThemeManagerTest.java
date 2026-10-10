@@ -4,13 +4,20 @@ import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.paint.Appearance;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.ColorSchemes;
+import cl.almejo.vsim.ui.UiTestSupport;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+
+import javax.swing.SwingUtilities;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -28,6 +35,11 @@ class ThemeManagerTest {
         return systemDark.get();
     };
     private final ThemeManager manager = new ThemeManager(preferences, appearance, probe, installs::add);
+
+    @AfterEach
+    void clearTheStartupAnswer() {
+        ThemeManager.takeStartupSystemDark();
+    }
 
     @Test
     void aLightSystemGivesTheLightThemeAndScheme() {
@@ -171,5 +183,99 @@ class ThemeManagerTest {
         assertThat(failing.dark()).isFalse();
         assertThat(appearance.scheme()).isSameAs(ColorSchemes.LIGHT);
         failing.dispose();
+    }
+
+    @Test
+    void choosingTheSystemAsksItOffTheEventDispatchThreadAndAppliesTheAnswerOnIt() throws Exception {
+        List<Boolean> probedOnEdt = new CopyOnWriteArrayList<>();
+        List<Boolean> installedOnEdt = new CopyOnWriteArrayList<>();
+        List<Boolean> installed = new CopyOnWriteArrayList<>();
+        DarkModeProbe recording = () -> {
+            probedOnEdt.add(SwingUtilities.isEventDispatchThread());
+            return true;
+        };
+        ExecutorService background = Executors.newSingleThreadExecutor();
+        ThemeManager offTheEdt = new ThemeManager(preferences, appearance, recording, dark -> {
+            installedOnEdt.add(SwingUtilities.isEventDispatchThread());
+            installed.add(dark);
+            return true;
+        }, Optional.of(false), background, SwingUtilities::invokeLater);
+        try {
+            SwingUtilities.invokeAndWait(offTheEdt::start); // the answer asked before start: no probe at all
+            assertThat(probedOnEdt).isEmpty();
+            assertThat(installed).containsExactly(false);
+
+            SwingUtilities.invokeAndWait(() -> preferences.setTheme(AppPreferences.Theme.LIGHT));
+            SwingUtilities.invokeAndWait(() -> preferences.setTheme(AppPreferences.Theme.SYSTEM));
+            UiTestSupport.waitUntil(() -> installed.size() == 2);
+
+            assertThat(probedOnEdt).containsExactly(false);
+            assertThat(installed).containsExactly(false, true);
+            assertThat(installedOnEdt).containsOnly(true);
+            SwingUtilities.invokeAndWait(() -> assertThat(appearance.scheme()).isSameAs(ColorSchemes.DARK));
+        } finally {
+            SwingUtilities.invokeAndWait(offTheEdt::dispose);
+            background.shutdownNow();
+        }
+    }
+
+    @Test
+    void anAnswerAskedBeforeStartServesTheFirstFollowSystemOnly() {
+        ThemeManager prepared = new ThemeManager(preferences, appearance, probe, installs::add, Optional.of(true),
+                Runnable::run, Runnable::run);
+        prepared.start();
+        assertThat(probes).hasValue(0);
+        assertThat(installs).containsExactly(true);
+
+        preferences.setTheme(AppPreferences.Theme.LIGHT);
+        preferences.setTheme(AppPreferences.Theme.SYSTEM);
+
+        assertThat(probes).hasValue(1);
+        assertThat(installs).containsExactly(true, false);
+        prepared.dispose();
+    }
+
+    @Test
+    void anAnswerThatArrivesAfterLeavingFollowSystemChangesNothing() {
+        List<Runnable> questions = new ArrayList<>();
+        ThemeManager queued = new ThemeManager(preferences, appearance, probe, installs::add, Optional.of(false),
+                questions::add, Runnable::run);
+        queued.start();
+        preferences.setTheme(AppPreferences.Theme.DARK);
+        preferences.setTheme(AppPreferences.Theme.SYSTEM); // asked in the background: the dark look stays meanwhile
+        assertThat(installs).containsExactly(false, true);
+
+        preferences.setTheme(AppPreferences.Theme.LIGHT);
+        systemDark.set(true);
+        questions.forEach(Runnable::run); // the late answer arrives
+
+        assertThat(probes).hasValue(1);
+        assertThat(installs).containsExactly(false, true, false);
+        assertThat(appearance.scheme()).isSameAs(ColorSchemes.LIGHT);
+        queued.dispose();
+    }
+
+    @Test
+    void mainAsksBeforeStartOnlyWhenTheThemeFollowsTheSystemAndTheAnswerIsTakenOnce() {
+        AtomicInteger asked = new AtomicInteger();
+        DarkModeProbe dark = () -> {
+            asked.incrementAndGet();
+            return true;
+        };
+        ThemeManager.askSystemBeforeStart(preferences, dark);
+        assertThat(asked).hasValue(1);
+        assertThat(ThemeManager.takeStartupSystemDark()).contains(true);
+        assertThat(ThemeManager.takeStartupSystemDark()).isEmpty();
+
+        preferences.setTheme(AppPreferences.Theme.LIGHT);
+        ThemeManager.askSystemBeforeStart(preferences, dark);
+        assertThat(asked).hasValue(1);
+        assertThat(ThemeManager.takeStartupSystemDark()).isEmpty();
+
+        preferences.setTheme(AppPreferences.Theme.SYSTEM);
+        ThemeManager.askSystemBeforeStart(preferences, () -> {
+            throw new IllegalStateException("no answer");
+        });
+        assertThat(ThemeManager.takeStartupSystemDark()).contains(false);
     }
 }

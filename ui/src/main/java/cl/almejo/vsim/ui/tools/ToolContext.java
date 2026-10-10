@@ -43,6 +43,9 @@ public interface ToolContext {
 
     void useDefaultTool();
 
+    /** Shows {@code cursor} over the canvas; while the view is being panned the canvas keeps MOVE and shows it after. */
+    void setCursor(CanvasCursor cursor);
+
     void showContextMenu(Optional<DocumentElement> target, Point2D screenPosition);
 
     void configure(Component component);

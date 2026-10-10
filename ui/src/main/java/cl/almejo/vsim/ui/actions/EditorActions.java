@@ -12,6 +12,7 @@ import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.panels.ConfigureDialog;
+import cl.almejo.vsim.ui.shortcuts.ShortcutCatalog;
 import cl.almejo.vsim.ui.tools.PanTool;
 import cl.almejo.vsim.ui.tools.WireTool;
 import cl.almejo.vsim.ui.window.MenuId;
@@ -26,8 +27,6 @@ import javax.swing.JMenu;
 import javax.swing.JMenuBar;
 import javax.swing.JOptionPane;
 import javax.swing.KeyStroke;
-import java.awt.GraphicsEnvironment;
-import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
@@ -68,6 +67,7 @@ public final class EditorActions {
     private final Action start;
     private final Action pause;
     private final Action step;
+    private final Action newView;
     private final Action about;
 
     public EditorActions(OpenDocument openDocument, CircuitCanvas canvas, WindowCommands window) {
@@ -102,6 +102,7 @@ public final class EditorActions {
         start = action(Messages.text("action.start"), null, openDocument::resume);
         pause = action(Messages.text("action.pause"), null, openDocument::pause);
         step = action(Messages.text("action.step"), null, () -> openDocument.step(STEP_UNITS));
+        newView = action(Messages.text("action.newWindow"), null, window::newView);
         about = action(Messages.text("action.about"), null, () -> JOptionPane.showMessageDialog(canvas,
                 Messages.text("dialog.about.message"), Messages.text("action.about"), JOptionPane.INFORMATION_MESSAGE));
 
@@ -134,6 +135,7 @@ public final class EditorActions {
     public Action start() { return start; }
     public Action pause() { return pause; }
     public Action step() { return step; }
+    public Action newView() { return newView; }
     public Action about() { return about; }
 
     /** Opens the Configure dialog for {@code component}; an accepted change becomes one undo step. */
@@ -183,6 +185,7 @@ public final class EditorActions {
         simulation.add(pause);
         simulation.add(step);
         JMenu windowMenu = tagged(new JMenu(Messages.text("menu.window")), MenuId.WINDOW);
+        windowMenu.add(newView);
         JMenu help = tagged(new JMenu(Messages.text("menu.help")), MenuId.HELP);
         help.add(about);
         menuBar.add(file);
@@ -282,9 +285,7 @@ public final class EditorActions {
     }
 
     private static int menuShortcutMask() {
-        // Toolkit.getMenuShortcutKeyMaskEx() throws HeadlessException in headless tests.
-        return GraphicsEnvironment.isHeadless() ? InputEvent.CTRL_DOWN_MASK
-                : Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx();
+        return ShortcutCatalog.menuMask();
     }
 
     private static Action action(String name, KeyStroke accelerator, Runnable behavior) {

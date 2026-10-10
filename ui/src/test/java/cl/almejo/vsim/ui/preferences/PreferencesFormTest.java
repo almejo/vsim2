@@ -141,4 +141,15 @@ class PreferencesFormTest {
         assertThat(changes).hasValue(0);
         assertThat(preferences.usesDefaultLibraryDirectory()).isTrue();
     }
+
+    @Test
+    void theRestoreSessionBoxShowsAndChangesThePreference() {
+        PreferencesForm form = form();
+        assertThat(form.restoreSessionBox().getText()).isEqualTo("Al iniciar, abrir los circuitos de la última sesión");
+        assertThat(form.restoreSessionBox().isSelected()).isTrue();
+
+        form.restoreSessionBox().doClick(0);
+        assertThat(preferences.restoreSession()).isFalse();
+        assertThat(form().restoreSessionBox().isSelected()).isFalse();
+    }
 }

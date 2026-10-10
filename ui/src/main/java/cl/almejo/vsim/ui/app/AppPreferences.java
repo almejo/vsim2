@@ -24,6 +24,10 @@ public final class AppPreferences {
     static final String COLOR_SCHEME = "colorScheme";
     static final String LANGUAGE = "language";
     static final String LIBRARY_DIRECTORY = "libraryDirectory";
+    static final String RECENT = "recent";
+    static final String RESTORE_SESSION = "restoreSession";
+    static final String SESSION = "session";
+    static final String SHORTCUTS = "shortcuts";
 
     private static final Logger LOGGER = LoggerFactory.getLogger(AppPreferences.class);
     private static final String NODE = "cl/almejo/vsim2";
@@ -132,6 +136,59 @@ public final class AppPreferences {
     /** For tests: views and extensions must remove the listeners they add when disposed. */
     public int listenerCount() {
         return listeners.size();
+    }
+
+    // --- M6-B session: recent files, last session, recovery folder ---
+
+    /** Archivo ▸ Recientes (M6-B): child node {@code recent} with entries {@code recent/0} … {@code recent/9}. */
+    public Preferences recentNode() {
+        return node.node(RECENT);
+    }
+
+    /** «Al iniciar, abrir los circuitos de la última sesión» (M6-B): on unless the user turned it off. */
+    public boolean restoreSession() {
+        return !"false".equals(node.get(RESTORE_SESSION, "true"));
+    }
+
+    public void setRestoreSession(boolean enabled) {
+        if (restoreSession() == enabled) {
+            return;
+        }
+        put(RESTORE_SESSION, Boolean.toString(enabled));
+    }
+
+    /** The last session (M6-B): child node {@code session}, entries {@code session/<document>/<window>}. */
+    public Preferences sessionNode() {
+        return node.node(SESSION);
+    }
+
+    /**
+     * VSim's own data folder: the parent of this platform's default library folder, whatever library folder the user
+     * chose. Recovery copies live in {@code dataDirectory().resolve("recovery")} (Assumption 15).
+     */
+    public Path dataDirectory() {
+        return dataDirectory(System.getProperty("os.name", ""), System.getenv(), Path.of(System.getProperty("user.home")));
+    }
+
+    public static Path dataDirectory(String osName, Map<String, String> environment, Path home) {
+        return defaultLibraryDirectory(osName, environment, home).getParent();
+    }
+
+    // M6-C shortcuts (overview contract C4)
+
+    /** Shortcut overrides: key = catalog id, value = {@code KeyStroke.toString()} form, {@code ""} = no shortcut. */
+    public Preferences shortcutsNode() {
+        return node.node(SHORTCUTS);
+    }
+
+    /** Saves the shortcut overrides and tells every listener (key {@code shortcuts}); every window re-applies. */
+    public void shortcutsChanged() {
+        try {
+            shortcutsNode().flush();
+        } catch (BackingStoreException exception) {
+            LOGGER.warn("Could not save the keyboard shortcuts", exception);
+        }
+        notifyListeners(SHORTCUTS);
     }
 
     private Optional<String> optional(String key) {

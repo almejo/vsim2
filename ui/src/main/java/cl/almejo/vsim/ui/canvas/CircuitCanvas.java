@@ -20,6 +20,7 @@ import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.panels.PaletteTransfer;
+import cl.almejo.vsim.ui.tools.CanvasCursor;
 import cl.almejo.vsim.ui.tools.CanvasMouseEvent;
 import cl.almejo.vsim.ui.tools.ComponentPlacement;
 import cl.almejo.vsim.ui.tools.FloatingSelectionTool;
@@ -34,6 +35,7 @@ import javax.swing.SwingUtilities;
 import javax.swing.Timer;
 import javax.swing.ToolTipManager;
 import javax.swing.TransferHandler;
+import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.Frame;
 import java.awt.Graphics;
@@ -57,7 +59,9 @@ import java.awt.event.WindowEvent;
 import java.awt.event.WindowStateListener;
 import java.awt.geom.Point2D;
 import java.nio.file.Path;
+import java.util.EnumMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.TooManyListenersException;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -73,6 +77,8 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     private static final int ANTS_MILLISECONDS = 90;
     private static final int AUTOSCROLL_MILLISECONDS = 30;
     private static final double WHEEL_SCROLL_PIXELS = 40;
+    private static final Cursor PAN_CURSOR = Cursor.getPredefinedCursor(Cursor.MOVE_CURSOR);
+    private static final Map<CanvasCursor, Cursor> AWT_CURSORS = awtCursors();
 
     private final OpenDocument openDocument;
     private final CircuitRenderer renderer;
@@ -117,6 +123,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     private boolean spaceDown;
     private Point panAnchor;
     private GridPoint mousePoint;
+    private Cursor toolCursor = Cursor.getDefaultCursor();
 
     public CircuitCanvas(OpenDocument openDocument, CircuitRenderer renderer, CanvasHost host) {
         this.openDocument = openDocument;
@@ -142,6 +149,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
             public void focusLost(FocusEvent event) {
                 spaceDown = false;
                 panAnchor = null;
+                showCursor();
                 stopAutoscroll(); // a modal dialog or another window took the release
             }
         });
@@ -682,11 +690,11 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
 
     /** Whether a wire of a short circuit or a width mismatch is on the canvas now (what the renderer glows). */
     private boolean problemWireShown() {
-        ComponentTypeRegistry registry = openDocument.registry();
-        return !ShortCircuitHighlight.of(displayedSnapshot, openDocument.netlist(), openDocument.netlistToken(),
-                openDocument.document(), registry).wires().isEmpty()
-                || !WidthMismatchHighlight.of(displayedSnapshot, openDocument.netlist(), openDocument.netlistToken(),
-                openDocument.document(), registry).wires().isEmpty();
+        HighlightCache highlights = renderer.highlights();
+        return !highlights.shortCircuits(openDocument.document(), openDocument.netlist(), openDocument.netlistToken(),
+                displayedSnapshot).wires().isEmpty()
+                || !highlights.widthMismatches(openDocument.document(), openDocument.netlist(),
+                openDocument.netlistToken(), displayedSnapshot).wires().isEmpty();
     }
 
     private void updateProblemPulse() {
@@ -739,7 +747,8 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         tool.deactivated(this);
         tool = next;
         next.activated(this);
-        setCursor(next.cursor());
+        toolCursor = next.cursor();
+        showCursor();
         updateAnimation();
         toolListeners.forEach(listener -> listener.accept(next));
         repaint();
@@ -748,6 +757,30 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     @Override
     public void useDefaultTool() {
         setTool(defaultTool);
+    }
+
+    @Override
+    public void setCursor(CanvasCursor cursor) {
+        toolCursor = AWT_CURSORS.get(cursor);
+        showCursor();
+    }
+
+    /** The tool's cursor, or MOVE while Espacio is held or the middle button pans. */
+    private void showCursor() {
+        setCursor(spaceDown || panAnchor != null ? PAN_CURSOR : toolCursor);
+    }
+
+    private static Map<CanvasCursor, Cursor> awtCursors() {
+        Map<CanvasCursor, Cursor> cursors = new EnumMap<>(CanvasCursor.class);
+        for (CanvasCursor cursor : CanvasCursor.values()) {
+            cursors.put(cursor, switch (cursor) {
+                case DEFAULT -> Cursor.getDefaultCursor();
+                case MOVE -> Cursor.getPredefinedCursor(Cursor.MOVE_CURSOR);
+                case CROSSHAIR -> Cursor.getPredefinedCursor(Cursor.CROSSHAIR_CURSOR);
+                case HAND -> Cursor.getPredefinedCursor(Cursor.HAND_CURSOR);
+            });
+        }
+        return cursors;
     }
 
     @Override
@@ -846,6 +879,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
             requestFocusInWindow();
             if (SwingUtilities.isMiddleMouseButton(event) || (spaceDown && SwingUtilities.isLeftMouseButton(event))) {
                 panAnchor = event.getPoint();
+                showCursor();
                 return;
             }
             tool.mousePressed(CircuitCanvas.this, convert(event));
@@ -877,6 +911,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
             stopAutoscroll();
             if (panAnchor != null) {
                 panAnchor = null;
+                showCursor();
                 return;
             }
             tool.mouseReleased(CircuitCanvas.this, convert(event));
@@ -917,6 +952,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         public void keyPressed(KeyEvent event) {
             if (event.getKeyCode() == KeyEvent.VK_SPACE) {
                 spaceDown = true;
+                showCursor();
                 event.consume();
                 return;
             }
@@ -930,6 +966,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         public void keyReleased(KeyEvent event) {
             if (event.getKeyCode() == KeyEvent.VK_SPACE) {
                 spaceDown = false;
+                showCursor();
             }
         }
     }

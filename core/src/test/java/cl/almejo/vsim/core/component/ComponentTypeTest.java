@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -151,5 +152,56 @@ class ComponentTypeTest {
         assertThat(PinSpec.input("a", 0, 2, 8)).isEqualTo(new PinSpec("a", new GridPoint(0, 2), PinDirection.INPUT, 8));
         assertThat(PinSpec.output("y", 4, 2, 8))
                 .isEqualTo(new PinSpec("y", new GridPoint(4, 2), PinDirection.OUTPUT, 8));
+    }
+
+    @Test
+    void aParameterizedTypeRunsItsLayoutOncePerSetOfParameters() {
+        AtomicInteger layouts = new AtomicInteger();
+        ComponentType counted = ComponentType.parameterized("test-counted", ComponentCategory.BASIC,
+                List.of(ParameterSpec.integer("width", 2, 1, 8)),
+                parameters -> {
+                    layouts.incrementAndGet();
+                    int width = (Integer) parameters.get("width");
+                    return new ComponentShape(new GridSize(2, width), List.of(PinSpec.output("last", 2, width)));
+                },
+                parameters -> (context, pinIndex) -> {
+                });
+        Component wide = counted.newComponent(new ElementId("c1"), new GridPoint(10, 10), Rotation.R0,
+                Map.of("width", 5), "");
+        int before = layouts.get();
+
+        GridPoint first = counted.pinLocation(wide, 0);
+        GridPoint second = counted.pinLocation(wide, 0);
+        Bounds bounds = counted.bounds(wide);
+
+        assertThat(layouts.get() - before).isEqualTo(1);
+        assertThat(first).isEqualTo(new GridPoint(12, 15)).isEqualTo(second);
+        assertThat(bounds).isEqualTo(new Bounds(10, 10, 2, 5));
+        assertThat(counted.specializedFor(Map.of("width", 5))).isEqualTo(counted.forComponent(wide));
+        assertThat(layouts.get() - before).isEqualTo(1);
+    }
+
+    @Test
+    void typesBuiltTwiceFromTheSameLayoutStayEqual() {
+        ComponentLayout layout = parameters -> new ComponentShape(new GridSize(1, 1), List.of());
+        BehaviorFactory behavior = parameters -> (context, pinIndex) -> {
+        };
+        ComponentType first = ComponentType.parameterized("test-twice", ComponentCategory.BASIC, List.of(), layout,
+                behavior);
+        ComponentType second = ComponentType.parameterized("test-twice", ComponentCategory.BASIC, List.of(), layout,
+                behavior);
+        assertThat(first).isEqualTo(second).hasSameHashCodeAs(second);
+    }
+
+    @Test
+    void typesBuiltWithTheCanonicalConstructorStayEqualToParameterizedOnes() {
+        ComponentLayout layout = parameters -> new ComponentShape(new GridSize(1, 1), List.of());
+        BehaviorFactory behavior = parameters -> (context, pinIndex) -> {
+        };
+        ComponentType parameterized = ComponentType.parameterized("test-canonical", ComponentCategory.BASIC,
+                List.of(), layout, behavior);
+        ComponentType canonical = new ComponentType("test-canonical", ComponentCategory.BASIC, new GridSize(1, 1),
+                List.of(), List.of(), behavior, layout);
+        assertThat(canonical).isEqualTo(parameterized).hasSameHashCodeAs(parameterized);
     }
 }

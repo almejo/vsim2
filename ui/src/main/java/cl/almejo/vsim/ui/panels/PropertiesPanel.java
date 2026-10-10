@@ -1,6 +1,8 @@
 package cl.almejo.vsim.ui.panels;
 
 import cl.almejo.vsim.core.command.ChangeParametersCommand;
+import cl.almejo.vsim.core.command.Command;
+import cl.almejo.vsim.core.command.CompositeCommand;
 import cl.almejo.vsim.core.command.SetLabelCommand;
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.document.CircuitDocument;
@@ -24,9 +26,11 @@ import javax.swing.UIManager;
 import java.awt.Color;
 import java.awt.event.FocusAdapter;
 import java.awt.event.FocusEvent;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Stream;
 
 /**
  * The "Propiedades" tab: what is selected, with editors that apply on Enter or focus loss. Each applied edit
@@ -141,7 +145,8 @@ public final class PropertiesPanel extends JPanel {
         JTextField field = addTextRow(Messages.text("properties.label"), component.label());
         ElementId id = component.id();
         int built = generation;
-        Runnable applyLabel = () -> applyIfCurrent(built, () -> applyText(id, field));
+        Runnable applyLabel = () -> applyIfCurrent(built,
+                () -> labelCommand(id, field).ifPresent(openDocument::execute));
         listenForCommit(field, applyLabel);
         textField = field;
         if (type.parameters().isEmpty()) {
@@ -150,13 +155,13 @@ public final class PropertiesPanel extends JPanel {
         }
         ParameterForm form = new ParameterForm(type, component.parameters());
         add(form, "span 2, growx");
-        Runnable applyParameters = () -> applyIfCurrent(built, () -> applyParameters(id, type, form));
+        Runnable applyParameters = () -> applyIfCurrent(built,
+                () -> parametersCommand(id, type, form).ifPresent(openDocument::execute));
         form.addCommitListener(applyParameters);
         parameterForm = form;
-        pendingEdits = () -> {
-            applyLabel.run();
-            applyParameters.run();
-        };
+        // Both editors still pending (selection change, focus leaving the panel) are one user action: one undo step.
+        pendingEdits = () -> applyIfCurrent(built, () -> executeTogether(Stream.of(labelCommand(id, field),
+                parametersCommand(id, type, form)).flatMap(Optional::stream).toList()));
     }
 
     private void showText(TextLabel label) {
@@ -164,7 +169,7 @@ public final class PropertiesPanel extends JPanel {
         JTextField field = addTextRow(Messages.text("properties.text"), label.text());
         ElementId id = label.id();
         int built = generation;
-        Runnable apply = () -> applyIfCurrent(built, () -> applyText(id, field));
+        Runnable apply = () -> applyIfCurrent(built, () -> labelCommand(id, field).ifPresent(openDocument::execute));
         listenForCommit(field, apply);
         textField = field;
         pendingEdits = apply;
@@ -202,10 +207,11 @@ public final class PropertiesPanel extends JPanel {
         }
     }
 
-    private void applyText(ElementId id, JTextField field) {
+    /** The edit the text field asks for, if any; an empty free text only shows the error. */
+    private Optional<Command> labelCommand(ElementId id, JTextField field) {
         Optional<DocumentElement> element = openDocument.document().element(id);
         if (element.isEmpty()) {
-            return;
+            return Optional.empty();
         }
         String text = field.getText().strip();
         String current = switch (element.get()) {
@@ -215,28 +221,37 @@ public final class PropertiesPanel extends JPanel {
         };
         if (element.get() instanceof TextLabel && text.isEmpty()) {
             error.setText(Messages.text("properties.emptyText"));
-            return;
+            return Optional.empty();
         }
         error.setText(" ");
-        if (!text.equals(current)) {
-            openDocument.execute(new SetLabelCommand(id, text));
-        }
+        return text.equals(current) ? Optional.empty() : Optional.of(new SetLabelCommand(id, text));
     }
 
-    private void applyParameters(ElementId id, ComponentType type, ParameterForm form) {
+    /** The edit the parameter form asks for, if any; an invalid value only shows the error. */
+    private Optional<Command> parametersCommand(ElementId id, ComponentType type, ParameterForm form) {
         Optional<Component> component = openDocument.document().component(id);
         if (component.isEmpty()) {
-            return;
+            return Optional.empty();
         }
         Optional<String> problem = form.validationError();
         if (problem.isPresent()) {
             error.setText(problem.get());
-            return;
+            return Optional.empty();
         }
         error.setText(" ");
         Map<String, Object> values = type.resolveParameters(form.rawValues());
-        if (!values.equals(type.resolveParameters(component.get().parameters()))) {
-            openDocument.execute(new ChangeParametersCommand(id, type, values));
+        if (values.equals(type.resolveParameters(component.get().parameters()))) {
+            return Optional.empty();
+        }
+        return Optional.of(new ChangeParametersCommand(id, type, values));
+    }
+
+    /** One undo step for whatever the editors asked for. */
+    private void executeTogether(List<Command> commands) {
+        if (commands.size() == 1) {
+            openDocument.execute(commands.get(0));
+        } else if (commands.size() > 1) {
+            openDocument.execute(new CompositeCommand("command.configure", commands));
         }
     }
 
