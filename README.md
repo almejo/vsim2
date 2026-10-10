@@ -49,6 +49,11 @@ Diseño: `docs/superpowers/specs/2026-10-08-vsim2-design.md`.
 
 ## Atajos y vistas (M6)
 
+- Ventana ▸ «Nueva vista» abre otra ventana del mismo circuito, 30 px más abajo y a la derecha, con el mismo zoom y el mismo centro. Con más de una vista, los títulos y el menú Ventana dicen «contador (1)», «contador (2)»… y se renumeran al cerrar una. Deshacer, la simulación y el archivo son compartidos; la selección y lo que muestra cada vista, no. Arrastrar entre vistas mueve; con Ctrl, copia.
+- Archivo ▸ Preferencias… ▸ «Atajos de teclado» lista las acciones por menú con su atajo y un buscador. «Cambiar…» (o doble clic) espera la combinación (Esc cancela); si otra acción ya la usa, aparece «Ctrl+S ya lo usa «Guardar».» con «Reasignar» y «Cancelar». «Quitar atajo», «Restaurar» y «Restaurar todos» hacen lo que dicen. Esc, Enter, Espacio, Tab, Mayús+Tab, Retroceso y los atajos fijos del zoom (Ctrl con +, teclado numérico) no se pueden asignar. Los cambios se ven al instante en todas las ventanas y se recuerdan al reiniciar.
+- Además de los atajos de siempre se puede dar uno a Selección, Cable, Mover vista, Centrar circuito, Configurar…, Iniciar, Pausar, Paso, Preferencias… y Nueva vista. Las teclas del lienzo (Supr, R, Mayús+R, F2, F8, Mayús+F8) también se cambian ahí; Retroceso sigue borrando.
+- El cursor dice qué hará un clic: flecha sobre el lienzo vacío o algo sin seleccionar, cruz sobre un pin o un cable (empieza un cable), con la herramienta Cable y al colocar un componente, mover sobre lo seleccionado y al arrastrarlo, mano sobre un interruptor o un pin de entrada, mover mientras se desplaza la vista (Espacio, botón del medio o «Mover vista»).
+
 ## Preferencias y distribución
 
 - Archivo → Preferencias… (en macOS también VSim 2 → Ajustes…): tema Claro, Oscuro o Seguir sistema; esquema de color del circuito (Según el tema, VSim clásico, Claro, Oscuro y los otros esquemas del VSim original: Pastel, CSim y Twilight); idioma (Sistema, Español, English; se aplica al reiniciar); directorio de la librería de componentes (Elegir… / Restaurar predeterminado). El tema y el esquema cambian al instante en todas las ventanas.

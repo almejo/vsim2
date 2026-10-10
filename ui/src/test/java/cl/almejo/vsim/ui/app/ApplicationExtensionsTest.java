@@ -27,7 +27,7 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** The four production extensions (Application.editorExtensions) installed together on two views of one document. */
+/** The production extensions (Application.editorExtensions) installed together on two views of one document. */
 class ApplicationExtensionsTest {
 
     private static final WindowCommands NO_WINDOW = new WindowCommands() {
@@ -101,6 +101,22 @@ class ApplicationExtensionsTest {
                     "Cerrar ventana", "Salir");
             assertThat(texts(view.menu(MenuId.EDIT))).containsSubsequence("Deshacer", "Rehacer", "Cortar", "Copiar",
                     "Pegar", "Crear componente desde selección…", "Actualizar componente…");
+        } finally {
+            view.dispose();
+        }
+    }
+
+    @Test
+    void theShortcutsExtensionBindsTheWindowMenuAcceleratorsAndCanvasKeys() {
+        EditorView view = new EditorView(openDocument, services, NO_WINDOW);
+        try {
+            assertThat(texts(view.menu(MenuId.WINDOW))).containsExactly("Nueva vista");
+            assertThat(view.actions().save().getValue(javax.swing.Action.ACCELERATOR_KEY))
+                    .isEqualTo(javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_S,
+                            java.awt.event.InputEvent.CTRL_DOWN_MASK));
+            assertThat(view.canvas().getInputMap(javax.swing.JComponent.WHEN_FOCUSED)
+                    .get(javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_DELETE, 0)))
+                    .isEqualTo("shortcut.edit.delete");
         } finally {
             view.dispose();
         }

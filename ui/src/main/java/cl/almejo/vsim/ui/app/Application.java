@@ -15,6 +15,7 @@ import cl.almejo.vsim.ui.paint.Appearance;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.preferences.PreferencesFeature;
+import cl.almejo.vsim.ui.shortcuts.ShortcutsExtension;
 import cl.almejo.vsim.ui.theme.ThemeManager;
 import cl.almejo.vsim.ui.tree.ComponentTreeExtension;
 import cl.almejo.vsim.ui.window.CircuitWindow;
@@ -61,11 +62,12 @@ public final class Application {
     /** The extensions of every editor view, in install order. Package-private so a test can install them all. */
     static List<EditorExtension> editorExtensions(LibraryService libraryService, LibraryDialogs libraryDialogs) {
         List<EditorExtension> editorExtensions = new ArrayList<>();
-        // M4 tracks add one line each here, in the order A, B, C, D (overview R9).
+        // M6: A's waveforms before ActionIcons, B's recents after PreferencesFeature, C's shortcuts last.
         editorExtensions.add(new TemplatesExtension(libraryService, libraryDialogs));
         editorExtensions.add(new ComponentTreeExtension());
         editorExtensions.add(new ActionIcons());
         editorExtensions.add(new PreferencesFeature());
+        editorExtensions.add(new ShortcutsExtension());
         return List.copyOf(editorExtensions);
     }
 
