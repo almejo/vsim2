@@ -21,13 +21,13 @@ import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 
 /** Shared drawing style: shadowed bodies with screen-aligned light, round strokes, pin dots. */
-final class PainterSupport {
+public final class PainterSupport {
 
     static final double UNIT = GridPoint.PIXELS_PER_UNIT;
     static final BasicStroke STROKE = new BasicStroke(1.6f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
-    private static final double PIN_DOT_RADIUS = 1.6;
+    public static final double PIN_DOT_RADIUS = 1.6;
     /** Half the side of the square that marks a pin wider than one bit. */
-    private static final double BUS_PIN_HALF_SIDE = 2.2;
+    public static final double BUS_PIN_HALF_SIDE = 2.2;
     private static final double SHADOW_DISTANCE = 2.0;
     /** The font of every text drawn by painters (sized per use); also for measuring a text before drawing it. */
     static final Font BASE_FONT = new Font(Font.SANS_SERIF, Font.BOLD, 10);
