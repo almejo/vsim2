@@ -2,18 +2,23 @@ package cl.almejo.vsim.ui.session;
 
 import cl.almejo.vsim.ui.canvas.ViewState;
 
+import java.nio.file.InvalidPathException;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
+import java.util.prefs.BackingStoreException;
 import java.util.prefs.Preferences;
 
 /**
- * Plain preference keys of a {@link WindowState} (spec §4.2, contract C4: no JSON) and the numbered child nodes that
- * hold lists. A missing or bad value means "no state", never an exception.
+ * Plain preference keys of a {@link WindowState} (spec §4.2, contract C4: no JSON), the stored path of an entry and the
+ * numbered child nodes that hold lists. A missing or bad value means "no state", never an exception.
  */
 final class SessionKeys {
 
+    /** The file of a Recientes entry or a session document. */
+    static final String PATH = "path";
     static final String X = "x";
     static final String Y = "y";
     static final String WIDTH = "width";
@@ -46,6 +51,26 @@ final class SessionKeys {
                     parseBoolean(required(node, MAXIMIZED)), view));
         } catch (IllegalArgumentException exception) { // NumberFormatException included
             return Optional.empty();
+        }
+    }
+
+    /** The stored {@link #PATH} of {@code node}; empty when it is missing, blank or not a path. */
+    static Optional<Path> readPath(Preferences node) {
+        String stored = node.get(PATH, "");
+        if (stored.isBlank()) {
+            return Optional.empty();
+        }
+        try {
+            return Optional.of(Path.of(stored));
+        } catch (InvalidPathException exception) {
+            return Optional.empty();
+        }
+    }
+
+    /** Removes every child of {@code node}, before a list is written again from the start. */
+    static void removeChildren(Preferences node) throws BackingStoreException {
+        for (String name : node.childrenNames()) {
+            node.node(name).removeNode();
         }
     }
 

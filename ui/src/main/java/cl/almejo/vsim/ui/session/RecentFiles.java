@@ -5,7 +5,6 @@ import cl.almejo.vsim.ui.app.FileNames;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -22,7 +21,6 @@ import java.util.prefs.Preferences;
 public final class RecentFiles {
 
     public static final int CAPACITY = 10;
-    static final String PATH = "path";
     private static final Logger LOGGER = LoggerFactory.getLogger(RecentFiles.class);
 
     private record Entry(Path path, Optional<WindowState> state) {
@@ -91,19 +89,12 @@ public final class RecentFiles {
             Preferences recentNode = preferences.recentNode();
             for (String name : SessionKeys.numbered(recentNode.childrenNames())) {
                 Preferences entryNode = recentNode.node(name);
-                String stored = entryNode.get(PATH, "");
-                if (stored.isBlank() || entries.size() == CAPACITY) {
+                Optional<Path> stored = SessionKeys.readPath(entryNode).map(FileNames::normalized);
+                // a root ("/", "C:\\") is not a circuit file
+                if (stored.isEmpty() || stored.get().getFileName() == null || entries.size() == CAPACITY) {
                     continue;
                 }
-                Path path;
-                try {
-                    path = FileNames.normalized(Path.of(stored));
-                } catch (InvalidPathException exception) {
-                    continue;
-                }
-                if (path.getFileName() == null) {
-                    continue; // a root ("/", "C:\\") is not a circuit file
-                }
+                Path path = stored.get();
                 if (entries.stream().noneMatch(entry -> entry.path().equals(path))) {
                     entries.add(new Entry(path, SessionKeys.readWindowState(entryNode)));
                 }
@@ -117,13 +108,11 @@ public final class RecentFiles {
     private void write(List<Entry> entries) {
         try {
             Preferences recentNode = preferences.recentNode();
-            for (String name : recentNode.childrenNames()) {
-                recentNode.node(name).removeNode();
-            }
+            SessionKeys.removeChildren(recentNode);
             for (int index = 0; index < Math.min(entries.size(), CAPACITY); index++) {
                 Entry entry = entries.get(index);
                 Preferences entryNode = recentNode.node(Integer.toString(index));
-                entryNode.put(PATH, entry.path().toString());
+                entryNode.put(SessionKeys.PATH, entry.path().toString());
                 entry.state().ifPresent(state -> SessionKeys.writeWindowState(entryNode, state));
             }
             recentNode.flush();

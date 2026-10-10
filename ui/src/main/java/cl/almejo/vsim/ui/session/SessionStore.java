@@ -4,10 +4,10 @@ import cl.almejo.vsim.ui.app.AppPreferences;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.prefs.BackingStoreException;
 import java.util.prefs.Preferences;
 
@@ -18,7 +18,6 @@ import java.util.prefs.Preferences;
  */
 public final class SessionStore {
 
-    static final String PATH = "path";
     private static final Logger LOGGER = LoggerFactory.getLogger(SessionStore.class);
 
     private final AppPreferences preferences;
@@ -31,13 +30,11 @@ public final class SessionStore {
     public void save(List<SessionDocument> documents) {
         try {
             Preferences session = preferences.sessionNode();
-            for (String name : session.childrenNames()) {
-                session.node(name).removeNode();
-            }
+            SessionKeys.removeChildren(session);
             for (int documentIndex = 0; documentIndex < documents.size(); documentIndex++) {
                 SessionDocument document = documents.get(documentIndex);
                 Preferences documentNode = session.node(Integer.toString(documentIndex));
-                documentNode.put(PATH, document.path().toAbsolutePath().toString());
+                documentNode.put(SessionKeys.PATH, document.path().toAbsolutePath().toString());
                 for (int windowIndex = 0; windowIndex < document.windows().size(); windowIndex++) {
                     SessionKeys.writeWindowState(documentNode.node(Integer.toString(windowIndex)),
                             document.windows().get(windowIndex));
@@ -55,21 +52,15 @@ public final class SessionStore {
             Preferences session = preferences.sessionNode();
             for (String documentName : SessionKeys.numbered(session.childrenNames())) {
                 Preferences documentNode = session.node(documentName);
-                String stored = documentNode.get(PATH, "");
-                if (stored.isBlank()) {
-                    continue;
-                }
-                Path path;
-                try {
-                    path = Path.of(stored);
-                } catch (InvalidPathException exception) {
+                Optional<Path> path = SessionKeys.readPath(documentNode);
+                if (path.isEmpty()) {
                     continue;
                 }
                 List<WindowState> windows = new ArrayList<>();
                 for (String windowName : SessionKeys.numbered(documentNode.childrenNames())) {
                     SessionKeys.readWindowState(documentNode.node(windowName)).ifPresent(windows::add);
                 }
-                documents.add(new SessionDocument(path, windows));
+                documents.add(new SessionDocument(path.get(), windows));
             }
         } catch (BackingStoreException | RuntimeException exception) {
             LOGGER.warn("Could not read the session", exception);
