@@ -21,4 +21,26 @@ public final class BusValueText {
         }
         return "0x" + value.hex();
     }
+
+    /**
+     * The bits of {@code value}, most significant first, each {@code 0}, {@code 1} or {@code Z}, grouped in fours from
+     * the least significant end; {@link #CONFLICT} when the drivers disagree.
+     */
+    public static String binary(Value value) {
+        if (value.conflict()) {
+            return CONFLICT;
+        }
+        StringBuilder text = new StringBuilder();
+        for (int index = value.width() - 1; index >= 0; index--) {
+            text.append(switch (value.bit(index)) {
+                case ZERO -> '0';
+                case ONE -> '1';
+                case HIGH_IMPEDANCE -> 'Z';
+            });
+            if (index > 0 && index % 4 == 0) {
+                text.append(' ');
+            }
+        }
+        return text.toString();
+    }
 }
