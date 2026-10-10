@@ -181,6 +181,58 @@ class ComponentTypeTest {
         assertThat(layouts.get() - before).isEqualTo(1);
     }
 
+    /** A raw parameter value that counts how often it is normalized (read as a number). */
+    private static final class CountingWidth extends Number {
+        private final int value;
+        private int reads;
+
+        CountingWidth(int value) {
+            this.value = value;
+        }
+
+        @Override
+        public long longValue() {
+            reads++;
+            return value;
+        }
+
+        @Override
+        public int intValue() {
+            return (int) longValue();
+        }
+
+        @Override
+        public float floatValue() {
+            return longValue();
+        }
+
+        @Override
+        public double doubleValue() {
+            return longValue();
+        }
+    }
+
+    @Test
+    void aSpecializedTypeAnswersPinsAndBoundsOfItsOwnComponentWithoutResolvingItsParametersAgain() {
+        CountingWidth width = new CountingWidth(5);
+        Component wide = new Component(new ElementId("c1"), RIBBON.id(), new GridPoint(10, 10), Rotation.R0,
+                Map.of("width", width), "");
+        ComponentType specialized = RIBBON.forComponent(wide);
+        int afterSpecializing = width.reads;
+
+        assertThat(specialized.pinLocation(wide, 1)).isEqualTo(new GridPoint(12, 15));
+        assertThat(specialized.bounds(wide)).isEqualTo(new Bounds(10, 10, 2, 5));
+        assertThat(width.reads).isEqualTo(afterSpecializing);
+
+        Component narrow = ribbonAt(Rotation.R0, 3); // another component: its own parameters still apply
+        assertThat(specialized.pinLocation(narrow, 1)).isEqualTo(new GridPoint(12, 13));
+        assertThat(specialized.bounds(narrow)).isEqualTo(new Bounds(10, 10, 2, 3));
+        assertThat(specialized).isEqualTo(RIBBON.specializedFor(Map.of("width", 5)))
+                .hasSameHashCodeAs(RIBBON.specializedFor(Map.of("width", 5)));
+        assertThat(RIBBON).isEqualTo(specialized.specializedFor(Map.of("width", 2)));
+        assertThat(specialized.specializedFor(Map.of("width", 2))).isEqualTo(RIBBON).hasSameHashCodeAs(RIBBON);
+    }
+
     @Test
     void typesBuiltTwiceFromTheSameLayoutStayEqual() {
         ComponentLayout layout = parameters -> new ComponentShape(new GridSize(1, 1), List.of());

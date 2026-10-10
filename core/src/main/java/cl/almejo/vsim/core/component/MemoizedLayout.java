@@ -21,7 +21,8 @@ final class MemoizedLayout implements ComponentLayout {
     }
 
     static ComponentLayout of(ComponentLayout layout) {
-        return layout instanceof MemoizedLayout ? layout : new MemoizedLayout(layout);
+        return layout instanceof MemoizedLayout || layout instanceof SpecializedLayout ? layout
+                : new MemoizedLayout(layout);
     }
 
     @Override
@@ -39,7 +40,8 @@ final class MemoizedLayout implements ComponentLayout {
 
     @Override
     public boolean equals(Object other) {
-        return other instanceof MemoizedLayout memo && memo.layout.equals(layout);
+        return SpecializedLayout.baseOf(other instanceof ComponentLayout layout ? layout : null)
+                instanceof MemoizedLayout memo && memo.layout.equals(this.layout);
     }
 
     @Override

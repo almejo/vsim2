@@ -67,7 +67,8 @@ public record ComponentType(String id, ComponentCategory category, GridSize size
         if (shape.size().equals(size) && shape.pins().equals(pins)) {
             return this;
         }
-        return new ComponentType(id, category, shape.size(), shape.pins(), parameters, behaviorFactory, layout);
+        return new ComponentType(id, category, shape.size(), shape.pins(), parameters, behaviorFactory,
+                new SpecializedLayout(SpecializedLayout.baseOf(layout), rawParameters));
     }
 
     /** This type as {@code component} has it: {@link #specializedFor} its parameters. */
@@ -100,14 +101,20 @@ public record ComponentType(String id, ComponentCategory category, GridSize size
 
     /** Where pin {@code pinIndex} of {@code component} is, with the pins {@code component}'s parameters give. */
     public GridPoint pinLocation(Component component, int pinIndex) {
-        PinSpec pin = layout == null ? pins.get(pinIndex) : shapeOf(component).pins().get(pinIndex);
+        PinSpec pin = hasOwnShape(component) ? pins.get(pinIndex) : shapeOf(component).pins().get(pinIndex);
         return component.position().plus(component.rotation().apply(pin.position()));
     }
 
     /** The box of {@code component}, with the size its parameters give. */
     public Bounds bounds(Component component) {
-        GridSize componentSize = layout == null ? size : shapeOf(component).size();
+        GridSize componentSize = hasOwnShape(component) ? size : shapeOf(component).size();
         return Bounds.rotated(component.position(), componentSize, component.rotation());
+    }
+
+    /** A fixed type, or one already specialized for {@code component}'s parameters: its own size and pins apply. */
+    private boolean hasOwnShape(Component component) {
+        return layout == null
+                || layout instanceof SpecializedLayout specialized && specialized.isFor(component.parameters());
     }
 
     /** The shape {@code component}'s parameters give, without building a specialized type (asked on every paint). */
