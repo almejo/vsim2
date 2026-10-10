@@ -10,6 +10,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Clock;
@@ -176,6 +178,86 @@ class AutosaveServiceTest {
 
         failing.shutdown();
         runWrites();
+    }
+
+    /** Review I2: an old recovered copy must outlive a failed write of this run's copy. */
+    @Test
+    void anActionWaitingForACopyDoesNotRunWhenTheWriteFails() throws Exception {
+        Path oldCopy = Files.writeString(directory.resolve("old.vsim"), "recovered work");
+        Path blocked = Files.writeString(directory.resolve("blocked"), "not a folder");
+        AutosaveService failing = new AutosaveService(new RecoveryStore(blocked.resolve("recovery")),
+                Clock.fixed(NOW, ZoneOffset.UTC), pendingWrites::add);
+        OpenDocument document = untracked();
+        failing.track(document);
+        place(document, StandardComponentTypes.LED, 2, 2, Map.of());
+
+        failing.afterCopied(document, () -> deleteQuietly(oldCopy));
+        failing.tick();
+        runWrites();
+        failing.tick(); // retried, and failing again
+        runWrites();
+
+        assertThat(oldCopy).exists();
+        failing.shutdown();
+        runWrites();
+        assertThat(oldCopy).as("not after shutdown either").exists();
+    }
+
+    @Test
+    void anActionWaitingForACopyRunsOnceTheNewCopyIsOnDisk() throws Exception {
+        Path oldCopy = Files.writeString(directory.resolve("old.vsim"), "recovered work");
+        OpenDocument document = tracked();
+        OpenDocument other = tracked();
+        place(document, StandardComponentTypes.LED, 2, 2, Map.of());
+        List<Boolean> newCopyWasOnDisk = new ArrayList<>();
+
+        autosave.afterCopied(document, () -> {
+            newCopyWasOnDisk.add(hasCopy(document));
+            deleteQuietly(oldCopy);
+        });
+        autosave.afterCopied(other, () -> deleteQuietly(oldCopy)); // other is unmodified: never copied
+        autosave.tick();
+        assertThat(oldCopy).as("not before the writer ran").exists();
+        runWrites();
+
+        assertThat(newCopyWasOnDisk).containsExactly(true);
+        assertThat(oldCopy).doesNotExist();
+        place(document, StandardComponentTypes.LED, 6, 2, Map.of());
+        autosave.tick();
+        runWrites();
+        assertThat(newCopyWasOnDisk).as("only once").hasSize(1);
+    }
+
+    @Test
+    void anActionWaitingForACopyRunsAtTheFirstWriteThatSucceeds() throws Exception {
+        Path oldCopy = Files.writeString(directory.resolve("old.vsim"), "recovered work");
+        Path recoveryRoot = directory.resolve("later");
+        Files.writeString(recoveryRoot, "a file where the folder goes: writes fail");
+        AutosaveService retrying = new AutosaveService(new RecoveryStore(recoveryRoot.resolve("recovery")),
+                Clock.fixed(NOW, ZoneOffset.UTC), pendingWrites::add);
+        OpenDocument document = untracked();
+        retrying.track(document);
+        place(document, StandardComponentTypes.LED, 2, 2, Map.of());
+        retrying.afterCopied(document, () -> deleteQuietly(oldCopy));
+        retrying.tick();
+        runWrites();
+        assertThat(oldCopy).exists();
+
+        Files.delete(recoveryRoot); // the disk is writable again
+        retrying.tick();
+        runWrites();
+
+        assertThat(oldCopy).doesNotExist();
+        retrying.shutdown();
+        runWrites();
+    }
+
+    private static void deleteQuietly(Path file) {
+        try {
+            Files.deleteIfExists(file);
+        } catch (IOException exception) {
+            throw new UncheckedIOException(exception);
+        }
     }
 
     @Test

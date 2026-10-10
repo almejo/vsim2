@@ -184,9 +184,9 @@ public final class Application {
     private void startAutosave(List<RecoveryCopy> reopened) {
         autosave.start();
         if (!reopened.isEmpty()) {
-            // The recovered documents get a copy of this run first; their old copies go only once it is on disk.
+            // The recovered documents get a copy of this run at once; each old copy goes only once the new copy of
+            // its document is on disk (openRecovered asked for that), so a failing write keeps the old one.
             autosave.tick();
-            autosave.afterPendingWrites(() -> reopened.forEach(this::discardQuietly));
         }
     }
 
@@ -398,6 +398,7 @@ public final class Application {
                     ? copy.originalPath().flatMap(this::recentStateFor).stream().toList()
                     : recovered.windows();
             showViews(document, states);
+            autosave.afterCopied(document, () -> discardQuietly(copy));
             return Optional.of(copy);
         } catch (CircuitFormatException exception) {
             LOGGER.warn("Could not recover {}", copy.content(), exception);

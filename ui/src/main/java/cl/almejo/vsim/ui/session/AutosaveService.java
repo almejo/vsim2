@@ -11,9 +11,11 @@ import java.time.Clock;
 import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Queue;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -39,6 +41,8 @@ public final class AutosaveService {
         private final Runnable listener;
         /** The change count of the last copy handed to the writer; -1 when no copy is on disk. */
         private long copiedChangeCount = -1;
+        /** Run by the writer once one of this document's copies is actually on disk ({@link #afterCopied}). */
+        private final Queue<Runnable> afterCopied = new ConcurrentLinkedQueue<>();
 
         private Tracked(Runnable listener) {
             this.listener = listener;
@@ -150,7 +154,9 @@ public final class AutosaveService {
                     failing.remove(id);
                 } catch (IOException | RuntimeException exception) {
                     reportFailure(id, name, exception);
+                    return;
                 }
+                runAfterCopied(state);
             });
         }
     }
@@ -187,12 +193,38 @@ public final class AutosaveService {
     }
 
     /**
-     * Runs {@code action} on the writer after every write queued so far — typically right after a {@link #tick()}, so
-     * an old recovered copy is deleted only once this run's own first copy is on disk. Nothing after shutdown.
+     * Runs {@code action} on the writer after every write queued so far, whether those writes succeeded or not (to
+     * wait for a copy that is actually on disk, use {@link #afterCopied}). Nothing after shutdown.
      */
     public void afterPendingWrites(Runnable action) {
         if (!shutDown) {
             writer.execute(action);
+        }
+    }
+
+    /**
+     * Runs {@code action} on the writer once a copy of {@code document} made by this run is actually on disk: after
+     * the next successful write, never after a failed one (a failing document is retried at every tick, and the action
+     * waits for the first write that succeeds). Used to delete an old recovered copy only when the new one exists, so
+     * a failing disk never leaves the recovered work without a copy. Nothing for an untracked document, and nothing
+     * after shutdown: the action then never runs (the old copy stays, to be offered again).
+     */
+    public void afterCopied(OpenDocument document, Runnable action) {
+        Tracked state = tracked.get(document);
+        if (!shutDown && state != null) {
+            state.afterCopied.add(action);
+        }
+    }
+
+    /** On the writer, right after a successful write of {@code state}'s document. */
+    private void runAfterCopied(Tracked state) {
+        Runnable action;
+        while ((action = state.afterCopied.poll()) != null) {
+            try {
+                action.run();
+            } catch (RuntimeException exception) {
+                LOGGER.warn("An action waiting for a recovery copy failed", exception);
+            }
         }
     }
 
