@@ -1,6 +1,10 @@
 package cl.almejo.vsim.core.simulation;
 
 import cl.almejo.vsim.core.TestComponentTypes;
+import cl.almejo.vsim.core.component.Behavior;
+import cl.almejo.vsim.core.component.BehaviorContext;
+import cl.almejo.vsim.core.component.ComponentCategory;
+import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.PinSpec;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
@@ -29,6 +33,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class SimulationEngineWaveformTest {
 
@@ -182,6 +187,46 @@ class SimulationEngineWaveformTest {
 
         assertThat(standardEngine.waveforms().trace("led").orElseThrow().edgesBetween(0, 10))
                 .containsExactly(TraceEvent.of(0, Value.ONE), TraceEvent.of(5, Value.ZERO));
+    }
+
+    @Test
+    void aChannelKeepsRecordingAfterAnUpdateWhoseInitializationFailed() {
+        String fragile = "test-fragile";
+        registry.register(new ComponentType(fragile, ComponentCategory.DEBUG, new GridSize(2, 2),
+                List.of(PinSpec.output("out", 2, 1)), List.of(), parameters -> new Behavior() {
+                    @Override
+                    public void initialize(BehaviorContext context) {
+                        throw new IllegalStateException("broken on purpose");
+                    }
+
+                    @Override
+                    public void inputChanged(BehaviorContext context, int pinIndex) {
+                    }
+                }));
+        ElementId source = place(TestComponentTypes.SOURCE, 0, 0, Map.of("value", "0"));
+        ElementId inverter = place(TestComponentTypes.INVERTER, 2, 0, Map.of("delay", 1));
+        synchronize();
+        engine.setProbes(Map.of("out", netOf(inverter, 1)));
+        engine.advance(5);
+
+        place(fragile, 20, 20, Map.of());
+        assertThatThrownBy(this::synchronize).isInstanceOf(IllegalStateException.class);
+        engine.interact(source.value());
+        engine.advance(5);
+
+        assertThat(trace("out").edgesBetween(6, 10)).containsExactly(TraceEvent.of(6, Value.ZERO));
+    }
+
+    @Test
+    void settingTheSameChannelsAgainKeepsTheVersion() {
+        ElementId source = place(TestComponentTypes.SOURCE, 0, 0, Map.of("value", "0"));
+        synchronize();
+        engine.setProbes(Map.of("a", netOf(source, 0)));
+        long version = engine.waveformVersion();
+
+        engine.setProbes(Map.of("a", netOf(source, 0)));
+
+        assertThat(engine.waveformVersion()).isEqualTo(version);
     }
 
     @Test

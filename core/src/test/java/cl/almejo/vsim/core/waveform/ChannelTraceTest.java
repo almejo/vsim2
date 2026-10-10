@@ -151,6 +151,17 @@ class ChannelTraceTest {
     }
 
     @Test
+    void aOneBitConflictIsStoredAsGiven() {
+        ChannelTrace channel = new ChannelTrace(1);
+        Value conflict = new Value(1, 1L, 0L, true);
+        channel.append(1, conflict);
+
+        Value stored = channel.snapshot().valueAt(1).orElseThrow();
+
+        assertThat(stored).isSameAs(conflict).isNotEqualTo(Value.ONE).isNotEqualTo(Value.ZERO);
+    }
+
+    @Test
     void oneBitEventsShareTheValueConstants() {
         ChannelTrace channel = new ChannelTrace(1);
         channel.append(1, new Value(1, 1L, 0L, false));

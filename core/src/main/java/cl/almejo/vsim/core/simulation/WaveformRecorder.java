@@ -25,6 +25,9 @@ final class WaveformRecorder {
 
     /** Channel id → net id. Channels left out lose their trace; the others keep it, even under another net id. */
     void setChannels(Map<String, String> newChannels) {
+        if (channels.equals(newChannels)) {
+            return;
+        }
         channels = Map.copyOf(newChannels);
         traces.keySet().retainAll(channels.keySet());
         version++;

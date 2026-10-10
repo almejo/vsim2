@@ -67,10 +67,18 @@ public final class SimulationEngine {
         } catch (RuntimeException exception) {
             created.forEach(instance -> instance.initializationFailed = true);
             throw exception;
+        } finally {
+            // The nets may have been replaced even when initialization failed: the traces follow the live ones.
+            rebindWaveforms();
         }
         token = circuit.token();
         revision++;
-        recorder.rebind(this::netWithId, nets.values(), now());
+    }
+
+    private void rebindWaveforms() {
+        if (recorder.hasChannels()) {
+            recorder.rebind(this::netWithId, nets.values(), now());
+        }
     }
 
     private void rewireAndInitialize(FlatCircuit circuit, List<ComponentInstance> created) {
