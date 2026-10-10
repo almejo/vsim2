@@ -24,6 +24,7 @@ public final class AppPreferences {
     static final String COLOR_SCHEME = "colorScheme";
     static final String LANGUAGE = "language";
     static final String LIBRARY_DIRECTORY = "libraryDirectory";
+    static final String RECENT = "recent";
 
     private static final Logger LOGGER = LoggerFactory.getLogger(AppPreferences.class);
     private static final String NODE = "cl/almejo/vsim2";
@@ -132,6 +133,13 @@ public final class AppPreferences {
     /** For tests: views and extensions must remove the listeners they add when disposed. */
     public int listenerCount() {
         return listeners.size();
+    }
+
+    // --- M6-B session: recent files, last session, recovery folder ---
+
+    /** Archivo ▸ Recientes (M6-B): child node {@code recent} with entries {@code recent/0} … {@code recent/9}. */
+    public Preferences recentNode() {
+        return node.node(RECENT);
     }
 
     private Optional<String> optional(String key) {
