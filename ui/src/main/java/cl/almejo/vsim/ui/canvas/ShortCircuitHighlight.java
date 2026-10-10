@@ -13,8 +13,12 @@ import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 
 import java.util.HashSet;
 import java.util.Set;
+import java.util.function.Supplier;
 
-/** What to mark on the canvas for the short circuits of a snapshot (spec §6.12). */
+/**
+ * What to mark on the canvas for the short circuits of a snapshot (spec §6.12). A short reported for a net merged with
+ * other top-level nets through a template marks the wires of all of them ({@link TopLevelNets}).
+ */
 public record ShortCircuitHighlight(Set<ElementId> wires, Set<ElementId> components, Set<GridPoint> driverPins) {
 
     public static final ShortCircuitHighlight NONE = new ShortCircuitHighlight(Set.of(), Set.of(), Set.of());
@@ -27,14 +31,25 @@ public record ShortCircuitHighlight(Set<ElementId> wires, Set<ElementId> compone
 
     public static ShortCircuitHighlight of(SimulationSnapshot snapshot, Netlist netlist, long netlistToken,
                                            CircuitDocument document, ComponentTypeRegistry registry) {
+        return of(snapshot, netlist, netlistToken, document, registry,
+                () -> TopLevelNets.of(document, netlist, registry));
+    }
+
+    /** {@code merged} is asked only when the snapshot has short circuits for the shown netlist. */
+    public static ShortCircuitHighlight of(SimulationSnapshot snapshot, Netlist netlist, long netlistToken,
+                                           CircuitDocument document, ComponentTypeRegistry registry,
+                                           Supplier<TopLevelNets> merged) {
         if (snapshot.token() != netlistToken || snapshot.shortCircuits().isEmpty()) {
             return NONE;
         }
+        TopLevelNets groups = merged.get();
         Set<ElementId> wires = new HashSet<>();
         Set<ElementId> components = new HashSet<>();
         Set<GridPoint> driverPins = new HashSet<>();
         for (ShortCircuit shortCircuit : snapshot.shortCircuits()) {
-            netlist.net(new NetId(shortCircuit.netId())).ifPresent(net -> wires.addAll(net.wires()));
+            for (String member : groups.membersOf(shortCircuit.netId())) {
+                netlist.net(new NetId(member)).ifPresent(net -> wires.addAll(net.wires()));
+            }
             for (DriverRef driver : shortCircuit.drivers()) {
                 boolean nested = InstancePath.isNested(driver.componentId());
                 ElementId componentId = new ElementId(InstancePath.topLevel(driver.componentId()));

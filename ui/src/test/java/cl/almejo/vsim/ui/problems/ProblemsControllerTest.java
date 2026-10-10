@@ -12,6 +12,7 @@ import cl.almejo.vsim.core.simulation.ShortCircuit;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.core.value.Value;
 import cl.almejo.vsim.ui.app.OpenDocument;
+import cl.almejo.vsim.ui.canvas.PassThroughCircuit;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
@@ -308,5 +309,17 @@ class ProblemsControllerTest {
         view.problems().showSnapshot(new SimulationSnapshot(1, openDocument.netlistToken(), 10, true, Map.of(),
                 Map.of(), List.of(elsewhere), Optional.empty()));
         assertThat(view.canvas().getToolTipText(hoverAt(120, 8))).startsWith("⚠ Anchos incompatibles: ");
+    }
+
+    @Test
+    void hoveringEitherSideOfANetMergedThroughATemplateNamesItsDrivers() {
+        PassThroughCircuit circuit = PassThroughCircuit.addTo(openDocument);
+        view.problems().showSnapshot(circuit.shortSnapshot(openDocument));
+
+        String leftSide = view.canvas().getToolTipText(hoverAt(56, 160));   // grid (7, 20), on wire left
+        String rightSide = view.canvas().getToolTipText(hoverAt(152, 160)); // grid (19, 20), on wire rightAcross
+
+        assertThat(leftSide).isEqualTo("Interruptor → 1 · Interruptor → 0");
+        assertThat(rightSide).isEqualTo(leftSide);
     }
 }
