@@ -25,6 +25,7 @@ import cl.almejo.vsim.ui.tools.SelectTool;
 import cl.almejo.vsim.ui.tools.Tool;
 import cl.almejo.vsim.ui.tools.WireTool;
 
+import javax.swing.Action;
 import javax.swing.ButtonGroup;
 import javax.swing.JMenu;
 import javax.swing.JMenuBar;
@@ -41,6 +42,8 @@ import java.awt.event.KeyEvent;
 import java.awt.geom.Point2D;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
@@ -69,6 +72,7 @@ public final class EditorView extends JPanel implements CanvasHost {
     private final JMenuBar menuBar;
     private final Map<MenuId, JMenu> menus = new EnumMap<>(MenuId.class);
     private final List<ContextMenuContributor> contextMenuContributors = new CopyOnWriteArrayList<>();
+    private final Map<String, Action> shortcutActions = new LinkedHashMap<>();
     private final JToolBar toolBar = new JToolBar();
     private final ButtonGroup toolButtons = new ButtonGroup();
     private final JToggleButton selectButton;
@@ -186,6 +190,23 @@ public final class EditorView extends JPanel implements CanvasHost {
 
     public void addContextMenuContributor(ContextMenuContributor contributor) {
         contextMenuContributors.add(contributor);
+    }
+
+    /**
+     * Offers {@code action} to the keyboard shortcut editor under catalog id {@code id} (M6 contract C3), for actions
+     * an extension creates itself; returns what takes it back (call it from the extension's disposer).
+     */
+    public Runnable registerShortcutAction(String id, Action action) {
+        Objects.requireNonNull(action, "action");
+        if (shortcutActions.putIfAbsent(id, action) != null) {
+            throw new IllegalArgumentException("a shortcut action is already registered as " + id);
+        }
+        return () -> shortcutActions.remove(id, action);
+    }
+
+    /** The actions registered with {@link #registerShortcutAction}, in registration order (read-only). */
+    public Map<String, Action> shortcutActions() {
+        return Collections.unmodifiableMap(shortcutActions);
     }
 
     /**
