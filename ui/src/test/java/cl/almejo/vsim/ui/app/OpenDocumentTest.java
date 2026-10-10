@@ -23,6 +23,7 @@ import java.nio.file.attribute.PosixFilePermissions;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static cl.almejo.vsim.ui.UiTestSupport.place;
@@ -206,5 +207,60 @@ class OpenDocumentTest {
                 new GridPoint(4, 1), new GridPoint(4, 7))));
         waitUntil(() -> !document.latestSnapshot().shortCircuits().isEmpty());
         assertThat(document.latestSnapshot().running()).isFalse();
+    }
+
+    @Test
+    void everyHistoryNotificationMovesTheChangeCountAndTheRecoveryIdStays(@TempDir Path directory) throws IOException {
+        OpenDocument document = track(OpenDocument.createEmpty(registry));
+        OpenDocument other = track(OpenDocument.createEmpty(registry));
+        UUID id = document.recoveryId();
+        assertThat(other.recoveryId()).isNotEqualTo(id);
+        assertThat(document.changeCount()).isZero();
+
+        place(document, StandardComponentTypes.LED, 0, 0, Map.of());
+        assertThat(document.changeCount()).isEqualTo(1);
+        document.history().undo();
+        document.history().redo();
+        assertThat(document.changeCount()).isEqualTo(3);
+        document.save(directory.resolve("led.vsim"));
+        assertThat(document.changeCount()).isEqualTo(4);
+        assertThat(document.recoveryId()).isEqualTo(id);
+    }
+
+    @Test
+    void aRecoveredCopyOpensAsTheModifiedOriginal(@TempDir Path directory) throws Exception {
+        Path original = directory.resolve("contador.vsim");
+        Path copy = directory.resolve("copy.vsim");
+        OpenDocument source = track(OpenDocument.createEmpty(registry));
+        source.save(original);
+        place(source, StandardComponentTypes.LED, 4, 4, Map.of());
+        source.save(copy);
+
+        OpenDocument recovered = track(OpenDocument.openRecovered(copy, original, registry));
+        assertThat(recovered.document().components()).hasSize(1);
+        assertThat(recovered.isModified()).isTrue();
+        assertThat(recovered.isPristine()).isFalse();
+        assertThat(recovered.path()).contains(original.toAbsolutePath());
+        assertThat(recovered.isBackedBy(original)).isTrue();
+        assertThat(recovered.displayName()).isEqualTo("contador");
+        assertThat(recovered.needsSaveAs()).as("Guardar overwrites the original").isFalse();
+
+        recovered.save(original);
+        assertThat(recovered.isModified()).isFalse();
+    }
+
+    @Test
+    void aRecoveredUntitledCopyAsksForANameWhenSaved(@TempDir Path directory) throws Exception {
+        Path copy = directory.resolve("copy.vsim");
+        OpenDocument source = track(OpenDocument.createEmpty(registry));
+        place(source, StandardComponentTypes.LED, 4, 4, Map.of());
+        source.save(copy);
+
+        OpenDocument recovered = track(OpenDocument.openRecovered(copy, null, registry));
+        assertThat(recovered.isModified()).isTrue();
+        assertThat(recovered.needsSaveAs()).isTrue();
+        assertThat(recovered.path()).isEmpty();
+        assertThat(recovered.isBackedBy(copy)).as("the copy is not the document's file").isFalse();
+        assertThat(recovered.displayName()).isEqualTo("Sin título");
     }
 }

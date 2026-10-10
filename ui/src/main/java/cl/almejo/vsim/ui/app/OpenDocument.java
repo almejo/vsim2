@@ -53,6 +53,8 @@ public final class OpenDocument implements AutoCloseable {
     private long netlistToken = -1;
     private boolean closed;
     private boolean pauseOnShortCircuit;
+    private final UUID recoveryId = UUID.randomUUID();
+    private long changeCount;
 
     public OpenDocument(CircuitDocument document, ComponentTypeRegistry baseRegistry, Path path,
                         boolean importedFromVsim1) {
@@ -67,7 +69,10 @@ public final class OpenDocument implements AutoCloseable {
         this.flattener = new CircuitFlattener(this.registry);
         this.simulation = new SimulationThread(new SimulationEngine());
         document.addListener((changed, change) -> synchronize());
-        history.addListener(changed -> fireChanged());
+        history.addListener(changed -> {
+            changeCount++;
+            fireChanged();
+        });
         synchronize();
         simulation.start();
         simulation.resume();
@@ -82,6 +87,27 @@ public final class OpenDocument implements AutoCloseable {
         OpenDocument openDocument = new OpenDocument(opened.document(), registry,
                 opened.importedFromVsim1() ? null : path, opened.importedFromVsim1());
         openDocument.backingFile = FileNames.normalized(path);
+        return openDocument;
+    }
+
+    /**
+     * A recovery copy (M6-B) reopened as the document it was copied from: {@code originalPath} (null for an untitled
+     * document) is where Guardar writes, and the document reports {@link #isModified()} until it is saved.
+     */
+    public static OpenDocument openRecovered(Path copy, Path originalPath, ComponentTypeRegistry registry)
+            throws CircuitFormatException {
+        OpenedCircuit opened = new CircuitReader(registry).open(copy);
+        if (originalPath == null) {
+            // The reader names a nameless file after the copy's file; an untitled document stays untitled.
+            String copyName = copy.getFileName().toString();
+            int dot = copyName.lastIndexOf('.');
+            if (opened.document().name().equals(dot > 0 ? copyName.substring(0, dot) : copyName)) {
+                opened.document().setName("");
+            }
+        }
+        OpenDocument openDocument = new OpenDocument(opened.document(), registry, originalPath, false);
+        openDocument.backingFile = originalPath == null ? null : FileNames.normalized(originalPath);
+        openDocument.history.markUnsaved();
         return openDocument;
     }
 
@@ -140,6 +166,19 @@ public final class OpenDocument implements AutoCloseable {
     /** A fresh, empty, untouched document — opening a file may replace its window. */
     public boolean isPristine() {
         return path == null && !importedFromVsim1 && document.isEmpty() && !isModified();
+    }
+
+    /** Stable id of this document's recovery copy (M6-B); it never changes while the document is open. */
+    public UUID recoveryId() {
+        return recoveryId;
+    }
+
+    /**
+     * Grows on every undo-history notification (execute, undo, redo, save, {@code markUnsaved}). Autosave copies a
+     * modified document when this moved since its last copy, so every change made through {@link #execute} counts.
+     */
+    public long changeCount() {
+        return changeCount;
     }
 
     public Netlist netlist() {
