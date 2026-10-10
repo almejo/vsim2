@@ -84,6 +84,8 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     private final Timer frameTimer;
     private final MarchingAnts marchingAnts = new MarchingAnts();
     private final Timer antsTimer;
+    private final ProblemPulse problemPulse = new ProblemPulse();
+    private final Timer problemPulseTimer;
     private final Timer autoscrollTimer;
     private final List<Consumer<Tool>> toolListeners = new CopyOnWriteArrayList<>();
     private final List<Consumer<SimulationSnapshot>> snapshotListeners = new CopyOnWriteArrayList<>();
@@ -152,6 +154,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         });
         frameTimer = new Timer(FRAME_MILLISECONDS, event -> refreshSnapshot());
         antsTimer = new Timer(ANTS_MILLISECONDS, event -> animationTick());
+        problemPulseTimer = new Timer(ProblemPulse.TICK_MILLISECONDS, event -> problemPulseTick());
         autoscrollTimer = new Timer(AUTOSCROLL_MILLISECONDS, event -> autoscrollTick());
     }
 
@@ -461,6 +464,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         frameTimer.stop();
         animationSuspended = true;
         antsTimer.stop();
+        problemPulseTimer.stop();
         watchWindow(null);
         super.removeNotify();
     }
@@ -470,6 +474,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         frameTimer.stop();
         animationSuspended = true;
         antsTimer.stop();
+        problemPulseTimer.stop();
         watchWindow(null);
         openDocument.document().removeListener(documentListener);
     }
@@ -607,6 +612,15 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         return antsTimer.isRunning();
     }
 
+    /** True while the pulse clock runs: the canvas is on screen and a short-circuited or mismatched wire is shown. */
+    boolean isAnimatingProblems() {
+        return problemPulseTimer.isRunning();
+    }
+
+    double problemPulsePhase() {
+        return problemPulse.phase();
+    }
+
     /** Replaces the on-screen check (showing and not minimized), so headless tests can show or hide the canvas. */
     void overrideOnScreen(BooleanSupplier check) {
         onScreen = check;
@@ -645,7 +659,35 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         }
     }
 
+    /** One pulse tick: re-checks that a problem wire is still shown, so the clock stops by itself when none is. */
+    void problemPulseTick() {
+        updateProblemPulse();
+        if (problemPulseTimer.isRunning()) {
+            problemPulse.advance();
+            repaint();
+        }
+    }
+
+    /** Whether a wire of a short circuit or a width mismatch is on the canvas now (what the renderer glows). */
+    private boolean problemWireShown() {
+        ComponentTypeRegistry registry = openDocument.registry();
+        return !ShortCircuitHighlight.of(displayedSnapshot, openDocument.netlist(), openDocument.netlistToken(),
+                openDocument.document(), registry).wires().isEmpty()
+                || !WidthMismatchHighlight.of(displayedSnapshot, openDocument.netlist(), openDocument.netlistToken(),
+                openDocument.document(), registry).wires().isEmpty();
+    }
+
+    private void updateProblemPulse() {
+        boolean needed = !animationSuspended && onScreen.getAsBoolean() && problemWireShown();
+        if (needed && !problemPulseTimer.isRunning()) {
+            problemPulseTimer.start();
+        } else if (!needed && problemPulseTimer.isRunning()) {
+            problemPulseTimer.stop();
+        }
+    }
+
     private void updateAnimation() {
+        updateProblemPulse();
         boolean needed = !animationSuspended && onScreen.getAsBoolean()
                 && (!selection.isEmpty() || tool.animatesOutline());
         if (needed && !antsTimer.isRunning()) {
@@ -720,7 +762,8 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
             renderer.paintBackground(local, viewport, getWidth(), getHeight());
             local.transform(viewport.documentTransform());
             RenderState state = new RenderState(openDocument.document(), openDocument.netlist(),
-                    openDocument.netlistToken(), displayedSnapshot, selection.ids(), marchingAnts.phase());
+                    openDocument.netlistToken(), displayedSnapshot, selection.ids(), marchingAnts.phase(),
+                    problemPulse.phase());
             renderer.paint(local, state);
             for (CanvasOverlay overlay : overlays) {
                 overlay.paint(local, state);
@@ -752,6 +795,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
                 || !latest.problems().equals(displayedSnapshot.problems());
         displayedSnapshot = latest;
         if (visibleChange) {
+            updateProblemPulse();
             repaint();
         }
         snapshotListeners.forEach(listener -> listener.accept(latest));
@@ -759,6 +803,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
 
     private void documentChanged(CircuitDocument document, DocumentChange change) {
         selection.retain(change);
+        updateProblemPulse();
         repaint();
     }
 

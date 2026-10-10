@@ -169,6 +169,71 @@ class CircuitRendererTest {
         return count;
     }
 
+    private BufferedImage renderWithPulse(SimulationSnapshot snapshot, double pulsePhase) {
+        BufferedImage image = new BufferedImage(120, 120, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D graphics = image.createGraphics();
+        graphics.setColor(SCHEME.background());
+        graphics.fillRect(0, 0, 120, 120);
+        Netlist netlist = new NetlistCompiler(registry).compile(document);
+        renderer.paint(graphics, new RenderState(document, netlist, document.revision(), snapshot, Set.of(), 0,
+                pulsePhase));
+        graphics.dispose();
+        return image;
+    }
+
+    private static boolean reddish(int rgb) {
+        Color color = new Color(rgb);
+        return color.getRed() > color.getGreen() + 30 && color.getRed() > color.getBlue() + 30;
+    }
+
+    @Test
+    void aShortCircuitedWireGlowsBesideItAndTheGlowPulsesWithThePhase() {
+        Component high = registry.require(StandardComponentTypes.SWITCH).newComponent(document.newComponentId(),
+                new GridPoint(-3, 0), Rotation.R0, Map.of("value", "1"), "");
+        document.add(high);
+        document.add(wire);
+        Netlist netlist = new NetlistCompiler(registry).compile(document);
+        String netId = netlist.netForWire(wire.id()).orElseThrow().id().value();
+        ShortCircuit shortCircuit = new ShortCircuit(netId, List.of(new DriverRef(high.id().value(), 0, Value.ONE)), 0);
+        SimulationSnapshot shorted = snapshot(document.revision(), Map.of(netId, Value.ONE.withConflict()),
+                List.of(shortCircuit));
+
+        BufferedImage low = renderWithPulse(shorted, ProblemPulse.LOW_PHASE);
+        BufferedImage peak = renderWithPulse(shorted, ProblemPulse.HIGH_PHASE);
+
+        assertThat(reddish(peak.getRGB(24, 12))).as("glow beside the wire at the high phase").isTrue();
+        assertThat(peak.getRGB(24, 12)).isNotEqualTo(low.getRGB(24, 12));
+        assertThat(new Color(peak.getRGB(24, 8))).as("the wire itself stays crisp").isEqualTo(SCHEME.wireConflict());
+        assertThat(new Color(low.getRGB(24, 8))).isEqualTo(SCHEME.wireConflict());
+    }
+
+    @Test
+    void aMismatchedWireGlowsBesideItAndTheGlowPulsesWithThePhase() {
+        document.add(registry.require(StandardComponentTypes.LED).newComponent(document.newComponentId(),
+                new GridPoint(0, -2), Rotation.R0, Map.of(), "")); // its pin is at (1, 1)
+        document.add(wire);
+        splitterAt(5, 1);
+
+        BufferedImage low = renderWithPulse(SimulationSnapshot.EMPTY, ProblemPulse.LOW_PHASE);
+        BufferedImage peak = renderWithPulse(SimulationSnapshot.EMPTY, ProblemPulse.HIGH_PHASE);
+
+        assertThat(reddish(peak.getRGB(24, 12))).isTrue();
+        assertThat(peak.getRGB(24, 12)).isNotEqualTo(low.getRGB(24, 12));
+    }
+
+    @Test
+    void healthyWiresAndBusesGetNoGlow() {
+        document.add(wire);
+        SimulationSnapshot empty = snapshot(document.revision(), Map.of(), List.of());
+        assertThat(renderWithPulse(empty, ProblemPulse.HIGH_PHASE).getRGB(24, 12))
+                .isEqualTo(SCHEME.background().getRGB());
+
+        splitterAt(5, 1); // a 4-bit bus pin ends the wire: a bus, and nothing else on it
+        BufferedImage bus = renderWithPulse(empty, ProblemPulse.HIGH_PHASE);
+        assertThat(bus.getRGB(24, 13)).isEqualTo(SCHEME.background().getRGB());
+        assertThat(sameImage(bus, renderWithPulse(empty, ProblemPulse.LOW_PHASE))).isTrue();
+    }
+
     @Test
     void componentLabelIsDrawnAboveTheComponent() {
         Component gate = registry.require(StandardComponentTypes.NOT).newComponent(document.newComponentId(),

@@ -6,6 +6,7 @@ import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.geometry.Bounds;
+import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
 import cl.almejo.vsim.core.io.CircuitFragment;
@@ -13,7 +14,10 @@ import cl.almejo.vsim.core.io.FragmentFormat;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.ExampleDefinitions;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
+import cl.almejo.vsim.core.simulation.DriverRef;
+import cl.almejo.vsim.core.simulation.ShortCircuit;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
+import cl.almejo.vsim.core.value.Value;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.clipboard.FileListTransferable;
 import cl.almejo.vsim.ui.clipboard.FragmentTransferable;
@@ -353,6 +357,72 @@ class CircuitCanvasTest {
         canvas.selection().select(gate.id());
         canvas.removeNotify();
         assertThat(canvas.isAnimatingSelection()).isFalse();
+    }
+
+    /** A bus pin and a one-bit pin on one wire: a width mismatch, shown straight from the netlist. */
+    private void makeAWidthMismatch() {
+        place(openDocument, StandardComponentTypes.LED, 0, -2, Map.of());
+        openDocument.document().add(new Wire(openDocument.document().newWireId(), new GridPoint(1, 1),
+                new GridPoint(5, 1)));
+        place(openDocument, StandardComponentTypes.BUS_SPLITTER, 5, 1, Map.of(StandardComponentTypes.WIDTH, 4));
+    }
+
+    @Test
+    void theProblemPulseRunsOnlyWhileAProblemWireIsShown() {
+        assertThat(canvas.isAnimatingProblems()).isFalse();
+        makeAWidthMismatch();
+        assertThat(canvas.isAnimatingProblems()).isTrue();
+        assertThat(canvas.isAnimatingSelection()).as("the ants stay reserved for selections").isFalse();
+        openDocument.document().remove(openDocument.document().wires().iterator().next().id());
+        assertThat(canvas.isAnimatingProblems()).isFalse();
+    }
+
+    @Test
+    void aShortCircuitAlsoStartsThePulseAndATickStopsItWhenTheProblemIsGone() {
+        Component high = place(openDocument, StandardComponentTypes.SWITCH, -3, 0, Map.of("value", "1"));
+        Wire wire = new Wire(openDocument.document().newWireId(), new GridPoint(1, 1), new GridPoint(5, 1));
+        openDocument.document().add(wire);
+        String netId = openDocument.netlist().netForWire(wire.id()).orElseThrow().id().value();
+        ShortCircuit shortCircuit = new ShortCircuit(netId, List.of(new DriverRef(high.id().value(), 0, Value.ONE)), 0);
+        canvas.display(new SimulationSnapshot(1, openDocument.netlistToken(), 0, true,
+                Map.of(netId, Value.ONE.withConflict()), Map.of(), List.of(shortCircuit), Optional.empty()));
+        assertThat(canvas.isAnimatingProblems()).isTrue();
+
+        canvas.display(SimulationSnapshot.EMPTY);
+        assertThat(canvas.isAnimatingProblems()).isFalse();
+    }
+
+    @Test
+    void aTickAdvancesTheProblemPulsePhaseWhileAProblemIsShown() {
+        makeAWidthMismatch();
+        assertThat(canvas.problemPulsePhase()).isZero();
+        canvas.problemPulseTick();
+        assertThat(canvas.problemPulsePhase()).isGreaterThan(0).isLessThan(1);
+        for (int tick = 0; tick < 1000; tick++) {
+            canvas.problemPulseTick();
+            assertThat(canvas.problemPulsePhase()).isBetween(0.0, 1.0).isLessThan(1.0);
+        }
+    }
+
+    @Test
+    void theProblemPulseNeverRunsOffScreenOrAfterDispose() {
+        onScreen = false;
+        makeAWidthMismatch();
+        assertThat(canvas.isAnimatingProblems()).isFalse();
+        onScreen = true;
+        canvas.overrideOnScreen(() -> onScreen);
+        assertThat(canvas.isAnimatingProblems()).isTrue();
+        canvas.dispose();
+        assertThat(canvas.isAnimatingProblems()).isFalse();
+        canvas.overrideOnScreen(() -> onScreen);
+        assertThat(canvas.isAnimatingProblems()).isFalse();
+    }
+
+    @Test
+    void removingTheCanvasFromItsWindowStopsTheProblemPulse() {
+        makeAWidthMismatch();
+        canvas.removeNotify();
+        assertThat(canvas.isAnimatingProblems()).isFalse();
     }
 
     private static String fragmentJsonOf(OpenDocument source, Component component) {

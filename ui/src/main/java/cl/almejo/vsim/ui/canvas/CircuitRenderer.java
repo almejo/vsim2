@@ -27,6 +27,7 @@ import java.awt.RenderingHints;
 import java.awt.Shape;
 import java.awt.geom.Ellipse2D;
 import java.awt.geom.Line2D;
+import java.awt.geom.Path2D;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 import java.awt.geom.RoundRectangle2D;
@@ -47,6 +48,8 @@ public final class CircuitRenderer {
     private static final BasicStroke SELECTED_WIRE = new BasicStroke(8f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
     private static final BasicStroke CONFLICT_OUTLINE = new BasicStroke(1.5f, BasicStroke.CAP_BUTT,
             BasicStroke.JOIN_MITER, 10f, new float[]{4f, 3f}, 0f);
+    /** The glow under a problem wire is this much wider than the wire's own stroke, in document pixels. */
+    private static final BasicStroke PROBLEM_GLOW = new BasicStroke(12f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
     private static final float SELECTION_OUTLINE_WIDTH = 1.5f;
     private static final BasicStroke MISMATCH_WIRE = new BasicStroke(4.5f, BasicStroke.CAP_BUTT,
             BasicStroke.JOIN_ROUND, 10f, new float[]{6f, 4f}, 0f);
@@ -120,6 +123,16 @@ public final class CircuitRenderer {
                         state.selectionDashPhase());
             }
         }
+        // one path, so where problem wires meet the glow is not painted twice (and darker)
+        Path2D.Double glow = new Path2D.Double();
+        for (Wire wire : state.document().wires()) {
+            if (highlight.wires().contains(wire.id()) || mismatches.wires().contains(wire.id())) {
+                glow.append(line(wire), false);
+            }
+        }
+        graphics.setStroke(PROBLEM_GLOW);
+        graphics.setColor(withAlpha(scheme.wireConflict(), ProblemPulse.alpha(state.problemPulsePhase())));
+        graphics.draw(glow);
         for (Wire wire : state.document().wires()) {
             Optional<Net> net = state.netlist().netForWire(wire.id());
             boolean bus = net.map(found -> found.width() > 1).orElse(false);
