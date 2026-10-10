@@ -99,4 +99,21 @@ class PreferencesFeatureTest {
             disposer.run();
         }
     }
+
+    @Test
+    void preferencesIsOfferedToTheShortcutEditorUntilDisposed() {
+        Runnable disposer = new PreferencesFeature((parent, preferences) -> {
+        }).install(view);
+        JMenu file = view.menu(MenuId.FILE);
+        JMenuItem item = null;
+        for (int index = 0; index < file.getItemCount(); index++) {
+            if (file.getItem(index) != null && "Preferencias…".equals(file.getItem(index).getText())) {
+                item = file.getItem(index);
+            }
+        }
+        assertThat(item).isNotNull();
+        assertThat(view.shortcutActions().get("file.preferences")).isSameAs(item.getAction());
+        disposer.run();
+        assertThat(view.shortcutActions()).doesNotContainKey("file.preferences");
+    }
 }
