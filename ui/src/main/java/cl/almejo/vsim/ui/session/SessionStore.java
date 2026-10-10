@@ -44,7 +44,7 @@ public final class SessionStore {
                 }
             }
             session.flush();
-        } catch (BackingStoreException | IllegalStateException exception) {
+        } catch (BackingStoreException | RuntimeException exception) {
             LOGGER.warn("Could not save the session", exception);
         }
     }
@@ -71,7 +71,7 @@ public final class SessionStore {
                 }
                 documents.add(new SessionDocument(path, windows));
             }
-        } catch (BackingStoreException | IllegalStateException exception) {
+        } catch (BackingStoreException | RuntimeException exception) {
             LOGGER.warn("Could not read the session", exception);
         }
         return documents;

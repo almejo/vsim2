@@ -266,7 +266,7 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
         }
     }
 
-    /** A recents failure must never block saving, closing or exiting. */
+    /** RecentFiles never throws; the window's state can (a window with no size), and must not block saving. */
     private void rememberRecent(Path target) {
         try {
             recentFiles.remember(target, windowState());

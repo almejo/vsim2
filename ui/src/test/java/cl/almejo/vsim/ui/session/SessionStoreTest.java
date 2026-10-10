@@ -68,4 +68,11 @@ class SessionStoreTest {
 
         assertThat(store.load()).containsExactly(new SessionDocument(directory.resolve("contador.vsim"), List.of(RIGHT)));
     }
+
+    @Test
+    void aValueThePreferencesRefuseIsLoggedNotThrown() {
+        Path tooLong = Path.of("/" + "a".repeat(Preferences.MAX_VALUE_LENGTH) + ".vsim");
+        org.assertj.core.api.Assertions.assertThatCode(
+                () -> store.save(List.of(new SessionDocument(tooLong, List.of())))).doesNotThrowAnyException();
+    }
 }

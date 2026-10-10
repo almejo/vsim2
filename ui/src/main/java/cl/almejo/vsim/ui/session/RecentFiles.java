@@ -108,7 +108,7 @@ public final class RecentFiles {
                     entries.add(new Entry(path, SessionKeys.readWindowState(entryNode)));
                 }
             }
-        } catch (BackingStoreException | IllegalStateException exception) {
+        } catch (BackingStoreException | RuntimeException exception) {
             LOGGER.warn("Could not read the recent files", exception);
         }
         return entries;
@@ -127,7 +127,7 @@ public final class RecentFiles {
                 entry.state().ifPresent(state -> SessionKeys.writeWindowState(entryNode, state));
             }
             recentNode.flush();
-        } catch (BackingStoreException | IllegalStateException exception) {
+        } catch (BackingStoreException | RuntimeException exception) {
             LOGGER.warn("Could not save the recent files", exception);
         }
     }

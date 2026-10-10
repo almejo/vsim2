@@ -158,7 +158,7 @@ public final class Application {
         List<RecoveryCopy> reopened = new ArrayList<>();
         StartupSteps.run(() -> {
             List<RecoveryCopy> recovered = choices.map(this::askAboutRecoveryCopies).orElse(List.of());
-            StartupSequence.Plan plan = StartupSequence.plan(recovered, preferences.restoreSession(), loadSession(),
+            StartupSequence.Plan plan = StartupSequence.plan(recovered, preferences.restoreSession(), sessionStore.load(),
                     circuits, Files::isRegularFile);
             StartupSteps.openEach(plan.openings(), opening -> {
                 switch (opening) {
@@ -188,15 +188,6 @@ public final class Application {
             // The recovered documents get a copy of this run at once; each old copy goes only once the new copy of
             // its document is on disk (openRecovered asked for that), so a failing write keeps the old one.
             autosave.tick();
-        }
-    }
-
-    private List<SessionDocument> loadSession() {
-        try {
-            return sessionStore.load();
-        } catch (RuntimeException exception) {
-            LOGGER.warn("Could not read the last session", exception);
-            return List.of();
         }
     }
 
@@ -231,8 +222,8 @@ public final class Application {
             Optional<OpenDocument> document = read(path, requester);
             if (document.isPresent()) {
                 rememberDirectory(path);
-                touchRecent(path);
-                show(document.get(), recentStateFor(path)); // Assumption 19: whenever the file is opened
+                recentFiles.touch(path); // never throws: a Recientes failure never blocks opening (P3)
+                show(document.get(), recentFiles.stateFor(path)); // Assumption 19: whenever the file is opened
                 openedAny = true;
             }
         }
@@ -396,7 +387,7 @@ public final class Application {
             OpenDocument document = OpenDocument.openRecovered(copy.content(), copy.originalPath().orElse(null),
                     registry);
             List<WindowState> states = recovered.windows().isEmpty()
-                    ? copy.originalPath().flatMap(this::recentStateFor).stream().toList()
+                    ? copy.originalPath().flatMap(recentFiles::stateFor).stream().toList()
                     : recovered.windows();
             showViews(document, states);
             autosave.afterCopied(document, () -> discardQuietly(copy));
@@ -414,7 +405,7 @@ public final class Application {
         read(session.path(), null).ifPresent(document -> {
             rememberDirectory(session.path());
             showViews(document, session.windows().isEmpty()
-                    ? recentStateFor(session.path()).stream().toList() : session.windows());
+                    ? recentFiles.stateFor(session.path()).stream().toList() : session.windows());
         });
     }
 
@@ -431,6 +422,7 @@ public final class Application {
         autosave.shutdown();
     }
 
+    /** Capturing a window's state can fail (a window with no size); that must not stop the exit. */
     private void saveSession() {
         try {
             sessionStore.save(SessionDocument.capture(windows, CircuitWindow::windowState));
@@ -439,30 +431,15 @@ public final class Application {
         }
     }
 
-    /** Recientes keeps where a file's window was when it closed, without moving the file in the list. */
+    /**
+     * Recientes keeps where a file's window was when it closed, without moving the file in the list. Guarded for the
+     * window's state, which can fail (a window with no size), so the window still closes.
+     */
     private void rememberWindowState(CircuitWindow window) {
         try {
             window.openDocument().path().ifPresent(path -> recentFiles.updateState(path, window.windowState()));
         } catch (RuntimeException exception) {
             LOGGER.warn("Could not remember where {} was", window.openDocument().displayName(), exception);
-        }
-    }
-
-    /** A Recientes failure never blocks opening (P3). */
-    private void touchRecent(Path path) {
-        try {
-            recentFiles.touch(path);
-        } catch (RuntimeException exception) {
-            LOGGER.warn("Could not add {} to the recent files", path, exception);
-        }
-    }
-
-    private Optional<WindowState> recentStateFor(Path path) {
-        try {
-            return recentFiles.stateFor(path);
-        } catch (RuntimeException exception) {
-            LOGGER.warn("Could not read the recent state of {}", path, exception);
-            return Optional.empty();
         }
     }
 

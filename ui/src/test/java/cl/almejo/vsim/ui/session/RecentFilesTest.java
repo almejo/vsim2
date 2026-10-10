@@ -127,4 +127,11 @@ class RecentFilesTest {
         preferences.recentNode().node("1").put("path", file.toString());
         assertThat(recentFiles.entries()).containsExactly(file);
     }
+
+    @Test
+    void aValueThePreferencesRefuseIsLoggedNotThrown() {
+        Path tooLong = Path.of("/" + "a".repeat(Preferences.MAX_VALUE_LENGTH) + ".vsim");
+        org.assertj.core.api.Assertions.assertThatCode(() -> recentFiles.touch(tooLong)).doesNotThrowAnyException();
+        assertThat(recentFiles.entries()).isEmpty();
+    }
 }
