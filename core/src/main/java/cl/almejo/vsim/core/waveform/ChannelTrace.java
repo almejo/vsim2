@@ -44,7 +44,18 @@ public final class ChannelTrace {
 
     /** Records {@code value} at {@code time}; false when nothing changed. A time before the last one throws. */
     public boolean append(long time, Value value) {
-        return add(time, Objects.requireNonNull(value, "value"));
+        return add(time, canonical(Objects.requireNonNull(value, "value")));
+    }
+
+    /** 1-bit values share the {@link Value} constants, so a long 1-bit trace holds no Value instance per event. */
+    private static Value canonical(Value value) {
+        if (value.width() != 1 || value.conflict()) {
+            return value;
+        }
+        if (value.highImpedanceMask() != 0) {
+            return Value.HIGH_IMPEDANCE;
+        }
+        return value.bits() != 0 ? Value.ONE : Value.ZERO;
     }
 
     /** Records that the watched net disappeared at {@code time}; ignored before the first event. */

@@ -1,6 +1,7 @@
 package cl.almejo.vsim.core.simulation;
 
 import cl.almejo.vsim.core.value.Value;
+import cl.almejo.vsim.core.waveform.ChannelTrace;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -13,6 +14,8 @@ final class RuntimeNet {
     final boolean widthMismatch;
     /** Other ids under which the snapshot publishes this net's value (see FlatNet#aliases). */
     List<String> aliases = List.of();
+    /** Waveform channels watching this net; {@code List.of()} for an unprobed net (see WaveformRecorder#rebind). */
+    List<ChannelTrace> recorders = List.of();
     final List<PinState> pins = new ArrayList<>();
     Value value;
     long conflictSince = -1;
