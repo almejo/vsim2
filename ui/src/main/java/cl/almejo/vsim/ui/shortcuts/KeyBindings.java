@@ -131,7 +131,8 @@ public final class KeyBindings {
 
     private static KeyStroke parse(String stored) {
         try {
-            return KeyStroke.getKeyStroke(stored);
+            KeyStroke stroke = KeyStroke.getKeyStroke(stored);
+            return stroke != null && stroke.getKeyEventType() == KeyEvent.KEY_PRESSED ? stroke : null;
         } catch (IllegalArgumentException exception) {
             return null;
         }

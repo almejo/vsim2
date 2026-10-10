@@ -138,6 +138,14 @@ class KeyBindingsTest {
     }
 
     @Test
+    void aStoredStrokeThatIsNotAKeyPressIsInvalid() {
+        preferences.shortcutsNode().put("file.save", "typed a");
+        preferences.shortcutsNode().put("file.open", "ctrl released K");
+        assertThat(bindings.strokeFor("file.save")).isEqualTo(ShortcutCatalog.find("file.save").orElseThrow().defaultStroke());
+        assertThat(bindings.strokeFor("file.open")).isEqualTo(ShortcutCatalog.find("file.open").orElseThrow().defaultStroke());
+    }
+
+    @Test
     void unknownIdsAreRefusedForWriting() {
         assertThatThrownBy(() -> bindings.assign("not.an.action", plain(KeyEvent.VK_F9)))
                 .isInstanceOf(IllegalArgumentException.class);
