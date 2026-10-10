@@ -10,7 +10,6 @@ import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.netlist.Net;
-import cl.almejo.vsim.core.netlist.Netlist;
 import cl.almejo.vsim.core.netlist.PinRef;
 import cl.almejo.vsim.ui.paint.Appearance;
 import cl.almejo.vsim.ui.paint.ColorScheme;
@@ -34,7 +33,6 @@ import java.awt.geom.Path2D;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 import java.awt.geom.RoundRectangle2D;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -76,6 +74,7 @@ public final class CircuitRenderer {
     private final ComponentTypeRegistry registry;
     private final PainterRegistry painters;
     private final Appearance appearance;
+    private final HighlightCache highlights;
 
     public CircuitRenderer(ComponentTypeRegistry registry, PainterRegistry painters, ColorScheme scheme) {
         this(registry, painters, new Appearance(scheme));
@@ -85,11 +84,17 @@ public final class CircuitRenderer {
         this.registry = registry;
         this.painters = painters;
         this.appearance = appearance;
+        this.highlights = new HighlightCache(registry);
     }
 
     /** The scheme in use right now; it changes when the user picks another one. */
     public ColorScheme scheme() {
         return appearance.scheme();
+    }
+
+    /** The highlights and bus points of the last frame, shared with the canvas so it does not work them out again. */
+    public HighlightCache highlights() {
+        return highlights;
     }
 
     /** Background and grid dots, in screen coordinates. */
@@ -116,10 +121,8 @@ public final class CircuitRenderer {
         ColorScheme scheme = scheme();
         graphics.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         graphics.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
-        ShortCircuitHighlight highlight = ShortCircuitHighlight.of(state.snapshot(), state.netlist(),
-                state.netlistToken(), state.document(), registry);
-        WidthMismatchHighlight mismatches = WidthMismatchHighlight.of(state.snapshot(), state.netlist(),
-                state.netlistToken(), state.document(), registry);
+        ShortCircuitHighlight highlight = highlights.shortCircuits(state);
+        WidthMismatchHighlight mismatches = highlights.widthMismatches(state);
 
         for (Wire wire : state.document().wires()) {
             if (state.selection().contains(wire.id())) {
@@ -150,7 +153,7 @@ public final class CircuitRenderer {
                     : SignalColors.wireColor(net, state.snapshot(), state.netlistToken(), scheme));
             graphics.draw(line(wire));
         }
-        Set<GridPoint> busPoints = busPoints(state.netlist());
+        Set<GridPoint> busPoints = highlights.busPoints(state.netlist());
         graphics.setColor(scheme.componentStroke());
         for (GridPoint junction : junctionCache.of(state.document())) {
             graphics.fill(circle(junction, busPoints.contains(junction) ? BUS_JUNCTION_RADIUS : JUNCTION_RADIUS));
@@ -272,12 +275,6 @@ public final class CircuitRenderer {
         }
     }
 
-    /** Every point of every bus: junctions there get the bigger dot. */
-    private static Set<GridPoint> busPoints(Netlist netlist) {
-        Set<GridPoint> points = new HashSet<>();
-        netlist.nets().stream().filter(net -> net.width() > 1).forEach(net -> points.addAll(net.points()));
-        return points;
-    }
 
     /** Each bus's value in hex, above its longest wire (beside it when vertical), on a backdrop of the board color. */
     private void paintBusValues(Graphics2D graphics, RenderState state) {
