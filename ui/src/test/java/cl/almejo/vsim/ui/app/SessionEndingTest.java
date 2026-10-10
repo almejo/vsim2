@@ -12,6 +12,11 @@ class SessionEndingTest {
     private final List<String> events = new ArrayList<>();
     private final SessionEnding ending = new SessionEnding(() -> events.add("save"), () -> events.add("shutdown"));
 
+    @org.junit.jupiter.api.BeforeEach
+    void startUpFinished() {
+        ending.started();
+    }
+
     @Test
     void exitSavesOnceAndTheLastWindowShutsDown() {
         ending.exiting();
@@ -44,5 +49,18 @@ class SessionEndingTest {
         ending.windowClosed(true);
 
         assertThat(events).containsExactly("save", "shutdown");
+    }
+
+    @Test
+    void quittingBeforeTheStartHasFinishedKeepsTheStoredSession() {
+        List<String> early = new ArrayList<>();
+        SessionEnding starting = new SessionEnding(() -> early.add("save"), () -> early.add("shutdown"));
+        starting.exiting();
+        starting.windowClosing(true);
+        assertThat(early).isEmpty();
+
+        starting.started();
+        starting.exiting();
+        assertThat(early).containsExactly("save");
     }
 }

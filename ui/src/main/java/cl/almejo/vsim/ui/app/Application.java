@@ -182,6 +182,7 @@ public final class Application {
     }
 
     private void startAutosave(List<RecoveryCopy> reopened) {
+        sessionEnding.started();
         autosave.start();
         if (!reopened.isEmpty()) {
             // The recovered documents get a copy of this run at once; each old copy goes only once the new copy of
