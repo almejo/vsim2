@@ -165,7 +165,8 @@ class EditorViewTest {
         InspectorPanel inspector = view.inspector();
         assertThat(inspector.isVisible()).isTrue();
         assertThat(inspector.tabCount()).isEqualTo(2); // the Properties and Problems tabs
-        assertThat(((JSplitPane) inspector.getParent()).getLeftComponent()).isSameAs(view.canvas());
+        assertThat(((JSplitPane) inspector.getParent()).getLeftComponent()).isSameAs(view.bottomDock());
+        assertThat(view.bottomDock().getTopComponent()).isSameAs(view.canvas());
         inspector.addTab("Uno", new JLabel("1"));
         inspector.addTab("Dos", new JLabel("2"));
         assertThat(inspector.isVisible()).isTrue();
@@ -174,6 +175,16 @@ class EditorViewTest {
         assertThat(inspector.selectedTab()).contains("Dos");
         assertThatThrownBy(() -> inspector.showTab("Tres")).isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> inspector.addTab("Uno", new JLabel())).isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void theCanvasSitsInABottomDockThatStartsHiddenAndEmpty() {
+        view.setSize(1280, 760);
+        layoutTree(view);
+        assertThat(view.bottomDock().isDockShowing()).isFalse();
+        assertThat(view.bottomDock().content()).isEmpty();
+        assertThat(view.canvas().getHeight()).isEqualTo(view.bottomDock().getHeight()
+                - view.bottomDock().getInsets().top - view.bottomDock().getInsets().bottom);
     }
 
     @Test
