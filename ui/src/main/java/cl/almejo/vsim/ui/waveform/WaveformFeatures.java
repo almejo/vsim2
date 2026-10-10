@@ -39,6 +39,7 @@ public final class WaveformFeatures {
     private final JMenu viewMenu;
     private final java.awt.Component separator;
     private final JCheckBoxMenuItem toggleItem;
+    private final Runnable shortcutRemover;
     private final Runnable probeListener;
     private boolean disposed;
 
@@ -72,6 +73,7 @@ public final class WaveformFeatures {
         this.separator = viewMenu.getMenuComponent(viewMenu.getMenuComponentCount() - 1);
         this.toggleItem = new JCheckBoxMenuItem(toggle);
         viewMenu.add(toggleItem);
+        this.shortcutRemover = view.registerShortcutAction("waveforms.toggle", toggle);
         view.addContextMenuContributor(new WaveformMenuContributor(actions, this::afterAdd));
         this.probeListener = panel::probesChanged;
         openDocument.document().addProbeListener(probeListener);
@@ -152,6 +154,7 @@ public final class WaveformFeatures {
             return;
         }
         disposed = true;
+        shortcutRemover.run();
         view.openDocument().document().removeProbeListener(probeListener);
         view.bottomDock().removeDockListener(dockListener);
         view.canvas().removeOverlay(blink);

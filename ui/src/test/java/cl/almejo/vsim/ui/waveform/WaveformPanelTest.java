@@ -21,6 +21,7 @@ import javax.swing.JMenuItem;
 import javax.swing.JPopupMenu;
 import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
+import java.awt.Cursor;
 import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
 import java.lang.reflect.InvocationTargetException;
@@ -343,5 +344,11 @@ class WaveformPanelTest {
 
         assertThat(panel.isTimerRunning()).isFalse();
         assertThat(panel.isBlinkLit(ids.get(0))).isFalse();
+    }
+
+    @Test
+    void thePlotShowsACrosshairAndTheRulerAMoveCursor() {
+        assertThat(panel.plot().getCursor().getType()).isEqualTo(Cursor.CROSSHAIR_CURSOR);
+        assertThat(panel.ruler().getCursor().getType()).isEqualTo(Cursor.MOVE_CURSOR);
     }
 }

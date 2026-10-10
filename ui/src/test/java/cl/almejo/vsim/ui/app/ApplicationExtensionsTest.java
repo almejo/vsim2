@@ -112,6 +112,17 @@ class ApplicationExtensionsTest {
     }
 
     @Test
+    void theViewMenuEndsWithTheWaveformsToggle() {
+        EditorView view = new EditorView(openDocument, services, NO_WINDOW);
+        try {
+            assertThat(texts(view.menu(MenuId.VIEW))).endsWith("---", "Formas de onda");
+            assertThat(view.bottomDock().content()).isPresent();
+        } finally {
+            view.dispose();
+        }
+    }
+
+    @Test
     void theShortcutsExtensionBindsTheWindowMenuAcceleratorsAndCanvasKeys() {
         EditorView view = new EditorView(openDocument, services, NO_WINDOW);
         try {

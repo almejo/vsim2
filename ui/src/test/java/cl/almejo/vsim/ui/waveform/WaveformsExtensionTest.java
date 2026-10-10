@@ -252,4 +252,15 @@ class WaveformsExtensionTest {
             view.dispose();
         }
     }
+
+    @Test
+    void theToggleIsRegisteredForShortcutsWhileTheViewLives() {
+        EditorView view = new EditorView(openDocument, services, NO_WINDOW);
+        try {
+            assertThat(view.shortcutActions().get("waveforms.toggle")).isSameAs(toggleItem(view).getAction());
+        } finally {
+            view.dispose();
+        }
+        assertThat(view.shortcutActions()).doesNotContainKey("waveforms.toggle");
+    }
 }

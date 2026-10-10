@@ -5,6 +5,7 @@ import cl.almejo.vsim.ui.paint.ColorScheme;
 
 import javax.swing.JComponent;
 import javax.swing.ToolTipManager;
+import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.FontMetrics;
 import java.awt.Graphics;
@@ -33,6 +34,7 @@ final class TimeRuler extends JComponent {
     TimeRuler(WaveformPanel panel) {
         this.panel = panel;
         setOpaque(true);
+        setCursor(Cursor.getPredefinedCursor(Cursor.MOVE_CURSOR));
         ToolTipManager.sharedInstance().registerComponent(this);
         MouseAdapter drag = new MouseAdapter() {
             @Override

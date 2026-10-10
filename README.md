@@ -45,6 +45,13 @@ Diseño: `docs/superpowers/specs/2026-10-08-vsim2-design.md`.
 
 ## Formas de onda (M6)
 
+- Ver ▸ Formas de onda muestra, bajo el circuito, un panel con varias señales sobre el mismo eje de tiempo de simulación, como un analizador lógico. Se abre solo al agregar un canal o al abrir un circuito que tiene canales guardados; su altura se ajusta con el divisor. Desde Archivo ▸ Preferencias… ▸ Atajos de teclado se le puede asignar una tecla.
+- Clic derecho en un cable: «Ver en formas de onda»; en un componente: «Ver pines en formas de onda» (entradas primero); con varios elementos seleccionados: «Ver en formas de onda». Hay un canal por red, así que seleccionar una cadena de compuertas da una fila por red, en orden: se ve cómo avanza la señal. Dos redes que un componente une por dentro (un pin conectado directo a otro) cuentan como una sola. Como máximo hay 64 canales.
+- Una señal de 1 bit se dibuja alta o baja, Z como línea punteada al medio y un cortocircuito en rojo; un bus, como segmentos con su valor en hexadecimal (`0x3F`). Si se borra el componente de un canal, la fila dice «(sin conexión)» y la traza se raya; deshacer lo reconecta.
+- Rueda = mover el tiempo, Ctrl+rueda = acercar o alejar alrededor del puntero, arrastrar la regla = desplazar. «Seguir» mantiene el borde derecho en el tiempo actual (se apaga al mover a mano); mientras sigue, Ctrl+rueda acerca o aleja alrededor del borde derecho, no del puntero. «Ver retardos» muestra 20 píxeles por unidad, para contar el retardo de 1 unidad de cada compuerta; «Ver todo», «Acercar», «Alejar», «Limpiar trazas» y «Ocultar».
+- Un clic en la traza pone el cursor (se pega al flanco más cercano); la columna de nombres lee el valor de cada canal en el cursor y al pasar el ratón se ve «t = … · Δt = …». Con la traza enfocada, ← y → saltan al flanco anterior o siguiente de la fila elegida.
+- Clic derecho en un nombre: «Renombrar…», «Subir», «Bajar», «Quitar», «Quitar todos» y «Mostrar en el circuito» (también con doble clic). Cada cambio de canales se deshace en un paso y se guarda con el circuito; las trazas no se guardan. Cada canal recuerda sus últimos 65 536 cambios: lo anterior se descarta y se ve rayado.
+
 ## Sesión y recuperación (M6)
 
 - Cada minuto VSim guarda en silencio una copia de cada circuito con cambios sin guardar, en la carpeta `recovery` dentro de la carpeta de datos de VSim (`~/.local/share/vsim2`, `~/Library/Application Support/VSim2` o `%APPDATA%\VSim2`). Las copias se borran al guardar, al cerrar sin guardar, al deshacer hasta lo guardado y al salir normalmente: solo quedan si VSim se cae o se mata.
