@@ -262,10 +262,16 @@ public final class WaveformPanel extends JPanel {
         axisChanged();
     }
 
-    /** Wheel = scroll time; Ctrl+wheel = zoom around the pointer. */
+    /**
+     * Wheel = scroll time; Ctrl+wheel = zoom around the pointer, {@link #WHEEL_ZOOM_FACTOR} per notch, in proportion
+     * to {@code rotation} (a trackpad sends many fractions of a notch); wheel up zooms in. A rotation of 0 does nothing.
+     */
     void wheel(double x, double rotation, boolean zoom) {
+        if (rotation == 0) {
+            return;
+        }
         if (zoom) {
-            axis.zoomAround(x, rotation < 0 ? WHEEL_ZOOM_FACTOR : 1 / WHEEL_ZOOM_FACTOR);
+            axis.zoomAround(x, Math.pow(WHEEL_ZOOM_FACTOR, -rotation));
         } else {
             axis.scrollBy(rotation * WHEEL_SCROLL_PIXELS);
         }

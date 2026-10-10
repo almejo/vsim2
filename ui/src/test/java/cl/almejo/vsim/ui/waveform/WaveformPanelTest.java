@@ -209,6 +209,30 @@ class WaveformPanelTest {
         assertThat(panel.axis().scale()).isCloseTo(scale * WaveformPanel.WHEEL_ZOOM_FACTOR, within(1e-12));
     }
 
+    /** Review M1: a trackpad sends many small rotations; zoom follows how far the wheel turned. */
+    @Test
+    void ctrlWheelZoomFollowsHowFarTheWheelTurned() {
+        chain();
+        panel.axis().setWidth(800);
+        panel.display(new WaveformSnapshot(1, 4_000, Map.of()));
+        panel.wheel(400, 1, false); // stop following: the zoom keeps the time under the pointer
+        double scale = panel.axis().scale();
+        double timeUnderPointer = panel.axis().timeAt(300);
+
+        panel.wheel(300, -0.5, true);
+        panel.wheel(300, -0.5, true);
+        assertThat(panel.axis().scale()).isCloseTo(scale * WaveformPanel.WHEEL_ZOOM_FACTOR, within(1e-9));
+        assertThat(panel.axis().timeAt(300)).isCloseTo(timeUnderPointer, within(1e-6));
+
+        panel.wheel(300, 2, true);
+        assertThat(panel.axis().scale())
+                .isCloseTo(scale / WaveformPanel.WHEEL_ZOOM_FACTOR, within(1e-9)); // wheel down zooms out
+
+        double before = panel.axis().scale();
+        panel.wheel(300, 0, true);
+        assertThat(panel.axis().scale()).as("a rotation of 0 changes nothing").isEqualTo(before);
+    }
+
     @Test
     void aResizeWhileFollowingKeepsTheCurrentTimeAtTheRightEdge() {
         chain();
