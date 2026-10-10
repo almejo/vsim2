@@ -117,7 +117,7 @@ class EditingExtrasEndToEndTest {
     }
 
     @Test
-    void aNewViewShowsTheZoomAndCenterOfItsSource() {
+    void aViewStateRoundTripsThroughNewViewPlacement() {
         EditorView source = newView();
         EditorView copy = newView();
         source.canvas().applyViewState(new ViewState(2.0, 10.5, -4.0));

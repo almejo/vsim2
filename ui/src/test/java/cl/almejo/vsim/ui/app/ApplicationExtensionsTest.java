@@ -9,6 +9,7 @@ import cl.almejo.vsim.ui.library.SwingLibraryDialogs;
 import cl.almejo.vsim.ui.paint.Appearance;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
+import cl.almejo.vsim.ui.shortcuts.ShortcutCatalog;
 import cl.almejo.vsim.ui.window.EditorServices;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuId;
@@ -18,8 +19,12 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import javax.swing.Action;
+import javax.swing.JComponent;
 import javax.swing.JMenu;
 import javax.swing.JMenuItem;
+import javax.swing.KeyStroke;
+import java.awt.event.KeyEvent;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -111,11 +116,10 @@ class ApplicationExtensionsTest {
         EditorView view = new EditorView(openDocument, services, NO_WINDOW);
         try {
             assertThat(texts(view.menu(MenuId.WINDOW))).containsExactly("Nueva vista");
-            assertThat(view.actions().save().getValue(javax.swing.Action.ACCELERATOR_KEY))
-                    .isEqualTo(javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_S,
-                            java.awt.event.InputEvent.CTRL_DOWN_MASK));
-            assertThat(view.canvas().getInputMap(javax.swing.JComponent.WHEN_FOCUSED)
-                    .get(javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_DELETE, 0)))
+            assertThat(view.actions().save().getValue(Action.ACCELERATOR_KEY))
+                    .isEqualTo(KeyStroke.getKeyStroke(KeyEvent.VK_S, ShortcutCatalog.menuMask()));
+            assertThat(view.canvas().getInputMap(JComponent.WHEN_FOCUSED)
+                    .get(KeyStroke.getKeyStroke(KeyEvent.VK_DELETE, 0)))
                     .isEqualTo("shortcut.edit.delete");
         } finally {
             view.dispose();
