@@ -5,6 +5,7 @@ import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.netlist.Net;
 import cl.almejo.vsim.core.netlist.NetId;
+import cl.almejo.vsim.core.netlist.Netlist;
 import cl.almejo.vsim.core.value.Value;
 
 import java.util.ArrayList;
@@ -28,27 +29,44 @@ public final class BusLabels {
     private BusLabels() {
     }
 
+    /** Where {@code net} writes its value, worked out from the document and the netlist alone. */
+    public record Anchor(NetId net, double x, double y, boolean vertical) {
+    }
+
     public static List<BusLabel> of(RenderState state) {
+        return of(state, anchors(state.document(), state.netlist()));
+    }
+
+    /** The labels of {@code state}'s snapshot at {@code anchors} (from {@link #anchors} for its document and netlist). */
+    public static List<BusLabel> of(RenderState state, List<Anchor> anchors) {
         if (state.snapshot().token() != state.netlistToken()) {
             return List.of();
         }
         Set<String> mismatched = new HashSet<>();
         state.snapshot().widthMismatches().forEach(mismatch -> mismatched.add(mismatch.netId()));
         List<BusLabel> labels = new ArrayList<>();
-        for (Net net : state.netlist().nets()) {
-            if (net.width() < 2 || net.widthMismatch() || mismatched.contains(net.id().value())) {
-                continue;
+        for (Anchor anchor : anchors) {
+            Value value = state.snapshot().netValues().get(anchor.net().value());
+            if (value != null && !mismatched.contains(anchor.net().value())) {
+                labels.add(new BusLabel(anchor.net(), BusValueText.of(value), anchor.x(), anchor.y(),
+                        anchor.vertical()));
             }
-            Value value = state.snapshot().netValues().get(net.id().value());
-            Optional<Wire> longest = longestWire(state.document(), net);
-            if (value == null || longest.isEmpty()) {
-                continue;
-            }
-            Wire wire = longest.get();
-            labels.add(new BusLabel(net.id(), BusValueText.of(value), (wire.start().x() + wire.end().x()) * UNIT / 2,
-                    (wire.start().y() + wire.end().y()) * UNIT / 2, wire.start().x() == wire.end().x()));
         }
         return labels;
+    }
+
+    /** One anchor per bus with wires and no width mismatch of its own pins, in netlist order. */
+    public static List<Anchor> anchors(CircuitDocument document, Netlist netlist) {
+        List<Anchor> anchors = new ArrayList<>();
+        for (Net net : netlist.nets()) {
+            if (net.width() < 2 || net.widthMismatch()) {
+                continue;
+            }
+            longestWire(document, net).ifPresent(wire -> anchors.add(new Anchor(net.id(),
+                    (wire.start().x() + wire.end().x()) * UNIT / 2, (wire.start().y() + wire.end().y()) * UNIT / 2,
+                    wire.start().x() == wire.end().x())));
+        }
+        return List.copyOf(anchors);
     }
 
     private static Optional<Wire> longestWire(CircuitDocument document, Net net) {

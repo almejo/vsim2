@@ -1,6 +1,5 @@
 package cl.almejo.vsim.ui.problems;
 
-import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
@@ -33,8 +32,9 @@ public final class ShortCircuitPulse implements CanvasOverlay {
     private final LongSupplier nanoClock;
     private final Timer timer;
 
-    public ShortCircuitPulse(ComponentTypeRegistry registry, Runnable repaint, LongSupplier nanoClock) {
-        this.highlights = new HighlightCache(registry);
+    /** {@code highlights} is the canvas's ({@link cl.almejo.vsim.ui.canvas.CircuitCanvas#highlights()}). */
+    public ShortCircuitPulse(HighlightCache highlights, Runnable repaint, LongSupplier nanoClock) {
+        this.highlights = highlights;
         this.nanoClock = nanoClock;
         this.timer = new Timer(REPAINT_MILLISECONDS, event -> repaint.run());
     }
@@ -50,6 +50,10 @@ public final class ShortCircuitPulse implements CanvasOverlay {
 
     public boolean isPulsing() {
         return timer.isRunning();
+    }
+
+    HighlightCache highlights() {
+        return highlights;
     }
 
     public void dispose() {

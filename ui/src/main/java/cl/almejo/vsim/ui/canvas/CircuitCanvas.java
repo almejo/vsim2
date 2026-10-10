@@ -688,6 +688,14 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         }
     }
 
+    /**
+     * The highlights, bus labels and merged top-level nets of this canvas's frames, shared by its renderer, its
+     * overlays and its tooltips so a frame is worked out once.
+     */
+    public HighlightCache highlights() {
+        return renderer.highlights();
+    }
+
     /** Whether a wire of a short circuit or a width mismatch is on the canvas now (what the renderer glows). */
     private boolean problemWireShown() {
         HighlightCache highlights = renderer.highlights();

@@ -70,7 +70,6 @@ public final class ProblemsController {
     private SimulationSnapshot snapshot = SimulationSnapshot.EMPTY;
     private boolean disposed;
     private final ConnectionPoints connectionPoints;
-    private Memo memo;
 
     public ProblemsController(EditorView view) {
         this.openDocument = view.openDocument();
@@ -78,7 +77,7 @@ public final class ProblemsController {
         this.connectionPoints = new ConnectionPoints(openDocument.registry());
         this.statusBar = view.statusBar();
         this.blink = new NetBlink(canvas::scheme, canvas::repaint);
-        this.pulse = new ShortCircuitPulse(openDocument.registry(), canvas::repaint, System::nanoTime);
+        this.pulse = new ShortCircuitPulse(canvas.highlights(), canvas::repaint, System::nanoTime);
         this.navigator = new ProblemNavigator(canvas, blink);
         this.panel = new ProblemsPanel(openDocument, navigator::navigateTo);
 
@@ -267,20 +266,9 @@ public final class ProblemsController {
     /** The id the engine reports the problems of {@code net} under (the merged net's root through a template). */
     private String reportedId(CircuitDocument document, Net net) {
         String netId = net.id().value();
-        return snapshot.problems().isEmpty() ? netId : topLevelNets(document).rootOf(netId);
-    }
-
-    /** Flattening is costly and tooltips are asked on every mouse move: memoized per compiled netlist. */
-    private TopLevelNets topLevelNets(CircuitDocument document) {
-        long token = openDocument.netlistToken();
-        Netlist netlist = openDocument.netlist();
-        if (memo == null || memo.token() != token || memo.netlist() != netlist) {
-            memo = new Memo(token, netlist, TopLevelNets.of(document, netlist, openDocument.registry()));
-        }
-        return memo.nets();
-    }
-
-    private record Memo(long token, Netlist netlist, TopLevelNets nets) {
+        // Tooltips are asked on every mouse move: the canvas's cache flattens once per revision and netlist.
+        return snapshot.problems().isEmpty() ? netId
+                : canvas.highlights().topLevelNets(document, openDocument.netlist()).rootOf(netId);
     }
 
     /** The width-mismatch text of {@code net}: the one reported under {@code reportedId}, else its own pins'. */

@@ -282,7 +282,7 @@ public final class CircuitRenderer {
         graphics.setFont(BUS_FONT);
         graphics.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
         FontMetrics metrics = graphics.getFontMetrics();
-        for (BusLabels.BusLabel label : BusLabels.of(state)) {
+        for (BusLabels.BusLabel label : highlights.busLabels(state)) {
             double textWidth = metrics.stringWidth(label.text());
             double left = label.vertical() ? label.x() + BUS_LABEL_GAP : label.x() - textWidth / 2;
             double baseline = label.vertical() ? label.y() + (metrics.getAscent() - metrics.getDescent()) / 2.0
