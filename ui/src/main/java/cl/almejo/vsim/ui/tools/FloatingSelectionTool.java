@@ -37,6 +37,7 @@ public final class FloatingSelectionTool implements Tool {
     private Point2D pressPoint;
     private boolean finished;
     private ComponentTypeRegistry types;
+    private CanvasCursor shownCursor;
 
     public FloatingSelectionTool(CircuitFragment fragment, GridPoint position) {
         this.fragment = fragment;
@@ -67,8 +68,18 @@ public final class FloatingSelectionTool implements Tool {
 
     @Override
     public void mouseMoved(ToolContext context, CanvasMouseEvent event) {
-        if (following && !finished) {
+        if (finished) {
+            return;
+        }
+        if (following) {
             moveTo(context, event.snapped());
+        }
+        // a press on the fragment grabs it; elsewhere a click fixes it where it is
+        CanvasCursor next = following || covers(context, event.gridPosition()) ? CanvasCursor.MOVE
+                : CanvasCursor.DEFAULT;
+        if (next != shownCursor) {
+            shownCursor = next;
+            context.setCursor(next);
         }
     }
 
