@@ -129,9 +129,12 @@ class RecentFilesTest {
     }
 
     @Test
-    void aValueThePreferencesRefuseIsLoggedNotThrown() {
+    void aPathTooLongForThePreferencesIsSkippedAndTheListIsKept() throws IOException {
+        Path kept = create("kept");
+        recentFiles.remember(kept, STATE);
         Path tooLong = Path.of("/" + "a".repeat(Preferences.MAX_VALUE_LENGTH) + ".vsim");
         org.assertj.core.api.Assertions.assertThatCode(() -> recentFiles.touch(tooLong)).doesNotThrowAnyException();
-        assertThat(recentFiles.entries()).isEmpty();
+        assertThat(recentFiles.entries()).containsExactly(kept);
+        assertThat(recentFiles.stateFor(kept)).contains(STATE);
     }
 }

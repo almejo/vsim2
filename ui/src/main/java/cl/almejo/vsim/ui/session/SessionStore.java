@@ -27,7 +27,15 @@ public final class SessionStore {
     }
 
     /** Replaces the stored session with {@code documents}. */
-    public void save(List<SessionDocument> documents) {
+    public void save(List<SessionDocument> allDocuments) {
+        List<SessionDocument> documents = allDocuments.stream().filter(document -> {
+            boolean fits = SessionKeys.fitsInPreferences(document.path().toAbsolutePath());
+            if (!fits) {
+                LOGGER.warn("Not remembering a path of {} characters in the session",
+                        document.path().toAbsolutePath().toString().length());
+            }
+            return fits;
+        }).toList();
         try {
             Preferences session = preferences.sessionNode();
             SessionKeys.removeChildren(session);

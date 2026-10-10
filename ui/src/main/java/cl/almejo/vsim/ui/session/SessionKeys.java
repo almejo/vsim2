@@ -67,6 +67,14 @@ final class SessionKeys {
         }
     }
 
+    /**
+     * Whether {@code path} fits in a preference value. Checked before a list is rewritten: a value that is too long
+     * would make {@code put} throw after the old list was already removed.
+     */
+    static boolean fitsInPreferences(Path path) {
+        return path.toString().length() <= Preferences.MAX_VALUE_LENGTH;
+    }
+
     /** Removes every child of {@code node}, before a list is written again from the start. */
     static void removeChildren(Preferences node) throws BackingStoreException {
         for (String name : node.childrenNames()) {

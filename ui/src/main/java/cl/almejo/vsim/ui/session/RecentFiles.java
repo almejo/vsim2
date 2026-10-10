@@ -105,7 +105,14 @@ public final class RecentFiles {
         return entries;
     }
 
-    private void write(List<Entry> entries) {
+    private void write(List<Entry> allEntries) {
+        List<Entry> entries = allEntries.stream().filter(entry -> {
+            boolean fits = SessionKeys.fitsInPreferences(entry.path());
+            if (!fits) {
+                LOGGER.warn("Not adding a path of {} characters to the recent files", entry.path().toString().length());
+            }
+            return fits;
+        }).toList();
         try {
             Preferences recentNode = preferences.recentNode();
             SessionKeys.removeChildren(recentNode);

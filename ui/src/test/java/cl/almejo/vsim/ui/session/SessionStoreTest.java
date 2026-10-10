@@ -70,9 +70,13 @@ class SessionStoreTest {
     }
 
     @Test
-    void aValueThePreferencesRefuseIsLoggedNotThrown() {
+    void aPathTooLongForThePreferencesIsSkippedAndTheOthersAreSaved() {
+        Path kept = directory.resolve("kept.vsim");
         Path tooLong = Path.of("/" + "a".repeat(Preferences.MAX_VALUE_LENGTH) + ".vsim");
-        org.assertj.core.api.Assertions.assertThatCode(
-                () -> store.save(List.of(new SessionDocument(tooLong, List.of())))).doesNotThrowAnyException();
+        store.save(List.of(new SessionDocument(kept, List.of(LEFT))));
+        org.assertj.core.api.Assertions.assertThatCode(() -> store.save(List.of(
+                new SessionDocument(tooLong, List.of()), new SessionDocument(kept, List.of(RIGHT)))))
+                .doesNotThrowAnyException();
+        assertThat(store.load()).containsExactly(new SessionDocument(kept, List.of(RIGHT)));
     }
 }
