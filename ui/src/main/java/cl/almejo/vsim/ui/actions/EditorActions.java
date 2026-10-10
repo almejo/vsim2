@@ -12,6 +12,7 @@ import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.panels.ConfigureDialog;
+import cl.almejo.vsim.ui.shortcuts.ShortcutCatalog;
 import cl.almejo.vsim.ui.tools.PanTool;
 import cl.almejo.vsim.ui.tools.WireTool;
 import cl.almejo.vsim.ui.window.MenuId;
@@ -26,8 +27,6 @@ import javax.swing.JMenu;
 import javax.swing.JMenuBar;
 import javax.swing.JOptionPane;
 import javax.swing.KeyStroke;
-import java.awt.GraphicsEnvironment;
-import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
@@ -282,9 +281,7 @@ public final class EditorActions {
     }
 
     private static int menuShortcutMask() {
-        // Toolkit.getMenuShortcutKeyMaskEx() throws HeadlessException in headless tests.
-        return GraphicsEnvironment.isHeadless() ? InputEvent.CTRL_DOWN_MASK
-                : Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx();
+        return ShortcutCatalog.menuMask();
     }
 
     private static Action action(String name, KeyStroke accelerator, Runnable behavior) {
