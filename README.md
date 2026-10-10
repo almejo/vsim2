@@ -47,6 +47,12 @@ Diseño: `docs/superpowers/specs/2026-10-08-vsim2-design.md`.
 
 ## Sesión y recuperación (M6)
 
+- Cada minuto VSim guarda en silencio una copia de cada circuito con cambios sin guardar, en la carpeta `recovery` dentro de la carpeta de datos de VSim (`~/.local/share/vsim2`, `~/Library/Application Support/VSim2` o `%APPDATA%\VSim2`). Las copias se borran al guardar, al cerrar sin guardar, al deshacer hasta lo guardado y al salir normalmente: solo quedan si VSim se cae o se mata.
+- Si la vez anterior VSim no se cerró bien, al iniciar aparece «VSim 2 no se cerró correctamente…» con una fila por circuito («contador — guardado a las 14:32»; «⚠ el archivo cambió después» si el archivo es más nuevo que la copia). «Recuperar» abre los marcados como modificados y con su ruta original (Guardar sobrescribe el original; uno sin nombre pide dónde guardarlo); «Descartar» borra los marcados; «Decidir después» los guarda para el próximo inicio. Una copia dañada dice «no se puede leer» y solo se puede descartar. Las copias de más de 30 días se borran solas.
+- Archivo ▸ Recientes (después de «Abrir…») lista los últimos 10 circuitos abiertos o guardados como «nombre — carpeta» (el tooltip muestra la ruta completa), y «Limpiar lista». Un archivo que ya no existe se quita con un aviso. Al abrir un circuito —desde Recientes, Abrir, arrastrándolo o desde la línea de comandos— su ventana vuelve al tamaño, posición, maximizado, zoom y centro que tenía.
+- Continuar donde quedaste: al salir (Salir, Cmd+Q o cerrando la última ventana) VSim recuerda los circuitos con archivo que estaban abiertos, con cada una de sus vistas, y los vuelve a abrir al iniciar sin archivos en la línea de comandos; los que ya no existen se avisan una vez. Se desactiva en Archivo ▸ Preferencias… ▸ General ▸ «Al iniciar, abrir los circuitos de la última sesión». Los circuitos sin nombre no se recuerdan (vuelven solo por la recuperación).
+- Dos VSim abiertos a la vez no se confunden: cada uno guarda sus copias en su propia carpeta y nunca ofrece recuperar las de otro que sigue abierto.
+
 ## Atajos y vistas (M6)
 
 ## Preferencias y distribución

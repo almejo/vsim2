@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.app;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.io.CircuitFormatException;
+import cl.almejo.vsim.core.io.CircuitReader;
 import cl.almejo.vsim.core.io.LibraryDirectory;
 import cl.almejo.vsim.core.library.ComponentLibrary;
 import cl.almejo.vsim.ui.i18n.Messages;
@@ -15,6 +16,17 @@ import cl.almejo.vsim.ui.paint.Appearance;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.preferences.PreferencesFeature;
+import cl.almejo.vsim.ui.session.AutosaveService;
+import cl.almejo.vsim.ui.session.RecentFiles;
+import cl.almejo.vsim.ui.session.RecentFilesFeature;
+import cl.almejo.vsim.ui.session.RecoveryChoices;
+import cl.almejo.vsim.ui.session.RecoveryCopy;
+import cl.almejo.vsim.ui.session.RecoveryPrompt;
+import cl.almejo.vsim.ui.session.RecoveryStore;
+import cl.almejo.vsim.ui.session.SessionDocument;
+import cl.almejo.vsim.ui.session.SessionStore;
+import cl.almejo.vsim.ui.session.StartupSequence;
+import cl.almejo.vsim.ui.session.WindowState;
 import cl.almejo.vsim.ui.theme.ThemeManager;
 import cl.almejo.vsim.ui.tree.ComponentTreeExtension;
 import cl.almejo.vsim.ui.window.CircuitWindow;
@@ -25,12 +37,20 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.swing.JOptionPane;
+import javax.swing.SwingUtilities;
 import java.awt.Frame;
+import java.awt.GraphicsDevice;
+import java.awt.GraphicsEnvironment;
+import java.awt.Rectangle;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Clock;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Consumer;
 
 /** Open windows and documents of the running application (EDT only). A document closes with its last window. */
 public final class Application {
@@ -45,6 +65,11 @@ public final class Application {
     private final EditorServices services;
     private final ThemeManager themeManager;
     private final DocumentWindows<CircuitWindow> windows = new DocumentWindows<>();
+    private final RecentFiles recentFiles;
+    private final SessionStore sessionStore;
+    private final RecoveryStore recoveryStore;
+    private final AutosaveService autosave;
+    private boolean sessionSaved;
     private Path lastDirectory;
 
     public Application(AppPreferences preferences) {
@@ -54,6 +79,10 @@ public final class Application {
                 editorExtensions(libraryService, SwingLibraryDialogs.INSTANCE));
         // Lives as long as the application: it follows the preferences and is never disposed.
         this.themeManager = ThemeManager.forCurrentPlatform(preferences, appearance);
+        this.recentFiles = new RecentFiles(preferences);
+        this.sessionStore = new SessionStore(preferences);
+        this.recoveryStore = new RecoveryStore(preferences.dataDirectory().resolve("recovery"));
+        this.autosave = AutosaveService.create(recoveryStore);
     }
 
     /** The extensions of every editor view, in install order. Package-private so a test can install them all. */
@@ -64,6 +93,7 @@ public final class Application {
         editorExtensions.add(new ComponentTreeExtension());
         editorExtensions.add(new ActionIcons());
         editorExtensions.add(new PreferencesFeature());
+        editorExtensions.add(new RecentFilesFeature());
         return List.copyOf(editorExtensions);
     }
 
@@ -91,17 +121,52 @@ public final class Application {
         return registry;
     }
 
+    /**
+     * M6-B order at start: recovery dialog → last session (a recovered copy replaces its file) → command line. The
+     * recovery folder is scanned off the EDT (it reads every copy); the dialog and the windows come on the EDT.
+     */
     public void start(List<Path> files) {
         themeManager.start();
         libraryService.start(); // spec §5.6: read the library before the first palette is shown
+        // Not a daemon: it keeps the JVM alive until the EDT has the rest of the start queued.
+        Thread scan = new Thread(() -> {
+            Optional<RecoveryChoices<RecoveryCopy>> choices = scanRecoveryCopies();
+            SwingUtilities.invokeLater(() -> finishStart(files, choices));
+        }, "vsim-recovery-scan");
+        scan.start();
+    }
+
+    private void finishStart(List<Path> files, Optional<RecoveryChoices<RecoveryCopy>> choices) {
         List<Path> components = files.stream().filter(LibraryDirectory::isComponentFile).toList();
-        openPaths(files.stream().filter(file -> !components.contains(file)).toList(), null);
+        List<Path> circuits = files.stream().filter(file -> !components.contains(file)).toList();
+        List<RecoveryCopy> recovered = choices.map(this::askAboutRecoveryCopies).orElse(List.of());
+        StartupSequence.Plan plan = StartupSequence.plan(recovered, preferences.restoreSession(), sessionStore.load(),
+                circuits, Files::isRegularFile);
+        List<RecoveryCopy> reopened = new ArrayList<>();
+        for (StartupSequence.Opening opening : plan.openings()) {
+            switch (opening) {
+                case StartupSequence.Recovered copy -> openRecovered(copy).ifPresent(reopened::add);
+                case StartupSequence.FromSession session -> openFromSession(session);
+            }
+        }
+        if (!plan.missing().isEmpty()) {
+            JOptionPane.showMessageDialog(null, Messages.format("session.missing",
+                            String.join(", ", plan.missing().stream().map(Path::toString).toList())),
+                    Messages.text("session.missing.title"), JOptionPane.WARNING_MESSAGE);
+        }
+        openPaths(plan.commandLineFiles(), null); // through the already-open check: no file opens twice
         if (windows.isEmpty()) {
             newDocument();
         }
         if (!components.isEmpty()) {
             // A component file on the command line is imported into the library, as a drop on the window would.
             windows.all().get(0).openOrImport(components);
+        }
+        autosave.start();
+        if (!reopened.isEmpty()) {
+            // The recovered documents get a copy of this run first; their old copies go only once it is on disk.
+            autosave.tick();
+            autosave.afterPendingWrites(() -> reopened.forEach(this::discardQuietly));
         }
     }
 
@@ -134,7 +199,8 @@ public final class Application {
             Optional<OpenDocument> document = read(path, requester);
             if (document.isPresent()) {
                 rememberDirectory(path);
-                show(document.get());
+                touchRecent(path);
+                show(document.get(), recentStateFor(path)); // Assumption 19: whenever the file is opened
                 openedAny = true;
             }
         }
@@ -143,13 +209,14 @@ public final class Application {
         }
     }
 
-    /** Asks once per modified document; true when all windows were closed. */
+    /** Asks once per modified document; true when all windows were closed. The session is remembered first. */
     public boolean exit() {
         for (OpenDocument document : windows.documents()) {
             if (!windows.windowsOf(document).get(0).confirmSave()) {
                 return false;
             }
         }
+        saveSession();
         windows.all().forEach(CircuitWindow::closeQuietly);
         return true;
     }
@@ -182,10 +249,22 @@ public final class Application {
         }
     }
 
-    /** Called by a window after disposing itself; the document stops (simulation thread included) with its last window. */
+    /**
+     * Called by a window after disposing itself (its bounds and canvas size are still readable). The document stops
+     * (simulation thread included) and loses its recovery copy with its last window; the last window of the
+     * application also ends the session (Assumption 22) and, on a clean exit, this run's recovery folder goes.
+     */
     public void windowClosed(CircuitWindow window) {
-        windows.remove(window).ifPresent(OpenDocument::close);
+        if (!sessionSaved && windows.all().equals(List.of(window))) {
+            saveSession();
+        }
+        rememberWindowState(window);
+        windows.remove(window).ifPresent(document -> {
+            autosave.untrack(document);
+            document.close();
+        });
         if (windows.isEmpty()) {
+            autosave.shutdown(); // stops, drains the pending writes, then deletes this run's recovery folder
             libraryService.close();
             System.exit(0);
         }
@@ -202,11 +281,175 @@ public final class Application {
         }
     }
 
+    /**
+     * Off the EDT: deletes the copies older than 30 days, then lists and reads the copies of runs that did not close
+     * properly. Empty when there is nothing to offer; a failure is logged and offers nothing.
+     */
+    private Optional<RecoveryChoices<RecoveryCopy>> scanRecoveryCopies() {
+        try {
+            recoveryStore.cleanUp(Instant.now());
+            List<RecoveryCopy> orphans = recoveryStore.orphans();
+            if (orphans.isEmpty()) {
+                return Optional.empty();
+            }
+            CircuitReader reader = new CircuitReader(registry);
+            List<RecoveryChoices.Candidate<RecoveryCopy>> candidates = orphans.stream()
+                    .map(copy -> new RecoveryChoices.Candidate<>(copy, copy.displayName(), copy.originalPath(),
+                            copy.savedAt(), isReadable(reader, copy)))
+                    .toList();
+            return Optional.of(new RecoveryChoices<>(candidates, Application::lastModified,
+                    Clock.systemDefaultZone()));
+        } catch (RuntimeException exception) {
+            LOGGER.warn("Could not look for recovery copies", exception);
+            return Optional.empty();
+        }
+    }
+
+    /** On the EDT: asks about the copies and returns those to recover; the discarded ones are deleted off the EDT. */
+    private List<RecoveryCopy> askAboutRecoveryCopies(RecoveryChoices<RecoveryCopy> choices) {
+        RecoveryChoices.Outcome<RecoveryCopy> outcome = choices.outcome(RecoveryPrompt.ask(null, choices));
+        List<RecoveryCopy> discarded = outcome.discard();
+        if (!discarded.isEmpty()) {
+            autosave.afterPendingWrites(() -> discarded.forEach(this::discardQuietly));
+        }
+        return outcome.recover();
+    }
+
+    private static boolean isReadable(CircuitReader reader, RecoveryCopy copy) {
+        try {
+            reader.read(copy.content());
+            return true;
+        } catch (CircuitFormatException exception) {
+            LOGGER.warn("The recovery copy {} cannot be read", copy.content(), exception);
+            return false;
+        }
+    }
+
+    private static Optional<Instant> lastModified(Path file) {
+        try {
+            return Optional.of(Files.getLastModifiedTime(file).toInstant());
+        } catch (IOException exception) {
+            return Optional.empty();
+        }
+    }
+
+    /** Runs on the autosave writer, never on the EDT. */
+    private void discardQuietly(RecoveryCopy copy) {
+        try {
+            recoveryStore.discard(copy);
+        } catch (IOException | RuntimeException exception) {
+            LOGGER.warn("Could not delete the recovery copy {}", copy.content(), exception);
+        }
+    }
+
+    /** Opens a recovered copy as its modified original, with the session's views or else Recientes' state. */
+    private Optional<RecoveryCopy> openRecovered(StartupSequence.Recovered recovered) {
+        RecoveryCopy copy = recovered.copy();
+        try {
+            OpenDocument document = OpenDocument.openRecovered(copy.content(), copy.originalPath().orElse(null),
+                    registry);
+            List<WindowState> states = recovered.windows().isEmpty()
+                    ? copy.originalPath().flatMap(this::recentStateFor).stream().toList()
+                    : recovered.windows();
+            showViews(document, states);
+            return Optional.of(copy);
+        } catch (CircuitFormatException exception) {
+            LOGGER.warn("Could not recover {}", copy.content(), exception);
+            JOptionPane.showMessageDialog(null, Messages.readError(exception), Messages.text("error.open.title"),
+                    JOptionPane.ERROR_MESSAGE);
+            return Optional.empty(); // the copy stays for the next start
+        }
+    }
+
+    /** A file of the last session; a session document without windows opens with Recientes' or default placement. */
+    private void openFromSession(StartupSequence.FromSession session) {
+        read(session.path(), null).ifPresent(document -> {
+            rememberDirectory(session.path());
+            showViews(document, session.windows().isEmpty()
+                    ? recentStateFor(session.path()).stream().toList() : session.windows());
+        });
+    }
+
+    /** One window per state, each placed and zoomed as it was; one plain window when there is no state. */
+    private void showViews(OpenDocument document, List<WindowState> states) {
+        if (states.isEmpty()) {
+            show(document, Optional.empty());
+            return;
+        }
+        states.forEach(state -> show(document, Optional.of(state)));
+    }
+
+    private void saveSession() {
+        sessionSaved = true;
+        try {
+            sessionStore.save(SessionDocument.capture(windows, CircuitWindow::windowState));
+        } catch (RuntimeException exception) {
+            LOGGER.warn("Could not remember the session", exception);
+        }
+    }
+
+    /** Recientes keeps where a file's window was when it closed, without moving the file in the list. */
+    private void rememberWindowState(CircuitWindow window) {
+        try {
+            window.openDocument().path().ifPresent(path -> recentFiles.updateState(path, window.windowState()));
+        } catch (RuntimeException exception) {
+            LOGGER.warn("Could not remember where {} was", window.openDocument().displayName(), exception);
+        }
+    }
+
+    /** A Recientes failure never blocks opening (P3). */
+    private void touchRecent(Path path) {
+        try {
+            recentFiles.touch(path);
+        } catch (RuntimeException exception) {
+            LOGGER.warn("Could not add {} to the recent files", path, exception);
+        }
+    }
+
+    private Optional<WindowState> recentStateFor(Path path) {
+        try {
+            return recentFiles.stateFor(path);
+        } catch (RuntimeException exception) {
+            LOGGER.warn("Could not read the recent state of {}", path, exception);
+            return Optional.empty();
+        }
+    }
+
     private CircuitWindow show(OpenDocument document) {
+        return show(document, window -> {
+        });
+    }
+
+    private CircuitWindow show(OpenDocument document, Consumer<CircuitWindow> beforeShowing) {
         CircuitWindow window = new CircuitWindow(this, document, services);
         windows.add(document, window);
+        autosave.track(document); // M6-B: every open document is copied while modified
+        beforeShowing.accept(window);
         window.setVisible(true);
         return window;
+    }
+
+    /** A new window on {@code document}, placed, sized and zoomed as {@code state} says, clamped to the screens. */
+    private CircuitWindow show(OpenDocument document, Optional<WindowState> state) {
+        return show(document,
+                window -> state.ifPresent(saved -> window.restoreWindowState(saved.clampedTo(screens()))));
+    }
+
+    /** The bounds of every screen, the primary first (clampedTo falls back to the first); none when headless. */
+    private static List<Rectangle> screens() {
+        if (GraphicsEnvironment.isHeadless()) {
+            return List.of();
+        }
+        GraphicsEnvironment environment = GraphicsEnvironment.getLocalGraphicsEnvironment();
+        GraphicsDevice primary = environment.getDefaultScreenDevice();
+        List<Rectangle> screens = new ArrayList<>();
+        screens.add(primary.getDefaultConfiguration().getBounds());
+        for (GraphicsDevice device : environment.getScreenDevices()) {
+            if (device != primary) {
+                screens.add(device.getDefaultConfiguration().getBounds());
+            }
+        }
+        return screens;
     }
 
     private void focus(CircuitWindow window) {
