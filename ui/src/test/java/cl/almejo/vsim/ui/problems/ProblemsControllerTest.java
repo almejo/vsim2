@@ -345,22 +345,26 @@ class ProblemsControllerTest {
     @Test
     void theMergedNetsMemoRefreshesWhenTheNetlistChanges() {
         PassThroughCircuit circuit = PassThroughCircuit.addTo(openDocument);
-        view.problems().showSnapshot(circuit.shortSnapshot(openDocument));
         String expected = "Interruptor → 1 · Interruptor → 0";
-        assertThat(view.canvas().getToolTipText(hoverAt(56, 160))).isEqualTo(expected);
+
+        // Without the template instance the two sides are separate nets: the memo is rebuilt as "nothing merged".
+        openDocument.execute(new RemoveElementsCommand(List.of(circuit.instance().id())));
+        String rightNetId = openDocument.netlist().netForWire(circuit.rightAcross().id()).orElseThrow().id().value();
+        view.problems().showSnapshot(shortCircuitSnapshot(circuit, rightNetId, 2));
         assertThat(view.canvas().getToolTipText(hoverAt(152, 160))).isEqualTo(expected);
 
-        // The side that is not the reported root: a stale memo would still send it to the old root id.
-        boolean rootIsLeft = circuit.rootNetId(openDocument).equals(circuit.leftNetId(openDocument));
-        Wire survivor = rootIsLeft ? circuit.rightAcross() : circuit.left();
-        int hoverX = rootIsLeft ? 152 : 56;
-        openDocument.execute(new RemoveElementsCommand(List.of(circuit.instance().id())));
-        String survivorNetId = openDocument.netlist().netForWire(survivor.id()).orElseThrow().id().value();
-        view.problems().showSnapshot(new SimulationSnapshot(2, openDocument.netlistToken(), 10, true, Map.of(),
-                Map.of(), List.of(new ShortCircuit(survivorNetId, List.of(
-                        new DriverRef(circuit.high().id().value(), 0, Value.ONE),
-                        new DriverRef(circuit.low().id().value(), 0, Value.ZERO)), 5)), Optional.empty()));
+        // Merged again (new token): a stale "nothing merged" memo would not resolve the right side to the root.
+        openDocument.history().undo();
+        view.problems().showSnapshot(circuit.shortSnapshot(openDocument));
+        assertThat(view.canvas().getToolTipText(hoverAt(152, 160))).isEqualTo(expected);
+        assertThat(view.canvas().getToolTipText(hoverAt(56, 160))).isEqualTo(expected);
+    }
 
-        assertThat(view.canvas().getToolTipText(hoverAt(hoverX, 160))).isEqualTo(expected);
+    private SimulationSnapshot shortCircuitSnapshot(PassThroughCircuit circuit, String netId, long sequence) {
+        ShortCircuit shortCircuit = new ShortCircuit(netId, List.of(
+                new DriverRef(circuit.high().id().value(), 0, Value.ONE),
+                new DriverRef(circuit.low().id().value(), 0, Value.ZERO)), 5);
+        return new SimulationSnapshot(sequence, openDocument.netlistToken(), 10, true, Map.of(), Map.of(),
+                List.of(shortCircuit), Optional.empty());
     }
 }
