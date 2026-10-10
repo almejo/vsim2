@@ -103,9 +103,4 @@ class CatalogMatchesEditorTest {
             }
         }
     }
-
-    @Test
-    void theCatalogUsesTheMenuMaskTheEditorUses() {
-        assertThat(view.actions().menuShortcutMaskForBindings()).isEqualTo(ShortcutCatalog.menuMask());
-    }
 }

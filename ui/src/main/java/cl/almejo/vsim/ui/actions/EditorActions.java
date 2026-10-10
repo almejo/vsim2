@@ -42,7 +42,7 @@ public final class EditorActions {
 
     private final OpenDocument openDocument;
     private final CircuitCanvas canvas;
-    private final int menuMask = menuShortcutMask();
+    private final int menuMask = ShortcutCatalog.menuMask();
     private final HistoryListener historyListener = history -> refresh();
 
     private final Action newDocument;
@@ -275,17 +275,8 @@ public final class EditorActions {
                 ? Optional.empty() : Optional.of(component);
     }
 
-    /** The platform menu modifier (Ctrl, or ⌘ on macOS); Ctrl when headless. */
-    public int menuShortcutMaskForBindings() {
-        return menuMask;
-    }
-
     private KeyStroke shortcut(int keyCode, int extraModifiers) {
         return KeyStroke.getKeyStroke(keyCode, menuMask | extraModifiers);
-    }
-
-    private static int menuShortcutMask() {
-        return ShortcutCatalog.menuMask();
     }
 
     private static Action action(String name, KeyStroke accelerator, Runnable behavior) {

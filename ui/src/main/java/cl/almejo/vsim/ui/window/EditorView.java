@@ -19,6 +19,7 @@ import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.panels.PalettePanel;
 import cl.almejo.vsim.ui.panels.StatusBar;
 import cl.almejo.vsim.ui.problems.ProblemsController;
+import cl.almejo.vsim.ui.shortcuts.ShortcutCatalog;
 import cl.almejo.vsim.ui.tools.PanTool;
 import cl.almejo.vsim.ui.tools.PlaceComponentTool;
 import cl.almejo.vsim.ui.tools.SelectTool;
@@ -323,7 +324,7 @@ public final class EditorView extends JPanel implements CanvasHost {
 
     /** Menu accelerators allow one keystroke each; these cover "+" on non-US layouts and the keypad. */
     private void bindZoomKeys() {
-        int mask = actions.menuShortcutMaskForBindings();
+        int mask = ShortcutCatalog.menuMask();
         var keys = getInputMap(WHEN_ANCESTOR_OF_FOCUSED_COMPONENT);
         keys.put(KeyStroke.getKeyStroke(KeyEvent.VK_PLUS, mask), "zoomIn");
         keys.put(KeyStroke.getKeyStroke(KeyEvent.VK_ADD, mask), "zoomIn");

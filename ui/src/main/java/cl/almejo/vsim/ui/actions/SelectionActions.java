@@ -14,6 +14,7 @@ import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.clipboard.FragmentClipboard;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.shortcuts.ShortcutCatalog;
 import cl.almejo.vsim.ui.tools.FloatingSelectionTool;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -59,7 +60,7 @@ public final class SelectionActions {
         this.editorActions = editorActions;
         this.clipboard = clipboard;
         this.format = new FragmentFormat(openDocument.registry());
-        int menuMask = editorActions.menuShortcutMaskForBindings();
+        int menuMask = ShortcutCatalog.menuMask();
         cut = action(Messages.text("action.cut"), KeyStroke.getKeyStroke(KeyEvent.VK_X, menuMask), this::cutSelection);
         copy = action(Messages.text("action.copy"), KeyStroke.getKeyStroke(KeyEvent.VK_C, menuMask), this::copySelection);
         paste = action(Messages.text("action.paste"), KeyStroke.getKeyStroke(KeyEvent.VK_V, menuMask),
