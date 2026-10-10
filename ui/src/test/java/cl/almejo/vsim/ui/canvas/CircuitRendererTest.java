@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.canvas;
 
+import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.CircuitDocument;
@@ -308,5 +309,85 @@ class CircuitRendererTest {
 
         // the first dash covers x 8..14 px of the wire at y = 8 px
         assertThat(new Color(image.getRGB(10, 8))).isEqualTo(SCHEME.wireConflict());
+    }
+
+    private Component busComponentAt(String typeId, int x, int y) {
+        Component component = registry.require(typeId).newComponent(document.newComponentId(), new GridPoint(x, y),
+                Rotation.R0, Map.of(StandardComponentTypes.WIDTH, 4), "");
+        document.add(component);
+        return component;
+    }
+
+    private BufferedImage renderCompiled() {
+        Netlist netlist = new NetlistCompiler(registry).compile(document);
+        return render(SimulationSnapshot.EMPTY, netlist, document.revision());
+    }
+
+    private Color pinCenter(BufferedImage image, Component component, int pinIndex) {
+        GridPoint pin = registry.typeOf(component).pinLocation(component, pinIndex);
+        return new Color(image.getRGB(pin.x() * 8, pin.y() * 8));
+    }
+
+    /** The hole of a ring is a couple of pixels wide, so its center only reads as the board color, not exactly. */
+    private static boolean isHollow(Color center) {
+        return distance(center, SCHEME.background()) < distance(center, SCHEME.componentStroke()) / 4;
+    }
+
+    private static int distance(Color first, Color second) {
+        return Math.abs(first.getRed() - second.getRed()) + Math.abs(first.getGreen() - second.getGreen())
+                + Math.abs(first.getBlue() - second.getBlue());
+    }
+
+    @Test
+    void anOpenPinOfABusJoinerIsAHollowRingAndAWiredPinKeepsItsDot() {
+        Component joiner = busComponentAt(StandardComponentTypes.BUS_JOINER, 3, 3);
+        // bit 0 (pin 1) is at (3, 4); wire it to the left; the others stay open
+        document.add(new Wire(document.newWireId(), new GridPoint(1, 4), new GridPoint(3, 4)));
+
+        BufferedImage image = renderCompiled();
+
+        assertThat(pinCenter(image, joiner, 1)).isEqualTo(SCHEME.componentStroke());
+        assertThat(isHollow(pinCenter(image, joiner, 2))).isTrue();
+assertThat(isHollow(pinCenter(image, joiner, 3))).isTrue();
+        // the open output bus pin is a hollow square
+        assertThat(isHollow(pinCenter(image, joiner, 0))).isTrue();
+    }
+
+    @Test
+    void aBusSplitterWithAllItsPinsWiredHasNoRing() {
+        Component splitter = busComponentAt(StandardComponentTypes.BUS_SPLITTER, 3, 3);
+        ComponentType type = registry.typeOf(splitter);
+        for (int pinIndex = 0; pinIndex < type.pinCount(); pinIndex++) {
+            GridPoint pin = type.pinLocation(splitter, pinIndex);
+            document.add(new Wire(document.newWireId(), pin, new GridPoint(pin.x() + (pinIndex == 0 ? -2 : 2), pin.y())));
+        }
+
+        BufferedImage image = renderCompiled();
+
+        for (int pinIndex = 0; pinIndex < type.pinCount(); pinIndex++) {
+            assertThat(pinCenter(image, splitter, pinIndex)).isEqualTo(SCHEME.componentStroke());
+        }
+    }
+
+    @Test
+    void anOpenPinOfAGateIsUnchanged() {
+        Component gate = registry.require(StandardComponentTypes.NOT).newComponent(document.newComponentId(),
+                new GridPoint(3, 3), Rotation.R0, Map.of(), "");
+        document.add(gate);
+
+        BufferedImage image = renderCompiled();
+
+        assertThat(pinCenter(image, gate, 0)).isEqualTo(SCHEME.componentStroke());
+    }
+
+    @Test
+    void aStaleNetlistMarksNoPin() {
+        Component joiner = busComponentAt(StandardComponentTypes.BUS_JOINER, 3, 3);
+        Netlist netlist = new NetlistCompiler(registry).compile(document);
+        document.add(new Wire(document.newWireId(), new GridPoint(1, 4), new GridPoint(3, 4)));
+
+        BufferedImage image = render(SimulationSnapshot.EMPTY, netlist, document.revision() - 1);
+
+        assertThat(pinCenter(image, joiner, 2)).isEqualTo(SCHEME.componentStroke());
     }
 }

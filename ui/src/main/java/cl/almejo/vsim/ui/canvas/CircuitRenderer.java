@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.canvas;
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.VisibleState;
+import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.TextLabel;
@@ -10,6 +11,7 @@ import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.netlist.Net;
 import cl.almejo.vsim.core.netlist.Netlist;
+import cl.almejo.vsim.core.netlist.PinRef;
 import cl.almejo.vsim.ui.paint.Appearance;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.ComponentDrawing;
@@ -55,6 +57,10 @@ public final class CircuitRenderer {
     private static final double JUNCTION_RADIUS = 3.5;
     private static final double BUS_JUNCTION_RADIUS = 5;
     private static final double HALO_RADIUS = 7;
+    /** The pin dot's size (see PainterSupport), so the ring of an open pin covers exactly the dot. */
+    private static final double OPEN_PIN_RADIUS = 1.6;
+    private static final double OPEN_BUS_PIN_HALF_SIDE = 2.2;
+    private static final BasicStroke OPEN_PIN_RING = new BasicStroke(1f);
     private static final Font BUS_FONT = LabelLayout.FONT.deriveFont(Font.BOLD, 9f);
     /** Gap between a bus and its value, in document pixels. */
     private static final double BUS_LABEL_GAP = 4;
@@ -163,6 +169,43 @@ public final class CircuitRenderer {
             graphics.draw(circle(pin, HALO_RADIUS));
         }
         paintPinWidths(graphics, mismatches);
+        paintOpenBusPins(graphics, state);
+    }
+
+    /**
+     * An empty socket (a hollow mark, same size as the pin dot) on each pin of a bus splitter or joiner that nothing
+     * else touches, so a bit left unwired is noticed. Only with a netlist that matches the document.
+     */
+    private void paintOpenBusPins(Graphics2D graphics, RenderState state) {
+        if (state.netlistToken() != state.document().revision()) {
+            return;
+        }
+        ColorScheme scheme = scheme();
+        graphics.setStroke(OPEN_PIN_RING);
+        for (Component component : state.document().components()) {
+            if (!StandardComponentTypes.BUS_SPLITTER.equals(component.typeId())
+                    && !StandardComponentTypes.BUS_JOINER.equals(component.typeId())) {
+                continue;
+            }
+            ComponentType type = registry.typeOf(component);
+            for (int pinIndex = 0; pinIndex < type.pinCount(); pinIndex++) {
+                Optional<Net> net = state.netlist().netForPin(new PinRef(component.id(), pinIndex));
+                boolean open = net.map(found -> found.pins().size() == 1 && found.wires().isEmpty()).orElse(true);
+                if (!open) {
+                    continue;
+                }
+                GridPoint location = type.pinLocation(component, pinIndex);
+                Shape mark = type.pin(pinIndex).width() > 1
+                        ? new Rectangle2D.Double(location.x() * UNIT - OPEN_BUS_PIN_HALF_SIDE,
+                        location.y() * UNIT - OPEN_BUS_PIN_HALF_SIDE, 2 * OPEN_BUS_PIN_HALF_SIDE,
+                        2 * OPEN_BUS_PIN_HALF_SIDE)
+                        : circle(location, OPEN_PIN_RADIUS);
+                graphics.setColor(scheme.background());
+                graphics.fill(mark);
+                graphics.setColor(scheme.componentStroke());
+                graphics.draw(mark);
+            }
+        }
     }
 
     /** The widths of the pins of mismatched nets ("1", "8", or "1/8" for pins touching at one point). */
