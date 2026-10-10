@@ -94,7 +94,7 @@ class KeyBindingsTest {
     @Test
     void resetAllForgetsEveryOverride() throws Exception {
         bindings.assign("file.save", control(KeyEvent.VK_G));
-        bindings.assign("view.wireTool", plain(KeyEvent.VK_W));
+        bindings.assign("view.wireTool", KeyStroke.getKeyStroke(KeyEvent.VK_W, InputEvent.ALT_DOWN_MASK));
         bindings.clear("edit.undo");
         preferences.addListener(changes::incrementAndGet);
         bindings.resetAll();
@@ -157,5 +157,47 @@ class KeyBindingsTest {
         assertThat(KeyBindings.describe(control(KeyEvent.VK_S)))
                 .isEqualTo(KeyEvent.getModifiersExText(CONTROL) + "+" + KeyEvent.getKeyText(KeyEvent.VK_S));
         assertThat(KeyBindings.describe(plain(KeyEvent.VK_F2))).isEqualTo(KeyEvent.getKeyText(KeyEvent.VK_F2));
+    }
+
+    @Test
+    void aMenuActionRefusesAKeyWithoutCtrlAltOrMeta() {
+        int shift = InputEvent.SHIFT_DOWN_MASK;
+        for (KeyStroke bare : java.util.List.of(plain(KeyEvent.VK_W), KeyStroke.getKeyStroke(KeyEvent.VK_W, shift),
+                plain(KeyEvent.VK_DELETE), plain(KeyEvent.VK_1))) {
+            assertThatThrownBy(() -> bindings.assign("view.wireTool", bare))
+                    .isInstanceOf(IllegalArgumentException.class);
+            assertThat(KeyBindings.isAllowedFor(ShortcutCatalog.find("view.wireTool").orElseThrow(), bare)).isFalse();
+        }
+        assertThat(bindings.strokeFor("view.wireTool")).isEmpty();
+    }
+
+    @Test
+    void aMenuActionAcceptsModifiedKeysAndFunctionKeys() {
+        bindings.assign("view.wireTool", KeyStroke.getKeyStroke(KeyEvent.VK_W, InputEvent.ALT_DOWN_MASK));
+        assertThat(bindings.strokeFor("view.wireTool"))
+                .contains(KeyStroke.getKeyStroke(KeyEvent.VK_W, InputEvent.ALT_DOWN_MASK));
+        bindings.assign("view.panTool", KeyStroke.getKeyStroke(KeyEvent.VK_P, InputEvent.META_DOWN_MASK));
+        bindings.assign("view.selectTool", KeyStroke.getKeyStroke(KeyEvent.VK_Q, InputEvent.ALT_GRAPH_DOWN_MASK));
+        bindings.assign("simulation.start", plain(KeyEvent.VK_F5));
+        bindings.assign("simulation.pause", KeyStroke.getKeyStroke(KeyEvent.VK_F24, InputEvent.SHIFT_DOWN_MASK));
+        bindings.assign("simulation.step", plain(KeyEvent.VK_F13));
+        assertThat(bindings.strokeFor("simulation.start")).contains(plain(KeyEvent.VK_F5));
+        assertThat(bindings.strokeFor("simulation.step")).contains(plain(KeyEvent.VK_F13));
+    }
+
+    @Test
+    void aCanvasActionStillTakesAPlainKey() {
+        bindings.assign("edit.rotateClockwise", plain(KeyEvent.VK_T));
+        assertThat(bindings.strokeFor("edit.rotateClockwise")).contains(plain(KeyEvent.VK_T));
+    }
+
+    @Test
+    void aStoredPlainKeyOnAMenuActionFallsBackToTheDefault() {
+        preferences.shortcutsNode().put("file.save", "pressed W");
+        preferences.shortcutsNode().put("view.wireTool", "shift pressed W");
+        preferences.shortcutsNode().put("edit.rotateClockwise", "pressed T");
+        assertThat(bindings.strokeFor("file.save")).contains(control(KeyEvent.VK_S));
+        assertThat(bindings.strokeFor("view.wireTool")).isEmpty();
+        assertThat(bindings.strokeFor("edit.rotateClockwise")).contains(plain(KeyEvent.VK_T));
     }
 }

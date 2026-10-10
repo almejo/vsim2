@@ -13,7 +13,7 @@ import java.util.Optional;
 
 /**
  * The «Atajos de teclado» table (spec §5.2): one row per menu followed by its actions, filtered by the search text
- * (case and accents ignored), and the flow behind «Cambiar…»: capture, refusal of reserved strokes, the conflict
+ * (case and accents ignored), and the flow behind «Cambiar…»: capture, refusal of reserved strokes and of plain keys for menu actions, the conflict
  * question and its answers. Strokes are read live from {@link KeyBindings}, so a change made elsewhere shows on the
  * next repaint. EDT only.
  */
@@ -131,6 +131,9 @@ public final class ShortcutsTableModel extends AbstractTableModel {
         Outcome outcome;
         if (KeyBindings.isReserved(stroke)) {
             message = Messages.format("shortcuts.reserved", KeyBindings.describe(stroke));
+            outcome = Outcome.REFUSED;
+        } else if (KeyBindings.needsModifier(entry, stroke)) {
+            message = Messages.format("shortcuts.needsModifier", KeyBindings.describe(stroke));
             outcome = Outcome.REFUSED;
         } else {
             Optional<ShortcutEntry> conflict = bindings.conflictFor(stroke, entry.id());

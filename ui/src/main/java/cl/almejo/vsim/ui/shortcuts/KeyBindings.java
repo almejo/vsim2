@@ -17,13 +17,15 @@ import java.util.prefs.Preferences;
 /**
  * The shortcut of every catalog action: its default unless the user changed it. Overrides live in
  * {@link AppPreferences#shortcutsNode()} (catalog id → {@code KeyStroke.toString()}, {@code ""} = none); a value that
- * does not parse or is reserved is ignored and logged once. One stroke belongs to one action at most: {@link #assign}
+ * does not parse, is reserved or is a plain key on a menu action ({@link #isAllowedFor}) is ignored and logged once. One stroke belongs to one action at most: {@link #assign}
  * and {@link #reset} take it away from whichever action had it. Every write ends with
  * {@link AppPreferences#shortcutsChanged()}, so every window re-applies. EDT only.
  */
 public final class KeyBindings {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KeyBindings.class);
+    private static final int COMMAND_MODIFIERS = InputEvent.CTRL_DOWN_MASK | InputEvent.ALT_DOWN_MASK
+            | InputEvent.META_DOWN_MASK | InputEvent.ALT_GRAPH_DOWN_MASK;
     private static final Set<KeyStroke> RESERVED = reservedStrokes(ShortcutCatalog.menuMask());
 
     private final AppPreferences preferences;
@@ -47,7 +49,7 @@ public final class KeyBindings {
             return Optional.empty();
         }
         KeyStroke parsed = parse(stored);
-        if (parsed == null || isReserved(parsed)) {
+        if (parsed == null || !isAllowedFor(entry.get(), parsed)) {
             if (reported.add(id)) {
                 LOGGER.warn("Ignoring the stored shortcut {} = \"{}\"; using its default", id, stored);
             }
@@ -66,12 +68,15 @@ public final class KeyBindings {
         return Optional.empty();
     }
 
-    /** Gives {@code stroke} to {@code id}; the action that had it is left without a shortcut. Reserved: refused. */
+    /**
+     * Gives {@code stroke} to {@code id}; the action that had it is left without a shortcut. A stroke that
+     * {@link #isAllowedFor} refuses (reserved, or a plain key for a menu action) is refused.
+     */
     public void assign(String id, KeyStroke stroke) {
         ShortcutEntry entry = require(id);
         Objects.requireNonNull(stroke, "stroke");
-        if (isReserved(stroke)) {
-            throw new IllegalArgumentException("reserved stroke: " + stroke);
+        if (!isAllowedFor(entry, stroke)) {
+            throw new IllegalArgumentException("stroke not allowed for " + id + ": " + stroke);
         }
         conflictFor(stroke, id).ifPresent(other -> store(other, Optional.empty()));
         store(entry, Optional.of(stroke));
@@ -106,6 +111,26 @@ public final class KeyBindings {
     /** Esc, Enter, Espacio, Tab, Mayús+Tab, Retroceso and the fixed zoom aliases (spec §5.2) are never assignable. */
     public static boolean isReserved(KeyStroke stroke) {
         return RESERVED.contains(stroke);
+    }
+
+    /**
+     * Whether {@code entry} may take {@code stroke}: not reserved, and a menu action (WINDOW scope) needs Ctrl, Alt,
+     * ⌘ or AltGr unless the key is F1–F24 — a menu accelerator also fires while the user types in a text field of the
+     * window. Canvas actions act only while the canvas has the focus, so they take plain keys.
+     */
+    public static boolean isAllowedFor(ShortcutEntry entry, KeyStroke stroke) {
+        return !isReserved(stroke) && !needsModifier(entry, stroke);
+    }
+
+    /** A menu action offered a key without Ctrl/Alt/⌘/AltGr that is not a function key. */
+    public static boolean needsModifier(ShortcutEntry entry, KeyStroke stroke) {
+        return entry.scope() == Scope.WINDOW && (stroke.getModifiers() & COMMAND_MODIFIERS) == 0
+                && !isFunctionKey(stroke.getKeyCode());
+    }
+
+    private static boolean isFunctionKey(int keyCode) {
+        return (keyCode >= KeyEvent.VK_F1 && keyCode <= KeyEvent.VK_F12)
+                || (keyCode >= KeyEvent.VK_F13 && keyCode <= KeyEvent.VK_F24);
     }
 
     /** «Ctrl+S», «F2», with the key and modifier names Swing gives on this platform. */

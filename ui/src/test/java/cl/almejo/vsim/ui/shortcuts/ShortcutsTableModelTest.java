@@ -195,4 +195,15 @@ class ShortcutsTableModelTest {
     void groupNamesAreTheMenuTitles() {
         assertThat(ShortcutsTableModel.groupName(cl.almejo.vsim.ui.window.MenuId.SIMULATION)).isEqualTo("Simulación");
     }
+
+    @Test
+    void aPlainKeyForAMenuActionIsRefusedWithAMessage() {
+        KeyStroke bare = KeyStroke.getKeyStroke(KeyEvent.VK_W, 0);
+        model.beginCapture("view.wireTool");
+        assertThat(model.offer(bare)).isEqualTo(ShortcutsTableModel.Outcome.REFUSED);
+        assertThat(model.message()).isEqualTo(Messages.format("shortcuts.needsModifier", KeyBindings.describe(bare)));
+        assertThat(bindings.strokeFor("view.wireTool")).isEmpty();
+        model.beginCapture("edit.rotateClockwise");
+        assertThat(model.offer(KeyStroke.getKeyStroke(KeyEvent.VK_T, 0))).isEqualTo(ShortcutsTableModel.Outcome.ASSIGNED);
+    }
 }

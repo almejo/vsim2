@@ -141,9 +141,11 @@ class ShortcutsExtensionTest {
         bindings.assign("edit.rotateClockwise", plain(KeyEvent.VK_T));
         assertThat(canvasKeys(view).get(plain(KeyEvent.VK_T))).isEqualTo("shortcut.edit.rotateClockwise");
         assertThat(canvasKeys(view).get(plain(KeyEvent.VK_R))).isNull();
-        bindings.assign("view.wireTool", plain(KeyEvent.VK_T)); // a window action takes T from the canvas
+        bindings.assign("edit.rotateClockwise", control(KeyEvent.VK_T));
         assertThat(canvasKeys(view).get(plain(KeyEvent.VK_T))).isNull();
-        assertThat(view.actions().wireTool().getValue(Action.ACCELERATOR_KEY)).isEqualTo(plain(KeyEvent.VK_T));
+        bindings.assign("view.wireTool", control(KeyEvent.VK_T)); // a window action takes Ctrl+T from the canvas
+        assertThat(canvasKeys(view).get(control(KeyEvent.VK_T))).isNull();
+        assertThat(view.actions().wireTool().getValue(Action.ACCELERATOR_KEY)).isEqualTo(control(KeyEvent.VK_T));
         bindings.reset("edit.rotateClockwise");
         assertThat(canvasKeys(view).get(plain(KeyEvent.VK_R))).isEqualTo("shortcut.edit.rotateClockwise");
     }
