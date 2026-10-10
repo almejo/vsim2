@@ -1,0 +1,111 @@
+package cl.almejo.vsim.ui.shortcuts;
+
+import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
+import cl.almejo.vsim.ui.app.OpenDocument;
+import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.paint.ColorScheme;
+import cl.almejo.vsim.ui.paint.PainterRegistry;
+import cl.almejo.vsim.ui.window.EditorView;
+import cl.almejo.vsim.ui.window.WindowCommands;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import javax.swing.Action;
+import javax.swing.JComponent;
+import javax.swing.KeyStroke;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+/** The catalog defaults are the strokes the editor really binds today (they are the same keys, in two places). */
+class CatalogMatchesEditorTest {
+
+    private OpenDocument openDocument;
+    private EditorView view;
+
+    @BeforeEach
+    void create() {
+        Messages.initialize(Messages.SPANISH);
+        openDocument = OpenDocument.createEmpty(StandardComponentTypes.registry());
+        view = new EditorView(openDocument, PainterRegistry.standard(), ColorScheme.LIGHT, new WindowCommands() {
+            @Override public void newDocument() { }
+            @Override public void open() { }
+            @Override public void save() { }
+            @Override public void saveAs() { }
+            @Override public void closeWindow() { }
+            @Override public void exit() { }
+        });
+    }
+
+    @AfterEach
+    void close() {
+        view.dispose();
+        openDocument.close();
+    }
+
+    private Map<String, Action> windowActions() {
+        Map<String, Action> actions = new HashMap<>();
+        actions.put("file.new", view.actions().newDocument());
+        actions.put("file.open", view.actions().open());
+        actions.put("file.save", view.actions().save());
+        actions.put("file.saveAs", view.actions().saveAs());
+        actions.put("file.close", view.actions().closeWindow());
+        actions.put("file.exit", view.actions().exit());
+        actions.put("edit.undo", view.actions().undo());
+        actions.put("edit.redo", view.actions().redo());
+        actions.put("edit.cut", view.selectionActions().cut());
+        actions.put("edit.copy", view.selectionActions().copy());
+        actions.put("edit.paste", view.selectionActions().paste());
+        actions.put("edit.duplicate", view.selectionActions().duplicate());
+        actions.put("edit.selectAll", view.selectionActions().selectAll());
+        actions.put("view.zoomIn", view.actions().zoomIn());
+        actions.put("view.zoomOut", view.actions().zoomOut());
+        actions.put("view.zoomReset", view.actions().zoomReset());
+        return actions;
+    }
+
+    private Map<String, Action> canvasActions() {
+        Map<String, Action> actions = new HashMap<>();
+        actions.put("edit.delete", view.actions().delete());
+        actions.put("edit.rotateClockwise", view.actions().rotateClockwise());
+        actions.put("edit.rotateCounterClockwise", view.actions().rotateCounterClockwise());
+        actions.put("edit.label", view.labelFeatures().actions().editLabel());
+        actions.put("view.nextProblem", view.problems().nextProblem());
+        actions.put("view.previousProblem", view.problems().previousProblem());
+        return actions;
+    }
+
+    @Test
+    void everyWindowDefaultIsTheAcceleratorOfItsAction() {
+        Map<String, Action> actions = windowActions();
+        for (ShortcutEntry entry : ShortcutCatalog.entries()) {
+            if (entry.scope() == Scope.WINDOW && entry.defaultStroke().isPresent()) {
+                assertThat(actions).as("an action for " + entry.id()).containsKey(entry.id());
+                assertThat(Optional.ofNullable((KeyStroke) actions.get(entry.id()).getValue(Action.ACCELERATOR_KEY)))
+                        .as(entry.id()).isEqualTo(entry.defaultStroke());
+            }
+        }
+    }
+
+    @Test
+    void everyCanvasDefaultIsBoundOnTheCanvasToItsAction() {
+        Map<String, Action> actions = canvasActions();
+        JComponent canvas = view.canvas();
+        for (ShortcutEntry entry : ShortcutCatalog.entries()) {
+            if (entry.scope() == Scope.CANVAS && entry.defaultStroke().isPresent()) {
+                assertThat(actions).as("an action for " + entry.id()).containsKey(entry.id());
+                Object name = canvas.getInputMap(JComponent.WHEN_FOCUSED).get(entry.defaultStroke().get());
+                assertThat(name).as("binding of " + entry.id()).isNotNull();
+                assertThat(canvas.getActionMap().get(name)).as(entry.id()).isSameAs(actions.get(entry.id()));
+            }
+        }
+    }
+
+    @Test
+    void theCatalogUsesTheMenuMaskTheEditorUses() {
+        assertThat(view.actions().menuShortcutMaskForBindings()).isEqualTo(ShortcutCatalog.menuMask());
+    }
+}

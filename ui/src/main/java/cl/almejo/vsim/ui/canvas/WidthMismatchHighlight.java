@@ -19,11 +19,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.function.Supplier;
 
 /**
  * What to mark on the canvas for nets that join pins of different widths (spec §5.5): their wires, and at each pin
  * point the widths of the pins there. Mismatches come from the netlist (shown even before the simulation reports
- * them) and from a snapshot of the shown netlist.
+ * them) and from a snapshot of the shown netlist. A mismatch the snapshot reports for a net merged with other top-level
+ * nets through a template marks all of them ({@link TopLevelNets}).
  */
 public record WidthMismatchHighlight(Set<ElementId> wires, Map<GridPoint, List<Integer>> pinWidths) {
 
@@ -38,11 +40,20 @@ public record WidthMismatchHighlight(Set<ElementId> wires, Map<GridPoint, List<I
 
     public static WidthMismatchHighlight of(SimulationSnapshot snapshot, Netlist netlist, long netlistToken,
                                             CircuitDocument document, ComponentTypeRegistry registry) {
+        return of(snapshot, netlist, netlistToken, document, registry,
+                () -> TopLevelNets.of(document, netlist, registry));
+    }
+
+    /** {@code merged} is asked only when the snapshot reports width mismatches for the shown netlist. */
+    public static WidthMismatchHighlight of(SimulationSnapshot snapshot, Netlist netlist, long netlistToken,
+                                            CircuitDocument document, ComponentTypeRegistry registry,
+                                            Supplier<TopLevelNets> merged) {
         Set<NetId> nets = new LinkedHashSet<>();
         netlist.nets().stream().filter(Net::widthMismatch).forEach(net -> nets.add(net.id()));
-        if (snapshot.token() == netlistToken) {
+        if (snapshot.token() == netlistToken && !snapshot.widthMismatches().isEmpty()) {
+            TopLevelNets groups = merged.get();
             for (WidthMismatch mismatch : snapshot.widthMismatches()) {
-                nets.add(new NetId(mismatch.netId()));
+                groups.membersOf(mismatch.netId()).forEach(member -> nets.add(new NetId(member)));
             }
         }
         Set<ElementId> wires = new HashSet<>();

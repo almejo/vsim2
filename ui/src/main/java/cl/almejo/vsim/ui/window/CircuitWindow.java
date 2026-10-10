@@ -1,6 +1,7 @@
 package cl.almejo.vsim.ui.window;
 
 import cl.almejo.vsim.ui.app.Application;
+import cl.almejo.vsim.ui.app.DocumentWindows;
 import cl.almejo.vsim.ui.app.FileDialogs;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.ViewState;
@@ -48,8 +49,7 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
         setJMenuBar(view.menuBar());
         setContentPane(view);
         setIconImages(AppIcons.images());
-        new WindowMenu(view.menu(MenuId.WINDOW), () -> application.newWindow(this),
-                () -> application.windowEntries(this));
+        new WindowMenu(view.menu(MenuId.WINDOW), () -> application.windowEntries(this));
         // Component files are imported into the library instead of being opened as circuits (M4-A ruling); drops on
         // the window, the canvas and the palette are handled after the drop finishes (EditorView.dropFiles).
         view.setCircuitOpener(circuits -> application.openPaths(circuits, this));
@@ -83,13 +83,20 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
             }
         });
         openDocument.addChangeListener(titleUpdater);
+        application.addWindowsListener(titleUpdater);
         updateTitle();
         setSize(1280, 820);
         setLocationByPlatform(true);
     }
 
     public static String titleFor(OpenDocument openDocument) {
-        return (openDocument.isModified() ? "*" : "") + Messages.format("window.title", openDocument.displayName());
+        return titleFor(openDocument, 0);
+    }
+
+    /** «contador (2) — VSim 2» for view 2 of a document with several views, «*» first when modified. */
+    public static String titleFor(OpenDocument openDocument, int viewNumber) {
+        return (openDocument.isModified() ? "*" : "") + Messages.format("window.title",
+                DocumentWindows.viewTitle(openDocument.displayName(), viewNumber));
     }
 
     public OpenDocument openDocument() {
@@ -140,6 +147,11 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
     @Override
     public void open() {
         application.open(this);
+    }
+
+    @Override
+    public void newView() {
+        application.newWindow(this);
     }
 
     /** Opens the circuit files in new windows and imports the component files into the library (as a drop does). */
@@ -198,6 +210,7 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
     public void closeQuietly() {
         try {
             openDocument.removeChangeListener(titleUpdater);
+            application.removeWindowsListener(titleUpdater);
             view.dispose();
         } catch (RuntimeException exception) {
             // a broken extension disposer must not keep the window open or stop the application from exiting
@@ -246,7 +259,7 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
     }
 
     private void updateTitle() {
-        setTitle(titleFor(openDocument));
+        setTitle(titleFor(openDocument, application.viewNumber(this)));
         getRootPane().putClientProperty("Window.documentModified", openDocument.isModified());
     }
 }

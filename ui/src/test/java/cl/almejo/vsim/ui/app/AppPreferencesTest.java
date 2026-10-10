@@ -188,4 +188,16 @@ class AppPreferencesTest {
         assertThat(AppPreferences.defaultLibraryDirectory("Darwin", Map.of("APPDATA", "/appdata"), home))
                 .isEqualTo(Path.of("/home/ana/.local/share/vsim2/components"));
     }
+
+    @Test
+    void shortcutOverridesLiveInTheirOwnNodeAndAChangeNotifiesOnce() throws Exception {
+        preferences.addListener(changes::incrementAndGet);
+        preferences.shortcutsNode().put("file.save", "ctrl pressed G");
+        assertThat(changes).hasValue(0);
+        preferences.shortcutsChanged();
+        assertThat(changes).hasValue(1);
+        assertThat(node.nodeExists("shortcuts")).isTrue();
+        assertThat(node.node("shortcuts").get("file.save", null)).isEqualTo("ctrl pressed G");
+        assertThat(preferences.theme()).isEqualTo(AppPreferences.Theme.SYSTEM);
+    }
 }

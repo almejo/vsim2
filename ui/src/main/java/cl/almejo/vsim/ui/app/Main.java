@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.app;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.icons.AppIcons;
 import cl.almejo.vsim.ui.preferences.PreferencesDialog;
+import cl.almejo.vsim.ui.theme.ThemeManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,6 +35,8 @@ public final class Main {
         Locale.setDefault(Messages.locale());
         JComponent.setDefaultLocale(Messages.locale());
         List<Path> files = Arrays.stream(arguments).map(Path::of).toList();
+        // M6-D5: asked here, on the main thread, so the EDT never waits up to 2 s for the system's answer.
+        ThemeManager.askSystemBeforeStart(preferences);
         SwingUtilities.invokeLater(() -> {
             Application application = new Application(preferences);
             installQuitHandler(application);

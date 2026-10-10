@@ -1,8 +1,12 @@
 package cl.almejo.vsim.ui.problems;
 
+import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.document.CircuitDocument;
+import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.netlist.Net;
+import cl.almejo.vsim.core.netlist.Netlist;
+import cl.almejo.vsim.core.netlist.PinRef;
 import cl.almejo.vsim.core.simulation.FlatPinRef;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.core.simulation.WidthMismatch;
@@ -10,6 +14,8 @@ import cl.almejo.vsim.core.value.Value;
 import cl.almejo.vsim.ui.canvas.BusValueText;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
+import cl.almejo.vsim.ui.canvas.ConnectionPoints;
+import cl.almejo.vsim.ui.canvas.TopLevelNets;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.panels.StatusBar;
 import cl.almejo.vsim.ui.window.EditorView;
@@ -63,10 +69,13 @@ public final class ProblemsController {
     private final Consumer<SimulationSnapshot> snapshotListener = this::showSnapshot;
     private SimulationSnapshot snapshot = SimulationSnapshot.EMPTY;
     private boolean disposed;
+    private final ConnectionPoints connectionPoints;
+    private Memo memo;
 
     public ProblemsController(EditorView view) {
         this.openDocument = view.openDocument();
         this.canvas = view.canvas();
+        this.connectionPoints = new ConnectionPoints(openDocument.registry());
         this.statusBar = view.statusBar();
         this.blink = new NetBlink(canvas::scheme, canvas::repaint);
         this.pulse = new ShortCircuitPulse(openDocument.registry(), canvas::repaint, System::nanoTime);
@@ -208,49 +217,88 @@ public final class ProblemsController {
 
     /**
      * For the wire under {@code gridPoint}, when the snapshot matches the current netlist: the drivers of its short
-     * circuit, else the pins of its width mismatch, else the value of its bus. The engine reports a mismatch under one
-     * id for the whole merged net, so a wire of another top-level net merged into it falls back to the netlist's own
-     * mismatch flag and its pins.
+     * circuit, else the pins of its width mismatch, else the value of its bus. Away from wires, a pin (one sitting
+     * directly on a pin of another width, say) shows the width mismatch of its net. Problems are looked up under the
+     * id the engine reports them with: a top-level net joined to another through a template uses the merged net's root
+     * id ({@link TopLevelNets}); a net whose own pins disagree falls back to the netlist's mismatch flag and its pins.
      */
     Optional<String> tooltipAt(Point2D gridPoint) {
         if (snapshot.token() != openDocument.netlistToken()) {
             return Optional.empty();
         }
         CircuitDocument document = openDocument.document();
-        Optional<Net> found = canvas.hitTester().elementAt(document, gridPoint)
-                .filter(Wire.class::isInstance)
-                .map(Wire.class::cast)
-                .flatMap(wire -> openDocument.netlist().netForWire(wire.id()));
-        if (found.isEmpty()) {
-            return Optional.empty();
+        Optional<DocumentElement> hit = canvas.hitTester().elementAt(document, gridPoint);
+        if (hit.isPresent() && hit.get() instanceof Wire wire) {
+            return openDocument.netlist().netForWire(wire.id()).flatMap(net -> wireTooltip(document, net));
         }
-        Net net = found.get();
-        String netId = net.id().value();
+        return pinNetAt(document, gridPoint).flatMap(net -> mismatchText(document, net, reportedId(document, net)));
+    }
+
+    private Optional<String> wireTooltip(CircuitDocument document, Net net) {
+        String reportedId = reportedId(document, net);
         Optional<String> drivers = snapshot.shortCircuits().stream()
-                .filter(shortCircuit -> shortCircuit.netId().equals(netId))
+                .filter(shortCircuit -> shortCircuit.netId().equals(reportedId))
                 .findFirst()
                 .map(shortCircuit -> ProblemText.drivers(shortCircuit, document));
         if (drivers.isPresent()) {
             return drivers;
         }
-        Optional<WidthMismatch> mismatch = snapshot.widthMismatches().stream()
-                .filter(widthMismatch -> widthMismatch.netId().equals(netId))
-                .findFirst();
-        if (mismatch.isEmpty() && net.widthMismatch()) {
-            mismatch = Optional.of(new WidthMismatch(netId, net.pins().stream()
-                    .map(pin -> new FlatPinRef(pin.componentId().value(), pin.pinIndex()))
-                    .toList()));
-        }
+        Optional<String> mismatch = mismatchText(document, net, reportedId);
         if (mismatch.isPresent()) {
-            return Optional.of(ProblemText.describe(mismatch.get(), document, openDocument.registry()));
+            return mismatch;
         }
-        Value value = snapshot.netValues().get(netId);
+        Value value = snapshot.netValues().get(net.id().value());
         if (net.width() > 1 && value != null) {
             return Optional.of(value.conflict()
                     ? Messages.format("bus.tooltipConflict", net.width(), BusValueText.of(value))
                     : Messages.format("bus.tooltip", net.width(), BusValueText.of(value), BusValueText.binary(value)));
         }
         return Optional.empty();
+    }
+
+    /** The id the engine reports the problems of {@code net} under (the merged net's root through a template). */
+    private String reportedId(CircuitDocument document, Net net) {
+        String netId = net.id().value();
+        return snapshot.problems().isEmpty() ? netId : topLevelNets(document).rootOf(netId);
+    }
+
+    /** Flattening is costly and tooltips are asked on every mouse move: memoized per compiled netlist. */
+    private TopLevelNets topLevelNets(CircuitDocument document) {
+        long token = openDocument.netlistToken();
+        Netlist netlist = openDocument.netlist();
+        if (memo == null || memo.token() != token || memo.netlist() != netlist) {
+            memo = new Memo(token, netlist, TopLevelNets.of(document, netlist, openDocument.registry()));
+        }
+        return memo.nets();
+    }
+
+    private record Memo(long token, Netlist netlist, TopLevelNets nets) {
+    }
+
+    /** The width-mismatch text of {@code net}: the one reported under {@code reportedId}, else its own pins'. */
+    private Optional<String> mismatchText(CircuitDocument document, Net net, String reportedId) {
+        Optional<WidthMismatch> mismatch = snapshot.widthMismatches().stream()
+                .filter(widthMismatch -> widthMismatch.netId().equals(reportedId))
+                .findFirst();
+        if (mismatch.isEmpty() && net.widthMismatch()) {
+            mismatch = Optional.of(new WidthMismatch(net.id().value(), net.pins().stream()
+                    .map(pin -> new FlatPinRef(pin.componentId().value(), pin.pinIndex()))
+                    .toList()));
+        }
+        return mismatch.map(found -> ProblemText.describe(found, document, openDocument.registry()));
+    }
+
+    /** The net of the pin nearest to {@code gridPoint} (within {@link ConnectionPoints#PIN_RADIUS}), if any. */
+    private Optional<Net> pinNetAt(CircuitDocument document, Point2D gridPoint) {
+        return connectionPoints.pinNear(document, gridPoint).flatMap(hit -> {
+            ComponentType type = openDocument.registry().typeOf(hit.component());
+            for (int pinIndex = 0; pinIndex < type.pinCount(); pinIndex++) {
+                if (type.pinLocation(hit.component(), pinIndex).equals(hit.point())) {
+                    return openDocument.netlist().netForPin(new PinRef(hit.component().id(), pinIndex));
+                }
+            }
+            return Optional.empty();
+        });
     }
 
     private static Action action(String name, Runnable behavior) {

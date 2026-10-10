@@ -223,4 +223,39 @@ class PropertiesPanelTest {
         panel.commitEdits();
         assertThat(current(gate).label()).isEmpty();
     }
+
+    @Test
+    void aLabelAndAParameterChangedTogetherAreOneUndoStep() {
+        Component gate = gate(0);
+        selection.select(gate.id());
+        panel.textField().setText("U7");
+        typeInto((JSpinner) panel.parameterForm().editor("delay"), "4");
+
+        panel.commitEdits(); // what a selection change or closing the window does with both edits pending
+
+        assertThat(current(gate).label()).isEqualTo("U7");
+        assertThat(current(gate).parameters()).containsEntry("delay", 4);
+        assertThat(openDocument.history().undoDescription()).contains("command.configure");
+        openDocument.history().undo();
+        assertThat(current(gate).label()).isEmpty();
+        assertThat(current(gate).parameters()).containsEntry("delay", 1);
+        assertThat(openDocument.history().undoDescription()).contains("command.add");
+    }
+
+    @Test
+    void aSelectionChangeWithBothEditsPendingIsOneUndoStepToo() {
+        Component first = gate(0);
+        Component second = gate(10);
+        selection.select(first.id());
+        panel.textField().setText("A1");
+        typeInto((JSpinner) panel.parameterForm().editor("delay"), "3");
+
+        selection.select(second.id());
+
+        assertThat(current(first).label()).isEqualTo("A1");
+        assertThat(current(first).parameters()).containsEntry("delay", 3);
+        openDocument.history().undo();
+        assertThat(current(first).label()).isEmpty();
+        assertThat(current(first).parameters()).containsEntry("delay", 1);
+    }
 }

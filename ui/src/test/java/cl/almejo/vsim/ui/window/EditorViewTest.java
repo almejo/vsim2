@@ -24,6 +24,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import javax.swing.AbstractButton;
+import javax.swing.AbstractAction;
 import javax.swing.Action;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
@@ -44,6 +45,7 @@ import java.util.Map;
 
 import static cl.almejo.vsim.ui.UiTestSupport.place;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.entry;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class EditorViewTest {
@@ -56,6 +58,7 @@ class EditorViewTest {
         @Override public void saveAs() { windowCalls.add("saveAs"); }
         @Override public void closeWindow() { windowCalls.add("close"); }
         @Override public void exit() { windowCalls.add("exit"); }
+        @Override public void newView() { windowCalls.add("newView"); }
     };
     private OpenDocument openDocument;
     private EditorView view;
@@ -119,7 +122,16 @@ class EditorViewTest {
         for (MenuId id : MenuId.values()) {
             assertThat(view.menu(id)).isSameAs(view.menuBar().getMenu(id.ordinal()));
         }
-        assertThat(view.menu(MenuId.WINDOW).getItemCount()).isZero();
+        assertThat(view.menu(MenuId.WINDOW).getItemCount()).isEqualTo(1);
+        assertThat(view.menu(MenuId.WINDOW).getItem(0).getAction()).isSameAs(view.actions().newView());
+    }
+
+    @Test
+    void theWindowMenuOffersNewViewAndHandsItToTheWindow() {
+        assertThat(view.menu(MenuId.WINDOW).getItem(0).getText()).isEqualTo("Nueva vista");
+        assertThat(view.actions().newView().getValue(Action.ACCELERATOR_KEY)).isNull();
+        perform(view.actions().newView());
+        assertThat(windowCalls).containsExactly("newView");
     }
 
     @Test
@@ -552,5 +564,27 @@ class EditorViewTest {
         editor.canvas().paint(graphics);
         graphics.dispose();
         return image.getRGB(3, 3);
+    }
+
+    @Test
+    void shortcutActionsAreRegisteredInOrderAndTheRemoverTakesThemBack() {
+        Action first = new AbstractAction("uno") {
+            @Override
+            public void actionPerformed(ActionEvent event) {
+            }
+        };
+        Action second = new AbstractAction("dos") {
+            @Override
+            public void actionPerformed(ActionEvent event) {
+            }
+        };
+        Runnable removeFirst = view.registerShortcutAction("test.first", first);
+        view.registerShortcutAction("test.second", second);
+        assertThat(view.shortcutActions()).containsExactly(entry("test.first", first), entry("test.second", second));
+        assertThatThrownBy(() -> view.registerShortcutAction("test.first", second))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> view.shortcutActions().clear()).isInstanceOf(UnsupportedOperationException.class);
+        removeFirst.run();
+        assertThat(view.shortcutActions()).containsOnlyKeys("test.second");
     }
 }

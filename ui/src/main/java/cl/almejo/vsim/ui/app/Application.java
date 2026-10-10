@@ -27,11 +27,13 @@ import cl.almejo.vsim.ui.session.SessionDocument;
 import cl.almejo.vsim.ui.session.SessionStore;
 import cl.almejo.vsim.ui.session.StartupSequence;
 import cl.almejo.vsim.ui.session.WindowState;
+import cl.almejo.vsim.ui.shortcuts.ShortcutsExtension;
 import cl.almejo.vsim.ui.theme.ThemeManager;
 import cl.almejo.vsim.ui.tree.ComponentTreeExtension;
 import cl.almejo.vsim.ui.window.CircuitWindow;
 import cl.almejo.vsim.ui.window.EditorExtension;
 import cl.almejo.vsim.ui.window.EditorServices;
+import cl.almejo.vsim.ui.window.NewViewPlacement;
 import cl.almejo.vsim.ui.window.WindowMenu;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -89,12 +91,13 @@ public final class Application {
     /** The extensions of every editor view, in install order. Package-private so a test can install them all. */
     static List<EditorExtension> editorExtensions(LibraryService libraryService, LibraryDialogs libraryDialogs) {
         List<EditorExtension> editorExtensions = new ArrayList<>();
-        // M4 tracks add one line each here, in the order A, B, C, D (overview R9).
+        // M6: A's waveforms before ActionIcons, B's recents after PreferencesFeature, C's shortcuts last.
         editorExtensions.add(new TemplatesExtension(libraryService, libraryDialogs));
         editorExtensions.add(new ComponentTreeExtension());
         editorExtensions.add(new ActionIcons());
         editorExtensions.add(new PreferencesFeature());
         editorExtensions.add(new RecentFilesFeature());
+        editorExtensions.add(new ShortcutsExtension());
         return List.copyOf(editorExtensions);
     }
 
@@ -198,9 +201,11 @@ public final class Application {
         return show(OpenDocument.createEmpty(registry));
     }
 
-    /** Ventana → Nueva ventana de este circuito: another view of the same document. */
+    /** Ventana ▸ Nueva vista: another view of the same document, 30 px down-right of its source, same zoom and center. */
     public CircuitWindow newWindow(CircuitWindow source) {
-        return show(source.openDocument());
+        NewViewPlacement placement = NewViewPlacement.after(source.getLocation(), source.viewState());
+        // setLocation also cancels the platform placement of the constructor
+        return show(source.openDocument(), window -> placement.applyTo(window::setInitialViewState, window::setLocation));
     }
 
     public void open(CircuitWindow requester) {
@@ -251,6 +256,20 @@ public final class Application {
 
     public List<WindowMenu.Entry> windowEntries(CircuitWindow current) {
         return windows.menuEntries(current, this::focus);
+    }
+
+    /** Runs {@code listener} after every window opens or closes (view numbers may have changed). */
+    public void addWindowsListener(Runnable listener) {
+        windows.addChangeListener(listener);
+    }
+
+    public void removeWindowsListener(Runnable listener) {
+        windows.removeChangeListener(listener);
+    }
+
+    /** The number of {@code window} among the views of its document; 0 when it is the only one. */
+    public int viewNumber(CircuitWindow window) {
+        return windows.viewNumber(window);
     }
 
     public Path initialDirectory() {
@@ -448,6 +467,10 @@ public final class Application {
         });
     }
 
+    /**
+     * Creates a window for {@code document}, registers it, lets {@code beforeShowing} place it (location, size, the
+     * view state it opens with) and only then shows it. M6 contract C6: B adds its saved-state overload on top.
+     */
     private CircuitWindow show(OpenDocument document, Consumer<CircuitWindow> beforeShowing) {
         CircuitWindow window = new CircuitWindow(this, document, services);
         windows.add(document, window);

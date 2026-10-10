@@ -28,6 +28,7 @@ public record ComponentType(String id, ComponentCategory category, GridSize size
         Objects.requireNonNull(behaviorFactory, "behaviorFactory");
         pins = List.copyOf(pins);
         parameters = List.copyOf(parameters);
+        layout = layout == null ? null : MemoizedLayout.of(layout);
     }
 
     /** A type whose size and pins never change. */
@@ -36,14 +37,18 @@ public record ComponentType(String id, ComponentCategory category, GridSize size
         this(id, category, size, pins, parameters, behaviorFactory, null);
     }
 
-    /** A type whose size and pins follow its parameters; its own {@code size()} and {@code pins()} are the defaults'. */
+    /**
+     * A type whose size and pins follow its parameters; its own {@code size()} and {@code pins()} are the defaults'.
+     * The layout runs once per set of parameters ({@link MemoizedLayout}).
+     */
     public static ComponentType parameterized(String id, ComponentCategory category, List<ParameterSpec> parameters,
                                               ComponentLayout layout, BehaviorFactory behaviorFactory) {
         Objects.requireNonNull(layout, "layout");
+        ComponentLayout memoized = MemoizedLayout.of(layout);
         Map<String, Object> defaults = new LinkedHashMap<>();
         parameters.forEach(parameter -> defaults.put(parameter.name(), parameter.defaultValue()));
-        ComponentShape shape = layout.shapeFor(Map.copyOf(defaults));
-        return new ComponentType(id, category, shape.size(), shape.pins(), parameters, behaviorFactory, layout);
+        ComponentShape shape = memoized.shapeFor(Map.copyOf(defaults));
+        return new ComponentType(id, category, shape.size(), shape.pins(), parameters, behaviorFactory, memoized);
     }
 
     public boolean isParameterized() {
@@ -95,13 +100,19 @@ public record ComponentType(String id, ComponentCategory category, GridSize size
 
     /** Where pin {@code pinIndex} of {@code component} is, with the pins {@code component}'s parameters give. */
     public GridPoint pinLocation(Component component, int pinIndex) {
-        PinSpec pin = forComponent(component).pins.get(pinIndex);
+        PinSpec pin = layout == null ? pins.get(pinIndex) : shapeOf(component).pins().get(pinIndex);
         return component.position().plus(component.rotation().apply(pin.position()));
     }
 
     /** The box of {@code component}, with the size its parameters give. */
     public Bounds bounds(Component component) {
-        return Bounds.rotated(component.position(), forComponent(component).size, component.rotation());
+        GridSize componentSize = layout == null ? size : shapeOf(component).size();
+        return Bounds.rotated(component.position(), componentSize, component.rotation());
+    }
+
+    /** The shape {@code component}'s parameters give, without building a specialized type (asked on every paint). */
+    private ComponentShape shapeOf(Component component) {
+        return layout.shapeFor(resolveParameters(component.parameters()));
     }
 
     public Behavior createBehavior(Map<String, Object> rawParameters) {
