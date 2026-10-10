@@ -80,6 +80,19 @@ class OpenDocumentTest {
     }
 
     @Test
+    void savingOverAReadOnlyFileFailsAndChangesNothing(@TempDir Path directory) throws Exception {
+        assumeTrue(FileSystems.getDefault().supportedFileAttributeViews().contains("posix"));
+        Path file = directory.resolve("locked.vsim");
+        Files.writeString(file, "old");
+        Files.setPosixFilePermissions(file, PosixFilePermissions.fromString("r--r--r--"));
+        assumeTrue(!Files.isWritable(file)); // not when the tests run as root
+        OpenDocument document = track(OpenDocument.createEmpty(registry));
+        assertThatThrownBy(() -> document.save(file)).isInstanceOf(IOException.class);
+        assertThat(Files.readString(file)).isEqualTo("old");
+        assertThat(document.path()).isEmpty();
+    }
+
+    @Test
     void aSavedFileHoldsExactlyTheSerializedDocument(@TempDir Path directory) throws Exception {
         OpenDocument document = track(OpenDocument.createEmpty(registry));
         Path file = directory.resolve("serialized.vsim");

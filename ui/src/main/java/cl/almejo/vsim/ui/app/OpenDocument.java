@@ -25,6 +25,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.nio.file.AccessDeniedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.LinkedHashMap;
@@ -258,7 +259,7 @@ public final class OpenDocument implements AutoCloseable {
     }
 
     /**
-     * Writes format v2 atomically (temporary file + move); on failure nothing changes. A document that could not be
+     * Writes format v2 atomically (temporary file + move); on failure, a read-only target included, nothing changes. A document that could not be
      * reopened (an instance whose definition is missing) fails with an IOException before anything is written.
      */
     public void save(Path target) throws IOException {
@@ -269,6 +270,10 @@ public final class OpenDocument implements AutoCloseable {
             throw new IOException(exception.getMessage(), exception);
         }
         Path absolute = target.toAbsolutePath();
+        if (Files.exists(absolute) && !Files.isWritable(absolute)) {
+            // M2 ruling: saving over a read-only file fails (with an error dialog), it does not replace it
+            throw new AccessDeniedException(absolute.toString(), null, "the file is read-only");
+        }
         AtomicFiles.writeString(absolute, content);
         path = absolute;
         backingFile = FileNames.normalized(absolute);

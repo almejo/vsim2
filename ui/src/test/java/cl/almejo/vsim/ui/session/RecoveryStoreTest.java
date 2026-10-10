@@ -149,4 +149,17 @@ class RecoveryStoreTest {
         assertThat(next.orphans()).extracting(RecoveryCopy::displayName).containsExactly("nuevo");
         assertThat(live.contentPath(liveDocument)).as("a live run's copies are never touched").exists();
     }
+
+    @Test
+    void aReadOnlyCopyIsStillReplaced() throws IOException {
+        org.junit.jupiter.api.Assumptions.assumeTrue(
+                java.nio.file.FileSystems.getDefault().supportedFileAttributeViews().contains("posix"));
+        RecoveryStore store = store();
+        UUID document = UUID.randomUUID();
+        store.write(document, "first", untitled(SAVED_AT));
+        Files.setPosixFilePermissions(store.contentPath(document),
+                java.nio.file.attribute.PosixFilePermissions.fromString("r--r--r--"));
+        store.write(document, "second", untitled(SAVED_AT));
+        assertThat(Files.readString(store.contentPath(document))).isEqualTo("second");
+    }
 }

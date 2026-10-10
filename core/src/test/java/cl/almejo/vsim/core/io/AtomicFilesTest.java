@@ -53,4 +53,16 @@ class AtomicFilesTest {
         assertThat(Files.isDirectory(target)).isTrue();
         assertThat(filesIn(directory)).isEqualTo(1);
     }
+
+    @Test
+    void aReadOnlyTargetIsReplacedAndStaysReadOnly() throws IOException {
+        assumeTrue(FileSystems.getDefault().supportedFileAttributeViews().contains("posix"));
+        Path target = directory.resolve("definition.vsimc");
+        Files.writeString(target, "old");
+        Files.setPosixFilePermissions(target, PosixFilePermissions.fromString("r--r--r--"));
+        AtomicFiles.writeString(target, "new");
+        assertThat(Files.readString(target)).isEqualTo("new");
+        assertThat(PosixFilePermissions.toString(Files.getPosixFilePermissions(target))).isEqualTo("r--r--r--");
+        assertThat(filesIn(directory)).isEqualTo(1);
+    }
 }
