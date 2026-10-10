@@ -12,9 +12,11 @@ import java.util.Objects;
  */
 public record WindowState(int x, int y, int width, int height, boolean maximized, ViewState view) {
 
-    /** How much of the window's top band must stay on some screen for the user to grab it. */
+    /** The window's top band, where its title bar is. */
+    public static final int TITLE_BAND_HEIGHT = 80;
+    /** How much of the title band must stay on some screen for the user to grab it. */
     public static final int MINIMUM_VISIBLE_WIDTH = 120;
-    public static final int MINIMUM_VISIBLE_HEIGHT = 80;
+    public static final int MINIMUM_VISIBLE_HEIGHT = 20;
 
     public WindowState {
         if (width <= 0 || height <= 0) {
@@ -32,19 +34,21 @@ public record WindowState(int x, int y, int width, int height, boolean maximized
     }
 
     /**
-     * This state when at least {@value #MINIMUM_VISIBLE_WIDTH} × {@value #MINIMUM_VISIBLE_HEIGHT} px of its title band
-     * (less for a smaller window) is on one of {@code screens}; otherwise the window centered on the first screen,
+     * This state when at least {@value #MINIMUM_VISIBLE_WIDTH} × {@value #MINIMUM_VISIBLE_HEIGHT} px of its top
+     * {@value #TITLE_BAND_HEIGHT} px (less for a smaller window) is on one of {@code screens}, so a window a few pixels
+     * above a screen or across stacked monitors keeps its place; otherwise the window centered on the first screen,
      * shrunk to fit it. No screens (headless) leaves it unchanged.
      */
     public WindowState clampedTo(List<Rectangle> screens) {
         if (screens.isEmpty()) {
             return this;
         }
-        Rectangle titleBand = new Rectangle(x, y, width, Math.min(height, MINIMUM_VISIBLE_HEIGHT));
+        Rectangle titleBand = new Rectangle(x, y, width, Math.min(height, TITLE_BAND_HEIGHT));
         int neededWidth = Math.min(width, MINIMUM_VISIBLE_WIDTH);
+        int neededHeight = Math.min(titleBand.height, MINIMUM_VISIBLE_HEIGHT);
         for (Rectangle screen : screens) {
             Rectangle visible = screen.intersection(titleBand);
-            if (!visible.isEmpty() && visible.width >= neededWidth && visible.height >= titleBand.height) {
+            if (!visible.isEmpty() && visible.width >= neededWidth && visible.height >= neededHeight) {
                 return this;
             }
         }

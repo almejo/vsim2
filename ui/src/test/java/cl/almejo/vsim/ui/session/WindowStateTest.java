@@ -36,8 +36,27 @@ class WindowStateTest {
         WindowState tooFarRight = new WindowState(1920 - 119, 0, 1280, 820, false, VIEW);
         assertThat(tooFarRight.clampedTo(List.of(LAPTOP))).isEqualTo(new WindowState(320, 130, 1280, 820, false, VIEW));
 
-        WindowState titleAboveTheScreen = new WindowState(100, -40, 1280, 820, false, VIEW);
+        WindowState titleAboveTheScreen = new WindowState(100, -61, 1280, 820, false, VIEW);
         assertThat(titleAboveTheScreen.clampedTo(List.of(LAPTOP)).y()).isEqualTo(130);
+    }
+
+    @Test
+    void twentyPixelsOfTheTitleBandAreEnough() {
+        WindowState slightlyAbove = new WindowState(100, -4, 1280, 820, false, VIEW);
+        assertThat(slightlyAbove.clampedTo(List.of(LAPTOP))).isEqualTo(slightlyAbove);
+        WindowState twentyAbove = new WindowState(100, -60, 1280, 820, false, VIEW);
+        assertThat(twentyAbove.clampedTo(List.of(LAPTOP))).isEqualTo(twentyAbove);
+        WindowState twentyAtTheBottom = new WindowState(100, 1080 - 20, 1280, 820, false, VIEW);
+        assertThat(twentyAtTheBottom.clampedTo(List.of(LAPTOP))).isEqualTo(twentyAtTheBottom);
+        WindowState nineteenAtTheBottom = new WindowState(100, 1080 - 19, 1280, 820, false, VIEW);
+        assertThat(nineteenAtTheBottom.clampedTo(List.of(LAPTOP)).y()).isEqualTo(130);
+    }
+
+    @Test
+    void aWindowAcrossStackedMonitorsKeepsItsPlace() {
+        Rectangle upperMonitor = new Rectangle(0, -1080, 1920, 1080);
+        WindowState straddling = new WindowState(300, -40, 1280, 820, false, VIEW);
+        assertThat(straddling.clampedTo(List.of(LAPTOP, upperMonitor))).isEqualTo(straddling);
     }
 
     @Test
