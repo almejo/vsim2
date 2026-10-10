@@ -40,6 +40,9 @@ public final class CircuitDocument {
     private int batchDepth;
     private long revision;
     private String name = "";
+    private final List<Runnable> probeListeners = new CopyOnWriteArrayList<>();
+    private List<Probe> probes = List.of();
+    private long nextProbeNumber = 1;
 
     public String name() {
         return name;
@@ -263,6 +266,58 @@ public final class CircuitDocument {
 
     public void removeListener(DocumentListener listener) {
         listeners.remove(listener);
+    }
+
+    /** The waveform channels, in row order. They are not elements: changing them never bumps {@link #revision()}. */
+    public List<Probe> probes() {
+        return probes;
+    }
+
+    /**
+     * Replaces the waveform channels and notifies the probe listeners (never the document listeners, so nothing is
+     * recompiled). Duplicate ids throw IllegalArgumentException and change nothing; an equal list notifies nobody.
+     * Use it through commands only.
+     */
+    public void setProbes(List<Probe> newProbes) {
+        List<Probe> copy = List.copyOf(newProbes);
+        Set<String> ids = new HashSet<>();
+        for (Probe probe : copy) {
+            if (!ids.add(probe.id())) {
+                throw new IllegalArgumentException("duplicate probe id " + probe.id());
+            }
+        }
+        if (copy.equals(probes)) {
+            return;
+        }
+        probes = copy;
+        copy.forEach(probe -> reserveProbeId(probe.id()));
+        probeListeners.forEach(Runnable::run);
+    }
+
+    /** {@code p1}, {@code p2}, …, never one already used by a probe of this document. */
+    public String newProbeId() {
+        return "p" + nextProbeNumber++;
+    }
+
+    public void addProbeListener(Runnable listener) {
+        probeListeners.add(listener);
+    }
+
+    public void removeProbeListener(Runnable listener) {
+        probeListeners.remove(listener);
+    }
+
+    /** For tests: views and extensions must remove the probe listeners they add when disposed. */
+    public int probeListenerCount() {
+        return probeListeners.size();
+    }
+
+    private void reserveProbeId(String id) {
+        String digits = id.substring(1);
+        if (id.charAt(0) == 'p' && !digits.isEmpty() && digits.length() < 18
+                && digits.chars().allMatch(Character::isDigit)) {
+            nextProbeNumber = Math.max(nextProbeNumber, Long.parseLong(digits) + 1);
+        }
     }
 
     private void rejectDuplicate(ElementId id) {
