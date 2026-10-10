@@ -3,8 +3,8 @@ package cl.almejo.vsim.ui.window;
 /**
  * When a window shows its first zoom and center (M6-B). It is applied when the window opens; a window restored
  * maximized usually gets its maximized size only afterwards, and the center was computed for the smaller canvas, so
- * the view is applied once more at the canvas's first resize after opening — unless the user changed the view first
- * or the window is no longer maximized by then. EDT only.
+ * the view is applied once more at the canvas's first resize after opening — unless the user changed the view or
+ * pressed the mouse or turned the wheel on the canvas first, or the window is no longer maximized by then. EDT only.
  */
 final class InitialView {
 
@@ -38,6 +38,14 @@ final class InitialView {
         if (!applying) {
             waitingForMaximizedLayout = false;
         }
+    }
+
+    /**
+     * A mouse press or wheel turn on the canvas: it may pan the view without notifying the view listeners (drag-pan,
+     * wheel scroll, edge autoscroll), so the user's view is kept.
+     */
+    void userInteracted() {
+        waitingForMaximizedLayout = false;
     }
 
     private void run() {

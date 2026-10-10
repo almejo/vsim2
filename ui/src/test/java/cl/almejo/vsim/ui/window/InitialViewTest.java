@@ -55,4 +55,13 @@ class InitialViewTest {
         initialView.canvasResized(true);
         assertThat(applied).hasValue(1);
     }
+
+    @Test
+    void aPanWithTheMouseOrTheWheelBeforeTheResizeKeepsTheUsersView() {
+        create();
+        initialView.opened(true);
+        initialView.userInteracted(); // a drag-pan or wheel scroll does not notify the canvas's view listeners
+        initialView.canvasResized(true);
+        assertThat(applied).hasValue(1);
+    }
 }

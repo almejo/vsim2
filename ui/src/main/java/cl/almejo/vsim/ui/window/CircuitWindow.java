@@ -18,6 +18,8 @@ import javax.swing.JOptionPane;
 import java.awt.Rectangle;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.IOException;
@@ -70,6 +72,14 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
             }
         });
         view.canvas().addViewListener(initialView::viewChanged);
+        // Pans by drag, wheel or autoscroll do not reach the view listeners; any press or wheel turn counts as one.
+        view.canvas().addMouseListener(new MouseAdapter() {
+            @Override
+            public void mousePressed(MouseEvent event) {
+                initialView.userInteracted();
+            }
+        });
+        view.canvas().addMouseWheelListener(event -> initialView.userInteracted());
         view.canvas().addComponentListener(new ComponentAdapter() {
             @Override
             public void componentResized(ComponentEvent event) {
