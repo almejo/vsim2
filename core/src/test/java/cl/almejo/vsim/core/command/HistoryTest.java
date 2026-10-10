@@ -144,4 +144,29 @@ class HistoryTest {
             return "command.failing";
         }
     }
+
+    @Test
+    void markUnsavedKeepsTheDocumentModifiedUntilTheNextSave() {
+        CircuitDocument document = new CircuitDocument();
+        History history = new History(document);
+        AtomicInteger notifications = new AtomicInteger();
+        history.addListener(changed -> notifications.incrementAndGet());
+
+        history.markUnsaved();
+        assertThat(history.isModified()).as("an empty history is modified too").isTrue();
+        assertThat(notifications).hasValue(1);
+
+        history.execute(addLabel(document));
+        history.undo();
+        assertThat(history.isModified()).as("undo never reaches the unknown saved state").isTrue();
+        history.redo();
+        assertThat(history.isModified()).isTrue();
+
+        history.markSaved();
+        assertThat(history.isModified()).isFalse();
+        history.undo();
+        assertThat(history.isModified()).isTrue();
+        history.redo();
+        assertThat(history.isModified()).isFalse();
+    }
 }

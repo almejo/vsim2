@@ -92,6 +92,15 @@ public final class History {
         notifyListeners();
     }
 
+    /**
+     * A recovered copy (M6-B): the document differs from its file in an unknown way, so it reports modified until the
+     * next {@link #markSaved()}; no undo or redo reaches the saved state before that.
+     */
+    public void markUnsaved() {
+        savedTop = UNREACHABLE;
+        notifyListeners();
+    }
+
     public boolean isModified() {
         return undoStack.peek() != savedTop;
     }
