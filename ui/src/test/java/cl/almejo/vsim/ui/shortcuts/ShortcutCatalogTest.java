@@ -76,4 +76,12 @@ class ShortcutCatalogTest {
             assertThat(Messages.bundle(java.util.Locale.ENGLISH).containsKey(entry.nameKey())).as(entry.id()).isTrue();
         }
     }
+
+    @Test
+    void everyDefaultPassesTheAssignmentRules() {
+        for (ShortcutEntry entry : ShortcutCatalog.entries()) {
+            entry.defaultStroke().ifPresent(stroke -> assertThat(KeyBindings.isAllowedFor(entry, stroke))
+                    .as("%s = %s", entry.id(), stroke).isTrue());
+        }
+    }
 }
