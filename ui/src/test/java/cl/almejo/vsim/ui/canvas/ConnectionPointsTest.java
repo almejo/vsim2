@@ -7,6 +7,7 @@ import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
+import cl.almejo.vsim.core.library.InterfacePins;
 import org.junit.jupiter.api.Test;
 
 import java.awt.geom.Point2D;
@@ -50,5 +51,34 @@ class ConnectionPointsTest {
         assertThat(ConnectionPoints.pointOnWire(horizontal, new Point2D.Double(12, 5))).isEqualTo(new GridPoint(10, 5));
         Wire vertical = new Wire(new ElementId("w2"), new GridPoint(3, 1), new GridPoint(3, 7));
         assertThat(ConnectionPoints.pointOnWire(vertical, new Point2D.Double(3.2, 4.6))).isEqualTo(new GridPoint(3, 5));
+    }
+
+    private void place(String typeId, int x, int y, Map<String, Object> parameters) {
+        document.add(registry.require(typeId).newComponent(document.newComponentId(), new GridPoint(x, y),
+                Rotation.R0, parameters, ""));
+    }
+
+    @Test
+    void widthAtIsTheWidthOfTheInterfacePinOrSplitterBusPinThere() {
+        place(StandardComponentTypes.INPUT_PIN, 0, 0, Map.of(InterfacePins.WIDTH, 8));
+        place(StandardComponentTypes.BUS_SPLITTER, 20, 0, Map.of());
+        assertThat(points.widthAt(document, registry.typeOf(document.components().get(0))
+                .pinLocation(document.components().get(0), 0))).isEqualTo(8);
+        assertThat(points.widthAt(document, new GridPoint(20, 0))).isEqualTo(8);
+        assertThat(points.widthAt(document, new GridPoint(22, 1))).isEqualTo(1);
+    }
+
+    @Test
+    void widthAtIsOneForAGatePinAndForEmptySpace() {
+        place(StandardComponentTypes.NOT, 0, 0);
+        assertThat(points.widthAt(document, new GridPoint(0, 2))).isEqualTo(1);
+        assertThat(points.widthAt(document, new GridPoint(50, 50))).isEqualTo(1);
+    }
+
+    @Test
+    void widthAtIsTheWidestWhenPinsOfDifferentWidthsShareAPoint() {
+        place(StandardComponentTypes.NOT, 0, 0);
+        place(StandardComponentTypes.BUS_SPLITTER, 0, 2);
+        assertThat(points.widthAt(document, new GridPoint(0, 2))).isEqualTo(8);
     }
 }

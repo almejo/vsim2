@@ -1,5 +1,7 @@
 package cl.almejo.vsim.ui.tools;
 
+import cl.almejo.vsim.ui.canvas.ConnectionPoints;
+
 import java.awt.Cursor;
 import java.awt.Graphics2D;
 import java.awt.event.KeyEvent;
@@ -16,7 +18,9 @@ public final class WireTool implements Tool {
             return;
         }
         if (event.button() == CanvasMouseEvent.PRIMARY) {
-            drawing = new WireDrawing(event.snapped(), event.gridPosition());
+            drawing = new WireDrawing(event.snapped(), event.gridPosition(),
+                    new ConnectionPoints(context.openDocument().registry())
+                            .widthAt(context.openDocument().document(), event.snapped()));
         }
     }
 

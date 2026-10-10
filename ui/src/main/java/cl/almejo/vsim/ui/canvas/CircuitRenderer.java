@@ -69,7 +69,6 @@ public final class CircuitRenderer {
     private static final Font BUS_FONT = LabelLayout.FONT.deriveFont(Font.BOLD, 9f);
     /** Gap between a bus and its value, in document pixels. */
     private static final double BUS_LABEL_GAP = 4;
-    private static final int BUS_LABEL_BACKDROP_ALPHA = 200;
     private static final double OUTLINE_GAP = 3;
     private static final double MINIMUM_DOT_SPACING = 6;
 
@@ -298,12 +297,7 @@ public final class CircuitRenderer {
     /** Text on a translucent backdrop of the board color, so it stays legible over wires. */
     private void paintTag(Graphics2D graphics, FontMetrics metrics, String text, double left, double baseline,
                           Color color) {
-        double textWidth = metrics.stringWidth(text);
-        graphics.setColor(withAlpha(scheme().background(), BUS_LABEL_BACKDROP_ALPHA));
-        graphics.fill(new RoundRectangle2D.Double(left - 2, baseline - metrics.getAscent(), textWidth + 4,
-                metrics.getAscent() + metrics.getDescent(), 4, 4));
-        graphics.setColor(color);
-        graphics.drawString(text, (float) left, (float) baseline);
+        PainterSupport.paintTag(graphics, metrics, text, left, baseline, color, scheme().background());
     }
 
     private void paintTextLabels(Graphics2D graphics, RenderState state) {

@@ -43,6 +43,20 @@ public final class ConnectionPoints {
         return Optional.ofNullable(closest);
     }
 
+    /** The widest pin of any component located at {@code point}; 1 when there is none. */
+    public int widthAt(CircuitDocument document, GridPoint point) {
+        int widest = 1;
+        for (Component component : document.components()) {
+            ComponentType type = registry.typeOf(component);
+            for (int pinIndex = 0; pinIndex < type.pinCount(); pinIndex++) {
+                if (type.pinLocation(component, pinIndex).equals(point)) {
+                    widest = Math.max(widest, type.pin(pinIndex).width());
+                }
+            }
+        }
+        return widest;
+    }
+
     /** The grid point of {@code wire} nearest to {@code gridPoint}. */
     public static GridPoint pointOnWire(Wire wire, Point2D gridPoint) {
         if (wire.isHorizontal()) {

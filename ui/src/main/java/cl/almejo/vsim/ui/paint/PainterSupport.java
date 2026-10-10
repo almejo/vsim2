@@ -19,6 +19,7 @@ import java.awt.geom.Line2D;
 import java.awt.geom.NoninvertibleTransformException;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
+import java.awt.geom.RoundRectangle2D;
 
 /** Shared drawing style: shadowed bodies with screen-aligned light, round strokes, pin dots. */
 public final class PainterSupport {
@@ -35,7 +36,22 @@ public final class PainterSupport {
     static final double ALIGN_CENTER = 0.5;
     static final double ALIGN_RIGHT = 1;
 
+    /** Opacity of the board-colored backdrop behind a tag. */
+    public static final int TAG_BACKDROP_ALPHA = 200;
+
     private PainterSupport() {
+    }
+
+    /** Text on a translucent backdrop of {@code backgroundColor}, so it stays legible over wires. */
+    public static void paintTag(Graphics2D graphics, FontMetrics metrics, String text, double left, double baseline,
+                                Color textColor, Color backgroundColor) {
+        double textWidth = metrics.stringWidth(text);
+        graphics.setColor(new Color(backgroundColor.getRed(), backgroundColor.getGreen(), backgroundColor.getBlue(),
+                TAG_BACKDROP_ALPHA));
+        graphics.fill(new RoundRectangle2D.Double(left - 2, baseline - metrics.getAscent(), textWidth + 4,
+                metrics.getAscent() + metrics.getDescent(), 4, 4));
+        graphics.setColor(textColor);
+        graphics.drawString(text, (float) left, (float) baseline);
     }
 
     /** Fills {@code shape} with a shadow and a top-lit gradient, then outlines it. */

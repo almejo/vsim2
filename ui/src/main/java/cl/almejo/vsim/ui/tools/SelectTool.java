@@ -12,12 +12,16 @@ import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.io.CircuitFragment;
 import cl.almejo.vsim.ui.canvas.ConnectionPoints;
+import cl.almejo.vsim.ui.canvas.LabelLayout;
+import cl.almejo.vsim.ui.paint.PainterSupport;
 import cl.almejo.vsim.ui.canvas.MarchingAnts;
 import cl.almejo.vsim.ui.canvas.SelectionBounds;
 
 import java.awt.BasicStroke;
 import java.awt.Color;
+import java.awt.Font;
 import java.awt.Graphics2D;
+import java.awt.RenderingHints;
 import java.awt.event.KeyEvent;
 import java.awt.geom.Ellipse2D;
 import java.awt.geom.Point2D;
@@ -44,6 +48,8 @@ public final class SelectTool implements Tool {
 
     private static final double HOVER_RING_RADIUS = 4.5;
     private static final BasicStroke HOVER_RING = new BasicStroke(1.5f);
+    private static final Font HOVER_TAG_FONT = LabelLayout.FONT.deriveFont(Font.BOLD, 9f);
+    private static final double HOVER_TAG_OFFSET = 7;
     private static final double BAND_THRESHOLD = 0.5;
     private static final float BAND_WIDTH = 1f;
     private static final int BAND_FILL_ALPHA = 40;
@@ -54,6 +60,7 @@ public final class SelectTool implements Tool {
     private GridPoint pressPoint;
     private WireDrawing wire;
     private GridPoint hoverPin;
+    private int hoverWidth = 1;
     private Point2D bandStart;
     private Point2D bandEnd;
     private boolean bandAdditive;
@@ -70,6 +77,7 @@ public final class SelectTool implements Tool {
     @Override
     public void deactivated(ToolContext context) {
         hoverPin = null;
+        hoverWidth = 1;
         reset();
         context.repaint();
     }
@@ -124,7 +132,8 @@ public final class SelectTool implements Tool {
                 pressPoint = event.snapped();
                 narrowOnRelease = true;
             } else {
-                wire = new WireDrawing(pin.get().point(), event.gridPosition());
+                wire = new WireDrawing(pin.get().point(), event.gridPosition(),
+                        connectionPoints(context).widthAt(context.openDocument().document(), pin.get().point()));
             }
             return;
         }
@@ -220,6 +229,8 @@ public final class SelectTool implements Tool {
                 .map(ConnectionPoints.PinHit::point).orElse(null);
         if (!Objects.equals(nearest, hoverPin)) {
             hoverPin = nearest;
+            hoverWidth = nearest == null ? 1
+                    : connectionPoints(context).widthAt(context.openDocument().document(), nearest);
             context.repaint();
         }
     }
@@ -246,11 +257,7 @@ public final class SelectTool implements Tool {
             return;
         }
         if (hoverPin != null && wire == null) {
-            double unit = GridPoint.PIXELS_PER_UNIT;
-            graphics.setColor(context.scheme().selection());
-            graphics.setStroke(HOVER_RING);
-            graphics.draw(new Ellipse2D.Double(hoverPin.x() * unit - HOVER_RING_RADIUS,
-                    hoverPin.y() * unit - HOVER_RING_RADIUS, 2 * HOVER_RING_RADIUS, 2 * HOVER_RING_RADIUS));
+            paintHover(graphics, context);
         }
         if (wire != null) {
             wire.paintPreview(graphics, context);
@@ -263,6 +270,27 @@ public final class SelectTool implements Tool {
             context.openDocument().document().element(id)
                     .ifPresent(element -> context.paintGhost(graphics, element.translate(deltaX, deltaY)));
         }
+    }
+
+    /** A circle around a 1-bit pin; a square of the same footprint, tagged with the width, around a bus pin. */
+    private void paintHover(Graphics2D graphics, ToolContext context) {
+        double unit = GridPoint.PIXELS_PER_UNIT;
+        double centerX = hoverPin.x() * unit;
+        double centerY = hoverPin.y() * unit;
+        graphics.setColor(context.scheme().selection());
+        graphics.setStroke(HOVER_RING);
+        if (hoverWidth <= 1) {
+            graphics.draw(new Ellipse2D.Double(centerX - HOVER_RING_RADIUS, centerY - HOVER_RING_RADIUS,
+                    2 * HOVER_RING_RADIUS, 2 * HOVER_RING_RADIUS));
+            return;
+        }
+        graphics.draw(new Rectangle2D.Double(centerX - HOVER_RING_RADIUS, centerY - HOVER_RING_RADIUS,
+                2 * HOVER_RING_RADIUS, 2 * HOVER_RING_RADIUS));
+        graphics.setFont(HOVER_TAG_FONT);
+        graphics.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+        PainterSupport.paintTag(graphics, graphics.getFontMetrics(), String.valueOf(hoverWidth),
+                centerX + HOVER_TAG_OFFSET, centerY - HOVER_TAG_OFFSET + 2, context.scheme().selection(),
+                context.scheme().background());
     }
 
     @Override

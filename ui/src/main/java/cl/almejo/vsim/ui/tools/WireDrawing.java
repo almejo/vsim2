@@ -9,7 +9,11 @@ import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.ui.tools.WireRouting.Segment;
 
+import java.awt.AlphaComposite;
+import java.awt.BasicStroke;
+import java.awt.Composite;
 import java.awt.Graphics2D;
+import java.awt.geom.Line2D;
 import java.awt.geom.Point2D;
 import java.util.List;
 
@@ -20,16 +24,25 @@ import java.util.List;
 public final class WireDrawing {
 
     private static final double MOVEMENT_THRESHOLD = 0.5;
+    private static final BasicStroke BUS_PREVIEW = new BasicStroke(4.5f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
+    private static final float PREVIEW_ALPHA = 0.5f;
 
     private final GridPoint start;
     private final Point2D pressPosition;
+    private final int startWidth;
     private GridPoint current;
     private Boolean horizontalFirst;
 
     public WireDrawing(GridPoint start, Point2D pressPosition) {
+        this(start, pressPosition, 1);
+    }
+
+    /** {@code startWidth} is the width of the pin the wire starts from (1 from anything else): above 1 it previews as a bus. */
+    public WireDrawing(GridPoint start, Point2D pressPosition, int startWidth) {
         this.start = start;
         this.pressPosition = pressPosition;
         this.current = start;
+        this.startWidth = startWidth;
     }
 
     public GridPoint start() {
@@ -76,9 +89,29 @@ public final class WireDrawing {
 
     public void paintPreview(Graphics2D graphics, ToolContext context) {
         List<Segment> segments = route();
+        if (startWidth > 1) {
+            paintBusPreview(graphics, context, segments);
+            return;
+        }
         for (int index = 0; index < segments.size(); index++) {
             Segment segment = segments.get(index);
             context.paintGhost(graphics, new Wire(new ElementId("preview-" + index), segment.start(), segment.end()));
+        }
+    }
+
+    private static void paintBusPreview(Graphics2D graphics, ToolContext context, List<Segment> segments) {
+        double unit = GridPoint.PIXELS_PER_UNIT;
+        Composite previous = graphics.getComposite();
+        graphics.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, PREVIEW_ALPHA));
+        try {
+            graphics.setStroke(BUS_PREVIEW);
+            graphics.setColor(context.scheme().preview());
+            for (Segment segment : segments) {
+                graphics.draw(new Line2D.Double(segment.start().x() * unit, segment.start().y() * unit,
+                        segment.end().x() * unit, segment.end().y() * unit));
+            }
+        } finally {
+            graphics.setComposite(previous);
         }
     }
 }
