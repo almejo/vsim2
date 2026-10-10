@@ -86,4 +86,30 @@ class BusLabelsTest {
         assertThat(BusValueText.of(Value.highImpedance(4))).isEqualTo("0xZ");
         assertThat(BusValueText.of(Value.of(16, 0xBEEF))).isEqualTo("0xBEEF");
     }
+
+    @Test
+    void binaryGroupsBitsInFoursFromTheLeastSignificantEnd() {
+        assertThat(BusValueText.binary(new Value(8, 0x8F, 0x70, false))).isEqualTo("1ZZZ 1111");
+        assertThat(BusValueText.binary(new Value(6, 0x0F, 0x30, false))).isEqualTo("ZZ 1111");
+        assertThat(BusValueText.binary(Value.of(5, 0x15))).isEqualTo("1 0101");
+        assertThat(BusValueText.binary(Value.of(4, 0x9))).isEqualTo("1001");
+    }
+
+    @Test
+    void binaryOfAnAllHighImpedanceValueIsAllZ() {
+        assertThat(BusValueText.binary(Value.highImpedance(8))).isEqualTo("ZZZZ ZZZZ");
+    }
+
+    @Test
+    void binaryWorksUpToSixtyFourBits() {
+        assertThat(BusValueText.binary(Value.of(64, -1L)))
+                .isEqualTo("1111 1111 1111 1111 1111 1111 1111 1111 1111 1111 1111 1111 1111 1111 1111 1111");
+        assertThat(BusValueText.binary(Value.of(64, Long.MIN_VALUE)))
+                .isEqualTo("1000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000");
+    }
+
+    @Test
+    void binaryOfAConflictedValueIsTheConflictMarker() {
+        assertThat(BusValueText.binary(Value.of(8, 0xFF).withConflict())).isEqualTo("X");
+    }
 }

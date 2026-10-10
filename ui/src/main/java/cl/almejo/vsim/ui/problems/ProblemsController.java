@@ -246,7 +246,9 @@ public final class ProblemsController {
         }
         Value value = snapshot.netValues().get(netId);
         if (net.width() > 1 && value != null) {
-            return Optional.of(Messages.format("bus.tooltip", net.width(), BusValueText.of(value)));
+            return Optional.of(value.conflict()
+                    ? Messages.format("bus.tooltipConflict", net.width(), BusValueText.of(value))
+                    : Messages.format("bus.tooltip", net.width(), BusValueText.of(value), BusValueText.binary(value)));
         }
         return Optional.empty();
     }
