@@ -263,4 +263,16 @@ class OpenDocumentTest {
         assertThat(recovered.isBackedBy(copy)).as("the copy is not the document's file").isFalse();
         assertThat(recovered.displayName()).isEqualTo("Sin título");
     }
+
+    @Test
+    void aRecoveredCopyWithoutAStoredNameNeverTakesTheCopyFileName(@TempDir Path directory) throws Exception {
+        Path original = directory.resolve("contador.vsim");
+        Path copy = directory.resolve("1b2c3d.vsim");
+        OpenDocument source = track(OpenDocument.createEmpty(registry));
+        source.save(copy);
+
+        OpenDocument recovered = track(OpenDocument.openRecovered(copy, original, registry));
+        assertThat(recovered.document().name()).isEmpty();
+        assertThat(recovered.displayName()).isEqualTo("contador");
+    }
 }

@@ -46,6 +46,7 @@ public final class OpenDocument implements AutoCloseable {
     private final CircuitFlattener flattener;
     private final SimulationThread simulation;
     private final List<Runnable> changeListeners = new CopyOnWriteArrayList<>();
+    private final UUID recoveryId = UUID.randomUUID();
     private Path path;
     private Path backingFile;
     private boolean importedFromVsim1;
@@ -53,7 +54,6 @@ public final class OpenDocument implements AutoCloseable {
     private long netlistToken = -1;
     private boolean closed;
     private boolean pauseOnShortCircuit;
-    private final UUID recoveryId = UUID.randomUUID();
     private long changeCount;
 
     public OpenDocument(CircuitDocument document, ComponentTypeRegistry baseRegistry, Path path,
@@ -96,16 +96,15 @@ public final class OpenDocument implements AutoCloseable {
      */
     public static OpenDocument openRecovered(Path copy, Path originalPath, ComponentTypeRegistry registry)
             throws CircuitFormatException {
-        OpenedCircuit opened = new CircuitReader(registry).open(copy);
-        if (originalPath == null) {
-            // The reader names a nameless file after the copy's file; an untitled document stays untitled.
-            String copyName = copy.getFileName().toString();
-            int dot = copyName.lastIndexOf('.');
-            if (opened.document().name().equals(dot > 0 ? copyName.substring(0, dot) : copyName)) {
-                opened.document().setName("");
-            }
+        // Not CircuitReader.open: it would name a nameless document after the copy file.
+        String content;
+        try {
+            content = Files.readString(copy);
+        } catch (IOException exception) {
+            throw new CircuitFormatException(CircuitFormatException.Reason.READ_ERROR, copy.toString(), exception);
         }
-        OpenDocument openDocument = new OpenDocument(opened.document(), registry, originalPath, false);
+        CircuitDocument recoveredDocument = new CircuitReader(registry).read(content);
+        OpenDocument openDocument = new OpenDocument(recoveredDocument, registry, originalPath, false);
         openDocument.backingFile = originalPath == null ? null : FileNames.normalized(originalPath);
         openDocument.history.markUnsaved();
         return openDocument;
