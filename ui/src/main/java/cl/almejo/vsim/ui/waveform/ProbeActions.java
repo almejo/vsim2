@@ -104,18 +104,11 @@ public final class ProbeActions {
     }
 
     public void remove(String probeId) {
-        List<Probe> before = openDocument.document().probes();
-        List<Probe> after = before.stream().filter(probe -> !probe.id().equals(probeId)).toList();
-        if (after.size() != before.size()) {
-            openDocument.execute(new SetProbesCommand(before, after, "command.removeProbe"));
-        }
+        edit(probes -> probes.stream().filter(probe -> !probe.id().equals(probeId)).toList(), "command.removeProbe");
     }
 
     public void removeAll() {
-        List<Probe> before = openDocument.document().probes();
-        if (!before.isEmpty()) {
-            openDocument.execute(new SetProbesCommand(before, List.of(), "command.removeAllProbes"));
-        }
+        edit(probes -> List.of(), "command.removeAllProbes");
     }
 
     /** {@code U3.q} (label, else id, dot, pin name) for a pin; «cable w12» for a wire of a net without pins. */
@@ -211,30 +204,39 @@ public final class ProbeActions {
         return new AddResult(added, added.isEmpty() ? existingId : Optional.empty(), capReached);
     }
 
-    private void replace(String probeId, UnaryOperator<Probe> change, String description) {
-        List<Probe> before = openDocument.document().probes();
-        List<Probe> after = before.stream()
+    private void replace(String probeId, UnaryOperator<Probe> change, String descriptionKey) {
+        edit(probes -> probes.stream()
                 .map(probe -> probe.id().equals(probeId) ? change.apply(probe) : probe)
-                .toList();
-        if (!after.equals(before)) {
-            openDocument.execute(new SetProbesCommand(before, after, description));
-        }
+                .toList(), descriptionKey);
     }
 
     private void move(String probeId, int direction) {
-        List<Probe> before = openDocument.document().probes();
+        edit(probes -> swapped(probes, probeId, direction), "command.moveProbe");
+    }
+
+    /** {@code probes} with {@code probeId} swapped with its neighbor; the same list when it cannot move. */
+    private static List<Probe> swapped(List<Probe> probes, String probeId, int direction) {
         int index = -1;
-        for (int candidate = 0; candidate < before.size(); candidate++) {
-            if (before.get(candidate).id().equals(probeId)) {
+        for (int candidate = 0; candidate < probes.size(); candidate++) {
+            if (probes.get(candidate).id().equals(probeId)) {
                 index = candidate;
             }
         }
         int target = index + direction;
-        if (index < 0 || target < 0 || target >= before.size()) {
-            return;
+        if (index < 0 || target < 0 || target >= probes.size()) {
+            return probes;
         }
-        List<Probe> after = new ArrayList<>(before);
-        Collections.swap(after, index, target);
-        openDocument.execute(new SetProbesCommand(before, after, "command.moveProbe"));
+        List<Probe> result = new ArrayList<>(probes);
+        Collections.swap(result, index, target);
+        return result;
+    }
+
+    /** One undoable step from the document's probes to {@code change}'s list, only when that list differs. */
+    private void edit(UnaryOperator<List<Probe>> change, String descriptionKey) {
+        List<Probe> before = openDocument.document().probes();
+        List<Probe> after = change.apply(before);
+        if (!after.equals(before)) {
+            openDocument.execute(new SetProbesCommand(before, after, descriptionKey));
+        }
     }
 }
