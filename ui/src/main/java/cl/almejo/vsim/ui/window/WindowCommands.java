@@ -13,4 +13,8 @@ public interface WindowCommands {
     void closeWindow();
 
     void exit();
+
+    /** Ventana ▸ Nueva vista: another view of this document. Nothing happens outside a real window. */
+    default void newView() {
+    }
 }

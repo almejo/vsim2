@@ -1,10 +1,7 @@
 package cl.almejo.vsim.ui.window;
 
-import cl.almejo.vsim.ui.i18n.Messages;
-
 import javax.swing.JCheckBoxMenuItem;
 import javax.swing.JMenu;
-import javax.swing.JMenuItem;
 import javax.swing.JPopupMenu;
 import javax.swing.event.MenuEvent;
 import javax.swing.event.MenuListener;
@@ -13,7 +10,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Supplier;
 
-/** The "Ventana" menu: a "new window of this circuit" item plus every open window, refreshed on each opening. */
+/**
+ * The list of open windows at the end of the "Ventana" menu, refreshed on each opening. The items already in the
+ * menu («Nueva vista», from {@code EditorActions}) stay above it.
+ */
 public final class WindowMenu {
 
     /** One open window as the menu lists it. */
@@ -24,12 +24,9 @@ public final class WindowMenu {
     private final Supplier<List<Entry>> entries;
     private final List<Component> listed = new ArrayList<>();
 
-    public WindowMenu(JMenu menu, Runnable newWindow, Supplier<List<Entry>> entries) {
+    public WindowMenu(JMenu menu, Supplier<List<Entry>> entries) {
         this.menu = menu;
         this.entries = entries;
-        JMenuItem newWindowItem = new JMenuItem(Messages.text("action.newWindow"));
-        newWindowItem.addActionListener(event -> newWindow.run());
-        menu.add(newWindowItem);
         menu.addMenuListener(new MenuListener() {
             @Override
             public void menuSelected(MenuEvent event) {

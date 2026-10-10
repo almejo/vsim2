@@ -56,6 +56,7 @@ class EditorViewTest {
         @Override public void saveAs() { windowCalls.add("saveAs"); }
         @Override public void closeWindow() { windowCalls.add("close"); }
         @Override public void exit() { windowCalls.add("exit"); }
+        @Override public void newView() { windowCalls.add("newView"); }
     };
     private OpenDocument openDocument;
     private EditorView view;
@@ -119,7 +120,16 @@ class EditorViewTest {
         for (MenuId id : MenuId.values()) {
             assertThat(view.menu(id)).isSameAs(view.menuBar().getMenu(id.ordinal()));
         }
-        assertThat(view.menu(MenuId.WINDOW).getItemCount()).isZero();
+        assertThat(view.menu(MenuId.WINDOW).getItemCount()).isEqualTo(1);
+        assertThat(view.menu(MenuId.WINDOW).getItem(0).getAction()).isSameAs(view.actions().newView());
+    }
+
+    @Test
+    void theWindowMenuOffersNewViewAndHandsItToTheWindow() {
+        assertThat(view.menu(MenuId.WINDOW).getItem(0).getText()).isEqualTo("Nueva vista");
+        assertThat(view.actions().newView().getValue(Action.ACCELERATOR_KEY)).isNull();
+        perform(view.actions().newView());
+        assertThat(windowCalls).containsExactly("newView");
     }
 
     @Test
