@@ -16,6 +16,7 @@ import cl.almejo.vsim.ui.paint.Appearance;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.ComponentDrawing;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
+import cl.almejo.vsim.ui.paint.PainterSupport;
 import cl.almejo.vsim.ui.paint.SignalColors;
 
 import java.awt.AlphaComposite;
@@ -57,9 +58,10 @@ public final class CircuitRenderer {
     private static final double JUNCTION_RADIUS = 3.5;
     private static final double BUS_JUNCTION_RADIUS = 5;
     private static final double HALO_RADIUS = 7;
-    /** The pin dot's size (see PainterSupport), so the ring of an open pin covers exactly the dot. */
-    private static final double OPEN_PIN_RADIUS = 1.6;
-    private static final double OPEN_BUS_PIN_HALF_SIDE = 2.2;
+    /** How much bigger than the pin dot the mark of an open pin is, so its hole is obvious and covers the dot. */
+    private static final double OPEN_PIN_MARGIN = 1;
+    private static final double OPEN_PIN_RADIUS = PainterSupport.PIN_DOT_RADIUS + OPEN_PIN_MARGIN;
+    private static final double OPEN_BUS_PIN_HALF_SIDE = PainterSupport.BUS_PIN_HALF_SIDE + OPEN_PIN_MARGIN;
     private static final BasicStroke OPEN_PIN_RING = new BasicStroke(1f);
     private static final Font BUS_FONT = LabelLayout.FONT.deriveFont(Font.BOLD, 9f);
     /** Gap between a bus and its value, in document pixels. */

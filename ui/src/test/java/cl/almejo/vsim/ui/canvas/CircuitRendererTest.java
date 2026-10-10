@@ -328,16 +328,6 @@ class CircuitRendererTest {
         return new Color(image.getRGB(pin.x() * 8, pin.y() * 8));
     }
 
-    /** The hole of a ring is a couple of pixels wide, so its center only reads as the board color, not exactly. */
-    private static boolean isHollow(Color center) {
-        return distance(center, SCHEME.background()) < distance(center, SCHEME.componentStroke()) / 4;
-    }
-
-    private static int distance(Color first, Color second) {
-        return Math.abs(first.getRed() - second.getRed()) + Math.abs(first.getGreen() - second.getGreen())
-                + Math.abs(first.getBlue() - second.getBlue());
-    }
-
     @Test
     void anOpenPinOfABusJoinerIsAHollowRingAndAWiredPinKeepsItsDot() {
         Component joiner = busComponentAt(StandardComponentTypes.BUS_JOINER, 3, 3);
@@ -347,10 +337,10 @@ class CircuitRendererTest {
         BufferedImage image = renderCompiled();
 
         assertThat(pinCenter(image, joiner, 1)).isEqualTo(SCHEME.componentStroke());
-        assertThat(isHollow(pinCenter(image, joiner, 2))).isTrue();
-assertThat(isHollow(pinCenter(image, joiner, 3))).isTrue();
+        assertThat(pinCenter(image, joiner, 2)).isEqualTo(SCHEME.background());
+assertThat(pinCenter(image, joiner, 3)).isEqualTo(SCHEME.background());
         // the open output bus pin is a hollow square
-        assertThat(isHollow(pinCenter(image, joiner, 0))).isTrue();
+        assertThat(pinCenter(image, joiner, 0)).isEqualTo(SCHEME.background());
     }
 
     @Test
