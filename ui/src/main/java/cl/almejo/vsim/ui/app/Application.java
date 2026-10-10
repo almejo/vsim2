@@ -31,6 +31,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Consumer;
 
 /** Open windows and documents of the running application (EDT only). A document closes with its last window. */
 public final class Application {
@@ -162,6 +163,20 @@ public final class Application {
         return windows.menuEntries(current, this::focus);
     }
 
+    /** Runs {@code listener} after every window opens or closes (view numbers may have changed). */
+    public void addWindowsListener(Runnable listener) {
+        windows.addChangeListener(listener);
+    }
+
+    public void removeWindowsListener(Runnable listener) {
+        windows.removeChangeListener(listener);
+    }
+
+    /** The number of {@code window} among the views of its document; 0 when it is the only one. */
+    public int viewNumber(CircuitWindow window) {
+        return windows.viewNumber(window);
+    }
+
     public Path initialDirectory() {
         if (lastDirectory != null) {
             return lastDirectory;
@@ -203,8 +218,18 @@ public final class Application {
     }
 
     private CircuitWindow show(OpenDocument document) {
+        return show(document, window -> {
+        });
+    }
+
+    /**
+     * Creates a window for {@code document}, registers it, lets {@code beforeShowing} place it (location, size, the
+     * view state it opens with) and only then shows it. M6 contract C6: B adds its saved-state overload on top.
+     */
+    private CircuitWindow show(OpenDocument document, Consumer<CircuitWindow> beforeShowing) {
         CircuitWindow window = new CircuitWindow(this, document, services);
         windows.add(document, window);
+        beforeShowing.accept(window);
         window.setVisible(true);
         return window;
     }

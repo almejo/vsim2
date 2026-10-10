@@ -99,7 +99,8 @@ class DocumentWindowsTest {
     }
 
     @Test
-    void menuEntriesNumberTheWindowsOfEachDocumentAndMarkTheCurrentOne(@TempDir Path directory) throws Exception {
+    void menuEntriesNumberTheViewsOfADocumentWithSeveralAndMarkTheCurrentOne(@TempDir Path directory)
+            throws Exception {
         windows.add(newDocument(), "untitled");
         OpenDocument saved = savedDocument(directory.resolve("sumador.vsim"));
         windows.add(saved, "saved-1");
@@ -107,9 +108,53 @@ class DocumentWindowsTest {
         List<String> focused = new ArrayList<>();
         List<WindowMenu.Entry> entries = windows.menuEntries("saved-2", focused::add);
         assertThat(entries).extracting(WindowMenu.Entry::title)
-                .containsExactly("Sin título — 1", "sumador — 1", "sumador — 2");
+                .containsExactly("Sin título", "sumador (1)", "sumador (2)");
         assertThat(entries).extracting(WindowMenu.Entry::current).containsExactly(false, false, true);
         entries.get(1).focus().run();
         assertThat(focused).containsExactly("saved-1");
+    }
+
+    @Test
+    void viewNumbersCountOnlyWhenADocumentHasSeveralWindowsAndFollowClosing() {
+        OpenDocument document = newDocument();
+        OpenDocument other = newDocument();
+        windows.add(document, "a-1");
+        windows.add(other, "b-1");
+        assertThat(windows.viewNumber("a-1")).isZero();
+        windows.add(document, "a-2");
+        windows.add(document, "a-3");
+        assertThat(windows.viewNumber("a-1")).isEqualTo(1);
+        assertThat(windows.viewNumber("a-2")).isEqualTo(2);
+        assertThat(windows.viewNumber("a-3")).isEqualTo(3);
+        assertThat(windows.viewNumber("b-1")).isZero();
+        windows.remove("a-2");
+        assertThat(windows.viewNumber("a-3")).isEqualTo(2);
+        windows.remove("a-1");
+        assertThat(windows.viewNumber("a-3")).isZero();
+        assertThat(windows.viewNumber("ghost")).isZero();
+    }
+
+    @Test
+    void changeListenersHearEveryAddAndRemoveAfterTheChange() {
+        OpenDocument document = newDocument();
+        List<Integer> secondViewNumbers = new ArrayList<>();
+        Runnable listener = () -> secondViewNumbers.add(windows.viewNumber("two"));
+        windows.addChangeListener(listener);
+        assertThat(windows.changeListenerCount()).isEqualTo(1);
+        windows.add(document, "one");
+        windows.add(document, "two");
+        windows.remove("ghost");
+        windows.remove("one");
+        assertThat(secondViewNumbers).containsExactly(0, 2, 0);
+        windows.removeChangeListener(listener);
+        windows.remove("two");
+        assertThat(secondViewNumbers).hasSize(3);
+        assertThat(windows.changeListenerCount()).isZero();
+    }
+
+    @Test
+    void aViewTitleHasTheNumberOnlyWhenThereIsOne() {
+        assertThat(DocumentWindows.viewTitle("contador", 0)).isEqualTo("contador");
+        assertThat(DocumentWindows.viewTitle("contador", 2)).isEqualTo("contador (2)");
     }
 }
