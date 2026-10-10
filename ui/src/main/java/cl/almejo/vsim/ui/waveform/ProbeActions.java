@@ -81,6 +81,12 @@ public final class ProbeActions {
         return add(targets);
     }
 
+    /** Whether {@code ids} hold a wire or a component (a selection of only labels has nothing to show). */
+    boolean hasTargets(Collection<ElementId> ids) {
+        CircuitDocument document = openDocument.document();
+        return ids.stream().anyMatch(id -> document.wire(id).isPresent() || document.component(id).isPresent());
+    }
+
     /** Renames a channel; an empty or blank name restores its default name. */
     public void rename(String probeId, String newName) {
         String stripped = newName == null ? "" : newName.strip();

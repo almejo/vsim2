@@ -43,7 +43,9 @@ public final class WaveformMenuContributor implements ContextMenuContributor {
         DocumentElement element = target.get();
         if (selection.size() > 1 && selection.contains(element.id())) {
             Set<ElementId> ids = selection.ids();
-            menu.add(item("waveform.menu.show", () -> actions.addSelection(ids)));
+            if (actions.hasTargets(ids)) {
+                menu.add(item("waveform.menu.show", () -> actions.addSelection(ids)));
+            }
             return;
         }
         switch (element) {
