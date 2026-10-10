@@ -413,7 +413,7 @@ public final class SelectTool implements Tool {
         Rectangle2D pixels = new Rectangle2D.Double(band.getX() * unit, band.getY() * unit,
                 band.getWidth() * unit, band.getHeight() * unit);
         Color color = context.scheme().selection();
-        graphics.setColor(new Color(color.getRed(), color.getGreen(), color.getBlue(), BAND_FILL_ALPHA));
+        graphics.setColor(PainterSupport.withAlpha(color, BAND_FILL_ALPHA));
         graphics.fill(pixels);
         MarchingAnts.draw(graphics, pixels, color, BAND_WIDTH, context.selectionDashPhase());
     }

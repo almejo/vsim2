@@ -16,6 +16,7 @@ import javax.swing.AbstractAction;
 import javax.swing.Action;
 import javax.swing.JCheckBoxMenuItem;
 import javax.swing.JMenu;
+import java.awt.Component;
 import java.awt.event.ActionEvent;
 import java.util.Optional;
 import java.util.function.BiConsumer;
@@ -28,20 +29,20 @@ import java.util.function.BiConsumer;
 public final class WaveformFeatures {
 
     private final EditorView view;
-    private final BiConsumer<java.awt.Component, String> messages;
+    private final BiConsumer<Component, String> messages;
     private final ProbeActions actions;
     private final NetBlink blink;
     private final WaveformPanel panel;
     private final Action toggle;
     private final Runnable dockListener;
     private final JMenu viewMenu;
-    private final java.awt.Component separator;
+    private final Component separator;
     private final JCheckBoxMenuItem toggleItem;
     private final Runnable shortcutRemover;
     private final Runnable probeListener;
     private boolean disposed;
 
-    public WaveformFeatures(EditorView view, TextPrompt prompt, BiConsumer<java.awt.Component, String> messages) {
+    public WaveformFeatures(EditorView view, TextPrompt prompt, BiConsumer<Component, String> messages) {
         this.view = view;
         this.messages = messages;
         OpenDocument openDocument = view.openDocument();

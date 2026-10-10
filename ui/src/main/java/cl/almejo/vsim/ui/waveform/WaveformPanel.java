@@ -20,6 +20,7 @@ import javax.swing.JToggleButton;
 import javax.swing.JToolBar;
 import javax.swing.Timer;
 import java.awt.BorderLayout;
+import java.awt.Component;
 import java.awt.event.ActionEvent;
 import java.awt.event.HierarchyEvent;
 import java.util.ArrayList;
@@ -201,6 +202,13 @@ public final class WaveformPanel extends JPanel {
         names.repaint();
     }
 
+    /** The probe of the row at {@code y}, if any. */
+    Optional<String> probeAt(int y) {
+        List<String> ids = channelIds();
+        int row = y / WaveformPainter.ROW_HEIGHT;
+        return y >= 0 && row < ids.size() ? Optional.of(ids.get(row)) : Optional.empty();
+    }
+
     boolean isBlinkLit(String probeId) {
         return rowBlink.isLit() && probeId.equals(blinkingProbe);
     }
@@ -220,7 +228,7 @@ public final class WaveformPanel extends JPanel {
     /** «t = 1 237 · Δt = 3»: the time under {@code x} and, with a cursor, the distance from it. */
     String hoverText(double x) {
         long time = Math.round(axis.timeAt(x));
-        String text = "t = " + TimeAxis.format(time);
+        String text = TimeAxis.timeLabel(time);
         OptionalLong cursor = axis.cursor();
         return cursor.isPresent() ? text + " · Δt = " + TimeAxis.format(time - cursor.getAsLong()) : text;
     }
@@ -283,7 +291,7 @@ public final class WaveformPanel extends JPanel {
                 .max();
         return complete.isPresent()
                 ? Messages.format("waveform.historyFrom", TimeAxis.format(complete.getAsLong()))
-                : "t = " + TimeAxis.format(displayed.time());
+                : TimeAxis.timeLabel(displayed.time());
     }
 
     void showInCircuit(String probeId) {
@@ -310,7 +318,7 @@ public final class WaveformPanel extends JPanel {
     }
 
     AbstractButton button(String text) {
-        for (java.awt.Component child : toolBar.getComponents()) {
+        for (Component child : toolBar.getComponents()) {
             if (child instanceof AbstractButton button && text.equals(button.getText())) {
                 return button;
             }
@@ -320,7 +328,7 @@ public final class WaveformPanel extends JPanel {
 
     List<String> toolBarTexts() {
         List<String> texts = new ArrayList<>();
-        for (java.awt.Component child : toolBar.getComponents()) {
+        for (Component child : toolBar.getComponents()) {
             if (child instanceof AbstractButton button) {
                 texts.add(button.getText());
             }

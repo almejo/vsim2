@@ -6,6 +6,7 @@ import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.ui.canvas.CanvasOverlay;
 import cl.almejo.vsim.ui.canvas.RenderState;
 import cl.almejo.vsim.ui.paint.ColorScheme;
+import cl.almejo.vsim.ui.paint.PainterSupport;
 
 import java.awt.BasicStroke;
 import java.awt.Color;
@@ -66,7 +67,7 @@ public final class NetBlink implements CanvasOverlay {
         }
         Color color = scheme.get().selection();
         graphics.setStroke(STROKE);
-        graphics.setColor(new Color(color.getRed(), color.getGreen(), color.getBlue(), ALPHA));
+        graphics.setColor(PainterSupport.withAlpha(color, ALPHA));
         for (Wire wire : state.document().wires()) {
             if (wires.contains(wire.id())) {
                 graphics.draw(new Line2D.Double(wire.start().x() * UNIT, wire.start().y() * UNIT,
