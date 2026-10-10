@@ -62,11 +62,8 @@ public final class LibraryWatcher implements AutoCloseable {
         this.onSettled = onSettled;
         this.onGone = onGone;
         this.onBack = onBack;
-        this.scheduler = Executors.newSingleThreadScheduledExecutor(runnable -> {
-            Thread worker = new Thread(runnable, "vsim-library-reload");
-            worker.setDaemon(true);
-            return worker;
-        });
+        this.scheduler = Executors.newSingleThreadScheduledExecutor(
+                Thread.ofPlatform().name("vsim-library-reload").daemon().factory());
     }
 
     /**
@@ -80,9 +77,7 @@ public final class LibraryWatcher implements AutoCloseable {
         Files.createDirectories(directory);
         watchService = directory.getFileSystem().newWatchService();
         register();
-        thread = new Thread(this::watch, "vsim-library-watcher");
-        thread.setDaemon(true);
-        thread.start();
+        thread = Thread.ofPlatform().name("vsim-library-watcher").daemon().start(this::watch);
     }
 
     /** Something changed: (re)starts the quiet period. Package-private so tests can simulate events. */

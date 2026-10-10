@@ -72,11 +72,8 @@ public final class ThemeManager {
     /** FlatLaf and the platform dark-mode checks of the running system, with the answer {@code Main} asked for. */
     public static ThemeManager forCurrentPlatform(AppPreferences preferences, Appearance appearance) {
         String osName = System.getProperty("os.name", "");
-        Executor probeExecutor = Executors.newSingleThreadExecutor(runnable -> {
-            Thread worker = new Thread(runnable, "vsim-dark-mode-probe");
-            worker.setDaemon(true);
-            return worker;
-        });
+        Executor probeExecutor = Executors.newSingleThreadExecutor(
+                Thread.ofPlatform().name("vsim-dark-mode-probe").daemon().factory());
         return new ThemeManager(preferences, appearance, platformProbe(osName), new FlatLafInstaller(osName),
                 takeStartupSystemDark(), probeExecutor, SwingUtilities::invokeLater);
     }

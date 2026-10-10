@@ -70,11 +70,8 @@ public final class AutosaveService {
 
     /** The application's service: the system clock and one daemon writer thread. The timer starts with {@link #start()}. */
     public static AutosaveService create(RecoveryStore store) {
-        ExecutorService writer = Executors.newSingleThreadExecutor(runnable -> {
-            Thread thread = new Thread(runnable, "vsim-autosave");
-            thread.setDaemon(true);
-            return thread;
-        });
+        ExecutorService writer = Executors.newSingleThreadExecutor(
+                Thread.ofPlatform().name("vsim-autosave").daemon().factory());
         return new AutosaveService(store, Clock.systemDefaultZone(), writer);
     }
 
