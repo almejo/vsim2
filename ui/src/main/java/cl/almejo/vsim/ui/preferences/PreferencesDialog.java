@@ -19,7 +19,7 @@ public final class PreferencesDialog {
     private PreferencesDialog() {
     }
 
-public static void show(Component parent, AppPreferences preferences) {
+    public static void show(Component parent, AppPreferences preferences) {
         JTabbedPane tabs = tabs(preferences, PreferencesDialog::chooseDirectory);
         Object[] options = {Messages.text("preferences.close")};
         JOptionPane.showOptionDialog(parent, tabs, Messages.text("preferences.title"), JOptionPane.DEFAULT_OPTION,

@@ -79,7 +79,7 @@ public final class OpenDocument implements AutoCloseable {
             changeCount++;
             fireChanged();
         });
-        document.addProbeListener(() -> simulation.setProbes(resolveProbes()));
+        document.addProbeListener(() -> simulation.setProbes(updateProbeNets()));
         synchronize();
         simulation.start();
         simulation.resume();
@@ -318,7 +318,7 @@ public final class OpenDocument implements AutoCloseable {
             netlist = compiler.compile(document);
             netlistToken = document.revision();
             // One request with the circuit, so no tick runs between the new circuit and its channels (spec §3.4).
-            simulation.update(flattener.flatten(document, netlist), resolveProbes());
+            simulation.update(flattener.flatten(document, netlist), updateProbeNets());
         } catch (RuntimeException exception) {
             LOGGER.error("Could not prepare {} for simulation", displayName(), exception);
             probeNets = Map.of();
@@ -335,7 +335,7 @@ public final class OpenDocument implements AutoCloseable {
      * simulation: every probe, an unresolved one with an empty net id, so its channel records a gap and keeps its
      * history until it resolves again.
      */
-    private Map<String, String> resolveProbes() {
+    private Map<String, String> updateProbeNets() {
         List<Probe> probes = document.probes();
         Map<String, String> resolved = ProbeResolver.resolve(probes, document, netlist);
         probeNets = resolved;

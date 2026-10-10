@@ -44,11 +44,10 @@ public record ComponentType(String id, ComponentCategory category, GridSize size
     public static ComponentType parameterized(String id, ComponentCategory category, List<ParameterSpec> parameters,
                                               ComponentLayout layout, BehaviorFactory behaviorFactory) {
         Objects.requireNonNull(layout, "layout");
-        ComponentLayout memoized = MemoizedLayout.of(layout);
         Map<String, Object> defaults = new LinkedHashMap<>();
         parameters.forEach(parameter -> defaults.put(parameter.name(), parameter.defaultValue()));
-        ComponentShape shape = memoized.shapeFor(Map.copyOf(defaults));
-        return new ComponentType(id, category, shape.size(), shape.pins(), parameters, behaviorFactory, memoized);
+        ComponentShape shape = layout.shapeFor(Map.copyOf(defaults));
+        return new ComponentType(id, category, shape.size(), shape.pins(), parameters, behaviorFactory, layout);
     }
 
     public boolean isParameterized() {
