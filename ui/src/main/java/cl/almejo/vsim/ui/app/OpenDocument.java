@@ -5,6 +5,7 @@ import cl.almejo.vsim.core.command.History;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.core.document.Probe;
 import cl.almejo.vsim.core.io.CircuitFormat;
 import cl.almejo.vsim.core.io.CircuitFormatException;
 import cl.almejo.vsim.core.io.CircuitReader;
@@ -12,10 +13,12 @@ import cl.almejo.vsim.core.io.OpenedCircuit;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.core.netlist.Netlist;
 import cl.almejo.vsim.core.netlist.NetlistCompiler;
+import cl.almejo.vsim.core.netlist.ProbeResolver;
 import cl.almejo.vsim.core.simulation.CircuitFlattener;
 import cl.almejo.vsim.core.simulation.SimulationEngine;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.core.simulation.SimulationThread;
+import cl.almejo.vsim.core.waveform.WaveformSnapshot;
 import cl.almejo.vsim.ui.i18n.Messages;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,7 +29,9 @@ import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -53,6 +58,7 @@ public final class OpenDocument implements AutoCloseable {
     private long netlistToken = -1;
     private boolean closed;
     private boolean pauseOnShortCircuit;
+    private Map<String, String> probeNets = Map.of();
 
     public OpenDocument(CircuitDocument document, ComponentTypeRegistry baseRegistry, Path path,
                         boolean importedFromVsim1) {
@@ -68,6 +74,7 @@ public final class OpenDocument implements AutoCloseable {
         this.simulation = new SimulationThread(new SimulationEngine());
         document.addListener((changed, change) -> synchronize());
         history.addListener(changed -> fireChanged());
+        document.addProbeListener(() -> simulation.setProbes(resolveProbes()));
         synchronize();
         simulation.start();
         simulation.resume();
@@ -189,6 +196,21 @@ public final class OpenDocument implements AutoCloseable {
         return simulation.latestSnapshot();
     }
 
+    /** The recorded waveforms of this document's channels (spec §3.3); safe to read from any thread. */
+    public WaveformSnapshot latestWaveforms() {
+        return simulation.latestWaveforms();
+    }
+
+    /** «Limpiar trazas»: drops the recorded events and keeps the channels. */
+    public void clearWaveforms() {
+        simulation.clearWaveforms();
+    }
+
+    /** Probe id → top-level net id for the probes that resolve in the current netlist; the others are absent. */
+    public Map<String, String> probeNets() {
+        return probeNets;
+    }
+
     /**
      * Writes format v2 atomically (temporary file + move); on failure nothing changes. A document that could not be
      * reopened (an instance whose definition is missing) fails with an IOException before anything is written.
@@ -257,15 +279,33 @@ public final class OpenDocument implements AutoCloseable {
         try {
             netlist = compiler.compile(document);
             netlistToken = document.revision();
-            simulation.update(flattener.flatten(document, netlist));
+            // One request with the circuit, so no tick runs between the new circuit and its channels (spec §3.4).
+            simulation.update(flattener.flatten(document, netlist), resolveProbes());
         } catch (RuntimeException exception) {
             LOGGER.error("Could not prepare {} for simulation", displayName(), exception);
+            probeNets = Map.of();
             if (netlistToken != document.revision()) {
                 netlist = Netlist.EMPTY;
                 netlistToken = document.revision();
             }
             simulation.reportFailure(exception);
         }
+    }
+
+    /**
+     * Resolves the probes against the current netlist into {@link #probeNets()} and returns the channels for the
+     * simulation: every probe, an unresolved one with an empty net id, so its channel records a gap and keeps its
+     * history until it resolves again.
+     */
+    private Map<String, String> resolveProbes() {
+        List<Probe> probes = document.probes();
+        Map<String, String> resolved = ProbeResolver.resolve(probes, document, netlist);
+        probeNets = resolved;
+        Map<String, String> channels = new LinkedHashMap<>();
+        for (Probe probe : probes) {
+            channels.put(probe.id(), resolved.getOrDefault(probe.id(), ""));
+        }
+        return channels;
     }
 
     private void fireChanged() {

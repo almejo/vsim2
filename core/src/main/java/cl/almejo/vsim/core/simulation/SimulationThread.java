@@ -1,8 +1,10 @@
 package cl.almejo.vsim.core.simulation;
 
+import cl.almejo.vsim.core.waveform.WaveformSnapshot;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Map;
 import java.util.Optional;
 import java.util.Queue;
 import java.util.Set;
@@ -22,12 +24,15 @@ public final class SimulationThread implements AutoCloseable {
     private static final long NANOS_PER_MILLISECOND = 1_000_000L;
     private static final double MAXIMUM_MILLISECONDS_PER_TICK = 250.0;
     private static final long PARK_NANOS = 2 * NANOS_PER_MILLISECOND;
+    /** Waveform snapshots are republished at most this often (about 60 per second). */
+    private static final long WAVEFORM_PUBLISH_INTERVAL_NANOS = 16 * NANOS_PER_MILLISECOND;
 
     private final SimulationEngine engine;
     private final LongSupplier nanoClock;
     private final long closeTimeoutMillis;
     private final Queue<Runnable> requests = new ConcurrentLinkedQueue<>();
     private volatile SimulationSnapshot latestSnapshot = SimulationSnapshot.EMPTY;
+    private volatile WaveformSnapshot latestWaveforms = WaveformSnapshot.EMPTY;
     private volatile boolean stopRequested;
     private Thread thread;
 
@@ -42,6 +47,8 @@ public final class SimulationThread implements AutoCloseable {
     private Set<String> shortCircuitNets = Set.of();
     /** True when the engine or the run state changed since the last published snapshot. */
     private boolean snapshotStale = true;
+    private boolean waveformsPublished;
+    private long lastWaveformPublishNanos;
 
     public SimulationThread(SimulationEngine engine) {
         this(engine, System::nanoTime);
@@ -70,6 +77,22 @@ public final class SimulationThread implements AutoCloseable {
         requests.add(() -> {
             engine.update(circuit);
             failure = null;
+        });
+    }
+
+    /**
+     * Replaces the circuit and binds the waveform channels (as {@link #setProbes}) in one request, so no tick runs
+     * between them (spec §3.4). The channels are bound even when the circuit is rejected.
+     */
+    public void update(FlatCircuit circuit, Map<String, String> channels) {
+        Map<String, String> copy = Map.copyOf(channels);
+        requests.add(() -> {
+            try {
+                engine.update(circuit);
+                failure = null;
+            } finally {
+                engine.setProbes(copy);
+            }
         });
     }
 
@@ -116,6 +139,30 @@ public final class SimulationThread implements AutoCloseable {
         requests.add(() -> pauseOnShortCircuit = enabled);
     }
 
+    /** Binds waveform channels (channel id → net id; "" or an unknown id records a gap), applied at the next tick. */
+    public void setProbes(Map<String, String> channels) {
+        Map<String, String> copy = Map.copyOf(channels);
+        requests.add(() -> engine.setProbes(copy));
+    }
+
+    /** «Limpiar trazas»: drops every recorded event; the channels go on recording from their current value. */
+    public void clearWaveforms() {
+        requests.add(engine::clearWaveforms);
+    }
+
+    /**
+     * The recorded waveforms, republished at most every 16 ms when a trace changes or, with channels, when the
+     * simulation time moves.
+     */
+    public WaveformSnapshot latestWaveforms() {
+        return latestWaveforms;
+    }
+
+    /** For tests: requests queued and not yet applied. */
+    int pendingRequests() {
+        return requests.size();
+    }
+
     public SimulationSnapshot latestSnapshot() {
         return latestSnapshot;
     }
@@ -152,6 +199,8 @@ public final class SimulationThread implements AutoCloseable {
             LOGGER.error("Simulation failed; pausing", exception);
             publishFailure(exception);
         }
+        // Also after a failure: the channels of a rejected circuit are still bound and shown.
+        publishWaveforms(now);
     }
 
     private void pauseOnNewShortCircuit(SimulationSnapshot snapshot) {
@@ -163,6 +212,19 @@ public final class SimulationThread implements AutoCloseable {
         if (appeared && pauseOnShortCircuit && running) {
             running = false;
             LOGGER.info("Short circuit detected at t = {}; pausing", snapshot.time());
+        }
+    }
+
+    private void publishWaveforms(long nowNanos) {
+        if (waveformsPublished && nowNanos - lastWaveformPublishNanos < WAVEFORM_PUBLISH_INTERVAL_NANOS) {
+            return;
+        }
+        WaveformSnapshot published = latestWaveforms;
+        boolean moved = engine.hasWaveformChannels() && engine.now() != published.time();
+        if (engine.waveformVersion() != published.version() || moved) {
+            latestWaveforms = engine.waveforms();
+            waveformsPublished = true;
+            lastWaveformPublishNanos = nowNanos;
         }
     }
 
