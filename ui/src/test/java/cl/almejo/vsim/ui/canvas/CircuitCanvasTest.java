@@ -24,6 +24,7 @@ import cl.almejo.vsim.ui.clipboard.FragmentTransferable;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.panels.PaletteTransfer;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
+import cl.almejo.vsim.ui.tools.CanvasCursor;
 import cl.almejo.vsim.ui.tools.CanvasMouseEvent;
 import cl.almejo.vsim.ui.tools.FloatingSelectionTool;
 import cl.almejo.vsim.ui.tools.PanTool;
@@ -35,6 +36,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import javax.swing.TransferHandler;
+import java.awt.Cursor;
 import java.awt.Graphics2D;
 import java.awt.Point;
 import java.awt.datatransfer.StringSelection;
@@ -986,5 +988,62 @@ class CircuitCanvasTest {
         } finally {
             secondView.dispose();
         }
+    }
+
+    private int cursorType() {
+        return canvas.getCursor().getType();
+    }
+
+    private void spaceKey(int id) {
+        KeyEvent event = new KeyEvent(canvas, id, 0, 0, KeyEvent.VK_SPACE, ' ');
+        if (id == KeyEvent.KEY_PRESSED) {
+            canvas.getKeyListeners()[0].keyPressed(event);
+        } else {
+            canvas.getKeyListeners()[0].keyReleased(event);
+        }
+    }
+
+    @Test
+    void theCanvasShowsTheCursorAToolAsksFor() {
+        canvas.setCursor(CanvasCursor.HAND);
+        assertThat(cursorType()).isEqualTo(Cursor.HAND_CURSOR);
+        canvas.setCursor(CanvasCursor.CROSSHAIR);
+        assertThat(cursorType()).isEqualTo(Cursor.CROSSHAIR_CURSOR);
+        canvas.setCursor(CanvasCursor.MOVE);
+        assertThat(cursorType()).isEqualTo(Cursor.MOVE_CURSOR);
+        canvas.setCursor(CanvasCursor.DEFAULT);
+        assertThat(cursorType()).isEqualTo(Cursor.DEFAULT_CURSOR);
+    }
+
+    @Test
+    void choosingAToolShowsItsInitialCursor() {
+        canvas.setTool(new PanTool());
+        assertThat(cursorType()).isEqualTo(Cursor.MOVE_CURSOR);
+        canvas.useDefaultTool();
+        assertThat(cursorType()).isEqualTo(Cursor.DEFAULT_CURSOR);
+    }
+
+    @Test
+    void spaceAndTheMiddleButtonShowMoveAndThenGiveTheToolItsCursorBack() {
+        canvas.setCursor(CanvasCursor.CROSSHAIR);
+        spaceKey(KeyEvent.KEY_PRESSED);
+        assertThat(cursorType()).isEqualTo(Cursor.MOVE_CURSOR);
+        canvas.setCursor(CanvasCursor.HAND); // the tool's hover changes while Espacio is held
+        assertThat(cursorType()).isEqualTo(Cursor.MOVE_CURSOR);
+        spaceKey(KeyEvent.KEY_RELEASED);
+        assertThat(cursorType()).isEqualTo(Cursor.HAND_CURSOR);
+
+        canvas.getMouseListeners()[0].mousePressed(mouse(MouseEvent.MOUSE_PRESSED, 10, 10, InputEvent.BUTTON2_DOWN_MASK, MouseEvent.BUTTON2));
+        assertThat(cursorType()).isEqualTo(Cursor.MOVE_CURSOR);
+        canvas.getMouseListeners()[0].mouseReleased(mouse(MouseEvent.MOUSE_RELEASED, 30, 15, 0, MouseEvent.BUTTON2));
+        assertThat(cursorType()).isEqualTo(Cursor.HAND_CURSOR);
+    }
+
+    @Test
+    void losingFocusWhileSpaceIsHeldGivesTheToolItsCursorBack() {
+        canvas.setCursor(CanvasCursor.CROSSHAIR);
+        spaceKey(KeyEvent.KEY_PRESSED);
+        canvas.getFocusListeners()[0].focusLost(new FocusEvent(canvas, FocusEvent.FOCUS_LOST));
+        assertThat(cursorType()).isEqualTo(Cursor.CROSSHAIR_CURSOR);
     }
 }

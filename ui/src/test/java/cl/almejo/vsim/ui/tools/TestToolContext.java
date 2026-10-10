@@ -30,6 +30,7 @@ public final class TestToolContext implements ToolContext, AutoCloseable {
     public DocumentElement editedLabel;
     public int repaints;
     public double selectionDashPhase;
+    public final List<CanvasCursor> cursors = new ArrayList<>();
     private final OpenDocument openDocument;
     private final HitTester hitTester;
 
@@ -150,6 +151,16 @@ public final class TestToolContext implements ToolContext, AutoCloseable {
     @Override
     public void editLabel(DocumentElement element) {
         editedLabel = element;
+    }
+
+    @Override
+    public void setCursor(CanvasCursor cursor) {
+        cursors.add(cursor);
+    }
+
+    /** The last cursor a tool asked for, or null when none did. */
+    public CanvasCursor lastCursor() {
+        return cursors.isEmpty() ? null : cursors.get(cursors.size() - 1);
     }
 
     @Override
