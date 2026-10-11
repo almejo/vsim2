@@ -6,6 +6,7 @@ import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
+import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
@@ -33,6 +34,7 @@ import java.awt.geom.Path2D;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 import java.awt.geom.RoundRectangle2D;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -71,6 +73,7 @@ public final class CircuitRenderer {
     private static final double MINIMUM_DOT_SPACING = 6;
 
     private final JunctionCache junctionCache = new JunctionCache();
+    private final CrossingCache crossingCache = new CrossingCache();
     private final ComponentTypeRegistry registry;
     private final PainterRegistry painters;
     private final Appearance appearance;
@@ -143,15 +146,27 @@ public final class CircuitRenderer {
         graphics.setStroke(PROBLEM_GLOW);
         graphics.setColor(PainterSupport.withAlpha(scheme.wireConflict(), ProblemPulse.alpha(state.problemPulsePhase())));
         graphics.draw(glow);
+        // one net lookup and one stroke choice per wire. A gap's width depends on the stroke of each wire crossing it,
+        // so when the document has crossings every look is worked out first and kept; without crossings (the common
+        // circuit) nothing is kept and no map is made
+        Map<ElementId, List<Crossing>> gaps = crossingCache.gapsByVerticalWire(state.document(), registry);
+        Map<ElementId, WireLook> looks = gaps.isEmpty() ? Map.of() : new HashMap<>();
+        if (!gaps.isEmpty()) {
+            for (Wire wire : state.document().wires()) {
+                looks.put(wire.id(), WireLook.of(wire, state, highlight, mismatches));
+            }
+        }
         for (Wire wire : state.document().wires()) {
-            Optional<Net> net = state.netlist().netForWire(wire.id());
-            boolean bus = net.map(found -> found.width() > 1).orElse(false);
-            boolean shorted = highlight.wires().contains(wire.id());
-            boolean mismatched = mismatches.wires().contains(wire.id());
-            graphics.setStroke(shorted ? CONFLICT_WIRE : mismatched ? MISMATCH_WIRE : bus ? BUS_WIRE : WIRE);
-            graphics.setColor(shorted || mismatched ? scheme.wireConflict()
-                    : SignalColors.wireColor(net, state.snapshot(), state.netlistToken(), scheme));
-            graphics.draw(line(wire));
+            WireLook look = gaps.isEmpty() ? WireLook.of(wire, state, highlight, mismatches) : looks.get(wire.id());
+            graphics.setStroke(look.stroke());
+            graphics.setColor(look.conflict() ? scheme.wireConflict()
+                    : SignalColors.wireColor(look.net(), state.snapshot(), state.netlistToken(), scheme));
+            List<Crossing> crossings = gaps.getOrDefault(wire.id(), List.of());
+            if (crossings.isEmpty()) {
+                graphics.draw(line(wire));
+            } else {
+                drawWithGaps(graphics, wire, crossings, looks, look.stroke());
+            }
         }
         Set<GridPoint> busPoints = highlights.busPoints(state.netlist());
         graphics.setColor(scheme.componentStroke());
@@ -187,6 +202,57 @@ public final class CircuitRenderer {
         }
         paintPinWidths(graphics, mismatches);
         paintOpenBusPins(graphics, state);
+    }
+
+    /**
+     * How one wire is drawn this frame: its net (looked up once per wire per frame), its stroke and whether it is
+     * drawn in the conflict color (short circuit or width mismatch).
+     */
+    private record WireLook(Optional<Net> net, BasicStroke stroke, boolean conflict) {
+
+        static WireLook of(Wire wire, RenderState state, ShortCircuitHighlight highlight,
+                           WidthMismatchHighlight mismatches) {
+            Optional<Net> net = state.netlist().netForWire(wire.id());
+            if (highlight.wires().contains(wire.id())) {
+                return new WireLook(net, CONFLICT_WIRE, true);
+            }
+            if (mismatches.wires().contains(wire.id())) {
+                return new WireLook(net, MISMATCH_WIRE, true);
+            }
+            boolean bus = net.map(found -> found.width() > 1).orElse(false);
+            return new WireLook(net, bus ? BUS_WIRE : WIRE, false);
+        }
+    }
+
+    /**
+     * How far {@code stroke} paints past the end of a line: half its width for round (and square) caps, nothing for
+     * a butt cap (the dashed mismatch stroke).
+     */
+    private static double capReach(BasicStroke stroke) {
+        return stroke.getEndCap() == BasicStroke.CAP_BUTT ? 0 : stroke.getLineWidth() / 2;
+    }
+
+    /**
+     * A vertical wire that other wires cross, drawn as the spans between the gaps ({@link WireGaps}), so it reads as
+     * passing under them. The gap allows for the vertical stroke's own cap ({@link #capReach}), so a round-capped and
+     * a butt-capped stroke both stop {@link WireGaps#CLEARANCE} pixels from the horizontal stroke. A dashed stroke
+     * restarts its pattern on each span.
+     */
+    private static void drawWithGaps(Graphics2D graphics, Wire wire, List<Crossing> crossings,
+                                     Map<ElementId, WireLook> looks, BasicStroke stroke) {
+        List<WireGaps.Cut> cuts = crossings.stream()
+                .map(crossing -> new WireGaps.Cut(crossing.point().y() * UNIT,
+                        lineWidth(looks.get(crossing.horizontalWire()))))
+                .toList();
+        double x = wire.start().x() * UNIT;
+        for (WireGaps.Span span : WireGaps.visibleSpans(wire.start().y() * UNIT, wire.end().y() * UNIT, cuts,
+                capReach(stroke))) {
+            graphics.draw(new Line2D.Double(x, span.from(), x, span.to()));
+        }
+    }
+
+    private static double lineWidth(WireLook look) {
+        return (look == null ? WIRE : look.stroke()).getLineWidth();
     }
 
     /**
