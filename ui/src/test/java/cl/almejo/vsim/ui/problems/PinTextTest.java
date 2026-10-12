@@ -28,9 +28,14 @@ class PinTextTest {
 
     private String describe(String typeId, Map<String, Object> parameters, int pinIndex, boolean unconnected,
                             Optional<Value> value) {
+        return describe(typeId, Rotation.R0, parameters, pinIndex, unconnected, value);
+    }
+
+    private String describe(String typeId, Rotation rotation, Map<String, Object> parameters, int pinIndex,
+                            boolean unconnected, Optional<Value> value) {
         Component component = registry.require(typeId).newComponent(new CircuitDocument().newComponentId(),
-                new GridPoint(0, 0), Rotation.R0, parameters, "");
-        return PinText.describe(typeId, registry.typeOf(component), pinIndex, unconnected, value);
+                new GridPoint(0, 0), rotation, parameters, "");
+        return PinText.describe(component, registry.typeOf(component), pinIndex, unconnected, value);
     }
 
     @Test
@@ -67,6 +72,24 @@ class PinTextTest {
         assertThat(describe(twoDigits, Map.of(), 3, false, Optional.of(Value.ONE))).isEqualTo("in3 · bit 3 = 1");
         assertThat(describe(twoDigits, Map.of(), 7, true, Optional.empty()))
                 .isEqualTo("in7 · bit 7 (el de la izquierda)");
+    }
+
+    @Test
+    void theBitWordFollowsTheRotationOfTheDisplay() {
+        String display = StandardComponentTypes.SEVEN_SEGMENTS_DISPLAY;
+        assertThat(describe(display, Rotation.R180, Map.of(), 0, true, Optional.empty()))
+                .isEqualTo("in0 · bit 0 (el de la izquierda)");
+        assertThat(describe(display, Rotation.R180, Map.of(), 3, true, Optional.empty()))
+                .isEqualTo("in3 · bit 3 (el de la derecha)");
+        String bit0 = describe(display, Rotation.R90, Map.of(), 0, true, Optional.empty());
+        String bit3 = describe(display, Rotation.R90, Map.of(), 3, true, Optional.empty());
+        assertThat(bit0).matches("in0 · bit 0 \\(el de (abajo|arriba)\\)");
+        assertThat(bit3).matches("in3 · bit 3 \\(el de (abajo|arriba)\\)");
+        assertThat(bit0.contains("abajo")).isNotEqualTo(bit3.contains("abajo"));
+        assertThat(describe(display, Rotation.R270, Map.of(), 1, true, Optional.empty())).isEqualTo("in1 · bit 1");
+        Messages.initialize(Locale.ENGLISH);
+        assertThat(describe(display, Rotation.R90, Map.of(), 0, true, Optional.empty())).containsAnyOf("the bottom one",
+                "the top one");
     }
 
     @Test

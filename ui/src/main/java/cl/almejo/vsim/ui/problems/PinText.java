@@ -3,6 +3,8 @@ package cl.almejo.vsim.ui.problems;
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.PinSpec;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
+import cl.almejo.vsim.core.document.Component;
+import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.value.Value;
 import cl.almejo.vsim.ui.canvas.BusValueText;
 import cl.almejo.vsim.ui.i18n.Messages;
@@ -28,23 +30,38 @@ final class PinText {
     }
 
     /**
-     * The tooltip of pin {@code pinIndex} of a component of {@code type} (whose id is {@code typeId});
+     * The tooltip of pin {@code pinIndex} of {@code component} (of {@code type});
      * {@code unconnected} = no wire and no other pin on it; {@code value} empty = no current snapshot.
      */
-    static String describe(String typeId, ComponentType type, int pinIndex, boolean unconnected,
+    static String describe(Component component, ComponentType type, int pinIndex, boolean unconnected,
                            Optional<Value> value) {
         PinSpec pin = type.pin(pinIndex);
         StringBuilder text = new StringBuilder(pin.name());
-        if (NUMBER_READERS.contains(typeId)) {
-            String key = pinIndex == 0 ? "pin.bitRight"
-                    : pinIndex == type.pinCount() - 1 ? "pin.bitLeft" : "pin.bit";
-            text.append(SEPARATOR).append(Messages.format(key, pinIndex));
+        if (NUMBER_READERS.contains(component.typeId())) {
+            text.append(SEPARATOR).append(Messages.format(bitKey(component, type, pinIndex), pinIndex));
         }
         if (pin.width() > 1) {
             text.append(SEPARATOR).append(Messages.format("pin.width", pin.width()));
         }
         value.ifPresent(current -> text.append(" = ").append(valueText(current, unconnected)));
         return text.toString();
+    }
+
+    /** Bit 0 and the last bit are named by where they are drawn, so a rotated display still points the right way. */
+    private static String bitKey(Component component, ComponentType type, int pinIndex) {
+        int last = type.pinCount() - 1;
+        if (pinIndex != 0 && pinIndex != last) {
+            return "pin.bit";
+        }
+        GridPoint first = type.pinLocation(component, 0);
+        GridPoint end = type.pinLocation(component, last);
+        boolean isFirst = pinIndex == 0;
+        if (first.x() != end.x()) {
+            boolean firstIsRight = first.x() > end.x();
+            return isFirst == firstIsRight ? "pin.bitRight" : "pin.bitLeft";
+        }
+        boolean firstIsBottom = first.y() > end.y();
+        return isFirst == firstIsBottom ? "pin.bitBottom" : "pin.bitTop";
     }
 
     private static String valueText(Value value, boolean unconnected) {

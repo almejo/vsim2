@@ -264,7 +264,7 @@ public final class ProblemsController {
                 ? net.map(found -> snapshot.netValues().get(found.id().value()))
                 : Optional.empty();
         boolean unconnected = net.map(found -> found.pins().size() == 1 && found.wires().isEmpty()).orElse(true);
-        String text = PinText.describe(component.typeId(), openDocument.registry().typeOf(component),
+        String text = PinText.describe(component, openDocument.registry().typeOf(component),
                 pin.pinIndex(), unconnected, value);
         Optional<String> problem = current ? net.flatMap(found -> problemText(document, found)) : Optional.empty();
         return problem.map(found -> text + PinText.SEPARATOR + found).orElse(text);
