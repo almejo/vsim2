@@ -94,6 +94,8 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     private final List<Runnable> viewListeners = new CopyOnWriteArrayList<>();
     private final List<Consumer<CircuitFragment>> incomingFragmentListeners = new CopyOnWriteArrayList<>();
     private final List<CanvasOverlay> overlays = new CopyOnWriteArrayList<>();
+    private final List<Function<Point2D, Optional<String>>> toolTipOverrides = new CopyOnWriteArrayList<>();
+    private final List<Predicate<CanvasMouseEvent>> pressInterceptors = new CopyOnWriteArrayList<>();
     private final DocumentListener documentListener;
     private Consumer<List<Path>> fileDropHandler = files -> {
     };
@@ -101,6 +103,8 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     private String dragOutJson;
     private GridPoint dragOutPreview;
     private Function<Point2D, Optional<String>> toolTipProvider = gridPoint -> Optional.empty();
+    private boolean toolTipProviderSet;
+    private boolean pressIntercepted;
     private Tool tool = defaultTool;
     private SimulationSnapshot displayedSnapshot = SimulationSnapshot.EMPTY;
     private boolean animationSuspended;
@@ -589,18 +593,70 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     /** {@code provider} receives the mouse position in grid units; empty means no tooltip. */
     public void setToolTipProvider(Function<Point2D, Optional<String>> provider) {
         toolTipProvider = provider;
-        ToolTipManager.sharedInstance().registerComponent(this);
+        toolTipProviderSet = true;
+        updateToolTipRegistration();
     }
 
-    /** Drops the tooltip provider and takes the canvas off the tooltip manager. */
+    /** Drops the tooltip provider; the canvas leaves the tooltip manager unless an override is still installed. */
     public void clearToolTipProvider() {
         toolTipProvider = gridPoint -> Optional.empty();
-        ToolTipManager.sharedInstance().unregisterComponent(this);
+        toolTipProviderSet = false;
+        updateToolTipRegistration();
+    }
+
+    /**
+     * Adds a tooltip source consulted before the provider (M6.1-E: the waveform markers): the first override that
+     * answers wins. {@code override} receives the mouse position in grid units. The returned runnable removes it.
+     */
+    public Runnable addToolTipOverride(Function<Point2D, Optional<String>> override) {
+        toolTipOverrides.add(override);
+        updateToolTipRegistration();
+        return () -> {
+            toolTipOverrides.remove(override);
+            updateToolTipRegistration();
+        };
+    }
+
+    /**
+     * Adds a hook consulted on every primary-button press before the tool (M6.1-E: a click on a waveform marker);
+     * when one returns true the press, and the drag and release that follow it, never reach the tool. The returned
+     * runnable removes it.
+     */
+    public Runnable addPressInterceptor(Predicate<CanvasMouseEvent> interceptor) {
+        pressInterceptors.add(interceptor);
+        return () -> pressInterceptors.remove(interceptor);
     }
 
     @Override
     public String getToolTipText(MouseEvent event) {
-        return toolTipProvider.apply(viewport.screenToGrid(event.getX(), event.getY())).orElse(null);
+        Point2D gridPoint = viewport.screenToGrid(event.getX(), event.getY());
+        for (Function<Point2D, Optional<String>> override : toolTipOverrides) {
+            Optional<String> text = override.apply(gridPoint);
+            if (text.isPresent()) {
+                return text.get();
+            }
+        }
+        return toolTipProvider.apply(gridPoint).orElse(null);
+    }
+
+    private void updateToolTipRegistration() {
+        if (toolTipProviderSet || !toolTipOverrides.isEmpty()) {
+            ToolTipManager.sharedInstance().registerComponent(this);
+        } else {
+            ToolTipManager.sharedInstance().unregisterComponent(this);
+        }
+    }
+
+    private boolean interceptsPress(CanvasMouseEvent event) {
+        if (event.button() != CanvasMouseEvent.PRIMARY) {
+            return false;
+        }
+        for (Predicate<CanvasMouseEvent> interceptor : pressInterceptors) {
+            if (interceptor.test(event)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     // ToolContext
@@ -883,7 +939,12 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
                 showCursor();
                 return;
             }
-            tool.mousePressed(CircuitCanvas.this, convert(event));
+            CanvasMouseEvent converted = convert(event);
+            pressIntercepted = interceptsPress(converted);
+            if (pressIntercepted) {
+                return;
+            }
+            tool.mousePressed(CircuitCanvas.this, converted);
             updateAnimation();
         }
 
@@ -894,6 +955,9 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
                 viewport.panBy(event.getX() - panAnchor.x, event.getY() - panAnchor.y);
                 panAnchor = event.getPoint();
                 repaint();
+                return;
+            }
+            if (pressIntercepted) {
                 return;
             }
             if (!CircuitCanvas.this.contains(event.getPoint()) && overAnotherWindow.test(event.getPoint())
@@ -913,6 +977,10 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
             if (panAnchor != null) {
                 panAnchor = null;
                 showCursor();
+                return;
+            }
+            if (pressIntercepted) {
+                pressIntercepted = false;
                 return;
             }
             tool.mouseReleased(CircuitCanvas.this, convert(event));
