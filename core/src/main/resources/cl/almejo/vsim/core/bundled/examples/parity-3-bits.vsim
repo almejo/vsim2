@@ -1,0 +1,194 @@
+{
+  "formatVersion" : 2,
+  "kind" : "circuit",
+  "name" : "Paridad de 3 bits",
+  "components" : [ {
+    "id" : "c1",
+    "type" : "switch",
+    "x" : 2,
+    "y" : 5,
+    "rotation" : 0,
+    "label" : "D2",
+    "parameters" : {
+      "value" : "0"
+    }
+  }, {
+    "id" : "c2",
+    "type" : "switch",
+    "x" : 2,
+    "y" : 11,
+    "rotation" : 0,
+    "label" : "D1",
+    "parameters" : {
+      "value" : "0"
+    }
+  }, {
+    "id" : "c3",
+    "type" : "switch",
+    "x" : 2,
+    "y" : 17,
+    "rotation" : 0,
+    "label" : "D0",
+    "parameters" : {
+      "value" : "0"
+    }
+  }, {
+    "id" : "c4",
+    "type" : "xor2",
+    "x" : 16,
+    "y" : 6,
+    "rotation" : 0,
+    "label" : "",
+    "parameters" : {
+      "delay" : 1
+    }
+  }, {
+    "id" : "c5",
+    "type" : "xor2",
+    "x" : 26,
+    "y" : 12,
+    "rotation" : 0,
+    "label" : "",
+    "parameters" : {
+      "delay" : 1
+    }
+  }, {
+    "id" : "c6",
+    "type" : "not",
+    "x" : 36,
+    "y" : 20,
+    "rotation" : 0,
+    "label" : "",
+    "parameters" : {
+      "delay" : 1
+    }
+  }, {
+    "id" : "c19",
+    "type" : "led",
+    "x" : 39,
+    "y" : 9,
+    "rotation" : 0,
+    "label" : "Impar",
+    "parameters" : {
+      "color" : "green"
+    }
+  }, {
+    "id" : "c24",
+    "type" : "led",
+    "x" : 45,
+    "y" : 17,
+    "rotation" : 0,
+    "label" : "Par",
+    "parameters" : {
+      "color" : "yellow"
+    }
+  } ],
+  "wires" : [ {
+    "id" : "w7",
+    "x1" : 6,
+    "y1" : 6,
+    "x2" : 16,
+    "y2" : 6
+  }, {
+    "id" : "w8",
+    "x1" : 6,
+    "y1" : 12,
+    "x2" : 12,
+    "y2" : 12
+  }, {
+    "id" : "w9",
+    "x1" : 12,
+    "y1" : 10,
+    "x2" : 12,
+    "y2" : 12
+  }, {
+    "id" : "w10",
+    "x1" : 12,
+    "y1" : 10,
+    "x2" : 16,
+    "y2" : 10
+  }, {
+    "id" : "w11",
+    "x1" : 20,
+    "y1" : 8,
+    "x2" : 23,
+    "y2" : 8
+  }, {
+    "id" : "w12",
+    "x1" : 23,
+    "y1" : 8,
+    "x2" : 23,
+    "y2" : 12
+  }, {
+    "id" : "w13",
+    "x1" : 23,
+    "y1" : 12,
+    "x2" : 26,
+    "y2" : 12
+  }, {
+    "id" : "w14",
+    "x1" : 6,
+    "y1" : 18,
+    "x2" : 24,
+    "y2" : 18
+  }, {
+    "id" : "w15",
+    "x1" : 24,
+    "y1" : 16,
+    "x2" : 24,
+    "y2" : 18
+  }, {
+    "id" : "w16",
+    "x1" : 24,
+    "y1" : 16,
+    "x2" : 26,
+    "y2" : 16
+  }, {
+    "id" : "w17",
+    "x1" : 30,
+    "y1" : 14,
+    "x2" : 40,
+    "y2" : 14
+  }, {
+    "id" : "w18",
+    "x1" : 40,
+    "y1" : 12,
+    "x2" : 40,
+    "y2" : 14
+  }, {
+    "id" : "w20",
+    "x1" : 34,
+    "y1" : 14,
+    "x2" : 34,
+    "y2" : 22
+  }, {
+    "id" : "w21",
+    "x1" : 34,
+    "y1" : 22,
+    "x2" : 36,
+    "y2" : 22
+  }, {
+    "id" : "w22",
+    "x1" : 40,
+    "y1" : 22,
+    "x2" : 46,
+    "y2" : 22
+  }, {
+    "id" : "w23",
+    "x1" : 46,
+    "y1" : 20,
+    "x2" : 46,
+    "y2" : 22
+  } ],
+  "labels" : [ {
+    "id" : "l25",
+    "x" : 2,
+    "y" : 0,
+    "text" : "Paridad de 3 bits"
+  }, {
+    "id" : "l26",
+    "x" : 2,
+    "y" : 27,
+    "text" : "Prueba: cambia D2, D1 y D0: «Impar» se enciende con 1 o 3 unos, «Par» con 0 o 2"
+  } ]
+}

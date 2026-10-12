@@ -1,0 +1,208 @@
+{
+  "formatVersion" : 2,
+  "kind" : "circuit",
+  "name" : "Registro de desplazamiento",
+  "components" : [ {
+    "id" : "c1",
+    "type" : "switch",
+    "x" : 2,
+    "y" : 11,
+    "rotation" : 0,
+    "label" : "Dato",
+    "parameters" : {
+      "value" : "0"
+    }
+  }, {
+    "id" : "c2",
+    "type" : "clock",
+    "x" : 8,
+    "y" : 18,
+    "rotation" : 0,
+    "label" : "Reloj",
+    "parameters" : {
+      "time-down" : 500,
+      "time-up" : 500
+    }
+  }, {
+    "id" : "c3",
+    "type" : "flip-flop-data",
+    "x" : 14,
+    "y" : 10,
+    "rotation" : 0,
+    "label" : "",
+    "parameters" : {
+      "delay" : 1
+    }
+  }, {
+    "id" : "c7",
+    "type" : "led",
+    "x" : 20,
+    "y" : 7,
+    "rotation" : 0,
+    "label" : "Q0",
+    "parameters" : {
+      "color" : "red"
+    }
+  }, {
+    "id" : "c9",
+    "type" : "flip-flop-data",
+    "x" : 26,
+    "y" : 10,
+    "rotation" : 0,
+    "label" : "",
+    "parameters" : {
+      "delay" : 1
+    }
+  }, {
+    "id" : "c12",
+    "type" : "led",
+    "x" : 32,
+    "y" : 7,
+    "rotation" : 0,
+    "label" : "Q1",
+    "parameters" : {
+      "color" : "red"
+    }
+  }, {
+    "id" : "c14",
+    "type" : "flip-flop-data",
+    "x" : 38,
+    "y" : 10,
+    "rotation" : 0,
+    "label" : "",
+    "parameters" : {
+      "delay" : 1
+    }
+  }, {
+    "id" : "c17",
+    "type" : "led",
+    "x" : 44,
+    "y" : 7,
+    "rotation" : 0,
+    "label" : "Q2",
+    "parameters" : {
+      "color" : "red"
+    }
+  }, {
+    "id" : "c19",
+    "type" : "flip-flop-data",
+    "x" : 50,
+    "y" : 10,
+    "rotation" : 0,
+    "label" : "",
+    "parameters" : {
+      "delay" : 1
+    }
+  }, {
+    "id" : "c22",
+    "type" : "led",
+    "x" : 56,
+    "y" : 7,
+    "rotation" : 0,
+    "label" : "Q3",
+    "parameters" : {
+      "color" : "red"
+    }
+  } ],
+  "wires" : [ {
+    "id" : "w4",
+    "x1" : 6,
+    "y1" : 12,
+    "x2" : 14,
+    "y2" : 12
+  }, {
+    "id" : "w5",
+    "x1" : 18,
+    "y1" : 12,
+    "x2" : 26,
+    "y2" : 12
+  }, {
+    "id" : "w6",
+    "x1" : 21,
+    "y1" : 10,
+    "x2" : 21,
+    "y2" : 12
+  }, {
+    "id" : "w8",
+    "x1" : 16,
+    "y1" : 14,
+    "x2" : 16,
+    "y2" : 20
+  }, {
+    "id" : "w10",
+    "x1" : 30,
+    "y1" : 12,
+    "x2" : 38,
+    "y2" : 12
+  }, {
+    "id" : "w11",
+    "x1" : 33,
+    "y1" : 10,
+    "x2" : 33,
+    "y2" : 12
+  }, {
+    "id" : "w13",
+    "x1" : 28,
+    "y1" : 14,
+    "x2" : 28,
+    "y2" : 20
+  }, {
+    "id" : "w15",
+    "x1" : 42,
+    "y1" : 12,
+    "x2" : 50,
+    "y2" : 12
+  }, {
+    "id" : "w16",
+    "x1" : 45,
+    "y1" : 10,
+    "x2" : 45,
+    "y2" : 12
+  }, {
+    "id" : "w18",
+    "x1" : 40,
+    "y1" : 14,
+    "x2" : 40,
+    "y2" : 20
+  }, {
+    "id" : "w20",
+    "x1" : 54,
+    "y1" : 12,
+    "x2" : 57,
+    "y2" : 12
+  }, {
+    "id" : "w21",
+    "x1" : 57,
+    "y1" : 10,
+    "x2" : 57,
+    "y2" : 12
+  }, {
+    "id" : "w23",
+    "x1" : 52,
+    "y1" : 14,
+    "x2" : 52,
+    "y2" : 20
+  }, {
+    "id" : "w24",
+    "x1" : 10,
+    "y1" : 20,
+    "x2" : 52,
+    "y2" : 20
+  } ],
+  "labels" : [ {
+    "id" : "l25",
+    "x" : 2,
+    "y" : 0,
+    "text" : "Registro de desplazamiento"
+  }, {
+    "id" : "l26",
+    "x" : 2,
+    "y" : 24,
+    "text" : "Prueba: enciende «Dato»: con cada bajada del reloj el 1 avanza un LED hacia la derecha;"
+  }, {
+    "id" : "l27",
+    "x" : 2,
+    "y" : 26,
+    "text" : "apágalo y avanzan ceros"
+  } ]
+}

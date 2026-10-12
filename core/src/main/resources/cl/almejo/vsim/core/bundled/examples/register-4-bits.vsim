@@ -1,0 +1,290 @@
+{
+  "formatVersion" : 2,
+  "kind" : "circuit",
+  "name" : "Registro de 4 bits",
+  "components" : [ {
+    "id" : "c1",
+    "type" : "switch",
+    "x" : 2,
+    "y" : 47,
+    "rotation" : 0,
+    "label" : "Cargar",
+    "parameters" : {
+      "value" : "1"
+    }
+  }, {
+    "id" : "c4",
+    "type" : "switch",
+    "x" : 2,
+    "y" : 9,
+    "rotation" : 0,
+    "label" : "D0",
+    "parameters" : {
+      "value" : "1"
+    }
+  }, {
+    "id" : "c5",
+    "type" : "flip-flop-data",
+    "x" : 20,
+    "y" : 8,
+    "rotation" : 0,
+    "label" : "",
+    "parameters" : {
+      "delay" : 1
+    }
+  }, {
+    "id" : "c11",
+    "type" : "led",
+    "x" : 27,
+    "y" : 5,
+    "rotation" : 0,
+    "label" : "Q0",
+    "parameters" : {
+      "color" : "red"
+    }
+  }, {
+    "id" : "c12",
+    "type" : "switch",
+    "x" : 2,
+    "y" : 19,
+    "rotation" : 0,
+    "label" : "D1",
+    "parameters" : {
+      "value" : "0"
+    }
+  }, {
+    "id" : "c13",
+    "type" : "flip-flop-data",
+    "x" : 20,
+    "y" : 18,
+    "rotation" : 0,
+    "label" : "",
+    "parameters" : {
+      "delay" : 1
+    }
+  }, {
+    "id" : "c19",
+    "type" : "led",
+    "x" : 27,
+    "y" : 15,
+    "rotation" : 0,
+    "label" : "Q1",
+    "parameters" : {
+      "color" : "red"
+    }
+  }, {
+    "id" : "c20",
+    "type" : "switch",
+    "x" : 2,
+    "y" : 29,
+    "rotation" : 0,
+    "label" : "D2",
+    "parameters" : {
+      "value" : "1"
+    }
+  }, {
+    "id" : "c21",
+    "type" : "flip-flop-data",
+    "x" : 20,
+    "y" : 28,
+    "rotation" : 0,
+    "label" : "",
+    "parameters" : {
+      "delay" : 1
+    }
+  }, {
+    "id" : "c27",
+    "type" : "led",
+    "x" : 27,
+    "y" : 25,
+    "rotation" : 0,
+    "label" : "Q2",
+    "parameters" : {
+      "color" : "red"
+    }
+  }, {
+    "id" : "c28",
+    "type" : "switch",
+    "x" : 2,
+    "y" : 39,
+    "rotation" : 0,
+    "label" : "D3",
+    "parameters" : {
+      "value" : "1"
+    }
+  }, {
+    "id" : "c29",
+    "type" : "flip-flop-data",
+    "x" : 20,
+    "y" : 38,
+    "rotation" : 0,
+    "label" : "",
+    "parameters" : {
+      "delay" : 1
+    }
+  }, {
+    "id" : "c35",
+    "type" : "led",
+    "x" : 27,
+    "y" : 35,
+    "rotation" : 0,
+    "label" : "Q3",
+    "parameters" : {
+      "color" : "red"
+    }
+  } ],
+  "wires" : [ {
+    "id" : "w2",
+    "x1" : 6,
+    "y1" : 48,
+    "x2" : 14,
+    "y2" : 48
+  }, {
+    "id" : "w3",
+    "x1" : 14,
+    "y1" : 14,
+    "x2" : 14,
+    "y2" : 48
+  }, {
+    "id" : "w6",
+    "x1" : 6,
+    "y1" : 10,
+    "x2" : 20,
+    "y2" : 10
+  }, {
+    "id" : "w7",
+    "x1" : 14,
+    "y1" : 14,
+    "x2" : 22,
+    "y2" : 14
+  }, {
+    "id" : "w8",
+    "x1" : 22,
+    "y1" : 12,
+    "x2" : 22,
+    "y2" : 14
+  }, {
+    "id" : "w9",
+    "x1" : 24,
+    "y1" : 10,
+    "x2" : 28,
+    "y2" : 10
+  }, {
+    "id" : "w10",
+    "x1" : 28,
+    "y1" : 8,
+    "x2" : 28,
+    "y2" : 10
+  }, {
+    "id" : "w14",
+    "x1" : 6,
+    "y1" : 20,
+    "x2" : 20,
+    "y2" : 20
+  }, {
+    "id" : "w15",
+    "x1" : 14,
+    "y1" : 24,
+    "x2" : 22,
+    "y2" : 24
+  }, {
+    "id" : "w16",
+    "x1" : 22,
+    "y1" : 22,
+    "x2" : 22,
+    "y2" : 24
+  }, {
+    "id" : "w17",
+    "x1" : 24,
+    "y1" : 20,
+    "x2" : 28,
+    "y2" : 20
+  }, {
+    "id" : "w18",
+    "x1" : 28,
+    "y1" : 18,
+    "x2" : 28,
+    "y2" : 20
+  }, {
+    "id" : "w22",
+    "x1" : 6,
+    "y1" : 30,
+    "x2" : 20,
+    "y2" : 30
+  }, {
+    "id" : "w23",
+    "x1" : 14,
+    "y1" : 34,
+    "x2" : 22,
+    "y2" : 34
+  }, {
+    "id" : "w24",
+    "x1" : 22,
+    "y1" : 32,
+    "x2" : 22,
+    "y2" : 34
+  }, {
+    "id" : "w25",
+    "x1" : 24,
+    "y1" : 30,
+    "x2" : 28,
+    "y2" : 30
+  }, {
+    "id" : "w26",
+    "x1" : 28,
+    "y1" : 28,
+    "x2" : 28,
+    "y2" : 30
+  }, {
+    "id" : "w30",
+    "x1" : 6,
+    "y1" : 40,
+    "x2" : 20,
+    "y2" : 40
+  }, {
+    "id" : "w31",
+    "x1" : 14,
+    "y1" : 44,
+    "x2" : 22,
+    "y2" : 44
+  }, {
+    "id" : "w32",
+    "x1" : 22,
+    "y1" : 42,
+    "x2" : 22,
+    "y2" : 44
+  }, {
+    "id" : "w33",
+    "x1" : 24,
+    "y1" : 40,
+    "x2" : 28,
+    "y2" : 40
+  }, {
+    "id" : "w34",
+    "x1" : 28,
+    "y1" : 38,
+    "x2" : 28,
+    "y2" : 40
+  } ],
+  "labels" : [ {
+    "id" : "l36",
+    "x" : 2,
+    "y" : 0,
+    "text" : "Registro de 4 bits"
+  }, {
+    "id" : "l37",
+    "x" : 31,
+    "y" : 3,
+    "text" : "memoria"
+  }, {
+    "id" : "l38",
+    "x" : 2,
+    "y" : 52,
+    "text" : "Prueba: elige D0..D3 y haz clic en «Cargar» (baja): los LED Q guardan los datos;"
+  }, {
+    "id" : "l39",
+    "x" : 2,
+    "y" : 54,
+    "text" : "después cambiar D no cambia Q hasta la próxima bajada de «Cargar»"
+  } ]
+}

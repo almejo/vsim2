@@ -1,0 +1,237 @@
+{
+  "formatVersion" : 2,
+  "kind" : "circuit",
+  "name" : "Contador Johnson",
+  "components" : [ {
+    "id" : "c1",
+    "type" : "clock",
+    "x" : 6,
+    "y" : 20,
+    "rotation" : 0,
+    "label" : "Reloj",
+    "parameters" : {
+      "time-down" : 250,
+      "time-up" : 250
+    }
+  }, {
+    "id" : "c2",
+    "type" : "flip-flop-data",
+    "x" : 14,
+    "y" : 14,
+    "rotation" : 0,
+    "label" : "",
+    "parameters" : {
+      "delay" : 1
+    }
+  }, {
+    "id" : "c5",
+    "type" : "led",
+    "x" : 20,
+    "y" : 11,
+    "rotation" : 0,
+    "label" : "Q0",
+    "parameters" : {
+      "color" : "red"
+    }
+  }, {
+    "id" : "c7",
+    "type" : "flip-flop-data",
+    "x" : 26,
+    "y" : 14,
+    "rotation" : 0,
+    "label" : "",
+    "parameters" : {
+      "delay" : 1
+    }
+  }, {
+    "id" : "c10",
+    "type" : "led",
+    "x" : 32,
+    "y" : 11,
+    "rotation" : 0,
+    "label" : "Q1",
+    "parameters" : {
+      "color" : "red"
+    }
+  }, {
+    "id" : "c12",
+    "type" : "flip-flop-data",
+    "x" : 38,
+    "y" : 14,
+    "rotation" : 0,
+    "label" : "",
+    "parameters" : {
+      "delay" : 1
+    }
+  }, {
+    "id" : "c15",
+    "type" : "led",
+    "x" : 44,
+    "y" : 11,
+    "rotation" : 0,
+    "label" : "Q2",
+    "parameters" : {
+      "color" : "red"
+    }
+  }, {
+    "id" : "c17",
+    "type" : "flip-flop-data",
+    "x" : 50,
+    "y" : 14,
+    "rotation" : 0,
+    "label" : "",
+    "parameters" : {
+      "delay" : 1
+    }
+  }, {
+    "id" : "c20",
+    "type" : "led",
+    "x" : 56,
+    "y" : 11,
+    "rotation" : 0,
+    "label" : "Q3",
+    "parameters" : {
+      "color" : "red"
+    }
+  }, {
+    "id" : "c23",
+    "type" : "not",
+    "x" : 59,
+    "y" : 14,
+    "rotation" : 0,
+    "label" : "",
+    "parameters" : {
+      "delay" : 1
+    }
+  } ],
+  "wires" : [ {
+    "id" : "w3",
+    "x1" : 18,
+    "y1" : 16,
+    "x2" : 26,
+    "y2" : 16
+  }, {
+    "id" : "w4",
+    "x1" : 21,
+    "y1" : 14,
+    "x2" : 21,
+    "y2" : 16
+  }, {
+    "id" : "w6",
+    "x1" : 16,
+    "y1" : 18,
+    "x2" : 16,
+    "y2" : 22
+  }, {
+    "id" : "w8",
+    "x1" : 30,
+    "y1" : 16,
+    "x2" : 38,
+    "y2" : 16
+  }, {
+    "id" : "w9",
+    "x1" : 33,
+    "y1" : 14,
+    "x2" : 33,
+    "y2" : 16
+  }, {
+    "id" : "w11",
+    "x1" : 28,
+    "y1" : 18,
+    "x2" : 28,
+    "y2" : 22
+  }, {
+    "id" : "w13",
+    "x1" : 42,
+    "y1" : 16,
+    "x2" : 50,
+    "y2" : 16
+  }, {
+    "id" : "w14",
+    "x1" : 45,
+    "y1" : 14,
+    "x2" : 45,
+    "y2" : 16
+  }, {
+    "id" : "w16",
+    "x1" : 40,
+    "y1" : 18,
+    "x2" : 40,
+    "y2" : 22
+  }, {
+    "id" : "w18",
+    "x1" : 54,
+    "y1" : 16,
+    "x2" : 59,
+    "y2" : 16
+  }, {
+    "id" : "w19",
+    "x1" : 57,
+    "y1" : 14,
+    "x2" : 57,
+    "y2" : 16
+  }, {
+    "id" : "w21",
+    "x1" : 52,
+    "y1" : 18,
+    "x2" : 52,
+    "y2" : 22
+  }, {
+    "id" : "w22",
+    "x1" : 8,
+    "y1" : 22,
+    "x2" : 52,
+    "y2" : 22
+  }, {
+    "id" : "w24",
+    "x1" : 63,
+    "y1" : 16,
+    "x2" : 65,
+    "y2" : 16
+  }, {
+    "id" : "w25",
+    "x1" : 65,
+    "y1" : 6,
+    "x2" : 65,
+    "y2" : 16
+  }, {
+    "id" : "w26",
+    "x1" : 10,
+    "y1" : 6,
+    "x2" : 65,
+    "y2" : 6
+  }, {
+    "id" : "w27",
+    "x1" : 10,
+    "y1" : 6,
+    "x2" : 10,
+    "y2" : 16
+  }, {
+    "id" : "w28",
+    "x1" : 10,
+    "y1" : 16,
+    "x2" : 14,
+    "y2" : 16
+  } ],
+  "labels" : [ {
+    "id" : "l29",
+    "x" : 2,
+    "y" : 0,
+    "text" : "Contador Johnson"
+  }, {
+    "id" : "l30",
+    "x" : 24,
+    "y" : 3,
+    "text" : "¬Q3 vuelve a D0"
+  }, {
+    "id" : "l31",
+    "x" : 2,
+    "y" : 26,
+    "text" : "Prueba: mira los LED: se llenan de unos de izquierda a derecha y luego de ceros;"
+  }, {
+    "id" : "l32",
+    "x" : 2,
+    "y" : 28,
+    "text" : "son 8 estados distintos con 4 flip-flops (0000, 1000, 1100, 1110, 1111, 0111, 0011, 0001)"
+  } ]
+}
