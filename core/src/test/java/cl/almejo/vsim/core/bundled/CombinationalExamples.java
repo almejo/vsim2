@@ -205,7 +205,7 @@ public final class CombinationalExamples {
         builder.text(19, 69, "B");
         builder.text(50, 69, "A + B");
         builder.text(2, 73, "Prueba: elige A y B con los interruptores: los displays muestran A, B y A + B en hexadecimal;");
-        builder.text(2, 75, "Cout se enciende cuando la suma pasa de F. Con «Paso a paso» se ve bajar el acarreo.");
+        builder.text(2, 75, "Cout se enciende cuando la suma pasa de F.");
         return builder;
     }
 

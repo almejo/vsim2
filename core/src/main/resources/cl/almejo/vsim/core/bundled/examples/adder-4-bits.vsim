@@ -566,7 +566,7 @@
     "id" : "l86",
     "x" : 2,
     "y" : 75,
-    "text" : "Cout se enciende cuando la suma pasa de F. Con «Paso a paso» se ve bajar el acarreo."
+    "text" : "Cout se enciende cuando la suma pasa de F."
   } ],
   "definitions" : [ {
     "id" : "sumador-completo",

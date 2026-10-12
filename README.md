@@ -76,10 +76,6 @@ Diseño: `docs/superpowers/specs/2026-10-08-vsim2-design.md`.
 - Los flip-flops D empiezan en 0 (como al encender un circuito real): «Contador de 4 bits» es el contador en cascada clásico (cada flip-flop invierte su salida y le da el reloj al siguiente) y cuenta desde 0; el «Contador Johnson» parte en 0000; los LED de «Registro de 4 bits» se ven en 0 hasta la primera carga. Una entrada sin conectar sigue en Z.
 - Los archivos de los ejemplos se generan con `CombinationalExamples`, `SequentialExamples` y `BusAndAluExamples` (pruebas de `core`, listados por `BundledCircuits`): después de cambiar uno, `VSIM_WRITE_BUNDLED=1 ./gradlew :core:test --tests '*BundledCircuitsTest.writeTheResources'` los reescribe; las pruebas comprueban que coinciden con lo generado, que ningún cable pasa sobre un pin, que ningún texto tapa nada y que cada ejemplo funciona.
 
-## Paso a paso (M6.1)
-
-## Tabla de verdad (M6.1)
-
 ## Preferencias y distribución
 
 - Archivo → Preferencias… (en macOS también VSim 2 → Ajustes…): tema Claro, Oscuro o Seguir sistema; esquema de color del circuito (Según el tema, VSim clásico, Claro, Oscuro y los otros esquemas del VSim original: Pastel, CSim y Twilight); idioma (Sistema, Español, English; se aplica al reiniciar); directorio de la librería de componentes (Elegir… / Restaurar predeterminado). El tema y el esquema cambian al instante en todas las ventanas.
