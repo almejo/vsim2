@@ -75,6 +75,15 @@ public final class DocumentWindows<W> {
         return result;
     }
 
+    /**
+     * The windows that something newly opened from {@code requester} replaces (Abrir, Ejemplos): every window of the
+     * requester's document when that document is pristine; none otherwise, nor for an unknown or null requester.
+     */
+    public List<W> replacedBy(W requester) {
+        OpenDocument document = requester == null ? null : documentByWindow.get(requester);
+        return document != null && document.isPristine() ? windowsOf(document) : List.of();
+    }
+
     /** The first window of the document backed by {@code file}, if that file is already open. */
     public Optional<W> firstShowing(Path file) {
         for (Map.Entry<OpenDocument, List<W>> group : windowsByDocument.entrySet()) {

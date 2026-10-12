@@ -2,6 +2,9 @@ package cl.almejo.vsim.ui.app;
 
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
+import cl.almejo.vsim.core.document.CircuitDocument;
+import cl.almejo.vsim.core.geometry.GridPoint;
+import cl.almejo.vsim.core.geometry.Rotation;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.window.WindowMenu;
 import org.junit.jupiter.api.AfterEach;
@@ -13,6 +16,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -150,6 +154,38 @@ class DocumentWindowsTest {
         windows.remove("two");
         assertThat(secondViewNumbers).hasSize(3);
         assertThat(windows.changeListenerCount()).isZero();
+    }
+
+    @Test
+    void somethingNewReplacesOnlyTheWindowsOfAPristineRequester(@TempDir Path directory) throws Exception {
+        OpenDocument pristine = newDocument();
+        OpenDocument saved = savedDocument(directory.resolve("sumador.vsim"));
+        windows.add(pristine, "pristine-1");
+        windows.add(saved, "saved");
+        windows.add(pristine, "pristine-2");
+
+        assertThat(windows.replacedBy("pristine-2")).containsExactly("pristine-1", "pristine-2");
+        assertThat(windows.replacedBy("saved")).isEmpty();
+        assertThat(windows.replacedBy("ghost")).isEmpty();
+        assertThat(windows.replacedBy(null)).isEmpty();
+    }
+
+    @Test
+    void anOpenedExampleIsAnUntitledUnmodifiedDocumentThatIsNeverReplaced() {
+        CircuitDocument example = new CircuitDocument();
+        example.setName("Sumador completo");
+        example.add(registry.require(StandardComponentTypes.SWITCH).newComponent(example.newComponentId(),
+                new GridPoint(2, 4), Rotation.R0, Map.of(), "A"));
+        OpenDocument document = new OpenDocument(example, registry, null, false);
+        opened.add(document);
+        windows.add(document, "example");
+
+        assertThat(document.path()).isEmpty();
+        assertThat(document.isModified()).isFalse();
+        assertThat(document.needsSaveAs()).isTrue();
+        assertThat(document.displayName()).isEqualTo("Sumador completo");
+        assertThat(document.suggestedFileName()).isEqualTo("Sumador completo.vsim");
+        assertThat(windows.replacedBy("example")).isEmpty();
     }
 
     @Test
