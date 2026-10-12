@@ -69,6 +69,13 @@ Diseño: `docs/superpowers/specs/2026-10-08-vsim2-design.md`.
 
 ## Ejemplos (M6.1)
 
+- Archivo ▸ Ejemplos (después de «Recientes») abre doce circuitos clásicos armados solo con compuertas, flip-flops, interruptores, LED, relojes, buses y displays: Sumador completo, Sumador de 4 bits, Multiplexor 4:1, Decodificador 2 a 4, Paridad de 3 bits, Multiplicador 2×2, Registro de 4 bits, Registro de desplazamiento, Contador de 4 bits, Contador Johnson, Bus de 8 bits y ALU de 4 bits. Al pasar el mouse sobre cada uno se ve qué enseña.
+- Cada ejemplo se abre en una ventana nueva como una copia sin nombre y sin modificar, llamada como el ejemplo: Guardar pide dónde guardarla y el ejemplo incluido nunca cambia. No se agrega a Recientes; abrirlo dos veces da dos copias independientes y, si la ventana desde la que se pide está vacía y sin tocar, la reemplaza.
+- Cada ejemplo se explica solo: un título arriba, una línea «Prueba: …» abajo que dice qué probar, y un nombre corto junto a cada entrada, salida y parte (A, B, Cin, S, Cout, «selector», «acarreo», «banderas»…). Ningún texto tapa un cable ni un componente.
+- «Sumador de 4 bits» usa cuatro instancias del componente «Sumador completo», que viene dentro del archivo: aparece en «Componentes de este circuito» con «Agregar a mi librería» y «Desarmar» muestra su interior. La ALU usa cuatro «Bit de ALU» (cada uno un «Sumador completo», una AND, una OR, una XOR y un multiplexor 4:1); S1 S0 eligen la operación: 00 suma, 01 AND, 10 OR, 11 XOR.
+- Los flip-flops D empiezan en 0 (como al encender un circuito real): «Contador de 4 bits» es el contador en cascada clásico (cada flip-flop invierte su salida y le da el reloj al siguiente) y cuenta desde 0; el «Contador Johnson» parte en 0000; los LED de «Registro de 4 bits» se ven en 0 hasta la primera carga. Una entrada sin conectar sigue en Z.
+- Los archivos de los ejemplos se generan con `CombinationalExamples`, `SequentialExamples` y `BusAndAluExamples` (pruebas de `core`, listados por `BundledCircuits`): después de cambiar uno, `VSIM_WRITE_BUNDLED=1 ./gradlew :core:test --tests '*BundledCircuitsTest.writeTheResources'` los reescribe; las pruebas comprueban que coinciden con lo generado, que ningún cable pasa sobre un pin, que ningún texto tapa nada y que cada ejemplo funciona.
+
 ## Paso a paso (M6.1)
 
 ## Tabla de verdad (M6.1)

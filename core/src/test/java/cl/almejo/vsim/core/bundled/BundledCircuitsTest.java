@@ -73,4 +73,6 @@ class BundledCircuitsTest {
         assertThat(snapshot.failure()).isEmpty();
         assertThat(snapshot.problems()).isEmpty();
     }
+
+    // Task 11b (after front C): truth tables through TruthTableEvaluator.
 }

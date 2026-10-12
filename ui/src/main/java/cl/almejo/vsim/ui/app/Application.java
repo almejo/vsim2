@@ -7,6 +7,7 @@ import cl.almejo.vsim.core.io.CircuitFormatException;
 import cl.almejo.vsim.core.io.CircuitReader;
 import cl.almejo.vsim.core.io.LibraryDirectory;
 import cl.almejo.vsim.core.library.ComponentLibrary;
+import cl.almejo.vsim.ui.examples.ExamplesFeature;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.icons.ActionIcons;
 import cl.almejo.vsim.ui.library.LibraryDialogs;
@@ -94,12 +95,14 @@ public final class Application {
     static List<EditorExtension> editorExtensions(LibraryService libraryService, LibraryDialogs libraryDialogs) {
         List<EditorExtension> editorExtensions = new ArrayList<>();
         // M6: A's waveforms before ActionIcons, B's recents after PreferencesFeature, C's shortcuts last.
+        // M6.1: A's examples after RecentFilesFeature (its submenu goes after «Recientes»).
         editorExtensions.add(new TemplatesExtension(libraryService, libraryDialogs));
         editorExtensions.add(new ComponentTreeExtension());
         editorExtensions.add(new WaveformsExtension());
         editorExtensions.add(new ActionIcons());
         editorExtensions.add(new PreferencesFeature());
         editorExtensions.add(new RecentFilesFeature());
+        editorExtensions.add(new ExamplesFeature());
         editorExtensions.add(new ShortcutsExtension());
         return List.copyOf(editorExtensions);
     }

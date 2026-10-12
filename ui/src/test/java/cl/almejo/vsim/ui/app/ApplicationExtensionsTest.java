@@ -101,8 +101,8 @@ class ApplicationExtensionsTest {
     void theFileMenuHasEveryExtensionsEntryInPlace() {
         EditorView view = new EditorView(openDocument, services, NO_WINDOW);
         try {
-            assertThat(texts(view.menu(MenuId.FILE))).containsExactly("Nuevo", "Abrir…", "Recientes", "Guardar",
-                    "Guardar como…", "---", "Importar componente…", "---", "Preferencias…", "---",
+            assertThat(texts(view.menu(MenuId.FILE))).containsExactly("Nuevo", "Abrir…", "Recientes", "Ejemplos",
+                    "Guardar", "Guardar como…", "---", "Importar componente…", "---", "Preferencias…", "---",
                     "Cerrar ventana", "Salir");
             assertThat(texts(view.menu(MenuId.EDIT))).containsSubsequence("Deshacer", "Rehacer", "Cortar", "Copiar",
                     "Pegar", "Crear componente desde selección…", "Actualizar componente…");

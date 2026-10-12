@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.app;
 
+import cl.almejo.vsim.core.bundled.BundledExamples;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
@@ -71,6 +72,12 @@ class ExecutableJarTest {
                 "META-INF/services/org.slf4j.spi.SLF4JServiceProvider",
                 "com/formdev/flatlaf/extras/FlatSVGIcon.class",
                 "icons/app/vsim.svg");
+    }
+
+    @Test
+    void itCarriesTheBundledExamples() throws IOException {
+        assertThat(entryNames()).containsAll(BundledExamples.all().stream()
+                .map(example -> example.resourceName().substring(1)).toList());
     }
 
     @Test
