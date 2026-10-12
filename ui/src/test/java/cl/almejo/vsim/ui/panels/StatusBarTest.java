@@ -116,4 +116,23 @@ class StatusBarTest {
         statusBar.showProblems(1, 0);
         assertThat(warning.getToolTipText()).isEqualTo("Clic para ir al siguiente problema (F8)");
     }
+
+    @Test
+    void clickingTheZoomRunsItsActionWithAHandCursorAndATooltip() {
+        AtomicInteger clicks = new AtomicInteger();
+        statusBar.showZoom(1.25);
+        statusBar.onZoomClicked(clicks::incrementAndGet);
+        JLabel zoom = statusBar.zoomLabel();
+        MouseEvent click = new MouseEvent(zoom, MouseEvent.MOUSE_CLICKED, 0, 0, 2, 2, 1, false, MouseEvent.BUTTON1);
+        MouseEvent rightClick = new MouseEvent(zoom, MouseEvent.MOUSE_CLICKED, 0, 0, 2, 2, 1, false,
+                MouseEvent.BUTTON3);
+        for (MouseListener listener : zoom.getMouseListeners()) {
+            listener.mouseClicked(click);
+            listener.mouseClicked(rightClick);
+        }
+        assertThat(clicks).hasValue(1);
+        assertThat(zoom.getCursor().getType()).isEqualTo(Cursor.HAND_CURSOR);
+        assertThat(zoom.getToolTipText()).isEqualTo("Clic: volver a 100 %");
+        assertThat(statusBar.text()).contains("zoom 125 %");
+    }
 }

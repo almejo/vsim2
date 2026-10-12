@@ -6,6 +6,7 @@ import net.miginfocom.swing.MigLayout;
 
 import javax.swing.JLabel;
 import javax.swing.JPanel;
+import javax.swing.SwingUtilities;
 import java.awt.Color;
 import java.awt.Cursor;
 import java.awt.event.MouseAdapter;
@@ -90,6 +91,27 @@ public final class StatusBar extends JPanel {
 
     JLabel shortCircuitsLabel() {
         return shortCircuits;
+    }
+
+    /**
+     * Clicking «zoom 125 %» runs {@code action} (the view goes back to 100 % around the middle of the canvas); the
+     * label gets the hand cursor and the tooltip «Clic: volver a 100 %». Only the primary button counts.
+     */
+    public void onZoomClicked(Runnable action) {
+        zoom.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        zoom.setToolTipText(Messages.text("status.zoomTip"));
+        zoom.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent event) {
+                if (SwingUtilities.isLeftMouseButton(event)) {
+                    action.run();
+                }
+            }
+        });
+    }
+
+    JLabel zoomLabel() {
+        return zoom;
     }
 
     public void showZoom(double zoomFactor) {

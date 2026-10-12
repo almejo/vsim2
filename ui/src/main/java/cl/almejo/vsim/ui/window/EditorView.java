@@ -128,6 +128,7 @@ public final class EditorView extends JPanel implements CanvasHost {
         canvas.selection().addListener(() -> statusBar.showSelection(canvas.selection().ids().size()));
         statusBar.showSnapshot(SimulationSnapshot.EMPTY);
         statusBar.showZoom(canvas.viewport().zoom());
+        statusBar.onZoomClicked(canvas::resetZoom);
         canvas.bindKey(KeyStroke.getKeyStroke(KeyEvent.VK_DELETE, 0), "delete", actions.delete());
         canvas.bindKey(KeyStroke.getKeyStroke(KeyEvent.VK_BACK_SPACE, 0), "delete", actions.delete());
         canvas.bindKey(KeyStroke.getKeyStroke(KeyEvent.VK_R, 0), "rotateClockwise", actions.rotateClockwise());

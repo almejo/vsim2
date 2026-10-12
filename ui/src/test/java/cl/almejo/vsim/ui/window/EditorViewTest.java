@@ -37,6 +37,8 @@ import java.awt.Graphics2D;
 import java.awt.event.ActionEvent;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseListener;
 import java.awt.image.BufferedImage;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -331,6 +333,30 @@ class EditorViewTest {
         assertThat(keys.get(KeyStroke.getKeyStroke(KeyEvent.VK_SUBTRACT, control))).isEqualTo("zoomOut");
         assertThat(keys.get(KeyStroke.getKeyStroke(KeyEvent.VK_NUMPAD0, control))).isEqualTo("zoomReset");
         assertThat(view.getActionMap().get("zoomIn")).isSameAs(view.actions().zoomIn());
+    }
+
+    @Test
+    void clickingTheStatusBarZoomGoesBackToOneHundredPercent() {
+        view.canvas().setSize(800, 600);
+        view.canvas().zoomIn();
+        view.canvas().zoomIn();
+        assertThat(view.canvas().viewport().zoom()).isGreaterThan(1.0);
+        JLabel zoom = statusLabelStartingWith("zoom");
+        MouseEvent click = new MouseEvent(zoom, MouseEvent.MOUSE_CLICKED, 0, 0, 2, 2, 1, false, MouseEvent.BUTTON1);
+        for (MouseListener listener : zoom.getMouseListeners()) {
+            listener.mouseClicked(click);
+        }
+        assertThat(view.canvas().viewport().zoom()).isEqualTo(1.0);
+        assertThat(view.statusBar().text()).contains("zoom 100 %");
+    }
+
+    private JLabel statusLabelStartingWith(String prefix) {
+        for (java.awt.Component child : view.statusBar().getComponents()) {
+            if (child instanceof JLabel label && label.getText() != null && label.getText().startsWith(prefix)) {
+                return label;
+            }
+        }
+        throw new AssertionError("no status label starting with " + prefix);
     }
 
     private AbstractButton toggle(javax.swing.Action action) {
