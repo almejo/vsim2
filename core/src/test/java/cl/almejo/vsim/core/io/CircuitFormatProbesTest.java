@@ -62,6 +62,22 @@ class CircuitFormatProbesTest {
     }
 
     @Test
+    void anEmptyNameIsLeftOutOfTheFileAndReadsBackEmpty() throws CircuitFormatException {
+        CircuitDocument document = new CircuitDocument();
+        document.setName("contador");
+        document.add(new Component(document.newComponentId(), "switch", new GridPoint(0, 0), Rotation.R0, Map.of(),
+                ""));
+        document.setProbes(List.of(new Probe("p1", new ProbeTarget.PinTarget(new ElementId("c1"), 0), ""),
+                new Probe("p2", new ProbeTarget.PinTarget(new ElementId("c1"), 0), "reloj")));
+
+        String json = format.write(document);
+
+        assertThat(json).contains("\"formatVersion\" : 2").contains("\"name\" : \"reloj\"")
+                .doesNotContain("\"name\" : \"\"").doesNotContain("\"name\" : null");
+        assertThat(format.read(json).probes()).containsExactlyElementsOf(document.probes());
+    }
+
+    @Test
     void probesOnElementsThatDoNotExistAreKept() throws CircuitFormatException {
         CircuitDocument loaded = format.read("""
                 {"formatVersion":2,"kind":"circuit","probes":[

@@ -44,7 +44,13 @@ class ProbeActionsTest {
         return openDocument.document().probes();
     }
 
+    /** What the rows show: the stored name, else the live default. */
     private List<String> names() {
+        return probes().stream().map(probe -> ProbeNames.displayName(probe, openDocument.document(),
+                openDocument.netlist(), openDocument.registry())).toList();
+    }
+
+    private List<String> storedNames() {
         return probes().stream().map(Probe::name).toList();
     }
 
@@ -75,6 +81,7 @@ class ProbeActionsTest {
         ProbeActions.AddResult result = actions.addSelection(reversed);
 
         assertThat(names()).containsExactly("c1.out", "c2.out", "c3.out");
+        assertThat(storedNames()).as("new channels store no name: it stays live").containsExactly("", "", "");
         assertThat(result.addedIds()).isEqualTo(ids());
         assertThat(result.existingId()).isEmpty();
         assertThat(result.capReached()).isFalse();
@@ -151,8 +158,10 @@ class ProbeActionsTest {
         actions.rename(first, "  reloj ");
         assertThat(names()).containsExactly("reloj", "c2.out", "c3.out");
         assertThat(openDocument.history().undoDescription()).contains("command.renameProbe");
+        assertThat(storedNames()).containsExactly("reloj", "", "");
         actions.rename(first, " ");
         assertThat(names()).as("an empty name restores the default").containsExactly("c1.out", "c2.out", "c3.out");
+        assertThat(storedNames()).containsExactly("", "", "");
 
         actions.moveDown(first);
         assertThat(ids()).containsExactly(second, first, original.get(2));

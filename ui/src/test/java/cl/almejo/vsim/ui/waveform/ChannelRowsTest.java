@@ -30,7 +30,8 @@ class ChannelRowsTest {
         List<Probe> probes = List.of(new Probe("p1", new ProbeTarget.PinTarget(new ElementId("c1"), 0), "reloj"),
                 new Probe("p2", new ProbeTarget.WireTarget(new ElementId("w9")), ""));
 
-        assertThat(ChannelRows.of(probes, Map.of("p1", "n:p:c1#0"))).containsExactly(
-                new ChannelRows.ChannelRow("p1", "reloj", true), new ChannelRows.ChannelRow("p2", "p2", false));
+        assertThat(ChannelRows.of(probes, Map.of("p1", "n:p:c1#0"),
+                probe -> probe.name().isBlank() ? "cable w9" : probe.name())).containsExactly(
+                new ChannelRows.ChannelRow("p1", "reloj", true), new ChannelRows.ChannelRow("p2", "cable w9", false));
     }
 }

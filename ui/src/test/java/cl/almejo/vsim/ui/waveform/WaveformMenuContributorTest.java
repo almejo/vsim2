@@ -98,7 +98,8 @@ class WaveformMenuContributorTest {
         assertThat(texts(menu)).containsExactly("Ver en formas de onda");
         perform(menu);
 
-        assertThat(openDocument.document().probes()).extracting(probe -> probe.name())
+        assertThat(openDocument.document().probes()).extracting(probe -> ProbeNames.displayName(probe,
+                openDocument.document(), openDocument.netlist(), openDocument.registry()))
                 .containsExactly("c1.out", "c2.out");
     }
 

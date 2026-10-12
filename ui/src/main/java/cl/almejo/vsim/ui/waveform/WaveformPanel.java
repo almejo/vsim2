@@ -182,7 +182,9 @@ public final class WaveformPanel extends JPanel {
     }
 
     List<ChannelRows.ChannelRow> rows() {
-        return ChannelRows.of(openDocument.document().probes(), openDocument.probeNets());
+        return ChannelRows.of(openDocument.document().probes(), openDocument.probeNets(),
+                probe -> ProbeNames.displayName(probe, openDocument.document(), openDocument.netlist(),
+                        openDocument.registry()));
     }
 
     List<String> channelIds() {
