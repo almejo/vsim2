@@ -1,6 +1,7 @@
 package cl.almejo.vsim.ui.icons;
 
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
+import cl.almejo.vsim.ui.actions.EditorActions;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.library.TemplateIcons;
@@ -70,6 +71,7 @@ class ActionIconsTest {
     void everyIconFileIsUsedAndEveryUsedNameHasAFile() throws IOException {
         TreeSet<String> used = new TreeSet<>(ActionIcons.iconNames(view).values());
         used.addAll(TemplateIcons.names());
+        used.add(EditorActions.SPEED_ICON);
         used.addAll(WaveformIcons.names());
         assertThat(used).containsExactlyElementsOf(IconsTest.iconNames());
     }

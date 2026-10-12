@@ -12,6 +12,7 @@ import cl.almejo.vsim.core.library.ComponentLibrary;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.icons.Icons;
 import cl.almejo.vsim.ui.paint.Appearance;
 import cl.almejo.vsim.ui.paint.AppearanceTestSupport;
 import cl.almejo.vsim.ui.paint.ColorScheme;
@@ -26,13 +27,17 @@ import org.junit.jupiter.api.Test;
 import javax.swing.AbstractButton;
 import javax.swing.AbstractAction;
 import javax.swing.Action;
+import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
+import javax.swing.JList;
 import javax.swing.JMenu;
 import javax.swing.JSplitPane;
 import javax.swing.KeyStroke;
+import javax.swing.ListCellRenderer;
 import java.awt.Color;
 import java.awt.Container;
+import java.awt.Cursor;
 import java.awt.Graphics2D;
 import java.awt.event.ActionEvent;
 import java.awt.event.InputEvent;
@@ -46,6 +51,7 @@ import java.util.List;
 import java.util.Map;
 
 import static cl.almejo.vsim.ui.UiTestSupport.place;
+import static cl.almejo.vsim.ui.UiTestSupport.waitUntil;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.entry;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -348,6 +354,67 @@ class EditorViewTest {
         }
         assertThat(view.canvas().viewport().zoom()).isEqualTo(1.0);
         assertThat(view.statusBar().text()).contains("zoom 100 %");
+    }
+
+    @Test
+    void theStepSaysHowFarItGoesAndTheSpeedSelectorExplainsItself() {
+        Action step = view.actions().step();
+        assertThat(step.getValue(Action.NAME)).isEqualTo("Avanzar 10 t");
+        assertThat(step.getValue(Action.SHORT_DESCRIPTION)).isEqualTo("Avanza la simulación 10 unidades de tiempo");
+        assertThat(view.menu(MenuId.SIMULATION).getItem(2).getText()).isEqualTo("Avanzar 10 t");
+
+        int index = 0;
+        while (!(view.toolBar().getComponent(index) instanceof JComboBox)) {
+            index++;
+        }
+        JComboBox<?> speed = (JComboBox<?>) view.toolBar().getComponent(index);
+        assertThat(speed.getToolTipText())
+                .isEqualTo("Velocidad de simulación: ×1 = 1 unidad de tiempo por milisegundo");
+        assertThat(rendered(speed, 10.0, -1)).as("the closed combo").isEqualTo("Velocidad ×10");
+        assertThat(rendered(speed, 10.0, 2)).as("the open list").isEqualTo("×10");
+        assertThat(rendered(speed, 0.1, -1)).isEqualTo("Velocidad ×0,1");
+        JLabel icon = (JLabel) view.toolBar().getComponent(index - 1);
+        assertThat(icon.getIcon()).isSameAs(Icons.get("speed", Icons.MENU_SIZE));
+        assertThat(icon.getToolTipText()).isEqualTo(speed.getToolTipText());
+        assertThat(icon.getLabelFor()).isSameAs(speed);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static String rendered(JComboBox<?> box, Object value, int index) {
+        ListCellRenderer<Object> renderer = (ListCellRenderer<Object>) box.getRenderer();
+        return ((JLabel) renderer.getListCellRendererComponent(new JList<>(), value, index, false, false)).getText();
+    }
+
+    @Test
+    void theStatusTimeExplainsItselfAndTheRunStatePausesAndStartsThroughTheActions() {
+        waitUntil(() -> openDocument.latestSnapshot().running());
+        view.statusBar().showSnapshot(openDocument.latestSnapshot());
+        view.actions().refreshSimulationButtons(true);
+        assertThat(statusLabelStartingWith("t = ").getToolTipText()).isEqualTo("Tiempo de simulación (unidades)");
+        JLabel runState = statusLabelStartingWith("▶");
+        assertThat(runState.getToolTipText()).isEqualTo("Clic: pausar");
+        assertThat(runState.getCursor().getType()).isEqualTo(Cursor.HAND_CURSOR);
+
+        clickStatusLabel(runState);
+        waitUntil(() -> !openDocument.latestSnapshot().running());
+        view.statusBar().showSnapshot(openDocument.latestSnapshot());
+        view.actions().refreshSimulationButtons(false);
+        assertThat(runState.getText()).isEqualTo("⏸ en pausa");
+        assertThat(runState.getToolTipText()).isEqualTo("Clic: iniciar");
+
+        view.actions().refreshSimulationButtons(true); // Iniciar disabled, as the toolbar shows it
+        clickStatusLabel(runState);
+        assertThat(openDocument.latestSnapshot().running()).isFalse();
+        view.actions().refreshSimulationButtons(false);
+        clickStatusLabel(runState);
+        waitUntil(() -> openDocument.latestSnapshot().running());
+    }
+
+    private static void clickStatusLabel(JLabel label) {
+        MouseEvent click = new MouseEvent(label, MouseEvent.MOUSE_CLICKED, 0, 0, 2, 2, 1, false, MouseEvent.BUTTON1);
+        for (MouseListener listener : label.getMouseListeners()) {
+            listener.mouseClicked(click);
+        }
     }
 
     private JLabel statusLabelStartingWith(String prefix) {

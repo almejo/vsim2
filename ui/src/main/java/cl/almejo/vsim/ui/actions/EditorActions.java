@@ -40,6 +40,9 @@ public final class EditorActions {
     public static final long STEP_UNITS = 10;
     public static final List<Double> SPEEDS = List.of(0.1, 1.0, 10.0, 100.0);
 
+    /** The icon before the speed selector in the toolbar, by file name under {@code icons/} (M6.1-E). */
+    public static final String SPEED_ICON = "speed";
+
     private final OpenDocument openDocument;
     private final CircuitCanvas canvas;
     private final int menuMask = ShortcutCatalog.menuMask();
@@ -102,6 +105,7 @@ public final class EditorActions {
         start = action(Messages.text("action.start"), null, openDocument::resume);
         pause = action(Messages.text("action.pause"), null, openDocument::pause);
         step = action(Messages.text("action.step"), null, () -> openDocument.step(STEP_UNITS));
+        step.putValue(Action.SHORT_DESCRIPTION, Messages.format("tooltip.step", STEP_UNITS));
         newView = action(Messages.text("action.newWindow"), null, window::newView);
         about = action(Messages.text("action.about"), null, () -> JOptionPane.showMessageDialog(canvas,
                 Messages.text("dialog.about.message"), Messages.text("action.about"), JOptionPane.INFORMATION_MESSAGE));
@@ -206,13 +210,13 @@ public final class EditorActions {
     public JComboBox<Double> createSpeedSelector() {
         JComboBox<Double> selector = new JComboBox<>(SPEEDS.toArray(Double[]::new));
         selector.setSelectedItem(1.0);
-        selector.setToolTipText(Messages.text("toolbar.speed"));
+        selector.setToolTipText(Messages.text("toolbar.speedTip"));
         selector.setRenderer(new DefaultListCellRenderer() {
             @Override
             public java.awt.Component getListCellRendererComponent(JList<?> list, Object value, int index,
                                                                    boolean selected, boolean focused) {
                 super.getListCellRendererComponent(list, value, index, selected, focused);
-                setText(Messages.format("speed.label", value));
+                setText(Messages.format(index < 0 ? "speed.closed" : "speed.label", value));
                 return this;
             }
         });
