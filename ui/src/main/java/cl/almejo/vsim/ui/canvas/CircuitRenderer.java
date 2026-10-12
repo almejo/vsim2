@@ -276,7 +276,7 @@ public final class CircuitRenderer {
                     continue;
                 }
                 Optional<Net> net = state.netlist().netForPin(new PinRef(component.id(), pinIndex));
-                boolean open = net.map(found -> found.pins().size() == 1 && found.wires().isEmpty()).orElse(true);
+                boolean open = ConnectionPoints.isOpen(net);
                 if (!open) {
                     continue;
                 }

@@ -6,6 +6,7 @@ import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
+import cl.almejo.vsim.core.netlist.Net;
 
 import java.awt.geom.Point2D;
 import java.util.Optional;
@@ -55,6 +56,14 @@ public final class ConnectionPoints {
             }
         }
         return widest;
+    }
+
+    /**
+     * A pin whose net holds nothing else (no wire, no other pin), or that has no net: the red ring and the
+     * «(sin conectar)» tooltip share this one rule.
+     */
+    public static boolean isOpen(Optional<Net> net) {
+        return net.map(found -> found.pins().size() == 1 && found.wires().isEmpty()).orElse(true);
     }
 
     /** The grid point of {@code wire} nearest to {@code gridPoint}. */
