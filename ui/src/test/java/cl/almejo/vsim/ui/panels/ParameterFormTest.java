@@ -9,7 +9,9 @@ import org.junit.jupiter.api.Test;
 
 import javax.swing.JComboBox;
 import javax.swing.JFormattedTextField;
+import javax.swing.JLabel;
 import javax.swing.JSpinner;
+import java.awt.Component;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -121,5 +123,41 @@ class ParameterFormTest {
         led.addCommitListener(choices::incrementAndGet);
         ((JComboBox<?>) led.editor("color")).setSelectedItem("green");
         assertThat(choices.get()).isPositive();
+    }
+
+    private static JLabel labelOf(ParameterForm form, String parameterName) {
+        for (Component child : form.getComponents()) {
+            if (child instanceof JLabel label && label.getLabelFor() == form.editor(parameterName)) {
+                return label;
+            }
+        }
+        throw new AssertionError("no label for " + parameterName);
+    }
+
+    @Test
+    void timeParametersSayTheirUnitAndExplainIt() {
+        String tip = "En unidades de tiempo de simulación";
+        ParameterForm clock = form(StandardComponentTypes.CLOCK, Map.of());
+        assertThat(labelOf(clock, "time-up").getText()).isEqualTo("Tiempo en alto (t)");
+        assertThat(labelOf(clock, "time-down").getText()).isEqualTo("Tiempo en bajo (t)");
+        assertThat(labelOf(clock, "time-up").getToolTipText()).isEqualTo(tip);
+        assertThat(clock.editor("time-up").getToolTipText()).isEqualTo(tip);
+        ParameterForm gate = form(StandardComponentTypes.NOT, Map.of());
+        assertThat(labelOf(gate, "delay").getText()).isEqualTo("Retardo (t)");
+        assertThat(((JSpinner.DefaultEditor) ((JSpinner) gate.editor("delay")).getEditor()).getTextField()
+                .getToolTipText()).isEqualTo(tip);
+        ParameterForm diagram = form(StandardComponentTypes.TIME_DIAGRAM, Map.of());
+        assertThat(labelOf(diagram, "sample-interval").getText()).isEqualTo("Intervalo de muestreo (t)");
+        assertThat(labelOf(diagram, "history").getText()).isEqualTo("Historial (muestras)");
+        assertThat(labelOf(diagram, "history").getToolTipText()).isNull();
+        assertThat(labelOf(form(StandardComponentTypes.SWITCH, Map.of()), "value").getText()).isEqualTo("Valor");
+    }
+
+    @Test
+    void anInvalidTimeKeepsThePlainNameInItsMessage() {
+        ParameterForm gate = form(StandardComponentTypes.NOT, Map.of());
+        typeInto((JSpinner) gate.editor("delay"), "0");
+        assertThat(gate.validationError()).hasValueSatisfying(message -> assertThat(message)
+                .contains("Retardo").doesNotContain("(t)"));
     }
 }
