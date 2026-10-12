@@ -201,7 +201,7 @@ public final class CircuitRenderer {
             graphics.draw(circle(pin, HALO_RADIUS));
         }
         paintPinWidths(graphics, mismatches);
-        paintOpenBusPins(graphics, state);
+        paintOpenPins(graphics, state);
     }
 
     /**
@@ -256,22 +256,25 @@ public final class CircuitRenderer {
     }
 
     /**
-     * An empty socket (a hollow mark, same size as the pin dot) on each pin of a bus splitter or joiner that nothing
-     * else touches, so a bit left unwired is noticed. Only with a netlist that matches the document.
+     * An empty socket (a hollow mark, a little bigger than the pin dot) on each pin that nothing else touches (no
+     * wire, no other pin): every input pin of any component (M6.1-E: a loose input stays Z, and this shows it) and
+     * every pin of a bus splitter or joiner, so a bit left unwired is noticed. Outputs of other components keep their
+     * dot. Only with a netlist that matches the document.
      */
-    private void paintOpenBusPins(Graphics2D graphics, RenderState state) {
+    private void paintOpenPins(Graphics2D graphics, RenderState state) {
         if (state.netlistToken() != state.document().revision()) {
             return;
         }
         ColorScheme scheme = scheme();
         graphics.setStroke(OPEN_PIN_RING);
         for (Component component : state.document().components()) {
-            if (!StandardComponentTypes.BUS_SPLITTER.equals(component.typeId())
-                    && !StandardComponentTypes.BUS_JOINER.equals(component.typeId())) {
-                continue;
-            }
+            boolean busPart = StandardComponentTypes.BUS_SPLITTER.equals(component.typeId())
+                    || StandardComponentTypes.BUS_JOINER.equals(component.typeId());
             ComponentType type = registry.typeOf(component);
             for (int pinIndex = 0; pinIndex < type.pinCount(); pinIndex++) {
+                if (!busPart && !type.pin(pinIndex).isInput()) {
+                    continue;
+                }
                 Optional<Net> net = state.netlist().netForPin(new PinRef(component.id(), pinIndex));
                 boolean open = net.map(found -> found.pins().size() == 1 && found.wires().isEmpty()).orElse(true);
                 if (!open) {
