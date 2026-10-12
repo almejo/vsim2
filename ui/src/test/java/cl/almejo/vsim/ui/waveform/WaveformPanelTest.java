@@ -537,4 +537,16 @@ class WaveformPanelTest {
         }
         return depth;
     }
+
+    @Test
+    void selectRowSelectsAKnownChannelOnly() {
+        List<String> ids = chain();
+        panel.selectRow(ids.get(1));
+        assertThat(panel.selectedProbe()).contains(ids.get(1));
+        panel.selectRow("p99");
+        assertThat(panel.selectedProbe()).contains(ids.get(1));
+        panel.dispose();
+        panel.selectRow(ids.get(0));
+        assertThat(panel.selectedProbe()).contains(ids.get(1));
+    }
 }

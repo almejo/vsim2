@@ -27,6 +27,7 @@ import javax.swing.JToolBar;
 import javax.swing.Timer;
 import java.awt.BorderLayout;
 import java.awt.Component;
+import java.awt.Rectangle;
 import java.awt.event.ActionEvent;
 import java.awt.event.HierarchyEvent;
 import java.util.ArrayList;
@@ -130,6 +131,19 @@ public final class WaveformPanel extends JPanel {
         plot.revalidate();
         updateTimer();
         repaintAll();
+    }
+
+    /** Selects the row of {@code probeId} and scrolls it into view (a click on its marker in the canvas). */
+    public void selectRow(String probeId) {
+        if (disposed) {
+            return;
+        }
+        int row = channelIds().indexOf(probeId);
+        if (row < 0) {
+            return;
+        }
+        selectProbe(probeId);
+        plot.scrollRectToVisible(new Rectangle(0, row * WaveformPainter.ROW_HEIGHT, 1, WaveformPainter.ROW_HEIGHT));
     }
 
     /** Makes the row of {@code probeId} blink for about 1.5 s (an add found its net already shown). */

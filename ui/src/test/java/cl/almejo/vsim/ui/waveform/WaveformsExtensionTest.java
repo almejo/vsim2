@@ -17,6 +17,7 @@ import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.Appearance;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
+import cl.almejo.vsim.ui.tools.PanTool;
 import cl.almejo.vsim.ui.window.EditorServices;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuId;
@@ -29,8 +30,12 @@ import javax.swing.JCheckBoxMenuItem;
 import javax.swing.JMenu;
 import javax.swing.JMenuItem;
 import javax.swing.JPopupMenu;
+import java.awt.Graphics2D;
 import java.awt.event.ActionEvent;
+import java.awt.event.InputEvent;
+import java.awt.event.MouseEvent;
 import java.awt.geom.Point2D;
+import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -262,5 +267,90 @@ class WaveformsExtensionTest {
             view.dispose();
         }
         assertThat(view.shortcutActions()).doesNotContainKey("waveforms.toggle");
+    }
+
+    private static MouseEvent mouse(EditorView view, int id, int x, int y, int modifiers, int button) {
+        return new MouseEvent(view.canvas(), id, 0, modifiers, x, y, 1, false, button);
+    }
+
+    private static void primaryClick(EditorView view, int x, int y) {
+        view.canvas().getMouseListeners()[0].mousePressed(
+                mouse(view, MouseEvent.MOUSE_PRESSED, x, y, InputEvent.BUTTON1_DOWN_MASK, MouseEvent.BUTTON1));
+        view.canvas().getMouseListeners()[0].mouseReleased(
+                mouse(view, MouseEvent.MOUSE_RELEASED, x, y, 0, MouseEvent.BUTTON1));
+    }
+
+    /** Switch c1 at (0,10): its output (4,11) has a badge at grid x 4.5–6, y 9–10, screen (36–48, 72–80) at 100 %. */
+    @Test
+    void aMonitoredPinShowsAMarkerWithATooltipAndAClickSelectsItsRow() {
+        Component toggle = place(openDocument, StandardComponentTypes.SWITCH, 0, 10, Map.of());
+        EditorView view = new EditorView(openDocument, services, NO_WINDOW);
+        try {
+            WaveformPanel panel = panelOf(view);
+            String probeId = new ProbeActions(openDocument).addComponentPins(toggle.id()).addedIds().get(0);
+            view.bottomDock().hideDock();
+
+            assertThat(view.canvas().getToolTipText(mouse(view, MouseEvent.MOUSE_MOVED, 40, 76, 0,
+                    MouseEvent.NOBUTTON))).isEqualTo("En formas de onda: c1.out");
+            primaryClick(view, 40, 76);
+
+            assertThat(view.bottomDock().isDockShowing()).isTrue();
+            assertThat(panel.selectedProbe()).contains(probeId);
+            assertThat(panel.isBlinkLit(probeId)).isTrue();
+            assertThat(view.canvas().selection().isEmpty()).as("the select tool never saw the press").isTrue();
+        } finally {
+            view.dispose();
+        }
+    }
+
+    @Test
+    void twoChannelsOnOnePinListBothNamesAndOtherToolsIgnoreTheMarker() {
+        Component toggle = place(openDocument, StandardComponentTypes.SWITCH, 0, 10, Map.of());
+        openDocument.execute(new SetProbesCommand(List.of(), List.of(
+                new Probe("p1", new ProbeTarget.PinTarget(toggle.id(), 0), ""),
+                new Probe("p2", new ProbeTarget.PinTarget(toggle.id(), 0), "reloj")), "command.addProbes"));
+        EditorView view = new EditorView(openDocument, services, NO_WINDOW);
+        try {
+            assertThat(view.canvas().getToolTipText(mouse(view, MouseEvent.MOUSE_MOVED, 40, 76, 0,
+                    MouseEvent.NOBUTTON))).isEqualTo("En formas de onda: c1.out, reloj");
+            view.bottomDock().hideDock();
+            view.canvas().setTool(new PanTool());
+            primaryClick(view, 40, 76);
+            assertThat(view.bottomDock().isDockShowing()).isFalse();
+        } finally {
+            view.dispose();
+        }
+    }
+
+    @Test
+    void disposingTheFeatureTakesBackTheMarkersTheirTooltipAndTheirClick() {
+        Component toggle = place(openDocument, StandardComponentTypes.SWITCH, 0, 10, Map.of());
+        EditorView view = new EditorView(openDocument, PainterRegistry.standard(), ColorScheme.LIGHT, NO_WINDOW);
+        WaveformFeatures features = new WaveformFeatures(view, NO_ANSWER, (parent, message) -> messages.add(message));
+        try {
+            features.actions().addComponentPins(toggle.id());
+            assertThat(features.markers().markers()).hasSize(1);
+            view.canvas().setSize(100, 100);
+            int badge = canvasPixel(view, 41, 76);
+            features.dispose();
+
+            assertThat(canvasPixel(view, 41, 76)).as("no badge painted any more").isNotEqualTo(badge);
+            assertThat(view.canvas().getToolTipText(mouse(view, MouseEvent.MOUSE_MOVED, 40, 76, 0,
+                    MouseEvent.NOBUTTON))).isNotEqualTo("En formas de onda: c1.out");
+            primaryClick(view, 40, 76);
+            assertThat(view.bottomDock().isDockShowing()).isFalse();
+        } finally {
+            features.dispose();
+            view.dispose();
+        }
+    }
+
+    private static int canvasPixel(EditorView view, int x, int y) {
+        BufferedImage image = new BufferedImage(view.canvas().getWidth(), view.canvas().getHeight(),
+                BufferedImage.TYPE_INT_RGB);
+        Graphics2D graphics = image.createGraphics();
+        view.canvas().paint(graphics);
+        graphics.dispose();
+        return image.getRGB(x, y);
     }
 }
