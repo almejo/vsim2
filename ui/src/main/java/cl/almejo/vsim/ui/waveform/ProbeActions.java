@@ -4,7 +4,6 @@ import cl.almejo.vsim.core.command.SetProbesCommand;
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.PinDirection;
 import cl.almejo.vsim.core.document.CircuitDocument;
-import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.Probe;
 import cl.almejo.vsim.core.document.ProbeTarget;
@@ -12,7 +11,6 @@ import cl.almejo.vsim.core.netlist.Netlist;
 import cl.almejo.vsim.core.netlist.ProbeResolver;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.TopLevelNets;
-import cl.almejo.vsim.ui.i18n.Messages;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -88,11 +86,10 @@ public final class ProbeActions {
         return ids.stream().anyMatch(id -> document.wire(id).isPresent() || document.component(id).isPresent());
     }
 
-    /** Renames a channel; an empty or blank name restores its default name. */
+    /** Renames a channel; an empty or blank name stores {@code ""}: the row shows the live default name again. */
     public void rename(String probeId, String newName) {
         String stripped = newName == null ? "" : newName.strip();
-        replace(probeId, probe -> probe.withName(stripped.isEmpty() ? defaultName(probe.target()) : stripped),
-                "command.renameProbe");
+        replace(probeId, probe -> probe.withName(stripped), "command.renameProbe");
     }
 
     public void moveUp(String probeId) {
@@ -111,26 +108,10 @@ public final class ProbeActions {
         edit(probes -> List.of(), "command.removeAllProbes");
     }
 
-    /** {@code U3.q} (label, else id, dot, pin name) for a pin; «cable w12» for a wire of a net without pins. */
+    /** The live default name of {@code target} now ({@link ProbeNames#defaultName}). */
     public String defaultName(ProbeTarget target) {
-        CircuitDocument document = openDocument.document();
-        return switch (target) {
-            case ProbeTarget.PinTarget pin -> document.component(pin.componentId())
-                    .map(component -> ownerName(component) + "." + pinName(component, pin.pinIndex()))
-                    .orElse(pin.componentId().value() + "." + pin.pinIndex());
-            case ProbeTarget.WireTarget wire -> Messages.format("waveform.wireName", wire.wireId().value());
-        };
-    }
-
-    private static String ownerName(Component component) {
-        return component.label().isBlank() ? component.id().value() : component.label();
-    }
-
-    private String pinName(Component component, int pinIndex) {
-        return openDocument.registry().findTypeOf(component)
-                .filter(type -> pinIndex < type.pinCount())
-                .map(type -> type.pin(pinIndex).name())
-                .orElse(String.valueOf(pinIndex));
+        return ProbeNames.defaultName(target, openDocument.document(), openDocument.netlist(),
+                openDocument.registry());
     }
 
     private Optional<ProbeTarget> wireTarget(ElementId wireId) {
@@ -194,7 +175,7 @@ public final class ProbeActions {
                 capReached = true;
                 break;
             }
-            Probe probe = new Probe(document.newProbeId(), target, defaultName(target));
+            Probe probe = new Probe(document.newProbeId(), target, "");
             after.add(probe);
             added.add(probe.id());
         }

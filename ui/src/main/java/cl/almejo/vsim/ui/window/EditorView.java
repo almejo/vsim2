@@ -14,6 +14,7 @@ import cl.almejo.vsim.ui.canvas.CanvasHost;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.canvas.CircuitRenderer;
 import cl.almejo.vsim.ui.clipboard.FragmentClipboard;
+import cl.almejo.vsim.ui.icons.Icons;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.panels.PalettePanel;
@@ -28,6 +29,8 @@ import cl.almejo.vsim.ui.tools.WireTool;
 
 import javax.swing.Action;
 import javax.swing.ButtonGroup;
+import javax.swing.JComboBox;
+import javax.swing.JLabel;
 import javax.swing.JMenu;
 import javax.swing.JMenuBar;
 import javax.swing.JPanel;
@@ -38,6 +41,7 @@ import javax.swing.JToolBar;
 import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
 import java.awt.BorderLayout;
+import java.awt.event.ActionEvent;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.awt.geom.Point2D;
@@ -128,6 +132,9 @@ public final class EditorView extends JPanel implements CanvasHost {
         canvas.selection().addListener(() -> statusBar.showSelection(canvas.selection().ids().size()));
         statusBar.showSnapshot(SimulationSnapshot.EMPTY);
         statusBar.showZoom(canvas.viewport().zoom());
+        statusBar.onZoomClicked(canvas::resetZoom);
+        statusBar.onRunStateClicked(() -> performIfEnabled(actions.pause()),
+                () -> performIfEnabled(actions.start()));
         canvas.bindKey(KeyStroke.getKeyStroke(KeyEvent.VK_DELETE, 0), "delete", actions.delete());
         canvas.bindKey(KeyStroke.getKeyStroke(KeyEvent.VK_BACK_SPACE, 0), "delete", actions.delete());
         canvas.bindKey(KeyStroke.getKeyStroke(KeyEvent.VK_R, 0), "rotateClockwise", actions.rotateClockwise());
@@ -353,11 +360,23 @@ public final class EditorView extends JPanel implements CanvasHost {
         toolBar.add(actions.start());
         toolBar.add(actions.pause());
         toolBar.add(actions.step());
-        toolBar.add(actions.createSpeedSelector());
+        JComboBox<Double> speed = actions.createSpeedSelector();
+        JLabel speedIcon = new JLabel(Icons.get(EditorActions.SPEED_ICON, Icons.MENU_SIZE));
+        speedIcon.setToolTipText(speed.getToolTipText());
+        speedIcon.setLabelFor(speed);
+        toolBar.add(speedIcon);
+        toolBar.add(speed);
         toolBar.addSeparator();
         toolBar.add(actions.zoomOut());
         toolBar.add(actions.zoomIn());
         toolBar.add(actions.centerView());
+    }
+
+    /** Runs {@code action} as its toolbar button would: only while it is enabled (the status-bar run state). */
+    private void performIfEnabled(Action action) {
+        if (action.isEnabled()) {
+            action.actionPerformed(new ActionEvent(statusBar, ActionEvent.ACTION_PERFORMED, ""));
+        }
     }
 
     private void toolChanged(Tool tool) {

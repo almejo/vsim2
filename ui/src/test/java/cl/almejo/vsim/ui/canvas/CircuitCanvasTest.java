@@ -1052,4 +1052,88 @@ class CircuitCanvasTest {
         canvas.getFocusListeners()[0].focusLost(new FocusEvent(canvas, FocusEvent.FOCUS_LOST));
         assertThat(cursorType()).isEqualTo(Cursor.CROSSHAIR_CURSOR);
     }
+
+    @Test
+    void aToolTipOverrideWinsOverTheProviderUntilItIsRemoved() {
+        MouseEvent hover = mouse(MouseEvent.MOUSE_MOVED, 16, 24, 0, MouseEvent.NOBUTTON);
+        canvas.setToolTipProvider(gridPoint -> Optional.of("drivers"));
+        List<Point2D> asked = new ArrayList<>();
+        Runnable removeFirst = canvas.addToolTipOverride(gridPoint -> {
+            asked.add(gridPoint);
+            return gridPoint.getX() > 1 ? Optional.of("marker") : Optional.empty();
+        });
+        Runnable removeSecond = canvas.addToolTipOverride(gridPoint -> Optional.of("second"));
+
+        assertThat(canvas.getToolTipText(hover)).isEqualTo("marker");
+        assertThat(asked).containsExactly(new Point2D.Double(2, 3));
+        assertThat(canvas.getToolTipText(mouse(MouseEvent.MOUSE_MOVED, 4, 4, 0, MouseEvent.NOBUTTON)))
+                .as("the first override has nothing there: the next one answers").isEqualTo("second");
+
+        removeSecond.run();
+        assertThat(canvas.getToolTipText(mouse(MouseEvent.MOUSE_MOVED, 4, 4, 0, MouseEvent.NOBUTTON)))
+                .isEqualTo("drivers");
+        removeFirst.run();
+        assertThat(canvas.getToolTipText(hover)).isEqualTo("drivers");
+        canvas.clearToolTipProvider();
+        assertThat(canvas.getToolTipText(hover)).isNull();
+    }
+
+    @Test
+    void anOverrideAloneRegistersTheCanvasForTooltipsAndItsRemovalUnregistersIt() {
+        Runnable remove = canvas.addToolTipOverride(gridPoint -> Optional.of("marker"));
+        assertThat(canvas.getToolTipText(mouse(MouseEvent.MOUSE_MOVED, 4, 4, 0, MouseEvent.NOBUTTON)))
+                .isEqualTo("marker");
+        assertThat(java.util.Arrays.asList(canvas.getMouseListeners()))
+                .anyMatch(listener -> listener == javax.swing.ToolTipManager.sharedInstance());
+        remove.run();
+        assertThat(java.util.Arrays.asList(canvas.getMouseListeners()))
+                .noneMatch(listener -> listener == javax.swing.ToolTipManager.sharedInstance());
+    }
+
+    @Test
+    void aPressInterceptorConsumesAPrimaryPressAndItsDragAndReleaseBeforeTheTool() {
+        List<String> toolEvents = new ArrayList<>();
+        canvas.setTool(new Tool() {
+            @Override
+            public void mousePressed(ToolContext context, CanvasMouseEvent event) {
+                toolEvents.add("press");
+            }
+
+            @Override
+            public void mouseDragged(ToolContext context, CanvasMouseEvent event) {
+                toolEvents.add("drag");
+            }
+
+            @Override
+            public void mouseReleased(ToolContext context, CanvasMouseEvent event) {
+                toolEvents.add("release");
+            }
+        });
+        List<Point2D> intercepted = new ArrayList<>();
+        Runnable remove = canvas.addPressInterceptor(event -> {
+            intercepted.add(event.gridPosition());
+            return event.gridPosition().getX() < 5;
+        });
+
+        primaryPress(16, 24);
+        primaryDrag(20, 24);
+        primaryRelease(20, 24);
+        assertThat(intercepted).containsExactly(new Point2D.Double(2, 3));
+        assertThat(toolEvents).as("consumed").isEmpty();
+
+        primaryPress(80, 24);
+        primaryRelease(80, 24);
+        assertThat(toolEvents).as("the interceptor said no").containsExactly("press", "release");
+
+        canvas.getMouseListeners()[0].mousePressed(
+                mouse(MouseEvent.MOUSE_PRESSED, 16, 24, InputEvent.BUTTON3_DOWN_MASK, MouseEvent.BUTTON3));
+        assertThat(intercepted).as("only primary presses are offered").hasSize(2);
+
+        remove.run();
+        toolEvents.clear();
+        primaryPress(16, 24);
+        primaryRelease(16, 24);
+        assertThat(toolEvents).containsExactly("press", "release");
+        assertThat(intercepted).hasSize(2);
+    }
 }

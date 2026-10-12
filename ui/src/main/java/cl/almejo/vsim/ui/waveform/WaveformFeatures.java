@@ -8,6 +8,8 @@ import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.problems.NetBlink;
 import cl.almejo.vsim.ui.problems.ProblemNavigator;
+import cl.almejo.vsim.ui.tools.CanvasMouseEvent;
+import cl.almejo.vsim.ui.tools.SelectTool;
 import cl.almejo.vsim.ui.window.BottomDock;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuId;
@@ -18,13 +20,15 @@ import javax.swing.JCheckBoxMenuItem;
 import javax.swing.JMenu;
 import java.awt.Component;
 import java.awt.event.ActionEvent;
+import java.awt.geom.Point2D;
 import java.util.Optional;
 import java.util.function.BiConsumer;
 
 /**
  * The waveform feature of one editor view (spec §3.2): the panel in the view's bottom dock, Ver ▸ Formas de onda,
- * the canvas context-menu items, «Mostrar en el circuito» and the probe listener. {@link #dispose()} removes what it
- * registered on shared objects.
+ * the canvas context-menu items, «Mostrar en el circuito», the probe listener and (M6.1-E) the markers of the
+ * monitored nets on the canvas with their tooltip and click. {@link #dispose()} removes what it registered on shared
+ * objects.
  */
 public final class WaveformFeatures {
 
@@ -40,6 +44,9 @@ public final class WaveformFeatures {
     private final JCheckBoxMenuItem toggleItem;
     private final Runnable shortcutRemover;
     private final Runnable probeListener;
+    private final ProbeMarkerOverlay markers;
+    private final Runnable markerToolTipRemover;
+    private final Runnable markerPressRemover;
     private boolean disposed;
 
     public WaveformFeatures(EditorView view, TextPrompt prompt, BiConsumer<Component, String> messages) {
@@ -74,7 +81,14 @@ public final class WaveformFeatures {
         viewMenu.add(toggleItem);
         this.shortcutRemover = view.registerShortcutAction("waveforms.toggle", toggle);
         view.addContextMenuContributor(new WaveformMenuContributor(actions, this::afterAdd));
-        this.probeListener = panel::probesChanged;
+        this.markers = new ProbeMarkerOverlay(openDocument, canvas::scheme);
+        canvas.addOverlay(markers);
+        this.markerToolTipRemover = canvas.addToolTipOverride(this::markerToolTip);
+        this.markerPressRemover = canvas.addPressInterceptor(this::markerPressed);
+        this.probeListener = () -> {
+            panel.probesChanged();
+            canvas.repaint(); // probe edits do not notify document listeners: the markers must repaint
+        };
         openDocument.document().addProbeListener(probeListener);
         if (!openDocument.document().probes().isEmpty()) {
             dock.showDock();
@@ -91,6 +105,35 @@ public final class WaveformFeatures {
 
     NetBlink blink() {
         return blink;
+    }
+
+    /** «En formas de onda: U3.q» over a marker; two channels on one anchor list both names. */
+    Optional<String> markerToolTip(Point2D gridPoint) {
+        return markers.markerAt(gridPoint)
+                .map(marker -> Messages.format("waveform.markerTip", String.join(", ", marker.names())));
+    }
+
+    /**
+     * A primary press on a marker with the select tool: opens the panel if hidden, selects the first channel of the
+     * marker and blinks its row. True consumes the press (the select tool never sees it).
+     */
+    boolean markerPressed(CanvasMouseEvent event) {
+        if (disposed || !(view.canvas().tool() instanceof SelectTool)) {
+            return false;
+        }
+        Optional<ProbeMarker> marker = markers.markerAt(event.gridPosition());
+        if (marker.isEmpty()) {
+            return false;
+        }
+        String probeId = marker.get().probeIds().getFirst();
+        view.bottomDock().showDock();
+        panel.selectRow(probeId);
+        panel.blinkRow(probeId);
+        return true;
+    }
+
+    ProbeMarkerOverlay markers() {
+        return markers;
     }
 
     /**
@@ -132,6 +175,9 @@ public final class WaveformFeatures {
             return;
         }
         disposed = true;
+        markerPressRemover.run();
+        markerToolTipRemover.run();
+        view.canvas().removeOverlay(markers);
         shortcutRemover.run();
         view.openDocument().document().removeProbeListener(probeListener);
         view.bottomDock().removeDockListener(dockListener);

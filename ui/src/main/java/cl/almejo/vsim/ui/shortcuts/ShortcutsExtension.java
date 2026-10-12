@@ -23,7 +23,8 @@ import java.util.Set;
  * entries, canvas bindings named {@code shortcut.<id>} for CANVAS entries. Installed last, so the actions earlier
  * extensions registered ({@link EditorView#registerShortcutAction}) are there. It re-applies on every preference
  * change, so a change made in any window shows at once in all of them. A catalog id without an action in this view
- * is skipped. If stored overrides give two actions the same stroke, the first in catalog order keeps it.
+ * is skipped. If stored overrides give two actions the same stroke, the first in catalog order keeps it. Toolbar
+ * tooltips end with the current shortcut ({@link ToolbarTooltips}, M6.1-E).
  */
 public final class ShortcutsExtension implements EditorExtension {
 
@@ -32,13 +33,22 @@ public final class ShortcutsExtension implements EditorExtension {
     @Override
     public Runnable install(EditorView view) {
         AppPreferences preferences = view.services().preferences();
-        Applier applier = new Applier(view.canvas(), actionsOf(view), new KeyBindings(preferences));
+        Map<String, Action> actions = actionsOf(view);
+        Applier applier = new Applier(view.canvas(), actions, new KeyBindings(preferences));
+        ToolbarTooltips tooltips = new ToolbarTooltips(view.toolBar(), actions, applier::strokeOf);
         applier.releaseDefaultCanvasStrokes();
         applier.apply();
-        Runnable listener = applier::apply;
+        tooltips.refresh();
+        Runnable listener = () -> {
+            applier.apply();
+            tooltips.refresh();
+        };
         preferences.addListener(listener);
         // Accelerators and canvas bindings belong to this view's own actions and canvas and go away with them.
-        return () -> preferences.removeListener(listener);
+        return () -> {
+            preferences.removeListener(listener);
+            tooltips.dispose();
+        };
     }
 
     /** Every action of {@code view} the catalog can name: the editor's own plus the registered ones. */
@@ -93,6 +103,7 @@ public final class ShortcutsExtension implements EditorExtension {
         private final Map<String, Action> actions;
         private final KeyBindings bindings;
         private final Map<String, KeyStroke> bound = new HashMap<>();
+        private final Map<String, KeyStroke> applied = new HashMap<>();
 
         Applier(CircuitCanvas canvas, Map<String, Action> actions, KeyBindings bindings) {
             this.canvas = canvas;
@@ -124,6 +135,7 @@ public final class ShortcutsExtension implements EditorExtension {
         void apply() {
             bound.forEach((id, stroke) -> canvas.unbindKey(stroke, BINDING_PREFIX + id));
             bound.clear();
+            applied.clear();
             Set<KeyStroke> taken = new HashSet<>();
             for (ShortcutEntry entry : ShortcutCatalog.entries()) {
                 Action action = actions.get(entry.id());
@@ -131,6 +143,7 @@ public final class ShortcutsExtension implements EditorExtension {
                     continue;
                 }
                 Optional<KeyStroke> stroke = bindings.strokeFor(entry.id()).filter(taken::add);
+                stroke.ifPresent(found -> applied.put(entry.id(), found));
                 if (entry.scope() == Scope.WINDOW) {
                     action.putValue(Action.ACCELERATOR_KEY, stroke.orElse(null));
                 } else if (stroke.isPresent()) {
@@ -138,6 +151,11 @@ public final class ShortcutsExtension implements EditorExtension {
                     bound.put(entry.id(), stroke.get());
                 }
             }
+        }
+
+        /** The shortcut the last {@link #apply()} gave {@code id} (menu accelerator or canvas key), if any. */
+        Optional<KeyStroke> strokeOf(String id) {
+            return Optional.ofNullable(applied.get(id));
         }
     }
 }

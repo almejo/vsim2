@@ -1,6 +1,7 @@
 package cl.almejo.vsim.ui.waveform;
 
 import cl.almejo.vsim.core.command.RemoveElementsCommand;
+import cl.almejo.vsim.core.command.SetLabelCommand;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.value.Value;
@@ -10,12 +11,14 @@ import cl.almejo.vsim.core.waveform.WaveformSnapshot;
 import cl.almejo.vsim.ui.actions.TextPrompt;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.icons.Icons;
 import cl.almejo.vsim.ui.problems.Blink;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import javax.swing.AbstractButton;
 import javax.swing.Action;
 import javax.swing.JComponent;
 import javax.swing.JMenuItem;
@@ -41,6 +44,7 @@ import static org.assertj.core.api.Assertions.within;
 class WaveformPanelTest {
 
     private final Deque<Optional<String>> answers = new ArrayDeque<>();
+    private final List<String> prefilled = new ArrayList<>();
     private final List<String> shownInCircuit = new ArrayList<>();
     private int hides;
     private OpenDocument openDocument;
@@ -53,8 +57,10 @@ class WaveformPanelTest {
         Messages.initialize(Messages.SPANISH);
         openDocument = OpenDocument.createEmpty(StandardComponentTypes.registry());
         actions = new ProbeActions(openDocument);
-        TextPrompt prompt = (parent, title, message, initialText) ->
-                answers.isEmpty() ? Optional.empty() : answers.removeFirst();
+        TextPrompt prompt = (parent, title, message, initialText) -> {
+            prefilled.add(initialText);
+            return answers.isEmpty() ? Optional.empty() : answers.removeFirst();
+        };
         panel = new WaveformPanel(openDocument, actions, () -> ColorScheme.LIGHT, prompt, shownInCircuit::add,
                 () -> hides++);
     }
@@ -127,6 +133,41 @@ class WaveformPanelTest {
         assertThat(panel.followButton().isSelected()).isTrue();
         panel.button("Ocultar").doClick(0);
         assertThat(hides).isEqualTo(1);
+    }
+
+    @Test
+    void theToolbarButtonsShowOnlyAnIconWithATooltip() {
+        List<String> names = panel.toolBarTexts();
+        List<String> tooltips = new ArrayList<>();
+        for (int index = 0; index < names.size(); index++) {
+            AbstractButton button = panel.button(names.get(index));
+            assertThat(button.getText()).as(names.get(index)).isNullOrEmpty();
+            assertThat(button.getIcon()).as(names.get(index))
+                    .isSameAs(Icons.get(WaveformIcons.names().get(index), Icons.MENU_SIZE));
+            tooltips.add(button.getToolTipText());
+        }
+        assertThat(tooltips).containsExactly("Seguir el tiempo actual", "Acercar", "Alejar", "Ver todo lo registrado",
+                "Ver retardos: 20 px por unidad", "Limpiar trazas", "Ocultar el panel");
+        assertThat(panel.button("Seguir")).isSameAs(panel.followButton());
+    }
+
+    @Test
+    void seguirLooksPressedWhileFollowingAndLetsGoOnAManualMove() {
+        chain();
+        panel.axis().setWidth(800);
+        panel.display(new WaveformSnapshot(1, 4_000, Map.of()));
+
+        panel.button("Acercar").doClick(0);
+        assertThat(panel.axis().isFollowing()).as("zooming keeps the right edge on the current time").isTrue();
+        assertThat(panel.followButton().isSelected()).isTrue();
+
+        panel.scrollBy(-50);
+        assertThat(panel.axis().isFollowing()).isFalse();
+        assertThat(panel.followButton().isSelected()).isFalse();
+
+        panel.followButton().doClick(0);
+        assertThat(panel.axis().isFollowing()).isTrue();
+        assertThat(panel.followButton().isSelected()).isTrue();
     }
 
     @Test
@@ -375,5 +416,137 @@ class WaveformPanelTest {
     void thePlotShowsACrosshairAndTheRulerAMoveCursor() {
         assertThat(panel.plot().getCursor().getType()).isEqualTo(Cursor.CROSSHAIR_CURSOR);
         assertThat(panel.ruler().getCursor().getType()).isEqualTo(Cursor.MOVE_CURSOR);
+    }
+
+    @Test
+    void theScaleLabelSitsAtTheRightOfTheToolbarAndFollowsZoom() {
+        List<String> ids = chain();
+        assertThat(panel.scaleLabel().getToolTipText())
+                .isEqualTo("Tiempo de simulación entre dos marcas de la regla");
+        panel.plotResized(800); // the first width shows the last 4 000 units: 0.2 px per unit
+        assertThat(panel.scaleText()).isEqualTo("1 div = 500 t");
+
+        panel.button("Acercar").doClick(0);
+        assertThat(panel.scaleText()).isEqualTo("1 div = 200 t");
+        panel.button("Alejar").doClick(0);
+        panel.button("Alejar").doClick(0);
+        assertThat(panel.scaleText()).isEqualTo("1 div = 1 000 t");
+
+        panel.display(new WaveformSnapshot(1, 41_000, Map.of(ids.get(0), trace(1_000, Value.ONE))));
+        panel.button("Ver todo").doClick(0); // 40 000 units in 800 px
+        assertThat(panel.scaleText()).isEqualTo("1 div = 5 000 t");
+
+        panel.button("Ver retardos").doClick(0); // 20 px per unit
+        assertThat(panel.scaleText()).isEqualTo("1 div = 5 t");
+        assertThat(panel.axis().tickSpacing()).isEqualTo(5);
+
+        panel.wheel(400, -1, true);
+        assertThat(panel.scaleText()).isEqualTo("1 div = " + TimeAxis.format(panel.axis().tickSpacing()) + " t");
+    }
+
+    @Test
+    void theScaleLabelIsNotRewrittenWhileTheSpacingStaysTheSame() {
+        chain();
+        panel.plotResized(800);
+        List<String> texts = new ArrayList<>();
+        panel.scaleLabel().addPropertyChangeListener("text", event -> texts.add((String) event.getNewValue()));
+
+        panel.display(new WaveformSnapshot(1, 5_000, Map.of()));
+        panel.display(new WaveformSnapshot(2, 6_000, Map.of()));
+        panel.plotResized(800);
+        assertThat(texts).isEmpty();
+
+        panel.plotResized(400); // same scale: still 500 per tick
+        panel.button("Acercar").doClick(0);
+        assertThat(texts).containsExactly("1 div = 200 t");
+    }
+
+    @Test
+    void aChannelNeverRenamedFollowsTheLabelUntilItIsRenamed() {
+        List<String> ids = chain();
+        openDocument.execute(new SetLabelCommand(gate.id(), "A"));
+        assertThat(panel.channelNames()).containsExactly("c1.out", "A.out");
+
+        answers.add(Optional.of("suma"));
+        item(panel.rowMenu(ids.get(1)), "Renombrar…").doClick(0);
+        assertThat(prefilled).containsExactly("A.out");
+        openDocument.execute(new SetLabelCommand(gate.id(), "B"));
+        assertThat(panel.channelNames()).as("a user name stays").containsExactly("c1.out", "suma");
+
+        answers.add(Optional.of("  "));
+        item(panel.rowMenu(ids.get(1)), "Renombrar…").doClick(0);
+        assertThat(prefilled).containsExactly("A.out", "suma");
+        assertThat(panel.channelNames()).as("blank: live again").containsExactly("c1.out", "B.out");
+        assertThat(openDocument.document().probes().get(1).name()).isEmpty();
+    }
+
+    @Test
+    void acceptingTheLiveNameUnchangedKeepsItLive() {
+        List<String> ids = chain();
+        int undoSteps = undoDepth();
+
+        answers.add(Optional.of("c2.out"));
+        item(panel.rowMenu(ids.get(1)), "Renombrar…").doClick(0);
+
+        assertThat(prefilled).containsExactly("c2.out");
+        assertThat(openDocument.document().probes().get(1).name()).isEmpty();
+        assertThat(undoDepth()).isEqualTo(undoSteps);
+        openDocument.execute(new SetLabelCommand(gate.id(), "A"));
+        assertThat(panel.channelNames()).containsExactly("c1.out", "A.out");
+    }
+
+    @Test
+    void theRowsAreRebuiltOnlyWhenTheCircuitOrTheChannelsChange() {
+        List<String> ids = chain();
+        List<ChannelRows.ChannelRow> rows = panel.rows();
+        assertThat(panel.rows()).isSameAs(rows);
+
+        openDocument.execute(new SetLabelCommand(gate.id(), "A"));
+        assertThat(panel.rows()).isNotSameAs(rows);
+        rows = panel.rows();
+        actions.moveUp(ids.get(1));
+        assertThat(panel.rows()).isNotSameAs(rows);
+        assertThat(panel.channelNames()).containsExactly("A.out", "c1.out");
+    }
+
+    @Test
+    void theTimerRepaintsWhenALabelChangedEvenWithoutANewRecording() throws Exception {
+        openDocument.pause();
+        waitUntil(() -> !openDocument.latestSnapshot().running());
+        chain();
+        panel.overrideShowing(() -> true);
+        onEventThread(() -> {
+            panel.timerTick();
+            panel.channelNames(); // the rows as shown now
+            int painted = panel.repaintCount();
+            openDocument.execute(new SetLabelCommand(gate.id(), "A"));
+            panel.timerTick();
+            assertThat(panel.repaintCount()).isGreaterThan(painted);
+            assertThat(panel.channelNames()).containsExactly("c1.out", "A.out");
+        });
+    }
+
+    private int undoDepth() {
+        int depth = 0;
+        while (openDocument.history().canUndo()) {
+            openDocument.history().undo();
+            depth++;
+        }
+        for (int step = 0; step < depth; step++) {
+            openDocument.history().redo();
+        }
+        return depth;
+    }
+
+    @Test
+    void selectRowSelectsAKnownChannelOnly() {
+        List<String> ids = chain();
+        panel.selectRow(ids.get(1));
+        assertThat(panel.selectedProbe()).contains(ids.get(1));
+        panel.selectRow("p99");
+        assertThat(panel.selectedProbe()).contains(ids.get(1));
+        panel.dispose();
+        panel.selectRow(ids.get(0));
+        assertThat(panel.selectedProbe()).contains(ids.get(1));
     }
 }

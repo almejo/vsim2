@@ -61,9 +61,13 @@ public final class CircuitFormat {
         return new LabelEntry(label.id().value(), label.position().x(), label.position().y(), label.text());
     }
 
-    /** One waveform channel: exactly one of {@code component} + {@code pin} or {@code wire}. */
+    /**
+     * One waveform channel: exactly one of {@code component} + {@code pin} or {@code wire}. An empty {@code name}
+     * (the live default name, M6.1-E) is left out of the file.
+     */
     @JsonInclude(JsonInclude.Include.NON_NULL)
-    record ProbeEntry(String id, String name, String component, Integer pin, String wire) {
+    record ProbeEntry(String id, @JsonInclude(JsonInclude.Include.NON_EMPTY) String name, String component,
+                      Integer pin, String wire) {
     }
 
     static ProbeEntry probeEntry(Probe probe) {

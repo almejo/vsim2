@@ -26,9 +26,13 @@ import java.text.ParseException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 /** One labelled editor per parameter of a component type. */
 public final class ParameterForm extends JPanel {
+
+    /** Parameters measured in simulation time units (M6.1-E): «Retardo (t)», with a tooltip saying so. */
+    static final Set<String> TIME_PARAMETERS = Set.of("delay", "time-up", "time-down", "sample-interval");
 
     private final ComponentType type;
     private final Map<String, Object> initial;
@@ -42,11 +46,25 @@ public final class ParameterForm extends JPanel {
             JComponent editor = editorFor(parameter, initial.get(parameter.name()));
             editor.setName(parameter.name());
             editors.put(parameter.name(), editor);
-            JLabel label = new JLabel(Messages.parameterName(parameter.name()));
+            JLabel label = new JLabel(labelText(parameter.name()));
             label.setLabelFor(editor);
+            if (TIME_PARAMETERS.contains(parameter.name())) {
+                String tip = Messages.text("form.timeUnitTip");
+                label.setToolTipText(tip);
+                editor.setToolTipText(tip);
+                if (editor instanceof JSpinner spinner) {
+                    spinnerField(spinner).setToolTipText(tip);
+                }
+            }
             add(label);
             add(editor, "width 160::");
         }
+    }
+
+    /** The label of a parameter: its name, plus « (t)» for a time parameter. Error messages use the plain name. */
+    static String labelText(String parameterName) {
+        String name = Messages.parameterName(parameterName);
+        return TIME_PARAMETERS.contains(parameterName) ? Messages.format("form.timeUnit", name) : name;
     }
 
     JComponent editor(String parameterName) {

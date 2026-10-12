@@ -7,6 +7,7 @@ import cl.almejo.vsim.ui.canvas.BusValueText;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Function;
 
 /** The rows of a waveform panel: one per probe, in order, with the name to show and whether the probe resolves. */
 final class ChannelRows {
@@ -17,10 +18,10 @@ final class ChannelRows {
     private ChannelRows() {
     }
 
-    static List<ChannelRow> of(List<Probe> probes, Map<String, String> probeNets) {
+    /** {@code names} gives each probe the name its row shows ({@link ProbeNames#displayName} in the panel). */
+    static List<ChannelRow> of(List<Probe> probes, Map<String, String> probeNets, Function<Probe, String> names) {
         return probes.stream()
-                .map(probe -> new ChannelRow(probe.id(), probe.name().isBlank() ? probe.id() : probe.name(),
-                        probeNets.containsKey(probe.id())))
+                .map(probe -> new ChannelRow(probe.id(), names.apply(probe), probeNets.containsKey(probe.id())))
                 .toList();
     }
 

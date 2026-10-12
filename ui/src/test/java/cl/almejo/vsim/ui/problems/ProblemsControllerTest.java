@@ -2,10 +2,12 @@ package cl.almejo.vsim.ui.problems;
 
 import cl.almejo.vsim.core.command.AddWireCommand;
 import cl.almejo.vsim.core.command.RemoveElementsCommand;
+import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
+import cl.almejo.vsim.core.netlist.PinRef;
 import cl.almejo.vsim.core.simulation.DriverRef;
 import cl.almejo.vsim.core.simulation.FlatPinRef;
 import cl.almejo.vsim.core.simulation.WidthMismatch;
@@ -185,6 +187,55 @@ class ProblemsControllerTest {
         assertThat(view.canvas().selection().ids()).containsExactly(joint.id());
     }
 
+    private String netOfPin(Component component, int pinIndex) {
+        return openDocument.netlist().netForPin(new PinRef(component.id(), pinIndex)).orElseThrow().id().value();
+    }
+
+    private SimulationSnapshot currentSnapshot(Map<String, Value> netValues, Map<String, VisibleState> states) {
+        return new SimulationSnapshot(1, openDocument.netlistToken(), 10, true, netValues, states, List.of(),
+                Optional.empty());
+    }
+
+    @Test
+    void everyPinNamesItselfAndShowsItsValueOnlyWithACurrentSnapshot() {
+        Component gate = place(openDocument, StandardComponentTypes.NOT, 10, 10, Map.of()); // in (10,12), out (14,12)
+        assertThat(view.canvas().getToolTipText(hoverAt(80, 96))).isEqualTo("in");
+
+        view.problems().showSnapshot(currentSnapshot(Map.of(netOfPin(gate, 0), Value.HIGH_IMPEDANCE,
+                netOfPin(gate, 1), Value.ONE), Map.of()));
+        assertThat(view.canvas().getToolTipText(hoverAt(80, 96))).isEqualTo("in = Z (sin conectar)");
+        assertThat(view.canvas().getToolTipText(hoverAt(112, 96))).isEqualTo("out = 1");
+        assertThat(view.canvas().getToolTipText(hoverAt(84, 97))).as("within the pin radius").isEqualTo(
+                "in = Z (sin conectar)");
+
+        place(openDocument, StandardComponentTypes.LED, 13, 14, Map.of()); // edits make the snapshot stale
+        assertThat(view.canvas().getToolTipText(hoverAt(80, 96))).isEqualTo("in");
+    }
+
+    @Test
+    void aDisplayPinNamesItsBitAndADashedDisplayExplainsTheDash() {
+        Component display = place(openDocument, StandardComponentTypes.SEVEN_SEGMENTS_DISPLAY, 20, 0, Map.of());
+        assertThat(view.canvas().getToolTipText(hoverAt(192, 0))).isEqualTo("in0 · bit 0 (el de la derecha)");
+        assertThat(view.canvas().getToolTipText(hoverAt(168, 0))).isEqualTo("in3 · bit 3 (el de la izquierda)");
+
+        String id = display.id().value();
+        view.problems().showSnapshot(currentSnapshot(Map.of(),
+                Map.of(id, new VisibleState.SevenSegmentsState(new Value(4, 0x1, 0x8, false)))));
+        assertThat(view.canvas().getToolTipText(hoverAt(176, 24))).isEqualTo("Alguna entrada no está definida (Z)");
+        view.problems().showSnapshot(currentSnapshot(Map.of(),
+                Map.of(id, new VisibleState.SevenSegmentsState(Value.of(4, 0x5)))));
+        assertThat(view.canvas().getToolTipText(hoverAt(176, 24))).as("a readable digit").isNull();
+        assertThat(view.canvas().getToolTipText(hoverAt(192, 0))).as("its pins keep their tooltip")
+                .isEqualTo("in0 · bit 0 (el de la derecha)");
+    }
+
+    @Test
+    void aShortedPinShowsItsNameAndThenTheDrivers() {
+        view.problems().showSnapshot(shortSnapshot(openDocument.netlistToken()));
+        assertThat(view.canvas().getToolTipText(hoverAt(32, 8))) // the output of «high» at (4, 1)
+                .isEqualTo("out · Interruptor → 1 · Interruptor → 0");
+    }
+
     @Test
     void hoveringAShortedWireShowsItsDrivers() {
         view.problems().showSnapshot(shortSnapshot(openDocument.netlistToken()));
@@ -347,10 +398,11 @@ class ProblemsControllerTest {
                 Map.of(), List.of(), Optional.empty()));
 
         assertThat(view.canvas().getToolTipText(hoverAt(240, 0)))
-                .startsWith("⚠ Anchos incompatibles: ")
+                .as("the pin tooltip of the LED (the last component there), then the problem of its net")
+                .startsWith("in · ⚠ Anchos incompatibles: ")
                 .contains("Separador de bus (4 bits)")
                 .contains("LED (1 bit)");
-        assertThat(view.canvas().getToolTipText(hoverAt(256, 16))).isNull(); // the healthy splitter bit b1
+        assertThat(view.canvas().getToolTipText(hoverAt(256, 16))).isEqualTo("b1"); // the healthy splitter bit b1
     }
 
     @Test

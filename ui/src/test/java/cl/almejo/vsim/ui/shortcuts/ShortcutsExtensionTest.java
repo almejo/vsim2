@@ -4,6 +4,7 @@ import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.icons.ActionIcons;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.preferences.PreferencesFeature;
@@ -15,6 +16,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import javax.swing.AbstractButton;
 import javax.swing.Action;
 import javax.swing.InputMap;
 import javax.swing.JComponent;
@@ -24,9 +26,11 @@ import javax.swing.KeyStroke;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
+import static cl.almejo.vsim.ui.UiTestSupport.place;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class ShortcutsExtensionTest {
@@ -204,5 +208,74 @@ class ShortcutsExtensionTest {
         assertThat(canvasKeys(view).get(KeyStroke.getKeyStroke(KeyEvent.VK_R, InputEvent.SHIFT_DOWN_MASK))).isNull();
         assertThat(view.actions().save().getValue(Action.ACCELERATOR_KEY)).isEqualTo(control(KeyEvent.VK_S));
         assertThat(view.selectionActions().cut().getValue(Action.ACCELERATOR_KEY)).isNull();
+    }
+
+    private static AbstractButton toolbarButton(EditorView target, Action action) {
+        return Arrays.stream(target.toolBar().getComponents())
+                .filter(AbstractButton.class::isInstance)
+                .map(AbstractButton.class::cast)
+                .filter(button -> button.getAction() == action)
+                .findFirst().orElseThrow();
+    }
+
+    private static String withShortcut(String text, KeyStroke stroke) {
+        return text + " (" + KeyBindings.describe(stroke) + ")";
+    }
+
+    private EditorView iconView() {
+        EditorView created = new EditorView(openDocument,
+                services.withExtensions(List.of(new ActionIcons(), new PreferencesFeature(), new ShortcutsExtension())),
+                WINDOW);
+        views.add(created);
+        return created;
+    }
+
+    @Test
+    void toolbarTooltipsEndWithTheCurrentShortcutAndFollowRebindings() {
+        EditorView icons = iconView();
+        AbstractButton save = toolbarButton(icons, icons.actions().save());
+        AbstractButton center = toolbarButton(icons, icons.actions().centerView());
+        assertThat(save.getToolTipText()).isEqualTo(withShortcut("Guardar", control(KeyEvent.VK_S)));
+        assertThat(center.getToolTipText()).as("no shortcut, no parentheses").isEqualTo("Centrar circuito");
+
+        bindings.assign("view.centerView", control(KeyEvent.VK_J));
+        assertThat(center.getToolTipText()).isEqualTo(withShortcut("Centrar circuito", control(KeyEvent.VK_J)));
+        bindings.clear("file.save");
+        assertThat(save.getToolTipText()).isEqualTo("Guardar");
+        bindings.reset("file.save");
+        assertThat(save.getToolTipText()).isEqualTo(withShortcut("Guardar", control(KeyEvent.VK_S)));
+    }
+
+    @Test
+    void theUndoTooltipFollowsItsNameAndADescriptionWinsOverTheName() {
+        EditorView icons = iconView();
+        AbstractButton undo = toolbarButton(icons, icons.actions().undo());
+        assertThat(undo.getToolTipText()).isEqualTo(withShortcut("Deshacer", control(KeyEvent.VK_Z)));
+        place(openDocument, StandardComponentTypes.NOT, 0, 0, Map.of());
+        String name = (String) icons.actions().undo().getValue(Action.NAME);
+        assertThat(name).startsWith("Deshacer ").isNotEqualTo("Deshacer");
+        assertThat(undo.getToolTipText()).isEqualTo(withShortcut(name, control(KeyEvent.VK_Z)));
+
+        icons.actions().centerView().putValue(Action.SHORT_DESCRIPTION, "Lleva el circuito al centro");
+        bindings.assign("view.centerView", control(KeyEvent.VK_J));
+        assertThat(toolbarButton(icons, icons.actions().centerView()).getToolTipText())
+                .isEqualTo(withShortcut("Lleva el circuito al centro", control(KeyEvent.VK_J)));
+    }
+
+    @Test
+    void disposingStopsFollowingTheToolbar() {
+        EditorView plain = new EditorView(openDocument,
+                EditorServices.of(PainterRegistry.standard(), ColorScheme.LIGHT), WINDOW);
+        views.add(plain);
+        Runnable removal = new ShortcutsExtension().install(plain);
+        AbstractButton center = toolbarButton(plain, plain.actions().centerView());
+        removal.run();
+        plain.actions().centerView().putValue(Action.SHORT_DESCRIPTION, "otra cosa");
+        assertThat(center.getToolTipText()).as("Swing shows the new description, nothing adds a shortcut")
+                .isEqualTo("otra cosa");
+        AbstractButton undo = toolbarButton(plain, plain.actions().undo());
+        String before = undo.getToolTipText();
+        place(openDocument, StandardComponentTypes.NOT, 0, 0, Map.of());
+        assertThat(undo.getToolTipText()).isEqualTo(before);
     }
 }

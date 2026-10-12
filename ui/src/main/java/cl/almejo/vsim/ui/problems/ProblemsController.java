@@ -1,6 +1,8 @@
 package cl.almejo.vsim.ui.problems;
 
+import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.document.CircuitDocument;
+import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.netlist.Net;
@@ -222,36 +224,64 @@ public final class ProblemsController {
     }
 
     /**
-     * For the wire under {@code gridPoint}, when the snapshot matches the current netlist: the drivers of its short
-     * circuit, else the pins of its width mismatch, else the value of its bus. Away from wires, a pin (one sitting
-     * directly on a pin of another width, say) shows the width mismatch of its net. Problems are looked up under the
+     * A pin within {@link ConnectionPoints#PIN_RADIUS} of {@code gridPoint} comes first (M6.1-E): its name, bit, width
+     * and value, then the short circuit or width mismatch of its net. Else, when the snapshot matches the current
+     * netlist: for the wire under it, the drivers of its short circuit, else the pins of its width mismatch, else the
+     * value of its bus; for a 7-segment display showing «–», why. Problems are looked up under the
      * id the engine reports them with: a top-level net joined to another through a template uses the merged net's root
      * id ({@link TopLevelNets}); a net whose own pins disagree falls back to the netlist's mismatch flag and its pins.
      */
     Optional<String> tooltipAt(Point2D gridPoint) {
-        if (snapshot.token() != openDocument.netlistToken()) {
+        CircuitDocument document = openDocument.document();
+        boolean current = snapshot.token() == openDocument.netlistToken();
+        Optional<ConnectionPoints.PinHit> pin = connectionPoints.pinNear(document, gridPoint);
+        if (pin.isPresent()) {
+            return Optional.of(pinTooltip(document, pin.get(), current));
+        }
+        if (!current) {
             return Optional.empty();
         }
-        CircuitDocument document = openDocument.document();
         Optional<DocumentElement> hit = canvas.hitTester().elementAt(document, gridPoint);
         if (hit.isPresent() && hit.get() instanceof Wire wire) {
             return openDocument.netlist().netForWire(wire.id()).flatMap(net -> wireTooltip(document, net));
         }
-        return pinNetAt(document, gridPoint).flatMap(net -> mismatchText(document, net, reportedId(document, net)));
+        if (hit.isPresent() && hit.get() instanceof Component component) {
+            return displayTooltip(component);
+        }
+        return Optional.empty();
+    }
+
+    /**
+     * Any pin of any component (M6.1-E): {@link PinText} with the value of its net while a current snapshot is shown;
+     * a short circuit or width mismatch of that net follows after « · ». Shown even with a stale snapshot, without
+     * the value.
+     */
+    private String pinTooltip(CircuitDocument document, ConnectionPoints.PinHit pin, boolean current) {
+        Component component = pin.component();
+        Optional<Net> net = openDocument.netlist().netForPin(new PinRef(component.id(), pin.pinIndex()));
+        boolean withValues = current && !snapshot.equals(SimulationSnapshot.EMPTY);
+        Optional<Value> value = withValues
+                ? net.map(found -> snapshot.netValues().get(found.id().value()))
+                : Optional.empty();
+        boolean unconnected = net.map(found -> found.pins().size() == 1 && found.wires().isEmpty()).orElse(true);
+        String text = PinText.describe(component.typeId(), openDocument.registry().typeOf(component),
+                pin.pinIndex(), unconnected, value);
+        Optional<String> problem = current ? net.flatMap(found -> problemText(document, found)) : Optional.empty();
+        return problem.map(found -> text + PinText.SEPARATOR + found).orElse(text);
+    }
+
+    /** A 7-segment display showing «–» (a Z input) explains it (M6.1-E); any other component has no tooltip. */
+    private Optional<String> displayTooltip(Component component) {
+        return snapshot.componentState(component.id().value()) instanceof VisibleState.SevenSegmentsState display
+                && !display.value().isFullyDefined()
+                ? Optional.of(Messages.text("display.undefined"))
+                : Optional.empty();
     }
 
     private Optional<String> wireTooltip(CircuitDocument document, Net net) {
-        String reportedId = reportedId(document, net);
-        Optional<String> drivers = snapshot.shortCircuits().stream()
-                .filter(shortCircuit -> shortCircuit.netId().equals(reportedId))
-                .findFirst()
-                .map(shortCircuit -> ProblemText.drivers(shortCircuit, document));
-        if (drivers.isPresent()) {
-            return drivers;
-        }
-        Optional<String> mismatch = mismatchText(document, net, reportedId);
-        if (mismatch.isPresent()) {
-            return mismatch;
+        Optional<String> problem = problemText(document, net);
+        if (problem.isPresent()) {
+            return problem;
         }
         Value value = snapshot.netValues().get(net.id().value());
         if (net.width() > 1 && value != null) {
@@ -260,6 +290,19 @@ public final class ProblemsController {
                     : Messages.format("bus.tooltip", net.width(), BusValueText.of(value), BusValueText.binary(value)));
         }
         return Optional.empty();
+    }
+
+    /** The drivers of the short circuit on {@code net}, else its width-mismatch text, if it has either. */
+    private Optional<String> problemText(CircuitDocument document, Net net) {
+        String reportedId = reportedId(document, net);
+        Optional<String> drivers = snapshot.shortCircuits().stream()
+                .filter(shortCircuit -> shortCircuit.netId().equals(reportedId))
+                .findFirst()
+                .map(shortCircuit -> ProblemText.drivers(shortCircuit, document));
+        if (drivers.isPresent()) {
+            return drivers;
+        }
+        return mismatchText(document, net, reportedId);
     }
 
     /** The id the engine reports the problems of {@code net} under (the merged net's root through a template). */
@@ -281,12 +324,6 @@ public final class ProblemsController {
                     .toList()));
         }
         return mismatch.map(found -> ProblemText.describe(found, document, openDocument.registry()));
-    }
-
-    /** The net of the pin nearest to {@code gridPoint} (within {@link ConnectionPoints#PIN_RADIUS}), if any. */
-    private Optional<Net> pinNetAt(CircuitDocument document, Point2D gridPoint) {
-        return connectionPoints.pinNear(document, gridPoint)
-                .flatMap(hit -> openDocument.netlist().netForPin(new PinRef(hit.component().id(), hit.pinIndex())));
     }
 
     private static Action action(String name, Runnable behavior) {

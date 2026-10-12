@@ -116,4 +116,53 @@ class StatusBarTest {
         statusBar.showProblems(1, 0);
         assertThat(warning.getToolTipText()).isEqualTo("Clic para ir al siguiente problema (F8)");
     }
+
+    @Test
+    void clickingTheZoomRunsItsActionWithAHandCursorAndATooltip() {
+        AtomicInteger clicks = new AtomicInteger();
+        statusBar.showZoom(1.25);
+        statusBar.onZoomClicked(clicks::incrementAndGet);
+        JLabel zoom = statusBar.zoomLabel();
+        MouseEvent click = new MouseEvent(zoom, MouseEvent.MOUSE_CLICKED, 0, 0, 2, 2, 1, false, MouseEvent.BUTTON1);
+        MouseEvent rightClick = new MouseEvent(zoom, MouseEvent.MOUSE_CLICKED, 0, 0, 2, 2, 1, false,
+                MouseEvent.BUTTON3);
+        for (MouseListener listener : zoom.getMouseListeners()) {
+            listener.mouseClicked(click);
+            listener.mouseClicked(rightClick);
+        }
+        assertThat(clicks).hasValue(1);
+        assertThat(zoom.getCursor().getType()).isEqualTo(Cursor.HAND_CURSOR);
+        assertThat(zoom.getToolTipText()).isEqualTo("Clic: volver a 100 %");
+        assertThat(statusBar.text()).contains("zoom 125 %");
+    }
+
+    @Test
+    void theTimeSaysWhatItCounts() {
+        statusBar.showSnapshot(snapshot(true, 0, Optional.empty()));
+        assertThat(statusBar.timeLabel().getToolTipText()).isEqualTo("Tiempo de simulación (unidades)");
+    }
+
+    @Test
+    void clickingTheRunStatePausesWhileRunningAndStartsWhilePaused() {
+        List<String> clicks = new java.util.ArrayList<>();
+        statusBar.showSnapshot(snapshot(true, 0, Optional.empty()));
+        statusBar.onRunStateClicked(() -> clicks.add("pause"), () -> clicks.add("start"));
+        JLabel runState = statusBar.runStateLabel();
+        assertThat(runState.getCursor().getType()).isEqualTo(Cursor.HAND_CURSOR);
+        assertThat(runState.getToolTipText()).isEqualTo("Clic: pausar");
+        MouseEvent click = new MouseEvent(runState, MouseEvent.MOUSE_CLICKED, 0, 0, 2, 2, 1, false, MouseEvent.BUTTON1);
+        MouseEvent rightClick = new MouseEvent(runState, MouseEvent.MOUSE_CLICKED, 0, 0, 2, 2, 1, false,
+                MouseEvent.BUTTON3);
+        for (MouseListener listener : runState.getMouseListeners()) {
+            listener.mouseClicked(click);
+            listener.mouseClicked(rightClick);
+        }
+        statusBar.showSnapshot(snapshot(false, 0, Optional.empty()));
+        assertThat(runState.getToolTipText()).isEqualTo("Clic: iniciar");
+        for (MouseListener listener : runState.getMouseListeners()) {
+            listener.mouseClicked(click);
+        }
+        assertThat(clicks).containsExactly("pause", "start");
+        assertThat(statusBar.text()).startsWith("⏸ en pausa");
+    }
 }

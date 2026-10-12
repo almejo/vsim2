@@ -6,6 +6,7 @@ import net.miginfocom.swing.MigLayout;
 
 import javax.swing.JLabel;
 import javax.swing.JPanel;
+import javax.swing.SwingUtilities;
 import java.awt.Color;
 import java.awt.Cursor;
 import java.awt.event.MouseAdapter;
@@ -25,6 +26,8 @@ public final class StatusBar extends JPanel {
     private final JLabel shortCircuits = new JLabel();
     private final JLabel failure = new JLabel();
     private boolean clickable;
+    private boolean running;
+    private boolean runStateClickable;
 
     public StatusBar() {
         super(new MigLayout("insets 2 8 2 8", "[][][][]push[][]"));
@@ -42,8 +45,13 @@ public final class StatusBar extends JPanel {
     }
 
     public void showSnapshot(SimulationSnapshot snapshot) {
-        simulation.setText(Messages.text(snapshot.running() ? "status.running" : "status.paused"));
+        running = snapshot.running();
+        simulation.setText(Messages.text(running ? "status.running" : "status.paused"));
+        if (runStateClickable) {
+            simulation.setToolTipText(runStateTip());
+        }
         time.setText(Messages.format("status.time", snapshot.time()));
+        time.setToolTipText(Messages.text("status.timeTip"));
         failure.setText(snapshot.failure().map(reason -> Messages.format("status.failure", reason)).orElse(""));
         failure.setVisible(snapshot.failure().isPresent());
     }
@@ -90,6 +98,58 @@ public final class StatusBar extends JPanel {
 
     JLabel shortCircuitsLabel() {
         return shortCircuits;
+    }
+
+    /**
+     * Clicking «zoom 125 %» runs {@code action} (the view goes back to 100 % around the middle of the canvas); the
+     * label gets the hand cursor and the tooltip «Clic: volver a 100 %». Only the primary button counts.
+     */
+    public void onZoomClicked(Runnable action) {
+        zoom.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        zoom.setToolTipText(Messages.text("status.zoomTip"));
+        zoom.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent event) {
+                if (SwingUtilities.isLeftMouseButton(event)) {
+                    action.run();
+                }
+            }
+        });
+    }
+
+    JLabel zoomLabel() {
+        return zoom;
+    }
+
+    /**
+     * Clicking «▶ corriendo» runs {@code whenRunning} (pause) and «⏸ en pausa» runs {@code whenPaused} (start), as
+     * the last shown snapshot says (M6.1-E); hand cursor and the tooltip «Clic: pausar» / «Clic: iniciar». Only the
+     * primary button counts.
+     */
+    public void onRunStateClicked(Runnable whenRunning, Runnable whenPaused) {
+        runStateClickable = true;
+        simulation.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        simulation.setToolTipText(runStateTip());
+        simulation.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent event) {
+                if (SwingUtilities.isLeftMouseButton(event)) {
+                    (running ? whenRunning : whenPaused).run();
+                }
+            }
+        });
+    }
+
+    private String runStateTip() {
+        return Messages.text(running ? "status.runningTip" : "status.pausedTip");
+    }
+
+    JLabel runStateLabel() {
+        return simulation;
+    }
+
+    JLabel timeLabel() {
+        return time;
     }
 
     public void showZoom(double zoomFactor) {

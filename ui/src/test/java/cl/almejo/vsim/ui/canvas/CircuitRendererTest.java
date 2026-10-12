@@ -20,6 +20,7 @@ import cl.almejo.vsim.core.simulation.ShortCircuit;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.core.value.Value;
 import cl.almejo.vsim.ui.paint.ColorScheme;
+import cl.almejo.vsim.ui.paint.ColorSchemes;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
 import org.junit.jupiter.api.Test;
 
@@ -429,15 +430,49 @@ assertThat(pinCenter(image, joiner, 3)).isEqualTo(SCHEME.background());
         }
     }
 
+    private Component componentAt(String typeId, int x, int y) {
+        Component component = registry.require(typeId).newComponent(document.newComponentId(), new GridPoint(x, y),
+                Rotation.R0, Map.of(), "");
+        document.add(component);
+        return component;
+    }
+
     @Test
-    void anOpenPinOfAGateIsUnchanged() {
-        Component gate = registry.require(StandardComponentTypes.NOT).newComponent(document.newComponentId(),
-                new GridPoint(3, 3), Rotation.R0, Map.of(), "");
-        document.add(gate);
+    void anOpenInputOfAnyComponentIsAHollowRingAndAnOpenOutputKeepsItsDot() {
+        Component gate = componentAt(StandardComponentTypes.NOT, 3, 3);          // in (3, 5), out (7, 5)
+        Component led = componentAt(StandardComponentTypes.LED, 8, 3);           // in (9, 6)
+        Component display = componentAt(StandardComponentTypes.SEVEN_SEGMENTS_DISPLAY, 3, 8); // in0 (7, 8)
 
         BufferedImage image = renderCompiled();
 
-        assertThat(pinCenter(image, gate, 0)).isEqualTo(SCHEME.componentStroke());
+        assertThat(pinCenter(image, gate, 0)).isEqualTo(SCHEME.background());
+        assertThat(pinCenter(image, led, 0)).isEqualTo(SCHEME.background());
+        assertThat(pinCenter(image, display, 0)).isEqualTo(SCHEME.background());
+        assertThat(pinCenter(image, gate, 1)).as("outputs get no ring").isEqualTo(SCHEME.componentStroke());
+    }
+
+    @Test
+    void connectingAnInputByWireOrPinOnPinTakesItsRingAway() {
+        Component wired = componentAt(StandardComponentTypes.NOT, 3, 3);          // in (3, 5)
+        document.add(new Wire(document.newWireId(), new GridPoint(1, 5), new GridPoint(3, 5)));
+        componentAt(StandardComponentTypes.SWITCH, 0, 10);                       // out (4, 11)
+        Component touching = componentAt(StandardComponentTypes.NOT, 4, 9);       // in (4, 11): pin on pin
+
+        BufferedImage image = renderCompiled();
+
+        assertThat(pinCenter(image, wired, 0)).isEqualTo(SCHEME.componentStroke());
+        assertThat(pinCenter(image, touching, 0)).isEqualTo(SCHEME.componentStroke());
+    }
+
+    @Test
+    void anOpenInputRingUsesTheDarkSchemeToo() {
+        CircuitRenderer dark = new CircuitRenderer(registry, PainterRegistry.standard(), ColorSchemes.DARK);
+        Component gate = componentAt(StandardComponentTypes.NOT, 3, 3);
+        Netlist netlist = new NetlistCompiler(registry).compile(document);
+
+        BufferedImage image = renderWith(dark, SimulationSnapshot.EMPTY, netlist, document.revision());
+
+        assertThat(pinCenter(image, gate, 0)).isEqualTo(ColorSchemes.DARK.background());
     }
 
     @Test
