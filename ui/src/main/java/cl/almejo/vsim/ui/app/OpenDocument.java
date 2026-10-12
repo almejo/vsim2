@@ -21,6 +21,7 @@ import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.core.simulation.SimulationThread;
 import cl.almejo.vsim.core.waveform.WaveformSnapshot;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.waveform.ProbeNames;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -82,6 +83,8 @@ public final class OpenDocument implements AutoCloseable {
         synchronize();
         simulation.start();
         simulation.resume();
+        // M6.1-E: names an older VSim stored by default become live; not a command, the document stays unmodified.
+        ProbeNames.forgetDefaultNames(document, this.registry);
     }
 
     public static OpenDocument createEmpty(ComponentTypeRegistry registry) {
