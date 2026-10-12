@@ -10,6 +10,8 @@ import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.GridSize;
 import cl.almejo.vsim.core.geometry.Rotation;
+import cl.almejo.vsim.core.library.ComponentDefinition;
+import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.core.netlist.PinRef;
 
 import java.util.ArrayList;
@@ -30,10 +32,22 @@ public final class CircuitBuilder {
 
     public CircuitBuilder(String name) {
         document.setName(name);
+        // Instances of the document's own definitions (subcircuit:<id>) are placed like any other component.
+        registry.addResolver(SubcircuitTypes.resolverFor(document));
     }
 
     public CircuitDocument document() {
         return document;
+    }
+
+    /** The standard types plus this document's definitions. */
+    public ComponentTypeRegistry registry() {
+        return registry;
+    }
+
+    /** Embeds {@code definition} in the document so its instances can be placed (a user component in the file). */
+    public void define(ComponentDefinition definition) {
+        document.putDefinition(definition);
     }
 
     /** Pairs of pins the circuit means to connect; the nets of the document must be exactly their closure. */
