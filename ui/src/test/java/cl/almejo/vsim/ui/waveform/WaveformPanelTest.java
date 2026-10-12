@@ -1,6 +1,7 @@
 package cl.almejo.vsim.ui.waveform;
 
 import cl.almejo.vsim.core.command.RemoveElementsCommand;
+import cl.almejo.vsim.core.command.SetLabelCommand;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.value.Value;
@@ -43,6 +44,7 @@ import static org.assertj.core.api.Assertions.within;
 class WaveformPanelTest {
 
     private final Deque<Optional<String>> answers = new ArrayDeque<>();
+    private final List<String> prefilled = new ArrayList<>();
     private final List<String> shownInCircuit = new ArrayList<>();
     private int hides;
     private OpenDocument openDocument;
@@ -55,8 +57,10 @@ class WaveformPanelTest {
         Messages.initialize(Messages.SPANISH);
         openDocument = OpenDocument.createEmpty(StandardComponentTypes.registry());
         actions = new ProbeActions(openDocument);
-        TextPrompt prompt = (parent, title, message, initialText) ->
-                answers.isEmpty() ? Optional.empty() : answers.removeFirst();
+        TextPrompt prompt = (parent, title, message, initialText) -> {
+            prefilled.add(initialText);
+            return answers.isEmpty() ? Optional.empty() : answers.removeFirst();
+        };
         panel = new WaveformPanel(openDocument, actions, () -> ColorScheme.LIGHT, prompt, shownInCircuit::add,
                 () -> hides++);
     }
@@ -455,5 +459,82 @@ class WaveformPanelTest {
         panel.plotResized(400); // same scale: still 500 per tick
         panel.button("Acercar").doClick(0);
         assertThat(texts).containsExactly("1 div = 200 t");
+    }
+
+    @Test
+    void aChannelNeverRenamedFollowsTheLabelUntilItIsRenamed() {
+        List<String> ids = chain();
+        openDocument.execute(new SetLabelCommand(gate.id(), "A"));
+        assertThat(panel.channelNames()).containsExactly("c1.out", "A.out");
+
+        answers.add(Optional.of("suma"));
+        item(panel.rowMenu(ids.get(1)), "Renombrar…").doClick(0);
+        assertThat(prefilled).containsExactly("A.out");
+        openDocument.execute(new SetLabelCommand(gate.id(), "B"));
+        assertThat(panel.channelNames()).as("a user name stays").containsExactly("c1.out", "suma");
+
+        answers.add(Optional.of("  "));
+        item(panel.rowMenu(ids.get(1)), "Renombrar…").doClick(0);
+        assertThat(prefilled).containsExactly("A.out", "suma");
+        assertThat(panel.channelNames()).as("blank: live again").containsExactly("c1.out", "B.out");
+        assertThat(openDocument.document().probes().get(1).name()).isEmpty();
+    }
+
+    @Test
+    void acceptingTheLiveNameUnchangedKeepsItLive() {
+        List<String> ids = chain();
+        int undoSteps = undoDepth();
+
+        answers.add(Optional.of("c2.out"));
+        item(panel.rowMenu(ids.get(1)), "Renombrar…").doClick(0);
+
+        assertThat(prefilled).containsExactly("c2.out");
+        assertThat(openDocument.document().probes().get(1).name()).isEmpty();
+        assertThat(undoDepth()).isEqualTo(undoSteps);
+        openDocument.execute(new SetLabelCommand(gate.id(), "A"));
+        assertThat(panel.channelNames()).containsExactly("c1.out", "A.out");
+    }
+
+    @Test
+    void theRowsAreRebuiltOnlyWhenTheCircuitOrTheChannelsChange() {
+        List<String> ids = chain();
+        List<ChannelRows.ChannelRow> rows = panel.rows();
+        assertThat(panel.rows()).isSameAs(rows);
+
+        openDocument.execute(new SetLabelCommand(gate.id(), "A"));
+        assertThat(panel.rows()).isNotSameAs(rows);
+        rows = panel.rows();
+        actions.moveUp(ids.get(1));
+        assertThat(panel.rows()).isNotSameAs(rows);
+        assertThat(panel.channelNames()).containsExactly("A.out", "c1.out");
+    }
+
+    @Test
+    void theTimerRepaintsWhenALabelChangedEvenWithoutANewRecording() throws Exception {
+        openDocument.pause();
+        waitUntil(() -> !openDocument.latestSnapshot().running());
+        chain();
+        panel.overrideShowing(() -> true);
+        onEventThread(() -> {
+            panel.timerTick();
+            panel.channelNames(); // the rows as shown now
+            int painted = panel.repaintCount();
+            openDocument.execute(new SetLabelCommand(gate.id(), "A"));
+            panel.timerTick();
+            assertThat(panel.repaintCount()).isGreaterThan(painted);
+            assertThat(panel.channelNames()).containsExactly("c1.out", "A.out");
+        });
+    }
+
+    private int undoDepth() {
+        int depth = 0;
+        while (openDocument.history().canUndo()) {
+            openDocument.history().undo();
+            depth++;
+        }
+        for (int step = 0; step < depth; step++) {
+            openDocument.history().redo();
+        }
+        return depth;
     }
 }

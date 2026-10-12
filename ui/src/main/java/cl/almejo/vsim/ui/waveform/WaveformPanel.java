@@ -31,6 +31,7 @@ import java.awt.event.ActionEvent;
 import java.awt.event.HierarchyEvent;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.function.BooleanSupplier;
@@ -69,6 +70,8 @@ public final class WaveformPanel extends JPanel {
     private String blinkingProbe;
     private int repaintCount;
     private long shownTickSpacing = -1;
+    private RowsKey rowsKey;
+    private List<ChannelRows.ChannelRow> cachedRows = List.of();
     private boolean disposed;
 
     public WaveformPanel(OpenDocument openDocument, ProbeActions actions, Supplier<ColorScheme> scheme,
@@ -168,13 +171,23 @@ public final class WaveformPanel extends JPanel {
         repaintAll();
     }
 
-    /** One timer step: re-checks that the timer is still needed and shows a new snapshot when there is one. */
+    /**
+     * One timer step: re-checks that the timer is still needed and shows a new snapshot when there is one; when only
+     * the circuit changed (a label, so a live channel name), only the names repaint.
+     */
     void timerTick() {
         updateTimer();
         if (timer.isRunning()) {
+            boolean namesChanged = !currentRowsKey().equals(rowsKey);
+            if (namesChanged) {
+                rows(); // remembers what the names are now built from
+            }
             WaveformSnapshot latest = openDocument.latestWaveforms();
             if (latest != displayed) {
                 display(latest);
+            } else if (namesChanged) {
+                repaintCount++;
+                names.repaint();
             }
         }
     }
@@ -199,9 +212,12 @@ public final class WaveformPanel extends JPanel {
     }
 
     List<ChannelRows.ChannelRow> rows() {
-        return ChannelRows.of(openDocument.document().probes(), openDocument.probeNets(),
-                probe -> ProbeNames.displayName(probe, openDocument.document(), openDocument.netlist(),
-                        openDocument.registry()));
+        RowsKey key = currentRowsKey();
+        if (!key.equals(rowsKey)) {
+            rowsKey = key;
+            cachedRows = ChannelRows.of(key.probes(), key.probeNets(), this::displayName);
+        }
+        return cachedRows;
     }
 
     List<String> channelIds() {
@@ -382,14 +398,35 @@ public final class WaveformPanel extends JPanel {
 
     // --- private ---------------------------------------------------------------------------------------------
 
+    /**
+     * «Renombrar…» prefilled with the name the row shows. Accepting a live default name unchanged keeps it live; any
+     * other non-blank text fixes the name, a blank one goes back to the live default.
+     */
     private void rename(String probeId) {
         Optional<Probe> probe = openDocument.document().probes().stream()
                 .filter(candidate -> candidate.id().equals(probeId))
                 .findFirst();
-        if (probe.isPresent()) {
-            prompt.ask(this, Messages.text("waveform.renameTitle"), Messages.text("waveform.renamePrompt"),
-                    probe.get().name()).ifPresent(name -> actions.rename(probeId, name));
+        if (probe.isEmpty()) {
+            return;
         }
+        String shown = displayName(probe.get());
+        prompt.ask(this, Messages.text("waveform.renameTitle"), Messages.text("waveform.renamePrompt"), shown)
+                .filter(name -> !(probe.get().name().isBlank() && name.strip().equals(shown)))
+                .ifPresent(name -> actions.rename(probeId, name));
+    }
+
+    private String displayName(Probe probe) {
+        return ProbeNames.displayName(probe, openDocument.document(), openDocument.netlist(),
+                openDocument.registry());
+    }
+
+    private RowsKey currentRowsKey() {
+        return new RowsKey(openDocument.document().probes(), openDocument.probeNets(),
+                openDocument.document().revision(), openDocument.netlistToken());
+    }
+
+    /** What the rows depend on. */
+    private record RowsKey(List<Probe> probes, Map<String, String> probeNets, long revision, long netlistToken) {
     }
 
     private void followToggled() {
