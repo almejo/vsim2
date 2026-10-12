@@ -6,12 +6,15 @@ import cl.almejo.vsim.core.waveform.WaveformSnapshot;
 import cl.almejo.vsim.ui.actions.TextPrompt;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.icons.Icons;
 import cl.almejo.vsim.ui.problems.Blink;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 
 import javax.swing.AbstractAction;
 import javax.swing.AbstractButton;
 import javax.swing.Action;
+import javax.swing.Icon;
+import javax.swing.JButton;
 import javax.swing.JMenuItem;
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
@@ -73,16 +76,18 @@ public final class WaveformPanel extends JPanel {
         this.names = new ChannelNameColumn(this);
         this.plot = new WaveformPlot(this);
         this.ruler = new TimeRuler(this);
-        this.followButton = new JToggleButton(action("waveform.follow", this::followToggled));
+        this.followButton = new JToggleButton(toolAction("waveform.follow", WaveformIcons.FOLLOW,
+                this::followToggled));
+        followButton.setHideActionText(true);
         followButton.setSelected(true);
         toolBar.setFloatable(false);
         toolBar.add(followButton);
-        toolBar.add(action("waveform.zoomIn", this::zoomIn));
-        toolBar.add(action("waveform.zoomOut", this::zoomOut));
-        toolBar.add(action("waveform.fitAll", this::fitAll));
-        toolBar.add(action("waveform.showDelays", this::showDelays));
-        toolBar.add(action("waveform.clear", openDocument::clearWaveforms));
-        toolBar.add(action("waveform.hide", hide));
+        addTool(toolAction("waveform.zoomIn", WaveformIcons.ZOOM_IN, this::zoomIn));
+        addTool(toolAction("waveform.zoomOut", WaveformIcons.ZOOM_OUT, this::zoomOut));
+        addTool(toolAction("waveform.fitAll", WaveformIcons.FIT_ALL, this::fitAll));
+        addTool(toolAction("waveform.showDelays", WaveformIcons.SHOW_DELAYS, this::showDelays));
+        addTool(toolAction("waveform.clear", WaveformIcons.CLEAR, openDocument::clearWaveforms));
+        addTool(toolAction("waveform.hide", WaveformIcons.HIDE, hide));
         JScrollPane scroll = new JScrollPane(plot, JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,
                 JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
         scroll.setRowHeaderView(names);
@@ -319,23 +324,26 @@ public final class WaveformPanel extends JPanel {
         return followButton;
     }
 
-    AbstractButton button(String text) {
+    /** The toolbar button whose action is named {@code name} (the buttons show only their icon). */
+    AbstractButton button(String name) {
         for (Component child : toolBar.getComponents()) {
-            if (child instanceof AbstractButton button && text.equals(button.getText())) {
+            if (child instanceof AbstractButton button && button.getAction() != null
+                    && name.equals(button.getAction().getValue(Action.NAME))) {
                 return button;
             }
         }
-        throw new IllegalArgumentException("no toolbar button " + text);
+        throw new IllegalArgumentException("no toolbar button " + name);
     }
 
+    /** The action names of the toolbar buttons, in order. */
     List<String> toolBarTexts() {
-        List<String> texts = new ArrayList<>();
+        List<String> names = new ArrayList<>();
         for (Component child : toolBar.getComponents()) {
-            if (child instanceof AbstractButton button) {
-                texts.add(button.getText());
+            if (child instanceof AbstractButton button && button.getAction() != null) {
+                names.add((String) button.getAction().getValue(Action.NAME));
             }
         }
-        return texts;
+        return names;
     }
 
     ChannelNameColumn names() {
@@ -414,6 +422,25 @@ public final class WaveformPanel extends JPanel {
         names.repaint();
         plot.repaint();
         ruler.repaint();
+    }
+
+    private void addTool(Action action) {
+        JButton button = new JButton(action);
+        button.setHideActionText(true);
+        toolBar.add(button);
+    }
+
+    /**
+     * A toolbar action: {@code key} is its name (menus, accessibility, tests) and {@code key + "Tip"} its tooltip;
+     * the 16 px icon {@code iconName} is what the button shows.
+     */
+    private static Action toolAction(String key, String iconName, Runnable behavior) {
+        Action action = action(key, behavior);
+        Icon icon = Icons.get(iconName, Icons.MENU_SIZE);
+        action.putValue(Action.SMALL_ICON, icon);
+        action.putValue(Action.LARGE_ICON_KEY, icon);
+        action.putValue(Action.SHORT_DESCRIPTION, Messages.text(key + "Tip"));
+        return action;
     }
 
     private static Action action(String key, Runnable behavior) {

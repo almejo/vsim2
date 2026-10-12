@@ -10,12 +10,14 @@ import cl.almejo.vsim.core.waveform.WaveformSnapshot;
 import cl.almejo.vsim.ui.actions.TextPrompt;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.icons.Icons;
 import cl.almejo.vsim.ui.problems.Blink;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import javax.swing.AbstractButton;
 import javax.swing.Action;
 import javax.swing.JComponent;
 import javax.swing.JMenuItem;
@@ -127,6 +129,41 @@ class WaveformPanelTest {
         assertThat(panel.followButton().isSelected()).isTrue();
         panel.button("Ocultar").doClick(0);
         assertThat(hides).isEqualTo(1);
+    }
+
+    @Test
+    void theToolbarButtonsShowOnlyAnIconWithATooltip() {
+        List<String> names = panel.toolBarTexts();
+        List<String> tooltips = new ArrayList<>();
+        for (int index = 0; index < names.size(); index++) {
+            AbstractButton button = panel.button(names.get(index));
+            assertThat(button.getText()).as(names.get(index)).isNullOrEmpty();
+            assertThat(button.getIcon()).as(names.get(index))
+                    .isSameAs(Icons.get(WaveformIcons.names().get(index), Icons.MENU_SIZE));
+            tooltips.add(button.getToolTipText());
+        }
+        assertThat(tooltips).containsExactly("Seguir el tiempo actual", "Acercar", "Alejar", "Ver todo lo registrado",
+                "Ver retardos: 20 px por unidad", "Limpiar trazas", "Ocultar el panel");
+        assertThat(panel.button("Seguir")).isSameAs(panel.followButton());
+    }
+
+    @Test
+    void seguirLooksPressedWhileFollowingAndLetsGoOnAManualMove() {
+        chain();
+        panel.axis().setWidth(800);
+        panel.display(new WaveformSnapshot(1, 4_000, Map.of()));
+
+        panel.button("Acercar").doClick(0);
+        assertThat(panel.axis().isFollowing()).as("zooming keeps the right edge on the current time").isTrue();
+        assertThat(panel.followButton().isSelected()).isTrue();
+
+        panel.scrollBy(-50);
+        assertThat(panel.axis().isFollowing()).isFalse();
+        assertThat(panel.followButton().isSelected()).isFalse();
+
+        panel.followButton().doClick(0);
+        assertThat(panel.axis().isFollowing()).isTrue();
+        assertThat(panel.followButton().isSelected()).isTrue();
     }
 
     @Test
