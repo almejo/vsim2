@@ -413,4 +413,47 @@ class WaveformPanelTest {
         assertThat(panel.plot().getCursor().getType()).isEqualTo(Cursor.CROSSHAIR_CURSOR);
         assertThat(panel.ruler().getCursor().getType()).isEqualTo(Cursor.MOVE_CURSOR);
     }
+
+    @Test
+    void theScaleLabelSitsAtTheRightOfTheToolbarAndFollowsZoom() {
+        List<String> ids = chain();
+        assertThat(panel.scaleLabel().getToolTipText())
+                .isEqualTo("Tiempo de simulación entre dos marcas de la regla");
+        panel.plotResized(800); // the first width shows the last 4 000 units: 0.2 px per unit
+        assertThat(panel.scaleText()).isEqualTo("1 div = 500 t");
+
+        panel.button("Acercar").doClick(0);
+        assertThat(panel.scaleText()).isEqualTo("1 div = 200 t");
+        panel.button("Alejar").doClick(0);
+        panel.button("Alejar").doClick(0);
+        assertThat(panel.scaleText()).isEqualTo("1 div = 1 000 t");
+
+        panel.display(new WaveformSnapshot(1, 41_000, Map.of(ids.get(0), trace(1_000, Value.ONE))));
+        panel.button("Ver todo").doClick(0); // 40 000 units in 800 px
+        assertThat(panel.scaleText()).isEqualTo("1 div = 5 000 t");
+
+        panel.button("Ver retardos").doClick(0); // 20 px per unit
+        assertThat(panel.scaleText()).isEqualTo("1 div = 5 t");
+        assertThat(panel.axis().tickSpacing()).isEqualTo(5);
+
+        panel.wheel(400, -1, true);
+        assertThat(panel.scaleText()).isEqualTo("1 div = " + TimeAxis.format(panel.axis().tickSpacing()) + " t");
+    }
+
+    @Test
+    void theScaleLabelIsNotRewrittenWhileTheSpacingStaysTheSame() {
+        chain();
+        panel.plotResized(800);
+        List<String> texts = new ArrayList<>();
+        panel.scaleLabel().addPropertyChangeListener("text", event -> texts.add((String) event.getNewValue()));
+
+        panel.display(new WaveformSnapshot(1, 5_000, Map.of()));
+        panel.display(new WaveformSnapshot(2, 6_000, Map.of()));
+        panel.plotResized(800);
+        assertThat(texts).isEmpty();
+
+        panel.plotResized(400); // same scale: still 500 per tick
+        panel.button("Acercar").doClick(0);
+        assertThat(texts).containsExactly("1 div = 200 t");
+    }
 }

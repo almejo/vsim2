@@ -13,8 +13,11 @@ import cl.almejo.vsim.ui.paint.ColorScheme;
 import javax.swing.AbstractAction;
 import javax.swing.AbstractButton;
 import javax.swing.Action;
+import javax.swing.BorderFactory;
+import javax.swing.Box;
 import javax.swing.Icon;
 import javax.swing.JButton;
+import javax.swing.JLabel;
 import javax.swing.JMenuItem;
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
@@ -44,6 +47,7 @@ public final class WaveformPanel extends JPanel {
     static final int TIMER_MILLISECONDS = 33;
     static final double WHEEL_SCROLL_PIXELS = 60;
     static final double WHEEL_ZOOM_FACTOR = 1.25;
+    private static final int SCALE_LABEL_MARGIN = 6;
 
     private final OpenDocument openDocument;
     private final ProbeActions actions;
@@ -53,6 +57,7 @@ public final class WaveformPanel extends JPanel {
     private final TimeAxis axis = new TimeAxis();
     private final JToolBar toolBar = new JToolBar();
     private final JToggleButton followButton;
+    private final JLabel scaleLabel = new JLabel();
     private final ChannelNameColumn names;
     private final WaveformPlot plot;
     private final TimeRuler ruler;
@@ -63,6 +68,7 @@ public final class WaveformPanel extends JPanel {
     private String selectedProbe;
     private String blinkingProbe;
     private int repaintCount;
+    private long shownTickSpacing = -1;
     private boolean disposed;
 
     public WaveformPanel(OpenDocument openDocument, ProbeActions actions, Supplier<ColorScheme> scheme,
@@ -88,6 +94,11 @@ public final class WaveformPanel extends JPanel {
         addTool(toolAction("waveform.showDelays", WaveformIcons.SHOW_DELAYS, this::showDelays));
         addTool(toolAction("waveform.clear", WaveformIcons.CLEAR, openDocument::clearWaveforms));
         addTool(toolAction("waveform.hide", WaveformIcons.HIDE, hide));
+        toolBar.add(Box.createHorizontalGlue());
+        scaleLabel.setToolTipText(Messages.text("waveform.scaleTip"));
+        scaleLabel.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, SCALE_LABEL_MARGIN));
+        toolBar.add(scaleLabel);
+        refreshScale();
         JScrollPane scroll = new JScrollPane(plot, JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,
                 JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
         scroll.setRowHeaderView(names);
@@ -153,6 +164,7 @@ public final class WaveformPanel extends JPanel {
     void display(WaveformSnapshot snapshot) {
         displayed = snapshot;
         axis.follow(snapshot.time());
+        refreshScale();
         repaintAll();
     }
 
@@ -279,6 +291,7 @@ public final class WaveformPanel extends JPanel {
     void plotResized(int width) {
         axis.setWidth(width);
         axis.follow(displayed.time());
+        refreshScale();
         repaintAll();
     }
 
@@ -322,6 +335,15 @@ public final class WaveformPanel extends JPanel {
 
     JToggleButton followButton() {
         return followButton;
+    }
+
+    /** «1 div = 50 t»: the simulation time between two ruler ticks, at the right end of the toolbar. */
+    String scaleText() {
+        return scaleLabel.getText();
+    }
+
+    JLabel scaleLabel() {
+        return scaleLabel;
     }
 
     /** The toolbar button whose action is named {@code name} (the buttons show only their icon). */
@@ -405,7 +427,17 @@ public final class WaveformPanel extends JPanel {
 
     private void axisChanged() {
         followButton.setSelected(axis.isFollowing());
+        refreshScale();
         repaintAll();
+    }
+
+    /** Rewrites the scale label, only when the ruler's tick spacing changed. */
+    private void refreshScale() {
+        long spacing = axis.tickSpacing();
+        if (spacing != shownTickSpacing) {
+            shownTickSpacing = spacing;
+            scaleLabel.setText(Messages.format("waveform.scale", TimeAxis.format(spacing)));
+        }
     }
 
     private void updateTimer() {
