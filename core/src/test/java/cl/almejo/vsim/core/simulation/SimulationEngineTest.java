@@ -76,6 +76,18 @@ class SimulationEngineTest {
     }
 
     @Test
+    void nextEventTimeIsThePendingGateOutputAndEmptyOnceStable() {
+        assertThat(engine.nextEventTime()).isEmpty();
+        place(TestComponentTypes.SOURCE, 0, 0, Map.of("value", "1"));
+        place(TestComponentTypes.BUFFER, 2, 0, Map.of("delay", 3));
+        synchronize();
+        assertThat(engine.nextEventTime()).hasValue(3);
+        engine.runUntil(3);
+        assertThat(engine.nextEventTime()).isEmpty();
+        assertThat(engine.now()).isEqualTo(3);
+    }
+
+    @Test
     void unconnectedInputGivesHighImpedanceOutput() {
         ElementId buffer = place(TestComponentTypes.BUFFER, 0, 0, Map.of());
         synchronize();

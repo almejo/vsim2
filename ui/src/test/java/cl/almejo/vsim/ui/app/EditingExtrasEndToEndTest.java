@@ -34,6 +34,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
@@ -50,6 +51,13 @@ class EditingExtrasEndToEndTest {
         @Override public void closeWindow() { }
         @Override public void exit() { }
     };
+
+    /**
+     * Catalog ids whose action arrives with an M6.1 front (setup commit). M6.1-B deletes its two ids in its last task;
+     * M6.1-C, merging after B, deletes this constant and its filter in its last task.
+     */
+    private static final Set<String> AWAITING_M6_1_FRONTS = Set.of(
+            "simulation.stepMode", "simulation.advance", "simulation.truthTable");
 
     @TempDir
     Path directory;
@@ -90,7 +98,8 @@ class EditingExtrasEndToEndTest {
     void everyCatalogEntryHasAnActionInAProductionView() {
         EditorView view = newView();
         assertThat(ShortcutsExtension.actionsOf(view).keySet())
-                .containsAll(ShortcutCatalog.entries().stream().map(ShortcutEntry::id).toList());
+                .containsAll(ShortcutCatalog.entries().stream().map(ShortcutEntry::id)
+                        .filter(id -> !AWAITING_M6_1_FRONTS.contains(id)).toList());
     }
 
     @Test

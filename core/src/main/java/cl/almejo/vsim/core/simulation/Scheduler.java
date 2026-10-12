@@ -1,6 +1,7 @@
 package cl.almejo.vsim.core.simulation;
 
 import java.util.Comparator;
+import java.util.OptionalLong;
 import java.util.PriorityQueue;
 
 /** Discrete event queue (port of VSim's Heap + Scheduler; ties run in insertion order). */
@@ -36,6 +37,12 @@ final class Scheduler {
             entry.action().run();
         }
         now = until;
+    }
+
+    /** The time of the earliest pending event (it may equal {@link #now()}); empty when nothing is pending. */
+    OptionalLong nextEventTime() {
+        Entry next = queue.peek();
+        return next == null ? OptionalLong.empty() : OptionalLong.of(next.time());
     }
 
     int pendingEvents() {

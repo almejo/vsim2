@@ -67,6 +67,12 @@ Diseño: `docs/superpowers/specs/2026-10-08-vsim2-design.md`.
 - Además de los atajos de siempre se puede dar uno a Selección, Cable, Mover vista, Centrar circuito, Configurar…, Iniciar, Pausar, Paso, Preferencias… y Nueva vista. Las teclas del lienzo (Supr, R, Mayús+R, F2, F8, Mayús+F8) también se cambian ahí; Retroceso sigue borrando.
 - El cursor dice qué hará un clic: flecha sobre el lienzo vacío o algo sin seleccionar, cruz sobre un pin o un cable (empieza un cable), con la herramienta Cable y al colocar un componente, mover sobre lo seleccionado y al arrastrarlo, mano sobre el cuerpo de un interruptor o de un pin de entrada, mover mientras se desplaza la vista (Espacio, botón del medio o «Mover vista»).
 
+## Ejemplos (M6.1)
+
+## Paso a paso (M6.1)
+
+## Tabla de verdad (M6.1)
+
 ## Preferencias y distribución
 
 - Archivo → Preferencias… (en macOS también VSim 2 → Ajustes…): tema Claro, Oscuro o Seguir sistema; esquema de color del circuito (Según el tema, VSim clásico, Claro, Oscuro y los otros esquemas del VSim original: Pastel, CSim y Twilight); idioma (Sistema, Español, English; se aplica al reiniciar); directorio de la librería de componentes (Elegir… / Restaurar predeterminado). El tema y el esquema cambian al instante en todas las ventanas.

@@ -13,8 +13,9 @@ import java.util.Optional;
 
 /**
  * Every action whose keyboard shortcut the user can change (spec §5.2), ordered by menu and then menu order. Ids are
- * {@code <group>.<action>}; the name is the action's own menu text. The 22 defaults are today's accelerators and
- * canvas keys; the others start without a shortcut. Defaults use the platform menu modifier (⌘ on macOS).
+ * {@code <group>.<action>}; the name is the action's own menu text. The 23 defaults are the editor's accelerators,
+ * its canvas keys and F7 for «Avanzar» (M6.1); the others start without a shortcut. Defaults use the platform menu
+ * modifier (⌘ on macOS).
  */
 public final class ShortcutCatalog {
 
@@ -75,6 +76,9 @@ public final class ShortcutCatalog {
         window(entries, "simulation.start", "action.start", MenuId.SIMULATION, null);
         window(entries, "simulation.pause", "action.pause", MenuId.SIMULATION, null);
         window(entries, "simulation.step", "action.step", MenuId.SIMULATION, null);
+        window(entries, "simulation.stepMode", "action.stepMode", MenuId.SIMULATION, null);
+        window(entries, "simulation.advance", "action.advance", MenuId.SIMULATION, stroke(KeyEvent.VK_F7, 0));
+        window(entries, "simulation.truthTable", "action.truthTable", MenuId.SIMULATION, null);
         window(entries, "window.newView", "action.newWindow", MenuId.WINDOW, null);
         return List.copyOf(entries);
     }

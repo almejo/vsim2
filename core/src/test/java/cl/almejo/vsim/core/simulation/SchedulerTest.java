@@ -51,4 +51,26 @@ class SchedulerTest {
         scheduler.runUntil(5);
         assertThatThrownBy(() -> scheduler.runUntil(4)).isInstanceOf(IllegalArgumentException.class);
     }
+
+    @Test
+    void nextEventTimeIsTheEarliestPendingTimeAndEmptyWhenNothingIsPending() {
+        Scheduler scheduler = new Scheduler();
+        assertThat(scheduler.nextEventTime()).isEmpty();
+        scheduler.schedule(5, () -> { });
+        scheduler.schedule(2, () -> { });
+        scheduler.schedule(2, () -> { });
+        assertThat(scheduler.nextEventTime()).hasValue(2);
+        scheduler.runUntil(2);
+        assertThat(scheduler.nextEventTime()).hasValue(5);
+        scheduler.runUntil(5);
+        assertThat(scheduler.nextEventTime()).isEmpty();
+    }
+
+    @Test
+    void aZeroDelayEventIsPendingAtTheCurrentTime() {
+        Scheduler scheduler = new Scheduler();
+        scheduler.runUntil(7);
+        scheduler.schedule(0, () -> { });
+        assertThat(scheduler.nextEventTime()).hasValue(7);
+    }
 }

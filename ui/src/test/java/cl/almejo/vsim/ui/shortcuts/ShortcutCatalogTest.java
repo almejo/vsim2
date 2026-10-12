@@ -35,10 +35,10 @@ class ShortcutCatalogTest {
     }
 
     @Test
-    void noTwoEntriesShareADefaultStrokeAndTwentyTwoHaveOne() {
+    void noTwoEntriesShareADefaultStrokeAndTwentyThreeHaveOne() {
         List<KeyStroke> defaults = ShortcutCatalog.entries().stream()
                 .map(ShortcutEntry::defaultStroke).flatMap(Optional::stream).toList();
-        assertThat(defaults).doesNotHaveDuplicates().hasSize(22);
+        assertThat(defaults).doesNotHaveDuplicates().hasSize(23);
         assertThat(defaults).noneMatch(KeyBindings::isReserved);
     }
 
@@ -83,5 +83,20 @@ class ShortcutCatalogTest {
             entry.defaultStroke().ifPresent(stroke -> assertThat(KeyBindings.isAllowedFor(entry, stroke))
                     .as("%s = %s", entry.id(), stroke).isTrue());
         }
+    }
+
+    @Test
+    void theMilestoneSixPointOneEntriesFollowPasoInTheSimulationMenu() {
+        List<String> simulation = ShortcutCatalog.entries().stream()
+                .filter(entry -> entry.group() == MenuId.SIMULATION).map(ShortcutEntry::id).toList();
+        assertThat(simulation).containsExactly("simulation.start", "simulation.pause", "simulation.step",
+                "simulation.stepMode", "simulation.advance", "simulation.truthTable");
+        assertThat(ShortcutCatalog.find("simulation.advance")).contains(new ShortcutEntry("simulation.advance",
+                "action.advance", MenuId.SIMULATION, Scope.WINDOW,
+                Optional.of(KeyStroke.getKeyStroke(KeyEvent.VK_F7, 0))));
+        assertThat(ShortcutCatalog.find("simulation.stepMode")).contains(new ShortcutEntry("simulation.stepMode",
+                "action.stepMode", MenuId.SIMULATION, Scope.WINDOW, Optional.empty()));
+        assertThat(ShortcutCatalog.find("simulation.truthTable")).contains(new ShortcutEntry("simulation.truthTable",
+                "action.truthTable", MenuId.SIMULATION, Scope.WINDOW, Optional.empty()));
     }
 }

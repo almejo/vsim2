@@ -10,6 +10,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalLong;
 
 /**
  * Event-driven simulator. Single-threaded: call it only from one thread
@@ -185,6 +186,14 @@ public final class SimulationEngine {
 
     public void runUntil(long time) {
         scheduler.runUntil(time);
+    }
+
+    /**
+     * The time of the earliest pending event, empty when the circuit is stable. Used by «Avanzar» (M6.1-B) and by the
+     * truth-table evaluator (M6.1-C) to run one simulation time at a time with {@link #runUntil(long)}.
+     */
+    public OptionalLong nextEventTime() {
+        return scheduler.nextEventTime();
     }
 
     public void advance(long duration) {

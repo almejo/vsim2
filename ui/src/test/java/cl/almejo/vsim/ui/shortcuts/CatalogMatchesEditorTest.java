@@ -17,11 +17,15 @@ import javax.swing.KeyStroke;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** The catalog defaults are the strokes the editor really binds today (they are the same keys, in two places). */
 class CatalogMatchesEditorTest {
+
+    /** Defaults of actions an extension registers (M6.1-B's «Avanzar»); that front's own test checks the stroke. */
+    private static final Set<String> REGISTERED_BY_EXTENSIONS = Set.of("simulation.advance");
 
     private OpenDocument openDocument;
     private EditorView view;
@@ -82,7 +86,8 @@ class CatalogMatchesEditorTest {
     void everyWindowDefaultIsTheAcceleratorOfItsAction() {
         Map<String, Action> actions = windowActions();
         for (ShortcutEntry entry : ShortcutCatalog.entries()) {
-            if (entry.scope() == Scope.WINDOW && entry.defaultStroke().isPresent()) {
+            if (entry.scope() == Scope.WINDOW && entry.defaultStroke().isPresent()
+                    && !REGISTERED_BY_EXTENSIONS.contains(entry.id())) {
                 assertThat(actions).as("an action for " + entry.id()).containsKey(entry.id());
                 assertThat(Optional.ofNullable((KeyStroke) actions.get(entry.id()).getValue(Action.ACCELERATOR_KEY)))
                         .as(entry.id()).isEqualTo(entry.defaultStroke());
