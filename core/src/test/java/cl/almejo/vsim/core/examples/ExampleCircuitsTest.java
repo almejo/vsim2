@@ -64,7 +64,7 @@ class ExampleCircuitsTest {
     @ParameterizedTest
     @MethodSource("exampleNames")
     void netsJoinExactlyTheIntendedPins(String name) {
-        ExampleCircuits.Builder builder = ExampleCircuits.builders().get(name).get();
+        CircuitBuilder builder = ExampleCircuits.builders().get(name).get();
         Netlist netlist = new NetlistCompiler(registry).compile(builder.document());
 
         Map<PinRef, Set<PinRef>> expected = new HashMap<>();

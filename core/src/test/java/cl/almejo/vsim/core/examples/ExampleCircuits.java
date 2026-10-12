@@ -1,17 +1,11 @@
 package cl.almejo.vsim.core.examples;
 
-import cl.almejo.vsim.core.component.ComponentType;
-import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
-import cl.almejo.vsim.core.document.TextLabel;
-import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
-import cl.almejo.vsim.core.geometry.GridSize;
 import cl.almejo.vsim.core.geometry.Rotation;
 import cl.almejo.vsim.core.io.CircuitFormat;
-import cl.almejo.vsim.core.netlist.PinRef;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -46,8 +40,8 @@ public final class ExampleCircuits {
     }
 
     /** The examples by file name (without extension), in the order they are written. */
-    public static Map<String, Supplier<Builder>> builders() {
-        Map<String, Supplier<Builder>> builders = new LinkedHashMap<>();
+    public static Map<String, Supplier<CircuitBuilder>> builders() {
+        Map<String, Supplier<CircuitBuilder>> builders = new LinkedHashMap<>();
         builders.put("labels", ExampleCircuits::halfAdderBuilder);
         builders.put("rotated-gates", ExampleCircuits::rotatedGatesBuilder);
         builders.put("short-circuit", ExampleCircuits::shortCircuitBuilder);
@@ -80,7 +74,7 @@ public final class ExampleCircuits {
         Path directory = Path.of(arguments.length > 0 ? arguments[0] : "../examples/m3");
         Files.createDirectories(directory);
         CircuitFormat format = new CircuitFormat(StandardComponentTypes.registry());
-        for (Map.Entry<String, Supplier<Builder>> entry : builders().entrySet()) {
+        for (Map.Entry<String, Supplier<CircuitBuilder>> entry : builders().entrySet()) {
             Path file = directory.resolve(entry.getKey() + ".vsim");
             Files.writeString(file, format.write(entry.getValue().get().document()) + "\n");
             System.out.println("wrote " + file);
@@ -88,8 +82,8 @@ public final class ExampleCircuits {
     }
 
     // 1. Half adder with component labels and free text.
-    static Builder halfAdderBuilder() {
-        Builder builder = new Builder("labels");
+    static CircuitBuilder halfAdderBuilder() {
+        CircuitBuilder builder = new CircuitBuilder("labels");
         Component switchA = builder.placeByBox(SWITCH, 2, 4, Rotation.R0, Map.of("value", "1"), "A");
         Component switchB = builder.placeByBox(SWITCH, 2, 12, Rotation.R0, Map.of("value", "0"), "B");
         Component xorGate = builder.placeByBox(XOR2, 16, 2, Rotation.R0, Map.of(), "U1");
@@ -118,8 +112,8 @@ public final class ExampleCircuits {
     }
 
     // 2. Each gate in the four rotations; every cell has its own drivers so the wires stay straight.
-    static Builder rotatedGatesBuilder() {
-        Builder builder = new Builder("rotated-gates");
+    static CircuitBuilder rotatedGatesBuilder() {
+        CircuitBuilder builder = new CircuitBuilder("rotated-gates");
         String[] rowNames = {"NOT", "AND2", "OR2", "XOR2", "Flip-flop D"};
         String[] typeIds = {NOT, AND2, OR2, XOR2, FLIP_FLOP_DATA};
         String[] columnNames = {"R0", "R90", "R180", "R270"};
@@ -158,8 +152,8 @@ public final class ExampleCircuits {
     }
 
     // 3. Two shorts: two switches with opposite values on one wire, and a switch tied to its own inverter.
-    static Builder shortCircuitBuilder() {
-        Builder builder = new Builder("short-circuit");
+    static CircuitBuilder shortCircuitBuilder() {
+        CircuitBuilder builder = new CircuitBuilder("short-circuit");
         Component highSwitch = builder.placeByBox(SWITCH, 2, 2, Rotation.R0, Map.of("value", "1"), "S1");
         Component lowSwitch = builder.placeByBox(SWITCH, 2, 10, Rotation.R0, Map.of("value", "0"), "S2");
         builder.route(new GridPoint(6, 3), new GridPoint(10, 3));
@@ -187,8 +181,8 @@ public final class ExampleCircuits {
     }
 
     // 4. A blinking chain and a 7-segment display fed by switches, to select, copy, duplicate, rotate and move.
-    static Builder selectionPlaygroundBuilder() {
-        Builder builder = new Builder("selection-playground");
+    static CircuitBuilder selectionPlaygroundBuilder() {
+        CircuitBuilder builder = new CircuitBuilder("selection-playground");
         builder.text(2, 3, "Selecciona con rectangulo, copia, duplica, rota y mueve");
         buildChain(builder, 10, 3, 30, 1, true);
 
@@ -214,8 +208,8 @@ public final class ExampleCircuits {
     }
 
     // 5. A clock into a chain of slow inverters, watched by a time diagram and LEDs.
-    static Builder windowsDemoBuilder() {
-        Builder builder = new Builder("windows-demo");
+    static CircuitBuilder windowsDemoBuilder() {
+        CircuitBuilder builder = new CircuitBuilder("windows-demo");
         builder.text(2, 1, "Ventana / Nueva ventana: abre dos ventanas y mira ambas");
         Chain chain = buildChain(builder, 14, 3, 30, 5, true);
         Component diagram = builder.placeByBox(TIME_DIAGRAM, 42, 2, Rotation.R0,
@@ -234,7 +228,7 @@ public final class ExampleCircuits {
      * A clock driving {@code gateCount} inverters in a row at height {@code y}; every net between two stages has a tap
      * (a point on its wire at {@link Chain#tapX}) and, if {@code withLeds}, an LED hanging below it.
      */
-    private static Chain buildChain(Builder builder, int y, int gateCount, int halfPeriod, int gateDelay, boolean withLeds) {
+    private static Chain buildChain(CircuitBuilder builder, int y, int gateCount, int halfPeriod, int gateDelay, boolean withLeds) {
         Component clock = builder.placeByPin(CLOCK, new GridPoint(6, y), 0, Rotation.R0,
                 Map.of("time-up", halfPeriod, "time-down", halfPeriod), "Reloj");
         List<Component> gates = new ArrayList<>();
@@ -273,112 +267,6 @@ public final class ExampleCircuits {
 
         int sourcePin(int tap) {
             return tap == 0 ? 0 : 1;
-        }
-    }
-
-    /** Places components by pin or by bounding box and routes wires, remembering which pins are meant to be joined. */
-    public static final class Builder {
-
-        private final ComponentTypeRegistry registry = StandardComponentTypes.registry();
-        private final CircuitDocument document = new CircuitDocument();
-        private final List<List<PinRef>> links = new ArrayList<>();
-
-        Builder(String name) {
-            document.setName(name);
-        }
-
-        public CircuitDocument document() {
-            return document;
-        }
-
-        /** Pairs of pins the circuit means to connect; the nets of the document must be exactly their closure. */
-        public List<List<PinRef>> links() {
-            return links;
-        }
-
-        /** Places a component so that its bounding box (after rotation) has its top-left corner at the given point. */
-        Component placeByBox(String typeId, int left, int top, Rotation rotation, Map<String, Object> parameters, String label) {
-            GridSize size = registry.require(typeId).size();
-            GridPoint farCorner = rotation.apply(new GridPoint(size.width(), size.height()));
-            GridPoint position = new GridPoint(left - Math.min(0, farCorner.x()), top - Math.min(0, farCorner.y()));
-            return place(typeId, position, rotation, parameters, label);
-        }
-
-        /** Places a component so that its pin {@code pinIndex} lands on {@code pinPoint}. */
-        Component placeByPin(String typeId, GridPoint pinPoint, int pinIndex, Rotation rotation,
-                             Map<String, Object> parameters, String label) {
-            GridPoint local = registry.require(typeId).pin(pinIndex).position();
-            GridPoint rotated = rotation.apply(local);
-            return place(typeId, new GridPoint(pinPoint.x() - rotated.x(), pinPoint.y() - rotated.y()), rotation, parameters, label);
-        }
-
-        private Component place(String typeId, GridPoint position, Rotation rotation, Map<String, Object> parameters, String label) {
-            Component component = registry.require(typeId).newComponent(document.newComponentId(), position, rotation, parameters, label);
-            document.add(component);
-            return component;
-        }
-
-        GridPoint pin(Component component, int pinIndex) {
-            return registry.require(component.typeId()).pinLocation(component, pinIndex);
-        }
-
-        /**
-         * Places a driver or load straight out of a pin: a wire of {@code length} units leaves the pin and
-         * ends on pin 0 of the new component, which is rotated to face the pin.
-         */
-        Component attach(Component target, int pinIndex, String typeId, Map<String, Object> parameters, String label, int length) {
-            GridPoint direction = outward(target.typeId(), target.rotation(), pinIndex);
-            GridPoint start = pin(target, pinIndex);
-            GridPoint end = start.translate(direction.x() * length, direction.y() * length);
-            GridPoint wanted = new GridPoint(-direction.x(), -direction.y());
-            Rotation facing = null;
-            for (Rotation candidate : ALL_ROTATIONS) {
-                if (candidate.apply(localOutward(typeId, 0)).equals(wanted)) {
-                    facing = candidate;
-                }
-            }
-            Component attached = placeByPin(typeId, end, 0, facing, parameters, label);
-            route(start, end);
-            link(target, pinIndex, attached, 0);
-            return attached;
-        }
-
-        void route(GridPoint... points) {
-            for (int index = 1; index < points.length; index++) {
-                if (!points[index - 1].equals(points[index])) {
-                    document.add(new Wire(document.newWireId(), points[index - 1], points[index]));
-                }
-            }
-        }
-
-        void link(Component first, int firstPin, Component second, int secondPin) {
-            links.add(List.of(new PinRef(first.id(), firstPin), new PinRef(second.id(), secondPin)));
-        }
-
-        TextLabel text(int x, int y, String text) {
-            TextLabel label = new TextLabel(document.newLabelId(), new GridPoint(x, y), text);
-            document.add(label);
-            return label;
-        }
-
-        private GridPoint outward(String typeId, Rotation rotation, int pinIndex) {
-            return rotation.apply(localOutward(typeId, pinIndex));
-        }
-
-        /** Unit vector pointing away from the component body at a pin, before rotation. */
-        private GridPoint localOutward(String typeId, int pinIndex) {
-            ComponentType type = registry.require(typeId);
-            if (typeId.startsWith("seven-segments")) {
-                return new GridPoint(0, -1);
-            }
-            GridPoint pin = type.pin(pinIndex).position();
-            if (pin.x() == 0) {
-                return new GridPoint(-1, 0);
-            }
-            if (pin.x() == type.size().width()) {
-                return new GridPoint(1, 0);
-            }
-            return new GridPoint(0, pin.y() == 0 ? -1 : 1);
         }
     }
 }
