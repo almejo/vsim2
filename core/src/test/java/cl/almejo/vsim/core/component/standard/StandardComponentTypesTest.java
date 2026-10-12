@@ -120,11 +120,38 @@ class StandardComponentTypesTest {
     @Test
     void flipFlopLatchesOnFallingEdge() {
         GateHarness harness = new GateHarness("flip-flop-data").set(0, Value.ONE).set(2, Value.ONE).advance(2);
-        assertThat(harness.output(1)).isEqualTo(Value.HIGH_IMPEDANCE);
+        assertThat(harness.output(1)).as("a fresh flip-flop drives 0").isEqualTo(Value.ZERO);
         assertThat(harness.set(2, Value.ZERO).advance(2).output(1)).isEqualTo(Value.ONE);
         assertThat(harness.set(0, Value.ZERO).advance(2).output(1)).isEqualTo(Value.ONE);
         harness.set(2, Value.ONE).advance(2).set(2, Value.ZERO).advance(2);
         assertThat(harness.output(1)).isEqualTo(Value.ZERO);
+    }
+
+    @Test
+    void aFlipFlopWithDFromNotQTogglesOnEachFallingEdge() {
+        // Q = 0 at the start, so D = NOT Q = 1 and the first falling edge sets Q (with Q = Z it would never start).
+        SimulationEngine engine = new SimulationEngine();
+        engine.update(new FlatCircuit(
+                List.of(new FlatComponent("clock", registry.require(StandardComponentTypes.CLOCK),
+                                Map.of("time-up", 5, "time-down", 5)),
+                        new FlatComponent("flipFlop", registry.require(StandardComponentTypes.FLIP_FLOP_DATA), Map.of()),
+                        new FlatComponent("inverter", registry.require(StandardComponentTypes.NOT), Map.of())),
+                List.of(new FlatNet("clock", List.of(new FlatPinRef("clock", 0), new FlatPinRef("flipFlop", 2)), 1,
+                                false),
+                        new FlatNet("q", List.of(new FlatPinRef("flipFlop", 1), new FlatPinRef("inverter", 0)), 1,
+                                false),
+                        new FlatNet("d", List.of(new FlatPinRef("inverter", 1), new FlatPinRef("flipFlop", 0)), 1,
+                                false))));
+        // the clock is low for 5, high for 5: falling edges at 10, 20, 30; Q follows one unit later
+        assertThat(engine.snapshot().netValue("q")).isEqualTo(Value.ZERO);
+        engine.runUntil(9);
+        assertThat(engine.snapshot().netValue("q")).isEqualTo(Value.ZERO);
+        engine.runUntil(11);
+        assertThat(engine.snapshot().netValue("q")).isEqualTo(Value.ONE);
+        engine.runUntil(21);
+        assertThat(engine.snapshot().netValue("q")).isEqualTo(Value.ZERO);
+        engine.runUntil(31);
+        assertThat(engine.snapshot().netValue("q")).isEqualTo(Value.ONE);
     }
 
     @Test

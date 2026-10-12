@@ -4,7 +4,10 @@ import cl.almejo.vsim.core.component.Behavior;
 import cl.almejo.vsim.core.component.BehaviorContext;
 import cl.almejo.vsim.core.value.Value;
 
-/** D flip-flop: pin 0 D, pin 1 Q, pin 2 clock. Latches D on a falling edge (ONE to ZERO). */
+/**
+ * D flip-flop: pin 0 D, pin 1 Q, pin 2 clock. Latches D on a falling edge (ONE to ZERO). A new flip-flop drives
+ * Q = 0 at once (power-on reset, as in teaching simulators), so a toggle (D = NOT Q) or a ripple counter starts.
+ */
 final class FlipFlopDataBehavior implements Behavior {
 
     private static final int DATA = 0;
@@ -21,6 +24,8 @@ final class FlipFlopDataBehavior implements Behavior {
     @Override
     public void initialize(BehaviorContext context) {
         previousClock = context.input(CLOCK);
+        // Power-on reset: Q is 0 before the first falling edge (an unconnected input still reads Z).
+        context.drive(OUTPUT, Value.ZERO, 0);
     }
 
     @Override
