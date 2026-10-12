@@ -34,6 +34,7 @@ public final class StatusBar extends JPanel {
         shortCircuits.setForeground(WARNING);
         failure.setForeground(WARNING);
         add(simulation);
+        time.setToolTipText(Messages.text("status.timeTip"));
         add(time);
         add(zoom);
         add(selection);
@@ -51,7 +52,6 @@ public final class StatusBar extends JPanel {
             simulation.setToolTipText(runStateTip());
         }
         time.setText(Messages.format("status.time", snapshot.time()));
-        time.setToolTipText(Messages.text("status.timeTip"));
         failure.setText(snapshot.failure().map(reason -> Messages.format("status.failure", reason)).orElse(""));
         failure.setVisible(snapshot.failure().isPresent());
     }
