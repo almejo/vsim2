@@ -2,6 +2,7 @@ package cl.almejo.vsim.ui.app;
 
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
+import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.io.CircuitFormatException;
 import cl.almejo.vsim.core.io.CircuitReader;
 import cl.almejo.vsim.core.io.LibraryDirectory;
@@ -227,9 +228,18 @@ public final class Application {
                 openedAny = true;
             }
         }
-        if (openedAny && requester != null && requester.openDocument().isPristine()) {
-            windows.windowsOf(requester.openDocument()).forEach(CircuitWindow::closeQuietly);
+        if (openedAny) {
+            windows.replacedBy(requester).forEach(CircuitWindow::closeQuietly);
         }
+    }
+
+    /**
+     * Archivo ▸ Ejemplos (M6.1-A): {@code document} in a new window as an untitled, unmodified document, so Guardar
+     * asks for a file name and nothing is added to Recientes. Like Abrir, a pristine requester window goes away.
+     */
+    public void openUntitled(CircuitDocument document, CircuitWindow requester) {
+        show(new OpenDocument(document, registry, null, false));
+        windows.replacedBy(requester).forEach(CircuitWindow::closeQuietly);
     }
 
     /** Asks once per modified document; true when all windows were closed. The session is remembered first. */
