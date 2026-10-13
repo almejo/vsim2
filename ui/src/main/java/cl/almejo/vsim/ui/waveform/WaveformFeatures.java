@@ -170,6 +170,17 @@ public final class WaveformFeatures {
         ProblemNavigator.focusNet(view.canvas(), blink, net.get());
     }
 
+    /**
+     * After a step (M6.1-B «Avanzar»): when {@code view}'s waveform panel is showing, its cursor goes to {@code time}.
+     * Does nothing when the panel is hidden or the view has no waveform panel.
+     */
+    public static void followStep(EditorView view, long time) {
+        BottomDock dock = view.bottomDock();
+        if (dock.isDockShowing() && dock.content().orElse(null) instanceof WaveformPanel panel) {
+            panel.placeCursorAtTime(time);
+        }
+    }
+
     public void dispose() {
         if (disposed) {
             return;
