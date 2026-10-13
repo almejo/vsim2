@@ -6,6 +6,7 @@ import cl.almejo.vsim.core.simulation.StepResult;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.icons.Icons;
 import cl.almejo.vsim.ui.waveform.WaveformFeatures;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuId;
@@ -72,6 +73,10 @@ public final class StepModeFeatures {
                 openDocument.advanceToNextEvent();
             }
         };
+        // 16 px in the menu, 24 px in the toolbar; ActionIcons (installed after this extension) hides the button
+        // texts and uses the action names as tooltips, like the rest of the main toolbar
+        Icons.install(stepModeAction, StepIcons.MODE);
+        Icons.install(advanceAction, StepIcons.ADVANCE);
         this.simulationMenu = view.menu(MenuId.SIMULATION);
         this.stepModeItem = new JCheckBoxMenuItem(stepModeAction);
         this.advanceItem = new JMenuItem(advanceAction);

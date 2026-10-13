@@ -4,12 +4,14 @@ import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.library.ComponentLibrary;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.icons.Icons;
 import cl.almejo.vsim.ui.library.LibraryService;
 import cl.almejo.vsim.ui.library.SwingLibraryDialogs;
 import cl.almejo.vsim.ui.paint.Appearance;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.shortcuts.ShortcutCatalog;
+import cl.almejo.vsim.ui.stepping.StepIcons;
 import cl.almejo.vsim.ui.window.EditorServices;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuId;
@@ -19,6 +21,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import javax.swing.AbstractButton;
 import javax.swing.Action;
 import javax.swing.JComponent;
 import javax.swing.JMenu;
@@ -27,6 +30,7 @@ import javax.swing.KeyStroke;
 import java.awt.event.KeyEvent;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
@@ -117,6 +121,48 @@ class ApplicationExtensionsTest {
         try {
             assertThat(texts(view.menu(MenuId.VIEW))).endsWith("---", "Formas de onda");
             assertThat(view.bottomDock().content()).isPresent();
+        } finally {
+            view.dispose();
+        }
+    }
+
+    @Test
+    void theSimulationMenuHasStepByStepAndAdvanceAfterPasoWithF7() {
+        EditorView view = new EditorView(openDocument, services, NO_WINDOW);
+        try {
+            assertThat(texts(view.menu(MenuId.SIMULATION))).containsExactly("Iniciar", "Pausar", "Avanzar 10 t",
+                    "Paso a paso", "Avanzar al próximo evento", "---", "Pausar al detectar cortocircuito", "---",
+                    "Tabla de verdad…");
+            assertThat(view.shortcutActions().get("simulation.advance").getValue(Action.ACCELERATOR_KEY))
+                    .isEqualTo(KeyStroke.getKeyStroke(KeyEvent.VK_F7, 0));
+            assertThat(view.shortcutActions().get("simulation.stepMode").getValue(Action.ACCELERATOR_KEY)).isNull();
+        } finally {
+            view.dispose();
+        }
+    }
+
+    @Test
+    void theStepModeControlsAreIconOnlyButtonsNamedByTheirTooltip() {
+        EditorView view = new EditorView(openDocument, services, NO_WINDOW);
+        try {
+            Action stepMode = view.shortcutActions().get("simulation.stepMode");
+            Action advance = view.shortcutActions().get("simulation.advance");
+            assertThat(stepMode.getValue(Action.LARGE_ICON_KEY))
+                    .isSameAs(Icons.get(StepIcons.MODE, Icons.TOOLBAR_SIZE));
+            assertThat(advance.getValue(Action.LARGE_ICON_KEY))
+                    .isSameAs(Icons.get(StepIcons.ADVANCE, Icons.TOOLBAR_SIZE));
+            for (Action action : List.of(stepMode, advance)) {
+                AbstractButton button = Arrays.stream(view.toolBar().getComponents())
+                        .filter(AbstractButton.class::isInstance)
+                        .map(AbstractButton.class::cast)
+                        .filter(candidate -> candidate.getAction() == action)
+                        .findFirst().orElseThrow();
+                String name = (String) action.getValue(Action.NAME);
+                assertThat(button.getHideActionText()).as(name + ": installed before ActionIcons").isTrue();
+                assertThat(button.getIcon()).as(name).isNotNull();
+                // E Task 14 appends the shortcut: «Avanzar al próximo evento (F7)».
+                assertThat(button.getToolTipText()).startsWith(name);
+            }
         } finally {
             view.dispose();
         }

@@ -5,6 +5,7 @@ import cl.almejo.vsim.ui.actions.EditorActions;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.library.TemplateIcons;
+import cl.almejo.vsim.ui.stepping.StepIcons;
 import cl.almejo.vsim.ui.waveform.WaveformIcons;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
@@ -73,6 +74,7 @@ class ActionIconsTest {
         used.addAll(TemplateIcons.names());
         used.add(EditorActions.SPEED_ICON);
         used.addAll(WaveformIcons.names());
+        used.addAll(StepIcons.names());
         assertThat(used).containsExactlyElementsOf(IconsTest.iconNames());
     }
 

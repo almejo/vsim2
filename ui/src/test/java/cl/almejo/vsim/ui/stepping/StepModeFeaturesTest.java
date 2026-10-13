@@ -11,6 +11,7 @@ import cl.almejo.vsim.ui.actions.TextPrompt;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.icons.Icons;
 import cl.almejo.vsim.ui.paint.Appearance;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
@@ -106,8 +107,7 @@ class StepModeFeaturesTest {
         assertThat(openDocument.stepMode()).isTrue();
         assertThat(features.stepModeAction().getValue(Action.SELECTED_KEY)).isEqualTo(true);
         assertThat(features.advanceButton().isVisible()).isTrue();
-        assertThat(features.advanceButton().getText()).as("the action name, until Task 7 gives it an icon")
-                .isEqualTo("Avanzar al próximo evento");
+        assertThat(features.advanceButton().getIcon()).isSameAs(Icons.get(StepIcons.ADVANCE, Icons.TOOLBAR_SIZE));
         assertThat(features.status().isVisible()).isTrue();
 
         perform(view.actions().start());

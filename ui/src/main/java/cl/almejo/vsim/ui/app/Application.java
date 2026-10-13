@@ -30,6 +30,7 @@ import cl.almejo.vsim.ui.session.SessionStore;
 import cl.almejo.vsim.ui.session.StartupSequence;
 import cl.almejo.vsim.ui.session.WindowState;
 import cl.almejo.vsim.ui.shortcuts.ShortcutsExtension;
+import cl.almejo.vsim.ui.stepping.StepModeExtension;
 import cl.almejo.vsim.ui.theme.ThemeManager;
 import cl.almejo.vsim.ui.tree.ComponentTreeExtension;
 import cl.almejo.vsim.ui.truthtable.TruthTableExtension;
@@ -100,6 +101,7 @@ public final class Application {
         editorExtensions.add(new TemplatesExtension(libraryService, libraryDialogs));
         editorExtensions.add(new ComponentTreeExtension());
         editorExtensions.add(new WaveformsExtension());
+        editorExtensions.add(new StepModeExtension());
         editorExtensions.add(new TruthTableExtension());
         editorExtensions.add(new ActionIcons());
         editorExtensions.add(new PreferencesFeature());
