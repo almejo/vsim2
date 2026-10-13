@@ -45,6 +45,29 @@ final class Scheduler {
         return next == null ? OptionalLong.empty() : OptionalLong.of(next.time());
     }
 
+    /**
+     * {@link #runUntil(long)} with a limit (M6.1-B «Avanzar»): before running event number {@code maximumEvents + 1}
+     * it throws, because a zero-delay loop would never let time move.
+     *
+     * @throws IllegalStateException "too many events at t = …" with the time of the event that was not run
+     */
+    void runUntil(long until, int maximumEvents) {
+        if (until < now) {
+            throw new IllegalArgumentException("cannot go back in time from " + now + " to " + until);
+        }
+        int ran = 0;
+        while (!queue.isEmpty() && queue.peek().time() <= until) {
+            if (ran == maximumEvents) {
+                throw new IllegalStateException("too many events at t = " + queue.peek().time());
+            }
+            Entry entry = queue.poll();
+            now = entry.time();
+            entry.action().run();
+            ran++;
+        }
+        now = until;
+    }
+
     int pendingEvents() {
         return queue.size();
     }

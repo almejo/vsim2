@@ -7,10 +7,12 @@ import cl.almejo.vsim.core.waveform.WaveformSnapshot;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalLong;
+import java.util.Set;
 
 /**
  * Event-driven simulator. Single-threaded: call it only from one thread
@@ -27,6 +29,11 @@ public final class SimulationEngine {
     private int waveformRebinds;
     /** Alias id → the root net that carries it (FlatNet#aliases), rebuilt with the nets. */
     private Map<String, RuntimeNet> aliasRoots = Map.of();
+
+    /** At most this many events run in one {@link #advanceToNextEvent()} (a zero-delay loop never lets time move). */
+    public static final int STEP_EVENT_BUDGET = 100_000;
+    /** Ids (with aliases) of the nets that changed since tracking started; null while not tracking (M6.1-B). */
+    private Set<String> changedNets;
 
     Scheduler scheduler() {
         return scheduler;
@@ -226,6 +233,44 @@ public final class SimulationEngine {
     }
 
     /**
+     * «Avanzar» (M6.1-B): runs every event of the next pending time, zero-delay effects at that time included, and
+     * reports the nets that changed. When nothing is pending nothing runs and the result is idle.
+     *
+     * @throws IllegalStateException when more than {@link #STEP_EVENT_BUDGET} events would run at that time
+     */
+    public StepResult advanceToNextEvent() {
+        long fromTime = now();
+        OptionalLong next = nextEventTime();
+        if (next.isEmpty()) {
+            return StepResult.idle(fromTime);
+        }
+        Set<String> changed = startTracking();
+        try {
+            scheduler.runUntil(next.getAsLong(), STEP_EVENT_BUDGET);
+        } finally {
+            changedNets = null;
+        }
+        return new StepResult(fromTime, now(), changed, nextEventTime());
+    }
+
+    /** {@link #interact} that also reports the nets that changed (a switch clicked while paused, M6.1-B). */
+    public StepResult interactTracked(String componentId) {
+        Set<String> changed = startTracking();
+        try {
+            interact(componentId);
+        } finally {
+            changedNets = null;
+        }
+        return new StepResult(now(), now(), changed, nextEventTime());
+    }
+
+    private Set<String> startTracking() {
+        Set<String> changed = new LinkedHashSet<>();
+        changedNets = changed;
+        return changed;
+    }
+
+    /**
      * Binds waveform channels: channel id → net id (a top-level id, an alias or a nested id; an empty or unknown id
      * records a gap). Channels left out are dropped with their history; the others keep it, even when their net id
      * changed (spec §3.3). Every channel is sampled now.
@@ -263,6 +308,10 @@ public final class SimulationEngine {
         if (net != null && net.resolve(now())) {
             if (!net.recorders.isEmpty()) {
                 recorder.record(net, now());
+            }
+            if (changedNets != null) {
+                changedNets.add(net.id);
+                changedNets.addAll(net.aliases);
             }
             deliver(net);
         }
