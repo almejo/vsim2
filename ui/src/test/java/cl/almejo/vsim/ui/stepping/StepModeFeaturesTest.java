@@ -215,4 +215,34 @@ class StepModeFeaturesTest {
         assertThat(view.shortcutActions()).doesNotContainKeys("simulation.stepMode", "simulation.advance");
         assertThat(features.overlay().isTimerRunning()).isFalse();
     }
+
+    @Test
+    void theComponentsAboutToChangeAreOutlinedWhilePaused() {
+        Component toggle = place(openDocument, StandardComponentTypes.SWITCH, 0, 0, Map.of());  // out (4,1)
+        Component first = place(openDocument, StandardComponentTypes.NOT, 4, -1, Map.of());     // (4,1) → (8,1)
+        Component second = place(openDocument, StandardComponentTypes.NOT, 8, -1, Map.of());    // (8,1) → (12,1)
+        settleThenEnterStepMode();
+        assertThat(features.pendingOverlay().current().components()).isEmpty();
+
+        openDocument.interact(toggle.id());
+        waitUntil(() -> openDocument.latestStep().isPresent() && openDocument.latestNextEventTime().isPresent());
+        showLatestSnapshot();
+        assertThat(features.pendingOverlay().current().components()).containsExactly(first.id());
+        assertThat(features.pendingOverlay().current().matches(openDocument.netlistToken())).isTrue();
+
+        perform(features.advanceAction());
+        waitUntil(() -> openDocument.latestStep().orElseThrow().sequence() == 2);
+        showLatestSnapshot();
+        assertThat(features.pendingOverlay().current().components()).containsExactly(second.id());
+
+        perform(features.advanceAction());
+        waitUntil(() -> openDocument.latestStep().orElseThrow().sequence() == 3);
+        showLatestSnapshot();
+        assertThat(features.pendingOverlay().current().components()).as("stable").isEmpty();
+
+        features.snapshotPublished(SimulationSnapshot.EMPTY.withRunning(true));
+        assertThat(features.pendingOverlay().current()).isEqualTo(PendingOutline.NONE);
+        features.dispose();
+        assertThat(features.pendingOverlay().current()).isEqualTo(PendingOutline.NONE);
+    }
 }

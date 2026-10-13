@@ -55,7 +55,7 @@ final class ComponentInstance implements BehaviorContext {
                     + " but got " + value.width());
         }
         pin.pendingDrives++;
-        engine.scheduler().schedule(delay, () -> {
+        engine.scheduler().schedule(delay, this, () -> {
             if (removed) {
                 return;
             }
@@ -67,7 +67,7 @@ final class ComponentInstance implements BehaviorContext {
 
     @Override
     public void schedule(long delay, Runnable action) {
-        engine.scheduler().schedule(delay, () -> {
+        engine.scheduler().schedule(delay, this, () -> {
             if (!removed) {
                 action.run();
             }

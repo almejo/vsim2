@@ -50,6 +50,7 @@ public final class StepModeFeatures {
     private final JButton advanceButton;
     private final JLabel status = new JLabel();
     private final StepHighlightOverlay overlay;
+    private final PendingOutlineOverlay pendingOverlay;
     private final Runnable stepModeListener = this::refresh;
     private final Consumer<SimulationSnapshot> snapshotListener = this::snapshotPublished;
     private final List<Runnable> shortcutRemovers;
@@ -93,6 +94,8 @@ public final class StepModeFeatures {
                 view.registerShortcutAction("simulation.advance", advanceAction));
         this.overlay = new StepHighlightOverlay(canvas::scheme, canvas::repaint, nanoClock);
         canvas.addOverlay(overlay);
+        this.pendingOverlay = new PendingOutlineOverlay(canvas::scheme, openDocument.registry(), canvas::repaint);
+        canvas.addOverlay(pendingOverlay);
         // A step made before this view existed is not this view's to show.
         this.shownSequence = openDocument.latestStep().map(StepReport::sequence).orElse(0L);
         openDocument.addStepModeListener(stepModeListener);
@@ -120,6 +123,10 @@ public final class StepModeFeatures {
         return overlay;
     }
 
+    PendingOutlineOverlay pendingOverlay() {
+        return pendingOverlay;
+    }
+
     /**
      * Called with every snapshot the canvas shows: a step not shown yet lights its wires and, in the mode or when it
      * moved time, moves the waveform cursor; then the actions and the label follow the snapshot.
@@ -133,7 +140,14 @@ public final class StepModeFeatures {
             shownSequence = latest.get().sequence();
             showStep(latest.get().result());
         }
+        showPending(snapshot);
         refresh(snapshot);
+    }
+
+    /** Outlines what has an event at the next event time while paused (spec §4.4), in and out of the mode. */
+    private void showPending(SimulationSnapshot snapshot) {
+        pendingOverlay.show(snapshot.running() ? PendingOutline.NONE
+                : PendingOutline.of(openDocument.latestPendingComponents(), openDocument.document(), snapshot.token()));
     }
 
     private void showStep(StepResult result) {
@@ -176,6 +190,8 @@ public final class StepModeFeatures {
         canvas.removeSnapshotListener(snapshotListener);
         canvas.removeOverlay(overlay);
         overlay.dispose();
+        canvas.removeOverlay(pendingOverlay);
+        pendingOverlay.dispose();
         simulationMenu.remove(advanceItem);
         simulationMenu.remove(stepModeItem);
         JToolBar toolBar = view.toolBar();

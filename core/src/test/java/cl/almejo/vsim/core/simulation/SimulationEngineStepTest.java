@@ -211,4 +211,44 @@ class SimulationEngineStepTest {
         assertThat(engine.interactTracked("n1")).isEqualTo(new StepResult(5, 5, Set.of(), OptionalLong.empty()));
         assertThat(engine.interactTracked("missing").changedNets()).isEmpty();
     }
+
+    @Test
+    void pendingComponentsAreTheOwnersOfTheNextTime() {
+        engine.update(inverterChain());
+        engine.advance(5);
+        assertThat(engine.pendingComponents()).isEmpty();
+
+        engine.interactTracked("s");
+        assertThat(engine.pendingComponents()).containsExactly("n1");
+        engine.advanceToNextEvent();
+        assertThat(engine.pendingComponents()).containsExactly("n2");
+        engine.advanceToNextEvent();
+        assertThat(engine.pendingComponents()).isEmpty();
+    }
+
+    @Test
+    void aNestedGateIsReportedByItsFlatId() {
+        engine.update(new FlatCircuit(List.of(component("s", TestComponentTypes.SOURCE, Map.of("value", "0")),
+                component("c4/n1", TestComponentTypes.INVERTER, Map.of("delay", 3))),
+                List.of(net("a", pin("s", 0), pin("c4/n1", 0)), net("c4/b", pin("c4/n1", 1)))));
+        engine.advance(5);
+
+        engine.interactTracked("s");
+
+        assertThat(engine.nextEventTime()).hasValue(8);
+        assertThat(engine.pendingComponents()).containsExactly("c4/n1");
+    }
+
+    @Test
+    void aRemovedComponentIsNeverPending() {
+        engine.update(inverterChain());
+        engine.advance(5);
+        engine.interactTracked("s");
+
+        engine.update(new FlatCircuit(List.of(component("s", TestComponentTypes.SOURCE, Map.of("value", "0"))),
+                List.of(net("a", pin("s", 0)))));
+
+        assertThat(engine.nextEventTime()).as("the removed inverter's event is still queued").hasValue(6);
+        assertThat(engine.pendingComponents()).isEmpty();
+    }
 }

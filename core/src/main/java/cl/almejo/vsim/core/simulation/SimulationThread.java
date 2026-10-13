@@ -39,6 +39,9 @@ public final class SimulationThread implements AutoCloseable {
     private volatile StepReport latestStep;
     /** The engine's next event time, refreshed with every published snapshot (M6.1-B). */
     private volatile OptionalLong latestNextEventTime = OptionalLong.empty();
+
+    /** The engine's pending components while paused, empty while running (M6.1-B), written with the next event time. */
+    private volatile Set<String> latestPendingComponents = Set.of();
     private volatile boolean stopRequested;
     private Thread thread;
 
@@ -142,6 +145,14 @@ public final class SimulationThread implements AutoCloseable {
      */
     public OptionalLong latestNextEventTime() {
         return latestNextEventTime;
+    }
+
+    /**
+     * The components with an event at {@link #latestNextEventTime()} (flat ids, see
+     * {@link SimulationEngine#pendingComponents()}), as of the latest published snapshot; empty while running.
+     */
+    public Set<String> latestPendingComponents() {
+        return latestPendingComponents;
     }
 
     private void publishStep(StepResult result) {
@@ -250,6 +261,7 @@ public final class SimulationThread implements AutoCloseable {
                 SimulationSnapshot snapshot = engine.snapshot();
                 pauseOnNewShortCircuit(snapshot);
                 latestNextEventTime = engine.nextEventTime();
+                latestPendingComponents = running ? Set.of() : engine.pendingComponents();
                 latestSnapshot = snapshot.withRunning(running).withFailure(Optional.ofNullable(failure));
                 snapshotStale = false;
             }
@@ -292,6 +304,7 @@ public final class SimulationThread implements AutoCloseable {
                 ? throwable.getClass().getSimpleName()
                 : throwable.getClass().getSimpleName() + ": " + throwable.getMessage();
         latestNextEventTime = engine.nextEventTime();
+        latestPendingComponents = engine.pendingComponents();
         latestSnapshot = latestSnapshot.withRunning(false).withFailure(Optional.of(failure));
     }
 

@@ -73,4 +73,13 @@ class SchedulerTest {
         scheduler.schedule(0, () -> { });
         assertThat(scheduler.nextEventTime()).hasValue(7);
     }
+
+    @Test
+    void eventsWithoutAnOwnerAreNeverListedAsPending() {
+        Scheduler scheduler = new Scheduler();
+        scheduler.schedule(2, () -> { });
+
+        assertThat(scheduler.nextEventTime()).hasValue(2);
+        assertThat(scheduler.ownersAt(2)).isEmpty();
+    }
 }

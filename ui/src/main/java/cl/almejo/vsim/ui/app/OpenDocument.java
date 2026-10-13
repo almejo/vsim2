@@ -37,6 +37,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalLong;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
 
@@ -310,6 +311,11 @@ public final class OpenDocument implements AutoCloseable {
     /** The next pending event time as of the latest snapshot (empty: the circuit is stable); read after the snapshot. */
     public OptionalLong latestNextEventTime() {
         return simulation.latestNextEventTime();
+    }
+
+    /** The components (flat ids) with an event at the next event time; empty while running (M6.1-B). */
+    public Set<String> latestPendingComponents() {
+        return simulation.latestPendingComponents();
     }
 
     /** Probe id → top-level net id for the probes that resolve in the current netlist; the others are absent. */

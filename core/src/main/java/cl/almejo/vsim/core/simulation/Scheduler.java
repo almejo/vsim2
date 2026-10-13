@@ -1,13 +1,16 @@
 package cl.almejo.vsim.core.simulation;
 
 import java.util.Comparator;
+import java.util.LinkedHashSet;
 import java.util.OptionalLong;
 import java.util.PriorityQueue;
+import java.util.Set;
 
 /** Discrete event queue (port of VSim's Heap + Scheduler; ties run in insertion order). */
 final class Scheduler {
 
-    private record Entry(long time, long sequence, Runnable action) {
+    /** {@code owner}: the component whose behavior scheduled the event (M6.1-B), null for nobody's. */
+    private record Entry(long time, long sequence, ComponentInstance owner, Runnable action) {
     }
 
     private final PriorityQueue<Entry> queue = new PriorityQueue<>(
@@ -20,10 +23,29 @@ final class Scheduler {
     }
 
     void schedule(long delay, Runnable action) {
+        schedule(delay, null, action);
+    }
+
+    /** Schedules {@code action} as an event of {@code owner} (null: nobody's), see {@link #ownersAt(long)}. */
+    void schedule(long delay, ComponentInstance owner, Runnable action) {
         if (delay < 0) {
             throw new IllegalArgumentException("negative delay: " + delay);
         }
-        queue.add(new Entry(now + delay, nextSequence++, action));
+        queue.add(new Entry(now + delay, nextSequence++, owner, action));
+    }
+
+    /**
+     * The owners of the events due at {@code time} (M6.1-B pending outline), each once; events without an owner are
+     * left out. It walks the whole queue, so it is meant for a paused simulation.
+     */
+    Set<ComponentInstance> ownersAt(long time) {
+        Set<ComponentInstance> owners = new LinkedHashSet<>();
+        for (Entry entry : queue) {
+            if (entry.time() == time && entry.owner() != null) {
+                owners.add(entry.owner());
+            }
+        }
+        return owners;
     }
 
     /** Runs every event with time &lt;= {@code until} (including ones scheduled meanwhile), then sets now = until. */

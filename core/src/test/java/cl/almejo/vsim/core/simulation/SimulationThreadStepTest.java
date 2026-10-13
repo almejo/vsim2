@@ -112,4 +112,22 @@ class SimulationThreadStepTest {
         assertThat(thread.latestStep()).isEmpty();
         assertThat(thread.latestNextEventTime()).hasValue(5);
     }
+
+    @Test
+    void pendingComponentsArePublishedWhilePausedAndEmptyWhileRunning() {
+        assertThat(thread.latestPendingComponents()).isEmpty();
+        thread.update(inverterChain());
+        thread.tick();
+        assertThat(thread.latestPendingComponents()).as("both inverters settle at t = 1").containsExactlyInAnyOrder(
+                "n1", "n2");
+
+        thread.advanceToNextEvent();
+        thread.tick();
+        assertThat(thread.latestPendingComponents()).containsExactly("n2");
+
+        thread.resume();
+        thread.tick();
+        assertThat(thread.latestNextEventTime()).hasValue(2);
+        assertThat(thread.latestPendingComponents()).as("running").isEmpty();
+    }
 }

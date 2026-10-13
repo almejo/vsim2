@@ -5,6 +5,7 @@ import cl.almejo.vsim.core.value.Value;
 import cl.almejo.vsim.core.waveform.WaveformSnapshot;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -268,6 +269,25 @@ public final class SimulationEngine {
         Set<String> changed = new LinkedHashSet<>();
         changedNets = changed;
         return changed;
+    }
+
+    /**
+     * The components with an event at {@link #nextEventTime()} (M6.1-B): the gates whose output is about to change and
+     * the clocks about to tick, by flat id (a nested one as {@code instance/child}). Empty when nothing is pending.
+     * Walks the event queue: call it while paused.
+     */
+    public Set<String> pendingComponents() {
+        OptionalLong next = nextEventTime();
+        if (next.isEmpty()) {
+            return Set.of();
+        }
+        Set<String> pending = new LinkedHashSet<>();
+        for (ComponentInstance owner : scheduler.ownersAt(next.getAsLong())) {
+            if (!owner.removed) {
+                pending.add(owner.id);
+            }
+        }
+        return Collections.unmodifiableSet(pending);
     }
 
     /**
