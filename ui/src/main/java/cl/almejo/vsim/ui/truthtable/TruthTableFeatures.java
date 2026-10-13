@@ -1,0 +1,309 @@
+package cl.almejo.vsim.ui.truthtable;
+
+import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
+import cl.almejo.vsim.core.document.CircuitDocument;
+import cl.almejo.vsim.core.document.DocumentElement;
+import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.core.library.ComponentDefinition;
+import cl.almejo.vsim.core.truthtable.Preparation;
+import cl.almejo.vsim.core.truthtable.TruthTable;
+import cl.almejo.vsim.core.truthtable.TruthTableScope;
+import cl.almejo.vsim.ui.actions.ContextMenuContributor;
+import cl.almejo.vsim.ui.app.OpenDocument;
+import cl.almejo.vsim.ui.canvas.Selection;
+import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.window.EditorView;
+import cl.almejo.vsim.ui.window.MenuId;
+
+import javax.swing.AbstractAction;
+import javax.swing.Action;
+import javax.swing.JMenu;
+import javax.swing.JMenuItem;
+import javax.swing.JPopupMenu;
+import javax.swing.Timer;
+import java.awt.Component;
+import java.awt.event.ActionEvent;
+import java.awt.geom.Point2D;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+import java.util.function.BiConsumer;
+
+/**
+ * The truth-table feature of one editor view (spec §5.1): Simulación ▸ «Tabla de verdad…», the canvas context-menu
+ * item, the shortcut registration, one runner and the open windows. {@link #dispose()} removes all of it and closes
+ * the windows; the context-menu contributor cannot be removed from the view and does nothing afterwards.
+ */
+public final class TruthTableFeatures {
+
+    /** After this much work a window shows «Calculando… N %» with «Cancelar», whatever its row count. */
+    public static final int PROGRESS_DELAY_MILLISECONDS = 300;
+
+    private static final Set<String> INPUT_TYPES = Set.of(StandardComponentTypes.SWITCH,
+            StandardComponentTypes.INPUT_PIN);
+    private static final Set<String> OUTPUT_TYPES = Set.of(StandardComponentTypes.LED,
+            StandardComponentTypes.OUTPUT_PIN);
+
+    /** Runs {@code task} once after a delay, on the EDT; the returned runnable stops it if it has not run yet. */
+    @FunctionalInterface
+    public interface Delay {
+        Runnable after(int milliseconds, Runnable task);
+
+        /** A one-shot Swing {@link Timer}. */
+        static Delay swing() {
+            return (milliseconds, task) -> {
+                Timer timer = new Timer(milliseconds, event -> task.run());
+                timer.setRepeats(false);
+                timer.start();
+                return timer::stop;
+            };
+        }
+    }
+
+    private final EditorView view;
+    private final TruthTableDisplay.Factory windows;
+    private final BiConsumer<Component, String> messages;
+    private final TruthTableRunner runner;
+    private final Delay delay;
+    private final Action action;
+    private final JMenu simulationMenu;
+    private final Component separator;
+    private final JMenuItem item;
+    private final Runnable shortcutRemover;
+    private final List<Session> sessions = new ArrayList<>();
+    private boolean disposed;
+
+    public TruthTableFeatures(EditorView view, TruthTableDisplay.Factory windows,
+                              BiConsumer<Component, String> messages, TruthTableRunner runner) {
+        this(view, windows, messages, runner, Delay.swing());
+    }
+
+    /** {@code delay} decides when a computation still running shows its progress (tests run it by hand). */
+    public TruthTableFeatures(EditorView view, TruthTableDisplay.Factory windows,
+                              BiConsumer<Component, String> messages, TruthTableRunner runner, Delay delay) {
+        this.view = view;
+        this.windows = windows;
+        this.messages = messages;
+        this.runner = runner;
+        this.delay = delay;
+        this.action = new AbstractAction(Messages.text("action.truthTable")) {
+            @Override
+            public void actionPerformed(ActionEvent event) {
+                open(view.canvas().selection().ids());
+            }
+        };
+        this.simulationMenu = view.menu(MenuId.SIMULATION);
+        simulationMenu.addSeparator();
+        this.separator = simulationMenu.getMenuComponent(simulationMenu.getMenuComponentCount() - 1);
+        this.item = new JMenuItem(action);
+        simulationMenu.add(item);
+        this.shortcutRemover = view.registerShortcutAction("simulation.truthTable", action);
+        view.addContextMenuContributor(new Contributor());
+    }
+
+    public Action action() {
+        return action;
+    }
+
+    /** The windows open now, oldest first. */
+    public int openWindowCount() {
+        return sessions.size();
+    }
+
+    /**
+     * Computes the table of {@code selection} (empty: the whole circuit) and shows it in a new window; a refusal is
+     * shown as a message and opens nothing.
+     */
+    public void open(Set<ElementId> selection) {
+        if (disposed) {
+            return;
+        }
+        Set<ElementId> scope = Set.copyOf(selection);
+        Preparation preparation = prepare(scope);
+        if (preparation instanceof Preparation.Refused refused) {
+            messages.accept(view, TruthTableMessages.refusal(refused));
+            return;
+        }
+        Session session = new Session(scope);
+        session.display = windows.open(view, TruthTableMessages.title(scopeName(scope)), session);
+        sessions.add(session);
+        session.run((Preparation.Ready) preparation);
+    }
+
+    private Preparation prepare(Set<ElementId> scope) {
+        OpenDocument openDocument = view.openDocument();
+        return TruthTableScope.prepare(openDocument.document(), scope, openDocument.registry());
+    }
+
+    private String scopeName(Set<ElementId> scope) {
+        if (scope.isEmpty()) {
+            return view.openDocument().displayName();
+        }
+        return TruthTableScope.singleInstance(view.openDocument().document(), scope)
+                .map(ComponentDefinition::name)
+                .orElseGet(TruthTableMessages::selectionName);
+    }
+
+    public void dispose() {
+        if (disposed) {
+            return;
+        }
+        disposed = true;
+        shortcutRemover.run();
+        simulationMenu.remove(item);
+        simulationMenu.remove(separator);
+        runner.dispose();
+        for (Session session : List.copyOf(sessions)) {
+            session.closed = true;
+            session.stopProgressDelay.run();
+            session.display.close();
+        }
+        sessions.clear();
+    }
+
+    /**
+     * Whether {@code scope} (empty: the whole circuit) holds at least one switch or input pin and one LED or output
+     * pin, so a table can come out of it.
+     */
+    private static boolean hasInputAndOutput(CircuitDocument document, Set<ElementId> scope) {
+        boolean input = false;
+        boolean output = false;
+        for (cl.almejo.vsim.core.document.Component component : document.components()) {
+            if (scope.isEmpty() || scope.contains(component.id())) {
+                input |= INPUT_TYPES.contains(component.typeId());
+                output |= OUTPUT_TYPES.contains(component.typeId());
+            }
+        }
+        return input && output;
+    }
+
+    /** One window: its scope, its display and the computation running for it. */
+    private final class Session implements TruthTableDisplay.Controls, TruthTableRunner.Callbacks {
+
+        private final Set<ElementId> scope;
+        private TruthTableDisplay display;
+        private boolean running;
+        private boolean showsProgress;
+        private boolean closed;
+        private int lastPercent;
+        private Runnable stopProgressDelay = () -> {
+        };
+
+        Session(Set<ElementId> scope) {
+            this.scope = scope;
+        }
+
+        void run(Preparation.Ready ready) {
+            stopProgressDelay.run();
+            if (running) {
+                runner.cancel(); // this window's previous computation says «cancelado» now, not after the new start
+            }
+            showsProgress = false;
+            lastPercent = 0;
+            running = true;
+            stopProgressDelay = delay.after(PROGRESS_DELAY_MILLISECONDS, this::progressDue);
+            runner.start(ready, this);
+        }
+
+        /** 300 ms of work and still running: the progress line and «Cancelar» show from now on. */
+        private void progressDue() {
+            if (running && !closed && !disposed) {
+                showsProgress = true;
+                display.showProgress(lastPercent);
+            }
+        }
+
+        @Override
+        public void recalculate() {
+            if (disposed || closed) {
+                return;
+            }
+            Preparation preparation = prepare(scope);
+            if (preparation instanceof Preparation.Refused refused) {
+                messages.accept(view, TruthTableMessages.refusal(refused));
+            } else {
+                run((Preparation.Ready) preparation);
+            }
+        }
+
+        @Override
+        public void cancel() {
+            if (running) {
+                runner.cancel();
+            }
+        }
+
+        @Override
+        public void closed() {
+            closed = true;
+            sessions.remove(this);
+            cancel();
+            stopProgressDelay.run();
+        }
+
+        @Override
+        public void progress(int percent) {
+            lastPercent = percent;
+            if (showsProgress && !closed) {
+                display.showProgress(percent);
+            }
+        }
+
+        @Override
+        public void finished(TruthTable table) {
+            running = false;
+            stopProgressDelay.run();
+            if (!closed) {
+                display.showTable(table);
+            }
+        }
+
+        @Override
+        public void cancelled() {
+            running = false;
+            stopProgressDelay.run();
+            if (!closed) {
+                display.showMessage(Messages.text("truthTable.cancelled"));
+            }
+        }
+
+        @Override
+        public void failed(RuntimeException exception) {
+            running = false;
+            stopProgressDelay.run();
+            if (!closed) {
+                display.showMessage(Messages.format("truthTable.failed", String.valueOf(exception.getMessage())));
+            }
+        }
+    }
+
+    /**
+     * «Tabla de verdad…» on a selection or on the empty canvas when the scope has an input and an output; «… de
+     * «Nombre»…» on one user-component instance; nothing otherwise (a lone gate or wire could only be refused).
+     */
+    private final class Contributor implements ContextMenuContributor {
+        @Override
+        public void contribute(JPopupMenu menu, Optional<DocumentElement> target, Selection selection,
+                               Point2D gridPosition) {
+            if (disposed) {
+                return;
+            }
+            Set<ElementId> scope = selection.ids();
+            CircuitDocument document = view.openDocument().document();
+            Optional<ComponentDefinition> instance = TruthTableScope.singleInstance(document, scope);
+            if (instance.isEmpty() && !hasInputAndOutput(document, scope)) {
+                return;
+            }
+            String text = instance
+                    .map(definition -> TruthTableMessages.instanceMenuText(definition.name()))
+                    .orElseGet(() -> Messages.text("action.truthTable"));
+            menu.add(new JMenuItem(new AbstractAction(text) {
+                @Override
+                public void actionPerformed(ActionEvent event) {
+                    open(scope);
+                }
+            }));
+        }
+    }
+}

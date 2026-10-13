@@ -1,0 +1,329 @@
+package cl.almejo.vsim.ui.truthtable;
+
+import cl.almejo.vsim.core.command.AddElementsCommand;
+import cl.almejo.vsim.core.command.PutDefinitionsCommand;
+import cl.almejo.vsim.core.command.SetLabelCommand;
+import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
+import cl.almejo.vsim.core.document.Component;
+import cl.almejo.vsim.core.geometry.GridPoint;
+import cl.almejo.vsim.core.geometry.Rotation;
+import cl.almejo.vsim.core.library.ComponentLibrary;
+import cl.almejo.vsim.core.library.ExampleDefinitions;
+import cl.almejo.vsim.core.library.SubcircuitTypes;
+import cl.almejo.vsim.core.truthtable.TruthTable;
+import cl.almejo.vsim.ui.app.AppPreferences;
+import cl.almejo.vsim.ui.app.OpenDocument;
+import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.paint.Appearance;
+import cl.almejo.vsim.ui.paint.ColorScheme;
+import cl.almejo.vsim.ui.paint.PainterRegistry;
+import cl.almejo.vsim.ui.window.EditorServices;
+import cl.almejo.vsim.ui.window.EditorView;
+import cl.almejo.vsim.ui.window.MenuId;
+import cl.almejo.vsim.ui.window.WindowCommands;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import javax.swing.JMenu;
+import javax.swing.JMenuItem;
+import javax.swing.JPopupMenu;
+import java.awt.event.ActionEvent;
+import java.awt.geom.Point2D;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+
+import static cl.almejo.vsim.ui.UiTestSupport.place;
+import static org.assertj.core.api.Assertions.assertThat;
+
+class TruthTableExtensionTest {
+
+    private static final WindowCommands NO_WINDOW = new WindowCommands() {
+        @Override public void newDocument() { }
+        @Override public void open() { }
+        @Override public void save() { }
+        @Override public void saveAs() { }
+        @Override public void closeWindow() { }
+        @Override public void exit() { }
+    };
+
+    /** A window as the feature drives it: what it was told, and its controls to press. */
+    private static final class FakeDisplay implements TruthTableDisplay {
+        final String title;
+        final Controls controls;
+        final List<Integer> progress = new ArrayList<>();
+        final List<String> notices = new ArrayList<>();
+        TruthTable table;
+        boolean closed;
+
+        FakeDisplay(String title, Controls controls) {
+            this.title = title;
+            this.controls = controls;
+        }
+
+        @Override public void showProgress(int percent) { progress.add(percent); }
+        @Override public void showTable(TruthTable shown) { table = shown; }
+        @Override public void showMessage(String message) { notices.add(message); }
+        @Override public void close() { closed = true; }
+    }
+
+    private final List<FakeDisplay> displays = new ArrayList<>();
+    private final List<String> messages = new ArrayList<>();
+    private OpenDocument openDocument;
+    private EditorServices services;
+
+    @BeforeEach
+    void create() {
+        Messages.initialize(Messages.SPANISH);
+        openDocument = OpenDocument.createEmpty(StandardComponentTypes.registry());
+        TruthTableExtension extension = new TruthTableExtension((view, title, controls) -> {
+            FakeDisplay display = new FakeDisplay(title, controls);
+            displays.add(display);
+            return display;
+        }, (parent, message) -> messages.add(message), () -> new TruthTableRunner(Runnable::run, Runnable::run));
+        services = new EditorServices(PainterRegistry.standard(), new Appearance(ColorScheme.LIGHT),
+                AppPreferences.inMemory(), new ComponentLibrary(), List.of(extension));
+    }
+
+    @AfterEach
+    void close() {
+        openDocument.close();
+    }
+
+    private static List<String> texts(JMenu menu) {
+        List<String> texts = new ArrayList<>();
+        for (java.awt.Component child : menu.getMenuComponents()) {
+            texts.add(child instanceof JMenuItem item ? item.getText() : "---");
+        }
+        return texts;
+    }
+
+    private static JMenuItem last(JMenu menu) {
+        return (JMenuItem) menu.getMenuComponent(menu.getMenuComponentCount() - 1);
+    }
+
+    private static void perform(JMenuItem item) {
+        item.getAction().actionPerformed(new ActionEvent(item, ActionEvent.ACTION_PERFORMED, ""));
+    }
+
+    private static List<String> texts(JPopupMenu menu) {
+        List<String> texts = new ArrayList<>();
+        for (java.awt.Component child : menu.getComponents()) {
+            if (child instanceof JMenuItem item) {
+                texts.add(item.getText());
+            }
+        }
+        return texts;
+    }
+
+    private static JMenuItem item(JPopupMenu menu, String text) {
+        for (java.awt.Component child : menu.getComponents()) {
+            if (child instanceof JMenuItem item && text.equals(item.getText())) {
+                return item;
+            }
+        }
+        throw new AssertionError("no item " + text);
+    }
+
+    /** Switch «A» touching LED «Y»: Y = A. */
+    private void identityCircuit() {
+        place(openDocument, StandardComponentTypes.SWITCH, 0, 0, Map.of());
+        place(openDocument, StandardComponentTypes.LED, 3, -2, Map.of());
+    }
+
+    @Test
+    void theSimulationMenuEndsWithTheItemAndDisposeTakesEverythingBack() {
+        EditorView bare = new EditorView(openDocument, PainterRegistry.standard(), ColorScheme.LIGHT, NO_WINDOW);
+        List<String> before = texts(bare.menu(MenuId.SIMULATION));
+        int listeners = openDocument.changeListenerCount();
+        TruthTableFeatures features = new TruthTableFeatures(bare, (view, title, controls) -> {
+            FakeDisplay display = new FakeDisplay(title, controls);
+            displays.add(display);
+            return display;
+        }, (parent, message) -> messages.add(message), new TruthTableRunner(Runnable::run, Runnable::run));
+        try {
+            assertThat(texts(bare.menu(MenuId.SIMULATION))).endsWith("---", "Tabla de verdad…");
+            assertThat(bare.shortcutActions()).containsEntry("simulation.truthTable", features.action());
+            identityCircuit();
+            perform(last(bare.menu(MenuId.SIMULATION)));
+            assertThat(features.openWindowCount()).isEqualTo(1);
+
+            features.dispose();
+
+            assertThat(texts(bare.menu(MenuId.SIMULATION))).isEqualTo(before);
+            assertThat(bare.shortcutActions()).doesNotContainKey("simulation.truthTable");
+            assertThat(openDocument.changeListenerCount()).isEqualTo(listeners);
+            assertThat(displays.get(0).closed).isTrue();
+            assertThat(features.openWindowCount()).isZero();
+            assertThat(bare.contextMenu(Optional.empty(), new Point2D.Double(1, 1)).getComponents())
+                    .as("the contributor adds nothing after dispose")
+                    .noneMatch(child -> child instanceof JMenuItem menuItem
+                            && menuItem.getText().equals("Tabla de verdad…"));
+        } finally {
+            features.dispose();
+            bare.dispose();
+        }
+    }
+
+    @Test
+    void theMenuItemShowsTheWholeCircuitsTableTitledWithTheDocumentName() {
+        identityCircuit();
+        EditorView view = new EditorView(openDocument, services, NO_WINDOW);
+        try {
+            perform(last(view.menu(MenuId.SIMULATION)));
+
+            assertThat(displays).hasSize(1);
+            FakeDisplay display = displays.get(0);
+            assertThat(display.title).isEqualTo("Tabla de verdad — Sin título");
+            assertThat(display.table.inputs()).extracting(column -> column.name()).containsExactly("A");
+            assertThat(display.table.rows()).hasSize(2);
+            assertThat(display.progress).as("finished long before 300 ms: no progress line").isEmpty();
+            assertThat(messages).isEmpty();
+        } finally {
+            view.dispose();
+        }
+    }
+
+    @Test
+    void aRefusalIsAMessageAndOpensNoWindow() {
+        EditorView view = new EditorView(openDocument, services, NO_WINDOW);
+        try {
+            perform(last(view.menu(MenuId.SIMULATION)));
+
+            assertThat(messages).containsExactly("No hay entradas: usa interruptores o pines de entrada");
+            assertThat(displays).isEmpty();
+        } finally {
+            view.dispose();
+        }
+    }
+
+    @Test
+    void theContextMenuOfOneInstanceNamesItsComponentAndShowsItsTable() {
+        openDocument.execute(new PutDefinitionsCommand(List.of(ExampleDefinitions.inverter())));
+        Component instance = new Component(openDocument.document().newComponentId(),
+                SubcircuitTypes.typeIdOf(ExampleDefinitions.INVERTER), new GridPoint(10, 0), Rotation.R0, Map.of(),
+                "");
+        openDocument.execute(new AddElementsCommand(List.of(instance)));
+        EditorView view = new EditorView(openDocument, services, NO_WINDOW);
+        try {
+            assertThat(texts(view.contextMenu(Optional.empty(), new Point2D.Double(1, 1))))
+                    .as("the whole circuit has no switch or LED: nothing to offer on the empty canvas")
+                    .doesNotContain("Tabla de verdad…");
+            view.canvas().selection().select(instance.id());
+
+            perform(item(view.contextMenu(Optional.of(instance), new Point2D.Double(11, 1)),
+                    "Tabla de verdad de «Inversor»…"));
+
+            assertThat(displays).hasSize(1);
+            assertThat(displays.get(0).title).isEqualTo("Tabla de verdad — Inversor");
+            assertThat(displays.get(0).table.outputs()).extracting(column -> column.name()).containsExactly("y");
+        } finally {
+            view.dispose();
+        }
+    }
+
+    @Test
+    void theContextMenuOffersTheTableOnlyForAScopeWithAnInputAndAnOutput() {
+        Component toggle = place(openDocument, StandardComponentTypes.SWITCH, 0, 0, Map.of());   // out (4,1)
+        Component gate = place(openDocument, StandardComponentTypes.NOT, 10, -1, Map.of());     // (10,1) → (14,1)
+        Component led = place(openDocument, StandardComponentTypes.LED, 13, -2, Map.of());      // in (14,1)
+        EditorView view = new EditorView(openDocument, services, NO_WINDOW);
+        try {
+            assertThat(texts(view.contextMenu(Optional.empty(), new Point2D.Double(30, 30))))
+                    .as("empty canvas, whole circuit with a switch and a LED").contains("Tabla de verdad…");
+
+            view.canvas().selection().select(gate.id());
+            assertThat(texts(view.contextMenu(Optional.of(gate), new Point2D.Double(11, 1))))
+                    .as("a lone gate could only be refused").doesNotContain("Tabla de verdad…");
+
+            view.canvas().selection().set(List.of(toggle.id(), led.id()));
+            assertThat(texts(view.contextMenu(Optional.of(led), new Point2D.Double(14, 0))))
+                    .contains("Tabla de verdad…");
+        } finally {
+            view.dispose();
+        }
+    }
+
+    @Test
+    void aSelectionIsTitledSeleccionAndRecalculateFollowsEdits() {
+        Component toggle = place(openDocument, StandardComponentTypes.SWITCH, 0, 0, Map.of());
+        place(openDocument, StandardComponentTypes.LED, 3, -2, Map.of());
+        EditorView view = new EditorView(openDocument, services, NO_WINDOW);
+        try {
+            view.canvas().selection().selectAll(openDocument.document());
+            perform(last(view.menu(MenuId.SIMULATION)));
+            FakeDisplay display = displays.get(0);
+            assertThat(display.title).isEqualTo("Tabla de verdad — selección");
+            assertThat(display.table.rows()).hasSize(2);
+            TruthTable first = display.table;
+            assertThat(first.inputs()).extracting(column -> column.name()).containsExactly("A");
+
+            openDocument.execute(new SetLabelCommand(toggle.id(), "E"));
+            place(openDocument, StandardComponentTypes.SWITCH, 0, 10, Map.of());
+            display.controls.recalculate();
+            assertThat(display.table).as("«Recalcular» computed a new table").isNotSameAs(first);
+            assertThat(display.table.inputs()).extracting(column -> column.name())
+                    .as("the relabelled switch is read again; the new switch is not in the saved selection")
+                    .containsExactly("E");
+            assertThat(display.table.rows()).hasSize(2);
+
+            view.canvas().selection().clear();
+            perform(last(view.menu(MenuId.SIMULATION)));
+            assertThat(displays.get(1).table.rows()).hasSize(4);
+        } finally {
+            view.dispose();
+        }
+    }
+
+    @Test
+    void progressAndCancelAppearOnlyOnceTheWorkHasRunForThreeHundredMilliseconds() {
+        identityCircuit();
+        EditorView bare = new EditorView(openDocument, PainterRegistry.standard(), ColorScheme.LIGHT, NO_WINDOW);
+        List<Runnable> work = new ArrayList<>();
+        List<Runnable> due = new ArrayList<>();
+        List<Integer> delays = new ArrayList<>();
+        TruthTableFeatures features = new TruthTableFeatures(bare, (view, title, controls) -> {
+            FakeDisplay display = new FakeDisplay(title, controls);
+            displays.add(display);
+            return display;
+        }, (parent, message) -> messages.add(message), new TruthTableRunner(work::add, Runnable::run),
+                (milliseconds, task) -> {
+                    delays.add(milliseconds);
+                    due.add(task);
+                    return () -> due.remove(task);
+                });
+        try {
+            perform(last(bare.menu(MenuId.SIMULATION)));
+            FakeDisplay display = displays.get(0);
+            assertThat(delays).containsExactly(TruthTableFeatures.PROGRESS_DELAY_MILLISECONDS);
+            assertThat(display.progress).as("nothing before 300 ms").isEmpty();
+
+            due.get(0).run(); // 300 ms later the two-row table is still computing: the row count does not matter
+            assertThat(display.progress).containsExactly(0);
+
+            work.remove(0).run();
+            assertThat(display.progress).containsExactly(0, 50, 100);
+            assertThat(display.table.rows()).hasSize(2);
+            assertThat(due).as("the finished computation stopped its delay").isEmpty();
+        } finally {
+            features.dispose();
+            bare.dispose();
+        }
+    }
+
+    @Test
+    void disposingTheViewClosesItsWindowsAndAClosedWindowIsForgotten() {
+        identityCircuit();
+        EditorView view = new EditorView(openDocument, services, NO_WINDOW);
+        perform(last(view.menu(MenuId.SIMULATION)));
+        perform(last(view.menu(MenuId.SIMULATION)));
+        displays.get(0).controls.closed();
+
+        view.dispose();
+
+        assertThat(displays.get(0).closed).as("closed by the user, not again").isFalse();
+        assertThat(displays.get(1).closed).isTrue();
+    }
+}

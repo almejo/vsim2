@@ -24,8 +24,7 @@ public final class ShortcutCatalog {
      * Ids whose action does not exist yet (M6.1 fronts B and C): they stay out of the dialog and cannot be bound
      * until the front that adds the action removes its id here.
      */
-    private static final Set<String> AWAITING_ACTION = Set.of(
-            "simulation.stepMode", "simulation.advance", "simulation.truthTable");
+    private static final Set<String> AWAITING_ACTION = Set.of("simulation.stepMode", "simulation.advance");
 
     private static final List<ShortcutEntry> ENTRIES = build(menuMask()).stream()
             .filter(entry -> !AWAITING_ACTION.contains(entry.id())).toList();

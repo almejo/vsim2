@@ -32,6 +32,7 @@ import cl.almejo.vsim.ui.session.WindowState;
 import cl.almejo.vsim.ui.shortcuts.ShortcutsExtension;
 import cl.almejo.vsim.ui.theme.ThemeManager;
 import cl.almejo.vsim.ui.tree.ComponentTreeExtension;
+import cl.almejo.vsim.ui.truthtable.TruthTableExtension;
 import cl.almejo.vsim.ui.waveform.WaveformsExtension;
 import cl.almejo.vsim.ui.window.CircuitWindow;
 import cl.almejo.vsim.ui.window.EditorExtension;
@@ -99,6 +100,7 @@ public final class Application {
         editorExtensions.add(new TemplatesExtension(libraryService, libraryDialogs));
         editorExtensions.add(new ComponentTreeExtension());
         editorExtensions.add(new WaveformsExtension());
+        editorExtensions.add(new TruthTableExtension());
         editorExtensions.add(new ActionIcons());
         editorExtensions.add(new PreferencesFeature());
         editorExtensions.add(new RecentFilesFeature());
