@@ -34,7 +34,7 @@ class TruthTableRunnerTest {
     private static final Executor DIRECT = Runnable::run;
 
     /** Records what a computation reported, in order. */
-    private static final class Recorder implements TruthTableRunner.Callbacks {
+    private static class Recorder implements TruthTableRunner.Callbacks {
         final List<String> events = new ArrayList<>();
         TruthTable table;
 
@@ -55,8 +55,8 @@ class TruthTableRunnerTest {
         }
 
         @Override
-        public void failed(RuntimeException exception) {
-            events.add("failed " + exception.getMessage());
+        public void failed(Throwable throwable) {
+            events.add("failed " + throwable.getClass().getSimpleName());
         }
     }
 
@@ -150,7 +150,7 @@ class TruthTableRunnerTest {
 
         runner.start(broken, recorder);
 
-        assertThat(recorder.events).containsExactly("failed net n references unknown component ghost");
+        assertThat(recorder.events).containsExactly("failed IllegalArgumentException");
         assertThat(runner.isRunning()).isFalse();
     }
 
@@ -187,5 +187,21 @@ class TruthTableRunnerTest {
             SwingUtilities.invokeAndWait(runner::dispose);
         }
         assertThat(recorder.table.rows()).hasSize(2);
+    }
+
+    @Test
+    void anErrorInTheComputationIsReportedAndRethrown() {
+        TruthTableRunner runner = new TruthTableRunner(DIRECT, DIRECT);
+        Recorder recorder = new Recorder() {
+            @Override
+            public void progress(int percent) {
+                throw new StackOverflowError();
+            }
+        };
+
+        assertThatThrownBy(() -> runner.start(identity(), recorder)).isInstanceOf(StackOverflowError.class);
+
+        assertThat(recorder.events).containsExactly("failed StackOverflowError");
+        assertThat(runner.isRunning()).isFalse();
     }
 }

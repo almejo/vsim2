@@ -27,8 +27,8 @@ public final class TruthTableRunner {
         /** The computation was stopped by {@link #cancel} or replaced by a newer {@link #start}. */
         void cancelled();
 
-        /** The evaluation threw (the circuit could not be simulated). */
-        void failed(RuntimeException exception);
+        /** The evaluation threw (the circuit could not be simulated), an {@link Error} included. */
+        void failed(Throwable throwable);
     }
 
     private static final class Job {
@@ -88,12 +88,15 @@ public final class TruthTableRunner {
                         }
                     }),
                     () -> job.cancelled);
-        } catch (RuntimeException exception) {
+        } catch (Throwable throwable) {
             edt.execute(() -> {
                 if (finish(job)) {
-                    job.callbacks.failed(exception);
+                    job.callbacks.failed(throwable);
                 }
             });
+            if (throwable instanceof Error error) {
+                throw error; // reported to the window first; the worker thread's handler sees it, like the simulation thread
+            }
             return;
         }
         edt.execute(() -> {

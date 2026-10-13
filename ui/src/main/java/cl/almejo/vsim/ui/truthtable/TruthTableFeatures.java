@@ -253,6 +253,7 @@ public final class TruthTableFeatures {
         /** The most rows the user accepted for this window: «Recalcular» asks again only for more. */
         private int acceptedRows;
         private boolean running;
+        private boolean restarting;
         private boolean showsProgress;
         private boolean closed;
         private int lastPercent;
@@ -280,7 +281,12 @@ public final class TruthTableFeatures {
             pendingTryable = ready.inputsAreTopLevelSwitches();
             stopProgressDelay.run();
             if (running) {
-                runner.cancel(); // this window's previous computation says «cancelado» now, not after the new start
+                restarting = true; // a restart is not a cancellation: no «cancelado» notice
+                try {
+                    runner.cancel();
+                } finally {
+                    restarting = false;
+                }
             }
             showsProgress = false;
             lastPercent = 0;
@@ -389,17 +395,18 @@ public final class TruthTableFeatures {
         public void cancelled() {
             running = false;
             stopProgressDelay.run();
-            if (!closed) {
+            if (!closed && !restarting) {
                 display.showMessage(Messages.text("truthTable.cancelled"));
             }
         }
 
         @Override
-        public void failed(RuntimeException exception) {
+        public void failed(Throwable throwable) {
             running = false;
             stopProgressDelay.run();
             if (!closed) {
-                display.showMessage(Messages.format("truthTable.failed", String.valueOf(exception.getMessage())));
+                display.showMessage(Messages.format("truthTable.failed", String.valueOf(throwable.getMessage() == null ? throwable.getClass().getSimpleName()
+                        : throwable.getMessage())));
             }
         }
     }

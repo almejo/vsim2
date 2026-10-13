@@ -355,6 +355,88 @@ class TruthTableExtensionTest {
         }
     }
 
+    private static final String CANCELLED_NOTICE = "Cálculo cancelado: usa «Recalcular» para empezar de nuevo";
+
+    /** A feature whose worker runs only when the test takes work from {@code work}, and whose delays are in {@code due}. */
+    private TruthTableFeatures manualFeatures(EditorView bare, List<Runnable> work, List<Runnable> due) {
+        return new TruthTableFeatures(bare, (view, title, controls) -> {
+            FakeDisplay display = new FakeDisplay(title, controls);
+            displays.add(display);
+            return display;
+        }, (parent, message) -> messages.add(message), this::confirm, new TruthTableRunner(work::add, Runnable::run),
+                (milliseconds, task) -> {
+                    due.add(task);
+                    return () -> due.remove(task);
+                });
+    }
+
+    @Test
+    void cancelInTheWindowStopsTheComputationAndSaysSo() {
+        identityCircuit();
+        EditorView bare = new EditorView(openDocument, PainterRegistry.standard(), ColorScheme.LIGHT, NO_WINDOW);
+        List<Runnable> work = new ArrayList<>();
+        List<Runnable> due = new ArrayList<>();
+        TruthTableFeatures features = manualFeatures(bare, work, due);
+        try {
+            perform(last(bare.menu(MenuId.SIMULATION)));
+            FakeDisplay display = displays.get(0);
+
+            display.controls.cancel();
+
+            assertThat(display.notices).containsExactly(CANCELLED_NOTICE);
+            assertThat(due).as("the progress delay was stopped").isEmpty();
+            work.remove(0).run();
+            assertThat(display.table).as("the cancelled result is dropped").isNull();
+            assertThat(display.notices).containsExactly(CANCELLED_NOTICE);
+        } finally {
+            features.dispose();
+            bare.dispose();
+        }
+    }
+
+    @Test
+    void aWindowWhoseComputationIsReplacedByAnotherWindowSaysItWasCancelled() {
+        identityCircuit();
+        EditorView bare = new EditorView(openDocument, PainterRegistry.standard(), ColorScheme.LIGHT, NO_WINDOW);
+        List<Runnable> work = new ArrayList<>();
+        TruthTableFeatures features = manualFeatures(bare, work, new ArrayList<>());
+        try {
+            perform(last(bare.menu(MenuId.SIMULATION)));
+            perform(last(bare.menu(MenuId.SIMULATION)));
+            assertThat(displays.get(0).notices).containsExactly(CANCELLED_NOTICE);
+            assertThat(displays.get(1).notices).isEmpty();
+
+            work.forEach(Runnable::run);
+
+            assertThat(displays.get(0).table).isNull();
+            assertThat(displays.get(1).table.rows()).hasSize(2);
+        } finally {
+            features.dispose();
+            bare.dispose();
+        }
+    }
+
+    @Test
+    void recalcularOnARunningComputationRestartsItWithoutACancelledNotice() {
+        identityCircuit();
+        EditorView bare = new EditorView(openDocument, PainterRegistry.standard(), ColorScheme.LIGHT, NO_WINDOW);
+        List<Runnable> work = new ArrayList<>();
+        TruthTableFeatures features = manualFeatures(bare, work, new ArrayList<>());
+        try {
+            perform(last(bare.menu(MenuId.SIMULATION)));
+            FakeDisplay display = displays.get(0);
+
+            display.controls.recalculate();
+            work.forEach(Runnable::run);
+
+            assertThat(display.notices).as("a restart is not a cancellation").isEmpty();
+            assertThat(display.table.rows()).hasSize(2);
+        } finally {
+            features.dispose();
+            bare.dispose();
+        }
+    }
+
     @Test
     void disposingTheViewClosesItsWindowsAndAClosedWindowIsForgotten() {
         identityCircuit();
@@ -502,6 +584,10 @@ class TruthTableExtensionTest {
 
     @Test
     void theRowsOfASingleInstanceCannotBeTried() {
+        // a live switch with the id of the instance's body pin («c1»): without the guard the row would be applied to it
+        Component decoy = place(openDocument, StandardComponentTypes.SWITCH, 0, 20, Map.of());
+        assertThat(decoy.id().value()).isEqualTo("c1");
+        Component marker = place(openDocument, StandardComponentTypes.SWITCH, 0, 30, Map.of());
         openDocument.execute(new PutDefinitionsCommand(List.of(ExampleDefinitions.inverter())));
         Component instance = new Component(openDocument.document().newComponentId(),
                 SubcircuitTypes.typeIdOf(ExampleDefinitions.INVERTER), new GridPoint(10, 0), Rotation.R0, Map.of(),
@@ -514,12 +600,14 @@ class TruthTableExtensionTest {
             perform(last(bare.menu(MenuId.SIMULATION)));
             FakeDisplay display = displays.get(0);
             assertThat(display.table.inputs()).extracting(column -> column.name()).containsExactly("a");
+            assertThat(display.table.inputs().get(0).componentId()).isEqualTo("c1");
             assertThat(display.tryingAllowed).as("no hint: the input is the instance's pin").isFalse();
-            long changes = openDocument.changeCount();
 
-            display.controls.tryRow(1);
+            display.controls.tryRow(0); // would set the decoy switch to 0
+            openDocument.setInputs(Map.of(marker.id(), Value.ZERO)); // queued after it: once seen, the first is done
 
-            assertThat(openDocument.changeCount()).isEqualTo(changes);
+            SimulationSnapshot snapshot = liveSnapshot(switchIs(marker, Value.ZERO));
+            assertThat(snapshot.componentState(decoy.id().value())).isEqualTo(new VisibleState.SwitchState(Value.ONE));
             assertThat(messages).isEmpty();
         } finally {
             features.dispose();

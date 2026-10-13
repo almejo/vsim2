@@ -65,6 +65,8 @@ class TruthTableMessagesTest {
     void theSummaryCountsColumnsAndRowsInSingularAndPlural() {
         assertThat(TruthTableMessages.summary(table(3, 2, 8))).isEqualTo("3 entradas, 2 salidas, 8 filas");
         assertThat(TruthTableMessages.summary(table(1, 1, 2))).isEqualTo("1 entrada, 1 salida, 2 filas");
+        assertThat(TruthTableMessages.summary(table(1, 1, 4096))).as("grouped like the question")
+                .isEqualTo("1 entrada, 1 salida, 4 096 filas");
     }
 
     @Test

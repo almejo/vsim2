@@ -39,7 +39,8 @@ public final class TruthTableMessages {
     /** «3 entradas, 2 salidas, 8 filas»: input and output columns, rows. */
     public static String summary(TruthTable table) {
         return Messages.format("truthTable.summary", table.inputs().size(), table.outputs().size(),
-                table.rows().size());
+                table.rows().size(),
+                grouped(BigInteger.valueOf(table.rows().size())));
     }
 
     /** The warning above a table whose circuit has feedback without flip-flops. */

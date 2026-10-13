@@ -17,6 +17,7 @@ import javax.swing.JScrollPane;
 import javax.swing.JTable;
 import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
+import javax.swing.UIManager;
 import javax.swing.WindowConstants;
 import javax.swing.table.DefaultTableCellRenderer;
 import java.awt.Color;
@@ -41,7 +42,14 @@ final class TruthTableWindow extends JDialog implements TruthTableDisplay {
 
     private final EditorView view;
     private final Controls controls;
-    private final JLabel banner = new JLabel(TruthTableMessages.feedbackBanner());
+    /** The warning; its color is read from the look and feel at each paint, so a theme change applies at once. */
+    private final JLabel banner = new JLabel(TruthTableMessages.feedbackBanner()) {
+        @Override
+        public Color getForeground() {
+            Color warning = UIManager.getColor("Component.warning.focusedBorderColor");
+            return warning != null ? warning : UIManager.getColor("Label.foreground");
+        }
+    };
     private final JLabel summary = new JLabel(" ");
     private final JLabel status = new JLabel(" ");
     private final JLabel tryHint = new JLabel(TruthTableMessages.tryHint());
@@ -52,6 +60,7 @@ final class TruthTableWindow extends JDialog implements TruthTableDisplay {
     private TruthTable shown;
     private boolean tryingAllowed;
     private boolean closing;
+    private boolean packed;
 
     private TruthTableWindow(EditorView view, String title, Controls controls) {
         super(SwingUtilities.getWindowAncestor(view), title, ModalityType.MODELESS);
@@ -60,7 +69,6 @@ final class TruthTableWindow extends JDialog implements TruthTableDisplay {
         setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
         JPanel content = new JPanel(new MigLayout("insets dialog, fill, wrap 1", "[grow, fill]",
                 "[][][][grow, fill][][]"));
-        banner.setForeground(new Color(0xB0, 0x60, 0x00));
         banner.setVisible(false);
         content.add(banner, "hidemode 3");
         content.add(summary);
@@ -138,7 +146,10 @@ final class TruthTableWindow extends JDialog implements TruthTableDisplay {
         cancel.setVisible(false);
         copy.setEnabled(true);
         export.setEnabled(true);
-        pack();
+        if (!packed) {
+            packed = true; // the first table sizes the window; «Recalcular» keeps what the user chose
+            pack();
+        }
     }
 
     @Override
