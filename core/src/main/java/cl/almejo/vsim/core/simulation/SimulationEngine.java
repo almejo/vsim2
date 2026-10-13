@@ -93,6 +93,22 @@ public final class SimulationEngine {
         }
     }
 
+    /**
+     * Makes input component {@code componentId} (a switch or an input pin) drive {@code value} and applies the
+     * zero-delay effects now, like {@link #interact}. Used by the truth-table evaluator (M6.1-C) on its own engines.
+     * An unknown id, a component that is not an input or a value of another width throws IllegalArgumentException.
+     */
+    public void setInput(String componentId, Value value) {
+        ComponentInstance instance = instances.get(componentId);
+        if (instance == null) {
+            throw new IllegalArgumentException("no component " + componentId);
+        }
+        if (!instance.behavior.setValue(instance, value)) {
+            throw new IllegalArgumentException(componentId + " (" + instance.type.id() + ") is not an input");
+        }
+        scheduler.runUntil(now());
+    }
+
     private void rebindWaveforms() {
         if (recorder.hasChannels()) {
             rebind();
