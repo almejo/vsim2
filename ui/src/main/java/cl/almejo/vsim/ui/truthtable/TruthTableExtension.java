@@ -13,25 +13,31 @@ public final class TruthTableExtension implements EditorExtension {
 
     private final TruthTableDisplay.Factory windows;
     private final BiConsumer<Component, String> messages;
+    private final TruthTableFeatures.Confirmation confirmation;
     private final Supplier<TruthTableRunner> runners;
 
     public TruthTableExtension() {
         this(TruthTableWindow::open,
                 (parent, message) -> JOptionPane.showMessageDialog(parent, message),
+                TruthTableFeatures.Confirmation.dialog(),
                 TruthTableRunner::create);
     }
 
-    /** {@code windows} opens table windows, {@code messages} shows refusals, {@code runners} makes one per view. */
+    /**
+     * {@code windows} opens table windows, {@code messages} shows refusals, {@code confirmation} asks before more than
+     * 1 024 rows, {@code runners} makes one runner per view.
+     */
     public TruthTableExtension(TruthTableDisplay.Factory windows, BiConsumer<Component, String> messages,
-                               Supplier<TruthTableRunner> runners) {
+                               TruthTableFeatures.Confirmation confirmation, Supplier<TruthTableRunner> runners) {
         this.windows = windows;
         this.messages = messages;
+        this.confirmation = confirmation;
         this.runners = runners;
     }
 
     @Override
     public Runnable install(EditorView view) {
-        TruthTableFeatures features = new TruthTableFeatures(view, windows, messages, runners.get());
+        TruthTableFeatures features = new TruthTableFeatures(view, windows, messages, confirmation, runners.get());
         return features::dispose;
     }
 }

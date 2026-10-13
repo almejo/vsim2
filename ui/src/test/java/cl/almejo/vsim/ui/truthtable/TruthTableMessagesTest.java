@@ -39,8 +39,8 @@ class TruthTableMessagesTest {
                 .isEqualTo("No hay entradas: usa interruptores o pines de entrada");
         assertThat(TruthTableMessages.refusal(new Preparation.Refused(Preparation.Reason.NO_OUTPUTS, 2)))
                 .isEqualTo("No hay salidas: usa LED o pines de salida");
-        assertThat(TruthTableMessages.refusal(new Preparation.Refused(Preparation.Reason.TOO_MANY_INPUT_BITS, 12)))
-                .isEqualTo("La tabla tendría 4 096 filas; el máximo es 1 024 (10 bits de entrada)");
+        assertThat(TruthTableMessages.refusal(new Preparation.Refused(Preparation.Reason.TOO_MANY_INPUT_BITS, 17)))
+                .isEqualTo("La tabla tendría 131 072 filas; el máximo es 65 536 (16 bits de entrada)");
         assertThat(TruthTableMessages.refusal(new Preparation.Refused(Preparation.Reason.SEQUENTIAL, 1)))
                 .isEqualTo("La tabla de verdad es para circuitos combinacionales: este tiene flip-flops o relojes. "
                         + "Prueba las formas de onda.");
@@ -50,6 +50,15 @@ class TruthTableMessagesTest {
     void aSixtyFourBitInputStillGivesARowCount() {
         assertThat(TruthTableMessages.refusal(new Preparation.Refused(Preparation.Reason.TOO_MANY_INPUT_BITS, 64)))
                 .startsWith("La tabla tendría 18 446 744 073 709 551 616 filas");
+    }
+
+    @Test
+    void aLargeTableAsksFirstWithItsRowCountGroupedWithSpaces() {
+        assertThat(TruthTableMessages.confirmation(11))
+                .isEqualTo("La tabla tendrá 2 048 filas y puede tardar. ¿Calcular igual?");
+        assertThat(TruthTableMessages.confirmation(16))
+                .isEqualTo("La tabla tendrá 65 536 filas y puede tardar. ¿Calcular igual?");
+        assertThat(TruthTableMessages.computeOption()).isEqualTo("Calcular");
     }
 
     @Test
@@ -75,7 +84,10 @@ class TruthTableMessagesTest {
     void englishTextsComeFromTheEnglishBundle() {
         Messages.initialize(Locale.ENGLISH);
         assertThat(TruthTableMessages.summary(table(3, 1, 8))).isEqualTo("3 inputs, 1 output, 8 rows");
-        assertThat(TruthTableMessages.refusal(new Preparation.Refused(Preparation.Reason.TOO_MANY_INPUT_BITS, 11)))
-                .isEqualTo("The table would have 2 048 rows; the maximum is 1 024 (10 input bits)");
+        assertThat(TruthTableMessages.refusal(new Preparation.Refused(Preparation.Reason.TOO_MANY_INPUT_BITS, 17)))
+                .isEqualTo("The table would have 131 072 rows; the maximum is 65 536 (16 input bits)");
+        assertThat(TruthTableMessages.confirmation(11))
+                .isEqualTo("The table will have 2 048 rows and may take a while. Compute it anyway?");
+        assertThat(TruthTableMessages.computeOption()).isEqualTo("Compute");
     }
 }

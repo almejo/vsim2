@@ -9,8 +9,10 @@ import java.util.Map;
 /** What {@link TruthTableScope#prepare} found: a circuit ready to evaluate, or why there is no table. */
 public sealed interface Preparation permits Preparation.Ready, Preparation.Refused {
 
-    /** At most 1 024 rows (spec §8.18). */
-    int MAXIMUM_INPUT_BITS = 10;
+    /** Up to 1 024 rows the table is computed at once (spec §5.4). */
+    int DIRECT_INPUT_BITS = 10;
+    /** At most 65 536 rows; above {@link #DIRECT_INPUT_BITS} the user is asked first (spec §5.4). */
+    int MAXIMUM_INPUT_BITS = 16;
 
     enum Reason { NO_INPUTS, NO_OUTPUTS, TOO_MANY_INPUT_BITS, SEQUENTIAL }
 
@@ -35,6 +37,11 @@ public sealed interface Preparation permits Preparation.Ready, Preparation.Refus
         /** 2 to the power of {@link #inputBits()}. */
         public int rowCount() {
             return 1 << inputBits();
+        }
+
+        /** More than 1 024 rows: the user confirms before they are computed (spec §5.4). */
+        public boolean needsConfirmation() {
+            return inputBits() > DIRECT_INPUT_BITS;
         }
     }
 

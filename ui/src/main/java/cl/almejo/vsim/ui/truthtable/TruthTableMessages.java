@@ -26,6 +26,16 @@ public final class TruthTableMessages {
         };
     }
 
+    /** The question before computing more than 1 024 rows: «La tabla tendrá 2 048 filas y puede tardar. …». */
+    public static String confirmation(int inputBits) {
+        return Messages.format("truthTable.confirmation", grouped(BigInteger.ONE.shiftLeft(inputBits)));
+    }
+
+    /** The button that answers {@link #confirmation} with yes. */
+    public static String computeOption() {
+        return Messages.text("truthTable.compute");
+    }
+
     /** «3 entradas, 2 salidas, 8 filas»: input and output columns, rows. */
     public static String summary(TruthTable table) {
         return Messages.format("truthTable.summary", table.inputs().size(), table.outputs().size(),

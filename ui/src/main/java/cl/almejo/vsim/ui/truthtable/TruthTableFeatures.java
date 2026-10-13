@@ -19,6 +19,7 @@ import javax.swing.AbstractAction;
 import javax.swing.Action;
 import javax.swing.JMenu;
 import javax.swing.JMenuItem;
+import javax.swing.JOptionPane;
 import javax.swing.JPopupMenu;
 import javax.swing.Timer;
 import java.awt.Component;
@@ -61,9 +62,25 @@ public final class TruthTableFeatures {
         }
     }
 
+    /** Asks the user a yes/no question before a long computation (spec §5.4); true means go ahead. */
+    @FunctionalInterface
+    public interface Confirmation {
+        boolean confirm(Component parent, String title, String question);
+
+        /** A dialog with «Calcular» and «Cancelar». */
+        static Confirmation dialog() {
+            return (parent, title, question) -> {
+                Object[] options = {TruthTableMessages.computeOption(), Messages.text("truthTable.cancel")};
+                return JOptionPane.showOptionDialog(parent, question, title, JOptionPane.OK_CANCEL_OPTION,
+                        JOptionPane.QUESTION_MESSAGE, null, options, options[0]) == 0;
+            };
+        }
+    }
+
     private final EditorView view;
     private final TruthTableDisplay.Factory windows;
     private final BiConsumer<Component, String> messages;
+    private final Confirmation confirmation;
     private final TruthTableRunner runner;
     private final Delay delay;
     private final Action action;
@@ -75,16 +92,22 @@ public final class TruthTableFeatures {
     private boolean disposed;
 
     public TruthTableFeatures(EditorView view, TruthTableDisplay.Factory windows,
-                              BiConsumer<Component, String> messages, TruthTableRunner runner) {
-        this(view, windows, messages, runner, Delay.swing());
+                              BiConsumer<Component, String> messages, Confirmation confirmation,
+                              TruthTableRunner runner) {
+        this(view, windows, messages, confirmation, runner, Delay.swing());
     }
 
-    /** {@code delay} decides when a computation still running shows its progress (tests run it by hand). */
+    /**
+     * {@code confirmation} asks before more than 1 024 rows; {@code delay} decides when a computation still running
+     * shows its progress (tests run it by hand).
+     */
     public TruthTableFeatures(EditorView view, TruthTableDisplay.Factory windows,
-                              BiConsumer<Component, String> messages, TruthTableRunner runner, Delay delay) {
+                              BiConsumer<Component, String> messages, Confirmation confirmation,
+                              TruthTableRunner runner, Delay delay) {
         this.view = view;
         this.windows = windows;
         this.messages = messages;
+        this.confirmation = confirmation;
         this.runner = runner;
         this.delay = delay;
         this.action = new AbstractAction(Messages.text("action.truthTable")) {
@@ -113,7 +136,7 @@ public final class TruthTableFeatures {
 
     /**
      * Computes the table of {@code selection} (empty: the whole circuit) and shows it in a new window; a refusal is
-     * shown as a message and opens nothing.
+     * shown as a message and opens nothing. More than 1 024 rows are computed only after the user confirms.
      */
     public void open(Set<ElementId> selection) {
         if (disposed) {
@@ -125,10 +148,24 @@ public final class TruthTableFeatures {
             messages.accept(view, TruthTableMessages.refusal(refused));
             return;
         }
-        Session session = new Session(scope);
-        session.display = windows.open(view, TruthTableMessages.title(scopeName(scope)), session);
+        Preparation.Ready ready = (Preparation.Ready) preparation;
+        String title = TruthTableMessages.title(scopeName(scope));
+        if (!confirmed(ready, 0, title)) {
+            return;
+        }
+        Session session = new Session(scope, title);
+        session.display = windows.open(view, title, session);
         sessions.add(session);
-        session.run((Preparation.Ready) preparation);
+        session.run(ready);
+    }
+
+    /**
+     * True when {@code ready} may be computed: up to 1 024 rows, no more than {@code accepted} rows the user already
+     * accepted for this window, or the user says yes now.
+     */
+    private boolean confirmed(Preparation.Ready ready, int accepted, String title) {
+        return !ready.needsConfirmation() || ready.rowCount() <= accepted
+                || confirmation.confirm(view, title, TruthTableMessages.confirmation(ready.inputBits()));
     }
 
     private Preparation prepare(Set<ElementId> scope) {
@@ -182,7 +219,10 @@ public final class TruthTableFeatures {
     private final class Session implements TruthTableDisplay.Controls, TruthTableRunner.Callbacks {
 
         private final Set<ElementId> scope;
+        private final String title;
         private TruthTableDisplay display;
+        /** The most rows the user accepted for this window: «Recalcular» asks again only for more. */
+        private int acceptedRows;
         private boolean running;
         private boolean showsProgress;
         private boolean closed;
@@ -190,11 +230,13 @@ public final class TruthTableFeatures {
         private Runnable stopProgressDelay = () -> {
         };
 
-        Session(Set<ElementId> scope) {
+        Session(Set<ElementId> scope, String title) {
             this.scope = scope;
+            this.title = title;
         }
 
         void run(Preparation.Ready ready) {
+            acceptedRows = Math.max(acceptedRows, ready.rowCount());
             stopProgressDelay.run();
             if (running) {
                 runner.cancel(); // this window's previous computation says «cancelado» now, not after the new start
@@ -222,7 +264,7 @@ public final class TruthTableFeatures {
             Preparation preparation = prepare(scope);
             if (preparation instanceof Preparation.Refused refused) {
                 messages.accept(view, TruthTableMessages.refusal(refused));
-            } else {
+            } else if (confirmed((Preparation.Ready) preparation, acceptedRows, title)) {
                 run((Preparation.Ready) preparation);
             }
         }

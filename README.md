@@ -83,7 +83,7 @@ Diseño: `docs/superpowers/specs/2026-10-08-vsim2-design.md`.
 - Una fila sin valor estable muestra `~`, con fondo de color y el aviso «Sin valor estable (oscila o depende del estado anterior)»: un lazo que oscila o, como cada fila se calcula desde cero, una fila que depende de la memoria (en un latch NOR, R = S = 0). Si el circuito tiene realimentación sin flip-flops, un aviso recuerda que cada fila se calcula desde cero. Si el cálculo tarda más de un momento (300 ms) se ve «Calculando… N %» con «Cancelar». Los diagramas de tiempo no cuentan para la tabla.
 - El clic derecho ofrece «Tabla de verdad…» solo cuando lo seleccionado (o todo el circuito) tiene al menos una entrada y una salida, o es una sola instancia de un componente propio.
 - «Copiar» copia la tabla como texto separado por tabulaciones (se pega en una planilla en columnas); «Exportar CSV…» la guarda en UTF-8 (`circuito-tabla.csv`); «Recalcular» la vuelve a calcular después de editar (la tabla no sigue los cambios sola).
-- No hay tabla, con un aviso, si no hay entradas o salidas, si las entradas suman más de 10 bits (1 024 filas) o si hay flip-flops o relojes, también dentro de componentes propios: para circuitos secuenciales están las formas de onda.
+- Hasta 10 bits de entrada (1 024 filas) la tabla se calcula de inmediato; de 11 a 16 bits (2 048 a 65 536 filas) primero pregunta «La tabla tendrá 4 096 filas y puede tardar. ¿Calcular igual?» (Calcular / Cancelar): así «ALU de 4 bits», con 11 entradas, tiene su tabla. No hay tabla, con un aviso, si no hay entradas o salidas, si las entradas suman más de 16 bits (65 536 filas) o si hay flip-flops o relojes, también dentro de componentes propios: para circuitos secuenciales están las formas de onda.
 
 ## Preferencias y distribución
 

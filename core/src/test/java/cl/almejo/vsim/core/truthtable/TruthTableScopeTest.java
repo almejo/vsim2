@@ -135,19 +135,54 @@ class TruthTableScopeTest {
         assertThat(refused(new TruthTableCircuits()).reason()).isEqualTo(Preparation.Reason.NO_INPUTS);
     }
 
-    @Test
-    void elevenInputBitsAreTooMany() {
+    /** {@code count} one-bit switches in a column and one LED, nothing wired. */
+    private static TruthTableCircuits switches(int count) {
         TruthTableCircuits circuits = new TruthTableCircuits();
-        for (int index = 0; index < 11; index++) {
+        for (int index = 0; index < count; index++) {
             circuits.place(StandardComponentTypes.SWITCH, 0, index * 4, "");
         }
         circuits.place(StandardComponentTypes.LED, 20, 0, "");
-        TruthTableCircuits wide = new TruthTableCircuits();
-        wide.place(InterfacePins.INPUT_PIN, 0, 0, "", Map.of(InterfacePins.WIDTH, 10));
-        wide.place(StandardComponentTypes.LED, 20, 0, "");
+        return circuits;
+    }
 
-        assertThat(refused(circuits)).isEqualTo(new Preparation.Refused(Preparation.Reason.TOO_MANY_INPUT_BITS, 11));
-        assertThat(ready(wide, Set.of()).rowCount()).isEqualTo(1024);
+    /** One input pin {@code width} bits wide and one LED, nothing wired. */
+    private static TruthTableCircuits inputPin(int width) {
+        TruthTableCircuits circuits = new TruthTableCircuits();
+        circuits.place(InterfacePins.INPUT_PIN, 0, 0, "", Map.of(InterfacePins.WIDTH, width));
+        circuits.place(StandardComponentTypes.LED, 20, 0, "");
+        return circuits;
+    }
+
+    @Test
+    void tenInputBitsNeedNoConfirmation() {
+        Preparation.Ready tenSwitches = ready(switches(10), Set.of());
+        Preparation.Ready tenBitPin = ready(inputPin(10), Set.of());
+
+        assertThat(tenSwitches.rowCount()).isEqualTo(1024);
+        assertThat(tenSwitches.needsConfirmation()).isFalse();
+        assertThat(tenBitPin.rowCount()).isEqualTo(1024);
+        assertThat(tenBitPin.needsConfirmation()).isFalse();
+    }
+
+    @Test
+    void sixteenInputBitsAreReadyButNeedConfirmation() {
+        Preparation.Ready elevenSwitches = ready(switches(11), Set.of());
+        Preparation.Ready sixteenBitPin = ready(inputPin(16), Set.of());
+
+        assertThat(elevenSwitches.inputBits()).isEqualTo(11);
+        assertThat(elevenSwitches.rowCount()).isEqualTo(2048);
+        assertThat(elevenSwitches.needsConfirmation()).isTrue();
+        assertThat(sixteenBitPin.rowCount()).isEqualTo(65_536);
+        assertThat(sixteenBitPin.needsConfirmation()).isTrue();
+    }
+
+    @Test
+    void seventeenInputBitsAreTooMany() {
+        TruthTableCircuits circuits = inputPin(16);
+        circuits.place(StandardComponentTypes.SWITCH, 0, 10, "");
+
+        assertThat(refused(circuits)).isEqualTo(new Preparation.Refused(Preparation.Reason.TOO_MANY_INPUT_BITS, 17));
+        assertThat(refused(switches(17)).inputBits()).isEqualTo(17);
     }
 
     @Test

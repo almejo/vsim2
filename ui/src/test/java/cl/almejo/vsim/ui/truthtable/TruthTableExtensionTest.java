@@ -71,6 +71,10 @@ class TruthTableExtensionTest {
 
     private final List<FakeDisplay> displays = new ArrayList<>();
     private final List<String> messages = new ArrayList<>();
+
+    /** The questions asked before a table of more than 1 024 rows, and the answer the fake user gives. */
+    private final List<String> questions = new ArrayList<>();
+    private boolean answer = true;
     private OpenDocument openDocument;
     private EditorServices services;
 
@@ -82,7 +86,8 @@ class TruthTableExtensionTest {
             FakeDisplay display = new FakeDisplay(title, controls);
             displays.add(display);
             return display;
-        }, (parent, message) -> messages.add(message), () -> new TruthTableRunner(Runnable::run, Runnable::run));
+        }, (parent, message) -> messages.add(message), this::confirm,
+                () -> new TruthTableRunner(Runnable::run, Runnable::run));
         services = new EditorServices(PainterRegistry.standard(), new Appearance(ColorScheme.LIGHT),
                 AppPreferences.inMemory(), new ComponentLibrary(), List.of(extension));
     }
@@ -90,6 +95,11 @@ class TruthTableExtensionTest {
     @AfterEach
     void close() {
         openDocument.close();
+    }
+
+    private boolean confirm(java.awt.Component parent, String title, String question) {
+        questions.add(question);
+        return answer;
     }
 
     private static List<String> texts(JMenu menu) {
@@ -142,7 +152,8 @@ class TruthTableExtensionTest {
             FakeDisplay display = new FakeDisplay(title, controls);
             displays.add(display);
             return display;
-        }, (parent, message) -> messages.add(message), new TruthTableRunner(Runnable::run, Runnable::run));
+        }, (parent, message) -> messages.add(message), this::confirm,
+                new TruthTableRunner(Runnable::run, Runnable::run));
         try {
             assertThat(texts(bare.menu(MenuId.SIMULATION))).endsWith("---", "Tabla de verdad…");
             assertThat(bare.shortcutActions()).containsEntry("simulation.truthTable", features.action());
@@ -288,7 +299,7 @@ class TruthTableExtensionTest {
             FakeDisplay display = new FakeDisplay(title, controls);
             displays.add(display);
             return display;
-        }, (parent, message) -> messages.add(message), new TruthTableRunner(work::add, Runnable::run),
+        }, (parent, message) -> messages.add(message), this::confirm, new TruthTableRunner(work::add, Runnable::run),
                 (milliseconds, task) -> {
                     delays.add(milliseconds);
                     due.add(task);
@@ -325,5 +336,40 @@ class TruthTableExtensionTest {
 
         assertThat(displays.get(0).closed).as("closed by the user, not again").isFalse();
         assertThat(displays.get(1).closed).isTrue();
+    }
+
+    @Test
+    void moreThanTenInputBitsAskFirstAndADeclinedQuestionComputesNothing() {
+        for (int index = 0; index < 10; index++) {
+            place(openDocument, StandardComponentTypes.SWITCH, 0, index * 4, Map.of());
+        }
+        place(openDocument, StandardComponentTypes.LED, 20, 0, Map.of());
+        EditorView view = new EditorView(openDocument, services, NO_WINDOW);
+        try {
+            perform(last(view.menu(MenuId.SIMULATION)));
+            assertThat(questions).as("1 024 rows are computed at once").isEmpty();
+            FakeDisplay display = displays.get(0);
+            assertThat(display.table.rows()).hasSize(1024);
+
+            place(openDocument, StandardComponentTypes.SWITCH, 0, 40, Map.of());
+            answer = false;
+            display.controls.recalculate();
+            assertThat(questions).containsExactly("La tabla tendrá 2 048 filas y puede tardar. ¿Calcular igual?");
+            assertThat(display.table.rows()).as("declined: the old table stays").hasSize(1024);
+
+            answer = true;
+            display.controls.recalculate();
+            assertThat(display.table.rows()).hasSize(2048);
+            display.controls.recalculate();
+            assertThat(questions).as("this window already accepted 2 048 rows").hasSize(2);
+
+            answer = false;
+            perform(last(view.menu(MenuId.SIMULATION)));
+            assertThat(questions).hasSize(3);
+            assertThat(displays).as("declined before opening: no window").hasSize(1);
+            assertThat(messages).isEmpty();
+        } finally {
+            view.dispose();
+        }
     }
 }
