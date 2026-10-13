@@ -96,8 +96,8 @@ public final class Application {
     /** The extensions of every editor view, in install order. Package-private so a test can install them all. */
     static List<EditorExtension> editorExtensions(LibraryService libraryService, LibraryDialogs libraryDialogs) {
         List<EditorExtension> editorExtensions = new ArrayList<>();
-        // M6: A's waveforms before ActionIcons, B's recents after PreferencesFeature, C's shortcuts last.
-        // M6.1: A's examples after RecentFilesFeature (its submenu goes after «Recientes»).
+        // M6: waveforms before ActionIcons, recents after PreferencesFeature, shortcuts last. M6.1: the step mode and
+        // the truth table before ActionIcons, the examples after RecentFilesFeature (its submenu goes after «Recientes»).
         editorExtensions.add(new TemplatesExtension(libraryService, libraryDialogs));
         editorExtensions.add(new ComponentTreeExtension());
         editorExtensions.add(new WaveformsExtension());
