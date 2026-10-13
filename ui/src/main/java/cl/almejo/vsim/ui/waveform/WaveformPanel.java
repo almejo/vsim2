@@ -155,6 +155,27 @@ public final class WaveformPanel extends JPanel {
         rowBlink.start();
     }
 
+    /**
+     * After «Avanzar» (M6.1-B): the cursor goes to {@code time}, so the name column reads every channel there. With
+     * «Seguir» off and {@code time} outside the plot, the plot centers on it.
+     */
+    public void placeCursorAtTime(long time) {
+        if (disposed) {
+            return;
+        }
+        axis.setCursor(time);
+        double x = axis.xOf(time);
+        if (!axis.isFollowing() && (x < 0 || x > axis.width())) {
+            axis.centerOn(time);
+        }
+        axisChanged();
+    }
+
+    /** The time under the cursor, empty without a cursor. */
+    public OptionalLong cursorTime() {
+        return axis.cursor();
+    }
+
     /** The names the rows show, in order. */
     public List<String> channelNames() {
         return rows().stream().map(ChannelRows.ChannelRow::name).toList();
