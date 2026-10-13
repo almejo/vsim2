@@ -110,6 +110,7 @@ public final class SimulationThread implements AutoCloseable {
         Map<String, String> copy = Map.copyOf(channels);
         requests.add(() -> {
             engine.restart(circuit, copy);
+            latestStep = null; // the old timeline's last jump must not come back as «(+N)»
             failure = null;
             pendingUnits = 0;
         });

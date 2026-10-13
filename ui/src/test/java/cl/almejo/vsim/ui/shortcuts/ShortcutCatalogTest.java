@@ -86,7 +86,7 @@ class ShortcutCatalogTest {
     }
 
     @Test
-    void everySimulationEntryIsVisibleAndAdvanceHasF7() {
+    void everySimulationEntryIsVisibleAndTheStepsAndRestartHaveTheirDefaults() {
         List<String> simulation = ShortcutCatalog.entries().stream()
                 .filter(entry -> entry.group() == MenuId.SIMULATION).map(ShortcutEntry::id).toList();
         assertThat(simulation).containsExactly("simulation.start", "simulation.pause", "simulation.restart",
@@ -94,6 +94,8 @@ class ShortcutCatalogTest {
                 "simulation.advanceToClockEdge", "simulation.truthTable");
         assertThat(ShortcutCatalog.find("simulation.step").orElseThrow().defaultStroke())
                 .contains(KeyStroke.getKeyStroke(KeyEvent.VK_F6, 0));
+        assertThat(ShortcutCatalog.find("simulation.step").orElseThrow().nameKey())
+                .as("the dialog must not say «10 t» when the step size is another").isEqualTo("shortcut.fixedStep");
         assertThat(ShortcutCatalog.find("simulation.stepSize").orElseThrow().defaultStroke()).isEmpty();
         assertThat(ShortcutCatalog.find("simulation.restart").orElseThrow().defaultStroke())
                 .contains(KeyStroke.getKeyStroke(KeyEvent.VK_F5, InputEvent.CTRL_DOWN_MASK));

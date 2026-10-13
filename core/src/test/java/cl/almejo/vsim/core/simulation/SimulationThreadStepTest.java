@@ -202,4 +202,17 @@ class SimulationThreadStepTest {
         assertThat(thread.latestSnapshot().running()).isTrue();
         assertThat(thread.latestSnapshot().failure()).isEmpty();
     }
+
+    @Test
+    void restartForgetsTheLastStepOfTheOldTimeline() {
+        thread.update(toggle());
+        thread.step(8);
+        thread.tick();
+        assertThat(thread.latestStep()).isPresent();
+
+        thread.restart(toggle(), Map.of());
+        thread.tick();
+
+        assertThat(thread.latestStep()).as("a jump of the old timeline must not come back as «(+N)»").isEmpty();
+    }
 }

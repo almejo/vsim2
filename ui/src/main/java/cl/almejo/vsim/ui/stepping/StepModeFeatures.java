@@ -38,7 +38,6 @@ import java.util.function.LongSupplier;
  */
 public final class StepModeFeatures {
 
-
     private final EditorView view;
     private final OpenDocument openDocument;
     private final LongSupplier nanoClock;
@@ -189,7 +188,9 @@ public final class StepModeFeatures {
         Optional<StepReport> latest = openDocument.latestStep();
         if (latest.isPresent() && latest.get().sequence() > shownSequence) {
             shownSequence = latest.get().sequence();
-            showStep(latest.get().result());
+            if (latest.get().result().time() <= snapshot.time()) { // later than the snapshot: from before «Reiniciar»
+                showStep(latest.get().result(), snapshot);
+            }
         }
         showPending(snapshot);
         refresh(snapshot);
@@ -201,8 +202,9 @@ public final class StepModeFeatures {
                 : PendingOutline.of(openDocument.latestPendingComponents(), openDocument.document(), snapshot.token()));
     }
 
-    private void showStep(StepResult result) {
-        overlay.show(StepHighlight.of(result.changedNets(), openDocument.netlist(), openDocument.netlistToken(),
+    private void showStep(StepResult result, SimulationSnapshot snapshot) {
+        // the token of the snapshot that carried the step: if the circuit changed since, paint skips the glow
+        overlay.show(StepHighlight.of(result.changedNets(), openDocument.netlist(), snapshot.token(),
                 nanoClock.getAsLong()));
         // outside the mode a paused click (time unchanged) must not move a cursor the user placed (contract note 10)
         if (openDocument.stepMode() || result.time() != result.fromTime()) {

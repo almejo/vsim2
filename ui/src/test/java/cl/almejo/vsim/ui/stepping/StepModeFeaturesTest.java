@@ -330,4 +330,40 @@ class StepModeFeaturesTest {
         assertThat(panel.cursorTime()).as("time moved: the cursor follows, also outside the mode")
                 .hasValue(before + 10);
     }
+
+    @Test
+    void theGlowBelongsToTheNetlistOfTheSnapshotThatCarriedTheStep() {
+        Component toggle = place(openDocument, StandardComponentTypes.SWITCH, 0, 0, Map.of());  // out (4,1)
+        addWire(4, 1, 8, 1);
+        place(openDocument, StandardComponentTypes.NOT, 8, -1, Map.of());                       // (8,1) → (12,1)
+        settleThenEnterStepMode();
+        openDocument.interact(toggle.id());
+        waitUntil(() -> openDocument.latestStep().isPresent() && openDocument.latestNextEventTime().isPresent());
+        SimulationSnapshot carrier = openDocument.latestSnapshot();
+        addWire(12, 1, 16, 1); // the circuit changes before the canvas shows the carrier
+
+        features.snapshotPublished(carrier);
+
+        assertThat(features.overlay().current()).hasValueSatisfying(highlight -> {
+            assertThat(highlight.netlistToken()).isEqualTo(carrier.token());
+            assertThat(highlight.matches(openDocument.netlistToken())).isFalse();
+        });
+    }
+
+    @Test
+    void aStepIsNotShownByASnapshotOlderThanItsTime() {
+        place(openDocument, StandardComponentTypes.SWITCH, 0, 0, Map.of());                     // out (4,1)
+        addWire(4, 1, 8, 1);
+        place(openDocument, StandardComponentTypes.NOT, 8, -1, Map.of());                       // (8,1) → (12,1)
+        settleThenEnterStepMode();
+        SimulationSnapshot older = openDocument.latestSnapshot();
+        perform(view.actions().step());
+        waitUntil(() -> openDocument.latestStep().isPresent() && openDocument.latestSnapshot().time() > older.time());
+
+        features.snapshotPublished(older);
+        assertThat(features.overlay().current()).as("time went backwards: the step is not shown").isEmpty();
+
+        showLatestSnapshot();
+        assertThat(features.overlay().current()).as("and it is not shown later either").isEmpty();
+    }
 }

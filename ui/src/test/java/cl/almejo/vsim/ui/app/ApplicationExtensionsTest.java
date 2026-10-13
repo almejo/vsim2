@@ -128,7 +128,7 @@ class ApplicationExtensionsTest {
     }
 
     @Test
-    void theSimulationMenuHasStepByStepAndAdvanceAfterPasoWithF7() {
+    void theSimulationMenuHasRestartTheFixedStepAndTheStepByStepItemsInOrder() {
         EditorView view = new EditorView(openDocument, services, NO_WINDOW);
         try {
             assertThat(texts(view.menu(MenuId.SIMULATION))).containsExactly("Iniciar", "Pausar", "Reiniciar",
