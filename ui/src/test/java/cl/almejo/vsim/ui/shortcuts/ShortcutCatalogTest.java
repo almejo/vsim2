@@ -35,10 +35,10 @@ class ShortcutCatalogTest {
     }
 
     @Test
-    void noTwoEntriesShareADefaultStrokeAndTwentySixHaveOne() {
+    void noTwoEntriesShareADefaultStrokeAndTwentySevenHaveOne() {
         List<KeyStroke> defaults = ShortcutCatalog.entries().stream()
                 .map(ShortcutEntry::defaultStroke).flatMap(Optional::stream).toList();
-        assertThat(defaults).doesNotHaveDuplicates().hasSize(26);
+        assertThat(defaults).doesNotHaveDuplicates().hasSize(27);
         assertThat(defaults).noneMatch(KeyBindings::isReserved);
     }
 
@@ -89,7 +89,8 @@ class ShortcutCatalogTest {
     void everySimulationEntryIsVisibleAndTheStepsAndRestartHaveTheirDefaults() {
         List<String> simulation = ShortcutCatalog.entries().stream()
                 .filter(entry -> entry.group() == MenuId.SIMULATION).map(ShortcutEntry::id).toList();
-        assertThat(simulation).containsExactly("simulation.start", "simulation.pause", "simulation.restart",
+        assertThat(simulation).containsExactly("simulation.start", "simulation.pause", "simulation.startOrPause",
+                "simulation.restart",
                 "simulation.step", "simulation.stepSize", "simulation.stepMode", "simulation.advance",
                 "simulation.advanceToClockEdge", "simulation.truthTable");
         assertThat(ShortcutCatalog.find("simulation.step").orElseThrow().defaultStroke())

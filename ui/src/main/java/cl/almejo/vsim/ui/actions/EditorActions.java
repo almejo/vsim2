@@ -73,6 +73,7 @@ public final class EditorActions {
     private final Action start;
     private final Action pause;
     private final Action restart;
+    private final Action startOrPause;
     private final Action step;
     private final Action newView;
     private final Action about;
@@ -108,6 +109,14 @@ public final class EditorActions {
         centerView = action(Messages.text("action.centerView"), null, canvas::centerCircuit);
         start = action(Messages.text("action.start"), null, openDocument::resume);
         pause = action(Messages.text("action.pause"), null, openDocument::pause);
+        startOrPause = action(Messages.text("action.startOrPause"), KeyStroke.getKeyStroke(KeyEvent.VK_F5, 0),
+                () -> {
+                    if (pause.isEnabled()) {
+                        openDocument.pause();
+                    } else {
+                        openDocument.resume();
+                    }
+                });
         restart = action(Messages.text("action.restart"), shortcut(KeyEvent.VK_F5, 0), openDocument::restart);
         step = action(Messages.text("action.step"), KeyStroke.getKeyStroke(KeyEvent.VK_F6, 0),
                 () -> openDocument.step(stepUnits));
@@ -146,6 +155,8 @@ public final class EditorActions {
     public Action pause() { return pause; }
     /** «Reiniciar» (M6.1-B): always enabled. */
     public Action restart() { return restart; }
+    /** F5 (M6.1-B): pauses a running simulation and starts a paused one, like play/pause on a player. */
+    public Action startOrPause() { return startOrPause; }
     public Action step() { return step; }
     public Action newView() { return newView; }
     public Action about() { return about; }
@@ -213,6 +224,7 @@ public final class EditorActions {
         JMenu simulation = tagged(new JMenu(Messages.text("menu.simulation")), MenuId.SIMULATION);
         simulation.add(start);
         simulation.add(pause);
+        simulation.add(startOrPause);
         simulation.add(restart);
         simulation.add(step);
         JMenu windowMenu = tagged(new JMenu(Messages.text("menu.window")), MenuId.WINDOW);

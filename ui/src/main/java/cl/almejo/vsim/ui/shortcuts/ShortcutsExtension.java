@@ -91,6 +91,7 @@ public final class ShortcutsExtension implements EditorExtension {
         map.put("view.previousProblem", view.problems().previousProblem());
         map.put("simulation.start", actions.start());
         map.put("simulation.pause", actions.pause());
+        map.put("simulation.startOrPause", actions.startOrPause());
         map.put("simulation.restart", actions.restart());
         map.put("simulation.step", actions.step());
         map.put("window.newView", actions.newView());

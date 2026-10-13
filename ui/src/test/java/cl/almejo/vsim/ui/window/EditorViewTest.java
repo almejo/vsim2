@@ -317,7 +317,7 @@ class EditorViewTest {
         assertThat(restart.getValue(Action.NAME)).isEqualTo("Reiniciar");
         assertThat(restart.getValue(Action.ACCELERATOR_KEY))
                 .isEqualTo(KeyStroke.getKeyStroke(KeyEvent.VK_F5, InputEvent.CTRL_DOWN_MASK));
-        assertThat(view.menu(MenuId.SIMULATION).getItem(2).getAction()).isSameAs(restart);
+        assertThat(view.menu(MenuId.SIMULATION).getItem(3).getAction()).isSameAs(restart);
         List<Action> toolBarActions = new ArrayList<>();
         for (java.awt.Component child : view.toolBar().getComponents()) {
             if (child instanceof AbstractButton button) {
@@ -331,6 +331,24 @@ class EditorViewTest {
         assertThat(restart.isEnabled()).isTrue();
         view.actions().refreshSimulationButtons(false);
         assertThat(restart.isEnabled()).isTrue();
+    }
+
+    @Test
+    void iniciarOPausarFollowsPausarInTheMenuOnF5AndTogglesTheSimulation() {
+        Action startOrPause = view.actions().startOrPause();
+        assertThat(startOrPause.getValue(Action.NAME)).isEqualTo("Iniciar o pausar");
+        assertThat(startOrPause.getValue(Action.ACCELERATOR_KEY)).isEqualTo(KeyStroke.getKeyStroke(KeyEvent.VK_F5, 0));
+        assertThat(view.menu(MenuId.SIMULATION).getItem(1).getAction()).isSameAs(view.actions().pause());
+        assertThat(view.menu(MenuId.SIMULATION).getItem(2).getAction()).isSameAs(startOrPause);
+
+        waitUntil(() -> openDocument.latestSnapshot().running());
+        view.actions().refreshSimulationButtons(true);
+        startOrPause.actionPerformed(new ActionEvent(new Object(), ActionEvent.ACTION_PERFORMED, ""));
+        waitUntil(() -> !openDocument.latestSnapshot().running());
+
+        view.actions().refreshSimulationButtons(false);
+        startOrPause.actionPerformed(new ActionEvent(new Object(), ActionEvent.ACTION_PERFORMED, ""));
+        waitUntil(() -> openDocument.latestSnapshot().running());
     }
 
     @Test
@@ -388,7 +406,7 @@ class EditorViewTest {
         assertThat(view.actions().stepUnits()).isEqualTo(10_000);
         assertThat(step.getValue(Action.NAME)).isEqualTo("Avanzar 10 000 t");
         assertThat(step.getValue(Action.SHORT_DESCRIPTION)).isEqualTo("Avanza la simulación 10 000 unidades de tiempo");
-        assertThat(view.menu(MenuId.SIMULATION).getItem(3).getText()).isEqualTo("Avanzar 10 000 t");
+        assertThat(view.menu(MenuId.SIMULATION).getItem(4).getText()).isEqualTo("Avanzar 10 000 t");
     }
 
     @Test
@@ -396,7 +414,7 @@ class EditorViewTest {
         Action step = view.actions().step();
         assertThat(step.getValue(Action.NAME)).isEqualTo("Avanzar 10 t");
         assertThat(step.getValue(Action.SHORT_DESCRIPTION)).isEqualTo("Avanza la simulación 10 unidades de tiempo");
-        assertThat(view.menu(MenuId.SIMULATION).getItem(3).getText()).isEqualTo("Avanzar 10 t");
+        assertThat(view.menu(MenuId.SIMULATION).getItem(4).getText()).isEqualTo("Avanzar 10 t");
 
         int index = 0;
         while (!(view.toolBar().getComponent(index) instanceof JComboBox)) {

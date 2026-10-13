@@ -111,7 +111,7 @@ class FixedStepFeaturesTest {
     @Test
     void theArrowAndTheMenuItemFollowTheFixedStep() {
         assertThat(view.actions().step().getValue(Action.NAME)).isEqualTo("Avanzar 10 t");
-        assertThat(texts(view.menu(MenuId.SIMULATION))).startsWith("Iniciar", "Pausar", "Reiniciar", "Avanzar 10 t",
+        assertThat(texts(view.menu(MenuId.SIMULATION))).startsWith("Iniciar", "Pausar", "Iniciar o pausar", "Reiniciar", "Avanzar 10 t",
                 "Tamaño del avance…");
         List<java.awt.Component> toolBar = Arrays.asList(view.toolBar().getComponents());
         int step = -1;

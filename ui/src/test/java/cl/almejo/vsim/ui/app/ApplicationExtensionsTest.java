@@ -131,7 +131,7 @@ class ApplicationExtensionsTest {
     void theSimulationMenuHasRestartTheFixedStepAndTheStepByStepItemsInOrder() {
         EditorView view = new EditorView(openDocument, services, NO_WINDOW);
         try {
-            assertThat(texts(view.menu(MenuId.SIMULATION))).containsExactly("Iniciar", "Pausar", "Reiniciar",
+            assertThat(texts(view.menu(MenuId.SIMULATION))).containsExactly("Iniciar", "Pausar", "Iniciar o pausar", "Reiniciar",
                     "Avanzar 10 t", "Tamaño del avance…", "Paso a paso", "Avanzar al próximo evento",
                     "Avanzar al próximo flanco de reloj", "---", "Pausar al detectar cortocircuito", "---",
                     "Tabla de verdad…");
