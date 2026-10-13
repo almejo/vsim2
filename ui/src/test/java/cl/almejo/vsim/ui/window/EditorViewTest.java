@@ -412,6 +412,7 @@ class EditorViewTest {
         assertThat(icon.getIcon()).isSameAs(Icons.get("speed", Icons.MENU_SIZE));
         assertThat(icon.getToolTipText()).isEqualTo(speed.getToolTipText());
         assertThat(icon.getLabelFor()).isSameAs(speed);
+        assertThat(speed.getMaximumSize()).as("the toolbar never stretches it").isEqualTo(speed.getPreferredSize());
     }
 
     @SuppressWarnings("unchecked")

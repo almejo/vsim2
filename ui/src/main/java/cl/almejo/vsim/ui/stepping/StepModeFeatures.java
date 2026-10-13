@@ -13,6 +13,7 @@ import cl.almejo.vsim.ui.window.MenuId;
 
 import javax.swing.AbstractAction;
 import javax.swing.AbstractButton;
+import javax.swing.BorderFactory;
 import javax.swing.Action;
 import javax.swing.JButton;
 import javax.swing.JComponent;
@@ -108,6 +109,7 @@ public final class StepModeFeatures {
         toolBar.add(stepModeButton, index + 1);
         toolBar.add(advanceButton, index + 2);
         toolBar.add(clockEdgeButton, index + 3);
+        status.setBorder(BorderFactory.createEmptyBorder(0, 4, 0, 8)); // air before the speed selector
         toolBar.add(status, index + 4);
         this.shortcutRemovers = List.of(view.registerShortcutAction("simulation.stepMode", stepModeAction),
                 view.registerShortcutAction("simulation.advance", advanceAction),

@@ -235,7 +235,12 @@ public final class EditorActions {
     }
 
     public JComboBox<Double> createSpeedSelector() {
-        JComboBox<Double> selector = new JComboBox<>(SPEEDS.toArray(Double[]::new));
+        JComboBox<Double> selector = new JComboBox<>(SPEEDS.toArray(Double[]::new)) {
+            @Override
+            public java.awt.Dimension getMaximumSize() {
+                return getPreferredSize(); // a toolbar would otherwise stretch it over all the free width
+            }
+        };
         selector.setSelectedItem(1.0);
         selector.setToolTipText(Messages.text("toolbar.speedTip"));
         selector.setRenderer(new DefaultListCellRenderer() {
