@@ -97,6 +97,8 @@ Diseño: `docs/superpowers/specs/2026-10-08-vsim2-design.md`.
 
 - Simulación ▸ «Avanzar al próximo flanco de reloj» (Mayús+F7; también un botón en la barra mientras dura el modo) avanza hasta el próximo flanco de bajada de cualquier reloj (también uno dentro de un componente de usuario), el flanco en que los flip-flops D guardan su entrada, y se detiene justo después: el próximo F7 muestra a los flip-flops reaccionando. Brillan solo los cables que cambiaron en ese último tiempo. Sin reloj en el circuito, o con la simulación corriendo, está deshabilitado; si en 1 000 000 de tiempos de eventos no llega un flanco, la simulación se detiene con el error.
 
+- Simulación ▸ «Reiniciar» (Ctrl+F5, también en la barra después de «Pausar», siempre habilitado) vuelve a empezar la simulación desde t = 0: los flip-flops en Q = 0, los relojes desde su inicio, las formas de onda limpias y sin brillo ni contorno de antes. Los interruptores quedan donde estaban. Si la simulación corría sigue corriendo, si estaba en pausa sigue en pausa, y el modo «Paso a paso» no cambia. No es un cambio del circuito: no se deshace ni lo marca como modificado.
+
 - Con el panel de formas de onda abierto, el cursor salta al nuevo tiempo después de cada «Avanzar», y en el modo también después de un clic, y la columna de nombres lee el valor de cada canal. Fuera del modo, un clic en pausa no mueve el cursor. «Avanzar 10 t» (el antiguo «Paso») sigue funcionando igual y no hace brillar nada.
 
 ## Preferencias y distribución

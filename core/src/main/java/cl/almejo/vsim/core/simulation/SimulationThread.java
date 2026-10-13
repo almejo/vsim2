@@ -103,6 +103,19 @@ public final class SimulationThread implements AutoCloseable {
     }
 
     /**
+     * «Reiniciar» (M6.1-B): the simulation of {@code circuit} starts again at time 0 with the switches where they are
+     * ({@link SimulationEngine#restart}); running or paused stays as it was, a failure is cleared.
+     */
+    public void restart(FlatCircuit circuit, Map<String, String> channels) {
+        Map<String, String> copy = Map.copyOf(channels);
+        requests.add(() -> {
+            engine.restart(circuit, copy);
+            failure = null;
+            pendingUnits = 0;
+        });
+    }
+
+    /**
      * The circuit could not be prepared ({@code cause}): pauses and publishes the failure, keeping the last circuit
      * until the next {@link #update}.
      */

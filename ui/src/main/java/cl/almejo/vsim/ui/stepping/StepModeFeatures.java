@@ -37,8 +37,8 @@ import java.util.function.LongSupplier;
  */
 public final class StepModeFeatures {
 
-    /** Where the two items go in the Simulación menu: right after «Avanzar 10 t» (Iniciar, Pausar, Avanzar 10 t; E renamed «Paso»). */
-    static final int MENU_INDEX = 3;
+    /** Where the three items go in the Simulación menu: right after Iniciar, Pausar, Reiniciar and «Avanzar 10 t». */
+    static final int MENU_INDEX = 4;
 
     private final EditorView view;
     private final OpenDocument openDocument;
@@ -61,6 +61,8 @@ public final class StepModeFeatures {
     private final Consumer<SimulationSnapshot> snapshotListener = this::snapshotPublished;
     private final List<Runnable> shortcutRemovers;
     private long shownSequence;
+    /** The time of the last snapshot shown; a smaller one means «Reiniciar» (M6.1-B). */
+    private long shownTime;
     private boolean disposed;
 
     public StepModeFeatures(EditorView view, LongSupplier nanoClock) {
@@ -173,6 +175,10 @@ public final class StepModeFeatures {
         if (disposed) {
             return;
         }
+        if (snapshot.time() < shownTime) {
+            overlay.clear(); // «Reiniciar»: what changed before is gone
+        }
+        shownTime = snapshot.time();
         Optional<StepReport> latest = openDocument.latestStep();
         if (latest.isPresent() && latest.get().sequence() > shownSequence) {
             shownSequence = latest.get().sequence();

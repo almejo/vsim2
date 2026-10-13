@@ -317,6 +317,20 @@ public final class OpenDocument implements AutoCloseable {
         return hasClock;
     }
 
+    /**
+     * «Reiniciar» (M6.1-B): the simulation starts again at time 0 — flip-flops at Q = 0, clocks from their start,
+     * waveforms cleared — with every switch where it is now. Not a document change (no undo step, not "modified");
+     * running or paused and the step mode stay as they were.
+     */
+    public void restart() {
+        try {
+            simulation.restart(flattener.flatten(document, netlist), updateProbeNets());
+        } catch (RuntimeException exception) {
+            LOGGER.error("Could not restart the simulation of {}", displayName(), exception);
+            simulation.reportFailure(exception);
+        }
+    }
+
     /** The last «Avanzar» or click on a switch while paused; safe to read from any thread. */
     public Optional<StepReport> latestStep() {
         return simulation.latestStep();

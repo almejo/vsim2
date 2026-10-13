@@ -90,6 +90,12 @@ final class Scheduler {
         now = until;
     }
 
+    /** «Reiniciar» (M6.1-B): drops every pending event and goes back to time 0. */
+    void reset() {
+        queue.clear();
+        now = 0;
+    }
+
     int pendingEvents() {
         return queue.size();
     }

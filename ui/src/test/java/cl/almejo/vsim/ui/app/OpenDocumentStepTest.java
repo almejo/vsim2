@@ -1,10 +1,12 @@
 package cl.almejo.vsim.ui.app;
 
+import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.netlist.PinRef;
 import cl.almejo.vsim.core.simulation.StepReport;
 import cl.almejo.vsim.core.simulation.StepResult;
+import cl.almejo.vsim.core.value.Value;
 import cl.almejo.vsim.ui.i18n.Messages;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -109,5 +111,29 @@ class OpenDocumentStepTest {
 
         document.history().undo();
         assertThat(document.hasClock()).isFalse();
+    }
+
+    @Test
+    void restartIsNotADocumentChangeAndKeepsTheSwitchesAndTheMode() {
+        Component toggle = place(document, StandardComponentTypes.SWITCH, 0, 0, Map.of());   // value 1
+        place(document, StandardComponentTypes.NOT, 4, -1, Map.of());
+        settleThenEnterStepMode();
+        waitUntil(() -> document.latestSnapshot().time() > 0);
+        document.interact(toggle.id());
+        waitUntil(() -> document.latestStep().isPresent());
+        boolean modified = document.isModified();
+        long changes = document.changeCount();
+        Object undo = document.history().undoDescription();
+
+        document.restart();
+
+        waitUntil(() -> document.latestSnapshot().time() == 0);
+        assertThat(document.latestSnapshot().componentState(toggle.id().value()))
+                .isEqualTo(new VisibleState.SwitchState(Value.ZERO));
+        assertThat(document.latestSnapshot().running()).isFalse();
+        assertThat(document.stepMode()).isTrue();
+        assertThat(document.isModified()).isEqualTo(modified);
+        assertThat(document.changeCount()).isEqualTo(changes);
+        assertThat(document.history().undoDescription()).isEqualTo(undo);
     }
 }

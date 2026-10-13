@@ -7,6 +7,7 @@ import cl.almejo.vsim.core.component.ComponentCategory;
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.PinSpec;
+import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
@@ -309,5 +310,40 @@ class SimulationEngineStepTest {
                 .hasMessage("no clock edge within 10 event times");
         assertThat(engine.now()).isEqualTo(10_000);
         assertThat(SimulationEngine.CLOCK_EDGE_TIME_BUDGET).isEqualTo(1_000_000);
+    }
+
+    /** Clock k (3 high, 2 low) on a flip-flop whose D is its own Q inverted (a toggle), and a switch s on net a. */
+    private static FlatCircuit toggleWithASwitch() {
+        ComponentTypeRegistry standard = StandardComponentTypes.registry();
+        return new FlatCircuit(List.of(
+                new FlatComponent("k", standard.require(StandardComponentTypes.CLOCK),
+                        Map.of("time-up", 3, "time-down", 2)),
+                new FlatComponent("ff", standard.require(StandardComponentTypes.FLIP_FLOP_DATA), Map.of("delay", 1)),
+                new FlatComponent("not", standard.require(StandardComponentTypes.NOT), Map.of("delay", 1)),
+                new FlatComponent("s", standard.require(StandardComponentTypes.SWITCH), Map.of("value", "0"))),
+                List.of(net("clock", pin("k", 0), pin("ff", 2)), net("q", pin("ff", 1), pin("not", 0)),
+                        net("nq", pin("not", 1), pin("ff", 0)), net("a", pin("s", 0))));
+    }
+
+    @Test
+    void restartStartsAgainAtTimeZeroAndKeepsTheSwitches() {
+        engine.update(toggleWithASwitch());
+        engine.advance(8);
+        engine.interact("s");
+        assertThat(engine.snapshot().netValue("q")).as("latched at the fall of t = 5").isEqualTo(Value.ONE);
+        assertThat(engine.snapshot().netValue("a")).isEqualTo(Value.ONE);
+        long revision = engine.revision();
+
+        engine.restart(toggleWithASwitch(), Map.of());
+
+        assertThat(engine.now()).isZero();
+        assertThat(engine.revision()).isGreaterThan(revision);
+        assertThat(engine.snapshot().netValue("q")).isEqualTo(Value.ZERO);
+        assertThat(engine.snapshot().componentState("k")).isEqualTo(new VisibleState.ClockState(Value.ZERO));
+        assertThat(engine.snapshot().netValue("a")).as("the switch keeps its position").isEqualTo(Value.ONE);
+        assertThat(engine.snapshot().componentState("s")).isEqualTo(new VisibleState.SwitchState(Value.ONE));
+        assertThat(engine.nextEventTime()).as("nothing left from before t = 8").hasValue(1);
+        engine.advance(6);
+        assertThat(engine.snapshot().netValue("q")).as("it toggles again at t = 6").isEqualTo(Value.ONE);
     }
 }

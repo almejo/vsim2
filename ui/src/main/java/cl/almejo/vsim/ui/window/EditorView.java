@@ -359,6 +359,7 @@ public final class EditorView extends JPanel implements CanvasHost {
         toolBar.addSeparator();
         toolBar.add(actions.start());
         toolBar.add(actions.pause());
+        toolBar.add(actions.restart());
         toolBar.add(actions.step());
         JComboBox<Double> speed = actions.createSpeedSelector();
         JLabel speedIcon = new JLabel(Icons.get(EditorActions.SPEED_ICON, Icons.MENU_SIZE));

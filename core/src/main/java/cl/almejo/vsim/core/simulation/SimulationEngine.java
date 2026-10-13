@@ -1,5 +1,6 @@
 package cl.almejo.vsim.core.simulation;
 
+import cl.almejo.vsim.core.component.Behavior;
 import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.value.Value;
@@ -119,6 +120,41 @@ public final class SimulationEngine {
             throw new IllegalArgumentException(componentId + " (" + instance.type.id() + ") is not an input");
         }
         scheduler.runUntil(now());
+    }
+
+    /**
+     * «Reiniciar» (M6.1-B): simulates {@code circuit} from scratch at time 0 — every component new (flip-flops at
+     * Q = 0, clocks from their start), no event left from before, the waveforms cleared and started again at t = 0 —
+     * except that every switch and input pin keeps the value it has now ({@link Behavior#setValue}). The channels are
+     * bound as in {@link #update(FlatCircuit, Map)}. An invalid circuit throws IllegalArgumentException and leaves the
+     * engine untouched.
+     */
+    public void restart(FlatCircuit circuit, Map<String, String> channels) {
+        validate(circuit);
+        Map<String, Value> inputs = new LinkedHashMap<>();
+        for (ComponentInstance instance : instances.values()) {
+            if (instance.behavior.visibleState() instanceof VisibleState.SwitchState state) {
+                inputs.put(instance.id, state.value());
+            }
+            instance.removed = true;
+        }
+        instances = new LinkedHashMap<>();
+        nets = new LinkedHashMap<>();
+        aliasRoots = Map.of();
+        scheduler.reset();
+        recorder.clear();
+        update(circuit, channels);
+        inputs.forEach((id, value) -> {
+            ComponentInstance instance = instances.get(id);
+            if (instance != null && instance.behavior.visibleState() instanceof VisibleState.SwitchState state
+                    && state.value().width() == value.width()) {
+                instance.behavior.setValue(instance, value);
+            }
+        });
+        scheduler.runUntil(now());
+        // the traces start at t = 0 with the switches already in place
+        recorder.clear();
+        rebind();
     }
 
     private void rebindWaveforms() {

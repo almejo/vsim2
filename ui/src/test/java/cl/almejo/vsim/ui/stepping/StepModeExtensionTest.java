@@ -76,10 +76,10 @@ class StepModeExtensionTest {
     void theItemsAndTheButtonsFollowTheFixedStep() {
         EditorView view = new EditorView(openDocument, services, NO_WINDOW);
         try {
-            assertThat(texts(view.menu(MenuId.SIMULATION))).containsExactly("Iniciar", "Pausar", "Avanzar 10 t",
-                    "Paso a paso", "Avanzar al próximo evento", "Avanzar al próximo flanco de reloj", "---",
-                    "Pausar al detectar cortocircuito");
-            assertThat(view.menu(MenuId.SIMULATION).getMenuComponent(3)).isInstanceOf(JCheckBoxMenuItem.class);
+            assertThat(texts(view.menu(MenuId.SIMULATION))).containsExactly("Iniciar", "Pausar", "Reiniciar",
+                    "Avanzar 10 t", "Paso a paso", "Avanzar al próximo evento", "Avanzar al próximo flanco de reloj",
+                    "---", "Pausar al detectar cortocircuito");
+            assertThat(view.menu(MenuId.SIMULATION).getMenuComponent(4)).isInstanceOf(JCheckBoxMenuItem.class);
             assertThat(toolBarTexts(view.toolBar())).containsSubsequence("Avanzar 10 t", "---", "Paso a paso",
                     "Avanzar al próximo evento", "Avanzar al próximo flanco de reloj", "label");
             int fixedStep = toolBarTexts(view.toolBar()).indexOf("Avanzar 10 t");
@@ -104,13 +104,13 @@ class StepModeExtensionTest {
 
         openDocument.setStepMode(true);
         for (EditorView view : List.of(first, second)) {
-            JCheckBoxMenuItem item = (JCheckBoxMenuItem) view.menu(MenuId.SIMULATION).getMenuComponent(3);
+            JCheckBoxMenuItem item = (JCheckBoxMenuItem) view.menu(MenuId.SIMULATION).getMenuComponent(4);
             assertThat(item.isSelected()).isTrue();
         }
 
         second.dispose();
         assertThat(openDocument.stepModeListenerCount()).isEqualTo(listeners + 1);
-        assertThat(texts(second.menu(MenuId.SIMULATION))).startsWith("Iniciar", "Pausar", "Avanzar 10 t")
+        assertThat(texts(second.menu(MenuId.SIMULATION))).startsWith("Iniciar", "Pausar", "Reiniciar", "Avanzar 10 t")
                 .doesNotContain("Paso a paso", "Avanzar al próximo evento", "Avanzar al próximo flanco de reloj");
         assertThat(second.toolBar().getComponentCount()).isEqualTo(toolBarItems - 5);
         assertThat(second.shortcutActions()).isEmpty();

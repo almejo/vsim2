@@ -131,9 +131,9 @@ class ApplicationExtensionsTest {
     void theSimulationMenuHasStepByStepAndAdvanceAfterPasoWithF7() {
         EditorView view = new EditorView(openDocument, services, NO_WINDOW);
         try {
-            assertThat(texts(view.menu(MenuId.SIMULATION))).containsExactly("Iniciar", "Pausar", "Avanzar 10 t",
-                    "Paso a paso", "Avanzar al próximo evento", "Avanzar al próximo flanco de reloj", "---",
-                    "Pausar al detectar cortocircuito", "---", "Tabla de verdad…");
+            assertThat(texts(view.menu(MenuId.SIMULATION))).containsExactly("Iniciar", "Pausar", "Reiniciar",
+                    "Avanzar 10 t", "Paso a paso", "Avanzar al próximo evento", "Avanzar al próximo flanco de reloj",
+                    "---", "Pausar al detectar cortocircuito", "---", "Tabla de verdad…");
             assertThat(view.shortcutActions().get("simulation.advance").getValue(Action.ACCELERATOR_KEY))
                     .isEqualTo(KeyStroke.getKeyStroke(KeyEvent.VK_F7, 0));
             assertThat(view.shortcutActions().get("simulation.advanceToClockEdge").getValue(Action.ACCELERATOR_KEY))

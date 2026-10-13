@@ -58,6 +58,7 @@ public final class ActionIcons implements EditorExtension {
         names.put(actions.centerView(), "center");
         names.put(actions.start(), "start");
         names.put(actions.pause(), "pause");
+        names.put(actions.restart(), "restart");
         names.put(actions.step(), "step");
         names.put(selection.cut(), "cut");
         names.put(selection.copy(), "copy");

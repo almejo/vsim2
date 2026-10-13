@@ -69,6 +69,7 @@ public final class EditorActions {
     private final Action centerView;
     private final Action start;
     private final Action pause;
+    private final Action restart;
     private final Action step;
     private final Action newView;
     private final Action about;
@@ -104,6 +105,7 @@ public final class EditorActions {
         centerView = action(Messages.text("action.centerView"), null, canvas::centerCircuit);
         start = action(Messages.text("action.start"), null, openDocument::resume);
         pause = action(Messages.text("action.pause"), null, openDocument::pause);
+        restart = action(Messages.text("action.restart"), shortcut(KeyEvent.VK_F5, 0), openDocument::restart);
         step = action(Messages.text("action.step"), null, () -> openDocument.step(STEP_UNITS));
         step.putValue(Action.SHORT_DESCRIPTION, Messages.format("tooltip.step", STEP_UNITS));
         newView = action(Messages.text("action.newWindow"), null, window::newView);
@@ -138,6 +140,8 @@ public final class EditorActions {
     public Action centerView() { return centerView; }
     public Action start() { return start; }
     public Action pause() { return pause; }
+    /** «Reiniciar» (M6.1-B): always enabled. */
+    public Action restart() { return restart; }
     public Action step() { return step; }
     public Action newView() { return newView; }
     public Action about() { return about; }
@@ -187,6 +191,7 @@ public final class EditorActions {
         JMenu simulation = tagged(new JMenu(Messages.text("menu.simulation")), MenuId.SIMULATION);
         simulation.add(start);
         simulation.add(pause);
+        simulation.add(restart);
         simulation.add(step);
         JMenu windowMenu = tagged(new JMenu(Messages.text("menu.window")), MenuId.WINDOW);
         windowMenu.add(newView);

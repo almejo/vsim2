@@ -312,6 +312,28 @@ class EditorViewTest {
     }
 
     @Test
+    void reiniciarFollowsPausarInTheMenuAndTheToolbarAndIsAlwaysEnabled() {
+        Action restart = view.actions().restart();
+        assertThat(restart.getValue(Action.NAME)).isEqualTo("Reiniciar");
+        assertThat(restart.getValue(Action.ACCELERATOR_KEY))
+                .isEqualTo(KeyStroke.getKeyStroke(KeyEvent.VK_F5, InputEvent.CTRL_DOWN_MASK));
+        assertThat(view.menu(MenuId.SIMULATION).getItem(2).getAction()).isSameAs(restart);
+        List<Action> toolBarActions = new ArrayList<>();
+        for (java.awt.Component child : view.toolBar().getComponents()) {
+            if (child instanceof AbstractButton button) {
+                toolBarActions.add(button.getAction());
+            }
+        }
+        assertThat(toolBarActions).containsSubsequence(view.actions().pause(), restart, view.actions().step());
+        assertThat(toolBarActions.indexOf(restart)).isEqualTo(toolBarActions.indexOf(view.actions().pause()) + 1);
+
+        view.actions().refreshSimulationButtons(true);
+        assertThat(restart.isEnabled()).isTrue();
+        view.actions().refreshSimulationButtons(false);
+        assertThat(restart.isEnabled()).isTrue();
+    }
+
+    @Test
     void viewWithTheOldFourBitAdderPaints() throws Exception {
         view.dispose();
         openDocument.close();
@@ -361,7 +383,7 @@ class EditorViewTest {
         Action step = view.actions().step();
         assertThat(step.getValue(Action.NAME)).isEqualTo("Avanzar 10 t");
         assertThat(step.getValue(Action.SHORT_DESCRIPTION)).isEqualTo("Avanza la simulación 10 unidades de tiempo");
-        assertThat(view.menu(MenuId.SIMULATION).getItem(2).getText()).isEqualTo("Avanzar 10 t");
+        assertThat(view.menu(MenuId.SIMULATION).getItem(3).getText()).isEqualTo("Avanzar 10 t");
 
         int index = 0;
         while (!(view.toolBar().getComponent(index) instanceof JComboBox)) {

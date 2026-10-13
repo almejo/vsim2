@@ -10,12 +10,14 @@ import cl.almejo.vsim.core.component.PinSpec;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.geometry.GridSize;
 import cl.almejo.vsim.core.value.Value;
+import cl.almejo.vsim.core.waveform.WaveformSnapshot;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Map;
 import java.util.OptionalLong;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -150,5 +152,52 @@ class SimulationThreadStepTest {
         thread.advanceToNextClockEdge();
         thread.tick();
         assertThat(thread.latestStep().orElseThrow().sequence()).as("ignored while running").isEqualTo(1);
+    }
+
+    /** Clock k (3 high, 2 low) on a flip-flop whose D is its own Q inverted: q goes to 1 at t = 6. */
+    private static FlatCircuit toggle() {
+        ComponentTypeRegistry standard = StandardComponentTypes.registry();
+        return new FlatCircuit(List.of(
+                new FlatComponent("k", standard.require(StandardComponentTypes.CLOCK),
+                        Map.of("time-up", 3, "time-down", 2)),
+                new FlatComponent("ff", standard.require(StandardComponentTypes.FLIP_FLOP_DATA), Map.of("delay", 1)),
+                new FlatComponent("not", standard.require(StandardComponentTypes.NOT), Map.of("delay", 1))),
+                List.of(new FlatNet("clock", List.of(new FlatPinRef("k", 0), new FlatPinRef("ff", 2)), 1, false),
+                        new FlatNet("q", List.of(new FlatPinRef("ff", 1), new FlatPinRef("not", 0)), 1, false),
+                        new FlatNet("nq", List.of(new FlatPinRef("not", 1), new FlatPinRef("ff", 0)), 1, false)));
+    }
+
+    @Test
+    void restartGoesBackToTimeZeroClearsTheWaveformsAndKeepsThePausedState() {
+        thread.update(toggle(), Map.of("ch", "q"));
+        thread.step(8);
+        thread.tick();
+        assertThat(thread.latestWaveforms().time()).isEqualTo(8);
+        assertThat(thread.latestWaveforms().trace("ch").orElseThrow().lastTime()).hasValue(6);
+
+        thread.restart(toggle(), Map.of("ch", "q"));
+        nanos.addAndGet(TimeUnit.MILLISECONDS.toNanos(20));
+        thread.tick();
+
+        assertThat(thread.latestSnapshot().time()).isZero();
+        assertThat(thread.latestSnapshot().running()).isFalse();
+        assertThat(thread.latestSnapshot().netValue("q")).isEqualTo(Value.ZERO);
+        assertThat(thread.latestNextEventTime()).hasValue(1);
+        WaveformSnapshot waveforms = thread.latestWaveforms();
+        assertThat(waveforms.time()).isZero();
+        assertThat(waveforms.trace("ch").orElseThrow().lastTime()).as("only the start, at t = 0").hasValue(0);
+    }
+
+    @Test
+    void restartKeepsARunningSimulationRunning() {
+        thread.update(toggle());
+        thread.resume();
+        thread.tick();
+
+        thread.restart(toggle(), Map.of());
+        thread.tick();
+
+        assertThat(thread.latestSnapshot().running()).isTrue();
+        assertThat(thread.latestSnapshot().failure()).isEmpty();
     }
 }

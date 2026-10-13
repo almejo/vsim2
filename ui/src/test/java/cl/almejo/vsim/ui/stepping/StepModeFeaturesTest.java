@@ -278,4 +278,25 @@ class StepModeFeaturesTest {
         String clockNet = openDocument.netlist().netForPin(new PinRef(clock.id(), 0)).orElseThrow().id().value();
         assertThat(edge.changedNets()).contains(clockNet);
     }
+
+    @Test
+    void reiniciarClearsTheGlowAndTheOutlineFollowsTheNewTime() {
+        Component toggle = place(openDocument, StandardComponentTypes.SWITCH, 0, 0, Map.of());  // out (4,1)
+        addWire(4, 1, 8, 1);
+        place(openDocument, StandardComponentTypes.NOT, 8, -1, Map.of());                       // (8,1) → (12,1)
+        settleThenEnterStepMode();
+        waitUntil(() -> openDocument.latestSnapshot().time() > 0);
+        openDocument.interact(toggle.id());
+        waitUntil(() -> openDocument.latestStep().isPresent() && openDocument.latestNextEventTime().isPresent());
+        showLatestSnapshot();
+        assertThat(features.overlay().current()).isPresent();
+
+        perform(view.actions().restart());
+        waitUntil(() -> openDocument.latestSnapshot().time() == 0);
+        showLatestSnapshot();
+
+        assertThat(features.overlay().current()).as("time went back: the old glow is gone").isEmpty();
+        assertThat(features.pendingOverlay().current().matches(openDocument.netlistToken())).isTrue();
+        assertThat(openDocument.stepMode()).isTrue();
+    }
 }
