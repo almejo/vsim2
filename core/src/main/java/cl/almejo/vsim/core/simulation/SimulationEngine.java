@@ -340,6 +340,21 @@ public final class SimulationEngine {
         return outputs;
     }
 
+    /**
+     * «Avanzar N t» while paused (M6.1-B, spec §4.4): {@link #advance(long)} that also reports every net that changed
+     * anywhere in the jump. No event budget, like a running simulation.
+     */
+    public StepResult advanceBy(long duration) {
+        long fromTime = now();
+        Set<String> changed = startTracking();
+        try {
+            advance(duration);
+        } finally {
+            changedNets = null;
+        }
+        return new StepResult(fromTime, now(), changed, nextEventTime());
+    }
+
     /** {@link #interact} that also reports the nets that changed (a switch clicked while paused, M6.1-B). */
     public StepResult interactTracked(String componentId) {
         Set<String> changed = startTracking();

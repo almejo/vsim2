@@ -70,6 +70,7 @@ class CatalogMatchesEditorTest {
         actions.put("view.zoomOut", view.actions().zoomOut());
         actions.put("view.zoomReset", view.actions().zoomReset());
         actions.put("simulation.restart", view.actions().restart());
+        actions.put("simulation.step", view.actions().step());
         return actions;
     }
 

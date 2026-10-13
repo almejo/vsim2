@@ -99,7 +99,8 @@ Diseño: `docs/superpowers/specs/2026-10-08-vsim2-design.md`.
 
 - Simulación ▸ «Reiniciar» (Ctrl+F5, también en la barra después de «Pausar», siempre habilitado) vuelve a empezar la simulación desde t = 0: los flip-flops en Q = 0, los relojes desde su inicio, las formas de onda limpias y sin brillo ni contorno de antes. Los interruptores quedan donde estaban. Si la simulación corría sigue corriendo, si estaba en pausa sigue en pausa, y el modo «Paso a paso» no cambia. No es un cambio del circuito: no se deshace ni lo marca como modificado.
 
-- Con el panel de formas de onda abierto, el cursor salta al nuevo tiempo después de cada «Avanzar», y en el modo también después de un clic, y la columna de nombres lee el valor de cada canal. Fuera del modo, un clic en pausa no mueve el cursor. «Avanzar 10 t» (el antiguo «Paso») sigue funcionando igual y no hace brillar nada.
+- Con el panel de formas de onda abierto, el cursor salta al nuevo tiempo después de cada «Avanzar», y en el modo también después de un clic, y la columna de nombres lee el valor de cada canal. Fuera del modo, un clic en pausa no mueve el cursor.
+- «Avanzar 10 t» (el antiguo «Paso», F6) sigue avanzando un tramo fijo: la flecha junto a su botón elige 1, 10, 100, 1 000, 10 000 u «Otro…» (de 1 a 1 000 000 000), y Simulación ▸ «Tamaño del avance…» abre el mismo diálogo. El nombre cambia («Avanzar 100 t», también su ayuda: «Avanza la simulación 100 unidades de tiempo (F6)») y se recuerda para la próxima vez. Con la simulación en pausa, los cables que cambiaron en cualquier momento del tramo brillan como con F7 y el cursor de las formas de onda va al nuevo tiempo. Los botones de «Paso a paso» van justo después.
 
 ## Preferencias y distribución
 

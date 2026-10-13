@@ -71,19 +71,20 @@ class SimulationThreadStepTest {
 
         thread.step(10);
         thread.tick();
-        assertThat(thread.latestNextEventTime()).as("refreshed after Paso").isEmpty();
-        assertThat(thread.latestStep()).as("Paso publishes no step").isEmpty();
+        assertThat(thread.latestNextEventTime()).as("refreshed after «Avanzar 10 t»").isEmpty();
+        assertThat(thread.latestStep()).as("a paused fixed step is a step too").contains(
+                new StepReport(1, new StepResult(0, 10, Set.of("b", "c"), OptionalLong.empty())));
 
         thread.interact("s");
         thread.tick();
         assertThat(thread.latestStep()).contains(
-                new StepReport(1, new StepResult(10, 10, Set.of("a"), OptionalLong.of(11))));
+                new StepReport(2, new StepResult(10, 10, Set.of("a"), OptionalLong.of(11))));
         assertThat(thread.latestNextEventTime()).as("refreshed after a click").hasValue(11);
 
         thread.advanceToNextEvent();
         thread.tick();
         assertThat(thread.latestStep()).contains(
-                new StepReport(2, new StepResult(10, 11, Set.of("b"), OptionalLong.of(12))));
+                new StepReport(3, new StepResult(10, 11, Set.of("b"), OptionalLong.of(12))));
         assertThat(thread.latestSnapshot().time()).isEqualTo(11);
         assertThat(thread.latestNextEventTime()).hasValue(12);
     }
@@ -96,6 +97,7 @@ class SimulationThreadStepTest {
 
         thread.advanceToNextEvent();
         thread.interact("s");
+        thread.step(10);
         thread.tick();
 
         assertThat(thread.latestStep()).isEmpty();

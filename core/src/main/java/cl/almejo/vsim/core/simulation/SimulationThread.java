@@ -160,8 +160,8 @@ public final class SimulationThread implements AutoCloseable {
     }
 
     /**
-     * The last step published by {@link #advanceToNextEvent()}, {@link #advanceToNextClockEdge()} or a paused
-     * {@link #interact}; empty before the first.
+     * The last step published by {@link #advanceToNextEvent()}, {@link #advanceToNextClockEdge()}, a paused
+     * {@link #step} or a paused {@link #interact}; empty before the first.
      */
     public Optional<StepReport> latestStep() {
         return Optional.ofNullable(latestStep);
@@ -215,10 +215,11 @@ public final class SimulationThread implements AutoCloseable {
         requests.add(() -> running = false);
     }
 
+    /** «Avanzar N t»: ignored while running; while paused it is published as a {@link #latestStep()} (M6.1-B). */
     public void step(long duration) {
         requests.add(() -> {
             if (!running) {
-                engine.advance(duration);
+                publishStep(engine.advanceBy(duration));
             }
         });
     }

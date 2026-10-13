@@ -186,7 +186,7 @@ class PolishEndToEndTest {
             assertThat(toolbarButton(view, undo).getToolTipText())
                     .isEqualTo(undo.getValue(Action.NAME) + " (" + KeyBindings.describe(undoKey) + ")");
             assertThat(toolbarButton(view, view.actions().step()).getToolTipText())
-                    .isEqualTo("Avanza la simulación 10 unidades de tiempo");
+                    .isEqualTo("Avanza la simulación 10 unidades de tiempo (F6)");
             assertThat(view.actions().step().getValue(Action.NAME)).isEqualTo("Avanzar 10 t");
         } finally {
             view.dispose();

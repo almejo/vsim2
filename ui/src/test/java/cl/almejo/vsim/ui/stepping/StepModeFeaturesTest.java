@@ -299,4 +299,35 @@ class StepModeFeaturesTest {
         assertThat(features.pendingOverlay().current().matches(openDocument.netlistToken())).isTrue();
         assertThat(openDocument.stepMode()).isTrue();
     }
+
+    @Test
+    void aFixedStepLightsWhatChangedInTheJumpAndMovesTheWaveformCursor() {
+        Component toggle = place(openDocument, StandardComponentTypes.SWITCH, 0, 0, Map.of());  // out (4,1)
+        addWire(4, 1, 8, 1);
+        place(openDocument, StandardComponentTypes.NOT, 8, -1, Map.of());                       // (8,1) → (12,1)
+        Wire output = addWire(12, 1, 16, 1);
+        view.bottomDock().showDock();
+        WaveformPanel panel = (WaveformPanel) view.bottomDock().content().orElseThrow();
+        waitUntil(() -> openDocument.latestSnapshot().token() == openDocument.netlistToken()
+                && openDocument.latestSnapshot().running() && openDocument.latestNextEventTime().isEmpty());
+        openDocument.pause();
+        waitUntil(() -> !openDocument.latestSnapshot().running());
+        long before = openDocument.latestSnapshot().time();
+        openDocument.interact(toggle.id());
+        waitUntil(() -> openDocument.latestStep().isPresent());
+
+        perform(view.actions().step());
+        waitUntil(() -> openDocument.latestStep().orElseThrow().sequence() == 2
+                && openDocument.latestSnapshot().time() == before + 10);
+        clock.set(5_000);
+        showLatestSnapshot();
+
+        assertThat(openDocument.stepMode()).isFalse();
+        assertThat(features.overlay().current()).hasValueSatisfying(highlight -> {
+            assertThat(highlight.wires()).isEqualTo(Set.of(output.id()));
+            assertThat(highlight.startNanos()).isEqualTo(5_000);
+        });
+        assertThat(panel.cursorTime()).as("time moved: the cursor follows, also outside the mode")
+                .hasValue(before + 10);
+    }
 }

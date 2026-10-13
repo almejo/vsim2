@@ -15,6 +15,7 @@ import javax.swing.AbstractAction;
 import javax.swing.AbstractButton;
 import javax.swing.Action;
 import javax.swing.JButton;
+import javax.swing.JComponent;
 import javax.swing.JCheckBoxMenuItem;
 import javax.swing.JLabel;
 import javax.swing.JMenu;
@@ -37,8 +38,6 @@ import java.util.function.LongSupplier;
  */
 public final class StepModeFeatures {
 
-    /** Where the three items go in the Simulación menu: right after Iniciar, Pausar, Reiniciar and «Avanzar 10 t». */
-    static final int MENU_INDEX = 4;
 
     private final EditorView view;
     private final OpenDocument openDocument;
@@ -97,14 +96,15 @@ public final class StepModeFeatures {
         this.stepModeItem = new JCheckBoxMenuItem(stepModeAction);
         this.advanceItem = new JMenuItem(advanceAction);
         this.clockEdgeItem = new JMenuItem(clockEdgeAction);
-        simulationMenu.insert(stepModeItem, MENU_INDEX);
-        simulationMenu.insert(advanceItem, MENU_INDEX + 1);
-        simulationMenu.insert(clockEdgeItem, MENU_INDEX + 2);
+        int menuIndex = indexAfterFixedStep(simulationMenu.getMenuComponents());
+        simulationMenu.insert(stepModeItem, menuIndex);
+        simulationMenu.insert(advanceItem, menuIndex + 1);
+        simulationMenu.insert(clockEdgeItem, menuIndex + 2);
         this.stepModeButton = new JToggleButton(stepModeAction);
         this.advanceButton = new JButton(advanceAction); // text and tooltip come from the action (ActionIcons)
         this.clockEdgeButton = new JButton(clockEdgeAction);
         JToolBar toolBar = view.toolBar();
-        int index = toolBarIndexAfterFixedStep(toolBar);
+        int index = indexAfterFixedStep(toolBar.getComponents());
         toolBar.add(separator, index);
         toolBar.add(stepModeButton, index + 1);
         toolBar.add(advanceButton, index + 2);
@@ -144,12 +144,19 @@ public final class StepModeFeatures {
         return clockEdgeButton;
     }
 
-    /** Right after the button of «Avanzar 10 t» (spec §4.4: B's buttons follow the fixed step); else at the end. */
-    private int toolBarIndexAfterFixedStep(JToolBar toolBar) {
-        Component[] children = toolBar.getComponents();
+    /**
+     * Right after «Avanzar N t» and what {@link FixedStepFeatures} put next to it (spec §4.4: B's controls follow the
+     * fixed step), in the menu and in the toolbar; at the end when it is not there.
+     */
+    private int indexAfterFixedStep(Component[] children) {
         for (int index = 0; index < children.length; index++) {
             if (children[index] instanceof AbstractButton button && button.getAction() == view.actions().step()) {
-                return index + 1;
+                int after = index + 1;
+                while (after < children.length && children[after] instanceof JComponent companion
+                        && companion.getClientProperty(FixedStepFeatures.COMPANION) != null) {
+                    after++;
+                }
+                return after;
             }
         }
         return children.length;

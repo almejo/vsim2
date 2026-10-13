@@ -14,8 +14,9 @@ import java.util.Set;
 
 /**
  * Every action whose keyboard shortcut the user can change (spec §5.2), ordered by menu and then menu order. Ids are
- * {@code <group>.<action>}; the name is the action's own menu text. The 25 defaults are the editor's accelerators,
- * its canvas keys, F7 and Mayús+F7 for M6.1-B's two advances; the others start without a shortcut. Defaults use
+ * {@code <group>.<action>}; the name is the action's own menu text. The 26 defaults are the editor's accelerators
+ * (F6 for «Avanzar N t»), its canvas keys, F7 and Mayús+F7 for M6.1-B's two advances; the others start without a
+ * shortcut. Defaults use
  * the platform menu modifier (⌘ on macOS).
  */
 public final class ShortcutCatalog {
@@ -84,7 +85,8 @@ public final class ShortcutCatalog {
         window(entries, "simulation.start", "action.start", MenuId.SIMULATION, null);
         window(entries, "simulation.pause", "action.pause", MenuId.SIMULATION, null);
         window(entries, "simulation.restart", "action.restart", MenuId.SIMULATION, stroke(KeyEvent.VK_F5, menu));
-        window(entries, "simulation.step", "action.step", MenuId.SIMULATION, null);
+        window(entries, "simulation.step", "action.step", MenuId.SIMULATION, stroke(KeyEvent.VK_F6, 0));
+        window(entries, "simulation.stepSize", "action.stepSize", MenuId.SIMULATION, null);
         window(entries, "simulation.stepMode", "action.stepMode", MenuId.SIMULATION, null);
         window(entries, "simulation.advance", "action.advance", MenuId.SIMULATION, stroke(KeyEvent.VK_F7, 0));
         window(entries, "simulation.advanceToClockEdge", "action.advanceToClockEdge", MenuId.SIMULATION,

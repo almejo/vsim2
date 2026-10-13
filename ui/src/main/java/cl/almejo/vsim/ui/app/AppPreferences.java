@@ -28,6 +28,11 @@ public final class AppPreferences {
     static final String RESTORE_SESSION = "restoreSession";
     static final String SESSION = "session";
     static final String SHORTCUTS = "shortcuts";
+    static final String STEP_UNITS = "simulation.stepUnits";
+
+    /** «Avanzar 10 t» (M6.1-B): the fixed step until the user picks another size. */
+    public static final long DEFAULT_STEP_UNITS = 10;
+    public static final long MAXIMUM_STEP_UNITS = 1_000_000_000;
 
     private static final Logger LOGGER = LoggerFactory.getLogger(AppPreferences.class);
     private static final String NODE = "cl/almejo/vsim2";
@@ -136,6 +141,24 @@ public final class AppPreferences {
     /** For tests: views and extensions must remove the listeners they add when disposed. */
     public int listenerCount() {
         return listeners.size();
+    }
+
+    /** Time units of the fixed step «Avanzar N t» (M6.1-B); the default when nothing valid is stored. */
+    public long stepUnits() {
+        try {
+            long stored = Long.parseLong(node.get(STEP_UNITS, ""));
+            return stored >= 1 && stored <= MAXIMUM_STEP_UNITS ? stored : DEFAULT_STEP_UNITS;
+        } catch (NumberFormatException exception) {
+            return DEFAULT_STEP_UNITS;
+        }
+    }
+
+    /** 1 to {@link #MAXIMUM_STEP_UNITS} (IllegalArgumentException otherwise); every view renames its fixed step. */
+    public void setStepUnits(long units) {
+        if (units < 1 || units > MAXIMUM_STEP_UNITS) {
+            throw new IllegalArgumentException("step units out of range: " + units);
+        }
+        put(STEP_UNITS, Long.toString(units));
     }
 
     // --- M6-B session: recent files, last session, recovery folder ---

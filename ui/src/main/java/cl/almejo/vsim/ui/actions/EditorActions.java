@@ -8,6 +8,7 @@ import cl.almejo.vsim.core.command.RotateElementsCommand;
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.i18n.Messages;
@@ -15,6 +16,7 @@ import cl.almejo.vsim.ui.panels.ConfigureDialog;
 import cl.almejo.vsim.ui.shortcuts.ShortcutCatalog;
 import cl.almejo.vsim.ui.tools.PanTool;
 import cl.almejo.vsim.ui.tools.WireTool;
+import cl.almejo.vsim.ui.waveform.TimeAxis;
 import cl.almejo.vsim.ui.window.MenuId;
 import cl.almejo.vsim.ui.window.WindowCommands;
 
@@ -37,7 +39,6 @@ import java.util.Set;
 /** Every user command of an editor window, as Swing actions whose enabled state follows the editor. */
 public final class EditorActions {
 
-    public static final long STEP_UNITS = 10;
     public static final List<Double> SPEEDS = List.of(0.1, 1.0, 10.0, 100.0);
 
     /** The icon before the speed selector in the toolbar, by file name under {@code icons/} (M6.1-E). */
@@ -47,6 +48,8 @@ public final class EditorActions {
     private final CircuitCanvas canvas;
     private final int menuMask = ShortcutCatalog.menuMask();
     private final HistoryListener historyListener = history -> refresh();
+    /** How far «Avanzar N t» goes (M6.1-B: the preference, followed by {@code FixedStepFeatures}). */
+    private long stepUnits = AppPreferences.DEFAULT_STEP_UNITS;
 
     private final Action newDocument;
     private final Action open;
@@ -106,8 +109,9 @@ public final class EditorActions {
         start = action(Messages.text("action.start"), null, openDocument::resume);
         pause = action(Messages.text("action.pause"), null, openDocument::pause);
         restart = action(Messages.text("action.restart"), shortcut(KeyEvent.VK_F5, 0), openDocument::restart);
-        step = action(Messages.text("action.step"), null, () -> openDocument.step(STEP_UNITS));
-        step.putValue(Action.SHORT_DESCRIPTION, Messages.format("tooltip.step", STEP_UNITS));
+        step = action(Messages.text("action.step"), KeyStroke.getKeyStroke(KeyEvent.VK_F6, 0),
+                () -> openDocument.step(stepUnits));
+        setStepUnits(stepUnits);
         newView = action(Messages.text("action.newWindow"), null, window::newView);
         about = action(Messages.text("action.about"), null, () -> JOptionPane.showMessageDialog(canvas,
                 Messages.text("dialog.about.message"), Messages.text("action.about"), JOptionPane.INFORMATION_MESSAGE));
@@ -145,6 +149,24 @@ public final class EditorActions {
     public Action step() { return step; }
     public Action newView() { return newView; }
     public Action about() { return about; }
+
+    /**
+     * The size of the fixed step (M6.1-B, spec §4.4): «Avanzar 100 t» and «Avanza la simulación 100 unidades de
+     * tiempo», the number grouped like times («1 000»).
+     */
+    public void setStepUnits(long units) {
+        if (units < 1) {
+            throw new IllegalArgumentException("the step must be at least 1 time unit: " + units);
+        }
+        stepUnits = units;
+        String formatted = TimeAxis.format(units);
+        step.putValue(Action.NAME, Messages.format("action.stepBy", formatted));
+        step.putValue(Action.SHORT_DESCRIPTION, Messages.format("tooltip.step", formatted));
+    }
+
+    public long stepUnits() {
+        return stepUnits;
+    }
 
     /** Opens the Configure dialog for {@code component}; an accepted change becomes one undo step. */
     public void configure(Component component) {

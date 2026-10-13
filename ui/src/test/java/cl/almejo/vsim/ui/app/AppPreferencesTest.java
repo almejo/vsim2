@@ -52,6 +52,27 @@ class AppPreferencesTest {
     }
 
     @Test
+    void theStepSizeIsTenByDefaultAndTakesOneToABillion() {
+        preferences.addListener(changes::incrementAndGet);
+        assertThat(preferences.stepUnits()).isEqualTo(AppPreferences.DEFAULT_STEP_UNITS).isEqualTo(10);
+
+        preferences.setStepUnits(1_000);
+        assertThat(preferences.stepUnits()).isEqualTo(1_000);
+        assertThat(node.get("simulation.stepUnits", null)).isEqualTo("1000");
+        assertThat(changes).hasValue(1);
+        preferences.setStepUnits(1_000);
+        assertThat(changes).as("only real changes notify").hasValue(1);
+
+        assertThatThrownBy(() -> preferences.setStepUnits(0)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> preferences.setStepUnits(AppPreferences.MAXIMUM_STEP_UNITS + 1))
+                .isInstanceOf(IllegalArgumentException.class);
+        node.put("simulation.stepUnits", "many");
+        assertThat(preferences.stepUnits()).as("unreadable").isEqualTo(10);
+        node.put("simulation.stepUnits", "0");
+        assertThat(preferences.stepUnits()).as("out of range").isEqualTo(10);
+    }
+
+    @Test
     void theDataDirectoryIsTheParentOfTheDefaultLibraryOnEveryPlatform() {
         assertThat(AppPreferences.dataDirectory("Linux", Map.of(), home)).isEqualTo(home.resolve(".local/share/vsim2"));
         assertThat(AppPreferences.dataDirectory("Linux", Map.of("XDG_DATA_HOME", "/data"), home))

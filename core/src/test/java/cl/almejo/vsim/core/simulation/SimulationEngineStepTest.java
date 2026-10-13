@@ -346,4 +346,16 @@ class SimulationEngineStepTest {
         engine.advance(6);
         assertThat(engine.snapshot().netValue("q")).as("it toggles again at t = 6").isEqualTo(Value.ONE);
     }
+
+    @Test
+    void advanceByReportsEveryNetChangedInTheJump() {
+        engine.update(inverterChain());
+        engine.advance(5);
+        engine.interactTracked("s");
+
+        assertThat(engine.advanceBy(100)).isEqualTo(new StepResult(5, 105, Set.of("b", "c"), OptionalLong.empty()));
+        assertThat(engine.advanceBy(10)).as("nothing changed").isEqualTo(
+                new StepResult(105, 115, Set.of(), OptionalLong.empty()));
+        assertThat(engine.interactTracked("s").changedNets()).as("tracking ended").containsExactly("a");
+    }
 }

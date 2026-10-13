@@ -132,8 +132,9 @@ class ApplicationExtensionsTest {
         EditorView view = new EditorView(openDocument, services, NO_WINDOW);
         try {
             assertThat(texts(view.menu(MenuId.SIMULATION))).containsExactly("Iniciar", "Pausar", "Reiniciar",
-                    "Avanzar 10 t", "Paso a paso", "Avanzar al próximo evento", "Avanzar al próximo flanco de reloj",
-                    "---", "Pausar al detectar cortocircuito", "---", "Tabla de verdad…");
+                    "Avanzar 10 t", "Tamaño del avance…", "Paso a paso", "Avanzar al próximo evento",
+                    "Avanzar al próximo flanco de reloj", "---", "Pausar al detectar cortocircuito", "---",
+                    "Tabla de verdad…");
             assertThat(view.shortcutActions().get("simulation.advance").getValue(Action.ACCELERATOR_KEY))
                     .isEqualTo(KeyStroke.getKeyStroke(KeyEvent.VK_F7, 0));
             assertThat(view.shortcutActions().get("simulation.advanceToClockEdge").getValue(Action.ACCELERATOR_KEY))
@@ -169,6 +170,29 @@ class ApplicationExtensionsTest {
                 // E Task 14 appends the shortcut: «Avanzar al próximo evento (F7)».
                 assertThat(button.getToolTipText()).startsWith(name);
             }
+        } finally {
+            view.dispose();
+        }
+    }
+
+    @Test
+    void theFixedStepTakesF6AndItsSizeFromThePreferences() {
+        EditorView view = new EditorView(openDocument, services, NO_WINDOW);
+        try {
+            Action step = view.actions().step();
+            AbstractButton button = Arrays.stream(view.toolBar().getComponents())
+                    .filter(AbstractButton.class::isInstance)
+                    .map(AbstractButton.class::cast)
+                    .filter(candidate -> candidate.getAction() == step)
+                    .findFirst().orElseThrow();
+            assertThat(step.getValue(Action.ACCELERATOR_KEY)).isEqualTo(KeyStroke.getKeyStroke(KeyEvent.VK_F6, 0));
+            assertThat(button.getToolTipText()).isEqualTo("Avanza la simulación 10 unidades de tiempo (F6)");
+
+            preferences.setStepUnits(100);
+
+            assertThat(step.getValue(Action.NAME)).isEqualTo("Avanzar 100 t");
+            assertThat(button.getToolTipText()).isEqualTo("Avanza la simulación 100 unidades de tiempo (F6)");
+            assertThat(view.shortcutActions().get("simulation.stepSize").getValue(Action.ACCELERATOR_KEY)).isNull();
         } finally {
             view.dispose();
         }

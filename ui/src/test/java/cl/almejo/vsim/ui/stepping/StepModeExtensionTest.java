@@ -66,7 +66,8 @@ class StepModeExtensionTest {
     private static List<String> toolBarTexts(JToolBar toolBar) {
         List<String> texts = new ArrayList<>();
         for (java.awt.Component child : toolBar.getComponents()) {
-            texts.add(child instanceof AbstractButton button ? button.getText()
+            texts.add(child instanceof StepSizeButton ? "arrow"
+                    : child instanceof AbstractButton button ? button.getText()
                     : child instanceof JLabel ? "label" : "---");
         }
         return texts;
@@ -77,17 +78,15 @@ class StepModeExtensionTest {
         EditorView view = new EditorView(openDocument, services, NO_WINDOW);
         try {
             assertThat(texts(view.menu(MenuId.SIMULATION))).containsExactly("Iniciar", "Pausar", "Reiniciar",
-                    "Avanzar 10 t", "Paso a paso", "Avanzar al próximo evento", "Avanzar al próximo flanco de reloj",
-                    "---", "Pausar al detectar cortocircuito");
-            assertThat(view.menu(MenuId.SIMULATION).getMenuComponent(4)).isInstanceOf(JCheckBoxMenuItem.class);
-            assertThat(toolBarTexts(view.toolBar())).containsSubsequence("Avanzar 10 t", "---", "Paso a paso",
-                    "Avanzar al próximo evento", "Avanzar al próximo flanco de reloj", "label");
+                    "Avanzar 10 t", "Tamaño del avance…", "Paso a paso", "Avanzar al próximo evento",
+                    "Avanzar al próximo flanco de reloj", "---", "Pausar al detectar cortocircuito");
+            assertThat(view.menu(MenuId.SIMULATION).getMenuComponent(5)).isInstanceOf(JCheckBoxMenuItem.class);
             int fixedStep = toolBarTexts(view.toolBar()).indexOf("Avanzar 10 t");
-            assertThat(toolBarTexts(view.toolBar()).subList(fixedStep, fixedStep + 6)).containsExactly(
-                    "Avanzar 10 t", "---", "Paso a paso", "Avanzar al próximo evento",
+            assertThat(toolBarTexts(view.toolBar()).subList(fixedStep, fixedStep + 7)).containsExactly(
+                    "Avanzar 10 t", "arrow", "---", "Paso a paso", "Avanzar al próximo evento",
                     "Avanzar al próximo flanco de reloj", "label");
-            assertThat(view.shortcutActions()).containsKeys("simulation.stepMode", "simulation.advance",
-                    "simulation.advanceToClockEdge");
+            assertThat(view.shortcutActions()).containsKeys("simulation.stepSize", "simulation.stepMode",
+                    "simulation.advance", "simulation.advanceToClockEdge");
         } finally {
             view.dispose();
         }
@@ -104,15 +103,16 @@ class StepModeExtensionTest {
 
         openDocument.setStepMode(true);
         for (EditorView view : List.of(first, second)) {
-            JCheckBoxMenuItem item = (JCheckBoxMenuItem) view.menu(MenuId.SIMULATION).getMenuComponent(4);
+            JCheckBoxMenuItem item = (JCheckBoxMenuItem) view.menu(MenuId.SIMULATION).getMenuComponent(5);
             assertThat(item.isSelected()).isTrue();
         }
 
         second.dispose();
         assertThat(openDocument.stepModeListenerCount()).isEqualTo(listeners + 1);
         assertThat(texts(second.menu(MenuId.SIMULATION))).startsWith("Iniciar", "Pausar", "Reiniciar", "Avanzar 10 t")
-                .doesNotContain("Paso a paso", "Avanzar al próximo evento", "Avanzar al próximo flanco de reloj");
-        assertThat(second.toolBar().getComponentCount()).isEqualTo(toolBarItems - 5);
+                .doesNotContain("Tamaño del avance…", "Paso a paso", "Avanzar al próximo evento",
+                        "Avanzar al próximo flanco de reloj");
+        assertThat(second.toolBar().getComponentCount()).isEqualTo(toolBarItems - 6);
         assertThat(second.shortcutActions()).isEmpty();
         first.dispose();
         assertThat(openDocument.stepModeListenerCount()).isEqualTo(listeners);

@@ -379,6 +379,19 @@ class EditorViewTest {
     }
 
     @Test
+    void theFixedStepCanBeRenamedToAnotherSizeAndKeepsF6() {
+        Action step = view.actions().step();
+        assertThat(step.getValue(Action.ACCELERATOR_KEY)).isEqualTo(KeyStroke.getKeyStroke(KeyEvent.VK_F6, 0));
+
+        view.actions().setStepUnits(10_000);
+
+        assertThat(view.actions().stepUnits()).isEqualTo(10_000);
+        assertThat(step.getValue(Action.NAME)).isEqualTo("Avanzar 10 000 t");
+        assertThat(step.getValue(Action.SHORT_DESCRIPTION)).isEqualTo("Avanza la simulación 10 000 unidades de tiempo");
+        assertThat(view.menu(MenuId.SIMULATION).getItem(3).getText()).isEqualTo("Avanzar 10 000 t");
+    }
+
+    @Test
     void theStepSaysHowFarItGoesAndTheSpeedSelectorExplainsItself() {
         Action step = view.actions().step();
         assertThat(step.getValue(Action.NAME)).isEqualTo("Avanzar 10 t");
