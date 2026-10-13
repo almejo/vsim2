@@ -5,6 +5,7 @@ import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.library.ComponentDefinition;
+import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.core.truthtable.Preparation;
 import cl.almejo.vsim.core.truthtable.TruthTable;
 import cl.almejo.vsim.core.truthtable.TruthTableScope;
@@ -28,8 +29,10 @@ import java.awt.geom.Point2D;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.Set;
 import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 
 /**
  * The truth-table feature of one editor view (spec §5.1): Simulación ▸ «Tabla de verdad…», the canvas context-menu
@@ -89,6 +92,9 @@ public final class TruthTableFeatures {
     private final JMenuItem item;
     private final Runnable shortcutRemover;
     private final List<Session> sessions = new ArrayList<>();
+    /** On the canvas while a window is open: moves each window's highlight to the row of the live inputs. */
+    private final Consumer<SimulationSnapshot> snapshotListener = this::followSnapshot;
+    private boolean following;
     private boolean disposed;
 
     public TruthTableFeatures(EditorView view, TruthTableDisplay.Factory windows,
@@ -156,7 +162,26 @@ public final class TruthTableFeatures {
         Session session = new Session(scope, title);
         session.display = windows.open(view, title, session);
         sessions.add(session);
+        updateFollowing();
         session.run(ready);
+    }
+
+    /** Highlights in every window the row of the inputs {@code snapshot} shows (the canvas calls it every frame). */
+    void followSnapshot(SimulationSnapshot snapshot) {
+        for (Session session : List.copyOf(sessions)) {
+            session.follow(snapshot);
+        }
+    }
+
+    /** Listens to the canvas snapshots exactly while a window is open. */
+    private void updateFollowing() {
+        boolean wanted = !sessions.isEmpty() && !disposed;
+        if (wanted && !following) {
+            view.canvas().addSnapshotListener(snapshotListener);
+        } else if (!wanted && following) {
+            view.canvas().removeSnapshotListener(snapshotListener);
+        }
+        following = wanted;
     }
 
     /**
@@ -197,6 +222,7 @@ public final class TruthTableFeatures {
             session.display.close();
         }
         sessions.clear();
+        updateFollowing();
     }
 
     /**
@@ -229,6 +255,11 @@ public final class TruthTableFeatures {
         private int lastPercent;
         private Runnable stopProgressDelay = () -> {
         };
+        /** The table shown, where its inputs are live, and the row highlighted (spec §5.4). */
+        private TruthTable table;
+        private LiveInputs live;
+        private LiveInputs pendingLive;
+        private OptionalInt shownRow = OptionalInt.empty();
 
         Session(Set<ElementId> scope, String title) {
             this.scope = scope;
@@ -237,6 +268,9 @@ public final class TruthTableFeatures {
 
         void run(Preparation.Ready ready) {
             acceptedRows = Math.max(acceptedRows, ready.rowCount());
+            OpenDocument openDocument = view.openDocument();
+            pendingLive = LiveInputs.resolve(ready.liveInputPins(), openDocument.netlist(),
+                    openDocument.netlistToken());
             stopProgressDelay.run();
             if (running) {
                 runner.cancel(); // this window's previous computation says «cancelado» now, not after the new start
@@ -246,6 +280,18 @@ public final class TruthTableFeatures {
             running = true;
             stopProgressDelay = delay.after(PROGRESS_DELAY_MILLISECONDS, this::progressDue);
             runner.start(ready, this);
+        }
+
+        /** Moves the highlight to the row of the live inputs, telling the window only when it changes. */
+        void follow(SimulationSnapshot snapshot) {
+            if (closed || table == null) {
+                return;
+            }
+            OptionalInt row = live.rowIn(table, snapshot);
+            if (!row.equals(shownRow)) {
+                shownRow = row;
+                display.showCurrentRow(row);
+            }
         }
 
         /** 300 ms of work and still running: the progress line and «Cancelar» show from now on. */
@@ -280,6 +326,7 @@ public final class TruthTableFeatures {
         public void closed() {
             closed = true;
             sessions.remove(this);
+            updateFollowing();
             cancel();
             stopProgressDelay.run();
         }
@@ -298,6 +345,10 @@ public final class TruthTableFeatures {
             stopProgressDelay.run();
             if (!closed) {
                 display.showTable(table);
+                this.table = table;
+                live = pendingLive;
+                shownRow = OptionalInt.empty();
+                follow(view.openDocument().latestSnapshot());
             }
         }
 

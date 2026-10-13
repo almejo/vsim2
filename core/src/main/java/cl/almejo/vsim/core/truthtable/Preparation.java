@@ -1,6 +1,8 @@
 package cl.almejo.vsim.core.truthtable;
 
 import cl.almejo.vsim.core.document.CircuitDocument;
+import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.core.netlist.PinRef;
 import cl.almejo.vsim.core.simulation.FlatCircuit;
 
 import java.util.List;
@@ -19,14 +21,30 @@ public sealed interface Preparation permits Preparation.Ready, Preparation.Refus
     /**
      * {@code evaluated} is the temporary document built from the scope; {@code circuit} its flat circuit, immutable and
      * shared by every row; {@code outputNets} maps each output column's component id to the flat net it reads.
+     * {@code liveInputPins} holds, for each input column, the pin of the live document whose net carries that input:
+     * the switch or input pin itself, or the instance's pin for a single user-component instance (spec §5.4).
      */
     record Ready(CircuitDocument evaluated, List<Column> inputs, List<Column> outputs, FlatCircuit circuit,
-                 Map<String, String> outputNets, boolean hasFeedback) implements Preparation {
+                 Map<String, String> outputNets, boolean hasFeedback, List<PinRef> liveInputPins)
+            implements Preparation {
 
         public Ready {
             inputs = List.copyOf(inputs);
             outputs = List.copyOf(outputs);
             outputNets = Map.copyOf(outputNets);
+            liveInputPins = List.copyOf(liveInputPins);
+            if (liveInputPins.size() != inputs.size()) {
+                throw new IllegalArgumentException("one live pin per input column: " + liveInputPins.size()
+                        + " pins, " + inputs.size() + " inputs");
+            }
+        }
+
+        /** A whole circuit or a selection: each input is read on pin 0 of the live component of the same id. */
+        public Ready(CircuitDocument evaluated, List<Column> inputs, List<Column> outputs, FlatCircuit circuit,
+                     Map<String, String> outputNets, boolean hasFeedback) {
+            this(evaluated, inputs, outputs, circuit, outputNets, hasFeedback, inputs.stream()
+                    .map(column -> new PinRef(new ElementId(column.componentId()), 0))
+                    .toList());
         }
 
         /** The input columns' widths added up. */

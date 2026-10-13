@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.truthtable;
 import cl.almejo.vsim.core.command.AddElementsCommand;
 import cl.almejo.vsim.core.command.PutDefinitionsCommand;
 import cl.almejo.vsim.core.command.SetLabelCommand;
+import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.geometry.GridPoint;
@@ -10,7 +11,9 @@ import cl.almejo.vsim.core.geometry.Rotation;
 import cl.almejo.vsim.core.library.ComponentLibrary;
 import cl.almejo.vsim.core.library.ExampleDefinitions;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
+import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.core.truthtable.TruthTable;
+import cl.almejo.vsim.core.value.Value;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.i18n.Messages;
@@ -34,8 +37,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalInt;
+import java.util.function.Predicate;
 
 import static cl.almejo.vsim.ui.UiTestSupport.place;
+import static cl.almejo.vsim.ui.UiTestSupport.waitUntil;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class TruthTableExtensionTest {
@@ -56,6 +62,7 @@ class TruthTableExtensionTest {
         final List<Integer> progress = new ArrayList<>();
         final List<String> notices = new ArrayList<>();
         TruthTable table;
+        OptionalInt currentRow = OptionalInt.empty();
         boolean closed;
 
         FakeDisplay(String title, Controls controls) {
@@ -66,6 +73,7 @@ class TruthTableExtensionTest {
         @Override public void showProgress(int percent) { progress.add(percent); }
         @Override public void showTable(TruthTable shown) { table = shown; }
         @Override public void showMessage(String message) { notices.add(message); }
+        @Override public void showCurrentRow(OptionalInt row) { currentRow = row; }
         @Override public void close() { closed = true; }
     }
 
@@ -100,6 +108,27 @@ class TruthTableExtensionTest {
     private boolean confirm(java.awt.Component parent, String title, String question) {
         questions.add(question);
         return answer;
+    }
+
+    /** A feature on {@code bare} with fake windows, a direct runner and a progress line that never comes due. */
+    private TruthTableFeatures features(EditorView bare) {
+        return new TruthTableFeatures(bare, (view, title, controls) -> {
+            FakeDisplay display = new FakeDisplay(title, controls);
+            displays.add(display);
+            return display;
+        }, (parent, message) -> messages.add(message), this::confirm,
+                new TruthTableRunner(Runnable::run, Runnable::run), (milliseconds, task) -> () -> { });
+    }
+
+    /** The live snapshot once the simulation runs the current circuit and {@code condition} holds. */
+    private SimulationSnapshot liveSnapshot(Predicate<SimulationSnapshot> condition) {
+        waitUntil(() -> openDocument.latestSnapshot().token() == openDocument.netlistToken()
+                && condition.test(openDocument.latestSnapshot()));
+        return openDocument.latestSnapshot();
+    }
+
+    private static Predicate<SimulationSnapshot> switchIs(Component toggle, Value value) {
+        return snapshot -> snapshot.componentState(toggle.id().value()).equals(new VisibleState.SwitchState(value));
     }
 
     private static List<String> texts(JMenu menu) {
@@ -370,6 +399,67 @@ class TruthTableExtensionTest {
             assertThat(messages).isEmpty();
         } finally {
             view.dispose();
+        }
+    }
+
+    @Test
+    void theRowOfTheLiveInputsIsHighlightedAndFollowsAClickOnTheSwitch() {
+        Component toggle = place(openDocument, StandardComponentTypes.SWITCH, 0, 0, Map.of());
+        place(openDocument, StandardComponentTypes.LED, 3, -2, Map.of());
+        EditorView bare = new EditorView(openDocument, PainterRegistry.standard(), ColorScheme.LIGHT, NO_WINDOW);
+        int listeners = bare.canvas().snapshotListenerCount();
+        TruthTableFeatures features = features(bare);
+        try {
+            assertThat(bare.canvas().snapshotListenerCount()).as("no window, nothing to follow").isEqualTo(listeners);
+            perform(last(bare.menu(MenuId.SIMULATION)));
+            FakeDisplay display = displays.get(0);
+            assertThat(bare.canvas().snapshotListenerCount()).isEqualTo(listeners + 1);
+
+            features.followSnapshot(liveSnapshot(switchIs(toggle, Value.ONE)));
+            assertThat(display.currentRow).as("a new switch is on: the row A = 1").hasValue(1);
+
+            openDocument.interact(toggle.id());
+            features.followSnapshot(liveSnapshot(switchIs(toggle, Value.ZERO)));
+            assertThat(display.currentRow).hasValue(0);
+
+            perform(last(bare.menu(MenuId.SIMULATION)));
+            assertThat(bare.canvas().snapshotListenerCount()).as("one listener for all the windows")
+                    .isEqualTo(listeners + 1);
+            display.controls.closed();
+            displays.get(1).controls.closed();
+            assertThat(bare.canvas().snapshotListenerCount()).isEqualTo(listeners);
+
+            perform(last(bare.menu(MenuId.SIMULATION)));
+            features.dispose();
+            assertThat(bare.canvas().snapshotListenerCount()).isEqualTo(listeners);
+        } finally {
+            features.dispose();
+            bare.dispose();
+        }
+    }
+
+    @Test
+    void anEditDropsTheHighlightUntilRecalcular() {
+        Component toggle = place(openDocument, StandardComponentTypes.SWITCH, 0, 0, Map.of());
+        place(openDocument, StandardComponentTypes.LED, 3, -2, Map.of());
+        EditorView bare = new EditorView(openDocument, PainterRegistry.standard(), ColorScheme.LIGHT, NO_WINDOW);
+        TruthTableFeatures features = features(bare);
+        try {
+            perform(last(bare.menu(MenuId.SIMULATION)));
+            FakeDisplay display = displays.get(0);
+            features.followSnapshot(liveSnapshot(switchIs(toggle, Value.ONE)));
+            assertThat(display.currentRow).hasValue(1);
+
+            place(openDocument, StandardComponentTypes.LED, 20, 20, Map.of());
+            features.followSnapshot(liveSnapshot(switchIs(toggle, Value.ONE)));
+            assertThat(display.currentRow).as("the table no longer maps to the circuit").isEmpty();
+
+            display.controls.recalculate();
+            assertThat(display.table.outputs()).hasSize(2);
+            assertThat(display.currentRow).as("the new table follows the live values at once").hasValue(1);
+        } finally {
+            features.dispose();
+            bare.dispose();
         }
     }
 }

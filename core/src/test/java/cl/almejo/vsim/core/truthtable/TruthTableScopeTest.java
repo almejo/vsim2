@@ -4,6 +4,7 @@ import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.library.InterfacePins;
+import cl.almejo.vsim.core.netlist.PinRef;
 import org.junit.jupiter.api.Test;
 
 import java.util.Map;
@@ -106,6 +107,21 @@ class TruthTableScopeTest {
         assertThat(ready.inputs()).containsExactly(new Column("a", "c1", 1));
         assertThat(ready.outputs()).containsExactly(new Column("y", "c3", 1));
         assertThat(ready.evaluated().components()).hasSize(3);
+    }
+
+    @Test
+    void theLiveInputsAreTheInputComponentsOrTheInstancesInputPins() {
+        Preparation.Ready whole = ready(TruthTableCircuits.halfAdder(), Set.of());
+        TruthTableCircuits withInstance = new TruthTableCircuits();
+        withInstance.place(StandardComponentTypes.SWITCH, 0, 0, "X");
+        Component instance = withInstance.inverterInstance();
+
+        Preparation.Ready single = ready(withInstance, Set.of(instance.id()));
+
+        assertThat(whole.liveInputPins()).as("the switches A and B themselves")
+                .containsExactly(new PinRef(new ElementId("c1"), 0), new PinRef(new ElementId("c2"), 0));
+        assertThat(single.liveInputPins()).as("pin «a» of the instance, not the body's input pin")
+                .containsExactly(new PinRef(instance.id(), 0));
     }
 
     @Test

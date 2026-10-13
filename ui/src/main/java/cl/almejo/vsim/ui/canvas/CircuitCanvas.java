@@ -537,6 +537,11 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         snapshotListeners.remove(listener);
     }
 
+    /** For tests: features must remove the snapshot listeners they add. */
+    public int snapshotListenerCount() {
+        return snapshotListeners.size();
+    }
+
     public void addViewListener(Runnable listener) {
         viewListeners.add(listener);
     }

@@ -2,6 +2,7 @@ package cl.almejo.vsim.ui.truthtable;
 
 import cl.almejo.vsim.core.truthtable.TruthTable;
 import cl.almejo.vsim.ui.window.EditorView;
+import java.util.OptionalInt;
 
 /** One truth-table window as the feature sees it ({@link TruthTableWindow} in the application, a fake in tests). */
 public interface TruthTableDisplay {
@@ -31,6 +32,9 @@ public interface TruthTableDisplay {
 
     /** A line instead of the progress (cancelled, failed). */
     void showMessage(String message);
+
+    /** Highlights {@code row} of the table shown (the live input values) and scrolls to it; empty: no highlight. */
+    void showCurrentRow(OptionalInt row);
 
     /** Closes the window without calling {@link Controls#closed()}. */
     void close();

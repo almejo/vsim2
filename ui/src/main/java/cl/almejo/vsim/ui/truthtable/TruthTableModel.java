@@ -5,12 +5,14 @@ import cl.almejo.vsim.core.truthtable.TruthTableText;
 
 import javax.swing.table.AbstractTableModel;
 import java.util.List;
+import java.util.OptionalInt;
 
 /** A computed truth table as Swing table data: inputs first, then outputs, every cell as text. Read-only. */
 public final class TruthTableModel extends AbstractTableModel {
 
     private final TruthTable table;
     private final List<String> names;
+    private OptionalInt currentRow = OptionalInt.empty();
 
     public TruthTableModel(TruthTable table) {
         this.table = table;
@@ -53,5 +55,25 @@ public final class TruthTableModel extends AbstractTableModel {
 
     public boolean isSettled(int row) {
         return table.rows().get(row).settled();
+    }
+
+    /** The row of the live input values (spec §5.4), drawn with the selection color; empty for none. */
+    public OptionalInt currentRow() {
+        return currentRow;
+    }
+
+    public boolean isCurrent(int row) {
+        return currentRow.isPresent() && currentRow.getAsInt() == row;
+    }
+
+    /** Moves the highlight to {@code row}, repainting the row it leaves and the row it reaches. */
+    public void setCurrentRow(OptionalInt row) {
+        if (row.equals(currentRow)) {
+            return;
+        }
+        OptionalInt previous = currentRow;
+        currentRow = row;
+        previous.ifPresent(index -> fireTableRowsUpdated(index, index));
+        row.ifPresent(index -> fireTableRowsUpdated(index, index));
     }
 }

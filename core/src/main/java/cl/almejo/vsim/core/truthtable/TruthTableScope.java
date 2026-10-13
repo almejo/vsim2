@@ -98,8 +98,24 @@ public final class TruthTableScope {
                     .map(net -> net.id().value())
                     .orElse("p:" + output.componentId() + "#0"));
         }
+        if (instance.isPresent()) {
+            return new Preparation.Ready(evaluated, inputs, outputs, circuit, outputNets,
+                    CombinationalLoops.exists(circuit), instanceInputPins(selection.iterator().next(), instance.get()));
+        }
         return new Preparation.Ready(evaluated, inputs, outputs, circuit, outputNets,
                 CombinationalLoops.exists(circuit));
+    }
+
+    /** The input pins of instance {@code instanceId} in pinout order: the pin index is the place in the pinout. */
+    private static List<PinRef> instanceInputPins(ElementId instanceId, ComponentDefinition definition) {
+        List<PinRef> pins = new ArrayList<>();
+        List<DefinitionPin> pinout = definition.pinout();
+        for (int index = 0; index < pinout.size(); index++) {
+            if (pinout.get(index).spec().direction() == PinDirection.INPUT) {
+                pins.add(new PinRef(instanceId, index));
+            }
+        }
+        return pins;
     }
 
     /**

@@ -28,6 +28,7 @@ import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.OptionalInt;
 
 /**
  * The non-modal «Tabla de verdad — …» window (spec §5.1): feedback banner, summary, progress with «Cancelar», the
@@ -132,6 +133,14 @@ final class TruthTableWindow extends JDialog implements TruthTableDisplay {
     }
 
     @Override
+    public void showCurrentRow(OptionalInt row) {
+        if (grid.getModel() instanceof TruthTableModel model) {
+            model.setCurrentRow(row);
+            row.ifPresent(index -> grid.scrollRectToVisible(grid.getCellRect(index, 0, true)));
+        }
+    }
+
+    @Override
     public void close() {
         closing = true;
         dispose();
@@ -155,7 +164,10 @@ final class TruthTableWindow extends JDialog implements TruthTableDisplay {
         });
     }
 
-    /** Centered monospaced cells; a thicker line before the first output; unsettled rows tinted, with a tooltip. */
+    /**
+     * Centered monospaced cells; a thicker line before the first output; unsettled rows tinted, with a tooltip; the
+     * row of the live inputs in the selection color, read from the table at each paint.
+     */
     private static final class CellRenderer extends DefaultTableCellRenderer {
 
         CellRenderer() {
@@ -169,7 +181,10 @@ final class TruthTableWindow extends JDialog implements TruthTableDisplay {
                     row, column);
             TruthTableModel model = (TruthTableModel) table.getModel();
             boolean settled = model.isSettled(row);
-            if (!isSelected) {
+            if (!isSelected && model.isCurrent(row)) {
+                cell.setBackground(table.getSelectionBackground());
+                cell.setForeground(table.getSelectionForeground());
+            } else if (!isSelected) {
                 cell.setBackground(settled ? table.getBackground() : mix(table.getBackground(), Color.ORANGE));
             }
             cell.setToolTipText(settled ? null : TruthTableMessages.unsettledTooltip());

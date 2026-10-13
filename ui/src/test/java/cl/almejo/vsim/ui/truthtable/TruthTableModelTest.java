@@ -6,7 +6,9 @@ import cl.almejo.vsim.core.truthtable.TruthTable;
 import cl.almejo.vsim.core.value.Value;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.OptionalInt;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -40,5 +42,27 @@ class TruthTableModelTest {
         assertThat(model.isSettled(0)).isTrue();
         assertThat(model.isSettled(1)).isFalse();
         assertThat(model.isCellEditable(0, 0)).isFalse();
+    }
+
+    @Test
+    void theCurrentRowIsRepaintedOnlyWhenItChanges() {
+        List<Integer> repainted = new ArrayList<>();
+        model.addTableModelListener(event -> {
+            repainted.add(event.getFirstRow());
+            repainted.add(event.getLastRow());
+        });
+        assertThat(model.currentRow()).isEmpty();
+
+        model.setCurrentRow(OptionalInt.of(1));
+        model.setCurrentRow(OptionalInt.of(1));
+        assertThat(model.currentRow()).hasValue(1);
+        assertThat(model.isCurrent(1)).isTrue();
+        assertThat(model.isCurrent(0)).isFalse();
+        assertThat(repainted).containsExactly(1, 1);
+
+        model.setCurrentRow(OptionalInt.of(0));
+        model.setCurrentRow(OptionalInt.empty());
+        assertThat(repainted).as("the old row and the new one each time").containsExactly(1, 1, 1, 1, 0, 0, 0, 0);
+        assertThat(model.isCurrent(0)).isFalse();
     }
 }
