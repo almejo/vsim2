@@ -9,6 +9,7 @@ import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.core.truthtable.Preparation;
 import cl.almejo.vsim.core.truthtable.TruthTable;
 import cl.almejo.vsim.core.truthtable.TruthTableScope;
+import cl.almejo.vsim.core.value.Value;
 import cl.almejo.vsim.ui.actions.ContextMenuContributor;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.Selection;
@@ -27,7 +28,9 @@ import java.awt.Component;
 import java.awt.event.ActionEvent;
 import java.awt.geom.Point2D;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.Set;
@@ -260,6 +263,9 @@ public final class TruthTableFeatures {
         private LiveInputs live;
         private LiveInputs pendingLive;
         private OptionalInt shownRow = OptionalInt.empty();
+        /** Whether a double-click on a row sets the switches (every input a top-level switch), for the table shown. */
+        private boolean tryable;
+        private boolean pendingTryable;
 
         Session(Set<ElementId> scope, String title) {
             this.scope = scope;
@@ -271,6 +277,7 @@ public final class TruthTableFeatures {
             OpenDocument openDocument = view.openDocument();
             pendingLive = LiveInputs.resolve(ready.liveInputPins(), openDocument.netlist(),
                     openDocument.netlistToken());
+            pendingTryable = ready.inputsAreTopLevelSwitches();
             stopProgressDelay.run();
             if (running) {
                 runner.cancel(); // this window's previous computation says «cancelado» now, not after the new start
@@ -331,6 +338,30 @@ public final class TruthTableFeatures {
             stopProgressDelay.run();
         }
 
+        /**
+         * Sets the table's switches to row {@code row} in the live simulation (spec §5.4), when every input is a switch
+         * still in the document; the highlight then follows the snapshot like after clicks.
+         */
+        @Override
+        public void tryRow(int row) {
+            if (disposed || closed || table == null || !tryable || row < 0 || row >= table.rows().size()) {
+                return;
+            }
+            CircuitDocument document = view.openDocument().document();
+            Map<ElementId, Value> values = new HashMap<>();
+            for (int column = 0; column < table.inputs().size(); column++) {
+                ElementId id = new ElementId(table.inputs().get(column).componentId());
+                boolean isSwitch = document.component(id)
+                        .map(component -> component.typeId().equals(StandardComponentTypes.SWITCH))
+                        .orElse(false);
+                if (!isSwitch) {
+                    return;
+                }
+                values.put(id, table.rows().get(row).inputs().get(column));
+            }
+            view.openDocument().setInputs(values);
+        }
+
         @Override
         public void progress(int percent) {
             lastPercent = percent;
@@ -344,6 +375,8 @@ public final class TruthTableFeatures {
             running = false;
             stopProgressDelay.run();
             if (!closed) {
+                tryable = pendingTryable;
+                display.allowTryingRows(tryable);
                 display.showTable(table);
                 this.table = table;
                 live = pendingLive;

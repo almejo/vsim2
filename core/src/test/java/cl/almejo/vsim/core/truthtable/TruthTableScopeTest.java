@@ -125,6 +125,21 @@ class TruthTableScopeTest {
     }
 
     @Test
+    void onlyTopLevelSwitchesCanBeSetFromARow() {
+        TruthTableCircuits withInstance = new TruthTableCircuits();
+        withInstance.place(StandardComponentTypes.SWITCH, 0, 0, "X");
+        Component instance = withInstance.inverterInstance();
+        TruthTableCircuits adder = TruthTableCircuits.fullAdder();
+
+        assertThat(ready(adder, Set.of()).inputsAreTopLevelSwitches()).isTrue();
+        assertThat(ready(adder, adder.ids()).inputsAreTopLevelSwitches()).as("a selection").isTrue();
+        assertThat(ready(TruthTableCircuits.busPassThrough(), Set.of()).inputsAreTopLevelSwitches())
+                .as("an input pin").isFalse();
+        assertThat(ready(withInstance, Set.of(instance.id())).inputsAreTopLevelSwitches())
+                .as("a single instance").isFalse();
+    }
+
+    @Test
     void aBusInputPinCountsItsWidthInBits() {
         Preparation.Ready ready = ready(TruthTableCircuits.busPassThrough(), Set.of());
 

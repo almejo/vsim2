@@ -78,6 +78,7 @@ class TruthTableMessagesTest {
                 + "calcula desde cero, así que la memoria no se ve");
         assertThat(TruthTableMessages.unsettledTooltip())
                 .isEqualTo("Sin valor estable (oscila o depende del estado anterior)");
+        assertThat(TruthTableMessages.tryHint()).isEqualTo("Doble clic en una fila para probarla en el circuito");
     }
 
     @Test

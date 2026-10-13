@@ -63,6 +63,7 @@ class TruthTableExtensionTest {
         final List<String> notices = new ArrayList<>();
         TruthTable table;
         OptionalInt currentRow = OptionalInt.empty();
+        boolean tryingAllowed;
         boolean closed;
 
         FakeDisplay(String title, Controls controls) {
@@ -74,6 +75,7 @@ class TruthTableExtensionTest {
         @Override public void showTable(TruthTable shown) { table = shown; }
         @Override public void showMessage(String message) { notices.add(message); }
         @Override public void showCurrentRow(OptionalInt row) { currentRow = row; }
+        @Override public void allowTryingRows(boolean allowed) { tryingAllowed = allowed; }
         @Override public void close() { closed = true; }
     }
 
@@ -457,6 +459,68 @@ class TruthTableExtensionTest {
             display.controls.recalculate();
             assertThat(display.table.outputs()).hasSize(2);
             assertThat(display.currentRow).as("the new table follows the live values at once").hasValue(1);
+        } finally {
+            features.dispose();
+            bare.dispose();
+        }
+    }
+
+    @Test
+    void aDoubleClickedRowSetsTheSwitchesWithoutEditingAndItsRowLightsUp() {
+        Component first = place(openDocument, StandardComponentTypes.SWITCH, 0, 0, Map.of());
+        place(openDocument, StandardComponentTypes.LED, 3, -2, Map.of());
+        Component second = place(openDocument, StandardComponentTypes.SWITCH, 0, 10, Map.of());
+        Component third = place(openDocument, StandardComponentTypes.SWITCH, 0, 20, Map.of());
+        EditorView bare = new EditorView(openDocument, PainterRegistry.standard(), ColorScheme.LIGHT, NO_WINDOW);
+        TruthTableFeatures features = features(bare);
+        try {
+            perform(last(bare.menu(MenuId.SIMULATION)));
+            FakeDisplay display = displays.get(0);
+            assertThat(display.table.inputs()).extracting(column -> column.name()).containsExactly("A", "B", "C");
+            assertThat(display.tryingAllowed).as("every input is a switch of the document").isTrue();
+            long changes = openDocument.changeCount();
+            long revision = openDocument.document().revision();
+
+            display.controls.tryRow(5); // A B C = 1 0 1; every new switch starts at 1
+
+            SimulationSnapshot snapshot = liveSnapshot(switchIs(second, Value.ZERO));
+            features.followSnapshot(snapshot);
+            assertThat(display.currentRow).hasValue(5);
+            assertThat(snapshot.componentState(first.id().value()))
+                    .isEqualTo(new VisibleState.SwitchState(Value.ONE));
+            assertThat(snapshot.componentState(third.id().value()))
+                    .isEqualTo(new VisibleState.SwitchState(Value.ONE));
+            assertThat(openDocument.changeCount()).as("no undo step").isEqualTo(changes);
+            assertThat(openDocument.document().revision()).as("not a document change").isEqualTo(revision);
+            assertThat(openDocument.document().component(second.id()).orElseThrow().parameters())
+                    .as("the saved initial value is untouched").isEqualTo(second.parameters());
+        } finally {
+            features.dispose();
+            bare.dispose();
+        }
+    }
+
+    @Test
+    void theRowsOfASingleInstanceCannotBeTried() {
+        openDocument.execute(new PutDefinitionsCommand(List.of(ExampleDefinitions.inverter())));
+        Component instance = new Component(openDocument.document().newComponentId(),
+                SubcircuitTypes.typeIdOf(ExampleDefinitions.INVERTER), new GridPoint(10, 0), Rotation.R0, Map.of(),
+                "");
+        openDocument.execute(new AddElementsCommand(List.of(instance)));
+        EditorView bare = new EditorView(openDocument, PainterRegistry.standard(), ColorScheme.LIGHT, NO_WINDOW);
+        TruthTableFeatures features = features(bare);
+        try {
+            bare.canvas().selection().select(instance.id());
+            perform(last(bare.menu(MenuId.SIMULATION)));
+            FakeDisplay display = displays.get(0);
+            assertThat(display.table.inputs()).extracting(column -> column.name()).containsExactly("a");
+            assertThat(display.tryingAllowed).as("no hint: the input is the instance's pin").isFalse();
+            long changes = openDocument.changeCount();
+
+            display.controls.tryRow(1);
+
+            assertThat(openDocument.changeCount()).isEqualTo(changes);
+            assertThat(messages).isEmpty();
         } finally {
             features.dispose();
             bare.dispose();

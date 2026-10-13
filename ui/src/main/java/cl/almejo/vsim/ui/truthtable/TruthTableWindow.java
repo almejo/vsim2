@@ -24,6 +24,8 @@ import java.awt.Component;
 import java.awt.Font;
 import java.awt.Toolkit;
 import java.awt.datatransfer.StringSelection;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.IOException;
@@ -42,11 +44,13 @@ final class TruthTableWindow extends JDialog implements TruthTableDisplay {
     private final JLabel banner = new JLabel(TruthTableMessages.feedbackBanner());
     private final JLabel summary = new JLabel(" ");
     private final JLabel status = new JLabel(" ");
+    private final JLabel tryHint = new JLabel(TruthTableMessages.tryHint());
     private final JButton cancel = new JButton(Messages.text("truthTable.cancel"));
     private final JTable grid = new JTable();
     private final JButton copy = new JButton(Messages.text("truthTable.copy"));
     private final JButton export = new JButton(Messages.text("truthTable.exportCsv"));
     private TruthTable shown;
+    private boolean tryingAllowed;
     private boolean closing;
 
     private TruthTableWindow(EditorView view, String title, Controls controls) {
@@ -55,7 +59,7 @@ final class TruthTableWindow extends JDialog implements TruthTableDisplay {
         this.controls = controls;
         setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
         JPanel content = new JPanel(new MigLayout("insets dialog, fill, wrap 1", "[grow, fill]",
-                "[][][][grow, fill][]"));
+                "[][][][grow, fill][][]"));
         banner.setForeground(new Color(0xB0, 0x60, 0x00));
         banner.setVisible(false);
         content.add(banner, "hidemode 3");
@@ -69,6 +73,8 @@ final class TruthTableWindow extends JDialog implements TruthTableDisplay {
         grid.getTableHeader().setReorderingAllowed(false);
         grid.setFillsViewportHeight(true);
         content.add(new JScrollPane(grid), "width 240:420:, height 160:360:");
+        tryHint.setVisible(false);
+        content.add(tryHint, "hidemode 3");
         JPanel buttons = new JPanel(new MigLayout("insets 0", "[][]push[][]"));
         JButton recalculate = new JButton(Messages.text("truthTable.recalculate"));
         JButton close = new JButton(Messages.text("truthTable.close"));
@@ -86,6 +92,15 @@ final class TruthTableWindow extends JDialog implements TruthTableDisplay {
         export.addActionListener(event -> exportTable());
         recalculate.addActionListener(event -> controls.recalculate());
         close.addActionListener(event -> dispose());
+        grid.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent event) {
+                int row = grid.rowAtPoint(event.getPoint());
+                if (tryingAllowed && event.getClickCount() == 2 && row >= 0) {
+                    controls.tryRow(grid.convertRowIndexToModel(row));
+                }
+            }
+        });
         addWindowListener(new WindowAdapter() {
             @Override
             public void windowClosed(WindowEvent event) {
@@ -138,6 +153,12 @@ final class TruthTableWindow extends JDialog implements TruthTableDisplay {
             model.setCurrentRow(row);
             row.ifPresent(index -> grid.scrollRectToVisible(grid.getCellRect(index, 0, true)));
         }
+    }
+
+    @Override
+    public void allowTryingRows(boolean allowed) {
+        tryingAllowed = allowed;
+        tryHint.setVisible(allowed);
     }
 
     @Override

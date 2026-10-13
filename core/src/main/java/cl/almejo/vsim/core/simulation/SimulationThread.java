@@ -1,5 +1,6 @@
 package cl.almejo.vsim.core.simulation;
 
+import cl.almejo.vsim.core.value.Value;
 import cl.almejo.vsim.core.waveform.WaveformSnapshot;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -102,6 +103,22 @@ public final class SimulationThread implements AutoCloseable {
 
     public void interact(String componentId) {
         requests.add(() -> engine.interact(componentId));
+    }
+
+    /**
+     * Sets input components (switches, input pins) to the given values like clicks do (M6.1-C: a truth-table row tried
+     * in the circuit): queued, applied at the current time with their zero-delay effects; a running simulation goes on
+     * from there. An id that is gone or is not an input is skipped, since the circuit may change before it applies.
+     */
+    public void setInputs(Map<String, Value> values) {
+        Map<String, Value> copy = Map.copyOf(values);
+        requests.add(() -> copy.forEach((componentId, value) -> {
+            try {
+                engine.setInput(componentId, value);
+            } catch (IllegalArgumentException exception) {
+                LOGGER.debug("Input {} not set: {}", componentId, exception.getMessage());
+            }
+        }));
     }
 
     public void resume() {

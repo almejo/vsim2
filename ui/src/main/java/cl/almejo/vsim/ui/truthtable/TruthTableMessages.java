@@ -52,6 +52,11 @@ public final class TruthTableMessages {
         return Messages.text("truthTable.unsettled");
     }
 
+    /** The hint under a table whose rows can be tried in the circuit with a double-click. */
+    public static String tryHint() {
+        return Messages.text("truthTable.tryHint");
+    }
+
     /** «Tabla de verdad — sumador». */
     public static String title(String scopeName) {
         return Messages.format("truthTable.title", scopeName);

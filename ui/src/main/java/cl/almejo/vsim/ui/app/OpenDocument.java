@@ -19,6 +19,7 @@ import cl.almejo.vsim.core.simulation.CircuitFlattener;
 import cl.almejo.vsim.core.simulation.SimulationEngine;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.core.simulation.SimulationThread;
+import cl.almejo.vsim.core.value.Value;
 import cl.almejo.vsim.core.waveform.WaveformSnapshot;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.waveform.ProbeNames;
@@ -29,6 +30,7 @@ import java.io.IOException;
 import java.nio.file.AccessDeniedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -204,6 +206,16 @@ public final class OpenDocument implements AutoCloseable {
 
     public void interact(ElementId componentId) {
         simulation.interact(componentId.value());
+    }
+
+    /**
+     * Sets switches or input pins of the live simulation, as clicks do (M6.1-C: a truth-table row tried in the
+     * circuit): not a document change and no undo step; the saved initial values are untouched.
+     */
+    public void setInputs(Map<ElementId, Value> values) {
+        Map<String, Value> byId = new HashMap<>();
+        values.forEach((componentId, value) -> byId.put(componentId.value(), value));
+        simulation.setInputs(byId);
     }
 
     public void resume() {

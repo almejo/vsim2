@@ -1,5 +1,6 @@
 package cl.almejo.vsim.core.truthtable;
 
+import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.netlist.PinRef;
@@ -55,6 +56,25 @@ public sealed interface Preparation permits Preparation.Ready, Preparation.Refus
         /** 2 to the power of {@link #inputBits()}. */
         public int rowCount() {
             return 1 << inputBits();
+        }
+
+        /**
+         * True when every input is a switch of the live document's top level (not an input pin, not a pin of a single
+         * instance): a row can then be tried in the live circuit by setting those switches (spec §5.4).
+         */
+        public boolean inputsAreTopLevelSwitches() {
+            for (int index = 0; index < inputs.size(); index++) {
+                ElementId id = new ElementId(inputs.get(index).componentId());
+                PinRef live = liveInputPins.get(index);
+                boolean liveSwitch = live.pinIndex() == 0 && live.componentId().equals(id)
+                        && evaluated.component(id)
+                        .map(component -> component.typeId().equals(StandardComponentTypes.SWITCH))
+                        .orElse(false);
+                if (!liveSwitch) {
+                    return false;
+                }
+            }
+            return true;
         }
 
         /** More than 1 024 rows: the user confirms before they are computed (spec §5.4). */
