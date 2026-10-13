@@ -1,5 +1,7 @@
 package cl.almejo.vsim.core.component;
 
+import cl.almejo.vsim.core.value.Value;
+
 /** Simulation logic of one component instance. Called only from the simulation thread. */
 public interface Behavior {
 
@@ -21,5 +23,13 @@ public interface Behavior {
 
     /** User clicked the component while simulating (e.g. toggles a switch). */
     default void interact(BehaviorContext context) {
+    }
+
+    /**
+     * Makes an input component (a switch or an input pin) drive {@code value} from now on (M6.1-C truth tables).
+     * Returns false, changing nothing, for every other component.
+     */
+    default boolean setValue(BehaviorContext context, Value value) {
+        return false;
     }
 }

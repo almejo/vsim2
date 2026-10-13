@@ -48,6 +48,18 @@ final class SwitchBehavior implements Behavior {
         context.drive(0, value, 0);
     }
 
+    /** Drives {@code newValue} with delay 0; it must be as wide as the switch or pin (IllegalArgumentException). */
+    @Override
+    public boolean setValue(BehaviorContext context, Value newValue) {
+        if (newValue.width() != value.width()) {
+            throw new IllegalArgumentException("the input is " + value.width() + " bits wide, not "
+                    + newValue.width());
+        }
+        value = newValue;
+        context.drive(0, value, 0);
+        return true;
+    }
+
     @Override
     public VisibleState visibleState() {
         return new VisibleState.SwitchState(value);
