@@ -7,6 +7,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalLong;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -34,6 +35,10 @@ public final class SimulationThread implements AutoCloseable {
     private final Queue<Runnable> requests = new ConcurrentLinkedQueue<>();
     private volatile SimulationSnapshot latestSnapshot = SimulationSnapshot.EMPTY;
     private volatile WaveformSnapshot latestWaveforms = WaveformSnapshot.EMPTY;
+    /** The last «Avanzar» or paused interaction (M6.1-B); null until the first one. */
+    private volatile StepReport latestStep;
+    /** The engine's next event time, refreshed with every published snapshot (M6.1-B). */
+    private volatile OptionalLong latestNextEventTime = OptionalLong.empty();
     private volatile boolean stopRequested;
     private Thread thread;
 
@@ -50,6 +55,7 @@ public final class SimulationThread implements AutoCloseable {
     private boolean snapshotStale = true;
     private boolean waveformsPublished;
     private long lastWaveformPublishNanos;
+    private long stepSequence;
 
     public SimulationThread(SimulationEngine engine) {
         this(engine, System::nanoTime);
@@ -101,8 +107,46 @@ public final class SimulationThread implements AutoCloseable {
         requests.add(() -> publishFailure(cause));
     }
 
+    /** Clicks a component. While paused it also publishes a {@link #latestStep()} with the nets that changed. */
     public void interact(String componentId) {
-        requests.add(() -> engine.interact(componentId));
+        requests.add(() -> {
+            if (running) {
+                engine.interact(componentId);
+            } else {
+                publishStep(engine.interactTracked(componentId));
+            }
+        });
+    }
+
+    /**
+     * «Avanzar» (M6.1-B): runs every event of the next simulation time and publishes the result as
+     * {@link #latestStep()}. Ignored while running. A zero-delay loop fails like any engine error: paused, with the
+     * failure in the snapshot.
+     */
+    public void advanceToNextEvent() {
+        requests.add(() -> {
+            if (!running) {
+                publishStep(engine.advanceToNextEvent());
+            }
+        });
+    }
+
+    /** The last step published by {@link #advanceToNextEvent()} or a paused {@link #interact}; empty before the first. */
+    public Optional<StepReport> latestStep() {
+        return Optional.ofNullable(latestStep);
+    }
+
+    /**
+     * The time of the earliest pending event (empty when the circuit is stable), as of the latest published snapshot.
+     * Read it after {@link #latestSnapshot()}: it is written first.
+     */
+    public OptionalLong latestNextEventTime() {
+        return latestNextEventTime;
+    }
+
+    private void publishStep(StepResult result) {
+        stepSequence++;
+        latestStep = new StepReport(stepSequence, result);
     }
 
     /**
@@ -205,6 +249,7 @@ public final class SimulationThread implements AutoCloseable {
             if (snapshotStale) {
                 SimulationSnapshot snapshot = engine.snapshot();
                 pauseOnNewShortCircuit(snapshot);
+                latestNextEventTime = engine.nextEventTime();
                 latestSnapshot = snapshot.withRunning(running).withFailure(Optional.ofNullable(failure));
                 snapshotStale = false;
             }
@@ -246,6 +291,7 @@ public final class SimulationThread implements AutoCloseable {
         failure = throwable.getMessage() == null
                 ? throwable.getClass().getSimpleName()
                 : throwable.getClass().getSimpleName() + ": " + throwable.getMessage();
+        latestNextEventTime = engine.nextEventTime();
         latestSnapshot = latestSnapshot.withRunning(false).withFailure(Optional.of(failure));
     }
 

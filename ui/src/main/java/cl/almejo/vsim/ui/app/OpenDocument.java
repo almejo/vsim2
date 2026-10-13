@@ -19,6 +19,7 @@ import cl.almejo.vsim.core.simulation.CircuitFlattener;
 import cl.almejo.vsim.core.simulation.SimulationEngine;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.core.simulation.SimulationThread;
+import cl.almejo.vsim.core.simulation.StepReport;
 import cl.almejo.vsim.core.value.Value;
 import cl.almejo.vsim.core.waveform.WaveformSnapshot;
 import cl.almejo.vsim.ui.i18n.Messages;
@@ -35,6 +36,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalLong;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
 
@@ -63,6 +65,8 @@ public final class OpenDocument implements AutoCloseable {
     private boolean pauseOnShortCircuit;
     private Map<String, String> probeNets = Map.of();
     private long changeCount;
+    private boolean stepMode;
+    private final List<Runnable> stepModeListeners = new CopyOnWriteArrayList<>();
 
     public OpenDocument(CircuitDocument document, ComponentTypeRegistry baseRegistry, Path path,
                         boolean importedFromVsim1) {
@@ -218,7 +222,9 @@ public final class OpenDocument implements AutoCloseable {
         simulation.setInputs(byId);
     }
 
+    /** Iniciar: runs the simulation and leaves «Paso a paso» (M6.1-B). */
     public void resume() {
+        setStepMode(false);
         simulation.resume();
     }
 
@@ -256,6 +262,54 @@ public final class OpenDocument implements AutoCloseable {
     /** «Limpiar trazas»: drops the recorded events and keeps the channels. */
     public void clearWaveforms() {
         simulation.clearWaveforms();
+    }
+
+    /** «Paso a paso» (M6.1-B): a session mode of the document, shared by all its views; off when opened. */
+    public boolean stepMode() {
+        return stepMode;
+    }
+
+    /**
+     * Turns «Paso a paso» on (which pauses the simulation) or off (which leaves it paused; Iniciar resumes, see
+     * {@link #resume()}). The step-mode listeners hear only real changes.
+     */
+    public void setStepMode(boolean enabled) {
+        if (enabled == stepMode) {
+            return;
+        }
+        stepMode = enabled;
+        if (enabled) {
+            simulation.pause();
+        }
+        stepModeListeners.forEach(Runnable::run);
+    }
+
+    public void addStepModeListener(Runnable listener) {
+        stepModeListeners.add(listener);
+    }
+
+    public void removeStepModeListener(Runnable listener) {
+        stepModeListeners.remove(listener);
+    }
+
+    /** For tests: views must remove the step-mode listeners they add when disposed. */
+    public int stepModeListenerCount() {
+        return stepModeListeners.size();
+    }
+
+    /** «Avanzar al próximo evento» (M6.1-B): ignored while the simulation runs. */
+    public void advanceToNextEvent() {
+        simulation.advanceToNextEvent();
+    }
+
+    /** The last «Avanzar» or click on a switch while paused; safe to read from any thread. */
+    public Optional<StepReport> latestStep() {
+        return simulation.latestStep();
+    }
+
+    /** The next pending event time as of the latest snapshot (empty: the circuit is stable); read after the snapshot. */
+    public OptionalLong latestNextEventTime() {
+        return simulation.latestNextEventTime();
     }
 
     /** Probe id → top-level net id for the probes that resolve in the current netlist; the others are absent. */
