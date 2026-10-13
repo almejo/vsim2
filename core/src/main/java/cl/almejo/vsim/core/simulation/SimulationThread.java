@@ -134,7 +134,22 @@ public final class SimulationThread implements AutoCloseable {
         });
     }
 
-    /** The last step published by {@link #advanceToNextEvent()} or a paused {@link #interact}; empty before the first. */
+    /**
+     * «Avanzar al próximo flanco de reloj» (M6.1-B): see {@link SimulationEngine#advanceToNextClockEdge()}; published
+     * as {@link #latestStep()} like «Avanzar». Ignored while running; failures pause like any engine error.
+     */
+    public void advanceToNextClockEdge() {
+        requests.add(() -> {
+            if (!running) {
+                publishStep(engine.advanceToNextClockEdge());
+            }
+        });
+    }
+
+    /**
+     * The last step published by {@link #advanceToNextEvent()}, {@link #advanceToNextClockEdge()} or a paused
+     * {@link #interact}; empty before the first.
+     */
     public Optional<StepReport> latestStep() {
         return Optional.ofNullable(latestStep);
     }

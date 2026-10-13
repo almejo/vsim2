@@ -251,4 +251,63 @@ class SimulationEngineStepTest {
         assertThat(engine.nextEventTime()).as("the removed inverter's event is still queued").hasValue(6);
         assertThat(engine.pendingComponents()).isEmpty();
     }
+
+    /** A standard clock {@code id} (1 000 high, 1 000 low, so it rises at 1 000 and falls at 2 000) on net "clock". */
+    private FlatComponent clock(String id) {
+        return new FlatComponent(id, StandardComponentTypes.registry().require(StandardComponentTypes.CLOCK),
+                Map.of("time-up", 1_000, "time-down", 1_000));
+    }
+
+    @Test
+    void advanceToNextClockEdgeStopsRightAfterAFallingEdgeWithTheNetsOfThatTimeOnly() {
+        ComponentTypeRegistry standard = StandardComponentTypes.registry();
+        engine.update(new FlatCircuit(List.of(clock("k"),
+                component("one", TestComponentTypes.SOURCE, Map.of("value", "1")),
+                new FlatComponent("ff", standard.require(StandardComponentTypes.FLIP_FLOP_DATA), Map.of("delay", 1)),
+                component("n", TestComponentTypes.INVERTER, Map.of("delay", 1))),
+                List.of(net("clock", pin("k", 0), pin("ff", 2), pin("n", 0)), net("d", pin("one", 0), pin("ff", 0)),
+                        net("q", pin("ff", 1)), net("inverted", pin("n", 1)))));
+        engine.advance(5);
+        assertThat(engine.snapshot().netValue("q")).isEqualTo(Value.ZERO);
+
+        StepResult edge = engine.advanceToNextClockEdge();
+
+        assertThat(edge).as("the rising edge at 1 000 does not stop it; «inverted» changed at 1 001 and 2 001")
+                .isEqualTo(new StepResult(5, 2_000, Set.of("clock"), OptionalLong.of(2_001)));
+        assertThat(engine.snapshot().netValue("q")).as("the flip-flop has not reacted yet").isEqualTo(Value.ZERO);
+        StepResult reaction = engine.advanceToNextEvent();
+        assertThat(reaction.changedNets()).containsExactlyInAnyOrder("q", "inverted");
+        assertThat(engine.snapshot().netValue("q")).isEqualTo(Value.ONE);
+    }
+
+    @Test
+    void aClockInsideATemplateCounts() {
+        engine.update(new FlatCircuit(List.of(clock("c4/k")), List.of(net("c4/clock", pin("c4/k", 0)))));
+
+        assertThat(engine.advanceToNextClockEdge().time()).isEqualTo(2_000);
+        assertThat(engine.advanceToNextClockEdge().time()).isEqualTo(4_000);
+    }
+
+    @Test
+    void withoutAClockNothingRuns() {
+        engine.update(inverterChain());
+        engine.advance(5);
+        engine.interactTracked("s");
+
+        assertThat(engine.advanceToNextClockEdge()).isEqualTo(new StepResult(5, 5, Set.of(), OptionalLong.of(6)));
+        assertThat(engine.now()).isEqualTo(5);
+    }
+
+    @Test
+    void aClockThatNeverFallsToZeroEndsAtTheBudget() {
+        // a source driving 1 on the clock's net: 0 from the clock makes a conflict, never a 1 → 0 edge
+        engine.update(new FlatCircuit(List.of(clock("k"),
+                component("one", TestComponentTypes.SOURCE, Map.of("value", "1"))),
+                List.of(net("clock", pin("k", 0), pin("one", 0)))));
+
+        assertThatThrownBy(() -> engine.advanceToNextClockEdge(10)).isInstanceOf(IllegalStateException.class)
+                .hasMessage("no clock edge within 10 event times");
+        assertThat(engine.now()).isEqualTo(10_000);
+        assertThat(SimulationEngine.CLOCK_EDGE_TIME_BUDGET).isEqualTo(1_000_000);
+    }
 }

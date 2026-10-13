@@ -1,6 +1,7 @@
 package cl.almejo.vsim.core.simulation;
 
 import cl.almejo.vsim.core.component.VisibleState;
+import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.value.Value;
 import cl.almejo.vsim.core.waveform.WaveformSnapshot;
 
@@ -33,6 +34,9 @@ public final class SimulationEngine {
 
     /** At most this many events run in one {@link #advanceToNextEvent()} (a zero-delay loop never lets time move). */
     public static final int STEP_EVENT_BUDGET = 100_000;
+
+    /** At most this many event times run in one {@link #advanceToNextClockEdge()}. */
+    public static final int CLOCK_EDGE_TIME_BUDGET = 1_000_000;
     /** Ids (with aliases) of the nets that changed since tracking started; null while not tracking (M6.1-B). */
     private Set<String> changedNets;
 
@@ -252,6 +256,52 @@ public final class SimulationEngine {
             changedNets = null;
         }
         return new StepResult(fromTime, now(), changed, nextEventTime());
+    }
+
+    /**
+     * «Avanzar al próximo flanco de reloj» (M6.1-B): runs event times, each like {@link #advanceToNextEvent()}, until
+     * one at which the output of a clock (any clock, also inside a user component) falls from 1 to 0 — the edge the D
+     * flip-flops latch on — and stops right after that time, so the next «Avanzar» shows the flip-flops reacting. The
+     * result goes from the time before the first one to the edge time and carries the nets that changed at the edge
+     * time only. Without a clock nothing runs.
+     *
+     * @throws IllegalStateException when no such edge comes within {@link #CLOCK_EDGE_TIME_BUDGET} event times, or
+     *                               when one event time runs too many events ({@link #advanceToNextEvent()})
+     */
+    public StepResult advanceToNextClockEdge() {
+        return advanceToNextClockEdge(CLOCK_EDGE_TIME_BUDGET);
+    }
+
+    StepResult advanceToNextClockEdge(int maximumEventTimes) {
+        long fromTime = now();
+        List<RuntimeNet> clockOutputs = clockOutputs();
+        if (clockOutputs.isEmpty()) {
+            return new StepResult(fromTime, fromTime, Set.of(), nextEventTime());
+        }
+        for (int eventTimes = 0; eventTimes < maximumEventTimes; eventTimes++) {
+            List<Value> before = clockOutputs.stream().map(net -> net.value).toList();
+            StepResult step = advanceToNextEvent();
+            if (step.isIdle()) {
+                return new StepResult(fromTime, now(), Set.of(), OptionalLong.empty());
+            }
+            for (int index = 0; index < clockOutputs.size(); index++) {
+                if (before.get(index).equals(Value.ONE) && clockOutputs.get(index).value.equals(Value.ZERO)) {
+                    return new StepResult(fromTime, step.time(), step.changedNets(), step.nextEventTime());
+                }
+            }
+        }
+        throw new IllegalStateException("no clock edge within " + maximumEventTimes + " event times");
+    }
+
+    /** The nets of the clocks' outputs, each once (also nested clocks, and an unconnected clock's private net). */
+    private List<RuntimeNet> clockOutputs() {
+        List<RuntimeNet> outputs = new ArrayList<>();
+        for (ComponentInstance instance : instances.values()) {
+            if (instance.type.id().equals(StandardComponentTypes.CLOCK) && !outputs.contains(instance.pins[0].net)) {
+                outputs.add(instance.pins[0].net);
+            }
+        }
+        return outputs;
     }
 
     /** {@link #interact} that also reports the nets that changed (a switch clicked while paused, M6.1-B). */

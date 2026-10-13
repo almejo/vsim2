@@ -99,4 +99,15 @@ class OpenDocumentStepTest {
         waitUntilPausedAndStable();
         assertThat(document.latestSnapshot().time()).isEqualTo(before + 1);
     }
+
+    @Test
+    void hasClockFollowsTheCircuit() {
+        assertThat(document.hasClock()).isFalse();
+
+        place(document, StandardComponentTypes.CLOCK, 0, 0, Map.of());
+        assertThat(document.hasClock()).isTrue();
+
+        document.history().undo();
+        assertThat(document.hasClock()).isFalse();
+    }
 }

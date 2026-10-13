@@ -24,8 +24,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 /** The catalog defaults are the strokes the editor really binds today (they are the same keys, in two places). */
 class CatalogMatchesEditorTest {
 
-    /** Defaults of actions an extension registers (M6.1-B's «Avanzar»); that front's own test checks the stroke. */
-    private static final Set<String> REGISTERED_BY_EXTENSIONS = Set.of("simulation.advance");
+    /** Defaults of actions an extension registers (M6.1-B's two advances); that front's own test checks the stroke. */
+    private static final Set<String> REGISTERED_BY_EXTENSIONS = Set.of("simulation.advance",
+            "simulation.advanceToClockEdge");
 
     private OpenDocument openDocument;
     private EditorView view;

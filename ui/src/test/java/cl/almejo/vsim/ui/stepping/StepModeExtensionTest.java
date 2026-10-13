@@ -62,11 +62,10 @@ class StepModeExtensionTest {
         return texts;
     }
 
-    private static List<String> toolBarTail(JToolBar toolBar, int count) {
+    /** Button texts (no ActionIcons here, so buttons keep their action names), «label» and «---» for the rest. */
+    private static List<String> toolBarTexts(JToolBar toolBar) {
         List<String> texts = new ArrayList<>();
-        java.awt.Component[] children = toolBar.getComponents();
-        for (int index = children.length - count; index < children.length; index++) {
-            java.awt.Component child = children[index];
+        for (java.awt.Component child : toolBar.getComponents()) {
             texts.add(child instanceof AbstractButton button ? button.getText()
                     : child instanceof JLabel ? "label" : "---");
         }
@@ -74,15 +73,21 @@ class StepModeExtensionTest {
     }
 
     @Test
-    void theItemsFollowPasoAndTheToolbarEndsWithTheModeControls() {
+    void theItemsAndTheButtonsFollowTheFixedStep() {
         EditorView view = new EditorView(openDocument, services, NO_WINDOW);
         try {
             assertThat(texts(view.menu(MenuId.SIMULATION))).containsExactly("Iniciar", "Pausar", "Avanzar 10 t",
-                    "Paso a paso", "Avanzar al próximo evento", "---", "Pausar al detectar cortocircuito");
+                    "Paso a paso", "Avanzar al próximo evento", "Avanzar al próximo flanco de reloj", "---",
+                    "Pausar al detectar cortocircuito");
             assertThat(view.menu(MenuId.SIMULATION).getMenuComponent(3)).isInstanceOf(JCheckBoxMenuItem.class);
-            assertThat(toolBarTail(view.toolBar(), 4)).containsExactly("---", "Paso a paso",
-                    "Avanzar al próximo evento", "label");
-            assertThat(view.shortcutActions()).containsKeys("simulation.stepMode", "simulation.advance");
+            assertThat(toolBarTexts(view.toolBar())).containsSubsequence("Avanzar 10 t", "---", "Paso a paso",
+                    "Avanzar al próximo evento", "Avanzar al próximo flanco de reloj", "label");
+            int fixedStep = toolBarTexts(view.toolBar()).indexOf("Avanzar 10 t");
+            assertThat(toolBarTexts(view.toolBar()).subList(fixedStep, fixedStep + 6)).containsExactly(
+                    "Avanzar 10 t", "---", "Paso a paso", "Avanzar al próximo evento",
+                    "Avanzar al próximo flanco de reloj", "label");
+            assertThat(view.shortcutActions()).containsKeys("simulation.stepMode", "simulation.advance",
+                    "simulation.advanceToClockEdge");
         } finally {
             view.dispose();
         }
@@ -106,8 +111,8 @@ class StepModeExtensionTest {
         second.dispose();
         assertThat(openDocument.stepModeListenerCount()).isEqualTo(listeners + 1);
         assertThat(texts(second.menu(MenuId.SIMULATION))).startsWith("Iniciar", "Pausar", "Avanzar 10 t")
-                .doesNotContain("Paso a paso", "Avanzar al próximo evento");
-        assertThat(second.toolBar().getComponentCount()).isEqualTo(toolBarItems - 4);
+                .doesNotContain("Paso a paso", "Avanzar al próximo evento", "Avanzar al próximo flanco de reloj");
+        assertThat(second.toolBar().getComponentCount()).isEqualTo(toolBarItems - 5);
         assertThat(second.shortcutActions()).isEmpty();
         first.dispose();
         assertThat(openDocument.stepModeListenerCount()).isEqualTo(listeners);

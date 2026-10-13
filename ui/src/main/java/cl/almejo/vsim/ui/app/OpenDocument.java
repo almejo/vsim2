@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.app;
 import cl.almejo.vsim.core.command.Command;
 import cl.almejo.vsim.core.command.History;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
+import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.Probe;
@@ -16,6 +17,7 @@ import cl.almejo.vsim.core.netlist.Netlist;
 import cl.almejo.vsim.core.netlist.NetlistCompiler;
 import cl.almejo.vsim.core.netlist.ProbeResolver;
 import cl.almejo.vsim.core.simulation.CircuitFlattener;
+import cl.almejo.vsim.core.simulation.FlatCircuit;
 import cl.almejo.vsim.core.simulation.SimulationEngine;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.core.simulation.SimulationThread;
@@ -67,6 +69,8 @@ public final class OpenDocument implements AutoCloseable {
     private Map<String, String> probeNets = Map.of();
     private long changeCount;
     private boolean stepMode;
+    /** Whether the simulated circuit has a clock, also inside a user component (M6.1-B); set with each recompile. */
+    private boolean hasClock;
     private final List<Runnable> stepModeListeners = new CopyOnWriteArrayList<>();
 
     public OpenDocument(CircuitDocument document, ComponentTypeRegistry baseRegistry, Path path,
@@ -303,6 +307,16 @@ public final class OpenDocument implements AutoCloseable {
         simulation.advanceToNextEvent();
     }
 
+    /** «Avanzar al próximo flanco de reloj» (M6.1-B): ignored while the simulation runs. */
+    public void advanceToNextClockEdge() {
+        simulation.advanceToNextClockEdge();
+    }
+
+    /** True when the circuit has a clock, also inside a user component; follows every edit (M6.1-B). */
+    public boolean hasClock() {
+        return hasClock;
+    }
+
     /** The last «Avanzar» or click on a switch while paused; safe to read from any thread. */
     public Optional<StepReport> latestStep() {
         return simulation.latestStep();
@@ -387,10 +401,14 @@ public final class OpenDocument implements AutoCloseable {
             netlist = compiler.compile(document);
             netlistToken = document.revision();
             // One request with the circuit, so no tick runs between the new circuit and its channels (spec §3.4).
-            simulation.update(flattener.flatten(document, netlist), updateProbeNets());
+            FlatCircuit circuit = flattener.flatten(document, netlist);
+            hasClock = circuit.components().stream()
+                    .anyMatch(component -> component.type().id().equals(StandardComponentTypes.CLOCK));
+            simulation.update(circuit, updateProbeNets());
         } catch (RuntimeException exception) {
             LOGGER.error("Could not prepare {} for simulation", displayName(), exception);
             probeNets = Map.of();
+            hasClock = false;
             if (netlistToken != document.revision()) {
                 netlist = Netlist.EMPTY;
                 netlistToken = document.revision();

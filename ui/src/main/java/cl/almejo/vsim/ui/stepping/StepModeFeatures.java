@@ -12,6 +12,7 @@ import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuId;
 
 import javax.swing.AbstractAction;
+import javax.swing.AbstractButton;
 import javax.swing.Action;
 import javax.swing.JButton;
 import javax.swing.JCheckBoxMenuItem;
@@ -20,6 +21,7 @@ import javax.swing.JMenu;
 import javax.swing.JMenuItem;
 import javax.swing.JToggleButton;
 import javax.swing.JToolBar;
+import java.awt.Component;
 import java.awt.event.ActionEvent;
 import java.util.List;
 import java.util.Optional;
@@ -28,8 +30,9 @@ import java.util.function.Consumer;
 import java.util.function.LongSupplier;
 
 /**
- * «Paso a paso» in one editor view (M6.1-B, spec §4): the two Simulación items, the toolbar toggle, «Avanzar» and the
- * status label, the glow overlay and the two shortcut registrations. Everything follows the canvas's snapshots: a new
+ * «Paso a paso» in one editor view (M6.1-B, spec §4): the three Simulación items, the toolbar toggle, «Avanzar»,
+ * «Avanzar al próximo flanco de reloj» and the status label (right after «Avanzar 10 t», spec §4.4), the glow and
+ * pending-outline overlays and the three shortcut registrations. Everything follows the canvas's snapshots: a new
  * {@link StepReport} lights its wires and moves the waveform cursor. {@link #dispose()} takes it all back. EDT only.
  */
 public final class StepModeFeatures {
@@ -42,12 +45,15 @@ public final class StepModeFeatures {
     private final LongSupplier nanoClock;
     private final Action stepModeAction;
     private final Action advanceAction;
+    private final Action clockEdgeAction;
     private final JMenu simulationMenu;
     private final JCheckBoxMenuItem stepModeItem;
     private final JMenuItem advanceItem;
+    private final JMenuItem clockEdgeItem;
     private final JToolBar.Separator separator = new JToolBar.Separator();
     private final JToggleButton stepModeButton;
     private final JButton advanceButton;
+    private final JButton clockEdgeButton;
     private final JLabel status = new JLabel();
     private final StepHighlightOverlay overlay;
     private final PendingOutlineOverlay pendingOverlay;
@@ -74,24 +80,37 @@ public final class StepModeFeatures {
                 openDocument.advanceToNextEvent();
             }
         };
+        this.clockEdgeAction = new AbstractAction(Messages.text("action.advanceToClockEdge")) {
+            @Override
+            public void actionPerformed(ActionEvent event) {
+                openDocument.advanceToNextClockEdge();
+            }
+        };
         // 16 px in the menu, 24 px in the toolbar; ActionIcons (installed after this extension) hides the button
         // texts and uses the action names as tooltips, like the rest of the main toolbar
         Icons.install(stepModeAction, StepIcons.MODE);
         Icons.install(advanceAction, StepIcons.ADVANCE);
+        Icons.install(clockEdgeAction, StepIcons.CLOCK_EDGE);
         this.simulationMenu = view.menu(MenuId.SIMULATION);
         this.stepModeItem = new JCheckBoxMenuItem(stepModeAction);
         this.advanceItem = new JMenuItem(advanceAction);
+        this.clockEdgeItem = new JMenuItem(clockEdgeAction);
         simulationMenu.insert(stepModeItem, MENU_INDEX);
         simulationMenu.insert(advanceItem, MENU_INDEX + 1);
+        simulationMenu.insert(clockEdgeItem, MENU_INDEX + 2);
         this.stepModeButton = new JToggleButton(stepModeAction);
-        this.advanceButton = new JButton(advanceAction); // text and tooltip come from the action (ActionIcons, Task 7)
+        this.advanceButton = new JButton(advanceAction); // text and tooltip come from the action (ActionIcons)
+        this.clockEdgeButton = new JButton(clockEdgeAction);
         JToolBar toolBar = view.toolBar();
-        toolBar.add(separator);
-        toolBar.add(stepModeButton);
-        toolBar.add(advanceButton);
-        toolBar.add(status);
+        int index = toolBarIndexAfterFixedStep(toolBar);
+        toolBar.add(separator, index);
+        toolBar.add(stepModeButton, index + 1);
+        toolBar.add(advanceButton, index + 2);
+        toolBar.add(clockEdgeButton, index + 3);
+        toolBar.add(status, index + 4);
         this.shortcutRemovers = List.of(view.registerShortcutAction("simulation.stepMode", stepModeAction),
-                view.registerShortcutAction("simulation.advance", advanceAction));
+                view.registerShortcutAction("simulation.advance", advanceAction),
+                view.registerShortcutAction("simulation.advanceToClockEdge", clockEdgeAction));
         this.overlay = new StepHighlightOverlay(canvas::scheme, canvas::repaint, nanoClock);
         canvas.addOverlay(overlay);
         this.pendingOverlay = new PendingOutlineOverlay(canvas::scheme, openDocument.registry(), canvas::repaint);
@@ -113,6 +132,25 @@ public final class StepModeFeatures {
 
     JButton advanceButton() {
         return advanceButton;
+    }
+
+    Action clockEdgeAction() {
+        return clockEdgeAction;
+    }
+
+    JButton clockEdgeButton() {
+        return clockEdgeButton;
+    }
+
+    /** Right after the button of «Avanzar 10 t» (spec §4.4: B's buttons follow the fixed step); else at the end. */
+    private int toolBarIndexAfterFixedStep(JToolBar toolBar) {
+        Component[] children = toolBar.getComponents();
+        for (int index = 0; index < children.length; index++) {
+            if (children[index] instanceof AbstractButton button && button.getAction() == view.actions().step()) {
+                return index + 1;
+            }
+        }
+        return children.length;
     }
 
     JLabel status() {
@@ -171,7 +209,9 @@ public final class StepModeFeatures {
         OptionalLong next = openDocument.latestNextEventTime();
         stepModeAction.putValue(Action.SELECTED_KEY, stepMode);
         advanceAction.setEnabled(!snapshot.running() && next.isPresent());
+        clockEdgeAction.setEnabled(!snapshot.running() && openDocument.hasClock());
         advanceButton.setVisible(stepMode);
+        clockEdgeButton.setVisible(stepMode);
         status.setVisible(stepMode);
         String text = StepStatusText.of(snapshot.time(), openDocument.latestStep(), next);
         if (!text.equals(status.getText())) {
@@ -192,10 +232,12 @@ public final class StepModeFeatures {
         overlay.dispose();
         canvas.removeOverlay(pendingOverlay);
         pendingOverlay.dispose();
+        simulationMenu.remove(clockEdgeItem);
         simulationMenu.remove(advanceItem);
         simulationMenu.remove(stepModeItem);
         JToolBar toolBar = view.toolBar();
         toolBar.remove(status);
+        toolBar.remove(clockEdgeButton);
         toolBar.remove(advanceButton);
         toolBar.remove(stepModeButton);
         toolBar.remove(separator);

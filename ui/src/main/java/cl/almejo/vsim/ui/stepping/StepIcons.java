@@ -2,17 +2,18 @@ package cl.almejo.vsim.ui.stepping;
 
 import java.util.List;
 
-/** The icons of «Paso a paso» and «Avanzar» (M6.1-B), by file name under {@code icons/}. */
+/** The icons of «Paso a paso» and its advances (M6.1-B), by file name under {@code icons/}. */
 public final class StepIcons {
 
     public static final String MODE = "step-mode";
     public static final String ADVANCE = "step-advance";
+    public static final String CLOCK_EDGE = "step-clock-edge";
 
     private StepIcons() {
     }
 
     /** Every step icon, once. */
     public static List<String> names() {
-        return List.of(MODE, ADVANCE);
+        return List.of(MODE, ADVANCE, CLOCK_EDGE);
     }
 }

@@ -27,6 +27,7 @@ import javax.swing.JComponent;
 import javax.swing.JMenu;
 import javax.swing.JMenuItem;
 import javax.swing.KeyStroke;
+import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -131,10 +132,12 @@ class ApplicationExtensionsTest {
         EditorView view = new EditorView(openDocument, services, NO_WINDOW);
         try {
             assertThat(texts(view.menu(MenuId.SIMULATION))).containsExactly("Iniciar", "Pausar", "Avanzar 10 t",
-                    "Paso a paso", "Avanzar al próximo evento", "---", "Pausar al detectar cortocircuito", "---",
-                    "Tabla de verdad…");
+                    "Paso a paso", "Avanzar al próximo evento", "Avanzar al próximo flanco de reloj", "---",
+                    "Pausar al detectar cortocircuito", "---", "Tabla de verdad…");
             assertThat(view.shortcutActions().get("simulation.advance").getValue(Action.ACCELERATOR_KEY))
                     .isEqualTo(KeyStroke.getKeyStroke(KeyEvent.VK_F7, 0));
+            assertThat(view.shortcutActions().get("simulation.advanceToClockEdge").getValue(Action.ACCELERATOR_KEY))
+                    .isEqualTo(KeyStroke.getKeyStroke(KeyEvent.VK_F7, InputEvent.SHIFT_DOWN_MASK));
             assertThat(view.shortcutActions().get("simulation.stepMode").getValue(Action.ACCELERATOR_KEY)).isNull();
         } finally {
             view.dispose();
@@ -147,11 +150,14 @@ class ApplicationExtensionsTest {
         try {
             Action stepMode = view.shortcutActions().get("simulation.stepMode");
             Action advance = view.shortcutActions().get("simulation.advance");
+            Action clockEdge = view.shortcutActions().get("simulation.advanceToClockEdge");
             assertThat(stepMode.getValue(Action.LARGE_ICON_KEY))
                     .isSameAs(Icons.get(StepIcons.MODE, Icons.TOOLBAR_SIZE));
             assertThat(advance.getValue(Action.LARGE_ICON_KEY))
                     .isSameAs(Icons.get(StepIcons.ADVANCE, Icons.TOOLBAR_SIZE));
-            for (Action action : List.of(stepMode, advance)) {
+            assertThat(clockEdge.getValue(Action.LARGE_ICON_KEY))
+                    .isSameAs(Icons.get(StepIcons.CLOCK_EDGE, Icons.TOOLBAR_SIZE));
+            for (Action action : List.of(stepMode, advance, clockEdge)) {
                 AbstractButton button = Arrays.stream(view.toolBar().getComponents())
                         .filter(AbstractButton.class::isInstance)
                         .map(AbstractButton.class::cast)

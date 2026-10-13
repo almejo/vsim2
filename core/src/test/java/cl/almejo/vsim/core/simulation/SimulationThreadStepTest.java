@@ -7,6 +7,7 @@ import cl.almejo.vsim.core.component.ComponentCategory;
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.PinSpec;
+import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.geometry.GridSize;
 import cl.almejo.vsim.core.value.Value;
 import org.junit.jupiter.api.Test;
@@ -129,5 +130,25 @@ class SimulationThreadStepTest {
         thread.tick();
         assertThat(thread.latestNextEventTime()).hasValue(2);
         assertThat(thread.latestPendingComponents()).as("running").isEmpty();
+    }
+
+    @Test
+    void theNextClockEdgeIsPublishedAsAStepAndIgnoredWhileRunning() {
+        thread.update(new FlatCircuit(List.of(new FlatComponent("k",
+                StandardComponentTypes.registry().require(StandardComponentTypes.CLOCK),
+                Map.of("time-up", 3, "time-down", 2))),
+                List.of(new FlatNet("clock", List.of(new FlatPinRef("k", 0)), 1, false))));
+        thread.tick();
+
+        thread.advanceToNextClockEdge();
+        thread.tick();
+        assertThat(thread.latestStep()).contains(
+                new StepReport(1, new StepResult(0, 5, Set.of("clock"), OptionalLong.of(7))));
+        assertThat(thread.latestPendingComponents()).containsExactly("k");
+
+        thread.resume();
+        thread.advanceToNextClockEdge();
+        thread.tick();
+        assertThat(thread.latestStep().orElseThrow().sequence()).as("ignored while running").isEqualTo(1);
     }
 }

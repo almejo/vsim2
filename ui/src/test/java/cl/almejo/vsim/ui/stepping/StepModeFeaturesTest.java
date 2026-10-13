@@ -1,12 +1,17 @@
 package cl.almejo.vsim.ui.stepping;
 
 import cl.almejo.vsim.core.command.AddElementsCommand;
+
+import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.library.ComponentLibrary;
+import cl.almejo.vsim.core.netlist.PinRef;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
+import cl.almejo.vsim.core.simulation.StepResult;
+import cl.almejo.vsim.core.value.Value;
 import cl.almejo.vsim.ui.actions.TextPrompt;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.OpenDocument;
@@ -209,10 +214,11 @@ class StepModeFeaturesTest {
         features.dispose();
 
         assertThat(openDocument.stepModeListenerCount()).isEqualTo(listeners - 1);
-        assertThat(view.toolBar().getComponentCount()).isEqualTo(toolBarItems - 4);
+        assertThat(view.toolBar().getComponentCount()).isEqualTo(toolBarItems - 5);
         assertThat(view.menu(MenuId.SIMULATION).getMenuComponentCount())
-                .isEqualTo(menuItems - 2);
-        assertThat(view.shortcutActions()).doesNotContainKeys("simulation.stepMode", "simulation.advance");
+                .isEqualTo(menuItems - 3);
+        assertThat(view.shortcutActions()).doesNotContainKeys("simulation.stepMode", "simulation.advance",
+                "simulation.advanceToClockEdge");
         assertThat(features.overlay().isTimerRunning()).isFalse();
     }
 
@@ -244,5 +250,32 @@ class StepModeFeaturesTest {
         assertThat(features.pendingOverlay().current()).isEqualTo(PendingOutline.NONE);
         features.dispose();
         assertThat(features.pendingOverlay().current()).isEqualTo(PendingOutline.NONE);
+    }
+
+    @Test
+    void theNextClockEdgeNeedsAClockAndAPausedSimulation() {
+        features.snapshotPublished(SimulationSnapshot.EMPTY);
+        assertThat(features.clockEdgeAction().isEnabled()).as("no clock").isFalse();
+        assertThat(features.clockEdgeButton().isVisible()).isFalse();
+
+        Component clock = place(openDocument, StandardComponentTypes.CLOCK, 0, 0,
+                Map.of("time-up", 3, "time-down", 2));
+        features.snapshotPublished(SimulationSnapshot.EMPTY.withRunning(true));
+        assertThat(features.clockEdgeAction().isEnabled()).as("running").isFalse();
+        perform(features.stepModeAction());
+        waitUntil(() -> !openDocument.latestSnapshot().running());
+        showLatestSnapshot();
+        assertThat(features.clockEdgeAction().isEnabled()).isTrue();
+        assertThat(features.clockEdgeButton().isVisible()).isTrue();
+
+        perform(features.clockEdgeAction());
+        waitUntil(() -> openDocument.latestStep().isPresent());
+        StepResult edge = openDocument.latestStep().orElseThrow().result();
+        waitUntil(() -> openDocument.latestSnapshot().time() == edge.time());
+        assertThat(edge.time()).isGreaterThan(edge.fromTime());
+        assertThat(openDocument.latestSnapshot().componentState(clock.id().value()))
+                .as("stopped right after the clock fell").isEqualTo(new VisibleState.ClockState(Value.ZERO));
+        String clockNet = openDocument.netlist().netForPin(new PinRef(clock.id(), 0)).orElseThrow().id().value();
+        assertThat(edge.changedNets()).contains(clockNet);
     }
 }
