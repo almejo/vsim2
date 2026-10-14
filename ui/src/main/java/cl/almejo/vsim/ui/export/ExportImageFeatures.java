@@ -4,6 +4,7 @@ import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.icons.Icons;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.window.EditorView;
@@ -48,6 +49,7 @@ public final class ExportImageFeatures {
                 export();
             }
         };
+        Icons.install(action, ExportIcons.EXPORT_IMAGE);
         this.fileMenu = view.menu(MenuId.FILE);
         this.item = new JMenuItem(action);
         int saveAs = Menus.indexOf(fileMenu, view.actions().saveAs());

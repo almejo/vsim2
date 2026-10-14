@@ -8,14 +8,19 @@ import cl.almejo.vsim.core.wiring.TidyPlan;
 import cl.almejo.vsim.core.wiring.WireTidy;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.icons.Icons;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuId;
 
 import javax.swing.AbstractAction;
+import javax.swing.AbstractButton;
 import javax.swing.Action;
 import javax.swing.JMenu;
+import javax.swing.JButton;
 import javax.swing.JMenuItem;
 import javax.swing.JPopupMenu;
+import javax.swing.JToolBar;
+import java.awt.Component;
 import java.awt.event.ActionEvent;
 import java.util.LinkedHashSet;
 import java.util.Optional;
@@ -35,6 +40,8 @@ public final class TidyWiresFeatures {
     private final JPopupMenu.Separator separator = new JPopupMenu.Separator();
     private final JMenuItem tidyItem;
     private final JMenuItem optionsItem;
+    private final JToolBar toolBar;
+    private final JButton toolBarButton;
     private final Runnable tidyShortcutRemover;
     private final Runnable optionsShortcutRemover;
     private boolean disposed;
@@ -54,14 +61,31 @@ public final class TidyWiresFeatures {
                 tidyWithDialog();
             }
         };
+        // 16 px in the menu, 24 px in the toolbar; ActionIcons (installed after this extension) makes the button
+        // icon-only with the action name as tooltip, and the shortcuts extension appends the shortcut
+        Icons.install(tidy, TidyIcons.TIDY_WIRES);
         this.editMenu = view.menu(MenuId.EDIT);
         this.tidyItem = new JMenuItem(tidy);
         this.optionsItem = new JMenuItem(tidyWithOptions);
         editMenu.add(separator);
         editMenu.add(tidyItem);
         editMenu.add(optionsItem);
+        this.toolBar = view.toolBar();
+        this.toolBarButton = new JButton(tidy);
+        toolBar.add(toolBarButton, indexAfterRedo());
         this.tidyShortcutRemover = view.registerShortcutAction("edit.tidyWires", tidy);
         this.optionsShortcutRemover = view.registerShortcutAction("edit.tidyWiresOptions", tidyWithOptions);
+    }
+
+    /** Right after the «Rehacer» button (the end of the toolbar if it is not there). */
+    private int indexAfterRedo() {
+        Component[] components = toolBar.getComponents();
+        for (int index = 0; index < components.length; index++) {
+            if (components[index] instanceof AbstractButton button && button.getAction() == view.actions().redo()) {
+                return index + 1;
+            }
+        }
+        return components.length;
     }
 
     public Action tidyAction() {
@@ -133,6 +157,7 @@ public final class TidyWiresFeatures {
         disposed = true;
         tidyShortcutRemover.run();
         optionsShortcutRemover.run();
+        toolBar.remove(toolBarButton);
         editMenu.remove(tidyItem);
         editMenu.remove(optionsItem);
         editMenu.remove(separator);
