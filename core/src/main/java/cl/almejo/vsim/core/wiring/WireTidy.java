@@ -10,8 +10,9 @@ import java.util.Set;
 
 /**
  * Proposes how to tidy the top-level wires of a document without changing what they mean. Pure: it never mutates
- * the document. Rules run in rounds until a round changes nothing (at most {@value #MAXIMUM_ROUNDS}); every single
- * change is checked against the {@link Connectivity} of the original wires, and the final result once more.
+ * the document. Rules run in rounds until a round changes nothing (at most {@value #MAXIMUM_ROUNDS}); each rule pass
+ * is checked against the {@link Connectivity} of the original wires (and replayed change by change, each one checked,
+ * when that fails), and the final result once more with the netlist compiler.
  */
 public final class WireTidy {
 
@@ -40,7 +41,7 @@ public final class WireTidy {
         for (int round = 0; round < MAXIMUM_ROUNDS; round++) {
             boolean changed = false;
             for (TidyRule rule : rules) {
-                changed |= rule.apply(state);
+                changed |= state.run(rule);
             }
             if (!changed) {
                 break;

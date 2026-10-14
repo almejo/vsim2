@@ -3,8 +3,6 @@ package cl.almejo.vsim.core.wiring;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
-import cl.almejo.vsim.core.netlist.Net;
-import cl.almejo.vsim.core.netlist.Netlist;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -23,7 +21,7 @@ final class StubRule implements TidyRule {
     public boolean apply(TidyState state) {
         boolean changed = removeFloatingNetworks(state);
         for (Wire snapshot : new ArrayList<>(state.wires())) {
-            Wire current = state.wires().stream().filter(wire -> wire.id().equals(snapshot.id())).findFirst().orElse(null);
+            Wire current = state.wire(snapshot.id()).orElse(null);
             if (current != null && state.inScope(current.id())) {
                 changed |= tidyWire(state, current);
             }
@@ -47,9 +45,8 @@ final class StubRule implements TidyRule {
     }
 
     private boolean removeFloatingNetworks(TidyState state) {
-        Netlist netlist = Connectivity.compile(state.wires(), state.document(), state.registry());
         boolean changed = false;
-        for (Net net : netlist.nets()) {
+        for (ConnectivityChecker.WireNet net : state.nets()) {
             if (!net.pins().isEmpty() || net.wires().isEmpty()) {
                 continue;
             }

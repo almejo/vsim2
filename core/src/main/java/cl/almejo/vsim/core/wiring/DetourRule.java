@@ -29,8 +29,26 @@ final class DetourRule implements TidyRule {
     public boolean apply(TidyState state) {
         boolean changed = false;
         List<Bounds> bodies = bodies(state.document(), state.registry());
-        while (flattenOne(state, bodies)) {
+        while (flattenPass(state, bodies)) {
             changed = true;
+        }
+        return changed;
+    }
+
+    /** One scan over the wires as they were when it started; a flattened U does not restart the scan. */
+    private static boolean flattenPass(TidyState state, List<Bounds> bodies) {
+        boolean changed = false;
+        for (Wire snapshot : List.copyOf(state.wires())) {
+            Optional<Wire> middle = state.wire(snapshot.id());
+            if (middle.isEmpty()) {
+                continue;
+            }
+            Optional<Detour> detour = detourAround(state, middle.get());
+            if (detour.isPresent() && touchesNothingNew(state, detour.get(), bodies)
+                    && state.tryChange(detour.get().removed(), detour.get().added(), detour.get().dropped())) {
+                state.countDetours(1);
+                changed = true;
+            }
         }
         return changed;
     }
@@ -41,18 +59,6 @@ final class DetourRule implements TidyRule {
             bodies.add(registry.typeOf(component).bounds(component));
         }
         return bodies;
-    }
-
-    private static boolean flattenOne(TidyState state, List<Bounds> bodies) {
-        for (Wire middle : state.wires()) {
-            Optional<Detour> detour = detourAround(state, middle);
-            if (detour.isPresent() && touchesNothingNew(state, detour.get(), bodies)
-                    && state.tryChange(detour.get().removed(), detour.get().added(), detour.get().dropped())) {
-                state.countDetours(1);
-                return true;
-            }
-        }
-        return false;
     }
 
     /** One U found around {@code middle}, with the wires that replace it. */

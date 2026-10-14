@@ -2,7 +2,8 @@ package cl.almejo.vsim.core.wiring;
 
 /**
  * One tidy rule. Rules change the wires only through {@link TidyState#tryChange}, which refuses every change that
- * is out of scope or would alter the connectivity.
+ * is out of scope; a pass whose result alters the connectivity is replayed with every change checked (see
+ * {@link TidyState#run}).
  */
 interface TidyRule {
 

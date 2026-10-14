@@ -15,7 +15,9 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.NavigableMap;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.stream.Stream;
 
@@ -54,11 +56,19 @@ public final class NetlistCompiler {
 
         UnionFind unionFind = new UnionFind();
         pointsOfInterest.forEach(unionFind::add);
+        // points of interest by row and by column, so each wire finds the ones it contains with a range lookup
+        Map<Integer, TreeMap<Integer, GridPoint>> rows = new HashMap<>();
+        Map<Integer, TreeMap<Integer, GridPoint>> columns = new HashMap<>();
+        for (GridPoint point : pointsOfInterest) {
+            rows.computeIfAbsent(point.y(), row -> new TreeMap<>()).put(point.x(), point);
+            columns.computeIfAbsent(point.x(), column -> new TreeMap<>()).put(point.y(), point);
+        }
         for (Wire wire : document.wires()) {
-            for (GridPoint point : pointsOfInterest) {
-                if (wire.contains(point)) {
-                    unionFind.union(wire.start(), point);
-                }
+            NavigableMap<Integer, GridPoint> contained = wire.isHorizontal()
+                    ? rows.get(wire.start().y()).subMap(wire.start().x(), true, wire.end().x(), true)
+                    : columns.get(wire.start().x()).subMap(wire.start().y(), true, wire.end().y(), true);
+            for (GridPoint point : contained.values()) {
+                unionFind.union(wire.start(), point);
             }
         }
 

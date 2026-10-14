@@ -66,11 +66,6 @@ public record Connectivity(Set<Set<PinRef>> pinNets, Map<String, Set<PinRef>> pr
         return new Connectivity(pinNets, probePins, Set.copyOf(pinlessGroups.values()), unresolved);
     }
 
-    /** The compiled netlist of {@code wires} placed in {@code document}; the document itself is not touched. */
-    static Netlist compile(List<Wire> wires, CircuitDocument document, ComponentTypeRegistry registry) {
-        return new NetlistCompiler(registry).compile(scratchOf(wires, document));
-    }
-
     private static CircuitDocument scratchOf(List<Wire> wires, CircuitDocument document) {
         CircuitDocument scratch = new CircuitDocument();
         document.components().forEach(scratch::add);

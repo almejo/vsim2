@@ -8,8 +8,6 @@ import cl.almejo.vsim.core.document.Probe;
 import cl.almejo.vsim.core.document.ProbeTarget;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
-import cl.almejo.vsim.core.netlist.Net;
-import cl.almejo.vsim.core.netlist.Netlist;
 import cl.almejo.vsim.core.netlist.PinRef;
 
 import java.util.ArrayList;
@@ -18,6 +16,7 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -31,16 +30,20 @@ final class TidyState {
     private final Set<ElementId> scope;
     private final Map<GridPoint, List<PinRef>> pinsAtPoint;
     private final Connectivity baseline;
+    private final ConnectivityChecker checker;
+    private final Connectivity checkedBaseline;
     private final List<Wire> original;
     private final Map<ElementId, ElementId> retargets = new LinkedHashMap<>();
     private List<Wire> wires;
     private WireGraph graph;
+    private Map<ElementId, Wire> wiresById;
     private Set<ElementId> protectedWires;
     private long nextWireNumber;
     private int zeroLengthRemoved;
     private int stubsRemoved;
     private int segmentsMerged;
     private int detoursFlattened;
+    private boolean verifyEachChange;
 
     TidyState(CircuitDocument document, ComponentTypeRegistry registry, Set<ElementId> scope) {
         this.document = document;
@@ -50,6 +53,8 @@ final class TidyState {
         this.original = document.wires();
         this.wires = new ArrayList<>(original);
         this.baseline = Connectivity.of(original, document, registry);
+        this.checker = new ConnectivityChecker(document, pinsAtPoint);
+        this.checkedBaseline = checker.of(original, Map.of());
         long highest = 0;
         for (DocumentElement element : document.elements()) {
             String digits = element.id().value().replaceFirst("^\\D+", "");
@@ -63,6 +68,15 @@ final class TidyState {
     /** The current wires, in document draw order (replacements take the place of the first wire they replace). */
     List<Wire> wires() {
         return wires;
+    }
+
+    /** The current wire with {@code wireId}, if it still exists. */
+    Optional<Wire> wire(ElementId wireId) {
+        if (wiresById == null) {
+            wiresById = new HashMap<>();
+            wires.forEach(wire -> wiresById.put(wire.id(), wire));
+        }
+        return Optional.ofNullable(wiresById.get(wireId));
     }
 
     CircuitDocument document() {
@@ -102,18 +116,57 @@ final class TidyState {
                 }
             }
             Set<ElementId> result = new HashSet<>(watched);
-            Netlist netlist = Connectivity.compile(wires, document, registry);
-            for (ElementId wireId : watched) {
-                netlist.netForWire(wireId).filter(net -> net.pins().isEmpty()).map(Net::wires).ifPresent(result::addAll);
+            if (!watched.isEmpty()) {
+                for (ConnectivityChecker.WireNet net : checker.nets(wires)) {
+                    if (net.pins().isEmpty() && net.wires().stream().anyMatch(watched::contains)) {
+                        result.addAll(net.wires());
+                    }
+                }
             }
             protectedWires = result;
         }
         return protectedWires;
     }
 
+    /** The nets of the current wires that have a wire, ordered by their first wire. */
+    List<ConnectivityChecker.WireNet> nets() {
+        return checker.nets(wires);
+    }
+
+    /**
+     * Applies {@code rule} optimistically: its changes are accepted without checking each one, and the connectivity
+     * is checked once at the end. Only when that check fails (a rule proposed a change the guard would have
+     * refused) is the pass undone and run again with every change checked, which gives exactly the per-change
+     * guarantee at the cost of one check per change. Returns whether the rule changed something.
+     */
+    boolean run(TidyRule rule) {
+        List<Wire> wiresBefore = wires;
+        Map<ElementId, ElementId> retargetsBefore = new LinkedHashMap<>(retargets);
+        int[] countersBefore = {stubsRemoved, segmentsMerged, detoursFlattened};
+        boolean changed = rule.apply(this);
+        if (!changed || checkedBaseline.equals(checker.of(wires, retargets))) {
+            return changed;
+        }
+        wires = wiresBefore;
+        retargets.clear();
+        retargets.putAll(retargetsBefore);
+        stubsRemoved = countersBefore[0];
+        segmentsMerged = countersBefore[1];
+        detoursFlattened = countersBefore[2];
+        graph = null;
+        wiresById = null;
+        protectedWires = null;
+        verifyEachChange = true;
+        try {
+            return rule.apply(this);
+        } finally {
+            verifyEachChange = false;
+        }
+    }
+
     /**
      * Replaces {@code removed} by {@code added} when every removed wire is in scope and the circuit stays
-     * equivalent. The added wires take the place of the first removed one; an added wire may reuse the id of a
+     * equivalent (checked here only while {@link #run} replays a pass change by change). The added wires take the place of the first removed one; an added wire may reuse the id of a
      * removed wire. {@code droppedTo} maps the id of a removed wire that no added wire reuses to the wire that now
      * covers it (probes on it are retargeted). Returns whether the change was accepted.
      */
@@ -125,7 +178,7 @@ final class TidyState {
             }
             removedIds.add(wire.id());
         }
-        List<Wire> candidate = new ArrayList<>();
+        List<Wire> candidate = new ArrayList<>(wires.size() + added.size());
         boolean inserted = false;
         for (Wire wire : wires) {
             if (removedIds.contains(wire.id())) {
@@ -145,13 +198,19 @@ final class TidyState {
             candidateRetargets.replaceAll((key, value) -> value.equals(dropped) ? survivor : value);
             candidateRetargets.put(dropped, survivor);
         });
-        if (!baseline.equals(Connectivity.of(candidate, document, registry, candidateRetargets))) {
+        if (verifyEachChange && !checkedBaseline.equals(checker.of(candidate, candidateRetargets))) {
             return false;
         }
         wires = candidate;
         retargets.clear();
         retargets.putAll(candidateRetargets);
-        graph = null;
+        if (graph != null) {
+            graph.update(removed, added, candidate);
+        }
+        if (wiresById != null) {
+            removed.forEach(wire -> wiresById.remove(wire.id()));
+            added.forEach(wire -> wiresById.put(wire.id(), wire));
+        }
         protectedWires = null;
         return true;
     }
