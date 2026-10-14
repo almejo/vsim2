@@ -61,6 +61,7 @@ class ExecutableJarTest {
                 "com/formdev/flatlaf/FlatLaf.class",
                 "com/formdev/flatlaf/themes/FlatMacDarkLaf.class",
                 "net/miginfocom/swing/MigLayout.class",
+                "org/jfree/svg/SVGGraphics2D.class",
                 "com/fasterxml/jackson/databind/ObjectMapper.class",
                 "org/slf4j/LoggerFactory.class",
                 "ch/qos/logback/classic/Logger.class");

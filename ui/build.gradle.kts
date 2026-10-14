@@ -7,6 +7,7 @@ dependencies {
     implementation(libs.flatlaf)
     implementation(libs.flatlaf.extras)
     implementation(libs.miglayout.swing)
+    implementation(libs.jfreesvg)
     implementation(libs.slf4j.api)
     runtimeOnly(libs.logback.classic)
 
