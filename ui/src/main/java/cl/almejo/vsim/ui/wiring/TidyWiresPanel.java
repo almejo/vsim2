@@ -10,15 +10,15 @@ import javax.swing.JCheckBox;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JRadioButton;
-import java.util.function.BiFunction;
 
 /**
  * The content of the tidy dialog: scope, the three options and the live summary, recomputed on every change. It
- * holds no dialog, so tests drive it directly.
+ * holds no dialog, so tests drive it directly. The summary is computed in the background («Calculando…» meanwhile);
+ * a change cancels the computation in flight, so the latest choice wins.
  */
 public final class TidyWiresPanel extends JPanel {
 
-    private final BiFunction<TidyOptions, Boolean, TidyPlan> planner;
+    private final TidyPlanner planner;
     private final JRadioButton selection = new JRadioButton(Messages.text("tidy.scope.selection"));
     private final JRadioButton everything = new JRadioButton(Messages.text("tidy.scope.all"));
     private final JCheckBox removeStubs = new JCheckBox(Messages.text("tidy.removeStubs"));
@@ -27,9 +27,11 @@ public final class TidyWiresPanel extends JPanel {
     private final JLabel summary = new JLabel();
     private Runnable changeListener = () -> { };
     private TidyPlan plan = TidyPlan.EMPTY;
+    private boolean ready;
+    private Runnable cancelRunning = () -> { };
+    private int generation;
 
-    public TidyWiresPanel(boolean hasSelection, TidyOptions initial,
-                          BiFunction<TidyOptions, Boolean, TidyPlan> planner) {
+    public TidyWiresPanel(boolean hasSelection, TidyOptions initial, TidyPlanner planner) {
         super(new MigLayout("wrap 1, insets 8", "[grow]", ""));
         this.planner = planner;
         ButtonGroup scope = new ButtonGroup();
@@ -83,7 +85,19 @@ public final class TidyWiresPanel extends JPanel {
 
     /** True when there is something to tidy with the current choices. */
     public boolean canApply() {
-        return !plan.isEmpty();
+        return ready && !plan.isEmpty();
+    }
+
+    /** False while the summary is being computed. */
+    public boolean isReady() {
+        return ready;
+    }
+
+    /** Stops the computation in flight (the dialog is closing); nothing is delivered afterwards. */
+    public void dispose() {
+        generation++;
+        cancelRunning.run();
+        cancelRunning = () -> { };
     }
 
     JCheckBox removeStubsBox() {
@@ -107,8 +121,24 @@ public final class TidyWiresPanel extends JPanel {
     }
 
     private void refresh() {
-        plan = planner.apply(options(), selectionOnly());
-        summary.setText(TidySummary.preview(plan));
+        cancelRunning.run();
+        int mine = ++generation;
+        ready = false;
+        plan = TidyPlan.EMPTY;
+        summary.setText(Messages.text("tidy.calculating"));
         changeListener.run();
+        Runnable cancel = planner.plan(options(), selectionOnly(), result -> {
+            if (mine != generation) {
+                return;
+            }
+            plan = result;
+            ready = true;
+            cancelRunning = () -> { };
+            summary.setText(TidySummary.preview(plan));
+            changeListener.run();
+        });
+        if (mine == generation && !ready) {
+            cancelRunning = cancel;
+        }
     }
 }

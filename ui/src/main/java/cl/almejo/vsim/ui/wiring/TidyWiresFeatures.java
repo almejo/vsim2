@@ -1,13 +1,17 @@
 package cl.almejo.vsim.ui.wiring;
 
 import cl.almejo.vsim.core.command.TidyWiresCommand;
+import cl.almejo.vsim.core.component.ComponentTypeRegistry;
+import cl.almejo.vsim.core.document.CircuitDocument;
+import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.wiring.TidyOptions;
 import cl.almejo.vsim.core.wiring.TidyPlan;
-import cl.almejo.vsim.core.wiring.WireTidy;
+import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.truthtable.TruthTableFeatures.Delay;
 import cl.almejo.vsim.ui.icons.Icons;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuId;
@@ -25,12 +29,16 @@ import java.awt.event.ActionEvent;
 import java.util.LinkedHashSet;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Consumer;
 
 /**
  * The wire tidying of one editor view: two items at the end of Editar (after a separator), their shortcut
  * registrations and the notice. {@link #dispose()} takes all of it back.
  */
 public final class TidyWiresFeatures {
+
+    /** A tidy still running after this long shows the progress window. */
+    public static final int PROGRESS_DELAY_MILLISECONDS = 2000;
 
     private final EditorView view;
     private final TidyChooser chooser;
@@ -44,11 +52,38 @@ public final class TidyWiresFeatures {
     private final JButton toolBarButton;
     private final Runnable tidyShortcutRemover;
     private final Runnable optionsShortcutRemover;
+    private final TidyRunner runner;
+    private final TidyRunner previewRunner;
+    private final Delay delay;
+    private final TidyProgress.Factory progressFactory;
+    private final Set<Runnable> previewCancels = new java.util.LinkedHashSet<>();
+    private Running running;
     private boolean disposed;
 
+    /** One tidy in flight: its job, the pending 2 s timer and the progress window once it opened. */
+    private static final class Running {
+        TidyRunner.Job job;
+        Runnable stopTimer = () -> { };
+        TidyProgress progress;
+        int round;
+    }
+
     public TidyWiresFeatures(EditorView view, TidyChooser chooser) {
+        this(view, chooser, TidyRunner.create(), TidyRunner.create(), Delay.swing(), TidyProgress.Factory.dialog());
+    }
+
+    /**
+     * {@code runner} computes the tidy of the actions, {@code previewRunner} the dialog's summary; {@code delay}
+     * decides when a slow tidy shows its progress window. Tests pass manual ones.
+     */
+    public TidyWiresFeatures(EditorView view, TidyChooser chooser, TidyRunner runner, TidyRunner previewRunner,
+                             Delay delay, TidyProgress.Factory progressFactory) {
         this.view = view;
         this.chooser = chooser;
+        this.runner = runner;
+        this.previewRunner = previewRunner;
+        this.delay = delay;
+        this.progressFactory = progressFactory;
         this.tidy = new AbstractAction(Messages.text("action.tidyWires")) {
             @Override
             public void actionPerformed(ActionEvent event) {
@@ -115,10 +150,53 @@ public final class TidyWiresFeatures {
         return wires;
     }
 
-    private TidyPlan plan(TidyOptions options, boolean selectionOnly) {
-        OpenDocument openDocument = view.openDocument();
+    /** The document as the worker reads it: a copy made on the EDT, never touched by the editor afterwards. */
+    private CircuitDocument snapshot() {
+        CircuitDocument original = view.openDocument().document();
+        CircuitDocument copy = new CircuitDocument();
+        original.definitions().forEach(copy::putDefinition);
+        for (DocumentElement element : original.elements()) {
+            copy.restore(element, original.orderOf(element.id()));
+        }
+        copy.setProbes(original.probes());
+        return copy;
+    }
+
+    private ComponentTypeRegistry registryFor(CircuitDocument snapshot) {
+        ComponentTypeRegistry registry = view.openDocument().registry().copy();
+        registry.addResolver(SubcircuitTypes.resolverFor(snapshot));
+        return registry;
+    }
+
+    /** The planner of the dialog's live summary: background, cancellable, on a snapshot of the moment. */
+    private Runnable preview(TidyOptions options, boolean selectionOnly, Consumer<TidyPlan> onResult) {
+        if (disposed) {
+            return () -> { };
+        }
+        CircuitDocument snapshot = snapshot();
         Set<ElementId> scope = selectionOnly ? selectedWires() : allWires();
-        return WireTidy.plan(openDocument.document(), openDocument.registry(), scope, options);
+        TidyRunner.Job job = previewRunner.start(snapshot, registryFor(snapshot), scope, options,
+                new TidyRunner.Callbacks() {
+                    @Override
+                    public void progress(int round) {
+                    }
+
+                    @Override
+                    public void finished(TidyPlan plan) {
+                        onResult.accept(plan);
+                    }
+
+                    @Override
+                    public void failed(Throwable throwable) {
+                        onResult.accept(TidyPlan.EMPTY);
+                    }
+                });
+        Runnable cancel = job::cancel;
+        previewCancels.add(cancel);
+        return () -> {
+            previewCancels.remove(cancel);
+            cancel.run();
+        };
     }
 
     /** Applies the saved options at once, on the selection's wires if there are any, else on everything. */
@@ -134,7 +212,9 @@ public final class TidyWiresFeatures {
             return;
         }
         Optional<TidyChoice> choice = chooser.choose(view, !selectedWires().isEmpty(),
-                view.services().preferences().tidyOptions(), this::plan);
+                view.services().preferences().tidyOptions(), this::preview);
+        previewCancels.forEach(Runnable::run);
+        previewCancels.clear();
         if (choice.isEmpty()) {
             return;
         }
@@ -142,12 +222,84 @@ public final class TidyWiresFeatures {
         run(choice.get().options(), choice.get().selectionOnly());
     }
 
+    /** Whether a tidy is computing right now. */
+    public boolean isRunning() {
+        return running != null;
+    }
+
     private void run(TidyOptions options, boolean selectionOnly) {
-        TidyPlan plan = plan(options, selectionOnly);
-        if (!plan.isEmpty()) {
-            view.openDocument().execute(new TidyWiresCommand(plan));
+        stopRunning();
+        long revisionAtStart = view.openDocument().document().revision();
+        CircuitDocument snapshot = snapshot();
+        Set<ElementId> scope = selectionOnly ? selectedWires() : allWires();
+        Running mine = new Running();
+        running = mine;
+        // the timer first: a manual runner may deliver the result before start returns
+        mine.stopTimer = delay.after(PROGRESS_DELAY_MILLISECONDS, () -> {
+            if (running == mine && mine.progress == null) {
+                mine.progress = progressFactory.open(view, this::cancelByUser);
+                if (mine.round > 0) {
+                    mine.progress.round(mine.round);
+                }
+            }
+        });
+        mine.job = runner.start(snapshot, registryFor(snapshot), scope, options, new TidyRunner.Callbacks() {
+            @Override
+            public void progress(int round) {
+                if (running == mine) {
+                    mine.round = round;
+                    if (mine.progress != null) {
+                        mine.progress.round(round);
+                    }
+                }
+            }
+
+            @Override
+            public void finished(TidyPlan plan) {
+                if (running != mine) {
+                    return;
+                }
+                stopRunning();
+                if (view.openDocument().document().revision() != revisionAtStart) {
+                    view.statusBar().showNotice(Messages.text("tidy.changedMeanwhile"));
+                    return;
+                }
+                if (!plan.isEmpty()) {
+                    view.openDocument().execute(new TidyWiresCommand(plan));
+                }
+                view.statusBar().showNotice(TidySummary.notice(plan));
+            }
+
+            @Override
+            public void failed(Throwable throwable) {
+                if (running == mine) {
+                    stopRunning();
+                    view.statusBar().showNotice(Messages.format("tidy.failed", String.valueOf(throwable.getMessage())));
+                }
+            }
+        });
+    }
+
+    private void cancelByUser() {
+        if (running != null) {
+            stopRunning();
+            view.statusBar().showNotice(Messages.text("tidy.cancelled"));
         }
-        view.statusBar().showNotice(TidySummary.notice(plan));
+    }
+
+    /** Cancels the job, the timer and the window, whichever exist. */
+    private void stopRunning() {
+        Running current = running;
+        running = null;
+        if (current != null) {
+            if (current.job != null) {
+                current.job.cancel();
+            }
+            current.stopTimer.run();
+            if (current.progress != null) {
+                current.progress.close();
+            }
+        }
     }
 
     public void dispose() {
@@ -155,6 +307,11 @@ public final class TidyWiresFeatures {
             return;
         }
         disposed = true;
+        stopRunning();
+        previewCancels.forEach(Runnable::run);
+        previewCancels.clear();
+        runner.dispose();
+        previewRunner.dispose();
         tidyShortcutRemover.run();
         optionsShortcutRemover.run();
         toolBar.remove(toolBarButton);

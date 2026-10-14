@@ -17,6 +17,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.BooleanSupplier;
 
 /**
  * The working copy of one tidy run: the wires as they are now, the scope, the baseline connectivity every change is
@@ -41,6 +42,24 @@ final class TidyState {
     private int segmentsMerged;
     private int detoursFlattened;
     private boolean verifyEachChange;
+    private BooleanSupplier cancelled = () -> false;
+
+    /** Thrown inside a run when the caller asked to stop; {@link WireTidy} turns it into an empty result. */
+    static final class Cancelled extends RuntimeException {
+        Cancelled() {
+            super("tidy cancelled", null, false, false);
+        }
+    }
+
+    void cancellation(BooleanSupplier newCancelled) {
+        cancelled = newCancelled;
+    }
+
+    void checkCancelled() {
+        if (cancelled.getAsBoolean()) {
+            throw new Cancelled();
+        }
+    }
 
     TidyState(CircuitDocument document, ComponentTypeRegistry registry, Set<ElementId> scope) {
         this.document = document;
@@ -124,6 +143,7 @@ final class TidyState {
      * guarantee at the cost of one check per change. Returns whether the rule changed something.
      */
     boolean run(TidyRule rule) {
+        checkCancelled();
         List<Wire> wiresBefore = wires;
         Map<ElementId, ElementId> retargetsBefore = new LinkedHashMap<>(retargets);
         int[] countersBefore = {stubsRemoved, segmentsMerged, detoursFlattened};
@@ -155,6 +175,7 @@ final class TidyState {
      * covers it (probes on it are retargeted). Returns whether the change was accepted.
      */
     boolean tryChange(List<Wire> removed, List<Wire> added, Map<ElementId, ElementId> droppedTo) {
+        checkCancelled();
         Set<ElementId> removedIds = new HashSet<>();
         for (Wire wire : removed) {
             if (!inScope(wire.id())) {

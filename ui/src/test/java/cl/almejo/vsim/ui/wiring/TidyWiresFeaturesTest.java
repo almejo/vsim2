@@ -33,7 +33,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.function.BiFunction;
 
 import static cl.almejo.vsim.ui.UiTestSupport.place;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -83,7 +82,11 @@ class TidyWiresFeaturesTest {
         features = new TidyWiresFeatures(view, (parent, hasSelection, initial, planner) -> {
             chooserCalls.add(hasSelection + "|" + initial);
             return answer;
-        });
+        }, directRunner(), directRunner(), (milliseconds, task) -> () -> { }, (parent, onCancel) -> null);
+    }
+
+    private static TidyRunner directRunner() {
+        return new TidyRunner(Runnable::run, Runnable::run, cl.almejo.vsim.core.wiring.WireTidy::plan);
     }
 
     private ElementId addWire(GridPoint start, GridPoint end) {
@@ -214,7 +217,8 @@ class TidyWiresFeaturesTest {
     void eachViewTakesBackItsOwnItemsAndShortcuts() {
         EditorView other = newView(OpenDocument.createEmpty(StandardComponentTypes.registry()));
         List<String> before = texts(other.menu(MenuId.EDIT));
-        TidyWiresFeatures extra = new TidyWiresFeatures(other, (parent, selection, initial, planner) -> Optional.empty());
+        TidyWiresFeatures extra = new TidyWiresFeatures(other, (parent, selection, initial, planner) -> Optional.empty(),
+                directRunner(), directRunner(), (milliseconds, task) -> () -> { }, (parent, onCancel) -> null);
         assertThat(other.shortcutActions()).containsKeys("edit.tidyWires", "edit.tidyWiresOptions");
         assertThat(texts(view.menu(MenuId.EDIT))).contains("Ordenar cables");
         extra.dispose();
@@ -228,9 +232,11 @@ class TidyWiresFeaturesTest {
 
     @Test
     void theDialogPanelRecomputesItsSummaryAndTheSwitchBackedPlanMatches() {
-        BiFunction<TidyOptions, Boolean, TidyPlan> planner = (options, selectionOnly) ->
-                cl.almejo.vsim.core.wiring.WireTidy.plan(openDocument.document(), openDocument.registry(),
-                        java.util.Set.of(left, right, stub), options);
+        TidyPlanner planner = (options, selectionOnly, onResult) -> {
+            onResult.accept(cl.almejo.vsim.core.wiring.WireTidy.plan(openDocument.document(),
+                    openDocument.registry(), java.util.Set.of(left, right, stub), options));
+            return () -> { };
+        };
         TidyWiresPanel panel = new TidyWiresPanel(false, TidyOptions.DEFAULTS, planner);
         assertThat(panel.summaryText()).startsWith("Se borrará 1 punta suelta");
         assertThat(panel.canApply()).isTrue();
@@ -246,7 +252,10 @@ class TidyWiresFeaturesTest {
 
     @Test
     void theDialogPanelOffersTheSelectionWhenThereIsOne() {
-        TidyWiresPanel panel = new TidyWiresPanel(true, TidyOptions.DEFAULTS, (options, selection) -> TidyPlan.EMPTY);
+        TidyWiresPanel panel = new TidyWiresPanel(true, TidyOptions.DEFAULTS, (options, selection, onResult) -> {
+            onResult.accept(TidyPlan.EMPTY);
+            return () -> { };
+        });
         assertThat(panel.selectionButton().isEnabled()).isTrue();
         assertThat(panel.selectionOnly()).isTrue();
         panel.everythingButton().doClick();
