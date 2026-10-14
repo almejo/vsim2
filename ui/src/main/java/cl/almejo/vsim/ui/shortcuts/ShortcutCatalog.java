@@ -54,6 +54,7 @@ public final class ShortcutCatalog {
         window(entries, "file.open", "action.open", MenuId.FILE, stroke(KeyEvent.VK_O, menu));
         window(entries, "file.save", "action.save", MenuId.FILE, stroke(KeyEvent.VK_S, menu));
         window(entries, "file.saveAs", "action.saveAs", MenuId.FILE, stroke(KeyEvent.VK_S, menu | shift));
+        window(entries, "file.exportImage", "action.exportImage", MenuId.FILE, null);
         window(entries, "file.preferences", "action.preferences", MenuId.FILE, null);
         window(entries, "file.close", "action.close", MenuId.FILE, stroke(KeyEvent.VK_W, menu));
         window(entries, "file.exit", "action.exit", MenuId.FILE, stroke(KeyEvent.VK_Q, menu));

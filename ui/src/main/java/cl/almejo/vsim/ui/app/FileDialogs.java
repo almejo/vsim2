@@ -42,14 +42,17 @@ public final class FileDialogs {
             return Optional.empty();
         }
         Path target = withExtension.apply(chooser.getSelectedFile().toPath());
-        if (Files.exists(target)) {
-            int answer = JOptionPane.showConfirmDialog(parent,
-                    Messages.format("dialog.overwrite.message", target.getFileName()),
-                    Messages.text("dialog.overwrite.title"), JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
-            if (answer != JOptionPane.YES_OPTION) {
-                return Optional.empty();
-            }
+        return confirmOverwrite(parent, target) ? Optional.of(target) : Optional.empty();
+    }
+
+    /** True when {@code target} does not exist yet, or the user agrees to replace it. */
+    public static boolean confirmOverwrite(java.awt.Component parent, Path target) {
+        if (!Files.exists(target)) {
+            return true;
         }
-        return Optional.of(target);
+        int answer = JOptionPane.showConfirmDialog(parent,
+                Messages.format("dialog.overwrite.message", target.getFileName()),
+                Messages.text("dialog.overwrite.title"), JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+        return answer == JOptionPane.YES_OPTION;
     }
 }

@@ -29,6 +29,9 @@ public final class AppPreferences {
     static final String SESSION = "session";
     static final String SHORTCUTS = "shortcuts";
     static final String STEP_UNITS = "simulation.stepUnits";
+    static final String EXPORT_DIRECTORY = "export.directory";
+    static final String EXPORT_SCALE = "export.scale";
+    static final String EXPORT_PRINT_BACKGROUND = "export.printBackground";
 
     /** «Avanzar 10 t» (M6.1-B): the fixed step until the user picks another size. */
     public static final long DEFAULT_STEP_UNITS = 10;
@@ -159,6 +162,51 @@ public final class AppPreferences {
             throw new IllegalArgumentException("step units out of range: " + units);
         }
         put(STEP_UNITS, Long.toString(units));
+    }
+
+    // --- M6.2 export image ---
+
+    /** The folder of the last image export; empty until the first one. */
+    public Optional<Path> exportDirectory() {
+        return optional(EXPORT_DIRECTORY).flatMap(stored -> {
+            try {
+                return Optional.of(Path.of(stored));
+            } catch (InvalidPathException exception) {
+                LOGGER.warn("Ignoring the stored export directory {}", stored, exception);
+                return Optional.empty();
+            }
+        });
+    }
+
+    public void setExportDirectory(Path directory) {
+        Objects.requireNonNull(directory, "directory");
+        put(EXPORT_DIRECTORY, directory.toAbsolutePath().toString());
+    }
+
+    /** The PNG scale (1, 2 or 4) the export dialog offers first; 2 until the user picks another. */
+    public int exportScale() {
+        try {
+            int stored = Integer.parseInt(node.get(EXPORT_SCALE, ""));
+            return stored == 1 || stored == 2 || stored == 4 ? stored : 2;
+        } catch (NumberFormatException exception) {
+            return 2;
+        }
+    }
+
+    public void setExportScale(int scale) {
+        if (scale != 1 && scale != 2 && scale != 4) {
+            throw new IllegalArgumentException("export scale must be 1, 2 or 4: " + scale);
+        }
+        put(EXPORT_SCALE, Integer.toString(scale));
+    }
+
+    /** «Fondo blanco para imprimir»: on unless the user turned it off. */
+    public boolean exportPrintBackground() {
+        return !"false".equals(node.get(EXPORT_PRINT_BACKGROUND, "true"));
+    }
+
+    public void setExportPrintBackground(boolean enabled) {
+        put(EXPORT_PRINT_BACKGROUND, Boolean.toString(enabled));
     }
 
     // --- M6-B session: recent files, last session, recovery folder ---
