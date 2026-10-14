@@ -278,7 +278,7 @@ class WireTidyTest {
     }
 
     @Test
-    void theDetourOptionIsIgnoredUntilTheRuleExists() {
+    void theDetourOptionLeavesAStraightWireAlone() {
         buffer(0, 0);
         buffer(10, 0);
         wire(2, 1, 10, 1);
