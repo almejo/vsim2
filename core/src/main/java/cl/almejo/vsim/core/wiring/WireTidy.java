@@ -49,8 +49,8 @@ public final class WireTidy {
         return state.toPlan();
     }
 
-    /** Hook for the U-detour rule (spec 2.2.4): replace this with the rule; until then the option does nothing. */
+    /** The U-detour rule (spec 2.2.4). */
     static TidyRule detourRule() {
-        return state -> false;
+        return new DetourRule();
     }
 }
