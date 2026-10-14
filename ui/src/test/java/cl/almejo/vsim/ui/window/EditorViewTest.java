@@ -23,6 +23,7 @@ import cl.almejo.vsim.ui.tools.WireTool;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import javax.swing.AbstractButton;
 import javax.swing.AbstractAction;
@@ -286,6 +287,28 @@ class EditorViewTest {
         assertThat(view.canvas().tool()).isInstanceOf(PlaceComponentTool.class);
         view.canvas().useDefaultTool();
         assertThat(toggle(view.actions().selectTool()).isSelected()).isTrue();
+    }
+
+    @Test
+    void saveIsEnabledOnlyWhenThereIsSomethingToSave(@TempDir Path folder) throws Exception {
+        Action save = view.actions().save();
+        assertThat(save.isEnabled()).as("a new, empty document").isFalse();
+        place(openDocument, StandardComponentTypes.NOT, 0, 0, Map.of());
+        assertThat(save.isEnabled()).as("after an edit").isTrue();
+        openDocument.save(folder.resolve("circuito.vsim"));
+        assertThat(save.isEnabled()).as("just saved").isFalse();
+        openDocument.history().undo();
+        assertThat(save.isEnabled()).as("undone after saving").isTrue();
+        openDocument.history().redo();
+        assertThat(save.isEnabled()).as("back at the saved state").isFalse();
+    }
+
+    @Test
+    void anUntitledDocumentWithContentCanBeSavedEvenWhenUnmodified() {
+        place(openDocument, StandardComponentTypes.NOT, 0, 0, Map.of());
+        openDocument.history().markSaved(); // like an example opened as an untitled, unmodified copy
+        assertThat(openDocument.isModified()).isFalse();
+        assertThat(view.actions().save().isEnabled()).isTrue();
     }
 
     @Test

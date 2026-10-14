@@ -182,6 +182,14 @@ public final class OpenDocument implements AutoCloseable {
         return history.isModified();
     }
 
+    /**
+     * «Guardar» has something to do: unsaved changes, or content that has no file of its own yet (an example opened as
+     * an untitled copy, a VSim 1 file that must be saved in the new format).
+     */
+    public boolean canSave() {
+        return isModified() || (path == null && !document.isEmpty());
+    }
+
     /** A fresh, empty, untouched document — opening a file may replace its window. */
     public boolean isPristine() {
         return path == null && !importedFromVsim1 && document.isEmpty() && !isModified();

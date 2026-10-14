@@ -270,6 +270,7 @@ public final class EditorActions {
 
     public void refresh() {
         History history = openDocument.history();
+        save.setEnabled(openDocument.canSave());
         undo.setEnabled(history.canUndo());
         undo.putValue(Action.NAME, history.undoDescription()
                 .map(key -> Messages.format("action.undoNamed", Messages.commandName(key)))

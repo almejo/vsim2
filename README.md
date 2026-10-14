@@ -111,6 +111,7 @@ Diseño: `docs/superpowers/specs/2026-10-08-vsim2-design.md`.
 - Los dos comandos tienen ícono (de 16 px en los menús). «Ordenar cables» además tiene un botón en la barra de herramientas, justo después de «Rehacer»: solo el ícono, con el tooltip «Ordenar cables (Ctrl+Alt+L)» (la tecla que tengas asignada). «Exportar imagen…» está solo en el menú.
 - Ordenar nunca cambia lo que está conectado: cada cambio se valida contra las conexiones de los pines antes de aceptarlo (y los canales de formas de onda siguen mirando lo mismo). Es un solo paso de deshacer («Deshacer ordenar cables»); al terminar, la barra de estado cuenta durante 4 s lo que se hizo («Se borraron 3 puntas sueltas y se unieron 2 tramos»), o dice «Los cables ya estaban ordenados» y no deja nada en el historial.
 - Ordenar nunca congela la ventana: se calcula en segundo plano, y si pasan más de 2 s aparece una ventanita «Ordenando cables…» con la pasada actual y «Cancelar» (no cambia nada y avisa «Ordenar cables cancelado»); si el circuito cambia mientras se calcula, se descarta el resultado y avisa «El circuito cambió; vuelve a ordenar». El resumen del diálogo también se calcula en segundo plano («Calculando…») y «Ordenar» espera a que esté listo.
+- «Guardar» (menú y barra) queda desactivado cuando no hay nada que guardar: recién guardado, o deshecho hasta lo guardado. Un circuito sin archivo propio y con contenido (un ejemplo recién abierto, un archivo de VSim 1) siempre se puede guardar.
 
 ## Preferencias y distribución
 
