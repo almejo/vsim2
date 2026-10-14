@@ -113,6 +113,22 @@ class CircuitImageTest {
     }
 
     @Test
+    void aProblemWireIsExportedWithoutTheGlowBesideIt() {
+        OpenDocument source = OpenDocument.createEmpty(StandardComponentTypes.registry());
+        // an LED pin (1 bit) and a 4-bit splitter pin on the same wire: a width mismatch, which the canvas glows
+        UiTestSupport.place(source, StandardComponentTypes.LED, 10, 7, Map.of()); // its pin is at (11, 10)
+        UiTestSupport.place(source, StandardComponentTypes.BUS_SPLITTER, 15, 10,
+                Map.of(StandardComponentTypes.WIDTH, 4));
+        source.execute(new cl.almejo.vsim.core.command.AddElementsCommand(java.util.List.of(
+                new Wire(source.document().newWireId(), new GridPoint(11, 10), new GridPoint(15, 10)))));
+        CircuitImage image = imageOf(source, ColorScheme.LIGHT, Optional.empty()).orElseThrow();
+        BufferedImage pixels = render(image, 1);
+        int besideX = (13 - image.gridBounds().x()) * 8;
+        int besideY = (10 - image.gridBounds().y()) * 8 + 4;
+        assertThat(pixels.getRGB(besideX, besideY)).isEqualTo(ColorScheme.LIGHT.background().getRGB());
+    }
+
+    @Test
     void anUnselectedComponentInsideTheSelectionBoundsStaysBackground() {
         OpenDocument source = OpenDocument.createEmpty(StandardComponentTypes.registry());
         Component left = UiTestSupport.place(source, StandardComponentTypes.SWITCH, 10, 10, Map.of());

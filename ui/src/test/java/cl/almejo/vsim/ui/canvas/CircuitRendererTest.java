@@ -215,6 +215,24 @@ class CircuitRendererTest {
     }
 
     @Test
+    void withoutTheProblemGlowNothingIsPaintedBesideAProblemWire() {
+        Component high = registry.require(StandardComponentTypes.SWITCH).newComponent(document.newComponentId(),
+                new GridPoint(-3, 0), Rotation.R0, Map.of("value", "1"), "");
+        document.add(high);
+        document.add(wire);
+        Netlist netlist = new NetlistCompiler(registry).compile(document);
+        String netId = netlist.netForWire(wire.id()).orElseThrow().id().value();
+        ShortCircuit shortCircuit = new ShortCircuit(netId, List.of(new DriverRef(high.id().value(), 0, Value.ONE)), 0);
+        SimulationSnapshot shorted = snapshot(document.revision(), Map.of(netId, Value.ONE.withConflict()),
+                List.of(shortCircuit));
+
+        BufferedImage image = renderWithPulse(shorted, RenderState.NO_PROBLEM_GLOW);
+
+        assertThat(image.getRGB(24, 12)).as("nothing beside the wire").isEqualTo(SCHEME.background().getRGB());
+        assertThat(new Color(image.getRGB(24, 8))).as("the wire keeps its color").isEqualTo(SCHEME.wireConflict());
+    }
+
+    @Test
     void aMismatchedWireGlowsBesideItAndTheGlowPulsesWithThePhase() {
         document.add(registry.require(StandardComponentTypes.LED).newComponent(document.newComponentId(),
                 new GridPoint(0, -2), Rotation.R0, Map.of(), "")); // its pin is at (1, 1)

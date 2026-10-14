@@ -2,7 +2,6 @@ package cl.almejo.vsim.core.wiring;
 
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.document.CircuitDocument;
-import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.Probe;
 import cl.almejo.vsim.core.document.ProbeTarget;
@@ -38,8 +37,6 @@ final class TidyState {
     private WireGraph graph;
     private Map<ElementId, Wire> wiresById;
     private Set<ElementId> protectedWires;
-    private long nextWireNumber;
-    private int zeroLengthRemoved;
     private int stubsRemoved;
     private int segmentsMerged;
     private int detoursFlattened;
@@ -55,14 +52,6 @@ final class TidyState {
         this.baseline = Connectivity.of(original, document, registry);
         this.checker = new ConnectivityChecker(document, pinsAtPoint);
         this.checkedBaseline = checker.of(original, Map.of());
-        long highest = 0;
-        for (DocumentElement element : document.elements()) {
-            String digits = element.id().value().replaceFirst("^\\D+", "");
-            if (!digits.isEmpty() && digits.length() < 18 && digits.chars().allMatch(Character::isDigit)) {
-                highest = Math.max(highest, Long.parseLong(digits));
-            }
-        }
-        this.nextWireNumber = highest + 1;
     }
 
     /** The current wires, in document draw order (replacements take the place of the first wire they replace). */
@@ -96,11 +85,6 @@ final class TidyState {
 
     boolean inScope(ElementId wireId) {
         return scope.contains(wireId);
-    }
-
-    /** A wire id that no element of the document uses and no earlier call returned. */
-    ElementId newWireId() {
-        return new ElementId("w" + nextWireNumber++);
     }
 
     /**
@@ -215,10 +199,6 @@ final class TidyState {
         return true;
     }
 
-    void countZeroLength(int count) {
-        zeroLengthRemoved += count;
-    }
-
     void countStubs(int count) {
         stubsRemoved += count;
     }
@@ -243,7 +223,8 @@ final class TidyState {
         if (removed.isEmpty() && added.isEmpty()) {
             return TidyPlan.EMPTY;
         }
-        return new TidyPlan(removed, added, flattenedRetargets(), zeroLengthRemoved, stubsRemoved, segmentsMerged,
+        // no zero-length wire to remove: Wire rejects them, so a document cannot hold one
+        return new TidyPlan(removed, added, flattenedRetargets(), 0, stubsRemoved, segmentsMerged,
                 detoursFlattened);
     }
 

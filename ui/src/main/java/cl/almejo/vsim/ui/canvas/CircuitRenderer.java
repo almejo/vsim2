@@ -136,16 +136,19 @@ public final class CircuitRenderer {
                         state.selectionDashPhase());
             }
         }
-        // one path, so where problem wires meet the glow is not painted twice (and darker)
-        Path2D.Double glow = new Path2D.Double();
-        for (Wire wire : state.document().wires()) {
-            if (highlight.wires().contains(wire.id()) || mismatches.wires().contains(wire.id())) {
-                glow.append(line(wire), false);
+        if (state.paintsProblemGlow()) {
+            // one path, so where problem wires meet the glow is not painted twice (and darker)
+            Path2D.Double glow = new Path2D.Double();
+            for (Wire wire : state.document().wires()) {
+                if (highlight.wires().contains(wire.id()) || mismatches.wires().contains(wire.id())) {
+                    glow.append(line(wire), false);
+                }
             }
+            graphics.setStroke(PROBLEM_GLOW);
+            graphics.setColor(PainterSupport.withAlpha(scheme.wireConflict(),
+                    ProblemPulse.alpha(state.problemPulsePhase())));
+            graphics.draw(glow);
         }
-        graphics.setStroke(PROBLEM_GLOW);
-        graphics.setColor(PainterSupport.withAlpha(scheme.wireConflict(), ProblemPulse.alpha(state.problemPulsePhase())));
-        graphics.draw(glow);
         // one net lookup and one stroke choice per wire. A gap's width depends on the stroke of each wire crossing it,
         // so when the document has crossings every look is worked out first and kept; without crossings (the common
         // circuit) nothing is kept and no map is made

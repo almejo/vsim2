@@ -118,13 +118,17 @@ public final class CircuitImage {
         return (int) Math.ceil(units * GridPoint.PIXELS_PER_UNIT * scale);
     }
 
-    /** Fills the background and paints the circuit so the bounds' top-left corner lands on (0, 0). */
+    /**
+     * Fills the background and paints the circuit so the bounds' top-left corner lands on (0, 0); the glow under
+     * problem wires is canvas chrome and is not painted (the problem wires keep their own color and thickness).
+     */
     public void paint(Graphics2D graphics, double scale) {
         graphics.setColor(scheme.background());
         graphics.fillRect(0, 0, width(scale), height(scale));
         graphics.scale(scale, scale);
         graphics.translate(-gridBounds.x() * GridPoint.PIXELS_PER_UNIT, -gridBounds.y() * GridPoint.PIXELS_PER_UNIT);
         new CircuitRenderer(registry, painters, scheme)
-                .paint(graphics, new RenderState(document, netlist, netlistToken, snapshot, Set.of(), 0));
+                .paint(graphics, new RenderState(document, netlist, netlistToken, snapshot, Set.of(), 0,
+                        RenderState.NO_PROBLEM_GLOW));
     }
 }

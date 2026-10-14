@@ -177,6 +177,18 @@ class ExportImageExtensionTest {
     }
 
     @Test
+    void aPngTooLargeForMemoryIsRefusedWithTheFailureMessage() {
+        place(openDocument, StandardComponentTypes.SWITCH, 0, 0, Map.of());
+        place(openDocument, StandardComponentTypes.LED, 2000, 1000, Map.of());
+        Path file = directory.resolve("huge.png");
+        answer = Optional.of(new ExportChoice(file, ExportChoice.Format.PNG, 4, true));
+        perform(features.action());
+        assertThat(messages).singleElement().asString()
+                .startsWith("No se pudo exportar huge.png: la imagen sería demasiado grande (");
+        assertThat(file).doesNotExist();
+    }
+
+    @Test
     void theTypedExtensionWinsOverTheFilterAndOtherwiseTheFilterCompletesIt() {
         Path typed = directory.resolve("a.svg");
         assertThat(ExportChoice.of(typed, ExportChoice.Format.PNG, 1, true).format())
