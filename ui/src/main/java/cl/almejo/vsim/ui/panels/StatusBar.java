@@ -7,11 +7,13 @@ import net.miginfocom.swing.MigLayout;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
+import javax.swing.Timer;
 import java.awt.Color;
 import java.awt.Cursor;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.List;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 public final class StatusBar extends JPanel {
@@ -23,14 +25,22 @@ public final class StatusBar extends JPanel {
     private final JLabel time = new JLabel();
     private final JLabel zoom = new JLabel();
     private final JLabel selection = new JLabel();
+    private final JLabel notice = new JLabel();
     private final JLabel shortCircuits = new JLabel();
     private final JLabel failure = new JLabel();
     private boolean clickable;
     private boolean running;
     private boolean runStateClickable;
+    private final Timer noticeTimer;
 
     public StatusBar() {
-        super(new MigLayout("insets 2 8 2 8", "[][][][]push[][]"));
+        this(StatusBar::swingNoticeTimer);
+    }
+
+    /** {@code noticeTimerFactory} builds the one-shot timer that hides a notice; tests pass a fake. */
+    public StatusBar(Function<Runnable, Timer> noticeTimerFactory) {
+        super(new MigLayout("insets 2 8 2 8", "[][][][][]push[][]"));
+        noticeTimer = noticeTimerFactory.apply(this::hideNotice);
         shortCircuits.setForeground(WARNING);
         failure.setForeground(WARNING);
         add(simulation);
@@ -38,9 +48,11 @@ public final class StatusBar extends JPanel {
         add(time);
         add(zoom);
         add(selection);
+        add(notice);
         add(shortCircuits);
         add(failure);
         selection.setVisible(false);
+        notice.setVisible(false);
         shortCircuits.setVisible(false);
         failure.setVisible(false);
     }
@@ -161,9 +173,35 @@ public final class StatusBar extends JPanel {
         selection.setVisible(count > 0);
     }
 
+    /** How long a notice stays, in milliseconds. */
+    public static final int NOTICE_MILLISECONDS = 4000;
+
+    private static Timer swingNoticeTimer(Runnable hide) {
+        Timer timer = new Timer(NOTICE_MILLISECONDS, event -> hide.run());
+        timer.setRepeats(false);
+        return timer;
+    }
+
+    /** Shows {@code text} for four seconds; a new notice replaces the one on screen and restarts the time. */
+    public void showNotice(String text) {
+        notice.setText(text);
+        notice.setVisible(true);
+        noticeTimer.restart();
+    }
+
+    private void hideNotice() {
+        notice.setText("");
+        notice.setVisible(false);
+    }
+
+    /** Stops the notice timer; the bar goes away with its window. */
+    public void dispose() {
+        noticeTimer.stop();
+    }
+
     /** Visible texts joined with " · " (what the user reads, left to right). */
     public String text() {
-        return List.of(simulation, time, zoom, selection, shortCircuits, failure).stream()
+        return List.of(simulation, time, zoom, selection, notice, shortCircuits, failure).stream()
                 .filter(JLabel::isVisible)
                 .map(JLabel::getText)
                 .filter(text -> !text.isEmpty())

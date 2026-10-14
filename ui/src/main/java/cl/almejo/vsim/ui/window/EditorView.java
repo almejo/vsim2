@@ -282,6 +282,7 @@ public final class EditorView extends JPanel implements CanvasHost {
         }
         extensionDisposers.clear();
         steps.add(() -> services.appearance().removeListener(appearanceListener));
+        steps.add(statusBar::dispose);
         steps.add(palette::dispose);
         steps.add(problems::dispose);
         steps.add(labelFeatures::dispose);

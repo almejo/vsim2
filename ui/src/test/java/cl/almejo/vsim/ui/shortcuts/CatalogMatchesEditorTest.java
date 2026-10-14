@@ -26,7 +26,7 @@ class CatalogMatchesEditorTest {
 
     /** Defaults of actions an extension registers (M6.1-B's two advances); that front's own test checks the stroke. */
     private static final Set<String> REGISTERED_BY_EXTENSIONS = Set.of("simulation.advance",
-            "simulation.advanceToClockEdge");
+            "simulation.advanceToClockEdge", "edit.tidyWires", "edit.tidyWiresOptions");
 
     private OpenDocument openDocument;
     private EditorView view;

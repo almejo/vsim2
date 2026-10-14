@@ -165,4 +165,25 @@ class StatusBarTest {
         assertThat(clicks).containsExactly("pause", "start");
         assertThat(statusBar.text()).startsWith("⏸ en pausa");
     }
+
+    @Test
+    void aNoticeIsShownReplacedAndHiddenWhenItsTimerFires() {
+        List<Runnable> expirations = new java.util.ArrayList<>();
+        StatusBar bar = new StatusBar(expire -> {
+            expirations.add(expire);
+            return new javax.swing.Timer(Integer.MAX_VALUE, event -> expire.run());
+        });
+        bar.showNotice("uno");
+        assertThat(bar.text()).isEqualTo("uno");
+        bar.showNotice("dos");
+        assertThat(bar.text()).isEqualTo("dos");
+        expirations.get(0).run();
+        assertThat(bar.text()).isEmpty();
+        bar.dispose();
+    }
+
+    @Test
+    void theRealNoticeTimerLastsFourSeconds() {
+        assertThat(StatusBar.NOTICE_MILLISECONDS).isEqualTo(4000);
+    }
 }

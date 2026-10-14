@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.app;
 
+import cl.almejo.vsim.core.wiring.TidyOptions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,6 +33,9 @@ public final class AppPreferences {
     static final String EXPORT_DIRECTORY = "export.directory";
     static final String EXPORT_SCALE = "export.scale";
     static final String EXPORT_PRINT_BACKGROUND = "export.printBackground";
+    static final String TIDY_REMOVE_STUBS = "tidyRemoveStubs";
+    static final String TIDY_MERGE_SEGMENTS = "tidyMergeSegments";
+    static final String TIDY_FLATTEN_DETOURS = "tidyFlattenDetours";
 
     /** «Avanzar 10 t» (M6.1-B): the fixed step until the user picks another size. */
     public static final long DEFAULT_STEP_UNITS = 10;
@@ -207,6 +211,22 @@ public final class AppPreferences {
 
     public void setExportPrintBackground(boolean enabled) {
         put(EXPORT_PRINT_BACKGROUND, Boolean.toString(enabled));
+    }
+
+    // --- M6.2 tidy wires ---
+
+    /** The options of Editar ▸ Ordenar cables: stubs and merges on, detours off until the user turns them on. */
+    public TidyOptions tidyOptions() {
+        return new TidyOptions(!"false".equals(node.get(TIDY_REMOVE_STUBS, "true")),
+                !"false".equals(node.get(TIDY_MERGE_SEGMENTS, "true")),
+                "true".equals(node.get(TIDY_FLATTEN_DETOURS, "false")));
+    }
+
+    public void setTidyOptions(TidyOptions options) {
+        Objects.requireNonNull(options, "options");
+        put(TIDY_REMOVE_STUBS, Boolean.toString(options.removeStubs()));
+        put(TIDY_MERGE_SEGMENTS, Boolean.toString(options.mergeSegments()));
+        put(TIDY_FLATTEN_DETOURS, Boolean.toString(options.flattenDetours()));
     }
 
     // --- M6-B session: recent files, last session, recovery folder ---

@@ -69,6 +69,10 @@ public final class ShortcutCatalog {
         window(entries, "edit.paste", "action.paste", MenuId.EDIT, stroke(KeyEvent.VK_V, menu));
         window(entries, "edit.duplicate", "action.duplicate", MenuId.EDIT, stroke(KeyEvent.VK_D, menu));
         window(entries, "edit.selectAll", "action.selectAll", MenuId.EDIT, stroke(KeyEvent.VK_A, menu));
+        window(entries, "edit.tidyWires", "action.tidyWires", MenuId.EDIT,
+                stroke(KeyEvent.VK_L, menu | InputEvent.ALT_DOWN_MASK));
+        window(entries, "edit.tidyWiresOptions", "action.tidyWiresOptions", MenuId.EDIT,
+                stroke(KeyEvent.VK_L, menu | InputEvent.ALT_DOWN_MASK | shift));
         canvas(entries, "edit.label", "action.label", stroke(KeyEvent.VK_F2, 0));
         window(entries, "view.selectTool", "action.toolSelect", MenuId.VIEW, null);
         window(entries, "view.wireTool", "action.toolWire", MenuId.VIEW, null);
