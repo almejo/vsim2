@@ -6,6 +6,7 @@ import cl.almejo.vsim.core.command.SetLabelCommand;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.core.document.Frame;
 import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
@@ -70,6 +71,9 @@ public final class LabelActions {
                     .filter(text -> !text.isEmpty() && !text.equals(label.text()))
                     .ifPresent(text -> openDocument.execute(new SetLabelCommand(label.id(), text)));
             case Wire wire -> {
+            }
+            case Frame frame -> {
+                // Frame titles get their editor in M6.3 (Task 5b).
             }
         }
     }

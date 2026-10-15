@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.waveform;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.core.document.Frame;
 import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.ui.actions.ContextMenuContributor;
@@ -53,6 +54,8 @@ public final class WaveformMenuContributor implements ContextMenuContributor {
             case Component component -> menu.add(item("waveform.menu.showPins",
                     () -> actions.addComponentPins(component.id())));
             case TextLabel label -> {
+            }
+            case Frame frame -> {
             }
         }
     }

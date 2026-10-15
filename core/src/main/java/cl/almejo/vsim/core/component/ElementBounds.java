@@ -2,6 +2,7 @@ package cl.almejo.vsim.core.component;
 
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
+import cl.almejo.vsim.core.document.Frame;
 import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.Bounds;
@@ -20,6 +21,7 @@ public final class ElementBounds {
             case Component component -> registry.typeOf(component).bounds(component);
             case Wire wire -> Bounds.of(wire.start(), wire.end());
             case TextLabel label -> new Bounds(label.position().x(), label.position().y(), 0, 0);
+            case Frame frame -> new Bounds(frame.topLeft().x(), frame.topLeft().y(), frame.width(), frame.height());
         };
     }
 

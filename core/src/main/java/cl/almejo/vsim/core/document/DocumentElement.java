@@ -1,6 +1,6 @@
 package cl.almejo.vsim.core.document;
 
-public sealed interface DocumentElement permits Component, Wire, TextLabel {
+public sealed interface DocumentElement permits Component, Wire, TextLabel, Frame {
     ElementId id();
 
     DocumentElement translate(int deltaX, int deltaY);

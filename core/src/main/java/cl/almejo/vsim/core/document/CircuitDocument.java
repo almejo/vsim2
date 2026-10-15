@@ -29,6 +29,7 @@ public final class CircuitDocument {
     private final NavigableMap<Long, Component> components = new TreeMap<>();
     private final NavigableMap<Long, Wire> wires = new TreeMap<>();
     private final NavigableMap<Long, TextLabel> labels = new TreeMap<>();
+    private final NavigableMap<Long, Frame> frames = new TreeMap<>();
     private final Map<ElementId, Long> orders = new HashMap<>();
     private final Map<String, ComponentDefinition> definitions = new LinkedHashMap<>();
     private final List<DocumentListener> listeners = new CopyOnWriteArrayList<>();
@@ -69,6 +70,10 @@ public final class CircuitDocument {
         return new ElementId("l" + nextIdNumber++);
     }
 
+    public ElementId newFrameId() {
+        return new ElementId("f" + nextIdNumber++);
+    }
+
     public void add(DocumentElement element) {
         rejectDuplicate(element.id());
         reserveId(element.id());
@@ -79,7 +84,8 @@ public final class CircuitDocument {
     /** Re-adds {@code element} at the paint and file position {@code order} it had (see {@link #orderOf}). */
     public void restore(DocumentElement element, long order) {
         rejectDuplicate(element.id());
-        if (order < 0 || components.containsKey(order) || wires.containsKey(order) || labels.containsKey(order)) {
+        if (order < 0 || components.containsKey(order) || wires.containsKey(order) || labels.containsKey(order)
+                || frames.containsKey(order)) {
             throw new IllegalArgumentException("order " + order + " is not free");
         }
         reserveId(element.id());
@@ -120,6 +126,9 @@ public final class CircuitDocument {
         if (removed == null) {
             removed = labels.remove(order);
         }
+        if (removed == null) {
+            removed = frames.remove(order);
+        }
         recordRemoved(id);
         return Optional.ofNullable(removed);
     }
@@ -135,6 +144,9 @@ public final class CircuitDocument {
         }
         if (found == null) {
             found = labels.get(order);
+        }
+        if (found == null) {
+            found = frames.get(order);
         }
         return Optional.ofNullable(found);
     }
@@ -154,6 +166,11 @@ public final class CircuitDocument {
         return order == null ? Optional.empty() : Optional.ofNullable(labels.get(order));
     }
 
+    public Optional<Frame> frame(ElementId id) {
+        Long order = orders.get(id);
+        return order == null ? Optional.empty() : Optional.ofNullable(frames.get(order));
+    }
+
     public List<Component> components() {
         return List.copyOf(components.values());
     }
@@ -166,10 +183,15 @@ public final class CircuitDocument {
         return List.copyOf(labels.values());
     }
 
+    public List<Frame> frames() {
+        return List.copyOf(frames.values());
+    }
+
     public List<DocumentElement> elements() {
         List<DocumentElement> all = new ArrayList<>(components.values());
         all.addAll(wires.values());
         all.addAll(labels.values());
+        all.addAll(frames.values());
         return List.copyOf(all);
     }
 
@@ -332,6 +354,7 @@ public final class CircuitDocument {
             case Component component -> components.put(order, component);
             case Wire wire -> wires.put(order, wire);
             case TextLabel label -> labels.put(order, label);
+            case Frame frame -> frames.put(order, frame);
         }
     }
 

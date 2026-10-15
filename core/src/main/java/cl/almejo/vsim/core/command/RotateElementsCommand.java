@@ -6,6 +6,7 @@ import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.core.document.Frame;
 import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.Bounds;
@@ -94,6 +95,7 @@ public final class RotateElementsCommand implements Command {
                     .withRotation(clockwise ? component.rotation().clockwise() : component.rotation().counterClockwise());
             case Wire wire -> wire.withEndpoints(around(wire.start(), pivot, turn), around(wire.end(), pivot, turn));
             case TextLabel label -> new TextLabel(label.id(), around(label.position(), pivot, turn), label.text());
+            case Frame frame -> frame;
         };
     }
 

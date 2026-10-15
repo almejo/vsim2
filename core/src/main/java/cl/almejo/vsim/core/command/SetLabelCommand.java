@@ -4,6 +4,7 @@ import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.core.document.Frame;
 import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.document.Wire;
 
@@ -34,6 +35,7 @@ public final class SetLabelCommand implements Command {
         return switch (element) {
             case Component component -> component.label();
             case TextLabel label -> label.text();
+            case Frame frame -> frame.title();
             case Wire wire -> throw new IllegalArgumentException("wires have no label: " + wire.id());
         };
     }
@@ -42,6 +44,7 @@ public final class SetLabelCommand implements Command {
         return switch (element) {
             case Component component -> component.withLabel(newText);
             case TextLabel label -> label.withText(newText);
+            case Frame frame -> frame.withTitle(newText);
             case Wire wire -> throw new IllegalArgumentException("wires have no label: " + wire.id());
         };
     }

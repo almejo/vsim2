@@ -2,6 +2,7 @@ package cl.almejo.vsim.ui.actions;
 
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
+import cl.almejo.vsim.core.document.Frame;
 import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
@@ -49,6 +50,8 @@ public final class LabelMenuContributor implements ContextMenuContributor {
             }
             case Wire wire -> menu.add(item(Messages.text("action.removeSegment"),
                     () -> actions.removeWireSegment(wire, point)));
+            case Frame frame -> {
+            }
         }
     }
 
