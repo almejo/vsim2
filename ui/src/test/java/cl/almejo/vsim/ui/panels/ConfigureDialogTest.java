@@ -52,6 +52,17 @@ class ConfigureDialogTest {
     }
 
     @Test
+    void okWithAConstantThatDoesNotFitShowsTheMessageAndStaysOpen() {
+        ParameterForm form = new ParameterForm(
+                StandardComponentTypes.registry().require(StandardComponentTypes.CONSTANT),
+                Map.of("width", 4, "value", "1"));
+        ((javax.swing.JTextField) form.editor("value")).setText("0x1F");
+        JLabel error = new JLabel(" ");
+        assertThat(ConfigureDialog.acceptChoice(JOptionPane.OK_OPTION, form, error)).isFalse();
+        assertThat(error.getText()).isEqualTo("No cabe en 4 bits");
+    }
+
+    @Test
     void cancelAndCloseAlwaysCloseWithoutValidating() {
         ParameterForm form = notForm();
         typeInto((JSpinner) form.editor("delay"), "0");

@@ -2,6 +2,7 @@ package cl.almejo.vsim.ui.panels;
 
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.ParameterKind;
+import cl.almejo.vsim.core.component.ParameterProblem;
 import cl.almejo.vsim.core.component.ParameterSpec;
 import cl.almejo.vsim.ui.clipboard.FragmentRefusingTransferHandler;
 import cl.almejo.vsim.ui.i18n.Messages;
@@ -33,6 +34,9 @@ public final class ParameterForm extends JPanel {
 
     /** Parameters measured in simulation time units (M6.1-E): «Retardo (t)», with a tooltip saying so. */
     static final Set<String> TIME_PARAMETERS = Set.of("delay", "time-up", "time-down", "sample-interval");
+
+    /** FlatLaf's client property that paints a field's border as an error. */
+    private static final String OUTLINE_PROPERTY = "JComponent.outline";
 
     private final ComponentType type;
     private final Map<String, Object> initial;
@@ -78,20 +82,62 @@ public final class ParameterForm extends JPanel {
         return values;
     }
 
+    /**
+     * What is wrong with the current contents, if anything: a parameter that cannot be read, or a problem the type's own
+     * check finds across parameters (a constant that does not fit its width). The editor at fault is marked as an error.
+     */
     public Optional<String> validationError() {
+        editors.values().forEach(editor -> editor.putClientProperty(OUTLINE_PROPERTY, null));
         Map<String, Object> values = rawValues();
         for (ParameterSpec parameter : type.parameters()) {
-            Object value = values.get(parameter.name());
-            if (value == null) {
-                return Optional.of(invalidMessage(parameter));
+            if (parameter.kind() != ParameterKind.TEXT && !readable(parameter, values.get(parameter.name()))) {
+                return Optional.of(refuse(parameter.name(), invalidMessage(parameter)));
             }
-            try {
-                parameter.normalize(value);
-            } catch (IllegalArgumentException exception) {
-                return Optional.of(invalidMessage(parameter));
+        }
+        Optional<ParameterProblem> problem = type.check(values);
+        if (problem.isPresent()) {
+            return Optional.of(refuse(problem.get().parameterName(),
+                    Messages.format(problem.get().messageKey(), problem.get().arguments().toArray())));
+        }
+        for (ParameterSpec parameter : type.parameters()) {
+            if (parameter.kind() == ParameterKind.TEXT && !readable(parameter, values.get(parameter.name()))) {
+                return Optional.of(refuse(parameter.name(), invalidMessage(parameter)));
             }
         }
         return Optional.empty();
+    }
+
+    private String refuse(String parameterName, String message) {
+        JComponent editor = editors.get(parameterName);
+        if (editor != null) {
+            editor.putClientProperty(OUTLINE_PROPERTY, "error");
+        }
+        return message;
+    }
+
+    private static boolean readable(ParameterSpec parameter, Object value) {
+        if (value == null) {
+            return false;
+        }
+        try {
+            parameter.normalize(value);
+            return true;
+        } catch (IllegalArgumentException exception) {
+            return false;
+        }
+    }
+
+    /** Rewrites each text editor with its normalized text ({@code 0x00ff} becomes {@code 0xFF}); unreadable text stays. */
+    public void showNormalizedText() {
+        for (ParameterSpec parameter : type.parameters()) {
+            if (parameter.kind() == ParameterKind.TEXT && editors.get(parameter.name()) instanceof JTextField field
+                    && readable(parameter, field.getText())) {
+                String normalized = parameter.normalize(field.getText()).toString();
+                if (!normalized.equals(field.getText())) {
+                    field.setText(normalized);
+                }
+            }
+        }
     }
 
     private static String invalidMessage(ParameterSpec parameter) {

@@ -397,4 +397,78 @@ class PropertiesPanelTest {
         assertThat(Arrays.stream(panel.frameSpinners()).map(JSpinner::getValue).toList())
                 .containsExactly(2, 3, 20, 12);
     }
+
+    private Component constant(int width, String value) {
+        return place(openDocument, StandardComponentTypes.CONSTANT, 0, 0,
+                Map.of("width", width, "value", value));
+    }
+
+    private static void typeValue(PropertiesPanel panel, String text) {
+        ((JTextField) panel.parameterForm().editor("value")).setText(text);
+        panel.commitEdits();
+    }
+
+    @Test
+    void aValueThatDoesNotFitShowsTheMessageMarksTheFieldAndChangesNothing() {
+        Component constant = constant(4, "0b1");
+        selection.select(constant.id());
+        typeValue(panel, "0x1F");
+        assertThat(panel.error()).isEqualTo("No cabe en 4 bits");
+        assertThat(((JTextField) panel.parameterForm().editor("value")).getClientProperty("JComponent.outline"))
+                .isEqualTo("error");
+        assertThat(current(constant).parameters()).containsEntry("value", "0b1");
+        assertThat(openDocument.history().undoDescription()).contains("command.add");
+    }
+
+    @Test
+    void garbageInTheValueIsRefusedWithTheNotationHint() {
+        Component constant = constant(8, "1");
+        selection.select(constant.id());
+        typeValue(panel, "12a");
+        assertThat(panel.error()).isEqualTo("Valor no válido (usa 0b…, 0x… o un número)");
+        assertThat(current(constant).parameters()).containsEntry("value", "1");
+    }
+
+    @Test
+    void aFixedValueClearsTheMessageAndTheMark() {
+        Component constant = constant(4, "1");
+        selection.select(constant.id());
+        typeValue(panel, "0x1F");
+        typeValue(panel, "0xF");
+        assertThat(panel.error()).isEqualTo(" ");
+        assertThat(((JTextField) panel.parameterForm().editor("value")).getClientProperty("JComponent.outline"))
+                .isNull();
+        assertThat(current(constant).parameters()).containsEntry("value", "0xF");
+    }
+
+    @Test
+    void aValueIsStoredNormalizedInOneUndoStepAndTheFieldShowsIt() {
+        Component constant = constant(8, "1");
+        selection.select(constant.id());
+        typeValue(panel, "0x00ff");
+        assertThat(current(constant).parameters()).containsEntry("value", "0xFF");
+        assertThat(((JTextField) panel.parameterForm().editor("value")).getText()).isEqualTo("0xFF");
+        assertThat(openDocument.history().undoDescription()).contains("command.configure");
+        openDocument.history().undo();
+        assertThat(current(constant).parameters()).containsEntry("value", "1");
+    }
+
+    @Test
+    void narrowingTheWidthBelowTheValueIsRefusedNotTruncated() {
+        Component constant = constant(8, "0b111");
+        selection.select(constant.id());
+        ((JSpinner) panel.parameterForm().editor("width")).setValue(2);
+        assertThat(panel.error()).isEqualTo("No cabe en 2 bits");
+        assertThat(current(constant).parameters()).containsEntry("width", 8).containsEntry("value", "0b111");
+        assertThat(openDocument.history().undoDescription()).contains("command.add");
+    }
+
+    @Test
+    void widthAndValueTogetherAreOneEditWhenTheyFit() {
+        Component constant = constant(8, "0xFF");
+        selection.select(constant.id());
+        ((JTextField) panel.parameterForm().editor("value")).setText("3");
+        ((JSpinner) panel.parameterForm().editor("width")).setValue(2);
+        assertThat(current(constant).parameters()).containsEntry("width", 2).containsEntry("value", "3");
+    }
 }

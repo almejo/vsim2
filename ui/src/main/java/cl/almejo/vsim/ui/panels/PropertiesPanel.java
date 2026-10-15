@@ -368,6 +368,7 @@ public final class PropertiesPanel extends JPanel {
             return Optional.empty();
         }
         error.setText(" ");
+        form.showNormalizedText();
         Map<String, Object> values = type.resolveParameters(form.rawValues());
         if (values.equals(type.resolveParameters(component.get().parameters()))) {
             return Optional.empty();

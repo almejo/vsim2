@@ -131,6 +131,15 @@ Diseño: `docs/superpowers/specs/2026-10-08-vsim2-design.md`.
 - Los marcos son solo una anotación: no cambian la simulación, la tabla de verdad ni «Ordenar cables».
 - El centrado del circuito en la vista y la exportación de imágenes ahora cuentan las etiquetas de los componentes como parte del circuito (antes podían quedar cortadas), haya o no marcos.
 
+## Constante (M6.4)
+
+- «Constante» (Entrada/Salida, justo después de «Switch») entrega un valor fijo de 1 a 32 bits por un pin de salida (grueso cuando el ancho es mayor que 1). El valor se escribe en la caja, en el formato elegido, y en la simulación se pone una sola vez al iniciar: no genera eventos en «Paso a paso» después de t = 0 y un click sobre ella no hace nada.
+- Parámetros: «Ancho (bits)» (1 a 32, 8 por omisión), «Valor» (0 por omisión) y «Mostrar como»: Automático (binario hasta 4 bits, hexadecimal desde 5), Binario, Hexadecimal o Decimal. El binario se muestra completo, con ceros hasta el ancho; el hexadecimal lleva `0x`.
+- El valor se escribe como `0b1010`, `0xFF` o un número decimal (`255`); se aceptan espacios y guiones bajos (`0b1010_0101`) y solo valores sin signo. Al confirmar queda normalizado (`0x00ff` pasa a `0xFF`, `0b0011` a `0b11`, ` 007 ` a `7`).
+- Un valor no válido se marca en rojo en Propiedades y en el diálogo de configuración, con «Valor no válido (usa 0b…, 0x… o un número)» o «No cabe en 8 bits», y nunca se aplica. Achicar el ancho por debajo del valor actual se rechaza igual (con el mensaje en «Valor»), nada se trunca en silencio.
+- El tamaño de la caja depende solo del ancho y del formato, nunca del valor: editar el valor no mueve el pin ni desconecta cables.
+- Un archivo cuya constante no cabe en su ancho no se abre (error de formato, como cualquier parámetro inválido). Dentro de un componente propio la constante se conserva, y en la tabla de verdad no es una entrada: simplemente mantiene su valor.
+
 ## Preferencias y distribución
 
 - Archivo → Preferencias… (en macOS también VSim 2 → Ajustes…): tema Claro, Oscuro o Seguir sistema; esquema de color del circuito (Según el tema, VSim clásico, Claro, Oscuro y los otros esquemas del VSim original: Pastel, CSim y Twilight); idioma (Sistema, Español, English; se aplica al reiniciar); directorio de la librería de componentes (Elegir… / Restaurar predeterminado). El tema y el esquema cambian al instante en todas las ventanas.

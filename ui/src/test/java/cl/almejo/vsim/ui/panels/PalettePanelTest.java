@@ -63,6 +63,15 @@ class PalettePanelTest {
     }
 
     @Test
+    void theConstantSitsRightAfterTheSwitchInInputOutput() {
+        List<String> ids = palette.visibleTypeIds();
+        assertThat(ids.indexOf(StandardComponentTypes.CONSTANT))
+                .isEqualTo(ids.indexOf(StandardComponentTypes.SWITCH) + 1);
+        assertThat(Messages.componentName(registry.require(StandardComponentTypes.CONSTANT)))
+                .isEqualTo("Constante");
+    }
+
+    @Test
     void filterMatchesIdsAndLocalizedNames() {
         palette.setFilter("and");
         assertThat(palette.visibleTypeIds()).containsExactly("and2", "and3", "and4", "nand2", "nand3", "nand4");

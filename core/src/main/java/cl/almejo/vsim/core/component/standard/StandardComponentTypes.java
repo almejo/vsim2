@@ -148,7 +148,8 @@ public final class StandardComponentTypes {
      * value), the bus pin on the right edge, in the middle.
      */
     private static ComponentShape constantShape(int width, String format) {
-        int boxWidth = Math.max(4, (ConstantValue.longestDisplay(width, format) * 3 + 3) / 4 + 2);
+        // About one grid unit per character (a bold 9 px digit is under 8 px wide), plus room for margins and the lead.
+        int boxWidth = Math.max(4, ConstantValue.longestDisplay(width, format) + 2);
         return new ComponentShape(new GridSize(boxWidth, 2), List.of(PinSpec.output("out", boxWidth, 1, width)));
     }
 
