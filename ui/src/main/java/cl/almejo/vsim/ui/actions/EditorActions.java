@@ -35,6 +35,8 @@ import java.awt.event.KeyEvent;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.function.Consumer;
 
 /** Every user command of an editor window, as Swing actions whose enabled state follows the editor. */
 public final class EditorActions {
@@ -60,6 +62,7 @@ public final class EditorActions {
     private final Action undo;
     private final Action redo;
     private final Action delete;
+    private final List<Consumer<Set<ElementId>>> deleteListeners = new CopyOnWriteArrayList<>();
     private final Action rotateClockwise;
     private final Action rotateCounterClockwise;
     private final Action configure;
@@ -141,6 +144,15 @@ public final class EditorActions {
     public Action undo() { return undo; }
     public Action redo() { return redo; }
     public Action delete() { return delete; }
+
+    /**
+     * Adds a listener told the ids «Borrar» is about to remove, while they are still in the document (M6.3: the
+     * deleted-block notice). The returned runnable removes it.
+     */
+    public Runnable addDeleteListener(Consumer<Set<ElementId>> listener) {
+        deleteListeners.add(listener);
+        return () -> deleteListeners.remove(listener);
+    }
     public Action rotateClockwise() { return rotateClockwise; }
     public Action rotateCounterClockwise() { return rotateCounterClockwise; }
     public Action configure() { return configure; }
@@ -295,6 +307,7 @@ public final class EditorActions {
     private void deleteSelection() {
         Set<ElementId> selected = canvas.selection().ids();
         if (!selected.isEmpty()) {
+            deleteListeners.forEach(listener -> listener.accept(selected));
             openDocument.execute(new RemoveElementsCommand(selected));
         }
     }

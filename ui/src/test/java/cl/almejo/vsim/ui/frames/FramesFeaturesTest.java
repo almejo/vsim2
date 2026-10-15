@@ -5,6 +5,7 @@ import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.Frame;
 import cl.almejo.vsim.core.document.FrameTint;
+import cl.almejo.vsim.core.command.CreateFrameCommand;
 import cl.almejo.vsim.core.command.SetLabelCommand;
 import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.geometry.GridPoint;
@@ -16,6 +17,8 @@ import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.Appearance;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
+import cl.almejo.vsim.ui.tools.TestToolContext;
+import cl.almejo.vsim.ui.tools.Tool;
 import cl.almejo.vsim.ui.window.EditorServices;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuId;
@@ -200,6 +203,64 @@ class FramesFeaturesTest {
         assertThat(withSelection).contains("Enmarcar selección");
         List<String> onEmpty = menuTexts(view.contextMenu(Optional.empty(), new java.awt.geom.Point2D.Double(50, 50)));
         assertThat(onEmpty).doesNotContain("Enmarcar selección");
+    }
+
+    private Frame addFrame(boolean locked) {
+        Frame frame = new Frame(openDocument.document().newFrameId(), new GridPoint(0, 0), 20, 12, "Sumador",
+                FrameTint.NONE, locked);
+        openDocument.execute(new CreateFrameCommand(frame));
+        return frame;
+    }
+
+    private void delete() {
+        view.actions().delete().actionPerformed(new ActionEvent(this, ActionEvent.ACTION_PERFORMED, ""));
+    }
+
+    @Test
+    void deletingALockedBlockSaysSoInTheStatusBarAndUndoBringsItBack() {
+        Frame frame = addFrame(true);
+        Component first = place(openDocument, StandardComponentTypes.NOT, 4, 4, Map.of());
+        Component second = place(openDocument, StandardComponentTypes.NOT, 10, 4, Map.of());
+        view.canvas().selection().set(List.of(frame.id(), first.id(), second.id()));
+
+        delete();
+
+        assertThat(openDocument.document().elements()).isEmpty();
+        assertThat(view.statusBar().text()).contains("Se borró el bloque «Sumador» (2 elementos)");
+        openDocument.history().undo();
+        assertThat(openDocument.document().elements()).hasSize(3);
+    }
+
+    @Test
+    void deletingAnUnlockedFrameOrPartOfABlockShowsNoNotice() {
+        Frame unlocked = addFrame(false);
+        Component inside = place(openDocument, StandardComponentTypes.NOT, 4, 4, Map.of());
+        view.canvas().selection().set(List.of(unlocked.id(), inside.id()));
+        delete();
+        assertThat(view.statusBar().text()).doesNotContain("bloque");
+
+        Frame locked = addFrame(true);
+        Component kept = place(openDocument, StandardComponentTypes.NOT, 4, 4, Map.of());
+        place(openDocument, StandardComponentTypes.NOT, 10, 4, Map.of());
+        view.canvas().selection().set(List.of(locked.id(), kept.id()));
+        delete();
+        assertThat(view.statusBar().text()).doesNotContain("bloque");
+    }
+
+    @Test
+    void theCanvasSelectToolGetsTheFrameGesturesUntilDispose() {
+        Frame frame = addFrame(true);
+        Component inside = place(openDocument, StandardComponentTypes.NOT, 4, 4, Map.of());
+        Tool select = view.canvas().defaultTool();
+        select.mousePressed(view.canvas(), TestToolContext.at(10, 1));
+        select.mouseReleased(view.canvas(), TestToolContext.at(10, 1));
+        assertThat(view.canvas().selection().ids()).containsExactlyInAnyOrder(frame.id(), inside.id());
+
+        features.dispose();
+
+        select.mousePressed(view.canvas(), TestToolContext.at(10, 1));
+        select.mouseReleased(view.canvas(), TestToolContext.at(10, 1));
+        assertThat(view.canvas().selection().isEmpty()).isTrue();
     }
 
     private static List<String> menuTexts(javax.swing.JPopupMenu menu) {

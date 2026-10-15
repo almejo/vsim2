@@ -29,10 +29,12 @@ import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * Everyday tool: select (Shift/Ctrl+click toggles, drag in empty space for a rubber band), move the selection by dragging any selected element, draw
@@ -44,6 +46,9 @@ import java.util.Set;
  * element of a multi-selection that is released without moving (a plain click) narrows the selection to that
  * element; a press-and-drag moves the whole group. Ctrl held when a move is released copies the selection there
  * instead (one undo step).
+ *
+ * <p>{@link SelectToolDelegate}s (M6.3: frames) are asked first: a press one of them takes, with its drag and
+ * release, is theirs alone.
  */
 public final class SelectTool implements Tool {
 
@@ -56,6 +61,8 @@ public final class SelectTool implements Tool {
     private static final int BAND_FILL_ALPHA = 40;
 
     private final Map<String, Boolean> interactiveByType = new HashMap<>();
+    private final List<SelectToolDelegate> delegates = new CopyOnWriteArrayList<>();
+    private SelectToolDelegate activeDelegate;
     private ConnectionPoints connectionPoints;
     private int pinSearches;
     private DocumentElement pressedElement;
@@ -72,6 +79,12 @@ public final class SelectTool implements Tool {
     private int deltaY;
     private CanvasCursor cursor = CanvasCursor.DEFAULT;
 
+    /** Adds a delegate asked before the tool's own behaviour; the returned runnable removes it. */
+    public Runnable addDelegate(SelectToolDelegate delegate) {
+        delegates.add(delegate);
+        return () -> delegates.remove(delegate);
+    }
+
     @Override
     public void activated(ToolContext context) {
         ownPressSeen = false;
@@ -80,6 +93,7 @@ public final class SelectTool implements Tool {
 
     @Override
     public void deactivated(ToolContext context) {
+        cancelDelegate(context);
         hoverPin = null;
         hoverWidth = 1;
         reset();
@@ -88,8 +102,39 @@ public final class SelectTool implements Tool {
 
     @Override
     public void mousePressed(ToolContext context, CanvasMouseEvent event) {
+        if (delegatePress(context, event)) {
+            return;
+        }
         press(context, event);
         pressCursor().ifPresent(next -> showCursor(context, next));
+    }
+
+    /** True when a delegate took the press; a primary one becomes the active delegate until the release. */
+    private boolean delegatePress(ToolContext context, CanvasMouseEvent event) {
+        if (activeDelegate != null) {
+            return true; // another press while the delegate's press is held belongs to it
+        }
+        for (SelectToolDelegate delegate : delegates) {
+            if (delegate.pressed(context, event)) {
+                if (event.button() == CanvasMouseEvent.PRIMARY) {
+                    reset();
+                    ownPressSeen = true;
+                    activeDelegate = delegate;
+                    hoverPin = null;
+                    showCursor(context, delegate.pressCursor());
+                }
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void cancelDelegate(ToolContext context) {
+        if (activeDelegate != null) {
+            SelectToolDelegate cancelled = activeDelegate;
+            activeDelegate = null;
+            cancelled.cancelled(context);
+        }
     }
 
     private void press(ToolContext context, CanvasMouseEvent event) {
@@ -167,6 +212,10 @@ public final class SelectTool implements Tool {
 
     @Override
     public void mouseDragged(ToolContext context, CanvasMouseEvent event) {
+        if (activeDelegate != null) {
+            activeDelegate.dragged(context, event);
+            return;
+        }
         if (bandStart != null) {
             bandEnd = event.gridPosition();
             context.repaint();
@@ -188,6 +237,14 @@ public final class SelectTool implements Tool {
     @Override
     public void mouseReleased(ToolContext context, CanvasMouseEvent event) {
         if (event.button() != CanvasMouseEvent.PRIMARY) {
+            return;
+        }
+        if (activeDelegate != null) {
+            SelectToolDelegate released = activeDelegate;
+            activeDelegate = null;
+            released.released(context, event);
+            updateHover(context, event);
+            context.repaint();
             return;
         }
         if (bandStart != null) {
@@ -226,6 +283,7 @@ public final class SelectTool implements Tool {
 
     @Override
     public void mouseExited(ToolContext context) {
+        delegates.forEach(delegate -> delegate.exited(context));
         if (hoverPin != null) {
             hoverPin = null;
             context.repaint();
@@ -233,6 +291,23 @@ public final class SelectTool implements Tool {
     }
 
     private void updateHover(ToolContext context, CanvasMouseEvent event) {
+        Optional<CanvasCursor> delegateCursor = Optional.empty();
+        for (SelectToolDelegate delegate : delegates) {
+            Optional<CanvasCursor> answer = delegate.moved(context, event);
+            if (delegateCursor.isEmpty()) {
+                delegateCursor = answer;
+            }
+        }
+        if (delegateCursor.isPresent()) {
+            // a press here goes to the delegate, never to a pin
+            if (hoverPin != null) {
+                hoverPin = null;
+                hoverWidth = 1;
+                context.repaint();
+            }
+            showCursor(context, delegateCursor.get());
+            return;
+        }
         Optional<ConnectionPoints.PinHit> pin = pinNear(context, event.gridPosition());
         GridPoint nearest = pin.map(ConnectionPoints.PinHit::point).orElse(null);
         if (!Objects.equals(nearest, hoverPin)) {
@@ -299,6 +374,11 @@ public final class SelectTool implements Tool {
         if (keyCode != KeyEvent.VK_ESCAPE) {
             return false;
         }
+        if (activeDelegate != null) {
+            cancelDelegate(context);
+            context.repaint();
+            return true;
+        }
         if (pressPoint != null || wire != null || bandStart != null) {
             reset();
             context.repaint();
@@ -310,6 +390,9 @@ public final class SelectTool implements Tool {
 
     @Override
     public void paintOverlay(Graphics2D graphics, ToolContext context) {
+        for (SelectToolDelegate delegate : delegates) {
+            delegate.paintOverlay(graphics, context);
+        }
         Rectangle2D band = rubberBand();
         if (band != null) {
             paintBand(graphics, context, band);
@@ -438,9 +521,12 @@ public final class SelectTool implements Tool {
         context.repaint();
     }
 
-    /** True while a drag moves the selection or a rubber band: the canvas scrolls when the pointer nears its edge. */
+    /**
+     * True while a drag moves the selection, a rubber band or a delegate's press: the canvas scrolls when the pointer
+     * nears its edge.
+     */
     public boolean autoscrolls() {
-        return bandStart != null || movingFrom().isPresent();
+        return bandStart != null || movingFrom().isPresent() || activeDelegate != null;
     }
 
     /** A press on a pin or wire that did not become a wire: behave like a plain click on what was under it. */

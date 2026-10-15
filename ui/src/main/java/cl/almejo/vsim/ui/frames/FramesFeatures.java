@@ -1,13 +1,18 @@
 package cl.almejo.vsim.ui.frames;
 
 import cl.almejo.vsim.core.command.CreateFrameCommand;
+import cl.almejo.vsim.core.component.ComponentTypeRegistry;
+import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.DocumentElement;
+import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.Frame;
+import cl.almejo.vsim.core.document.FrameContents;
 import cl.almejo.vsim.core.document.FrameTint;
 import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.ui.canvas.DrawnBounds;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.tools.SelectTool;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuId;
 
@@ -18,10 +23,12 @@ import javax.swing.JMenuItem;
 import java.awt.event.ActionEvent;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 /**
- * The frames of one editor view: Editar ▸ «Enmarcar selección» (and its context menu item). {@link #dispose()}
- * takes back the menu item and the shortcut registration.
+ * The frames of one editor view: Editar ▸ «Enmarcar selección» (and its context menu item), the select tool's frame
+ * gestures (select, move, resize) and the notice when «Borrar» removes a locked block. {@link #dispose()} takes back
+ * the menu item, the shortcut registration, the gestures and the delete listener.
  */
 public final class FramesFeatures {
 
@@ -36,6 +43,9 @@ public final class FramesFeatures {
     private final JMenu editMenu;
     private final JMenuItem menuItem;
     private final Runnable shortcutRemover;
+    private final FrameGestures gestures = new FrameGestures();
+    private final Runnable gesturesRemover;
+    private final Runnable deleteListenerRemover;
     private boolean disposed;
 
     public FramesFeatures(EditorView view) {
@@ -54,6 +64,13 @@ public final class FramesFeatures {
         this.menuItem = new JMenuItem(frameSelection);
         editMenu.insert(menuItem, indexAfterSelectAll());
         this.shortcutRemover = view.registerShortcutAction("edit.frameSelection", frameSelection);
+        this.gesturesRemover = view.canvas().defaultTool() instanceof SelectTool selectTool
+                ? selectTool.addDelegate(gestures)
+                : () -> {
+                };
+        this.deleteListenerRemover = view.actions().addDeleteListener(ids -> blockDeletedNotice(
+                view.openDocument().document(), view.openDocument().registry(), ids)
+                .ifPresent(view.statusBar()::showNotice));
         view.addContextMenuContributor((menu, target, selection, gridPosition) -> {
             if (!disposed && !selection.isEmpty() && target.isPresent()) {
                 menu.add(new JMenuItem(frameSelection));
@@ -70,6 +87,34 @@ public final class FramesFeatures {
             }
         }
         return editMenu.getItemCount();
+    }
+
+    /** The select tool's frame gestures in this view. */
+    public FrameGestures gestures() {
+        return gestures;
+    }
+
+    /**
+     * The notice for deleting {@code ids} when they hold a whole locked block (the frame and all its contents):
+     * «Se borró el bloque «title» (n elementos)», n counting the contents. With several blocks, the largest one.
+     */
+    static Optional<String> blockDeletedNotice(CircuitDocument document, ComponentTypeRegistry registry,
+                                               Set<ElementId> ids) {
+        Frame largest = null;
+        int largestContents = -1;
+        for (Frame frame : document.frames()) {
+            if (!frame.locked() || !ids.contains(frame.id())) {
+                continue;
+            }
+            Set<ElementId> contents = FrameContents.of(document, registry, frame);
+            if (ids.containsAll(contents) && contents.size() > largestContents) {
+                largest = frame;
+                largestContents = contents.size();
+            }
+        }
+        return largest == null ? Optional.empty()
+                : Optional.of(Messages.format("frames.blockDeleted", largest.title(),
+                String.valueOf(largestContents)));
     }
 
     public Action frameSelectionAction() {
@@ -108,6 +153,8 @@ public final class FramesFeatures {
         }
         disposed = true;
         shortcutRemover.run();
+        gesturesRemover.run();
+        deleteListenerRemover.run();
         editMenu.remove(menuItem);
     }
 }
