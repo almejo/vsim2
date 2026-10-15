@@ -1,5 +1,7 @@
 package cl.almejo.vsim.ui.paint;
 
+import cl.almejo.vsim.core.document.FrameTint;
+
 import java.awt.Color;
 
 /**
@@ -33,4 +35,51 @@ public record ColorScheme(Color background, Color grid, Color wireZero, Color wi
             new Color(0x22272E),
             new Color(255, 255, 255, 40),
             new Color(0x3CC23C));
+
+    private static final int LIGHT_TINT_ALPHA = 40;
+    private static final int DARK_TINT_ALPHA = 56;
+    private static final int BORDER_ALPHA = 170;
+    private static final int VEIL_ALPHA = 150;
+
+    /** True when the board is dark, which picks the dark variant of the frame tints. */
+    public boolean isDark() {
+        double luminance = (0.2126 * background.getRed() + 0.7152 * background.getGreen()
+                + 0.0722 * background.getBlue()) / 255;
+        return luminance < 0.5;
+    }
+
+    /**
+     * The fill of a frame of that tint: a hue at low alpha, so what lies under it stays readable. Each tint has a
+     * light and a dark variant (chosen by {@link #isDark}); {@code NONE} is fully transparent.
+     */
+    public Color frameTint(FrameTint tint) {
+        int rgb = switch (tint) {
+            case NONE -> -1;
+            case BLUE -> isDark() ? 0x4C8DFF : 0x1E78E6;
+            case GREEN -> isDark() ? 0x4CC470 : 0x2EA043;
+            case YELLOW -> isDark() ? 0xE6C84A : 0xE0A800;
+            case RED -> isDark() ? 0xFF6B6B : 0xE5484D;
+            case PURPLE -> isDark() ? 0xB07CFF : 0x8347AD;
+            case GRAY -> isDark() ? 0xA0A6B0 : 0x7A808A;
+        };
+        if (rgb < 0) {
+            return new Color(0, 0, 0, 0);
+        }
+        return new Color((rgb & 0xFFFFFF) | ((isDark() ? DARK_TINT_ALPHA : LIGHT_TINT_ALPHA) << 24), true);
+    }
+
+    /** The border of a frame. */
+    public Color frameBorder() {
+        return new Color((componentStroke.getRGB() & 0xFFFFFF) | (BORDER_ALPHA << 24), true);
+    }
+
+    /** The title of a frame; the scheme's text color, which reads on the board and on every tint. */
+    public Color frameTitle() {
+        return text;
+    }
+
+    /** A translucent cover of the board color, for dimming what is behind a frame. */
+    public Color frameVeil() {
+        return new Color((background.getRGB() & 0xFFFFFF) | (VEIL_ALPHA << 24), true);
+    }
 }

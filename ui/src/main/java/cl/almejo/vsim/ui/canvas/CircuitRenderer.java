@@ -13,6 +13,7 @@ import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.netlist.Net;
 import cl.almejo.vsim.core.netlist.PinRef;
+import cl.almejo.vsim.ui.frames.FramePainter;
 import cl.almejo.vsim.ui.paint.Appearance;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.ComponentDrawing;
@@ -35,6 +36,7 @@ import java.awt.geom.Path2D;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 import java.awt.geom.RoundRectangle2D;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -128,6 +130,7 @@ public final class CircuitRenderer {
         ShortCircuitHighlight highlight = highlights.shortCircuits(state);
         WidthMismatchHighlight mismatches = highlights.widthMismatches(state);
 
+        paintFrames(graphics, state);
         for (Wire wire : state.document().wires()) {
             if (state.selection().contains(wire.id())) {
                 Shape halo = SELECTED_WIRE.createStrokedShape(line(wire));
@@ -206,6 +209,29 @@ public final class CircuitRenderer {
         }
         paintPinWidths(graphics, mismatches);
         paintOpenPins(graphics, state);
+    }
+
+    /** Frames under everything else, the larger first so a nested frame's tint shows over its parent's. */
+    private void paintFrames(Graphics2D graphics, RenderState state) {
+        List<Frame> frames = state.document().frames();
+        if (frames.isEmpty()) {
+            return;
+        }
+        ColorScheme scheme = scheme();
+        double pixelsPerGrid = UNIT * graphics.getTransform().getScaleX();
+        for (Frame frame : frames.stream()
+                .sorted(Comparator.comparingLong((Frame candidate) -> (long) candidate.width() * candidate.height())
+                        .reversed())
+                .toList()) {
+            FramePainter.paint(graphics, frame, scheme, pixelsPerGrid);
+            if (state.selection().contains(frame.id())) {
+                Rectangle2D bounds = FramePainter.bounds(frame);
+                MarchingAnts.draw(graphics, new Rectangle2D.Double(bounds.getX() - OUTLINE_GAP,
+                        bounds.getY() - OUTLINE_GAP, bounds.getWidth() + 2 * OUTLINE_GAP,
+                        bounds.getHeight() + 2 * OUTLINE_GAP), scheme.selection(), SELECTION_OUTLINE_WIDTH,
+                        state.selectionDashPhase());
+            }
+        }
     }
 
     /**
@@ -331,9 +357,7 @@ public final class CircuitRenderer {
                     graphics.draw(line(wire));
                 }
                 case TextLabel label -> paintText(graphics, label, scheme.preview());
-                case Frame ignored -> {
-                    // Frames are painted by the frame painter (M6.3, Task 3), not as ghosts.
-                }
+                case Frame frame -> FramePainter.paint(graphics, frame, scheme, Double.MAX_VALUE);
             }
         } finally {
             graphics.setComposite(previous);
