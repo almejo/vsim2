@@ -6,6 +6,8 @@ import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.core.document.Frame;
+import cl.almejo.vsim.core.document.FrameTint;
 import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.Bounds;
@@ -129,5 +131,32 @@ class RotateElementsCommandTest {
                 .isFalse();
         assertThat(new RotateElementsCommand(List.of(gate.id()), true, registry).changes(document)).isTrue();
         assertThat(document.revision()).isEqualTo(revision);
+    }
+    @Test
+    void aFrameTurnsWithTheSelectionAndRevertsExactly() {
+        Frame frame = new Frame(document.newFrameId(), new GridPoint(0, 0), 10, 6, "Sumador", FrameTint.BLUE, true);
+        document.add(frame);
+        Component inside = gate(2, 1);
+        RotateElementsCommand command = new RotateElementsCommand(List.of(frame.id(), inside.id()), true, registry);
+        command.apply(document);
+        // pivot (5, 3): the corners (0, 0) and (10, 6) land on (8, -2) and (2, 8)
+        Frame turned = document.frame(frame.id()).orElseThrow();
+        assertThat(turned).isEqualTo(frame.withRectangle(new GridPoint(2, -2), 6, 10));
+        Bounds gateBounds = registry.require(inside.typeId()).bounds(document.component(inside.id()).orElseThrow());
+        assertThat(turned.encloses(gateBounds.x(), gateBounds.y(), gateBounds.maximumX(), gateBounds.maximumY()))
+                .isTrue();
+        command.revert(document);
+        assertThat(document.frame(frame.id()).orElseThrow()).isEqualTo(frame);
+    }
+
+    @Test
+    void aTurnedFrameKeepsTheMinimumSize() {
+        Frame frame = new Frame(document.newFrameId(), new GridPoint(0, 0), Frame.MINIMUM_WIDTH,
+                Frame.MINIMUM_HEIGHT, "", FrameTint.NONE, false);
+        document.add(frame);
+        new RotateElementsCommand(List.of(frame.id()), false, registry).apply(document);
+        Frame turned = document.frame(frame.id()).orElseThrow();
+        assertThat(turned.width()).isGreaterThanOrEqualTo(Frame.MINIMUM_WIDTH);
+        assertThat(turned.height()).isEqualTo(Frame.MINIMUM_WIDTH);
     }
 }

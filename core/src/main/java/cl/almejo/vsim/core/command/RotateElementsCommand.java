@@ -19,8 +19,9 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * Turns components (position and rotation), wires and text labels a quarter turn as a group, around the grid point
- * nearest the center of their bounds. Text labels move but stay upright. Wires are not merged (like a move). Elements that look the same after the turn (a lone text label) are left
+ * Turns components (position and rotation), wires, text labels and frames a quarter turn as a group, around the grid
+ * point nearest the center of their bounds. Text labels move but stay upright; a frame's rectangle turns (its title
+ * stays on top). Wires are not merged (like a move). Elements that look the same after the turn (a lone text label) are left
  * untouched, and if none changes the document is not touched at all.
  */
 public final class RotateElementsCommand implements Command {
@@ -95,8 +96,20 @@ public final class RotateElementsCommand implements Command {
                     .withRotation(clockwise ? component.rotation().clockwise() : component.rotation().counterClockwise());
             case Wire wire -> wire.withEndpoints(around(wire.start(), pivot, turn), around(wire.end(), pivot, turn));
             case TextLabel label -> new TextLabel(label.id(), around(label.position(), pivot, turn), label.text());
-            case Frame frame -> frame;
+            case Frame frame -> rotatedFrame(frame, pivot, turn);
         };
+    }
+
+    /**
+     * The frame's rectangle turned about {@code pivot}: width and height swap and the title stays on the top edge of
+     * the new rectangle. A side that would end up under the minimum size grows to it, rightwards or downwards.
+     */
+    private static Frame rotatedFrame(Frame frame, GridPoint pivot, Rotation turn) {
+        GridPoint corner = around(frame.topLeft(), pivot, turn);
+        GridPoint opposite = around(frame.topLeft().translate(frame.width(), frame.height()), pivot, turn);
+        GridPoint topLeft = new GridPoint(Math.min(corner.x(), opposite.x()), Math.min(corner.y(), opposite.y()));
+        return frame.withRectangle(topLeft, Math.max(Frame.MINIMUM_WIDTH, Math.abs(opposite.x() - corner.x())),
+                Math.max(Frame.MINIMUM_HEIGHT, Math.abs(opposite.y() - corner.y())));
     }
 
     private static GridPoint around(GridPoint point, GridPoint pivot, Rotation turn) {
