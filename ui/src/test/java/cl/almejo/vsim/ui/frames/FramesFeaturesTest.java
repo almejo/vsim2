@@ -5,7 +5,10 @@ import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.Frame;
 import cl.almejo.vsim.core.document.FrameTint;
+import cl.almejo.vsim.core.command.SetLabelCommand;
 import cl.almejo.vsim.core.geometry.Bounds;
+import cl.almejo.vsim.core.geometry.GridPoint;
+import cl.almejo.vsim.ui.canvas.LabelLayout;
 import cl.almejo.vsim.core.library.ComponentLibrary;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.OpenDocument;
@@ -23,6 +26,7 @@ import org.junit.jupiter.api.Test;
 
 import javax.swing.JMenuItem;
 import java.awt.event.ActionEvent;
+import java.awt.geom.Rectangle2D;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -90,9 +94,41 @@ class FramesFeaturesTest {
         assertThat(openDocument.document().frames()).hasSize(1);
         Frame frame = openDocument.document().frames().get(0);
         assertThat(frame.topLeft().x()).isEqualTo(bounds.x() - 2);
-        assertThat(frame.topLeft().y()).isEqualTo(bounds.y() - 2);
+        assertThat(frame.topLeft().y()).isEqualTo(bounds.y() - 4);
         assertThat(frame.width()).isEqualTo(bounds.width() + 4);
-        assertThat(frame.height()).isEqualTo(bounds.height() + 4);
+        assertThat(frame.height()).isEqualTo(bounds.height() + 6);
+    }
+
+    @Test
+    void theTitleBarGetsItsOwnRoomAboveTheTopMargin() {
+        Component led = place(openDocument, StandardComponentTypes.LED, 20, 20, Map.of());
+        view.canvas().selection().select(led.id());
+        Bounds bounds = ElementBounds.union(List.of(led), openDocument.registry()).orElseThrow();
+
+        frameSelection();
+
+        Frame frame = openDocument.document().frames().get(0);
+        int titleBarUnits = (int) Math.ceil(FramePainter.TITLE_BAR_HEIGHT / GridPoint.PIXELS_PER_UNIT);
+        assertThat(frame.topLeft().y()).isEqualTo(bounds.y() - FramesFeatures.MARGIN - titleBarUnits);
+    }
+
+    @Test
+    void aComponentLabelWiderThanItsBodyFitsInsideTheFrame() {
+        Component led = place(openDocument, StandardComponentTypes.LED, 20, 20, Map.of());
+        Component labelled = led.withLabel("Acarreo de salida (Cout)");
+        openDocument.execute(new SetLabelCommand(led.id(), labelled.label()));
+        view.canvas().selection().select(led.id());
+        Rectangle2D label = LabelLayout.componentLabel(openDocument.registry().typeOf(labelled), labelled)
+                .orElseThrow().bounds();
+
+        frameSelection();
+
+        Frame frame = openDocument.document().frames().get(0);
+        double unit = GridPoint.PIXELS_PER_UNIT;
+        assertThat((frame.topLeft().x() + FramesFeatures.MARGIN) * unit).isLessThanOrEqualTo(label.getMinX());
+        assertThat((frame.topLeft().x() + frame.width() - FramesFeatures.MARGIN) * unit)
+                .isGreaterThanOrEqualTo(label.getMaxX());
+        assertThat(frame.topLeft().y() * unit + FramePainter.TITLE_BAR_HEIGHT).isLessThanOrEqualTo(label.getMinY());
     }
 
     @Test
