@@ -72,7 +72,7 @@ class ShortcutsTableModelTest {
         model.setFilter("guar");
         assertThat(column(0)).containsExactly("Archivo", "Guardar", "Guardar como…");
         model.setFilter("SELECCION");
-        assertThat(column(0)).containsExactly("Editar", "Seleccionar todo", "Ver", "Selección");
+        assertThat(column(0)).containsExactly("Editar", "Seleccionar todo", "Enmarcar selección", "Ver", "Selección");
         model.setFilter("zzz");
         assertThat(model.getRowCount()).isZero();
         assertThat(model.rowOf("file.save")).isEqualTo(-1);
@@ -85,10 +85,10 @@ class ShortcutsTableModelTest {
         model.beginCapture("file.save");
         assertThat(model.isCapturing()).isTrue();
         assertThat(shortcutOf("file.save")).isEqualTo("Presiona la combinación…");
-        assertThat(model.offer(control(KeyEvent.VK_G))).isEqualTo(ShortcutsTableModel.Outcome.ASSIGNED);
+        assertThat(model.offer(control(KeyEvent.VK_J))).isEqualTo(ShortcutsTableModel.Outcome.ASSIGNED);
         assertThat(model.isCapturing()).isFalse();
-        assertThat(bindings.strokeFor("file.save")).contains(control(KeyEvent.VK_G));
-        assertThat(shortcutOf("file.save")).isEqualTo(KeyBindings.describe(control(KeyEvent.VK_G)));
+        assertThat(bindings.strokeFor("file.save")).contains(control(KeyEvent.VK_J));
+        assertThat(shortcutOf("file.save")).isEqualTo(KeyBindings.describe(control(KeyEvent.VK_J)));
         assertThat(model.message()).isEmpty();
     }
 
@@ -179,7 +179,7 @@ class ShortcutsTableModelTest {
     void aStrokeOfferedAfterTheCaptureWasCancelledIsRejected() {
         model.beginCapture("file.save");
         model.setFilter("x");
-        org.assertj.core.api.Assertions.assertThatThrownBy(() -> model.offer(control(KeyEvent.VK_G)))
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> model.offer(control(KeyEvent.VK_J)))
                 .isInstanceOf(IllegalStateException.class);
     }
 

@@ -9,6 +9,7 @@ import cl.almejo.vsim.core.io.LibraryDirectory;
 import cl.almejo.vsim.core.library.ComponentLibrary;
 import cl.almejo.vsim.ui.examples.ExamplesFeature;
 import cl.almejo.vsim.ui.export.ExportImageExtension;
+import cl.almejo.vsim.ui.frames.FramesExtension;
 import cl.almejo.vsim.ui.wiring.TidyWiresExtension;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.icons.ActionIcons;
@@ -107,6 +108,7 @@ public final class Application {
         editorExtensions.add(new TruthTableExtension());
         editorExtensions.add(new ExportImageExtension());
         editorExtensions.add(new TidyWiresExtension());
+        editorExtensions.add(new FramesExtension());
         editorExtensions.add(new ActionIcons());
         editorExtensions.add(new PreferencesFeature());
         editorExtensions.add(new RecentFilesFeature());

@@ -44,9 +44,9 @@ class ShortcutsPanelTest {
         int row = select("file.save");
         panel.changeButton().doClick(0);
         assertThat(panel.table().getValueAt(row, 1)).isEqualTo("Presiona la combinación…");
-        press(KeyEvent.VK_G, CONTROL);
-        assertThat(bindings.strokeFor("file.save")).contains(control(KeyEvent.VK_G));
-        assertThat(panel.table().getValueAt(row, 1)).isEqualTo(KeyBindings.describe(control(KeyEvent.VK_G)));
+        press(KeyEvent.VK_J, CONTROL);
+        assertThat(bindings.strokeFor("file.save")).contains(control(KeyEvent.VK_J));
+        assertThat(panel.table().getValueAt(row, 1)).isEqualTo(KeyBindings.describe(control(KeyEvent.VK_J)));
         assertThat(panel.table().getSelectedRow()).isEqualTo(row);
     }
 
@@ -116,7 +116,7 @@ class ShortcutsPanelTest {
         assertThat(panel.model().isCapturing()).isFalse();
         assertThat(panel.table().getValueAt(row, 1)).isEqualTo(KeyBindings.describe(control(KeyEvent.VK_S)));
         // a later key must not reach the model (it would throw IllegalStateException)
-        press(KeyEvent.VK_G, CONTROL);
+        press(KeyEvent.VK_J, CONTROL);
         assertThat(bindings.strokeFor("file.save")).contains(control(KeyEvent.VK_S));
     }
 
@@ -145,7 +145,7 @@ class ShortcutsPanelTest {
         panel.searchField().setText("guardar");
         assertThat(panel.capture().isActive()).isFalse();
         assertThat(panel.model().isCapturing()).isFalse();
-        press(KeyEvent.VK_G, CONTROL);
+        press(KeyEvent.VK_J, CONTROL);
         assertThat(bindings.strokeFor("file.save")).contains(control(KeyEvent.VK_S));
     }
 
@@ -161,8 +161,8 @@ class ShortcutsPanelTest {
             }
             assertThat(panel.capture().isActive()).isFalse();
             assertThat(panel.model().isCapturing()).isFalse();
-            press(KeyEvent.VK_G, CONTROL);
-            assertThat(bindings.strokeFor("file.save")).isNotEqualTo(java.util.Optional.of(control(KeyEvent.VK_G)));
+            press(KeyEvent.VK_J, CONTROL);
+            assertThat(bindings.strokeFor("file.save")).isNotEqualTo(java.util.Optional.of(control(KeyEvent.VK_J)));
             panel.resetButton().doClick(0);
             assertThat(panel.table().getValueAt(row, 1)).isEqualTo(KeyBindings.describe(control(KeyEvent.VK_S)));
         }

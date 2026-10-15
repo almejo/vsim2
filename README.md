@@ -113,6 +113,11 @@ Diseño: `docs/superpowers/specs/2026-10-08-vsim2-design.md`.
 - Ordenar nunca congela la ventana: se calcula en segundo plano, y si pasan más de 2 s aparece una ventanita «Ordenando cables…» con la pasada actual y «Cancelar» (no cambia nada y avisa «Ordenar cables cancelado»); si el circuito cambia mientras se calcula, se descarta el resultado y avisa «El circuito cambió; vuelve a ordenar». El resumen del diálogo también se calcula en segundo plano («Calculando…») y «Ordenar» espera a que esté listo.
 - «Guardar» (menú y barra) queda desactivado cuando no hay nada que guardar: recién guardado, o deshecho hasta lo guardado. Un circuito sin archivo propio y con contenido (un ejemplo recién abierto, un archivo de VSim 1) siempre se puede guardar.
 
+## Marcos (M6.3)
+
+- Editar ▸ «Enmarcar selección» (Ctrl+G; también en el menú contextual sobre una selección) dibuja un marco titulado «Bloque» alrededor de lo seleccionado, con 2 cuadros de margen. Está deshabilitado sin selección, el marco nace desbloqueado y queda seleccionado; es un solo paso de deshacer («Deshacer crear marco»).
+- Los marcos se guardan en el archivo, se copian y pegan con el resto y salen en las imágenes exportadas. Vienen más funciones (herramienta «Marco», título, color y candado).
+
 ## Preferencias y distribución
 
 - Archivo → Preferencias… (en macOS también VSim 2 → Ajustes…): tema Claro, Oscuro o Seguir sistema; esquema de color del circuito (Según el tema, VSim clásico, Claro, Oscuro y los otros esquemas del VSim original: Pastel, CSim y Twilight); idioma (Sistema, Español, English; se aplica al reiniciar); directorio de la librería de componentes (Elegir… / Restaurar predeterminado). El tema y el esquema cambian al instante en todas las ventanas.
