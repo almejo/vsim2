@@ -95,7 +95,7 @@ public final class StandardComponentTypes {
                 List.of(ParameterSpec.choice("value", "1", List.of("1", "0", "Z"))),
                 parameters -> new SwitchBehavior(SwitchBehavior.parse((String) parameters.get("value")))));
         registry.register(ComponentType.parameterized(CONSTANT, ComponentCategory.INPUT_OUTPUT,
-                List.of(ParameterSpec.integer(WIDTH, 4, 1, ConstantValue.MAXIMUM_WIDTH),
+                List.of(ParameterSpec.integer(WIDTH, 8, 1, ConstantValue.MAXIMUM_WIDTH),
                         ParameterSpec.text("value", "0", ConstantValue::normalize),
                         ParameterSpec.choice("format", ConstantValue.AUTO,
                                 List.of(ConstantValue.AUTO, ConstantValue.BINARY, ConstantValue.HEX,

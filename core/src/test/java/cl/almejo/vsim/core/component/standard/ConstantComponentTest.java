@@ -47,9 +47,9 @@ class ConstantComponentTest {
     }
 
     @Test
-    void theDefaultsAreFourBitsZeroInAutoFormat() {
+    void theDefaultsAreEightBitsZeroInAutoFormat() {
         assertThat(constant.resolveParameters(Map.of()))
-                .isEqualTo(Map.of("width", 4, "value", "0", "format", "auto"));
+                .isEqualTo(Map.of("width", 8, "value", "0", "format", "auto"));
         assertThat(constant.category()).isEqualTo(ComponentCategory.INPUT_OUTPUT);
     }
 
