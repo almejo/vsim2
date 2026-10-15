@@ -6,6 +6,8 @@ import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.core.document.Frame;
+import cl.almejo.vsim.core.document.FrameTint;
 import cl.almejo.vsim.core.document.Probe;
 import cl.almejo.vsim.core.document.ProbeTarget;
 import cl.almejo.vsim.core.document.TextLabel;
@@ -47,6 +49,28 @@ public final class CircuitFormat {
     record LabelEntry(String id, int x, int y, String text) {
     }
 
+    /** A frame; {@code tint} is the {@link FrameTint} name, and an unknown name reads as {@code NONE}. */
+    record FrameEntry(String id, int x, int y, int width, int height, String title, String tint, boolean locked) {
+    }
+
+    static FrameEntry frameEntry(Frame frame) {
+        return new FrameEntry(frame.id().value(), frame.topLeft().x(), frame.topLeft().y(), frame.width(),
+                frame.height(), frame.title(), frame.tint().name(), frame.locked());
+    }
+
+    static Frame frame(FrameEntry entry) {
+        FrameTint tint = FrameTint.NONE;
+        if (entry.tint() != null) {
+            try {
+                tint = FrameTint.valueOf(entry.tint());
+            } catch (IllegalArgumentException exception) {
+                tint = FrameTint.NONE;
+            }
+        }
+        return new Frame(new ElementId(entry.id()), new GridPoint(entry.x(), entry.y()), entry.width(),
+                entry.height(), entry.title(), tint, entry.locked());
+    }
+
     static ComponentEntry componentEntry(Component component) {
         return new ComponentEntry(component.id().value(), component.typeId(), component.position().x(),
                 component.position().y(), component.rotation().quarterTurns(), component.label(),
@@ -82,7 +106,8 @@ public final class CircuitFormat {
     record CircuitFile(int formatVersion, String kind, String name, List<ComponentEntry> components,
                        List<WireEntry> wires, List<LabelEntry> labels,
                        @JsonInclude(JsonInclude.Include.NON_EMPTY) List<DefinitionEntries.DefinitionEntry> definitions,
-                       @JsonInclude(JsonInclude.Include.NON_EMPTY) List<ProbeEntry> probes) {
+                       @JsonInclude(JsonInclude.Include.NON_EMPTY) List<ProbeEntry> probes,
+                       @JsonInclude(JsonInclude.Include.NON_EMPTY) List<FrameEntry> frames) {
     }
 
     private final ComponentTypeRegistry registry;
@@ -110,7 +135,8 @@ public final class CircuitFormat {
                 document.wires().stream().map(CircuitFormat::wireEntry).toList(),
                 document.labels().stream().map(CircuitFormat::labelEntry).toList(),
                 used.stream().map(DefinitionEntries::entry).toList(),
-                document.probes().stream().map(CircuitFormat::probeEntry).toList());
+                document.probes().stream().map(CircuitFormat::probeEntry).toList(),
+                document.frames().stream().map(CircuitFormat::frameEntry).toList());
         try {
             return mapper.writeValueAsString(file);
         } catch (JsonProcessingException exception) {
@@ -149,6 +175,10 @@ public final class CircuitFormat {
         for (LabelEntry entry : entries(file.labels())) {
             requireEntry(entry, "labels");
             add(document, () -> label(entry));
+        }
+        for (FrameEntry entry : entries(file.frames())) {
+            requireEntry(entry, "frames");
+            add(document, () -> frame(entry));
         }
         document.setProbes(probes(entries(file.probes())));
         return document;

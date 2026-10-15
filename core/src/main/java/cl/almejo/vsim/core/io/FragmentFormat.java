@@ -23,7 +23,8 @@ public final class FragmentFormat {
 
     record FragmentFile(int formatVersion, String kind, List<CircuitFormat.ComponentEntry> components,
                         List<CircuitFormat.WireEntry> wires, List<CircuitFormat.LabelEntry> labels,
-                        @JsonInclude(JsonInclude.Include.NON_EMPTY) List<DefinitionEntries.DefinitionEntry> definitions) {
+                        @JsonInclude(JsonInclude.Include.NON_EMPTY) List<DefinitionEntries.DefinitionEntry> definitions,
+                        @JsonInclude(JsonInclude.Include.NON_EMPTY) List<CircuitFormat.FrameEntry> frames) {
     }
 
     private final ComponentTypeRegistry registry;
@@ -41,7 +42,8 @@ public final class FragmentFormat {
                 fragment.components().stream().map(CircuitFormat::componentEntry).toList(),
                 fragment.wires().stream().map(CircuitFormat::wireEntry).toList(),
                 fragment.labels().stream().map(CircuitFormat::labelEntry).toList(),
-                fragment.definitions().stream().map(DefinitionEntries::entry).toList());
+                fragment.definitions().stream().map(DefinitionEntries::entry).toList(),
+                fragment.frames().stream().map(CircuitFormat::frameEntry).toList());
         try {
             return mapper.writeValueAsString(file);
         } catch (JsonProcessingException exception) {
@@ -61,7 +63,7 @@ public final class FragmentFormat {
         asCircuit.remove("name");
         CircuitDocument document = circuitFormat.read(asCircuit);
         CircuitFragment fragment = new CircuitFragment(document.components(), document.wires(), document.labels(),
-                document.usedDefinitions());
+                document.usedDefinitions(), document.frames());
         Bounds bounds = fragment.bounds(fragment.registryFor(registry));
         return fragment.translate(-bounds.x(), -bounds.y());
     }

@@ -7,6 +7,7 @@ import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.core.document.Frame;
 import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.Bounds;
@@ -27,7 +28,7 @@ import java.util.Set;
  * fragment's bounds to (0,0). The elements keep the ids they had in their source document.
  */
 public record CircuitFragment(List<Component> components, List<Wire> wires, List<TextLabel> labels,
-                              List<ComponentDefinition> definitions) {
+                              List<ComponentDefinition> definitions, List<Frame> frames) {
 
     private static final Bounds EMPTY_BOUNDS = new Bounds(0, 0, 0, 0);
 
@@ -36,6 +37,13 @@ public record CircuitFragment(List<Component> components, List<Wire> wires, List
         wires = List.copyOf(wires);
         labels = List.copyOf(labels);
         definitions = List.copyOf(definitions);
+        frames = List.copyOf(frames);
+    }
+
+    /** A fragment without frames. */
+    public CircuitFragment(List<Component> components, List<Wire> wires, List<TextLabel> labels,
+                           List<ComponentDefinition> definitions) {
+        this(components, wires, labels, definitions, List.of());
     }
 
     /** A fragment that needs no definitions (or whose definitions the target already has). */
@@ -55,7 +63,8 @@ public record CircuitFragment(List<Component> components, List<Wire> wires, List
         CircuitFragment selected = new CircuitFragment(components,
                 document.wires().stream().filter(wire -> wanted.contains(wire.id())).toList(),
                 document.labels().stream().filter(label -> wanted.contains(label.id())).toList(),
-                document.definitionsUsedBy(components));
+                document.definitionsUsedBy(components),
+                document.frames().stream().filter(frame -> wanted.contains(frame.id())).toList());
         Bounds bounds = selected.bounds(registry);
         return selected.translate(-bounds.x(), -bounds.y());
     }
@@ -79,6 +88,7 @@ public record CircuitFragment(List<Component> components, List<Wire> wires, List
         List<DocumentElement> all = new ArrayList<>(components);
         all.addAll(wires);
         all.addAll(labels);
+        all.addAll(frames);
         return List.copyOf(all);
     }
 
@@ -88,7 +98,7 @@ public record CircuitFragment(List<Component> components, List<Wire> wires, List
     }
 
     public boolean isEmpty() {
-        return components.isEmpty() && wires.isEmpty() && labels.isEmpty();
+        return components.isEmpty() && wires.isEmpty() && labels.isEmpty() && frames.isEmpty();
     }
 
     public CircuitFragment translate(int deltaX, int deltaY) {
@@ -96,6 +106,6 @@ public record CircuitFragment(List<Component> components, List<Wire> wires, List
                 components.stream().map(component -> component.translate(deltaX, deltaY)).toList(),
                 wires.stream().map(wire -> wire.translate(deltaX, deltaY)).toList(),
                 labels.stream().map(label -> label.translate(deltaX, deltaY)).toList(),
-                definitions);
+                definitions, frames.stream().map(frame -> frame.translate(deltaX, deltaY)).toList());
     }
 }
