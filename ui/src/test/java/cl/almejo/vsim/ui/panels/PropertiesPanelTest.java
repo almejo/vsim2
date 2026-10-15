@@ -2,6 +2,10 @@ package cl.almejo.vsim.ui.panels;
 
 import cl.almejo.vsim.core.command.AddElementsCommand;
 import cl.almejo.vsim.core.command.AddWireCommand;
+import cl.almejo.vsim.core.command.ChangeFrameCommand;
+import cl.almejo.vsim.core.command.CreateFrameCommand;
+import cl.almejo.vsim.core.document.Frame;
+import cl.almejo.vsim.core.document.FrameTint;
 import cl.almejo.vsim.core.command.PutDefinitionsCommand;
 import cl.almejo.vsim.core.command.SetLabelCommand;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
@@ -25,6 +29,7 @@ import javax.swing.JTextField;
 import javax.swing.TransferHandler;
 import javax.swing.text.JTextComponent;
 import java.awt.datatransfer.StringSelection;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -257,5 +262,95 @@ class PropertiesPanelTest {
         openDocument.history().undo();
         assertThat(current(first).label()).isEmpty();
         assertThat(current(first).parameters()).containsEntry("delay", 1);
+    }
+
+    // --- frames (M6.3)
+
+    private Frame frame(boolean locked) {
+        Frame frame = new Frame(openDocument.document().newFrameId(), new GridPoint(2, 3), 20, 12, "Sumador",
+                FrameTint.BLUE, locked);
+        openDocument.execute(new CreateFrameCommand(frame));
+        selection.select(frame.id());
+        return frame;
+    }
+
+    private Frame current(Frame frame) {
+        return openDocument.document().frame(frame.id()).orElseThrow();
+    }
+
+    @Test
+    void aSelectedFrameShowsItsProperties() {
+        frame(false);
+        assertThat(panel.heading()).isEqualTo("Marco");
+        assertThat(panel.textField().getText()).isEqualTo("Sumador");
+        assertThat(panel.frameColor().getSelectedItem()).isEqualTo(FrameTint.BLUE);
+        assertThat(panel.frameLocked().isSelected()).isFalse();
+        assertThat(Arrays.stream(panel.frameSpinners()).map(JSpinner::getValue).toList())
+                .containsExactly(2, 3, 20, 12);
+        assertThat(panel.frameSpinners()[2].isEnabled()).isTrue();
+    }
+
+    @Test
+    void titleColourAndLockEditsAreOneUndoStepEach() {
+        Frame frame = frame(false);
+        panel.textField().setText("Lógica");
+        panel.commitEdits();
+        assertThat(current(frame).title()).isEqualTo("Lógica");
+        panel.frameColor().setSelectedItem(FrameTint.RED);
+        assertThat(current(frame).tint()).isEqualTo(FrameTint.RED);
+        panel.frameLocked().doClick();
+        assertThat(current(frame).locked()).isTrue();
+        openDocument.history().undo();
+        assertThat(current(frame).locked()).isFalse();
+        openDocument.history().undo();
+        assertThat(current(frame).tint()).isEqualTo(FrameTint.BLUE);
+        openDocument.history().undo();
+        assertThat(current(frame)).isEqualTo(frame);
+    }
+
+    @Test
+    void sizeAndPositionEditsOfAnUnlockedFrameAreOneUndoStepEach() {
+        Frame frame = frame(false);
+        panel.frameSpinners()[2].setValue(30);
+        assertThat(current(frame).width()).isEqualTo(30);
+        panel.frameSpinners()[0].setValue(10);
+        assertThat(current(frame).topLeft()).isEqualTo(new GridPoint(10, 3));
+        openDocument.history().undo();
+        assertThat(current(frame).topLeft()).isEqualTo(new GridPoint(2, 3));
+        assertThat(current(frame).width()).isEqualTo(30);
+        openDocument.history().undo();
+        assertThat(current(frame)).isEqualTo(frame);
+    }
+
+    @Test
+    void aLockedFrameCannotBeResizedFromThePanel() {
+        frame(true);
+        assertThat(panel.frameSpinners()[2].isEnabled()).isFalse();
+        assertThat(panel.frameSpinners()[3].isEnabled()).isFalse();
+        assertThat(panel.frameSpinners()[0].isEnabled()).isTrue();
+    }
+
+    @Test
+    void movingALockedFrameFromThePanelMovesItsContentsInOneUndoStep() {
+        Frame frame = frame(true);
+        Component inside = place(openDocument, StandardComponentTypes.NOT, 6, 6, Map.of());
+        selection.select(frame.id());
+        panel.frameSpinners()[1].setValue(8);
+        assertThat(current(frame).topLeft()).isEqualTo(new GridPoint(2, 8));
+        assertThat(current(inside).position()).isEqualTo(new GridPoint(6, 11));
+        openDocument.history().undo();
+        assertThat(current(frame)).isEqualTo(frame);
+        assertThat(current(inside)).isEqualTo(inside);
+    }
+
+    @Test
+    void theFieldsFollowTheFrameWhenItChangesElsewhere() {
+        Frame frame = frame(false);
+        openDocument.execute(new ChangeFrameCommand(frame, frame.withRectangle(new GridPoint(5, 6), 24, 9)));
+        assertThat(Arrays.stream(panel.frameSpinners()).map(JSpinner::getValue).toList())
+                .containsExactly(5, 6, 24, 9);
+        openDocument.history().undo();
+        assertThat(Arrays.stream(panel.frameSpinners()).map(JSpinner::getValue).toList())
+                .containsExactly(2, 3, 20, 12);
     }
 }

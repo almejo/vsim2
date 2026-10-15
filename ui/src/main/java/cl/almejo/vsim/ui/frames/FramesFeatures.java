@@ -50,6 +50,7 @@ public final class FramesFeatures {
     private final JMenuItem toolMenuItem;
     private final Runnable toolButtonRemover;
     private final Runnable toolShortcutRemover;
+    private final FrameMenu frameMenu;
     private Consumer<Frame> titleEditor;
     private final FrameGestures gestures = new FrameGestures();
     private final Runnable gesturesRemover;
@@ -92,8 +93,16 @@ public final class FramesFeatures {
         this.deleteListenerRemover = view.actions().addDeleteListener(ids -> blockDeletedNotice(
                 view.openDocument().document(), view.openDocument().registry(), ids)
                 .ifPresent(view.statusBar()::showNotice));
+        this.frameMenu = new FrameMenu(view.openDocument(), frame -> titleEditor.accept(frame),
+                frame -> view.templateActions().ifPresent(actions -> actions.createFromFrame(frame)));
         view.addContextMenuContributor((menu, target, selection, gridPosition) -> {
-            if (!disposed && !selection.isEmpty() && target.isPresent()) {
+            if (disposed) {
+                return;
+            }
+            if (target.isPresent() && target.get() instanceof Frame frame) {
+                frameMenu.addItems(menu, frame);
+            }
+            if (!selection.isEmpty() && target.isPresent()) {
                 menu.add(new JMenuItem(frameSelection));
             }
         });
@@ -132,6 +141,11 @@ public final class FramesFeatures {
      */
     public void setTitleEditor(Consumer<Frame> titleEditor) {
         this.titleEditor = titleEditor;
+    }
+
+    /** The frame menu (⋯ button and right click on the title bar). */
+    public FrameMenu frameMenu() {
+        return frameMenu;
     }
 
     /** The select tool's frame gestures in this view. */

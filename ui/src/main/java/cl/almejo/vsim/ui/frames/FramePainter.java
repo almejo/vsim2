@@ -4,7 +4,12 @@ import cl.almejo.vsim.core.document.Frame;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 
+import cl.almejo.vsim.ui.icons.Icons;
+
+import javax.swing.Icon;
+import java.awt.AlphaComposite;
 import java.awt.BasicStroke;
+import java.awt.Composite;
 import java.awt.Color;
 import java.awt.Font;
 import java.awt.FontMetrics;
@@ -31,6 +36,13 @@ public final class FramePainter {
     /** Below this many screen pixels per grid unit the title would be an unreadable smear and is left out. */
     private static final double MINIMUM_PIXELS_PER_GRID_FOR_TITLE = 3;
     private static final String ELLIPSIS = "…";
+    /** Side of a control icon, in document pixels. */
+    static final double CONTROL_SIZE = 12;
+    private static final double CONTROL_GAP = 2;
+    private static final double CONTROL_MARGIN = 2;
+    /** Room kept at the right end of the title bar for the controls, so the title never runs under them. */
+    private static final double CONTROLS_WIDTH = 2 * CONTROL_SIZE + 2 * CONTROL_GAP + CONTROL_MARGIN;
+    private static final float FAINT_ALPHA = 0.35f;
 
     private FramePainter() {
     }
@@ -46,6 +58,49 @@ public final class FramePainter {
     public static Rectangle2D titleBarBounds(Frame frame) {
         Rectangle2D bounds = bounds(frame);
         return new Rectangle2D.Double(bounds.getX(), bounds.getY(), bounds.getWidth(), TITLE_BAR_HEIGHT);
+    }
+
+    /** The ⋯ button, at the right end of the title bar, in document pixels. */
+    public static Rectangle2D menuBounds(Frame frame) {
+        Rectangle2D bar = titleBarBounds(frame);
+        return new Rectangle2D.Double(bar.getMaxX() - CONTROL_MARGIN - CONTROL_SIZE,
+                bar.getY() + (bar.getHeight() - CONTROL_SIZE) / 2, CONTROL_SIZE, CONTROL_SIZE);
+    }
+
+    /** The padlock, left of the ⋯ button, in document pixels. */
+    public static Rectangle2D lockBounds(Frame frame) {
+        Rectangle2D menu = menuBounds(frame);
+        return new Rectangle2D.Double(menu.getX() - CONTROL_GAP - CONTROL_SIZE, menu.getY(), CONTROL_SIZE,
+                CONTROL_SIZE);
+    }
+
+    /** Below this many screen pixels per grid unit the title and the controls are left out. */
+    public static boolean showsDetails(double pixelsPerGrid) {
+        return pixelsPerGrid >= MINIMUM_PIXELS_PER_GRID_FOR_TITLE;
+    }
+
+    /**
+     * The controls: padlock and ⋯ button when {@code active} (the frame is hovered or selected); otherwise only a
+     * faint closed padlock, and only when the frame is locked. Never part of an image export.
+     */
+    public static void paintControls(Graphics2D graphics, Frame frame, boolean active, double pixelsPerGrid) {
+        if (!showsDetails(pixelsPerGrid) || !(active || frame.locked())) {
+            return;
+        }
+        Rectangle2D lock = lockBounds(frame);
+        Icon lockIcon = Icons.get(frame.locked() ? FrameIcons.LOCK_CLOSED : FrameIcons.LOCK_OPEN,
+                (int) CONTROL_SIZE);
+        Composite previous = graphics.getComposite();
+        if (!active) {
+            graphics.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, FAINT_ALPHA));
+        }
+        lockIcon.paintIcon(null, graphics, (int) Math.round(lock.getX()), (int) Math.round(lock.getY()));
+        if (active) {
+            Rectangle2D menu = menuBounds(frame);
+            Icons.get(FrameIcons.MENU, (int) CONTROL_SIZE)
+                    .paintIcon(null, graphics, (int) Math.round(menu.getX()), (int) Math.round(menu.getY()));
+        }
+        graphics.setComposite(previous);
     }
 
     /** {@code pixelsPerGrid} is the screen size of one grid unit (8 at 100 %). */
@@ -72,7 +127,7 @@ public final class FramePainter {
         graphics.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
         graphics.setFont(TITLE_FONT);
         FontMetrics metrics = graphics.getFontMetrics();
-        String shown = fit(title, metrics, bar.getWidth() - 2 * TITLE_PADDING);
+        String shown = fit(title, metrics, bar.getWidth() - 2 * TITLE_PADDING - CONTROLS_WIDTH);
         if (shown.isEmpty()) {
             return;
         }

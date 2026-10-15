@@ -12,6 +12,8 @@ import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.core.document.Frame;
+import cl.almejo.vsim.core.document.FrameContents;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
 import cl.almejo.vsim.core.library.ComponentDefinition;
@@ -103,6 +105,24 @@ public final class TemplateActions {
         if (ids.isEmpty()) {
             return;
         }
+        openCreateDialog(ids, "", Optional.empty());
+    }
+
+    /**
+     * "Convertir en componente…" from a frame (M6.3 spec §6): the same dialog with the frame's contents as the
+     * selection and its title as the proposed name. When the user replaces the selection by an instance, the frame
+     * goes in the same undo step; otherwise it stays. Does nothing when the frame holds nothing.
+     */
+    public void createFromFrame(Frame frame) {
+        Set<ElementId> contents = FrameContents.of(openDocument.document(), openDocument.registry(), frame);
+        if (contents.isEmpty()) {
+            return;
+        }
+        openCreateDialog(contents, frame.title(), Optional.of(frame.id()));
+    }
+
+    private void openCreateDialog(Set<ElementId> ids, String proposedName, Optional<ElementId> frameToRemove) {
+        CircuitDocument document = openDocument.document();
         if (!DefinitionBuilder.hasInterfacePins(document, ids)) {
             dialogs.showMessage(canvas, Messages.text("template.noInterfacePins"));
             return;
@@ -110,7 +130,10 @@ public final class TemplateActions {
         PinOrder order = DefinitionBuilder.defaultPinOrder(document, ids);
         ComponentForm form = ComponentForm.create(order, DefinitionBuilder.pinNames(document, order), takenNames(),
                 takenIds());
-        dialogs.editComponent(canvas, form).ifPresent(result -> create(ids, result));
+        if (!proposedName.isBlank()) {
+            form.setName(proposedName);
+        }
+        dialogs.editComponent(canvas, form).ifPresent(result -> create(ids, result, frameToRemove));
     }
 
     /**
@@ -243,7 +266,7 @@ public final class TemplateActions {
                 && DefinitionBuilder.hasInterfacePins(document, ids));
     }
 
-    private void create(Set<ElementId> ids, ComponentForm.Result result) {
+    private void create(Set<ElementId> ids, ComponentForm.Result result, Optional<ElementId> frameToRemove) {
         CircuitDocument document = openDocument.document();
         ComponentTypeRegistry registry = openDocument.registry();
         DefinitionBundle bundle = DefinitionBuilder.fromSelection(document, ids, result.definitionId(), result.name(),
@@ -263,6 +286,7 @@ public final class TemplateActions {
                 List<DocumentElement> added = new ArrayList<>(List.of(instance));
                 added.addAll(bridging.wires());
                 steps.add(new RemoveElementsCommand(ids));
+                frameToRemove.ifPresent(frameId -> steps.add(new RemoveElementsCommand(List.of(frameId))));
                 steps.add(new AddElementsCommand(added));
                 if (!bridging.unconnectedPins().isEmpty()) {
                     message = Messages.format("template.pinsUnconnected",

@@ -44,6 +44,7 @@ public final class TemplateFeatures {
         edit.add(actions.createComponent());
         edit.add(actions.updateComponent());
         view.addContextMenuContributor(actions.contributor());
+        view.setTemplateActions(actions);
 
         LibraryImport importer = new LibraryImport(service, dialogs);
         Action importComponent = importer.action(view);
@@ -103,6 +104,7 @@ public final class TemplateFeatures {
     /** Removes every listener registered on shared objects (document, library, service) and the overlay. */
     public void dispose() {
         view.setComponentFileImporter(null);
+        view.setTemplateActions(null);
         view.canvas().removeIncomingFragmentListener(keptVersionsWarning);
         service.removeProblemsListener(problemsListener);
         service.library().removeListener(problemsListener);

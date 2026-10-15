@@ -29,7 +29,7 @@ public final class FrameHitTester {
     public static Optional<FrameHit> hit(CircuitDocument document, Point2D gridPoint, double pixelsPerGrid) {
         double tolerance = GRAB_PIXELS / pixelsPerGrid;
         for (Frame frame : smallestFirst(document.frames())) {
-            Optional<FramePart> part = partAt(frame, gridPoint, tolerance);
+            Optional<FramePart> part = partAt(frame, gridPoint, tolerance, pixelsPerGrid);
             if (part.isPresent()) {
                 return Optional.of(new FrameHit(frame, part.get()));
             }
@@ -51,7 +51,8 @@ public final class FrameHitTester {
                 .toList();
     }
 
-    private static Optional<FramePart> partAt(Frame frame, Point2D point, double tolerance) {
+    private static Optional<FramePart> partAt(Frame frame, Point2D point, double tolerance,
+                                              double pixelsPerGrid) {
         if (!nearRectangle(frame, point, tolerance)) {
             return Optional.empty();
         }
@@ -61,6 +62,14 @@ public final class FrameHitTester {
         double bottom = top + frame.height();
         double x = point.getX();
         double y = point.getY();
+        if (FramePainter.showsDetails(pixelsPerGrid)) {
+            if (FramePainter.lockBounds(frame).contains(x * GridPoint.PIXELS_PER_UNIT, y * GridPoint.PIXELS_PER_UNIT)) {
+                return Optional.of(FramePart.LOCK);
+            }
+            if (FramePainter.menuBounds(frame).contains(x * GridPoint.PIXELS_PER_UNIT, y * GridPoint.PIXELS_PER_UNIT)) {
+                return Optional.of(FramePart.MENU);
+            }
+        }
         if (!frame.locked()) {
             Optional<FramePart> edge = edgeAt(x, y, left, top, right, bottom, tolerance);
             if (edge.isPresent()) {

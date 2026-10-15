@@ -47,10 +47,15 @@ public final class FrameGestures implements SelectToolDelegate {
         CircuitDocument document = context.openDocument().document();
         Optional<FrameHit> hit = FrameHitTester.hit(document, event.gridPosition(),
                 context.viewport().pixelsPerUnit());
-        if (hit.isEmpty() || hit.get().part() == FramePart.LOCK || hit.get().part() == FramePart.MENU) {
-            return false; // the controls arrive with the frame menu
+        if (hit.isEmpty()) {
+            return false;
         }
         Frame frame = hit.get().frame();
+        FramePart hitPart = hit.get().part();
+        if (event.button() == CanvasMouseEvent.PRIMARY && (hitPart == FramePart.LOCK || hitPart == FramePart.MENU)) {
+            pressControl(context, event, frame, hitPart);
+            return true;
+        }
         Set<ElementId> ids = grabbedBy(context, frame);
         Selection selection = context.selection();
         if (event.button() == CanvasMouseEvent.SECONDARY) {
@@ -86,6 +91,16 @@ public final class FrameGestures implements SelectToolDelegate {
             selection.set(ids);
         }
         return true;
+    }
+
+    /** The padlock toggles the lock; the ⋯ button opens the frame menu. */
+    private static void pressControl(ToolContext context, CanvasMouseEvent event, Frame frame, FramePart control) {
+        if (control == FramePart.LOCK) {
+            context.openDocument().execute(new ChangeFrameCommand(frame, frame.withLocked(!frame.locked())));
+            return;
+        }
+        context.selection().select(frame.id());
+        context.showContextMenu(Optional.of(frame), event.screenPosition());
     }
 
     /** What a press on the title bar grabs: the frame, or the frame and its contents when it is locked. */
@@ -213,6 +228,11 @@ public final class FrameGestures implements SelectToolDelegate {
                             .ifPresent(element -> context.paintGhost(graphics, element.translate(deltaX, deltaY)));
                 }
             }
+        }
+        double pixelsPerGrid = context.viewport().pixelsPerUnit();
+        for (Frame frame : context.openDocument().document().frames()) {
+            FramePainter.paintControls(graphics, frame,
+                    frame.id().equals(hovered) || context.selection().contains(frame.id()), pixelsPerGrid);
         }
         double handleSize = HANDLE_PIXELS / Math.max(graphics.getTransform().getScaleX(), Double.MIN_VALUE);
         graphics.setColor(context.scheme().selection());

@@ -86,6 +86,7 @@ public final class EditorView extends JPanel implements CanvasHost {
     private final JToggleButton panButton;
     private final Map<Class<? extends Tool>, JToggleButton> extraToolButtons = new LinkedHashMap<>();
     private final LabelFeatures labelFeatures;
+    private cl.almejo.vsim.ui.library.TemplateActions templateActions;
     private final EditorServices services;
     private final Runnable appearanceListener;
     private final List<Runnable> extensionDisposers = new ArrayList<>();
@@ -187,6 +188,16 @@ public final class EditorView extends JPanel implements CanvasHost {
     public InspectorPanel inspector() { return inspector; }
     public BottomDock bottomDock() { return bottomDock; }
     public LabelFeatures labelFeatures() { return labelFeatures; }
+
+    /** The template actions of this view, once the templates extension is installed. */
+    public java.util.Optional<cl.almejo.vsim.ui.library.TemplateActions> templateActions() {
+        return java.util.Optional.ofNullable(templateActions);
+    }
+
+    /** Set by the templates extension (and cleared with {@code null} when it is disposed). */
+    public void setTemplateActions(cl.almejo.vsim.ui.library.TemplateActions actions) {
+        this.templateActions = actions;
+    }
     public ProblemsController problems() { return problems; }
     public JMenuBar menuBar() { return menuBar; }
     public JToolBar toolBar() { return toolBar; }
