@@ -2,9 +2,9 @@ package cl.almejo.vsim.ui.panels;
 
 import cl.almejo.vsim.core.command.ChangeFrameCommand;
 import cl.almejo.vsim.core.command.ChangeParametersCommand;
-import cl.almejo.vsim.core.command.MoveElementsCommand;
 import cl.almejo.vsim.core.command.Command;
 import cl.almejo.vsim.core.command.CompositeCommand;
+import cl.almejo.vsim.core.command.MoveElementsCommand;
 import cl.almejo.vsim.core.command.SetLabelCommand;
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.document.CircuitDocument;
@@ -16,12 +16,12 @@ import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.Frame;
 import cl.almejo.vsim.core.document.FrameContents;
 import cl.almejo.vsim.core.document.FrameTint;
-import cl.almejo.vsim.ui.frames.FrameMenu;
 import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.Selection;
 import cl.almejo.vsim.ui.clipboard.FragmentRefusingTransferHandler;
+import cl.almejo.vsim.ui.i18n.FrameTintNames;
 import cl.almejo.vsim.ui.i18n.Messages;
 import net.miginfocom.swing.MigLayout;
 
@@ -204,7 +204,7 @@ public final class PropertiesPanel extends JPanel {
         ElementId id = frame.id();
         int built = generation;
         JTextField field = addTextRow(Messages.text("properties.frameTitle"), frame.title());
-        Runnable applyTitle = () -> applyIfCurrent(built, () -> editFrame(id, now -> now.withTitle(field.getText())));
+        Runnable applyTitle = () -> applyIfCurrent(built, () -> editFrame(id, now -> now.withTitle(field.getText().strip())));
         listenForCommit(field, applyTitle);
         textField = field;
         pendingEdits = applyTitle;
@@ -215,7 +215,7 @@ public final class PropertiesPanel extends JPanel {
             public java.awt.Component getListCellRendererComponent(JList<?> list, Object value, int index,
                                                                    boolean selected, boolean focused) {
                 return super.getListCellRendererComponent(list,
-                        value instanceof FrameTint tint ? FrameMenu.tintName(tint) : value, index, selected,
+                        value instanceof FrameTint tint ? FrameTintNames.of(tint) : value, index, selected,
                         focused);
             }
         });
@@ -279,13 +279,10 @@ public final class PropertiesPanel extends JPanel {
             if (deltaX == 0 && deltaY == 0) {
                 return;
             }
-            if (current.locked()) {
-                openDocument.execute(new MoveElementsCommand(
-                        FrameContents.block(openDocument.document(), openDocument.registry(), current),
-                        deltaX, deltaY));
-            } else {
-                openDocument.execute(new ChangeFrameCommand(current, current.translate(deltaX, deltaY)));
-            }
+            Set<ElementId> moved = current.locked()
+                    ? FrameContents.block(openDocument.document(), openDocument.registry(), current)
+                    : Set.of(id);
+            openDocument.execute(new MoveElementsCommand(moved, deltaX, deltaY)); // the canvas drag's command
         });
         refreshFrameFields(id);
     }

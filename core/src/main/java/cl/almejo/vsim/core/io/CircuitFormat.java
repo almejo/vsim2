@@ -49,7 +49,10 @@ public final class CircuitFormat {
     record LabelEntry(String id, int x, int y, String text) {
     }
 
-    /** A frame; {@code tint} is the {@link FrameTint} name, and an unknown name reads as {@code NONE}. */
+    /**
+     * A frame; {@code tint} is the {@link FrameTint} name, and an unknown name reads as {@code NONE}; a size under the
+     * minimum reads as the minimum.
+     */
     record FrameEntry(String id, int x, int y, int width, int height, String title, String tint, boolean locked) {
     }
 
@@ -67,8 +70,10 @@ public final class CircuitFormat {
                 tint = FrameTint.NONE;
             }
         }
-        return new Frame(new ElementId(entry.id()), new GridPoint(entry.x(), entry.y()), entry.width(),
-                entry.height(), entry.title(), tint, entry.locked());
+        // a hand-edited size under the minimum is clamped, so one bad frame never fails the whole file
+        return new Frame(new ElementId(entry.id()), new GridPoint(entry.x(), entry.y()),
+                Math.max(Frame.MINIMUM_WIDTH, entry.width()), Math.max(Frame.MINIMUM_HEIGHT, entry.height()),
+                entry.title(), tint, entry.locked());
     }
 
     static ComponentEntry componentEntry(Component component) {

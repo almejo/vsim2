@@ -4,6 +4,7 @@ import cl.almejo.vsim.core.component.ElementBounds;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.Frame;
 import cl.almejo.vsim.core.document.FrameContents;
+import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.examples.CircuitBuilder;
 import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.library.ComponentDefinition;
@@ -20,6 +21,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /** The bus carries every byte to the LEDs and the display; the ALU computes its four operations and flags. */
 class BusAndAluExamplesTest {
+
+    private static final int TITLE_BAND_ROWS = 2;
 
     @Test
     void theBusAndTheAluAreWiredAndExplainedCleanly() {
@@ -123,6 +126,26 @@ class BusAndAluExamplesTest {
                             || second.topLeft().y() + second.height() < first.topLeft().y();
                     assertThat(apart).as("%s and %s overlap", first.title(), second.title()).isTrue();
                 }
+            }
+        }
+    }
+
+    @Test
+    void noAluWireCrossesOrRunsAlongATitleBand() {
+        // a press on a title band grabs the frame, so a wire there could not be selected or extended
+        CircuitBuilder alu = BusAndAluExamples.alu();
+        for (Frame frame : alu.document().frames()) {
+            int left = frame.topLeft().x();
+            int right = left + frame.width();
+            int top = frame.topLeft().y();
+            int bottom = top + TITLE_BAND_ROWS;
+            for (Wire wire : alu.document().wires()) {
+                int wireLeft = Math.min(wire.start().x(), wire.end().x());
+                int wireRight = Math.max(wire.start().x(), wire.end().x());
+                int wireTop = Math.min(wire.start().y(), wire.end().y());
+                int wireBottom = Math.max(wire.start().y(), wire.end().y());
+                boolean apart = wireRight < left || wireLeft > right || wireBottom < top || wireTop > bottom;
+                assertThat(apart).as("%s touches the title band of %s", wire, frame.title()).isTrue();
             }
         }
     }

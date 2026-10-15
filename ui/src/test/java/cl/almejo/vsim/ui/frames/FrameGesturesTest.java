@@ -1,10 +1,12 @@
 package cl.almejo.vsim.ui.frames;
 
+import cl.almejo.vsim.core.command.AddWireCommand;
 import cl.almejo.vsim.core.command.CreateFrameCommand;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.Frame;
 import cl.almejo.vsim.core.document.FrameTint;
+import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.tools.CanvasCursor;
@@ -371,5 +373,72 @@ class FrameGesturesTest {
         tool.mousePressed(context, TestToolContext.event(10, 8, CanvasMouseEvent.PRIMARY, 2, false));
         tool.mouseReleased(context, TestToolContext.event(10, 8, CanvasMouseEvent.PRIMARY, 2, false));
         assertThat(context.editedLabel).isNull();
+    }
+
+    @Test
+    void afterADoubleClickOnATitleWhoseReleaseNeverArrivesAClickOnAnotherElementSelectsIt() {
+        // the title editor is modal, so the release of the double click is lost
+        frame(0, 0, 20, 12, false);
+        Component outside = gate(30, 4);
+        context.click(tool, 10, 1);
+        tool.mousePressed(context, TestToolContext.event(10, 1, CanvasMouseEvent.PRIMARY, 2, false));
+        context.click(tool, 32, 6);
+        assertThat(context.selection.ids()).containsExactly(outside.id());
+        assertThat(tool.autoscrolls()).isFalse();
+    }
+
+    @Test
+    void aPressOnThePadlockIsHandledWithoutGrabbingSoTheCursorStaysAndTheNextPressIsTheTools() {
+        Frame frame = frame(0, 0, 20, 12, false);
+        Component outside = gate(30, 4);
+        tool.mouseMoved(context, TestToolContext.at(25, 25));
+        int cursorsBefore = context.cursors.size();
+        tool.mousePressed(context, TestToolContext.at(17.25, 1));
+        assertThat(current(frame).locked()).isTrue();
+        assertThat(context.cursors.subList(cursorsBefore, context.cursors.size())).doesNotContain(CanvasCursor.MOVE);
+        context.click(tool, 32, 6);
+        assertThat(context.selection.ids()).containsExactly(outside.id());
+    }
+
+    @Test
+    void aLockedBlockCarriesTheWiresFullyInsideAndLeavesTheOnesCrossingTheBorder() {
+        frame(0, 0, 20, 12, true);
+        Wire inside = wire(2, 10, 12, 10);
+        Wire crossing = wire(15, 6, 30, 6);
+        context.drag(tool, 10, 1, 13, 3);
+        assertThat(context.openDocument().document().wire(inside.id()).orElseThrow())
+                .isEqualTo(inside.translate(3, 2));
+        assertThat(context.openDocument().document().wire(crossing.id()).orElseThrow()).isEqualTo(crossing);
+    }
+
+    private Wire wire(int startX, int startY, int endX, int endY) {
+        Wire wire = new Wire(context.openDocument().document().newWireId(), new GridPoint(startX, startY),
+                new GridPoint(endX, endY));
+        context.openDocument().execute(new AddWireCommand(wire));
+        return wire;
+    }
+
+    @Test
+    void withTheGesturesInstalledAndNoFramesClicksDragsAndRubberBandsAreUnchanged() {
+        try (TestToolContext plainContext = TestToolContext.withNewDocument()) {
+            SelectTool plainTool = new SelectTool();
+            List<TestToolContext> contexts = List.of(context, plainContext);
+            List<SelectTool> tools = List.of(tool, plainTool);
+            for (int index = 0; index < 2; index++) {
+                TestToolContext each = contexts.get(index);
+                SelectTool eachTool = tools.get(index);
+                place(each.openDocument(), StandardComponentTypes.NOT, 4, 4, Map.of());
+                place(each.openDocument(), StandardComponentTypes.NOT, 20, 4, Map.of());
+                each.click(eachTool, 6, 6);
+                each.drag(eachTool, 6, 6, 9, 8);
+                each.drag(eachTool, 1, 1, 30, 30);
+                each.drag(eachTool, 9, 8, 9, 12);
+                each.click(eachTool, 40, 40);
+            }
+            assertThat(context.openDocument().document().elements())
+                    .isEqualTo(plainContext.openDocument().document().elements());
+            assertThat(context.cursors).isEqualTo(plainContext.cursors);
+            assertThat(context.selection.ids()).isEqualTo(plainContext.selection.ids());
+        }
     }
 }

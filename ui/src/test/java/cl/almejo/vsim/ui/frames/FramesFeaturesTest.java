@@ -5,6 +5,7 @@ import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.Frame;
 import cl.almejo.vsim.core.document.FrameTint;
+import cl.almejo.vsim.core.command.ChangeFrameCommand;
 import cl.almejo.vsim.core.command.CreateFrameCommand;
 import cl.almejo.vsim.core.command.SetLabelCommand;
 import cl.almejo.vsim.core.geometry.Bounds;
@@ -28,8 +29,10 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import javax.swing.JMenuItem;
+import java.awt.Graphics2D;
 import java.awt.event.ActionEvent;
 import java.awt.geom.Rectangle2D;
+import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -247,6 +250,55 @@ class FramesFeaturesTest {
         view.canvas().selection().set(List.of(locked.id(), kept.id()));
         delete();
         assertThat(view.statusBar().text()).doesNotContain("bloque");
+    }
+
+    @Test
+    void deletingAnEmptyLockedFrameShowsNoBlockNotice() {
+        Frame empty = addFrame(true);
+        view.canvas().selection().set(List.of(empty.id()));
+        delete();
+        assertThat(openDocument.document().elements()).isEmpty();
+        assertThat(view.statusBar().text()).doesNotContain("bloque");
+    }
+
+    @Test
+    void disposeTakesBackTheSelectionListenerAndTheContextMenuContributor() {
+        Component led = place(openDocument, StandardComponentTypes.LED, 10, 10, Map.of());
+        Frame frame = addFrame(false);
+        features.dispose();
+
+        view.canvas().selection().select(led.id());
+        assertThat(features.frameSelectionAction().isEnabled()).isFalse();
+        List<String> overFrame = menuTexts(view.contextMenu(Optional.of(frame), new java.awt.geom.Point2D.Double(1, 1)));
+        assertThat(overFrame).doesNotContain("Enmarcar selección", "Cerrar candado", "Quitar marco");
+    }
+
+    @Test
+    void theFaintPadlockOfALockedFrameShowsWhateverToolIsActive() {
+        Frame frame = addFrame(true);
+        view.canvas().setTool(new FrameTool());
+        List<Integer> locked = lockPixels(frame);
+        openDocument.execute(new ChangeFrameCommand(frame, frame.withLocked(false)));
+        List<Integer> unlocked = lockPixels(frame);
+        assertThat(locked).isNotEqualTo(unlocked);
+    }
+
+    private List<Integer> lockPixels(Frame frame) {
+        view.canvas().setSize(240, 120);
+        BufferedImage image = new BufferedImage(240, 120, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D graphics = image.createGraphics();
+        view.canvas().paint(graphics);
+        graphics.dispose();
+        Rectangle2D lock = FramePainter.lockBounds(frame);
+        java.awt.geom.Point2D topLeft = view.canvas().viewport().gridToScreen(
+                lock.getMinX() / GridPoint.PIXELS_PER_UNIT, lock.getMinY() / GridPoint.PIXELS_PER_UNIT);
+        List<Integer> pixels = new ArrayList<>();
+        for (int x = 0; x < (int) lock.getWidth(); x++) {
+            for (int y = 0; y < (int) lock.getHeight(); y++) {
+                pixels.add(image.getRGB((int) topLeft.getX() + x, (int) topLeft.getY() + y));
+            }
+        }
+        return pixels;
     }
 
     @Test

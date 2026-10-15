@@ -109,22 +109,30 @@ public final class SelectTool implements Tool {
         pressCursor().ifPresent(next -> showCursor(context, next));
     }
 
-    /** True when a delegate took the press; a primary one becomes the active delegate until the release. */
+    /**
+     * True when a delegate took the press. A primary press a delegate grabs makes it the active delegate until the
+     * release; one it only handled leaves no pending state, so a lost release (a modal editor opened by a double
+     * click) never blocks the next press.
+     */
     private boolean delegatePress(ToolContext context, CanvasMouseEvent event) {
         if (activeDelegate != null) {
             return true; // another press while the delegate's press is held belongs to it
         }
         for (SelectToolDelegate delegate : delegates) {
-            if (delegate.pressed(context, event)) {
-                if (event.button() == CanvasMouseEvent.PRIMARY) {
-                    reset();
-                    ownPressSeen = true;
+            SelectToolDelegate.Press answer = delegate.pressed(context, event);
+            if (answer == SelectToolDelegate.Press.IGNORED) {
+                continue;
+            }
+            if (event.button() == CanvasMouseEvent.PRIMARY) {
+                reset();
+                ownPressSeen = true;
+                if (answer == SelectToolDelegate.Press.GRABBED) {
                     activeDelegate = delegate;
                     hoverPin = null;
                     showCursor(context, delegate.pressCursor());
                 }
-                return true;
             }
+            return true;
         }
         return false;
     }

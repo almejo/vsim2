@@ -5,19 +5,29 @@ import java.util.Optional;
 
 /**
  * Something {@link SelectTool} asks before doing its own work (M6.3: the title bars and edges of frames). A delegate
- * that takes a primary press also receives the drag and the release that follow it; the tool does nothing else with
+ * that grabs a primary press also receives the drag and the release that follow it; the tool does nothing else with
  * them. Where no delegate takes the press, the tool behaves exactly as without delegates.
  */
 public interface SelectToolDelegate {
 
-    /** A primary or secondary press; true when the delegate takes it. */
-    boolean pressed(ToolContext context, CanvasMouseEvent event);
+    /** What a delegate did with a press. */
+    enum Press {
+        /** Not the delegate's: the next delegate, or the tool, gets it. */
+        IGNORED,
+        /** Done with at once (a click on a control, a toggle, a menu, an editor): the drag and release are nobody's. */
+        HANDLED,
+        /** Taken with its drag and release, which go to this delegate only. */
+        GRABBED
+    }
 
-    /** The pointer moved while the primary press this delegate took is held. */
+    /** A primary or secondary press. Only a primary press can be {@link Press#GRABBED}. */
+    Press pressed(ToolContext context, CanvasMouseEvent event);
+
+    /** The pointer moved while the primary press this delegate grabbed is held. */
     default void dragged(ToolContext context, CanvasMouseEvent event) {
     }
 
-    /** The primary button of the press this delegate took was released. */
+    /** The primary button of the press this delegate grabbed was released. */
     default void released(ToolContext context, CanvasMouseEvent event) {
     }
 

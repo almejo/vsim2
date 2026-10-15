@@ -39,7 +39,8 @@ public record ColorScheme(Color background, Color grid, Color wireZero, Color wi
     private static final int LIGHT_TINT_ALPHA = 40;
     private static final int DARK_TINT_ALPHA = 56;
     private static final int BORDER_ALPHA = 170;
-    private static final int VEIL_ALPHA = 150;
+    private static final int LIGHT_VEIL_ALPHA = 115;
+    private static final int DARK_VEIL_ALPHA = 140;
 
     /** True when the board is dark, which picks the dark variant of the frame tints. */
     public boolean isDark() {
@@ -78,8 +79,11 @@ public record ColorScheme(Color background, Color grid, Color wireZero, Color wi
         return text;
     }
 
-    /** A translucent cover of the board color, for dimming what is behind a frame. */
+    /**
+     * The dark translucent cover over what lies outside a frame while it is moved or resized: black at about 45 % on
+     * a light board and 55 % on a dark one, so it darkens in every scheme.
+     */
     public Color frameVeil() {
-        return new Color((background.getRGB() & 0xFFFFFF) | (VEIL_ALPHA << 24), true);
+        return new Color(0, 0, 0, isDark() ? DARK_VEIL_ALPHA : LIGHT_VEIL_ALPHA);
     }
 }

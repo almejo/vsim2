@@ -2,6 +2,7 @@ package cl.almejo.vsim.ui.library;
 
 import cl.almejo.vsim.core.command.CreateFrameCommand;
 import cl.almejo.vsim.core.document.CircuitDocument;
+import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.Frame;
 import cl.almejo.vsim.core.document.FrameTint;
 import cl.almejo.vsim.core.geometry.GridPoint;
@@ -11,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Path;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -53,15 +55,16 @@ class ConvertFrameTest {
 
     @Test
     void replacingTheSelectionAlsoRemovesTheFrameInTheSameUndoStep() {
+        CircuitDocument document = fixture.openDocument.document();
+        List<DocumentElement> before = List.copyOf(document.elements());
         fixture.dialogs.acceptForm(form -> { });
         fixture.view.templateActions().orElseThrow().createFromFrame(frame);
-        CircuitDocument document = fixture.openDocument.document();
         assertThat(document.frame(frame.id())).isEmpty();
         assertThat(document.components()).singleElement().satisfies(
                 instance -> assertThat(instance.typeId()).isEqualTo("subcircuit:negador"));
         fixture.openDocument.history().undo();
         assertThat(document.frame(frame.id())).contains(frame);
-        assertThat(document.components()).hasSize(3);
+        assertThat(document.elements()).containsExactlyElementsOf(before);
         assertThat(document.definitions()).isEmpty();
     }
 

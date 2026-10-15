@@ -43,18 +43,18 @@ public final class FrameGestures implements SelectToolDelegate {
     private ElementId hovered;
 
     @Override
-    public boolean pressed(ToolContext context, CanvasMouseEvent event) {
+    public Press pressed(ToolContext context, CanvasMouseEvent event) {
         CircuitDocument document = context.openDocument().document();
         Optional<FrameHit> hit = FrameHitTester.hit(document, event.gridPosition(),
                 context.viewport().pixelsPerUnit());
         if (hit.isEmpty()) {
-            return false;
+            return Press.IGNORED;
         }
         Frame frame = hit.get().frame();
         FramePart hitPart = hit.get().part();
         if (event.button() == CanvasMouseEvent.PRIMARY && (hitPart == FramePart.LOCK || hitPart == FramePart.MENU)) {
             pressControl(context, event, frame, hitPart);
-            return true;
+            return Press.HANDLED;
         }
         Set<ElementId> ids = grabbedBy(context, frame);
         Selection selection = context.selection();
@@ -63,22 +63,23 @@ public final class FrameGestures implements SelectToolDelegate {
                 selection.set(ids);
             }
             context.showContextMenu(Optional.of(frame), event.screenPosition());
-            return true;
+            return Press.HANDLED;
         }
         if (event.button() != CanvasMouseEvent.PRIMARY) {
-            return false;
+            return Press.IGNORED;
         }
         if (event.shiftDown() || event.controlDown()) {
             toggle(selection, ids);
-            return true;
+            return Press.HANDLED;
         }
-        if (event.clickCount() >= 2 && hit.get().part() == FramePart.TITLE_BAR) {
+        if (event.clickCount() >= 2 && hitPart == FramePart.TITLE_BAR) {
+            // handled without a grab: the modal editor swallows the release, which must not be awaited
             selection.select(frame.id());
             context.editLabel(frame);
-            return true;
+            return Press.HANDLED;
         }
         grabbed = frame;
-        part = hit.get().part();
+        part = hitPart;
         grabbedIds = ids;
         pressPoint = event.snapped();
         if (part.resizes()) {
@@ -90,7 +91,7 @@ public final class FrameGestures implements SelectToolDelegate {
         } else {
             selection.set(ids);
         }
-        return true;
+        return Press.GRABBED;
     }
 
     /** The padlock toggles the lock; the ⋯ button opens the frame menu. */
@@ -231,8 +232,10 @@ public final class FrameGestures implements SelectToolDelegate {
         }
         double pixelsPerGrid = context.viewport().pixelsPerUnit();
         for (Frame frame : context.openDocument().document().frames()) {
-            FramePainter.paintControls(graphics, frame,
-                    frame.id().equals(hovered) || context.selection().contains(frame.id()), pixelsPerGrid);
+            // the faint padlock of the other locked frames comes from FrameLockOverlay, whatever the tool
+            if (frame.id().equals(hovered) || context.selection().contains(frame.id())) {
+                FramePainter.paintControls(graphics, frame, true, pixelsPerGrid);
+            }
         }
         double handleSize = HANDLE_PIXELS / Math.max(graphics.getTransform().getScaleX(), Double.MIN_VALUE);
         graphics.setColor(context.scheme().selection());
@@ -279,15 +282,15 @@ public final class FrameGestures implements SelectToolDelegate {
     /** The eight handles of {@code frame}: corners and edge midpoints, centered on the border. */
     static List<Rectangle2D> handles(Frame frame, double size) {
         Rectangle2D bounds = FramePainter.bounds(frame);
-        double[] xs = {bounds.getMinX(), bounds.getCenterX(), bounds.getMaxX()};
-        double[] ys = {bounds.getMinY(), bounds.getCenterY(), bounds.getMaxY()};
+        double[] columns = {bounds.getMinX(), bounds.getCenterX(), bounds.getMaxX()};
+        double[] rows = {bounds.getMinY(), bounds.getCenterY(), bounds.getMaxY()};
         List<Rectangle2D> handles = new ArrayList<>();
-        for (int row = 0; row < ys.length; row++) {
-            for (int column = 0; column < xs.length; column++) {
+        for (int row = 0; row < rows.length; row++) {
+            for (int column = 0; column < columns.length; column++) {
                 if (row == 1 && column == 1) {
                     continue;
                 }
-                handles.add(new Rectangle2D.Double(xs[column] - size / 2, ys[row] - size / 2, size, size));
+                handles.add(new Rectangle2D.Double(columns[column] - size / 2, rows[row] - size / 2, size, size));
             }
         }
         return handles;

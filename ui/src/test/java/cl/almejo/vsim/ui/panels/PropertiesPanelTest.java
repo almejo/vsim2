@@ -309,12 +309,22 @@ class PropertiesPanelTest {
     }
 
     @Test
+    void theFrameTitleIsStrippedLikeTheTitleEditorDoes() {
+        Frame frame = frame(false);
+        panel.textField().setText("  Lógica  ");
+        panel.commitEdits();
+        assertThat(current(frame).title()).isEqualTo("Lógica");
+    }
+
+    @Test
     void sizeAndPositionEditsOfAnUnlockedFrameAreOneUndoStepEach() {
         Frame frame = frame(false);
         panel.frameSpinners()[2].setValue(30);
         assertThat(current(frame).width()).isEqualTo(30);
         panel.frameSpinners()[0].setValue(10);
         assertThat(current(frame).topLeft()).isEqualTo(new GridPoint(10, 3));
+        // the same move the canvas drag makes, so the undo item says «mover»
+        assertThat(openDocument.history().undoDescription()).contains("command.move");
         openDocument.history().undo();
         assertThat(current(frame).topLeft()).isEqualTo(new GridPoint(2, 3));
         assertThat(current(frame).width()).isEqualTo(30);

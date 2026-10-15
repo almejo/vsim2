@@ -96,6 +96,10 @@ public final class Selection {
         listeners.add(listener);
     }
 
+    public void removeListener(Runnable listener) {
+        listeners.remove(listener);
+    }
+
     private void fire() {
         listeners.forEach(Runnable::run);
     }

@@ -86,6 +86,32 @@ class FramePainterTest {
     }
 
     @Test
+    void theVeilDarkensTheBoardInEveryScheme() {
+        for (String id : ColorSchemes.ids()) {
+            ColorScheme scheme = ColorSchemes.byId(id).orElseThrow();
+            BufferedImage image = new BufferedImage(40, 20, BufferedImage.TYPE_INT_RGB);
+            Graphics2D graphics = image.createGraphics();
+            graphics.setColor(scheme.background());
+            graphics.fillRect(0, 0, 40, 20);
+            graphics.setClip(0, 0, 40, 20);
+            FrameVeil.paint(graphics, new Rectangle2D.Double(20, 0, 20, 20), scheme);
+            graphics.dispose();
+            Color veiled = new Color(image.getRGB(5, 10));
+            Color clear = new Color(image.getRGB(30, 10));
+            assertThat(clear).as(id).isEqualTo(new Color(scheme.background().getRGB() & 0xFFFFFF));
+            // a black board (twilight) cannot get darker
+            assertThat(luminance(veiled)).as(id).isLessThanOrEqualTo(luminance(clear) * 0.75);
+            if (scheme == ColorScheme.LIGHT || scheme == ColorSchemes.DARK) {
+                assertThat(luminance(veiled)).as(id).isLessThan(luminance(clear) * 0.75);
+            }
+        }
+    }
+
+    private static double luminance(Color color) {
+        return 0.2126 * color.getRed() + 0.7152 * color.getGreen() + 0.0722 * color.getBlue();
+    }
+
+    @Test
     void lightAndDarkSchemesUseDifferentVariantsOfATint() {
         assertThat(ColorScheme.LIGHT.frameTint(FrameTint.BLUE)).isNotEqualTo(ColorSchemes.DARK.frameTint(FrameTint.BLUE));
     }

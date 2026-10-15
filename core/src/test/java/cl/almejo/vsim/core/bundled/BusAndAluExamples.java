@@ -285,9 +285,11 @@ public final class BusAndAluExamples {
         builder.link(carryGate, 3, carryLed, 0);
 
         // Locked frames (they never touch the simulation). Each encloses whole parts with a margin and keeps its two
-        // title rows free; the bit frame ends at 78 and the selector frame starts at 80 so they do not overlap.
-        frame(builder, 28, 6, 24, 72, "Sumador y lógica", FrameTint.BLUE);
-        frame(builder, 0, 80, 44, 16, "Selector de operación", FrameTint.YELLOW);
+        // title rows free of wires, since a press there grabs the frame: the bit frame starts above the Cin wire
+        // (y 8), and the selector frame holds only S1 and S0, so the select lines (x 30 and 34) leave it by the
+        // side. The bit frame ends at 78 and the selector frame starts at 80 so they do not overlap.
+        frame(builder, 28, 4, 24, 74, "Sumador y lógica", FrameTint.BLUE);
+        frame(builder, 0, 80, 26, 16, "Selector de operación", FrameTint.YELLOW);
         frame(builder, 66, 29, 24, 23, "Banderas", FrameTint.PURPLE);
 
         builder.text(2, 0, "ALU de 4 bits");

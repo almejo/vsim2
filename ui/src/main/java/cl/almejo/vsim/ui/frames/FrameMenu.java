@@ -6,6 +6,7 @@ import cl.almejo.vsim.core.document.Frame;
 import cl.almejo.vsim.core.document.FrameContents;
 import cl.almejo.vsim.core.document.FrameTint;
 import cl.almejo.vsim.ui.app.OpenDocument;
+import cl.almejo.vsim.ui.i18n.FrameTintNames;
 import cl.almejo.vsim.ui.i18n.Messages;
 
 import javax.swing.ButtonGroup;
@@ -33,19 +34,6 @@ public final class FrameMenu {
         this.componentConverter = componentConverter;
     }
 
-    /** The visible name of {@code tint}. */
-    public static String tintName(FrameTint tint) {
-        return Messages.text(switch (tint) {
-            case NONE -> "frames.tint.none";
-            case BLUE -> "frames.tint.blue";
-            case GREEN -> "frames.tint.green";
-            case YELLOW -> "frames.tint.yellow";
-            case RED -> "frames.tint.red";
-            case PURPLE -> "frames.tint.purple";
-            case GRAY -> "frames.tint.gray";
-        });
-    }
-
     /** A popup holding only the frame items, for tests. */
     public JPopupMenu build(Frame frame) {
         JPopupMenu menu = new JPopupMenu();
@@ -59,7 +47,7 @@ public final class FrameMenu {
         JMenu color = new JMenu(Messages.text("frames.menu.color"));
         ButtonGroup group = new ButtonGroup();
         for (FrameTint tint : FrameTint.values()) {
-            JRadioButtonMenuItem radio = new JRadioButtonMenuItem(tintName(tint), frame.tint() == tint);
+            JRadioButtonMenuItem radio = new JRadioButtonMenuItem(FrameTintNames.of(tint), frame.tint() == tint);
             radio.addActionListener(event -> current(frame).ifPresent(
                     now -> change(now, now.withTint(tint))));
             group.add(radio);

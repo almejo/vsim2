@@ -15,6 +15,7 @@ import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.canvas.CircuitRenderer;
 import cl.almejo.vsim.ui.clipboard.FragmentClipboard;
 import cl.almejo.vsim.ui.icons.Icons;
+import cl.almejo.vsim.ui.library.TemplateActions;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.panels.PalettePanel;
@@ -86,7 +87,7 @@ public final class EditorView extends JPanel implements CanvasHost {
     private final JToggleButton panButton;
     private final Map<Class<? extends Tool>, JToggleButton> extraToolButtons = new LinkedHashMap<>();
     private final LabelFeatures labelFeatures;
-    private cl.almejo.vsim.ui.library.TemplateActions templateActions;
+    private TemplateActions templateActions;
     private final EditorServices services;
     private final Runnable appearanceListener;
     private final List<Runnable> extensionDisposers = new ArrayList<>();
@@ -190,12 +191,12 @@ public final class EditorView extends JPanel implements CanvasHost {
     public LabelFeatures labelFeatures() { return labelFeatures; }
 
     /** The template actions of this view, once the templates extension is installed. */
-    public java.util.Optional<cl.almejo.vsim.ui.library.TemplateActions> templateActions() {
-        return java.util.Optional.ofNullable(templateActions);
+    public Optional<TemplateActions> templateActions() {
+        return Optional.ofNullable(templateActions);
     }
 
     /** Set by the templates extension (and cleared with {@code null} when it is disposed). */
-    public void setTemplateActions(cl.almejo.vsim.ui.library.TemplateActions actions) {
+    public void setTemplateActions(TemplateActions actions) {
         this.templateActions = actions;
     }
     public ProblemsController problems() { return problems; }
@@ -211,8 +212,10 @@ public final class EditorView extends JPanel implements CanvasHost {
         return menu;
     }
 
-    public void addContextMenuContributor(ContextMenuContributor contributor) {
+    /** Adds items to every context menu from now on; the returned runnable takes the contributor back. */
+    public Runnable addContextMenuContributor(ContextMenuContributor contributor) {
         contextMenuContributors.add(contributor);
+        return () -> contextMenuContributors.remove(contributor);
     }
 
     /**

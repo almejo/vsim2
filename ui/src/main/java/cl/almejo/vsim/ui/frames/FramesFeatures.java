@@ -30,7 +30,8 @@ import java.util.function.Consumer;
 /**
  * The frames of one editor view: Editar ▸ «Enmarcar selección» (and its context menu item), the select tool's frame
  * gestures (select, move, resize) and the notice when «Borrar» removes a locked block. {@link #dispose()} takes back
- * the menu item, the shortcut registration, the gestures and the delete listener.
+ * every registration: menu items, shortcuts, tool button, gestures, the padlock overlay, the delete and selection
+ * listeners and the context-menu contributor.
  */
 public final class FramesFeatures {
 
@@ -55,6 +56,9 @@ public final class FramesFeatures {
     private final FrameGestures gestures = new FrameGestures();
     private final Runnable gesturesRemover;
     private final Runnable deleteListenerRemover;
+    private final Runnable selectionListener;
+    private final Runnable contributorRemover;
+    private final FrameLockOverlay lockOverlay;
     private boolean disposed;
 
     public FramesFeatures(EditorView view) {
@@ -66,9 +70,8 @@ public final class FramesFeatures {
             }
         };
         frameSelection.setEnabled(!view.canvas().selection().isEmpty());
-        // the selection has no way to drop a listener; after dispose this one only touches its own action
-        view.canvas().selection().addListener(
-                () -> frameSelection.setEnabled(!view.canvas().selection().isEmpty()));
+        this.selectionListener = () -> frameSelection.setEnabled(!view.canvas().selection().isEmpty());
+        view.canvas().selection().addListener(selectionListener);
         this.editMenu = view.menu(MenuId.EDIT);
         this.menuItem = new JMenuItem(frameSelection);
         editMenu.insert(menuItem, indexAfterSelectAll());
@@ -93,12 +96,11 @@ public final class FramesFeatures {
         this.deleteListenerRemover = view.actions().addDeleteListener(ids -> blockDeletedNotice(
                 view.openDocument().document(), view.openDocument().registry(), ids)
                 .ifPresent(view.statusBar()::showNotice));
+        this.lockOverlay = new FrameLockOverlay(() -> view.canvas().viewport().pixelsPerUnit());
+        view.canvas().addOverlay(lockOverlay);
         this.frameMenu = new FrameMenu(view.openDocument(), frame -> titleEditor.accept(frame),
                 frame -> view.templateActions().ifPresent(actions -> actions.createFromFrame(frame)));
-        view.addContextMenuContributor((menu, target, selection, gridPosition) -> {
-            if (disposed) {
-                return;
-            }
+        this.contributorRemover = view.addContextMenuContributor((menu, target, selection, gridPosition) -> {
             if (target.isPresent() && target.get() instanceof Frame frame) {
                 frameMenu.addItems(menu, frame);
             }
@@ -155,7 +157,8 @@ public final class FramesFeatures {
 
     /**
      * The notice for deleting {@code ids} when they hold a whole locked block (the frame and all its contents):
-     * «Se borró el bloque «title» (n elementos)», n counting the contents. With several blocks, the largest one.
+     * «Se borró el bloque «title» (n elementos)», n counting the contents. With several blocks, the largest one; an
+     * empty locked frame is no block.
      */
     static Optional<String> blockDeletedNotice(CircuitDocument document, ComponentTypeRegistry registry,
                                                Set<ElementId> ids) {
@@ -166,7 +169,7 @@ public final class FramesFeatures {
                 continue;
             }
             Set<ElementId> contents = FrameContents.of(document, registry, frame);
-            if (ids.containsAll(contents) && contents.size() > largestContents) {
+            if (!contents.isEmpty() && ids.containsAll(contents) && contents.size() > largestContents) {
                 largest = frame;
                 largestContents = contents.size();
             }
@@ -218,6 +221,9 @@ public final class FramesFeatures {
         viewMenu.remove(toolMenuItem);
         gesturesRemover.run();
         deleteListenerRemover.run();
+        view.canvas().selection().removeListener(selectionListener);
+        contributorRemover.run();
+        view.canvas().removeOverlay(lockOverlay);
         editMenu.remove(menuItem);
     }
 }

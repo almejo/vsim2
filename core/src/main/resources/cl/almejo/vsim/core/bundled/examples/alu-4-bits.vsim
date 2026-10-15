@@ -1586,9 +1586,9 @@
   "frames" : [ {
     "id" : "f109",
     "x" : 28,
-    "y" : 6,
+    "y" : 4,
     "width" : 24,
-    "height" : 72,
+    "height" : 74,
     "title" : "Sumador y lógica",
     "tint" : "BLUE",
     "locked" : true
@@ -1596,7 +1596,7 @@
     "id" : "f110",
     "x" : 0,
     "y" : 80,
-    "width" : 44,
+    "width" : 26,
     "height" : 16,
     "title" : "Selector de operación",
     "tint" : "YELLOW",

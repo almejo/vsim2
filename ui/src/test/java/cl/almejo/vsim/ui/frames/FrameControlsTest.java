@@ -6,6 +6,8 @@ import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.Frame;
 import cl.almejo.vsim.core.document.FrameTint;
 import cl.almejo.vsim.core.geometry.GridPoint;
+import cl.almejo.vsim.ui.app.OpenDocument;
+import cl.almejo.vsim.ui.canvas.RenderState;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.tools.CanvasCursor;
 import cl.almejo.vsim.ui.tools.SelectTool;
@@ -23,6 +25,7 @@ import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static cl.almejo.vsim.ui.UiTestSupport.place;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -118,10 +121,18 @@ class FrameControlsTest {
 
     // --- painting
 
+    private RenderState renderState() {
+        OpenDocument source = context.openDocument();
+        return new RenderState(source.document(), source.netlist(), source.netlistToken(), source.latestSnapshot(),
+                Set.of(), 0);
+    }
+
     private int alphaAround(Frame frame, boolean lockNotMenu) {
         BufferedImage image = new BufferedImage(200, 100, BufferedImage.TYPE_INT_ARGB);
         Graphics2D graphics = image.createGraphics();
         graphics.setClip(0, 0, 200, 100);
+        // as the canvas paints: the overlays (the faint padlock), then the tool's overlay
+        new FrameLockOverlay(() -> context.viewport().pixelsPerUnit()).paint(graphics, renderState());
         tool.paintOverlay(graphics, context);
         graphics.dispose();
         var bounds = lockNotMenu ? FramePainter.lockBounds(frame) : FramePainter.menuBounds(frame);

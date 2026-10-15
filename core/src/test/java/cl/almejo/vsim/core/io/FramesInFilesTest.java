@@ -49,6 +49,19 @@ class FramesInFilesTest {
     }
 
     @Test
+    void anUndersizedFrameIsClampedToTheMinimumInsteadOfFailingTheFile() throws CircuitFormatException {
+        CircuitDocument document = circuitFormat.read("""
+                {"formatVersion":2,"kind":"circuit","frames":[
+                {"id":"f1","x":3,"y":4,"width":2,"height":-1,"title":"x","tint":"BLUE","locked":true}]}
+                """);
+        assertThat(document.frames()).singleElement().satisfies(frame -> {
+            assertThat(frame.width()).isEqualTo(Frame.MINIMUM_WIDTH);
+            assertThat(frame.height()).isEqualTo(Frame.MINIMUM_HEIGHT);
+            assertThat(frame.topLeft()).isEqualTo(new GridPoint(3, 4));
+        });
+    }
+
+    @Test
     void aFragmentWithFramesRoundTripsAndStartsAtTheOrigin() throws CircuitFormatException {
         CircuitFragment fragment = new CircuitFragment(List.of(), List.of(),
                 List.of(new TextLabel(new ElementId("l2"), new GridPoint(4, 4), "n")), List.of(), List.of(frame));
