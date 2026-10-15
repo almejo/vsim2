@@ -13,6 +13,7 @@ public final class SetLabelCommand implements Command {
     private final ElementId id;
     private final String text;
     private String previousText;
+    private boolean forFrame;
 
     public SetLabelCommand(ElementId id, String text) {
         this.id = id;
@@ -23,6 +24,7 @@ public final class SetLabelCommand implements Command {
     public void apply(CircuitDocument document) {
         DocumentElement element = document.element(id).orElseThrow();
         previousText = currentText(element);
+        forFrame = element instanceof Frame;
         document.replace(withText(element, text));
     }
 
@@ -51,6 +53,6 @@ public final class SetLabelCommand implements Command {
 
     @Override
     public String description() {
-        return "command.label";
+        return forFrame ? "command.renameFrame" : "command.label";
     }
 }

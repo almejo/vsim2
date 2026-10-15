@@ -77,6 +77,7 @@ public final class ShortcutCatalog {
         canvas(entries, "edit.label", "action.label", stroke(KeyEvent.VK_F2, 0));
         window(entries, "view.selectTool", "action.toolSelect", MenuId.VIEW, null);
         window(entries, "view.wireTool", "action.toolWire", MenuId.VIEW, null);
+        window(entries, "view.frameTool", "action.toolFrame", MenuId.VIEW, null);
         window(entries, "view.panTool", "action.toolPan", MenuId.VIEW, null);
         window(entries, "view.zoomIn", "action.zoomIn", MenuId.VIEW, stroke(KeyEvent.VK_EQUALS, menu));
         window(entries, "view.zoomOut", "action.zoomOut", MenuId.VIEW, stroke(KeyEvent.VK_MINUS, menu));

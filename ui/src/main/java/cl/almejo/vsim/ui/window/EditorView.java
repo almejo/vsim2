@@ -84,6 +84,7 @@ public final class EditorView extends JPanel implements CanvasHost {
     private final JToggleButton selectButton;
     private final JToggleButton wireButton;
     private final JToggleButton panButton;
+    private final Map<Class<? extends Tool>, JToggleButton> extraToolButtons = new LinkedHashMap<>();
     private final LabelFeatures labelFeatures;
     private final EditorServices services;
     private final Runnable appearanceListener;
@@ -344,6 +345,38 @@ public final class EditorView extends JPanel implements CanvasHost {
         getActionMap().put("zoomReset", actions.zoomReset());
     }
 
+    /**
+     * Adds a toggle button for an extension's tool right after the Cable button; it shows as pressed while a tool of
+     * {@code toolType} is active. Returns what takes the button back.
+     */
+    public Runnable addToolButton(Action action, Class<? extends Tool> toolType) {
+        JToggleButton button = new JToggleButton(action);
+        toolButtons.add(button);
+        extraToolButtons.put(toolType, button);
+        toolBar.add(button, indexOfToolButton(wireButton) + 1);
+        toolBar.revalidate();
+        return () -> {
+            extraToolButtons.remove(toolType, button);
+            toolButtons.remove(button);
+            toolBar.remove(button);
+            toolBar.revalidate();
+        };
+    }
+
+    /** The toolbar's button for tools of {@code toolType} added with {@link #addToolButton}, if any. */
+    public Optional<JToggleButton> toolButton(Class<? extends Tool> toolType) {
+        return Optional.ofNullable(extraToolButtons.get(toolType));
+    }
+
+    private int indexOfToolButton(JToggleButton button) {
+        for (int index = 0; index < toolBar.getComponentCount(); index++) {
+            if (toolBar.getComponent(index) == button) {
+                return index;
+            }
+        }
+        return toolBar.getComponentCount() - 1;
+    }
+
     private void buildToolBar() {
         toolBar.setFloatable(false);
         toolBar.add(actions.newDocument());
@@ -386,7 +419,14 @@ public final class EditorView extends JPanel implements CanvasHost {
             case SelectTool select -> selectButton.setSelected(true);
             case WireTool wire -> wireButton.setSelected(true);
             case PanTool pan -> panButton.setSelected(true);
-            default -> toolButtons.clearSelection();
+            default -> {
+                JToggleButton extra = extraToolButtons.get(tool.getClass());
+                if (extra != null) {
+                    extra.setSelected(true);
+                } else {
+                    toolButtons.clearSelection();
+                }
+            }
         }
         if (!tool.placesFromPalette()) {
             palette.clearSelection();

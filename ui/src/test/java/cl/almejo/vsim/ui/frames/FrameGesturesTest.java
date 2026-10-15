@@ -353,4 +353,23 @@ class FrameGesturesTest {
         assertThat(context.selection.ids()).containsExactlyInAnyOrder(frame.id(), inside.id());
         assertThat(context.contextMenuTarget).contains(frame);
     }
+
+    @Test
+    void aDoubleClickOnTheTitleBarSelectsTheFrameAndOpensItsTitleEditor() {
+        Frame frame = frame(0, 0, 20, 12, false);
+        context.click(tool, 10, 1);
+        tool.mousePressed(context, TestToolContext.event(10, 1, CanvasMouseEvent.PRIMARY, 2, false));
+        tool.mouseReleased(context, TestToolContext.event(10, 1, CanvasMouseEvent.PRIMARY, 2, false));
+        assertThat(context.editedLabel).isEqualTo(current(frame));
+        assertThat(context.selection.ids()).containsExactly(frame.id());
+    }
+
+    @Test
+    void aDoubleClickOnTheEmptyInteriorOpensNoEditor() {
+        frame(0, 0, 20, 12, false);
+        context.click(tool, 10, 8);
+        tool.mousePressed(context, TestToolContext.event(10, 8, CanvasMouseEvent.PRIMARY, 2, false));
+        tool.mouseReleased(context, TestToolContext.event(10, 8, CanvasMouseEvent.PRIMARY, 2, false));
+        assertThat(context.editedLabel).isNull();
+    }
 }

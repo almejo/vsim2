@@ -67,6 +67,11 @@ public final class FrameGestures implements SelectToolDelegate {
             toggle(selection, ids);
             return true;
         }
+        if (event.clickCount() >= 2 && hit.get().part() == FramePart.TITLE_BAR) {
+            selection.select(frame.id());
+            context.editLabel(frame);
+            return true;
+        }
         grabbed = frame;
         part = hit.get().part();
         grabbedIds = ids;

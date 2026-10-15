@@ -12,6 +12,7 @@ import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.ui.canvas.DrawnBounds;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.icons.Icons;
 import cl.almejo.vsim.ui.tools.SelectTool;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuId;
@@ -24,6 +25,7 @@ import java.awt.event.ActionEvent;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Consumer;
 
 /**
  * The frames of one editor view: Editar ▸ «Enmarcar selección» (and its context menu item), the select tool's frame
@@ -43,6 +45,12 @@ public final class FramesFeatures {
     private final JMenu editMenu;
     private final JMenuItem menuItem;
     private final Runnable shortcutRemover;
+    private final Action frameTool;
+    private final JMenu viewMenu;
+    private final JMenuItem toolMenuItem;
+    private final Runnable toolButtonRemover;
+    private final Runnable toolShortcutRemover;
+    private Consumer<Frame> titleEditor;
     private final FrameGestures gestures = new FrameGestures();
     private final Runnable gesturesRemover;
     private final Runnable deleteListenerRemover;
@@ -64,6 +72,19 @@ public final class FramesFeatures {
         this.menuItem = new JMenuItem(frameSelection);
         editMenu.insert(menuItem, indexAfterSelectAll());
         this.shortcutRemover = view.registerShortcutAction("edit.frameSelection", frameSelection);
+        this.titleEditor = frame -> view.editLabel(frame);
+        this.frameTool = new AbstractAction(Messages.text("action.toolFrame")) {
+            @Override
+            public void actionPerformed(ActionEvent event) {
+                view.canvas().setTool(new FrameTool());
+            }
+        };
+        Icons.install(frameTool, FrameIcons.FRAME_TOOL);
+        this.toolButtonRemover = view.addToolButton(frameTool, FrameTool.class);
+        this.viewMenu = view.menu(MenuId.VIEW);
+        this.toolMenuItem = new JMenuItem(frameTool);
+        viewMenu.insert(toolMenuItem, indexAfterWireTool());
+        this.toolShortcutRemover = view.registerShortcutAction("view.frameTool", frameTool);
         this.gesturesRemover = view.canvas().defaultTool() instanceof SelectTool selectTool
                 ? selectTool.addDelegate(gestures)
                 : () -> {
@@ -87,6 +108,30 @@ public final class FramesFeatures {
             }
         }
         return editMenu.getItemCount();
+    }
+
+    private int indexAfterWireTool() {
+        Action wireTool = view.actions().wireTool();
+        for (int index = 0; index < viewMenu.getItemCount(); index++) {
+            JMenuItem item = viewMenu.getItem(index);
+            if (item != null && item.getAction() == wireTool) {
+                return index + 1;
+            }
+        }
+        return viewMenu.getItemCount();
+    }
+
+    /** The «Marco» tool's action (toolbar button and View menu item). */
+    public Action frameToolAction() {
+        return frameTool;
+    }
+
+    /**
+     * Replaces what opens the title editor of a new frame (Enmarcar selección); by default the editor F2 uses.
+     * Tests swap it so no dialog is shown.
+     */
+    public void setTitleEditor(Consumer<Frame> titleEditor) {
+        this.titleEditor = titleEditor;
     }
 
     /** The select tool's frame gestures in this view. */
@@ -145,6 +190,7 @@ public final class FramesFeatures {
                 Messages.text("frames.defaultTitle"), FrameTint.NONE, false);
         view.openDocument().execute(new CreateFrameCommand(frame));
         view.canvas().selection().select(frame.id());
+        titleEditor.accept(frame);
     }
 
     public void dispose() {
@@ -153,6 +199,9 @@ public final class FramesFeatures {
         }
         disposed = true;
         shortcutRemover.run();
+        toolShortcutRemover.run();
+        toolButtonRemover.run();
+        viewMenu.remove(toolMenuItem);
         gesturesRemover.run();
         deleteListenerRemover.run();
         editMenu.remove(menuItem);

@@ -116,7 +116,10 @@ Diseño: `docs/superpowers/specs/2026-10-08-vsim2-design.md`.
 ## Marcos (M6.3)
 
 - Editar ▸ «Enmarcar selección» (Ctrl+G; también en el menú contextual sobre una selección) dibuja un marco titulado «Bloque» alrededor de lo seleccionado, con 2 cuadros de margen. Está deshabilitado sin selección, el marco nace desbloqueado y queda seleccionado; es un solo paso de deshacer («Deshacer crear marco»).
-- Los marcos se guardan en el archivo, se copian y pegan con el resto y salen en las imágenes exportadas. Vienen más funciones (herramienta «Marco», título, color y candado).
+- Herramienta «Marco» (botón entre Cable y Mover vista, y en el menú Ver; sin atajo): arrastra sobre el lienzo para dibujar el rectángulo (con un contorno de vista previa, ajustado a la cuadrícula). Al soltar se crea un marco desbloqueado titulado «Bloque», de al menos 6 × 4 cuadros, en un solo paso de deshacer; la herramienta vuelve a Selección, el marco queda seleccionado y se abre el editor del título. Un clic sin arrastrar no crea nada, y Esc cancela el arrastre.
+- Mover y cambiar el tamaño: arrastra la barra del título. Un marco **cerrado** (candado) mueve el bloque completo, con lo que tiene dentro; uno **abierto** mueve solo el marco. Solo los marcos abiertos se pueden redimensionar (ocho tiradores en esquinas y bordes, con el cursor de cambio de tamaño); el contenido no se mueve. Mientras arrastras, lo que queda fuera del marco se oscurece. Un clic en el interior vacío del marco se comporta como el lienzo vacío (banda de selección).
+- Título: con un solo marco seleccionado, F2 (Editar ▸ «Etiqueta…»), el doble clic sobre su barra de título, y el momento de crearlo (herramienta o Ctrl+G) abren el mismo editor. Un título vacío está permitido (la barra no muestra texto). Es un solo paso de deshacer («Deshacer cambiar título del marco»).
+- Los marcos se guardan en el archivo, se copian y pegan con el resto y salen en las imágenes exportadas. Vienen más funciones (color y candado desde el menú del marco).
 
 ## Preferencias y distribución
 

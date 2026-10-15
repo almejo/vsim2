@@ -52,6 +52,7 @@ class FramesFeaturesTest {
     private OpenDocument openDocument;
     private EditorView view;
     private FramesFeatures features;
+    private final List<Frame> titleEdited = new ArrayList<>();
 
     @BeforeEach
     void create() {
@@ -61,6 +62,7 @@ class FramesFeaturesTest {
                 new Appearance(ColorScheme.LIGHT), AppPreferences.inMemory(), new ComponentLibrary(), List.of()),
                 NO_WINDOW);
         features = new FramesFeatures(view);
+        features.setTitleEditor(titleEdited::add);
     }
 
     @AfterEach
@@ -271,5 +273,49 @@ class FramesFeaturesTest {
             }
         }
         return texts;
+    }
+
+    @Test
+    void enmarcarSeleccionOpensTheTitleEditorForTheNewFrame() {
+        Component led = place(openDocument, StandardComponentTypes.LED, 10, 10, Map.of());
+        view.canvas().selection().select(led.id());
+
+        frameSelection();
+
+        assertThat(titleEdited).containsExactly(openDocument.document().frames().get(0));
+    }
+
+    @Test
+    void theMarcoToolHasAToolbarButtonBetweenCableAndManoAndAViewMenuItem() {
+        List<String> names = new ArrayList<>();
+        for (java.awt.Component child : view.toolBar().getComponents()) {
+            if (child instanceof javax.swing.JToggleButton button) {
+                names.add(button.getAction().getValue(javax.swing.Action.NAME).toString());
+            }
+        }
+        assertThat(names).containsExactly("Selección", "Cable", "Marco", "Mover vista");
+        List<String> viewTexts = new ArrayList<>();
+        for (java.awt.Component child : view.menu(MenuId.VIEW).getMenuComponents()) {
+            if (child instanceof JMenuItem item) {
+                viewTexts.add(item.getText());
+            }
+        }
+        assertThat(viewTexts.subList(0, 4)).containsExactly("Selección", "Cable", "Marco", "Mover vista");
+    }
+
+    @Test
+    void choosingTheToolSelectsItsButtonAndDisposeTakesButtonAndItemBack() {
+        features.frameToolAction().actionPerformed(new ActionEvent(this, ActionEvent.ACTION_PERFORMED, ""));
+        assertThat(view.canvas().tool()).isInstanceOf(FrameTool.class);
+        assertThat(view.toolButton(FrameTool.class).orElseThrow().isSelected()).isTrue();
+
+        features.dispose();
+
+        assertThat(view.toolButton(FrameTool.class)).isEmpty();
+        for (java.awt.Component child : view.menu(MenuId.VIEW).getMenuComponents()) {
+            if (child instanceof JMenuItem item) {
+                assertThat(item.getText()).isNotEqualTo("Marco");
+            }
+        }
     }
 }

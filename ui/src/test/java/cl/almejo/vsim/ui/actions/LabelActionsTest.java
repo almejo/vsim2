@@ -4,7 +4,10 @@ import cl.almejo.vsim.core.command.AddElementsCommand;
 import cl.almejo.vsim.core.command.AddWireCommand;
 import cl.almejo.vsim.core.command.SetLabelCommand;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
+import cl.almejo.vsim.core.command.CreateFrameCommand;
 import cl.almejo.vsim.core.document.Component;
+import cl.almejo.vsim.core.document.Frame;
+import cl.almejo.vsim.core.document.FrameTint;
 import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
@@ -152,5 +155,38 @@ class LabelActionsTest {
         assertThat(actions.editLabel().isEnabled()).isFalse();
         selection.set(List.of(gate.id(), label.id()));
         assertThat(actions.editLabel().isEnabled()).isFalse();
+    }
+
+    @Test
+    void editLabelOnAFrameChangesItsTitleAsOneUndoStepAndAnEmptyTitleIsAllowed() {
+        Frame frame = new Frame(openDocument.document().newFrameId(), new GridPoint(0, 0), 20, 10, "Bloque",
+                FrameTint.NONE, false);
+        openDocument.execute(new CreateFrameCommand(frame));
+        prompt.answer(" Sumador ");
+        actions.editLabel(frame);
+        assertThat(openDocument.document().frame(frame.id()).orElseThrow().title()).isEqualTo("Sumador");
+        assertThat(prompt.initialTexts).containsExactly("Bloque");
+        assertThat(openDocument.history().undoDescription()).contains("command.renameFrame");
+
+        prompt.answer("");
+        actions.editLabel(openDocument.document().frame(frame.id()).orElseThrow());
+        assertThat(openDocument.document().frame(frame.id()).orElseThrow().title()).isEmpty();
+
+        openDocument.history().undo();
+        assertThat(openDocument.document().frame(frame.id()).orElseThrow().title()).isEqualTo("Sumador");
+        openDocument.history().undo();
+        assertThat(openDocument.document().frame(frame.id()).orElseThrow().title()).isEqualTo("Bloque");
+    }
+
+    @Test
+    void f2IsEnabledWithASingleSelectedFrame() {
+        Frame frame = new Frame(openDocument.document().newFrameId(), new GridPoint(0, 0), 20, 10, "Bloque",
+                FrameTint.NONE, false);
+        openDocument.execute(new CreateFrameCommand(frame));
+        selection.select(frame.id());
+        assertThat(actions.editLabel().isEnabled()).isTrue();
+        prompt.answer("Lógica");
+        actions.editLabel().actionPerformed(null);
+        assertThat(openDocument.document().frame(frame.id()).orElseThrow().title()).isEqualTo("Lógica");
     }
 }

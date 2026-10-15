@@ -51,7 +51,10 @@ public final class LabelActions {
         return editLabel;
     }
 
-    /** Asks for a component's label (blank removes it) or a free text's text (blank is ignored). */
+    /**
+     * Asks for a component's label (blank removes it), a free text's text (blank is ignored) or a frame's title
+     * (blank is allowed: the bar then shows no text).
+     */
     public void editLabel(DocumentElement element) {
         Optional<DocumentElement> current = openDocument.document().element(element.id());
         if (current.isEmpty()) {
@@ -72,9 +75,11 @@ public final class LabelActions {
                     .ifPresent(text -> openDocument.execute(new SetLabelCommand(label.id(), text)));
             case Wire wire -> {
             }
-            case Frame frame -> {
-                // Frame titles get their editor in M6.3 (Task 5b).
-            }
+            case Frame frame -> prompt.ask(parent, Messages.text("dialog.frameTitle.title"),
+                            Messages.text("dialog.frameTitle.message"), frame.title())
+                    .map(String::strip)
+                    .filter(text -> !text.equals(frame.title()))
+                    .ifPresent(text -> openDocument.execute(new SetLabelCommand(frame.id(), text)));
         }
     }
 
