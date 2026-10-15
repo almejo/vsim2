@@ -11,15 +11,20 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
+import java.util.function.Function;
 
 /**
  * Describes a kind of component: geometry, pins, parameters and behavior. Drawing lives in the UI. A type with a
  * {@code layout} (bus widths) has the size and pins of its default parameters; {@link #forComponent} and
  * {@link ComponentTypeRegistry#typeOf} give the ones of a placed component. {@code layout} is null for fixed types.
+ * {@code parameterCheck}, when not null, refuses sets of parameters that no single parameter can judge (a value that
+ * must fit a width); see {@link #check}.
  */
 public record ComponentType(String id, ComponentCategory category, GridSize size, List<PinSpec> pins,
                             List<ParameterSpec> parameters, BehaviorFactory behaviorFactory,
-                            ComponentLayout layout) {
+                            ComponentLayout layout,
+                            Function<Map<String, Object>, Optional<ParameterProblem>> parameterCheck) {
 
     public ComponentType {
         Objects.requireNonNull(id, "id");
@@ -29,6 +34,11 @@ public record ComponentType(String id, ComponentCategory category, GridSize size
         pins = List.copyOf(pins);
         parameters = List.copyOf(parameters);
         layout = layout == null ? null : MemoizedLayout.of(layout);
+    }
+
+    public ComponentType(String id, ComponentCategory category, GridSize size, List<PinSpec> pins,
+                         List<ParameterSpec> parameters, BehaviorFactory behaviorFactory, ComponentLayout layout) {
+        this(id, category, size, pins, parameters, behaviorFactory, layout, null);
     }
 
     /** A type whose size and pins never change. */
@@ -50,6 +60,16 @@ public record ComponentType(String id, ComponentCategory category, GridSize size
         return new ComponentType(id, category, shape.size(), shape.pins(), parameters, behaviorFactory, layout);
     }
 
+    /** Like {@link #parameterized} for a type that also has a {@code parameterCheck}. */
+    public static ComponentType parameterized(String id, ComponentCategory category, List<ParameterSpec> parameters,
+                                              ComponentLayout layout,
+                                              Function<Map<String, Object>, Optional<ParameterProblem>> parameterCheck,
+                                              BehaviorFactory behaviorFactory) {
+        ComponentType base = parameterized(id, category, parameters, layout, behaviorFactory);
+        return new ComponentType(id, category, base.size(), base.pins(), parameters, behaviorFactory, base.layout(),
+                parameterCheck);
+    }
+
     public boolean isParameterized() {
         return layout != null;
     }
@@ -67,7 +87,7 @@ public record ComponentType(String id, ComponentCategory category, GridSize size
             return this;
         }
         return new ComponentType(id, category, shape.size(), shape.pins(), parameters, behaviorFactory,
-                new SpecializedLayout(SpecializedLayout.baseOf(layout), rawParameters));
+                new SpecializedLayout(SpecializedLayout.baseOf(layout), rawParameters), parameterCheck);
     }
 
     /** This type as {@code component} has it: {@link #specializedFor} its parameters. */
@@ -83,7 +103,26 @@ public record ComponentType(String id, ComponentCategory category, GridSize size
         return pins.get(index);
     }
 
+    /**
+     * What this type's own check finds wrong with {@code rawParameters}, empty when it finds nothing or the type has no
+     * check. A single parameter that is out of range is not reported here: {@link #resolveParameters} throws for it.
+     */
+    public Optional<ParameterProblem> check(Map<String, Object> rawParameters) {
+        return parameterCheck == null ? Optional.empty() : parameterCheck.apply(rawParameters);
+    }
+
+    /**
+     * The parameters with defaults filled in and every value normalized.
+     *
+     * @throws IllegalArgumentException for an invalid value or when {@link #check} finds a problem, so files and every
+     *                                  other path refuse it
+     */
     public Map<String, Object> resolveParameters(Map<String, Object> raw) {
+        Optional<ParameterProblem> problem = check(raw);
+        if (problem.isPresent()) {
+            throw new IllegalArgumentException("parameter " + problem.get().parameterName() + ": "
+                    + problem.get().messageKey() + " " + problem.get().arguments());
+        }
         Map<String, Object> resolved = new LinkedHashMap<>();
         for (ParameterSpec parameter : parameters) {
             Object rawValue = raw == null ? null : raw.get(parameter.name());

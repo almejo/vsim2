@@ -17,6 +17,10 @@ public sealed interface VisibleState {
     record SwitchState(Value value) implements VisibleState {
     }
 
+    /** The value a constant drives, for its painter. */
+    record ConstantState(Value value) implements VisibleState {
+    }
+
     record ClockState(Value value) implements VisibleState {
     }
 

@@ -28,6 +28,7 @@ public final class PainterRegistry {
         registry.register(StandardComponentTypes.FLIP_FLOP_DATA, new FlipFlopPainter());
         registry.register(StandardComponentTypes.CLOCK, new ClockPainter());
         registry.register(StandardComponentTypes.SWITCH, new SwitchPainter());
+        registry.register(StandardComponentTypes.CONSTANT, new ConstantPainter());
         registry.register(StandardComponentTypes.LED, new LedPainter());
         SevenSegmentsPainter display = new SevenSegmentsPainter();
         registry.register(StandardComponentTypes.SEVEN_SEGMENTS_DISPLAY, display);

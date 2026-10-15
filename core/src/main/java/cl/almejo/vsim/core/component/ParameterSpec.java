@@ -2,9 +2,15 @@ package cl.almejo.vsim.core.component;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.function.UnaryOperator;
 
 public record ParameterSpec(String name, ParameterKind kind, Object defaultValue,
-                            int minimum, int maximum, List<String> choices) {
+                            int minimum, int maximum, List<String> choices, UnaryOperator<String> textNormalizer) {
+
+    public ParameterSpec(String name, ParameterKind kind, Object defaultValue,
+                         int minimum, int maximum, List<String> choices) {
+        this(name, kind, defaultValue, minimum, maximum, choices, null);
+    }
 
     public ParameterSpec {
         Objects.requireNonNull(name, "name");
@@ -23,6 +29,11 @@ public record ParameterSpec(String name, ParameterKind kind, Object defaultValue
         return new ParameterSpec(name, ParameterKind.TEXT, defaultValue, 0, 0, List.of());
     }
 
+    /** A text parameter stored as {@code normalizer} gives it (which throws IllegalArgumentException for bad text). */
+    public static ParameterSpec text(String name, String defaultValue, UnaryOperator<String> normalizer) {
+        return new ParameterSpec(name, ParameterKind.TEXT, defaultValue, 0, 0, List.of(), normalizer);
+    }
+
     public static ParameterSpec choice(String name, String defaultValue, List<String> choices) {
         return new ParameterSpec(name, ParameterKind.CHOICE, defaultValue, 0, 0, choices);
     }
@@ -32,7 +43,7 @@ public record ParameterSpec(String name, ParameterKind kind, Object defaultValue
         Objects.requireNonNull(raw, () -> "parameter " + name + " must not be null");
         return switch (kind) {
             case INTEGER -> normalizeInteger(raw);
-            case TEXT -> raw.toString();
+            case TEXT -> textNormalizer == null ? raw.toString() : textNormalizer.apply(raw.toString());
             case CHOICE -> {
                 String text = raw.toString();
                 if (!choices.contains(text)) {

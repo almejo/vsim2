@@ -5,15 +5,19 @@ import cl.almejo.vsim.core.component.ComponentCategory;
 import cl.almejo.vsim.core.component.ComponentShape;
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
+import cl.almejo.vsim.core.component.ParameterProblem;
 import cl.almejo.vsim.core.component.ParameterSpec;
 import cl.almejo.vsim.core.component.PinDirection;
 import cl.almejo.vsim.core.component.PinSpec;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.GridSize;
 import cl.almejo.vsim.core.library.InterfacePins;
+import cl.almejo.vsim.core.value.Value;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
 /** The built-in components, with VSim's geometry converted to grid units. */
 public final class StandardComponentTypes {
@@ -38,6 +42,7 @@ public final class StandardComponentTypes {
     public static final String TRI_STATE = "tri-state";
     public static final String CLOCK = "clock";
     public static final String SWITCH = "switch";
+    public static final String CONSTANT = "constant";
     public static final String LED = "led";
     public static final String SEVEN_SEGMENTS_DISPLAY = "seven-segments-display";
     public static final String SEVEN_SEGMENTS_DISPLAY_DOUBLE = "seven-segments-display-double";
@@ -89,6 +94,19 @@ public final class StandardComponentTypes {
                 List.of(PinSpec.output("out", 4, 1)),
                 List.of(ParameterSpec.choice("value", "1", List.of("1", "0", "Z"))),
                 parameters -> new SwitchBehavior(SwitchBehavior.parse((String) parameters.get("value")))));
+        registry.register(ComponentType.parameterized(CONSTANT, ComponentCategory.INPUT_OUTPUT,
+                List.of(ParameterSpec.integer(WIDTH, 4, 1, ConstantValue.MAXIMUM_WIDTH),
+                        ParameterSpec.text("value", "0", ConstantValue::normalize),
+                        ParameterSpec.choice("format", ConstantValue.AUTO,
+                                List.of(ConstantValue.AUTO, ConstantValue.BINARY, ConstantValue.HEX,
+                                        ConstantValue.DECIMAL))),
+                parameters -> constantShape((Integer) parameters.get(WIDTH), (String) parameters.get("format")),
+                StandardComponentTypes::checkConstant,
+                parameters -> {
+                    int width = (Integer) parameters.get(WIDTH);
+                    return new ConstantBehavior(Value.of(width,
+                            ConstantValue.parse((String) parameters.get("value"))));
+                }));
         registry.register(new ComponentType(LED, ComponentCategory.INPUT_OUTPUT, new GridSize(2, 3),
                 List.of(PinSpec.input("in", 1, 3)),
                 List.of(ParameterSpec.choice("color", "red",
@@ -123,6 +141,39 @@ public final class StandardComponentTypes {
         registry.register(ComponentType.parameterized(BUS_JOINER, ComponentCategory.BASIC, List.of(BUS_WIDTH),
                 parameters -> busShape((Integer) parameters.get(WIDTH), true),
                 parameters -> new BusJoinerBehavior((Integer) parameters.get(WIDTH))));
+    }
+
+    /**
+     * The box of a constant: height 2, as wide as its longest possible text needs (so the shape never depends on the
+     * value), the bus pin on the right edge, in the middle.
+     */
+    private static ComponentShape constantShape(int width, String format) {
+        int boxWidth = Math.max(4, (ConstantValue.longestDisplay(width, format) * 3 + 3) / 4 + 2);
+        return new ComponentShape(new GridSize(boxWidth, 2), List.of(PinSpec.output("out", boxWidth, 1, width)));
+    }
+
+    /** The value must be a number and fit the width. A width out of range is left to the width parameter itself. */
+    private static Optional<ParameterProblem> checkConstant(Map<String, Object> raw) {
+        Object rawWidth = raw == null ? null : raw.get(WIDTH);
+        int width;
+        try {
+            width = rawWidth == null ? 4 : rawWidth instanceof Number number ? number.intValue()
+                    : Integer.parseInt(rawWidth.toString().trim());
+        } catch (NumberFormatException exception) {
+            return Optional.empty();
+        }
+        if (width < 1 || width > ConstantValue.MAXIMUM_WIDTH) {
+            return Optional.empty();
+        }
+        Object rawValue = raw == null ? null : raw.get("value");
+        String text = rawValue == null ? "0" : rawValue.toString();
+        if (!ConstantValue.isValidText(text)) {
+            return Optional.of(new ParameterProblem("value", "constant.invalidValue", List.of()));
+        }
+        if (!ConstantValue.fitsText(text, width)) {
+            return Optional.of(new ParameterProblem("value", "constant.doesNotFit", List.of(width)));
+        }
+        return Optional.empty();
     }
 
     /** A passive behavior that only shows the value at its single input, like an LED or an output pin. */
