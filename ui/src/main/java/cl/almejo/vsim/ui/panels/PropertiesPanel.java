@@ -26,7 +26,6 @@ import cl.almejo.vsim.ui.i18n.Messages;
 import net.miginfocom.swing.MigLayout;
 
 import javax.swing.DefaultListCellRenderer;
-import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
 import javax.swing.JLabel;
 import javax.swing.JList;
@@ -60,7 +59,6 @@ public final class PropertiesPanel extends JPanel {
     private JTextField textField;
     private ParameterForm parameterForm;
     private JComboBox<FrameTint> frameColor;
-    private JCheckBox frameLocked;
     private JSpinner[] frameSpinners;
     private Runnable pendingEdits = () -> { };
     private int generation;
@@ -131,7 +129,6 @@ public final class PropertiesPanel extends JPanel {
         textField = null;
         parameterForm = null;
         frameColor = null;
-        frameLocked = null;
         frameSpinners = null;
         pendingEdits = () -> { };
         error.setText(" ");
@@ -196,8 +193,9 @@ public final class PropertiesPanel extends JPanel {
     }
 
     /**
-     * A frame: title, colour, lock and the rectangle in grid units. Each edit is one undo step. X and Y move the
-     * frame, or the whole block when it is locked; the size is editable only while unlocked.
+     * A frame: title, colour and the rectangle in grid units (the lock is the padlock's and the ⋯ menu's). Each edit
+     * is one undo step. X and Y move the frame, or the whole block when it is locked; the size is editable only while
+     * unlocked.
      */
     private void showFrame(Frame frame) {
         heading.setText(Messages.text("properties.frame"));
@@ -224,12 +222,6 @@ public final class PropertiesPanel extends JPanel {
         color.addActionListener(event -> applyIfCurrent(built, () -> editFrame(id,
                 now -> now.withTint((FrameTint) color.getSelectedItem()))));
         frameColor = color;
-
-        JCheckBox locked = new JCheckBox(Messages.text("properties.frameLocked"), frame.locked());
-        addRow(Messages.text("properties.frameLock"), locked);
-        locked.addActionListener(event -> applyIfCurrent(built, () -> editFrame(id,
-                now -> now.withLocked(locked.isSelected()))));
-        frameLocked = locked;
 
         JSpinner x = spinner(frame.topLeft().x(), Integer.MIN_VALUE / 2);
         JSpinner y = spinner(frame.topLeft().y(), Integer.MIN_VALUE / 2);
@@ -279,9 +271,8 @@ public final class PropertiesPanel extends JPanel {
             if (deltaX == 0 && deltaY == 0) {
                 return;
             }
-            Set<ElementId> moved = current.locked()
-                    ? FrameContents.block(openDocument.document(), openDocument.registry(), current)
-                    : Set.of(id);
+            Set<ElementId> moved = FrameContents.withLockedBlocks(openDocument.document(), openDocument.registry(),
+                    Set.of(id));
             openDocument.execute(new MoveElementsCommand(moved, deltaX, deltaY)); // the canvas drag's command
         });
         refreshFrameFields(id);
@@ -295,7 +286,6 @@ public final class PropertiesPanel extends JPanel {
         }
         Frame now = frame.get();
         frameColor.setSelectedItem(now.tint());
-        frameLocked.setSelected(now.locked());
         frameSpinners[0].setValue(now.topLeft().x());
         frameSpinners[1].setValue(now.topLeft().y());
         frameSpinners[2].setValue(now.width());
@@ -306,10 +296,6 @@ public final class PropertiesPanel extends JPanel {
 
     JComboBox<FrameTint> frameColor() {
         return frameColor;
-    }
-
-    JCheckBox frameLocked() {
-        return frameLocked;
     }
 
     /** X, Y, Ancho, Alto. */

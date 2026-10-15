@@ -284,24 +284,19 @@ class PropertiesPanelTest {
         assertThat(panel.heading()).isEqualTo("Marco");
         assertThat(panel.textField().getText()).isEqualTo("Sumador");
         assertThat(panel.frameColor().getSelectedItem()).isEqualTo(FrameTint.BLUE);
-        assertThat(panel.frameLocked().isSelected()).isFalse();
         assertThat(Arrays.stream(panel.frameSpinners()).map(JSpinner::getValue).toList())
                 .containsExactly(2, 3, 20, 12);
         assertThat(panel.frameSpinners()[2].isEnabled()).isTrue();
     }
 
     @Test
-    void titleColourAndLockEditsAreOneUndoStepEach() {
+    void titleAndColourEditsAreOneUndoStepEach() {
         Frame frame = frame(false);
         panel.textField().setText("Lógica");
         panel.commitEdits();
         assertThat(current(frame).title()).isEqualTo("Lógica");
         panel.frameColor().setSelectedItem(FrameTint.RED);
         assertThat(current(frame).tint()).isEqualTo(FrameTint.RED);
-        panel.frameLocked().doClick();
-        assertThat(current(frame).locked()).isTrue();
-        openDocument.history().undo();
-        assertThat(current(frame).locked()).isFalse();
         openDocument.history().undo();
         assertThat(current(frame).tint()).isEqualTo(FrameTint.BLUE);
         openDocument.history().undo();
@@ -330,6 +325,45 @@ class PropertiesPanelTest {
         assertThat(current(frame).width()).isEqualTo(30);
         openDocument.history().undo();
         assertThat(current(frame)).isEqualTo(frame);
+    }
+
+    @Test
+    void aSelectedLockedFrameShowsTitleColourPositionAndSizeButNoLockCheckbox() {
+        frame(true);
+        place(openDocument, StandardComponentTypes.NOT, 6, 6, Map.of());
+        assertThat(panel.heading()).isEqualTo("Marco");
+        assertThat(panel.textField().getText()).isEqualTo("Sumador");
+        assertThat(panel.frameColor().getSelectedItem()).isEqualTo(FrameTint.BLUE);
+        assertThat(Arrays.stream(panel.frameSpinners()).map(JSpinner::getValue).toList())
+                .containsExactly(2, 3, 20, 12);
+        assertThat(checkBoxesIn(panel)).isEmpty();
+    }
+
+    @Test
+    void anUnlockedFrameHasNoLockCheckboxEither() {
+        frame(false);
+        assertThat(checkBoxesIn(panel)).isEmpty();
+    }
+
+    @Test
+    void lockingTheFrameElsewhereDisablesTheSize() {
+        Frame frame = frame(false);
+        openDocument.execute(new ChangeFrameCommand(frame, frame.withLocked(true)));
+        assertThat(panel.frameSpinners()[2].isEnabled()).isFalse();
+        assertThat(panel.frameSpinners()[3].isEnabled()).isFalse();
+    }
+
+    private static List<javax.swing.JCheckBox> checkBoxesIn(java.awt.Container container) {
+        List<javax.swing.JCheckBox> found = new java.util.ArrayList<>();
+        for (java.awt.Component child : container.getComponents()) {
+            if (child instanceof javax.swing.JCheckBox checkBox) {
+                found.add(checkBox);
+            }
+            if (child instanceof java.awt.Container inner) {
+                found.addAll(checkBoxesIn(inner));
+            }
+        }
+        return found;
     }
 
     @Test

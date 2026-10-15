@@ -121,6 +121,28 @@ class FrameTest {
     }
 
     @Test
+    void lockedBlocksAddTheContentsOfEveryLockedFrameOnceAndLeaveUnlockedFramesAlone() {
+        Component deep = gate(4, 4);
+        Frame inner = locked(frame(2, 2, 10, 10));
+        Frame outer = locked(frame(0, 0, 30, 30));
+        Component inUnlocked = gate(44, 44);
+        Frame unlocked = frame(40, 40, 15, 15);
+        Component loose = gate(70, 70);
+        assertThat(FrameContents.withLockedBlocks(document, registry, Set.of(outer.id(), inner.id(), loose.id())))
+                .containsExactlyInAnyOrder(outer.id(), inner.id(), deep.id(), loose.id());
+        assertThat(FrameContents.withLockedBlocks(document, registry, Set.of(unlocked.id())))
+                .containsExactly(unlocked.id());
+        assertThat(FrameContents.withLockedBlocks(document, registry, Set.of(inUnlocked.id())))
+                .containsExactly(inUnlocked.id());
+    }
+
+    private Frame locked(Frame frame) {
+        Frame locked = frame.withLocked(true);
+        new ChangeFrameCommand(frame, locked).apply(document);
+        return locked;
+    }
+
+    @Test
     void framesWithTheSameRectangleDoNotLoopForever() {
         Frame first = frame(0, 0, 10, 10);
         Frame second = frame(0, 0, 10, 10);

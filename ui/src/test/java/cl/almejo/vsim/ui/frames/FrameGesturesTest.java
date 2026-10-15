@@ -39,6 +39,8 @@ class FrameGesturesTest {
 
     FrameGesturesTest() {
         tool.addDelegate(gestures);
+        // what FramesFeatures registers: operations on a selected locked frame act on its block
+        context.selection.addExpansion(FramesFeatures.lockedBlocks(context.openDocument()));
     }
 
     @AfterEach
@@ -76,23 +78,22 @@ class FrameGesturesTest {
     }
 
     @Test
-    void aClickOnALockedTitleSelectsTheBlock() {
+    void aClickOnALockedTitleSelectsOnlyTheFrame() {
         Frame frame = frame(0, 0, 20, 12, true);
         Component inside = gate(4, 4);
-        Component outside = gate(30, 4);
         context.click(tool, 10, 1);
-        assertThat(context.selection.ids()).containsExactlyInAnyOrder(frame.id(), inside.id());
-        assertThat(context.selection.ids()).doesNotContain(outside.id());
+        assertThat(context.selection.ids()).containsExactly(frame.id());
+        assertThat(context.selection.effectiveIds()).containsExactlyInAnyOrder(frame.id(), inside.id());
     }
 
     @Test
-    void shiftClickOnATitleTogglesTheFrameOrTheBlock() {
+    void shiftClickOnATitleTogglesOnlyTheFrame() {
         Frame unlocked = frame(0, 0, 20, 12, false);
         Frame locked = frame(30, 0, 20, 12, true);
-        Component inside = gate(34, 4);
+        gate(34, 4);
         context.clickWith(tool, 10, 1, true, false);
         context.clickWith(tool, 40, 1, true, false);
-        assertThat(context.selection.ids()).containsExactlyInAnyOrder(unlocked.id(), locked.id(), inside.id());
+        assertThat(context.selection.ids()).containsExactlyInAnyOrder(unlocked.id(), locked.id());
         context.clickWith(tool, 40, 1, true, false);
         assertThat(context.selection.ids()).containsExactly(unlocked.id());
     }
@@ -118,6 +119,7 @@ class FrameGesturesTest {
         Component inside = gate(4, 4);
         Component outside = gate(30, 4);
         context.drag(tool, 10, 1, 13, 3);
+        assertThat(context.selection.ids()).containsExactly(frame.id());
         assertThat(current(frame).topLeft()).isEqualTo(new GridPoint(3, 2));
         assertThat(current(inside).position()).isEqualTo(new GridPoint(7, 6));
         assertThat(current(outside)).isEqualTo(outside);
@@ -151,6 +153,58 @@ class FrameGesturesTest {
         assertThat(current(outside).position()).isEqualTo(new GridPoint(32, 4));
         context.click(tool, 12, 1);
         assertThat(context.selection.ids()).containsExactly(frame.id());
+    }
+
+    @Test
+    void draggingAnElementOfASelectionThatHoldsALockedFrameMovesTheBlockToo() {
+        Frame frame = frame(0, 0, 20, 12, true);
+        Component inside = gate(4, 4);
+        Component outside = gate(30, 4);
+        context.selection.set(List.of(frame.id(), outside.id()));
+        context.drag(tool, 32, 6, 34, 7);
+        assertThat(current(outside).position()).isEqualTo(new GridPoint(32, 5));
+        assertThat(current(frame).topLeft()).isEqualTo(new GridPoint(2, 1));
+        assertThat(current(inside).position()).isEqualTo(new GridPoint(6, 5));
+        assertThat(context.selection.ids()).containsExactlyInAnyOrder(frame.id(), outside.id());
+    }
+
+    @Test
+    void controlDraggingASelectedLockedFrameCopiesItsContentsToo() {
+        Frame frame = frame(0, 0, 20, 12, true);
+        Component outside = gate(30, 4);
+        gate(4, 4);
+        context.selection.set(List.of(frame.id(), outside.id()));
+        tool.mousePressed(context, TestToolContext.at(32, 6));
+        tool.mouseDragged(context, TestToolContext.at(32, 26));
+        tool.mouseReleased(context, TestToolContext.withModifiers(32, 26, false, true));
+        assertThat(context.openDocument().document().frames()).hasSize(2);
+        assertThat(context.openDocument().document().components()).hasSize(4);
+    }
+
+    @Test
+    void controlDraggingASelectedUnlockedFrameCopiesTheFrameAlone() {
+        Frame frame = frame(0, 0, 20, 12, false);
+        Component outside = gate(30, 4);
+        gate(4, 4);
+        context.selection.set(List.of(frame.id(), outside.id()));
+        tool.mousePressed(context, TestToolContext.at(32, 6));
+        tool.mouseDragged(context, TestToolContext.at(32, 26));
+        tool.mouseReleased(context, TestToolContext.withModifiers(32, 26, false, true));
+        assertThat(context.openDocument().document().frames()).hasSize(2);
+        assertThat(context.openDocument().document().components()).hasSize(3);
+    }
+
+    @Test
+    void theGhostsOfALockedFrameDragShowItsContents() {
+        Frame frame = frame(0, 0, 20, 12, true);
+        Component inside = gate(4, 4);
+        context.click(tool, 10, 1);
+        tool.mousePressed(context, TestToolContext.at(10, 1));
+        tool.mouseDragged(context, TestToolContext.at(13, 3));
+        context.ghosts.clear();
+        tool.paintOverlay(TestToolContext.scratchGraphics(), context);
+        assertThat(context.ghosts).contains(frame.translate(3, 2), inside.translate(3, 2));
+        tool.mouseReleased(context, TestToolContext.at(13, 3));
     }
 
     @Test
@@ -348,17 +402,28 @@ class FrameGesturesTest {
     // --- the context menu
 
     @Test
-    void aRightClickOnTheTitleSelectsTheBlockAndOpensTheMenuForTheFrame() {
+    void aRightClickOnALockedTitleSelectsTheFrameAndOpensTheMenuForIt() {
         Frame frame = frame(0, 0, 20, 12, true);
-        Component inside = gate(4, 4);
+        gate(4, 4);
         tool.mousePressed(context, TestToolContext.event(10, 1, CanvasMouseEvent.SECONDARY, 1, false));
-        assertThat(context.selection.ids()).containsExactlyInAnyOrder(frame.id(), inside.id());
+        assertThat(context.selection.ids()).containsExactly(frame.id());
         assertThat(context.contextMenuTarget).contains(frame);
     }
 
     @Test
     void aDoubleClickOnTheTitleBarSelectsTheFrameAndOpensItsTitleEditor() {
         Frame frame = frame(0, 0, 20, 12, false);
+        context.click(tool, 10, 1);
+        tool.mousePressed(context, TestToolContext.event(10, 1, CanvasMouseEvent.PRIMARY, 2, false));
+        tool.mouseReleased(context, TestToolContext.event(10, 1, CanvasMouseEvent.PRIMARY, 2, false));
+        assertThat(context.editedLabel).isEqualTo(current(frame));
+        assertThat(context.selection.ids()).containsExactly(frame.id());
+    }
+
+    @Test
+    void aDoubleClickOnALockedTitleSelectsTheFrameAloneAndOpensItsTitleEditor() {
+        Frame frame = frame(0, 0, 20, 12, true);
+        gate(4, 4);
         context.click(tool, 10, 1);
         tool.mousePressed(context, TestToolContext.event(10, 1, CanvasMouseEvent.PRIMARY, 2, false));
         tool.mouseReleased(context, TestToolContext.event(10, 1, CanvasMouseEvent.PRIMARY, 2, false));

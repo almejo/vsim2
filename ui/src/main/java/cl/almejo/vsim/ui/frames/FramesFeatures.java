@@ -10,6 +10,7 @@ import cl.almejo.vsim.core.document.FrameContents;
 import cl.almejo.vsim.core.document.FrameTint;
 import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.geometry.GridPoint;
+import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.DrawnBounds;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.icons.Icons;
@@ -26,11 +27,13 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Consumer;
+import java.util.function.UnaryOperator;
 
 /**
  * The frames of one editor view: Editar ▸ «Enmarcar selección» (and its context menu item), the select tool's frame
- * gestures (select, move, resize) and the notice when «Borrar» removes a locked block. {@link #dispose()} takes back
- * every registration: menu items, shortcuts, tool button, gestures, the padlock overlay, the delete and selection
+ * gestures (select, move, resize), the selection expansion that makes the operations on a selected locked frame act on
+ * its block, and the notice when «Borrar» removes a locked block. {@link #dispose()} takes back every registration:
+ * menu items, shortcuts, tool button, gestures, the padlock overlay, the selection expansion, the delete and selection
  * listeners and the context-menu contributor.
  */
 public final class FramesFeatures {
@@ -59,6 +62,7 @@ public final class FramesFeatures {
     private final Runnable selectionListener;
     private final Runnable contributorRemover;
     private final FrameLockOverlay lockOverlay;
+    private final Runnable expansionRemover;
     private boolean disposed;
 
     public FramesFeatures(EditorView view) {
@@ -96,6 +100,7 @@ public final class FramesFeatures {
         this.deleteListenerRemover = view.actions().addDeleteListener(ids -> blockDeletedNotice(
                 view.openDocument().document(), view.openDocument().registry(), ids)
                 .ifPresent(view.statusBar()::showNotice));
+        this.expansionRemover = view.canvas().selection().addExpansion(lockedBlocks(view.openDocument()));
         this.lockOverlay = new FrameLockOverlay(() -> view.canvas().viewport().pixelsPerUnit());
         view.canvas().addOverlay(lockOverlay);
         this.frameMenu = new FrameMenu(view.openDocument(), frame -> titleEditor.accept(frame),
@@ -179,6 +184,14 @@ public final class FramesFeatures {
                 String.valueOf(largestContents)));
     }
 
+    /**
+     * The selection expansion of frames: a selected locked frame brings its contents (computed when an operation
+     * runs), so moving, copying, rotating and deleting it act on the whole block.
+     */
+    public static UnaryOperator<Set<ElementId>> lockedBlocks(OpenDocument openDocument) {
+        return ids -> FrameContents.withLockedBlocks(openDocument.document(), openDocument.registry(), ids);
+    }
+
     public Action frameSelectionAction() {
         return frameSelection;
     }
@@ -222,6 +235,7 @@ public final class FramesFeatures {
         gesturesRemover.run();
         deleteListenerRemover.run();
         view.canvas().selection().removeListener(selectionListener);
+        expansionRemover.run();
         contributorRemover.run();
         view.canvas().removeOverlay(lockOverlay);
         editMenu.remove(menuItem);

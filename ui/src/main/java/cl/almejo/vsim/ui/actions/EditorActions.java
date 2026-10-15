@@ -305,7 +305,7 @@ public final class EditorActions {
     }
 
     private void deleteSelection() {
-        Set<ElementId> selected = canvas.selection().ids();
+        Set<ElementId> selected = canvas.selection().effectiveIds();
         if (!selected.isEmpty()) {
             deleteListeners.forEach(listener -> listener.accept(selected));
             openDocument.execute(new RemoveElementsCommand(selected));
@@ -313,7 +313,7 @@ public final class EditorActions {
     }
 
     private void rotateSelection(boolean clockwise) {
-        Set<ElementId> selected = canvas.selection().ids();
+        Set<ElementId> selected = canvas.selection().effectiveIds();
         RotateElementsCommand rotate = new RotateElementsCommand(selected, clockwise, openDocument.registry());
         if (rotate.changes(openDocument.document())) {
             openDocument.execute(rotate);

@@ -244,11 +244,13 @@ class FramesFeaturesTest {
         delete();
         assertThat(view.statusBar().text()).doesNotContain("bloque");
 
+        // part of a locked block's contents, without its frame
         Frame locked = addFrame(true);
-        Component kept = place(openDocument, StandardComponentTypes.NOT, 4, 4, Map.of());
+        Component deleted = place(openDocument, StandardComponentTypes.NOT, 4, 4, Map.of());
         place(openDocument, StandardComponentTypes.NOT, 10, 4, Map.of());
-        view.canvas().selection().set(List.of(locked.id(), kept.id()));
+        view.canvas().selection().set(List.of(deleted.id()));
         delete();
+        assertThat(openDocument.document().frame(locked.id())).isPresent();
         assertThat(view.statusBar().text()).doesNotContain("bloque");
     }
 
@@ -308,13 +310,16 @@ class FramesFeaturesTest {
         Tool select = view.canvas().defaultTool();
         select.mousePressed(view.canvas(), TestToolContext.at(10, 1));
         select.mouseReleased(view.canvas(), TestToolContext.at(10, 1));
-        assertThat(view.canvas().selection().ids()).containsExactlyInAnyOrder(frame.id(), inside.id());
+        assertThat(view.canvas().selection().ids()).containsExactly(frame.id());
+        assertThat(view.canvas().selection().effectiveIds()).containsExactlyInAnyOrder(frame.id(), inside.id());
 
         features.dispose();
 
         select.mousePressed(view.canvas(), TestToolContext.at(10, 1));
         select.mouseReleased(view.canvas(), TestToolContext.at(10, 1));
         assertThat(view.canvas().selection().isEmpty()).isTrue();
+        view.canvas().selection().select(frame.id());
+        assertThat(view.canvas().selection().effectiveIds()).containsExactly(frame.id());
     }
 
     private static List<String> menuTexts(javax.swing.JPopupMenu menu) {

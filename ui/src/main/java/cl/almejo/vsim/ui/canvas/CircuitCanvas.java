@@ -258,13 +258,13 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
             return false;
         }
         Optional<String> fragmentJson = selectionFragmentJson();
-        Optional<GridPoint> topLeft = SelectionBounds.topLeft(openDocument, selection.ids());
+        Optional<GridPoint> topLeft = SelectionBounds.topLeft(openDocument, selection.effectiveIds());
         if (fragmentJson.isEmpty() || topLeft.isEmpty()) {
             return false;
         }
         select.cancelMove(this);
         GridPoint pressPoint = pressed.get();
-        dragOut = new DragOrigin(this, selection.ids(), pressPoint,
+        dragOut = new DragOrigin(this, selection.effectiveIds(), pressPoint,
                 new GridPoint(pressPoint.x() - topLeft.get().x(), pressPoint.y() - topLeft.get().y()));
         dragOutJson = fragmentJson.get();
         return true;
@@ -402,7 +402,8 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         if (selection.isEmpty()) {
             return Optional.empty();
         }
-        CircuitFragment fragment = CircuitFragment.of(openDocument.document(), selection.ids(), openDocument.registry());
+        CircuitFragment fragment = CircuitFragment.of(openDocument.document(), selection.effectiveIds(),
+                openDocument.registry());
         return fragment.isEmpty() ? Optional.empty()
                 : Optional.of(new FragmentFormat(openDocument.registry()).write(fragment));
     }

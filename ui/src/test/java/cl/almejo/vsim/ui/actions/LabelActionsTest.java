@@ -189,4 +189,16 @@ class LabelActionsTest {
         actions.editLabel().actionPerformed(null);
         assertThat(openDocument.document().frame(frame.id()).orElseThrow().title()).isEqualTo("Lógica");
     }
+
+    @Test
+    void f2EditsTheTitleOfASingleSelectedLockedFrame() {
+        Frame frame = new Frame(openDocument.document().newFrameId(), new GridPoint(0, 0), 20, 10, "Bloque",
+                FrameTint.NONE, true);
+        openDocument.execute(new CreateFrameCommand(frame));
+        selection.select(frame.id());
+        assertThat(actions.editLabel().isEnabled()).isTrue();
+        prompt.answer("Banderas");
+        actions.editLabel().actionPerformed(null);
+        assertThat(openDocument.document().frame(frame.id()).orElseThrow().title()).isEqualTo("Banderas");
+    }
 }

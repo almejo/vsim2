@@ -162,7 +162,7 @@ public final class SelectionActions {
 
     /** @return false when nothing is selected (the clipboard is left alone) */
     private boolean copySelection() {
-        Set<ElementId> ids = canvas.selection().ids();
+        Set<ElementId> ids = canvas.selection().effectiveIds();
         Optional<Bounds> bounds = boundsOf(ids);
         if (bounds.isEmpty()) {
             return false;
@@ -174,14 +174,14 @@ public final class SelectionActions {
     }
 
     private void cutSelection() {
-        Set<ElementId> ids = canvas.selection().ids();
+        Set<ElementId> ids = canvas.selection().effectiveIds();
         if (copySelection()) {
             openDocument.execute(new RemoveElementsCommand(ids));
         }
     }
 
     private void duplicateSelection() {
-        Set<ElementId> ids = canvas.selection().ids();
+        Set<ElementId> ids = canvas.selection().effectiveIds();
         Optional<Bounds> bounds = boundsOf(ids);
         if (bounds.isEmpty()) {
             return;

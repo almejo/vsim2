@@ -5,7 +5,6 @@ import cl.almejo.vsim.core.command.MoveElementsCommand;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.Frame;
-import cl.almejo.vsim.core.document.FrameContents;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.ui.canvas.Selection;
 import cl.almejo.vsim.ui.tools.CanvasCursor;
@@ -16,17 +15,16 @@ import cl.almejo.vsim.ui.tools.ToolContext;
 import java.awt.Graphics2D;
 import java.awt.geom.Rectangle2D;
 import java.util.ArrayList;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
 
 /**
- * What the select tool does with frames (spec §2, §3, §7): a press on the title bar selects the frame, or the block
- * (frame and contents) when it is locked, and dragging moves the selection; dragging an edge or corner of an unlocked
- * frame resizes it. Each gesture is one undo step. While a gesture drags, everything outside the frame is veiled.
- * Unlocked frames show eight handles while hovered or selected.
+ * What the select tool does with frames (spec §2, §3, §7): a press on the title bar selects the frame alone (locked
+ * or not) and dragging moves what the selection acts on, so a locked frame carries its block (see
+ * {@link FramesFeatures#lockedBlocks}); dragging an edge or corner of an unlocked frame resizes it. Each gesture is one
+ * undo step. While a gesture drags, everything outside the frame is veiled and ghosts show what moves. Unlocked frames
+ * show eight handles while hovered or selected.
  */
 public final class FrameGestures implements SelectToolDelegate {
 
@@ -35,7 +33,6 @@ public final class FrameGestures implements SelectToolDelegate {
 
     private Frame grabbed;
     private FramePart part;
-    private Set<ElementId> grabbedIds = Set.of();
     private GridPoint pressPoint;
     private boolean narrowOnRelease;
     private int deltaX;
@@ -56,11 +53,10 @@ public final class FrameGestures implements SelectToolDelegate {
             pressControl(context, event, frame, hitPart);
             return Press.HANDLED;
         }
-        Set<ElementId> ids = grabbedBy(context, frame);
         Selection selection = context.selection();
         if (event.button() == CanvasMouseEvent.SECONDARY) {
-            if (!selection.ids().containsAll(ids)) {
-                selection.set(ids);
+            if (!selection.contains(frame.id())) {
+                selection.select(frame.id());
             }
             context.showContextMenu(Optional.of(frame), event.screenPosition());
             return Press.HANDLED;
@@ -69,7 +65,7 @@ public final class FrameGestures implements SelectToolDelegate {
             return Press.IGNORED;
         }
         if (event.shiftDown() || event.controlDown()) {
-            toggle(selection, ids);
+            selection.toggle(frame.id());
             return Press.HANDLED;
         }
         if (event.clickCount() >= 2 && hitPart == FramePart.TITLE_BAR) {
@@ -80,16 +76,11 @@ public final class FrameGestures implements SelectToolDelegate {
         }
         grabbed = frame;
         part = hitPart;
-        grabbedIds = ids;
         pressPoint = event.snapped();
-        if (part.resizes()) {
-            if (!selection.contains(frame.id())) {
-                selection.select(frame.id());
-            }
-        } else if (selection.ids().containsAll(ids)) {
-            narrowOnRelease = selection.size() > ids.size();
-        } else {
-            selection.set(ids);
+        if (!selection.contains(frame.id())) {
+            selection.select(frame.id());
+        } else if (!part.resizes()) {
+            narrowOnRelease = selection.size() > 1;
         }
         return Press.GRABBED;
     }
@@ -102,23 +93,6 @@ public final class FrameGestures implements SelectToolDelegate {
         }
         context.selection().select(frame.id());
         context.showContextMenu(Optional.of(frame), event.screenPosition());
-    }
-
-    /** What a press on the title bar grabs: the frame, or the frame and its contents when it is locked. */
-    private static Set<ElementId> grabbedBy(ToolContext context, Frame frame) {
-        return frame.locked()
-                ? FrameContents.block(context.openDocument().document(), context.openDocument().registry(), frame)
-                : Set.of(frame.id());
-    }
-
-    private static void toggle(Selection selection, Set<ElementId> ids) {
-        Set<ElementId> combined = new LinkedHashSet<>(selection.ids());
-        if (combined.containsAll(ids)) {
-            combined.removeAll(ids);
-        } else {
-            combined.addAll(ids);
-        }
-        selection.set(combined);
     }
 
     @Override
@@ -142,10 +116,10 @@ public final class FrameGestures implements SelectToolDelegate {
         } else if (deltaX != 0 || deltaY != 0) {
             if (!context.selection().isEmpty()) {
                 context.openDocument().execute(
-                        new MoveElementsCommand(context.selection().ids(), deltaX, deltaY));
+                        new MoveElementsCommand(context.selection().effectiveIds(), deltaX, deltaY));
             }
         } else if (narrowOnRelease) {
-            context.selection().set(grabbedIds);
+            context.selection().select(grabbed.id());
         }
         reset();
         context.repaint();
@@ -224,7 +198,7 @@ public final class FrameGestures implements SelectToolDelegate {
             if (part.resizes()) {
                 context.paintGhost(graphics, resized(grabbed));
             } else {
-                for (ElementId id : context.selection().ids()) {
+                for (ElementId id : context.selection().effectiveIds()) {
                     context.openDocument().document().element(id)
                             .ifPresent(element -> context.paintGhost(graphics, element.translate(deltaX, deltaY)));
                 }
@@ -304,7 +278,6 @@ public final class FrameGestures implements SelectToolDelegate {
     private void reset() {
         grabbed = null;
         part = null;
-        grabbedIds = Set.of();
         pressPoint = null;
         narrowOnRelease = false;
         deltaX = 0;

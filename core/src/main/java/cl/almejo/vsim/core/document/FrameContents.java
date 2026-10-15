@@ -4,6 +4,7 @@ import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.ElementBounds;
 import cl.almejo.vsim.core.geometry.Bounds;
 
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.Set;
@@ -30,6 +31,20 @@ public final class FrameContents {
         block.add(frame.id());
         block.addAll(of(document, registry, frame));
         return block;
+    }
+
+    /**
+     * What an operation on {@code ids} acts on: the ids plus the contents of every locked frame among them (nested
+     * frames and their contents once). Unlocked frames add nothing.
+     */
+    public static Set<ElementId> withLockedBlocks(CircuitDocument document, ComponentTypeRegistry registry,
+                                                  Collection<ElementId> ids) {
+        Set<ElementId> expanded = new LinkedHashSet<>(ids);
+        for (ElementId id : ids) {
+            document.frame(id).filter(Frame::locked)
+                    .ifPresent(frame -> expanded.addAll(of(document, registry, frame)));
+        }
+        return expanded;
     }
 
     private static void collect(CircuitDocument document, ComponentTypeRegistry registry, Frame frame,

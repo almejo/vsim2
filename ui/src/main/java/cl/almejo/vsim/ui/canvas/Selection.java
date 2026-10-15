@@ -11,15 +11,41 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.function.UnaryOperator;
 
-/** Selected element ids of one canvas. Listeners run only when the set of ids really changes. */
+/**
+ * Selected element ids of one canvas. Listeners run only when the set of ids really changes. Operations on the
+ * selection act on {@link #effectiveIds()}, which expansions may widen.
+ */
 public final class Selection {
 
     private final Set<ElementId> ids = new LinkedHashSet<>();
     private final List<Runnable> listeners = new CopyOnWriteArrayList<>();
+    private final List<UnaryOperator<Set<ElementId>>> expansions = new CopyOnWriteArrayList<>();
 
     public Set<ElementId> ids() {
         return Collections.unmodifiableSet(new LinkedHashSet<>(ids));
+    }
+
+    /**
+     * Widens what the operations on the selection act on (moving, copying, rotating, deleting); the selected ids
+     * themselves stay as they are. Returns the remover.
+     */
+    public Runnable addExpansion(UnaryOperator<Set<ElementId>> expansion) {
+        expansions.add(expansion);
+        return () -> expansions.remove(expansion);
+    }
+
+    /**
+     * The ids the operations on the selection act on, computed now: the selection widened by every expansion (for
+     * example, a selected locked frame brings its contents).
+     */
+    public Set<ElementId> effectiveIds() {
+        Set<ElementId> effective = ids();
+        for (UnaryOperator<Set<ElementId>> expansion : expansions) {
+            effective = Collections.unmodifiableSet(new LinkedHashSet<>(expansion.apply(effective)));
+        }
+        return effective;
     }
 
     public boolean contains(ElementId id) {

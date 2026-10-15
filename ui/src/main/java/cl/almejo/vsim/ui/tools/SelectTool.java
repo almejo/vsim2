@@ -269,7 +269,7 @@ public final class SelectTool implements Tool {
                         copySelection(context);
                     } else {
                         context.openDocument().execute(
-                                new MoveElementsCommand(context.selection().ids(), deltaX, deltaY));
+                                new MoveElementsCommand(context.selection().effectiveIds(), deltaX, deltaY));
                     }
                 }
             } else {
@@ -416,7 +416,7 @@ public final class SelectTool implements Tool {
         if (pressPoint == null || (deltaX == 0 && deltaY == 0)) {
             return;
         }
-        for (ElementId id : context.selection().ids()) {
+        for (ElementId id : context.selection().effectiveIds()) {
             context.openDocument().document().element(id)
                     .ifPresent(element -> context.paintGhost(graphics, element.translate(deltaX, deltaY)));
         }
@@ -549,7 +549,7 @@ public final class SelectTool implements Tool {
 
     /** Ctrl held at the release: the selection stays put and a copy lands where the move would have put it. */
     private void copySelection(ToolContext context) {
-        Set<ElementId> ids = context.selection().ids();
+        Set<ElementId> ids = context.selection().effectiveIds();
         Optional<GridPoint> topLeft = SelectionBounds.topLeft(context.openDocument(), ids);
         if (topLeft.isEmpty()) {
             return;
