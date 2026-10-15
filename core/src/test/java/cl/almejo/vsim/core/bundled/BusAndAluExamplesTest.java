@@ -1,6 +1,11 @@
 package cl.almejo.vsim.core.bundled;
 
+import cl.almejo.vsim.core.component.ElementBounds;
+import cl.almejo.vsim.core.document.Component;
+import cl.almejo.vsim.core.document.Frame;
+import cl.almejo.vsim.core.document.FrameContents;
 import cl.almejo.vsim.core.examples.CircuitBuilder;
+import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.DefinitionBundle;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
@@ -85,6 +90,38 @@ class BusAndAluExamplesTest {
                         assertThat(simulation.led("Acarreo")).as(context + " Acarreo")
                                 .isEqualTo(Value.of(operation == 0 && full > 15));
                     }
+                }
+            }
+        }
+    }
+
+    @Test
+    void theAluFramesAreLockedHoldSomethingAndNeverCutAComponentOrOverlap() {
+        CircuitBuilder alu = BusAndAluExamples.alu();
+        List<Frame> frames = alu.document().frames();
+        assertThat(frames).extracting(Frame::title)
+                .containsExactly("Sumador y lógica", "Selector de operación", "Banderas");
+        assertThat(frames).allMatch(Frame::locked);
+        for (Frame frame : frames) {
+            assertThat(FrameContents.of(alu.document(), alu.registry(), frame)).as(frame.title()).isNotEmpty();
+            for (Component component : alu.document().components()) {
+                Bounds bounds = ElementBounds.of(component, alu.registry());
+                boolean inside = frame.encloses(bounds.x(), bounds.y(), bounds.maximumX(), bounds.maximumY());
+                boolean apart = bounds.maximumX() < frame.topLeft().x()
+                        || bounds.x() > frame.topLeft().x() + frame.width()
+                        || bounds.maximumY() < frame.topLeft().y()
+                        || bounds.y() > frame.topLeft().y() + frame.height();
+                assertThat(inside || apart).as("%s cuts %s", frame.title(), component.typeId()).isTrue();
+            }
+        }
+        for (Frame first : frames) {
+            for (Frame second : frames) {
+                if (first != second) {
+                    boolean apart = first.topLeft().x() + first.width() < second.topLeft().x()
+                            || second.topLeft().x() + second.width() < first.topLeft().x()
+                            || first.topLeft().y() + first.height() < second.topLeft().y()
+                            || second.topLeft().y() + second.height() < first.topLeft().y();
+                    assertThat(apart).as("%s and %s overlap", first.title(), second.title()).isTrue();
                 }
             }
         }

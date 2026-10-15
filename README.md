@@ -124,6 +124,8 @@ Diseño: `docs/superpowers/specs/2026-10-08-vsim2-design.md`.
 - Menú del marco: «Cambiar título…» (el mismo editor de F2), «Color ▸» (Sin color, Azul, Verde, Amarillo, Rojo, Morado, Gris; un paso de deshacer), «Cerrar candado» / «Abrir candado», «Convertir en componente…» y «Quitar marco» (borra solo el marco, aunque esté cerrado; lo que tenía dentro se queda).
 - «Convertir en componente…» abre el diálogo de «Crear componente desde selección…» con el contenido del marco como selección y el título del marco como nombre propuesto. Si eliges reemplazar la selección por una instancia, el marco desaparece en el mismo paso de deshacer; si no, el marco se queda. Está deshabilitado cuando el marco no tiene nada dentro.
 - Panel Propiedades: con un marco seleccionado muestra Título, Color, Candado («Cerrado») y los campos X, Y, Ancho y Alto (en cuadros) para ajustes finos. Cada cambio es un paso de deshacer. Ancho y Alto se deshabilitan con el marco cerrado; X e Y en un marco cerrado mueven el bloque completo, en uno abierto solo el marco. Los campos se actualizan al arrastrar, redimensionar o deshacer.
+- Ejemplo: «ALU de 4 bits» (Archivo ▸ Ejemplos) trae marcos cerrados: «Sumador y lógica» (los cuatro «Bit de ALU»), «Selector de operación» (los interruptores S1 y S0 con sus compuertas NOT) y «Banderas» (la NOR de «Cero» y los LED «Cero» y «Negativo»), cada uno con su color. Arrastra un marco por la barra del título para mover su bloque, o ábrele el candado para ajustarlo.
+- Los marcos son solo una anotación: no cambian la simulación, la tabla de verdad ni «Ordenar cables».
 
 ## Preferencias y distribución
 

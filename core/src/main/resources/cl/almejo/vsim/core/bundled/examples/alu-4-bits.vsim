@@ -6,7 +6,7 @@
     "id" : "c1",
     "type" : "switch",
     "x" : 2,
-    "y" : 81,
+    "y" : 85,
     "rotation" : 0,
     "label" : "S1",
     "parameters" : {
@@ -16,7 +16,7 @@
     "id" : "c2",
     "type" : "switch",
     "x" : 2,
-    "y" : 87,
+    "y" : 91,
     "rotation" : 0,
     "label" : "S0",
     "parameters" : {
@@ -186,7 +186,7 @@
     "id" : "c94",
     "type" : "not",
     "x" : 36,
-    "y" : 80,
+    "y" : 84,
     "rotation" : 0,
     "label" : "",
     "parameters" : {
@@ -196,7 +196,7 @@
     "id" : "c95",
     "type" : "not",
     "x" : 36,
-    "y" : 86,
+    "y" : 90,
     "rotation" : 0,
     "label" : "",
     "parameters" : {
@@ -206,7 +206,7 @@
     "id" : "c96",
     "type" : "and3",
     "x" : 52,
-    "y" : 84,
+    "y" : 88,
     "rotation" : 0,
     "label" : "",
     "parameters" : {
@@ -216,7 +216,7 @@
     "id" : "c108",
     "type" : "led",
     "x" : 59,
-    "y" : 81,
+    "y" : 85,
     "rotation" : 0,
     "label" : "Acarreo",
     "parameters" : {
@@ -226,27 +226,27 @@
   "wires" : [ {
     "id" : "w6",
     "x1" : 6,
-    "y1" : 82,
+    "y1" : 86,
     "x2" : 30,
-    "y2" : 82
+    "y2" : 86
   }, {
     "id" : "w7",
     "x1" : 30,
     "y1" : 18,
     "x2" : 30,
-    "y2" : 82
+    "y2" : 86
   }, {
     "id" : "w8",
     "x1" : 6,
-    "y1" : 88,
+    "y1" : 92,
     "x2" : 34,
-    "y2" : 88
+    "y2" : 92
   }, {
     "id" : "w9",
     "x1" : 34,
     "y1" : 20,
     "x2" : 34,
-    "y2" : 88
+    "y2" : 92
   }, {
     "id" : "w13",
     "x1" : 6,
@@ -670,15 +670,15 @@
   }, {
     "id" : "w97",
     "x1" : 30,
-    "y1" : 82,
+    "y1" : 86,
     "x2" : 36,
-    "y2" : 82
+    "y2" : 86
   }, {
     "id" : "w98",
     "x1" : 34,
-    "y1" : 88,
+    "y1" : 92,
     "x2" : 36,
-    "y2" : 88
+    "y2" : 92
   }, {
     "id" : "w99",
     "x1" : 46,
@@ -690,79 +690,74 @@
     "x1" : 48,
     "y1" : 68,
     "x2" : 48,
-    "y2" : 84
+    "y2" : 88
   }, {
     "id" : "w101",
     "x1" : 48,
-    "y1" : 84,
-    "x2" : 52,
-    "y2" : 84
-  }, {
-    "id" : "w102",
-    "x1" : 40,
-    "y1" : 82,
-    "x2" : 44,
-    "y2" : 82
-  }, {
-    "id" : "w103",
-    "x1" : 44,
-    "y1" : 82,
-    "x2" : 44,
-    "y2" : 86
-  }, {
-    "id" : "w104",
-    "x1" : 44,
-    "y1" : 86,
-    "x2" : 52,
-    "y2" : 86
-  }, {
-    "id" : "w105",
-    "x1" : 40,
     "y1" : 88,
     "x2" : 52,
     "y2" : 88
   }, {
+    "id" : "w102",
+    "x1" : 40,
+    "y1" : 86,
+    "x2" : 44,
+    "y2" : 86
+  }, {
+    "id" : "w103",
+    "x1" : 44,
+    "y1" : 86,
+    "x2" : 44,
+    "y2" : 90
+  }, {
+    "id" : "w104",
+    "x1" : 44,
+    "y1" : 90,
+    "x2" : 52,
+    "y2" : 90
+  }, {
+    "id" : "w105",
+    "x1" : 40,
+    "y1" : 92,
+    "x2" : 52,
+    "y2" : 92
+  }, {
     "id" : "w106",
     "x1" : 56,
-    "y1" : 86,
+    "y1" : 90,
     "x2" : 60,
-    "y2" : 86
+    "y2" : 90
   }, {
     "id" : "w107",
     "x1" : 60,
-    "y1" : 84,
+    "y1" : 88,
     "x2" : 60,
-    "y2" : 86
+    "y2" : 90
   } ],
   "labels" : [ {
-    "id" : "l109",
+    "id" : "l112",
     "x" : 2,
     "y" : 0,
     "text" : "ALU de 4 bits"
   }, {
-    "id" : "l110",
+    "id" : "l113",
     "x" : 60,
     "y" : 74,
     "text" : "resultado"
   }, {
-    "id" : "l111",
-    "x" : 72,
-    "y" : 30,
-    "text" : "banderas"
-  }, {
-    "id" : "l112",
-    "x" : 2,
-    "y" : 91,
-    "text" : "selector (S1 S0): 00 suma, 01 AND, 10 OR, 11 XOR"
-  }, {
-    "id" : "l113",
-    "x" : 2,
-    "y" : 94,
-    "text" : "Prueba: elige A, B y la operación con S1 S0: el display muestra el resultado y las banderas"
-  }, {
     "id" : "l114",
     "x" : 2,
-    "y" : 96,
+    "y" : 97,
+    "text" : "selector (S1 S0): 00 suma, 01 AND, 10 OR, 11 XOR"
+  }, {
+    "id" : "l115",
+    "x" : 2,
+    "y" : 100,
+    "text" : "Prueba: elige A, B y la operación con S1 S0: el display muestra el resultado y las banderas"
+  }, {
+    "id" : "l116",
+    "x" : 2,
+    "y" : 102,
     "text" : "dicen si es cero, si su bit 3 está en 1 (negativo) y si la suma se pasó de F (acarreo)"
   } ],
   "definitions" : [ {
@@ -1587,5 +1582,33 @@
       "y2" : 1
     } ],
     "labels" : [ ]
+  } ],
+  "frames" : [ {
+    "id" : "f109",
+    "x" : 28,
+    "y" : 6,
+    "width" : 24,
+    "height" : 72,
+    "title" : "Sumador y lógica",
+    "tint" : "BLUE",
+    "locked" : true
+  }, {
+    "id" : "f110",
+    "x" : 0,
+    "y" : 80,
+    "width" : 44,
+    "height" : 16,
+    "title" : "Selector de operación",
+    "tint" : "YELLOW",
+    "locked" : true
+  }, {
+    "id" : "f111",
+    "x" : 66,
+    "y" : 29,
+    "width" : 24,
+    "height" : 23,
+    "title" : "Banderas",
+    "tint" : "PURPLE",
+    "locked" : true
   } ]
 }

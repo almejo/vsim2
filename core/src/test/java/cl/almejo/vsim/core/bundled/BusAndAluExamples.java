@@ -4,6 +4,8 @@ import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.core.document.Frame;
+import cl.almejo.vsim.core.document.FrameTint;
 import cl.almejo.vsim.core.examples.CircuitBuilder;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
@@ -213,13 +215,13 @@ public final class BusAndAluExamples {
         aluBitDefinition().all().forEach(builder::define);
         String bitType = SubcircuitTypes.typeIdOf(ALU_BIT_ID);
         // Instance pins: Cin (0,2), A (0,4), B (0,6), S1 (0,8), S0 (0,10); R (6,2), Cout (6,4); box 6 x 12.
-        Component select1 = builder.placeByPin(SWITCH, new GridPoint(6, 82), 0, Rotation.R0, OFF, "S1");
-        Component select0 = builder.placeByPin(SWITCH, new GridPoint(6, 88), 0, Rotation.R0, OFF, "S0");
+        Component select1 = builder.placeByPin(SWITCH, new GridPoint(6, 86), 0, Rotation.R0, OFF, "S1");
+        Component select0 = builder.placeByPin(SWITCH, new GridPoint(6, 92), 0, Rotation.R0, OFF, "S0");
         Component carryIn = builder.placeByPin(SWITCH, new GridPoint(6, 8), 0, Rotation.R0, OFF, "Cin");
         Component display = builder.placeByBox(SEVEN_SEGMENTS_DISPLAY, 54, 72, Rotation.R0, NO_PARAMETERS, "");
         Component zero = builder.placeByBox(NOR4, 68, 38, Rotation.R0, NO_PARAMETERS, "");
-        builder.route(new GridPoint(6, 82), new GridPoint(30, 82), new GridPoint(30, 18));
-        builder.route(new GridPoint(6, 88), new GridPoint(34, 88), new GridPoint(34, 20));
+        builder.route(new GridPoint(6, 86), new GridPoint(30, 86), new GridPoint(30, 18));
+        builder.route(new GridPoint(6, 92), new GridPoint(34, 92), new GridPoint(34, 20));
         Component[] bits = new Component[4];
         int[] turnColumns = {64, 62, 62, 64};
         for (int bit = 0; bit < 4; bit++) {
@@ -264,30 +266,41 @@ public final class BusAndAluExamples {
                 Map.of("color", "yellow"), "Negativo");
         builder.link(bits[3], 5, negative, 0);
         // Acarreo = Cout3 · ¬S1 · ¬S0
-        Component notSelect1 = builder.placeByBox(NOT, 36, 80, Rotation.R0, NO_PARAMETERS, "");
-        Component notSelect0 = builder.placeByBox(NOT, 36, 86, Rotation.R0, NO_PARAMETERS, "");
-        Component carryGate = builder.placeByBox(AND3, 52, 84, Rotation.R0, NO_PARAMETERS, "");
-        builder.route(new GridPoint(30, 82), new GridPoint(36, 82));
+        Component notSelect1 = builder.placeByBox(NOT, 36, 84, Rotation.R0, NO_PARAMETERS, "");
+        Component notSelect0 = builder.placeByBox(NOT, 36, 90, Rotation.R0, NO_PARAMETERS, "");
+        Component carryGate = builder.placeByBox(AND3, 52, 88, Rotation.R0, NO_PARAMETERS, "");
+        builder.route(new GridPoint(30, 86), new GridPoint(36, 86));
         builder.link(select1, 0, notSelect1, 0);
-        builder.route(new GridPoint(34, 88), new GridPoint(36, 88));
+        builder.route(new GridPoint(34, 92), new GridPoint(36, 92));
         builder.link(select0, 0, notSelect0, 0);
-        builder.route(new GridPoint(46, 68), new GridPoint(48, 68), new GridPoint(48, 84), new GridPoint(52, 84));
+        builder.route(new GridPoint(46, 68), new GridPoint(48, 68), new GridPoint(48, 88), new GridPoint(52, 88));
         builder.link(bits[3], 6, carryGate, 0);
-        builder.route(new GridPoint(40, 82), new GridPoint(44, 82), new GridPoint(44, 86), new GridPoint(52, 86));
+        builder.route(new GridPoint(40, 86), new GridPoint(44, 86), new GridPoint(44, 90), new GridPoint(52, 90));
         builder.link(notSelect1, 1, carryGate, 1);
-        builder.route(new GridPoint(40, 88), new GridPoint(52, 88));
+        builder.route(new GridPoint(40, 92), new GridPoint(52, 92));
         builder.link(notSelect0, 1, carryGate, 2);
-        builder.route(new GridPoint(56, 86), new GridPoint(60, 86), new GridPoint(60, 84));
-        Component carryLed = builder.placeByPin(LED, new GridPoint(60, 84), 0, Rotation.R0, Map.of("color", "red"),
+        builder.route(new GridPoint(56, 90), new GridPoint(60, 90), new GridPoint(60, 88));
+        Component carryLed = builder.placeByPin(LED, new GridPoint(60, 88), 0, Rotation.R0, Map.of("color", "red"),
                 "Acarreo");
         builder.link(carryGate, 3, carryLed, 0);
 
+        // Locked frames (they never touch the simulation). Each encloses whole parts with a margin and keeps its two
+        // title rows free; the bit frame ends at 78 and the selector frame starts at 80 so they do not overlap.
+        frame(builder, 28, 6, 24, 72, "Sumador y lógica", FrameTint.BLUE);
+        frame(builder, 0, 80, 44, 16, "Selector de operación", FrameTint.YELLOW);
+        frame(builder, 66, 29, 24, 23, "Banderas", FrameTint.PURPLE);
+
         builder.text(2, 0, "ALU de 4 bits");
         builder.text(60, 74, "resultado");
-        builder.text(72, 30, "banderas");
-        builder.text(2, 91, "selector (S1 S0): 00 suma, 01 AND, 10 OR, 11 XOR");
-        builder.text(2, 94, "Prueba: elige A, B y la operación con S1 S0: el display muestra el resultado y las banderas");
-        builder.text(2, 96, "dicen si es cero, si su bit 3 está en 1 (negativo) y si la suma se pasó de F (acarreo)");
+        builder.text(2, 97, "selector (S1 S0): 00 suma, 01 AND, 10 OR, 11 XOR");
+        builder.text(2, 100, "Prueba: elige A, B y la operación con S1 S0: el display muestra el resultado y las banderas");
+        builder.text(2, 102, "dicen si es cero, si su bit 3 está en 1 (negativo) y si la suma se pasó de F (acarreo)");
         return builder;
+    }
+
+    private static void frame(CircuitBuilder builder, int left, int top, int width, int height, String title,
+                              FrameTint tint) {
+        builder.document().add(new Frame(builder.document().newFrameId(), new GridPoint(left, top), width, height,
+                title, tint, true));
     }
 }
