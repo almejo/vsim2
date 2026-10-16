@@ -163,6 +163,7 @@ Diseño: `docs/superpowers/specs/2026-10-08-vsim2-design.md`.
 - La primera vez en la sesión que los cables siguen a un movimiento, la barra de estado avisa «Los cables siguieron al mover. Mantén Mayús para desconectar» (con la tecla elegida en Preferencias).
 - Mayús al *empezar* un clic sigue sumando o quitando de la selección; invierte el modo solo si la aprietas ya arrastrando (cuenta la tecla que tengas apretada al soltar).
 - El botón «Los cables siguen al mover» (barra de herramientas, justo después de «Mover vista», y casilla en Editar; sin atajo por defecto, asignable en Atajos de teclado) activa o desactiva el modo en que los cables acompañan a lo que mueves. Está activado por defecto, se recuerda y vale para todas las ventanas. Mantener la tecla de invertir mientras arrastras lo invierte solo en ese arrastre; se elige en Preferencias ▸ «Tecla para invertir al arrastrar» (Mayús por defecto, Alt o Ninguna).
+- Alt + arrastrar un cable seleccionado (solo ese cable) lo desplaza de costado: uno horizontal sube o baja, uno vertical va a la izquierda o la derecha; los cables unidos a sus puntas se estiran y, si una punta estaba en un pin, se agrega un tramo que lo mantiene conectado. Siempre conserva las conexiones (no depende del modo ni de la tecla de invertir) y es un solo paso de deshacer. Si Alt es la tecla de invertir, esta tecla pasa a ser Mayús.
 
 ## Preferencias y distribución
 

@@ -54,6 +54,10 @@ import java.util.concurrent.CopyOnWriteArrayList;
  * press keeps its old meaning on a click (Shift toggles the selection); a Shift press that drags moves the selection
  * (adding the pressed element) with the mode inverted.
  *
+ * <p>M6.7 §8: a press on the one selected wire that drags with the segment key held (Alt, or Shift when Alt is the
+ * invert key; read during the drag and at the release) moves that wire sideways only, perpendicular to itself, and
+ * the wires joined to its ends always stretch (the follow mode and the invert key do not apply).
+ *
  * <p>{@link SelectToolDelegate}s (M6.3: frames) are asked first: a press one of them takes, with its drag and
  * release, is theirs alone.
  */
@@ -92,6 +96,8 @@ public final class SelectTool implements Tool {
     private int copyDeltaX;
     private int copyDeltaY;
     private boolean followWires;
+    /** The drag moves a single selected wire sideways (the segment key is held). */
+    private boolean segmentDrag;
     private final MovePreview movePreview = new MovePreview();
     private CanvasCursor cursor = CanvasCursor.DEFAULT;
 
@@ -278,7 +284,7 @@ public final class SelectTool implements Tool {
             return;
         }
         dragTo(context, event);
-        followWires = context.selectionMoves().follows(event.shiftDown(), event.altDown());
+        followWires = segmentDrag || context.selectionMoves().follows(event.shiftDown(), event.altDown());
         context.repaint();
     }
 
@@ -304,9 +310,15 @@ public final class SelectTool implements Tool {
             }
         } else if (pressPoint != null) {
             if (deltaX != 0 || deltaY != 0 || copyDeltaX != 0 || copyDeltaY != 0) {
+                if (segmentWire(context).isPresent()) {
+                    dragTo(context, event); // the segment key at the release decides the direction
+                }
                 if (!context.selection().isEmpty()) {
                     if (event.controlDown()) {
                         copySelection(context);
+                    } else if (segmentDrag) {
+                        context.selectionMoves().moveSegment(context.openDocument(), pressedElement.id(), deltaX,
+                                deltaY);
                     } else {
                         context.selectionMoves().move(context.openDocument(), context.selection().effectiveIds(),
                                 deltaX, deltaY, context.selectionMoves().follows(event.shiftDown(), event.altDown()));
@@ -328,10 +340,23 @@ public final class SelectTool implements Tool {
         context.repaint();
     }
 
-    /** The delta of the drag; a move (not a Ctrl copy) stops at the border of a locked frame it does not carry. */
+    /**
+     * The delta of the drag; a move (not a Ctrl copy) stops at the border of a locked frame it does not carry. A
+     * segment drag keeps only the part of the delta perpendicular to the wire.
+     */
     private void dragTo(ToolContext context, CanvasMouseEvent event) {
         deltaX = event.snapped().x() - pressPoint.x();
         deltaY = event.snapped().y() - pressPoint.y();
+        Optional<Wire> segment = segmentWire(context)
+                .filter(wire -> context.selectionMoves().segmentKeyHeld(event.shiftDown(), event.altDown()));
+        segmentDrag = segment.isPresent();
+        if (segmentDrag) {
+            if (segment.get().start().y() == segment.get().end().y()) {
+                deltaX = 0;
+            } else {
+                deltaY = 0;
+            }
+        }
         copyDeltaX = deltaX;
         copyDeltaY = deltaY;
         if (!event.controlDown() && !context.selection().isEmpty()) {
@@ -340,6 +365,20 @@ public final class SelectTool implements Tool {
             deltaX = limited.x();
             deltaY = limited.y();
         }
+    }
+
+    /**
+     * The wire a segment drag would move: the press was on a horizontal or vertical wire that is, alone, the whole
+     * selection.
+     */
+    private Optional<Wire> segmentWire(ToolContext context) {
+        if (!(pressedElement instanceof Wire pressedWire)
+                || !context.selection().effectiveIds().equals(Set.of(pressedWire.id()))) {
+            return Optional.empty();
+        }
+        return context.openDocument().document().wire(pressedWire.id())
+                .filter(wire -> !wire.start().equals(wire.end()))
+                .filter(wire -> wire.start().x() == wire.end().x() || wire.start().y() == wire.end().y());
     }
 
     @Override
@@ -693,6 +732,7 @@ public final class SelectTool implements Tool {
         copyDeltaX = 0;
         copyDeltaY = 0;
         followWires = false;
+        segmentDrag = false;
         movePreview.clear();
     }
 }

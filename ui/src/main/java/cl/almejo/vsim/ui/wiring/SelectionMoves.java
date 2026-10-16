@@ -73,6 +73,11 @@ public final class SelectionMoves {
         return WiresFollow.followsFor(preferences, shiftDown, altDown);
     }
 
+    /** Whether the key that drags a selected wire sideways is held (Alt, or Shift when Alt is the invert key). */
+    public boolean segmentKeyHeld(boolean shiftDown, boolean altDown) {
+        return WiresFollow.segmentKeyHeld(preferences, shiftDown, altDown);
+    }
+
     /** The command of a move of {@code ids} by the delta, with or without the wires following. */
     public static Command command(OpenDocument openDocument, Collection<ElementId> ids, int deltaX, int deltaY,
                                   boolean follow) {
@@ -92,6 +97,19 @@ public final class SelectionMoves {
      * wires did; nothing for no ids or no delta.
      */
     public void move(OpenDocument openDocument, Collection<ElementId> ids, int deltaX, int deltaY, boolean follow) {
+        move(openDocument, ids, deltaX, deltaY, follow, follow == followMode());
+    }
+
+    /**
+     * A wire dragged sideways with the segment key (spec §8): always following, as one undo step, limited by the
+     * locked frames. New contacts are reported; the hint is not, as the invert key does not apply to this drag.
+     */
+    public void moveSegment(OpenDocument openDocument, ElementId wireId, int deltaX, int deltaY) {
+        move(openDocument, Set.of(wireId), deltaX, deltaY, true, false);
+    }
+
+    private void move(OpenDocument openDocument, Collection<ElementId> ids, int deltaX, int deltaY, boolean follow,
+                      boolean mayHint) {
         if (ids.isEmpty()) {
             return;
         }
@@ -101,7 +119,7 @@ public final class SelectionMoves {
         }
         Command command = command(openDocument, ids, delta.x(), delta.y(), follow);
         openDocument.execute(command);
-        report(openDocument.document(), command, follow == followMode());
+        report(openDocument.document(), command, mayHint);
     }
 
     /**
