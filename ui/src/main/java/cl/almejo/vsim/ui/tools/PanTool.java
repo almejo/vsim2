@@ -1,6 +1,7 @@
 package cl.almejo.vsim.ui.tools;
 
 import java.awt.Cursor;
+import java.awt.event.KeyEvent;
 import java.awt.geom.Point2D;
 
 public final class PanTool implements Tool {
@@ -26,6 +27,17 @@ public final class PanTool implements Tool {
     @Override
     public void mouseReleased(ToolContext context, CanvasMouseEvent event) {
         last = null;
+    }
+
+    /** Escape goes back to the default (select) tool, like the wire tool. */
+    @Override
+    public boolean keyPressed(ToolContext context, int keyCode, boolean shiftDown) {
+        if (keyCode != KeyEvent.VK_ESCAPE) {
+            return false;
+        }
+        last = null;
+        context.useDefaultTool();
+        return true;
     }
 
     @Override

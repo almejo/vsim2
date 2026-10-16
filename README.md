@@ -66,6 +66,7 @@ Diseño: `docs/superpowers/specs/2026-10-08-vsim2-design.md`.
 - Archivo ▸ Preferencias… ▸ «Atajos de teclado» lista las acciones por menú con su atajo y un buscador. «Cambiar…» (o doble clic) espera la combinación (Esc cancela); si otra acción ya la usa, aparece «Ctrl+S ya lo usa «Guardar».» con «Reasignar» y «Cancelar». «Quitar atajo», «Restaurar» y «Restaurar todos» hacen lo que dicen. Esc, Enter, Espacio, Tab, Mayús+Tab, Retroceso y los atajos fijos del zoom (Ctrl con +, teclado numérico) no se pueden asignar. Los cambios se ven al instante en todas las ventanas y se recuerdan al reiniciar.
 - Además de los atajos de siempre se puede dar uno a Selección, Cable, Mover vista, Centrar circuito, Configurar…, Iniciar, Pausar, Avanzar 10 t, Preferencias… y Nueva vista. Las teclas del lienzo (Supr, R, Mayús+R, F2, F8, Mayús+F8) también se cambian ahí; Retroceso sigue borrando.
 - El cursor dice qué hará un clic: flecha sobre el lienzo vacío o algo sin seleccionar, cruz sobre un pin o un cable (empieza un cable), con la herramienta Cable y al colocar un componente, mover sobre lo seleccionado y al arrastrarlo, mano sobre el cuerpo de un interruptor o de un pin de entrada, mover mientras se desplaza la vista (Espacio, botón del medio o «Mover vista»).
+- Con la herramienta «Mover vista» activa, Esc vuelve a la flecha de Selección (como con Cable).
 
 ## Ejemplos (M6.1)
 

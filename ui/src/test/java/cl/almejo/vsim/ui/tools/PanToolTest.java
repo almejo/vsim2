@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.tools;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
+import java.awt.event.KeyEvent;
 import java.awt.geom.Point2D;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -24,5 +25,21 @@ class PanToolTest {
         tool.mouseDragged(context, TestToolContext.at(4, 2));
         tool.mouseReleased(context, TestToolContext.at(4, 2));
         assertThat(context.viewport.gridToScreen(0, 0)).isEqualTo(new Point2D.Double(24, 8));
+    }
+
+    @Test
+    void escapeReturnsToTheDefaultTool() {
+        PanTool tool = new PanTool();
+        context.tool = tool;
+        assertThat(tool.keyPressed(context, KeyEvent.VK_ESCAPE, false)).isTrue();
+        assertThat(context.tool).isSameAs(context.defaultTool);
+    }
+
+    @Test
+    void otherKeysAreLeftToTheCanvas() {
+        PanTool tool = new PanTool();
+        context.tool = tool;
+        assertThat(tool.keyPressed(context, KeyEvent.VK_A, false)).isFalse();
+        assertThat(context.tool).isSameAs(tool);
     }
 }
