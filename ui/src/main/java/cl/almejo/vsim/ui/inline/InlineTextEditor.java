@@ -69,6 +69,8 @@ public final class InlineTextEditor {
     private static final String CANCEL = "inline-cancel";
     private static final String OUTLINE = "JComponent.outline";
     private static final String OUTLINE_ERROR = "error";
+    /** WCAG AA contrast for normal text. */
+    private static final double MINIMUM_PROBLEM_CONTRAST = 4.5;
 
     private final CircuitCanvas canvas;
     private final JPanel panel = new JPanel(null);
@@ -368,9 +370,26 @@ public final class InlineTextEditor {
         };
     }
 
-    /** The problem's color, from the current theme (read every time: the theme may change while it shows). */
-    private static Color problemColor() {
-        for (String key : List.of("Component.error.focusedBorderColor", "Actions.Red")) {
+    /** White on the solid red badge of {@link #problemBackground()}. */
+    static Color problemForeground() {
+        return Color.WHITE;
+    }
+
+    /**
+     * The problem's badge: the theme's error red (read every time: the theme may change while it shows), darkened
+     * until white text on it reaches the WCAG AA contrast for normal text in light and dark themes alike.
+     */
+    static Color problemBackground() {
+        Color color = themeErrorColor();
+        while (contrastWithWhite(color) < MINIMUM_PROBLEM_CONTRAST) {
+            color = new Color((int) (color.getRed() * 0.9), (int) (color.getGreen() * 0.9),
+                    (int) (color.getBlue() * 0.9));
+        }
+        return color;
+    }
+
+    private static Color themeErrorColor() {
+        for (String key : List.of("Actions.Red", "Component.error.focusedBorderColor")) {
             Color color = UIManager.getColor(key);
             if (color != null) {
                 return color;
@@ -379,9 +398,17 @@ public final class InlineTextEditor {
         return new Color(0xDB5860);
     }
 
-    private static Color problemBackground() {
-        Color color = UIManager.getColor("Panel.background");
-        return color != null ? color : Color.WHITE;
+    private static double contrastWithWhite(Color color) {
+        return 1.05 / (relativeLuminance(color) + 0.05);
+    }
+
+    private static double relativeLuminance(Color color) {
+        return 0.2126 * linear(color.getRed()) + 0.7152 * linear(color.getGreen()) + 0.0722 * linear(color.getBlue());
+    }
+
+    private static double linear(int channel) {
+        double fraction = channel / 255.0;
+        return fraction <= 0.03928 ? fraction / 12.92 : Math.pow((fraction + 0.055) / 1.055, 2.4);
     }
 
     /**
@@ -419,7 +446,7 @@ public final class InlineTextEditor {
 
         @Override
         public Color getForeground() {
-            return problemColor();
+            return problemForeground();
         }
 
         @Override
