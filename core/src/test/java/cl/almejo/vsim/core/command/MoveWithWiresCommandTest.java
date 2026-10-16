@@ -1,0 +1,181 @@
+package cl.almejo.vsim.core.command;
+
+import cl.almejo.vsim.core.component.ComponentTypeRegistry;
+import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
+import cl.almejo.vsim.core.document.CircuitDocument;
+import cl.almejo.vsim.core.document.Component;
+import cl.almejo.vsim.core.document.DocumentElement;
+import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.core.document.TextLabel;
+import cl.almejo.vsim.core.document.Wire;
+import cl.almejo.vsim.core.geometry.GridPoint;
+import cl.almejo.vsim.core.geometry.Rotation;
+import cl.almejo.vsim.core.wiring.FollowPlan;
+import org.junit.jupiter.api.Test;
+
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+class MoveWithWiresCommandTest {
+
+    private final ComponentTypeRegistry registry = StandardComponentTypes.registry();
+
+    private static Wire wire(CircuitDocument document, int startX, int startY, int endX, int endY) {
+        Wire wire = new Wire(document.newWireId(), new GridPoint(startX, startY), new GridPoint(endX, endY));
+        document.add(wire);
+        return wire;
+    }
+
+    private static Component gate(CircuitDocument document, int x, int y) {
+        Component component = new Component(document.newComponentId(), StandardComponentTypes.NOT,
+                new GridPoint(x, y), Rotation.R0, Map.of(), "");
+        document.add(component);
+        return component;
+    }
+
+    /** Every element with its draw order, in draw order. */
+    private static Map<DocumentElement, Long> snapshot(CircuitDocument document) {
+        Map<DocumentElement, Long> snapshot = new LinkedHashMap<>();
+        document.elements().forEach(element -> snapshot.put(element, document.orderOf(element.id())));
+        return snapshot;
+    }
+
+    /**
+     * A gate whose output goes along a wire to a T (an L is inserted) and whose input wire has a simple corner (it
+     * stretches the neighbour); a second gate has a wire with a free end (it moves whole).
+     */
+    private record Scene(CircuitDocument document, Component gate) {
+    }
+
+    private static Scene scene() {
+        CircuitDocument document = new CircuitDocument();
+        Component gate = gate(document, 10, 10);
+        wire(document, 14, 12, 20, 12);
+        wire(document, 20, 5, 20, 12);
+        wire(document, 20, 12, 20, 16);
+        wire(document, 4, 12, 10, 12);
+        wire(document, 4, 12, 4, 30);
+        gate(document, 30, 30);
+        wire(document, 34, 32, 38, 32);
+        document.add(new TextLabel(document.newLabelId(), new GridPoint(0, 0), "a"));
+        return new Scene(document, gate);
+    }
+
+    @Test
+    void undoRestoresIdsAndDrawOrderExactlyAndRedoReappliesTheSamePlan() {
+        Scene scene = scene();
+        CircuitDocument document = scene.document();
+        Component other = document.components().get(1);
+        Map<DocumentElement, Long> before = snapshot(document);
+        MoveWithWiresCommand command = MoveWithWiresCommand.of(document, registry,
+                Set.of(scene.gate().id(), other.id()), 4, 3);
+        FollowPlan plan = command.plan().orElseThrow();
+        assertThat(plan.addedWires()).isNotEmpty();
+        assertThat(plan.replacedWires()).isNotEmpty();
+        History history = new History(document);
+        history.execute(command);
+        Set<DocumentElement> after = Set.copyOf(document.elements());
+        assertThat(after).isNotEqualTo(before.keySet());
+
+        history.undo();
+        assertThat(snapshot(document)).containsExactlyEntriesOf(before);
+        history.redo();
+        assertThat(Set.copyOf(document.elements())).isEqualTo(after);
+        history.undo();
+        assertThat(snapshot(document)).containsExactlyEntriesOf(before);
+    }
+
+    @Test
+    void aRemovedWireComesBackAtItsDrawOrder() {
+        CircuitDocument document = new CircuitDocument();
+        Component gate = gate(document, 10, 10);
+        Wire shortWire = wire(document, 14, 12, 18, 12);
+        wire(document, 0, 0, 0, 5);
+        Map<DocumentElement, Long> before = snapshot(document);
+        MoveWithWiresCommand command = MoveWithWiresCommand.of(document, registry, Set.of(gate.id()), 4, 0);
+        assertThat(command.plan().orElseThrow().removedWireIds()).containsExactly(shortWire.id());
+        command.apply(document);
+        assertThat(document.wire(shortWire.id())).isEmpty();
+        command.revert(document);
+        assertThat(snapshot(document)).containsExactlyEntriesOf(before);
+    }
+
+    @Test
+    void theDescriptionIsAMove() {
+        assertThat(MoveWithWiresCommand.nudge(registry, Set.of(new ElementId("c1")), 1, 0).description())
+                .isEqualTo("command.move");
+    }
+
+    @Test
+    void aRunOfFiveNudgesEqualsOneMoveByTheTotalInOneUndoStep() {
+        Scene nudged = scene();
+        Scene moved = scene();
+        Map<DocumentElement, Long> before = snapshot(nudged.document());
+        History history = new History(nudged.document());
+        for (int step = 0; step < 5; step++) {
+            history.execute(MoveWithWiresCommand.nudge(registry, Set.of(nudged.gate().id()), 0, 1));
+        }
+        MoveWithWiresCommand.of(moved.document(), registry, Set.of(moved.gate().id()), 0, 5)
+                .apply(moved.document());
+
+        assertThat(Set.copyOf(nudged.document().elements())).isEqualTo(Set.copyOf(moved.document().elements()));
+        assertThat(nudged.document().wires()).hasSize(moved.document().wires().size());
+
+        history.undo();
+        assertThat(snapshot(nudged.document())).containsExactlyEntriesOf(before);
+        assertThat(history.canUndo()).isFalse();
+        history.redo();
+        assertThat(Set.copyOf(nudged.document().elements())).isEqualTo(Set.copyOf(moved.document().elements()));
+    }
+
+    @Test
+    void nudgesThatComeBackLeaveTheDocumentAsItWas() {
+        Scene scene = scene();
+        Set<DocumentElement> before = Set.copyOf(scene.document().elements());
+        History history = new History(scene.document());
+        history.execute(MoveWithWiresCommand.nudge(registry, Set.of(scene.gate().id()), 0, 1));
+        history.execute(MoveWithWiresCommand.nudge(registry, Set.of(scene.gate().id()), 0, 1));
+        history.execute(MoveWithWiresCommand.nudge(registry, Set.of(scene.gate().id()), 0, -2));
+        assertThat(Set.copyOf(scene.document().elements())).isEqualTo(before);
+    }
+
+    @Test
+    void nudgesOfOtherIdsOrADragDoNotMerge() {
+        Scene scene = scene();
+        Component other = scene.document().components().get(1);
+        History history = new History(scene.document());
+        history.execute(MoveWithWiresCommand.nudge(registry, Set.of(scene.gate().id()), 0, 1));
+        history.execute(MoveWithWiresCommand.nudge(registry, Set.of(other.id()), 0, 1));
+        history.execute(MoveWithWiresCommand.of(scene.document(), registry, Set.of(other.id()), 1, 0));
+        history.undo();
+        history.undo();
+        assertThat(history.canUndo()).isTrue();
+        history.undo();
+        assertThat(history.canUndo()).isFalse();
+    }
+
+    @Test
+    void aMergedRunNotifiesTheDocumentOnce() {
+        Scene scene = scene();
+        History history = new History(scene.document());
+        history.execute(MoveWithWiresCommand.nudge(registry, Set.of(scene.gate().id()), 0, 1));
+        long revision = scene.document().revision();
+        history.execute(MoveWithWiresCommand.nudge(registry, Set.of(scene.gate().id()), 0, 1));
+        assertThat(scene.document().revision()).isEqualTo(revision + 1);
+    }
+
+    @Test
+    void anExplicitPlanIsAppliedAsGiven() {
+        CircuitDocument document = new CircuitDocument();
+        Component gate = gate(document, 10, 10);
+        Wire attached = wire(document, 14, 12, 30, 12);
+        FollowPlan plan = new FollowPlan(Set.of(), List.of(attached.withEndpoints(new GridPoint(16, 12),
+                attached.end())), List.of(), Set.of(), List.of());
+        new MoveWithWiresCommand(Set.of(gate.id()), 2, 0, plan).apply(document);
+        assertThat(document.wire(attached.id()).orElseThrow().start()).isEqualTo(new GridPoint(16, 12));
+    }
+}

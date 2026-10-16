@@ -32,19 +32,29 @@ public final class History {
         this.limit = limit;
     }
 
+    /**
+     * Applies {@code command} and pushes it, or, when the command on top was the last one executed and says
+     * {@code command} continues it ({@link Command#mergedWith}), reverts the top and applies the merged command
+     * instead (in one document batch), so the merged command always starts from the state before the run.
+     */
     public void execute(Command command) {
-        command.apply(document);
         Command top = undoStack.peek();
         if (top != null && top == lastExecuted && top != savedTop) {
             Optional<Command> merged = top.mergedWith(command);
             if (merged.isPresent()) {
+                Command replacement = merged.get();
+                document.batch(() -> {
+                    top.revert(document);
+                    replacement.apply(document);
+                });
                 undoStack.pop();
-                undoStack.push(merged.get());
-                lastExecuted = merged.get();
+                undoStack.push(replacement);
+                lastExecuted = replacement;
                 notifyListeners();
                 return;
             }
         }
+        command.apply(document);
         lastExecuted = command;
         undoStack.push(command);
         if (redoStack.contains(savedTop)) {
