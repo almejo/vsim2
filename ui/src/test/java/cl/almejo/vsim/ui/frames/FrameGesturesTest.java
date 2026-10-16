@@ -512,6 +512,21 @@ class FrameGesturesTest {
         assertThat(context.openDocument().document().wires()).containsExactly(crossing);
     }
 
+    @Test
+    void shiftHeldFromThePressMovesTheLockedBlockAndLeavesTheCrossingWiresBehind() {
+        Frame frame = frame(0, 0, 20, 12, true);
+        Component inside = gate(4, 4);
+        place(context.openDocument(), StandardComponentTypes.LED, 29, 3, Map.of());
+        Wire crossing = wire(8, 6, 30, 6);
+        tool.mousePressed(context, TestToolContext.withKeys(10, 1, true, false, false));
+        tool.mouseDragged(context, TestToolContext.withKeys(10, 4, true, false, false));
+        tool.mouseReleased(context, TestToolContext.withKeys(10, 4, true, false, false));
+        assertThat(current(frame).topLeft()).isEqualTo(new GridPoint(0, 3));
+        assertThat(context.openDocument().document().component(inside.id()).orElseThrow().position())
+                .isEqualTo(new GridPoint(4, 7));
+        assertThat(context.openDocument().document().wires()).containsExactly(crossing);
+    }
+
     private Wire wire(int startX, int startY, int endX, int endY) {
         Wire wire = new Wire(context.openDocument().document().newWireId(), new GridPoint(startX, startY),
                 new GridPoint(endX, endY));

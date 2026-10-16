@@ -111,12 +111,26 @@ class SelectToolFollowTest {
     }
 
     @Test
-    void shiftAtThePressStillTogglesTheSelectionAndMovesNothing() {
+    void shiftHeldFromThePressAddsTheElementAndMovesTheSelectionWithoutTheWires() {
         context.selection.select(lamp.id());
         tool.mousePressed(context, TestToolContext.withKeys(12, 12, true, false, false));
         tool.mouseDragged(context, TestToolContext.withKeys(12, 9, true, false, false));
         tool.mouseReleased(context, TestToolContext.withKeys(12, 9, true, false, false));
         assertThat(context.selection.ids()).containsExactlyInAnyOrder(lamp.id(), gate.id());
+        assertThat(positionOf(gate)).isEqualTo(new GridPoint(10, 7));
+        assertThat(positionOf(lamp)).isEqualTo(new GridPoint(29, 6));
+        assertThat(context.openDocument().document().wires()).containsExactly(wire);
+    }
+
+    @Test
+    void shiftClickStillTogglesTheSelectionAndMovesNothing() {
+        context.selection.select(lamp.id());
+        tool.mousePressed(context, TestToolContext.withKeys(12, 12, true, false, false));
+        tool.mouseReleased(context, TestToolContext.withKeys(12, 12, true, false, false));
+        assertThat(context.selection.ids()).containsExactlyInAnyOrder(lamp.id(), gate.id());
+        tool.mousePressed(context, TestToolContext.withKeys(12, 12, true, false, false));
+        tool.mouseReleased(context, TestToolContext.withKeys(12, 12, true, false, false));
+        assertThat(context.selection.ids()).containsExactly(lamp.id());
         assertThat(positionOf(gate)).isEqualTo(new GridPoint(10, 10));
         assertThat(context.openDocument().document().wires()).containsExactly(wire);
     }

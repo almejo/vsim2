@@ -483,13 +483,20 @@ class SelectToolTest {
     }
 
     @Test
-    void modifierPressDoesNotDrag() {
+    void controlPressDoesNotDragButShiftPressMovesTheSelection() {
         Component gate = not(0, 0);
         context.click(tool, 2, 2);
-        context.dragWith(tool, 2, 2, 5, 3, true, false);
+        context.dragWith(tool, 2, 2, 5, 3, false, true);
         assertThat(context.openDocument().document().component(gate.id()).orElseThrow().position())
                 .isEqualTo(GridPoint.ORIGIN);
         assertThat(context.selection.isEmpty()).isTrue();
+        context.click(tool, 2, 2);
+        context.dragWith(tool, 2, 2, 5, 3, true, false);
+        assertThat(context.openDocument().document().component(gate.id()).orElseThrow().position())
+                .isEqualTo(new GridPoint(3, 1));
+        assertThat(context.selection.ids()).containsExactly(gate.id());
+        context.openDocument().history().undo();
+        context.selection.clear();
         context.dragWith(tool, 4.1, 2, 9, 2, false, true);
         assertThat(context.openDocument().document().wires()).isEmpty();
         assertThat(context.selection.ids()).containsExactly(gate.id());

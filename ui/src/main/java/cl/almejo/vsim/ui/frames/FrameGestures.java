@@ -37,6 +37,8 @@ public final class FrameGestures implements SelectToolDelegate {
     private FramePart part;
     private GridPoint pressPoint;
     private boolean narrowOnRelease;
+    /** A Shift press on the title bar of a selected frame: a release without moving takes it out. */
+    private boolean removeOnRelease;
     private int deltaX;
     private int deltaY;
     private boolean followWires;
@@ -67,6 +69,18 @@ public final class FrameGestures implements SelectToolDelegate {
         }
         if (event.button() != CanvasMouseEvent.PRIMARY) {
             return Press.IGNORED;
+        }
+        if (event.shiftDown() && !event.controlDown() && hitPart == FramePart.TITLE_BAR) {
+            // Shift+click toggles the frame; Shift+drag moves the selection with it (the key inverts the mode)
+            if (selection.contains(frame.id())) {
+                removeOnRelease = true;
+            } else {
+                selection.add(frame.id());
+            }
+            grabbed = frame;
+            part = hitPart;
+            pressPoint = event.snapped();
+            return Press.GRABBED;
         }
         if (event.shiftDown() || event.controlDown()) {
             selection.toggle(frame.id());
@@ -121,6 +135,8 @@ public final class FrameGestures implements SelectToolDelegate {
         } else if (deltaX != 0 || deltaY != 0) {
             context.selectionMoves().move(context.openDocument(), context.selection().effectiveIds(), deltaX, deltaY,
                     followWires);
+        } else if (removeOnRelease) {
+            context.selection().remove(grabbed.id());
         } else if (narrowOnRelease) {
             context.selection().select(grabbed.id());
         }
@@ -289,6 +305,7 @@ public final class FrameGestures implements SelectToolDelegate {
         part = null;
         pressPoint = null;
         narrowOnRelease = false;
+        removeOnRelease = false;
         deltaX = 0;
         deltaY = 0;
         followWires = false;

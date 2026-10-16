@@ -50,7 +50,8 @@ import java.util.concurrent.CopyOnWriteArrayList;
  *
  * <p>M6.7: a move drags the wires attached to the selection when the follow mode, inverted while the configured key
  * is held, says so; the keys are read during the drag (the preview) and at the release (the move). A key held at the
- * press keeps its old meaning (Shift toggles the selection), so it inverts only once the drag is under way.
+ * press keeps its old meaning on a click (Shift toggles the selection); a Shift press that drags moves the selection
+ * (adding the pressed element) with the mode inverted.
  *
  * <p>{@link SelectToolDelegate}s (M6.3: frames) are asked first: a press one of them takes, with its drag and
  * release, is theirs alone.
@@ -80,6 +81,10 @@ public final class SelectTool implements Tool {
     private boolean bandAdditive;
     private boolean ownPressSeen;
     private boolean narrowOnRelease;
+    /** The press was a Shift click on an element: a release without moving only adjusts the selection. */
+    private boolean selectionClick;
+    /** That Shift click was on an element already selected: a release without moving takes it out. */
+    private boolean removeOnRelease;
     private int deltaX;
     private int deltaY;
     private boolean followWires;
@@ -200,6 +205,18 @@ public final class SelectTool implements Tool {
                 : pinNear(context, event.gridPosition());
         if (event.shiftDown() || event.controlDown()) {
             Optional<DocumentElement> target = pin.<DocumentElement>map(ConnectionPoints.PinHit::component).or(() -> hit);
+            if (target.isPresent() && !event.controlDown()) {
+                // Shift+click toggles the element; Shift+drag moves the selection with it (the key inverts the mode)
+                pressedElement = target.get();
+                selectionClick = true;
+                if (context.selection().contains(target.get().id())) {
+                    removeOnRelease = true;
+                } else {
+                    context.selection().add(target.get().id());
+                }
+                pressPoint = event.snapped();
+                return;
+            }
             if (target.isPresent()) {
                 context.selection().toggle(target.get().id());
             } else {
@@ -291,6 +308,10 @@ public final class SelectTool implements Tool {
                         context.selectionMoves().move(context.openDocument(), context.selection().effectiveIds(),
                                 deltaX, deltaY, context.selectionMoves().follows(event.shiftDown(), event.altDown()));
                     }
+                }
+            } else if (selectionClick) {
+                if (removeOnRelease) {
+                    context.selection().remove(pressedElement.id());
                 }
             } else {
                 if (narrowOnRelease) {
@@ -644,6 +665,8 @@ public final class SelectTool implements Tool {
         pressedElement = null;
         pressPoint = null;
         narrowOnRelease = false;
+        selectionClick = false;
+        removeOnRelease = false;
         wire = null;
         bandStart = null;
         bandEnd = null;
