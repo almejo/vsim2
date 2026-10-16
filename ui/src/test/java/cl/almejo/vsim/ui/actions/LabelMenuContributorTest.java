@@ -11,6 +11,14 @@ import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.Selection;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.core.library.ComponentLibrary;
+import cl.almejo.vsim.ui.app.AppPreferences;
+import cl.almejo.vsim.ui.paint.Appearance;
+import cl.almejo.vsim.ui.paint.ColorScheme;
+import cl.almejo.vsim.ui.paint.PainterRegistry;
+import cl.almejo.vsim.ui.window.EditorServices;
+import cl.almejo.vsim.ui.window.EditorView;
+import cl.almejo.vsim.ui.window.WindowCommands;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -29,20 +37,35 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class LabelMenuContributorTest {
 
+    private static final WindowCommands NO_WINDOW = new WindowCommands() {
+        @Override public void newDocument() { }
+        @Override public void open() { }
+        @Override public void save() { }
+        @Override public void saveAs() { }
+        @Override public void closeWindow() { }
+        @Override public void exit() { }
+    };
+
     private final OpenDocument openDocument = OpenDocument.createEmpty(StandardComponentTypes.registry());
-    private final Selection selection = new Selection();
-    private final FakePrompt prompt = new FakePrompt();
+    private EditorView view;
+    private Selection selection;
     private Point2D clickedAt = new Point2D.Double(7.8, 0.2);
     private LabelMenuContributor contributor;
 
     @BeforeEach
     void create() {
         Messages.initialize(Messages.SPANISH);
-        contributor = new LabelMenuContributor(new LabelActions(openDocument, selection, null, prompt));
+        view = new EditorView(openDocument, new EditorServices(PainterRegistry.standard(),
+                new Appearance(ColorScheme.LIGHT), AppPreferences.inMemory(), new ComponentLibrary(), List.of()),
+                NO_WINDOW);
+        view.canvas().setSize(800, 600);
+        selection = view.canvas().selection();
+        contributor = new LabelMenuContributor(view.labelFeatures().actions());
     }
 
     @AfterEach
     void close() {
+        view.dispose();
         openDocument.close();
     }
 
@@ -71,8 +94,9 @@ class LabelMenuContributorTest {
         selection.select(gate.id());
         JPopupMenu menu = menuFor(Optional.of(gate));
         assertThat(texts(menu)).containsExactly("Etiqueta…");
-        prompt.answer("U9");
         choose(menu, 0);
+        view.inlineEditor().field().setText("U9");
+        view.inlineEditor().confirm();
         assertThat(openDocument.document().component(gate.id()).orElseThrow().label()).isEqualTo("U9");
     }
 
@@ -110,8 +134,9 @@ class LabelMenuContributorTest {
         clickedAt = new Point2D.Double(4.4, 6.6);
         JPopupMenu menu = menuFor(Optional.empty());
         assertThat(texts(menu)).containsExactly("Agregar texto aquí");
-        prompt.answer("nota");
         choose(menu, 0);
+        view.inlineEditor().field().setText("nota");
+        view.inlineEditor().confirm();
         assertThat(openDocument.document().labels()).singleElement()
                 .satisfies(label -> assertThat(label.position()).isEqualTo(new GridPoint(4, 7)));
     }

@@ -343,6 +343,22 @@ class FramesFeaturesTest {
     }
 
     @Test
+    void theRealTitleEditorOpensInlineOverTheNewFrameWithBloqueSelected() {
+        features.setTitleEditor(view::editLabel);
+        Component led = place(openDocument, StandardComponentTypes.LED, 10, 10, Map.of());
+        view.canvas().selection().select(led.id());
+
+        frameSelection();
+
+        assertThat(view.inlineEditor().isOpen()).isTrue();
+        assertThat(view.inlineEditor().field().getText()).isEqualTo("Bloque");
+        assertThat(view.inlineEditor().field().getSelectedText()).isEqualTo("Bloque");
+        view.inlineEditor().field().setText("Suma");
+        view.inlineEditor().confirm();
+        assertThat(openDocument.document().frames().get(0).title()).isEqualTo("Suma");
+    }
+
+    @Test
     void theMarcoToolHasAToolbarButtonBetweenCableAndManoAndAViewMenuItem() {
         List<String> names = new ArrayList<>();
         for (java.awt.Component child : view.toolBar().getComponents()) {

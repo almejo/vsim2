@@ -16,4 +16,9 @@ public interface CanvasHost {
     /** Edits the label of a component, or the text of a free text label. Hosts without label editing ignore it. */
     default void editLabel(DocumentElement element) {
     }
+
+    /** Edits in place the value of a Constante; hosts without in-place editing open the configure dialog. */
+    default void editValue(Component component) {
+        configure(component);
+    }
 }

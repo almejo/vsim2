@@ -4,10 +4,15 @@ import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.component.standard.ConstantValue;
 
+import cl.almejo.vsim.core.document.Component;
+
 import java.awt.BasicStroke;
+import java.awt.Font;
 import java.awt.FontMetrics;
 import java.awt.Graphics2D;
+import java.awt.geom.AffineTransform;
 import java.awt.geom.Line2D;
+import java.awt.geom.Rectangle2D;
 import java.awt.geom.RoundRectangle2D;
 import java.awt.image.BufferedImage;
 import java.util.Map;
@@ -53,6 +58,25 @@ public final class ConstantPainter implements ComponentPainter {
                 TEXT_SIZE * (boxWidth - 2 * TEXT_PADDING) / textWidth(text, TEXT_SIZE));
         PainterSupport.centeredText(graphics, text, boxWidth / 2, middle, size, scheme.text());
         PainterSupport.pinDots(graphics, shaped, scheme);
+    }
+
+    /** The font the value is written with at 100 % (before it is shrunk to fit a long text). */
+    public static Font valueFont() {
+        return PainterSupport.BASE_FONT.deriveFont(TEXT_SIZE);
+    }
+
+    /**
+     * The box that holds the value, in document pixels: where to place a text editor. The box turns with the
+     * component, the text does not.
+     */
+    public static Rectangle2D valueBox(ComponentType type, Component component) {
+        ComponentType shaped = type.specializedFor(component.parameters());
+        double boxWidth = shaped.size().width() * UNIT - LEAD;
+        AffineTransform placement = new AffineTransform();
+        placement.translate(component.position().x() * UNIT, component.position().y() * UNIT);
+        placement.rotate(component.rotation().quarterTurns() * Math.PI / 2);
+        return placement.createTransformedShape(new Rectangle2D.Double(0, BOX_TOP, boxWidth, BOX_HEIGHT))
+                .getBounds2D();
     }
 
     /** The text written in the box for the (resolved) parameters. */

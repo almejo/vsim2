@@ -8,13 +8,13 @@ import cl.almejo.vsim.ui.actions.ContextMenuContributor;
 import cl.almejo.vsim.ui.actions.ContextMenuFactory;
 import cl.almejo.vsim.ui.actions.EditorActions;
 import cl.almejo.vsim.ui.actions.SelectionActions;
-import cl.almejo.vsim.ui.actions.TextPrompt;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.CanvasHost;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.canvas.CircuitRenderer;
 import cl.almejo.vsim.ui.clipboard.FragmentClipboard;
 import cl.almejo.vsim.ui.icons.Icons;
+import cl.almejo.vsim.ui.inline.InlineTextEditor;
 import cl.almejo.vsim.ui.library.TemplateActions;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
@@ -87,6 +87,7 @@ public final class EditorView extends JPanel implements CanvasHost {
     private final JToggleButton panButton;
     private final Map<Class<? extends Tool>, JToggleButton> extraToolButtons = new LinkedHashMap<>();
     private final LabelFeatures labelFeatures;
+    private final InlineTextEditor inlineEditor;
     private TemplateActions templateActions;
     private final EditorServices services;
     private final Runnable appearanceListener;
@@ -148,7 +149,8 @@ public final class EditorView extends JPanel implements CanvasHost {
         canvas.setFileDropHandler(this::dropFiles);
         palette.setFileDropHandler(this::dropFiles);
         installSelectionActions();
-        labelFeatures = LabelFeatures.install(this, TextPrompt.DIALOG);
+        inlineEditor = new InlineTextEditor(canvas);
+        labelFeatures = LabelFeatures.install(this);
         problems = new ProblemsController(this);
         appearanceListener = canvas::repaint;
         services.appearance().addListener(appearanceListener);
@@ -189,6 +191,9 @@ public final class EditorView extends JPanel implements CanvasHost {
     public InspectorPanel inspector() { return inspector; }
     public BottomDock bottomDock() { return bottomDock; }
     public LabelFeatures labelFeatures() { return labelFeatures; }
+
+    /** The editor that writes texts right over the canvas (labels, titles, the Constante value). */
+    public InlineTextEditor inlineEditor() { return inlineEditor; }
 
     /** The template actions of this view, once the templates extension is installed. */
     public Optional<TemplateActions> templateActions() {
@@ -301,6 +306,7 @@ public final class EditorView extends JPanel implements CanvasHost {
         steps.add(palette::dispose);
         steps.add(problems::dispose);
         steps.add(labelFeatures::dispose);
+        steps.add(inlineEditor::dispose);
         steps.add(actions::dispose);
         steps.add(canvas::dispose);
         RuntimeException failure = null;
@@ -334,6 +340,11 @@ public final class EditorView extends JPanel implements CanvasHost {
     @Override
     public void editLabel(DocumentElement element) {
         labelFeatures.actions().editLabel(element);
+    }
+
+    @Override
+    public void editValue(Component component) {
+        labelFeatures.actions().editConstantValue(component);
     }
 
     private void indexMenus() {

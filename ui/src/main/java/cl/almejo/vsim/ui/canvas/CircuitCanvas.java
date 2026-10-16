@@ -890,6 +890,11 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         host.editLabel(element);
     }
 
+    @Override
+    public void editValue(Component component) {
+        host.editValue(component);
+    }
+
     // Painting and snapshots
 
     @Override

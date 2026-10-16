@@ -1,6 +1,8 @@
 package cl.almejo.vsim.ui.actions;
 
 import cl.almejo.vsim.core.command.AddElementsCommand;
+import cl.almejo.vsim.core.command.ChangeParametersCommand;
+import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.command.RemoveWireSegmentCommand;
 import cl.almejo.vsim.core.command.SetLabelCommand;
 import cl.almejo.vsim.core.document.Component;
@@ -11,30 +13,40 @@ import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.ui.app.OpenDocument;
+import cl.almejo.vsim.ui.canvas.LabelLayout;
 import cl.almejo.vsim.ui.canvas.Selection;
+import cl.almejo.vsim.ui.frames.FramePainter;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.inline.InlineEditRequest;
+import cl.almejo.vsim.ui.inline.InlineTextEditor;
+import cl.almejo.vsim.ui.inline.InlineValidators;
+import cl.almejo.vsim.ui.paint.ConstantPainter;
 
 import javax.swing.AbstractAction;
 import javax.swing.Action;
 import java.awt.event.ActionEvent;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.BooleanSupplier;
 
-/** Label edits of one editor: component labels, free texts and cutting wire stretches. Each one is one undo step. */
+/**
+ * Label edits of one editor, done in place over the canvas: component labels, free texts, frame titles, the value of a
+ * Constante, and cutting wire stretches. Each one is one undo step.
+ */
 public final class LabelActions {
 
     private final OpenDocument openDocument;
     private final Selection selection;
-    private final java.awt.Component parent;
-    private final TextPrompt prompt;
+    private final InlineTextEditor editor;
     private final Action editLabel;
 
-    public LabelActions(OpenDocument openDocument, Selection selection, java.awt.Component parent, TextPrompt prompt) {
+    public LabelActions(OpenDocument openDocument, Selection selection, InlineTextEditor editor) {
         this.openDocument = openDocument;
         this.selection = selection;
-        this.parent = parent;
-        this.prompt = prompt;
+        this.editor = editor;
         editLabel = new AbstractAction(Messages.text("action.label")) {
             @Override
             public void actionPerformed(ActionEvent event) {
@@ -52,47 +64,88 @@ public final class LabelActions {
     }
 
     /**
-     * Asks for a component's label (blank removes it), a free text's text (blank is ignored) or a frame's title
-     * (blank is allowed: the bar then shows no text).
+     * Edits in place a component's label (blank removes it), a free text's text (blank is ignored) or a frame's title
+     * (blank is allowed: the bar then shows no text). The editor closes without applying when the element goes away.
      */
     public void editLabel(DocumentElement element) {
         Optional<DocumentElement> current = openDocument.document().element(element.id());
         if (current.isEmpty()) {
             return;
         }
+        ElementId id = element.id();
+        BooleanSupplier stillThere = () -> openDocument.document().element(id).isPresent();
         switch (current.get()) {
-            case Component component -> prompt.ask(parent, Messages.text("dialog.label.title"),
-                            Messages.format("dialog.label.message",
-                                    Messages.componentName(openDocument.registry().typeOf(component))),
-                            component.label())
-                    .map(String::strip)
-                    .filter(text -> !text.equals(component.label()))
-                    .ifPresent(text -> openDocument.execute(new SetLabelCommand(component.id(), text)));
-            case TextLabel label -> prompt.ask(parent, Messages.text("dialog.text.title"),
-                            Messages.text("dialog.text.message"), label.text())
-                    .map(String::strip)
-                    .filter(text -> !text.isEmpty() && !text.equals(label.text()))
-                    .ifPresent(text -> openDocument.execute(new SetLabelCommand(label.id(), text)));
+            case Component component -> {
+                ComponentType type = openDocument.registry().typeOf(component);
+                editor.open(new InlineEditRequest(
+                        LabelLayout.componentLabelPlace(type, component, component.label()).bounds(),
+                        LabelLayout.FONT, component.label(), InlineValidators.anyText(),
+                        text -> setLabelIfChanged(id, text.strip(), false)), stillThere);
+            }
+            case TextLabel label -> editor.open(new InlineEditRequest(LabelLayout.freeText(label).bounds(),
+                    LabelLayout.FONT, label.text(), InlineValidators.anyText(),
+                    text -> setLabelIfChanged(id, text.strip(), true)), stillThere);
             case Wire wire -> {
             }
-            case Frame frame -> prompt.ask(parent, Messages.text("dialog.frameTitle.title"),
-                            Messages.text("dialog.frameTitle.message"), frame.title())
-                    .map(String::strip)
-                    .filter(text -> !text.equals(frame.title()))
-                    .ifPresent(text -> openDocument.execute(new SetLabelCommand(frame.id(), text)));
+            case Frame frame -> editor.open(new InlineEditRequest(FramePainter.titleTextBounds(frame),
+                    FramePainter.titleFont(), frame.title(), InlineValidators.anyText(),
+                    text -> setLabelIfChanged(id, text.strip(), false)), stillThere);
         }
     }
 
-    /** Asks for a text and adds it as a free text at {@code point}, selected; blank adds nothing. */
+    /**
+     * Edits in place the value of a Constante. Only a value the type accepts can be confirmed; it is stored
+     * normalized, through the same command as Propiedades.
+     */
+    public void editConstantValue(Component constant) {
+        Optional<Component> current = openDocument.document().component(constant.id());
+        if (current.isEmpty()) {
+            return;
+        }
+        ElementId id = constant.id();
+        ComponentType type = openDocument.registry().typeOf(current.get());
+        Map<String, Object> parameters = current.get().parameters();
+        editor.open(new InlineEditRequest(ConstantPainter.valueBox(type, current.get()),
+                ConstantPainter.valueFont(), String.valueOf(parameters.get("value")),
+                InlineValidators.constantValue(type, parameters),
+                text -> openDocument.document().component(id).ifPresent(component -> {
+                    Map<String, Object> changed = new HashMap<>(component.parameters());
+                    changed.put("value", text.strip());
+                    if (!type.resolveParameters(changed).equals(type.resolveParameters(component.parameters()))) {
+                        openDocument.execute(new ChangeParametersCommand(id, type, changed));
+                    }
+                })), () -> openDocument.document().component(id).isPresent());
+    }
+
+    private void setLabelIfChanged(ElementId id, String text, boolean blankIgnored) {
+        if (blankIgnored && text.isEmpty()) {
+            return;
+        }
+        Optional<DocumentElement> current = openDocument.document().element(id);
+        String previous = switch (current.orElse(null)) {
+            case Component component -> component.label();
+            case TextLabel label -> label.text();
+            case Frame frame -> frame.title();
+            case null, default -> null;
+        };
+        if (previous != null && !previous.equals(text)) {
+            openDocument.execute(new SetLabelCommand(id, text));
+        }
+    }
+
+    /** Opens an empty editor at {@code point}; confirming adds the text there, selected. Blank adds nothing. */
     public void addTextAt(GridPoint point) {
-        prompt.ask(parent, Messages.text("dialog.addText.title"), Messages.text("dialog.text.message"), "")
-                .map(String::strip)
-                .filter(text -> !text.isEmpty())
-                .ifPresent(text -> {
-                    TextLabel label = new TextLabel(openDocument.document().newLabelId(), point, text);
-                    openDocument.execute(new AddElementsCommand(List.of(label)));
-                    selection.select(label.id());
-                });
+        TextLabel probe = new TextLabel(new ElementId("probe"), point, "");
+        editor.open(new InlineEditRequest(LabelLayout.freeText(probe).bounds(), LabelLayout.FONT, "",
+                InlineValidators.anyText(), raw -> {
+            String text = raw.strip();
+            if (text.isEmpty()) {
+                return;
+            }
+            TextLabel label = new TextLabel(openDocument.document().newLabelId(), point, text);
+            openDocument.execute(new AddElementsCommand(List.of(label)));
+            selection.select(label.id());
+        }));
     }
 
     /** Removes the stretch of {@code wire} around {@code near} ("Borrar tramo"). */

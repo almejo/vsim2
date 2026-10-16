@@ -153,6 +153,18 @@ class SelectToolTest {
     }
 
     @Test
+    void doubleClickOnAConstantEditsItsValueInsteadOfConfiguring() {
+        Component constant = place(context.openDocument(), StandardComponentTypes.CONSTANT, 0, 0, Map.of());
+        tool.mousePressed(context, TestToolContext.at(2, 1));
+        tool.mouseReleased(context, TestToolContext.at(2, 1));
+        tool.mousePressed(context, TestToolContext.event(2, 1, CanvasMouseEvent.PRIMARY, 2, false));
+        tool.mouseReleased(context, TestToolContext.event(2, 1, CanvasMouseEvent.PRIMARY, 2, false));
+        assertThat(context.valueEdited).isEqualTo(constant);
+        assertThat(context.configured).isNull();
+        assertThat(context.selection.ids()).containsExactly(constant.id());
+    }
+
+    @Test
     void rightClickSelectsTheElementAndOpensTheContextMenu() {
         Component gate = not(0, 0);
         tool.mousePressed(context, TestToolContext.event(2, 2, CanvasMouseEvent.SECONDARY, 1, false));

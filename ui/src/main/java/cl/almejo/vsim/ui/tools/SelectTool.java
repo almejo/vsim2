@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.tools;
 import cl.almejo.vsim.core.command.MoveElementsCommand;
 import cl.almejo.vsim.core.command.PasteCommand;
 import cl.almejo.vsim.core.component.ElementBounds;
+import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
@@ -166,7 +167,11 @@ public final class SelectTool implements Tool {
         if (event.clickCount() >= 2 && continuesOwnClick && hit.isPresent()) {
             if (hit.get() instanceof Component component) {
                 context.selection().select(component.id());
-                context.configure(component);
+                if (component.typeId().equals(StandardComponentTypes.CONSTANT)) {
+                    context.editValue(component);
+                } else {
+                    context.configure(component);
+                }
                 return;
             }
             if (hit.get() instanceof TextLabel label) {

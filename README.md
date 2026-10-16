@@ -140,6 +140,16 @@ Diseño: `docs/superpowers/specs/2026-10-08-vsim2-design.md`.
 - El tamaño de la caja depende solo del ancho y del formato, nunca del valor: editar el valor no mueve el pin ni desconecta cables.
 - Un archivo cuya constante no cabe en su ancho no se abre (error de formato, como cualquier parámetro inválido). Dentro de un componente propio la constante se conserva, y en la tabla de verdad no es una entrada: simplemente mantiene su valor.
 
+## Edición de texto en el lugar (M6.5)
+
+- Los textos se editan justo donde están dibujados, sin diálogo: un campo de texto aparece sobre el texto, con todo el texto seleccionado, y sigue al texto cuando haces zoom o te desplazas. Sirve para el texto libre (doble click, F2 o «Editar texto…»), el título de un marco (doble click en su barra, F2 con el marco seleccionado o «Cambiar título…»), la etiqueta de un componente (F2 o «Etiqueta…»; el campo aparece donde se dibujaría la etiqueta aunque todavía no tenga) y «Agregar texto aquí» (campo vacío en el punto del click).
+- Junto al campo hay dos botones: ✓ «Confirmar (Enter)» y ✗ «Cancelar (Esc)». Enter o ✓ confirman; Esc o ✗ cancelan. Un click en cualquier otro lugar de la ventana (el lienzo, la barra de herramientas, un menú) también confirma; cambiar a otra aplicación con Alt+Tab no hace nada y el texto a medio escribir se conserva.
+- Mientras escribes, las teclas son del campo: Supr borra letras (no el elemento seleccionado), Ctrl+Z no deshace el circuito y las flechas mueven el cursor del texto.
+- Las reglas de siempre se mantienen y cada edición es un solo paso de deshacer: una etiqueta vacía la quita, un texto libre vacío no cambia nada (ni agrega uno nuevo), el título de un marco puede quedar vacío. Si el elemento desaparece mientras editas (por ejemplo con Deshacer desde otra vista), el campo se cierra sin aplicar nada.
+- Tras crear un marco (herramienta «Marco» o Ctrl+G) el campo del título se abre solo, con «Bloque» seleccionado.
+- **Constante**: doble click sobre una Constante edita su valor en el lugar (los demás parámetros siguen en Propiedades y en «Configurar…»; los demás componentes siguen abriendo «Configurar…» con el doble click). El campo valida mientras escribes: un valor no válido o que no cabe en el ancho («No cabe en 8 bits») se marca en rojo con el mensaje debajo, Enter y ✓ no hacen nada y un click fuera cancela, de modo que un valor inválido nunca llega al circuito. El valor queda normalizado (`0x00ff` pasa a `0xFF`).
+- El campo no aparece en las imágenes exportadas.
+
 ## Preferencias y distribución
 
 - Archivo → Preferencias… (en macOS también VSim 2 → Ajustes…): tema Claro, Oscuro o Seguir sistema; esquema de color del circuito (Según el tema, VSim clásico, Claro, Oscuro y los otros esquemas del VSim original: Pastel, CSim y Twilight); idioma (Sistema, Español, English; se aplica al reiniciar); directorio de la librería de componentes (Elegir… / Restaurar predeterminado). El tema y el esquema cambian al instante en todas las ventanas.

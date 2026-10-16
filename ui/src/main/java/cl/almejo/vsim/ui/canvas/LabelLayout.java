@@ -57,15 +57,22 @@ public final class LabelLayout {
         if (component.label().isBlank()) {
             return Optional.empty();
         }
+        return Optional.of(componentLabelPlace(type, component, component.label()));
+    }
+
+    /**
+     * Where {@code text} would be drawn as the label of {@code component}: what {@link #componentLabel} gives for a
+     * label with that text, also for an empty one (a zero-width box where the label would start).
+     */
+    public static PlacedText componentLabelPlace(ComponentType type, Component component, String text) {
         Rectangle2D body = ComponentDrawing.documentBounds(type, component);
-        PlacedText measured = measure(component.label(), 0, 0);
+        PlacedText measured = measure(text, 0, 0);
         boolean sideways = component.rotation() == Rotation.R90 || component.rotation() == Rotation.R270;
         double left = sideways ? body.getMinX() - GAP - measured.width()
                 : body.getCenterX() - measured.width() / 2;
         double top = sideways ? body.getCenterY() - measured.height() / 2
                 : body.getMinY() - GAP - measured.height();
-        return Optional.of(new PlacedText(measured.text(), left, top, measured.width(), measured.height(),
-                measured.ascent()));
+        return new PlacedText(measured.text(), left, top, measured.width(), measured.height(), measured.ascent());
     }
 
     /** Bounds of a free text label in grid units. */

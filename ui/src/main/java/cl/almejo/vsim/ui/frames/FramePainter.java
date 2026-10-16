@@ -16,6 +16,8 @@ import java.awt.FontMetrics;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.Shape;
+import java.awt.font.FontRenderContext;
+import java.awt.font.LineMetrics;
 import java.awt.geom.Line2D;
 import java.awt.geom.Rectangle2D;
 
@@ -58,6 +60,23 @@ public final class FramePainter {
     public static Rectangle2D titleBarBounds(Frame frame) {
         Rectangle2D bounds = bounds(frame);
         return new Rectangle2D.Double(bounds.getX(), bounds.getY(), bounds.getWidth(), TITLE_BAR_HEIGHT);
+    }
+
+    /** The font the title is painted with, at 100 %. */
+    public static Font titleFont() {
+        return TITLE_FONT;
+    }
+
+    /**
+     * Where the title text is written: from the left padding of the title band to the controls, as high as the title
+     * font, centred in the band. In document pixels.
+     */
+    public static Rectangle2D titleTextBounds(Frame frame) {
+        Rectangle2D bar = titleBarBounds(frame);
+        LineMetrics metrics = TITLE_FONT.getLineMetrics("Ag", new FontRenderContext(null, true, true));
+        double height = metrics.getAscent() + metrics.getDescent();
+        return new Rectangle2D.Double(bar.getX() + TITLE_PADDING, bar.getY() + (bar.getHeight() - height) / 2,
+                Math.max(0, bar.getWidth() - 2 * TITLE_PADDING - CONTROLS_WIDTH), height);
     }
 
     /** The ⋯ button, at the right end of the title bar, in document pixels. */

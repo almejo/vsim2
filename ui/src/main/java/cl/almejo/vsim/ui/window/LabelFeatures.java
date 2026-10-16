@@ -2,7 +2,6 @@ package cl.almejo.vsim.ui.window;
 
 import cl.almejo.vsim.ui.actions.LabelActions;
 import cl.almejo.vsim.ui.actions.LabelMenuContributor;
-import cl.almejo.vsim.ui.actions.TextPrompt;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.panels.PropertiesPanel;
@@ -21,9 +20,9 @@ public final class LabelFeatures {
         this.properties = properties;
     }
 
-    public static LabelFeatures install(EditorView view, TextPrompt prompt) {
+    public static LabelFeatures install(EditorView view) {
         CircuitCanvas canvas = view.canvas();
-        LabelActions actions = new LabelActions(view.openDocument(), canvas.selection(), canvas, prompt);
+        LabelActions actions = new LabelActions(view.openDocument(), canvas.selection(), view.inlineEditor());
         canvas.bindKey(KeyStroke.getKeyStroke(KeyEvent.VK_F2, 0), "editLabel", actions.editLabel());
         view.menu(MenuId.EDIT).add(actions.editLabel());
         view.addContextMenuContributor(new LabelMenuContributor(actions));

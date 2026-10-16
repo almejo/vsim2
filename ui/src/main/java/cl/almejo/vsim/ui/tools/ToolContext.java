@@ -52,4 +52,9 @@ public interface ToolContext {
 
     /** Edits the label of a component, or the text of a free text label. */
     void editLabel(DocumentElement element);
+
+    /** Edits in place the value of a Constante; by default what a double click did before: the configure dialog. */
+    default void editValue(Component component) {
+        configure(component);
+    }
 }
