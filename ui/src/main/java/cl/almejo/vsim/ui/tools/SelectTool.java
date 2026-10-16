@@ -18,6 +18,7 @@ import cl.almejo.vsim.ui.paint.PainterSupport;
 import cl.almejo.vsim.ui.canvas.MarchingAnts;
 import cl.almejo.vsim.ui.canvas.SelectionBounds;
 import cl.almejo.vsim.ui.wiring.MovePreview;
+import cl.almejo.vsim.ui.wiring.SelectionMoves;
 
 import java.awt.BasicStroke;
 import java.awt.Color;
@@ -87,6 +88,9 @@ public final class SelectTool implements Tool {
     private boolean removeOnRelease;
     private int deltaX;
     private int deltaY;
+    /** The drag's delta before the locked-frame walls: what a Ctrl copy uses, as copies leave the originals. */
+    private int copyDeltaX;
+    private int copyDeltaY;
     private boolean followWires;
     private final MovePreview movePreview = new MovePreview();
     private CanvasCursor cursor = CanvasCursor.DEFAULT;
@@ -273,8 +277,7 @@ public final class SelectTool implements Tool {
         if (pressPoint == null) {
             return;
         }
-        deltaX = event.snapped().x() - pressPoint.x();
-        deltaY = event.snapped().y() - pressPoint.y();
+        dragTo(context, event);
         followWires = context.selectionMoves().follows(event.shiftDown(), event.altDown());
         context.repaint();
     }
@@ -300,7 +303,7 @@ public final class SelectTool implements Tool {
                 click(context);
             }
         } else if (pressPoint != null) {
-            if (deltaX != 0 || deltaY != 0) {
+            if (deltaX != 0 || deltaY != 0 || copyDeltaX != 0 || copyDeltaY != 0) {
                 if (!context.selection().isEmpty()) {
                     if (event.controlDown()) {
                         copySelection(context);
@@ -323,6 +326,20 @@ public final class SelectTool implements Tool {
         reset();
         updateHover(context, event);
         context.repaint();
+    }
+
+    /** The delta of the drag; a move (not a Ctrl copy) stops at the border of a locked frame it does not carry. */
+    private void dragTo(ToolContext context, CanvasMouseEvent event) {
+        deltaX = event.snapped().x() - pressPoint.x();
+        deltaY = event.snapped().y() - pressPoint.y();
+        copyDeltaX = deltaX;
+        copyDeltaY = deltaY;
+        if (!event.controlDown() && !context.selection().isEmpty()) {
+            GridPoint limited = SelectionMoves.limited(context.openDocument(), context.selection().effectiveIds(),
+                    deltaX, deltaY);
+            deltaX = limited.x();
+            deltaY = limited.y();
+        }
     }
 
     @Override
@@ -610,7 +627,7 @@ public final class SelectTool implements Tool {
         }
         CircuitFragment fragment = CircuitFragment.of(context.openDocument().document(), ids,
                 context.openDocument().registry());
-        PasteCommand paste = new PasteCommand(fragment, topLeft.get().translate(deltaX, deltaY));
+        PasteCommand paste = new PasteCommand(fragment, topLeft.get().translate(copyDeltaX, copyDeltaY));
         context.openDocument().execute(paste);
         context.selection().set(paste.pastedIds());
     }
@@ -673,6 +690,8 @@ public final class SelectTool implements Tool {
         bandAdditive = false;
         deltaX = 0;
         deltaY = 0;
+        copyDeltaX = 0;
+        copyDeltaY = 0;
         followWires = false;
         movePreview.clear();
     }

@@ -11,6 +11,7 @@ import cl.almejo.vsim.ui.tools.CanvasMouseEvent;
 import cl.almejo.vsim.ui.tools.SelectToolDelegate;
 import cl.almejo.vsim.ui.tools.ToolContext;
 import cl.almejo.vsim.ui.wiring.MovePreview;
+import cl.almejo.vsim.ui.wiring.SelectionMoves;
 
 import java.awt.Graphics2D;
 import java.awt.geom.Rectangle2D;
@@ -120,6 +121,13 @@ public final class FrameGestures implements SelectToolDelegate {
         }
         deltaX = event.snapped().x() - pressPoint.x();
         deltaY = event.snapped().y() - pressPoint.y();
+        if (!part.resizes()) {
+            // a frame inside a locked frame stops at its border, like any content
+            GridPoint limited = SelectionMoves.limited(context.openDocument(), context.selection().effectiveIds(),
+                    deltaX, deltaY);
+            deltaX = limited.x();
+            deltaY = limited.y();
+        }
         followWires = context.selectionMoves().follows(event.shiftDown(), event.altDown());
         context.repaint();
     }

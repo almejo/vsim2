@@ -13,6 +13,7 @@ import cl.almejo.vsim.ui.tools.CanvasCursor;
 import cl.almejo.vsim.ui.tools.CanvasMouseEvent;
 import cl.almejo.vsim.ui.tools.SelectTool;
 import cl.almejo.vsim.ui.tools.TestToolContext;
+import cl.almejo.vsim.ui.wiring.SelectionMoves;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
@@ -525,6 +526,57 @@ class FrameGesturesTest {
         assertThat(context.openDocument().document().component(inside.id()).orElseThrow().position())
                 .isEqualTo(new GridPoint(4, 7));
         assertThat(context.openDocument().document().wires()).containsExactly(crossing);
+    }
+
+    // --- the border of a locked frame is a wall for its contents (2026-10-16)
+
+    @Test
+    void aGateInsideALockedFrameStopsAtItsBorderInOneUndoStep() {
+        frame(0, 0, 20, 12, true);
+        Component inside = gate(4, 4);
+        context.drag(tool, 6, 6, 40, 30);
+        assertThat(current(inside).position()).isEqualTo(new GridPoint(16, 8));
+        context.openDocument().history().undo();
+        assertThat(current(inside)).isEqualTo(inside);
+    }
+
+    @Test
+    void theArrowsStopAtTheBorderToo() {
+        frame(0, 0, 20, 12, true);
+        Component inside = gate(16, 4);
+        SelectionMoves.detached().nudge(context.openDocument(), Set.of(inside.id()), 1, 0);
+        assertThat(current(inside)).isEqualTo(inside);
+        assertThat(context.openDocument().history().undoDescription()).isNotEqualTo(java.util.Optional.of("command.move"));
+        SelectionMoves.detached().nudge(context.openDocument(), Set.of(inside.id()), -5, 0);
+        assertThat(current(inside).position()).isEqualTo(new GridPoint(11, 4));
+    }
+
+    @Test
+    void anUnlockedFrameIsNoWall() {
+        frame(0, 0, 20, 12, false);
+        Component inside = gate(4, 4);
+        context.drag(tool, 6, 6, 40, 6);
+        assertThat(current(inside).position()).isEqualTo(new GridPoint(38, 4));
+    }
+
+    @Test
+    void somethingFromOutsideMayEnterALockedFrame() {
+        frame(0, 0, 20, 12, true);
+        Component outside = gate(30, 4);
+        context.drag(tool, 32, 6, 10, 6);
+        assertThat(current(outside).position()).isEqualTo(new GridPoint(8, 4));
+    }
+
+    @Test
+    void aControlDragCopyIsNotLimited() {
+        frame(0, 0, 20, 12, true);
+        Component inside = gate(4, 4);
+        tool.mousePressed(context, TestToolContext.at(6, 6));
+        tool.mouseDragged(context, TestToolContext.withKeys(40, 6, false, true, false));
+        tool.mouseReleased(context, TestToolContext.withKeys(40, 6, false, true, false));
+        assertThat(current(inside)).isEqualTo(inside);
+        assertThat(context.openDocument().document().components()).extracting(Component::position)
+                .contains(new GridPoint(38, 4));
     }
 
     private Wire wire(int startX, int startY, int endX, int endY) {

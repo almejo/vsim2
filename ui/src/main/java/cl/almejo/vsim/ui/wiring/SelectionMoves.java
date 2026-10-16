@@ -6,6 +6,8 @@ import cl.almejo.vsim.core.command.MoveWithWiresCommand;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.core.document.LockedFrameWalls;
+import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.core.wiring.FollowPlan;
@@ -80,12 +82,24 @@ public final class SelectionMoves {
                 : new MoveElementsCommand(ids, deltaX, deltaY);
     }
 
-    /** Moves {@code ids} as one undo step and reports what the wires did; nothing for no ids or no delta. */
+    /** The delta a move of {@code ids} may take: contents of a locked frame that stays put stop at its border. */
+    public static GridPoint limited(OpenDocument openDocument, Collection<ElementId> ids, int deltaX, int deltaY) {
+        return LockedFrameWalls.limit(openDocument.document(), openDocument.registry(), ids, deltaX, deltaY);
+    }
+
+    /**
+     * Moves {@code ids} as one undo step (limited by the locked frames, see {@link #limited}) and reports what the
+     * wires did; nothing for no ids or no delta.
+     */
     public void move(OpenDocument openDocument, Collection<ElementId> ids, int deltaX, int deltaY, boolean follow) {
-        if (ids.isEmpty() || (deltaX == 0 && deltaY == 0)) {
+        if (ids.isEmpty()) {
             return;
         }
-        Command command = command(openDocument, ids, deltaX, deltaY, follow);
+        GridPoint delta = limited(openDocument, ids, deltaX, deltaY);
+        if (delta.x() == 0 && delta.y() == 0) {
+            return;
+        }
+        Command command = command(openDocument, ids, delta.x(), delta.y(), follow);
         openDocument.execute(command);
         report(openDocument.document(), command, follow == followMode());
     }
@@ -95,15 +109,16 @@ public final class SelectionMoves {
      * commands merge in the history). The report reads the merged command, so it covers the whole run.
      */
     public void nudge(OpenDocument openDocument, Collection<ElementId> ids, int deltaX, int deltaY) {
-        if (ids.isEmpty()) {
+        GridPoint delta = ids.isEmpty() ? new GridPoint(0, 0) : limited(openDocument, ids, deltaX, deltaY);
+        if (delta.x() == 0 && delta.y() == 0) {
             return;
         }
         if (!followMode()) {
-            openDocument.execute(MoveElementsCommand.nudge(ids, deltaX, deltaY));
+            openDocument.execute(MoveElementsCommand.nudge(ids, delta.x(), delta.y()));
             return;
         }
-        openDocument.execute(MoveWithWiresCommand.nudge(openDocument.registry(), new LinkedHashSet<>(ids), deltaX,
-                deltaY));
+        openDocument.execute(MoveWithWiresCommand.nudge(openDocument.registry(), new LinkedHashSet<>(ids), delta.x(),
+                delta.y()));
         openDocument.history().undoCommand().ifPresent(command -> report(openDocument.document(), command, true));
     }
 
