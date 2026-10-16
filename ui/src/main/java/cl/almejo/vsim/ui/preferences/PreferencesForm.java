@@ -52,6 +52,7 @@ public final class PreferencesForm extends JPanel {
     private final JComboBox<Choice<AppPreferences.Theme>> themeChoice = new JComboBox<>();
     private final JComboBox<Choice<Optional<String>>> schemeChoice = new JComboBox<>();
     private final JComboBox<Choice<Optional<String>>> languageChoice = new JComboBox<>();
+    private final JComboBox<Choice<AppPreferences.InvertModifier>> invertModifierChoice = new JComboBox<>();
     private final JTextField libraryField = new JTextField(32);
     private final JButton chooseLibraryButton = new JButton(Messages.text("preferences.library.choose"));
     private final JButton restoreLibraryButton = new JButton(Messages.text("preferences.library.restore"));
@@ -73,6 +74,13 @@ public final class PreferencesForm extends JPanel {
         languageChoice.addItem(new Choice<>(Optional.empty(), Messages.text("preferences.language.system")));
         LANGUAGES.forEach((tag, nameKey) ->
                 languageChoice.addItem(new Choice<>(Optional.of(tag), Messages.text(nameKey))));
+
+        for (AppPreferences.InvertModifier modifier : AppPreferences.InvertModifier.values()) {
+            invertModifierChoice.addItem(new Choice<>(modifier, invertModifierName(modifier)));
+        }
+        select(invertModifierChoice, preferences.invertModifier());
+        invertModifierChoice.addActionListener(
+                event -> preferences.setInvertModifier(selected(invertModifierChoice)));
 
         select(themeChoice, preferences.theme());
         select(schemeChoice, preferences.colorScheme().filter(id -> ColorSchemes.byId(id).isPresent()));
@@ -105,6 +113,8 @@ public final class PreferencesForm extends JPanel {
         add(chooseLibraryButton, "skip 1, split 2, growx 0");
         add(restoreLibraryButton, "growx 0");
         add(restoreSessionBox, "skip 1, gaptop 12");
+        add(new JLabel(Messages.text("preferences.invertModifier")), "gaptop 12");
+        add(invertModifierChoice, "gaptop 12");
     }
 
     JComboBox<Choice<AppPreferences.Theme>> themeChoice() {
@@ -117,6 +127,10 @@ public final class PreferencesForm extends JPanel {
 
     JComboBox<Choice<Optional<String>>> languageChoice() {
         return languageChoice;
+    }
+
+    JComboBox<Choice<AppPreferences.InvertModifier>> invertModifierChoice() {
+        return invertModifierChoice;
     }
 
     JTextField libraryField() {
@@ -133,6 +147,15 @@ public final class PreferencesForm extends JPanel {
 
     JCheckBox restoreSessionBox() {
         return restoreSessionBox;
+    }
+
+    /** The text of an invert key, also used by the follow toggle's tooltip. */
+    public static String invertModifierName(AppPreferences.InvertModifier modifier) {
+        return switch (modifier) {
+            case SHIFT -> Messages.text("preferences.invertModifier.SHIFT");
+            case ALT -> Messages.text("preferences.invertModifier.ALT");
+            case NONE -> Messages.text("preferences.invertModifier.NONE");
+        };
     }
 
     static String themeName(AppPreferences.Theme theme) {

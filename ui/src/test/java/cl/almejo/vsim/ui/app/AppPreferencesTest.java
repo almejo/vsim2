@@ -221,4 +221,40 @@ class AppPreferencesTest {
         assertThat(node.node("shortcuts").get("file.save", null)).isEqualTo("ctrl pressed G");
         assertThat(preferences.theme()).isEqualTo(AppPreferences.Theme.SYSTEM);
     }
+
+    @Test
+    void wiresFollowIsOnAndTheInvertKeyIsShiftByDefaultAndBothRoundTripAndNotify() {
+        preferences.addListener(changes::incrementAndGet);
+        assertThat(preferences.wiresFollow()).isTrue();
+        assertThat(preferences.invertModifier()).isEqualTo(AppPreferences.InvertModifier.SHIFT);
+
+        preferences.setWiresFollow(false);
+        preferences.setWiresFollow(false);
+        preferences.setInvertModifier(AppPreferences.InvertModifier.ALT);
+        assertThat(changes).hasValue(2);
+        assertThat(new AppPreferences(node).wiresFollow()).isFalse();
+        assertThat(new AppPreferences(node).invertModifier()).isEqualTo(AppPreferences.InvertModifier.ALT);
+
+        preferences.setInvertModifier(AppPreferences.InvertModifier.NONE);
+        assertThat(preferences.invertModifier()).isEqualTo(AppPreferences.InvertModifier.NONE);
+    }
+
+    @Test
+    void anUnknownStoredInvertKeyFallsBackToShift() {
+        node.put("invertModifier", "HYPER");
+        assertThat(preferences.invertModifier()).isEqualTo(AppPreferences.InvertModifier.SHIFT);
+    }
+
+    @Test
+    void theInvertKeyIsHeldOnlyWhenItsOwnKeyIsDown() {
+        AppPreferences.InvertModifier shift = AppPreferences.InvertModifier.SHIFT;
+        AppPreferences.InvertModifier alt = AppPreferences.InvertModifier.ALT;
+        AppPreferences.InvertModifier none = AppPreferences.InvertModifier.NONE;
+        assertThat(shift.isHeld(true, false)).isTrue();
+        assertThat(shift.isHeld(false, true)).isFalse();
+        assertThat(shift.isHeld(false, false)).isFalse();
+        assertThat(alt.isHeld(false, true)).isTrue();
+        assertThat(alt.isHeld(true, false)).isFalse();
+        assertThat(none.isHeld(true, true)).isFalse();
+    }
 }

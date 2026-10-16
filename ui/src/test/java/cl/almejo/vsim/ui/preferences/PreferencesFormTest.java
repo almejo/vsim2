@@ -152,4 +152,17 @@ class PreferencesFormTest {
         assertThat(preferences.restoreSession()).isFalse();
         assertThat(form().restoreSessionBox().isSelected()).isFalse();
     }
+
+    @Test
+    void theInvertKeyComboOffersShiftAltAndNoneAndSavesTheChoice() {
+        PreferencesForm form = form();
+        assertThat(labels(form.invertModifierChoice())).containsExactly("Mayús", "Alt", "Ninguna");
+        assertThat(selected(form.invertModifierChoice())).isEqualTo(AppPreferences.InvertModifier.SHIFT);
+
+        choose(form.invertModifierChoice(), AppPreferences.InvertModifier.ALT);
+        assertThat(preferences.invertModifier()).isEqualTo(AppPreferences.InvertModifier.ALT);
+
+        preferences.setInvertModifier(AppPreferences.InvertModifier.NONE);
+        assertThat(selected(form().invertModifierChoice())).isEqualTo(AppPreferences.InvertModifier.NONE);
+    }
 }

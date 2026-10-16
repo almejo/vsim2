@@ -390,6 +390,19 @@ public final class EditorView extends JPanel implements CanvasHost {
         };
     }
 
+    /**
+     * Adds a toggle button that is not a tool (it stays outside the tool group) right after the last tool button,
+     * Mover vista. Returns what takes it back.
+     */
+    public Runnable addToolbarToggleAfterTools(JToggleButton button) {
+        toolBar.add(button, indexOfToolButton(panButton) + 1);
+        toolBar.revalidate();
+        return () -> {
+            toolBar.remove(button);
+            toolBar.revalidate();
+        };
+    }
+
     /** The toolbar's button for tools of {@code toolType} added with {@link #addToolButton}, if any. */
     public Optional<JToggleButton> toolButton(Class<? extends Tool> toolType) {
         return Optional.ofNullable(extraToolButtons.get(toolType));

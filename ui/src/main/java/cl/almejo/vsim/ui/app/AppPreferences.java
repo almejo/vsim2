@@ -21,6 +21,20 @@ public final class AppPreferences {
 
     public enum Theme { LIGHT, DARK, SYSTEM }
 
+    /** The key that inverts the follow mode while dragging (M6.7): Shift by default, Alt, or none. */
+    public enum InvertModifier {
+        SHIFT, ALT, NONE;
+
+        /** Whether this key is down given the state of the Shift and Alt keys; {@link #NONE} never is. */
+        public boolean isHeld(boolean shiftDown, boolean altDown) {
+            return switch (this) {
+                case SHIFT -> shiftDown;
+                case ALT -> altDown;
+                case NONE -> false;
+            };
+        }
+    }
+
     static final String THEME = "theme";
     static final String COLOR_SCHEME = "colorScheme";
     static final String LANGUAGE = "language";
@@ -36,6 +50,8 @@ public final class AppPreferences {
     static final String TIDY_REMOVE_STUBS = "tidyRemoveStubs";
     static final String TIDY_MERGE_SEGMENTS = "tidyMergeSegments";
     static final String TIDY_FLATTEN_DETOURS = "tidyFlattenDetours";
+    static final String WIRES_FOLLOW = "wiresFollow";
+    static final String INVERT_MODIFIER = "invertModifier";
 
     /** «Avanzar 10 t» (M6.1-B): the fixed step until the user picks another size. */
     public static final long DEFAULT_STEP_UNITS = 10;
@@ -227,6 +243,31 @@ public final class AppPreferences {
         put(TIDY_REMOVE_STUBS, Boolean.toString(options.removeStubs()));
         put(TIDY_MERGE_SEGMENTS, Boolean.toString(options.mergeSegments()));
         put(TIDY_FLATTEN_DETOURS, Boolean.toString(options.flattenDetours()));
+    }
+
+    // --- M6.7 wires follow moves ---
+
+    /** «Los cables siguen al mover»: on unless the user turned it off. */
+    public boolean wiresFollow() {
+        return !"false".equals(node.get(WIRES_FOLLOW, "true"));
+    }
+
+    public void setWiresFollow(boolean follow) {
+        put(WIRES_FOLLOW, Boolean.toString(follow));
+    }
+
+    /** The key that inverts the follow mode while dragging; Shift when unset or unreadable. */
+    public InvertModifier invertModifier() {
+        try {
+            return InvertModifier.valueOf(node.get(INVERT_MODIFIER, InvertModifier.SHIFT.name()));
+        } catch (IllegalArgumentException exception) {
+            return InvertModifier.SHIFT;
+        }
+    }
+
+    public void setInvertModifier(InvertModifier modifier) {
+        Objects.requireNonNull(modifier, "modifier");
+        put(INVERT_MODIFIER, modifier.name());
     }
 
     // --- M6-B session: recent files, last session, recovery folder ---

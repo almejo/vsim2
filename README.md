@@ -152,6 +152,10 @@ Diseño: `docs/superpowers/specs/2026-10-08-vsim2-design.md`.
 - **Constante**: doble click sobre una Constante edita su valor en el lugar (los demás parámetros siguen en Propiedades y en «Configurar…»; los demás componentes siguen abriendo «Configurar…» con el doble click). El campo valida mientras escribes: un valor no válido o que no cabe en el ancho («No cabe en 8 bits») se marca en rojo con el mensaje debajo, Enter y ✓ no hacen nada y un click fuera cancela, de modo que un valor inválido nunca llega al circuito. El valor queda normalizado (`0x00ff` pasa a `0xFF`).
 - El campo no aparece en las imágenes exportadas.
 
+## Cables que siguen al mover (M6.7)
+
+- El botón «Los cables siguen al mover» (barra de herramientas, justo después de «Mover vista», y casilla en Editar; sin atajo por defecto, asignable en Atajos de teclado) activa o desactiva el modo en que los cables acompañan a lo que mueves. Está activado por defecto, se recuerda y vale para todas las ventanas. Mantener la tecla de invertir mientras arrastras lo invierte solo en ese arrastre; se elige en Preferencias ▸ «Tecla para invertir al arrastrar» (Mayús por defecto, Alt o Ninguna).
+
 ## Preferencias y distribución
 
 - Archivo → Preferencias… (en macOS también VSim 2 → Ajustes…): tema Claro, Oscuro o Seguir sistema; esquema de color del circuito (Según el tema, VSim clásico, Claro, Oscuro y los otros esquemas del VSim original: Pastel, CSim y Twilight); idioma (Sistema, Español, English; se aplica al reiniciar); directorio de la librería de componentes (Elegir… / Restaurar predeterminado). El tema y el esquema cambian al instante en todas las ventanas.
