@@ -26,7 +26,8 @@ public final class LabelFeatures {
         canvas.bindKey(KeyStroke.getKeyStroke(KeyEvent.VK_F2, 0), "editLabel", actions.editLabel());
         view.menu(MenuId.EDIT).add(actions.editLabel());
         view.addContextMenuContributor(new LabelMenuContributor(actions));
-        PropertiesPanel properties = new PropertiesPanel(view.openDocument(), canvas.selection());
+        PropertiesPanel properties = new PropertiesPanel(view.openDocument(), canvas.selection(),
+                view.selectionMoves());
         view.inspector().addTab(Messages.text("inspector.properties"), properties);
         return new LabelFeatures(actions, properties);
     }

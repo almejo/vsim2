@@ -168,6 +168,66 @@ class MoveWithWiresCommandTest {
         assertThat(scene.document().revision()).isEqualTo(revision + 1);
     }
 
+    /**
+     * The gate's output wire has a simple corner, so moving the gate up 4 slides it up and its vertical neighbour
+     * vanishes: the slid wire then ends where an untouched wire continues it in line.
+     */
+    private record InLine(CircuitDocument document, Component gate, Wire attached, Wire corner, Wire beyond) {
+    }
+
+    private static InLine inLine() {
+        CircuitDocument document = new CircuitDocument();
+        Component gate = gate(document, 10, 10);
+        Wire attached = wire(document, 14, 12, 20, 12);
+        Wire corner = wire(document, 20, 8, 20, 12);
+        Wire beyond = wire(document, 20, 8, 26, 8);
+        return new InLine(document, gate, attached, corner, beyond);
+    }
+
+    @Test
+    void theCleanUpMergesAStretchedWireWithTheWireItEndsInLineWithInTheSameUndoStep() {
+        InLine scene = inLine();
+        CircuitDocument document = scene.document();
+        Map<DocumentElement, Long> before = snapshot(document);
+        History history = new History(document);
+        history.execute(MoveWithWiresCommand.of(document, registry, Set.of(scene.gate().id()), 0, -4));
+
+        assertThat(document.wires()).containsExactly(
+                new Wire(scene.attached().id(), new GridPoint(14, 8), new GridPoint(26, 8)));
+        history.undo();
+        assertThat(snapshot(document)).containsExactlyEntriesOf(before);
+        assertThat(history.canUndo()).isFalse();
+        history.redo();
+        assertThat(document.wires()).containsExactly(
+                new Wire(scene.attached().id(), new GridPoint(14, 8), new GridPoint(26, 8)));
+    }
+
+    @Test
+    void aRunOfNudgesEndsCleanToo() {
+        InLine scene = inLine();
+        History history = new History(scene.document());
+        for (int step = 0; step < 4; step++) {
+            history.execute(MoveWithWiresCommand.nudge(registry, Set.of(scene.gate().id()), 0, -1));
+        }
+        assertThat(scene.document().wires()).containsExactly(
+                new Wire(scene.attached().id(), new GridPoint(14, 8), new GridPoint(26, 8)));
+        history.undo();
+        assertThat(history.canUndo()).isFalse();
+        assertThat(scene.document().wires()).containsExactly(scene.attached(), scene.corner(), scene.beyond());
+    }
+
+    @Test
+    void anUntouchedSplitWireFarFromTheMoveStaysSplit() {
+        CircuitDocument document = new CircuitDocument();
+        Component gate = gate(document, 10, 10);
+        Wire attached = wire(document, 14, 12, 20, 12);
+        Wire left = wire(document, 0, 30, 5, 30);
+        Wire right = wire(document, 5, 30, 9, 30);
+        MoveWithWiresCommand.of(document, registry, Set.of(gate.id()), 2, 0).apply(document);
+        assertThat(document.wires()).contains(left, right);
+        assertThat(document.wire(attached.id()).orElseThrow().start()).isEqualTo(new GridPoint(16, 12));
+    }
+
     @Test
     void anExplicitPlanIsAppliedAsGiven() {
         CircuitDocument document = new CircuitDocument();

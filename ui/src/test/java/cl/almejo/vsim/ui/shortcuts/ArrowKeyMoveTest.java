@@ -1,6 +1,11 @@
 package cl.almejo.vsim.ui.shortcuts;
 
+import cl.almejo.vsim.core.command.AddWireCommand;
 import cl.almejo.vsim.core.command.CreateFrameCommand;
+import cl.almejo.vsim.core.command.MoveWithWiresCommand;
+import cl.almejo.vsim.core.document.CircuitDocument;
+import cl.almejo.vsim.core.document.DocumentElement;
+import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.Frame;
@@ -30,6 +35,7 @@ import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static cl.almejo.vsim.ui.UiTestSupport.place;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -123,6 +129,56 @@ class ArrowKeyMoveTest {
         assertThat(openDocument.history().undoDescription()).contains("command.add");
         openDocument.history().redo();
         assertThat(positionOf(gate)).isEqualTo(new GridPoint(15, 5));
+    }
+
+    private static void addWire(OpenDocument target, int startX, int startY, int endX, int endY) {
+        target.execute(new AddWireCommand(new Wire(target.document().newWireId(), new GridPoint(startX, startY),
+                new GridPoint(endX, endY))));
+    }
+
+    /** The gate's output (9, 7) goes to a T at (20, 7): moving the gate down inserts an L. */
+    private static void teeWires(OpenDocument target) {
+        addWire(target, 9, 7, 20, 7);
+        addWire(target, 20, 0, 20, 7);
+        addWire(target, 20, 7, 20, 12);
+    }
+
+    @Test
+    void fiveNudgesWithTheWiresFollowingEqualOneMoveOfFiveInOneUndoStep() {
+        teeWires(openDocument);
+        Set<DocumentElement> before = Set.copyOf(openDocument.document().elements());
+        canvas.selection().select(gate.id());
+        for (int press = 0; press < 5; press++) {
+            this.press(KeyEvent.VK_DOWN, 0);
+        }
+
+        OpenDocument reference = OpenDocument.createEmpty(StandardComponentTypes.registry());
+        try {
+            Component referenceGate = place(reference, StandardComponentTypes.NOT, 5, 5, Map.of());
+            teeWires(reference);
+            CircuitDocument referenceDocument = reference.document();
+            reference.execute(MoveWithWiresCommand.of(referenceDocument, reference.registry(),
+                    Set.of(referenceGate.id()), 0, 5));
+            assertThat(Set.copyOf(openDocument.document().elements()))
+                    .isEqualTo(Set.copyOf(referenceDocument.elements()));
+            assertThat(openDocument.document().wires()).hasSize(4); // one L corner, not five
+        } finally {
+            reference.close();
+        }
+
+        openDocument.history().undo();
+        assertThat(Set.copyOf(openDocument.document().elements())).isEqualTo(before);
+    }
+
+    @Test
+    void withTheModeOffTheArrowsLeaveTheWiresBehind() {
+        services.preferences().setWiresFollow(false);
+        teeWires(openDocument);
+        List<Wire> wires = openDocument.document().wires();
+        canvas.selection().select(gate.id());
+        press(KeyEvent.VK_DOWN, 0);
+        assertThat(positionOf(gate)).isEqualTo(new GridPoint(5, 6));
+        assertThat(openDocument.document().wires()).isEqualTo(wires);
     }
 
     @Test

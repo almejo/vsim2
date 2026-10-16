@@ -55,9 +55,13 @@ class WireFollowTest {
         return component;
     }
 
-    /** Applies the move with the wires following and returns the wires afterwards, as text, sorted. */
+    /**
+     * Applies the move with the wires following, as planned (without the clean-up that {@code
+     * MoveWithWiresCommand.of} adds, so the rules show as they are), and returns the wires afterwards, as text, sorted.
+     */
     private Set<String> move(int deltaX, int deltaY, ElementId... ids) {
-        MoveWithWiresCommand.of(document, registry, Set.of(ids), deltaX, deltaY).apply(document);
+        new MoveWithWiresCommand(Set.of(ids), deltaX, deltaY,
+                WireFollow.plan(document, registry, Set.of(ids), deltaX, deltaY)).apply(document);
         return wires();
     }
 

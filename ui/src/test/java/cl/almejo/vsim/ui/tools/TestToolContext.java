@@ -4,11 +4,13 @@ import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.geometry.GridPoint;
+import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.HitTester;
 import cl.almejo.vsim.ui.canvas.Selection;
 import cl.almejo.vsim.ui.canvas.Viewport;
 import cl.almejo.vsim.ui.paint.ColorScheme;
+import cl.almejo.vsim.ui.wiring.SelectionMoves;
 
 import java.awt.Graphics2D;
 import java.awt.geom.Point2D;
@@ -32,6 +34,10 @@ public final class TestToolContext implements ToolContext, AutoCloseable {
     public int repaints;
     public double selectionDashPhase;
     public final List<CanvasCursor> cursors = new ArrayList<>();
+    /** The status-bar notices of moves (M6.7), in order. */
+    public final List<String> notices = new ArrayList<>();
+    public final AppPreferences preferences = AppPreferences.inMemory();
+    public final SelectionMoves selectionMoves = new SelectionMoves(preferences, notices::add);
     private final OpenDocument openDocument;
     private final HitTester hitTester;
 
@@ -77,6 +83,23 @@ public final class TestToolContext implements ToolContext, AutoCloseable {
                 CanvasMouseEvent.PRIMARY, shiftDown, controlDown, 1);
     }
 
+    /** A primary event with every modifier spelled out (Alt included, M6.7). */
+    public static CanvasMouseEvent withKeys(double gridX, double gridY, boolean shiftDown, boolean controlDown,
+                                            boolean altDown) {
+        return new CanvasMouseEvent(new Point2D.Double(gridX, gridY),
+                new GridPoint((int) Math.round(gridX), (int) Math.round(gridY)),
+                new Point2D.Double(gridX * GridPoint.PIXELS_PER_UNIT, gridY * GridPoint.PIXELS_PER_UNIT),
+                CanvasMouseEvent.PRIMARY, shiftDown, controlDown, altDown, 1);
+    }
+
+    /** A plain press, then the drag and the release with Shift and Alt as given (held after the press). */
+    public void dragHolding(Tool target, double fromX, double fromY, double toX, double toY, boolean shiftDown,
+                            boolean altDown) {
+        target.mousePressed(this, at(fromX, fromY));
+        target.mouseDragged(this, withKeys(toX, toY, shiftDown, false, altDown));
+        target.mouseReleased(this, withKeys(toX, toY, shiftDown, false, altDown));
+    }
+
     public void clickWith(Tool target, double gridX, double gridY, boolean shiftDown, boolean controlDown) {
         target.mousePressed(this, withModifiers(gridX, gridY, shiftDown, controlDown));
         target.mouseReleased(this, withModifiers(gridX, gridY, shiftDown, controlDown));
@@ -117,6 +140,11 @@ public final class TestToolContext implements ToolContext, AutoCloseable {
     @Override
     public double selectionDashPhase() {
         return selectionDashPhase;
+    }
+
+    @Override
+    public SelectionMoves selectionMoves() {
+        return selectionMoves;
     }
 
     @Override

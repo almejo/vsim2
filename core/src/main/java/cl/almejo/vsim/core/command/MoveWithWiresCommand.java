@@ -4,7 +4,10 @@ import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.Wire;
+import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.wiring.FollowPlan;
+import cl.almejo.vsim.core.wiring.TidyPlan;
+import cl.almejo.vsim.core.wiring.TouchedWiresCleanup;
 import cl.almejo.vsim.core.wiring.WireFollow;
 
 import java.util.ArrayDeque;
@@ -29,6 +32,11 @@ import java.util.Set;
  * from the state before the run: the merged command plans again, lazily, when {@link History} applies it after
  * reverting the run so far (never composing two plans, so no L corners pile up). The wire ids the run already
  * reserved are used again first.
+ *
+ * <p>Commands made by {@link #of} and {@link #nudge} also tidy what the move touched (spec §6), in the same undo
+ * step: {@link TouchedWiresCleanup} merges the wires the move changed with each other and with the untouched wires
+ * they now end in line with (only at an end the move put there), never changing connectivity. The clean-up is planned
+ * on the document right after the first apply and replayed as is on redo.
  */
 public final class MoveWithWiresCommand implements Command {
 
@@ -39,6 +47,9 @@ public final class MoveWithWiresCommand implements Command {
     private final boolean nudge;
     private final List<ElementId> reusableWireIds;
     private FollowPlan plan;
+    /** The clean-up after the move: planned on the first apply (null until then), empty when there is nothing to do. */
+    private TidyWiresCommand cleanUp;
+    private boolean cleanUpPlanned;
     private final Map<ElementId, Wire> replacedOriginals = new LinkedHashMap<>();
     private final Map<ElementId, Wire> removedOriginals = new LinkedHashMap<>();
     private final Map<ElementId, Long> removedOrders = new LinkedHashMap<>();
@@ -63,8 +74,8 @@ public final class MoveWithWiresCommand implements Command {
     /** The move of {@code movedIds} by the delta with the wires following, planned now on {@code document}. */
     public static MoveWithWiresCommand of(CircuitDocument document, ComponentTypeRegistry registry,
                                           Set<ElementId> movedIds, int deltaX, int deltaY) {
-        return new MoveWithWiresCommand(movedIds, deltaX, deltaY,
-                WireFollow.plan(document, registry, movedIds, deltaX, deltaY));
+        return new MoveWithWiresCommand(movedIds, deltaX, deltaY, Objects.requireNonNull(registry, "registry"),
+                false, List.of(), WireFollow.plan(document, registry, movedIds, deltaX, deltaY));
     }
 
     /**
@@ -115,6 +126,21 @@ public final class MoveWithWiresCommand implements Command {
         removedOriginals.clear();
         removedOrders.clear();
         document.batch(() -> {
+            Map<ElementId, Set<GridPoint>> endsBefore = cleanUpPlanned ? Map.of() : endsOfWires(document);
+            applyPlan(document);
+            if (!cleanUpPlanned && registry != null) {
+                TidyPlan tidy = TouchedWiresCleanup.plan(document, registry, cleanUpScope(document, endsBefore));
+                cleanUp = tidy.isEmpty() ? null : new TidyWiresCommand(tidy);
+            }
+            cleanUpPlanned = true;
+            if (cleanUp != null) {
+                cleanUp.apply(document);
+            }
+        });
+    }
+
+    private void applyPlan(CircuitDocument document) {
+        document.batch(() -> {
             translate(document, deltaX, deltaY);
             for (Wire replacement : plan.replacedWires()) {
                 replacedOriginals.put(replacement.id(), document.wire(replacement.id()).orElseThrow(
@@ -132,9 +158,63 @@ public final class MoveWithWiresCommand implements Command {
         });
     }
 
+    /** The ends of every wire of {@code document}, by id. */
+    private static Map<ElementId, Set<GridPoint>> endsOfWires(CircuitDocument document) {
+        Map<ElementId, Set<GridPoint>> ends = new LinkedHashMap<>();
+        for (Wire wire : document.wires()) {
+            ends.put(wire.id(), Set.of(wire.start(), wire.end()));
+        }
+        return ends;
+    }
+
+    /**
+     * The wires the clean-up may merge: the moved wires and the ones the plan changed, plus each untouched wire that
+     * now continues one of them in line from an end the move put there (a wire that was already split in line before
+     * the move, somewhere the move did not reach, stays as the user drew it).
+     */
+    private Set<ElementId> cleanUpScope(CircuitDocument document, Map<ElementId, Set<GridPoint>> endsBefore) {
+        Set<ElementId> touched = new LinkedHashSet<>();
+        for (ElementId id : movedIds) {
+            if (document.wire(id).isPresent()) {
+                touched.add(id);
+            }
+        }
+        touched.addAll(plan.changedWireIds());
+        touched.removeIf(id -> document.wire(id).isEmpty());
+        Map<GridPoint, List<Wire>> newEnds = new LinkedHashMap<>();
+        for (ElementId id : touched) {
+            Wire wire = document.wire(id).orElseThrow();
+            Set<GridPoint> before = endsBefore.getOrDefault(id, Set.of());
+            for (GridPoint end : List.of(wire.start(), wire.end())) {
+                if (!before.contains(end)) {
+                    newEnds.computeIfAbsent(end, point -> new ArrayList<>()).add(wire);
+                }
+            }
+        }
+        Set<ElementId> scope = new LinkedHashSet<>(touched);
+        if (newEnds.isEmpty()) {
+            return scope;
+        }
+        for (Wire candidate : document.wires()) {
+            if (touched.contains(candidate.id())) {
+                continue;
+            }
+            for (GridPoint end : List.of(candidate.start(), candidate.end())) {
+                List<Wire> endingThere = newEnds.getOrDefault(end, List.of());
+                if (endingThere.stream().anyMatch(wire -> wire.isHorizontal() == candidate.isHorizontal())) {
+                    scope.add(candidate.id());
+                }
+            }
+        }
+        return scope;
+    }
+
     @Override
     public void revert(CircuitDocument document) {
         document.batch(() -> {
+            if (cleanUp != null) {
+                cleanUp.revert(document);
+            }
             plan.addedWires().forEach(wire -> document.remove(wire.id()));
             removedOriginals.forEach((id, wire) -> document.restore(wire, removedOrders.get(id)));
             replacedOriginals.values().forEach(document::replace);

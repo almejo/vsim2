@@ -1,7 +1,10 @@
 package cl.almejo.vsim.ui.tools;
 
+import cl.almejo.vsim.core.document.ElementId;
+
 import java.awt.Cursor;
 import java.awt.Graphics2D;
+import java.util.Set;
 
 /** What the canvas does with the mouse: select, place a component, draw a wire, pan. */
 public interface Tool {
@@ -44,6 +47,14 @@ public interface Tool {
 
     /** Paints previews on top of the circuit, in document coordinates (8 px per grid unit). */
     default void paintOverlay(Graphics2D graphics, ToolContext context) {
+    }
+
+    /**
+     * Wires the canvas leaves out of this frame because the tool's preview shows them elsewhere (M6.7: the wires a
+     * dragged move stretches); asked before every paint.
+     */
+    default Set<ElementId> hiddenWires(ToolContext context) {
+        return Set.of();
     }
 
     default Cursor cursor() {

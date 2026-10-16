@@ -27,6 +27,7 @@ import cl.almejo.vsim.ui.tools.PlaceComponentTool;
 import cl.almejo.vsim.ui.tools.SelectTool;
 import cl.almejo.vsim.ui.tools.Tool;
 import cl.almejo.vsim.ui.tools.WireTool;
+import cl.almejo.vsim.ui.wiring.SelectionMoves;
 
 import javax.swing.Action;
 import javax.swing.ButtonGroup;
@@ -73,6 +74,7 @@ public final class EditorView extends JPanel implements CanvasHost {
     private final SelectionActions selectionActions;
     private final PalettePanel palette;
     private final StatusBar statusBar = new StatusBar();
+    private final SelectionMoves selectionMoves;
     private final InspectorPanel inspector = new InspectorPanel();
     private final BottomDock bottomDock;
     private final ProblemsController problems;
@@ -106,6 +108,7 @@ public final class EditorView extends JPanel implements CanvasHost {
         this.services = services;
         CircuitRenderer renderer = new CircuitRenderer(openDocument.registry(), services.painters(),
                 services.appearance());
+        this.selectionMoves = new SelectionMoves(services.preferences(), statusBar::showNotice);
         this.canvas = new CircuitCanvas(openDocument, renderer, this);
         this.actions = new EditorActions(openDocument, canvas, window);
         this.selectionActions = new SelectionActions(openDocument, canvas, actions, FragmentClipboard.system());
@@ -342,6 +345,11 @@ public final class EditorView extends JPanel implements CanvasHost {
     @Override
     public void editLabel(DocumentElement element) {
         labelFeatures.actions().editLabel(element);
+    }
+
+    @Override
+    public SelectionMoves selectionMoves() {
+        return selectionMoves;
     }
 
     @Override

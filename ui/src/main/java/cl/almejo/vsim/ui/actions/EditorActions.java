@@ -2,7 +2,6 @@ package cl.almejo.vsim.ui.actions;
 
 import cl.almejo.vsim.core.command.ChangeParametersCommand;
 import cl.almejo.vsim.core.command.History;
-import cl.almejo.vsim.core.command.MoveElementsCommand;
 import cl.almejo.vsim.core.command.HistoryListener;
 import cl.almejo.vsim.core.command.RemoveElementsCommand;
 import cl.almejo.vsim.core.command.RotateElementsCommand;
@@ -340,15 +339,15 @@ public final class EditorActions {
     }
 
     /**
-     * Moves the selection as a drag of the select tool would (same command, same expanded ids), except that a run of
-     * these moves is one undo step. Nothing happens while the select tool is not the active tool or is in the middle
+     * Moves the selection as a drag of the select tool would (same expanded ids; the wires follow by the follow mode,
+     * M6.7), except that a run of these moves is one undo step. Nothing happens while the select tool is not the active tool or is in the middle
      * of a gesture (a drag, a wire, a rubber band).
      */
     private void nudgeSelection(int deltaX, int deltaY) {
         if (canvas.selection().isEmpty() || !(canvas.tool() instanceof SelectTool select) || !select.isIdle()) {
             return;
         }
-        openDocument.execute(MoveElementsCommand.nudge(canvas.selection().effectiveIds(), deltaX, deltaY));
+        canvas.selectionMoves().nudge(openDocument, canvas.selection().effectiveIds(), deltaX, deltaY);
     }
 
     private void rotateSelection(boolean clockwise) {

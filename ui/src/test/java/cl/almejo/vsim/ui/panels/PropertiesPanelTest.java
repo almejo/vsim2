@@ -328,6 +328,27 @@ class PropertiesPanelTest {
     }
 
     @Test
+    void movingALockedFrameByItsXStretchesTheWiresCrossingItsBorder() {
+        Frame frame = frame(true);
+        place(openDocument, StandardComponentTypes.NOT, 6, 6, Map.of());
+        Wire inside = new Wire(openDocument.document().newWireId(), new GridPoint(4, 8), new GridPoint(6, 8));
+        openDocument.execute(new AddWireCommand(inside));
+        Wire crossing = new Wire(openDocument.document().newWireId(), new GridPoint(10, 8), new GridPoint(30, 8));
+        openDocument.execute(new AddWireCommand(crossing));
+        place(openDocument, StandardComponentTypes.LED, 29, 5, Map.of());
+        selection.select(frame.id());
+
+        panel.frameSpinners()[0].setValue(7);
+
+        assertThat(current(frame).topLeft()).isEqualTo(new GridPoint(7, 3));
+        assertThat(openDocument.document().wire(inside.id()).orElseThrow()).isEqualTo(inside.translate(5, 0));
+        assertThat(openDocument.document().wire(crossing.id()).orElseThrow())
+                .isEqualTo(new Wire(crossing.id(), new GridPoint(15, 8), new GridPoint(30, 8)));
+        openDocument.history().undo();
+        assertThat(openDocument.document().wire(crossing.id()).orElseThrow()).isEqualTo(crossing);
+    }
+
+    @Test
     void aSelectedLockedFrameShowsTitleColourPositionAndSizeButNoLockCheckbox() {
         frame(true);
         place(openDocument, StandardComponentTypes.NOT, 6, 6, Map.of());

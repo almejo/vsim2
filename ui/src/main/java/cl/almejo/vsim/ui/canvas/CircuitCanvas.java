@@ -2,7 +2,6 @@ package cl.almejo.vsim.ui.canvas;
 
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
-import cl.almejo.vsim.core.command.MoveElementsCommand;
 import cl.almejo.vsim.core.command.PasteCommand;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
@@ -27,6 +26,7 @@ import cl.almejo.vsim.ui.tools.FloatingSelectionTool;
 import cl.almejo.vsim.ui.tools.SelectTool;
 import cl.almejo.vsim.ui.tools.Tool;
 import cl.almejo.vsim.ui.tools.ToolContext;
+import cl.almejo.vsim.ui.wiring.SelectionMoves;
 
 import javax.swing.Action;
 import javax.swing.JComponent;
@@ -98,6 +98,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     private final List<Function<Point2D, Optional<String>>> toolTipOverrides = new CopyOnWriteArrayList<>();
     private final List<Predicate<CanvasMouseEvent>> pressInterceptors = new CopyOnWriteArrayList<>();
     private final DocumentListener documentListener;
+    private final SelectionMoves selectionMoves;
     private Consumer<List<Path>> fileDropHandler = files -> {
     };
     private DragOrigin dragOut;
@@ -130,6 +131,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         this.openDocument = openDocument;
         this.renderer = renderer;
         this.host = host;
+        this.selectionMoves = host.selectionMoves();
         this.hitTester = new HitTester(openDocument.registry());
         this.documentListener = this::documentChanged;
         setFocusable(true);
@@ -418,7 +420,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
                 .toList();
         origin.canvas().endDragOut();
         if ((deltaX != 0 || deltaY != 0) && !existing.isEmpty()) {
-            openDocument.execute(new MoveElementsCommand(existing, deltaX, deltaY));
+            selectionMoves.move(openDocument, existing, deltaX, deltaY, selectionMoves.followMode());
         }
         if (!existing.isEmpty()) {
             selection.set(existing);
@@ -881,6 +883,11 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     }
 
     @Override
+    public SelectionMoves selectionMoves() {
+        return selectionMoves;
+    }
+
+    @Override
     public void configure(Component component) {
         host.configure(component);
     }
@@ -905,7 +912,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
             local.transform(viewport.documentTransform());
             RenderState state = new RenderState(openDocument.document(), openDocument.netlist(),
                     openDocument.netlistToken(), displayedSnapshot, selection.ids(), marchingAnts.phase(),
-                    problemPulse.phase());
+                    problemPulse.phase(), tool.hiddenWires(this));
             renderer.paint(local, state);
             for (CanvasOverlay overlay : overlays) {
                 overlay.paint(local, state);
@@ -960,7 +967,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
                 : CanvasMouseEvent.PRIMARY;
         return new CanvasMouseEvent(viewport.screenToGrid(event.getX(), event.getY()),
                 viewport.snap(event.getX(), event.getY()), new Point2D.Double(event.getX(), event.getY()),
-                button, event.isShiftDown(), event.isControlDown(), event.getClickCount());
+                button, event.isShiftDown(), event.isControlDown(), event.isAltDown(), event.getClickCount());
     }
 
     private final class MouseHandler extends MouseAdapter {

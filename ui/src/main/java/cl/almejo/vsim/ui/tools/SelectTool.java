@@ -1,6 +1,5 @@
 package cl.almejo.vsim.ui.tools;
 
-import cl.almejo.vsim.core.command.MoveElementsCommand;
 import cl.almejo.vsim.core.command.PasteCommand;
 import cl.almejo.vsim.core.component.ElementBounds;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
@@ -18,6 +17,7 @@ import cl.almejo.vsim.ui.canvas.LabelLayout;
 import cl.almejo.vsim.ui.paint.PainterSupport;
 import cl.almejo.vsim.ui.canvas.MarchingAnts;
 import cl.almejo.vsim.ui.canvas.SelectionBounds;
+import cl.almejo.vsim.ui.wiring.MovePreview;
 
 import java.awt.BasicStroke;
 import java.awt.Color;
@@ -47,6 +47,10 @@ import java.util.concurrent.CopyOnWriteArrayList;
  * element of a multi-selection that is released without moving (a plain click) narrows the selection to that
  * element; a press-and-drag moves the whole group. Ctrl held when a move is released copies the selection there
  * instead (one undo step).
+ *
+ * <p>M6.7: a move drags the wires attached to the selection when the follow mode, inverted while the configured key
+ * is held, says so; the keys are read during the drag (the preview) and at the release (the move). A key held at the
+ * press keeps its old meaning (Shift toggles the selection), so it inverts only once the drag is under way.
  *
  * <p>{@link SelectToolDelegate}s (M6.3: frames) are asked first: a press one of them takes, with its drag and
  * release, is theirs alone.
@@ -78,6 +82,8 @@ public final class SelectTool implements Tool {
     private boolean narrowOnRelease;
     private int deltaX;
     private int deltaY;
+    private boolean followWires;
+    private final MovePreview movePreview = new MovePreview();
     private CanvasCursor cursor = CanvasCursor.DEFAULT;
 
     /** Adds a delegate asked before the tool's own behaviour; the returned runnable removes it. */
@@ -252,6 +258,7 @@ public final class SelectTool implements Tool {
         }
         deltaX = event.snapped().x() - pressPoint.x();
         deltaY = event.snapped().y() - pressPoint.y();
+        followWires = context.selectionMoves().follows(event.shiftDown(), event.altDown());
         context.repaint();
     }
 
@@ -281,8 +288,8 @@ public final class SelectTool implements Tool {
                     if (event.controlDown()) {
                         copySelection(context);
                     } else {
-                        context.openDocument().execute(
-                                new MoveElementsCommand(context.selection().effectiveIds(), deltaX, deltaY));
+                        context.selectionMoves().move(context.openDocument(), context.selection().effectiveIds(),
+                                deltaX, deltaY, context.selectionMoves().follows(event.shiftDown(), event.altDown()));
                     }
                 }
             } else {
@@ -426,13 +433,21 @@ public final class SelectTool implements Tool {
             wire.paintPreview(graphics, context);
             return;
         }
-        if (pressPoint == null || (deltaX == 0 && deltaY == 0)) {
+        if (pressPoint == null) {
             return;
         }
-        for (ElementId id : context.selection().effectiveIds()) {
-            context.openDocument().document().element(id)
-                    .ifPresent(element -> context.paintGhost(graphics, element.translate(deltaX, deltaY)));
+        movePreview.paint(graphics, context, context.selection().effectiveIds(), deltaX, deltaY, followWires);
+    }
+
+    @Override
+    public Set<ElementId> hiddenWires(ToolContext context) {
+        if (activeDelegate != null) {
+            return activeDelegate.hiddenWires(context);
         }
+        if (pressPoint == null || wire != null || bandStart != null || !followWires) {
+            return Set.of();
+        }
+        return movePreview.hiddenWires(context, context.selection().effectiveIds(), deltaX, deltaY);
     }
 
     /** A circle around a 1-bit pin; a square of the same footprint, tagged with the width, around a bus pin. */
@@ -635,5 +650,7 @@ public final class SelectTool implements Tool {
         bandAdditive = false;
         deltaX = 0;
         deltaY = 0;
+        followWires = false;
+        movePreview.clear();
     }
 }

@@ -1,7 +1,6 @@
 package cl.almejo.vsim.ui.frames;
 
 import cl.almejo.vsim.core.command.ChangeFrameCommand;
-import cl.almejo.vsim.core.command.MoveElementsCommand;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.Frame;
@@ -11,6 +10,7 @@ import cl.almejo.vsim.ui.tools.CanvasCursor;
 import cl.almejo.vsim.ui.tools.CanvasMouseEvent;
 import cl.almejo.vsim.ui.tools.SelectToolDelegate;
 import cl.almejo.vsim.ui.tools.ToolContext;
+import cl.almejo.vsim.ui.wiring.MovePreview;
 
 import java.awt.Graphics2D;
 import java.awt.geom.Rectangle2D;
@@ -18,13 +18,15 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * What the select tool does with frames (spec §2, §3, §7): a press on the title bar selects the frame alone (locked
  * or not) and dragging moves what the selection acts on, so a locked frame carries its block (see
  * {@link FramesFeatures#lockedBlocks}); dragging an edge or corner of an unlocked frame resizes it. Each gesture is one
  * undo step. While a gesture drags, everything outside the frame is veiled and ghosts show what moves. Unlocked frames
- * show eight handles while hovered or selected.
+ * show eight handles while hovered or selected. A move drags the attached wires like the select tool's (M6.7: the
+ * follow mode, inverted by the configured key held while dragging).
  */
 public final class FrameGestures implements SelectToolDelegate {
 
@@ -37,6 +39,8 @@ public final class FrameGestures implements SelectToolDelegate {
     private boolean narrowOnRelease;
     private int deltaX;
     private int deltaY;
+    private boolean followWires;
+    private final MovePreview movePreview = new MovePreview();
     private ElementId hovered;
 
     @Override
@@ -102,6 +106,7 @@ public final class FrameGestures implements SelectToolDelegate {
         }
         deltaX = event.snapped().x() - pressPoint.x();
         deltaY = event.snapped().y() - pressPoint.y();
+        followWires = context.selectionMoves().follows(event.shiftDown(), event.altDown());
         context.repaint();
     }
 
@@ -114,10 +119,8 @@ public final class FrameGestures implements SelectToolDelegate {
         if (part.resizes()) {
             finishResize(context);
         } else if (deltaX != 0 || deltaY != 0) {
-            if (!context.selection().isEmpty()) {
-                context.openDocument().execute(
-                        new MoveElementsCommand(context.selection().effectiveIds(), deltaX, deltaY));
-            }
+            context.selectionMoves().move(context.openDocument(), context.selection().effectiveIds(), deltaX, deltaY,
+                    followWires);
         } else if (narrowOnRelease) {
             context.selection().select(grabbed.id());
         }
@@ -155,6 +158,14 @@ public final class FrameGestures implements SelectToolDelegate {
             bottom = Math.max(bottom + deltaY, top + Frame.MINIMUM_HEIGHT);
         }
         return frame.withRectangle(new GridPoint(left, top), right - left, bottom - top);
+    }
+
+    @Override
+    public Set<ElementId> hiddenWires(ToolContext context) {
+        if (grabbed == null || part.resizes() || !followWires) {
+            return Set.of();
+        }
+        return movePreview.hiddenWires(context, context.selection().effectiveIds(), deltaX, deltaY);
     }
 
     @Override
@@ -198,10 +209,8 @@ public final class FrameGestures implements SelectToolDelegate {
             if (part.resizes()) {
                 context.paintGhost(graphics, resized(grabbed));
             } else {
-                for (ElementId id : context.selection().effectiveIds()) {
-                    context.openDocument().document().element(id)
-                            .ifPresent(element -> context.paintGhost(graphics, element.translate(deltaX, deltaY)));
-                }
+                movePreview.paint(graphics, context, context.selection().effectiveIds(), deltaX, deltaY,
+                        followWires);
             }
         }
         double pixelsPerGrid = context.viewport().pixelsPerUnit();
@@ -282,5 +291,7 @@ public final class FrameGestures implements SelectToolDelegate {
         narrowOnRelease = false;
         deltaX = 0;
         deltaY = 0;
+        followWires = false;
+        movePreview.clear();
     }
 }

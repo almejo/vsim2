@@ -4,7 +4,6 @@ import cl.almejo.vsim.core.command.ChangeFrameCommand;
 import cl.almejo.vsim.core.command.ChangeParametersCommand;
 import cl.almejo.vsim.core.command.Command;
 import cl.almejo.vsim.core.command.CompositeCommand;
-import cl.almejo.vsim.core.command.MoveElementsCommand;
 import cl.almejo.vsim.core.command.SetLabelCommand;
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.document.CircuitDocument;
@@ -23,6 +22,7 @@ import cl.almejo.vsim.ui.canvas.Selection;
 import cl.almejo.vsim.ui.clipboard.FragmentRefusingTransferHandler;
 import cl.almejo.vsim.ui.i18n.FrameTintNames;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.wiring.SelectionMoves;
 import net.miginfocom.swing.MigLayout;
 
 import javax.swing.DefaultListCellRenderer;
@@ -52,6 +52,7 @@ public final class PropertiesPanel extends JPanel {
 
     private final OpenDocument openDocument;
     private final Selection selection;
+    private final SelectionMoves selectionMoves;
     private final DocumentListener documentListener = this::documentChanged;
     private final JLabel heading = new JLabel();
     private final JLabel error = new JLabel(" ");
@@ -66,9 +67,15 @@ public final class PropertiesPanel extends JPanel {
     private boolean disposed;
 
     public PropertiesPanel(OpenDocument openDocument, Selection selection) {
+        this(openDocument, selection, SelectionMoves.detached());
+    }
+
+    /** {@code selectionMoves} makes the moves of X/Y (M6.7: the wires follow by the follow mode). */
+    public PropertiesPanel(OpenDocument openDocument, Selection selection, SelectionMoves selectionMoves) {
         super(new MigLayout("wrap 2, insets dialog", "[right][grow, fill]"));
         this.openDocument = openDocument;
         this.selection = selection;
+        this.selectionMoves = selectionMoves;
         heading.putClientProperty("FlatLaf.styleClass", "h4");
         Color errorColor = UIManager.getColor("Component.error.focusedBorderColor");
         error.setForeground(errorColor != null ? errorColor : Color.RED);
@@ -273,7 +280,8 @@ public final class PropertiesPanel extends JPanel {
             }
             Set<ElementId> moved = FrameContents.withLockedBlocks(openDocument.document(), openDocument.registry(),
                     Set.of(id));
-            openDocument.execute(new MoveElementsCommand(moved, deltaX, deltaY)); // the canvas drag's command
+            // the canvas drag's command; the wires follow by the mode, as no key is held here
+            selectionMoves.move(openDocument, moved, deltaX, deltaY, selectionMoves.followMode());
         });
         refreshFrameFields(id);
     }

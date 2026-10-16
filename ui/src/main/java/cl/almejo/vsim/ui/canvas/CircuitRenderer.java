@@ -132,7 +132,7 @@ public final class CircuitRenderer {
 
         paintFrames(graphics, state);
         for (Wire wire : state.document().wires()) {
-            if (state.selection().contains(wire.id())) {
+            if (state.selection().contains(wire.id()) && !state.hiddenWires().contains(wire.id())) {
                 Shape halo = SELECTED_WIRE.createStrokedShape(line(wire));
                 graphics.setColor(PainterSupport.withAlpha(scheme.selection(), 90));
                 graphics.fill(halo);
@@ -144,7 +144,8 @@ public final class CircuitRenderer {
             // one path, so where problem wires meet the glow is not painted twice (and darker)
             Path2D.Double glow = new Path2D.Double();
             for (Wire wire : state.document().wires()) {
-                if (highlight.wires().contains(wire.id()) || mismatches.wires().contains(wire.id())) {
+                if ((highlight.wires().contains(wire.id()) || mismatches.wires().contains(wire.id()))
+                        && !state.hiddenWires().contains(wire.id())) {
                     glow.append(line(wire), false);
                 }
             }
@@ -164,6 +165,9 @@ public final class CircuitRenderer {
             }
         }
         for (Wire wire : state.document().wires()) {
+            if (state.hiddenWires().contains(wire.id())) {
+                continue;
+            }
             WireLook look = gaps.isEmpty() ? WireLook.of(wire, state, highlight, mismatches) : looks.get(wire.id());
             graphics.setStroke(look.stroke());
             graphics.setColor(look.conflict() ? scheme.wireConflict()

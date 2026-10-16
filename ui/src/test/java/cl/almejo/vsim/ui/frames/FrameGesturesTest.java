@@ -26,6 +26,7 @@ import java.util.Set;
 
 import static cl.almejo.vsim.ui.UiTestSupport.place;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 
 /**
  * The frame gestures through the select tool (spec §2 table, §3, §7): a frame at (0, 0), 20 x 12, title bar y 0..2,
@@ -474,6 +475,41 @@ class FrameGesturesTest {
         assertThat(context.openDocument().document().wire(inside.id()).orElseThrow())
                 .isEqualTo(inside.translate(3, 2));
         assertThat(context.openDocument().document().wire(crossing.id()).orElseThrow()).isEqualTo(crossing);
+    }
+
+    @Test
+    void aLockedBlockDraggedMovesTheWiresInsideAndStretchesTheOnesCrossingItsBorder() {
+        frame(0, 0, 20, 12, true);
+        gate(4, 4);
+        place(context.openDocument(), StandardComponentTypes.LED, 29, 3, Map.of());
+        Wire inside = wire(2, 6, 4, 6);
+        Wire crossing = wire(8, 6, 30, 6);
+        tool.mousePressed(context, TestToolContext.at(10, 1));
+        tool.mouseDragged(context, TestToolContext.at(10, 4));
+        tool.paintOverlay(TestToolContext.scratchGraphics(), context);
+        assertThat(context.ghosts).contains(inside.translate(0, 3));
+        tool.mouseReleased(context, TestToolContext.at(10, 4));
+
+        assertThat(context.openDocument().document().wire(inside.id()).orElseThrow())
+                .isEqualTo(inside.translate(0, 3));
+        assertThat(context.openDocument().document().wires()).extracting(Wire::start, Wire::end)
+                .containsExactlyInAnyOrder(
+                        tuple(new GridPoint(2, 9), new GridPoint(4, 9)),
+                        tuple(new GridPoint(8, 6), new GridPoint(30, 6)),
+                        tuple(new GridPoint(8, 6), new GridPoint(8, 9)));
+        assertThat(context.openDocument().document().wire(crossing.id())).isPresent();
+        context.openDocument().history().undo();
+        assertThat(context.openDocument().document().wires()).containsExactly(inside, crossing);
+    }
+
+    @Test
+    void shiftWhileDraggingALockedBlockLeavesTheCrossingWiresBehind() {
+        frame(0, 0, 20, 12, true);
+        gate(4, 4);
+        place(context.openDocument(), StandardComponentTypes.LED, 29, 3, Map.of());
+        Wire crossing = wire(8, 6, 30, 6);
+        context.dragHolding(tool, 10, 1, 10, 4, true, false);
+        assertThat(context.openDocument().document().wires()).containsExactly(crossing);
     }
 
     private Wire wire(int startX, int startY, int endX, int endY) {

@@ -154,6 +154,14 @@ Diseño: `docs/superpowers/specs/2026-10-08-vsim2-design.md`.
 
 ## Cables que siguen al mover (M6.7)
 
+- Al mover una selección, los cables conectados a ella se estiran y no se pierde ninguna conexión. Vale para arrastrar con la herramienta de selección (también un bloque de un marco bloqueado), para las flechas del teclado y para X/Y en Propiedades. Copiar con Ctrl al soltar, pegar, duplicar y rotar no arrastran cables.
+- Cómo se estira un cable: si el movimiento va en su dirección, solo se alarga o se acorta (y desaparece si queda de largo cero); si va de lado y el otro extremo es una esquina simple, la esquina se corre con él y el recorrido conserva su forma; si el otro extremo es un pin, una T o un cruce, se agrega una L que sale de ahí en la dirección de antes; si el otro extremo está suelto, el cable se mueve entero. Un cable entre dos cosas que se mueven juntas se mueve entero.
+- Mientras arrastras, la vista previa muestra en transparente dónde quedan las piezas y los cables estirados (los cables que cambian dejan de dibujarse en su lugar original, así nada aparece dos veces). Un punto rojo marca cada contacto nuevo: un pin o la punta de un cable que queda tocando un cable con el que no estaba conectado. El punto rojo es solo de la vista previa; nunca sale en las imágenes exportadas.
+- Al soltar, si quedaron contactos nuevos, la barra de estado lo dice: «El cable quedó tocando el pin «in» de «NOT U1»», o «El movimiento dejó 3 contactos nuevos». Si una L agregada toca algo, se prueba la otra orientación y se usa si queda limpia.
+- Lo que el movimiento tocó queda ordenado: los cables estirados que terminan alineados con otro, sin nada más en la unión, se funden en uno (como en «Ordenar cables», pero solo ahí y sin quitar cabos ni enderezar desvíos).
+- Todo es un solo paso de deshacer: las piezas, los cables estirados, agregados o quitados y el orden. Una racha de flechas sigue siendo un paso, y termina igual que un único movimiento por el total (no se acumulan esquinas).
+- La primera vez en la sesión que los cables siguen a un movimiento, la barra de estado avisa «Los cables siguieron al mover. Mantén Mayús para desconectar» (con la tecla elegida en Preferencias).
+- Mayús al *empezar* un clic sigue sumando o quitando de la selección; invierte el modo solo si la aprietas ya arrastrando (cuenta la tecla que tengas apretada al soltar).
 - El botón «Los cables siguen al mover» (barra de herramientas, justo después de «Mover vista», y casilla en Editar; sin atajo por defecto, asignable en Atajos de teclado) activa o desactiva el modo en que los cables acompañan a lo que mueves. Está activado por defecto, se recuerda y vale para todas las ventanas. Mantener la tecla de invertir mientras arrastras lo invierte solo en ese arrastre; se elige en Preferencias ▸ «Tecla para invertir al arrastrar» (Mayús por defecto, Alt o Ninguna).
 
 ## Preferencias y distribución

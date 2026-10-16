@@ -105,6 +105,14 @@ public final class History {
         return !redoStack.isEmpty();
     }
 
+    /**
+     * The command an undo would revert now. After a merged run (see {@link #execute}) it is the merged command, not the
+     * one last passed to {@code execute}.
+     */
+    public Optional<Command> undoCommand() {
+        return Optional.ofNullable(undoStack.peek());
+    }
+
     public Optional<String> undoDescription() {
         return Optional.ofNullable(undoStack.peek()).map(Command::description);
     }

@@ -8,6 +8,7 @@ import cl.almejo.vsim.ui.canvas.HitTester;
 import cl.almejo.vsim.ui.canvas.Selection;
 import cl.almejo.vsim.ui.canvas.Viewport;
 import cl.almejo.vsim.ui.paint.ColorScheme;
+import cl.almejo.vsim.ui.wiring.SelectionMoves;
 
 import java.awt.Graphics2D;
 import java.awt.geom.Point2D;
@@ -25,6 +26,9 @@ public interface ToolContext {
     Viewport viewport();
 
     ColorScheme scheme();
+
+    /** How moves of the selection treat the attached wires (M6.7), and where their notices go. */
+    SelectionMoves selectionMoves();
 
     /** The current dash phase of marching-ants outlines. */
     double selectionDashPhase();

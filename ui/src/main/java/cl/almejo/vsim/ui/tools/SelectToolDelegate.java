@@ -1,7 +1,10 @@
 package cl.almejo.vsim.ui.tools;
 
+import cl.almejo.vsim.core.document.ElementId;
+
 import java.awt.Graphics2D;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Something {@link SelectTool} asks before doing its own work (M6.3: the title bars and edges of frames). A delegate
@@ -50,6 +53,11 @@ public interface SelectToolDelegate {
 
     /** The pointer left the canvas. */
     default void exited(ToolContext context) {
+    }
+
+    /** While a press of this delegate is held: the wires its preview shows elsewhere ({@link Tool#hiddenWires}). */
+    default Set<ElementId> hiddenWires(ToolContext context) {
+        return Set.of();
     }
 
     /** Paints under the tool's own previews, in document coordinates. */
