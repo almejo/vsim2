@@ -164,6 +164,14 @@ public final class SelectTool implements Tool {
         reset();
         boolean continuesOwnClick = ownPressSeen;
         ownPressSeen = true;
+        if (event.clickCount() >= 2 && continuesOwnClick) {
+            Optional<Component> labelled = componentLabelAt(context, event.gridPosition());
+            if (labelled.isPresent()) {
+                context.selection().select(labelled.get().id());
+                context.editLabel(labelled.get());
+                return;
+            }
+        }
         if (event.clickCount() >= 2 && continuesOwnClick && hit.isPresent()) {
             if (hit.get() instanceof Component component) {
                 context.selection().select(component.id());
@@ -588,6 +596,23 @@ public final class SelectTool implements Tool {
             connectionPoints = new ConnectionPoints(context.openDocument().registry());
         }
         return connectionPoints;
+    }
+
+    /** The component whose drawn label holds {@code gridPosition}, if any (the topmost one when labels overlap). */
+    private static Optional<Component> componentLabelAt(ToolContext context, Point2D gridPosition) {
+        double documentX = gridPosition.getX() * GridPoint.PIXELS_PER_UNIT;
+        double documentY = gridPosition.getY() * GridPoint.PIXELS_PER_UNIT;
+        List<Component> components = context.openDocument().document().components();
+        for (int index = components.size() - 1; index >= 0; index--) {
+            Component component = components.get(index);
+            boolean onLabel = LabelLayout.componentLabel(context.openDocument().registry().typeOf(component), component)
+                    .map(label -> label.bounds().contains(documentX, documentY))
+                    .orElse(false);
+            if (onLabel) {
+                return Optional.of(component);
+            }
+        }
+        return Optional.empty();
     }
 
     private boolean isInteractive(ToolContext context, Component component) {

@@ -4,11 +4,13 @@ import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.command.AddElementsCommand;
 import cl.almejo.vsim.core.command.AddWireCommand;
+import cl.almejo.vsim.core.command.SetLabelCommand;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.value.Value;
+import cl.almejo.vsim.ui.canvas.LabelLayout;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
@@ -162,6 +164,24 @@ class SelectToolTest {
         assertThat(context.valueEdited).isEqualTo(constant);
         assertThat(context.configured).isNull();
         assertThat(context.selection.ids()).containsExactly(constant.id());
+    }
+
+    @Test
+    void doubleClickOnAComponentLabelEditsTheLabelInsteadOfConfiguring() {
+        Component gate = not(0, 10);
+        context.openDocument().execute(new SetLabelCommand(gate.id(), "Compuerta U1"));
+        Component labelled = context.openDocument().document().component(gate.id()).orElseThrow();
+        Rectangle2D labelBounds = LabelLayout.componentLabel(context.openDocument().registry().typeOf(labelled),
+                labelled).orElseThrow().bounds();
+        double gridX = labelBounds.getCenterX() / GridPoint.PIXELS_PER_UNIT;
+        double gridY = labelBounds.getCenterY() / GridPoint.PIXELS_PER_UNIT;
+        tool.mousePressed(context, TestToolContext.at(gridX, gridY));
+        tool.mouseReleased(context, TestToolContext.at(gridX, gridY));
+        tool.mousePressed(context, TestToolContext.event(gridX, gridY, CanvasMouseEvent.PRIMARY, 2, false));
+        tool.mouseReleased(context, TestToolContext.event(gridX, gridY, CanvasMouseEvent.PRIMARY, 2, false));
+        assertThat(context.editedLabel).isEqualTo(labelled);
+        assertThat(context.configured).isNull();
+        assertThat(context.selection.ids()).containsExactly(gate.id());
     }
 
     @Test
