@@ -14,8 +14,8 @@ import java.util.Set;
 
 /**
  * Every action whose keyboard shortcut the user can change (spec §5.2), ordered by menu and then menu order. Ids are
- * {@code <group>.<action>}; the name is the action's own menu text. The 27 defaults are the editor's accelerators
- * (F5 for «Iniciar o pausar», F6 for «Avanzar N t»), its canvas keys, F7 and Mayús+F7 for M6.1-B's two advances; the others start without a
+ * {@code <group>.<action>}; the name is the action's own menu text. The 38 defaults are the editor's accelerators
+ * (F5 for «Iniciar o pausar», F6 for «Avanzar N t»), its canvas keys (the eight arrows that move the selection included), F7 and Mayús+F7 for M6.1-B's two advances; the others start without a
  * shortcut. Defaults use the platform menu modifier (⌘ on macOS).
  */
 public final class ShortcutCatalog {
@@ -75,6 +75,10 @@ public final class ShortcutCatalog {
         window(entries, "edit.tidyWiresOptions", "action.tidyWiresOptions", MenuId.EDIT,
                 stroke(KeyEvent.VK_L, menu | InputEvent.ALT_DOWN_MASK | shift));
         canvas(entries, "edit.label", "action.label", stroke(KeyEvent.VK_F2, 0));
+        moveKeys(entries, "edit.moveLeft", "action.moveLeft", "action.moveLeftFar", KeyEvent.VK_LEFT);
+        moveKeys(entries, "edit.moveRight", "action.moveRight", "action.moveRightFar", KeyEvent.VK_RIGHT);
+        moveKeys(entries, "edit.moveUp", "action.moveUp", "action.moveUpFar", KeyEvent.VK_UP);
+        moveKeys(entries, "edit.moveDown", "action.moveDown", "action.moveDownFar", KeyEvent.VK_DOWN);
         window(entries, "view.selectTool", "action.toolSelect", MenuId.VIEW, null);
         window(entries, "view.wireTool", "action.toolWire", MenuId.VIEW, null);
         window(entries, "view.frameTool", "action.toolFrame", MenuId.VIEW, null);
@@ -109,9 +113,16 @@ public final class ShortcutCatalog {
         entries.add(new ShortcutEntry(id, nameKey, group, Scope.WINDOW, Optional.ofNullable(defaultStroke)));
     }
 
-    /** Canvas keys of the Editar menu (Supr, R, Mayús+R, F2). */
+    /** Canvas keys of the Editar menu (Supr, R, Mayús+R, F2, the arrows). */
     private static void canvas(List<ShortcutEntry> entries, String id, String nameKey, KeyStroke defaultStroke) {
         entries.add(new ShortcutEntry(id, nameKey, MenuId.EDIT, Scope.CANVAS, Optional.of(defaultStroke)));
+    }
+
+    /** An arrow that moves the selection one grid unit; with Mayús five (the id of that one ends in «Far»). */
+    private static void moveKeys(List<ShortcutEntry> entries, String id, String nameKey, String farNameKey,
+                                 int arrowKey) {
+        canvas(entries, id, nameKey, stroke(arrowKey, 0));
+        canvas(entries, id + "Far", farNameKey, stroke(arrowKey, InputEvent.SHIFT_DOWN_MASK));
     }
 
     private static KeyStroke stroke(int keyCode, int modifiers) {

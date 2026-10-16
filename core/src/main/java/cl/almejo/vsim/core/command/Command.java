@@ -2,6 +2,8 @@ package cl.almejo.vsim.core.command;
 
 import cl.almejo.vsim.core.document.CircuitDocument;
 
+import java.util.Optional;
+
 /** A reversible edit. {@link #description()} is an i18n key such as "command.move". */
 public interface Command {
     void apply(CircuitDocument document);
@@ -9,4 +11,13 @@ public interface Command {
     void revert(CircuitDocument document);
 
     String description();
+
+    /**
+     * When {@code next}, executed right after this command with nothing in between, continues it, the single command
+     * that does both (and is undone in one step); empty, the default, when it does not. {@link History} asks the
+     * command on top of its undo stack, and only about a command executed straight after it.
+     */
+    default Optional<Command> mergedWith(Command next) {
+        return Optional.empty();
+    }
 }

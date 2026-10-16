@@ -81,6 +81,7 @@ class CatalogMatchesEditorTest {
         actions.put("edit.rotateClockwise", view.actions().rotateClockwise());
         actions.put("edit.rotateCounterClockwise", view.actions().rotateCounterClockwise());
         actions.put("edit.label", view.labelFeatures().actions().editLabel());
+        actions.putAll(view.actions().moveActions());
         actions.put("view.nextProblem", view.problems().nextProblem());
         actions.put("view.previousProblem", view.problems().previousProblem());
         return actions;

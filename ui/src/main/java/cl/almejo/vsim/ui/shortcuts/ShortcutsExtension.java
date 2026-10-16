@@ -80,6 +80,7 @@ public final class ShortcutsExtension implements EditorExtension {
         map.put("edit.duplicate", selection.duplicate());
         map.put("edit.selectAll", selection.selectAll());
         map.put("edit.label", view.labelFeatures().actions().editLabel());
+        map.putAll(actions.moveActions());
         map.put("view.selectTool", actions.selectTool());
         map.put("view.wireTool", actions.wireTool());
         map.put("view.panTool", actions.panTool());

@@ -20,6 +20,8 @@ public final class History {
     private final Deque<Command> redoStack = new ArrayDeque<>();
     private final List<HistoryListener> listeners = new CopyOnWriteArrayList<>();
     private Command savedTop;
+    /** The command the last {@link #execute} left on top; null after an undo, a redo or a clear, so a run never resumes. */
+    private Command lastExecuted;
 
     public History(CircuitDocument document) {
         this(document, DEFAULT_LIMIT);
@@ -32,6 +34,18 @@ public final class History {
 
     public void execute(Command command) {
         command.apply(document);
+        Command top = undoStack.peek();
+        if (top != null && top == lastExecuted && top != savedTop) {
+            Optional<Command> merged = top.mergedWith(command);
+            if (merged.isPresent()) {
+                undoStack.pop();
+                undoStack.push(merged.get());
+                lastExecuted = merged.get();
+                notifyListeners();
+                return;
+            }
+        }
+        lastExecuted = command;
         undoStack.push(command);
         if (redoStack.contains(savedTop)) {
             savedTop = UNREACHABLE;
@@ -53,6 +67,7 @@ public final class History {
         if (!canUndo()) {
             return;
         }
+        lastExecuted = null;
         Command command = undoStack.peek();
         command.revert(document);
         undoStack.pop();
@@ -64,6 +79,7 @@ public final class History {
         if (!canRedo()) {
             return;
         }
+        lastExecuted = null;
         Command command = redoStack.peek();
         command.apply(document);
         redoStack.pop();
@@ -109,6 +125,7 @@ public final class History {
         undoStack.clear();
         redoStack.clear();
         savedTop = null;
+        lastExecuted = null;
         notifyListeners();
     }
 

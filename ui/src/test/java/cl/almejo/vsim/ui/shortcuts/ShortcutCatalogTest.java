@@ -35,11 +35,26 @@ class ShortcutCatalogTest {
     }
 
     @Test
-    void noTwoEntriesShareADefaultStrokeAndThirtyHaveOne() {
+    void noTwoEntriesShareADefaultStrokeAndThirtyEightHaveOne() {
         List<KeyStroke> defaults = ShortcutCatalog.entries().stream()
                 .map(ShortcutEntry::defaultStroke).flatMap(Optional::stream).toList();
-        assertThat(defaults).doesNotHaveDuplicates().hasSize(30);
+        assertThat(defaults).doesNotHaveDuplicates().hasSize(38);
         assertThat(defaults).noneMatch(KeyBindings::isReserved);
+    }
+
+    @Test
+    void theArrowsMoveTheSelectionAndMayusMakesItFiveUnits() {
+        int[] keys = {KeyEvent.VK_LEFT, KeyEvent.VK_RIGHT, KeyEvent.VK_UP, KeyEvent.VK_DOWN};
+        String[] directions = {"Left", "Right", "Up", "Down"};
+        for (int index = 0; index < keys.length; index++) {
+            ShortcutEntry near = ShortcutCatalog.find("edit.move" + directions[index]).orElseThrow();
+            ShortcutEntry far = ShortcutCatalog.find("edit.move" + directions[index] + "Far").orElseThrow();
+            assertThat(near.scope()).isEqualTo(Scope.CANVAS);
+            assertThat(far.scope()).isEqualTo(Scope.CANVAS);
+            assertThat(near.defaultStroke()).contains(KeyStroke.getKeyStroke(keys[index], 0));
+            assertThat(far.defaultStroke())
+                    .contains(KeyStroke.getKeyStroke(keys[index], InputEvent.SHIFT_DOWN_MASK));
+        }
     }
 
     @Test

@@ -2,6 +2,7 @@ package cl.almejo.vsim.ui.actions;
 
 import cl.almejo.vsim.core.command.ChangeParametersCommand;
 import cl.almejo.vsim.core.command.History;
+import cl.almejo.vsim.core.command.MoveElementsCommand;
 import cl.almejo.vsim.core.command.HistoryListener;
 import cl.almejo.vsim.core.command.RemoveElementsCommand;
 import cl.almejo.vsim.core.command.RotateElementsCommand;
@@ -15,6 +16,7 @@ import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.panels.ConfigureDialog;
 import cl.almejo.vsim.ui.shortcuts.ShortcutCatalog;
 import cl.almejo.vsim.ui.tools.PanTool;
+import cl.almejo.vsim.ui.tools.SelectTool;
 import cl.almejo.vsim.ui.tools.WireTool;
 import cl.almejo.vsim.ui.waveform.TimeAxis;
 import cl.almejo.vsim.ui.window.MenuId;
@@ -32,7 +34,9 @@ import javax.swing.KeyStroke;
 import java.awt.event.ActionEvent;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -63,6 +67,10 @@ public final class EditorActions {
     private final Action redo;
     private final Action delete;
     private final List<Consumer<Set<ElementId>>> deleteListeners = new CopyOnWriteArrayList<>();
+    /** Grid units a Mayús+arrow moves the selection. */
+    private static final int FAR_NUDGE = 5;
+
+    private final Map<String, Action> moveActions = new LinkedHashMap<>();
     private final Action rotateClockwise;
     private final Action rotateCounterClockwise;
     private final Action configure;
@@ -101,6 +109,11 @@ public final class EditorActions {
         rotateCounterClockwise = action(Messages.text("action.rotateCounterClockwise"), null,
                 () -> rotateSelection(false));
         rotateCounterClockwise.putValue(Action.SHORT_DESCRIPTION, Messages.text("tooltip.rotateCounterClockwise"));
+        addMoveActions("edit.moveLeft", "action.moveLeft", -1, 0);
+        addMoveActions("edit.moveRight", "action.moveRight", 1, 0);
+        addMoveActions("edit.moveUp", "action.moveUp", 0, -1);
+        addMoveActions("edit.moveDown", "action.moveDown", 0, 1);
+        addFarMoveActions();
         configure = action(Messages.text("action.configure"), null,
                 () -> singleConfigurable().ifPresent(this::configure));
         selectTool = action(Messages.text("action.toolSelect"), null, canvas::useDefaultTool);
@@ -153,6 +166,8 @@ public final class EditorActions {
         deleteListeners.add(listener);
         return () -> deleteListeners.remove(listener);
     }
+    /** The arrow-key moves of the selection by their catalog id ({@code edit.moveLeft}, {@code edit.moveLeftFar}, …). */
+    public Map<String, Action> moveActions() { return moveActions; }
     public Action rotateClockwise() { return rotateClockwise; }
     public Action rotateCounterClockwise() { return rotateCounterClockwise; }
     public Action configure() { return configure; }
@@ -295,6 +310,7 @@ public final class EditorActions {
         delete.setEnabled(!selected.isEmpty());
         rotateClockwise.setEnabled(!selected.isEmpty());
         rotateCounterClockwise.setEnabled(!selected.isEmpty());
+        moveActions.values().forEach(move -> move.setEnabled(!selected.isEmpty()));
         configure.setEnabled(singleConfigurable().isPresent());
     }
 
@@ -310,6 +326,29 @@ public final class EditorActions {
             deleteListeners.forEach(listener -> listener.accept(selected));
             openDocument.execute(new RemoveElementsCommand(selected));
         }
+    }
+
+    private void addMoveActions(String id, String nameKey, int unitX, int unitY) {
+        moveActions.put(id, action(Messages.text(nameKey), null, () -> nudgeSelection(unitX, unitY)));
+    }
+
+    private void addFarMoveActions() {
+        addMoveActions("edit.moveLeftFar", "action.moveLeftFar", -FAR_NUDGE, 0);
+        addMoveActions("edit.moveRightFar", "action.moveRightFar", FAR_NUDGE, 0);
+        addMoveActions("edit.moveUpFar", "action.moveUpFar", 0, -FAR_NUDGE);
+        addMoveActions("edit.moveDownFar", "action.moveDownFar", 0, FAR_NUDGE);
+    }
+
+    /**
+     * Moves the selection as a drag of the select tool would (same command, same expanded ids), except that a run of
+     * these moves is one undo step. Nothing happens while the select tool is not the active tool or is in the middle
+     * of a gesture (a drag, a wire, a rubber band).
+     */
+    private void nudgeSelection(int deltaX, int deltaY) {
+        if (canvas.selection().isEmpty() || !(canvas.tool() instanceof SelectTool select) || !select.isIdle()) {
+            return;
+        }
+        openDocument.execute(MoveElementsCommand.nudge(canvas.selection().effectiveIds(), deltaX, deltaY));
     }
 
     private void rotateSelection(boolean clockwise) {

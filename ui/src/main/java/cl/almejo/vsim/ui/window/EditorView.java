@@ -144,6 +144,8 @@ public final class EditorView extends JPanel implements CanvasHost {
         canvas.bindKey(KeyStroke.getKeyStroke(KeyEvent.VK_R, 0), "rotateClockwise", actions.rotateClockwise());
         canvas.bindKey(KeyStroke.getKeyStroke(KeyEvent.VK_R, InputEvent.SHIFT_DOWN_MASK), "rotateCounterClockwise",
                 actions.rotateCounterClockwise());
+        actions.moveActions().forEach((id, action) -> ShortcutCatalog.find(id)
+                .flatMap(entry -> entry.defaultStroke()).ifPresent(stroke -> canvas.bindKey(stroke, id, action)));
         bindZoomKeys();
         toolChanged(canvas.tool());
         canvas.setFileDropHandler(this::dropFiles);

@@ -536,6 +536,11 @@ public final class SelectTool implements Tool {
         return wire == null && bandStart == null ? Optional.ofNullable(pressPoint) : Optional.empty();
     }
 
+    /** True when no gesture is under way: no press, wire, rubber band or delegate (a frame resize, a label drag). */
+    public boolean isIdle() {
+        return pressPoint == null && wire == null && bandStart == null && activeDelegate == null;
+    }
+
     /** Forgets the press in progress without changing the document: the drag goes on outside the canvas. */
     public void cancelMove(ToolContext context) {
         reset();
