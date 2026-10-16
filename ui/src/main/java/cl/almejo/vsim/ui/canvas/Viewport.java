@@ -5,6 +5,8 @@ import cl.almejo.vsim.core.geometry.GridPoint;
 
 import java.awt.geom.AffineTransform;
 import java.awt.geom.Point2D;
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 /** Maps grid coordinates to screen pixels: a zoom factor plus the screen position of the grid origin. */
 public final class Viewport {
@@ -16,6 +18,17 @@ public final class Viewport {
     private double zoom = 1.0;
     private double originX;
     private double originY;
+    private final List<Runnable> changeListeners = new CopyOnWriteArrayList<>();
+
+    /** Runs {@code listener} after every pan or zoom (M6.5: the inline editor follows the text). Returns its removal. */
+    public Runnable addChangeListener(Runnable listener) {
+        changeListeners.add(listener);
+        return () -> changeListeners.remove(listener);
+    }
+
+    private void changed() {
+        changeListeners.forEach(Runnable::run);
+    }
 
     public double zoom() {
         return zoom;
@@ -41,6 +54,7 @@ public final class Viewport {
     public void panBy(double deltaX, double deltaY) {
         originX += deltaX;
         originY += deltaY;
+        changed();
     }
 
     public void zoomAt(double screenX, double screenY, double requestedZoom) {
@@ -51,6 +65,7 @@ public final class Viewport {
         zoom = Math.max(MINIMUM_ZOOM, Math.min(MAXIMUM_ZOOM, requestedZoom));
         originX = screenX - anchor.getX() * pixelsPerUnit();
         originY = screenY - anchor.getY() * pixelsPerUnit();
+        changed();
     }
 
     public void zoomIn(double screenX, double screenY) {
@@ -70,6 +85,7 @@ public final class Viewport {
         double centerY = bounds.y() + bounds.height() / 2.0;
         originX = screenWidth / 2.0 - centerX * pixelsPerUnit();
         originY = screenHeight / 2.0 - centerY * pixelsPerUnit();
+        changed();
     }
 
     /** Shows grid point ({@code centerX}, {@code centerY}) in the middle of a screen of the given size, at the clamped zoom. */
@@ -77,6 +93,7 @@ public final class Viewport {
         zoom = Math.max(MINIMUM_ZOOM, Math.min(MAXIMUM_ZOOM, requestedZoom));
         originX = screenWidth / 2.0 - centerX * pixelsPerUnit();
         originY = screenHeight / 2.0 - centerY * pixelsPerUnit();
+        changed();
     }
 
     /** Maps document coordinates (8 px per grid unit, what painters draw in) to the screen. */

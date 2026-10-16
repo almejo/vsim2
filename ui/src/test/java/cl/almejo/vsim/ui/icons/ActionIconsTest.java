@@ -80,6 +80,7 @@ class ActionIconsTest {
         used.addAll(ExportIcons.names());
         used.addAll(TidyIcons.names());
         used.addAll(cl.almejo.vsim.ui.frames.FrameIcons.names());
+        used.addAll(cl.almejo.vsim.ui.inline.InlineIcons.names());
         assertThat(used).containsExactlyElementsOf(IconsTest.iconNames());
     }
 

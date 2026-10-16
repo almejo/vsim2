@@ -41,6 +41,7 @@ import java.awt.Frame;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Point;
+import java.awt.Rectangle;
 import java.awt.Window;
 import java.awt.dnd.DropTarget;
 import java.awt.dnd.DropTargetAdapter;
@@ -594,6 +595,26 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     public void removeOverlay(CanvasOverlay overlay) {
         overlays.remove(overlay);
         repaint();
+    }
+
+    /**
+     * Puts {@code component} on top of the canvas (M6.5: the inline text editor); it is a real Swing child, so it
+     * takes the mouse and the keyboard, and never shows in an exported image. The caller sets its bounds, in canvas
+     * pixels. The returned runnable takes it away again.
+     */
+    public Runnable addFloatingComponent(JComponent component) {
+        add(component, 0);
+        repaint();
+        return () -> {
+            Rectangle last = component.getBounds();
+            remove(component);
+            repaint(last);
+        };
+    }
+
+    /** Runs {@code listener} after every pan or zoom, whoever made it. Returns its removal. */
+    public Runnable addViewportListener(Runnable listener) {
+        return viewport.addChangeListener(listener);
     }
 
     /** {@code provider} receives the mouse position in grid units; empty means no tooltip. */
