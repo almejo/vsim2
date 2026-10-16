@@ -874,6 +874,8 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
             case RESIZE_NORTH_WEST -> Cursor.getPredefinedCursor(Cursor.NW_RESIZE_CURSOR);
             case RESIZE_SOUTH_EAST -> Cursor.getPredefinedCursor(Cursor.SE_RESIZE_CURSOR);
             case RESIZE_SOUTH_WEST -> Cursor.getPredefinedCursor(Cursor.SW_RESIZE_CURSOR);
+            case SLIDE_VERTICAL -> Cursor.getPredefinedCursor(Cursor.N_RESIZE_CURSOR);
+            case SLIDE_HORIZONTAL -> Cursor.getPredefinedCursor(Cursor.E_RESIZE_CURSOR);
         };
     }
 

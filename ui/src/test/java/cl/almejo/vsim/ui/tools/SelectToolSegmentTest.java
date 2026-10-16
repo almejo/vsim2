@@ -87,6 +87,25 @@ class SelectToolSegmentTest {
     }
 
     @Test
+    void theCursorShowsTheDirectionTheSegmentSlides() {
+        context.selection.select(segment.id());
+        tool.mouseMoved(context, TestToolContext.withKeys(45, 10, false, false, false));
+        assertThat(context.lastCursor()).isEqualTo(CanvasCursor.MOVE);
+        tool.mouseMoved(context, TestToolContext.withKeys(45, 10, false, false, true));
+        assertThat(context.lastCursor()).isEqualTo(CanvasCursor.SLIDE_VERTICAL);
+        tool.mousePressed(context, TestToolContext.at(45, 10));
+        tool.mouseDragged(context, TestToolContext.withKeys(47, 13, false, false, true));
+        assertThat(context.lastCursor()).isEqualTo(CanvasCursor.SLIDE_VERTICAL);
+        tool.mouseDragged(context, TestToolContext.withKeys(47, 13, false, false, false));
+        assertThat(context.lastCursor()).isEqualTo(CanvasCursor.MOVE);
+        tool.mouseReleased(context, TestToolContext.withKeys(47, 13, false, false, false));
+        context.openDocument().history().undo();
+        context.selection.select(left.id());
+        tool.mouseMoved(context, TestToolContext.withKeys(40, 5, false, false, true));
+        assertThat(context.lastCursor()).isEqualTo(CanvasCursor.SLIDE_HORIZONTAL);
+    }
+
+    @Test
     void aVerticalWireDraggedWithAltMovesOnlySideways() {
         context.selection.select(left.id());
         context.dragHolding(tool, 40, 5, 37, 9, false, true);

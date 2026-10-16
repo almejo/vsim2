@@ -285,6 +285,8 @@ public final class SelectTool implements Tool {
         }
         dragTo(context, event);
         followWires = segmentDrag || context.selectionMoves().follows(event.shiftDown(), event.altDown());
+        showCursor(context, segmentDrag ? segmentWire(context).map(SelectTool::slideCursor).orElse(CanvasCursor.MOVE)
+                : CanvasCursor.MOVE);
         context.repaint();
     }
 
@@ -377,8 +379,13 @@ public final class SelectTool implements Tool {
             return Optional.empty();
         }
         return context.openDocument().document().wire(pressedWire.id())
-                .filter(wire -> !wire.start().equals(wire.end()))
-                .filter(wire -> wire.start().x() == wire.end().x() || wire.start().y() == wire.end().y());
+                .filter(SelectTool::slides);
+    }
+
+    /** A wire a segment drag can slide: horizontal or vertical, not a point. */
+    private static boolean slides(Wire wire) {
+        return !wire.start().equals(wire.end())
+                && (wire.start().x() == wire.end().x() || wire.start().y() == wire.end().y());
     }
 
     @Override
@@ -421,7 +428,12 @@ public final class SelectTool implements Tool {
                     : connectionPoints(context).widthAt(context.openDocument().document(), nearest);
             context.repaint();
         }
-        showCursor(context, cursorAt(context, event.gridPosition(), pin));
+        showCursor(context, cursorAt(context, event.gridPosition(), pin, event));
+    }
+
+    /** The cursor of a segment drag of {@code wire}: it slides across its own direction. */
+    private static CanvasCursor slideCursor(Wire wire) {
+        return wire.start().y() == wire.end().y() ? CanvasCursor.SLIDE_VERTICAL : CanvasCursor.SLIDE_HORIZONTAL;
     }
 
     /**
@@ -429,7 +441,7 @@ public final class SelectTool implements Tool {
      * {@code nearestPin} is the pin nearest to {@code gridPosition}, if any.
      */
     private CanvasCursor cursorAt(ToolContext context, Point2D gridPosition,
-                                  Optional<ConnectionPoints.PinHit> nearestPin) {
+                                  Optional<ConnectionPoints.PinHit> nearestPin, CanvasMouseEvent event) {
         CircuitDocument document = context.openDocument().document();
         Optional<DocumentElement> hit = context.hitTester().elementAt(document, gridPosition);
         // A free text is drawn on top of everything, so it hides a pin underneath.
@@ -446,6 +458,11 @@ public final class SelectTool implements Tool {
         boolean selected = context.selection().contains(element.id());
         if (element instanceof Wire && !selected) {
             return CanvasCursor.CROSSHAIR;
+        }
+        if (element instanceof Wire hoveredWire && context.selection().effectiveIds().equals(Set.of(hoveredWire.id()))
+                && slides(hoveredWire)
+                && context.selectionMoves().segmentKeyHeld(event.shiftDown(), event.altDown())) {
+            return slideCursor(hoveredWire);
         }
         if (element instanceof Component component && isInteractive(context, component)) {
             return CanvasCursor.HAND;
