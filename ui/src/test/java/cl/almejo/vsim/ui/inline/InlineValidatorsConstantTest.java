@@ -47,4 +47,14 @@ class InlineValidatorsConstantTest {
     void theWidthOfTheComponentDecidesWhatFits() {
         assertThat(at(1).apply("2")).contains("No cabe en 1 bits");
     }
+
+    @Test
+    void theValidatorReadsTheCurrentParametersEveryTime() {
+        java.util.concurrent.atomic.AtomicReference<Map<String, Object>> current =
+                new java.util.concurrent.atomic.AtomicReference<>(Map.of("width", 8, "format", "auto"));
+        Function<String, Optional<String>> validator = InlineValidators.constantValue(constant, current::get);
+        assertThat(validator.apply("0xFF")).isEmpty();
+        current.set(Map.of("width", 4, "format", "auto"));
+        assertThat(validator.apply("0xFF")).contains("No cabe en 4 bits");
+    }
 }

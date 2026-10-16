@@ -15,12 +15,14 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
 import javax.swing.KeyStroke;
+import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 import javax.swing.border.EmptyBorder;
 import javax.swing.event.DocumentEvent;
 import java.awt.AWTEvent;
 import java.awt.Color;
+import java.awt.Cursor;
 import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.Font;
@@ -33,6 +35,7 @@ import java.awt.event.AWTEventListener;
 import java.awt.event.ActionEvent;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
+import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.geom.Rectangle2D;
 import java.util.ArrayList;
@@ -83,6 +86,13 @@ public final class InlineTextEditor {
     public InlineTextEditor(CircuitCanvas canvas) {
         this.canvas = canvas;
         panel.setOpaque(false);
+        // a press on the empty parts of the editor stops here instead of reaching the canvas tool, and the
+        // canvas tool's cursor (a resize arrow on a frame's edge) never shows through
+        panel.addMouseListener(new MouseAdapter() { });
+        panel.setCursor(Cursor.getPredefinedCursor(Cursor.DEFAULT_CURSOR));
+        problemText.setCursor(Cursor.getPredefinedCursor(Cursor.DEFAULT_CURSOR));
+        field.setCursor(Cursor.getPredefinedCursor(Cursor.TEXT_CURSOR));
+        field.setFocusTraversalKeysEnabled(false); // Tab does nothing: the focus stays in the field
         confirmButton = iconButton(InlineIcons.CONFIRM, "inline.confirm", this::confirm);
         cancelButton = iconButton(InlineIcons.CANCEL, "inline.cancel", this::cancel);
         problemText.setOpaque(true);
@@ -130,6 +140,9 @@ public final class InlineTextEditor {
         }
         request = newRequest;
         stillValid = newStillValid;
+        // the components live detached while closed, so a theme change did not reach them
+        SwingUtilities.updateComponentTreeUI(panel);
+        field.setHorizontalAlignment(newRequest.centered() ? SwingConstants.CENTER : SwingConstants.LEADING);
         field.setText(newRequest.initialText());
         field.selectAll();
         whileOpen.add(canvas.addFloatingComponent(panel));
@@ -228,7 +241,12 @@ public final class InlineTextEditor {
     }
 
     private void documentChanged(CircuitDocument document, DocumentChange change) {
-        if (isOpen() && !stillValid.getAsBoolean()) {
+        if (!isOpen()) {
+            return;
+        }
+        if (stillValid.getAsBoolean()) {
+            check(); // what the document says may have changed the validator's answer (a Constante's width)
+        } else {
             cancel();
         }
     }
@@ -334,6 +352,7 @@ public final class InlineTextEditor {
         JButton button = new JButton(Icons.get(icon, Icons.MENU_SIZE));
         button.setToolTipText(Messages.text(toolTipKey));
         button.setFocusable(false); // the field keeps the focus, and its keys
+        button.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         button.putClientProperty("JButton.buttonType", "toolBarButton");
         button.setMargin(new Insets(2, 2, 2, 2));
         button.addActionListener(event -> whenPressed.run());

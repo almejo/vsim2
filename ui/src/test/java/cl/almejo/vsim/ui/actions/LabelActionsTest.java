@@ -340,6 +340,34 @@ class LabelActionsTest {
         assertThat(openDocument.history().undoDescription()).contains("command.add");
     }
 
+    @Test
+    void aWidthChangedMeanwhileMakesTheTypedValueAProblemInsteadOfAnException() {
+        Component constant = place(openDocument, StandardComponentTypes.CONSTANT, 0, 0,
+                Map.of("width", 8, "value", "5"));
+        actions.editConstantValue(constant);
+        editor.field().setText("0xFF");
+        assertThat(editor.problemText().isVisible()).isFalse();
+        cl.almejo.vsim.core.component.ComponentType type = openDocument.registry().typeOf(constant);
+        openDocument.execute(new cl.almejo.vsim.core.command.ChangeParametersCommand(constant.id(), type,
+                Map.of("width", 4, "value", "5", "format", "auto")));
+
+        assertThat(editor.problemText().isVisible()).isTrue();
+        editor.confirm();
+        editor.confirmButton().doClick();
+        assertThat(editor.isOpen()).isTrue();
+        assertThat(editor.problemText().getText()).isEqualTo("No cabe en 4 bits");
+        assertThat(openDocument.document().component(constant.id()).orElseThrow().parameters().get("value"))
+                .isEqualTo("5");
+    }
+
+    @Test
+    void theConstantEditorCentersItsText() {
+        Component constant = place(openDocument, StandardComponentTypes.CONSTANT, 0, 0,
+                Map.of("width", 8, "value", "5"));
+        actions.editConstantValue(constant);
+        assertThat(editor.field().getHorizontalAlignment()).isEqualTo(javax.swing.SwingConstants.CENTER);
+    }
+
     private void pressOutside() {
         java.awt.Component target = view.canvas();
         target.dispatchEvent(new java.awt.event.MouseEvent(target, java.awt.event.MouseEvent.MOUSE_PRESSED, 0,

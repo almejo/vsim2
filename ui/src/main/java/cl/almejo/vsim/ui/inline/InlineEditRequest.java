@@ -15,9 +15,15 @@ import java.util.function.Function;
  * @param initialText  the text the field starts with, all selected
  * @param validator    the problem with a text, empty when it is valid; asked on every keystroke
  * @param onConfirm    what to do with the confirmed text
+ * @param centered     whether the field centers its text, like the painted one
  */
 public record InlineEditRequest(Rectangle2D documentArea, Font font, String initialText,
-                                Function<String, Optional<String>> validator, Consumer<String> onConfirm) {
+                                Function<String, Optional<String>> validator, Consumer<String> onConfirm, boolean centered) {
+
+    public InlineEditRequest(Rectangle2D documentArea, Font font, String initialText,
+                             Function<String, Optional<String>> validator, Consumer<String> onConfirm) {
+        this(documentArea, font, initialText, validator, onConfirm, false);
+    }
 
     public InlineEditRequest {
         Objects.requireNonNull(documentArea, "documentArea");

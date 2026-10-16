@@ -69,7 +69,7 @@ public final class FrameGestures implements SelectToolDelegate {
             return Press.HANDLED;
         }
         if (event.clickCount() >= 2 && hitPart == FramePart.TITLE_BAR) {
-            // handled without a grab: the modal editor swallows the release, which must not be awaited
+            // handled without a grab: the editor opens on this press and the release is ignored, so none is awaited
             selection.select(frame.id());
             context.editLabel(frame);
             return Press.HANDLED;

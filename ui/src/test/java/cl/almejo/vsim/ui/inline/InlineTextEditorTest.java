@@ -368,4 +368,52 @@ class InlineTextEditorTest {
         assertThat(confirmed).isEmpty();
         assertThat(canvas.getComponentCount()).isZero();
     }
+
+    @Test
+    void aPressOnTheProblemTextOrAnEmptyCornerNeverReachesTheCanvasNorCountsAsOutside() {
+        editor.open(request("bien", NOT_BAD));
+        editor.field().setText("bad");
+        // a headless canvas does not route presses to its children, so check what the routing looks at: the
+        // nearest ancestor of the problem text with a mouse listener is the editor's panel, not the canvas
+        Rectangle problemBounds = SwingUtilities.convertRectangle(editor.problemText().getParent(),
+                editor.problemText().getBounds(), canvas);
+        pressOn(editor.problemText().getParent(), problemBounds.x, problemBounds.y);
+        assertThat(editor.isOpen()).isTrue();
+        assertThat(editor.problemText().getParent().getMouseListeners()).isNotEmpty();
+    }
+
+    @Test
+    void theReusedComponentsFollowTheThemeWhileTheEditorIsClosed() {
+        editor.open(request("uno"));
+        editor.cancel();
+        javax.swing.plaf.basic.BasicTextFieldUI stale = new javax.swing.plaf.basic.BasicTextFieldUI() { };
+        editor.field().setUI(stale);
+        editor.open(request("dos"));
+        assertThat(editor.field().getUI()).isNotSameAs(stale);
+    }
+
+    @Test
+    void tabAndShiftTabDoNothingSoTheFocusStaysInTheField() {
+        assertThat(editor.field().getFocusTraversalKeysEnabled()).isFalse();
+    }
+
+    @Test
+    void theCursorsAreHandOnTheButtonsTextOnTheFieldAndDefaultOnTheRest() {
+        editor.open(request("uno", NOT_BAD));
+        editor.field().setText("bad");
+        assertThat(editor.confirmButton().getCursor().getType()).isEqualTo(java.awt.Cursor.HAND_CURSOR);
+        assertThat(editor.cancelButton().getCursor().getType()).isEqualTo(java.awt.Cursor.HAND_CURSOR);
+        assertThat(editor.field().getCursor().getType()).isEqualTo(java.awt.Cursor.TEXT_CURSOR);
+        assertThat(editor.problemText().getCursor().getType()).isEqualTo(java.awt.Cursor.DEFAULT_CURSOR);
+        assertThat(editor.problemText().getParent().getCursor().getType()).isEqualTo(java.awt.Cursor.DEFAULT_CURSOR);
+    }
+
+    @Test
+    void aCenteredRequestCentersTheFieldTextAndTheNextOneDoesNot() {
+        editor.open(new InlineEditRequest(AREA, FONT, "1", InlineValidators.anyText(), confirmed::add, true));
+        assertThat(editor.field().getHorizontalAlignment()).isEqualTo(javax.swing.SwingConstants.CENTER);
+        editor.cancel();
+        editor.open(request("uno"));
+        assertThat(editor.field().getHorizontalAlignment()).isEqualTo(javax.swing.SwingConstants.LEADING);
+    }
 }

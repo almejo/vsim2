@@ -8,6 +8,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 /** The validators given to an {@link InlineEditRequest}: each one returns the problem message, empty when valid. */
 public final class InlineValidators {
@@ -26,8 +27,14 @@ public final class InlineValidators {
      */
     public static Function<String, Optional<String>> constantValue(ComponentType type,
                                                                    Map<String, Object> parameters) {
+        return constantValue(type, () -> parameters);
+    }
+
+    /** Same, asking {@code currentParameters} on every check, so a width changed meanwhile is taken into account. */
+    public static Function<String, Optional<String>> constantValue(ComponentType type,
+                                                                   Supplier<Map<String, Object>> currentParameters) {
         return text -> {
-            Map<String, Object> typed = new HashMap<>(parameters);
+            Map<String, Object> typed = new HashMap<>(currentParameters.get());
             typed.put("value", text.strip());
             Optional<ParameterProblem> problem = type.check(typed);
             return problem.map(found -> Messages.format(found.messageKey(), found.arguments().toArray()));

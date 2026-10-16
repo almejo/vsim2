@@ -107,14 +107,19 @@ public final class LabelActions {
         Map<String, Object> parameters = current.get().parameters();
         editor.open(new InlineEditRequest(ConstantPainter.valueBox(type, current.get()),
                 ConstantPainter.valueFont(), String.valueOf(parameters.get("value")),
-                InlineValidators.constantValue(type, parameters),
+                InlineValidators.constantValue(type, () -> currentParameters(id, parameters)),
                 text -> openDocument.document().component(id).ifPresent(component -> {
                     Map<String, Object> changed = new HashMap<>(component.parameters());
                     changed.put("value", text.strip());
                     if (!type.resolveParameters(changed).equals(type.resolveParameters(component.parameters()))) {
                         openDocument.execute(new ChangeParametersCommand(id, type, changed));
                     }
-                })), () -> openDocument.document().component(id).isPresent());
+                }), true), () -> openDocument.document().component(id).isPresent());
+    }
+
+    /** What the Constante has now (the last known ones when it is gone, the editor closes by itself then). */
+    private Map<String, Object> currentParameters(ElementId id, Map<String, Object> lastKnown) {
+        return openDocument.document().component(id).map(Component::parameters).orElse(lastKnown);
     }
 
     private void setLabelIfChanged(ElementId id, String text, boolean blankIgnored) {
