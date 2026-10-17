@@ -1,12 +1,14 @@
 package cl.almejo.vsim.ui.tools;
 
 import cl.almejo.vsim.core.command.PasteCommand;
+import cl.almejo.vsim.core.command.SetLabelOffsetCommand;
 import cl.almejo.vsim.core.component.ElementBounds;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.core.document.LabelOffset;
 import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.Bounds;
@@ -60,7 +62,9 @@ import java.util.concurrent.CopyOnWriteArrayList;
  * the wires joined to its ends always stretch (the follow mode and the invert key do not apply).
  *
  * <p>M6.8: a double click on a wire selects its stretch and a triple click every wire connected to it (Shift adds
- * them); that press never starts a wire drawing, and a drag right after it moves the selection.
+ * them); that press never starts a wire drawing, and a drag right after it moves the selection. A plain press on a
+ * component's drawn label (not on a pin or a free text) drags only that label, its centre snapped to grid points (one
+ * undo step); released without dragging, it selects the component.
  *
  * <p>{@link SelectToolDelegate}s (M6.3: frames) are asked first: a press one of them takes, with its drag and
  * release, is theirs alone.
@@ -105,6 +109,13 @@ public final class SelectTool implements Tool {
     /** The last drag event of a move, so a modifier key pressed or released without moving can redo it. */
     private CanvasMouseEvent lastDrag;
     private final MovePreview movePreview = new MovePreview();
+    /** M6.8: the component whose label the press grabbed; the label moves once the drag passes the threshold. */
+    private Component labelComponent;
+    private Point2D labelPressPosition;
+    /** The drawn centre of that label at the press, in document pixels. */
+    private Point2D labelPressCentre;
+    /** Where the dragged label would land; {@code null} until the drag passes the threshold. */
+    private LabelOffset labelOffset;
     private CanvasCursor cursor = CanvasCursor.DEFAULT;
 
     /** Adds a delegate asked before the tool's own behaviour; the returned runnable removes it. */
@@ -224,6 +235,14 @@ public final class SelectTool implements Tool {
         Optional<ConnectionPoints.PinHit> pin = hit.isPresent() && hit.get() instanceof TextLabel
                 ? Optional.empty()
                 : pinNear(context, event.gridPosition());
+        if (!event.shiftDown() && !event.controlDown() && pin.isEmpty()
+                && !(hit.isPresent() && hit.get() instanceof TextLabel)) {
+            Optional<Component> labelled = componentLabelAt(context, event.gridPosition());
+            if (labelled.isPresent()) {
+                pressLabel(context, event, labelled.get());
+                return;
+            }
+        }
         if (event.shiftDown() || event.controlDown()) {
             Optional<DocumentElement> target = pin.<DocumentElement>map(ConnectionPoints.PinHit::component).or(() -> hit);
             if (target.isPresent() && !event.controlDown()) {
@@ -286,6 +305,10 @@ public final class SelectTool implements Tool {
             context.repaint();
             return;
         }
+        if (labelComponent != null) {
+            dragLabel(context, event);
+            return;
+        }
         if (wire != null) {
             wire.dragTo(event);
             context.repaint();
@@ -319,6 +342,8 @@ public final class SelectTool implements Tool {
         }
         if (bandStart != null) {
             finishBand(context);
+        } else if (labelComponent != null) {
+            releaseLabel(context);
         } else if (wire != null) {
             boolean added = wire.hasMoved() && wire.commit(context, event.snapped());
             if (!added) {
@@ -460,6 +485,9 @@ public final class SelectTool implements Tool {
         if (pin.isPresent()) {
             return grabsSelection(context, pin.get().component()) ? CanvasCursor.MOVE : CanvasCursor.CROSSHAIR;
         }
+        if (!(hit.isPresent() && hit.get() instanceof TextLabel) && componentLabelAt(context, gridPosition).isPresent()) {
+            return CanvasCursor.MOVE;
+        }
         if (hit.isEmpty()) {
             return CanvasCursor.DEFAULT;
         }
@@ -525,7 +553,7 @@ public final class SelectTool implements Tool {
             context.repaint();
             return true;
         }
-        if (pressPoint != null || wire != null || bandStart != null) {
+        if (pressPoint != null || wire != null || bandStart != null || labelComponent != null) {
             reset();
             context.repaint();
         } else {
@@ -549,6 +577,10 @@ public final class SelectTool implements Tool {
         }
         if (wire != null) {
             wire.paintPreview(graphics, context);
+            return;
+        }
+        if (labelOffset != null) {
+            paintLabelPreview(graphics, context);
             return;
         }
         if (pressPoint == null) {
@@ -671,7 +703,8 @@ public final class SelectTool implements Tool {
 
     /** True when no gesture is under way: no press, wire, rubber band or delegate (a frame resize, a label drag). */
     public boolean isIdle() {
-        return pressPoint == null && wire == null && bandStart == null && activeDelegate == null;
+        return pressPoint == null && wire == null && bandStart == null && activeDelegate == null
+                && labelComponent == null;
     }
 
     /** Forgets the press in progress without changing the document: the drag goes on outside the canvas. */
@@ -685,7 +718,7 @@ public final class SelectTool implements Tool {
      * nears its edge.
      */
     public boolean autoscrolls() {
-        return bandStart != null || movingFrom().isPresent() || activeDelegate != null;
+        return bandStart != null || movingFrom().isPresent() || activeDelegate != null || labelComponent != null;
     }
 
     /**
@@ -778,6 +811,66 @@ public final class SelectTool implements Tool {
                 .require(typeId).createBehavior(component.parameters()).isInteractive());
     }
 
+    /** For tests: the dragged component as it would be with its label at the drag's place. */
+    Optional<Component> labelDragPreview() {
+        return labelOffset == null ? Optional.empty()
+                : Optional.of(labelComponent.withLabelOffset(Optional.of(labelOffset)));
+    }
+
+    /** M6.8: a press on a component's drawn label; a drag moves only the label, a click selects the component. */
+    private void pressLabel(ToolContext context, CanvasMouseEvent event, Component component) {
+        Rectangle2D bounds = LabelLayout.componentLabel(context.openDocument().registry().typeOf(component), component)
+                .orElseThrow().bounds();
+        labelComponent = component;
+        labelPressPosition = event.gridPosition();
+        labelPressCentre = new Point2D.Double(bounds.getCenterX(), bounds.getCenterY());
+    }
+
+    /** The label's centre follows the pointer, snapped to grid points, once the drag passes the threshold. */
+    private void dragLabel(ToolContext context, CanvasMouseEvent event) {
+        double draggedX = event.gridPosition().getX() - labelPressPosition.getX();
+        double draggedY = event.gridPosition().getY() - labelPressPosition.getY();
+        if (labelOffset == null && Math.max(Math.abs(draggedX), Math.abs(draggedY)) < BAND_THRESHOLD) {
+            return;
+        }
+        double unit = GridPoint.PIXELS_PER_UNIT;
+        labelOffset = LabelLayout.offsetFor(labelComponent, labelPressCentre.getX() + draggedX * unit,
+                labelPressCentre.getY() + draggedY * unit);
+        showCursor(context, CanvasCursor.MOVE);
+        context.repaint();
+    }
+
+    /** A drag sets the label's offset (one undo step); either way the component ends up selected. */
+    private void releaseLabel(ToolContext context) {
+        ElementId id = labelComponent.id();
+        if (labelOffset == null) {
+            context.selection().select(id);
+            return;
+        }
+        if (!context.selection().contains(id)) {
+            context.selection().select(id);
+        }
+        Optional<LabelOffset> moved = Optional.of(labelOffset);
+        boolean changed = context.openDocument().document().component(id)
+                .map(current -> !current.labelOffset().equals(moved)).orElse(false);
+        if (changed) {
+            context.openDocument().execute(new SetLabelOffsetCommand(id, moved));
+        }
+    }
+
+    /** The dragged label at its new place, in the selection colour (read at paint time). */
+    private void paintLabelPreview(Graphics2D graphics, ToolContext context) {
+        Component moved = labelComponent.withLabelOffset(Optional.of(labelOffset));
+        LabelLayout.PlacedText placed = LabelLayout.componentLabelPlace(
+                context.openDocument().registry().typeOf(moved), moved, moved.label());
+        graphics.setColor(context.scheme().selection());
+        graphics.setFont(LabelLayout.FONT);
+        graphics.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+        graphics.drawString(placed.text(), placed.baselineX(), placed.baselineY());
+        graphics.setStroke(new BasicStroke(BAND_WIDTH));
+        graphics.draw(placed.bounds());
+    }
+
     private void reset() {
         pressedElement = null;
         pressPoint = null;
@@ -796,5 +889,9 @@ public final class SelectTool implements Tool {
         segmentDrag = false;
         lastDrag = null;
         movePreview.clear();
+        labelComponent = null;
+        labelPressPosition = null;
+        labelPressCentre = null;
+        labelOffset = null;
     }
 }

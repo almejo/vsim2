@@ -2,6 +2,7 @@ package cl.almejo.vsim.ui.canvas;
 
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.document.Component;
+import cl.almejo.vsim.core.document.LabelOffset;
 import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
@@ -62,9 +63,13 @@ public final class LabelLayout {
 
     /**
      * Where {@code text} would be drawn as the label of {@code component}: what {@link #componentLabel} gives for a
-     * label with that text, also for an empty one (a zero-width box where the label would start).
+     * label with that text, also for an empty one (a zero-width box where the label would start). A label the user
+     * moved (M6.8, {@link Component#labelOffset}) is centred on its place and stays horizontal.
      */
     public static PlacedText componentLabelPlace(ComponentType type, Component component, String text) {
+        if (component.labelOffset().isPresent()) {
+            return movedLabelPlace(component, component.labelOffset().get(), text);
+        }
         Rectangle2D body = ComponentDrawing.documentBounds(type, component);
         PlacedText measured = measure(text, 0, 0);
         boolean sideways = component.rotation() == Rotation.R90 || component.rotation() == Rotation.R270;
@@ -73,6 +78,30 @@ public final class LabelLayout {
         double top = sideways ? body.getCenterY() - measured.height() / 2
                 : body.getMinY() - GAP - measured.height();
         return new PlacedText(measured.text(), left, top, measured.width(), measured.height(), measured.ascent());
+    }
+
+    /** The centre of a label moved to {@code offset}: the position plus the offset turned with the component. */
+    public static GridPoint movedLabelCentre(Component component, LabelOffset offset) {
+        return component.position().plus(component.rotation().apply(new GridPoint(offset.x(), offset.y())));
+    }
+
+    /**
+     * The label offset of {@code component} whose drawn centre is nearest to ({@code centreX}, {@code centreY}), in
+     * document pixels: the centre snapped to a grid point, relative to the position, turned back into the
+     * component's own unrotated frame (the inverse of {@link Rotation#apply}).
+     */
+    public static LabelOffset offsetFor(Component component, double centreX, double centreY) {
+        GridPoint relative = new GridPoint((int) Math.round(centreX / UNIT) - component.position().x(),
+                (int) Math.round(centreY / UNIT) - component.position().y());
+        GridPoint local = Rotation.fromQuarterTurns(-component.rotation().quarterTurns()).apply(relative);
+        return new LabelOffset(local.x(), local.y());
+    }
+
+    private static PlacedText movedLabelPlace(Component component, LabelOffset offset, String text) {
+        GridPoint centre = movedLabelCentre(component, offset);
+        PlacedText measured = measure(text, 0, 0);
+        return new PlacedText(measured.text(), centre.x() * UNIT - measured.width() / 2,
+                centre.y() * UNIT - measured.height() / 2, measured.width(), measured.height(), measured.ascent());
     }
 
     /** Bounds of a free text label in grid units. */

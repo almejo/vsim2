@@ -174,6 +174,7 @@ Diseño: `docs/superpowers/specs/2026-10-08-vsim2-design.md`.
 - Si al mover un cable seleccionado queda alineado con otro cable y se funden en uno, el cable resultante queda seleccionado (antes la selección se perdía). Vale para arrastrar, Alt + arrastrar, las flechas y arrastrar entre vistas.
 - La etiqueta de un componente girado (R90/R270), que se dibuja a la izquierda de la pieza, se edita en un campo que crece hacia la izquierda, sin taparla. El valor de una Constante se edita en un campo que crece hacia ambos lados, centrado en su caja.
 - Cerrar la ventana (o salir) con un texto a medio editar lo confirma si es válido, y si no lo descarta, antes de preguntar «¿Guardar cambios?».
+- La etiqueta de un componente se puede mover: arrástrala con la herramienta de selección y su centro se ajusta a la grilla (un paso de deshacer, «mover etiqueta»); solo se mueve la etiqueta, también dentro de un marco cerrado. Un clic sin arrastrar selecciona el componente y el doble clic sigue editando el texto, ahora en un campo centrado sobre la etiqueta movida. La posición es relativa a la pieza: al girarla, la etiqueta gira con ella (el texto queda horizontal), y se conserva al copiar, pegar, duplicar, arrastrar a otra ventana, guardar y «Crear componente». «Restablecer posición de la etiqueta», en el menú contextual junto a «Etiqueta…», la devuelve a su lugar automático. Los archivos sin etiquetas movidas se guardan igual que antes.
 
 ## Preferencias y distribución
 

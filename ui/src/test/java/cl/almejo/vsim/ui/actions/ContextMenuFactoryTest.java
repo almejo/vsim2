@@ -157,6 +157,19 @@ class ContextMenuFactoryTest {
                         "---", "Cortar", "Copiar", "Duplicar", "---", "Borrar");
     }
 
+    /** M6.8: «Restablecer posición de la etiqueta» right after «Etiqueta…», only for a moved label. */
+    @Test
+    void theRealComponentMenuOffersTheResetOfAMovedLabelNextToTheLabelEntry() {
+        Component gate = place(openDocument, StandardComponentTypes.NOT, 0, 0, Map.of());
+        openDocument.execute(new cl.almejo.vsim.core.command.SetLabelOffsetCommand(gate.id(),
+                Optional.of(new cl.almejo.vsim.core.document.LabelOffset(2, 6))));
+        Component moved = openDocument.document().component(gate.id()).orElseThrow();
+        view.canvas().selection().select(gate.id());
+        assertThat(texts(view.contextMenu(Optional.of(moved), CLICK)))
+                .containsExactly("Configurar…", "Etiqueta…", "Restablecer posición de la etiqueta", "---", "Rotar ↻",
+                        "Rotar ↺", "---", "Cortar", "Copiar", "Duplicar", "---", "Borrar");
+    }
+
     @Test
     void theRealWireMenuOffersDeleteSegment() {
         Wire wire = new Wire(new ElementId("w9"), GridPoint.ORIGIN, new GridPoint(3, 0));

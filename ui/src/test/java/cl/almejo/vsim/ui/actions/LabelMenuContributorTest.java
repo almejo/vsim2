@@ -2,9 +2,11 @@ package cl.almejo.vsim.ui.actions;
 
 import cl.almejo.vsim.core.command.AddElementsCommand;
 import cl.almejo.vsim.core.command.AddWireCommand;
+import cl.almejo.vsim.core.command.SetLabelOffsetCommand;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
+import cl.almejo.vsim.core.document.LabelOffset;
 import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
@@ -98,6 +100,32 @@ class LabelMenuContributorTest {
         view.inlineEditor().field().setText("U9");
         view.inlineEditor().confirm();
         assertThat(openDocument.document().component(gate.id()).orElseThrow().label()).isEqualTo("U9");
+    }
+
+    @Test
+    void aComponentWithAMovedLabelGetsTheResetItemThatPutsItBackInOneStep() {
+        Component gate = place(openDocument, StandardComponentTypes.NOT, 0, 0, Map.of());
+        openDocument.execute(new SetLabelOffsetCommand(gate.id(), Optional.of(new LabelOffset(2, 6))));
+        Component moved = openDocument.document().component(gate.id()).orElseThrow();
+        selection.select(gate.id());
+        JPopupMenu menu = menuFor(Optional.of(moved));
+        assertThat(texts(menu)).containsExactly("Etiqueta…", "Restablecer posición de la etiqueta");
+        choose(menu, 1);
+        assertThat(openDocument.document().component(gate.id()).orElseThrow().labelOffset()).isEmpty();
+        assertThat(openDocument.history().undoDescription()).contains("command.resetLabelPosition");
+        openDocument.history().undo();
+        assertThat(openDocument.document().component(gate.id()).orElseThrow().labelOffset())
+                .contains(new LabelOffset(2, 6));
+    }
+
+    @Test
+    void aMultiSelectionGetsNoResetItem() {
+        Component first = place(openDocument, StandardComponentTypes.NOT, 0, 0, Map.of());
+        Component second = place(openDocument, StandardComponentTypes.NOT, 10, 0, Map.of());
+        openDocument.execute(new SetLabelOffsetCommand(first.id(), Optional.of(new LabelOffset(2, 6))));
+        selection.set(List.of(first.id(), second.id()));
+        assertThat(texts(menuFor(openDocument.document().component(first.id()).map(DocumentElement.class::cast))))
+                .isEmpty();
     }
 
     @Test

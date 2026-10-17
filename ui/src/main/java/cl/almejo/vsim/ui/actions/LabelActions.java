@@ -5,6 +5,7 @@ import cl.almejo.vsim.core.command.ChangeParametersCommand;
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.command.RemoveWireSegmentCommand;
 import cl.almejo.vsim.core.command.SetLabelCommand;
+import cl.almejo.vsim.core.command.SetLabelOffsetCommand;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.ElementId;
@@ -78,13 +79,16 @@ public final class LabelActions {
         switch (current.get()) {
             case Component component -> {
                 ComponentType type = openDocument.registry().typeOf(component);
-                // a sideways label is drawn left of the body: its editor grows to the left, away from the body
+                // a sideways label is drawn left of the body: its editor grows to the left, away from the body;
+                // a moved label (M6.8) is drawn centred on its place, so its editor grows both ways
                 boolean sideways = component.rotation() == Rotation.R90 || component.rotation() == Rotation.R270;
+                InlineEditRequest.Anchor anchor = component.labelOffset().isPresent() ? InlineEditRequest.Anchor.CENTER
+                        : sideways ? InlineEditRequest.Anchor.RIGHT : InlineEditRequest.Anchor.LEFT;
                 editor.open(new InlineEditRequest(
                         LabelLayout.componentLabelPlace(type, component, component.label()).bounds(),
                         LabelLayout.FONT, component.label(), InlineValidators.anyText(),
                         text -> setLabelIfChanged(id, text.strip(), false),
-                        sideways ? InlineEditRequest.Anchor.RIGHT : InlineEditRequest.Anchor.LEFT), stillThere);
+                        anchor), stillThere);
             }
             case TextLabel label -> editor.open(new InlineEditRequest(LabelLayout.freeText(label).bounds(),
                     LabelLayout.FONT, label.text(), InlineValidators.anyText(),
@@ -162,6 +166,13 @@ public final class LabelActions {
         if (openDocument.document().wire(wire.id()).isPresent()) {
             openDocument.execute(new RemoveWireSegmentCommand(wire.id(), near, openDocument.registry()));
         }
+    }
+
+    /** M6.8: puts the moved label of {@code component} back at its automatic place, as one undo step. */
+    public void resetLabelPosition(Component component) {
+        openDocument.document().component(component.id())
+                .filter(current -> current.labelOffset().isPresent())
+                .ifPresent(current -> openDocument.execute(new SetLabelOffsetCommand(current.id(), Optional.empty())));
     }
 
     private void refresh() {
