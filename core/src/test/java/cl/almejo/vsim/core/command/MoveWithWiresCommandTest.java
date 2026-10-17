@@ -183,6 +183,22 @@ class MoveWithWiresCommandTest {
     }
 
     @Test
+    void aRunWithWiresThatComesBackLeavesNoUndoStep() {
+        Scene scene = scene();
+        Map<DocumentElement, Long> before = snapshot(scene.document());
+        History history = new History(scene.document());
+        history.markSaved();
+        history.execute(MoveWithWiresCommand.nudge(registry, Set.of(scene.gate().id()), 0, 1));
+        history.execute(MoveWithWiresCommand.nudge(registry, Set.of(scene.gate().id()), 0, -1));
+
+        assertThat(snapshot(scene.document())).containsExactlyEntriesOf(before);
+        assertThat(history.canUndo()).isFalse();
+        assertThat(history.isModified()).isFalse();
+        assertThat(MoveWithWiresCommand.nudge(registry, Set.of(scene.gate().id()), 0, 0).changesNothing()).isTrue();
+        assertThat(MoveWithWiresCommand.nudge(registry, Set.of(scene.gate().id()), 0, 1).changesNothing()).isFalse();
+    }
+
+    @Test
     void aRunThatComesBackDoesNotTidyWiresItNeverMoved() {
         CircuitDocument document = new CircuitDocument();
         Wire left = wire(document, 0, 0, 5, 0);

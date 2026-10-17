@@ -22,4 +22,12 @@ public interface Command {
     default Optional<Command> mergedWith(Command next) {
         return Optional.empty();
     }
+
+    /**
+     * True when applying this command would leave the document exactly as it is (a move by (0, 0)); false, the
+     * default, when it may change something. {@link History} drops a merged run that changes nothing.
+     */
+    default boolean changesNothing() {
+        return false;
+    }
 }

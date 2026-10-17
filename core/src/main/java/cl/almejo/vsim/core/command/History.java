@@ -73,8 +73,14 @@ public final class History {
         notifyListeners();
     }
 
-    /** Replaces {@code top} by {@code replacement}; false, with the document as it was, when that throws. */
+    /**
+     * Replaces {@code top} by {@code replacement}; false, with the document as it was, when that throws. When the
+     * replacement {@link Command#changesNothing() changes nothing} (a run that came back to where it started), the top is
+     * reverted and popped and nothing is pushed: the run leaves no undo step, and the modified flag is what it was
+     * before the run.
+     */
     private boolean executeMerged(Command top, Command replacement) {
+        boolean dropRun = replacement.changesNothing();
         Map<ElementId, DocumentElement> elementsBefore = new LinkedHashMap<>();
         Map<ElementId, Long> ordersBefore = new HashMap<>();
         for (DocumentElement element : document.elements()) {
@@ -85,7 +91,9 @@ public final class History {
             document.batch(() -> {
                 try {
                     top.revert(document);
-                    replacement.apply(document);
+                    if (!dropRun) {
+                        replacement.apply(document);
+                    }
                 } catch (RuntimeException exception) {
                     putBack(elementsBefore, ordersBefore);
                     throw exception;
@@ -95,8 +103,12 @@ public final class History {
             return false;
         }
         undoStack.pop();
-        undoStack.push(replacement);
-        lastExecuted = replacement;
+        if (dropRun) {
+            lastExecuted = null;
+        } else {
+            undoStack.push(replacement);
+            lastExecuted = replacement;
+        }
         notifyListeners();
         return true;
     }
@@ -154,6 +166,14 @@ public final class History {
      */
     public Optional<Command> undoCommand() {
         return Optional.ofNullable(undoStack.peek());
+    }
+
+    /**
+     * The command the last {@link #execute} left on top (the merged one after a merged run); empty when that execute
+     * dropped a run that came back to where it started, and after an undo, a redo or a clear.
+     */
+    public Optional<Command> lastExecuted() {
+        return Optional.ofNullable(lastExecuted);
     }
 
     public Optional<String> undoDescription() {

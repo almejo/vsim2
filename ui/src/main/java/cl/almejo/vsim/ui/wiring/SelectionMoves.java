@@ -124,7 +124,8 @@ public final class SelectionMoves {
 
     /**
      * A keyboard move by the follow mode; a run of them is one undo step equal to one move by the total (the
-     * commands merge in the history). The report reads the merged command, so it covers the whole run.
+     * commands merge in the history). The report reads the merged command, so it covers the whole run; a run that
+     * came back to where it started leaves no step and reports nothing.
      */
     public void nudge(OpenDocument openDocument, Collection<ElementId> ids, int deltaX, int deltaY) {
         GridPoint delta = ids.isEmpty() ? new GridPoint(0, 0) : limited(openDocument, ids, deltaX, deltaY);
@@ -137,7 +138,7 @@ public final class SelectionMoves {
         }
         openDocument.execute(MoveWithWiresCommand.nudge(openDocument.registry(), new LinkedHashSet<>(ids), delta.x(),
                 delta.y()));
-        openDocument.history().undoCommand().ifPresent(command -> report(openDocument.document(), command, true));
+        openDocument.history().lastExecuted().ifPresent(command -> report(openDocument.document(), command, true));
     }
 
     /**

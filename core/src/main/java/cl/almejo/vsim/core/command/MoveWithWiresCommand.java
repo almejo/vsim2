@@ -117,6 +117,16 @@ public final class MoveWithWiresCommand implements Command {
         return Optional.empty();
     }
 
+    /**
+     * True for a move by (0, 0) whose plan, if already made, changes no wire: a merged nudge run that came back to
+     * where it started.
+     */
+    @Override
+    public boolean changesNothing() {
+        return deltaX == 0 && deltaY == 0 && (plan == null || plan.replacedWires().isEmpty()
+                && plan.addedWires().isEmpty() && plan.removedWireIds().isEmpty());
+    }
+
     @Override
     public void apply(CircuitDocument document) {
         if (plan == null) {
