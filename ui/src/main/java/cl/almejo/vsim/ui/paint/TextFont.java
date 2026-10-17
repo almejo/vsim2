@@ -63,9 +63,21 @@ public record TextFont(String family, int size) {
         return isInstalled(family) ? family : Font.SANS_SERIF;
     }
 
-    /** Whether {@code family} is a font family of this computer (Java's logical families included). */
+    /**
+     * Whether {@code family} is a font family of this computer, ignoring case. Java's logical families (SansSerif,
+     * the default, among them) always are, without listing the computer's families: that listing takes a moment, and
+     * the default font must not wait for it at the first paint.
+     */
     public static boolean isInstalled(String family) {
-        return InstalledFamilies.LOWER_CASE.contains(family.toLowerCase(Locale.ROOT));
+        String lowerCase = family.toLowerCase(Locale.ROOT);
+        return LOGICAL_FAMILIES.contains(lowerCase) || InstalledFamilies.LOWER_CASE.contains(lowerCase);
+    }
+
+    /** Lists the computer's families on a background thread, so Preferencias or a chosen family find them ready. */
+    public static void listFamiliesInBackground() {
+        Thread listing = new Thread(() -> installedFamilies().size(), "vsim-font-families");
+        listing.setDaemon(true);
+        listing.start();
     }
 
     /** The font families of this computer, in the order the system gives them. */
@@ -73,7 +85,10 @@ public record TextFont(String family, int size) {
         return InstalledFamilies.NAMES;
     }
 
-    /** Asked once, the first time a font is needed: listing the families can take a moment. */
+    private static final Set<String> LOGICAL_FAMILIES = Set.of("sansserif", "serif", "monospaced", "dialog",
+            "dialoginput");
+
+    /** Asked once, the first time a family that is not a logical one is needed: listing them takes a moment. */
     private static final class InstalledFamilies {
         private static final List<String> NAMES = List.of(
                 GraphicsEnvironment.getLocalGraphicsEnvironment().getAvailableFontFamilyNames());

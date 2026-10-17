@@ -38,6 +38,16 @@ class TextFontTest {
     }
 
     @Test
+    void javasLogicalFamiliesAreInstalledInAnyCase() {
+        for (String family : new String[] {"SansSerif", "sansserif", "SERIF", "Monospaced", "Dialog", "dialoginput"}) {
+            assertThat(TextFont.isInstalled(family)).as(family).isTrue();
+        }
+        assertThat(new TextFont("monospaced", 10).labelFont().getFamily())
+                .isEqualTo(new Font(Font.MONOSPACED, Font.PLAIN, 10).getFamily());
+        assertThat(TextFont.isInstalled("Fuente De Otro Computador")).isFalse();
+    }
+
+    @Test
     void theSizeGoesFromEightToTwentyFour() {
         assertThat(new TextFont(Font.SERIF, 8).size()).isEqualTo(8);
         assertThat(new TextFont(Font.SERIF, 24).size()).isEqualTo(24);

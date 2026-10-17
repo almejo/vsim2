@@ -1,6 +1,7 @@
 package cl.almejo.vsim.ui.theme;
 
 import cl.almejo.vsim.ui.app.AppPreferences;
+import cl.almejo.vsim.ui.paint.TextFont;
 import cl.almejo.vsim.ui.paint.TextFonts;
 
 /**
@@ -23,6 +24,7 @@ public final class TextFontManager {
             return;
         }
         started = true;
+        TextFont.listFamiliesInBackground();
         apply();
         preferences.addListener(preferencesListener);
     }
