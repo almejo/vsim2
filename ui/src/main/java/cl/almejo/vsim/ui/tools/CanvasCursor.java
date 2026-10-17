@@ -5,11 +5,13 @@ package cl.almejo.vsim.ui.tools;
  * selection or pan, CROSSHAIR start a wire or place a component, HAND toggle an interactive component or press a
  * control. The RESIZE_* cursors grab an edge or a corner of an unlocked frame (M6.3), named by the side that moves.
  * SLIDE_VERTICAL and SLIDE_HORIZONTAL drag a selected wire sideways with the segment key (M6.7 §8): a horizontal wire
- * slides vertically, a vertical one horizontally.
+ * slides vertically, a vertical one horizontally. ADD_TO_SELECTION and REMOVE_FROM_SELECTION (M6.8) are the arrow
+ * with a «+» or «−» badge: what a press with Shift or Ctrl held does to the selection.
  */
 public enum CanvasCursor {
     DEFAULT, MOVE, CROSSHAIR, HAND,
     RESIZE_NORTH, RESIZE_SOUTH, RESIZE_EAST, RESIZE_WEST,
     RESIZE_NORTH_EAST, RESIZE_NORTH_WEST, RESIZE_SOUTH_EAST, RESIZE_SOUTH_WEST,
-    SLIDE_VERTICAL, SLIDE_HORIZONTAL
+    SLIDE_VERTICAL, SLIDE_HORIZONTAL,
+    ADD_TO_SELECTION, REMOVE_FROM_SELECTION
 }

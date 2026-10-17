@@ -1026,6 +1026,14 @@ class CircuitCanvasTest {
     }
 
     @Test
+    void theSelectionCursorsFallBackToTheArrowWhenCustomCursorsAreUnavailable() {
+        canvas.setCursor(CanvasCursor.ADD_TO_SELECTION);
+        assertThat(canvas.getCursor()).isNotNull();
+        canvas.setCursor(CanvasCursor.REMOVE_FROM_SELECTION);
+        assertThat(canvas.getCursor()).isNotNull();
+    }
+
+    @Test
     void choosingAToolShowsItsInitialCursor() {
         canvas.setTool(new PanTool());
         assertThat(cursorType()).isEqualTo(Cursor.MOVE_CURSOR);

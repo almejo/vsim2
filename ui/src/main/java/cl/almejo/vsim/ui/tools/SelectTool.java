@@ -66,6 +66,10 @@ import java.util.concurrent.CopyOnWriteArrayList;
  * component's drawn label (not on a pin or a free text) drags only that label, its centre snapped to grid points (one
  * undo step); released without dragging, it selects the component.
  *
+ * <p>M6.8: with Shift or Ctrl held and no press under way, the cursor tells what a press would do to the selection
+ * (add or take out the element, or, on empty canvas, add with a band); Ctrl+Shift on empty canvas drags a band that
+ * takes what it encloses out of the selection. The cursor follows the keys without moving the pointer.
+ *
  * <p>{@link SelectToolDelegate}s (M6.3: frames) are asked first: a press one of them takes, with its drag and
  * release, is theirs alone.
  */
@@ -77,6 +81,10 @@ public final class SelectTool implements Tool {
     private static final double BAND_THRESHOLD = 0.5;
     private static final float BAND_WIDTH = 1f;
     private static final int BAND_FILL_ALPHA = 40;
+    private static final int SUBTRACT_BAND_FILL_ALPHA = 24;
+
+    /** What a rubber band does with what it encloses: the mode is decided at the press. */
+    private enum BandMode { REPLACE, ADD, REMOVE }
 
     private final Map<String, Boolean> interactiveByType = new HashMap<>();
     private final List<SelectToolDelegate> delegates = new CopyOnWriteArrayList<>();
@@ -90,7 +98,9 @@ public final class SelectTool implements Tool {
     private int hoverWidth = 1;
     private Point2D bandStart;
     private Point2D bandEnd;
-    private boolean bandAdditive;
+    private BandMode bandMode = BandMode.REPLACE;
+    /** The last hover event (a move, or a release), so a modifier key changed without moving redoes the cursor. */
+    private CanvasMouseEvent lastHover;
     private boolean ownPressSeen;
     private boolean narrowOnRelease;
     /** The press was a Shift click on an element: a release without moving only adjusts the selection. */
@@ -259,7 +269,7 @@ public final class SelectTool implements Tool {
             if (target.isPresent()) {
                 context.selection().toggle(target.get().id());
             } else {
-                startBand(event, true);
+                startBand(event, event.shiftDown() && event.controlDown() ? BandMode.REMOVE : BandMode.ADD);
             }
             return;
         }
@@ -282,7 +292,7 @@ public final class SelectTool implements Tool {
             return;
         }
         if (hit.isEmpty()) {
-            startBand(event, false);
+            startBand(event, BandMode.REPLACE);
             return;
         }
         if (context.selection().contains(hit.get().id())) {
@@ -428,6 +438,7 @@ public final class SelectTool implements Tool {
 
     @Override
     public void mouseExited(ToolContext context) {
+        lastHover = null;
         delegates.forEach(delegate -> delegate.exited(context));
         if (hoverPin != null) {
             hoverPin = null;
@@ -436,6 +447,7 @@ public final class SelectTool implements Tool {
     }
 
     private void updateHover(ToolContext context, CanvasMouseEvent event) {
+        lastHover = event;
         Optional<CanvasCursor> delegateCursor = Optional.empty();
         for (SelectToolDelegate delegate : delegates) {
             Optional<CanvasCursor> answer = delegate.moved(context, event);
@@ -481,6 +493,21 @@ public final class SelectTool implements Tool {
         Optional<ConnectionPoints.PinHit> pin = hit.isPresent() && hit.get() instanceof TextLabel
                 ? Optional.empty()
                 : nearestPin;
+        if (event.shiftDown() || event.controlDown()) {
+            Optional<CanvasCursor> slide = hit.filter(element -> !event.controlDown())
+                    .flatMap(element -> slidingWire(context, element, event)).map(SelectTool::slideCursor);
+            if (slide.isPresent()) {
+                return slide.get(); // the segment key is Shift (Alt inverts the follow mode): a drag slides the wire
+            }
+            // the press toggles the pin's component or the element, or bands on empty canvas (Ctrl+Shift subtracts)
+            Optional<DocumentElement> target = pin.<DocumentElement>map(ConnectionPoints.PinHit::component).or(() -> hit);
+            if (target.isEmpty()) {
+                return event.shiftDown() && event.controlDown() ? CanvasCursor.REMOVE_FROM_SELECTION
+                        : CanvasCursor.ADD_TO_SELECTION;
+            }
+            return context.selection().contains(target.get().id()) ? CanvasCursor.REMOVE_FROM_SELECTION
+                    : CanvasCursor.ADD_TO_SELECTION;
+        }
         if (pin.isPresent()) {
             return grabsSelection(context, pin.get().component()) ? CanvasCursor.MOVE : CanvasCursor.CROSSHAIR;
         }
@@ -495,9 +522,9 @@ public final class SelectTool implements Tool {
         if (element instanceof Wire && !selected) {
             return CanvasCursor.CROSSHAIR;
         }
-        if (element instanceof Wire hoveredWire && context.selection().effectiveIds().equals(Set.of(hoveredWire.id()))
-                && context.selectionMoves().segmentKeyHeld(event.shiftDown(), event.altDown())) {
-            return slideCursor(hoveredWire);
+        Optional<Wire> sliding = slidingWire(context, element, event);
+        if (sliding.isPresent()) {
+            return slideCursor(sliding.get());
         }
         if (element instanceof Component component && isInteractive(context, component)) {
             return CanvasCursor.HAND;
@@ -505,13 +532,29 @@ public final class SelectTool implements Tool {
         return selected ? CanvasCursor.MOVE : CanvasCursor.DEFAULT;
     }
 
-    /** While a press drags: a wire (crosshair), a rubber band (arrow) or a move (move). */
+    /** {@code element} as the one selected wire, when the segment key is held over it: a drag would slide it. */
+    private static Optional<Wire> slidingWire(ToolContext context, DocumentElement element, CanvasMouseEvent event) {
+        if (element instanceof Wire hoveredWire && context.selection().effectiveIds().equals(Set.of(hoveredWire.id()))
+                && context.selectionMoves().segmentKeyHeld(event.shiftDown(), event.altDown())) {
+            return Optional.of(hoveredWire);
+        }
+        return Optional.empty();
+    }
+
+    /**
+     * While a press drags: a wire (crosshair), a rubber band (the arrow; with a «+» when it adds, a «−» when it
+     * subtracts) or a move (move).
+     */
     private Optional<CanvasCursor> pressCursor() {
         if (wire != null) {
             return Optional.of(CanvasCursor.CROSSHAIR);
         }
         if (bandStart != null) {
-            return Optional.of(CanvasCursor.DEFAULT);
+            return Optional.of(switch (bandMode) {
+                case REPLACE -> CanvasCursor.DEFAULT;
+                case ADD -> CanvasCursor.ADD_TO_SELECTION;
+                case REMOVE -> CanvasCursor.REMOVE_FROM_SELECTION;
+            });
         }
         if (pressPoint != null) {
             return Optional.of(CanvasCursor.MOVE);
@@ -528,12 +571,17 @@ public final class SelectTool implements Tool {
 
     /**
      * During a move (or a delegate's drag), redoes the drag at the last pointer position with the new keys: the
-     * preview, the hidden wires, the segment mode and the cursor follow Shift, Ctrl and Alt at once.
+     * preview, the hidden wires, the segment mode and the cursor follow Shift, Ctrl and Alt at once. With no press
+     * under way, redoes the hover at the last pointer position, so the cursor shows what a press would do now.
      */
     @Override
     public boolean modifiersChanged(ToolContext context, boolean shiftDown, boolean controlDown, boolean altDown) {
         if (activeDelegate != null) {
             return activeDelegate.modifiersChanged(context, shiftDown, controlDown, altDown);
+        }
+        if (isIdle() && lastHover != null) {
+            updateHover(context, lastHover.withModifiers(shiftDown, controlDown, altDown));
+            return false; // only the cursor (and the hover ring) changed: no preview to animate
         }
         if (lastDrag == null || pressPoint == null || wire != null || bandStart != null) {
             return false;
@@ -568,7 +616,7 @@ public final class SelectTool implements Tool {
         }
         Rectangle2D band = rubberBand();
         if (band != null) {
-            paintBand(graphics, context, band);
+            paintBand(graphics, context, band, bandMode == BandMode.REMOVE);
             return;
         }
         if (hoverPin != null && wire == null) {
@@ -639,28 +687,37 @@ public final class SelectTool implements Tool {
                 Math.abs(bandEnd.getX() - bandStart.getX()), Math.abs(bandEnd.getY() - bandStart.getY()));
     }
 
-    private void startBand(CanvasMouseEvent event, boolean additive) {
+    private void startBand(CanvasMouseEvent event, BandMode mode) {
         bandStart = event.gridPosition();
         bandEnd = event.gridPosition();
-        bandAdditive = additive;
+        bandMode = mode;
     }
 
-    /** A band smaller than half a grid unit is a click: it clears the selection unless it was additive. */
+    /**
+     * A band smaller than half a grid unit is a click: it clears the selection unless Shift or Ctrl was held. A
+     * bigger one replaces the selection with what it encloses, adds that to it, or (Ctrl+Shift) takes that out of it.
+     */
     private void finishBand(ToolContext context) {
         Rectangle2D band = rubberBand();
         if (Math.max(band.getWidth(), band.getHeight()) < BAND_THRESHOLD) {
-            if (!bandAdditive) {
+            if (bandMode == BandMode.REPLACE) {
                 context.selection().clear();
             }
             return;
         }
         Set<ElementId> inside = elementsInside(context, band);
-        if (bandAdditive) {
-            Set<ElementId> combined = new LinkedHashSet<>(context.selection().ids());
-            combined.addAll(inside);
-            context.selection().set(combined);
-        } else {
-            context.selection().set(inside);
+        switch (bandMode) {
+            case REPLACE -> context.selection().set(inside);
+            case ADD -> {
+                Set<ElementId> combined = new LinkedHashSet<>(context.selection().ids());
+                combined.addAll(inside);
+                context.selection().set(combined);
+            }
+            case REMOVE -> {
+                Set<ElementId> remaining = new LinkedHashSet<>(context.selection().ids());
+                remaining.removeAll(inside);
+                context.selection().set(remaining);
+            }
         }
     }
 
@@ -676,12 +733,13 @@ public final class SelectTool implements Tool {
         return inside;
     }
 
-    private static void paintBand(Graphics2D graphics, ToolContext context, Rectangle2D band) {
+    /** The band in the selection colour; a subtracting one in the scheme's conflict red, more faintly filled. */
+    private static void paintBand(Graphics2D graphics, ToolContext context, Rectangle2D band, boolean subtracts) {
         double unit = GridPoint.PIXELS_PER_UNIT;
         Rectangle2D pixels = new Rectangle2D.Double(band.getX() * unit, band.getY() * unit,
                 band.getWidth() * unit, band.getHeight() * unit);
-        Color color = context.scheme().selection();
-        graphics.setColor(PainterSupport.withAlpha(color, BAND_FILL_ALPHA));
+        Color color = subtracts ? context.scheme().wireConflict() : context.scheme().selection();
+        graphics.setColor(PainterSupport.withAlpha(color, subtracts ? SUBTRACT_BAND_FILL_ALPHA : BAND_FILL_ALPHA));
         graphics.fill(pixels);
         MarchingAnts.draw(graphics, pixels, color, BAND_WIDTH, context.selectionDashPhase());
     }
@@ -895,7 +953,7 @@ public final class SelectTool implements Tool {
         wire = null;
         bandStart = null;
         bandEnd = null;
-        bandAdditive = false;
+        bandMode = BandMode.REPLACE;
         deltaX = 0;
         deltaY = 0;
         copyDeltaX = 0;

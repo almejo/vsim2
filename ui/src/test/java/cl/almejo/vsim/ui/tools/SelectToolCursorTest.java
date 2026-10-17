@@ -122,4 +122,77 @@ class SelectToolCursorTest {
         hover(0, 2);
         assertThat(context.cursors).containsExactly(CanvasCursor.CROSSHAIR, CanvasCursor.CROSSHAIR);
     }
+
+    private void hoverHolding(double x, double y, boolean shiftDown, boolean controlDown) {
+        tool.mouseMoved(context, TestToolContext.withModifiers(x, y, shiftDown, controlDown));
+    }
+
+    @Test
+    void shiftOverAnUnselectedGateShowsAddAndOverASelectedOneShowsRemove() {
+        Component first = not(0, 0);
+        not(10, 0);
+        hoverHolding(12, 2, true, false);
+        assertThat(context.lastCursor()).isEqualTo(CanvasCursor.ADD_TO_SELECTION);
+        context.selection.select(first.id());
+        hoverHolding(2, 2, true, false);
+        assertThat(context.lastCursor()).isEqualTo(CanvasCursor.REMOVE_FROM_SELECTION);
+        hoverHolding(12, 2, false, true);
+        assertThat(context.lastCursor()).isEqualTo(CanvasCursor.ADD_TO_SELECTION);
+        hoverHolding(2, 2, false, true);
+        assertThat(context.lastCursor()).isEqualTo(CanvasCursor.REMOVE_FROM_SELECTION);
+    }
+
+    @Test
+    void aPinOfASelectedGateWithShiftShowsRemoveBecauseThePressTogglesTheGate() {
+        Component gate = not(0, 0);
+        context.selection.select(gate.id());
+        hoverHolding(4.1, 2, true, false);
+        assertThat(context.lastCursor()).isEqualTo(CanvasCursor.REMOVE_FROM_SELECTION);
+        hoverHolding(4.1, 2, false, false);
+        assertThat(context.lastCursor()).isEqualTo(CanvasCursor.CROSSHAIR);
+    }
+
+    @Test
+    void emptyCanvasShowsAddWithShiftOrCtrlAndRemoveWithBoth() {
+        not(0, 0);
+        hoverHolding(20, 20, true, false);
+        assertThat(context.lastCursor()).isEqualTo(CanvasCursor.ADD_TO_SELECTION);
+        hoverHolding(20, 20, false, true);
+        assertThat(context.lastCursor()).isEqualTo(CanvasCursor.ADD_TO_SELECTION);
+        hoverHolding(20, 20, true, true);
+        assertThat(context.lastCursor()).isEqualTo(CanvasCursor.REMOVE_FROM_SELECTION);
+        hoverHolding(20, 20, false, false);
+        assertThat(context.lastCursor()).isEqualTo(CanvasCursor.DEFAULT);
+    }
+
+    @Test
+    void pressingAndReleasingShiftWithoutMovingSwitchesTheCursor() {
+        Component gate = not(0, 0);
+        hover(0, 2);
+        hover(2, 2);
+        assertThat(context.lastCursor()).isEqualTo(CanvasCursor.DEFAULT);
+        tool.modifiersChanged(context, true, false, false);
+        assertThat(context.lastCursor()).isEqualTo(CanvasCursor.ADD_TO_SELECTION);
+        tool.modifiersChanged(context, false, false, false);
+        assertThat(context.lastCursor()).isEqualTo(CanvasCursor.DEFAULT);
+        context.selection.select(gate.id());
+        tool.modifiersChanged(context, false, true, false);
+        assertThat(context.lastCursor()).isEqualTo(CanvasCursor.REMOVE_FROM_SELECTION);
+        hover(20, 20);
+        tool.modifiersChanged(context, true, true, false);
+        assertThat(context.lastCursor()).isEqualTo(CanvasCursor.REMOVE_FROM_SELECTION);
+    }
+
+    @Test
+    void theBandShowsAddWhenAdditiveAndRemoveWhenSubtracting() {
+        not(0, 0);
+        tool.mousePressed(context, TestToolContext.withModifiers(20, 20, true, false));
+        assertThat(context.lastCursor()).isEqualTo(CanvasCursor.ADD_TO_SELECTION);
+        tool.mouseReleased(context, TestToolContext.withModifiers(20, 20, true, false));
+        tool.mousePressed(context, TestToolContext.withModifiers(20, 20, true, true));
+        assertThat(context.lastCursor()).isEqualTo(CanvasCursor.REMOVE_FROM_SELECTION);
+        tool.modifiersChanged(context, false, false, false); // the mode was decided at the press
+        assertThat(context.lastCursor()).isEqualTo(CanvasCursor.REMOVE_FROM_SELECTION);
+        tool.mouseReleased(context, TestToolContext.withModifiers(20, 20, true, true));
+    }
 }

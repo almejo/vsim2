@@ -566,6 +566,50 @@ class SelectToolTest {
     }
 
     @Test
+    void controlShiftBandTakesTheEnclosedElementsOutOfTheSelection() {
+        Component first = not(0, 0);
+        Component second = not(10, 0);
+        Component third = not(20, 0);
+        context.selection.set(java.util.Set.of(first.id(), second.id(), third.id()));
+        context.dragWith(tool, -1, -1, 15, 5, true, true);
+        assertThat(context.selection.ids()).containsExactly(third.id());
+    }
+
+    @Test
+    void controlShiftBandLeavesPartlyCoveredAndUnselectedElementsAlone() {
+        Component first = not(0, 0);
+        Component second = not(10, 0);
+        not(20, 0);
+        context.selection.set(java.util.Set.of(first.id(), second.id()));
+        context.dragWith(tool, -1, -1, 12, 5, true, true);
+        assertThat(context.selection.ids()).containsExactly(second.id());
+        context.dragWith(tool, 19, -1, 25, 5, true, true);
+        assertThat(context.selection.ids()).containsExactly(second.id());
+        context.clickWith(tool, 30, 30, true, true);
+        assertThat(context.selection.ids()).containsExactly(second.id());
+    }
+
+    @Test
+    void theSubtractBandIsPaintedDifferentlyFromTheAdditiveOne() {
+        not(0, 0);
+        tool.mousePressed(context, TestToolContext.withModifiers(-1, -1, true, false));
+        tool.mouseDragged(context, TestToolContext.withModifiers(5, 3, true, false));
+        java.awt.image.BufferedImage adding = paintBandWithPhase(0);
+        tool.mouseReleased(context, TestToolContext.withModifiers(5, 3, true, false));
+        tool.mousePressed(context, TestToolContext.withModifiers(-1, -1, true, true));
+        tool.mouseDragged(context, TestToolContext.withModifiers(5, 3, true, true));
+        java.awt.image.BufferedImage removing = paintBandWithPhase(0);
+        tool.mouseReleased(context, TestToolContext.withModifiers(5, 3, true, true));
+        boolean different = false;
+        for (int y = 0; y < adding.getHeight() && !different; y++) {
+            for (int x = 0; x < adding.getWidth() && !different; x++) {
+                different = adding.getRGB(x, y) != removing.getRGB(x, y);
+            }
+        }
+        assertThat(different).isTrue();
+    }
+
+    @Test
     void shiftClickOnEmptySpaceKeepsTheSelection() {
         Component gate = not(0, 0);
         context.click(tool, 2, 2);

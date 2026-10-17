@@ -862,7 +862,10 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         setCursor(spaceDown || panAnchor != null ? awtCursor(CanvasCursor.MOVE) : toolCursor);
     }
 
-    /** The AWT cursor of {@code cursor} (AWT keeps one instance of each predefined cursor). */
+    /**
+     * The AWT cursor of {@code cursor} (AWT keeps one instance of each predefined cursor; the selection cursors are
+     * drawn once, lazily).
+     */
     private static Cursor awtCursor(CanvasCursor cursor) {
         return switch (cursor) {
             case DEFAULT -> Cursor.getDefaultCursor();
@@ -879,6 +882,8 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
             case RESIZE_SOUTH_WEST -> Cursor.getPredefinedCursor(Cursor.SW_RESIZE_CURSOR);
             case SLIDE_VERTICAL -> Cursor.getPredefinedCursor(Cursor.N_RESIZE_CURSOR);
             case SLIDE_HORIZONTAL -> Cursor.getPredefinedCursor(Cursor.E_RESIZE_CURSOR);
+            case ADD_TO_SELECTION -> SelectionCursors.adding();
+            case REMOVE_FROM_SELECTION -> SelectionCursors.removing();
         };
     }
 
