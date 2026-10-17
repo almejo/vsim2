@@ -42,7 +42,7 @@ public final class TruthTableScope {
     private static final Set<String> OUTPUT_TYPES = Set.of(StandardComponentTypes.LED,
             StandardComponentTypes.OUTPUT_PIN);
     private static final Set<String> SEQUENTIAL_TYPES = Set.of(StandardComponentTypes.FLIP_FLOP_DATA,
-            StandardComponentTypes.CLOCK);
+            StandardComponentTypes.CLOCK, StandardComponentTypes.REGISTER, StandardComponentTypes.COUNTER);
     /** Top to bottom, then left to right: the order {@code PinOrder} uses. */
     private static final Comparator<Component> BY_POSITION = Comparator
             .comparingInt((Component component) -> component.position().y())

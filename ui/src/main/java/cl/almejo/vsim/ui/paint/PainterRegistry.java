@@ -1,5 +1,7 @@
 package cl.almejo.vsim.ui.paint;
 
+import cl.almejo.vsim.core.component.VisibleState;
+import cl.almejo.vsim.core.component.standard.ConstantValue;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.library.InterfacePins;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
@@ -7,6 +9,7 @@ import cl.almejo.vsim.ui.paint.LogicGatePainter.GateShape;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 public final class PainterRegistry {
 
@@ -47,6 +50,23 @@ public final class PainterRegistry {
     /** The «Bloques» (M7), all drawn by a {@link BlockPainter}. */
     private static void registerBlocks(PainterRegistry registry) {
         registry.register(StandardComponentTypes.ADDER, new BlockPainter("Σ", BlockPainter.Body.CHEVRON));
+        registry.register(StandardComponentTypes.REGISTER, new BlockPainter("REG", BlockPainter.Body.RECTANGLE)
+                .withLiveText(PainterRegistry::storedValueText));
+        registry.register(StandardComponentTypes.COUNTER, new BlockPainter("CNT", BlockPainter.Body.RECTANGLE)
+                .withLiveText(PainterRegistry::storedValueText));
+    }
+
+    /**
+     * What a register or a counter shows under its name: its stored value in its «Mostrar como» format, written like
+     * a pin's value box (Z bits and conflicts included); nothing without a state (the palette icon).
+     */
+    static Optional<String> storedValueText(VisibleState state, Map<String, Object> parameters) {
+        if (!(state instanceof VisibleState.StoredValueState stored)) {
+            return Optional.empty();
+        }
+        Object format = parameters.get(ConstantValue.FORMAT);
+        return Optional.of(InterfacePinPainter.shownText(stored.value(),
+                format == null ? ConstantValue.AUTO : (String) format));
     }
 
     public void register(String typeId, ComponentPainter painter) {

@@ -7,6 +7,7 @@ import cl.almejo.vsim.core.library.InterfacePins;
 import cl.almejo.vsim.core.netlist.PinRef;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -229,6 +230,17 @@ class TruthTableScopeTest {
         assertThat(refused(withTemplate).reason()).isEqualTo(Preparation.Reason.SEQUENTIAL);
         assertThat(refused(onlyClock).reason()).as("checked before the missing inputs")
                 .isEqualTo(Preparation.Reason.SEQUENTIAL);
+    }
+
+    @Test
+    void registersAndCountersAreRefusedAsSequential() {
+        for (String sequential : List.of(StandardComponentTypes.REGISTER, StandardComponentTypes.COUNTER)) {
+            TruthTableCircuits circuits = TruthTableCircuits.halfAdder();
+            circuits.place(sequential, 40, 40, "");
+
+            assertThat(refused(circuits)).as(sequential)
+                    .isEqualTo(new Preparation.Refused(Preparation.Reason.SEQUENTIAL, 2));
+        }
     }
 
     @Test

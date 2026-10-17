@@ -66,6 +66,8 @@ public final class BlockPainter implements ComponentPainter {
     private static final float LIVE_TEXT_SIZE = 7f;
     private static final float PIN_NAME_SIZE = 6f;
     private static final float MINIMUM_SIZE = 4f;
+    /** Smaller than the other texts' minimum so a register's 32 binary digits fit its body (readable with zoom). */
+    private static final float LIVE_TEXT_MINIMUM_SIZE = 3f;
     private static final double TEXT_GAP = 1;
     private static final double CLOCK_HALF_BASE = 4;
     private static final double CLOCK_DEPTH = 5;
@@ -283,7 +285,7 @@ public final class BlockPainter implements ComponentPainter {
             return;
         }
         String text = live.get();
-        float liveSize = fitted(graphics, text, LIVE_TEXT_SIZE, across);
+        float liveSize = fitted(graphics, text, LIVE_TEXT_SIZE, across, LIVE_TEXT_MINIMUM_SIZE);
         double symbolHeight = textHeight(graphics, symbolSize);
         double liveHeight = textHeight(graphics, liveSize);
         double total = symbolHeight + TEXT_GAP * 2 + liveHeight;
@@ -362,9 +364,20 @@ public final class BlockPainter implements ComponentPainter {
     }
 
     private static float fitted(Graphics2D graphics, String text, float preferred, double available) {
+        return fitted(graphics, text, preferred, available, MINIMUM_SIZE);
+    }
+
+    private static float fitted(Graphics2D graphics, String text, float preferred, double available, float minimum) {
         double width = textWidth(graphics, text, preferred);
-        return width <= available || width == 0 ? preferred
-                : (float) Math.max(MINIMUM_SIZE, preferred * available / width);
+        if (width <= available || width == 0) {
+            return preferred;
+        }
+        // Hinting makes widths grow in steps, not in proportion to the size: shrink until the text really fits.
+        float size = (float) Math.max(minimum, preferred * available / width);
+        while (size > minimum && textWidth(graphics, text, size) > available) {
+            size = Math.max(minimum, size - 0.25f);
+        }
+        return size;
     }
 
     private static double textHeight(Graphics2D graphics, float size) {
@@ -373,6 +386,9 @@ public final class BlockPainter implements ComponentPainter {
     }
 
     private static double textWidth(Graphics2D graphics, String text, float size) {
-        return graphics.getFontMetrics(PainterSupport.BASE_FONT.deriveFont(size)).stringWidth(text);
+        // Measured with the graphics' transform, as PainterSupport draws it: integer advances of a small font at 100 %
+        // can be a third shorter than the text drawn at a zoom.
+        return graphics.getFontMetrics(PainterSupport.BASE_FONT.deriveFont(size)).getStringBounds(text, graphics)
+                .getWidth();
     }
 }

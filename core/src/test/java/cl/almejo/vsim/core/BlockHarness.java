@@ -51,8 +51,9 @@ public final class BlockHarness {
 
     /** Drives {@code value} on input pin {@code pinIndex} from now on (zero delay). */
     public BlockHarness set(int pinIndex, Value value) {
-        engine.setInput("rival" + pinIndex, Value.highImpedance(width(pinIndex)));
+        // The source first: leaving a conflict never shows the source's old value on its own for an instant.
         engine.setInput("source" + pinIndex, value);
+        engine.setInput("rival" + pinIndex, Value.highImpedance(width(pinIndex)));
         return this;
     }
 
@@ -66,11 +67,14 @@ public final class BlockHarness {
         return set(pinIndex, Value.highImpedance(width(pinIndex)));
     }
 
-    /** Two drivers disagree on every bit of input pin {@code pinIndex} (a short circuit). */
+    /**
+     * Two drivers disagree on every bit of input pin {@code pinIndex} (a short circuit). The rival drives zeros first,
+     * so a pin that was at 0 goes straight to the conflict without a passing 1 (which would be a CLR pulse).
+     */
     public BlockHarness conflict(int pinIndex) {
         int width = width(pinIndex);
-        engine.setInput("source" + pinIndex, Value.of(width, Value.maskFor(width)));
         engine.setInput("rival" + pinIndex, Value.of(width, 0L));
+        engine.setInput("source" + pinIndex, Value.of(width, Value.maskFor(width)));
         return this;
     }
 

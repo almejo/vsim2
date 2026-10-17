@@ -52,6 +52,8 @@ public final class StandardComponentTypes {
     public static final String BUS_SPLITTER = "bus-splitter";
     public static final String BUS_JOINER = "bus-joiner";
     public static final String ADDER = "adder";
+    public static final String REGISTER = "register";
+    public static final String COUNTER = "counter";
     /** The parameter that sets a bus component's width in bits. */
     public static final String WIDTH = "width";
 
@@ -154,6 +156,16 @@ public final class StandardComponentTypes {
                 List.of(BlockSignals.WIDTH, DELAY),
                 parameters -> adderShape((Integer) parameters.get(WIDTH)),
                 parameters -> new AdderBehavior((Integer) parameters.get(WIDTH), (Integer) parameters.get("delay"))));
+        registry.register(ComponentType.parameterized(REGISTER, ComponentCategory.BLOCKS,
+                List.of(BlockSignals.WIDTH, DELAY, ConstantValue.FORMAT_PARAMETER),
+                parameters -> registerShape((Integer) parameters.get(WIDTH)),
+                parameters -> new RegisterBehavior((Integer) parameters.get(WIDTH),
+                        (Integer) parameters.get("delay"))));
+        registry.register(ComponentType.parameterized(COUNTER, ComponentCategory.BLOCKS,
+                List.of(BlockSignals.WIDTH, DELAY, ConstantValue.FORMAT_PARAMETER),
+                parameters -> counterShape((Integer) parameters.get(WIDTH)),
+                parameters -> new CounterBehavior((Integer) parameters.get(WIDTH),
+                        (Integer) parameters.get("delay"))));
     }
 
     /** A 4 x 8 block: A[N] at (0, 3), B[N] at (0, 5), Cin at (2, 0), S[N] at (4, 4), Cout at (2, 8). */
@@ -164,6 +176,31 @@ public final class StandardComponentTypes {
                 PinSpec.input("Cin", 2, 0),
                 PinSpec.output("S", 4, 4, width),
                 PinSpec.output("Cout", 2, 8)));
+    }
+
+    /**
+     * A 12 x 7 register: D[N] at (0, 2), Q[N] at (12, 2), EN, CLR and CLK on the bottom edge at x = 6, 8, 10. Wide
+     * enough for its value in every format at 32 bits (32 binary digits get a smaller text).
+     */
+    private static ComponentShape registerShape(int width) {
+        return new ComponentShape(new GridSize(12, 7), List.of(
+                PinSpec.input("D", 0, 2, width),
+                PinSpec.input("EN", 6, 7),
+                PinSpec.input("CLR", 8, 7),
+                PinSpec.input("CLK", 10, 7),
+                PinSpec.output("Q", 12, 2, width)));
+    }
+
+    /** The register's 12 x 7 box with LD at (4, 7) on the bottom edge and C at (12, 5) on the right. */
+    private static ComponentShape counterShape(int width) {
+        return new ComponentShape(new GridSize(12, 7), List.of(
+                PinSpec.input("D", 0, 2, width),
+                PinSpec.input("LD", 4, 7),
+                PinSpec.input("EN", 6, 7),
+                PinSpec.input("CLR", 8, 7),
+                PinSpec.input("CLK", 10, 7),
+                PinSpec.output("Q", 12, 2, width),
+                PinSpec.output("C", 12, 5)));
     }
 
     /**
