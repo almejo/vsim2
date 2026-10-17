@@ -32,7 +32,9 @@ public final class BundledExamples {
             example("counter-4-bits"),
             example("johnson-counter"),
             example("bus-8-bits"),
-            example("alu-4-bits"));
+            example("alu-4-bits"),
+            example("mini-alu"),
+            example("accumulator"));
 
     private BundledExamples() {
     }

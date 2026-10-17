@@ -65,6 +65,25 @@ public final class ExampleSimulation {
         return this;
     }
 
+    /** Drives the input pin {@code label} with {@code value} at the current time (a value typed into its box). */
+    public ExampleSimulation setInput(String label, Value value) {
+        engine.setInput(component(label, StandardComponentTypes.INPUT_PIN).id().value(), value);
+        return this;
+    }
+
+    /** A click on the input pin {@code label}: all zeros become all ones and back. */
+    public ExampleSimulation togglePin(String label) {
+        engine.interact(component(label, StandardComponentTypes.INPUT_PIN).id().value());
+        return this;
+    }
+
+    /** The value the output pin {@code label} shows. */
+    public Value outputPin(String label) {
+        VisibleState state = engine.snapshot()
+                .componentState(component(label, StandardComponentTypes.OUTPUT_PIN).id().value());
+        return ((VisibleState.LedState) state).value();
+    }
+
     public Value led(String label) {
         VisibleState state = engine.snapshot()
                 .componentState(component(label, StandardComponentTypes.LED).id().value());

@@ -1,0 +1,162 @@
+{
+  "formatVersion" : 2,
+  "kind" : "circuit",
+  "name" : "Acumulador",
+  "components" : [ {
+    "id" : "c1",
+    "type" : "adder",
+    "x" : 24,
+    "y" : 8,
+    "rotation" : 0,
+    "label" : "Sumador",
+    "parameters" : {
+      "delay" : 1,
+      "width" : 4
+    }
+  }, {
+    "id" : "c2",
+    "type" : "register",
+    "x" : 34,
+    "y" : 10,
+    "rotation" : 0,
+    "label" : "Registro",
+    "parameters" : {
+      "delay" : 1,
+      "format" : "decimal",
+      "width" : 4
+    }
+  }, {
+    "id" : "c3",
+    "type" : "input-pin",
+    "x" : 12,
+    "y" : 12,
+    "rotation" : 0,
+    "label" : "Sumando",
+    "parameters" : {
+      "format" : "decimal",
+      "value" : "0",
+      "width" : 4
+    }
+  }, {
+    "id" : "c6",
+    "type" : "output-pin",
+    "x" : 56,
+    "y" : 11,
+    "rotation" : 0,
+    "label" : "Total",
+    "parameters" : {
+      "format" : "decimal",
+      "width" : 4
+    }
+  }, {
+    "id" : "c12",
+    "type" : "input-pin",
+    "x" : 28,
+    "y" : 20,
+    "rotation" : 0,
+    "label" : "CLR",
+    "parameters" : {
+      "value" : "0",
+      "width" : 1
+    }
+  }, {
+    "id" : "c15",
+    "type" : "clock",
+    "x" : 34,
+    "y" : 25,
+    "rotation" : 0,
+    "label" : "Reloj",
+    "parameters" : {
+      "time-down" : 500,
+      "time-up" : 500
+    }
+  } ],
+  "wires" : [ {
+    "id" : "w4",
+    "x1" : 14,
+    "y1" : 13,
+    "x2" : 24,
+    "y2" : 13
+  }, {
+    "id" : "w5",
+    "x1" : 28,
+    "y1" : 12,
+    "x2" : 34,
+    "y2" : 12
+  }, {
+    "id" : "w7",
+    "x1" : 46,
+    "y1" : 12,
+    "x2" : 56,
+    "y2" : 12
+  }, {
+    "id" : "w8",
+    "x1" : 50,
+    "y1" : 4,
+    "x2" : 50,
+    "y2" : 12
+  }, {
+    "id" : "w9",
+    "x1" : 20,
+    "y1" : 4,
+    "x2" : 50,
+    "y2" : 4
+  }, {
+    "id" : "w10",
+    "x1" : 20,
+    "y1" : 4,
+    "x2" : 20,
+    "y2" : 11
+  }, {
+    "id" : "w11",
+    "x1" : 20,
+    "y1" : 11,
+    "x2" : 24,
+    "y2" : 11
+  }, {
+    "id" : "w13",
+    "x1" : 30,
+    "y1" : 21,
+    "x2" : 42,
+    "y2" : 21
+  }, {
+    "id" : "w14",
+    "x1" : 42,
+    "y1" : 17,
+    "x2" : 42,
+    "y2" : 21
+  }, {
+    "id" : "w16",
+    "x1" : 36,
+    "y1" : 27,
+    "x2" : 44,
+    "y2" : 27
+  }, {
+    "id" : "w17",
+    "x1" : 44,
+    "y1" : 17,
+    "x2" : 44,
+    "y2" : 27
+  } ],
+  "labels" : [ {
+    "id" : "l18",
+    "x" : 2,
+    "y" : 0,
+    "text" : "Acumulador"
+  }, {
+    "id" : "l19",
+    "x" : 52,
+    "y" : 6,
+    "text" : "el total vuelve al sumador"
+  }, {
+    "id" : "l20",
+    "x" : 2,
+    "y" : 31,
+    "text" : "Prueba: doble clic en «Sumando» y escribe 3: con cada bajada del reloj el total suma 3"
+  }, {
+    "id" : "l21",
+    "x" : 2,
+    "y" : 33,
+    "text" : "(3, 6, 9, …; después de 15 vuelve a empezar); un clic en «CLR» lo deja en 0"
+  } ]
+}

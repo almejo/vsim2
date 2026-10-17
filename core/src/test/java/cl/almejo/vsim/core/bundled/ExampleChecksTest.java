@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Map;
 
+import static cl.almejo.vsim.core.component.standard.StandardComponentTypes.ADDER;
 import static cl.almejo.vsim.core.component.standard.StandardComponentTypes.AND2;
 import static cl.almejo.vsim.core.component.standard.StandardComponentTypes.BUS_JOINER;
 import static cl.almejo.vsim.core.component.standard.StandardComponentTypes.LED;
@@ -117,5 +118,24 @@ class ExampleChecksTest {
                 "no title: a free text equal to «Sin explicar»", "no «Prueba: …» text",
                 "switch " + input.id().value() + " has no label");
         assertThatThrownBy(() -> ExampleChecks.assertExample(builder)).isInstanceOf(AssertionError.class);
+    }
+
+    @Test
+    void aBlockNeedsALabelToo() {
+        CircuitBuilder builder = clean();
+        Component adder = builder.placeByBox(ADDER, 30, 10, Rotation.R0, Map.of(), "");
+        assertThat(ExampleChecks.explanationProblems(builder))
+                .containsExactly("adder " + adder.id().value() + " has no label");
+    }
+
+    @Test
+    void aBlockControlInputWithARestValueMayStayUnconnectedButADataInputMayNot() {
+        CircuitBuilder builder = clean();
+        builder.placeByBox(ADDER, 30, 10, Rotation.R0, Map.of(), "Suma");
+        assertThat(ExampleChecks.wiringProblems(builder))
+                .as("A and B are data; Cin rests at 0")
+                .hasSize(2)
+                .allMatch(problem -> problem.startsWith("unconnected input on [adder"))
+                .noneMatch(problem -> problem.endsWith("#2]"));
     }
 }

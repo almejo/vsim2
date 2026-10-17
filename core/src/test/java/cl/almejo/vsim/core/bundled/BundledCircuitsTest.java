@@ -139,7 +139,8 @@ class BundledCircuitsTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"register-4-bits", "shift-register-4-bits", "counter-4-bits", "johnson-counter"})
+    @ValueSource(strings = {"register-4-bits", "shift-register-4-bits", "counter-4-bits", "johnson-counter",
+            "accumulator"})
     void theSequentialExamplesRefuseATruthTable(String id) throws Exception {
         CircuitDocument document = BundledExamples.open(id, REGISTRY);
         assertThat(TruthTableScope.prepare(document, Set.of(), registryFor(document)))
@@ -154,6 +155,18 @@ class BundledCircuitsTest {
         assertThat(preparation).isInstanceOf(Preparation.Ready.class);
         Preparation.Ready ready = (Preparation.Ready) preparation;
         assertThat(ready.inputBits()).as("A, B, Cin and the two selector bits").isEqualTo(11);
+        assertThat(ready.needsConfirmation()).as("above 10 bits the user is asked first").isTrue();
+    }
+
+    @Test
+    void theMiniAluTableHasMultiBitColumnsAndAsksFirst() throws Exception {
+        CircuitDocument document = BundledExamples.open("mini-alu", REGISTRY);
+        Preparation preparation = TruthTableScope.prepare(document, Set.of(), registryFor(document));
+        assertThat(preparation).isInstanceOf(Preparation.Ready.class);
+        Preparation.Ready ready = (Preparation.Ready) preparation;
+        assertThat(ready.inputs()).extracting(Column::name).containsExactly("A", "B", "OP");
+        assertThat(ready.inputs()).extracting(Column::width).containsExactly(4, 4, 3);
+        assertThat(ready.inputBits()).as("A, B and OP").isEqualTo(11);
         assertThat(ready.needsConfirmation()).as("above 10 bits the user is asked first").isTrue();
     }
 

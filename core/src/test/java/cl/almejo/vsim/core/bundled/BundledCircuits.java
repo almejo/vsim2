@@ -11,7 +11,7 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 /**
- * Every example of Archivo ▸ Ejemplos (spec M6.1 §3.1) by id, in menu order, from the three builder classes. Run
+ * Every example of Archivo ▸ Ejemplos (spec M6.1 §3.1) by id, in menu order, from the builder classes. Run
  * {@link #main} (or {@code BundledCircuitsTest.writeTheResources}, see its comment) to rewrite the files under
  * {@code core/src/main/resources/cl/almejo/vsim/core/bundled/examples}; {@code BundledCircuitsTest} checks that the
  * committed files are exactly what these builders produce.
@@ -36,6 +36,8 @@ public final class BundledCircuits {
         builders.put("johnson-counter", SequentialExamples::johnsonCounter);
         builders.put("bus-8-bits", BusAndAluExamples::bus);
         builders.put("alu-4-bits", BusAndAluExamples::alu);
+        builders.put("mini-alu", BlockExamples::miniAlu);
+        builders.put("accumulator", BlockExamples::accumulator);
         return builders;
     }
 

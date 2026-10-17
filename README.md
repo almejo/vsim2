@@ -193,6 +193,7 @@ Diseño: `docs/superpowers/specs/2026-10-08-vsim2-design.md`.
 - «Comparador» (CMP): compara A con B y exactamente una de A<B, A=B, A>B vale 1. «Números» elige «Sin signo» o «Con signo» (complemento a dos).
 - «Multiplexor» (MUX, trapecio angosto a la salida): Y = D0 si S = 0, D1 si S = 1. «Entradas» elige 2 o 4 entradas de datos (con 4, S tiene 2 bits y la pieza crece hacia abajo; D0 y D1 no se mueven, así sus cables siguen conectados). S entra por abajo. Solo importa la entrada elegida: si ella o S no están definidas, Y queda en Z.
 - «Decodificador» (DEC): A (de 1 a 4 bits, «Bits de entrada», 2 por omisión) a la izquierda, una salida Y0, Y1, … por cada número a la derecha y EN abajo. Con EN = 1 se enciende solo la salida cuyo número es A; con EN = 0 todas quedan en 0. EN sin conectar vale 1. Con A indefinida todas las salidas quedan en Z. La pieza crece con sus salidas y no tiene «Ancho (bits)».
+- Dos ejemplos nuevos en Archivo ▸ Ejemplos hechos con bloques: «Mini ALU» (una ALU de 4 bits en un marco «ALU», con A y B en hexadecimal, OP en binario, Y en decimal con signo y las banderas Z, N, C y V en pines de salida; los valores se escriben con doble clic en los pines de entrada) y «Acumulador» (un registro alimentado por un sumador cuya otra entrada es el pin «Sumando»: con cada bajada del reloj el total suma ese número, y «CLR» lo deja en 0). La tabla de verdad de la Mini ALU pide confirmación (11 bits de entrada) y la del acumulador se rechaza por secuencial.
 
 ## Preferencias y distribución
 

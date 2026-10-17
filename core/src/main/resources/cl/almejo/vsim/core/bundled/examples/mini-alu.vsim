@@ -1,0 +1,258 @@
+{
+  "formatVersion" : 2,
+  "kind" : "circuit",
+  "name" : "Mini ALU",
+  "components" : [ {
+    "id" : "c1",
+    "type" : "alu",
+    "x" : 30,
+    "y" : 10,
+    "rotation" : 0,
+    "label" : "4 bits",
+    "parameters" : {
+      "delay" : 1,
+      "width" : 4
+    }
+  }, {
+    "id" : "c2",
+    "type" : "input-pin",
+    "x" : 16,
+    "y" : 11,
+    "rotation" : 0,
+    "label" : "A",
+    "parameters" : {
+      "format" : "hex",
+      "value" : "0",
+      "width" : 4
+    }
+  }, {
+    "id" : "c4",
+    "type" : "input-pin",
+    "x" : 16,
+    "y" : 17,
+    "rotation" : 0,
+    "label" : "B",
+    "parameters" : {
+      "format" : "hex",
+      "value" : "0",
+      "width" : 4
+    }
+  }, {
+    "id" : "c6",
+    "type" : "input-pin",
+    "x" : 16,
+    "y" : 25,
+    "rotation" : 0,
+    "label" : "OP",
+    "parameters" : {
+      "format" : "binary",
+      "value" : "0",
+      "width" : 3
+    }
+  }, {
+    "id" : "c9",
+    "type" : "output-pin",
+    "x" : 52,
+    "y" : 12,
+    "rotation" : 0,
+    "label" : "Y",
+    "parameters" : {
+      "format" : "signed",
+      "width" : 4
+    }
+  }, {
+    "id" : "c14",
+    "type" : "output-pin",
+    "x" : 52,
+    "y" : 18,
+    "rotation" : 0,
+    "label" : "Z",
+    "parameters" : {
+      "width" : 1
+    }
+  }, {
+    "id" : "c18",
+    "type" : "output-pin",
+    "x" : 52,
+    "y" : 23,
+    "rotation" : 0,
+    "label" : "N",
+    "parameters" : {
+      "width" : 1
+    }
+  }, {
+    "id" : "c22",
+    "type" : "output-pin",
+    "x" : 52,
+    "y" : 28,
+    "rotation" : 0,
+    "label" : "C",
+    "parameters" : {
+      "width" : 1
+    }
+  }, {
+    "id" : "c26",
+    "type" : "output-pin",
+    "x" : 52,
+    "y" : 33,
+    "rotation" : 0,
+    "label" : "V",
+    "parameters" : {
+      "width" : 1
+    }
+  } ],
+  "wires" : [ {
+    "id" : "w3",
+    "x1" : 18,
+    "y1" : 12,
+    "x2" : 30,
+    "y2" : 12
+  }, {
+    "id" : "w5",
+    "x1" : 18,
+    "y1" : 18,
+    "x2" : 30,
+    "y2" : 18
+  }, {
+    "id" : "w7",
+    "x1" : 18,
+    "y1" : 26,
+    "x2" : 33,
+    "y2" : 26
+  }, {
+    "id" : "w8",
+    "x1" : 33,
+    "y1" : 20,
+    "x2" : 33,
+    "y2" : 26
+  }, {
+    "id" : "w10",
+    "x1" : 36,
+    "y1" : 13,
+    "x2" : 52,
+    "y2" : 13
+  }, {
+    "id" : "w11",
+    "x1" : 36,
+    "y1" : 14,
+    "x2" : 48,
+    "y2" : 14
+  }, {
+    "id" : "w12",
+    "x1" : 48,
+    "y1" : 14,
+    "x2" : 48,
+    "y2" : 19
+  }, {
+    "id" : "w13",
+    "x1" : 48,
+    "y1" : 19,
+    "x2" : 52,
+    "y2" : 19
+  }, {
+    "id" : "w15",
+    "x1" : 36,
+    "y1" : 15,
+    "x2" : 46,
+    "y2" : 15
+  }, {
+    "id" : "w16",
+    "x1" : 46,
+    "y1" : 15,
+    "x2" : 46,
+    "y2" : 24
+  }, {
+    "id" : "w17",
+    "x1" : 46,
+    "y1" : 24,
+    "x2" : 52,
+    "y2" : 24
+  }, {
+    "id" : "w19",
+    "x1" : 36,
+    "y1" : 16,
+    "x2" : 44,
+    "y2" : 16
+  }, {
+    "id" : "w20",
+    "x1" : 44,
+    "y1" : 16,
+    "x2" : 44,
+    "y2" : 29
+  }, {
+    "id" : "w21",
+    "x1" : 44,
+    "y1" : 29,
+    "x2" : 52,
+    "y2" : 29
+  }, {
+    "id" : "w23",
+    "x1" : 36,
+    "y1" : 17,
+    "x2" : 42,
+    "y2" : 17
+  }, {
+    "id" : "w24",
+    "x1" : 42,
+    "y1" : 17,
+    "x2" : 42,
+    "y2" : 34
+  }, {
+    "id" : "w25",
+    "x1" : 42,
+    "y1" : 34,
+    "x2" : 52,
+    "y2" : 34
+  } ],
+  "labels" : [ {
+    "id" : "l28",
+    "x" : 2,
+    "y" : 0,
+    "text" : "Mini ALU"
+  }, {
+    "id" : "l29",
+    "x" : 58,
+    "y" : 18,
+    "text" : "Z: Y es 0"
+  }, {
+    "id" : "l30",
+    "x" : 58,
+    "y" : 23,
+    "text" : "N: Y es negativo"
+  }, {
+    "id" : "l31",
+    "x" : 58,
+    "y" : 28,
+    "text" : "C: acarreo o préstamo"
+  }, {
+    "id" : "l32",
+    "x" : 58,
+    "y" : 33,
+    "text" : "V: desborde con signo"
+  }, {
+    "id" : "l33",
+    "x" : 2,
+    "y" : 38,
+    "text" : "OP: 000 A + B, 001 A − B, 010 AND, 011 OR, 100 XOR, 101 NOT A, 110 A << 1, 111 A >> 1"
+  }, {
+    "id" : "l34",
+    "x" : 2,
+    "y" : 40,
+    "text" : "Doble clic en A, B u OP para escribir un valor (por ejemplo 0x5 o 0b001)"
+  }, {
+    "id" : "l35",
+    "x" : 2,
+    "y" : 43,
+    "text" : "Prueba: A = 5, B = 3, OP = 001 → Y = 2; OP = 000 con A = 7, B = 1 → V = 1"
+  } ],
+  "frames" : [ {
+    "id" : "f27",
+    "x" : 24,
+    "y" : 5,
+    "width" : 15,
+    "height" : 18,
+    "title" : "ALU",
+    "tint" : "BLUE",
+    "locked" : true
+  } ]
+}

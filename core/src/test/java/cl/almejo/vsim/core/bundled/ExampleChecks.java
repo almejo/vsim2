@@ -49,10 +49,21 @@ public final class ExampleChecks {
     /** Half the width of a drawn wire, in grid units, for the text checks. */
     private static final double WIRE_HALF_WIDTH = 0.2;
 
+    /**
+     * The block control inputs that may stay unconnected because they take a rest value (spec M7 §2.1: Cin = 0,
+     * EN = 1, CLR = LD = 0), by block type and pin name. Any other input alone on its net is a problem.
+     */
+    private static final Map<String, Set<String>> RESTING_PINS = Map.of(
+            StandardComponentTypes.ADDER, Set.of("Cin"),
+            StandardComponentTypes.DECODER, Set.of("EN"),
+            StandardComponentTypes.REGISTER, Set.of("EN", "CLR"),
+            StandardComponentTypes.COUNTER, Set.of("LD", "EN", "CLR"));
+
     private ExampleChecks() {
     }
 
-    /** A bundled example: wired and drawn cleanly, with a title, a «Prueba: …» line and every input and output named. */
+    /** A bundled example: wired and drawn cleanly, with a title, a «Prueba: …» line and every input, output and block
+     * named. */
     public static void assertExample(CircuitBuilder builder) {
         List<String> problems = new ArrayList<>(wiringProblems(builder));
         problems.addAll(explanationProblems(builder));
@@ -81,7 +92,8 @@ public final class ExampleChecks {
         return problems;
     }
 
-    /** A free text equal to the name (the title), one starting with «Prueba: », and a label on every input/output. */
+    /** A free text equal to the name (the title), one starting with «Prueba: », and a label on every input/output
+     * and block. */
     public static List<String> explanationProblems(CircuitBuilder builder) {
         CircuitDocument document = builder.document();
         List<String> problems = new ArrayList<>();
@@ -92,7 +104,10 @@ public final class ExampleChecks {
             problems.add("no «Prueba: …» text");
         }
         Set<String> named = Set.of(StandardComponentTypes.SWITCH, StandardComponentTypes.LED,
-                StandardComponentTypes.CLOCK, StandardComponentTypes.INPUT_PIN, StandardComponentTypes.OUTPUT_PIN);
+                StandardComponentTypes.CLOCK, StandardComponentTypes.INPUT_PIN, StandardComponentTypes.OUTPUT_PIN,
+                StandardComponentTypes.ADDER, StandardComponentTypes.ALU, StandardComponentTypes.COMPARATOR,
+                StandardComponentTypes.MUX, StandardComponentTypes.DECODER, StandardComponentTypes.REGISTER,
+                StandardComponentTypes.COUNTER);
         for (Component component : document.components()) {
             if (named.contains(component.typeId()) && component.label().isBlank()) {
                 problems.add(component.typeId() + " " + component.id().value() + " has no label");
@@ -147,10 +162,22 @@ public final class ExampleChecks {
             if (drivers > 1) {
                 problems.add("short circuit: " + drivers + " drivers on " + describe(document, net.pins()));
             }
-            if (hasInput && drivers == 0) {
+            if (hasInput && drivers == 0 && !isRestingPin(document, registry, net.pins())) {
                 problems.add("unconnected input on " + describe(document, net.pins()));
             }
         }
+    }
+
+    /** A lone block control input with a rest value ({@link #RESTING_PINS}). */
+    private static boolean isRestingPin(CircuitDocument document, ComponentTypeRegistry registry,
+                                        Set<PinRef> pins) {
+        if (pins.size() != 1) {
+            return false;
+        }
+        PinRef pin = pins.iterator().next();
+        Component component = document.component(pin.componentId()).orElseThrow();
+        return RESTING_PINS.getOrDefault(component.typeId(), Set.of())
+                .contains(spec(document, registry, pin).name());
     }
 
     private static void wiresOverPins(CircuitDocument document, ComponentTypeRegistry registry,
