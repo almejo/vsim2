@@ -174,6 +174,7 @@ Diseño: `docs/superpowers/specs/2026-10-08-vsim2-design.md`.
 - Si al mover un cable seleccionado queda alineado con otro cable y se funden en uno, el cable resultante queda seleccionado (antes la selección se perdía). Vale para arrastrar, Alt + arrastrar, las flechas y arrastrar entre vistas.
 - La etiqueta de un componente girado (R90/R270), que se dibuja a la izquierda de la pieza, se edita en un campo que crece hacia la izquierda, sin taparla. El valor de una Constante se edita en un campo que crece hacia ambos lados, centrado en su caja.
 - Cerrar la ventana (o salir) con un texto a medio editar lo confirma si es válido, y si no lo descarta, antes de preguntar «¿Guardar cambios?».
+- Preferencias ▸ General ▸ «Letra de etiquetas y textos» elige la letra (Predeterminada o cualquiera instalada) y el tamaño (8 a 24, 10 por defecto) de las etiquetas de los componentes, los textos libres y los títulos de los marcos (estos en negrita, un punto más grandes). Cambia al instante en todas las ventanas, y también en la edición en el lugar, en lo que se puede seleccionar con un clic y en las imágenes exportadas. Si la letra guardada no está instalada en este computador (preferencias copiadas de otro), se usa la predeterminada sin perder la elección. El texto dentro de las piezas (como el valor de una Constante) no cambia.
 
 ## Preferencias y distribución
 

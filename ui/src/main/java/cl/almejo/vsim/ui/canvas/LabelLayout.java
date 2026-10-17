@@ -6,6 +6,7 @@ import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
 import cl.almejo.vsim.ui.paint.ComponentDrawing;
+import cl.almejo.vsim.ui.paint.TextFonts;
 
 import java.awt.Font;
 import java.awt.font.FontRenderContext;
@@ -19,7 +20,6 @@ import java.util.Optional;
  */
 public final class LabelLayout {
 
-    public static final Font FONT = new Font(Font.SANS_SERIF, Font.PLAIN, 10);
     /** Space between a component's body and its label, in document pixels. */
     public static final double GAP = 3;
 
@@ -27,6 +27,11 @@ public final class LabelLayout {
     private static final FontRenderContext RENDER_CONTEXT = new FontRenderContext(null, true, true);
 
     private LabelLayout() {
+    }
+
+    /** The font of component labels and free texts: the current one of Preferencias (M6.8), read at every use. */
+    public static Font font() {
+        return TextFonts.labelFont();
     }
 
     /** One line of text whose box starts at {@code left}/{@code top}; draw it at the baseline. */
@@ -83,8 +88,9 @@ public final class LabelLayout {
     }
 
     private static PlacedText measure(String text, double left, double top) {
-        LineMetrics metrics = FONT.getLineMetrics(text.isEmpty() ? " " : text, RENDER_CONTEXT);
-        double width = text.isEmpty() ? 0 : FONT.getStringBounds(text, RENDER_CONTEXT).getWidth();
+        Font font = font();
+        LineMetrics metrics = font.getLineMetrics(text.isEmpty() ? " " : text, RENDER_CONTEXT);
+        double width = text.isEmpty() ? 0 : font.getStringBounds(text, RENDER_CONTEXT).getWidth();
         return new PlacedText(text, left, top, width, metrics.getAscent() + metrics.getDescent(), metrics.getAscent());
     }
 }

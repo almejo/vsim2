@@ -82,12 +82,12 @@ public final class LabelActions {
                 boolean sideways = component.rotation() == Rotation.R90 || component.rotation() == Rotation.R270;
                 editor.open(new InlineEditRequest(
                         LabelLayout.componentLabelPlace(type, component, component.label()).bounds(),
-                        LabelLayout.FONT, component.label(), InlineValidators.anyText(),
+                        LabelLayout.font(), component.label(), InlineValidators.anyText(),
                         text -> setLabelIfChanged(id, text.strip(), false),
                         sideways ? InlineEditRequest.Anchor.RIGHT : InlineEditRequest.Anchor.LEFT), stillThere);
             }
             case TextLabel label -> editor.open(new InlineEditRequest(LabelLayout.freeText(label).bounds(),
-                    LabelLayout.FONT, label.text(), InlineValidators.anyText(),
+                    LabelLayout.font(), label.text(), InlineValidators.anyText(),
                     text -> setLabelIfChanged(id, text.strip(), true)), stillThere);
             case Wire wire -> {
             }
@@ -145,7 +145,7 @@ public final class LabelActions {
     /** Opens an empty editor at {@code point}; confirming adds the text there, selected. Blank adds nothing. */
     public void addTextAt(GridPoint point) {
         TextLabel probe = new TextLabel(new ElementId("probe"), point, "");
-        editor.open(new InlineEditRequest(LabelLayout.freeText(probe).bounds(), LabelLayout.FONT, "",
+        editor.open(new InlineEditRequest(LabelLayout.freeText(probe).bounds(), LabelLayout.font(), "",
                 InlineValidators.anyText(), raw -> {
             String text = raw.strip();
             if (text.isEmpty()) {

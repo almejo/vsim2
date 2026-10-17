@@ -2,11 +2,13 @@ package cl.almejo.vsim.ui.preferences;
 
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.paint.TextFont;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import javax.swing.JComboBox;
+import java.awt.Font;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -164,5 +166,39 @@ class PreferencesFormTest {
 
         preferences.setInvertModifier(AppPreferences.InvertModifier.NONE);
         assertThat(selected(form().invertModifierChoice())).isEqualTo(AppPreferences.InvertModifier.NONE);
+    }
+
+    @Test
+    void theTextFontListsTheDefaultFirstAndSavesTheFamilyAndTheSize() {
+        PreferencesForm form = form();
+        assertThat(labels(form.fontFamilyChoice()).get(0)).isEqualTo("Predeterminada");
+        assertThat(form.fontFamilyChoice().getItemAt(0).value()).isEqualTo(Font.SANS_SERIF);
+        assertThat(labels(form.fontFamilyChoice())).contains(Font.SERIF).doesNotContain(Font.SANS_SERIF);
+        assertThat(selected(form.fontFamilyChoice())).isEqualTo(Font.SANS_SERIF);
+        assertThat(form.fontSizeSpinner().getValue()).isEqualTo(10);
+
+        choose(form.fontFamilyChoice(), Font.SERIF);
+        form.fontSizeSpinner().setValue(14);
+
+        assertThat(preferences.textFont()).isEqualTo(new TextFont(Font.SERIF, 14));
+        assertThat(form.fontSizeSpinner().getValue()).isEqualTo(14);
+    }
+
+    @Test
+    void theSizeStaysBetweenEightAndTwentyFour() {
+        PreferencesForm form = form();
+        javax.swing.SpinnerNumberModel model = (javax.swing.SpinnerNumberModel) form.fontSizeSpinner().getModel();
+        assertThat(model.getMinimum()).isEqualTo(TextFont.MINIMUM_SIZE);
+        assertThat(model.getMaximum()).isEqualTo(TextFont.MAXIMUM_SIZE);
+    }
+
+    @Test
+    void aStoredFamilyThatIsNotInstalledIsShownAndKept() {
+        preferences.setTextFont(new TextFont("Fuente De Otro Computador", 12));
+        PreferencesForm form = form();
+        assertThat(selected(form.fontFamilyChoice())).isEqualTo("Fuente De Otro Computador");
+        assertThat(form.fontSizeSpinner().getValue()).isEqualTo(12);
+        form.fontSizeSpinner().setValue(13);
+        assertThat(preferences.textFont()).isEqualTo(new TextFont("Fuente De Otro Computador", 13));
     }
 }

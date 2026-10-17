@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.app;
 
+import cl.almejo.vsim.ui.paint.TextFont;
 import org.junit.jupiter.api.Test;
 
 import java.nio.file.Path;
@@ -24,6 +25,30 @@ class AppPreferencesTest {
         assertThat(preferences.colorScheme()).isEmpty();
         assertThat(preferences.language()).isEmpty();
         assertThat(preferences.usesDefaultLibraryDirectory()).isTrue();
+    }
+
+    @Test
+    void theTextFontIsSansSerifTenUntilChosenAndOneChangeNotifiesOnce() {
+        preferences.addListener(changes::incrementAndGet);
+        assertThat(preferences.textFont()).isEqualTo(TextFont.DEFAULT);
+
+        preferences.setTextFont(new TextFont("Serif", 14));
+        assertThat(preferences.textFont()).isEqualTo(new TextFont("Serif", 14));
+        assertThat(node.get("textFontFamily", null)).isEqualTo("Serif");
+        assertThat(node.get("textFontSize", null)).isEqualTo("14");
+        assertThat(changes).hasValue(1);
+
+        preferences.setTextFont(new TextFont("Serif", 14));
+        assertThat(changes).hasValue(1);
+    }
+
+    @Test
+    void anUnreadableStoredTextFontSizeFallsBackToTheDefaultAndAMissingFamilyIsKept() {
+        AppPreferences stored = new AppPreferences(new FixedPreferences(
+                Map.of("textFontFamily", "Fuente De Otro Computador", "textFontSize", "99")));
+        assertThat(stored.textFont()).isEqualTo(new TextFont("Fuente De Otro Computador", 10));
+        AppPreferences garbage = new AppPreferences(new FixedPreferences(Map.of("textFontSize", "grande")));
+        assertThat(garbage.textFont()).isEqualTo(TextFont.DEFAULT);
     }
 
     @Test

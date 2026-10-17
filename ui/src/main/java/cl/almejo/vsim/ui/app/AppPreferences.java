@@ -1,6 +1,7 @@
 package cl.almejo.vsim.ui.app;
 
 import cl.almejo.vsim.core.wiring.TidyOptions;
+import cl.almejo.vsim.ui.paint.TextFont;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -52,6 +53,8 @@ public final class AppPreferences {
     static final String TIDY_FLATTEN_DETOURS = "tidyFlattenDetours";
     static final String WIRES_FOLLOW = "wiresFollow";
     static final String INVERT_MODIFIER = "invertModifier";
+    static final String TEXT_FONT_FAMILY = "textFontFamily";
+    static final String TEXT_FONT_SIZE = "textFontSize";
 
     /** «Avanzar 10 t» (M6.1-B): the fixed step until the user picks another size. */
     public static final long DEFAULT_STEP_UNITS = 10;
@@ -270,6 +273,36 @@ public final class AppPreferences {
         put(INVERT_MODIFIER, modifier.name());
     }
 
+    // --- M6.8 text font ---
+
+    /**
+     * The font of labels, texts and frame titles; {@link TextFont#DEFAULT} until chosen. A family that is not installed
+     * here is kept (the font falls back when painting); an unreadable size gives the default size.
+     */
+    public TextFont textFont() {
+        String family = optional(TEXT_FONT_FAMILY).orElse(TextFont.DEFAULT.family());
+        int size;
+        try {
+            size = Integer.parseInt(node.get(TEXT_FONT_SIZE, ""));
+        } catch (NumberFormatException exception) {
+            size = TextFont.DEFAULT.size();
+        }
+        if (size < TextFont.MINIMUM_SIZE || size > TextFont.MAXIMUM_SIZE) {
+            size = TextFont.DEFAULT.size();
+        }
+        return new TextFont(family, size);
+    }
+
+    /** Stores the family and the size; listeners hear one change, and none when both stay the same. */
+    public void setTextFont(TextFont textFont) {
+        Objects.requireNonNull(textFont, "textFont");
+        boolean familyChanged = store(TEXT_FONT_FAMILY, textFont.family());
+        boolean sizeChanged = store(TEXT_FONT_SIZE, Integer.toString(textFont.size()));
+        if (familyChanged || sizeChanged) {
+            notifyListeners(TEXT_FONT_FAMILY);
+        }
+    }
+
     // --- M6-B session: recent files, last session, recovery folder ---
 
     /** Archivo ▸ Recientes (M6-B): child node {@code recent} with entries {@code recent/0} … {@code recent/9}. */
@@ -329,8 +362,15 @@ public final class AppPreferences {
     }
 
     private void put(String key, String value) {
+        if (store(key, value)) {
+            notifyListeners(key);
+        }
+    }
+
+    /** Saves {@code value} without telling the listeners; false when it was already stored. */
+    private boolean store(String key, String value) {
         if (value.equals(node.get(key, ""))) {
-            return;
+            return false;
         }
         node.put(key, value);
         try {
@@ -338,7 +378,7 @@ public final class AppPreferences {
         } catch (BackingStoreException exception) {
             LOGGER.warn("Could not save preference {}", key, exception);
         }
-        notifyListeners(key);
+        return true;
     }
 
     /**

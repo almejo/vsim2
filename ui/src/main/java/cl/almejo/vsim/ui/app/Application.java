@@ -35,6 +35,7 @@ import cl.almejo.vsim.ui.session.StartupSequence;
 import cl.almejo.vsim.ui.session.WindowState;
 import cl.almejo.vsim.ui.shortcuts.ShortcutsExtension;
 import cl.almejo.vsim.ui.stepping.StepModeExtension;
+import cl.almejo.vsim.ui.theme.TextFontManager;
 import cl.almejo.vsim.ui.theme.ThemeManager;
 import cl.almejo.vsim.ui.tree.ComponentTreeExtension;
 import cl.almejo.vsim.ui.truthtable.TruthTableExtension;
@@ -75,6 +76,7 @@ public final class Application {
     private final LibraryService libraryService;
     private final EditorServices services;
     private final ThemeManager themeManager;
+    private final TextFontManager textFontManager;
     private final DocumentWindows<CircuitWindow> windows = new DocumentWindows<>();
     private final RecentFiles recentFiles;
     private final SessionStore sessionStore;
@@ -91,6 +93,7 @@ public final class Application {
                 editorExtensions(libraryService, SwingLibraryDialogs.INSTANCE));
         // Lives as long as the application: it follows the preferences and is never disposed.
         this.themeManager = ThemeManager.forCurrentPlatform(preferences, appearance);
+        this.textFontManager = new TextFontManager(preferences);
         this.recentFiles = new RecentFiles(preferences);
         this.sessionStore = new SessionStore(preferences);
         this.recoveryStore = new RecoveryStore(preferences.dataDirectory().resolve("recovery"));
@@ -149,6 +152,7 @@ public final class Application {
      */
     public void start(List<Path> files) {
         themeManager.start();
+        textFontManager.start();
         libraryService.start(); // spec §5.6: read the library before the first palette is shown
         // Not a daemon: it keeps the JVM alive until the EDT has the rest of the start queued.
         Thread scan = new Thread(() -> {
