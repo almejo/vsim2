@@ -18,6 +18,7 @@ import cl.almejo.vsim.ui.inline.InlineTextEditor;
 import cl.almejo.vsim.ui.library.TemplateActions;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
+import cl.almejo.vsim.ui.paint.TextFonts;
 import cl.almejo.vsim.ui.panels.PalettePanel;
 import cl.almejo.vsim.ui.panels.StatusBar;
 import cl.almejo.vsim.ui.problems.ProblemsController;
@@ -93,6 +94,7 @@ public final class EditorView extends JPanel implements CanvasHost {
     private TemplateActions templateActions;
     private final EditorServices services;
     private final Runnable appearanceListener;
+    private final Runnable textFontListener;
     private final List<Runnable> extensionDisposers = new ArrayList<>();
     private Consumer<List<Path>> componentFileImporter;
     private Consumer<List<Path>> circuitOpener = files -> {
@@ -159,6 +161,8 @@ public final class EditorView extends JPanel implements CanvasHost {
         problems = new ProblemsController(this);
         appearanceListener = canvas::repaint;
         services.appearance().addListener(appearanceListener);
+        textFontListener = canvas::repaint;
+        TextFonts.addListener(textFontListener);
         try {
             for (EditorExtension extension : services.extensions()) {
                 extensionDisposers.add(extension.install(this));
@@ -307,6 +311,7 @@ public final class EditorView extends JPanel implements CanvasHost {
         }
         extensionDisposers.clear();
         steps.add(() -> services.appearance().removeListener(appearanceListener));
+        steps.add(() -> TextFonts.removeListener(textFontListener));
         steps.add(statusBar::dispose);
         steps.add(palette::dispose);
         steps.add(problems::dispose);

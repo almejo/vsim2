@@ -19,13 +19,13 @@ import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.ComponentDrawing;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.paint.PainterSupport;
+import cl.almejo.vsim.ui.paint.TextFonts;
 import cl.almejo.vsim.ui.paint.SignalColors;
 
 import java.awt.AlphaComposite;
 import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Composite;
-import java.awt.Font;
 import java.awt.FontMetrics;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
@@ -69,7 +69,6 @@ public final class CircuitRenderer {
     private static final double OPEN_PIN_RADIUS = PainterSupport.PIN_DOT_RADIUS + OPEN_PIN_MARGIN;
     private static final double OPEN_BUS_PIN_HALF_SIDE = PainterSupport.BUS_PIN_HALF_SIDE + OPEN_PIN_MARGIN;
     private static final BasicStroke OPEN_PIN_RING = new BasicStroke(1f);
-    private static final Font BUS_FONT = LabelLayout.FONT.deriveFont(Font.BOLD, 9f);
     /** Gap between a bus and its value, in document pixels. */
     private static final double BUS_LABEL_GAP = 4;
     private static final double OUTLINE_GAP = 3;
@@ -331,7 +330,7 @@ public final class CircuitRenderer {
     /** The widths of the pins of mismatched nets ("1", "8", or "1/8" for pins touching at one point). */
     private void paintPinWidths(Graphics2D graphics, WidthMismatchHighlight mismatches) {
         ColorScheme scheme = scheme();
-        graphics.setFont(BUS_FONT);
+        graphics.setFont(TextFonts.tagFont());
         graphics.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
         FontMetrics metrics = graphics.getFontMetrics();
         for (Map.Entry<GridPoint, List<Integer>> entry : mismatches.pinWidths().entrySet()) {
@@ -370,7 +369,7 @@ public final class CircuitRenderer {
 
     private void paintComponentLabels(Graphics2D graphics, RenderState state) {
         ColorScheme scheme = scheme();
-        graphics.setFont(LabelLayout.FONT);
+        graphics.setFont(LabelLayout.font());
         graphics.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
         graphics.setColor(scheme.text());
         for (Component component : state.document().components()) {
@@ -383,7 +382,7 @@ public final class CircuitRenderer {
     /** Each bus's value in hex, above its longest wire (beside it when vertical), on a backdrop of the board color. */
     private void paintBusValues(Graphics2D graphics, RenderState state) {
         ColorScheme scheme = scheme();
-        graphics.setFont(BUS_FONT);
+        graphics.setFont(TextFonts.tagFont());
         graphics.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
         FontMetrics metrics = graphics.getFontMetrics();
         for (BusLabels.BusLabel label : highlights.busLabels(state)) {
@@ -417,7 +416,7 @@ public final class CircuitRenderer {
 
     private static void paintText(Graphics2D graphics, TextLabel label, Color color) {
         LabelLayout.PlacedText placed = LabelLayout.freeText(label);
-        graphics.setFont(LabelLayout.FONT);
+        graphics.setFont(LabelLayout.font());
         graphics.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
         graphics.setColor(color);
         graphics.drawString(placed.text(), placed.baselineX(), placed.baselineY());

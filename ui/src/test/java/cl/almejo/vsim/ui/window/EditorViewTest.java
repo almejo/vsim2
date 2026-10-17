@@ -710,6 +710,17 @@ class EditorViewTest {
     }
 
     @Test
+    void theViewFollowsTheTextFontAndForgetsItWhenDisposed() {
+        int before = cl.almejo.vsim.ui.paint.TextFonts.listenerCount();
+        EditorView followed = new EditorView(openDocument, new EditorServices(PainterRegistry.standard(),
+                new Appearance(ColorScheme.LIGHT), AppPreferences.inMemory(), new ComponentLibrary(), List.of()),
+                window);
+        assertThat(cl.almejo.vsim.ui.paint.TextFonts.listenerCount()).isEqualTo(before + 1);
+        followed.dispose();
+        assertThat(cl.almejo.vsim.ui.paint.TextFonts.listenerCount()).isEqualTo(before);
+    }
+
+    @Test
     void twoViewsSharingServicesFollowTheSchemeAndEachDisposeRemovesOnlyItsOwnListeners() {
         Appearance appearance = new Appearance(ColorScheme.LIGHT);
         AppPreferences preferences = AppPreferences.inMemory();

@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.preferences;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.ColorSchemes;
+import cl.almejo.vsim.ui.paint.TextFont;
 import net.miginfocom.swing.MigLayout;
 
 import javax.swing.JButton;
@@ -10,7 +11,9 @@ import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
+import javax.swing.JSpinner;
 import javax.swing.JTextField;
+import javax.swing.SpinnerNumberModel;
 import java.awt.Component;
 import java.nio.file.Path;
 import java.util.LinkedHashMap;
@@ -57,6 +60,8 @@ public final class PreferencesForm extends JPanel {
     private final JButton chooseLibraryButton = new JButton(Messages.text("preferences.library.choose"));
     private final JButton restoreLibraryButton = new JButton(Messages.text("preferences.library.restore"));
     private final JCheckBox restoreSessionBox = new JCheckBox(Messages.text("preferences.restoreSession"));
+    private final JComboBox<Choice<String>> fontFamilyChoice = new JComboBox<>();
+    private final JSpinner fontSizeSpinner = new JSpinner();
 
     public PreferencesForm(AppPreferences preferences, DirectoryChooser directoryChooser) {
         super(new MigLayout("insets dialog, wrap 2", "[right][grow, fill]"));
@@ -115,6 +120,47 @@ public final class PreferencesForm extends JPanel {
         add(restoreSessionBox, "skip 1, gaptop 12");
         add(new JLabel(Messages.text("preferences.invertModifier")), "gaptop 12");
         add(invertModifierChoice, "gaptop 12");
+        addTextFontRows();
+    }
+
+    /**
+     * «Letra de etiquetas y textos» (M6.8): the family («Predeterminada» = SansSerif first, then the installed ones)
+     * and the size, stored at once. A stored family that is not installed here is listed under its own name, so
+     * opening the form never changes it.
+     */
+    private void addTextFontRows() {
+        TextFont stored = preferences.textFont();
+        fontFamilyChoice.addItem(new Choice<>(TextFont.DEFAULT.family(),
+                Messages.text("preferences.textFont.default")));
+        if (!stored.family().equalsIgnoreCase(TextFont.DEFAULT.family()) && !TextFont.isInstalled(stored.family())) {
+            fontFamilyChoice.addItem(new Choice<>(stored.family(), stored.family()));
+        }
+        for (String family : TextFont.installedFamilies()) {
+            if (!family.equalsIgnoreCase(TextFont.DEFAULT.family())) {
+                fontFamilyChoice.addItem(new Choice<>(family, family));
+            }
+        }
+        select(fontFamilyChoice, stored.family());
+        fontSizeSpinner.setModel(new SpinnerNumberModel(stored.size(), TextFont.MINIMUM_SIZE, TextFont.MAXIMUM_SIZE,
+                1));
+        fontFamilyChoice.addActionListener(event -> storeTextFont());
+        fontSizeSpinner.addChangeListener(event -> storeTextFont());
+
+        add(new JLabel(Messages.text("preferences.textFont")), "gaptop 12");
+        add(fontFamilyChoice, "gaptop 12, split 2");
+        add(fontSizeSpinner, "growx 0");
+    }
+
+    private void storeTextFont() {
+        preferences.setTextFont(new TextFont(selected(fontFamilyChoice), (Integer) fontSizeSpinner.getValue()));
+    }
+
+    JComboBox<Choice<String>> fontFamilyChoice() {
+        return fontFamilyChoice;
+    }
+
+    JSpinner fontSizeSpinner() {
+        return fontSizeSpinner;
     }
 
     JComboBox<Choice<AppPreferences.Theme>> themeChoice() {

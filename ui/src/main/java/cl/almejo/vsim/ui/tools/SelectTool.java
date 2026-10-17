@@ -16,6 +16,7 @@ import cl.almejo.vsim.core.wiring.WireStretch;
 import cl.almejo.vsim.ui.canvas.ConnectionPoints;
 import cl.almejo.vsim.ui.canvas.LabelLayout;
 import cl.almejo.vsim.ui.paint.PainterSupport;
+import cl.almejo.vsim.ui.paint.TextFonts;
 import cl.almejo.vsim.ui.canvas.MarchingAnts;
 import cl.almejo.vsim.ui.canvas.SelectionBounds;
 import cl.almejo.vsim.ui.wiring.MovePreview;
@@ -23,7 +24,6 @@ import cl.almejo.vsim.ui.wiring.SelectionMoves;
 
 import java.awt.BasicStroke;
 import java.awt.Color;
-import java.awt.Font;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.event.KeyEvent;
@@ -69,7 +69,6 @@ public final class SelectTool implements Tool {
 
     private static final double HOVER_RING_RADIUS = 4.5;
     private static final BasicStroke HOVER_RING = new BasicStroke(1.5f);
-    private static final Font HOVER_TAG_FONT = LabelLayout.FONT.deriveFont(Font.BOLD, 9f);
     private static final double HOVER_TAG_OFFSET = 7;
     private static final double BAND_THRESHOLD = 0.5;
     private static final float BAND_WIDTH = 1f;
@@ -582,7 +581,7 @@ public final class SelectTool implements Tool {
         }
         graphics.draw(new Rectangle2D.Double(centerX - HOVER_RING_RADIUS, centerY - HOVER_RING_RADIUS,
                 2 * HOVER_RING_RADIUS, 2 * HOVER_RING_RADIUS));
-        graphics.setFont(HOVER_TAG_FONT);
+        graphics.setFont(TextFonts.tagFont());
         graphics.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
         PainterSupport.paintTag(graphics, graphics.getFontMetrics(), String.valueOf(hoverWidth),
                 centerX + HOVER_TAG_OFFSET, centerY - HOVER_TAG_OFFSET + 2, context.scheme().selection(),

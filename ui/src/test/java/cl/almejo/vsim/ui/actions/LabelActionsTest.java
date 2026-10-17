@@ -317,6 +317,32 @@ class LabelActionsTest {
     }
 
     @Test
+    void theInlineEditorsUseTheCurrentTextFont() {
+        cl.almejo.vsim.ui.paint.TextFonts.set(new cl.almejo.vsim.ui.paint.TextFont(java.awt.Font.SERIF, 14));
+        try {
+            actions.editLabel(note("nota"));
+            assertThat(editor.field().getFont().getFamily()).isEqualTo(java.awt.Font.SERIF);
+            cancel();
+            Component gate = gate();
+            actions.editLabel(gate);
+            assertThat(editor.field().getFont().getFamily()).isEqualTo(java.awt.Font.SERIF);
+            cancel();
+            Frame frame = new Frame(openDocument.document().newFrameId(), new GridPoint(2, 2), 20, 10, "Bloque",
+                    FrameTint.NONE, false);
+            openDocument.execute(new CreateFrameCommand(frame));
+            actions.editLabel(frame);
+            assertThat(editor.field().getFont().getFamily()).isEqualTo(java.awt.Font.SERIF);
+            assertThat(editor.field().getFont().isBold()).isTrue();
+            cancel();
+            actions.addTextAt(new GridPoint(30, 30));
+            assertThat(editor.field().getFont().getFamily()).isEqualTo(java.awt.Font.SERIF);
+            cancel();
+        } finally {
+            cl.almejo.vsim.ui.paint.TextFonts.set(cl.almejo.vsim.ui.paint.TextFont.DEFAULT);
+        }
+    }
+
+    @Test
     void theFrameTitleEditorSitsInTheTitleBand() {
         Frame frame = new Frame(openDocument.document().newFrameId(), new GridPoint(2, 2), 20, 10, "Bloque",
                 FrameTint.NONE, false);

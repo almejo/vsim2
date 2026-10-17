@@ -12,6 +12,8 @@ import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.CircuitBounds;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
+import cl.almejo.vsim.ui.paint.TextFont;
+import cl.almejo.vsim.ui.paint.TextFonts;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
@@ -29,6 +31,7 @@ class CircuitImageTest {
 
     @AfterEach
     void close() {
+        TextFonts.set(TextFont.DEFAULT);
         if (openDocument != null) {
             openDocument.close();
         }
@@ -140,5 +143,33 @@ class CircuitImageTest {
         int middleX = (middle.position().x() + 1 - image.gridBounds().x()) * 8;
         int middleY = (middle.position().y() - image.gridBounds().y()) * 8;
         assertThat(pixels.getRGB(middleX, middleY)).isEqualTo(ColorScheme.LIGHT.background().getRGB());
+    }
+
+    @Test
+    void theExportMeasuresAndPaintsTextsWithTheCurrentFont() {
+        OpenDocument source = OpenDocument.createEmpty(StandardComponentTypes.registry());
+        source.execute(new cl.almejo.vsim.core.command.AddElementsCommand(java.util.List.of(
+                new cl.almejo.vsim.core.document.TextLabel(source.document().newLabelId(), new GridPoint(10, 10),
+                        "una nota bastante larga"))));
+        CircuitImage small = imageOf(source, ColorScheme.LIGHT, Optional.empty()).orElseThrow();
+
+        TextFonts.set(new TextFont(java.awt.Font.SANS_SERIF, 24));
+        CircuitImage large = imageOf(source, ColorScheme.LIGHT, Optional.empty()).orElseThrow();
+
+        assertThat(large.gridBounds().width()).isGreaterThan(small.gridBounds().width());
+        assertThat(large.gridBounds().height()).isGreaterThan(small.gridBounds().height());
+        BufferedImage pixels = render(large, 1);
+        int background = pixels.getRGB(0, 0);
+        int textEndsAtSmallSize = small.width(1) - 2 * 8;
+        boolean paintedPastTheSmallText = false;
+        for (int x = textEndsAtSmallSize; x < pixels.getWidth() && !paintedPastTheSmallText; x++) {
+            for (int y = 0; y < pixels.getHeight(); y++) {
+                if (pixels.getRGB(x, y) != background) {
+                    paintedPastTheSmallText = true;
+                    break;
+                }
+            }
+        }
+        assertThat(paintedPastTheSmallText).isTrue();
     }
 }

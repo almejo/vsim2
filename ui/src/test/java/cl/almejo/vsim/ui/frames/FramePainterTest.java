@@ -13,10 +13,13 @@ import cl.almejo.vsim.ui.export.CircuitImage;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.ColorSchemes;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
+import cl.almejo.vsim.ui.paint.TextFont;
+import cl.almejo.vsim.ui.paint.TextFonts;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 import java.awt.Color;
+import java.awt.Font;
 import java.awt.Graphics2D;
 import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
@@ -32,6 +35,7 @@ class FramePainterTest {
 
     @AfterEach
     void close() {
+        TextFonts.set(TextFont.DEFAULT);
         if (openDocument != null) {
             openDocument.close();
         }
@@ -204,5 +208,17 @@ class FramePainterTest {
         graphics.dispose();
         int alpha = new Color(pixels.getRGB(16, 40), true).getAlpha();
         assertThat(alpha).isBetween(1, 150);
+    }
+
+    @Test
+    void theTitleFollowsTheCurrentFontBoldAndOnePointLarger() {
+        Frame frame = new Frame(new cl.almejo.vsim.core.document.ElementId("f1"), new GridPoint(0, 0), 20, 10,
+                "Bloque", FrameTint.NONE, false);
+        Rectangle2D small = FramePainter.titleTextBounds(frame);
+        TextFonts.set(new TextFont(Font.SERIF, 14));
+        assertThat(FramePainter.titleFont().getFamily()).isEqualTo(Font.SERIF);
+        assertThat(FramePainter.titleFont().getStyle()).isEqualTo(Font.BOLD);
+        assertThat(FramePainter.titleFont().getSize()).isEqualTo(15);
+        assertThat(FramePainter.titleTextBounds(frame).getHeight()).isGreaterThan(small.getHeight());
     }
 }

@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.frames;
 import cl.almejo.vsim.core.document.Frame;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.ui.paint.ColorScheme;
+import cl.almejo.vsim.ui.paint.TextFonts;
 
 import cl.almejo.vsim.ui.icons.Icons;
 
@@ -32,7 +33,6 @@ public final class FramePainter {
     public static final double TITLE_BAR_HEIGHT = 2 * GridPoint.PIXELS_PER_UNIT;
 
     private static final BasicStroke BORDER = new BasicStroke(1f);
-    private static final Font TITLE_FONT = new Font(Font.SANS_SERIF, Font.BOLD, 11);
     private static final double TITLE_PADDING = 5;
     private static final int BAND_ALPHA = 36;
     /** Below this many screen pixels per grid unit the title would be an unreadable smear and is left out. */
@@ -62,9 +62,9 @@ public final class FramePainter {
         return new Rectangle2D.Double(bounds.getX(), bounds.getY(), bounds.getWidth(), TITLE_BAR_HEIGHT);
     }
 
-    /** The font the title is painted with, at 100 %. */
+    /** The font the title is painted with, at 100 %: the current text font of Preferencias (M6.8), bold. */
     public static Font titleFont() {
-        return TITLE_FONT;
+        return TextFonts.titleFont();
     }
 
     /**
@@ -73,7 +73,7 @@ public final class FramePainter {
      */
     public static Rectangle2D titleTextBounds(Frame frame) {
         Rectangle2D bar = titleBarBounds(frame);
-        LineMetrics metrics = TITLE_FONT.getLineMetrics("Ag", new FontRenderContext(null, true, true));
+        LineMetrics metrics = titleFont().getLineMetrics("Ag", new FontRenderContext(null, true, true));
         double height = metrics.getAscent() + metrics.getDescent();
         return new Rectangle2D.Double(bar.getX() + TITLE_PADDING, bar.getY() + (bar.getHeight() - height) / 2,
                 Math.max(0, bar.getWidth() - 2 * TITLE_PADDING - CONTROLS_WIDTH), height);
@@ -144,7 +144,7 @@ public final class FramePainter {
 
     private static void paintTitle(Graphics2D graphics, String title, Rectangle2D bar, ColorScheme scheme) {
         graphics.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
-        graphics.setFont(TITLE_FONT);
+        graphics.setFont(titleFont());
         FontMetrics metrics = graphics.getFontMetrics();
         String shown = fit(title, metrics, bar.getWidth() - 2 * TITLE_PADDING - CONTROLS_WIDTH);
         if (shown.isEmpty()) {
