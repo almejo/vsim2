@@ -23,6 +23,92 @@ class BlockTruthTableTest {
         circuits.wire(circuits.pin(input, 0), target);
     }
 
+    private static TruthTable tableOf(TruthTableCircuits circuits) {
+        Preparation preparation = TruthTableScope.prepare(circuits.document, Set.of(), circuits.registry);
+        assertThat(preparation).isInstanceOf(Preparation.Ready.class);
+        return TruthTableEvaluator.evaluate((Preparation.Ready) preparation, percent -> { }, () -> false)
+                .orElseThrow();
+    }
+
+    /** The bits of column {@code name} in {@code values} (the inputs or the outputs of a row). */
+    private static long bitsOf(List<Column> columns, List<Value> values, String name) {
+        for (int index = 0; index < columns.size(); index++) {
+            if (columns.get(index).name().equals(name)) {
+                Value value = values.get(index);
+                assertThat(value.isFullyDefined()).as(name).isTrue();
+                return value.bits();
+            }
+        }
+        throw new AssertionError("no column " + name);
+    }
+
+    /** M3 (M7 fix round): a 2-bit adder with Cin; its carry out is a column of its own. */
+    @Test
+    void aTwoBitAdderGivesTheSumAndTheCarryOut() {
+        TruthTableCircuits circuits = new TruthTableCircuits();
+        Map<String, Object> twoBits = Map.of(StandardComponentTypes.WIDTH, 2);
+        Component adder = circuits.place(StandardComponentTypes.ADDER, 20, 0, "", twoBits);
+        feedFromTheLeft(circuits, circuits.pin(adder, 0), 2, "A");
+        feedFromTheLeft(circuits, circuits.pin(adder, 1), 2, "B");
+        GridPoint carryInPin = circuits.pin(adder, 2);
+        Component carryIn = circuits.place(InterfacePins.INPUT_PIN, carryInPin.x() - 6, carryInPin.y() - 5, "Cin",
+                Map.of(InterfacePins.WIDTH, 1));
+        GridPoint carryInCorner = new GridPoint(carryInPin.x(), circuits.pin(carryIn, 0).y());
+        circuits.wire(circuits.pin(carryIn, 0), carryInCorner, carryInPin);
+        GridPoint sumPin = circuits.pin(adder, 3);
+        Component sum = circuits.place(InterfacePins.OUTPUT_PIN, sumPin.x() + 4, sumPin.y() - 1, "S", twoBits);
+        circuits.wire(sumPin, circuits.pin(sum, 0));
+        GridPoint carryOutPin = circuits.pin(adder, 4);
+        Component carryOut = circuits.place(InterfacePins.OUTPUT_PIN, carryOutPin.x() + 4, carryOutPin.y() + 3,
+                "Cout", Map.of(InterfacePins.WIDTH, 1));
+        GridPoint carryOutCorner = new GridPoint(carryOutPin.x(), circuits.pin(carryOut, 0).y());
+        circuits.wire(carryOutPin, carryOutCorner, circuits.pin(carryOut, 0));
+
+        TruthTable table = tableOf(circuits);
+
+        assertThat(table.inputs()).extracting(Column::name).containsExactlyInAnyOrder("A", "B", "Cin");
+        assertThat(table.outputs()).extracting(Column::name).containsExactlyInAnyOrder("S", "Cout");
+        assertThat(table.rows()).hasSize(32);
+        for (Row row : table.rows()) {
+            long total = bitsOf(table.inputs(), row.inputs(), "A") + bitsOf(table.inputs(), row.inputs(), "B")
+                    + bitsOf(table.inputs(), row.inputs(), "Cin");
+            assertThat(bitsOf(table.outputs(), row.outputs(), "S")).as("%s", row).isEqualTo(total & 0b11);
+            assertThat(bitsOf(table.outputs(), row.outputs(), "Cout")).as("%s", row).isEqualTo(total >> 2);
+            assertThat(row.settled()).isTrue();
+        }
+    }
+
+    /** M3 (M7 fix round): a 4-input mux of 1-bit data; its select is a 2-bit column. */
+    @Test
+    void aFourInputMuxPicksTheInputItsTwoBitSelectNames() {
+        TruthTableCircuits circuits = new TruthTableCircuits();
+        Component mux = circuits.place(StandardComponentTypes.MUX, 20, 0, "",
+                Map.of(StandardComponentTypes.WIDTH, 1, "inputs", "4"));
+        for (int index = 0; index < 4; index++) {
+            feedFromTheLeft(circuits, circuits.pin(mux, index), 1, "D" + index);
+        }
+        GridPoint selectPin = circuits.pin(mux, 4);
+        Component select = circuits.place(InterfacePins.INPUT_PIN, selectPin.x() - 2, selectPin.y() + 3, "S",
+                Map.of(InterfacePins.WIDTH, 2));
+        circuits.wire(circuits.pin(select, 0), selectPin);
+        GridPoint resultPin = circuits.pin(mux, 5);
+        Component result = circuits.place(InterfacePins.OUTPUT_PIN, resultPin.x() + 4, resultPin.y() - 1, "Y",
+                Map.of(InterfacePins.WIDTH, 1));
+        circuits.wire(resultPin, circuits.pin(result, 0));
+
+        TruthTable table = tableOf(circuits);
+
+        assertThat(table.inputs()).extracting(Column::name).containsExactlyInAnyOrder("D0", "D1", "D2", "D3", "S");
+        assertThat(table.inputs()).filteredOn(column -> column.name().equals("S")).extracting(Column::width)
+                .containsExactly(2);
+        assertThat(table.rows()).hasSize(64);
+        for (Row row : table.rows()) {
+            long chosen = bitsOf(table.inputs(), row.inputs(), "S");
+            assertThat(bitsOf(table.outputs(), row.outputs(), "Y")).as("%s", row)
+                    .isEqualTo(bitsOf(table.inputs(), row.inputs(), "D" + chosen));
+        }
+    }
+
     @Test
     void aTwoBitAluGivesMultiBitColumnsForEveryOperation() {
         TruthTableCircuits circuits = new TruthTableCircuits();
