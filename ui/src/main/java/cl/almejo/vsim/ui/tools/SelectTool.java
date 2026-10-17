@@ -12,6 +12,7 @@ import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.io.CircuitFragment;
+import cl.almejo.vsim.core.wiring.WireStretch;
 import cl.almejo.vsim.ui.canvas.ConnectionPoints;
 import cl.almejo.vsim.ui.canvas.LabelLayout;
 import cl.almejo.vsim.ui.paint.PainterSupport;
@@ -57,6 +58,9 @@ import java.util.concurrent.CopyOnWriteArrayList;
  * <p>M6.7 §8: a press on the one selected wire that drags with the segment key held (Alt, or Shift when Alt is the
  * invert key; read during the drag and at the release) moves that wire sideways only, perpendicular to itself, and
  * the wires joined to its ends always stretch (the follow mode and the invert key do not apply).
+ *
+ * <p>M6.8: a double click on a wire selects its stretch and a triple click every wire connected to it (Shift adds
+ * them); that press never starts a wire drawing, and a drag right after it moves the selection.
  *
  * <p>{@link SelectToolDelegate}s (M6.3: frames) are asked first: a press one of them takes, with its drag and
  * release, is theirs alone.
@@ -185,6 +189,11 @@ public final class SelectTool implements Tool {
         reset();
         boolean continuesOwnClick = ownPressSeen;
         ownPressSeen = true;
+        if (event.clickCount() >= 2 && continuesOwnClick && !event.controlDown()
+                && hit.isPresent() && hit.get() instanceof Wire clickedWire) {
+            selectWireGroup(context, event, clickedWire);
+            return;
+        }
         if (event.clickCount() >= 2 && continuesOwnClick) {
             Optional<Component> labelled = componentLabelAt(context, event.gridPosition());
             if (labelled.isPresent()) {
@@ -657,6 +666,26 @@ public final class SelectTool implements Tool {
      */
     public boolean autoscrolls() {
         return bandStart != null || movingFrom().isPresent() || activeDelegate != null;
+    }
+
+    /**
+     * M6.8: a double click on a wire selects its stretch, a triple click every wire connected to it; Shift adds them
+     * to the selection. The press never starts a wire drawing: a drag that follows moves the selection.
+     */
+    private void selectWireGroup(ToolContext context, CanvasMouseEvent event, Wire clickedWire) {
+        CircuitDocument document = context.openDocument().document();
+        Set<ElementId> group = event.clickCount() >= 3
+                ? WireStretch.connected(document, context.openDocument().registry(), clickedWire.id())
+                : WireStretch.of(document, context.openDocument().registry(), clickedWire.id());
+        if (event.shiftDown()) {
+            Set<ElementId> extended = new LinkedHashSet<>(context.selection().ids());
+            extended.addAll(group);
+            context.selection().set(extended);
+        } else {
+            context.selection().set(group);
+        }
+        pressedElement = clickedWire;
+        pressPoint = event.snapped();
     }
 
     /** A press on a pin or wire that did not become a wire: behave like a plain click on what was under it. */
