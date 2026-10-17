@@ -1173,4 +1173,21 @@ class CircuitCanvasTest {
         assertThat(tool.modifierChanges).containsExactly("true false false", "true true false", "false true false",
                 "false false false", "false false true", "false false false");
     }
+
+    @Test
+    void aHeldModifierRepeatingItsPressTellsTheToolOnceUntilTheFocusIsLost() {
+        RecordingTool tool = new RecordingTool();
+        canvas.setTool(tool);
+        modifierKey(KeyEvent.KEY_PRESSED, KeyEvent.VK_SHIFT, InputEvent.SHIFT_DOWN_MASK);
+        modifierKey(KeyEvent.KEY_PRESSED, KeyEvent.VK_SHIFT, InputEvent.SHIFT_DOWN_MASK);
+        modifierKey(KeyEvent.KEY_PRESSED, KeyEvent.VK_SHIFT, InputEvent.SHIFT_DOWN_MASK);
+        assertThat(tool.modifierChanges).containsExactly("true false false");
+
+        for (java.awt.event.FocusListener listener : canvas.getFocusListeners()) {
+            listener.focusLost(new java.awt.event.FocusEvent(canvas, java.awt.event.FocusEvent.FOCUS_LOST));
+        }
+        modifierKey(KeyEvent.KEY_PRESSED, KeyEvent.VK_SHIFT, InputEvent.SHIFT_DOWN_MASK);
+        modifierKey(KeyEvent.KEY_RELEASED, KeyEvent.VK_SHIFT, 0);
+        assertThat(tool.modifierChanges).containsExactly("true false false", "true false false", "false false false");
+    }
 }

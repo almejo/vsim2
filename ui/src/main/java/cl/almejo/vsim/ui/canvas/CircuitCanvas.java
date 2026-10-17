@@ -146,10 +146,12 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         addMouseListener(mouseHandler);
         addMouseMotionListener(mouseHandler);
         addMouseWheelListener(mouseHandler);
-        addKeyListener(new KeyHandler());
+        KeyHandler keyHandler = new KeyHandler();
+        addKeyListener(keyHandler);
         addFocusListener(new FocusAdapter() {
             @Override
             public void focusLost(FocusEvent event) {
+                keyHandler.forgetModifiers();
                 spaceDown = false;
                 panAnchor = null;
                 showCursor();
@@ -1067,6 +1069,14 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
 
     private final class KeyHandler extends KeyAdapter {
 
+        /** The (Shift, Ctrl, Alt) last told to the tool; null when unknown. A held key repeats its press. */
+        private List<Boolean> lastModifiers;
+
+        /** The keys may change while another window has the focus: the next change is always told. */
+        void forgetModifiers() {
+            lastModifiers = null;
+        }
+
         @Override
         public void keyPressed(KeyEvent event) {
             if (event.getKeyCode() == KeyEvent.VK_SPACE) {
@@ -1103,6 +1113,11 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
             boolean shiftDown = keyCode == KeyEvent.VK_SHIFT ? pressed : event.isShiftDown();
             boolean controlDown = keyCode == KeyEvent.VK_CONTROL ? pressed : event.isControlDown();
             boolean altDown = keyCode == KeyEvent.VK_ALT ? pressed : event.isAltDown();
+            List<Boolean> modifiers = List.of(shiftDown, controlDown, altDown);
+            if (modifiers.equals(lastModifiers)) {
+                return; // the key repeat of a held modifier
+            }
+            lastModifiers = modifiers;
             if (tool.modifiersChanged(CircuitCanvas.this, shiftDown, controlDown, altDown)) {
                 updateAnimation();
             }
