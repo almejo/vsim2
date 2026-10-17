@@ -552,6 +552,19 @@ class FrameGesturesTest {
     }
 
     @Test
+    void aShiftDragOfASelectedFrameStoppedByAWallKeepsItSelected() {
+        frame(0, 0, 40, 30, true);
+        Frame inner = frame(0, 10, 12, 8, false);
+        context.click(tool, 6, 11);
+        assertThat(context.selection.ids()).containsExactly(inner.id());
+        tool.mousePressed(context, TestToolContext.withKeys(6, 11, true, false, false));
+        tool.mouseDragged(context, TestToolContext.withKeys(1, 11, true, false, false));
+        tool.mouseReleased(context, TestToolContext.withKeys(1, 11, true, false, false));
+        assertThat(current(inner)).isEqualTo(inner);
+        assertThat(context.selection.ids()).containsExactly(inner.id());
+    }
+
+    @Test
     void anUnlockedFrameIsNoWall() {
         frame(0, 0, 20, 12, false);
         Component inside = gate(4, 4);

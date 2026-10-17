@@ -40,6 +40,8 @@ public final class FrameGestures implements SelectToolDelegate {
     private boolean narrowOnRelease;
     /** A Shift press on the title bar of a selected frame: a release without moving takes it out. */
     private boolean removeOnRelease;
+    /** Whether the pointer left the press point: a drag a wall stopped is still not a click. */
+    private boolean pointerMoved;
     private int deltaX;
     private int deltaY;
     private boolean followWires;
@@ -121,6 +123,7 @@ public final class FrameGestures implements SelectToolDelegate {
         }
         deltaX = event.snapped().x() - pressPoint.x();
         deltaY = event.snapped().y() - pressPoint.y();
+        pointerMoved |= deltaX != 0 || deltaY != 0;
         if (!part.resizes()) {
             // a frame inside a locked frame stops at its border, like any content
             GridPoint limited = SelectionMoves.limited(context.openDocument(), context.selection().effectiveIds(),
@@ -143,6 +146,8 @@ public final class FrameGestures implements SelectToolDelegate {
         } else if (deltaX != 0 || deltaY != 0) {
             context.selectionMoves().move(context.openDocument(), context.selection().effectiveIds(), deltaX, deltaY,
                     followWires);
+        } else if (pointerMoved) {
+            // a drag stopped by a locked frame's wall moved nothing, and it was no click either
         } else if (removeOnRelease) {
             context.selection().remove(grabbed.id());
         } else if (narrowOnRelease) {
@@ -314,6 +319,7 @@ public final class FrameGestures implements SelectToolDelegate {
         pressPoint = null;
         narrowOnRelease = false;
         removeOnRelease = false;
+        pointerMoved = false;
         deltaX = 0;
         deltaY = 0;
         followWires = false;
