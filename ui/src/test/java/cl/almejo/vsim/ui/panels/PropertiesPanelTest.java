@@ -492,4 +492,69 @@ class PropertiesPanelTest {
         ((JSpinner) panel.parameterForm().editor("width")).setValue(2);
         assertThat(current(constant).parameters()).containsEntry("width", 2).containsEntry("value", "3");
     }
+
+    // --- one column layout (M6.8)
+
+    /** Every caption with its field, laid out at a sidebar's size, as rectangles in the panel's coordinates. */
+    private List<java.awt.Rectangle[]> laidOutRows() {
+        panel.setSize(320, 600);
+        layOut(panel);
+        List<java.awt.Rectangle[]> rows = new java.util.ArrayList<>();
+        collectRows(panel, rows);
+        return rows;
+    }
+
+    private static void layOut(java.awt.Container container) {
+        container.doLayout();
+        for (java.awt.Component child : container.getComponents()) {
+            if (child instanceof java.awt.Container inner) {
+                layOut(inner);
+            }
+        }
+    }
+
+    private void collectRows(java.awt.Container container, List<java.awt.Rectangle[]> rows) {
+        for (java.awt.Component child : container.getComponents()) {
+            if (child instanceof javax.swing.JLabel label && label.getLabelFor() != null) {
+                java.awt.Component field = label.getLabelFor();
+                rows.add(new java.awt.Rectangle[]{
+                        javax.swing.SwingUtilities.convertRectangle(container, label.getBounds(), panel),
+                        javax.swing.SwingUtilities.convertRectangle(field.getParent(), field.getBounds(), panel)});
+            }
+            if (child instanceof java.awt.Container inner) {
+                collectRows(inner, rows);
+            }
+        }
+    }
+
+    /** The left edge of the caption column: the widest caption starts there. */
+    private static int captionColumnLeft(List<java.awt.Rectangle[]> rows) {
+        return rows.stream().mapToInt(row -> row[0].x).min().orElseThrow();
+    }
+
+    private static void assertOneGrid(List<java.awt.Rectangle[]> rows, int expectedRows) {
+        assertThat(rows).hasSize(expectedRows);
+        assertThat(rows.stream().map(row -> row[0].x + row[0].width).distinct().toList())
+                .as("caption right edges").hasSize(1);
+        assertThat(rows.stream().map(row -> row[1].x).distinct().toList()).as("field left edges").hasSize(1);
+    }
+
+    @Test
+    void everyElementLaysItsCaptionsAndFieldsInTheSameColumns() {
+        frame(false);
+        List<java.awt.Rectangle[]> frameRows = laidOutRows();
+        assertOneGrid(frameRows, 6);
+        int captionLeft = captionColumnLeft(frameRows);
+
+        Component andGate = place(openDocument, StandardComponentTypes.AND2, 30, 0, Map.of());
+        Component constant = place(openDocument, StandardComponentTypes.CONSTANT, 40, 0, Map.of());
+        Component toggle = place(openDocument, StandardComponentTypes.SWITCH, 50, 0, Map.of());
+        for (Component component : List.of(andGate, constant, toggle)) {
+            selection.select(component.id());
+            int parameterCount = openDocument.registry().typeOf(component).parameters().size();
+            List<java.awt.Rectangle[]> rows = laidOutRows();
+            assertOneGrid(rows, 1 + parameterCount);
+            assertThat(captionColumnLeft(rows)).as(component.typeId()).isEqualTo(captionLeft);
+        }
+    }
 }

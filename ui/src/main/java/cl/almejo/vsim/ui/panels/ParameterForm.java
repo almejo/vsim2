@@ -29,7 +29,10 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
-/** One labelled editor per parameter of a component type. */
+/**
+ * One labelled editor per parameter of a component type. It lays them out itself (the configure dialog) or hands
+ * them to a host's two column grid with {@link #addRowsTo(JPanel)} (the Propiedades tab).
+ */
 public final class ParameterForm extends JPanel {
 
     /** Parameters measured in simulation time units (M6.1-E): «Retardo (t)», with a tooltip saying so. */
@@ -41,6 +44,7 @@ public final class ParameterForm extends JPanel {
     private final ComponentType type;
     private final Map<String, Object> initial;
     private final Map<String, JComponent> editors = new LinkedHashMap<>();
+    private final Map<String, JLabel> labels = new LinkedHashMap<>();
 
     public ParameterForm(ComponentType type, Map<String, Object> currentParameters) {
         super(new MigLayout("wrap 2, insets dialog", "[right][grow, fill]"));
@@ -52,6 +56,7 @@ public final class ParameterForm extends JPanel {
             editors.put(parameter.name(), editor);
             JLabel label = new JLabel(labelText(parameter.name()));
             label.setLabelFor(editor);
+            labels.put(parameter.name(), label);
             if (TIME_PARAMETERS.contains(parameter.name())) {
                 String tip = Messages.text("form.timeUnitTip");
                 label.setToolTipText(tip);
@@ -63,6 +68,18 @@ public final class ParameterForm extends JPanel {
             add(label);
             add(editor, "width 160::");
         }
+    }
+
+    /**
+     * Moves every caption and its editor into {@code host}, whose layout is a two column grid (caption, field) that
+     * wraps after the field, so they share the host's columns with its own rows. The form keeps reading, validating
+     * and listening to the editors; it is left empty and is not added anywhere.
+     */
+    public void addRowsTo(JPanel host) {
+        labels.forEach((name, label) -> {
+            host.add(label);
+            host.add(editors.get(name));
+        });
     }
 
     /** The label of a parameter: its name, plus « (t)» for a time parameter. Error messages use the plain name. */

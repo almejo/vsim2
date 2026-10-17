@@ -160,4 +160,19 @@ class ParameterFormTest {
         assertThat(gate.validationError()).hasValueSatisfying(message -> assertThat(message)
                 .contains("Retardo").doesNotContain("(t)"));
     }
+
+    @Test
+    void theRowsCanJoinAHostGridAndStillValidate() {
+        ParameterForm form = form(StandardComponentTypes.CLOCK, Map.of());
+        javax.swing.JPanel host = new javax.swing.JPanel();
+        form.addRowsTo(host);
+        assertThat(form.getComponentCount()).isZero();
+        assertThat(host.getComponents()).hasSize(4);
+        assertThat(((JLabel) host.getComponent(0)).getLabelFor()).isSameAs(form.editor("time-up"));
+        assertThat(host.getComponent(1)).isSameAs(form.editor("time-up"));
+        assertThat(host.getComponent(3)).isSameAs(form.editor("time-down"));
+        typeInto((JSpinner) form.editor("time-up"), "0");
+        assertThat(form.validationError()).isPresent();
+        assertThat(((JSpinner) form.editor("time-up")).getClientProperty("JComponent.outline")).isEqualTo("error");
+    }
 }

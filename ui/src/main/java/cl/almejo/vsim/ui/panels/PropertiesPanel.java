@@ -178,7 +178,8 @@ public final class PropertiesPanel extends JPanel {
             return;
         }
         ParameterForm form = new ParameterForm(type, component.parameters());
-        add(form, "span 2, growx");
+        // the parameter rows join this panel's grid, so «Etiqueta» and the parameters share the same columns
+        form.addRowsTo(this);
         Runnable applyParameters = () -> applyIfCurrent(built,
                 () -> parametersCommand(id, type, form).ifPresent(openDocument::execute));
         form.addCommitListener(applyParameters);
@@ -255,6 +256,7 @@ public final class PropertiesPanel extends JPanel {
 
     private void addRow(String caption, java.awt.Component editor) {
         JLabel label = new JLabel(caption);
+        label.setLabelFor(editor);
         add(label);
         add(editor);
     }
