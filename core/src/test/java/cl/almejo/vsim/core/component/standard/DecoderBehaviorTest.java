@@ -51,6 +51,8 @@ class DecoderBehaviorTest {
             assertThat(type.pinCount()).isEqualTo(2 + outputs);
             assertThat(type.pin(ADDRESS).width()).isEqualTo(inputBits);
             assertThat(type.pin(ADDRESS).position().x()).isZero();
+            // M7 fix round: A stays put whatever the number of input bits (only EN, on the bottom edge, moves)
+            assertThat(type.pin(ADDRESS).position()).isEqualTo(standard.pin(ADDRESS).position());
             assertThat(type.pin(ENABLE).position().y()).isEqualTo(type.size().height());
             List<GridPoint> outputPositions = new ArrayList<>();
             for (int output = 0; output < outputs; output++) {

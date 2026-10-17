@@ -57,6 +57,10 @@ class MuxBehaviorTest {
         }
         ComponentType wide = two.specializedFor(parameters(32, "2"));
         assertThat(wide.size()).isEqualTo(two.size());
+        // M7 fix round: growing to 4 inputs keeps D0, D1 and Y where they were (only S, on the bottom edge, moves)
+        assertThat(four.pin(0).position()).isEqualTo(two.pin(0).position());
+        assertThat(four.pin(1).position()).isEqualTo(two.pin(1).position());
+        assertThat(four.pin(5).position()).isEqualTo(two.pin(3).position());
     }
 
     @Test

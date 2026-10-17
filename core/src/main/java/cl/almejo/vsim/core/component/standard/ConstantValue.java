@@ -72,27 +72,6 @@ public final class ConstantValue {
     }
 
     /**
-     * The value of a non-negative {@code text}.
-     *
-     * @throws IllegalArgumentException when it is empty, negative, garbage or wider than 32 bits
-     * @see #bitsOf(String, int) for texts that may be negative
-     */
-    public static long parse(String text) {
-        BigInteger value = text == null ? null : parseUnbounded(text);
-        if (value == null || value.signum() < 0) {
-            throw new IllegalArgumentException("not an unsigned number (use 0b..., 0x... or a decimal): " + text);
-        }
-        if (value.bitLength() > MAXIMUM_WIDTH) {
-            throw new IllegalArgumentException("does not fit in " + MAXIMUM_WIDTH + " bits: " + text);
-        }
-        return value.longValueExact();
-    }
-
-    public static boolean fits(long value, int width) {
-        return value >= 0 && (width >= Long.SIZE || value >>> width == 0);
-    }
-
-    /**
      * The canonical text: lowercase prefix, uppercase hex digits, no separators, no extra leading zeros; a negative
      * decimal keeps its sign ({@code -0} is {@code 0}).
      */

@@ -54,10 +54,13 @@ public final class StandardComponentTypes {
     public static final String ADDER = "adder";
     public static final String ALU = "alu";
     public static final String COMPARATOR = "comparator";
-    /** The comparator's «Números» parameter: {@link #UNSIGNED} («Sin signo») or {@link #SIGNED} («Con signo»). */
+    /**
+     * The comparator's «Números» parameter: {@link #SIGNEDNESS_UNSIGNED} («Sin signo») or {@link #SIGNEDNESS_SIGNED}
+     * («Con signo»). Not to be confused with the «Mostrar como» format {@link ConstantValue#SIGNED}.
+     */
     public static final String SIGNEDNESS = "signedness";
-    public static final String UNSIGNED = "unsigned";
-    public static final String SIGNED = "signed";
+    public static final String SIGNEDNESS_UNSIGNED = "unsigned";
+    public static final String SIGNEDNESS_SIGNED = "signed";
     public static final String MUX = "mux";
     public static final String DECODER = "decoder";
     public static final String REGISTER = "register";
@@ -173,10 +176,10 @@ public final class StandardComponentTypes {
                 parameters -> aluShape((Integer) parameters.get(WIDTH)),
                 parameters -> new AluBehavior((Integer) parameters.get(WIDTH), (Integer) parameters.get("delay"))));
         registry.register(ComponentType.parameterized(COMPARATOR, ComponentCategory.BLOCKS,
-                List.of(BlockSignals.WIDTH, ParameterSpec.choice(SIGNEDNESS, UNSIGNED, List.of(UNSIGNED, SIGNED)),
-                        DELAY),
+                List.of(BlockSignals.WIDTH, ParameterSpec.choice(SIGNEDNESS, SIGNEDNESS_UNSIGNED,
+                        List.of(SIGNEDNESS_UNSIGNED, SIGNEDNESS_SIGNED)), DELAY),
                 parameters -> comparatorShape((Integer) parameters.get(WIDTH)),
-                parameters -> new ComparatorBehavior(SIGNED.equals(parameters.get(SIGNEDNESS)),
+                parameters -> new ComparatorBehavior(SIGNEDNESS_SIGNED.equals(parameters.get(SIGNEDNESS)),
                         (Integer) parameters.get("delay"))));
         registry.register(ComponentType.parameterized(MUX, ComponentCategory.BLOCKS,
                 List.of(BlockSignals.WIDTH, MUX_INPUTS, DELAY),
@@ -203,7 +206,8 @@ public final class StandardComponentTypes {
 
     /**
      * A 6 x (2k + 4) trapezoid: D0..D(k-1)[N] on the left at y = 3, 5, ..., S[log2 k] in the middle of the bottom edge
-     * and Y[N] in the middle of the right edge. D0 and D1 stay put when the inputs go from 2 to 4.
+     * and Y[N] at (6, 4), the middle of the right edge with 2 inputs. D0, D1 and Y stay put when the inputs go from 2
+     * to 4 (S, on the bottom edge, has to move), so their wires stay connected.
      */
     private static ComponentShape muxShape(int inputs, int width) {
         int height = 2 * inputs + 4;
@@ -212,19 +216,20 @@ public final class StandardComponentTypes {
             pins.add(PinSpec.input("D" + index, 0, 3 + 2 * index, width));
         }
         pins.add(PinSpec.input("S", 3, height, Integer.numberOfTrailingZeros(inputs)));
-        pins.add(PinSpec.output("Y", 6, height / 2, width));
+        pins.add(PinSpec.output("Y", 6, 4, width));
         return new ComponentShape(new GridSize(6, height), pins);
     }
 
     /**
-     * A 6 x (2 * 2^k + 2) rectangle: A[k] in the middle of the left edge, EN in the middle of the bottom edge and
-     * Y0..Y(2^k-1) on the right edge at y = 2, 4, ...
+     * A 6 x (2 * 2^k + 2) rectangle: A[k] at (0, 3) on the left edge, EN in the middle of the bottom edge and
+     * Y0..Y(2^k-1) on the right edge at y = 2, 4, ... A and the first outputs stay put when «Bits de entrada» changes
+     * (EN, on the bottom edge, has to move).
      */
     private static ComponentShape decoderShape(int inputBits) {
         int outputs = 1 << inputBits;
         int height = 2 * outputs + 2;
         List<PinSpec> pins = new ArrayList<>();
-        pins.add(PinSpec.input("A", 0, height / 2, inputBits));
+        pins.add(PinSpec.input("A", 0, 3, inputBits));
         pins.add(PinSpec.input("EN", 3, height));
         for (int output = 0; output < outputs; output++) {
             pins.add(PinSpec.output("Y" + output, 6, 2 + 2 * output));

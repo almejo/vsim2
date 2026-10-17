@@ -29,37 +29,36 @@ class ConstantValueTest {
             "4294967295|4294967295|4294967295"})
     void validTextsParseAndNormalize(String text, String normalized, long value) {
         assertThat(ConstantValue.normalize(text)).isEqualTo(normalized);
-        assertThat(ConstantValue.parse(text)).isEqualTo(value);
+        assertThat(ConstantValue.bitsOf(text, 32)).hasValue(value);
     }
 
     @ParameterizedTest
     @ValueSource(strings = {"", "   ", "-", "--1", "-0x1", "0x", "0b", "0b2", "12a", "0xG", "abc", "_", "1.5", "0x-1",
             "- 1"})
     void garbageIsRejected(String text) {
-        assertThatThrownBy(() -> ConstantValue.parse(text)).isInstanceOf(IllegalArgumentException.class);
+        assertThat(ConstantValue.bitsOf(text, 32)).isEmpty();
         assertThatThrownBy(() -> ConstantValue.normalize(text)).isInstanceOf(IllegalArgumentException.class);
         assertThat(ConstantValue.isValidText(text)).isFalse();
     }
 
     @Test
     void valuesAbove32BitsAreRejectedAsNotFitting() {
-        assertThatThrownBy(() -> ConstantValue.parse("0x100000000")).isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> ConstantValue.parse("4294967296")).isInstanceOf(IllegalArgumentException.class);
+        assertThat(ConstantValue.bitsOf("0x100000000", 32)).isEmpty();
+        assertThat(ConstantValue.bitsOf("4294967296", 32)).isEmpty();
         assertThat(ConstantValue.isValidText("0x100000000")).isTrue();
         assertThat(ConstantValue.fitsText("0x100000000", 32)).isFalse();
     }
 
     @Test
     void theTopOfTheRangeFitsItsWidthAndNothingNarrower() {
-        long top = ConstantValue.parse("0xFFFFFFFF");
-        assertThat(ConstantValue.fits(top, 32)).isTrue();
-        assertThat(ConstantValue.fits(top, 31)).isFalse();
-        assertThat(ConstantValue.fits(ConstantValue.parse("4294967295"), 32)).isTrue();
-        assertThat(ConstantValue.fits(0, 1)).isTrue();
-        assertThat(ConstantValue.fits(1, 1)).isTrue();
-        assertThat(ConstantValue.fits(2, 1)).isFalse();
-        assertThat(ConstantValue.fits(15, 4)).isTrue();
-        assertThat(ConstantValue.fits(16, 4)).isFalse();
+        assertThat(ConstantValue.fitsText("0xFFFFFFFF", 32)).isTrue();
+        assertThat(ConstantValue.fitsText("0xFFFFFFFF", 31)).isFalse();
+        assertThat(ConstantValue.fitsText("4294967295", 32)).isTrue();
+        assertThat(ConstantValue.fitsText("0", 1)).isTrue();
+        assertThat(ConstantValue.fitsText("1", 1)).isTrue();
+        assertThat(ConstantValue.fitsText("2", 1)).isFalse();
+        assertThat(ConstantValue.fitsText("15", 4)).isTrue();
+        assertThat(ConstantValue.fitsText("16", 4)).isFalse();
     }
 
     @Test
@@ -151,7 +150,6 @@ class ConstantValueTest {
         assertThat(ConstantValue.normalize("-0")).isEqualTo("0");
         assertThat(ConstantValue.fitsText("-3", 2)).isFalse();
         assertThat(ConstantValue.fitsText("-2", 2)).isTrue();
-        assertThatThrownBy(() -> ConstantValue.parse("-3")).isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
