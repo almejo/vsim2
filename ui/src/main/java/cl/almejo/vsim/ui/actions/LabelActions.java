@@ -151,6 +151,15 @@ public final class LabelActions {
      * the simulation like a click on a switch (no document change, no undo step).
      */
     public void editInputValue(Component pin) {
+        editInputValue(pin, null);
+    }
+
+    /**
+     * Like {@link #editInputValue(Component)}, starting from {@code startingValue} instead of the live value (when it
+     * is not null, fully defined and of the pin's width): a double click on the tag passes the value from before its
+     * first click toggled the pin.
+     */
+    public void editInputValue(Component pin, Value startingValue) {
         Optional<Component> current = openDocument.document().component(pin.id()).filter(InterfacePins::isBusInput);
         if (current.isEmpty()) {
             return;
@@ -159,11 +168,11 @@ public final class LabelActions {
         ComponentType type = openDocument.registry().typeOf(current.get());
         int width = InterfacePins.widthOf(current.get());
         String format = (String) type.resolveParameters(current.get().parameters()).get(ConstantValue.FORMAT);
-        long liveBits = switch (openDocument.latestSnapshot().componentState(id.value())) {
-            case VisibleState.SwitchState state when state.value().isFullyDefined()
-                    && state.value().width() == width -> state.value().bits();
-            case null, default -> 0L;
-        };
+        Value shownValue = startingValue != null ? startingValue
+                : openDocument.latestSnapshot().componentState(id.value()) instanceof VisibleState.SwitchState state
+                        ? state.value() : null;
+        long liveBits = shownValue != null && shownValue.isFullyDefined() && shownValue.width() == width
+                ? shownValue.bits() : 0L;
         Supplier<Optional<Component>> stillABusInput = () -> openDocument.document().component(id)
                 .filter(InterfacePins::isBusInput);
         editor.open(new InlineEditRequest(InterfacePinPainter.valueBox(type, current.get()).orElseThrow(),

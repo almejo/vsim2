@@ -5,6 +5,7 @@ import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.command.PasteCommand;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
+import cl.almejo.vsim.core.value.Value;
 import cl.almejo.vsim.core.document.DocumentChange;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.DocumentListener;
@@ -910,6 +911,11 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     @Override
     public void editValue(Component component) {
         host.editValue(component);
+    }
+
+    @Override
+    public void editValue(Component component, Value startingValue) {
+        host.editValue(component, startingValue);
     }
 
     // Painting and snapshots

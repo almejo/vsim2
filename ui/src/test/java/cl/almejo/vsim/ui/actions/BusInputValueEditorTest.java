@@ -1,11 +1,14 @@
 package cl.almejo.vsim.ui.actions;
 
+import cl.almejo.vsim.core.command.AddElementsCommand;
 import cl.almejo.vsim.core.command.ChangeParametersCommand;
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
+import cl.almejo.vsim.core.document.Wire;
+import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.library.ComponentLibrary;
 import cl.almejo.vsim.core.value.Value;
 import cl.almejo.vsim.ui.app.AppPreferences;
@@ -28,6 +31,8 @@ import javax.swing.JPopupMenu;
 import javax.swing.SwingUtilities;
 import java.awt.Rectangle;
 import java.awt.event.ActionEvent;
+import java.awt.event.InputEvent;
+import java.awt.event.MouseEvent;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 import java.util.ArrayList;
@@ -111,6 +116,70 @@ class BusInputValueEditorTest {
         assertThat(openDocument.changeCount()).isEqualTo(changes);
         assertThat(openDocument.document().component(input.id()).orElseThrow().parameters().get("value"))
                 .isEqualTo("0");
+    }
+
+    /**
+     * I2 (M7 fix round): the first click of a double click on the tag toggles the pin; the editor must still open on
+     * the value from before the double click, and Esc must leave that value.
+     */
+    @Test
+    void aDoubleClickOnTheTagEditsTheValueFromBeforeTheDoubleClick() {
+        Component input = inputWithOutput(Map.of("width", 4));
+        Component marker = place(openDocument, StandardComponentTypes.INPUT_PIN, 30, 30, Map.of("width", 4));
+        openDocument.setInputValue(input.id(), Value.of(4, 5));
+        waitUntil(() -> stateOf(input).equals(new VisibleState.SwitchState(Value.of(4, 5))));
+
+        doubleClickAt(10.6, 10.6);
+
+        assertThat(editor.isOpen()).isTrue();
+        assertThat(editor.field().getText()).isEqualTo("0b0101");
+        editor.cancel();
+        settle(marker, 3);
+        assertThat(stateOf(input)).isEqualTo(new VisibleState.SwitchState(Value.of(4, 5)));
+
+        doubleClickAt(10.6, 10.6);
+        assertThat(editor.field().getText()).isEqualTo("0b0101");
+        editor.field().setText("0x9");
+        editor.confirm();
+        settle(marker, 4);
+        assertThat(stateOf(input)).isEqualTo(new VisibleState.SwitchState(Value.of(4, 9)));
+    }
+
+    /** M8 (M7 fix round): the value box is drawn over a wire passing under it, so a double click there edits the value. */
+    @Test
+    void aDoubleClickOnTheValueBoxOverAWireEditsTheValue() {
+        Component input = inputWithOutput(Map.of("width", 8));
+        Rectangle2D box = InterfacePinPainter.valueBox(openDocument.registry().typeOf(input), input).orElseThrow();
+        double centerX = box.getCenterX() / GridPoint.PIXELS_PER_UNIT;
+        int wireY = (int) Math.round(box.getCenterY() / GridPoint.PIXELS_PER_UNIT);
+        openDocument.execute(new AddElementsCommand(List.of(new Wire(openDocument.document().newWireId(),
+                new GridPoint((int) Math.floor(centerX) - 3, wireY), new GridPoint((int) Math.ceil(centerX) + 3, wireY)))));
+        assertThat(box.contains(centerX * GridPoint.PIXELS_PER_UNIT, wireY * GridPoint.PIXELS_PER_UNIT)).isTrue();
+
+        doubleClickAt(centerX, wireY);
+
+        assertThat(editor.isOpen()).isTrue();
+        assertThat(view.canvas().selection().ids()).containsExactly(input.id());
+        editor.cancel();
+    }
+
+    private void doubleClickAt(double gridX, double gridY) {
+        Point2D screen = view.canvas().viewport().gridToScreen(gridX, gridY);
+        int x = (int) Math.round(screen.getX());
+        int y = (int) Math.round(screen.getY());
+        var listener = view.canvas().getMouseListeners()[0];
+        for (int clickCount = 1; clickCount <= 2; clickCount++) {
+            listener.mousePressed(new MouseEvent(view.canvas(), MouseEvent.MOUSE_PRESSED, 0,
+                    InputEvent.BUTTON1_DOWN_MASK, x, y, clickCount, false, MouseEvent.BUTTON1));
+            listener.mouseReleased(new MouseEvent(view.canvas(), MouseEvent.MOUSE_RELEASED, 0, 0, x, y, clickCount,
+                    false, MouseEvent.BUTTON1));
+        }
+    }
+
+    /** Queues a value for {@code marker} and waits for it: every request queued before has been applied by then. */
+    private void settle(Component marker, int value) {
+        openDocument.setInputValue(marker.id(), Value.of(4, value));
+        waitUntil(() -> stateOf(marker).equals(new VisibleState.SwitchState(Value.of(4, value))));
     }
 
     @Test

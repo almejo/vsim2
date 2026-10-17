@@ -1,6 +1,7 @@
 package cl.almejo.vsim.ui.window;
 
 import cl.almejo.vsim.core.document.Component;
+import cl.almejo.vsim.core.value.Value;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.io.LibraryDirectory;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
@@ -360,6 +361,11 @@ public final class EditorView extends JPanel implements CanvasHost {
     @Override
     public void editValue(Component component) {
         labelFeatures.actions().editValue(component);
+    }
+
+    @Override
+    public void editValue(Component component, Value startingValue) {
+        labelFeatures.actions().editInputValue(component, startingValue);
     }
 
     private void indexMenus() {

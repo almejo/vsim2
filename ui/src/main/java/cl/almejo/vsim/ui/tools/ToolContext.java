@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.tools;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
+import cl.almejo.vsim.core.value.Value;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.HitTester;
 import cl.almejo.vsim.ui.canvas.Selection;
@@ -60,5 +61,13 @@ public interface ToolContext {
     /** Edits in place the value of a Constante; by default what a double click did before: the configure dialog. */
     default void editValue(Component component) {
         configure(component);
+    }
+
+    /**
+     * M7: edits the value of a bus input pin starting from {@code startingValue} instead of the live one (a double
+     * click puts back the value its first click toggled).
+     */
+    default void editValue(Component component, Value startingValue) {
+        editValue(component);
     }
 }

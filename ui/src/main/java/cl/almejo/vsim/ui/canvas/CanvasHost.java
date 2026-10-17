@@ -2,6 +2,7 @@ package cl.almejo.vsim.ui.canvas;
 
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
+import cl.almejo.vsim.core.value.Value;
 import cl.almejo.vsim.ui.wiring.SelectionMoves;
 
 import java.awt.geom.Point2D;
@@ -29,5 +30,10 @@ public interface CanvasHost {
     /** Edits in place the value of a Constante; hosts without in-place editing open the configure dialog. */
     default void editValue(Component component) {
         configure(component);
+    }
+
+    /** M7: edits a bus input pin's value starting from {@code startingValue}; by default as {@link #editValue}. */
+    default void editValue(Component component, Value startingValue) {
+        editValue(component);
     }
 }

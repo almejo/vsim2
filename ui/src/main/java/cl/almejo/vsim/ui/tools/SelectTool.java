@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.tools;
 import cl.almejo.vsim.core.command.PasteCommand;
 import cl.almejo.vsim.core.command.SetLabelOffsetCommand;
 import cl.almejo.vsim.core.component.ElementBounds;
+import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
@@ -15,6 +16,7 @@ import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.io.CircuitFragment;
 import cl.almejo.vsim.core.library.InterfacePins;
+import cl.almejo.vsim.core.value.Value;
 import cl.almejo.vsim.core.wiring.WireStretch;
 import cl.almejo.vsim.ui.canvas.ConnectionPoints;
 import cl.almejo.vsim.ui.canvas.LabelLayout;
@@ -104,6 +106,11 @@ public final class SelectTool implements Tool {
     /** The last hover event (a move, or a release), so a modifier key changed without moving redoes the cursor. */
     private CanvasMouseEvent lastHover;
     private boolean ownPressSeen;
+    /**
+     * M7: the bus input pin the last click toggled and its value before that click, kept until the next press, so the
+     * double click that click began can put the value back and edit it.
+     */
+    private ToggledBusInput lastBusInputToggle;
     private boolean narrowOnRelease;
     /** The press was a Shift click on an element: a release without moving only adjusts the selection. */
     private boolean selectionClick;
@@ -213,6 +220,8 @@ public final class SelectTool implements Tool {
         reset();
         boolean continuesOwnClick = ownPressSeen;
         ownPressSeen = true;
+        ToggledBusInput toggledByFirstClick = lastBusInputToggle;
+        lastBusInputToggle = null;
         // a label beats a wire under it, as in a single press, so both clicks of a double click agree
         if (event.clickCount() >= 2 && continuesOwnClick) {
             Optional<Component> labelled = labelPressedAt(context, event.gridPosition(), hit);
@@ -222,13 +231,9 @@ public final class SelectTool implements Tool {
                 return;
             }
         }
-        if (event.clickCount() >= 2 && continuesOwnClick && !event.controlDown()
-                && hit.isPresent() && hit.get() instanceof Wire clickedWire) {
-            selectWireGroup(context, event, clickedWire);
-            return;
-        }
-        if (event.clickCount() >= 2 && continuesOwnClick && hit.isEmpty()) {
-            // M7: a bus input pin's value box lies beside its tag, outside the pin's bounds
+        if (event.clickCount() >= 2 && continuesOwnClick && (hit.isEmpty() || hit.get() instanceof Wire)) {
+            // M7: a bus input pin's value box lies beside its tag, outside the pin's bounds; it is drawn over the
+            // wires, so it beats a wire under it
             Optional<Component> pinOfBox = busInputValueBoxAt(context, event.gridPosition());
             if (pinOfBox.isPresent()) {
                 context.selection().select(pinOfBox.get().id());
@@ -236,10 +241,21 @@ public final class SelectTool implements Tool {
                 return;
             }
         }
+        if (event.clickCount() >= 2 && continuesOwnClick && !event.controlDown()
+                && hit.isPresent() && hit.get() instanceof Wire clickedWire) {
+            selectWireGroup(context, event, clickedWire);
+            return;
+        }
         if (event.clickCount() >= 2 && continuesOwnClick && hit.isPresent()) {
             if (hit.get() instanceof Component component) {
                 context.selection().select(component.id());
-                if (component.typeId().equals(StandardComponentTypes.CONSTANT) || InterfacePins.isBusInput(component)) {
+                if (toggledByFirstClick != null && toggledByFirstClick.id().equals(component.id())
+                        && InterfacePins.isBusInput(component)) {
+                    // the first click toggled the pin: put its value back, then edit that value
+                    context.openDocument().setInputValue(component.id(), toggledByFirstClick.valueBefore());
+                    context.editValue(component, toggledByFirstClick.valueBefore());
+                } else if (component.typeId().equals(StandardComponentTypes.CONSTANT)
+                        || InterfacePins.isBusInput(component)) {
                     context.editValue(component);
                 } else {
                     context.configure(component);
@@ -835,8 +851,16 @@ public final class SelectTool implements Tool {
 
     private void toggleIfInteractive(ToolContext context) {
         if (pressedElement instanceof Component component && isInteractive(context, component)) {
+            if (InterfacePins.isBusInput(component) && context.openDocument().latestSnapshot()
+                    .componentState(component.id().value()) instanceof VisibleState.SwitchState state) {
+                lastBusInputToggle = new ToggledBusInput(component.id(), state.value());
+            }
             context.openDocument().interact(component.id());
         }
+    }
+
+    /** A bus input pin a click toggled, with the value it showed before. */
+    private record ToggledBusInput(ElementId id, Value valueBefore) {
     }
 
     /** The pin nearest to {@code gridPosition}: a scan of every pin of the document, counted for tests. */
