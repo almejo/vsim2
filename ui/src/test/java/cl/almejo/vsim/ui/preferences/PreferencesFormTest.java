@@ -202,6 +202,17 @@ class PreferencesFormTest {
     }
 
     @Test
+    void aStoredFamilyInAnotherCaseIsShownUnderItsInstalledNameAndKeptOnASizeChange() {
+        preferences.setTextFont(new TextFont("serif", 12));
+        PreferencesForm form = form();
+        assertThat(form.fontFamilyChoice().getSelectedItem().toString()).isEqualTo(Font.SERIF);
+        assertThat(labels(form.fontFamilyChoice())).doesNotContain("serif");
+        form.fontSizeSpinner().setValue(13);
+        assertThat(preferences.textFont().family()).isEqualToIgnoringCase(Font.SERIF);
+        assertThat(preferences.textFont().size()).isEqualTo(13);
+    }
+
+    @Test
     void aStoredFamilyThatIsNotInstalledIsShownAndKept() {
         preferences.setTextFont(new TextFont("Fuente De Otro Computador", 12));
         PreferencesForm form = form();
@@ -217,6 +228,8 @@ class PreferencesFormTest {
     private Consumer<SchemeEditorPanel> editing = panel -> { };
     private boolean editorSaves = true;
     private boolean themeIsDark;
+    private final List<String> deleteQuestions = new ArrayList<>();
+    private boolean deleteAnswer = true;
 
     private PreferencesForm schemeForm() {
         return new PreferencesForm(preferences, (parent, current) -> Optional.empty(), (parent, panel) -> {
@@ -225,7 +238,32 @@ class PreferencesFormTest {
             return editorSaves;
         }, (parent, title, initial) -> {
             throw new AssertionError("the colour chooser must not open");
-        }, () -> themeIsDark);
+        }, () -> themeIsDark, (parent, schemeName) -> {
+            deleteQuestions.add(schemeName);
+            return deleteAnswer;
+        });
+    }
+
+    @Test
+    void deleteAsksFirstAndANoKeepsTheScheme() {
+        CustomColorSchemes customSchemes = new CustomColorSchemes(preferences);
+        NamedColorScheme mine = customSchemes.save("Mío", ColorSchemes.CSIM);
+        preferences.setColorScheme(Optional.of(mine.id()));
+        PreferencesForm form = schemeForm();
+        deleteAnswer = false;
+
+        form.deleteSchemeButton().doClick(0);
+
+        assertThat(deleteQuestions).containsExactly("Mío");
+        assertThat(customSchemes.list()).containsExactly(mine);
+        assertThat(preferences.colorScheme()).contains(mine.id());
+        assertThat(selected(form.schemeChoice())).contains(mine.id());
+        assertThat(form.deleteSchemeButton().isEnabled()).isTrue();
+    }
+
+    @Test
+    void theDeleteQuestionNamesTheScheme() {
+        assertThat(Messages.format("preferences.scheme.deleteConfirm", "Mío")).isEqualTo("¿Borrar el esquema «Mío»?");
     }
 
     @Test

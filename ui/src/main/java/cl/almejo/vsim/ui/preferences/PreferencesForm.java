@@ -14,6 +14,7 @@ import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
 import javax.swing.JLabel;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JSpinner;
 import javax.swing.JTextField;
@@ -47,6 +48,12 @@ public final class PreferencesForm extends JPanel {
         Optional<Path> choose(Component parent, Path current);
     }
 
+    /** Asks whether to delete the custom scheme named {@code schemeName}; tests answer without a dialog. */
+    @FunctionalInterface
+    interface DeleteConfirmer {
+        boolean confirm(Component parent, String schemeName);
+    }
+
     /** The selectable languages: tag and the message key of its name. */
     private static final Map<String, String> LANGUAGES = new LinkedHashMap<>();
 
@@ -71,23 +78,25 @@ public final class PreferencesForm extends JPanel {
     private final SchemeEditorDialog.Opener schemeEditorOpener;
     private final SchemeEditorPanel.ColorChooser colorChooser;
     private final BooleanSupplier themeIsDark;
+    private final DeleteConfirmer deleteConfirmer;
     private final JButton customizeSchemeButton = new JButton(Messages.text("preferences.scheme.customize"));
     private final JButton deleteSchemeButton = new JButton(Messages.text("preferences.scheme.delete"));
     private boolean refreshingSchemes;
 
     public PreferencesForm(AppPreferences preferences, DirectoryChooser directoryChooser) {
         this(preferences, directoryChooser, SchemeEditorDialog::open, SchemeEditorDialog::chooseColor,
-                FlatLaf::isLafDark);
+                FlatLaf::isLafDark, PreferencesForm::confirmDelete);
     }
 
     /**
      * @param schemeEditorOpener shows «Personalizar…» and tells whether the user saved (tests answer without a dialog)
      * @param colorChooser       what the editor's colour buttons open
      * @param themeIsDark        whether the installed theme is dark: «Según el tema» is then a copy of «Oscuro»
+     * @param deleteConfirmer    asks before «Borrar» removes a custom scheme (it cannot be undone)
      */
     PreferencesForm(AppPreferences preferences, DirectoryChooser directoryChooser,
                     SchemeEditorDialog.Opener schemeEditorOpener, SchemeEditorPanel.ColorChooser colorChooser,
-                    BooleanSupplier themeIsDark) {
+                    BooleanSupplier themeIsDark, DeleteConfirmer deleteConfirmer) {
         super(new MigLayout("insets dialog, wrap 2", "[right][grow, fill]"));
         this.preferences = preferences;
         this.directoryChooser = directoryChooser;
@@ -95,6 +104,7 @@ public final class PreferencesForm extends JPanel {
         this.schemeEditorOpener = schemeEditorOpener;
         this.colorChooser = colorChooser;
         this.themeIsDark = themeIsDark;
+        this.deleteConfirmer = deleteConfirmer;
 
         for (AppPreferences.Theme theme : List.of(AppPreferences.Theme.SYSTEM, AppPreferences.Theme.LIGHT,
                 AppPreferences.Theme.DARK)) {
@@ -173,7 +183,7 @@ public final class PreferencesForm extends JPanel {
                 fontFamilyChoice.addItem(new Choice<>(family, family));
             }
         }
-        select(fontFamilyChoice, stored.family());
+        selectFamily(stored.family());
         fontSizeSpinner.setModel(new SpinnerNumberModel(stored.size(), TextFont.MINIMUM_SIZE, TextFont.MAXIMUM_SIZE,
                 1));
         fontFamilyChoice.addActionListener(event -> storeTextFont());
@@ -182,6 +192,16 @@ public final class PreferencesForm extends JPanel {
         add(new JLabel(Messages.text("preferences.textFont")), "gaptop 12");
         add(fontFamilyChoice, "gaptop 12, split 2");
         add(fontSizeSpinner, "growx 0");
+    }
+
+    /** Selects the entry of {@code family}, whatever its case («dejavu sans» stored, «DejaVu Sans» listed). */
+    private void selectFamily(String family) {
+        for (int index = 0; index < fontFamilyChoice.getItemCount(); index++) {
+            if (fontFamilyChoice.getItemAt(index).value().equalsIgnoreCase(family)) {
+                fontFamilyChoice.setSelectedIndex(index);
+                return;
+            }
+        }
     }
 
     private void storeTextFont() {
@@ -241,12 +261,21 @@ public final class PreferencesForm extends JPanel {
         refreshSchemes();
     }
 
-    /** «Borrar»: removes the selected custom scheme; when it was in use, the choice goes back to «Según el tema». */
+    /**
+     * «Borrar»: after a yes, removes the selected custom scheme; when it was in use, the choice goes back to «Según el
+     * tema».
+     */
     private void deleteScheme() {
-        selectedCustomScheme().ifPresent(custom -> {
+        selectedCustomScheme().filter(custom -> deleteConfirmer.confirm(this, custom.name())).ifPresent(custom -> {
             customSchemes.delete(custom.id());
             refreshSchemes();
         });
+    }
+
+    private static boolean confirmDelete(Component parent, String schemeName) {
+        return JOptionPane.showConfirmDialog(parent, Messages.format("preferences.scheme.deleteConfirm", schemeName),
+                Messages.text("preferences.scheme.delete"), JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE)
+                == JOptionPane.YES_OPTION;
     }
 
     JButton customizeSchemeButton() {
