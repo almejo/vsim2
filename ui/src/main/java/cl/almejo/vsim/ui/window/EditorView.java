@@ -359,7 +359,7 @@ public final class EditorView extends JPanel implements CanvasHost {
 
     @Override
     public void editValue(Component component) {
-        labelFeatures.actions().editConstantValue(component);
+        labelFeatures.actions().editValue(component);
     }
 
     private void indexMenus() {

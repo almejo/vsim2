@@ -6,6 +6,7 @@ import cl.almejo.vsim.core.document.Frame;
 import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
+import cl.almejo.vsim.core.library.InterfacePins;
 import cl.almejo.vsim.ui.canvas.Selection;
 import cl.almejo.vsim.ui.i18n.Messages;
 
@@ -18,7 +19,7 @@ import java.util.Optional;
 
 /**
  * M3-B context-menu items: Etiqueta…, Editar texto…, Borrar tramo, Agregar texto aquí; M6.8: Restablecer posición de
- * la etiqueta.
+ * la etiqueta; M7: Valor… on a bus input pin.
  */
 public final class LabelMenuContributor implements ContextMenuContributor {
 
@@ -41,6 +42,10 @@ public final class LabelMenuContributor implements ContextMenuContributor {
         boolean single = selection.ids().size() <= 1;
         switch (target.get()) {
             case Component component -> {
+                if (single && InterfacePins.isBusInput(component)) {
+                    menu.add(ContextMenuEntry.VALUE.tag(
+                            item(Messages.text("action.value"), () -> actions.editValue(component))));
+                }
                 if (single) {
                     menu.add(ContextMenuEntry.LABEL.tag(
                             item(Messages.text("action.label"), () -> actions.editLabel(component))));

@@ -235,6 +235,14 @@ public final class OpenDocument implements AutoCloseable {
         simulation.setInputs(byId);
     }
 
+    /**
+     * M7: a value typed into a bus input pin. Like a click on a switch it is queued to the simulation thread (never
+     * applied from here): not a document change, no undo step, kept by «Reiniciar»; the saved initial value stays.
+     */
+    public void setInputValue(ElementId componentId, Value value) {
+        simulation.setInputs(Map.of(componentId.value(), value));
+    }
+
     /** Iniciar: runs the simulation and leaves «Paso a paso» (M6.1-B). */
     public void resume() {
         setStepMode(false);

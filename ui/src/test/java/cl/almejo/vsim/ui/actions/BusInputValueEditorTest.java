@@ -1,0 +1,228 @@
+package cl.almejo.vsim.ui.actions;
+
+import cl.almejo.vsim.core.command.ChangeParametersCommand;
+import cl.almejo.vsim.core.component.ComponentType;
+import cl.almejo.vsim.core.component.VisibleState;
+import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
+import cl.almejo.vsim.core.document.Component;
+import cl.almejo.vsim.core.document.DocumentElement;
+import cl.almejo.vsim.core.library.ComponentLibrary;
+import cl.almejo.vsim.core.value.Value;
+import cl.almejo.vsim.ui.app.AppPreferences;
+import cl.almejo.vsim.ui.app.OpenDocument;
+import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.inline.InlineTextEditor;
+import cl.almejo.vsim.ui.paint.Appearance;
+import cl.almejo.vsim.ui.paint.ColorScheme;
+import cl.almejo.vsim.ui.paint.InterfacePinPainter;
+import cl.almejo.vsim.ui.paint.PainterRegistry;
+import cl.almejo.vsim.ui.window.EditorServices;
+import cl.almejo.vsim.ui.window.EditorView;
+import cl.almejo.vsim.ui.window.WindowCommands;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import javax.swing.JMenuItem;
+import javax.swing.JPopupMenu;
+import javax.swing.SwingUtilities;
+import java.awt.Rectangle;
+import java.awt.event.ActionEvent;
+import java.awt.geom.Point2D;
+import java.awt.geom.Rectangle2D;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+
+import static cl.almejo.vsim.ui.UiTestSupport.place;
+import static cl.almejo.vsim.ui.UiTestSupport.waitUntil;
+import static org.assertj.core.api.Assertions.assertThat;
+
+/** M7: «Valor…» types a value into a bus input pin, in place over its value box; it is not a document change. */
+class BusInputValueEditorTest {
+
+    private static final WindowCommands NO_WINDOW = new WindowCommands() {
+        @Override public void newDocument() { }
+        @Override public void open() { }
+        @Override public void save() { }
+        @Override public void saveAs() { }
+        @Override public void closeWindow() { }
+        @Override public void exit() { }
+    };
+
+    private final OpenDocument openDocument = OpenDocument.createEmpty(StandardComponentTypes.registry());
+    private EditorView view;
+    private InlineTextEditor editor;
+    private LabelActions actions;
+
+    @BeforeEach
+    void create() {
+        Messages.initialize(Messages.SPANISH);
+        view = new EditorView(openDocument, new EditorServices(PainterRegistry.standard(),
+                new Appearance(ColorScheme.LIGHT), AppPreferences.inMemory(), new ComponentLibrary(), List.of()),
+                NO_WINDOW);
+        view.canvas().setSize(800, 600);
+        editor = view.inlineEditor();
+        actions = view.labelFeatures().actions();
+    }
+
+    @AfterEach
+    void close() {
+        view.dispose();
+        openDocument.close();
+    }
+
+    /** A 4-bit input pin at (10, 10) touching a 4-bit output pin; the input pin once its value is live. */
+    private Component inputWithOutput(Map<String, Object> parameters) {
+        Component input = place(openDocument, StandardComponentTypes.INPUT_PIN, 10, 10, parameters);
+        place(openDocument, StandardComponentTypes.OUTPUT_PIN, 12, 10, Map.of("width", parameters.get("width")));
+        waitUntil(() -> openDocument.latestSnapshot().componentState(input.id().value())
+                instanceof VisibleState.SwitchState);
+        return input;
+    }
+
+    private VisibleState stateOf(Component component) {
+        return openDocument.latestSnapshot().componentState(component.id().value());
+    }
+
+    private Component outputPin() {
+        return openDocument.document().components().stream()
+                .filter(component -> component.typeId().equals(StandardComponentTypes.OUTPUT_PIN))
+                .findFirst().orElseThrow();
+    }
+
+    @Test
+    void typingAValueSetsTheLiveValueAndAddsNoUndoStep() {
+        Component input = inputWithOutput(Map.of("width", 4));
+        Object undo = openDocument.history().undoDescription();
+        long changes = openDocument.changeCount();
+
+        actions.editValue(input);
+        assertThat(editor.isOpen()).isTrue();
+        assertThat(editor.field().getText()).isEqualTo("0b0000");
+        editor.field().setText("0x5");
+        assertThat(editor.problemText().isVisible()).isFalse();
+        editor.confirm();
+
+        assertThat(editor.isOpen()).isFalse();
+        waitUntil(() -> stateOf(outputPin()).equals(new VisibleState.LedState(Value.of(4, 5))));
+        assertThat(openDocument.history().undoDescription()).isEqualTo(undo);
+        assertThat(openDocument.changeCount()).isEqualTo(changes);
+        assertThat(openDocument.document().component(input.id()).orElseThrow().parameters().get("value"))
+                .isEqualTo("0");
+    }
+
+    @Test
+    void theEditorStartsWithTheLiveValueInThePinsFormat() {
+        Component input = inputWithOutput(Map.of("width", 8, "format", "signed"));
+        openDocument.setInputValue(input.id(), Value.of(8, 0xFD));
+        waitUntil(() -> stateOf(input).equals(new VisibleState.SwitchState(Value.of(8, 0xFD))));
+        actions.editValue(input);
+        assertThat(editor.field().getText()).isEqualTo("-3");
+        assertThat(editor.field().getSelectedText()).isEqualTo("-3");
+    }
+
+    @Test
+    void aNegativeNumberIsTakenInTwosComplement() {
+        Component input = inputWithOutput(Map.of("width", 4, "format", "signed"));
+        actions.editValue(input);
+        editor.field().setText("-3");
+        editor.confirm();
+        waitUntil(() -> stateOf(outputPin()).equals(new VisibleState.LedState(Value.of(4, 0xD))));
+    }
+
+    @Test
+    void aValueThatDoesNotFitCannotBeConfirmed() {
+        Component input = inputWithOutput(Map.of("width", 4));
+        actions.editValue(input);
+        editor.field().setText("0x1F");
+        assertThat(editor.problemText().isVisible()).isTrue();
+        assertThat(editor.problemText().getText()).isEqualTo("No cabe en 4 bits");
+        editor.confirm();
+        editor.confirmButton().doClick();
+        assertThat(editor.isOpen()).isTrue();
+        editor.field().setText("-9");
+        assertThat(editor.problemText().getText()).isEqualTo("No cabe en 4 bits");
+        editor.field().setText("doce");
+        assertThat(editor.problemText().getText()).isEqualTo("Valor no válido (usa 0b…, 0x… o un número)");
+        editor.cancel();
+        assertThat(stateOf(input)).isEqualTo(new VisibleState.SwitchState(Value.of(4, 0)));
+    }
+
+    @Test
+    void theEditorSitsOverTheValueBox() {
+        Component input = inputWithOutput(Map.of("width", 8));
+        Rectangle2D box = InterfacePinPainter.valueBox(openDocument.registry().typeOf(input), input).orElseThrow();
+        actions.editValue(input);
+        Rectangle field = SwingUtilities.convertRectangle(editor.field().getParent(), editor.field().getBounds(),
+                view.canvas());
+        Rectangle2D painted = view.canvas().viewport().documentTransform().createTransformedShape(box).getBounds2D();
+        // centred on the box (the field is at least as tall as the font allows)
+        assertThat(field.getCenterX()).isBetween(painted.getCenterX() - 2, painted.getCenterX() + 2);
+        assertThat(field.getCenterY()).isBetween(painted.getCenterY() - 2, painted.getCenterY() + 2);
+        editor.cancel();
+    }
+
+    @Test
+    void aWidthChangedMeanwhileIsTakenIntoAccount() {
+        Component input = inputWithOutput(Map.of("width", 8));
+        actions.editValue(input);
+        editor.field().setText("0xFF");
+        assertThat(editor.problemText().isVisible()).isFalse();
+        ComponentType type = openDocument.registry().typeOf(input);
+        openDocument.execute(new ChangeParametersCommand(input.id(), type, Map.of("value", "0", "width", 4)));
+        assertThat(editor.problemText().getText()).isEqualTo("No cabe en 4 bits");
+    }
+
+    @Test
+    void oneBitPinsAndOtherComponentsGetNoValueEditor() {
+        Component oneBit = place(openDocument, StandardComponentTypes.INPUT_PIN, 0, 0, Map.of());
+        actions.editValue(oneBit);
+        assertThat(editor.isOpen()).isFalse();
+        Component output = place(openDocument, StandardComponentTypes.OUTPUT_PIN, 0, 10, Map.of("width", 8));
+        actions.editValue(output);
+        assertThat(editor.isOpen()).isFalse();
+    }
+
+    @Test
+    void theContextMenuOffersValueOnASingleBusInputPinOnly() {
+        Component input = inputWithOutput(Map.of("width", 4));
+        LabelMenuContributor contributor = new LabelMenuContributor(actions);
+        view.canvas().selection().select(input.id());
+        JPopupMenu menu = menuFor(contributor, input);
+        assertThat(texts(menu)).containsExactly("Valor…", "Etiqueta…");
+        JMenuItem value = (JMenuItem) menu.getComponent(0);
+        value.getAction().actionPerformed(new ActionEvent(value, ActionEvent.ACTION_PERFORMED, ""));
+        assertThat(editor.isOpen()).isTrue();
+        editor.cancel();
+
+        Component oneBit = place(openDocument, StandardComponentTypes.INPUT_PIN, 0, 0, Map.of());
+        view.canvas().selection().select(oneBit.id());
+        assertThat(texts(menuFor(contributor, oneBit))).containsExactly("Etiqueta…");
+        view.canvas().selection().select(outputPin().id());
+        assertThat(texts(menuFor(contributor, outputPin()))).containsExactly("Etiqueta…");
+    }
+
+    @Test
+    void theFactoryPutsValueFirstAmongTheComponentEntries() {
+        Component input = inputWithOutput(Map.of("width", 4));
+        view.canvas().selection().select(input.id());
+        JPopupMenu menu = view.contextMenu(Optional.of(input), new Point2D.Double(11, 11));
+        assertThat(texts(menu).getFirst()).isEqualTo("Valor…");
+    }
+
+    private JPopupMenu menuFor(LabelMenuContributor contributor, DocumentElement target) {
+        JPopupMenu menu = new JPopupMenu();
+        contributor.contribute(menu, Optional.of(target), view.canvas().selection(), new Point2D.Double(0, 0));
+        return menu;
+    }
+
+    private static List<String> texts(JPopupMenu menu) {
+        List<String> texts = new ArrayList<>();
+        for (java.awt.Component child : menu.getComponents()) {
+            texts.add(child instanceof JMenuItem item ? item.getText() : "---");
+        }
+        return texts;
+    }
+}

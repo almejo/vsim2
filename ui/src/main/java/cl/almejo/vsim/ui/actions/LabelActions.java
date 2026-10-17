@@ -3,6 +3,9 @@ package cl.almejo.vsim.ui.actions;
 import cl.almejo.vsim.core.command.AddElementsCommand;
 import cl.almejo.vsim.core.command.ChangeParametersCommand;
 import cl.almejo.vsim.core.component.ComponentType;
+import cl.almejo.vsim.core.component.VisibleState;
+import cl.almejo.vsim.core.component.standard.ConstantValue;
+import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.command.RemoveWireSegmentCommand;
 import cl.almejo.vsim.core.command.SetLabelCommand;
 import cl.almejo.vsim.core.command.SetLabelOffsetCommand;
@@ -14,6 +17,8 @@ import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
+import cl.almejo.vsim.core.library.InterfacePins;
+import cl.almejo.vsim.core.value.Value;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.LabelLayout;
 import cl.almejo.vsim.ui.canvas.Selection;
@@ -23,6 +28,7 @@ import cl.almejo.vsim.ui.inline.InlineEditRequest;
 import cl.almejo.vsim.ui.inline.InlineTextEditor;
 import cl.almejo.vsim.ui.inline.InlineValidators;
 import cl.almejo.vsim.ui.paint.ConstantPainter;
+import cl.almejo.vsim.ui.paint.InterfacePinPainter;
 
 import javax.swing.AbstractAction;
 import javax.swing.Action;
@@ -33,10 +39,12 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.BooleanSupplier;
+import java.util.function.Supplier;
 
 /**
  * Label edits of one editor, done in place over the canvas: component labels, free texts, frame titles, the value of a
- * Constante, and cutting wire stretches. Each one is one undo step.
+ * Constante, and cutting wire stretches. Each one is one undo step. M7: also the live value of a bus input pin, which
+ * goes to the simulation and is no undo step.
  */
 public final class LabelActions {
 
@@ -123,6 +131,49 @@ public final class LabelActions {
                         openDocument.execute(new ChangeParametersCommand(id, type, changed));
                     }
                 }), InlineEditRequest.Anchor.CENTER), () -> openDocument.document().component(id).isPresent());
+    }
+
+    /**
+     * The value edit of a double click or «Valor…»: the Constante's value, or (M7) the live value of a bus input pin.
+     * Anything else is ignored.
+     */
+    public void editValue(Component component) {
+        if (component.typeId().equals(StandardComponentTypes.CONSTANT)) {
+            editConstantValue(component);
+        } else if (InterfacePins.isBusInput(component)) {
+            editInputValue(component);
+        }
+    }
+
+    /**
+     * M7: types the value of a bus input pin in place, over its value box, starting from the live value in the pin's
+     * «Mostrar como». Only a value that fits the pin's width (as it is at each keystroke) can be confirmed; it goes to
+     * the simulation like a click on a switch (no document change, no undo step).
+     */
+    public void editInputValue(Component pin) {
+        Optional<Component> current = openDocument.document().component(pin.id()).filter(InterfacePins::isBusInput);
+        if (current.isEmpty()) {
+            return;
+        }
+        ElementId id = pin.id();
+        ComponentType type = openDocument.registry().typeOf(current.get());
+        int width = InterfacePins.widthOf(current.get());
+        String format = (String) type.resolveParameters(current.get().parameters()).get(ConstantValue.FORMAT);
+        long liveBits = switch (openDocument.latestSnapshot().componentState(id.value())) {
+            case VisibleState.SwitchState state when state.value().isFullyDefined()
+                    && state.value().width() == width -> state.value().bits();
+            case null, default -> 0L;
+        };
+        Supplier<Optional<Component>> stillABusInput = () -> openDocument.document().component(id)
+                .filter(InterfacePins::isBusInput);
+        editor.open(new InlineEditRequest(InterfacePinPainter.valueBox(type, current.get()).orElseThrow(),
+                InterfacePinPainter.valueFont(), ConstantValue.editableText(liveBits, width, format),
+                InlineValidators.busValue(() -> stillABusInput.get().map(InterfacePins::widthOf).orElse(width)),
+                text -> stillABusInput.get().ifPresent(found -> {
+                    int foundWidth = InterfacePins.widthOf(found);
+                    ConstantValue.bitsOf(text, foundWidth).ifPresent(
+                            bits -> openDocument.setInputValue(id, Value.of(foundWidth, bits)));
+                }), InlineEditRequest.Anchor.CENTER), () -> stillABusInput.get().isPresent());
     }
 
     /** What the Constante has now (the last known ones when it is gone, the editor closes by itself then). */

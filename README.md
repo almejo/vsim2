@@ -184,6 +184,7 @@ Diseño: `docs/superpowers/specs/2026-10-08-vsim2-design.md`.
 
 - «Mostrar como» tiene una quinta opción, «Decimal con signo» (complemento a dos: en 8 bits, `0xFF` se ve como `-1`). La Constante la ofrece y su valor acepta además un decimal negativo que quepa en el ancho como número con signo (`-3` en 8 bits entrega `0xFD`; `-129` no cabe en 8 bits).
 - Los pines de entrada y de salida de más de un bit escriben su valor en una caja junto a la etiqueta-flecha (a la izquierda de un pin de entrada, a la derecha de uno de salida; la caja queda horizontal aunque el pin esté girado), en el formato de su nuevo parámetro «Mostrar como» (por defecto «Automático»: binario hasta 4 bits, hexadecimal desde 5). Un bit en alta impedancia se ve como `Z` (en decimal, `Z` si son todos y `?` si son algunos), y un conflicto como `?`. Los archivos con pines de antes se leen como «Automático» y se guardan igual que antes.
+- Escribir el valor de un pin de entrada de más de un bit: doble clic sobre el pin o sobre su caja (o «Valor…» en el menú contextual) abre un campo sobre la caja con el valor actual. Acepta `0b…`, `0x…`, decimal y decimal negativo (complemento a dos); un valor que no cabe se marca en rojo («No cabe en 8 bits») y Enter y ✓ no hacen nada. Al confirmar, el valor entra a la simulación como un click en un switch: no cambia el archivo, no deja paso de deshacer y «Reiniciar» lo conserva. Un click sigue alternando entre todo 0 y todo 1, y los pines de un bit siguen igual (click alterna, doble clic configura).
 
 ## Preferencias y distribución
 
