@@ -140,4 +140,19 @@ class SchemeEditorPanelTest {
         }
         return false;
     }
+
+    @Test
+    void theDialogContentScrollsWhenTheScreenIsSmallAndKeepsItsSizeWhenItFits() {
+        SchemeEditorPanel editor = panel(new NamedColorScheme("light", "Claro", ColorSchemes.LIGHT));
+        java.awt.Dimension wanted = editor.getPreferredSize();
+
+        javax.swing.JScrollPane small = SchemeEditorDialog.scrollable(editor, new java.awt.Dimension(1366, 600));
+        assertThat(small.getViewport().getView()).isSameAs(editor);
+        assertThat(small.getPreferredSize().height).isLessThanOrEqualTo(510).isLessThan(wanted.height);
+
+        javax.swing.JScrollPane large = SchemeEditorDialog.scrollable(
+                panel(new NamedColorScheme("light", "Claro", ColorSchemes.LIGHT)), new java.awt.Dimension(4000, 4000));
+        assertThat(large.getPreferredSize().height).isGreaterThanOrEqualTo(wanted.height);
+        assertThat(large.getPreferredSize().width).isGreaterThanOrEqualTo(wanted.width);
+    }
 }
