@@ -211,14 +211,37 @@ class FramePainterTest {
     }
 
     @Test
-    void theTitleFollowsTheCurrentFontBoldAndOnePointLarger() {
+    void theTitleFollowsTheCurrentFontBoldAndOnePointLargerWhileItFitsTheBand() {
         Frame frame = new Frame(new cl.almejo.vsim.core.document.ElementId("f1"), new GridPoint(0, 0), 20, 10,
                 "Bloque", FrameTint.NONE, false);
+        TextFonts.set(new TextFont(Font.SERIF, 8));
         Rectangle2D small = FramePainter.titleTextBounds(frame);
-        TextFonts.set(new TextFont(Font.SERIF, 14));
         assertThat(FramePainter.titleFont().getFamily()).isEqualTo(Font.SERIF);
         assertThat(FramePainter.titleFont().getStyle()).isEqualTo(Font.BOLD);
-        assertThat(FramePainter.titleFont().getSize()).isEqualTo(15);
+        assertThat(FramePainter.titleFont().getSize()).isEqualTo(9);
+        TextFonts.set(new TextFont(Font.SERIF, 9));
+        assertThat(FramePainter.titleFont().getSize()).isEqualTo(10);
         assertThat(FramePainter.titleTextBounds(frame).getHeight()).isGreaterThan(small.getHeight());
+    }
+
+    @Test
+    void theTitleStopsGrowingWhenItFillsTheBandAndNeverLeavesIt() {
+        Frame frame = new Frame(new cl.almejo.vsim.core.document.ElementId("f1"), new GridPoint(0, 0), 20, 10,
+                "Bloque", FrameTint.NONE, false);
+        Rectangle2D bar = FramePainter.titleBarBounds(frame);
+        int previous = 0;
+        for (int size = TextFont.MINIMUM_SIZE; size <= TextFont.MAXIMUM_SIZE; size++) {
+            TextFonts.set(new TextFont(Font.SANS_SERIF, size));
+            Rectangle2D text = FramePainter.titleTextBounds(frame);
+            assertThat(text.getHeight()).as("size %d", size).isLessThanOrEqualTo(FramePainter.TITLE_BAR_HEIGHT);
+            assertThat(text.getMinY()).as("size %d", size).isGreaterThanOrEqualTo(bar.getMinY());
+            assertThat(text.getMaxY()).as("size %d", size).isLessThanOrEqualTo(bar.getMaxY());
+            int titleSize = FramePainter.titleFont().getSize();
+            assertThat(titleSize).as("size %d", size).isBetween(previous, size + 1);
+            previous = titleSize;
+        }
+        // labels and texts keep the chosen size
+        assertThat(TextFonts.labelFont().getSize()).isEqualTo(TextFont.MAXIMUM_SIZE);
+        assertThat(FramePainter.titleFont().getSize()).isLessThan(TextFont.MAXIMUM_SIZE + 1);
     }
 }

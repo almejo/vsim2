@@ -2,6 +2,8 @@ package cl.almejo.vsim.ui.paint;
 
 import java.awt.Font;
 import java.awt.GraphicsEnvironment;
+import java.awt.font.FontRenderContext;
+import java.awt.font.LineMetrics;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
@@ -18,6 +20,8 @@ public record TextFont(String family, int size) {
     public static final int MINIMUM_SIZE = 8;
     public static final int MAXIMUM_SIZE = 24;
     public static final TextFont DEFAULT = new TextFont(Font.SANS_SERIF, 10);
+    /** The height of a frame's title band in document pixels ({@code FramePainter.TITLE_BAR_HEIGHT}). */
+    public static final double TITLE_BAND_HEIGHT = 16;
 
     public TextFont {
         Objects.requireNonNull(family, "family");
@@ -31,9 +35,22 @@ public record TextFont(String family, int size) {
         return new Font(installedFamily(), Font.PLAIN, size);
     }
 
-    /** Frame titles: the family, bold, one point larger than the labels. */
+    /**
+     * Frame titles: the family, bold, one point larger than the labels, but never taller (ascent + descent) than
+     * {@link #TITLE_BAND_HEIGHT}: past that size the title stops growing, so it is never clipped by its band. Made
+     * once per font change ({@link TextFonts}), not per paint.
+     */
     public Font titleFont() {
-        return new Font(installedFamily(), Font.BOLD, size + 1);
+        String installed = installedFamily();
+        FontRenderContext context = new FontRenderContext(null, true, true);
+        for (int titleSize = size + 1; titleSize > MINIMUM_SIZE; titleSize--) {
+            Font candidate = new Font(installed, Font.BOLD, titleSize);
+            LineMetrics metrics = candidate.getLineMetrics("Ag", context);
+            if (metrics.getAscent() + metrics.getDescent() <= TITLE_BAND_HEIGHT) {
+                return candidate;
+            }
+        }
+        return new Font(installed, Font.BOLD, MINIMUM_SIZE);
     }
 
     /** Small tags drawn on the board (bus values, pin widths, hover tags): the family, bold, one point smaller. */

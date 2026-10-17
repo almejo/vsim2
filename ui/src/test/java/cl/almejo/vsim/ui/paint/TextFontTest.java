@@ -58,7 +58,7 @@ class TextFontTest {
             assertThat(TextFonts.current()).isEqualTo(new TextFont(Font.SERIF, 14));
             assertThat(TextFonts.labelFont().getFamily()).isEqualTo(Font.SERIF);
             assertThat(TextFonts.labelFont().getSize()).isEqualTo(14);
-            assertThat(TextFonts.titleFont().getSize()).isEqualTo(15);
+            assertThat(TextFonts.titleFont()).isEqualTo(new TextFont(Font.SERIF, 14).titleFont());
             assertThat(TextFonts.tagFont().getSize()).isEqualTo(13);
         } finally {
             TextFonts.removeListener(listener);
