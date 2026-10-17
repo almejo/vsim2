@@ -132,6 +132,45 @@ class MoveWithWiresCommandTest {
         assertThat(Set.copyOf(nudged.document().elements())).isEqualTo(Set.copyOf(moved.document().elements()));
     }
 
+    /** A gate whose output wire and input wire both end on a T: moving it needs an L on each side. */
+    private static Scene twoTees() {
+        CircuitDocument document = new CircuitDocument();
+        Component gate = gate(document, 10, 10);
+        wire(document, 14, 12, 20, 12);
+        wire(document, 20, 5, 20, 20);
+        wire(document, 10, 12, 10, 20);
+        wire(document, 0, 20, 30, 20);
+        return new Scene(document, gate);
+    }
+
+    /** The wires as segments, ignoring their ids (a run and one move may number new wires differently). */
+    private static List<String> segments(CircuitDocument document) {
+        return document.wires().stream().map(wire -> wire.start() + "-" + wire.end()).sorted().toList();
+    }
+
+    @Test
+    void aRunOfNudgesInTwoDirectionsNeverReusesAWireIdAndEqualsOneMove() {
+        Scene nudged = twoTees();
+        Scene moved = twoTees();
+        Map<DocumentElement, Long> before = snapshot(nudged.document());
+        History history = new History(nudged.document());
+        int[][] steps = {{1, 0}, {1, 0}, {0, 1}, {0, 1}, {1, 0}};
+        for (int[] step : steps) {
+            history.execute(MoveWithWiresCommand.nudge(registry, Set.of(nudged.gate().id()), step[0], step[1]));
+        }
+        MoveWithWiresCommand.of(moved.document(), registry, Set.of(moved.gate().id()), 3, 2)
+                .apply(moved.document());
+
+        assertThat(segments(nudged.document())).isEqualTo(segments(moved.document()));
+        assertThat(nudged.document().component(nudged.gate().id()))
+                .isEqualTo(moved.document().component(moved.gate().id()));
+        history.undo();
+        assertThat(snapshot(nudged.document())).containsExactlyEntriesOf(before);
+        assertThat(history.canUndo()).isFalse();
+        history.redo();
+        assertThat(segments(nudged.document())).isEqualTo(segments(moved.document()));
+    }
+
     @Test
     void nudgesThatComeBackLeaveTheDocumentAsItWas() {
         Scene scene = scene();
@@ -141,6 +180,18 @@ class MoveWithWiresCommandTest {
         history.execute(MoveWithWiresCommand.nudge(registry, Set.of(scene.gate().id()), 0, 1));
         history.execute(MoveWithWiresCommand.nudge(registry, Set.of(scene.gate().id()), 0, -2));
         assertThat(Set.copyOf(scene.document().elements())).isEqualTo(before);
+    }
+
+    @Test
+    void aRunThatComesBackDoesNotTidyWiresItNeverMoved() {
+        CircuitDocument document = new CircuitDocument();
+        Wire left = wire(document, 0, 0, 5, 0);
+        Wire right = wire(document, 5, 0, 9, 0);
+        Map<DocumentElement, Long> before = snapshot(document);
+        History history = new History(document);
+        history.execute(MoveWithWiresCommand.nudge(registry, Set.of(left.id(), right.id()), -1, 0));
+        history.execute(MoveWithWiresCommand.nudge(registry, Set.of(left.id(), right.id()), 1, 0));
+        assertThat(snapshot(document)).containsExactlyEntriesOf(before);
     }
 
     @Test

@@ -8,6 +8,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -144,6 +145,67 @@ class HistoryMergeTest {
         small.undo();
         assertThat(small.canUndo()).isFalse();
         assertThat(position()).isEqualTo(GridPoint.ORIGIN);
+    }
+
+    /** A nudge whose merge with the next one moves the label far away and then fails half way. */
+    private final class BrokenMergeNudge implements Command {
+        private final MoveElementsCommand move = new MoveElementsCommand(Set.of(labelId), 1, 0);
+
+        @Override
+        public void apply(CircuitDocument target) {
+            move.apply(target);
+        }
+
+        @Override
+        public void revert(CircuitDocument target) {
+            move.revert(target);
+        }
+
+        @Override
+        public String description() {
+            return "command.move";
+        }
+
+        @Override
+        public Optional<Command> mergedWith(Command next) {
+            return Optional.of(new Command() {
+                @Override
+                public void apply(CircuitDocument target) {
+                    new MoveElementsCommand(Set.of(labelId), 50, 50).apply(target);
+                    target.add(new TextLabel(target.newLabelId(), new GridPoint(7, 7), "half"));
+                    throw new IllegalStateException("broken merge");
+                }
+
+                @Override
+                public void revert(CircuitDocument target) {
+                    throw new AssertionError("never applied");
+                }
+
+                @Override
+                public String description() {
+                    return "command.move";
+                }
+            });
+        }
+    }
+
+    @Test
+    void aMergeThatFailsPutsTheRunBackAndExecutesTheCommandAsItsOwnStep() {
+        history.execute(new BrokenMergeNudge());
+        int elementsBefore = document.elements().size();
+        AtomicInteger notifications = new AtomicInteger();
+        history.addListener(changed -> notifications.incrementAndGet());
+
+        history.execute(new BrokenMergeNudge());
+
+        assertThat(position()).isEqualTo(new GridPoint(2, 0));
+        assertThat(document.elements()).hasSize(elementsBefore);
+        assertThat(notifications).hasValue(1);
+        history.undo();
+        assertThat(position()).isEqualTo(new GridPoint(1, 0));
+        history.undo();
+        assertThat(position()).isEqualTo(GridPoint.ORIGIN);
+        assertThat(history.undoDescription()).contains("command.add");
     }
 
     private AddElementsCommand addLabel() {

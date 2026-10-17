@@ -106,11 +106,13 @@ public final class MoveWithWiresCommand implements Command {
         if (nudge && plan != null && next instanceof MoveWithWiresCommand following && following.nudge
                 && following.registry == registry
                 && new HashSet<>(movedIds).equals(new HashSet<>(following.movedIds))) {
-            List<ElementId> reusable = new ArrayList<>();
+            // The top's plan already took some of its reusable ids: keep each id once, or a later plan that needs
+            // more new wires would hand the same id out twice. All of them are free once History reverts the top.
+            Set<ElementId> reusable = new LinkedHashSet<>();
             plan.addedWires().forEach(wire -> reusable.add(wire.id()));
             reusable.addAll(reusableWireIds);
             return Optional.of(new MoveWithWiresCommand(movedIds, deltaX + following.deltaX,
-                    deltaY + following.deltaY, registry, true, reusable, null));
+                    deltaY + following.deltaY, registry, true, List.copyOf(reusable), null));
         }
         return Optional.empty();
     }
@@ -120,7 +122,7 @@ public final class MoveWithWiresCommand implements Command {
         if (plan == null) {
             Deque<ElementId> reusable = new ArrayDeque<>(reusableWireIds);
             plan = WireFollow.plan(document, registry, new LinkedHashSet<>(movedIds), deltaX, deltaY,
-                    () -> reusable.isEmpty() ? document.newWireId() : reusable.removeFirst());
+                    () -> freeWireId(document, reusable));
         }
         replacedOriginals.clear();
         removedOriginals.clear();
@@ -128,7 +130,8 @@ public final class MoveWithWiresCommand implements Command {
         document.batch(() -> {
             Map<ElementId, Set<GridPoint>> endsBefore = cleanUpPlanned ? Map.of() : endsOfWires(document);
             applyPlan(document);
-            if (!cleanUpPlanned && registry != null) {
+            // A run that came back to where it started (total delta 0) moved nothing, so there is nothing to tidy.
+            if (!cleanUpPlanned && registry != null && (deltaX != 0 || deltaY != 0)) {
                 TidyPlan tidy = TouchedWiresCleanup.plan(document, registry, cleanUpScope(document, endsBefore));
                 cleanUp = tidy.isEmpty() ? null : new TidyWiresCommand(tidy);
             }
@@ -137,6 +140,17 @@ public final class MoveWithWiresCommand implements Command {
                 cleanUp.apply(document);
             }
         });
+    }
+
+    /** The next reserved id that is free in {@code document}, or a new one once they run out. */
+    private static ElementId freeWireId(CircuitDocument document, Deque<ElementId> reusable) {
+        while (!reusable.isEmpty()) {
+            ElementId candidate = reusable.removeFirst();
+            if (document.element(candidate).isEmpty()) {
+                return candidate;
+            }
+        }
+        return document.newWireId();
     }
 
     private void applyPlan(CircuitDocument document) {

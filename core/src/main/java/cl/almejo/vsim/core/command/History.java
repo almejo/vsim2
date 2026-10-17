@@ -1,10 +1,15 @@
 package cl.almejo.vsim.core.command;
 
 import cl.almejo.vsim.core.document.CircuitDocument;
+import cl.almejo.vsim.core.document.DocumentElement;
+import cl.almejo.vsim.core.document.ElementId;
 
 import java.util.ArrayDeque;
 import java.util.Deque;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CopyOnWriteArrayList;
 
@@ -36,21 +41,16 @@ public final class History {
      * Applies {@code command} and pushes it, or, when the command on top was the last one executed and says
      * {@code command} continues it ({@link Command#mergedWith}), reverts the top and applies the merged command
      * instead (in one document batch), so the merged command always starts from the state before the run.
+     *
+     * <p>The merge is failure-atomic: when reverting the top or applying the merged command throws, the elements are
+     * put back exactly as they were (with the top applied, so the stacks still match the document) and
+     * {@code command} is executed on its own as a new step instead.
      */
     public void execute(Command command) {
         Command top = undoStack.peek();
         if (top != null && top == lastExecuted && top != savedTop) {
             Optional<Command> merged = top.mergedWith(command);
-            if (merged.isPresent()) {
-                Command replacement = merged.get();
-                document.batch(() -> {
-                    top.revert(document);
-                    replacement.apply(document);
-                });
-                undoStack.pop();
-                undoStack.push(replacement);
-                lastExecuted = replacement;
-                notifyListeners();
+            if (merged.isPresent() && executeMerged(top, merged.get())) {
                 return;
             }
         }
@@ -71,6 +71,49 @@ public final class History {
             }
         }
         notifyListeners();
+    }
+
+    /** Replaces {@code top} by {@code replacement}; false, with the document as it was, when that throws. */
+    private boolean executeMerged(Command top, Command replacement) {
+        Map<ElementId, DocumentElement> elementsBefore = new LinkedHashMap<>();
+        Map<ElementId, Long> ordersBefore = new HashMap<>();
+        for (DocumentElement element : document.elements()) {
+            elementsBefore.put(element.id(), element);
+            ordersBefore.put(element.id(), document.orderOf(element.id()));
+        }
+        try {
+            document.batch(() -> {
+                try {
+                    top.revert(document);
+                    replacement.apply(document);
+                } catch (RuntimeException exception) {
+                    putBack(elementsBefore, ordersBefore);
+                    throw exception;
+                }
+            });
+        } catch (RuntimeException exception) {
+            return false;
+        }
+        undoStack.pop();
+        undoStack.push(replacement);
+        lastExecuted = replacement;
+        notifyListeners();
+        return true;
+    }
+
+    /** Makes the document's elements and draw orders exactly {@code elements} at {@code orders} again. */
+    private void putBack(Map<ElementId, DocumentElement> elements, Map<ElementId, Long> orders) {
+        for (DocumentElement element : document.elements()) {
+            ElementId id = element.id();
+            if (!element.equals(elements.get(id)) || document.orderOf(id) != orders.get(id)) {
+                document.remove(id);
+            }
+        }
+        elements.forEach((id, element) -> {
+            if (document.element(id).isEmpty()) {
+                document.restore(element, orders.get(id));
+            }
+        });
     }
 
     public void undo() {
