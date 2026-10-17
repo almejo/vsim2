@@ -28,6 +28,14 @@ public sealed interface VisibleState {
     record SevenSegmentsState(Value value) implements VisibleState {
     }
 
+    /** The operation an ALU block is doing now: its OP code (0..7), or -1 while OP is undefined. */
+    record AluState(int operation) implements VisibleState {
+    }
+
+    /** The value a register or counter block holds now (all Z after loading an undefined D). */
+    record StoredValueState(Value value) implements VisibleState {
+    }
+
     record TimeDiagramState(List<TimeDiagramSample> samples) implements VisibleState {
         public TimeDiagramState {
             samples = List.copyOf(samples);

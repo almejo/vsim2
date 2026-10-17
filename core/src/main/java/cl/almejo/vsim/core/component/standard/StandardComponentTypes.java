@@ -51,11 +51,13 @@ public final class StandardComponentTypes {
     public static final String OUTPUT_PIN = InterfacePins.OUTPUT_PIN;
     public static final String BUS_SPLITTER = "bus-splitter";
     public static final String BUS_JOINER = "bus-joiner";
+    public static final String ADDER = "adder";
     /** The parameter that sets a bus component's width in bits. */
     public static final String WIDTH = "width";
 
     private static final GridSize GATE_SIZE = new GridSize(4, 4);
-    private static final ParameterSpec DELAY = ParameterSpec.integer("delay", 1, 1, 1_000_000);
+    /** «Retardo» of gates and blocks: simulation units from an input change to the outputs. */
+    static final ParameterSpec DELAY = ParameterSpec.integer("delay", 1, 1, 1_000_000);
     private static final ParameterSpec BUS_WIDTH = ParameterSpec.integer(WIDTH, 8, 2, 32);
 
     private StandardComponentTypes() {
@@ -141,6 +143,28 @@ public final class StandardComponentTypes {
         registry.register(ComponentType.parameterized(BUS_JOINER, ComponentCategory.BASIC, List.of(BUS_WIDTH),
                 parameters -> busShape((Integer) parameters.get(WIDTH), true),
                 parameters -> new BusJoinerBehavior((Integer) parameters.get(WIDTH))));
+        registerBlocks(registry);
+    }
+
+    /**
+     * The «Bloques» (M7): N-bit parts with «Ancho (bits)» ({@link BlockSignals#WIDTH}) and «Retardo»; data in on the
+     * left, results out on the right, control on the top and bottom edges. Their size never depends on the width.
+     */
+    private static void registerBlocks(ComponentTypeRegistry registry) {
+        registry.register(ComponentType.parameterized(ADDER, ComponentCategory.BLOCKS,
+                List.of(BlockSignals.WIDTH, DELAY),
+                parameters -> adderShape((Integer) parameters.get(WIDTH)),
+                parameters -> new AdderBehavior((Integer) parameters.get(WIDTH), (Integer) parameters.get("delay"))));
+    }
+
+    /** A 4 x 8 block: A[N] at (0, 3), B[N] at (0, 5), Cin at (2, 0), S[N] at (4, 4), Cout at (2, 8). */
+    private static ComponentShape adderShape(int width) {
+        return new ComponentShape(new GridSize(4, 8), List.of(
+                PinSpec.input("A", 0, 3, width),
+                PinSpec.input("B", 0, 5, width),
+                PinSpec.input("Cin", 2, 0),
+                PinSpec.output("S", 4, 4, width),
+                PinSpec.output("Cout", 2, 8)));
     }
 
     /**

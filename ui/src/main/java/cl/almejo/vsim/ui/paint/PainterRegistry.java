@@ -40,7 +40,13 @@ public final class PainterRegistry {
         InterfacePinPainter interfacePin = new InterfacePinPainter();
         registry.register(InterfacePins.INPUT_PIN, interfacePin);
         registry.register(InterfacePins.OUTPUT_PIN, interfacePin);
+        registerBlocks(registry);
         return registry;
+    }
+
+    /** The «Bloques» (M7), all drawn by a {@link BlockPainter}. */
+    private static void registerBlocks(PainterRegistry registry) {
+        registry.register(StandardComponentTypes.ADDER, new BlockPainter("Σ", BlockPainter.Body.CHEVRON));
     }
 
     public void register(String typeId, ComponentPainter painter) {

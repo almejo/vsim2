@@ -72,6 +72,18 @@ class PalettePanelTest {
     }
 
     @Test
+    void theBlocksHaveTheirOwnSectionAfterInputOutputWithAHelpTooltip() {
+        assertThat(palette.visibleSections()).containsSubsequence("Entrada/Salida", "Bloques", "Depuración");
+        List<String> ids = palette.visibleTypeIds();
+        assertThat(ids.indexOf(StandardComponentTypes.ADDER)).isGreaterThan(ids.indexOf(StandardComponentTypes.LED));
+        assertThat(ids.indexOf(StandardComponentTypes.ADDER))
+                .isLessThan(ids.indexOf(StandardComponentTypes.TIME_DIAGRAM));
+        assertThat(Messages.componentName(registry.require(StandardComponentTypes.ADDER))).isEqualTo("Sumador");
+        assertThat(palette.toolTipFor(StandardComponentTypes.ADDER)).hasValueSatisfying(text -> assertThat(text)
+                .contains("Cin").contains("Cout"));
+    }
+
+    @Test
     void filterMatchesIdsAndLocalizedNames() {
         palette.setFilter("and");
         assertThat(palette.visibleTypeIds()).containsExactly("and2", "and3", "and4", "nand2", "nand3", "nand4");
@@ -163,7 +175,7 @@ class PalettePanelTest {
         palette.setUserComponentChooser(component -> chosenUser.add(component.bundle().root().id()));
         palette.setUserComponents(List.of(inverterBundle), List.of(doubleInverterBundle));
 
-        assertThat(palette.visibleSections()).containsExactly("Básicas", "Entrada/Salida", "Depuración",
+        assertThat(palette.visibleSections()).containsExactly("Básicas", "Entrada/Salida", "Bloques", "Depuración",
                 "Pines de componente", "Mis componentes", "Componentes de este circuito");
         assertThat(palette.visibleTypeIds()).endsWith("subcircuit:inverter", "subcircuit:double-inverter");
         palette.setFilter("inversor");

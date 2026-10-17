@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.paint;
 
+import cl.almejo.vsim.core.component.ComponentCategory;
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.PinSpec;
@@ -136,6 +137,23 @@ class PaintersTest {
                 ComponentType type = registry.require(typeId).specializedFor(parameters);
                 for (Rotation rotation : Rotation.values()) {
                     assertDrawsNearItsBounds(type, rotation, VisibleState.NONE, 400, parameters);
+                }
+            }
+        }
+    }
+
+    @Test
+    void blocksOfAnyWidthDrawNearTheirBoundsInEveryRotation() {
+        List<ComponentType> blocks = registry.all().stream()
+                .filter(type -> type.category() == ComponentCategory.BLOCKS).toList();
+        assertThat(blocks).extracting(ComponentType::id).contains(StandardComponentTypes.ADDER);
+        for (ComponentType block : blocks) {
+            assertThat(painters.painterFor(block.id())).as(block.id()).isInstanceOf(BlockPainter.class);
+            for (int width : new int[]{1, 32}) {
+                Map<String, Object> parameters = Map.of(StandardComponentTypes.WIDTH, width);
+                ComponentType type = block.specializedFor(parameters);
+                for (Rotation rotation : Rotation.values()) {
+                    assertDrawsNearItsBounds(type, rotation, sampleState(block.id()), 320, parameters);
                 }
             }
         }

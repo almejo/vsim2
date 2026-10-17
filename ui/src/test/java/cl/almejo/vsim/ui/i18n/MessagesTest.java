@@ -70,6 +70,18 @@ class MessagesTest {
     }
 
     @Test
+    void everyBlockHasAPaletteHelp() {
+        List<String> keys = new ArrayList<>();
+        for (ComponentType type : StandardComponentTypes.registry().all()) {
+            if (type.category() == ComponentCategory.BLOCKS) {
+                keys.add("help.component." + type.id());
+            }
+        }
+        assertThat(keys).contains("help.component." + StandardComponentTypes.ADDER);
+        assertThat(missing(keys)).isEmpty();
+    }
+
+    @Test
     void everyReadErrorReasonHasAMessage() {
         List<String> keys = new ArrayList<>();
         for (CircuitFormatException.Reason reason : CircuitFormatException.Reason.values()) {
