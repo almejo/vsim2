@@ -112,6 +112,16 @@ class CircuitCanvasTest {
             keys.add(keyCode);
             return keyCode == KeyEvent.VK_ESCAPE;
         }
+
+        /** Each modifier change as "shift control alt", e.g. "true false false". */
+        final List<String> modifierChanges = new ArrayList<>();
+
+        @Override
+        public boolean modifiersChanged(ToolContext context, boolean shiftDown, boolean controlDown,
+                                        boolean altDown) {
+            modifierChanges.add(shiftDown + " " + controlDown + " " + altDown);
+            return true;
+        }
     }
 
     private MouseEvent mouse(int id, int x, int y, int modifiers, int button) {
@@ -1135,5 +1145,32 @@ class CircuitCanvasTest {
         primaryRelease(16, 24);
         assertThat(toolEvents).containsExactly("press", "release");
         assertThat(intercepted).hasSize(2);
+    }
+
+    private void modifierKey(int id, int keyCode, int modifiersReported) {
+        KeyEvent event = new KeyEvent(canvas, id, 0, modifiersReported, keyCode, KeyEvent.CHAR_UNDEFINED);
+        if (id == KeyEvent.KEY_PRESSED) {
+            canvas.getKeyListeners()[0].keyPressed(event);
+        } else {
+            canvas.getKeyListeners()[0].keyReleased(event);
+        }
+    }
+
+    @Test
+    void shiftControlAndAltPressedOrReleasedTellTheToolTheModifiersAfterTheChange() {
+        RecordingTool tool = new RecordingTool();
+        canvas.setTool(tool);
+        modifierKey(KeyEvent.KEY_PRESSED, KeyEvent.VK_SHIFT, InputEvent.SHIFT_DOWN_MASK);
+        modifierKey(KeyEvent.KEY_PRESSED, KeyEvent.VK_CONTROL, InputEvent.SHIFT_DOWN_MASK | InputEvent.CTRL_DOWN_MASK);
+        // some platforms still report the released key as down: the change itself wins
+        modifierKey(KeyEvent.KEY_RELEASED, KeyEvent.VK_SHIFT, InputEvent.SHIFT_DOWN_MASK | InputEvent.CTRL_DOWN_MASK);
+        modifierKey(KeyEvent.KEY_RELEASED, KeyEvent.VK_CONTROL, 0);
+        modifierKey(KeyEvent.KEY_PRESSED, KeyEvent.VK_ALT, 0);
+        modifierKey(KeyEvent.KEY_RELEASED, KeyEvent.VK_ALT, InputEvent.ALT_DOWN_MASK);
+        modifierKey(KeyEvent.KEY_PRESSED, KeyEvent.VK_A, InputEvent.SHIFT_DOWN_MASK);
+        modifierKey(KeyEvent.KEY_RELEASED, KeyEvent.VK_A, InputEvent.SHIFT_DOWN_MASK);
+
+        assertThat(tool.modifierChanges).containsExactly("true false false", "true true false", "false true false",
+                "false false false", "false false true", "false false false");
     }
 }

@@ -10,7 +10,9 @@ import org.junit.jupiter.api.io.TempDir;
 import org.w3c.dom.Element;
 
 import javax.imageio.ImageIO;
+import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.ParserConfigurationException;
 import java.awt.image.BufferedImage;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -54,12 +56,25 @@ class ImageExportTest {
             CircuitImage image = imageOf(source, ColorScheme.LIGHT);
             Path file = directory.resolve("circuit.svg");
             ImageExport.writeSvg(file, image);
-            Element root = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(file.toFile())
-                    .getDocumentElement();
+            Element root = offlineParser().parse(file.toFile()).getDocumentElement();
             assertThat(root.getTagName()).isEqualTo("svg");
             assertThat(root.getAttribute("width")).startsWith(String.valueOf(image.width(1)));
             assertThat(root.getAttribute("height")).startsWith(String.valueOf(image.height(1)));
         }
+    }
+
+    /**
+     * A parser that never reaches the network: the SVG names the SVG DTD on w3.org, so the external DTD is not
+     * loaded, and any other external lookup fails the test.
+     */
+    private static DocumentBuilder offlineParser() throws ParserConfigurationException {
+        DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+        factory.setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false);
+        DocumentBuilder builder = factory.newDocumentBuilder();
+        builder.setEntityResolver((publicId, systemId) -> {
+            throw new AssertionError("the SVG test must not look up " + systemId);
+        });
+        return builder;
     }
 
     @Test

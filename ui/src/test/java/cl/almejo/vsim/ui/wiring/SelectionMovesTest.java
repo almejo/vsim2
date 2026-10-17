@@ -110,4 +110,18 @@ class SelectionMovesTest {
         openDocument.history().undo();
         assertThat(openDocument.history().undoDescription()).contains("command.wire");
     }
+
+    @Test
+    void aNudgeRunThatComesBackReportsNothingAboutTheStepBelowIt() {
+        addWire(10, 15, 10, 25);
+        moves.move(openDocument, Set.of(gate.id()), 0, 8, true);
+        assertThat(notices).containsExactly("El cable quedó tocando el pin «in» de «NOT»");
+        moves.nudge(openDocument, Set.of(gate.id()), 1, 0);
+        notices.clear();
+
+        moves.nudge(openDocument, Set.of(gate.id()), -1, 0);
+
+        assertThat(notices).isEmpty();
+        assertThat(openDocument.history().undoCommand()).get().isInstanceOf(MoveWithWiresCommand.class);
+    }
 }

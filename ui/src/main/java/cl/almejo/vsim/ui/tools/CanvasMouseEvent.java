@@ -16,4 +16,9 @@ public record CanvasMouseEvent(Point2D gridPosition, GridPoint snapped, Point2D 
                             boolean shiftDown, boolean controlDown, int clickCount) {
         this(gridPosition, snapped, screenPosition, button, shiftDown, controlDown, false, clickCount);
     }
+
+    /** This event with the keys held changed (a modifier pressed or released while the pointer stands still). */
+    public CanvasMouseEvent withModifiers(boolean shift, boolean control, boolean alt) {
+        return new CanvasMouseEvent(gridPosition, snapped, screenPosition, button, shift, control, alt, clickCount);
+    }
 }

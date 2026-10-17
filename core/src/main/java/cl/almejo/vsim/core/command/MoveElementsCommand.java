@@ -45,6 +45,11 @@ public final class MoveElementsCommand implements Command {
     }
 
     @Override
+    public boolean changesNothing() {
+        return deltaX == 0 && deltaY == 0;
+    }
+
+    @Override
     public void apply(CircuitDocument document) {
         translate(document, deltaX, deltaY);
     }

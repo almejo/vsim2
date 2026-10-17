@@ -102,6 +102,8 @@ public final class SelectTool implements Tool {
     private boolean followWires;
     /** The drag moves a single selected wire sideways (the segment key is held). */
     private boolean segmentDrag;
+    /** The last drag event of a move, so a modifier key pressed or released without moving can redo it. */
+    private CanvasMouseEvent lastDrag;
     private final MovePreview movePreview = new MovePreview();
     private CanvasCursor cursor = CanvasCursor.DEFAULT;
 
@@ -292,6 +294,7 @@ public final class SelectTool implements Tool {
         if (pressPoint == null) {
             return;
         }
+        lastDrag = event;
         dragTo(context, event);
         // Ctrl at the release copies, and a copy never drags wires: the preview must not show them following
         followWires = !event.controlDown()
@@ -493,6 +496,22 @@ public final class SelectTool implements Tool {
             cursor = next;
             context.setCursor(next);
         }
+    }
+
+    /**
+     * During a move (or a delegate's drag), redoes the drag at the last pointer position with the new keys: the
+     * preview, the hidden wires, the segment mode and the cursor follow Shift, Ctrl and Alt at once.
+     */
+    @Override
+    public boolean modifiersChanged(ToolContext context, boolean shiftDown, boolean controlDown, boolean altDown) {
+        if (activeDelegate != null) {
+            return activeDelegate.modifiersChanged(context, shiftDown, controlDown, altDown);
+        }
+        if (lastDrag == null || pressPoint == null || wire != null || bandStart != null) {
+            return false;
+        }
+        mouseDragged(context, lastDrag.withModifiers(shiftDown, controlDown, altDown));
+        return true;
     }
 
     @Override
@@ -774,6 +793,7 @@ public final class SelectTool implements Tool {
         copyDeltaY = 0;
         followWires = false;
         segmentDrag = false;
+        lastDrag = null;
         movePreview.clear();
     }
 }

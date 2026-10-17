@@ -34,6 +34,14 @@ public interface SelectToolDelegate {
     default void released(ToolContext context, CanvasMouseEvent event) {
     }
 
+    /**
+     * Shift, Ctrl or Alt changed while the primary press this delegate grabbed is held (see
+     * {@link Tool#modifiersChanged}); true when the delegate redid its preview.
+     */
+    default boolean modifiersChanged(ToolContext context, boolean shiftDown, boolean controlDown, boolean altDown) {
+        return false;
+    }
+
     /** Escape, or the tool going away, while a press of this delegate is held: forget it, change nothing. */
     default void cancelled(ToolContext context) {
     }

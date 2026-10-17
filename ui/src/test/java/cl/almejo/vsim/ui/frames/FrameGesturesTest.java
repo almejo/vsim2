@@ -14,6 +14,7 @@ import cl.almejo.vsim.ui.tools.CanvasMouseEvent;
 import cl.almejo.vsim.ui.tools.SelectTool;
 import cl.almejo.vsim.ui.tools.TestToolContext;
 import cl.almejo.vsim.ui.wiring.SelectionMoves;
+import org.assertj.core.groups.Tuple;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
@@ -621,5 +622,36 @@ class FrameGesturesTest {
             assertThat(context.cursors).isEqualTo(plainContext.cursors);
             assertThat(context.selection.ids()).isEqualTo(plainContext.selection.ids());
         }
+    }
+
+    // --- M6.8: the preview follows a modifier key pressed or released without moving the mouse
+
+    @Test
+    void shiftPressedMidDragOfALockedBlockTogglesTheCrossingWiresPreview() {
+        frame(0, 0, 20, 12, true);
+        gate(4, 4);
+        place(context.openDocument(), StandardComponentTypes.LED, 29, 3, Map.of());
+        wire(8, 6, 30, 6);
+        // following, the crossing wire stays and a new piece stretches down to where the gate's input goes
+        Tuple stretch = tuple(new GridPoint(8, 6), new GridPoint(8, 9));
+        assertThat(tool.modifiersChanged(context, true, false, false)).isFalse();
+        tool.mousePressed(context, TestToolContext.at(10, 1));
+        tool.mouseDragged(context, TestToolContext.at(10, 4));
+        assertThat(wireGhosts()).containsExactly(stretch);
+
+        assertThat(tool.modifiersChanged(context, true, false, false)).isTrue();
+        assertThat(wireGhosts()).isEmpty();
+        assertThat(tool.modifiersChanged(context, false, false, false)).isTrue();
+        assertThat(wireGhosts()).containsExactly(stretch);
+        tool.mouseReleased(context, TestToolContext.at(10, 4));
+        assertThat(tool.modifiersChanged(context, true, false, false)).isFalse();
+    }
+
+    /** The ends of the wires the move preview paints now. */
+    private List<Tuple> wireGhosts() {
+        context.ghosts.clear();
+        tool.paintOverlay(TestToolContext.scratchGraphics(), context);
+        return context.ghosts.stream().filter(element -> element instanceof Wire).map(element -> (Wire) element)
+                .map(wire -> tuple(wire.start(), wire.end())).toList();
     }
 }

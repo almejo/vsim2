@@ -1,6 +1,7 @@
 package cl.almejo.vsim.core.command;
 
 import cl.almejo.vsim.core.document.CircuitDocument;
+import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.geometry.GridPoint;
@@ -206,6 +207,62 @@ class HistoryMergeTest {
         history.undo();
         assertThat(position()).isEqualTo(GridPoint.ORIGIN);
         assertThat(history.undoDescription()).contains("command.add");
+    }
+
+    @Test
+    void aRunThatComesBackToWhereItStartedLeavesNoUndoStep() {
+        history.markSaved();
+        nudge(-1, 0);
+        nudge(1, 0);
+
+        assertThat(position()).isEqualTo(GridPoint.ORIGIN);
+        assertThat(history.undoDescription()).contains("command.add");
+        assertThat(history.isModified()).isFalse();
+        assertThat(history.lastExecuted()).isEmpty();
+        history.undo();
+        assertThat(document.elements()).isEmpty();
+    }
+
+    @Test
+    void aRunThatComesBackStaysModifiedWhenTheStateBeforeItWasNotSaved() {
+        nudge(-1, 0);
+        nudge(1, 0);
+        assertThat(history.isModified()).isTrue();
+        assertThat(history.undoDescription()).contains("command.add");
+    }
+
+    @Test
+    void aRunThatPassesThroughWhereItStartedIsOneStepOfTheRest() {
+        nudge(-1, 0);
+        nudge(1, 0);
+        nudge(-1, 0);
+
+        assertThat(position()).isEqualTo(new GridPoint(-1, 0));
+        assertThat(history.undoDescription()).contains("command.move");
+        history.undo();
+        assertThat(position()).isEqualTo(GridPoint.ORIGIN);
+        assertThat(history.undoDescription()).contains("command.add");
+    }
+
+    @Test
+    void aDroppedRunNeverAppliesItsZeroMove() {
+        nudge(-1, 0);
+        AtomicInteger notifications = new AtomicInteger();
+        history.addListener(changed -> notifications.incrementAndGet());
+        Set<DocumentElement> beforeRun = Set.of(document.element(labelId).orElseThrow().translate(1, 0));
+
+        nudge(1, 0);
+
+        assertThat(Set.copyOf(document.elements())).isEqualTo(beforeRun);
+        assertThat(notifications).hasValue(1);
+    }
+
+    @Test
+    void zeroMovesSayTheyChangeNothing() {
+        assertThat(MoveElementsCommand.nudge(Set.of(labelId), 0, 0).changesNothing()).isTrue();
+        assertThat(new MoveElementsCommand(Set.of(labelId), 0, 0).changesNothing()).isTrue();
+        assertThat(MoveElementsCommand.nudge(Set.of(labelId), 1, 0).changesNothing()).isFalse();
+        assertThat(addLabel().changesNothing()).isFalse();
     }
 
     private AddElementsCommand addLabel() {
