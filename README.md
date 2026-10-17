@@ -165,6 +165,10 @@ Diseño: `docs/superpowers/specs/2026-10-08-vsim2-design.md`.
 - El botón «Los cables siguen al mover» (barra de herramientas, justo después de «Mover vista», y casilla en Editar; sin atajo por defecto, asignable en Atajos de teclado) activa o desactiva el modo en que los cables acompañan a lo que mueves. Está activado por defecto, se recuerda y vale para todas las ventanas. Mantener la tecla de invertir mientras arrastras lo invierte solo en ese arrastre; se elige en Preferencias ▸ «Tecla para invertir al arrastrar» (Mayús por defecto, Alt o Ninguna).
 - Alt + arrastrar un cable seleccionado (solo ese cable) lo desplaza de costado: uno horizontal sube o baja, uno vertical va a la izquierda o la derecha; los cables unidos a sus puntas se estiran y, si una punta estaba en un pin, se agrega un tramo que lo mantiene conectado. Siempre conserva las conexiones (no depende del modo ni de la tecla de invertir) y es un solo paso de deshacer. Si Alt es la tecla de invertir, esta tecla pasa a ser Mayús.
 
+## Pulido del editor (M6.8)
+
+- Doble clic en un cable (herramienta de selección) selecciona su tramo: el cable y los que siguen unidos a él por esquinas o empalmes rectos, hasta llegar a un pin, una unión de tres o más cables, una punta suelta o de vuelta al inicio. Triple clic selecciona todos los cables conectados a ese (las uniones en T cuentan; los cruces y las piezas no). Con Mayús se suman a la selección. El doble clic nunca dibuja un cable: si arrastras sin soltar, mueves lo seleccionado, y Supr lo borra en un solo paso de deshacer.
+
 ## Preferencias y distribución
 
 - Archivo → Preferencias… (en macOS también VSim 2 → Ajustes…): tema Claro, Oscuro o Seguir sistema; esquema de color del circuito (Según el tema, VSim clásico, Claro, Oscuro y los otros esquemas del VSim original: Pastel, CSim y Twilight); idioma (Sistema, Español, English; se aplica al reiniciar); directorio de la librería de componentes (Elegir… / Restaurar predeterminado). El tema y el esquema cambian al instante en todas las ventanas.
