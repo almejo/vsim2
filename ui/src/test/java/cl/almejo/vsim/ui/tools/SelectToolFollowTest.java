@@ -239,4 +239,52 @@ class SelectToolFollowTest {
         context.drag(tool, 12, 9, 12, 6);
         assertThat(context.notices).containsExactly("Los cables siguieron al mover. Mantén Mayús para desconectar");
     }
+
+    // --- M6.8: the preview follows a modifier key pressed or released without moving the mouse
+
+    @Test
+    void shiftPressedAndReleasedMidDragTogglesThePreviewWithoutMovingTheMouse() {
+        tool.mousePressed(context, TestToolContext.at(12, 12));
+        tool.mouseDragged(context, TestToolContext.at(14, 12));
+        assertThat(tool.hiddenWires(context)).containsExactly(wire.id());
+
+        assertThat(tool.modifiersChanged(context, true, false, false)).isTrue();
+        context.ghosts.clear();
+        tool.paintOverlay(TestToolContext.scratchGraphics(), context);
+        assertThat(context.ghosts).filteredOn(element -> element instanceof Wire).isEmpty();
+        assertThat(tool.hiddenWires(context)).isEmpty();
+
+        assertThat(tool.modifiersChanged(context, false, false, false)).isTrue();
+        context.ghosts.clear();
+        tool.paintOverlay(TestToolContext.scratchGraphics(), context);
+        assertThat(context.ghosts).contains(new Wire(wire.id(), new GridPoint(16, 12), new GridPoint(30, 12)));
+        assertThat(tool.hiddenWires(context)).containsExactly(wire.id());
+        tool.mouseReleased(context, TestToolContext.at(14, 12));
+    }
+
+    @Test
+    void controlPressedMidDragShowsTheCopyPreview() {
+        tool.mousePressed(context, TestToolContext.at(12, 12));
+        tool.mouseDragged(context, TestToolContext.at(14, 12));
+
+        assertThat(tool.modifiersChanged(context, false, true, false)).isTrue();
+        context.ghosts.clear();
+        tool.paintOverlay(TestToolContext.scratchGraphics(), context);
+        assertThat(context.ghosts).filteredOn(element -> element instanceof Wire).isEmpty();
+        assertThat(tool.hiddenWires(context)).isEmpty();
+        tool.mouseReleased(context, TestToolContext.withKeys(14, 12, false, true, false));
+        assertThat(positionOf(gate)).isEqualTo(new GridPoint(10, 10));
+    }
+
+    @Test
+    void withoutADragAModifierChangeDoesNothing() {
+        assertThat(tool.modifiersChanged(context, true, false, false)).isFalse();
+        tool.mousePressed(context, TestToolContext.at(12, 12));
+        assertThat(tool.modifiersChanged(context, true, false, false)).isFalse();
+        assertThat(tool.hiddenWires(context)).isEmpty();
+        tool.mouseReleased(context, TestToolContext.at(12, 12));
+        assertThat(tool.modifiersChanged(context, false, false, false)).isFalse();
+        assertThat(positionOf(gate)).isEqualTo(new GridPoint(10, 10));
+        assertThat(context.openDocument().document().wires()).containsExactly(wire);
+    }
 }

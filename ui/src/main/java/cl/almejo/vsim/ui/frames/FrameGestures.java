@@ -45,6 +45,8 @@ public final class FrameGestures implements SelectToolDelegate {
     private int deltaX;
     private int deltaY;
     private boolean followWires;
+    /** The last drag event, so a modifier key pressed or released without moving can redo it. */
+    private CanvasMouseEvent lastDrag;
     private final MovePreview movePreview = new MovePreview();
     private ElementId hovered;
 
@@ -121,6 +123,7 @@ public final class FrameGestures implements SelectToolDelegate {
         if (grabbed == null) {
             return;
         }
+        lastDrag = event;
         deltaX = event.snapped().x() - pressPoint.x();
         deltaY = event.snapped().y() - pressPoint.y();
         pointerMoved |= deltaX != 0 || deltaY != 0;
@@ -133,6 +136,16 @@ public final class FrameGestures implements SelectToolDelegate {
         }
         followWires = context.selectionMoves().follows(event.shiftDown(), event.altDown());
         context.repaint();
+    }
+
+    /** Redoes the drag at the last pointer position with the new keys, so the wires preview follows them. */
+    @Override
+    public boolean modifiersChanged(ToolContext context, boolean shiftDown, boolean controlDown, boolean altDown) {
+        if (grabbed == null || lastDrag == null) {
+            return false;
+        }
+        dragged(context, lastDrag.withModifiers(shiftDown, controlDown, altDown));
+        return true;
     }
 
     @Override
@@ -323,6 +336,7 @@ public final class FrameGestures implements SelectToolDelegate {
         deltaX = 0;
         deltaY = 0;
         followWires = false;
+        lastDrag = null;
         movePreview.clear();
     }
 }

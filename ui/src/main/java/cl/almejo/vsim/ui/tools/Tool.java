@@ -45,6 +45,14 @@ public interface Tool {
         return false;
     }
 
+    /**
+     * Shift, Ctrl or Alt was pressed or released (the arguments are the keys held after the change). A tool whose
+     * preview depends on the keys redoes it as if the pointer had moved; true when it did. The default does nothing.
+     */
+    default boolean modifiersChanged(ToolContext context, boolean shiftDown, boolean controlDown, boolean altDown) {
+        return false;
+    }
+
     /** Paints previews on top of the circuit, in document coordinates (8 px per grid unit). */
     default void paintOverlay(Graphics2D graphics, ToolContext context) {
     }

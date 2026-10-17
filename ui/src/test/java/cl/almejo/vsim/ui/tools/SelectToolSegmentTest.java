@@ -225,4 +225,18 @@ class SelectToolSegmentTest {
         }
         throw new AssertionError("no pin of " + component.id() + " at " + point);
     }
+
+    @Test
+    void theSegmentKeyPressedMidDragSwitchesToTheSegmentMoveAndBack() {
+        context.selection.select(segment.id());
+        tool.mousePressed(context, TestToolContext.at(45, 10));
+        tool.mouseDragged(context, TestToolContext.at(47, 13));
+        assertThat(context.lastCursor()).isEqualTo(CanvasCursor.MOVE);
+
+        assertThat(tool.modifiersChanged(context, false, false, true)).isTrue();
+        assertThat(context.lastCursor()).isEqualTo(CanvasCursor.SLIDE_VERTICAL);
+        assertThat(tool.modifiersChanged(context, false, false, false)).isTrue();
+        assertThat(context.lastCursor()).isEqualTo(CanvasCursor.MOVE);
+        tool.mouseReleased(context, TestToolContext.at(47, 13));
+    }
 }

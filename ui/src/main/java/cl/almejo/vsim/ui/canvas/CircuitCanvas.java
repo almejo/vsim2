@@ -1074,6 +1074,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
                 event.consume();
                 return;
             }
+            modifierChanged(event, true);
             if (tool.keyPressed(CircuitCanvas.this, event.getKeyCode(), event.isShiftDown())) {
                 event.consume();
             }
@@ -1085,6 +1086,24 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
             if (event.getKeyCode() == KeyEvent.VK_SPACE) {
                 spaceDown = false;
                 showCursor();
+            }
+            modifierChanged(event, false);
+        }
+
+        /**
+         * Tells the tool about a Shift, Ctrl or Alt press or release, with the keys held after it (the changed key is
+         * taken from the event itself, as some platforms still report a released key as down). Other keys: nothing.
+         */
+        private void modifierChanged(KeyEvent event, boolean pressed) {
+            int keyCode = event.getKeyCode();
+            if (keyCode != KeyEvent.VK_SHIFT && keyCode != KeyEvent.VK_CONTROL && keyCode != KeyEvent.VK_ALT) {
+                return;
+            }
+            boolean shiftDown = keyCode == KeyEvent.VK_SHIFT ? pressed : event.isShiftDown();
+            boolean controlDown = keyCode == KeyEvent.VK_CONTROL ? pressed : event.isControlDown();
+            boolean altDown = keyCode == KeyEvent.VK_ALT ? pressed : event.isAltDown();
+            if (tool.modifiersChanged(CircuitCanvas.this, shiftDown, controlDown, altDown)) {
+                updateAnimation();
             }
         }
     }
