@@ -2,18 +2,27 @@ package cl.almejo.vsim.ui.preferences;
 
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.paint.Appearance;
+import cl.almejo.vsim.ui.paint.ColorRole;
+import cl.almejo.vsim.ui.paint.ColorScheme;
+import cl.almejo.vsim.ui.paint.ColorSchemes;
+import cl.almejo.vsim.ui.paint.CustomColorSchemes;
+import cl.almejo.vsim.ui.paint.NamedColorScheme;
 import cl.almejo.vsim.ui.paint.TextFont;
+import cl.almejo.vsim.ui.theme.ThemeManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import javax.swing.JComboBox;
+import java.awt.Color;
 import java.awt.Font;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -200,5 +209,152 @@ class PreferencesFormTest {
         assertThat(form.fontSizeSpinner().getValue()).isEqualTo(12);
         form.fontSizeSpinner().setValue(13);
         assertThat(preferences.textFont()).isEqualTo(new TextFont("Fuente De Otro Computador", 13));
+    }
+
+    // --- M6.8 custom colour schemes ---
+
+    private final List<SchemeEditorPanel> openedEditors = new ArrayList<>();
+    private Consumer<SchemeEditorPanel> editing = panel -> { };
+    private boolean editorSaves = true;
+    private boolean themeIsDark;
+
+    private PreferencesForm schemeForm() {
+        return new PreferencesForm(preferences, (parent, current) -> Optional.empty(), (parent, panel) -> {
+            openedEditors.add(panel);
+            editing.accept(panel);
+            return editorSaves;
+        }, (parent, title, initial) -> {
+            throw new AssertionError("the colour chooser must not open");
+        }, () -> themeIsDark);
+    }
+
+    @Test
+    void customSchemesAreListedAfterTheBuiltInsInNameOrder() {
+        CustomColorSchemes customSchemes = new CustomColorSchemes(preferences);
+        customSchemes.save("Zafiro", ColorSchemes.DARK);
+        NamedColorScheme amber = customSchemes.save("Ámbar", ColorSchemes.LIGHT);
+        preferences.setColorScheme(Optional.of(amber.id()));
+        PreferencesForm form = schemeForm();
+        assertThat(labels(form.schemeChoice())).containsExactly("Según el tema", "VSim clásico", "Claro", "Oscuro",
+                "Pastel (VSim)", "CSim (VSim)", "Twilight (VSim)", "Zafiro", "Ámbar");
+        assertThat(selected(form.schemeChoice())).contains(amber.id());
+        assertThat(form.customizeSchemeButton().getText()).isEqualTo("Personalizar…");
+        assertThat(form.deleteSchemeButton().getText()).isEqualTo("Borrar");
+    }
+
+    @Test
+    void deleteIsEnabledOnlyForACustomScheme() {
+        NamedColorScheme mine = new CustomColorSchemes(preferences).save("Mío", ColorSchemes.DARK);
+        PreferencesForm form = schemeForm();
+        assertThat(form.deleteSchemeButton().isEnabled()).isFalse();
+        choose(form.schemeChoice(), Optional.of(ColorSchemes.CLASSIC_ID));
+        assertThat(form.deleteSchemeButton().isEnabled()).isFalse();
+        choose(form.schemeChoice(), Optional.of(mine.id()));
+        assertThat(form.deleteSchemeButton().isEnabled()).isTrue();
+        assertThat(form.customizeSchemeButton().isEnabled()).isTrue();
+    }
+
+    @Test
+    void savingACopyOfDarkAddsItAndSelectsIt() {
+        PreferencesForm form = schemeForm();
+        choose(form.schemeChoice(), Optional.of(ColorSchemes.DARK_ID));
+        editing = panel -> panel.setColor(ColorRole.WIRE_ONE, Color.MAGENTA);
+        form.customizeSchemeButton().doClick(0);
+
+        assertThat(openedEditors).hasSize(1);
+        NamedColorScheme saved = new CustomColorSchemes(preferences).list().get(0);
+        assertThat(saved.name()).isEqualTo("Oscuro (copia)");
+        assertThat(saved.scheme()).isEqualTo(ColorSchemes.DARK.with(ColorRole.WIRE_ONE, Color.MAGENTA));
+        assertThat(preferences.colorScheme()).contains(saved.id());
+        assertThat(labels(form.schemeChoice())).endsWith("Oscuro (copia)");
+        assertThat(selected(form.schemeChoice())).contains(saved.id());
+        assertThat(form.deleteSchemeButton().isEnabled()).isTrue();
+    }
+
+    @Test
+    void byThemeStartsFromTheSchemeTheThemeGives() {
+        themeIsDark = true;
+        PreferencesForm form = schemeForm();
+        form.customizeSchemeButton().doClick(0);
+        assertThat(openedEditors.get(0).name()).isEqualTo("Oscuro (copia)");
+        assertThat(openedEditors.get(0).scheme()).isSameAs(ColorSchemes.DARK);
+
+        themeIsDark = false;
+        editorSaves = false;
+        choose(form.schemeChoice(), Optional.empty());
+        form.customizeSchemeButton().doClick(0);
+        assertThat(openedEditors.get(1).name()).isEqualTo("Claro (copia)");
+        assertThat(openedEditors.get(1).scheme()).isSameAs(ColorSchemes.LIGHT);
+    }
+
+    @Test
+    void cancellingTheEditorStoresNothing() {
+        PreferencesForm form = schemeForm();
+        editorSaves = false;
+        AtomicInteger changes = new AtomicInteger();
+        preferences.addListener(changes::incrementAndGet);
+        editing = panel -> panel.setColor(ColorRole.BACKGROUND, Color.RED);
+        form.customizeSchemeButton().doClick(0);
+        assertThat(changes).hasValue(0);
+        assertThat(new CustomColorSchemes(preferences).list()).isEmpty();
+        assertThat(form.schemeChoice().getItemCount()).isEqualTo(7);
+    }
+
+    @Test
+    void editingTheActiveCustomSchemeSavesItInPlaceAndTheAppearanceFollowsLive() {
+        CustomColorSchemes customSchemes = new CustomColorSchemes(preferences);
+        NamedColorScheme mine = customSchemes.save("Mío", ColorSchemes.CSIM);
+        preferences.setTheme(AppPreferences.Theme.LIGHT);
+        preferences.setColorScheme(Optional.of(mine.id()));
+        Appearance appearance = new Appearance(ColorSchemes.CLASSIC);
+        ThemeManager manager = new ThemeManager(preferences, appearance, () -> false, dark -> true);
+        manager.start();
+        assertThat(appearance.scheme()).isEqualTo(ColorSchemes.CSIM);
+
+        PreferencesForm form = schemeForm();
+        editing = panel -> {
+            panel.nameField().setText("Mío 2");
+            panel.setColor(ColorRole.BACKGROUND, Color.ORANGE);
+        };
+        form.customizeSchemeButton().doClick(0);
+
+        assertThat(openedEditors.get(0).name()).isEqualTo("Mío 2");
+        ColorScheme edited = ColorSchemes.CSIM.with(ColorRole.BACKGROUND, Color.ORANGE);
+        assertThat(customSchemes.list()).containsExactly(new NamedColorScheme(mine.id(), "Mío 2", edited));
+        assertThat(appearance.scheme()).isEqualTo(edited);
+        assertThat(labels(form.schemeChoice())).endsWith("Mío 2");
+        assertThat(selected(form.schemeChoice())).contains(mine.id());
+        manager.dispose();
+    }
+
+    @Test
+    void deletingTheActiveSchemeSelectsByThemeAndTheAppearanceFollowsTheTheme() {
+        CustomColorSchemes customSchemes = new CustomColorSchemes(preferences);
+        NamedColorScheme mine = customSchemes.save("Mío", ColorSchemes.CSIM);
+        preferences.setTheme(AppPreferences.Theme.DARK);
+        preferences.setColorScheme(Optional.of(mine.id()));
+        Appearance appearance = new Appearance(ColorSchemes.CLASSIC);
+        ThemeManager manager = new ThemeManager(preferences, appearance, () -> false, dark -> true);
+        manager.start();
+        assertThat(appearance.scheme()).isEqualTo(ColorSchemes.CSIM);
+
+        PreferencesForm form = schemeForm();
+        form.deleteSchemeButton().doClick(0);
+
+        assertThat(customSchemes.list()).isEmpty();
+        assertThat(preferences.colorScheme()).isEmpty();
+        assertThat(selected(form.schemeChoice())).isEmpty();
+        assertThat(form.schemeChoice().getItemCount()).isEqualTo(7);
+        assertThat(form.deleteSchemeButton().isEnabled()).isFalse();
+        assertThat(appearance.scheme()).isSameAs(ColorSchemes.DARK);
+        manager.dispose();
+    }
+
+    @Test
+    void aStoredIdOfADeletedCustomSchemeShowsByTheme() {
+        preferences.setColorScheme(Optional.of("custom-4"));
+        PreferencesForm form = schemeForm();
+        assertThat(selected(form.schemeChoice())).isEmpty();
+        assertThat(form.deleteSchemeButton().isEnabled()).isFalse();
     }
 }

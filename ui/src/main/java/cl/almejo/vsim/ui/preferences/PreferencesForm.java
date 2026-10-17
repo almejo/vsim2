@@ -2,8 +2,12 @@ package cl.almejo.vsim.ui.preferences;
 
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.ColorSchemes;
+import cl.almejo.vsim.ui.paint.CustomColorSchemes;
+import cl.almejo.vsim.ui.paint.NamedColorScheme;
 import cl.almejo.vsim.ui.paint.TextFont;
+import com.formdev.flatlaf.FlatLaf;
 import net.miginfocom.swing.MigLayout;
 
 import javax.swing.JButton;
@@ -21,6 +25,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.BooleanSupplier;
 
 /**
  * Content of the preferences dialog (spec §6.7, §6.10, §5.6). Every change is stored at once; the theme manager
@@ -62,19 +67,38 @@ public final class PreferencesForm extends JPanel {
     private final JCheckBox restoreSessionBox = new JCheckBox(Messages.text("preferences.restoreSession"));
     private final JComboBox<Choice<String>> fontFamilyChoice = new JComboBox<>();
     private final JSpinner fontSizeSpinner = new JSpinner();
+    private final CustomColorSchemes customSchemes;
+    private final SchemeEditorDialog.Opener schemeEditorOpener;
+    private final SchemeEditorPanel.ColorChooser colorChooser;
+    private final BooleanSupplier themeIsDark;
+    private final JButton customizeSchemeButton = new JButton(Messages.text("preferences.scheme.customize"));
+    private final JButton deleteSchemeButton = new JButton(Messages.text("preferences.scheme.delete"));
+    private boolean refreshingSchemes;
 
     public PreferencesForm(AppPreferences preferences, DirectoryChooser directoryChooser) {
+        this(preferences, directoryChooser, SchemeEditorDialog::open, SchemeEditorDialog::chooseColor,
+                FlatLaf::isLafDark);
+    }
+
+    /**
+     * @param schemeEditorOpener shows «Personalizar…» and tells whether the user saved (tests answer without a dialog)
+     * @param colorChooser       what the editor's colour buttons open
+     * @param themeIsDark        whether the installed theme is dark: «Según el tema» is then a copy of «Oscuro»
+     */
+    PreferencesForm(AppPreferences preferences, DirectoryChooser directoryChooser,
+                    SchemeEditorDialog.Opener schemeEditorOpener, SchemeEditorPanel.ColorChooser colorChooser,
+                    BooleanSupplier themeIsDark) {
         super(new MigLayout("insets dialog, wrap 2", "[right][grow, fill]"));
         this.preferences = preferences;
         this.directoryChooser = directoryChooser;
+        this.customSchemes = new CustomColorSchemes(preferences);
+        this.schemeEditorOpener = schemeEditorOpener;
+        this.colorChooser = colorChooser;
+        this.themeIsDark = themeIsDark;
 
         for (AppPreferences.Theme theme : List.of(AppPreferences.Theme.SYSTEM, AppPreferences.Theme.LIGHT,
                 AppPreferences.Theme.DARK)) {
             themeChoice.addItem(new Choice<>(theme, themeName(theme)));
-        }
-        schemeChoice.addItem(new Choice<>(Optional.empty(), Messages.text("preferences.scheme.byTheme")));
-        for (String id : ColorSchemes.ids()) {
-            schemeChoice.addItem(new Choice<>(Optional.of(id), ColorSchemes.displayName(id)));
         }
         languageChoice.addItem(new Choice<>(Optional.empty(), Messages.text("preferences.language.system")));
         LANGUAGES.forEach((tag, nameKey) ->
@@ -88,13 +112,20 @@ public final class PreferencesForm extends JPanel {
                 event -> preferences.setInvertModifier(selected(invertModifierChoice)));
 
         select(themeChoice, preferences.theme());
-        select(schemeChoice, preferences.colorScheme().filter(id -> ColorSchemes.byId(id).isPresent()));
+        refreshSchemes();
         select(languageChoice, preferences.language()
                 .map(tag -> Locale.forLanguageTag(tag).getLanguage())
                 .filter(LANGUAGES::containsKey));
 
         themeChoice.addActionListener(event -> preferences.setTheme(selected(themeChoice)));
-        schemeChoice.addActionListener(event -> preferences.setColorScheme(selected(schemeChoice)));
+        schemeChoice.addActionListener(event -> {
+            if (!refreshingSchemes) {
+                preferences.setColorScheme(selected(schemeChoice));
+                deleteSchemeButton.setEnabled(selectedCustomScheme().isPresent());
+            }
+        });
+        customizeSchemeButton.addActionListener(event -> customizeScheme());
+        deleteSchemeButton.addActionListener(event -> deleteScheme());
         languageChoice.addActionListener(event -> preferences.setLanguage(selected(languageChoice)));
         libraryField.setEditable(false);
         chooseLibraryButton.addActionListener(event -> chooseLibraryDirectory());
@@ -110,6 +141,8 @@ public final class PreferencesForm extends JPanel {
         add(themeChoice);
         add(new JLabel(Messages.text("preferences.scheme")));
         add(schemeChoice);
+        add(customizeSchemeButton, "skip 1, split 2, growx 0");
+        add(deleteSchemeButton, "growx 0");
         add(new JLabel(Messages.text("preferences.language")));
         add(languageChoice);
         add(new JLabel(Messages.text("preferences.language.note")), "skip 1");
@@ -153,6 +186,75 @@ public final class PreferencesForm extends JPanel {
 
     private void storeTextFont() {
         preferences.setTextFont(new TextFont(selected(fontFamilyChoice), (Integer) fontSizeSpinner.getValue()));
+    }
+
+    /**
+     * Fills the scheme combo («Según el tema», the built-ins, then the custom schemes by name) and selects the stored
+     * choice; an id that names no scheme (a deleted custom one) shows «Según el tema». Stores nothing.
+     */
+    private void refreshSchemes() {
+        refreshingSchemes = true;
+        try {
+            schemeChoice.removeAllItems();
+            schemeChoice.addItem(new Choice<>(Optional.empty(), Messages.text("preferences.scheme.byTheme")));
+            for (String id : ColorSchemes.ids()) {
+                schemeChoice.addItem(new Choice<>(Optional.of(id), ColorSchemes.displayName(id)));
+            }
+            for (NamedColorScheme custom : customSchemes.list()) {
+                schemeChoice.addItem(new Choice<>(Optional.of(custom.id()), custom.name()));
+            }
+            select(schemeChoice, Optional.empty());
+            select(schemeChoice, preferences.colorScheme().filter(id -> customSchemes.lookup(id).isPresent()));
+        } finally {
+            refreshingSchemes = false;
+        }
+        deleteSchemeButton.setEnabled(selectedCustomScheme().isPresent());
+    }
+
+    private Optional<NamedColorScheme> selectedCustomScheme() {
+        return selected(schemeChoice).flatMap(customSchemes::byId);
+    }
+
+    /**
+     * «Personalizar…»: edits the selected custom scheme in place, or saves a copy of the selected built-in one (by
+     * theme: the scheme the theme gives) as a new scheme and selects it.
+     */
+    private void customizeScheme() {
+        Optional<NamedColorScheme> custom = selectedCustomScheme();
+        NamedColorScheme start = custom.orElseGet(() -> {
+            String id = selected(schemeChoice).filter(chosen -> ColorSchemes.byId(chosen).isPresent())
+                    .orElse(themeIsDark.getAsBoolean() ? ColorSchemes.DARK_ID : ColorSchemes.LIGHT_ID);
+            ColorScheme scheme = ColorSchemes.byId(id).orElseThrow();
+            return new NamedColorScheme(id, Messages.format("preferences.scheme.copyName",
+                    ColorSchemes.displayName(id)), scheme);
+        });
+        SchemeEditorPanel editor = new SchemeEditorPanel(start, colorChooser);
+        if (!schemeEditorOpener.open(this, editor)) {
+            return;
+        }
+        if (custom.isPresent()) {
+            customSchemes.update(new NamedColorScheme(start.id(), editor.name(), editor.scheme()));
+        } else {
+            NamedColorScheme saved = customSchemes.save(editor.name(), editor.scheme());
+            preferences.setColorScheme(Optional.of(saved.id()));
+        }
+        refreshSchemes();
+    }
+
+    /** «Borrar»: removes the selected custom scheme; when it was in use, the choice goes back to «Según el tema». */
+    private void deleteScheme() {
+        selectedCustomScheme().ifPresent(custom -> {
+            customSchemes.delete(custom.id());
+            refreshSchemes();
+        });
+    }
+
+    JButton customizeSchemeButton() {
+        return customizeSchemeButton;
+    }
+
+    JButton deleteSchemeButton() {
+        return deleteSchemeButton;
     }
 
     JComboBox<Choice<String>> fontFamilyChoice() {
