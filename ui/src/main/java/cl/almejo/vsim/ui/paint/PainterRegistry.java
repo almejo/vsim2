@@ -1,6 +1,7 @@
 package cl.almejo.vsim.ui.paint;
 
 import cl.almejo.vsim.core.component.VisibleState;
+import cl.almejo.vsim.core.component.standard.ConstantValue;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.library.InterfacePins;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
@@ -59,6 +60,10 @@ public final class PainterRegistry {
         registry.register(StandardComponentTypes.COMPARATOR, new BlockPainter("CMP", BlockPainter.Body.RECTANGLE));
         registry.register(StandardComponentTypes.MUX, new BlockPainter("MUX", BlockPainter.Body.TRAPEZOID));
         registry.register(StandardComponentTypes.DECODER, new BlockPainter("DEC", BlockPainter.Body.RECTANGLE));
+        registry.register(StandardComponentTypes.REGISTER, new BlockPainter("REG", BlockPainter.Body.RECTANGLE)
+                .withLiveText(PainterRegistry::storedValueText));
+        registry.register(StandardComponentTypes.COUNTER, new BlockPainter("CNT", BlockPainter.Body.RECTANGLE)
+                .withLiveText(PainterRegistry::storedValueText));
     }
 
     /**
@@ -71,6 +76,19 @@ public final class PainterRegistry {
             return Optional.of(operation >= 0 && operation < ALU_OPERATIONS.size() ? ALU_OPERATIONS.get(operation) : "?");
         }
         return state instanceof VisibleState.None ? Optional.of(ALU_OPERATIONS.getFirst()) : Optional.empty();
+    }
+
+    /**
+     * What a register or a counter shows under its name: its stored value in its «Mostrar como» format, written like
+     * a pin's value box (Z bits and conflicts included); nothing without a state (the palette icon).
+     */
+    static Optional<String> storedValueText(VisibleState state, Map<String, Object> parameters) {
+        if (!(state instanceof VisibleState.StoredValueState stored)) {
+            return Optional.empty();
+        }
+        Object format = parameters.get(ConstantValue.FORMAT);
+        return Optional.of(InterfacePinPainter.shownText(stored.value(),
+                format == null ? ConstantValue.AUTO : (String) format));
     }
 
     public void register(String typeId, ComponentPainter painter) {
