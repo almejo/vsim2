@@ -201,18 +201,19 @@ public final class SelectTool implements Tool {
         reset();
         boolean continuesOwnClick = ownPressSeen;
         ownPressSeen = true;
-        if (event.clickCount() >= 2 && continuesOwnClick && !event.controlDown()
-                && hit.isPresent() && hit.get() instanceof Wire clickedWire) {
-            selectWireGroup(context, event, clickedWire);
-            return;
-        }
+        // a label beats a wire under it, as in a single press, so both clicks of a double click agree
         if (event.clickCount() >= 2 && continuesOwnClick) {
-            Optional<Component> labelled = componentLabelAt(context, event.gridPosition());
+            Optional<Component> labelled = labelPressedAt(context, event.gridPosition(), hit);
             if (labelled.isPresent()) {
                 context.selection().select(labelled.get().id());
                 context.editLabel(labelled.get());
                 return;
             }
+        }
+        if (event.clickCount() >= 2 && continuesOwnClick && !event.controlDown()
+                && hit.isPresent() && hit.get() instanceof Wire clickedWire) {
+            selectWireGroup(context, event, clickedWire);
+            return;
         }
         if (event.clickCount() >= 2 && continuesOwnClick && hit.isPresent()) {
             if (hit.get() instanceof Component component) {
@@ -234,9 +235,8 @@ public final class SelectTool implements Tool {
         Optional<ConnectionPoints.PinHit> pin = hit.isPresent() && hit.get() instanceof TextLabel
                 ? Optional.empty()
                 : pinNear(context, event.gridPosition());
-        if (!event.shiftDown() && !event.controlDown() && pin.isEmpty()
-                && !(hit.isPresent() && hit.get() instanceof TextLabel)) {
-            Optional<Component> labelled = componentLabelAt(context, event.gridPosition());
+        if (!event.shiftDown() && !event.controlDown() && pin.isEmpty()) {
+            Optional<Component> labelled = labelPressedAt(context, event.gridPosition(), hit);
             if (labelled.isPresent()) {
                 pressLabel(context, event, labelled.get());
                 return;
@@ -484,7 +484,7 @@ public final class SelectTool implements Tool {
         if (pin.isPresent()) {
             return grabsSelection(context, pin.get().component()) ? CanvasCursor.MOVE : CanvasCursor.CROSSHAIR;
         }
-        if (!(hit.isPresent() && hit.get() instanceof TextLabel) && componentLabelAt(context, gridPosition).isPresent()) {
+        if (labelPressedAt(context, gridPosition, hit).isPresent()) {
             return CanvasCursor.MOVE;
         }
         if (hit.isEmpty()) {
@@ -788,6 +788,19 @@ public final class SelectTool implements Tool {
         return connectionPoints;
     }
 
+    /**
+     * The component whose label a press at {@code gridPosition} takes, given the element {@code hit} there: a free
+     * text is drawn on top of labels, and a component's body wins over a label moved onto it (its own included), so
+     * the body can still be dragged and configured from there. A label only beats a wire.
+     */
+    private static Optional<Component> labelPressedAt(ToolContext context, Point2D gridPosition,
+                                                      Optional<DocumentElement> hit) {
+        if (hit.isPresent() && (hit.get() instanceof TextLabel || hit.get() instanceof Component)) {
+            return Optional.empty();
+        }
+        return componentLabelAt(context, gridPosition);
+    }
+
     /** The component whose drawn label holds {@code gridPosition}, if any (the topmost one when labels overlap). */
     private static Optional<Component> componentLabelAt(ToolContext context, Point2D gridPosition) {
         double documentX = gridPosition.getX() * GridPoint.PIXELS_PER_UNIT;
@@ -842,6 +855,9 @@ public final class SelectTool implements Tool {
     /** A drag sets the label's offset (one undo step); either way the component ends up selected. */
     private void releaseLabel(ToolContext context) {
         ElementId id = labelComponent.id();
+        if (context.openDocument().document().component(id).isEmpty()) {
+            return; // removed while the press was held (an undo): nothing to select or move
+        }
         if (labelOffset == null) {
             context.selection().select(id);
             return;
@@ -851,7 +867,7 @@ public final class SelectTool implements Tool {
         }
         Optional<LabelOffset> moved = Optional.of(labelOffset);
         boolean changed = context.openDocument().document().component(id)
-                .map(current -> !current.labelOffset().equals(moved)).orElse(false);
+                .map(current -> !current.labelOffset().equals(moved)).orElseThrow();
         if (changed) {
             context.openDocument().execute(new SetLabelOffsetCommand(id, moved));
         }

@@ -5,6 +5,8 @@ import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.Frame;
 import cl.almejo.vsim.core.document.FrameTint;
+import cl.almejo.vsim.core.document.Wire;
+import cl.almejo.vsim.core.command.AddWireCommand;
 import cl.almejo.vsim.core.command.ChangeFrameCommand;
 import cl.almejo.vsim.core.command.CreateFrameCommand;
 import cl.almejo.vsim.core.command.SetLabelCommand;
@@ -18,6 +20,7 @@ import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.Appearance;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
+import cl.almejo.vsim.ui.tools.CanvasMouseEvent;
 import cl.almejo.vsim.ui.tools.TestToolContext;
 import cl.almejo.vsim.ui.tools.Tool;
 import cl.almejo.vsim.ui.window.EditorServices;
@@ -320,6 +323,53 @@ class FramesFeaturesTest {
         assertThat(view.canvas().selection().isEmpty()).isTrue();
         view.canvas().selection().select(frame.id());
         assertThat(view.canvas().selection().effectiveIds()).containsExactly(frame.id());
+    }
+
+    private Wire addWire(int startX, int startY, int endX, int endY) {
+        Wire added = new Wire(openDocument.document().newWireId(), new GridPoint(startX, startY),
+                new GridPoint(endX, endY));
+        openDocument.execute(new AddWireCommand(added));
+        return added;
+    }
+
+    @Test
+    void aDoubleClickOnAWireInsideALockedFrameSelectsOnlyItsStretchWithTheFrameGesturesInstalled() {
+        Frame frame = addFrame(true);
+        Component inside = place(openDocument, StandardComponentTypes.NOT, 14, 4, Map.of());
+        Wire first = addWire(2, 6, 8, 6);
+        Wire second = addWire(8, 6, 8, 10);
+        Wire apart = addWire(10, 10, 12, 10);
+        Tool select = view.canvas().defaultTool();
+        for (int clickCount = 1; clickCount <= 2; clickCount++) {
+            select.mousePressed(view.canvas(),
+                    TestToolContext.event(5, 6, CanvasMouseEvent.PRIMARY, clickCount, false));
+            select.mouseReleased(view.canvas(),
+                    TestToolContext.event(5, 6, CanvasMouseEvent.PRIMARY, clickCount, false));
+        }
+        assertThat(view.canvas().selection().ids()).containsExactlyInAnyOrder(first.id(), second.id())
+                .doesNotContain(frame.id(), inside.id(), apart.id());
+    }
+
+    @Test
+    void draggingALabelInsideALockedFrameMovesOnlyTheLabel() {
+        Frame frame = addFrame(true);
+        Component gate = place(openDocument, StandardComponentTypes.NOT, 6, 6, Map.of());
+        openDocument.execute(new SetLabelCommand(gate.id(), "U1"));
+        Component labelled = openDocument.document().component(gate.id()).orElseThrow();
+        Rectangle2D bounds = LabelLayout.componentLabel(openDocument.registry().typeOf(labelled), labelled)
+                .orElseThrow().bounds();
+        double centreX = bounds.getCenterX() / GridPoint.PIXELS_PER_UNIT;
+        double centreY = bounds.getCenterY() / GridPoint.PIXELS_PER_UNIT;
+        Tool select = view.canvas().defaultTool();
+        select.mousePressed(view.canvas(), TestToolContext.at(centreX, centreY));
+        select.mouseDragged(view.canvas(), TestToolContext.at(centreX + 3, centreY));
+        select.mouseReleased(view.canvas(), TestToolContext.at(centreX + 3, centreY));
+
+        Component after = openDocument.document().component(gate.id()).orElseThrow();
+        assertThat(after.position()).isEqualTo(gate.position());
+        assertThat(after.labelOffset()).isPresent();
+        assertThat(openDocument.document().frame(frame.id())).contains(frame);
+        assertThat(view.canvas().selection().ids()).containsExactly(gate.id());
     }
 
     private static List<String> menuTexts(javax.swing.JPopupMenu menu) {

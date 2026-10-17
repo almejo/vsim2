@@ -1,10 +1,14 @@
 package cl.almejo.vsim.ui.tools;
 
+import cl.almejo.vsim.core.command.AddWireCommand;
+import cl.almejo.vsim.core.command.RemoveElementsCommand;
 import cl.almejo.vsim.core.command.SetLabelCommand;
 import cl.almejo.vsim.core.command.SetLabelOffsetCommand;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.LabelOffset;
+import cl.almejo.vsim.core.document.Wire;
+import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.ui.canvas.LabelLayout;
 import org.junit.jupiter.api.AfterEach;
@@ -13,6 +17,7 @@ import org.junit.jupiter.api.Test;
 import java.awt.event.KeyEvent;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -141,5 +146,105 @@ class SelectToolLabelDragTest {
         tool.mouseDragged(context, TestToolContext.at(centre.getX() + 4, centre.getY()));
         tool.mouseReleased(context, TestToolContext.at(centre.getX() + 4, centre.getY()));
         assertThat(current(gate).labelOffset()).isEmpty();
+    }
+
+    private void doubleClick(double gridX, double gridY) {
+        tool.mousePressed(context, TestToolContext.at(gridX, gridY));
+        tool.mouseReleased(context, TestToolContext.at(gridX, gridY));
+        tool.mousePressed(context, TestToolContext.event(gridX, gridY, CanvasMouseEvent.PRIMARY, 2, false));
+        tool.mouseReleased(context, TestToolContext.event(gridX, gridY, CanvasMouseEvent.PRIMARY, 2, false));
+    }
+
+    @Test
+    void aDoubleClickOnALabelOverAWireEditsTheLabelAndKeepsTheComponentSelected() {
+        Component gate = labelled(0, 10, "Compuerta U1");
+        Point2D centre = labelCentre(gate);
+        int wireY = (int) Math.round(centre.getY());
+        Wire wire = new Wire(context.openDocument().document().newWireId(),
+                new GridPoint((int) centre.getX() - 20, wireY), new GridPoint((int) centre.getX() + 20, wireY));
+        context.openDocument().execute(new AddWireCommand(wire));
+        // the precondition: the wire runs through the label box
+        assertThat(context.hitTester().elementAt(context.openDocument().document(),
+                new Point2D.Double(centre.getX(), wireY))).contains(wire);
+        assertThat(LabelLayout.componentLabel(context.openDocument().registry().typeOf(gate), gate).orElseThrow()
+                .bounds().contains(centre.getX() * GridPoint.PIXELS_PER_UNIT, wireY * GridPoint.PIXELS_PER_UNIT))
+                .isTrue();
+
+        doubleClick(centre.getX(), wireY);
+
+        assertThat(context.editedLabel).isEqualTo(current(gate));
+        assertThat(context.selection.ids()).containsExactly(gate.id());
+    }
+
+    /** Moves {@code gate}'s label centre onto the middle of {@code target}'s body; returns that centre. */
+    private Point2D labelOnBodyOf(Component gate, Component target) {
+        Bounds body = context.openDocument().registry().typeOf(target).bounds(target);
+        double middleX = (body.x() + body.width() / 2.0) * GridPoint.PIXELS_PER_UNIT;
+        double middleY = (body.y() + body.height() / 2.0) * GridPoint.PIXELS_PER_UNIT;
+        context.openDocument().execute(new SetLabelOffsetCommand(gate.id(),
+                Optional.of(LabelLayout.offsetFor(current(gate), middleX, middleY))));
+        Point2D centre = labelCentre(gate);
+        assertThat(context.hitTester().elementAt(context.openDocument().document(), centre))
+                .contains(current(target));
+        return centre;
+    }
+
+    @Test
+    void theBodyOfAnotherComponentWinsOverALabelMovedOntoIt() {
+        Component gate = labelled(0, 10, "U1");
+        Component other = place(context.openDocument(), StandardComponentTypes.NOT, 20, 10, Map.of());
+        Point2D centre = labelOnBodyOf(gate, other);
+        Optional<LabelOffset> offset = current(gate).labelOffset();
+
+        context.drag(tool, centre.getX(), centre.getY(), centre.getX() + 3, centre.getY());
+
+        assertThat(current(other).position()).isEqualTo(other.position().plus(new GridPoint(3, 0)));
+        assertThat(current(gate).labelOffset()).isEqualTo(offset);
+    }
+
+    @Test
+    void aDoubleClickOnALabelMovedOntoItsOwnBodyConfiguresTheComponent() {
+        Component gate = labelled(0, 10, "U1");
+        Point2D centre = labelOnBodyOf(gate, gate);
+
+        doubleClick(centre.getX(), centre.getY());
+
+        assertThat(context.configured).isEqualTo(current(gate));
+        assertThat(context.editedLabel).isNull();
+    }
+
+    @Test
+    void aLabelReleasedAfterItsComponentWasRemovedSelectsNothing() {
+        Component gate = labelled(0, 10, "U1");
+        Point2D centre = labelCentre(gate);
+        tool.mousePressed(context, TestToolContext.at(centre.getX(), centre.getY()));
+        context.openDocument().execute(new RemoveElementsCommand(List.of(gate.id())));
+        tool.mouseReleased(context, TestToolContext.at(centre.getX(), centre.getY()));
+        assertThat(context.selection.isEmpty()).isTrue();
+
+        Component again = labelled(0, 10, "U2");
+        Point2D againCentre = labelCentre(again);
+        tool.mousePressed(context, TestToolContext.at(againCentre.getX(), againCentre.getY()));
+        tool.mouseDragged(context, TestToolContext.at(againCentre.getX() + 4, againCentre.getY()));
+        context.openDocument().execute(new RemoveElementsCommand(List.of(again.id())));
+        tool.mouseReleased(context, TestToolContext.at(againCentre.getX() + 4, againCentre.getY()));
+        assertThat(context.selection.isEmpty()).isTrue();
+        assertThat(tool.isIdle()).isTrue();
+    }
+
+    @Test
+    void modifierKeysPressedDuringALabelDragAreIgnored() {
+        Component gate = labelled(0, 10, "U1");
+        Point2D centre = labelCentre(gate);
+        tool.mousePressed(context, TestToolContext.at(centre.getX(), centre.getY()));
+        tool.mouseDragged(context, TestToolContext.at(centre.getX() + 4, centre.getY()));
+        Optional<Component> preview = tool.labelDragPreview();
+        assertThat(tool.modifiersChanged(context, true, true, true)).isFalse();
+        assertThat(tool.labelDragPreview()).isEqualTo(preview);
+        assertThat(tool.movingFrom()).isEmpty();
+        tool.mouseReleased(context, TestToolContext.withKeys(centre.getX() + 4, centre.getY(), true, true, true));
+        assertThat(current(gate).position()).isEqualTo(gate.position());
+        assertThat(current(gate).labelOffset()).isPresent();
+        assertThat(context.openDocument().history().undoDescription()).contains("command.moveLabel");
     }
 }
