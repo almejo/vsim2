@@ -10,6 +10,8 @@ import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.Appearance;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
+import cl.almejo.vsim.ui.paint.TextFont;
+import cl.almejo.vsim.ui.paint.TextFonts;
 import cl.almejo.vsim.ui.shortcuts.ShortcutCatalog;
 import cl.almejo.vsim.ui.window.EditorServices;
 import cl.almejo.vsim.ui.window.EditorView;
@@ -456,5 +458,27 @@ class InlineTextEditorTest {
         editor.confirmOrCancel();
         assertThat(confirmed).containsExactly("dos");
         assertThat(editor.isOpen()).isFalse();
+    }
+
+    @Test
+    void aFontChangeConfirmsAnOpenEditAndLeavesNoListenerBehind() {
+        int listeners = TextFonts.listenerCount();
+        try {
+            editor.open(request("uno"));
+            editor.field().setText("dos");
+            TextFonts.set(new TextFont(Font.SERIF, 14));
+            assertThat(confirmed).containsExactly("dos");
+            assertThat(editor.isOpen()).isFalse();
+            assertThat(TextFonts.listenerCount()).isEqualTo(listeners);
+
+            editor.open(request("tres", NOT_BAD));
+            editor.field().setText("bad");
+            TextFonts.set(TextFont.DEFAULT);
+            assertThat(confirmed).containsExactly("dos"); // an invalid text is cancelled
+            assertThat(editor.isOpen()).isFalse();
+            assertThat(TextFonts.listenerCount()).isEqualTo(listeners);
+        } finally {
+            TextFonts.set(TextFont.DEFAULT);
+        }
     }
 }

@@ -7,6 +7,7 @@ import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.canvas.Viewport;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.icons.Icons;
+import cl.almejo.vsim.ui.paint.TextFonts;
 
 import javax.swing.AbstractAction;
 import javax.swing.JButton;
@@ -158,6 +159,10 @@ public final class InlineTextEditor {
         whileOpen.add(() -> document.removeListener(documentListener));
         Toolkit.getDefaultToolkit().addAWTEventListener(pressListener, AWTEvent.MOUSE_EVENT_MASK);
         whileOpen.add(() -> Toolkit.getDefaultToolkit().removeAWTEventListener(pressListener));
+        // the request carries the font and area it was opened with: a font change (Preferencias) ends the edit
+        Runnable fontChanged = this::confirmOrCancel;
+        TextFonts.addListener(fontChanged);
+        whileOpen.add(() -> TextFonts.removeListener(fontChanged));
         check();
         field.requestFocusInWindow();
     }
