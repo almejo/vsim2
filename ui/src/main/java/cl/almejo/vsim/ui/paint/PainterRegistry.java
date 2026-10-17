@@ -57,6 +57,8 @@ public final class PainterRegistry {
         registry.register(StandardComponentTypes.ALU, new BlockPainter("ALU", BlockPainter.Body.CHEVRON)
                 .withLiveText(PainterRegistry::aluOperation));
         registry.register(StandardComponentTypes.COMPARATOR, new BlockPainter("CMP", BlockPainter.Body.RECTANGLE));
+        registry.register(StandardComponentTypes.MUX, new BlockPainter("MUX", BlockPainter.Body.TRAPEZOID));
+        registry.register(StandardComponentTypes.DECODER, new BlockPainter("DEC", BlockPainter.Body.RECTANGLE));
     }
 
     /**

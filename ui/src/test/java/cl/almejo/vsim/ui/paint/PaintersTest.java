@@ -161,6 +161,29 @@ class PaintersTest {
     }
 
     @Test
+    void theGrownMuxAndDecoderDrawNearTheirBoundsInEveryRotation() {
+        List<Map<String, Object>> muxes = List.of(Map.of("inputs", "4", StandardComponentTypes.WIDTH, 1),
+                Map.of("inputs", "4", StandardComponentTypes.WIDTH, 32));
+        List<Map<String, Object>> decoders = List.of(Map.of("inputBits", 1), Map.of("inputBits", 4));
+        for (Map<String, Object> parameters : muxes) {
+            assertGrownBlockDrawsNearItsBounds(StandardComponentTypes.MUX, parameters);
+        }
+        for (Map<String, Object> parameters : decoders) {
+            assertGrownBlockDrawsNearItsBounds(StandardComponentTypes.DECODER, parameters);
+        }
+        assertThat(registry.require(StandardComponentTypes.DECODER).specializedFor(decoders.get(1)).size().height())
+                .isGreaterThan(registry.require(StandardComponentTypes.DECODER).size().height());
+    }
+
+    private void assertGrownBlockDrawsNearItsBounds(String typeId, Map<String, Object> parameters) {
+        ComponentType type = registry.require(typeId).specializedFor(parameters);
+        assertThat(painters.painterFor(typeId)).isInstanceOf(BlockPainter.class);
+        for (Rotation rotation : Rotation.values()) {
+            assertDrawsNearItsBounds(type, rotation, VisibleState.NONE, 420, parameters);
+        }
+    }
+
+    @Test
     void subcircuitTypesGetTheSubcircuitPainterAndDrawInsideTheirBox() {
         ComponentType type = SubcircuitTypes.typeOf(ExampleDefinitions.inverter());
         assertThat(painters.painterFor(type.id())).isInstanceOf(SubcircuitPainter.class);
