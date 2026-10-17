@@ -5,6 +5,7 @@ import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.core.document.LabelOffset;
 import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
@@ -19,6 +20,7 @@ import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
@@ -113,5 +115,43 @@ class LabelLayoutTest {
         TextFonts.set(new TextFont("Fuente De Otro Computador", 10));
         assertThat(LabelLayout.font().getFamily()).isEqualTo(new Font(Font.SANS_SERIF, Font.PLAIN, 10).getFamily());
         assertThat(LabelLayout.gridBounds(note)).isEqualTo(sansSerif);
+    }
+
+    @Test
+    void anOffsetLabelIsCenteredOnThePositionPlusTheRotatedOffset() {
+        LabelOffset offset = new LabelOffset(6, 1);
+        for (Rotation rotation : Rotation.values()) {
+            Component gate = not(rotation, "Compuerta U1").withLabelOffset(Optional.of(offset));
+            GridPoint centre = gate.position().plus(rotation.apply(new GridPoint(offset.x(), offset.y())));
+            Rectangle2D label = LabelLayout.componentLabel(type, gate).orElseThrow().bounds();
+            assertThat(label.getCenterX()).isCloseTo(centre.x() * GridPoint.PIXELS_PER_UNIT, within(0.01));
+            assertThat(label.getCenterY()).isCloseTo(centre.y() * GridPoint.PIXELS_PER_UNIT, within(0.01));
+            assertThat(label.getWidth()).isGreaterThan(label.getHeight()); // the text stays horizontal
+        }
+    }
+
+    @Test
+    void offsetForIsTheSnappedInverseOfThePlace() {
+        for (Rotation rotation : Rotation.values()) {
+            Component gate = not(rotation, "U1");
+            LabelOffset offset = new LabelOffset(-3, 7);
+            Rectangle2D label = LabelLayout.componentLabel(type, gate.withLabelOffset(Optional.of(offset)))
+                    .orElseThrow().bounds();
+            assertThat(LabelLayout.offsetFor(gate, label.getCenterX() + 2.5, label.getCenterY() - 3.1))
+                    .isEqualTo(offset);
+        }
+    }
+
+    @Test
+    void rotatingKeepsAMovedLabelOnTheSameSideOfTheBody() {
+        // a label moved below the body (local +y) is below for R0, left for R90 (y grows down, turns clockwise)
+        Component gate = not(Rotation.R0, "U1").withLabelOffset(Optional.of(new LabelOffset(2, 8)));
+        Rectangle2D body = ComponentDrawing.documentBounds(type, gate);
+        assertThat(LabelLayout.componentLabel(type, gate).orElseThrow().bounds().getMinY())
+                .isGreaterThan(body.getMaxY());
+        Component turned = gate.withRotation(Rotation.R90);
+        Rectangle2D turnedBody = ComponentDrawing.documentBounds(type, turned);
+        assertThat(LabelLayout.componentLabel(type, turned).orElseThrow().bounds().getMaxX())
+                .isLessThan(turnedBody.getMinX());
     }
 }

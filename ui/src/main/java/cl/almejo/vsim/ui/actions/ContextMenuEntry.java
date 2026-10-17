@@ -9,7 +9,7 @@ import java.util.Optional;
  * the menu out in the order of spec §6.6 whatever contributor added it.
  */
 public enum ContextMenuEntry {
-    CONFIGURE, LABEL, ROTATE_CLOCKWISE, ROTATE_COUNTER_CLOCKWISE, CUT, COPY, DUPLICATE, DELETE,
+    CONFIGURE, LABEL, RESET_LABEL_POSITION, ROTATE_CLOCKWISE, ROTATE_COUNTER_CLOCKWISE, CUT, COPY, DUPLICATE, DELETE,
     PASTE, ADD_TEXT, SELECT_ALL, CENTER_VIEW;
 
     private static final String PROPERTY = "vsim.contextMenuEntry";

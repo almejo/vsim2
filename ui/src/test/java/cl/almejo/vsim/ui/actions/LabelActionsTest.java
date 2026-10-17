@@ -290,6 +290,27 @@ class LabelActionsTest {
         cancel();
     }
 
+    /** M6.8: a moved label is drawn centred on its place, so its editor sits over it and grows both ways. */
+    @Test
+    void aMovedLabelEditorSitsOverTheLabelAndStaysCentred() {
+        Component gate = new Component(openDocument.document().newComponentId(), StandardComponentTypes.NOT,
+                new GridPoint(10, 10), cl.almejo.vsim.core.geometry.Rotation.R0, Map.of(), "U1",
+                java.util.Optional.of(new cl.almejo.vsim.core.document.LabelOffset(2, 9)));
+        openDocument.execute(new AddElementsCommand(List.of(gate)));
+        actions.editLabel(gate);
+        java.awt.geom.Rectangle2D painted = view.canvas().viewport().documentTransform().createTransformedShape(
+                cl.almejo.vsim.ui.canvas.LabelLayout.componentLabelPlace(
+                        openDocument.registry().typeOf(gate), gate, "U1").bounds()).getBounds2D();
+        java.awt.Rectangle before = textArea();
+        assertThat(before.getCenterX()).isBetween(painted.getCenterX() - 1, painted.getCenterX() + 1);
+        assertThat(before.getCenterY()).isBetween(painted.getCenterY() - 2, painted.getCenterY() + 2);
+        editor.field().setText("una etiqueta bastante larga");
+        java.awt.Rectangle after = textArea();
+        assertThat(after.getCenterX()).isBetween(before.getCenterX() - 1, before.getCenterX() + 1);
+        assertThat(after.x).isLessThan(before.x);
+        cancel();
+    }
+
     @Test
     void finishingTheEditBeforeClosingAppliesAValidHalfTypedLabel() {
         Component gate = gate();

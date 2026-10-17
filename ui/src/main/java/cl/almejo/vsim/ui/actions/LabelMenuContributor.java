@@ -16,7 +16,10 @@ import java.awt.event.ActionEvent;
 import java.awt.geom.Point2D;
 import java.util.Optional;
 
-/** M3-B context-menu items: Etiqueta…, Editar texto…, Borrar tramo, Agregar texto aquí. */
+/**
+ * M3-B context-menu items: Etiqueta…, Editar texto…, Borrar tramo, Agregar texto aquí; M6.8: Restablecer posición de
+ * la etiqueta.
+ */
 public final class LabelMenuContributor implements ContextMenuContributor {
 
     private final LabelActions actions;
@@ -41,6 +44,11 @@ public final class LabelMenuContributor implements ContextMenuContributor {
                 if (single) {
                     menu.add(ContextMenuEntry.LABEL.tag(
                             item(Messages.text("action.label"), () -> actions.editLabel(component))));
+                    if (component.labelOffset().isPresent()) {
+                        menu.add(ContextMenuEntry.RESET_LABEL_POSITION.tag(item(
+                                Messages.text("action.resetLabelPosition"),
+                                () -> actions.resetLabelPosition(component))));
+                    }
                 }
             }
             case TextLabel label -> {

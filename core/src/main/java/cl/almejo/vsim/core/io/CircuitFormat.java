@@ -8,6 +8,7 @@ import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.Frame;
 import cl.almejo.vsim.core.document.FrameTint;
+import cl.almejo.vsim.core.document.LabelOffset;
 import cl.almejo.vsim.core.document.Probe;
 import cl.almejo.vsim.core.document.ProbeTarget;
 import cl.almejo.vsim.core.document.TextLabel;
@@ -39,8 +40,13 @@ public final class CircuitFormat {
     public static final int FORMAT_VERSION = 2;
     static final String KIND_CIRCUIT = "circuit";
 
+    /** A component; {@code labelOffset} is written only when the user moved the label (M6.8). */
     record ComponentEntry(String id, String type, int x, int y, int rotation, String label,
-                          Map<String, Object> parameters) {
+                          Map<String, Object> parameters,
+                          @JsonInclude(JsonInclude.Include.NON_NULL) LabelOffsetEntry labelOffset) {
+    }
+
+    record LabelOffsetEntry(int x, int y) {
     }
 
     record WireEntry(String id, int x1, int y1, int x2, int y2) {
@@ -79,7 +85,8 @@ public final class CircuitFormat {
     static ComponentEntry componentEntry(Component component) {
         return new ComponentEntry(component.id().value(), component.typeId(), component.position().x(),
                 component.position().y(), component.rotation().quarterTurns(), component.label(),
-                new TreeMap<>(component.parameters()));
+                new TreeMap<>(component.parameters()),
+                component.labelOffset().map(offset -> new LabelOffsetEntry(offset.x(), offset.y())).orElse(null));
     }
 
     static WireEntry wireEntry(Wire wire) {
@@ -255,7 +262,8 @@ public final class CircuitFormat {
     /** The component {@code entry} describes, with {@code parameters} (call {@link #requireRotation} first). */
     static Component component(ComponentEntry entry, Map<String, Object> parameters) {
         return new Component(new ElementId(entry.id()), entry.type(), new GridPoint(entry.x(), entry.y()),
-                Rotation.fromQuarterTurns(entry.rotation()), parameters, entry.label());
+                Rotation.fromQuarterTurns(entry.rotation()), parameters, entry.label(),
+                Optional.ofNullable(entry.labelOffset()).map(offset -> new LabelOffset(offset.x(), offset.y())));
     }
 
     static Wire wire(WireEntry entry) {
