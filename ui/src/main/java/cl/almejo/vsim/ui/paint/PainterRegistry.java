@@ -1,14 +1,21 @@
 package cl.almejo.vsim.ui.paint;
 
+import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.library.InterfacePins;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.ui.paint.LogicGatePainter.GateShape;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 public final class PainterRegistry {
+
+    /** What the ALU shows inside for each OP code (M7 spec §2.1). */
+    private static final List<String> ALU_OPERATIONS = List.of("A+B", "A−B", "AND", "OR", "XOR", "NOT A", "A<<1",
+            "A>>1");
 
     private final Map<String, ComponentPainter> painters = new HashMap<>();
     private final ComponentPainter fallback = new GenericBoxPainter();
@@ -47,6 +54,21 @@ public final class PainterRegistry {
     /** The «Bloques» (M7), all drawn by a {@link BlockPainter}. */
     private static void registerBlocks(PainterRegistry registry) {
         registry.register(StandardComponentTypes.ADDER, new BlockPainter("Σ", BlockPainter.Body.CHEVRON));
+        registry.register(StandardComponentTypes.ALU, new BlockPainter("ALU", BlockPainter.Body.CHEVRON)
+                .withLiveText(PainterRegistry::aluOperation));
+        registry.register(StandardComponentTypes.COMPARATOR, new BlockPainter("CMP", BlockPainter.Body.RECTANGLE));
+    }
+
+    /**
+     * The operation an ALU shows inside: {@code A+B} ... {@code A>>1} for its OP code, {@code ?} while OP is undefined,
+     * and {@code A+B} (OP = 000, the power-on inputs) for the palette icon ({@link VisibleState#NONE}).
+     */
+    static Optional<String> aluOperation(VisibleState state) {
+        if (state instanceof VisibleState.AluState alu) {
+            int operation = alu.operation();
+            return Optional.of(operation >= 0 && operation < ALU_OPERATIONS.size() ? ALU_OPERATIONS.get(operation) : "?");
+        }
+        return state instanceof VisibleState.None ? Optional.of(ALU_OPERATIONS.getFirst()) : Optional.empty();
     }
 
     public void register(String typeId, ComponentPainter painter) {

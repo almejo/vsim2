@@ -56,6 +56,7 @@ class PaintersTest {
             case StandardComponentTypes.CLOCK -> new VisibleState.ClockState(Value.ONE);
             case StandardComponentTypes.SEVEN_SEGMENTS_DISPLAY -> new VisibleState.SevenSegmentsState(Value.of(4, 0x7));
             case StandardComponentTypes.SEVEN_SEGMENTS_DISPLAY_DOUBLE -> new VisibleState.SevenSegmentsState(Value.of(8, 0x5A));
+            case StandardComponentTypes.ALU -> new VisibleState.AluState(1);
             case StandardComponentTypes.TIME_DIAGRAM -> fullTimeDiagramHistory(StandardComponentTypes.registry().require(typeId));
             default -> VisibleState.NONE;
         };

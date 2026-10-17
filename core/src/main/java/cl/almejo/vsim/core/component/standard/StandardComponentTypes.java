@@ -52,6 +52,12 @@ public final class StandardComponentTypes {
     public static final String BUS_SPLITTER = "bus-splitter";
     public static final String BUS_JOINER = "bus-joiner";
     public static final String ADDER = "adder";
+    public static final String ALU = "alu";
+    public static final String COMPARATOR = "comparator";
+    /** The comparator's «Números» parameter: {@link #UNSIGNED} («Sin signo») or {@link #SIGNED} («Con signo»). */
+    public static final String SIGNEDNESS = "signedness";
+    public static final String UNSIGNED = "unsigned";
+    public static final String SIGNED = "signed";
     /** The parameter that sets a bus component's width in bits. */
     public static final String WIDTH = "width";
 
@@ -154,6 +160,16 @@ public final class StandardComponentTypes {
                 List.of(BlockSignals.WIDTH, DELAY),
                 parameters -> adderShape((Integer) parameters.get(WIDTH)),
                 parameters -> new AdderBehavior((Integer) parameters.get(WIDTH), (Integer) parameters.get("delay"))));
+        registry.register(ComponentType.parameterized(ALU, ComponentCategory.BLOCKS,
+                List.of(BlockSignals.WIDTH, DELAY),
+                parameters -> aluShape((Integer) parameters.get(WIDTH)),
+                parameters -> new AluBehavior((Integer) parameters.get(WIDTH), (Integer) parameters.get("delay"))));
+        registry.register(ComponentType.parameterized(COMPARATOR, ComponentCategory.BLOCKS,
+                List.of(BlockSignals.WIDTH, ParameterSpec.choice(SIGNEDNESS, UNSIGNED, List.of(UNSIGNED, SIGNED)),
+                        DELAY),
+                parameters -> comparatorShape((Integer) parameters.get(WIDTH)),
+                parameters -> new ComparatorBehavior(SIGNED.equals(parameters.get(SIGNEDNESS)),
+                        (Integer) parameters.get("delay"))));
     }
 
     /** A 4 x 8 block: A[N] at (0, 3), B[N] at (0, 5), Cin at (2, 0), S[N] at (4, 4), Cout at (2, 8). */
@@ -164,6 +180,32 @@ public final class StandardComponentTypes {
                 PinSpec.input("Cin", 2, 0),
                 PinSpec.output("S", 4, 4, width),
                 PinSpec.output("Cout", 2, 8)));
+    }
+
+    /**
+     * A 6 x 10 chevron: A[N] at (0, 2) and B[N] at (0, 8), clear of the notch; OP[3] at (3, 10) on the bottom; Y[N], Z,
+     * N, C, V at (6, 3..7), on the short right edge.
+     */
+    private static ComponentShape aluShape(int width) {
+        return new ComponentShape(new GridSize(6, 10), List.of(
+                PinSpec.input("A", 0, 2, width),
+                PinSpec.input("B", 0, 8, width),
+                PinSpec.input("OP", 3, 10, 3),
+                PinSpec.output("Y", 6, 3, width),
+                PinSpec.output("Z", 6, 4),
+                PinSpec.output("N", 6, 5),
+                PinSpec.output("C", 6, 6),
+                PinSpec.output("V", 6, 7)));
+    }
+
+    /** An 8 x 8 box: A[N] at (0, 2), B[N] at (0, 6); A&lt;B, A=B, A&gt;B at (8, 2), (8, 4), (8, 6). */
+    private static ComponentShape comparatorShape(int width) {
+        return new ComponentShape(new GridSize(8, 8), List.of(
+                PinSpec.input("A", 0, 2, width),
+                PinSpec.input("B", 0, 6, width),
+                PinSpec.output("A<B", 8, 2),
+                PinSpec.output("A=B", 8, 4),
+                PinSpec.output("A>B", 8, 6)));
     }
 
     /**
