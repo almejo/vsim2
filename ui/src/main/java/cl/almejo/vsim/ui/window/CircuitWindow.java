@@ -9,6 +9,7 @@ import cl.almejo.vsim.ui.canvas.ViewState;
 import cl.almejo.vsim.ui.clipboard.FileDropHandler;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.icons.AppIcons;
+import cl.almejo.vsim.ui.inline.InlineTextEditor;
 import cl.almejo.vsim.ui.session.RecentFiles;
 import cl.almejo.vsim.ui.session.WindowState;
 import org.slf4j.Logger;
@@ -219,13 +220,13 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
      * inline edit is finished first (confirmed when valid, cancelled otherwise), so the question sees it.
      */
     public boolean confirmClose() {
-        finishInlineEdit();
-        return !application.isLastWindow(this) || confirmSave();
+        return CloseSequence.confirm(List.of(view.inlineEditor()),
+                () -> !application.isLastWindow(this) || confirmSave());
     }
 
-    /** Confirms this window's open inline edit when its text is valid and cancels it otherwise (M6.8). */
-    public void finishInlineEdit() {
-        view.inlineEditor().confirmOrCancel();
+    /** This window's inline editor, finished before an exit asks to save (M6.8). */
+    public InlineTextEditor inlineEditor() {
+        return view.inlineEditor();
     }
 
     /** Asks to save a modified document; false means the user cancelled. */

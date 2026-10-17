@@ -41,6 +41,7 @@ import cl.almejo.vsim.ui.tree.ComponentTreeExtension;
 import cl.almejo.vsim.ui.truthtable.TruthTableExtension;
 import cl.almejo.vsim.ui.waveform.WaveformsExtension;
 import cl.almejo.vsim.ui.window.CircuitWindow;
+import cl.almejo.vsim.ui.window.CloseSequence;
 import cl.almejo.vsim.ui.window.EditorExtension;
 import cl.almejo.vsim.ui.window.EditorServices;
 import cl.almejo.vsim.ui.window.NewViewPlacement;
@@ -264,11 +265,11 @@ public final class Application {
     /** Asks once per modified document; true when all windows were closed. The session is remembered first. */
     public boolean exit() {
         // a half-typed inline edit counts as a change, in whichever window of the document it is open
-        windows.all().forEach(CircuitWindow::finishInlineEdit);
-        for (OpenDocument document : windows.documents()) {
-            if (!windows.windowsOf(document).get(0).confirmSave()) {
-                return false;
-            }
+        boolean confirmed = CloseSequence.confirm(windows.all().stream().map(CircuitWindow::inlineEditor).toList(),
+                () -> windows.documents().stream()
+                        .allMatch(document -> windows.windowsOf(document).get(0).confirmSave()));
+        if (!confirmed) {
+            return false;
         }
         sessionEnding.exiting();
         windows.all().forEach(CircuitWindow::closeQuietly);
