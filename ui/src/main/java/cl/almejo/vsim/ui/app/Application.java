@@ -259,6 +259,8 @@ public final class Application {
 
     /** Asks once per modified document; true when all windows were closed. The session is remembered first. */
     public boolean exit() {
+        // a half-typed inline edit counts as a change, in whichever window of the document it is open
+        windows.all().forEach(CircuitWindow::finishInlineEdit);
         for (OpenDocument document : windows.documents()) {
             if (!windows.windowsOf(document).get(0).confirmSave()) {
                 return false;

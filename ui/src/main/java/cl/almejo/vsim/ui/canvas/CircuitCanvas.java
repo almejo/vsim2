@@ -419,11 +419,12 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
                 .filter(id -> openDocument.document().element(id).isPresent())
                 .toList();
         origin.canvas().endDragOut();
-        if ((deltaX != 0 || deltaY != 0) && !existing.isEmpty()) {
-            selectionMoves.move(openDocument, existing, deltaX, deltaY, selectionMoves.followMode());
-        }
         if (!existing.isEmpty()) {
+            // selected before the move, so a wire the clean-up merges is replaced by its survivor, not put back
             selection.set(existing);
+        }
+        if ((deltaX != 0 || deltaY != 0) && !existing.isEmpty()) {
+            selectionMoves.move(openDocument, selection, existing, deltaX, deltaY, selectionMoves.followMode());
         }
         requestFocusInWindow();
     }

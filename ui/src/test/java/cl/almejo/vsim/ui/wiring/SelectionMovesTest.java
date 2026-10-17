@@ -10,6 +10,7 @@ import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.OpenDocument;
+import cl.almejo.vsim.ui.canvas.Selection;
 import cl.almejo.vsim.ui.i18n.Messages;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -123,5 +124,32 @@ class SelectionMovesTest {
 
         assertThat(notices).isEmpty();
         assertThat(openDocument.history().undoCommand()).get().isInstanceOf(MoveWithWiresCommand.class);
+    }
+
+    @Test
+    void selectedWiresMergedIntoOneSurvivorBecomeItOnceInTheirPlace() {
+        Wire earlier = new Wire(openDocument.document().newWireId(), new GridPoint(40, 20), new GridPoint(44, 20));
+        Wire middle = new Wire(openDocument.document().newWireId(), new GridPoint(44, 23), new GridPoint(47, 23));
+        Wire last = new Wire(openDocument.document().newWireId(), new GridPoint(47, 23), new GridPoint(50, 23));
+        List.of(earlier, middle, last).forEach(wire -> openDocument.execute(new AddWireCommand(wire)));
+        Selection selection = new Selection();
+        selection.set(List.of(last.id(), gate.id(), middle.id()));
+
+        moves.move(openDocument, selection, List.of(middle.id(), last.id()), 0, -3, true);
+
+        assertThat(openDocument.document().wire(earlier.id())).contains(
+                new Wire(earlier.id(), new GridPoint(40, 20), new GridPoint(50, 20)));
+        assertThat(selection.ids()).containsExactly(earlier.id(), gate.id());
+    }
+
+    @Test
+    void aMoveWithoutMergesLeavesTheSelectionAlone() {
+        Selection selection = new Selection();
+        selection.select(gate.id());
+        List<Integer> changes = new ArrayList<>();
+        selection.addListener(() -> changes.add(1));
+        moves.move(openDocument, selection, Set.of(gate.id()), 0, 2, true);
+        assertThat(selection.ids()).containsExactly(gate.id());
+        assertThat(changes).isEmpty();
     }
 }

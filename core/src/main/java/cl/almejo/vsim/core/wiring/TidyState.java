@@ -246,7 +246,20 @@ final class TidyState {
         }
         // no zero-length wire to remove: Wire rejects them, so a document cannot hold one
         return new TidyPlan(removed, added, flattenedRetargets(), 0, stubsRemoved, segmentsMerged,
-                detoursFlattened);
+                detoursFlattened, absorbed());
+    }
+
+    /** Every wire that is gone because another wire now covers it, mapped to that (existing) wire. */
+    private Map<ElementId, ElementId> absorbed() {
+        Set<ElementId> alive = new HashSet<>();
+        wires.forEach(wire -> alive.add(wire.id()));
+        Map<ElementId, ElementId> absorbed = new LinkedHashMap<>();
+        retargets.forEach((gone, survivor) -> {
+            if (!alive.contains(gone) && alive.contains(survivor)) {
+                absorbed.put(gone, survivor);
+            }
+        });
+        return absorbed;
     }
 
     /** Only the retargets some probe needs: its wire is gone and the survivor exists. */

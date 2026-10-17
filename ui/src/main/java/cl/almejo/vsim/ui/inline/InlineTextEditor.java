@@ -144,7 +144,11 @@ public final class InlineTextEditor {
         stillValid = newStillValid;
         // the components live detached while closed, so a theme change did not reach them
         SwingUtilities.updateComponentTreeUI(panel);
-        field.setHorizontalAlignment(newRequest.centered() ? SwingConstants.CENTER : SwingConstants.LEADING);
+        field.setHorizontalAlignment(switch (newRequest.anchor()) {
+            case LEFT -> SwingConstants.LEADING;
+            case CENTER -> SwingConstants.CENTER;
+            case RIGHT -> SwingConstants.RIGHT;
+        });
         field.setText(newRequest.initialText());
         field.selectAll();
         whileOpen.add(canvas.addFloatingComponent(panel));
@@ -204,7 +208,14 @@ public final class InlineTextEditor {
         return problemText;
     }
 
-    private void confirmOrCancel() {
+    /**
+     * Confirms the open edit when its text is valid and cancels it otherwise; nothing when closed. The window calls it
+     * before it closes (M6.8), so «¿Guardar cambios?» sees a half-typed edit instead of losing it.
+     */
+    public void confirmOrCancel() {
+        if (!isOpen()) {
+            return;
+        }
         if (request.validator().apply(field.getText()).isPresent()) {
             cancel();
         } else {
@@ -323,8 +334,13 @@ public final class InlineTextEditor {
                 Math.max(Math.max(areaWidth, MINIMUM_TEXT_WIDTH), textWidth) + horizontalInsets);
         int fittedHeight = areaHeight + verticalInsets;
         int fieldHeight = Math.max(fittedHeight, field.getPreferredSize().height);
-        Rectangle fieldBounds = new Rectangle(areaX - insets.left,
-                areaY - insets.top - (fieldHeight - fittedHeight) / 2, fieldWidth, fieldHeight);
+        int fieldX = switch (request.anchor()) {
+            case LEFT -> areaX - insets.left;
+            case CENTER -> (int) Math.round(area.getCenterX() - fieldWidth / 2.0);
+            case RIGHT -> areaX + areaWidth + insets.right - fieldWidth;
+        };
+        Rectangle fieldBounds = new Rectangle(fieldX, areaY - insets.top - (fieldHeight - fittedHeight) / 2,
+                fieldWidth, fieldHeight);
 
         Dimension buttonSize = confirmButton.getPreferredSize();
         int side = Math.max(buttonSize.width, buttonSize.height);

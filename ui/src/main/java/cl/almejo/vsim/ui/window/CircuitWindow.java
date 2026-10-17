@@ -214,9 +214,18 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
         application.exit();
     }
 
-    /** Asks to save only when this is the last window of a modified document; false means the user cancelled. */
+    /**
+     * Asks to save only when this is the last window of a modified document; false means the user cancelled. An open
+     * inline edit is finished first (confirmed when valid, cancelled otherwise), so the question sees it.
+     */
     public boolean confirmClose() {
+        finishInlineEdit();
         return !application.isLastWindow(this) || confirmSave();
+    }
+
+    /** Confirms this window's open inline edit when its text is valid and cancels it otherwise (M6.8). */
+    public void finishInlineEdit() {
+        view.inlineEditor().confirmOrCancel();
     }
 
     /** Asks to save a modified document; false means the user cancelled. */

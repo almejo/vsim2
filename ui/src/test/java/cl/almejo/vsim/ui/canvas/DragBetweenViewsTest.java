@@ -1,9 +1,11 @@
 package cl.almejo.vsim.ui.canvas;
 
+import cl.almejo.vsim.core.command.AddWireCommand;
 import cl.almejo.vsim.core.command.PutDefinitionsCommand;
 import cl.almejo.vsim.core.component.ElementBounds;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
+import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.library.DefinitionBundle;
@@ -113,6 +115,24 @@ class DragBetweenViewsTest {
         first.history().redo();
         assertThat(positionOf(first, gate)).isEqualTo(new GridPoint(18, 18));
         assertThat(second.document().isEmpty()).isTrue();
+    }
+
+    @Test
+    void aWireDraggedBetweenViewsThatTheCleanUpMergesLeavesTheSurvivorSelected() {
+        Wire earlier = new Wire(first.document().newWireId(), new GridPoint(10, 20), new GridPoint(14, 20));
+        first.execute(new AddWireCommand(earlier));
+        Wire moved = new Wire(first.document().newWireId(), new GridPoint(14, 23), new GridPoint(19, 23));
+        first.execute(new AddWireCommand(moved));
+        firstView.canvas().selection().select(moved.id());
+        Transferable transferable = dragOut(firstView.canvas(), 128, 184);
+
+        assertThat(handlerOf(firstOtherView.canvas()).importFragment(transferable, new Point(128, 160), false))
+                .isTrue();
+
+        assertThat(first.document().wire(moved.id())).isEmpty();
+        assertThat(first.document().wire(earlier.id())).contains(
+                new Wire(earlier.id(), new GridPoint(10, 20), new GridPoint(19, 20)));
+        assertThat(firstOtherView.canvas().selection().ids()).containsExactly(earlier.id());
     }
 
     @Test

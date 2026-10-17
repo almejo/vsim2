@@ -28,6 +28,11 @@ public final class TidyWiresCommand implements Command {
         this.plan = plan;
     }
 
+    /** The plan this command applies. */
+    public TidyPlan plan() {
+        return plan;
+    }
+
     @Override
     public void apply(CircuitDocument document) {
         removedWires.clear();

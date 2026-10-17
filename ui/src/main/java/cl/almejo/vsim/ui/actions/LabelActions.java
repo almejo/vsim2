@@ -12,6 +12,7 @@ import cl.almejo.vsim.core.document.Frame;
 import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
+import cl.almejo.vsim.core.geometry.Rotation;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.LabelLayout;
 import cl.almejo.vsim.ui.canvas.Selection;
@@ -77,10 +78,13 @@ public final class LabelActions {
         switch (current.get()) {
             case Component component -> {
                 ComponentType type = openDocument.registry().typeOf(component);
+                // a sideways label is drawn left of the body: its editor grows to the left, away from the body
+                boolean sideways = component.rotation() == Rotation.R90 || component.rotation() == Rotation.R270;
                 editor.open(new InlineEditRequest(
                         LabelLayout.componentLabelPlace(type, component, component.label()).bounds(),
                         LabelLayout.FONT, component.label(), InlineValidators.anyText(),
-                        text -> setLabelIfChanged(id, text.strip(), false)), stillThere);
+                        text -> setLabelIfChanged(id, text.strip(), false),
+                        sideways ? InlineEditRequest.Anchor.RIGHT : InlineEditRequest.Anchor.LEFT), stillThere);
             }
             case TextLabel label -> editor.open(new InlineEditRequest(LabelLayout.freeText(label).bounds(),
                     LabelLayout.FONT, label.text(), InlineValidators.anyText(),
@@ -114,7 +118,7 @@ public final class LabelActions {
                     if (!type.resolveParameters(changed).equals(type.resolveParameters(component.parameters()))) {
                         openDocument.execute(new ChangeParametersCommand(id, type, changed));
                     }
-                }), true), () -> openDocument.document().component(id).isPresent());
+                }), InlineEditRequest.Anchor.CENTER), () -> openDocument.document().component(id).isPresent());
     }
 
     /** What the Constante has now (the last known ones when it is gone, the editor closes by itself then). */

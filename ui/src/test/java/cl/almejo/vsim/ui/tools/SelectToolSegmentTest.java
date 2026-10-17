@@ -73,6 +73,17 @@ class SelectToolSegmentTest {
     }
 
     @Test
+    void aSegmentTheCleanUpMergesIntoAnEarlierWireLeavesTheSurvivorSelected() {
+        Wire earlier = addWire(55, 13, 60, 13);
+        Wire moved = addWire(60, 10, 65, 10);
+        context.selection.select(moved.id());
+        context.dragHolding(tool, 62, 10, 62, 13, false, true);
+        assertThat(context.openDocument().document().wire(moved.id())).isEmpty();
+        assertThat(current(earlier)).isEqualTo(wireAt(earlier, 55, 13, 65, 13));
+        assertThat(context.selection.ids()).containsExactly(earlier.id());
+    }
+
+    @Test
     void aHorizontalWireDraggedWithAltMovesOnlyUpOrDownAndItsCornerNeighboursStretch() {
         context.selection.select(segment.id());
         context.dragHolding(tool, 45, 10, 47, 13, false, true);

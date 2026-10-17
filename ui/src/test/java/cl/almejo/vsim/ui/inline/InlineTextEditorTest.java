@@ -410,10 +410,51 @@ class InlineTextEditorTest {
 
     @Test
     void aCenteredRequestCentersTheFieldTextAndTheNextOneDoesNot() {
-        editor.open(new InlineEditRequest(AREA, FONT, "1", InlineValidators.anyText(), confirmed::add, true));
+        editor.open(new InlineEditRequest(AREA, FONT, "1", InlineValidators.anyText(), confirmed::add,
+                InlineEditRequest.Anchor.CENTER));
         assertThat(editor.field().getHorizontalAlignment()).isEqualTo(javax.swing.SwingConstants.CENTER);
         editor.cancel();
         editor.open(request("uno"));
         assertThat(editor.field().getHorizontalAlignment()).isEqualTo(javax.swing.SwingConstants.LEADING);
+    }
+
+    @Test
+    void aRightAnchoredFieldGrowsToTheLeftKeepingItsRightEdge() {
+        editor.open(new InlineEditRequest(AREA, FONT, "a", InlineValidators.anyText(), confirmed::add,
+                InlineEditRequest.Anchor.RIGHT));
+        assertThat(editor.field().getHorizontalAlignment()).isEqualTo(javax.swing.SwingConstants.RIGHT);
+        Rectangle narrowField = textArea();
+        editor.field().setText("a".repeat(60));
+        Rectangle grown = textArea();
+        assertThat(grown.x).isLessThan(narrowField.x);
+        assertThat(grown.getMaxX()).isEqualTo(narrowField.getMaxX());
+        assertThat(editor.confirmButton().getX()).isGreaterThanOrEqualTo(
+                editor.field().getX() + editor.field().getWidth());
+    }
+
+    @Test
+    void aCenteredFieldWiderThanItsAreaStaysCenteredOnIt() {
+        Rectangle2D narrow = new Rectangle2D.Double(200, 40, 8, 24);
+        editor.open(new InlineEditRequest(narrow, FONT, "1", InlineValidators.anyText(), confirmed::add,
+                InlineEditRequest.Anchor.CENTER));
+        Rectangle area = textArea();
+        double center = canvas.viewport().documentTransform().createTransformedShape(narrow).getBounds2D()
+                .getCenterX();
+        assertThat(area.getCenterX()).isBetween(center - 1, center + 1);
+    }
+
+    @Test
+    void confirmOrCancelConfirmsAValidTextAndCancelsAnInvalidOne() {
+        editor.confirmOrCancel(); // nothing open: nothing happens
+        editor.open(request("uno", NOT_BAD));
+        editor.field().setText("dos");
+        editor.confirmOrCancel();
+        assertThat(confirmed).containsExactly("dos");
+        assertThat(editor.isOpen()).isFalse();
+        editor.open(request("uno", NOT_BAD));
+        editor.field().setText("bad");
+        editor.confirmOrCancel();
+        assertThat(confirmed).containsExactly("dos");
+        assertThat(editor.isOpen()).isFalse();
     }
 }

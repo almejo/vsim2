@@ -171,6 +171,9 @@ Diseño: `docs/superpowers/specs/2026-10-08-vsim2-design.md`.
 - Doble clic en un cable (herramienta de selección) selecciona su tramo: el cable y los que siguen unidos a él por esquinas o empalmes rectos, hasta llegar a un pin, una unión de tres o más cables, una punta suelta o de vuelta al inicio. Triple clic selecciona todos los cables conectados a ese (las uniones en T cuentan; los cruces y las piezas no). Con Mayús se suman a la selección. El doble clic nunca dibuja un cable: si arrastras sin soltar, mueves lo seleccionado, y Supr lo borra en un solo paso de deshacer.
 - Una racha de flechas que vuelve al punto de partida (por ejemplo izquierda y luego derecha) no deja ningún paso de deshacer, y si el circuito estaba guardado vuelve a figurar como guardado.
 - Mientras arrastras, apretar o soltar Mayús, Ctrl o Alt actualiza la vista previa al instante, sin mover el mouse: los cables que siguen o se quedan, la copia con Ctrl y el desplazamiento de costado de un cable con Alt.
+- Si al mover un cable seleccionado queda alineado con otro cable y se funden en uno, el cable resultante queda seleccionado (antes la selección se perdía). Vale para arrastrar, Alt + arrastrar, las flechas y arrastrar entre vistas.
+- La etiqueta de un componente girado (R90/R270), que se dibuja a la izquierda de la pieza, se edita en un campo que crece hacia la izquierda, sin taparla. El valor de una Constante se edita en un campo que crece hacia ambos lados, centrado en su caja.
+- Cerrar la ventana (o salir) con un texto a medio editar lo confirma si es válido, y si no lo descarta, antes de preguntar «¿Guardar cambios?».
 
 ## Preferencias y distribución
 
