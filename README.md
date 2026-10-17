@@ -185,6 +185,8 @@ Diseño: `docs/superpowers/specs/2026-10-08-vsim2-design.md`.
 - Nueva sección «Bloques» en la paleta, justo después de «Entrada/Salida»: piezas de N bits programadas en el simulador, para armar un camino de datos sin miles de compuertas. Todas tienen «Ancho (bits)» (1 a 32, 4 por omisión) y «Retardo» (1 por omisión: el bloque tarda un retardo desde cualquier entrada a sus salidas). Los datos entran por la izquierda (buses del ancho elegido, con cable grueso) y los resultados salen por la derecha; el tamaño de la pieza no depende del ancho. Cada pin lleva su nombre corto dentro del cuerpo y la paleta explica cada bloque al pasar el mouse.
 - Reglas comunes: una entrada de control sin conectar toma su valor de reposo (por ejemplo Cin = 0); si una entrada de datos tiene algún bit en Z o en conflicto, las salidas que dependen de ella quedan en Z.
 - «Sumador» (Σ): S = A + B + Cin con el ancho elegido y Cout el acarreo que sale del bit más alto. Cin entra por arriba y Cout sale por abajo.
+- «ALU»: opera A y B según OP (3 bits, entra por abajo) y muestra adentro la operación que está haciendo: 000 A + B, 001 A − B, 010 AND, 011 OR, 100 XOR, 101 NOT A, 110 A << 1, 111 A >> 1 (lógico). Sale Y y las banderas Z (Y es 0), N (bit más alto de Y), C (acarreo de la suma, préstamo de la resta —1 si A < B sin signo— o el bit que sale al desplazar) y V (desborde con signo de la suma o la resta). Con OP indefinido todas las salidas quedan en Z y adentro se ve «?».
+- «Comparador» (CMP): compara A con B y exactamente una de A<B, A=B, A>B vale 1. «Números» elige «Sin signo» o «Con signo» (complemento a dos).
 
 ## Preferencias y distribución
 
