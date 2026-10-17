@@ -36,6 +36,21 @@ class CircuitBoundsTest {
     }
 
     @Test
+    void coversTheValueBoxOfABusPinButNotOfAOneBitPin() {
+        CircuitDocument document = new CircuitDocument();
+        document.add(registry.require(StandardComponentTypes.INPUT_PIN)
+                .newComponent(document.newComponentId(), new GridPoint(10, 10), Rotation.R0, Map.of(), ""));
+        assertThat(CircuitBounds.of(document, registry)).contains(new Bounds(10, 10, 2, 2));
+
+        CircuitDocument buses = new CircuitDocument();
+        buses.add(registry.require(StandardComponentTypes.INPUT_PIN).newComponent(buses.newComponentId(),
+                new GridPoint(10, 10), Rotation.R0, Map.of("width", 8), ""));
+        Bounds bounds = CircuitBounds.of(buses, registry).orElseThrow();
+        assertThat(bounds.x()).isLessThan(10); // the box is left of the tag
+        assertThat(bounds.maximumX()).isEqualTo(12);
+    }
+
+    @Test
     void coversFreeTexts() {
         CircuitDocument document = new CircuitDocument();
         document.add(new TextLabel(document.newLabelId(), new GridPoint(5, 5), "hola"));

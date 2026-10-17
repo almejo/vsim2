@@ -106,8 +106,10 @@ class ConstantComponentTest {
                 new ParameterProblem("value", "constant.invalidValue", List.of()));
         assertThat(constant.check(parameters(4, "", "auto"))).contains(
                 new ParameterProblem("value", "constant.invalidValue", List.of()));
-        assertThat(constant.check(parameters(4, "-1", "auto"))).contains(
-                new ParameterProblem("value", "constant.invalidValue", List.of()));
+        assertThat(constant.check(parameters(4, "-1", "auto"))).isEmpty();
+        assertThat(constant.check(parameters(4, "-8", "signed"))).isEmpty();
+        assertThat(constant.check(parameters(4, "-9", "signed"))).contains(
+                new ParameterProblem("value", "constant.doesNotFit", List.of(4)));
         assertThat(constant.check(parameters(4, "0xF", "auto"))).isEmpty();
         assertThat(constant.check(parameters(32, "0xFFFFFFFF", "auto"))).isEmpty();
         assertThat(constant.check(parameters(31, "0xFFFFFFFF", "auto"))).isPresent();
@@ -198,6 +200,26 @@ class ConstantComponentTest {
         engine.runUntil(5);
         String net = netlist.netForPin(new PinRef(source.id(), 0)).orElseThrow().id().value();
         assertThat(engine.snapshot().netValue(net)).isEqualTo(Value.of(32, 0xFFFFFFFFL));
+    }
+
+    @Test
+    void aNegativeConstantDrivesItsTwosComplementAndIsStoredWithItsSign() {
+        CircuitDocument document = new CircuitDocument();
+        Component source = place(document, "c1", constant, 0, 0, parameters(8, " -3 ", "signed"));
+        assertThat(source.parameters().get("value")).isEqualTo("-3");
+        Netlist netlist = new NetlistCompiler(registry).compile(document);
+        SimulationEngine engine = simulate(document, netlist);
+        engine.runUntil(5);
+        String net = netlist.netForPin(new PinRef(source.id(), 0)).orElseThrow().id().value();
+        assertThat(engine.snapshot().netValue(net)).isEqualTo(Value.of(8, 0xFD));
+    }
+
+    @Test
+    void theSignedFormatIsOfferedAndSizesTheBoxForTheMostNegativeValue() {
+        assertThat(constant.parameters()).contains(ConstantValue.FORMAT_PARAMETER);
+        ComponentType signed = constant.specializedFor(parameters(32, "0", "signed"));
+        ComponentType unsigned = constant.specializedFor(parameters(32, "0", "decimal"));
+        assertThat(signed.size().width()).isEqualTo(unsigned.size().width() + 1);
     }
 
     @Test

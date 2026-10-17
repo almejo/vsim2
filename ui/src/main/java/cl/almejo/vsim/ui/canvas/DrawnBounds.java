@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.canvas;
 
+import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.ElementBounds;
 import cl.almejo.vsim.core.document.Component;
@@ -7,6 +8,8 @@ import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.geometry.GridPoint;
+import cl.almejo.vsim.core.library.InterfacePins;
+import cl.almejo.vsim.ui.paint.InterfacePinPainter;
 
 import java.awt.geom.Rectangle2D;
 import java.util.Collection;
@@ -14,7 +17,8 @@ import java.util.Optional;
 
 /**
  * The grid area elements cover on screen: like {@link ElementBounds}, plus the text the canvas draws for them (a
- * component's label, a free label's whole text), which can stick out of the element's own bounds.
+ * component's label, a free label's whole text, a bus pin's value box), which can stick out of the element's own
+ * bounds.
  */
 public final class DrawnBounds {
 
@@ -36,10 +40,18 @@ public final class DrawnBounds {
     public static Bounds of(DocumentElement element, ComponentTypeRegistry registry) {
         return switch (element) {
             case Component component -> {
-                Bounds body = registry.typeOf(component).bounds(component);
-                yield LabelLayout.componentLabel(registry.typeOf(component), component)
-                        .map(label -> body.union(toGrid(label.bounds(), GRID_UNIT)))
-                        .orElse(body);
+                ComponentType type = registry.typeOf(component);
+                Bounds body = type.bounds(component);
+                if (InterfacePins.isInterface(component.typeId())) {
+                    // M7: a bus pin's value box sits beside its tag
+                    Bounds tag = body;
+                    body = InterfacePinPainter.valueBox(type, component)
+                            .map(box -> tag.union(toGrid(box, GRID_UNIT))).orElse(tag);
+                }
+                Bounds drawn = body;
+                yield LabelLayout.componentLabel(type, component)
+                        .map(label -> drawn.union(toGrid(label.bounds(), GRID_UNIT)))
+                        .orElse(drawn);
             }
             case TextLabel label -> toGrid(LabelLayout.gridBounds(label), 1);
             default -> ElementBounds.of(element, registry);

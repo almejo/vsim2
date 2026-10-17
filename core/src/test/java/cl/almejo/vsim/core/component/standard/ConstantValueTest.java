@@ -1,5 +1,6 @@
 package cl.almejo.vsim.core.component.standard;
 
+import cl.almejo.vsim.core.value.Value;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -32,7 +33,8 @@ class ConstantValueTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"", "   ", "-1", "0x", "0b", "0b2", "12a", "0xG", "abc", "_", "1.5", "0x-1", "- 1"})
+    @ValueSource(strings = {"", "   ", "-", "--1", "-0x1", "0x", "0b", "0b2", "12a", "0xG", "abc", "_", "1.5", "0x-1",
+            "- 1"})
     void garbageIsRejected(String text) {
         assertThatThrownBy(() -> ConstantValue.parse(text)).isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> ConstantValue.normalize(text)).isInstanceOf(IllegalArgumentException.class);
@@ -97,6 +99,101 @@ class ConstantValueTest {
                 assertThat(ConstantValue.display(largest, width, format).length())
                         .as("%s at %d bits", format, width)
                         .isEqualTo(ConstantValue.longestDisplay(width, format));
+            }
+        }
+    }
+
+    @Test
+    void theSignedFormatIsTheFifthChoiceAfterTheOldOnes() {
+        assertThat(ConstantValue.FORMAT_PARAMETER.name()).isEqualTo("format");
+        assertThat(ConstantValue.FORMAT_PARAMETER.defaultValue()).isEqualTo("auto");
+        assertThat(ConstantValue.FORMAT_PARAMETER.choices())
+                .containsExactly("auto", "binary", "hex", "decimal", "signed");
+    }
+
+    @ParameterizedTest
+    @CsvSource(delimiter = '|', value = {
+            "0|1|0", "1|1|-1",
+            "0xF|4|-1", "0x8|4|-8", "0x7|4|7", "0x5|4|5",
+            "0xFF|8|-1", "0x80|8|-128", "0x7F|8|127",
+            "0xFFFFFFFF|32|-1", "0x80000000|32|-2147483648", "0x7FFFFFFF|32|2147483647"})
+    void signedDisplayReadsTheBitsInTwosComplement(String text, int width, String shown) {
+        long bits = ConstantValue.bitsOf(text, width).orElseThrow();
+        assertThat(ConstantValue.display(bits, width, "signed")).isEqualTo(shown);
+        assertThat(ConstantValue.bitsOf(shown, width)).hasValue(bits);
+    }
+
+    @ParameterizedTest
+    @CsvSource(delimiter = '|', value = {
+            "-1|1|1", "-1|4|15", "-8|4|8", "7|4|7", "15|4|15", "0b1010|4|10", "0xF|4|15",
+            "-1|8|255", "-128|8|128", "255|8|255",
+            "-1|32|4294967295", "-2147483648|32|2147483648", "4294967295|32|4294967295",
+            "-1|64|-1", "0xFFFFFFFFFFFFFFFF|64|-1", "-9223372036854775808|64|-9223372036854775808",
+            " -0 |4|0", "-0_1|4|15"})
+    void bitsOfReadsEveryNotationIntoTheWidthsBits(String text, int width, long bits) {
+        assertThat(ConstantValue.bitsOf(text, width)).hasValue(bits);
+        assertThat(ConstantValue.fitsText(text, width)).isTrue();
+    }
+
+    @ParameterizedTest
+    @CsvSource(delimiter = '|', value = {
+            "-2|1", "2|1", "-9|4", "16|4", "0x10|4", "0b10000|4", "-129|8", "256|8",
+            "-2147483649|32", "4294967296|32", "0x1FFFFFFFFFFFFFFFF|64", "-9223372036854775809|64",
+            "abc|8", "|8", "-0x1|8"})
+    void bitsOfIsEmptyForWhatDoesNotFitOrIsNotANumber(String text, int width) {
+        assertThat(ConstantValue.bitsOf(text, width)).isEmpty();
+    }
+
+    @Test
+    void negativeDecimalsAreValidTextsStoredWithTheirSign() {
+        assertThat(ConstantValue.isValidText("-3")).isTrue();
+        assertThat(ConstantValue.normalize(" -0_3 ")).isEqualTo("-3");
+        assertThat(ConstantValue.normalize("-0")).isEqualTo("0");
+        assertThat(ConstantValue.fitsText("-3", 2)).isFalse();
+        assertThat(ConstantValue.fitsText("-2", 2)).isTrue();
+        assertThatThrownBy(() -> ConstantValue.parse("-3")).isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void displayIgnoresBitsAboveTheWidthAndShowsUnsignedDecimalUpTo64Bits() {
+        assertThat(ConstantValue.display(-1L, 4, "hex")).isEqualTo("0xF");
+        assertThat(ConstantValue.display(-1L, 4, "decimal")).isEqualTo("15");
+        assertThat(ConstantValue.display(-1L, 4, "binary")).isEqualTo("1111");
+        assertThat(ConstantValue.display(-1L, 64, "decimal")).isEqualTo("18446744073709551615");
+        assertThat(ConstantValue.display(-1L, 64, "signed")).isEqualTo("-1");
+    }
+
+    @Test
+    void theLongestSignedDisplayIsTheMostNegativeValue() {
+        assertThat(ConstantValue.longestDisplay(1, "signed")).isEqualTo(2);
+        assertThat(ConstantValue.longestDisplay(4, "signed")).isEqualTo(2);
+        assertThat(ConstantValue.longestDisplay(8, "signed")).isEqualTo(4);
+        assertThat(ConstantValue.longestDisplay(32, "signed")).isEqualTo(11);
+        assertThat(ConstantValue.longestDisplay(64, "signed")).isEqualTo(20);
+        assertThat(ConstantValue.longestDisplay(64, "decimal")).isEqualTo(20);
+        for (int width = 1; width <= 64; width++) {
+            long mostNegative = 1L << (width - 1);
+            for (long bits : new long[]{0, mostNegative, mostNegative - 1, -1L}) {
+                assertThat(ConstantValue.display(bits, width, "signed").length())
+                        .as("%d at %d bits", bits, width)
+                        .isLessThanOrEqualTo(ConstantValue.longestDisplay(width, "signed"));
+            }
+        }
+    }
+
+    @Test
+    void theEditableTextReadsBackAsTheSameBits() {
+        assertThat(ConstantValue.editableText(5, 4, "auto")).isEqualTo("0b0101");
+        assertThat(ConstantValue.editableText(5, 8, "auto")).isEqualTo("0x5");
+        assertThat(ConstantValue.editableText(0xFF, 8, "signed")).isEqualTo("-1");
+        assertThat(ConstantValue.editableText(0xFF, 8, "decimal")).isEqualTo("255");
+        for (String format : new String[]{"auto", "binary", "hex", "decimal", "signed"}) {
+            for (int width : new int[]{1, 4, 8, 32, 64}) {
+                for (long bits : new long[]{0, 1, Value.maskFor(width), 1L << (width - 1)}) {
+                    long masked = bits & Value.maskFor(width);
+                    assertThat(ConstantValue.bitsOf(ConstantValue.editableText(masked, width, format), width))
+                            .as("%d %s at %d", bits, format, width).hasValue(masked);
+                }
             }
         }
     }

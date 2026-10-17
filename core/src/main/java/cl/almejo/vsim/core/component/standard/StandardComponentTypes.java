@@ -97,15 +97,13 @@ public final class StandardComponentTypes {
         registry.register(ComponentType.parameterized(CONSTANT, ComponentCategory.INPUT_OUTPUT,
                 List.of(ParameterSpec.integer(WIDTH, 8, 1, ConstantValue.MAXIMUM_WIDTH),
                         ParameterSpec.text("value", "0", ConstantValue::normalize),
-                        ParameterSpec.choice("format", ConstantValue.AUTO,
-                                List.of(ConstantValue.AUTO, ConstantValue.BINARY, ConstantValue.HEX,
-                                        ConstantValue.DECIMAL))),
+                        ConstantValue.FORMAT_PARAMETER),
                 parameters -> constantShape((Integer) parameters.get(WIDTH), (String) parameters.get("format")),
                 StandardComponentTypes::checkConstant,
                 parameters -> {
                     int width = (Integer) parameters.get(WIDTH);
                     return new ConstantBehavior(Value.of(width,
-                            ConstantValue.parse((String) parameters.get("value"))));
+                            ConstantValue.bitsOf((String) parameters.get("value"), width).orElseThrow()));
                 }));
         registry.register(new ComponentType(LED, ComponentCategory.INPUT_OUTPUT, new GridSize(2, 3),
                 List.of(PinSpec.input("in", 1, 3)),
@@ -125,13 +123,14 @@ public final class StandardComponentTypes {
                 parameters -> new TimeDiagramBehavior(4, (Integer) parameters.get("sample-interval"),
                         (Integer) parameters.get("history"))));
         registry.register(ComponentType.parameterized(INPUT_PIN, ComponentCategory.INTERFACE,
-                List.of(ParameterSpec.choice("value", "0", List.of("1", "0", "Z")), InterfacePins.WIDTH_PARAMETER),
+                List.of(ParameterSpec.choice("value", "0", List.of("1", "0", "Z")), InterfacePins.WIDTH_PARAMETER,
+                        ConstantValue.FORMAT_PARAMETER),
                 parameters -> new ComponentShape(new GridSize(2, 2),
                         List.of(PinSpec.output("pin", 2, 1, (Integer) parameters.get(InterfacePins.WIDTH)))),
                 parameters -> new SwitchBehavior(SwitchBehavior.parse((String) parameters.get("value"),
                         (Integer) parameters.get(InterfacePins.WIDTH)))));
         registry.register(ComponentType.parameterized(OUTPUT_PIN, ComponentCategory.INTERFACE,
-                List.of(InterfacePins.WIDTH_PARAMETER),
+                List.of(InterfacePins.WIDTH_PARAMETER, ConstantValue.FORMAT_PARAMETER),
                 parameters -> new ComponentShape(new GridSize(2, 2),
                         List.of(PinSpec.input("pin", 0, 1, (Integer) parameters.get(InterfacePins.WIDTH)))),
                 parameters -> newValueProbe()));
