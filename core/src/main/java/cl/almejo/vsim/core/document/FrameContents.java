@@ -6,7 +6,11 @@ import cl.almejo.vsim.core.geometry.Bounds;
 
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -45,6 +49,63 @@ public final class FrameContents {
                     .ifPresent(frame -> expanded.addAll(of(document, registry, frame)));
         }
         return expanded;
+    }
+
+    /**
+     * The innermost frame enclosing each component and frame that lies completely inside at least one frame (the
+     * component tree nests rows by it). The innermost frame is the enclosing one with the smallest area (components of an unknown type have
+     * no parent); identical
+     * frames nest by document order (the later one inside the earlier one), so no frame is its own parent and there
+     * are no cycles. Components first, then frames, each in document order.
+     */
+    public static Map<ElementId, ElementId> parents(CircuitDocument document, ComponentTypeRegistry registry) {
+        List<Frame> frames = document.frames();
+        Map<ElementId, ElementId> parents = new LinkedHashMap<>();
+        if (frames.isEmpty()) {
+            return parents;
+        }
+        for (Component component : document.components()) {
+            Optional<Bounds> found = registry.findTypeOf(component).map(type -> type.bounds(component));
+            if (found.isEmpty()) {
+                continue; // an unknown type has no size: it stays at the top
+            }
+            Bounds bounds = found.get();
+            Frame innermost = null;
+            for (Frame candidate : frames) {
+                if (candidate.encloses(bounds.x(), bounds.y(), bounds.maximumX(), bounds.maximumY())
+                        && (innermost == null || area(candidate) <= area(innermost))) {
+                    innermost = candidate; // on equal areas the later frame (deeper by document order) wins
+                }
+            }
+            if (innermost != null) {
+                parents.put(component.id(), innermost.id());
+            }
+        }
+        for (int index = 0; index < frames.size(); index++) {
+            Frame frame = frames.get(index);
+            Frame innermost = null;
+            for (int candidateIndex = 0; candidateIndex < frames.size(); candidateIndex++) {
+                Frame candidate = frames.get(candidateIndex);
+                boolean encloses = candidateIndex != index && encloses(candidate, frame)
+                        && (area(candidate) > area(frame) || candidateIndex < index);
+                if (encloses && (innermost == null || area(candidate) <= area(innermost))) {
+                    innermost = candidate;
+                }
+            }
+            if (innermost != null) {
+                parents.put(frame.id(), innermost.id());
+            }
+        }
+        return parents;
+    }
+
+    private static boolean encloses(Frame outer, Frame inner) {
+        return outer.encloses(inner.topLeft().x(), inner.topLeft().y(),
+                inner.topLeft().x() + inner.width(), inner.topLeft().y() + inner.height());
+    }
+
+    private static long area(Frame frame) {
+        return (long) frame.width() * frame.height();
     }
 
     private static void collect(CircuitDocument document, ComponentTypeRegistry registry, Frame frame,

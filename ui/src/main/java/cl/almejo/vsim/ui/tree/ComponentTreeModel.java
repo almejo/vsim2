@@ -5,6 +5,9 @@ import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
+import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.core.document.Frame;
+import cl.almejo.vsim.core.document.FrameContents;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.InterfacePins;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
@@ -23,8 +26,9 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * The component tree of a document (spec §6.9), without Swing: the document, its components in document order (or
- * grouped by type) and, for instances of user components, their parts with hierarchical ids. Also reads the values
+ * The component tree of a document (spec §6.9), without Swing: the document, its frames and components (each under
+ * the innermost frame that encloses it, frames first, then components in document order or grouped by type) and, for
+ * instances of user components, their parts with hierarchical ids. Also reads the values
  * that nested interface pins and LEDs show.
  */
 public final class ComponentTreeModel {
@@ -37,14 +41,44 @@ public final class ComponentTreeModel {
 
     public static ComponentTreeNode build(String documentName, CircuitDocument document,
                                           ComponentTypeRegistry registry, boolean groupByType) {
-        List<Component> components = document.components();
-        List<ComponentTreeNode> nodes = new ArrayList<>();
-        for (Component component : components) {
-            nodes.add(componentNode(component, component.id().value(), document, registry, 0));
+        Map<ElementId, ElementId> parents = FrameContents.parents(document, registry);
+        Map<Optional<ElementId>, List<Frame>> framesByParent = new HashMap<>();
+        for (Frame frame : document.frames()) {
+            framesByParent.computeIfAbsent(Optional.ofNullable(parents.get(frame.id())), key -> new ArrayList<>())
+                    .add(frame);
         }
-        List<ComponentTreeNode> children = groupByType ? groups(components, nodes, registry) : nodes;
+        Map<Optional<ElementId>, List<Component>> componentsByParent = new HashMap<>();
+        for (Component component : document.components()) {
+            componentsByParent.computeIfAbsent(Optional.ofNullable(parents.get(component.id())),
+                    key -> new ArrayList<>()).add(component);
+        }
+        Contents contents = new Contents(document, registry, groupByType, framesByParent, componentsByParent);
         return new ComponentTreeNode(ComponentTreeNode.Kind.DOCUMENT, ComponentTreeNode.DOCUMENT_PATH, documentName,
-                false, children);
+                "", false, contents.childrenOf(Optional.empty(), ComponentTreeNode.DOCUMENT_PATH));
+    }
+
+    /** What each parent (a frame, or the document for {@code Optional.empty()}) holds directly. */
+    private record Contents(CircuitDocument document, ComponentTypeRegistry registry, boolean groupByType,
+                            Map<Optional<ElementId>, List<Frame>> framesByParent,
+                            Map<Optional<ElementId>, List<Component>> componentsByParent) {
+
+        /** Frames first (document order), then the components (document order, or grouped by type). */
+        List<ComponentTreeNode> childrenOf(Optional<ElementId> parent, String parentPath) {
+            List<ComponentTreeNode> children = new ArrayList<>();
+            for (Frame frame : framesByParent.getOrDefault(parent, List.of())) {
+                String path = ComponentTreeNode.framePath(frame.id());
+                String text = frame.title().isBlank() ? Messages.text("properties.frame") : frame.title();
+                children.add(new ComponentTreeNode(ComponentTreeNode.Kind.FRAME, path, text, "", false,
+                        childrenOf(Optional.of(frame.id()), path)));
+            }
+            List<Component> components = componentsByParent.getOrDefault(parent, List.of());
+            List<ComponentTreeNode> nodes = new ArrayList<>();
+            for (Component component : components) {
+                nodes.add(componentNode(component, component.id().value(), document, registry, 0));
+            }
+            children.addAll(groupByType ? groups(parentPath, components, nodes, registry) : nodes);
+            return children;
+        }
     }
 
     /** Path → value text of every row under {@code root} that shows a value and has one in {@code snapshot}. */
@@ -90,7 +124,7 @@ public final class ComponentTreeModel {
                         depth + 1));
             }
         }
-        return new ComponentTreeNode(ComponentTreeNode.Kind.COMPONENT, path, text,
+        return new ComponentTreeNode(ComponentTreeNode.Kind.COMPONENT, path, text, component.typeId(),
                 showsValue(path, component.typeId()), children);
     }
 
@@ -99,7 +133,7 @@ public final class ComponentTreeModel {
                 && (InterfacePins.isInterface(typeId) || StandardComponentTypes.LED.equals(typeId));
     }
 
-    private static List<ComponentTreeNode> groups(List<Component> components, List<ComponentTreeNode> nodes,
+    private static List<ComponentTreeNode> groups(String parentPath, List<Component> components, List<ComponentTreeNode> nodes,
                                                   ComponentTypeRegistry registry) {
         Map<String, List<ComponentTreeNode>> byType = new LinkedHashMap<>();
         for (int index = 0; index < components.size(); index++) {
@@ -112,8 +146,9 @@ public final class ComponentTreeModel {
                 .sorted(Comparator.comparing(Group::name, String.CASE_INSENSITIVE_ORDER)
                         .thenComparing(Group::typeId))
                 .map(group -> new ComponentTreeNode(ComponentTreeNode.Kind.GROUP,
-                        ComponentTreeNode.groupPath(group.typeId()),
-                        Messages.format("tree.group", group.name(), group.members().size()), false, group.members()))
+                        ComponentTreeNode.groupPath(parentPath, group.typeId()),
+                        Messages.format("tree.group", group.name(), group.members().size()), group.typeId(), false,
+                        group.members()))
                 .toList();
     }
 

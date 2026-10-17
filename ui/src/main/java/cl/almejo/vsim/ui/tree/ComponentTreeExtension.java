@@ -9,7 +9,8 @@ public final class ComponentTreeExtension implements EditorExtension {
 
     @Override
     public Runnable install(EditorView view) {
-        ComponentTreePanel panel = new ComponentTreePanel(view.openDocument(), view.canvas());
+        ComponentTreePanel panel = new ComponentTreePanel(view.openDocument(), view.canvas(),
+                view.services().painters(), view.services().appearance());
         view.inspector().addTab(Messages.text("tree.tab"), panel);
         return panel::dispose;
     }

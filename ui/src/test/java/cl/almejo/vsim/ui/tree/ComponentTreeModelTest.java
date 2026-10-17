@@ -6,6 +6,8 @@ import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.core.document.Frame;
+import cl.almejo.vsim.core.document.FrameTint;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
@@ -50,6 +52,13 @@ class ComponentTreeModelTest {
                 Rotation.R0, Map.of(), label);
         document.add(component);
         return component;
+    }
+
+    private Frame frame(int x, int y, int width, int height, String title) {
+        Frame frame = new Frame(document.newFrameId(), new GridPoint(x, y), width, height, title, FrameTint.NONE,
+                false);
+        document.add(frame);
+        return frame;
     }
 
     private static List<String> texts(List<ComponentTreeNode> nodes) {
@@ -159,5 +168,48 @@ class ComponentTreeModelTest {
                 });
         assertThat(texts(ComponentTreeModel.build("Sumador", document, registry, true).children()))
                 .containsExactly("subcircuit:missing (1)");
+    }
+    @Test
+    void framesComeFirstAndHoldTheComponentsAndFramesDirectlyInside() {
+        Component outside = add(StandardComponentTypes.NOT, 60, 0, "");
+        Frame outer = frame(0, 0, 50, 40, "ALU");
+        Component inOuter = add(StandardComponentTypes.LED, 40, 2, "L1");
+        Frame inner = frame(2, 2, 20, 20, "  ");
+        Component inInner = add(StandardComponentTypes.NOT, 4, 4, "U1");
+
+        ComponentTreeNode root = ComponentTreeModel.build("Sumador", document, registry, false);
+
+        assertThat(paths(root.children())).containsExactly(ComponentTreeNode.framePath(outer.id()),
+                outside.id().value());
+        ComponentTreeNode outerNode = root.children().get(0);
+        assertThat(outerNode.kind()).isEqualTo(ComponentTreeNode.Kind.FRAME);
+        assertThat(outerNode.path()).isEqualTo("frame:" + outer.id().value());
+        assertThat(outerNode.text()).isEqualTo("ALU");
+        assertThat(paths(outerNode.children())).containsExactly(ComponentTreeNode.framePath(inner.id()),
+                inOuter.id().value());
+        ComponentTreeNode innerNode = outerNode.children().get(0);
+        assertThat(innerNode.text()).isEqualTo("Marco");
+        assertThat(paths(innerNode.children())).containsExactly(inInner.id().value());
+        assertThat(innerNode.children().get(0).typeId()).isEqualTo(StandardComponentTypes.NOT);
+    }
+
+    @Test
+    void groupingByTypeAppliesInsideEachFrame() {
+        Frame block = frame(0, 0, 50, 40, "ALU");
+        add(StandardComponentTypes.NOT, 2, 2, "");
+        add(StandardComponentTypes.LED, 10, 2, "");
+        add(StandardComponentTypes.NOT, 20, 2, "");
+        add(StandardComponentTypes.NOT, 60, 2, "");
+
+        ComponentTreeNode root = ComponentTreeModel.build("Sumador", document, registry, true);
+
+        assertThat(texts(root.children())).containsExactly("ALU", "NOT (1)");
+        assertThat(root.children().get(1).path()).isEqualTo("/not");
+        ComponentTreeNode blockNode = root.children().get(0);
+        assertThat(texts(blockNode.children())).containsExactly("LED (1)", "NOT (2)");
+        assertThat(paths(blockNode.children())).containsExactly(
+                ComponentTreeNode.groupPath(ComponentTreeNode.framePath(block.id()), StandardComponentTypes.LED),
+                ComponentTreeNode.groupPath(ComponentTreeNode.framePath(block.id()), StandardComponentTypes.NOT));
+        assertThat(blockNode.children().get(1).typeId()).isEqualTo(StandardComponentTypes.NOT);
     }
 }

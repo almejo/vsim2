@@ -1,11 +1,16 @@
 package cl.almejo.vsim.ui.tree;
 
+import cl.almejo.vsim.core.command.AddElementsCommand;
+import cl.almejo.vsim.core.command.MoveElementsCommand;
 import cl.almejo.vsim.core.command.PutDefinitionsCommand;
 import cl.almejo.vsim.core.component.ElementBounds;
 import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
+import cl.almejo.vsim.core.document.Frame;
+import cl.almejo.vsim.core.document.FrameTint;
+import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.library.ExampleDefinitions;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
@@ -17,16 +22,22 @@ import cl.almejo.vsim.ui.canvas.CanvasHost;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.canvas.CircuitRenderer;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.paint.Appearance;
 import cl.almejo.vsim.ui.paint.ColorScheme;
+import cl.almejo.vsim.ui.paint.ColorSchemes;
+import cl.almejo.vsim.ui.paint.ComponentIcon;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import javax.swing.Icon;
+import javax.swing.JLabel;
 import javax.swing.event.TreeModelEvent;
 import javax.swing.event.TreeModelListener;
 import java.awt.geom.Point2D;
 import java.util.ArrayList;
+import java.util.Set;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -49,13 +60,14 @@ class ComponentTreePanelTest {
                 public void configure(Component component) {
                 }
             });
+    private final Appearance appearance = new Appearance(ColorScheme.LIGHT);
     private ComponentTreePanel panel;
 
     @BeforeEach
     void create() {
         Messages.initialize(Messages.SPANISH);
         canvas.setSize(400, 300);
-        panel = new ComponentTreePanel(openDocument, canvas);
+        panel = new ComponentTreePanel(openDocument, canvas, PainterRegistry.standard(), appearance);
     }
 
     @AfterEach
@@ -212,5 +224,83 @@ class ComponentTreePanelTest {
         panel.dispose();
         Component gate = place(openDocument, StandardComponentTypes.NOT, 20, 10, Map.of());
         assertThat(panel.rowText(gate.id().value())).isEmpty();
+    }
+    private Frame addFrame(int x, int y, int width, int height, String title) {
+        Frame frame = new Frame(openDocument.document().newFrameId(), new GridPoint(x, y), width, height, title,
+                FrameTint.NONE, false);
+        openDocument.execute(new AddElementsCommand(List.of(frame)));
+        return frame;
+    }
+
+    private Icon renderedIcon(String nodePath) {
+        Object swingNode = panel.treePath(nodePath).orElseThrow().getLastPathComponent();
+        JLabel label = (JLabel) panel.tree().getCellRenderer().getTreeCellRendererComponent(panel.tree(), swingNode,
+                false, false, true, 0, false);
+        return label.getIcon();
+    }
+
+    @Test
+    void movingAComponentIntoAFrameMovesItsRowAndKeepsTheExpandedRows() {
+        Frame block = addFrame(0, 0, 30, 20, "ALU");
+        Component instance = inverterInstance(); // at (4, -1): straddles the top border
+        Component gate = place(openDocument, StandardComponentTypes.NOT, 40, 4, Map.of());
+        String framePath = ComponentTreeNode.framePath(block.id());
+        panel.tree().expandPath(panel.treePath(instance.id().value()).orElseThrow());
+        assertThat(panel.treePath(gate.id().value()).orElseThrow().getPathCount()).isEqualTo(2);
+
+        openDocument.execute(new MoveElementsCommand(Set.of(gate.id()), -30, 0));
+
+        assertThat(panel.treePath(gate.id().value()).orElseThrow().getParentPath())
+                .isEqualTo(panel.treePath(framePath).orElseThrow());
+        assertThat(panel.tree().isExpanded(panel.treePath(instance.id().value()).orElseThrow())).isTrue();
+
+        openDocument.execute(new MoveElementsCommand(Set.of(instance.id()), 0, 4));
+        assertThat(panel.treePath(instance.id().value()).orElseThrow().getParentPath())
+                .isEqualTo(panel.treePath(framePath).orElseThrow());
+        assertThat(panel.tree().isExpanded(panel.treePath(instance.id().value()).orElseThrow())).isTrue();
+
+        openDocument.history().undo();
+        openDocument.history().undo();
+        assertThat(panel.treePath(gate.id().value()).orElseThrow().getPathCount()).isEqualTo(2);
+    }
+
+    @Test
+    void choosingAFrameRowSelectsTheFrameAndCentersOnIt() {
+        Frame block = addFrame(10, 6, 30, 20, "");
+        assertThat(panel.rowText(ComponentTreeNode.framePath(block.id()))).contains("Marco");
+
+        panel.tree().setSelectionPath(panel.treePath(ComponentTreeNode.framePath(block.id())).orElseThrow());
+
+        assertThat(canvas.selection().ids()).containsExactly(block.id());
+        Point2D middle = center(ElementBounds.of(block, openDocument.registry()));
+        assertThat(canvas.viewport().gridToScreen(middle.getX(), middle.getY()))
+                .isEqualTo(new Point2D.Double(200, 150));
+    }
+
+    @Test
+    void componentFrameAndGroupRowsShowAnIcon() {
+        Frame block = addFrame(0, 0, 30, 20, "ALU");
+        Component gate = place(openDocument, StandardComponentTypes.NOT, 4, 4, Map.of());
+        assertThat(renderedIcon(gate.id().value())).isInstanceOf(ComponentIcon.class);
+        assertThat(renderedIcon(ComponentTreeNode.framePath(block.id()))).isNotNull();
+
+        panel.groupByTypeToggle().setSelected(true);
+        assertThat(renderedIcon(ComponentTreeNode.groupPath(ComponentTreeNode.framePath(block.id()),
+                StandardComponentTypes.NOT))).isInstanceOf(ComponentIcon.class);
+        assertThat(renderedIcon(ComponentTreeNode.DOCUMENT_PATH)).isNull();
+    }
+
+    @Test
+    void aSchemeChangeRedrawsTheIconsWithTheNewColorsAndDisposeStopsListening() {
+        Component gate = place(openDocument, StandardComponentTypes.NOT, 4, 4, Map.of());
+        assertThat(((ComponentIcon) renderedIcon(gate.id().value())).scheme()).isEqualTo(ColorScheme.LIGHT);
+        int listeners = appearance.listenerCount();
+
+        ColorScheme dark = ColorSchemes.forTheme(true);
+        appearance.setScheme(dark);
+        assertThat(((ComponentIcon) renderedIcon(gate.id().value())).scheme()).isEqualTo(dark);
+
+        panel.dispose();
+        assertThat(appearance.listenerCount()).isEqualTo(listeners - 1);
     }
 }

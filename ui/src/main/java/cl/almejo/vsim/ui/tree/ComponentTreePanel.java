@@ -1,22 +1,31 @@
 package cl.almejo.vsim.ui.tree;
 
 import cl.almejo.vsim.core.component.ElementBounds;
+import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.simulation.InstancePath;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
+import cl.almejo.vsim.ui.frames.FrameIcons;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.icons.Icons;
+import cl.almejo.vsim.ui.paint.Appearance;
+import cl.almejo.vsim.ui.paint.ComponentIcon;
+import cl.almejo.vsim.ui.paint.PainterRegistry;
 
+import javax.swing.Icon;
 import javax.swing.JCheckBox;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTree;
 import javax.swing.tree.DefaultMutableTreeNode;
+import javax.swing.tree.DefaultTreeCellRenderer;
 import javax.swing.tree.DefaultTreeModel;
 import javax.swing.tree.TreePath;
 import javax.swing.tree.TreeSelectionModel;
 import java.awt.BorderLayout;
+import java.awt.Component;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -27,29 +36,43 @@ import java.util.Set;
 import java.util.function.Consumer;
 
 /**
- * The "Componentes" inspector tab (spec §6.9): the document, its components (a list, or grouped by type) and, for
- * instances of user components, their parts. Choosing a row selects and centers its top-level component in the
- * canvas. Nested interface pins and LEDs show their value from the latest snapshot of the current netlist.
+ * The "Componentes" inspector tab (spec §6.9): the document, its frames and components (nested by the innermost
+ * enclosing frame; a list, or grouped by type) and, for instances of user components, their parts, each row with its
+ * palette icon. Choosing a row selects and centers its frame or top-level component in the canvas. Nested interface pins and LEDs show their value from the latest snapshot of the current netlist.
  */
 public final class ComponentTreePanel extends JPanel {
 
+    private static final int ICON_SIZE = 16;
+
     private final OpenDocument openDocument;
     private final CircuitCanvas canvas;
+    private final PainterRegistry painters;
+    private final Appearance appearance;
+    /** Component icons by type id, drawn with the current scheme; cleared when the scheme changes. */
+    private final Map<String, Icon> icons = new HashMap<>();
     private final DefaultTreeModel treeModel = new DefaultTreeModel(new DefaultMutableTreeNode());
     private final JTree tree = new JTree(treeModel);
     private final JCheckBox groupByType = new JCheckBox(Messages.text("tree.groupByType"));
     private final Map<String, DefaultMutableTreeNode> nodesByPath = new HashMap<>();
     private final Runnable documentListener = this::rebuild;
+    private final Runnable appearanceListener = () -> {
+        icons.clear();
+        tree.repaint();
+    };
     private final Consumer<SimulationSnapshot> snapshotListener = this::showSnapshot;
     private SimulationSnapshot snapshot = SimulationSnapshot.EMPTY;
     private Map<String, String> values = Map.of();
     private ComponentTreeNode root;
     private boolean rebuilding;
 
-    public ComponentTreePanel(OpenDocument openDocument, CircuitCanvas canvas) {
+    public ComponentTreePanel(OpenDocument openDocument, CircuitCanvas canvas, PainterRegistry painters,
+                              Appearance appearance) {
         super(new BorderLayout());
         this.openDocument = openDocument;
         this.canvas = canvas;
+        this.painters = painters;
+        this.appearance = appearance;
+        tree.setCellRenderer(new Renderer());
         tree.setRootVisible(true);
         tree.setShowsRootHandles(true);
         tree.getSelectionModel().setSelectionMode(TreeSelectionModel.SINGLE_TREE_SELECTION);
@@ -59,13 +82,15 @@ public final class ComponentTreePanel extends JPanel {
         add(new JScrollPane(tree), BorderLayout.CENTER);
         openDocument.addChangeListener(documentListener);
         canvas.addSnapshotListener(snapshotListener);
+        appearance.addListener(appearanceListener);
         rebuild();
     }
 
-    /** Stops following the shared document and the canvas: the view closed. */
+    /** Stops following the shared document, the canvas and the appearance: the view closed. */
     public void dispose() {
         openDocument.removeChangeListener(documentListener);
         canvas.removeSnapshotListener(snapshotListener);
+        appearance.removeListener(appearanceListener);
     }
 
     JTree tree() {
@@ -167,18 +192,55 @@ public final class ComponentTreePanel extends JPanel {
         return Optional.empty();
     }
 
-    /** A component row selects and centers its top-level component; the rebuild restoring a row does not. */
+    /**
+     * A component row selects and centers its top-level component, a frame row its frame; the rebuild restoring a row
+     * does not.
+     */
     private void selectionChanged() {
         if (rebuilding) {
             return;
         }
-        chosenNode().filter(node -> node.kind() == ComponentTreeNode.Kind.COMPONENT).ifPresent(node -> {
-            ElementId id = new ElementId(InstancePath.topLevel(node.path()));
-            openDocument.document().component(id).ifPresent(component -> {
-                canvas.selection().select(id);
-                canvas.centerOn(ElementBounds.of(component, openDocument.registry()));
-            });
+        chosenNode().flatMap(this::elementOf).ifPresent(element -> {
+            canvas.selection().select(element.id());
+            canvas.centerOn(ElementBounds.of(element, openDocument.registry()));
         });
+    }
+
+    private Optional<DocumentElement> elementOf(ComponentTreeNode node) {
+        return switch (node.kind()) {
+            case COMPONENT -> openDocument.document().component(new ElementId(InstancePath.topLevel(node.path())))
+                    .map(DocumentElement.class::cast);
+            case FRAME -> openDocument.document().frames().stream()
+                    .filter(frame -> ComponentTreeNode.framePath(frame.id()).equals(node.path()))
+                    .findFirst().map(DocumentElement.class::cast);
+            case DOCUMENT, GROUP -> Optional.empty();
+        };
+    }
+
+    /** The icon of a row: the palette icon of its type, the frame tool icon for frames, none for the document. */
+    Icon icon(ComponentTreeNode node) {
+        String typeId = node.typeId(); // the palette icon: the type with its default parameters, as in PalettePanel
+        return switch (node.kind()) {
+            case COMPONENT, GROUP -> openDocument.registry().find(typeId)
+                    .map(type -> icons.computeIfAbsent(type.id(), id -> new ComponentIcon(type,
+                            painters.painterFor(id), appearance.scheme(), ICON_SIZE)))
+                    .orElse(null);
+            case FRAME -> Icons.get(FrameIcons.FRAME_TOOL, ICON_SIZE);
+            case DOCUMENT -> null;
+        };
+    }
+
+    /** Draws each row with its icon. */
+    private final class Renderer extends DefaultTreeCellRenderer {
+        @Override
+        public Component getTreeCellRendererComponent(JTree owner, Object value, boolean selected, boolean expanded,
+                                                      boolean leaf, int row, boolean focused) {
+            super.getTreeCellRendererComponent(owner, value, selected, expanded, leaf, row, focused);
+            if (value instanceof DefaultMutableTreeNode node && node.getUserObject() instanceof Row treeRow) {
+                setIcon(icon(treeRow.node()));
+            }
+            return this;
+        }
     }
 
     /** What a tree node holds: its row and the value it shows (null for none). */

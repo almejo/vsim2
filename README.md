@@ -174,6 +174,7 @@ Diseño: `docs/superpowers/specs/2026-10-08-vsim2-design.md`.
 - Si al mover un cable seleccionado queda alineado con otro cable y se funden en uno, el cable resultante queda seleccionado (antes la selección se perdía). Vale para arrastrar, Alt + arrastrar, las flechas y arrastrar entre vistas.
 - La etiqueta de un componente girado (R90/R270), que se dibuja a la izquierda de la pieza, se edita en un campo que crece hacia la izquierda, sin taparla. El valor de una Constante se edita en un campo que crece hacia ambos lados, centrado en su caja.
 - Cerrar la ventana (o salir) con un texto a medio editar lo confirma si es válido, y si no lo descarta, antes de preguntar «¿Guardar cambios?».
+- La pestaña «Componentes» muestra el ícono de la paleta junto a cada componente (y a cada grupo con «Agrupar por tipo»), con los colores del esquema actual. Los marcos aparecen como carpetas con lo que tienen adentro (el marco más interno manda; primero los marcos, después los componentes, y la agrupación por tipo se aplica dentro de cada marco). Al mover un componente dentro o fuera de un marco su fila cambia de lugar sin cerrar las filas abiertas. Elegir un marco lo selecciona y centra la vista en él.
 
 ## Preferencias y distribución
 
