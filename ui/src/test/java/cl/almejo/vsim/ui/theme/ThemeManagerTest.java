@@ -3,13 +3,17 @@ package cl.almejo.vsim.ui.theme;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.paint.Appearance;
 import cl.almejo.vsim.ui.paint.ColorScheme;
+import cl.almejo.vsim.ui.paint.ColorRole;
 import cl.almejo.vsim.ui.paint.ColorSchemes;
+import cl.almejo.vsim.ui.paint.CustomColorSchemes;
+import cl.almejo.vsim.ui.paint.NamedColorScheme;
 import cl.almejo.vsim.ui.UiTestSupport;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 import javax.swing.SwingUtilities;
 
+import java.awt.Color;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -99,6 +103,36 @@ class ThemeManagerTest {
         assertThat(appearance.scheme()).isSameAs(ColorSchemes.DARK);
         assertThat(ThemeManager.schemeFor(Optional.of("neon"), false)).isSameAs(ColorSchemes.LIGHT);
         assertThat(ThemeManager.schemeFor(Optional.of("classic"), true)).isSameAs(ColorSchemes.CLASSIC);
+    }
+
+    @Test
+    void aCustomSchemeIsFoundByIdAndFollowedLiveAndADeletedOneFallsBackToTheTheme() {
+        CustomColorSchemes customSchemes = new CustomColorSchemes(preferences);
+        NamedColorScheme mine = customSchemes.save("Mío", ColorSchemes.DARK.with(ColorRole.BACKGROUND, Color.ORANGE));
+        assertThat(ThemeManager.schemeFor(Optional.of(mine.id()), false, customSchemes::lookup))
+                .isEqualTo(mine.scheme());
+        assertThat(ThemeManager.schemeFor(Optional.of("custom-77"), true, customSchemes::lookup))
+                .isSameAs(ColorSchemes.DARK);
+
+        preferences.setTheme(AppPreferences.Theme.LIGHT);
+        preferences.setColorScheme(Optional.of(mine.id()));
+        manager.start();
+        assertThat(appearance.scheme()).isEqualTo(mine.scheme());
+
+        ColorScheme edited = mine.scheme().with(ColorRole.WIRE_ONE, Color.CYAN);
+        customSchemes.update(new NamedColorScheme(mine.id(), "Mío", edited));
+        assertThat(appearance.scheme()).isEqualTo(edited);
+
+        customSchemes.delete(mine.id());
+        assertThat(appearance.scheme()).isSameAs(ColorSchemes.LIGHT);
+    }
+
+    @Test
+    void aStoredCustomIdWithoutItsSchemeFallsBackToTheTheme() {
+        preferences.setTheme(AppPreferences.Theme.DARK);
+        preferences.setColorScheme(Optional.of("custom-3"));
+        manager.start();
+        assertThat(appearance.scheme()).isSameAs(ColorSchemes.DARK);
     }
 
     @Test

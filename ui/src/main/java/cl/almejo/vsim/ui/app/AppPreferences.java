@@ -55,6 +55,7 @@ public final class AppPreferences {
     static final String INVERT_MODIFIER = "invertModifier";
     static final String TEXT_FONT_FAMILY = "textFontFamily";
     static final String TEXT_FONT_SIZE = "textFontSize";
+    static final String COLOR_SCHEMES = "colorSchemes";
 
     /** «Avanzar 10 t» (M6.1-B): the fixed step until the user picks another size. */
     public static final long DEFAULT_STEP_UNITS = 10;
@@ -354,6 +355,23 @@ public final class AppPreferences {
             LOGGER.warn("Could not save the keyboard shortcuts", exception);
         }
         notifyListeners(SHORTCUTS);
+    }
+
+    // --- M6.8 custom colour schemes ---
+
+    /** The user's colour schemes: child node {@code colorSchemes}, one child per scheme (see CustomColorSchemes). */
+    public Preferences colorSchemesNode() {
+        return node.node(COLOR_SCHEMES);
+    }
+
+    /** Saves the custom colour schemes and tells every listener (key {@code colorSchemes}). */
+    public void colorSchemesChanged() {
+        try {
+            colorSchemesNode().flush();
+        } catch (BackingStoreException exception) {
+            LOGGER.warn("Could not save the colour schemes", exception);
+        }
+        notifyListeners(COLOR_SCHEMES);
     }
 
     private Optional<String> optional(String key) {

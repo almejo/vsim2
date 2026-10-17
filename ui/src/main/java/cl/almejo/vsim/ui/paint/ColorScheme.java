@@ -42,6 +42,11 @@ public record ColorScheme(Color background, Color grid, Color wireZero, Color wi
     private static final int LIGHT_VEIL_ALPHA = 115;
     private static final int DARK_VEIL_ALPHA = 140;
 
+    /** This scheme with {@code role} painted in {@code color} (M6.8 scheme editor). */
+    public ColorScheme with(ColorRole role, Color color) {
+        return ColorRole.scheme(each -> each == role ? color : each.get(this));
+    }
+
     /** True when the board is dark, which picks the dark variant of the frame tints. */
     public boolean isDark() {
         double luminance = (0.2126 * background.getRed() + 0.7152 * background.getGreen()

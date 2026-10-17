@@ -56,6 +56,23 @@ class ColorSchemesTest {
     }
 
     @Test
+    void theTwentyRolesReadAndReplaceEachColorOfAScheme() {
+        assertThat(ColorRole.values()).hasSize(20);
+        assertThat(ColorRole.values()).extracting(ColorRole::key).containsExactly("background", "grid", "wireZero",
+                "wireOne", "wireHighImpedance", "wireConflict", "wireUnknown", "componentStroke", "componentFill",
+                "componentShade", "shadow", "text", "selection", "preview", "displayBackground", "segmentOn",
+                "segmentOff", "diagramBackground", "diagramGrid", "diagramTrace");
+        assertThat(ColorRole.scheme(role -> role.get(ColorSchemes.CSIM))).isEqualTo(ColorSchemes.CSIM);
+        Color marker = new Color(1, 2, 3, 4);
+        for (ColorRole role : ColorRole.values()) {
+            ColorScheme changed = ColorSchemes.DARK.with(role, marker);
+            for (ColorRole other : ColorRole.values()) {
+                assertThat(other.get(changed)).isEqualTo(other == role ? marker : other.get(ColorSchemes.DARK));
+            }
+        }
+    }
+
+    @Test
     void theDefaultSchemeFollowsTheTheme() {
         assertThat(ColorSchemes.forTheme(false)).isSameAs(ColorSchemes.LIGHT);
         assertThat(ColorSchemes.forTheme(true)).isSameAs(ColorSchemes.DARK);

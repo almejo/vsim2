@@ -4,6 +4,7 @@ import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.paint.Appearance;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.ColorSchemes;
+import cl.almejo.vsim.ui.paint.CustomColorSchemes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -12,6 +13,7 @@ import java.time.Duration;
 import java.util.Optional;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
+import java.util.function.Function;
 
 /**
  * Applies the theme and color scheme preferences (spec §6.7): installs the look and feel and sets the shared
@@ -29,6 +31,7 @@ public final class ThemeManager {
     private static volatile Optional<Boolean> startupSystemDark = Optional.empty();
 
     private final AppPreferences preferences;
+    private final CustomColorSchemes customSchemes;
     private final Appearance appearance;
     private final DarkModeProbe probe;
     private final LookAndFeelInstaller installer;
@@ -61,6 +64,7 @@ public final class ThemeManager {
                         LookAndFeelInstaller installer, Optional<Boolean> startupSystemDark, Executor probeExecutor,
                         Executor uiExecutor) {
         this.preferences = preferences;
+        this.customSchemes = new CustomColorSchemes(preferences);
         this.appearance = appearance;
         this.probe = probe;
         this.installer = installer;
@@ -100,7 +104,16 @@ public final class ThemeManager {
 
     /** The user's scheme when it exists, otherwise the one that goes with the theme. */
     public static ColorScheme schemeFor(Optional<String> chosenId, boolean dark) {
-        return chosenId.flatMap(ColorSchemes::byId).orElseGet(() -> ColorSchemes.forTheme(dark));
+        return schemeFor(chosenId, dark, ColorSchemes::byId);
+    }
+
+    /**
+     * The scheme {@code lookup} finds for the user's id (built-in or custom, M6.8), otherwise the one that goes with
+     * the theme: an unknown or deleted id falls back to «Según el tema».
+     */
+    public static ColorScheme schemeFor(Optional<String> chosenId, boolean dark,
+                                        Function<String, Optional<ColorScheme>> lookup) {
+        return chosenId.flatMap(lookup).orElseGet(() -> ColorSchemes.forTheme(dark));
     }
 
     /** Installs the theme and scheme now and follows preference changes from then on. Idempotent. */
@@ -165,7 +178,7 @@ public final class ThemeManager {
                 installedDark = dark;
             }
         }
-        appearance.setScheme(schemeFor(preferences.colorScheme(), installedDark));
+        appearance.setScheme(schemeFor(preferences.colorScheme(), installedDark, customSchemes::lookup));
     }
 
     /** Uses the answer asked before start once; afterwards asks on the probe executor. */
