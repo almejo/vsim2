@@ -65,7 +65,8 @@ public final class PasteCommand implements Command {
         List<ElementId> ids = new ArrayList<>();
         for (Component component : fragment.components()) {
             Component placed = new Component(document.newComponentId(), component.typeId(),
-                    component.position().plus(at), component.rotation(), component.parameters(), component.label());
+                    component.position().plus(at), component.rotation(), component.parameters(), component.label(),
+                    component.labelOffset());
             elements.add(placed);
             ids.add(placed.id());
         }
