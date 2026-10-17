@@ -273,6 +273,50 @@ class LabelActionsTest {
     }
 
     @Test
+    void aSidewaysLabelEditorGrowsToTheLeftAwayFromTheBody() {
+        Component gate = new Component(openDocument.document().newComponentId(), StandardComponentTypes.NOT,
+                new GridPoint(10, 10), cl.almejo.vsim.core.geometry.Rotation.R90, Map.of(), "U1");
+        openDocument.execute(new AddElementsCommand(List.of(gate)));
+        actions.editLabel(gate);
+        java.awt.geom.Rectangle2D painted = view.canvas().viewport().documentTransform().createTransformedShape(
+                cl.almejo.vsim.ui.canvas.LabelLayout.componentLabelPlace(
+                        openDocument.registry().typeOf(gate), gate, "U1").bounds()).getBounds2D();
+        java.awt.Rectangle before = textArea();
+        assertThat(before.getMaxX()).isBetween(painted.getMaxX() - 1, painted.getMaxX() + 1);
+        editor.field().setText("una etiqueta bastante larga");
+        java.awt.Rectangle after = textArea();
+        assertThat(after.getMaxX()).isEqualTo(before.getMaxX());
+        assertThat(after.x).isLessThan(before.x);
+        cancel();
+    }
+
+    @Test
+    void finishingTheEditBeforeClosingAppliesAValidHalfTypedLabel() {
+        Component gate = gate();
+        openDocument.history().markSaved();
+        assertThat(openDocument.isModified()).isFalse();
+        actions.editLabel(gate);
+        editor.field().setText("U7");
+        editor.confirmOrCancel();
+        assertThat(editor.isOpen()).isFalse();
+        assertThat(labelOf(gate).label()).isEqualTo("U7");
+        assertThat(openDocument.isModified()).isTrue();
+    }
+
+    @Test
+    void finishingTheEditBeforeClosingDropsAnInvalidConstantValue() {
+        Component constant = place(openDocument, StandardComponentTypes.CONSTANT, 0, 0,
+                Map.of("width", 4, "value", "5"));
+        actions.editConstantValue(constant);
+        editor.field().setText("0x1F");
+        editor.confirmOrCancel();
+        assertThat(editor.isOpen()).isFalse();
+        assertThat(openDocument.document().component(constant.id()).orElseThrow().parameters().get("value"))
+                .isEqualTo("5");
+        assertThat(openDocument.history().undoDescription()).contains("command.add");
+    }
+
+    @Test
     void theFrameTitleEditorSitsInTheTitleBand() {
         Frame frame = new Frame(openDocument.document().newFrameId(), new GridPoint(2, 2), 20, 10, "Bloque",
                 FrameTint.NONE, false);

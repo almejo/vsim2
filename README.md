@@ -168,6 +168,8 @@ Diseño: `docs/superpowers/specs/2026-10-08-vsim2-design.md`.
 ## Pulido del editor (M6.8)
 
 - Si al mover un cable seleccionado queda alineado con otro cable y se funden en uno, el cable resultante queda seleccionado (antes la selección se perdía). Vale para arrastrar, Alt + arrastrar, las flechas y arrastrar entre vistas.
+- La etiqueta de un componente girado (R90/R270), que se dibuja a la izquierda de la pieza, se edita en un campo que crece hacia la izquierda, sin taparla. El valor de una Constante se edita en un campo que crece hacia ambos lados, centrado en su caja.
+- Cerrar la ventana (o salir) con un texto a medio editar lo confirma si es válido, y si no lo descarta, antes de preguntar «¿Guardar cambios?».
 
 ## Preferencias y distribución
 
