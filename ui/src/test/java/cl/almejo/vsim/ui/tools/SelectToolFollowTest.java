@@ -170,6 +170,22 @@ class SelectToolFollowTest {
     }
 
     @Test
+    void whileControlIsHeldThePreviewOfTheCopyDragsNoWires() {
+        context.selection.select(gate.id());
+        tool.mousePressed(context, TestToolContext.at(12, 12));
+        tool.mouseDragged(context, TestToolContext.withKeys(14, 12, false, true, false));
+        tool.paintOverlay(TestToolContext.scratchGraphics(), context);
+        assertThat(context.ghosts).filteredOn(element -> element instanceof Wire).isEmpty();
+        assertThat(tool.hiddenWires(context)).isEmpty();
+
+        context.ghosts.clear();
+        tool.mouseDragged(context, TestToolContext.withKeys(14, 12, false, false, false));
+        tool.paintOverlay(TestToolContext.scratchGraphics(), context);
+        assertThat(tool.hiddenWires(context)).containsExactly(wire.id());
+        tool.mouseReleased(context, TestToolContext.at(14, 12));
+    }
+
+    @Test
     void theDragPreviewShowsTheStretchedWireAndGoesAwayAfterTheDrop() {
         tool.mousePressed(context, TestToolContext.at(12, 12));
         tool.mouseDragged(context, TestToolContext.at(14, 12));

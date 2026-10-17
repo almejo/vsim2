@@ -284,7 +284,9 @@ public final class SelectTool implements Tool {
             return;
         }
         dragTo(context, event);
-        followWires = segmentDrag || context.selectionMoves().follows(event.shiftDown(), event.altDown());
+        // Ctrl at the release copies, and a copy never drags wires: the preview must not show them following
+        followWires = !event.controlDown()
+                && (segmentDrag || context.selectionMoves().follows(event.shiftDown(), event.altDown()));
         showCursor(context, segmentDrag ? segmentWire(context).map(SelectTool::slideCursor).orElse(CanvasCursor.MOVE)
                 : CanvasCursor.MOVE);
         context.repaint();
@@ -378,14 +380,8 @@ public final class SelectTool implements Tool {
                 || !context.selection().effectiveIds().equals(Set.of(pressedWire.id()))) {
             return Optional.empty();
         }
-        return context.openDocument().document().wire(pressedWire.id())
-                .filter(SelectTool::slides);
-    }
-
-    /** A wire a segment drag can slide: horizontal or vertical, not a point. */
-    private static boolean slides(Wire wire) {
-        return !wire.start().equals(wire.end())
-                && (wire.start().x() == wire.end().x() || wire.start().y() == wire.end().y());
+        // every wire can slide: the Wire constructor already rejects zero-length and diagonal wires
+        return context.openDocument().document().wire(pressedWire.id());
     }
 
     @Override
@@ -460,7 +456,6 @@ public final class SelectTool implements Tool {
             return CanvasCursor.CROSSHAIR;
         }
         if (element instanceof Wire hoveredWire && context.selection().effectiveIds().equals(Set.of(hoveredWire.id()))
-                && slides(hoveredWire)
                 && context.selectionMoves().segmentKeyHeld(event.shiftDown(), event.altDown())) {
             return slideCursor(hoveredWire);
         }
