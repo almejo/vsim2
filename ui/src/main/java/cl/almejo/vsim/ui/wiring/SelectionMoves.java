@@ -15,6 +15,7 @@ import cl.almejo.vsim.core.wiring.NewContact;
 import cl.almejo.vsim.core.wiring.WireFollow;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.OpenDocument;
+import cl.almejo.vsim.ui.canvas.Selection;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.preferences.PreferencesForm;
 
@@ -22,6 +23,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -94,22 +96,36 @@ public final class SelectionMoves {
 
     /**
      * Moves {@code ids} as one undo step (limited by the locked frames, see {@link #limited}) and reports what the
-     * wires did; nothing for no ids or no delta.
+     * wires did; nothing for no ids or no delta. A selected wire the clean-up merged into another wire is replaced in
+     * {@code selection} by the wire that survived (see {@link #followMerges}).
      */
+    public void move(OpenDocument openDocument, Selection selection, Collection<ElementId> ids, int deltaX,
+                     int deltaY, boolean follow) {
+        move(openDocument, selection, ids, deltaX, deltaY, follow, follow == followMode());
+    }
+
+    /** {@link #move(OpenDocument, Selection, Collection, int, int, boolean)} for a host without a selection. */
     public void move(OpenDocument openDocument, Collection<ElementId> ids, int deltaX, int deltaY, boolean follow) {
-        move(openDocument, ids, deltaX, deltaY, follow, follow == followMode());
+        move(openDocument, null, ids, deltaX, deltaY, follow);
     }
 
     /**
      * A wire dragged sideways with the segment key (spec §8): always following, as one undo step, limited by the
-     * locked frames. New contacts are reported; the hint is not, as the invert key does not apply to this drag.
+     * locked frames. New contacts are reported; the hint is not, as the invert key does not apply to this drag. When
+     * the clean-up merges the wire into another one, {@code selection} follows it to the survivor.
      */
-    public void moveSegment(OpenDocument openDocument, ElementId wireId, int deltaX, int deltaY) {
-        move(openDocument, Set.of(wireId), deltaX, deltaY, true, false);
+    public void moveSegment(OpenDocument openDocument, Selection selection, ElementId wireId, int deltaX,
+                            int deltaY) {
+        move(openDocument, selection, Set.of(wireId), deltaX, deltaY, true, false);
     }
 
-    private void move(OpenDocument openDocument, Collection<ElementId> ids, int deltaX, int deltaY, boolean follow,
-                      boolean mayHint) {
+    /** {@link #moveSegment(OpenDocument, Selection, ElementId, int, int)} for a host without a selection. */
+    public void moveSegment(OpenDocument openDocument, ElementId wireId, int deltaX, int deltaY) {
+        moveSegment(openDocument, null, wireId, deltaX, deltaY);
+    }
+
+    private void move(OpenDocument openDocument, Selection selection, Collection<ElementId> ids, int deltaX,
+                      int deltaY, boolean follow, boolean mayHint) {
         if (ids.isEmpty()) {
             return;
         }
@@ -117,16 +133,20 @@ public final class SelectionMoves {
         if (delta.x() == 0 && delta.y() == 0) {
             return;
         }
+        Set<ElementId> selectedBefore = selection == null ? Set.of() : selection.ids();
         Command command = command(openDocument, ids, delta.x(), delta.y(), follow);
         openDocument.execute(command);
+        followMerges(openDocument.document(), selection, selectedBefore, command);
         report(openDocument.document(), command, mayHint);
     }
 
     /**
      * A keyboard move by the follow mode; a run of them is one undo step equal to one move by the total (the
-     * commands merge in the history). The report reads the merged command, so it covers the whole run.
+     * commands merge in the history). The report reads the merged command, so it covers the whole run, and so does
+     * the re-selection of merged wires (see {@link #followMerges}).
      */
-    public void nudge(OpenDocument openDocument, Collection<ElementId> ids, int deltaX, int deltaY) {
+    public void nudge(OpenDocument openDocument, Selection selection, Collection<ElementId> ids, int deltaX,
+                      int deltaY) {
         GridPoint delta = ids.isEmpty() ? new GridPoint(0, 0) : limited(openDocument, ids, deltaX, deltaY);
         if (delta.x() == 0 && delta.y() == 0) {
             return;
@@ -135,9 +155,42 @@ public final class SelectionMoves {
             openDocument.execute(MoveElementsCommand.nudge(ids, delta.x(), delta.y()));
             return;
         }
+        Set<ElementId> selectedBefore = selection == null ? Set.of() : selection.ids();
         openDocument.execute(MoveWithWiresCommand.nudge(openDocument.registry(), new LinkedHashSet<>(ids), delta.x(),
                 delta.y()));
-        openDocument.history().undoCommand().ifPresent(command -> report(openDocument.document(), command, true));
+        openDocument.history().undoCommand().ifPresent(command -> {
+            followMerges(openDocument.document(), selection, selectedBefore, command);
+            report(openDocument.document(), command, true);
+        });
+    }
+
+    /** {@link #nudge(OpenDocument, Selection, Collection, int, int)} for a host without a selection. */
+    public void nudge(OpenDocument openDocument, Collection<ElementId> ids, int deltaX, int deltaY) {
+        nudge(openDocument, null, ids, deltaX, deltaY);
+    }
+
+    /**
+     * After a following move, puts back in {@code selection} the selected wires the clean-up merged into another
+     * wire: each one is replaced by the wire that absorbed it, keeping the order and each id once (M6.7 deferred
+     * M2). Nothing changes when no selected id was absorbed.
+     */
+    static void followMerges(CircuitDocument document, Selection selection, Set<ElementId> selectedBefore,
+                             Command command) {
+        if (selection == null || !(command instanceof MoveWithWiresCommand moved)) {
+            return;
+        }
+        Map<ElementId, ElementId> mergedInto = moved.mergedInto();
+        if (selectedBefore.stream().noneMatch(mergedInto::containsKey)) {
+            return;
+        }
+        Set<ElementId> next = new LinkedHashSet<>();
+        for (ElementId id : selectedBefore) {
+            ElementId survivor = mergedInto.getOrDefault(id, id);
+            if (document.element(survivor).isPresent()) {
+                next.add(survivor);
+            }
+        }
+        selection.set(next);
     }
 
     /**

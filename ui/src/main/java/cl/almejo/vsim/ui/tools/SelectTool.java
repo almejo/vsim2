@@ -321,11 +321,12 @@ public final class SelectTool implements Tool {
                     if (event.controlDown()) {
                         copySelection(context);
                     } else if (segmentDrag) {
-                        context.selectionMoves().moveSegment(context.openDocument(), pressedElement.id(), deltaX,
-                                deltaY);
+                        context.selectionMoves().moveSegment(context.openDocument(), context.selection(),
+                                pressedElement.id(), deltaX, deltaY);
                     } else {
-                        context.selectionMoves().move(context.openDocument(), context.selection().effectiveIds(),
-                                deltaX, deltaY, context.selectionMoves().follows(event.shiftDown(), event.altDown()));
+                        context.selectionMoves().move(context.openDocument(), context.selection(),
+                                context.selection().effectiveIds(), deltaX, deltaY,
+                                context.selectionMoves().follows(event.shiftDown(), event.altDown()));
                     }
                 }
             } else if (selectionClick) {

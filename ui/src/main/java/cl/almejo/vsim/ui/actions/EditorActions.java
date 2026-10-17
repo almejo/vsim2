@@ -347,7 +347,8 @@ public final class EditorActions {
         if (canvas.selection().isEmpty() || !(canvas.tool() instanceof SelectTool select) || !select.isIdle()) {
             return;
         }
-        canvas.selectionMoves().nudge(openDocument, canvas.selection().effectiveIds(), deltaX, deltaY);
+        canvas.selectionMoves().nudge(openDocument, canvas.selection(), canvas.selection().effectiveIds(), deltaX,
+                deltaY);
     }
 
     private void rotateSelection(boolean clockwise) {

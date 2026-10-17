@@ -93,6 +93,15 @@ public final class MoveWithWiresCommand implements Command {
         return Optional.ofNullable(plan);
     }
 
+    /**
+     * The wires the clean-up of the last apply merged into another wire, each mapped to the wire that survived
+     * (chains resolved); empty before the first apply or when the clean-up merged nothing. A selection that held a
+     * moved wire follows it to its survivor.
+     */
+    public Map<ElementId, ElementId> mergedInto() {
+        return cleanUp == null ? Map.of() : cleanUp.plan().mergedInto();
+    }
+
     public int deltaX() {
         return deltaX;
     }

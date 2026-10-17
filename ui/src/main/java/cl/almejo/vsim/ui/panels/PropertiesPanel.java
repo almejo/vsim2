@@ -281,7 +281,7 @@ public final class PropertiesPanel extends JPanel {
             Set<ElementId> moved = FrameContents.withLockedBlocks(openDocument.document(), openDocument.registry(),
                     Set.of(id));
             // the canvas drag's command; the wires follow by the mode, as no key is held here
-            selectionMoves.move(openDocument, moved, deltaX, deltaY, selectionMoves.followMode());
+            selectionMoves.move(openDocument, selection, moved, deltaX, deltaY, selectionMoves.followMode());
         });
         refreshFrameFields(id);
     }

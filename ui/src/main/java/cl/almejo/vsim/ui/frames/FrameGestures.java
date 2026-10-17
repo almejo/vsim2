@@ -144,8 +144,8 @@ public final class FrameGestures implements SelectToolDelegate {
         if (part.resizes()) {
             finishResize(context);
         } else if (deltaX != 0 || deltaY != 0) {
-            context.selectionMoves().move(context.openDocument(), context.selection().effectiveIds(), deltaX, deltaY,
-                    followWires);
+            context.selectionMoves().move(context.openDocument(), context.selection(),
+                    context.selection().effectiveIds(), deltaX, deltaY, followWires);
         } else if (pointerMoved) {
             // a drag stopped by a locked frame's wall moved nothing, and it was no click either
         } else if (removeOnRelease) {

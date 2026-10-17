@@ -46,6 +46,23 @@ class TouchedWiresCleanupTest {
     }
 
     @Test
+    void theMergesNameTheWireThatAbsorbedEachRemovedWire() {
+        ElementId first = wire(0, 0, 4, 0);
+        ElementId second = wire(4, 0, 9, 0);
+        ElementId third = wire(9, 0, 12, 0);
+        TidyPlan plan = TouchedWiresCleanup.plan(document, registry, Set.of(first, second, third));
+        assertThat(plan.added()).containsExactly(new Wire(first, new GridPoint(0, 0), new GridPoint(12, 0)));
+        assertThat(plan.mergedInto()).containsExactlyInAnyOrderEntriesOf(Map.of(second, first, third, first));
+    }
+
+    @Test
+    void aPlanWithoutMergesNamesNoSurvivors() {
+        ElementId touched = wire(0, 0, 4, 0);
+        wire(4, 0, 9, 0);
+        assertThat(TouchedWiresCleanup.plan(document, registry, Set.of(touched)).mergedInto()).isEmpty();
+    }
+
+    @Test
     void overlappingTouchedCollinearWiresAreMerged() {
         ElementId first = wire(0, 0, 6, 0);
         ElementId second = wire(3, 0, 9, 0);

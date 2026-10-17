@@ -116,6 +116,24 @@ class ArrowKeyMoveTest {
     }
 
     @Test
+    void aWireNudgedIntoLineWithAnEarlierWireLeavesTheSurvivorSelected() {
+        addWire(openDocument, 40, 20, 44, 20);
+        Wire earlier = openDocument.document().wires().get(0);
+        addWire(openDocument, 44, 22, 49, 22);
+        Wire moved = openDocument.document().wires().get(1);
+        canvas.selection().select(moved.id());
+
+        press(KeyEvent.VK_UP, 0);
+        assertThat(canvas.selection().ids()).containsExactly(moved.id());
+        press(KeyEvent.VK_UP, 0);
+
+        assertThat(openDocument.document().wire(moved.id())).isEmpty();
+        assertThat(openDocument.document().wire(earlier.id())).contains(
+                new Wire(earlier.id(), new GridPoint(40, 20), new GridPoint(49, 20)));
+        assertThat(canvas.selection().ids()).containsExactly(earlier.id());
+    }
+
+    @Test
     void aRunOfPressesIsOneUndoStep() {
         canvas.selection().select(gate.id());
         for (int press = 0; press < 10; press++) {

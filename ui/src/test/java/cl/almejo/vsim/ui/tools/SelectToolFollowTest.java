@@ -95,6 +95,18 @@ class SelectToolFollowTest {
     }
 
     @Test
+    void aDraggedWireTheCleanUpMergesIntoAnEarlierWireLeavesTheSurvivorSelected() {
+        Wire earlier = addWire(40, 20, 44, 20);
+        Wire moved = addWire(44, 23, 49, 23);
+        context.selection.set(java.util.List.of(gate.id(), moved.id()));
+        context.drag(tool, 46, 23, 46, 20);
+        assertThat(context.openDocument().document().wire(moved.id())).isEmpty();
+        assertThat(context.openDocument().document().wire(earlier.id())).contains(
+                new Wire(earlier.id(), new GridPoint(40, 20), new GridPoint(49, 20)));
+        assertThat(context.selection.ids()).containsExactly(gate.id(), earlier.id());
+    }
+
+    @Test
     void shiftHeldDuringTheDragLeavesTheWireBehind() {
         context.dragHolding(tool, 12, 12, 12, 9, true, false);
         assertThat(positionOf(gate)).isEqualTo(new GridPoint(10, 7));

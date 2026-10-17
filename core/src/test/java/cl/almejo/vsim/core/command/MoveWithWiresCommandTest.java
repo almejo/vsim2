@@ -268,6 +268,30 @@ class MoveWithWiresCommandTest {
     }
 
     @Test
+    void aMovedWireTheCleanUpMergesIntoAnEarlierWireNamesItsSurvivor() {
+        CircuitDocument document = new CircuitDocument();
+        Wire earlier = wire(document, 0, 0, 4, 0);
+        Wire moved = wire(document, 4, 3, 9, 3);
+        MoveWithWiresCommand command = MoveWithWiresCommand.of(document, registry, Set.of(moved.id()), 0, -3);
+        assertThat(command.mergedInto()).isEmpty();
+        new History(document).execute(command);
+
+        assertThat(document.wires()).containsExactly(
+                new Wire(earlier.id(), new GridPoint(0, 0), new GridPoint(9, 0)));
+        assertThat(command.mergedInto()).containsExactlyEntriesOf(Map.of(moved.id(), earlier.id()));
+    }
+
+    @Test
+    void aMoveWithoutACleanUpNamesNoSurvivors() {
+        CircuitDocument document = new CircuitDocument();
+        wire(document, 0, 0, 4, 0);
+        Wire moved = wire(document, 4, 3, 9, 3);
+        MoveWithWiresCommand command = MoveWithWiresCommand.of(document, registry, Set.of(moved.id()), 0, 2);
+        command.apply(document);
+        assertThat(command.mergedInto()).isEmpty();
+    }
+
+    @Test
     void anUntouchedSplitWireFarFromTheMoveStaysSplit() {
         CircuitDocument document = new CircuitDocument();
         Component gate = gate(document, 10, 10);
