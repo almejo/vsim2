@@ -5,6 +5,7 @@ import cl.almejo.vsim.core.component.standard.ConstantValue;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.library.InterfacePins;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
+import cl.almejo.vsim.core.value.Value;
 import cl.almejo.vsim.ui.paint.LogicGatePainter.GateShape;
 
 import java.util.HashMap;
@@ -80,15 +81,21 @@ public final class PainterRegistry {
 
     /**
      * What a register or a counter shows under its name: its stored value in its «Mostrar como» format, written like
-     * a pin's value box (Z bits and conflicts included); nothing without a state (the palette icon).
+     * a pin's value box (Z bits and conflicts included). Without a state ({@link VisibleState#NONE}, the palette icon)
+     * it shows the power-on value, 0, like the ALU shows {@code A+B}; another kind of state shows nothing.
      */
     static Optional<String> storedValueText(VisibleState state, Map<String, Object> parameters) {
-        if (!(state instanceof VisibleState.StoredValueState stored)) {
+        Value value;
+        if (state instanceof VisibleState.StoredValueState stored) {
+            value = stored.value();
+        } else if (state instanceof VisibleState.None
+                && parameters.get(StandardComponentTypes.WIDTH) instanceof Integer width) {
+            value = Value.of(width, 0);
+        } else {
             return Optional.empty();
         }
         Object format = parameters.get(ConstantValue.FORMAT);
-        return Optional.of(InterfacePinPainter.shownText(stored.value(),
-                format == null ? ConstantValue.AUTO : (String) format));
+        return Optional.of(InterfacePinPainter.shownText(value, format == null ? ConstantValue.AUTO : (String) format));
     }
 
     public void register(String typeId, ComponentPainter painter) {

@@ -37,7 +37,50 @@ class StoredValuePainterTest {
         assertThat(text(Value.of(8, 0xFF), ConstantValue.SIGNED)).contains("-1");
         assertThat(text(Value.of(32, 0x8000_0000L), ConstantValue.SIGNED)).contains("-2147483648");
         assertThat(text(Value.highImpedance(4), ConstantValue.BINARY)).contains("ZZZZ");
-        assertThat(PainterRegistry.storedValueText(VisibleState.NONE, format(ConstantValue.AUTO))).isEmpty();
+    }
+
+    /** M1 (M7 fix round): like the ALU's A+B, the palette icon shows the power-on state, 0 in the block's format. */
+    @Test
+    void withoutAStateTheBlockShowsZeroInItsFormat() {
+        assertThat(PainterRegistry.storedValueText(VisibleState.NONE,
+                Map.of(StandardComponentTypes.WIDTH, 8, ConstantValue.FORMAT, ConstantValue.AUTO))).contains("0x0");
+        assertThat(PainterRegistry.storedValueText(VisibleState.NONE,
+                Map.of(StandardComponentTypes.WIDTH, 4, ConstantValue.FORMAT, ConstantValue.AUTO))).contains("0000");
+    }
+
+    /**
+     * M2 (M7 fix round): turned sideways, a 32-bit register's 32 binary digits still fit across its body: both its
+     * first and its last digit are drawn.
+     */
+    @Test
+    void thirtyTwoBinaryDigitsFitSideways() {
+        Map<String, Object> parameters = Map.of(StandardComponentTypes.WIDTH, 32, ConstantValue.FORMAT,
+                ConstantValue.BINARY);
+        for (String typeId : SEQUENTIAL_BLOCKS) {
+            ComponentType type = StandardComponentTypes.registry().require(typeId).specializedFor(parameters);
+            ComponentPainter painter = PainterRegistry.standard().painterFor(typeId);
+            BufferedImage ones = paintSideways(painter, type, parameters, Value.of(32, 0xFFFF_FFFFL));
+            BufferedImage firstZero = paintSideways(painter, type, parameters, Value.of(32, 0x7FFF_FFFFL));
+            BufferedImage lastZero = paintSideways(painter, type, parameters, Value.of(32, 0xFFFF_FFFEL));
+            assertThat(differingPixels(ones, firstZero)).as(typeId + " first digit").isGreaterThan(0);
+            assertThat(differingPixels(ones, lastZero)).as(typeId + " last digit").isGreaterThan(0);
+        }
+    }
+
+    private static BufferedImage paintSideways(ComponentPainter painter, ComponentType type,
+                                               Map<String, Object> parameters, Value value) {
+        int width = type.size().width() * 8;
+        int height = type.size().height() * 8;
+        int side = Math.max(width, height) * 3 + 20;
+        BufferedImage image = PaintersTest.blankImage(side, side);
+        Graphics2D graphics = image.createGraphics();
+        graphics.translate(side / 2.0, side / 2.0);
+        graphics.scale(3, 3);
+        graphics.rotate(Math.PI / 2);
+        graphics.translate(-width / 2.0, -height / 2.0);
+        painter.paint(graphics, type, parameters, new VisibleState.StoredValueState(value), PaintersTest.SCHEME);
+        graphics.dispose();
+        return image;
     }
 
     @Test

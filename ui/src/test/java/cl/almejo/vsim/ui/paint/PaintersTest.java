@@ -153,8 +153,14 @@ class PaintersTest {
             for (int width : new int[]{1, 32}) {
                 Map<String, Object> parameters = Map.of(StandardComponentTypes.WIDTH, width);
                 ComponentType type = block.specializedFor(parameters);
+                VisibleState state = switch (block.id()) {
+                    // the stored value, all ones: the widest text a register or a counter writes
+                    case StandardComponentTypes.REGISTER, StandardComponentTypes.COUNTER ->
+                            new VisibleState.StoredValueState(Value.of(width, Value.maskFor(width)));
+                    default -> sampleState(block.id());
+                };
                 for (Rotation rotation : Rotation.values()) {
-                    assertDrawsNearItsBounds(type, rotation, sampleState(block.id()), 320, parameters);
+                    assertDrawsNearItsBounds(type, rotation, state, 320, parameters);
                 }
             }
         }

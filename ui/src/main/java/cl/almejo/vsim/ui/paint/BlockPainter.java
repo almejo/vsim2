@@ -66,8 +66,11 @@ public final class BlockPainter implements ComponentPainter {
     private static final float LIVE_TEXT_SIZE = 7f;
     private static final float PIN_NAME_SIZE = 6f;
     private static final float MINIMUM_SIZE = 4f;
-    /** Smaller than the other texts' minimum so a register's 32 binary digits fit its body (readable with zoom). */
-    private static final float LIVE_TEXT_MINIMUM_SIZE = 3f;
+    /**
+     * Smaller than the other texts' minimum so a register's 32 binary digits fit its body, upright and also sideways,
+     * where the body is only 7 units across (readable with zoom).
+     */
+    private static final float LIVE_TEXT_MINIMUM_SIZE = 1.5f;
     private static final double TEXT_GAP = 1;
     private static final double CLOCK_HALF_BASE = 4;
     private static final double CLOCK_DEPTH = 5;
