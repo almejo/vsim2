@@ -47,6 +47,8 @@ public final class PainterRegistry {
     /** The «Bloques» (M7), all drawn by a {@link BlockPainter}. */
     private static void registerBlocks(PainterRegistry registry) {
         registry.register(StandardComponentTypes.ADDER, new BlockPainter("Σ", BlockPainter.Body.CHEVRON));
+        registry.register(StandardComponentTypes.MUX, new BlockPainter("MUX", BlockPainter.Body.TRAPEZOID));
+        registry.register(StandardComponentTypes.DECODER, new BlockPainter("DEC", BlockPainter.Body.RECTANGLE));
     }
 
     public void register(String typeId, ComponentPainter painter) {

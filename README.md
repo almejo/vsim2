@@ -185,6 +185,8 @@ Diseño: `docs/superpowers/specs/2026-10-08-vsim2-design.md`.
 - Nueva sección «Bloques» en la paleta, justo después de «Entrada/Salida»: piezas de N bits programadas en el simulador, para armar un camino de datos sin miles de compuertas. Todas tienen «Ancho (bits)» (1 a 32, 4 por omisión) y «Retardo» (1 por omisión: el bloque tarda un retardo desde cualquier entrada a sus salidas). Los datos entran por la izquierda (buses del ancho elegido, con cable grueso) y los resultados salen por la derecha; el tamaño de la pieza no depende del ancho. Cada pin lleva su nombre corto dentro del cuerpo y la paleta explica cada bloque al pasar el mouse.
 - Reglas comunes: una entrada de control sin conectar toma su valor de reposo (por ejemplo Cin = 0); si una entrada de datos tiene algún bit en Z o en conflicto, las salidas que dependen de ella quedan en Z.
 - «Sumador» (Σ): S = A + B + Cin con el ancho elegido y Cout el acarreo que sale del bit más alto. Cin entra por arriba y Cout sale por abajo.
+- «Multiplexor» (MUX, trapecio angosto a la salida): Y = D0 si S = 0, D1 si S = 1. «Entradas» elige 2 o 4 entradas de datos (con 4, S tiene 2 bits y la pieza crece hacia abajo; D0 y D1 no se mueven, así sus cables siguen conectados). S entra por abajo. Solo importa la entrada elegida: si ella o S no están definidas, Y queda en Z.
+- «Decodificador» (DEC): A (de 1 a 4 bits, «Bits de entrada», 2 por omisión) a la izquierda, una salida Y0, Y1, … por cada número a la derecha y EN abajo. Con EN = 1 se enciende solo la salida cuyo número es A; con EN = 0 todas quedan en 0. EN sin conectar vale 1. Con A indefinida todas las salidas quedan en Z. La pieza crece con sus salidas y no tiene «Ancho (bits)».
 
 ## Preferencias y distribución
 
