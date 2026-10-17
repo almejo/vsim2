@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.app;
 
+import cl.almejo.vsim.core.command.ChangeParametersCommand;
 import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
@@ -69,6 +70,25 @@ class OpenDocumentInputValueTest {
         document.restart();
 
         waitUntil(() -> document.latestSnapshot().time() == 0 && document.latestNextEventTime().isEmpty());
+        assertThat(document.latestSnapshot().componentState(input.id().value()))
+                .isEqualTo(new VisibleState.SwitchState(Value.of(4, 5)));
+        assertThat(outputState()).isEqualTo(new VisibleState.LedState(Value.of(4, 5)));
+    }
+
+    @Test
+    void changingTheFormatKeepsTheTypedValue() {
+        document.setInputValue(input.id(), Value.of(4, 5));
+        waitUntil(() -> outputState().equals(new VisibleState.LedState(Value.of(4, 5))));
+        long revision = document.latestSnapshot().revision();
+        document.execute(new ChangeParametersCommand(input.id(), document.registry().typeOf(input),
+                Map.of("value", "0", "width", 4, "format", "signed")));
+        waitUntil(() -> document.latestSnapshot().revision() > revision);
+
+        long nextRevision = document.latestSnapshot().revision();
+        document.execute(new ChangeParametersCommand(output.id(), document.registry().typeOf(output),
+                Map.of("width", 4, "format", "hex")));
+        waitUntil(() -> document.latestSnapshot().revision() > nextRevision);
+
         assertThat(document.latestSnapshot().componentState(input.id().value()))
                 .isEqualTo(new VisibleState.SwitchState(Value.of(4, 5)));
         assertThat(outputState()).isEqualTo(new VisibleState.LedState(Value.of(4, 5)));

@@ -131,6 +131,17 @@ public record ComponentType(String id, ComponentCategory category, GridSize size
         return Map.copyOf(resolved);
     }
 
+    /**
+     * The resolved parameters the behaviour depends on: {@link #resolveParameters} without the
+     * {@linkplain ParameterSpec#displayOnly() display-only} ones. Two components with equal behaviour parameters can
+     * share one running behaviour.
+     */
+    public Map<String, Object> behaviorParameters(Map<String, Object> raw) {
+        Map<String, Object> resolved = new LinkedHashMap<>(resolveParameters(raw));
+        parameters.stream().filter(ParameterSpec::displayOnly).forEach(parameter -> resolved.remove(parameter.name()));
+        return Map.copyOf(resolved);
+    }
+
     /** Creates a document component of this type, normalizing {@code rawParameters} (invalid values throw). */
     public Component newComponent(ElementId id, GridPoint position, Rotation rotation,
                                   Map<String, Object> rawParameters, String label) {

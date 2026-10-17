@@ -4,12 +4,23 @@ import java.util.List;
 import java.util.Objects;
 import java.util.function.UnaryOperator;
 
+/**
+ * One parameter of a {@link ComponentType}. A {@code displayOnly} parameter (M7: «Mostrar como») changes only how the
+ * component is drawn: the behaviour never reads it, so the engine keeps a running component (a register's contents, a
+ * pin's typed value) when only such parameters change.
+ */
 public record ParameterSpec(String name, ParameterKind kind, Object defaultValue,
-                            int minimum, int maximum, List<String> choices, UnaryOperator<String> textNormalizer) {
+                            int minimum, int maximum, List<String> choices, UnaryOperator<String> textNormalizer,
+                            boolean displayOnly) {
 
     public ParameterSpec(String name, ParameterKind kind, Object defaultValue,
                          int minimum, int maximum, List<String> choices) {
         this(name, kind, defaultValue, minimum, maximum, choices, null);
+    }
+
+    public ParameterSpec(String name, ParameterKind kind, Object defaultValue,
+                         int minimum, int maximum, List<String> choices, UnaryOperator<String> textNormalizer) {
+        this(name, kind, defaultValue, minimum, maximum, choices, textNormalizer, false);
     }
 
     public ParameterSpec {
@@ -36,6 +47,11 @@ public record ParameterSpec(String name, ParameterKind kind, Object defaultValue
 
     public static ParameterSpec choice(String name, String defaultValue, List<String> choices) {
         return new ParameterSpec(name, ParameterKind.CHOICE, defaultValue, 0, 0, choices);
+    }
+
+    /** This parameter marked as {@linkplain #displayOnly() display-only}. */
+    public ParameterSpec asDisplayOnly() {
+        return new ParameterSpec(name, kind, defaultValue, minimum, maximum, choices, textNormalizer, true);
     }
 
     /** Converts a raw value (from JSON or a dialog) to the canonical type, or throws IllegalArgumentException. */

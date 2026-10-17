@@ -28,9 +28,12 @@ public final class ConstantValue {
 
     /** The name of the «Mostrar como» parameter. */
     public static final String FORMAT = "format";
-    /** «Mostrar como»: shared by the Constante, the input and output pins and the blocks that show a value. */
+    /**
+     * «Mostrar como»: shared by the Constante, the input and output pins and the blocks that show a value. It is
+     * display-only: changing it keeps the running behaviour (a register's contents, a pin's typed value).
+     */
     public static final ParameterSpec FORMAT_PARAMETER = ParameterSpec.choice(FORMAT, AUTO,
-            List.of(AUTO, BINARY, HEX, DECIMAL, SIGNED));
+            List.of(AUTO, BINARY, HEX, DECIMAL, SIGNED)).asDisplayOnly();
 
     private static final Pattern BINARY_TEXT = Pattern.compile("0[bB]([01]+)");
     private static final Pattern HEX_TEXT = Pattern.compile("0[xX]([0-9a-fA-F]+)");

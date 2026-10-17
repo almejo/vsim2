@@ -32,10 +32,14 @@ final class ComponentInstance implements BehaviorContext {
         }
     }
 
+    /**
+     * Whether this instance can go on simulating {@code component}: same type and shape, and the same parameters but
+     * for display-only ones ({@link ComponentType#behaviorParameters}), which the behaviour never reads.
+     */
     boolean matches(FlatComponent component) {
         return !initializationFailed
                 && type.equals(component.type())
-                && type.resolveParameters(parameters).equals(type.resolveParameters(component.parameters()));
+                && type.behaviorParameters(parameters).equals(type.behaviorParameters(component.parameters()));
     }
 
     @Override
