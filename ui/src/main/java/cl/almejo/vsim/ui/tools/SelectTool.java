@@ -14,9 +14,11 @@ import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.io.CircuitFragment;
+import cl.almejo.vsim.core.library.InterfacePins;
 import cl.almejo.vsim.core.wiring.WireStretch;
 import cl.almejo.vsim.ui.canvas.ConnectionPoints;
 import cl.almejo.vsim.ui.canvas.LabelLayout;
+import cl.almejo.vsim.ui.paint.InterfacePinPainter;
 import cl.almejo.vsim.ui.paint.PainterSupport;
 import cl.almejo.vsim.ui.paint.TextFonts;
 import cl.almejo.vsim.ui.canvas.MarchingAnts;
@@ -225,10 +227,19 @@ public final class SelectTool implements Tool {
             selectWireGroup(context, event, clickedWire);
             return;
         }
+        if (event.clickCount() >= 2 && continuesOwnClick && hit.isEmpty()) {
+            // M7: a bus input pin's value box lies beside its tag, outside the pin's bounds
+            Optional<Component> pinOfBox = busInputValueBoxAt(context, event.gridPosition());
+            if (pinOfBox.isPresent()) {
+                context.selection().select(pinOfBox.get().id());
+                context.editValue(pinOfBox.get());
+                return;
+            }
+        }
         if (event.clickCount() >= 2 && continuesOwnClick && hit.isPresent()) {
             if (hit.get() instanceof Component component) {
                 context.selection().select(component.id());
-                if (component.typeId().equals(StandardComponentTypes.CONSTANT)) {
+                if (component.typeId().equals(StandardComponentTypes.CONSTANT) || InterfacePins.isBusInput(component)) {
                     context.editValue(component);
                 } else {
                     context.configure(component);
@@ -857,6 +868,22 @@ public final class SelectTool implements Tool {
             return Optional.empty();
         }
         return componentLabelAt(context, gridPosition);
+    }
+
+    /** The bus input pin whose value box holds {@code gridPosition}, if any (the topmost one when boxes overlap). */
+    private static Optional<Component> busInputValueBoxAt(ToolContext context, Point2D gridPosition) {
+        double documentX = gridPosition.getX() * GridPoint.PIXELS_PER_UNIT;
+        double documentY = gridPosition.getY() * GridPoint.PIXELS_PER_UNIT;
+        List<Component> components = context.openDocument().document().components();
+        for (int index = components.size() - 1; index >= 0; index--) {
+            Component component = components.get(index);
+            if (InterfacePins.isBusInput(component) && InterfacePinPainter.valueBox(
+                    context.openDocument().registry().typeOf(component), component)
+                    .map(box -> box.contains(documentX, documentY)).orElse(false)) {
+                return Optional.of(component);
+            }
+        }
+        return Optional.empty();
     }
 
     /** The component whose drawn label holds {@code gridPosition}, if any (the topmost one when labels overlap). */

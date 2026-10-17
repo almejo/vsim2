@@ -1,12 +1,19 @@
 package cl.almejo.vsim.core.component.standard;
 
+import cl.almejo.vsim.core.component.ParameterSpec;
+import cl.almejo.vsim.core.value.Value;
+
 import java.math.BigInteger;
+import java.util.List;
 import java.util.Locale;
+import java.util.OptionalLong;
 import java.util.regex.Pattern;
 
 /**
- * The text of a «Constante»: {@code 0b1010}, {@code 0xFF} or a decimal number, unsigned, at most 32 bits. Spaces
- * around the text and {@code _} separators are accepted; {@link #normalize} gives the canonical text that is stored.
+ * Numbers typed and shown on buses: the text of a «Constante» or of a value typed into a bus input pin
+ * ({@code 0b1010}, {@code 0xFF}, a decimal number or, since M7, a negative decimal read in two's complement), and the
+ * «Mostrar como» formats a value is written in. Spaces around the text and {@code _} separators are accepted;
+ * {@link #normalize} gives the canonical text that is stored.
  */
 public final class ConstantValue {
 
@@ -16,34 +23,61 @@ public final class ConstantValue {
     public static final String BINARY = "binary";
     public static final String HEX = "hex";
     public static final String DECIMAL = "decimal";
+    /** M7: decimal with sign, the bits read in two's complement. */
+    public static final String SIGNED = "signed";
+
+    /** The name of the «Mostrar como» parameter. */
+    public static final String FORMAT = "format";
+    /** «Mostrar como»: shared by the Constante, the input and output pins and the blocks that show a value. */
+    public static final ParameterSpec FORMAT_PARAMETER = ParameterSpec.choice(FORMAT, AUTO,
+            List.of(AUTO, BINARY, HEX, DECIMAL, SIGNED));
 
     private static final Pattern BINARY_TEXT = Pattern.compile("0[bB]([01]+)");
     private static final Pattern HEX_TEXT = Pattern.compile("0[xX]([0-9a-fA-F]+)");
-    private static final Pattern DECIMAL_TEXT = Pattern.compile("[0-9]+");
+    private static final Pattern DECIMAL_TEXT = Pattern.compile("-?[0-9]+");
 
     private ConstantValue() {
     }
 
-    /** Whether {@code text} is a number in one of the three notations (whatever its size). */
+    /** Whether {@code text} is a number in one of the notations (whatever its size). */
     public static boolean isValidText(String text) {
         return text != null && parseUnbounded(text) != null;
     }
 
-    /** Whether {@code text} is a valid number that fits {@code width} bits. */
+    /**
+     * Whether {@code text} is a valid number that fits {@code width} bits: unsigned up to {@code 2^width - 1}, or a
+     * negative decimal down to {@code -2^(width-1)}.
+     */
     public static boolean fitsText(String text, int width) {
         BigInteger value = text == null ? null : parseUnbounded(text);
-        return value != null && value.bitLength() <= width;
+        return value != null && fitsWidth(value, width);
     }
 
     /**
-     * The value of {@code text}.
+     * The bits {@code text} writes at {@code width} (1..64), a negative decimal in two's complement. Empty when the
+     * text is not a number or does not fit the width.
+     */
+    public static OptionalLong bitsOf(String text, int width) {
+        if (width < 1 || width > Value.MAXIMUM_WIDTH) {
+            throw new IllegalArgumentException("width must be between 1 and " + Value.MAXIMUM_WIDTH + ": " + width);
+        }
+        BigInteger value = text == null ? null : parseUnbounded(text);
+        if (value == null || !fitsWidth(value, width)) {
+            return OptionalLong.empty();
+        }
+        return OptionalLong.of(value.longValue() & Value.maskFor(width));
+    }
+
+    /**
+     * The value of a non-negative {@code text}.
      *
      * @throws IllegalArgumentException when it is empty, negative, garbage or wider than 32 bits
+     * @see #bitsOf(String, int) for texts that may be negative
      */
     public static long parse(String text) {
         BigInteger value = text == null ? null : parseUnbounded(text);
-        if (value == null) {
-            throw new IllegalArgumentException("not a number (use 0b..., 0x... or a decimal): " + text);
+        if (value == null || value.signum() < 0) {
+            throw new IllegalArgumentException("not an unsigned number (use 0b..., 0x... or a decimal): " + text);
         }
         if (value.bitLength() > MAXIMUM_WIDTH) {
             throw new IllegalArgumentException("does not fit in " + MAXIMUM_WIDTH + " bits: " + text);
@@ -55,7 +89,10 @@ public final class ConstantValue {
         return value >= 0 && (width >= Long.SIZE || value >>> width == 0);
     }
 
-    /** The canonical text: lowercase prefix, uppercase hex digits, no separators, no extra leading zeros. */
+    /**
+     * The canonical text: lowercase prefix, uppercase hex digits, no separators, no extra leading zeros; a negative
+     * decimal keeps its sign ({@code -0} is {@code 0}).
+     */
     public static String normalize(String text) {
         BigInteger value = text == null ? null : parseUnbounded(text);
         if (value == null) {
@@ -79,17 +116,31 @@ public final class ConstantValue {
         return format;
     }
 
-    /** The value as the body of the component shows it: binary padded to the width, hex with {@code 0x}, decimal. */
-    public static String display(long value, int width, String format) {
+    /**
+     * The value as the body of a component shows it: binary padded to the width, hex with {@code 0x}, decimal, or
+     * signed decimal (two's complement). Only the lowest {@code width} bits of {@code bits} count.
+     */
+    public static String display(long bits, int width, String format) {
+        long masked = bits & Value.maskFor(width);
         return switch (resolveFormat(format, width)) {
             case BINARY -> {
-                String digits = Long.toBinaryString(value);
+                String digits = Long.toBinaryString(masked);
                 yield "0".repeat(Math.max(0, width - digits.length())) + digits;
             }
-            case HEX -> "0x" + Long.toHexString(value).toUpperCase(Locale.ROOT);
-            case DECIMAL -> Long.toString(value);
+            case HEX -> "0x" + Long.toHexString(masked).toUpperCase(Locale.ROOT);
+            case DECIMAL -> Long.toUnsignedString(masked);
+            case SIGNED -> Long.toString(signed(masked, width));
             default -> throw new IllegalArgumentException("unknown format: " + format);
         };
+    }
+
+    /**
+     * A text in {@code format} that {@link #bitsOf} reads back as {@code bits}: what a value editor starts with
+     * ({@link #display} writes binary without its {@code 0b}, which would read as a decimal).
+     */
+    public static String editableText(long bits, int width, String format) {
+        String shown = display(bits, width, format);
+        return BINARY.equals(resolveFormat(format, width)) ? "0b" + shown : shown;
     }
 
     /** The characters of the longest text {@link #display} gives at this width and format. */
@@ -97,9 +148,21 @@ public final class ConstantValue {
         return switch (resolveFormat(format, width)) {
             case BINARY -> width;
             case HEX -> 2 + (width + 3) / 4;
-            case DECIMAL -> Long.toString((1L << width) - 1).length();
+            case DECIMAL -> Long.toUnsignedString(Value.maskFor(width)).length();
+            case SIGNED -> Long.toString(signed(1L << (width - 1), width)).length();
             default -> throw new IllegalArgumentException("unknown format: " + format);
         };
+    }
+
+    /** The lowest {@code width} bits of {@code bits} read in two's complement. */
+    public static long signed(long bits, int width) {
+        int unused = Long.SIZE - width;
+        return (bits << unused) >> unused;
+    }
+
+    private static boolean fitsWidth(BigInteger value, int width) {
+        // the bit length of a negative BigInteger leaves the sign out: -2^(width-1) has width - 1
+        return value.signum() < 0 ? value.bitLength() <= width - 1 : value.bitLength() <= width;
     }
 
     private static String clean(String text) {

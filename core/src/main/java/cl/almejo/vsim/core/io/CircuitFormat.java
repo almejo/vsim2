@@ -2,6 +2,7 @@ package cl.almejo.vsim.core.io;
 
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
+import cl.almejo.vsim.core.component.standard.ConstantValue;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
@@ -17,6 +18,7 @@ import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.DefinitionGraph;
+import cl.almejo.vsim.core.library.InterfacePins;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -85,8 +87,21 @@ public final class CircuitFormat {
     static ComponentEntry componentEntry(Component component) {
         return new ComponentEntry(component.id().value(), component.typeId(), component.position().x(),
                 component.position().y(), component.rotation().quarterTurns(), component.label(),
-                new TreeMap<>(component.parameters()),
+                writtenParameters(component),
                 component.labelOffset().map(offset -> new LabelOffsetEntry(offset.x(), offset.y())).orElse(null));
+    }
+
+    /**
+     * The parameters a file keeps, sorted. M7: an input or output pin's «Mostrar como» is left out while it is
+     * «Automático», so pins written before it existed keep their bytes (reading fills it back in).
+     */
+    private static Map<String, Object> writtenParameters(Component component) {
+        Map<String, Object> written = new TreeMap<>(component.parameters());
+        if (InterfacePins.isInterface(component.typeId())
+                && ConstantValue.AUTO.equals(written.get(ConstantValue.FORMAT))) {
+            written.remove(ConstantValue.FORMAT);
+        }
+        return written;
     }
 
     static WireEntry wireEntry(Wire wire) {

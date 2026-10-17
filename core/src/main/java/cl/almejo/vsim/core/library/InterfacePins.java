@@ -23,6 +23,11 @@ public final class InterfacePins {
         return INPUT_PIN.equals(typeId) || OUTPUT_PIN.equals(typeId);
     }
 
+    /** M7: an input pin of more than one bit, whose value can be typed while simulating. */
+    public static boolean isBusInput(Component component) {
+        return INPUT_PIN.equals(component.typeId()) && widthOf(component) > 1;
+    }
+
     /**
      * The width of an interface pin component: its {@code width} parameter, or 1 when absent (files written before
      * buses). A value outside 1..64 or not a number throws IllegalArgumentException.

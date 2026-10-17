@@ -20,7 +20,7 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 
 class ConstantPainterTest {
 
-    private static final List<String> FORMATS = List.of("auto", "binary", "hex", "decimal");
+    private static final List<String> FORMATS = List.of("auto", "binary", "hex", "decimal", "signed");
     private static final List<Integer> WIDTHS = List.of(1, 4, 8, 16, 32);
 
     private final ComponentType constant = StandardComponentTypes.registry().require(StandardComponentTypes.CONSTANT);
@@ -58,6 +58,10 @@ class ConstantPainterTest {
                 Map.of("width", 8, "value", "255", "format", "auto")))).isEqualTo("0xFF");
         assertThat(ConstantPainter.shownText(constant.resolveParameters(
                 Map.of("width", 8, "value", "0xFF", "format", "decimal")))).isEqualTo("255");
+        assertThat(ConstantPainter.shownText(constant.resolveParameters(
+                Map.of("width", 8, "value", "0xFF", "format", "signed")))).isEqualTo("-1");
+        assertThat(ConstantPainter.shownText(constant.resolveParameters(
+                Map.of("width", 8, "value", "-3", "format", "hex")))).isEqualTo("0xFD");
     }
 
     @Test

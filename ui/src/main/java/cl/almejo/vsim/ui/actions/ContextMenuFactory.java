@@ -33,7 +33,8 @@ public final class ContextMenuFactory {
 
     /** Spec §6.6 for a component: Configurar…, Etiqueta…, Rotar ↻ / ↺, Cortar, Copiar, Duplicar, Borrar. */
     private static final List<List<ContextMenuEntry>> COMPONENT_LAYOUT = List.of(
-            List.of(ContextMenuEntry.CONFIGURE, ContextMenuEntry.LABEL, ContextMenuEntry.RESET_LABEL_POSITION),
+            List.of(ContextMenuEntry.VALUE, ContextMenuEntry.CONFIGURE, ContextMenuEntry.LABEL,
+                    ContextMenuEntry.RESET_LABEL_POSITION),
             List.of(ContextMenuEntry.ROTATE_CLOCKWISE, ContextMenuEntry.ROTATE_COUNTER_CLOCKWISE),
             List.of(ContextMenuEntry.CUT, ContextMenuEntry.COPY, ContextMenuEntry.DUPLICATE),
             List.of(ContextMenuEntry.DELETE));

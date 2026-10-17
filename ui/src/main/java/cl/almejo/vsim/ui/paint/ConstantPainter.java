@@ -81,8 +81,9 @@ public final class ConstantPainter implements ComponentPainter {
 
     /** The text written in the box for the (resolved) parameters. */
     static String shownText(Map<String, Object> resolved) {
-        return ConstantValue.display(ConstantValue.parse((String) resolved.get("value")),
-                (Integer) resolved.get("width"), (String) resolved.get("format"));
+        int width = (Integer) resolved.get("width");
+        return ConstantValue.display(ConstantValue.bitsOf((String) resolved.get("value"), width).orElseThrow(),
+                width, (String) resolved.get("format"));
     }
 
     /** The width in pixels of {@code text} drawn at {@code size}. */

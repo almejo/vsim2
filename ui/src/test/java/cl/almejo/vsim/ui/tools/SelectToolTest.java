@@ -166,6 +166,54 @@ class SelectToolTest {
         assertThat(context.selection.ids()).containsExactly(constant.id());
     }
 
+    private void doubleClick(double x, double y) {
+        tool.mousePressed(context, TestToolContext.at(x, y));
+        tool.mouseReleased(context, TestToolContext.at(x, y));
+        tool.mousePressed(context, TestToolContext.event(x, y, CanvasMouseEvent.PRIMARY, 2, false));
+        tool.mouseReleased(context, TestToolContext.event(x, y, CanvasMouseEvent.PRIMARY, 2, false));
+    }
+
+    @Test
+    void doubleClickOnABusInputPinEditsItsValueAndAOneBitPinIsConfigured() {
+        Component bus = place(context.openDocument(), StandardComponentTypes.INPUT_PIN, 0, 0, Map.of("width", 8));
+        doubleClick(0.6, 1);
+        assertThat(context.valueEdited).isEqualTo(bus);
+        assertThat(context.configured).isNull();
+        assertThat(context.selection.ids()).containsExactly(bus.id());
+
+        Component oneBit = place(context.openDocument(), StandardComponentTypes.INPUT_PIN, 0, 10, Map.of());
+        doubleClick(0.6, 11);
+        assertThat(context.configured).isEqualTo(oneBit);
+        Component busOutput = place(context.openDocument(), StandardComponentTypes.OUTPUT_PIN, 0, 20,
+                Map.of("width", 8));
+        doubleClick(1.4, 21);
+        assertThat(context.configured).isEqualTo(busOutput);
+    }
+
+    @Test
+    void doubleClickOnTheValueBoxOfABusInputPinEditsItsValue() {
+        Component bus = place(context.openDocument(), StandardComponentTypes.INPUT_PIN, 20, 0, Map.of("width", 8));
+        java.awt.geom.Rectangle2D box = cl.almejo.vsim.ui.paint.InterfacePinPainter.valueBox(
+                context.openDocument().registry().typeOf(bus), bus).orElseThrow();
+        double gridX = box.getCenterX() / GridPoint.PIXELS_PER_UNIT;
+        double gridY = box.getCenterY() / GridPoint.PIXELS_PER_UNIT;
+        assertThat(gridX).isLessThan(20);
+        doubleClick(gridX, gridY);
+        assertThat(context.valueEdited).isEqualTo(bus);
+        assertThat(context.selection.ids()).containsExactly(bus.id());
+    }
+
+    @Test
+    void aClickOnABusInputPinStillTogglesIt() {
+        Component bus = place(context.openDocument(), StandardComponentTypes.INPUT_PIN, 0, 0, Map.of("width", 4));
+        waitUntil(() -> context.openDocument().latestSnapshot().componentState(bus.id().value())
+                .equals(new VisibleState.SwitchState(Value.of(4, 0))));
+        context.click(tool, 0.6, 1);
+        waitUntil(() -> context.openDocument().latestSnapshot().componentState(bus.id().value())
+                .equals(new VisibleState.SwitchState(Value.of(4, 0xF))));
+        assertThat(context.valueEdited).isNull();
+    }
+
     @Test
     void doubleClickOnAComponentLabelEditsTheLabelInsteadOfConfiguring() {
         Component gate = not(0, 10);
