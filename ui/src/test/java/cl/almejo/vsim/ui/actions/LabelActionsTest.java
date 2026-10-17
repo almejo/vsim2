@@ -268,7 +268,8 @@ class LabelActionsTest {
         actions.editLabel(labelOf(gate));
         java.awt.Rectangle placed = textArea();
         cancel();
-        assertThat(empty.x).isBetween(placed.x + 1, placed.x + 10);
+        // both are centred above the body
+        assertThat(empty.getCenterX()).isBetween(placed.getCenterX() - 2, placed.getCenterX() + 2);
         assertThat(empty.y).isBetween(placed.y - 3, placed.y + 3);
     }
 
@@ -304,6 +305,25 @@ class LabelActionsTest {
         java.awt.Rectangle before = textArea();
         assertThat(before.getCenterX()).isBetween(painted.getCenterX() - 1, painted.getCenterX() + 1);
         assertThat(before.getCenterY()).isBetween(painted.getCenterY() - 2, painted.getCenterY() + 2);
+        editor.field().setText("una etiqueta bastante larga");
+        java.awt.Rectangle after = textArea();
+        assertThat(after.getCenterX()).isBetween(before.getCenterX() - 1, before.getCenterX() + 1);
+        assertThat(after.x).isLessThan(before.x);
+        cancel();
+    }
+
+    /** The automatic label of an unrotated component is centred above the body, so its editor grows both ways. */
+    @Test
+    void anAutomaticLabelAboveTheBodyKeepsItsEditorCentred() {
+        Component gate = new Component(openDocument.document().newComponentId(), StandardComponentTypes.NOT,
+                new GridPoint(10, 10), cl.almejo.vsim.core.geometry.Rotation.R0, Map.of(), "U1");
+        openDocument.execute(new AddElementsCommand(List.of(gate)));
+        actions.editLabel(gate);
+        java.awt.geom.Rectangle2D painted = view.canvas().viewport().documentTransform().createTransformedShape(
+                cl.almejo.vsim.ui.canvas.LabelLayout.componentLabelPlace(
+                        openDocument.registry().typeOf(gate), gate, "U1").bounds()).getBounds2D();
+        java.awt.Rectangle before = textArea();
+        assertThat(before.getCenterX()).isBetween(painted.getCenterX() - 1, painted.getCenterX() + 1);
         editor.field().setText("una etiqueta bastante larga");
         java.awt.Rectangle after = textArea();
         assertThat(after.getCenterX()).isBetween(before.getCenterX() - 1, before.getCenterX() + 1);

@@ -80,10 +80,10 @@ public final class LabelActions {
             case Component component -> {
                 ComponentType type = openDocument.registry().typeOf(component);
                 // a sideways label is drawn left of the body: its editor grows to the left, away from the body;
-                // a moved label (M6.8) is drawn centred on its place, so its editor grows both ways
+                // a label above the body or one the user moved (M6.8) is drawn centred, so its editor grows both ways
                 boolean sideways = component.rotation() == Rotation.R90 || component.rotation() == Rotation.R270;
-                InlineEditRequest.Anchor anchor = component.labelOffset().isPresent() ? InlineEditRequest.Anchor.CENTER
-                        : sideways ? InlineEditRequest.Anchor.RIGHT : InlineEditRequest.Anchor.LEFT;
+                InlineEditRequest.Anchor anchor = component.labelOffset().isPresent() || !sideways
+                        ? InlineEditRequest.Anchor.CENTER : InlineEditRequest.Anchor.RIGHT;
                 editor.open(new InlineEditRequest(
                         LabelLayout.componentLabelPlace(type, component, component.label()).bounds(),
                         LabelLayout.font(), component.label(), InlineValidators.anyText(),
