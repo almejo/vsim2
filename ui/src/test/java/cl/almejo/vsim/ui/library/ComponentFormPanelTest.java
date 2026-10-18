@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.library;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.library.ComponentDefinition;
+import cl.almejo.vsim.core.library.ConvertedSelection;
 import cl.almejo.vsim.core.library.ExampleDefinitions;
 import cl.almejo.vsim.core.library.PinOrder;
 import cl.almejo.vsim.core.library.TestParts;
@@ -14,8 +15,10 @@ import javax.swing.JCheckBox;
 import javax.swing.JLabel;
 import javax.swing.JList;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -105,15 +108,35 @@ class ComponentFormPanelTest {
                 new TestParts.TestPart(carry, StandardComponentTypes.CONSTANT, TestParts.Kind.CONSTANT, "Cin", "0"),
                 new TestParts.TestPart(clock, StandardComponentTypes.CLOCK, TestParts.Kind.CLOCK, "", ""),
                 new TestParts.TestPart(led, StandardComponentTypes.LED, TestParts.Kind.LED, "S", ""));
-        ComponentForm form = ComponentForm.create(parts, converted -> new ComponentForm.PinPlan(order, names),
-                List.of(), Set.of());
+        ElementId carryPin = new ElementId("c10");
+        ElementId clockPin = new ElementId("c11");
+        ElementId ledPin = new ElementId("c12");
+        ComponentForm form = ComponentForm.create(parts, converted -> {
+            Map<ElementId, String> pinNames = new HashMap<>(names);
+            Map<ElementId, ConvertedSelection.PartPins> given = new HashMap<>();
+            List.of(carry, clock, led).forEach(part -> given.put(part,
+                    new ConvertedSelection.PartPins(List.of(), Optional.empty())));
+            if (converted.contains(carry)) {
+                pinNames.put(carryPin, "Cin");
+                given.put(carry, new ConvertedSelection.PartPins(List.of(carryPin), Optional.empty()));
+            }
+            if (converted.contains(clock)) {
+                pinNames.put(clockPin, "A");
+                given.put(clock, new ConvertedSelection.PartPins(List.of(clockPin), Optional.empty()));
+            }
+            if (converted.contains(led)) {
+                pinNames.put(ledPin, "S");
+                given.put(led, new ConvertedSelection.PartPins(List.of(ledPin), Optional.empty()));
+            }
+            return new ComponentForm.PinPlan(order, pinNames, given);
+        }, List.of(), Set.of());
         ComponentFormPanel panel = new ComponentFormPanel(form);
 
         assertThat(panel.testPartsPanel().getParent()).isNotNull();
         assertThat(panel.testPartChoices()).extracting(JCheckBox::getText).containsExactly("Cin = 0", "Reloj", "S");
         assertThat(panel.testPartChoices()).allSatisfy(choice -> assertThat(choice.isSelected()).isTrue());
         assertThat(panel.testPartOutcomes()).extracting(JLabel::getText)
-                .containsExactly("Entrada", "Entrada", "Salida");
+                .containsExactly("Entrada (Cin)", "Entrada (A)", "Salida (S)");
 
         panel.testPartChoices().get(1).doClick(0);
         panel.testPartChoices().get(2).doClick(0);

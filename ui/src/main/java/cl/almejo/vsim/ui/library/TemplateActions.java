@@ -147,7 +147,7 @@ public final class TemplateActions {
                 converted -> ConvertedSelection.of(document, ids, converted, currentValues, registry);
         ComponentForm form = ComponentForm.create(testParts, converted -> {
             ConvertedSelection selection = converter.apply(converted);
-            return new ComponentForm.PinPlan(selection.defaultPinOrder(), selection.pinNames());
+            return new ComponentForm.PinPlan(selection.defaultPinOrder(), selection.pinNames(), selection.parts());
         }, takenNames(), takenIds());
         if (!proposedName.isBlank()) {
             form.setName(proposedName);
@@ -271,7 +271,7 @@ public final class TemplateActions {
 
     /**
      * Context menu: "Crear componente desde selección…" (and "Actualizar componente…" when enabled) on a
-     * multi-selection or a selection with interface pins; "Desarmar" and, when outdated, "Actualizar desde la
+     * multi-selection or a selection with interface pins or test parts (a single clock, switch, LED…); "Desarmar" and, when outdated, "Actualizar desde la
      * librería" on a single instance.
      */
     public ContextMenuContributor contributor() {
@@ -280,7 +280,8 @@ public final class TemplateActions {
                 return;
             }
             boolean multiple = selection.size() > 1;
-            if (multiple || DefinitionBuilder.hasInterfacePins(openDocument.document(), selection.ids())) {
+            if (multiple || DefinitionBuilder.hasInterfacePins(openDocument.document(), selection.ids())
+                    || !TestParts.of(openDocument.document(), selection.ids(), openDocument.registry()).isEmpty()) {
                 menu.add(new JMenuItem(createComponent));
                 if (updateComponent.isEnabled()) {
                     menu.add(new JMenuItem(updateComponent));

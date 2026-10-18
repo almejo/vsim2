@@ -308,6 +308,10 @@ class TemplateActionsTest {
         Component lone = fixture.place(StandardComponentTypes.NOT, 20, 0, "");
         fixture.select(lone);
         assertThat(texts(contribute(lone))).isEmpty();
+        // A single test part can become a component (it would be its pin), like from the Edit menu.
+        Component clock = fixture.place(StandardComponentTypes.CLOCK, 20, 10, "");
+        fixture.select(clock);
+        assertThat(texts(contribute(clock))).containsExactly("Crear componente desde selección…");
 
         try (OpenDocument other = OpenDocument.createEmpty(StandardComponentTypes.registry())) {
             EditorView extended = new EditorView(other, fixture.services()

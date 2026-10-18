@@ -267,6 +267,38 @@ class TestPartsCreationTest {
         assertThat(input.parameters()).containsEntry("value", "1");
     }
 
+    @Test
+    void eachRowSaysWhichPinsThePartGivesOrWhyItGivesNone() {
+        Component input = fixture.place(StandardComponentTypes.SWITCH, 0, 1, "");
+        wire(4, 2, 6, 2);
+        fixture.place(StandardComponentTypes.NOT, 6, 0, "");
+        wire(10, 2, 14, 2);
+        Component firstLed = fixture.place(StandardComponentTypes.LED, 11, -1, "S");
+        Component secondLed = fixture.place(StandardComponentTypes.LED, 13, -1, "");
+        Component lonely = fixture.place(StandardComponentTypes.SEVEN_SEGMENTS_DISPLAY, 40, 10, "D");
+        Component display = fixture.place(StandardComponentTypes.SEVEN_SEGMENTS_DISPLAY, 20, 10, "E");
+        wire(24, 10, 24, 8);
+        wire(22, 10, 22, 8);
+        fixture.view.canvas().selection().set(fixture.openDocument.document().elements().stream()
+                .map(DocumentElement::id).toList());
+        fixture.dialogs.cancelForm();
+
+        perform(fixture.features.actions().createComponent());
+
+        ComponentForm form = fixture.dialogs.forms.get(0);
+        assertThat(form.outcome(input.id())).isEqualTo("Entrada (A)");
+        assertThat(form.outcome(firstLed.id())).isEqualTo("Salida (S)");
+        assertThat(form.outcome(secondLed.id())).isEqualTo("Sin pin: ya hay una salida en ese cable (S)");
+        assertThat(form.outcome(lonely.id())).isEqualTo("Sin pin: no tiene nada conectado");
+        assertThat(form.outcome(display.id())).isEqualTo("Salidas (E bit 0, E bit 2)");
+
+        form.setConverted(firstLed.id(), false);
+
+        assertThat(form.outcome(firstLed.id())).isEqualTo("Se quita");
+        assertThat(form.outcome(secondLed.id())).isEqualTo("Salida (Y1)");
+        assertThat(form.outcome(input.id())).isEqualTo("Entrada (A)");
+    }
+
     private Component instance() {
         return fixture.openDocument.document().components().stream()
                 .filter(component -> component.typeId().startsWith("subcircuit:"))

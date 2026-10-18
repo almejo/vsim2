@@ -2,6 +2,7 @@ package cl.almejo.vsim.ui.library;
 
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.library.ComponentDefinition;
+import cl.almejo.vsim.core.library.ConvertedSelection;
 import cl.almejo.vsim.core.library.DefinitionIds;
 import cl.almejo.vsim.core.library.DefinitionNames;
 import cl.almejo.vsim.core.library.PinOrder;
@@ -45,11 +46,21 @@ public final class ComponentForm {
         }
     }
 
-    /** The pins, in their default order, and their names, that a choice of test parts gives. */
-    public record PinPlan(PinOrder order, Map<ElementId, String> names) {
+    /**
+     * The pins, in their default order, and their names, that a choice of test parts gives, and what each test part
+     * gives ({@link ConvertedSelection#parts()}).
+     */
+    public record PinPlan(PinOrder order, Map<ElementId, String> names,
+                          Map<ElementId, ConvertedSelection.PartPins> parts) {
         public PinPlan {
             Objects.requireNonNull(order, "order");
             names = Map.copyOf(names);
+            parts = Map.copyOf(parts);
+        }
+
+        /** A plan without test parts. */
+        public PinPlan(PinOrder order, Map<ElementId, String> names) {
+            this(order, names, Map.of());
         }
     }
 
@@ -58,6 +69,7 @@ public final class ComponentForm {
     private final Function<Set<ElementId>, PinPlan> planner;
     private final Set<ElementId> convertedParts = new LinkedHashSet<>();
     private Map<ElementId, String> pinNames;
+    private Map<ElementId, ConvertedSelection.PartPins> partPins;
     private final List<String> takenNames;
     private final Set<String> takenIds;
     private final List<ComponentDefinition> targets;
@@ -77,6 +89,7 @@ public final class ComponentForm {
         PinPlan plan = planner.apply(Set.copyOf(convertedParts));
         PinOrder order = plan.order();
         this.pinNames = plan.names();
+        this.partPins = plan.parts();
         this.takenNames = List.copyOf(takenNames);
         this.takenIds = Set.copyOf(takenIds);
         this.targets = List.copyOf(targets);
@@ -193,9 +206,38 @@ public final class ComponentForm {
         }
         PinPlan plan = planner.apply(Set.copyOf(convertedParts));
         pinNames = plan.names();
+        partPins = plan.parts();
         merge(inputs, plan.order().inputs());
         merge(outputs, plan.order().outputs());
         fire();
+    }
+
+    /**
+     * What test part {@code id} becomes, ready to show. Checked: the pins it gives, «Entrada (A)», «Salida (Y1)»,
+     * «Salidas (D bit 0, D bit 2)», or why it gives none («Sin pin: …»). Unchecked: «Queda como constante», «Reloj
+     * interno» or «Se quita».
+     */
+    public String outcome(ElementId id) {
+        TestParts.Kind kind = testParts.stream().filter(part -> part.id().equals(id)).findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("not a test part of this form: " + id)).kind();
+        if (!isConverted(id)) {
+            return Messages.text(switch (kind) {
+                case SWITCH, CONSTANT -> "template.testParts.constant";
+                case CLOCK -> "template.testParts.internalClock";
+                case LED, SEVEN_SEGMENTS_DISPLAY, TIME_DIAGRAM -> "template.testParts.removed";
+            });
+        }
+        ConvertedSelection.PartPins given = partPins.getOrDefault(id,
+                new ConvertedSelection.PartPins(List.of(), Optional.empty()));
+        if (given.pins().isEmpty()) {
+            return given.sharedWith()
+                    .map(pin -> Messages.format("template.testParts.sharedOutput", pinNames.get(pin)))
+                    .orElseGet(() -> Messages.text("template.testParts.unconnected"));
+        }
+        String names = String.join(", ", given.pins().stream().map(pinNames::get).toList());
+        String key = kind.becomesInput() ? "template.testParts.input"
+                : given.pins().size() == 1 ? "template.testParts.output" : "template.testParts.outputs";
+        return Messages.format(key, names);
     }
 
     /** {@code current} becomes {@code wanted}'s pins, keeping the current order of those it already had. */
