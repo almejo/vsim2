@@ -18,6 +18,16 @@ public final class PalettePanelAccess {
         return palette.hasSelection();
     }
 
+    /** The tree of entries (where the focus stays after a click in the palette). */
+    public static javax.swing.JTree tree(PalettePanel palette) {
+        return palette.tree();
+    }
+
+    /** The search field above the tree. */
+    public static javax.swing.JTextField searchField(PalettePanel palette) {
+        return palette.searchField();
+    }
+
     /** What a drag from the highlighted entry carries. */
     public static Transferable dragTransferable(PalettePanel palette) {
         return palette.dragTransferable();

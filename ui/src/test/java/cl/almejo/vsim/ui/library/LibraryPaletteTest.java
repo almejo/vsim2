@@ -91,6 +91,24 @@ class LibraryPaletteTest {
         assertThat(PalettePanelAccess.hasSelection(fixture.view.palette())).isFalse();
     }
 
+    /** Bug 2026-10-18: after a click in the palette the focus stays in its tree, and Escape must still cancel. */
+    @Test
+    void escapeWithTheFocusInThePaletteCancelsPlacingALibraryComponent() throws Exception {
+        fixture.service.save(inverter);
+        fixture.view.palette().choose("subcircuit:inverter");
+
+        boolean consumed = javax.swing.SwingUtilities.processKeyBindings(new java.awt.event.KeyEvent(
+                PalettePanelAccess.tree(fixture.view.palette()), java.awt.event.KeyEvent.KEY_PRESSED, 0, 0,
+                java.awt.event.KeyEvent.VK_ESCAPE, java.awt.event.KeyEvent.CHAR_UNDEFINED));
+
+        assertThat(consumed).isTrue();
+        assertThat(fixture.view.canvas().tool()).isSameAs(fixture.view.canvas().defaultTool());
+        assertThat(PalettePanelAccess.hasSelection(fixture.view.palette())).isFalse();
+        assertThat(fixture.openDocument.document().components()).isEmpty();
+        assertThat(fixture.openDocument.document().definitions()).isEmpty();
+        assertThat(fixture.openDocument.history().canUndo()).isFalse();
+    }
+
     /** Preflight S3: the circuit keeps its own version of a nested definition; the user is told so. */
     @Test
     void placingWarnsWhenTheCircuitHasAnotherVersionOfANestedComponent() throws Exception {

@@ -31,6 +31,7 @@ import cl.almejo.vsim.ui.tools.Tool;
 import cl.almejo.vsim.ui.tools.WireTool;
 import cl.almejo.vsim.ui.wiring.SelectionMoves;
 
+import javax.swing.AbstractAction;
 import javax.swing.Action;
 import javax.swing.ButtonGroup;
 import javax.swing.JComboBox;
@@ -43,6 +44,7 @@ import javax.swing.JSplitPane;
 import javax.swing.JToggleButton;
 import javax.swing.JToolBar;
 import javax.swing.KeyStroke;
+import javax.swing.MenuSelectionManager;
 import javax.swing.SwingUtilities;
 import java.awt.BorderLayout;
 import java.awt.event.ActionEvent;
@@ -153,6 +155,8 @@ public final class EditorView extends JPanel implements CanvasHost {
         actions.moveActions().forEach((id, action) -> ShortcutCatalog.find(id)
                 .flatMap(entry -> entry.defaultStroke()).ifPresent(stroke -> canvas.bindKey(stroke, id, action)));
         bindZoomKeys();
+        bindEscapeToTheTool();
+        palette.setFocusAfterMouseChoice(canvas::requestFocusInWindow);
         toolChanged(canvas.tool());
         canvas.setFileDropHandler(this::dropFiles);
         palette.setFileDropHandler(this::dropFiles);
@@ -389,6 +393,31 @@ public final class EditorView extends JPanel implements CanvasHost {
         getActionMap().put("zoomIn", actions.zoomIn());
         getActionMap().put("zoomOut", actions.zoomOut());
         getActionMap().put("zoomReset", actions.zoomReset());
+    }
+
+    /**
+     * Escape reaches the canvas tool wherever the focus is in this view (bug 2026-10-18: after a click in the palette
+     * the focus stayed there and a placement could not be cancelled). Components that use Escape themselves (the
+     * inline editor, a table or combo box, an open menu) get it first; with the default tool it is left alone.
+     */
+    private void bindEscapeToTheTool() {
+        String actionKey = "escapeToTheTool";
+        getInputMap(WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), actionKey);
+        getActionMap().put(actionKey, new AbstractAction() {
+            @Override
+            public boolean isEnabled() {
+                // the canvas's own key handler already gave the key to the tool
+                return canvas.tool() != canvas.defaultTool() && !canvas.isFocusOwner()
+                        && MenuSelectionManager.defaultManager().getSelectedPath().length == 0;
+            }
+
+            @Override
+            public void actionPerformed(ActionEvent event) {
+                if (isEnabled()) {
+                    canvas.pressKeyOnTool(KeyEvent.VK_ESCAPE, false);
+                }
+            }
+        });
     }
 
     /**

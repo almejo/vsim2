@@ -78,12 +78,16 @@ public final class FrameTool implements Tool {
 
     @Override
     public boolean keyPressed(ToolContext context, int keyCode, boolean shiftDown) {
-        if (keyCode == KeyEvent.VK_ESCAPE && start != null) {
+        if (keyCode != KeyEvent.VK_ESCAPE) {
+            return false;
+        }
+        if (start != null) {
             reset();
             context.repaint();
-            return true;
+        } else {
+            context.useDefaultTool(); // like Cable and Mover vista
         }
-        return false;
+        return true;
     }
 
     @Override

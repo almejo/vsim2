@@ -32,6 +32,7 @@ import javax.swing.JPopupMenu;
 import javax.swing.JScrollPane;
 import javax.swing.JTextField;
 import javax.swing.JTree;
+import javax.swing.SwingUtilities;
 import javax.swing.ToolTipManager;
 import javax.swing.TransferHandler;
 import javax.swing.event.DocumentEvent;
@@ -109,6 +110,8 @@ public final class PalettePanel extends JPanel {
     };
     private Function<Optional<UserComponent>, Optional<JPopupMenu>> userMenuProvider = component -> Optional.empty();
     private Consumer<List<Path>> fileDropHandler;
+    private Runnable focusAfterMouseChoice = () -> {
+    };
     private boolean updating;
 
     public PalettePanel(ComponentTypeRegistry registry, PainterRegistry painters, ColorScheme scheme,
@@ -175,6 +178,7 @@ public final class PalettePanel extends JPanel {
             @Override
             public void mouseReleased(MouseEvent event) {
                 showPopup(event);
+                handOverFocusAfterChoice(event);
             }
         });
         add(new JScrollPane(tree));
@@ -195,6 +199,32 @@ public final class PalettePanel extends JPanel {
     /** Package-private for tests. */
     JTextField searchField() {
         return search;
+    }
+
+    /**
+     * What gives the focus away (to the canvas) when the mouse is released on the chosen entry. With dragging enabled
+     * the tree chooses on the press but takes the focus back on the release, after the choice asked for the canvas:
+     * this runs once that release is over, so R, Delete and Escape reach the canvas while placing. Choosing with the
+     * keyboard is left to {@code onChoose}.
+     */
+    public void setFocusAfterMouseChoice(Runnable focusTarget) {
+        focusAfterMouseChoice = Objects.requireNonNull(focusTarget);
+    }
+
+    private void handOverFocusAfterChoice(MouseEvent event) {
+        TreePath selected = tree.getSelectionPath();
+        if (event.isPopupTrigger() || !SwingUtilities.isLeftMouseButton(event) || selected == null
+                || !selected.equals(tree.getPathForLocation(event.getX(), event.getY()))) {
+            return;
+        }
+        if (selectedType().isPresent() || selectedUserComponent().isPresent()) {
+            SwingUtilities.invokeLater(focusAfterMouseChoice);
+        }
+    }
+
+    /** Package-private for tests. */
+    JTree tree() {
+        return tree;
     }
 
     /** The tree model now shown: the same instance means nothing was rebuilt. Package-private for tests. */

@@ -54,6 +54,36 @@ class PalettePanelTest {
                 type -> chosen.add(type.id()));
     }
 
+    /**
+     * Bug 2026-10-18: with dragging enabled the tree takes the focus back when the mouse is released, after the
+     * choice asked for the canvas. Releasing the mouse on the chosen entry hands the focus over again, later.
+     */
+    @Test
+    void releasingTheMouseOnTheChosenEntryHandsTheFocusOverAfterTheTreeTookIt() throws Exception {
+        java.util.concurrent.atomic.AtomicInteger handOvers = new java.util.concurrent.atomic.AtomicInteger();
+        palette.setFocusAfterMouseChoice(handOvers::incrementAndGet);
+        javax.swing.JTree tree = palette.tree();
+        tree.setSize(300, 2000);
+        palette.choose(StandardComponentTypes.AND2);
+        java.awt.Rectangle entry = tree.getPathBounds(tree.getSelectionPath());
+
+        release(tree, entry.x + 2, entry.y + 2);
+        javax.swing.SwingUtilities.invokeAndWait(() -> { });
+        assertThat(handOvers).hasValue(1);
+
+        java.awt.Rectangle category = tree.getRowBounds(0);
+        release(tree, category.x + 2, category.y + 2);
+        palette.clearSelection();
+        release(tree, entry.x + 2, entry.y + 2);
+        javax.swing.SwingUtilities.invokeAndWait(() -> { });
+        assertThat(handOvers).as("a category, or nothing chosen, keeps the focus in the palette").hasValue(1);
+    }
+
+    private static void release(java.awt.Component target, int x, int y) {
+        target.dispatchEvent(new java.awt.event.MouseEvent(target, java.awt.event.MouseEvent.MOUSE_RELEASED, 0, 0, x,
+                y, 1, false, java.awt.event.MouseEvent.BUTTON1));
+    }
+
     @Test
     void listsEveryStandardTypeGroupedByCategory() {
         assertThat(palette.visibleTypeIds()).containsExactlyElementsOf(

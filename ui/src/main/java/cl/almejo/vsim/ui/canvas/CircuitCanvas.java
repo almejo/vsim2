@@ -852,6 +852,16 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         setTool(defaultTool);
     }
 
+    /**
+     * Gives the current tool a key pressed while another part of the window has the focus (Escape cancelling a
+     * placement from the palette); true when the tool used it.
+     */
+    public boolean pressKeyOnTool(int keyCode, boolean shiftDown) {
+        boolean used = tool.keyPressed(this, keyCode, shiftDown);
+        updateAnimation();
+        return used;
+    }
+
     @Override
     public void setCursor(CanvasCursor cursor) {
         toolCursor = awtCursor(cursor);
