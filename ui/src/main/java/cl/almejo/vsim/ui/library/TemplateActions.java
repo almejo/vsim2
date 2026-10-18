@@ -8,6 +8,7 @@ import cl.almejo.vsim.core.command.PutDefinitionsCommand;
 import cl.almejo.vsim.core.command.RemoveElementsCommand;
 import cl.almejo.vsim.core.command.ReplaceDefinitionCommand;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
+import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
@@ -17,6 +18,7 @@ import cl.almejo.vsim.core.document.FrameContents;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
 import cl.almejo.vsim.core.library.ComponentDefinition;
+import cl.almejo.vsim.core.library.ConvertedSelection;
 import cl.almejo.vsim.core.library.DefinitionBuilder;
 import cl.almejo.vsim.core.library.DefinitionGraph;
 import cl.almejo.vsim.core.library.Disassembly;
@@ -25,6 +27,9 @@ import cl.almejo.vsim.core.library.LibraryVersions;
 import cl.almejo.vsim.core.library.PinBridges;
 import cl.almejo.vsim.core.library.PinOrder;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
+import cl.almejo.vsim.core.library.TestParts;
+import cl.almejo.vsim.core.simulation.SimulationSnapshot;
+import cl.almejo.vsim.core.value.Value;
 import cl.almejo.vsim.ui.actions.ContextMenuContributor;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
@@ -45,6 +50,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Function;
 
 /**
  * Template editing for one canvas (spec §5.6, §6.6): create from the selection, update a definition from the
@@ -92,7 +98,8 @@ public final class TemplateActions {
     }
 
     /**
-     * Without interface pins the dialog does not open and a message says why. Otherwise, once accepted: one undo step
+     * Without interface pins or test parts the dialog does not open and a message says why. Checked test parts become
+     * pins of the definition only ({@link ConvertedSelection}). Otherwise, once accepted: one undo step
      * that adds the definitions and, if asked, replaces the selection by one instance at its top-left, with
      * {@link PinBridges} keeping what was connected to the interface pins from outside (pins it cannot connect safely
      * are named in a message). When an instance pin would land on something outside, the selection is kept and only
@@ -121,19 +128,62 @@ public final class TemplateActions {
         openCreateDialog(contents, frame.title(), Optional.of(frame.id()));
     }
 
+    /**
+     * The create dialog, with the selection's test parts to check when it has any; a selection with neither interface
+     * pins nor test parts gets a message instead. When the accepted component would have no outputs, a warning offers
+     * «Crear igual» or «Volver» (the same dialog again, as the user left it).
+     */
     private void openCreateDialog(Set<ElementId> ids, String proposedName, Optional<ElementId> frameToRemove) {
         CircuitDocument document = openDocument.document();
-        if (!DefinitionBuilder.hasInterfacePins(document, ids)) {
+        ComponentTypeRegistry registry = openDocument.registry();
+        List<TestParts.TestPart> testParts = TestParts.of(document, ids, registry);
+        if (testParts.isEmpty() && !DefinitionBuilder.hasInterfacePins(document, ids)) {
             dialogs.showMessage(canvas, Messages.text("template.noInterfacePins"));
             return;
         }
-        PinOrder order = DefinitionBuilder.defaultPinOrder(document, ids);
-        ComponentForm form = ComponentForm.create(order, DefinitionBuilder.pinNames(document, order), takenNames(),
-                takenIds());
+        Map<ElementId, Value> currentValues = switchValues(testParts);
+        Function<Set<ElementId>, ConvertedSelection> converter =
+                converted -> ConvertedSelection.of(document, ids, converted, currentValues, registry);
+        ComponentForm form = ComponentForm.create(testParts, converted -> {
+            ConvertedSelection selection = converter.apply(converted);
+            return new ComponentForm.PinPlan(selection.defaultPinOrder(), selection.pinNames());
+        }, takenNames(), takenIds());
         if (!proposedName.isBlank()) {
             form.setName(proposedName);
         }
-        dialogs.editComponent(canvas, form).ifPresent(result -> create(ids, result, frameToRemove));
+        while (true) {
+            Optional<ComponentForm.Result> result = dialogs.editComponent(canvas, form);
+            if (result.isEmpty()) {
+                return;
+            }
+            Optional<String> missing = missingPins(result.get().pinOrder());
+            if (missing.isEmpty() || dialogs.confirmMissingPins(canvas, missing.get())) {
+                create(ids, converter.apply(result.get().convertedParts()), result.get(), frameToRemove);
+                return;
+            }
+        }
+    }
+
+    /** The warning for a component without outputs («… no tendrá salidas», or «… ni entradas ni salidas»). */
+    private static Optional<String> missingPins(PinOrder order) {
+        if (!order.outputs().isEmpty()) {
+            return Optional.empty();
+        }
+        return Optional.of(Messages.text(order.inputs().isEmpty() ? "template.missingPins.none"
+                : "template.missingPins.outputs"));
+    }
+
+    /** What each switch among {@code testParts} shows now while simulating: an unchecked one keeps that value. */
+    private Map<ElementId, Value> switchValues(List<TestParts.TestPart> testParts) {
+        Map<ElementId, Value> values = new HashMap<>();
+        SimulationSnapshot snapshot = openDocument.latestSnapshot();
+        for (TestParts.TestPart part : testParts) {
+            if (part.kind() == TestParts.Kind.SWITCH && snapshot != null
+                    && snapshot.componentState(part.id().value()) instanceof VisibleState.SwitchState state) {
+                values.put(part.id(), state.value());
+            }
+        }
+        return values;
     }
 
     /**
@@ -266,18 +316,23 @@ public final class TemplateActions {
                 && DefinitionBuilder.hasInterfacePins(document, ids));
     }
 
-    private void create(Set<ElementId> ids, ComponentForm.Result result, Optional<ElementId> frameToRemove) {
+    /**
+     * Adds the definition of {@code converted} (the selection {@code ids} with its checked test parts turned into
+     * pins) and, if asked, replaces {@code ids} by an instance; the user's own elements are only read.
+     */
+    private void create(Set<ElementId> ids, ConvertedSelection converted, ComponentForm.Result result,
+                        Optional<ElementId> frameToRemove) {
         CircuitDocument document = openDocument.document();
         ComponentTypeRegistry registry = openDocument.registry();
-        DefinitionBundle bundle = DefinitionBuilder.fromSelection(document, ids, result.definitionId(), result.name(),
-                result.pinOrder(), registry);
+        DefinitionBundle bundle = converted.definition(result.definitionId(), result.name(), result.pinOrder(),
+                registry);
         List<Command> steps = new ArrayList<>();
         steps.add(new PutDefinitionsCommand(bundle.all()));
         Component instance = null;
         String message = null;
         if (result.replaceSelection()) {
             GridPoint origin = DefinitionBuilder.origin(document, ids, registry);
-            PinBridges.Bridging bridging = PinBridges.wires(document, ids, bundle.root(), origin, registry);
+            PinBridges.Bridging bridging = converted.bridges(bundle.root(), origin, registry);
             if (!bridging.blockedPins().isEmpty()) {
                 message = Messages.format("template.notReplaced", String.join(", ", bridging.blockedPins()));
             } else {

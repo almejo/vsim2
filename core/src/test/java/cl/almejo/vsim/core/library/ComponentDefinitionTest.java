@@ -54,9 +54,15 @@ class ComponentDefinitionTest {
         assertThatThrownBy(() -> new ComponentDefinition("bad", "Malo", "", new GridSize(4, 4),
                 List.of(outputAtInput), inverter.body()))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> new ComponentDefinition("bad", "Malo", "", new GridSize(4, 4),
-                List.of(), inverter.body()))
-                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void aDefinitionMayHaveNoPins() {
+        ComponentDefinition inverter = ExampleDefinitions.inverter();
+        // «Crear componente» warns first («El componente no tendrá entradas ni salidas») and may then create it.
+        ComponentDefinition closed = new ComponentDefinition("cerrado", "Cerrado", "", new GridSize(6, 2),
+                List.of(), inverter.body());
+        assertThat(closed.pinout()).isEmpty();
     }
 
     @Test

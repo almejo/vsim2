@@ -1,7 +1,10 @@
 package cl.almejo.vsim.ui.library;
 
 import cl.almejo.vsim.core.command.CreateFrameCommand;
+import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.CircuitDocument;
+import cl.almejo.vsim.core.document.Component;
+import cl.almejo.vsim.core.library.TestParts;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.Frame;
 import cl.almejo.vsim.core.document.FrameTint;
@@ -76,6 +79,17 @@ class ConvertFrameTest {
         assertThat(document.definition("negador")).isPresent();
         assertThat(document.frame(frame.id())).contains(frame);
         assertThat(document.components()).hasSize(3);
+    }
+
+    @Test
+    void aFrameWithTestPartsOffersThemLikeASelection() {
+        Component led = fixture.place(StandardComponentTypes.LED, 7, -2, "S");
+        fixture.dialogs.cancelForm();
+        fixture.view.templateActions().orElseThrow().createFromFrame(frame);
+        assertThat(fixture.dialogs.forms).singleElement().satisfies(form -> {
+            assertThat(form.testParts()).extracting(TestParts.TestPart::id).containsExactly(led.id());
+            assertThat(form.outputNames()).containsExactly("S", "y");
+        });
     }
 
     @Test

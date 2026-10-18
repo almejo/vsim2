@@ -1,13 +1,17 @@
 package cl.almejo.vsim.ui.library;
 
+import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.ExampleDefinitions;
 import cl.almejo.vsim.core.library.PinOrder;
+import cl.almejo.vsim.core.library.TestParts;
 import cl.almejo.vsim.ui.i18n.Messages;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import javax.swing.JCheckBox;
+import javax.swing.JLabel;
 import javax.swing.JList;
 import java.util.ArrayList;
 import java.util.List;
@@ -85,6 +89,40 @@ class ComponentFormPanelTest {
 
         assertThat(updating.target()).contains(doubleInverter);
         assertThat(updatePanel.nameField().getText()).isEqualTo("Doble inversor");
+    }
+
+    @Test
+    void theTestPartsListShowsOnlyWhenTheSelectionHasTestParts() {
+        ComponentFormPanel withoutParts = new ComponentFormPanel(ComponentForm.create(order, names, List.of(),
+                Set.of()));
+        assertThat(withoutParts.testPartsPanel().getParent()).isNull();
+        assertThat(withoutParts.testPartChoices()).isEmpty();
+
+        ElementId carry = new ElementId("c7");
+        ElementId clock = new ElementId("c8");
+        ElementId led = new ElementId("c9");
+        List<TestParts.TestPart> parts = List.of(
+                new TestParts.TestPart(carry, StandardComponentTypes.CONSTANT, TestParts.Kind.CONSTANT, "Cin", "0"),
+                new TestParts.TestPart(clock, StandardComponentTypes.CLOCK, TestParts.Kind.CLOCK, "", ""),
+                new TestParts.TestPart(led, StandardComponentTypes.LED, TestParts.Kind.LED, "S", ""));
+        ComponentForm form = ComponentForm.create(parts, converted -> new ComponentForm.PinPlan(order, names),
+                List.of(), Set.of());
+        ComponentFormPanel panel = new ComponentFormPanel(form);
+
+        assertThat(panel.testPartsPanel().getParent()).isNotNull();
+        assertThat(panel.testPartChoices()).extracting(JCheckBox::getText).containsExactly("Cin = 0", "Reloj", "S");
+        assertThat(panel.testPartChoices()).allSatisfy(choice -> assertThat(choice.isSelected()).isTrue());
+        assertThat(panel.testPartOutcomes()).extracting(JLabel::getText)
+                .containsExactly("Entrada", "Entrada", "Salida");
+
+        panel.testPartChoices().get(1).doClick(0);
+        panel.testPartChoices().get(2).doClick(0);
+        panel.testPartChoices().get(0).doClick(0);
+
+        assertThat(form.isConverted(clock)).isFalse();
+        assertThat(form.isConverted(led)).isFalse();
+        assertThat(panel.testPartOutcomes()).extracting(JLabel::getText)
+                .containsExactly("Queda como constante", "Reloj interno", "Se quita");
     }
 
     @Test

@@ -35,10 +35,8 @@ public record ComponentDefinition(String id, String name, String description, Gr
         description = description == null ? "" : description;
         Objects.requireNonNull(size, "size");
         Objects.requireNonNull(body, "body");
+        // No pins is allowed: «Crear componente» warns first (a body that only runs on its own, like a blinker).
         pinout = List.copyOf(pinout);
-        if (pinout.isEmpty()) {
-            throw new IllegalArgumentException("definition " + id + " has no pins");
-        }
         if (!body.definitions().isEmpty()) {
             throw new IllegalArgumentException("the body of " + id + " must not carry definitions");
         }
