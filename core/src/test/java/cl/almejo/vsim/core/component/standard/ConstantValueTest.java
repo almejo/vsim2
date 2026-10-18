@@ -6,6 +6,10 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
+import java.math.BigInteger;
+import java.util.Locale;
+import java.util.Random;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -194,5 +198,66 @@ class ConstantValueTest {
                 }
             }
         }
+    }
+
+    @Test
+    void randomValuesOfEveryWidthShowAndReadBackInEveryFormat() {
+        Random random = new Random(20261018L);
+        for (int width = 1; width <= 64; width++) {
+            BigInteger modulus = BigInteger.ONE.shiftLeft(width);
+            for (int sample = 0; sample < 40; sample++) {
+                long bits = random.nextLong() & Value.maskFor(width);
+                BigInteger unsigned = new BigInteger(Long.toUnsignedString(bits));
+                BigInteger signed = unsigned.testBit(width - 1) ? unsigned.subtract(modulus) : unsigned;
+                String description = Long.toHexString(bits) + " at " + width;
+                String binary = unsigned.toString(2);
+                assertThat(ConstantValue.display(bits, width, "binary")).as(description)
+                        .isEqualTo("0".repeat(width - binary.length()) + binary);
+                assertThat(ConstantValue.display(bits, width, "hex")).as(description)
+                        .isEqualTo("0x" + unsigned.toString(16).toUpperCase(Locale.ROOT));
+                assertThat(ConstantValue.display(bits, width, "decimal")).as(description)
+                        .isEqualTo(unsigned.toString());
+                assertThat(ConstantValue.display(bits, width, "signed")).as(description).isEqualTo(signed.toString());
+                assertThat(ConstantValue.signed(bits, width)).as(description).isEqualTo(signed.longValueExact());
+                for (String format : ConstantValue.FORMAT_PARAMETER.choices()) {
+                    String shown = ConstantValue.display(bits, width, format);
+                    assertThat(shown.length()).as("%s %s", description, format)
+                            .isLessThanOrEqualTo(ConstantValue.longestDisplay(width, format));
+                    assertThat(ConstantValue.bitsOf(ConstantValue.editableText(bits, width, format), width))
+                            .as("%s %s", description, format).hasValue(bits);
+                }
+                assertThat(ConstantValue.bitsOf(signed.toString(), width)).as(description).hasValue(bits);
+                assertThat(ConstantValue.fitsText(signed.subtract(modulus).toString(), width)).as(description)
+                        .isFalse();
+            }
+        }
+    }
+
+    @Test
+    void theRangeOfANegativeNumberEndsAtMinusTwoToTheWidthMinusOne() {
+        for (int width = 1; width <= 64; width++) {
+            BigInteger mostNegative = BigInteger.ONE.shiftLeft(width - 1).negate();
+            assertThat(ConstantValue.fitsText(mostNegative.toString(), width)).as("at %d", width).isTrue();
+            assertThat(ConstantValue.fitsText(mostNegative.subtract(BigInteger.ONE).toString(), width))
+                    .as("at %d", width).isFalse();
+            BigInteger largest = BigInteger.ONE.shiftLeft(width).subtract(BigInteger.ONE);
+            assertThat(ConstantValue.fitsText(largest.toString(), width)).as("at %d", width).isTrue();
+            assertThat(ConstantValue.fitsText(largest.add(BigInteger.ONE).toString(), width)).as("at %d", width)
+                    .isFalse();
+        }
+    }
+
+    @Test
+    void anImpossibleWidthOrFormatIsAProgrammingError() {
+        assertThatThrownBy(() -> ConstantValue.bitsOf("1", 0)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> ConstantValue.bitsOf("1", 65)).isInstanceOf(IllegalArgumentException.class);
+        assertThat(ConstantValue.bitsOf("1", 64)).hasValue(1L);
+        assertThatThrownBy(() -> ConstantValue.display(1, 4, "octal")).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> ConstantValue.longestDisplay(4, "octal"))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> ConstantValue.normalize(null)).isInstanceOf(IllegalArgumentException.class);
+        assertThat(ConstantValue.isValidText(null)).isFalse();
+        assertThat(ConstantValue.fitsText(null, 8)).isFalse();
+        assertThat(ConstantValue.bitsOf(null, 8)).isEmpty();
     }
 }

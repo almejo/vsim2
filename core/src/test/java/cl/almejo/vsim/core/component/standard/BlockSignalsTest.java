@@ -33,6 +33,15 @@ class BlockSignalsTest {
     }
 
     @Test
+    void aWiderControlValueOnlyPartlyZIsUndefinedAndAllZTakesTheRestValue() {
+        Value partlyHighImpedance = new Value(2, 0b01, 0b10, false);
+        assertThat(BlockSignals.control(partlyHighImpedance, true)).isEmpty();
+        assertThat(BlockSignals.control(partlyHighImpedance, false)).isEmpty();
+        assertThat(BlockSignals.control(Value.highImpedance(2), true)).contains(true);
+        assertThat(BlockSignals.control(Value.of(2, 0b10), false)).contains(true);
+    }
+
+    @Test
     void unsignedAndSignedReadOnlyFullyDefinedValues() {
         assertThat(BlockSignals.unsigned(Value.of(4, 0b1011))).isEqualTo(OptionalLong.of(11));
         assertThat(BlockSignals.signed(Value.of(4, 0b1011))).isEqualTo(OptionalLong.of(-5));
