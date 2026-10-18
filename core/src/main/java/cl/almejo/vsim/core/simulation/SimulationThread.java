@@ -5,11 +5,14 @@ import cl.almejo.vsim.core.waveform.WaveformSnapshot;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.Queue;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.LockSupport;
@@ -59,6 +62,8 @@ public final class SimulationThread implements AutoCloseable {
     private boolean waveformsPublished;
     private long lastWaveformPublishNanos;
     private long stepSequence;
+    /** The {@link #published()} futures whose request ran in this tick, completed once it has published. */
+    private final List<CompletableFuture<SimulationSnapshot>> publicationWaiters = new ArrayList<>();
 
     public SimulationThread(SimulationEngine engine) {
         this(engine, System::nanoTime);
@@ -256,6 +261,19 @@ public final class SimulationThread implements AutoCloseable {
         return latestWaveforms;
     }
 
+    /**
+     * Completes with the published snapshot once every request queued before this call has been applied and its
+     * result published: the snapshot and, written before it, the next event time, the pending components and the
+     * step. A request that fails publishes the failure first; the ones after it are applied in the next tick.
+     * Lets a caller (tests, mainly) wait for a known state instead of polling for one the running simulation may
+     * already have moved past. Never completes once the thread is closed; wait with a timeout.
+     */
+    public CompletableFuture<SimulationSnapshot> published() {
+        CompletableFuture<SimulationSnapshot> future = new CompletableFuture<>();
+        requests.add(() -> publicationWaiters.add(future));
+        return future;
+    }
+
     /** For tests: requests queued and not yet applied. */
     int pendingRequests() {
         return requests.size();
@@ -301,6 +319,11 @@ public final class SimulationThread implements AutoCloseable {
         }
         // Also after a failure: the channels of a rejected circuit are still bound and shown.
         publishWaveforms(now);
+        if (!publicationWaiters.isEmpty()) {
+            SimulationSnapshot published = latestSnapshot;
+            publicationWaiters.forEach(waiter -> waiter.complete(published));
+            publicationWaiters.clear();
+        }
     }
 
     private void pauseOnNewShortCircuit(SimulationSnapshot snapshot) {

@@ -4,6 +4,7 @@ import cl.almejo.vsim.core.command.ChangeParametersCommand;
 import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
+import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.core.value.Value;
 import cl.almejo.vsim.ui.i18n.Messages;
 import org.junit.jupiter.api.AfterEach;
@@ -12,6 +13,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Map;
 
+import static cl.almejo.vsim.ui.UiTestSupport.awaitSimulation;
 import static cl.almejo.vsim.ui.UiTestSupport.place;
 import static cl.almejo.vsim.ui.UiTestSupport.waitUntil;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -62,15 +64,22 @@ class OpenDocumentInputValueTest {
 
     @Test
     void reiniciarKeepsTheTypedValue() {
-        document.setInputValue(input.id(), Value.of(4, 5));
-        waitUntil(() -> outputState().equals(new VisibleState.LedState(Value.of(4, 5))));
+        // paused first, so time moves only by the explicit step (a pause right after the value is applied could
+        // otherwise stop at t = 0, and «Reiniciar» would have nothing to take back)
         document.setStepMode(true);
-        waitUntil(() -> !document.latestSnapshot().running() && document.latestSnapshot().time() > 0);
+        document.setInputValue(input.id(), Value.of(4, 5));
+        document.step(3);
+        SimulationSnapshot paused = awaitSimulation(document);
+        assertThat(paused.running()).isFalse();
+        assertThat(paused.time()).isPositive();
+        assertThat(outputState()).isEqualTo(new VisibleState.LedState(Value.of(4, 5)));
 
         document.restart();
 
-        waitUntil(() -> document.latestSnapshot().time() == 0 && document.latestNextEventTime().isEmpty());
-        assertThat(document.latestSnapshot().componentState(input.id().value()))
+        SimulationSnapshot restarted = awaitSimulation(document);
+        assertThat(restarted.time()).isZero();
+        assertThat(document.latestNextEventTime()).isEmpty();
+        assertThat(restarted.componentState(input.id().value()))
                 .isEqualTo(new VisibleState.SwitchState(Value.of(4, 5)));
         assertThat(outputState()).isEqualTo(new VisibleState.LedState(Value.of(4, 5)));
     }

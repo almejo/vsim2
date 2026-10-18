@@ -5,16 +5,20 @@ import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
+import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.ui.app.OpenDocument;
 
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.function.BooleanSupplier;
 
 public final class UiTestSupport {
 
     private static final long TIMEOUT_NANOS = TimeUnit.SECONDS.toNanos(5);
+    private static final long SIMULATION_TIMEOUT_SECONDS = 30;
 
     private UiTestSupport() {
     }
@@ -31,6 +35,24 @@ public final class UiTestSupport {
                 Thread.currentThread().interrupt();
                 throw new AssertionError("interrupted while waiting", exception);
             }
+        }
+    }
+
+    /**
+     * Waits until every simulation request {@code document} made so far is applied and published, and returns that
+     * snapshot; the step, next event time and pending components read afterwards are at least as new. Prefer it to
+     * {@link #waitUntil} after a request: no polling for a state the simulation may move past, and no reading of the
+     * fields written before the snapshot while it is still being built. The timeout only guards against a hang.
+     */
+    public static SimulationSnapshot awaitSimulation(OpenDocument document) {
+        try {
+            return document.simulationPublished().get(SIMULATION_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            throw new AssertionError("interrupted while waiting for the simulation", exception);
+        } catch (ExecutionException | TimeoutException exception) {
+            throw new AssertionError("the simulation did not publish within " + SIMULATION_TIMEOUT_SECONDS + " s",
+                    exception);
         }
     }
 

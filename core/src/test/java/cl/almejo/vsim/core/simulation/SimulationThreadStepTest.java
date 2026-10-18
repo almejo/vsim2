@@ -17,6 +17,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.OptionalLong;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -60,6 +61,50 @@ class SimulationThreadStepTest {
                 }));
         return new FlatCircuit(List.of(new FlatComponent("r", registry.require(RINGING), Map.of())),
                 List.of(new FlatNet("loop", List.of(new FlatPinRef("r", 0), new FlatPinRef("r", 1)), 1, false)));
+    }
+
+    @Test
+    void publishedCompletesWithTheSnapshotOfEveryEarlierRequest() {
+        thread.update(inverterChain());
+        thread.step(1);
+        CompletableFuture<SimulationSnapshot> published = thread.published();
+        thread.advanceToNextEvent();
+        assertThat(published).as("nothing applied yet").isNotDone();
+
+        thread.tick();
+
+        assertThat(published).isCompletedWithValue(thread.latestSnapshot());
+        assertThat(published.join().time()).isEqualTo(2);
+        assertThat(thread.latestStep().orElseThrow().sequence()).as("the later request ran in the same tick")
+                .isEqualTo(2);
+        assertThat(thread.latestNextEventTime()).isEmpty();
+    }
+
+    @Test
+    void publishedAlsoCompletesWhenARequestFails() {
+        thread.update(ringing());
+        thread.tick();
+        thread.advanceToNextEvent(); // a zero-delay loop: the request throws and the tick stops there
+        CompletableFuture<SimulationSnapshot> published = thread.published();
+
+        thread.tick();
+        thread.tick();
+
+        assertThat(published).isDone();
+        assertThat(published.join().failure()).contains("IllegalStateException: too many events at t = 5");
+    }
+
+    @Test
+    void publishedCompletesOnTheRunningThread() throws Exception {
+        try (SimulationThread running = new SimulationThread(new SimulationEngine())) {
+            running.update(inverterChain());
+            running.start();
+            running.interact("s");
+            SimulationSnapshot snapshot = running.published().get(30, TimeUnit.SECONDS);
+            assertThat(snapshot.running()).isFalse();
+            assertThat(running.latestStep()).as("paused: the click is a step").isPresent();
+            assertThat(running.latestSnapshot()).isSameAs(snapshot);
+        }
     }
 
     @Test

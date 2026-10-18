@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -185,8 +186,9 @@ class SimulationThreadTest {
             realThread.resume();
             waitUntil(() -> realThread.latestSnapshot().time() > 100);
             realThread.pause();
-            waitUntil(() -> !realThread.latestSnapshot().running());
-            long pausedAt = realThread.latestSnapshot().time();
+            SimulationSnapshot paused = realThread.published().get(30, TimeUnit.SECONDS);
+            assertThat(paused.running()).isFalse();
+            long pausedAt = paused.time();
             Thread.sleep(50);
             assertThat(realThread.latestSnapshot().time()).isEqualTo(pausedAt);
             realThread.close();
