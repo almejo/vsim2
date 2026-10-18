@@ -13,7 +13,9 @@ import org.junit.jupiter.api.Test;
 
 import javax.swing.JCheckBox;
 import javax.swing.JLabel;
-import javax.swing.JList;
+import javax.swing.JTable;
+import javax.swing.JTextField;
+import java.awt.Component;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -36,12 +38,81 @@ class ComponentFormPanelTest {
         Messages.initialize(Messages.SPANISH);
     }
 
-    private static List<String> items(JList<String> list) {
+    private static List<String> items(JTable table) {
         List<String> items = new ArrayList<>();
-        for (int index = 0; index < list.getModel().getSize(); index++) {
-            items.add(list.getModel().getElementAt(index));
+        for (int row = 0; row < table.getRowCount(); row++) {
+            items.add((String) table.getValueAt(row, 0));
         }
         return items;
+    }
+
+    private static Component rendered(JTable table, int row) {
+        return table.prepareRenderer(table.getCellRenderer(row, 0), row, 0);
+    }
+
+    @Test
+    void thePinNamesAreEditedInPlaceAndCheckedWhileTyping() {
+        ComponentForm form = ComponentForm.create(order, names, List.of(), Set.of());
+        ComponentFormPanel panel = new ComponentFormPanel(form);
+        panel.nameField().setText("Par");
+        JTable inputs = panel.inputTable();
+        assertThat(inputs.isCellEditable(0, 0)).isTrue();
+        java.awt.Color normal = rendered(inputs, 1).getForeground();
+
+        assertThat(inputs.editCellAt(1, 0)).isTrue();
+        JTextField editor = (JTextField) inputs.getEditorComponent();
+        editor.setText("");
+        assertThat(form.inputNames()).containsExactly("a", "");
+        assertThat(form.canAccept()).isFalse();
+        assertThat(panel.messageLabel().getText()).isEqualTo("Escribe un nombre para cada pin.");
+
+        editor.setText("Y");
+        assertThat(panel.messageLabel().getText()).isEqualTo("Hay más de un pin llamado «Y».");
+        assertThat(inputs.isEditing()).isTrue();
+        inputs.getCellEditor().stopCellEditing();
+        java.awt.Color marked = rendered(inputs, 1).getForeground();
+        assertThat(marked).isNotEqualTo(normal);
+        assertThat(((javax.swing.JComponent) rendered(inputs, 1)).getToolTipText()).isEqualTo("Hay más de un pin llamado «Y».");
+        assertThat(((javax.swing.JComponent) rendered(panel.outputTable(), 0)).getToolTipText())
+                .isEqualTo("Hay más de un pin llamado «y».");
+        assertThat(((javax.swing.JComponent) rendered(inputs, 0)).getToolTipText()).isNull();
+
+        panel.outputTable().setValueAt("Salida", 0, 0);
+        assertThat(form.canAccept()).isTrue();
+        assertThat(panel.messageLabel().getText()).isBlank();
+        assertThat(items(inputs)).containsExactly("a", "Y");
+        assertThat(rendered(inputs, 1).getForeground()).isEqualTo(normal);
+    }
+
+    @Test
+    void cancellingAnEditGivesThePinItsNameBack() {
+        ComponentForm form = ComponentForm.create(order, names, List.of(), Set.of());
+        ComponentFormPanel panel = new ComponentFormPanel(form);
+        JTable inputs = panel.inputTable();
+
+        inputs.editCellAt(0, 0);
+        ((JTextField) inputs.getEditorComponent()).setText("Dato");
+        assertThat(form.inputNames()).containsExactly("Dato", "b");
+        inputs.getCellEditor().cancelCellEditing();
+
+        assertThat(form.inputNames()).containsExactly("a", "b");
+        assertThat(items(inputs)).containsExactly("a", "b");
+    }
+
+    @Test
+    void movingAPinWhileEditingItsNameKeepsTheNewName() {
+        ComponentForm form = ComponentForm.create(order, names, List.of(), Set.of());
+        ComponentFormPanel panel = new ComponentFormPanel(form);
+        JTable inputs = panel.inputTable();
+        inputs.setRowSelectionInterval(0, 0);
+        inputs.editCellAt(0, 0);
+        ((JTextField) inputs.getEditorComponent()).setText("Dato");
+
+        panel.inputDownButton().doClick(0);
+
+        assertThat(inputs.isEditing()).isFalse();
+        assertThat(items(inputs)).containsExactly("b", "Dato");
+        assertThat(inputs.getSelectedRow()).isEqualTo(1);
     }
 
     @Test
@@ -62,15 +133,15 @@ class ComponentFormPanelTest {
     void theButtonsMoveTheSelectedPin() {
         ComponentForm form = ComponentForm.create(order, names, List.of(), Set.of());
         ComponentFormPanel panel = new ComponentFormPanel(form);
-        assertThat(items(panel.inputList())).containsExactly("a", "b");
-        assertThat(items(panel.outputList())).containsExactly("y");
+        assertThat(items(panel.inputTable())).containsExactly("a", "b");
+        assertThat(items(panel.outputTable())).containsExactly("y");
 
-        panel.inputList().setSelectedIndex(0);
+        panel.inputTable().setRowSelectionInterval(0, 0);
         panel.inputDownButton().doClick(0);
 
         assertThat(form.inputNames()).containsExactly("b", "a");
-        assertThat(items(panel.inputList())).containsExactly("b", "a");
-        assertThat(panel.inputList().getSelectedIndex()).isEqualTo(1);
+        assertThat(items(panel.inputTable())).containsExactly("b", "a");
+        assertThat(panel.inputTable().getSelectedRow()).isEqualTo(1);
     }
 
     @Test

@@ -169,10 +169,19 @@ public final class ConvertedSelection {
      * {@link #defaultPinOrder()} once, on its side. It may have no pins at all.
      */
     public DefinitionBundle definition(String id, String name, PinOrder pinOrder, ComponentTypeRegistry registry) {
+        return definition(id, name, pinOrder, Map.of(), registry);
+    }
+
+    /**
+     * {@link #definition(String, String, PinOrder, ComponentTypeRegistry)} where the pins in {@code renamed} get the
+     * user's name, in the pinout and inside the body; the user's document keeps its labels.
+     */
+    public DefinitionBundle definition(String id, String name, PinOrder pinOrder, Map<ElementId, String> renamed,
+                                       ComponentTypeRegistry registry) {
         if (!DefinitionBuilder.sameOrder(pinOrder, defaultPinOrder())) {
             throw new IllegalArgumentException("the pin order must list each pin once: " + pinOrder);
         }
-        return DefinitionBuilder.assemble(document, ids, id, name, pinOrder, pinNames(), registry);
+        return DefinitionBuilder.assemble(document, ids, id, name, pinOrder, pinNames(), renamed, registry);
     }
 
     /**

@@ -328,7 +328,7 @@ public final class TemplateActions {
         CircuitDocument document = openDocument.document();
         ComponentTypeRegistry registry = openDocument.registry();
         DefinitionBundle bundle = converted.definition(result.definitionId(), result.name(), result.pinOrder(),
-                registry);
+                result.pinNames(), registry);
         List<Command> steps = new ArrayList<>();
         steps.add(new PutDefinitionsCommand(bundle.all()));
         Component instance = null;
@@ -371,7 +371,7 @@ public final class TemplateActions {
             return;
         }
         DefinitionBundle bundle = DefinitionBuilder.fromSelection(document, ids, result.definitionId(), result.name(),
-                result.pinOrder(), openDocument.registry());
+                result.pinOrder(), result.pinNames(), openDocument.registry());
         openDocument.execute(new ReplaceDefinitionCommand(bundle));
         if (service.library().find(bundle.root().id()).isPresent()) {
             saveToLibrary(bundle);
