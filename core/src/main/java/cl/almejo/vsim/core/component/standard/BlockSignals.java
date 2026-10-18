@@ -22,8 +22,8 @@ import java.util.OptionalLong;
  */
 public final class BlockSignals {
 
-    /** «Ancho (bits)» of a block: 1..32 bits, 4 by default. */
-    public static final ParameterSpec WIDTH = ParameterSpec.integer(StandardComponentTypes.WIDTH, 4, 1, 32);
+    /** «Ancho (bits)» of a block: 1..32 bits, 8 by default (like the bus splitter and joiner and the Constante). */
+    public static final ParameterSpec WIDTH = ParameterSpec.integer(StandardComponentTypes.WIDTH, 8, 1, 32);
 
     private BlockSignals() {
     }

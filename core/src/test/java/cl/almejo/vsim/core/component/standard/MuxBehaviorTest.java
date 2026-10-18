@@ -41,7 +41,7 @@ class MuxBehaviorTest {
         assertThat(two.pins()).extracting(PinSpec::name).containsExactly("D0", "D1", "S", "Y");
         assertThat(two.pins()).extracting(PinSpec::direction).containsExactly(PinDirection.INPUT,
                 PinDirection.INPUT, PinDirection.INPUT, PinDirection.OUTPUT);
-        assertThat(two.pins()).extracting(PinSpec::width).containsExactly(4, 4, 1, 4);
+        assertThat(two.pins()).extracting(PinSpec::width).containsExactly(8, 8, 1, 8);
 
         ComponentType four = two.specializedFor(parameters(8, "4"));
         assertThat(four.pins()).extracting(PinSpec::name).containsExactly("D0", "D1", "D2", "D3", "S", "Y");

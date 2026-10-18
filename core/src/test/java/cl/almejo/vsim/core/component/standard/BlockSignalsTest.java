@@ -14,10 +14,10 @@ class BlockSignalsTest {
     private static final Value CONFLICT = Value.ONE.withConflict();
 
     @Test
-    void theWidthParameterGoesFromOneToThirtyTwoBitsAndDefaultsToFour() {
+    void theWidthParameterGoesFromOneToThirtyTwoBitsAndDefaultsToEight() {
         assertThat(BlockSignals.WIDTH.name()).isEqualTo(StandardComponentTypes.WIDTH);
         assertThat(BlockSignals.WIDTH.kind()).isEqualTo(ParameterKind.INTEGER);
-        assertThat(BlockSignals.WIDTH.defaultValue()).isEqualTo(4);
+        assertThat(BlockSignals.WIDTH.defaultValue()).isEqualTo(8);
         assertThat(BlockSignals.WIDTH.minimum()).isEqualTo(1);
         assertThat(BlockSignals.WIDTH.maximum()).isEqualTo(32);
     }

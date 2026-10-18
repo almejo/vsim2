@@ -34,7 +34,7 @@ class AdderBehaviorTest {
         assertThat(adder.pins()).extracting(PinSpec::name).containsExactly("A", "B", "Cin", "S", "Cout");
         assertThat(adder.pins()).extracting(PinSpec::direction).containsExactly(PinDirection.INPUT,
                 PinDirection.INPUT, PinDirection.INPUT, PinDirection.OUTPUT, PinDirection.OUTPUT);
-        assertThat(adder.pins()).extracting(PinSpec::width).containsExactly(4, 4, 1, 4, 1);
+        assertThat(adder.pins()).extracting(PinSpec::width).containsExactly(8, 8, 1, 8, 1);
         int right = adder.size().width();
         int bottom = adder.size().height();
         assertThat(adder.pin(A).position().x()).isZero();

@@ -159,15 +159,13 @@ class BundledCircuitsTest {
     }
 
     @Test
-    void theMiniAluTableHasMultiBitColumnsAndAsksFirst() throws Exception {
+    void theMiniAluTableIsRefusedAt8BitsForTooManyInputBits() throws Exception {
         CircuitDocument document = BundledExamples.open("mini-alu", REGISTRY);
         Preparation preparation = TruthTableScope.prepare(document, Set.of(), registryFor(document));
-        assertThat(preparation).isInstanceOf(Preparation.Ready.class);
-        Preparation.Ready ready = (Preparation.Ready) preparation;
-        assertThat(ready.inputs()).extracting(Column::name).containsExactly("A", "B", "OP");
-        assertThat(ready.inputs()).extracting(Column::width).containsExactly(4, 4, 3);
-        assertThat(ready.inputBits()).as("A, B and OP").isEqualTo(11);
-        assertThat(ready.needsConfirmation()).as("above 10 bits the user is asked first").isTrue();
+        assertThat(preparation).isInstanceOf(Preparation.Refused.class);
+        Preparation.Refused refused = (Preparation.Refused) preparation;
+        assertThat(refused.reason()).isEqualTo(Preparation.Reason.TOO_MANY_INPUT_BITS);
+        assertThat(refused.inputBits()).as("A (8), B (8) and OP (3)").isEqualTo(19);
     }
 
     /** The standard types plus the document's own definitions, like {@code OpenDocument.registry()}. */

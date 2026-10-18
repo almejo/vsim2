@@ -45,7 +45,7 @@ class RegisterBehaviorTest {
         assertThat(register.pins()).extracting(PinSpec::name).containsExactly("D", "EN", "CLR", "CLK", "Q");
         assertThat(register.pins()).extracting(PinSpec::direction).containsExactly(PinDirection.INPUT,
                 PinDirection.INPUT, PinDirection.INPUT, PinDirection.INPUT, PinDirection.OUTPUT);
-        assertThat(register.pins()).extracting(PinSpec::width).containsExactly(4, 1, 1, 1, 4);
+        assertThat(register.pins()).extracting(PinSpec::width).containsExactly(8, 1, 1, 1, 8);
         assertThat(register.pin(DATA).position().x()).isZero();
         assertThat(register.pin(OUTPUT).position().x()).isEqualTo(register.size().width());
         for (int control : new int[]{ENABLE, CLEAR, CLOCK}) {

@@ -11,7 +11,7 @@
     "label" : "Sumador",
     "parameters" : {
       "delay" : 1,
-      "width" : 4
+      "width" : 8
     }
   }, {
     "id" : "c2",
@@ -23,7 +23,7 @@
     "parameters" : {
       "delay" : 1,
       "format" : "decimal",
-      "width" : 4
+      "width" : 8
     }
   }, {
     "id" : "c3",
@@ -35,7 +35,7 @@
     "parameters" : {
       "format" : "decimal",
       "value" : "0",
-      "width" : 4
+      "width" : 8
     }
   }, {
     "id" : "c6",
@@ -46,7 +46,7 @@
     "label" : "Total",
     "parameters" : {
       "format" : "decimal",
-      "width" : 4
+      "width" : 8
     }
   }, {
     "id" : "c12",
@@ -157,6 +157,6 @@
     "id" : "l21",
     "x" : 2,
     "y" : 33,
-    "text" : "(3, 6, 9, …; después de 15 vuelve a empezar); un clic en «CLR» lo deja en 0"
+    "text" : "(3, 6, 9, …; son 8 bits: pasado 255 da la vuelta); un clic en «CLR» lo deja en 0"
   } ]
 }

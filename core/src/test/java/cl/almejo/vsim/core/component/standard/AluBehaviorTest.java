@@ -70,7 +70,7 @@ class AluBehaviorTest {
         assertThat(alu.pins()).extracting(PinSpec::direction).containsExactly(PinDirection.INPUT,
                 PinDirection.INPUT, PinDirection.INPUT, PinDirection.OUTPUT, PinDirection.OUTPUT,
                 PinDirection.OUTPUT, PinDirection.OUTPUT, PinDirection.OUTPUT);
-        assertThat(alu.pins()).extracting(PinSpec::width).containsExactly(4, 4, 3, 4, 1, 1, 1, 1);
+        assertThat(alu.pins()).extracting(PinSpec::width).containsExactly(8, 8, 3, 8, 1, 1, 1, 1);
         int right = alu.size().width();
         int bottom = alu.size().height();
         assertThat(alu.pin(A).position().x()).isZero();

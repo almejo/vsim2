@@ -46,7 +46,7 @@ class CounterBehaviorTest {
         assertThat(counter.pins()).extracting(PinSpec::direction).containsExactly(PinDirection.INPUT,
                 PinDirection.INPUT, PinDirection.INPUT, PinDirection.INPUT, PinDirection.INPUT, PinDirection.OUTPUT,
                 PinDirection.OUTPUT);
-        assertThat(counter.pins()).extracting(PinSpec::width).containsExactly(4, 1, 1, 1, 1, 4, 1);
+        assertThat(counter.pins()).extracting(PinSpec::width).containsExactly(8, 1, 1, 1, 1, 8, 1);
         assertThat(counter.pin(DATA).position().x()).isZero();
         assertThat(counter.pin(OUTPUT).position().x()).isEqualTo(counter.size().width());
         assertThat(counter.pin(CARRY).position().x()).isEqualTo(counter.size().width());

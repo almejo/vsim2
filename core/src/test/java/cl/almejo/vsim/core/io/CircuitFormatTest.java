@@ -54,6 +54,18 @@ class CircuitFormatTest {
     }
 
     @Test
+    void aBlockSavedWithFourBitsStillLoadsWithFourAndOnlyAMissingWidthTakesTheDefaultEight()
+            throws CircuitFormatException {
+        CircuitDocument loaded = format.read("""
+                {"formatVersion":2,"kind":"circuit","components":[
+                  {"id":"c1","type":"adder","x":0,"y":0,"parameters":{"delay":1,"width":4}},
+                  {"id":"c2","type":"adder","x":20,"y":0}]}
+                """);
+        assertThat(loaded.components()).extracting(component -> component.parameters().get("width"))
+                .containsExactlyInAnyOrder(4, 8);
+    }
+
+    @Test
     void nullJsonStringFailsWithInvalidJson() {
         assertThatThrownBy(() -> format.read((String) null))
                 .isInstanceOf(CircuitFormatException.class)

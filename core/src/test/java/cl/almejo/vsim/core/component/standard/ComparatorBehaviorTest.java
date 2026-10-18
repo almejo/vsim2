@@ -40,7 +40,7 @@ class ComparatorBehaviorTest {
         assertThat(comparator.pins()).extracting(PinSpec::name).containsExactly("A", "B", "A<B", "A=B", "A>B");
         assertThat(comparator.pins()).extracting(PinSpec::direction).containsExactly(PinDirection.INPUT,
                 PinDirection.INPUT, PinDirection.OUTPUT, PinDirection.OUTPUT, PinDirection.OUTPUT);
-        assertThat(comparator.pins()).extracting(PinSpec::width).containsExactly(4, 4, 1, 1, 1);
+        assertThat(comparator.pins()).extracting(PinSpec::width).containsExactly(8, 8, 1, 1, 1);
         int right = comparator.size().width();
         assertThat(comparator.pin(A).position().x()).isZero();
         assertThat(comparator.pin(B).position().x()).isZero();

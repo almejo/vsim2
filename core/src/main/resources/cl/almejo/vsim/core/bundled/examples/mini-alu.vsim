@@ -8,10 +8,10 @@
     "x" : 30,
     "y" : 10,
     "rotation" : 0,
-    "label" : "4 bits",
+    "label" : "8 bits",
     "parameters" : {
       "delay" : 1,
-      "width" : 4
+      "width" : 8
     }
   }, {
     "id" : "c2",
@@ -23,7 +23,7 @@
     "parameters" : {
       "format" : "hex",
       "value" : "0",
-      "width" : 4
+      "width" : 8
     }
   }, {
     "id" : "c4",
@@ -35,7 +35,7 @@
     "parameters" : {
       "format" : "hex",
       "value" : "0",
-      "width" : 4
+      "width" : 8
     }
   }, {
     "id" : "c6",
@@ -58,7 +58,7 @@
     "label" : "Y",
     "parameters" : {
       "format" : "signed",
-      "width" : 4
+      "width" : 8
     }
   }, {
     "id" : "c14",
@@ -243,7 +243,7 @@
     "id" : "l35",
     "x" : 2,
     "y" : 43,
-    "text" : "Prueba: A = 5, B = 3, OP = 001 → Y = 2; OP = 000 con A = 7, B = 1 → V = 1"
+    "text" : "Prueba: A = 5, B = 3, OP = 001 → Y = 2; OP = 000 con A = 0x7F, B = 1 → Y = −128 y V = 1"
   } ],
   "frames" : [ {
     "id" : "f27",
