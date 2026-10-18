@@ -188,11 +188,12 @@ public final class StepModeFeatures {
         }
         shownTime = snapshot.time();
         Optional<StepReport> latest = openDocument.latestStep();
-        if (latest.isPresent() && latest.get().sequence() > shownSequence) {
+        // A step later than the snapshot was published after the canvas read it (the step is written before its
+        // snapshot): it waits for its own snapshot, the next one. «Reiniciar» forgets it (latestStep() empties).
+        if (latest.isPresent() && latest.get().sequence() > shownSequence
+                && latest.get().result().time() <= snapshot.time()) {
             shownSequence = latest.get().sequence();
-            if (latest.get().result().time() <= snapshot.time()) { // later than the snapshot: from before «Reiniciar»
-                showStep(latest.get().result(), snapshot);
-            }
+            showStep(latest.get().result(), snapshot);
         }
         showPending(snapshot);
         refresh(snapshot);

@@ -351,19 +351,44 @@ class StepModeFeaturesTest {
     }
 
     @Test
-    void aStepIsNotShownByASnapshotOlderThanItsTime() {
-        place(openDocument, StandardComponentTypes.SWITCH, 0, 0, Map.of());                     // out (4,1)
+    void aStepPublishedAfterTheShownSnapshotWasReadGlowsWithItsOwnSnapshot() {
+        Component toggle = place(openDocument, StandardComponentTypes.SWITCH, 0, 0, Map.of());  // out (4,1)
+        addWire(4, 1, 8, 1);
+        place(openDocument, StandardComponentTypes.NOT, 8, -1, Map.of());                       // (8,1) → (12,1)
+        Wire output = addWire(12, 1, 16, 1);
+        settleThenEnterStepMode();
+        SimulationSnapshot older = openDocument.latestSnapshot();
+        openDocument.interact(toggle.id());
+        perform(features.advanceAction());
+        waitUntil(() -> openDocument.latestStep().map(report -> report.sequence() == 2).orElse(false)
+                && openDocument.latestSnapshot().time() == older.time() + 1);
+
+        // the canvas frame read its snapshot just before the simulation thread published the step
+        features.snapshotPublished(older);
+        assertThat(features.overlay().current()).as("not with a snapshot older than the step").isEmpty();
+
+        showLatestSnapshot();
+        assertThat(features.overlay().current()).as("the step's own snapshot shows it")
+                .hasValueSatisfying(highlight -> assertThat(highlight.wires()).isEqualTo(Set.of(output.id())));
+    }
+
+    @Test
+    void aStepNotShownBeforeReiniciarIsNeverShown() {
+        Component toggle = place(openDocument, StandardComponentTypes.SWITCH, 0, 0, Map.of());  // out (4,1)
         addWire(4, 1, 8, 1);
         place(openDocument, StandardComponentTypes.NOT, 8, -1, Map.of());                       // (8,1) → (12,1)
         settleThenEnterStepMode();
         SimulationSnapshot older = openDocument.latestSnapshot();
-        perform(view.actions().step());
-        waitUntil(() -> openDocument.latestStep().isPresent() && openDocument.latestSnapshot().time() > older.time());
-
+        openDocument.interact(toggle.id());
+        perform(features.advanceAction());
+        waitUntil(() -> openDocument.latestStep().map(report -> report.sequence() == 2).orElse(false)
+                && openDocument.latestSnapshot().time() == older.time() + 1);
         features.snapshotPublished(older);
-        assertThat(features.overlay().current()).as("time went backwards: the step is not shown").isEmpty();
 
+        perform(view.actions().restart());
+        waitUntil(() -> openDocument.latestSnapshot().time() == 0);
         showLatestSnapshot();
-        assertThat(features.overlay().current()).as("and it is not shown later either").isEmpty();
+
+        assertThat(features.overlay().current()).as("the old timeline's step is gone").isEmpty();
     }
 }
