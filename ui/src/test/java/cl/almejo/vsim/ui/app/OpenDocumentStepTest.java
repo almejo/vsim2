@@ -5,7 +5,7 @@ import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.netlist.PinRef;
 import cl.almejo.vsim.core.simulation.StepReport;
-import cl.almejo.vsim.core.simulation.StepResult;
+import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.core.value.Value;
 import cl.almejo.vsim.ui.i18n.Messages;
 import org.junit.jupiter.api.AfterEach;
@@ -15,6 +15,7 @@ import org.junit.jupiter.api.Test;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static cl.almejo.vsim.ui.UiTestSupport.awaitSimulation;
 import static cl.almejo.vsim.ui.UiTestSupport.place;
 import static cl.almejo.vsim.ui.UiTestSupport.waitUntil;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -38,16 +39,13 @@ class OpenDocumentStepTest {
         return document.netlist().netForPin(new PinRef(component.id(), pinIndex)).orElseThrow().id().value();
     }
 
-    private void waitUntilPausedAndStable() {
-        waitUntil(() -> !document.latestSnapshot().running() && document.latestNextEventTime().isEmpty());
-    }
-
     /** Lets the running simulation settle the circuit (pausing at once would leave the gates' events pending). */
     private void settleThenEnterStepMode() {
         waitUntil(() -> document.latestSnapshot().token() == document.netlistToken()
                 && document.latestSnapshot().running() && document.latestNextEventTime().isEmpty());
         document.setStepMode(true);
-        waitUntilPausedAndStable();
+        assertThat(awaitSimulation(document).running()).isFalse();
+        assertThat(document.latestNextEventTime()).isEmpty();
     }
 
     @Test
@@ -62,12 +60,12 @@ class OpenDocumentStepTest {
         document.setStepMode(true);
         assertThat(document.stepMode()).isTrue();
         assertThat(notifications).as("only real changes are announced").hasValue(1);
-        waitUntil(() -> !document.latestSnapshot().running());
+        assertThat(awaitSimulation(document).running()).isFalse();
 
         document.resume();
         assertThat(document.stepMode()).isFalse();
         assertThat(notifications).hasValue(2);
-        waitUntil(() -> document.latestSnapshot().running());
+        assertThat(awaitSimulation(document).running()).isTrue();
 
         document.setStepMode(true);
         document.setStepMode(false);
@@ -85,21 +83,22 @@ class OpenDocumentStepTest {
         long before = document.latestSnapshot().time();
 
         document.interact(toggle.id());
-        waitUntil(() -> document.latestStep().isPresent());
+        awaitSimulation(document);
         StepReport click = document.latestStep().orElseThrow();
         assertThat(click.result().changedNets()).contains(netOf(toggle, 0));
         assertThat(click.result().time()).isEqualTo(before);
-        waitUntil(() -> document.latestNextEventTime().isPresent());
         assertThat(document.latestNextEventTime()).hasValue(before + 1);
 
         document.advanceToNextEvent();
-        waitUntil(() -> document.latestStep().orElseThrow().sequence() == click.sequence() + 1);
-        StepResult advance = document.latestStep().orElseThrow().result();
-        assertThat(advance.fromTime()).isEqualTo(before);
-        assertThat(advance.time()).isEqualTo(before + 1);
-        assertThat(advance.changedNets()).contains(netOf(gate, 1));
-        waitUntilPausedAndStable();
-        assertThat(document.latestSnapshot().time()).isEqualTo(before + 1);
+        SimulationSnapshot advanced = awaitSimulation(document);
+        StepReport advance = document.latestStep().orElseThrow();
+        assertThat(advance.sequence()).isEqualTo(click.sequence() + 1);
+        assertThat(advance.result().fromTime()).isEqualTo(before);
+        assertThat(advance.result().time()).isEqualTo(before + 1);
+        assertThat(advance.result().changedNets()).contains(netOf(gate, 1));
+        assertThat(advanced.running()).isFalse();
+        assertThat(advanced.time()).isEqualTo(before + 1);
+        assertThat(document.latestNextEventTime()).isEmpty();
     }
 
     @Test
@@ -118,16 +117,16 @@ class OpenDocumentStepTest {
         Component toggle = place(document, StandardComponentTypes.SWITCH, 0, 0, Map.of());   // value 1
         place(document, StandardComponentTypes.NOT, 4, -1, Map.of());
         settleThenEnterStepMode();
-        waitUntil(() -> document.latestSnapshot().time() > 0);
+        assertThat(document.latestSnapshot().time()).as("the NOT gate settled after t = 0").isPositive();
         document.interact(toggle.id());
-        waitUntil(() -> document.latestStep().isPresent());
+        awaitSimulation(document);
         boolean modified = document.isModified();
         long changes = document.changeCount();
         Object undo = document.history().undoDescription();
 
         document.restart();
 
-        waitUntil(() -> document.latestSnapshot().time() == 0);
+        assertThat(awaitSimulation(document).time()).isZero();
         assertThat(document.latestSnapshot().componentState(toggle.id().value()))
                 .isEqualTo(new VisibleState.SwitchState(Value.ZERO));
         assertThat(document.latestSnapshot().running()).isFalse();

@@ -41,6 +41,7 @@ import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
@@ -273,6 +274,15 @@ public final class OpenDocument implements AutoCloseable {
 
     public SimulationSnapshot latestSnapshot() {
         return simulation.latestSnapshot();
+    }
+
+    /**
+     * Completes with the snapshot published once every simulation request made so far (edits, clicks, typed values,
+     * pause, «Avanzar», «Reiniciar», …) has been applied, with the step, next event time and pending components
+     * published with it. For tests: a known state to wait for instead of polling. Never block the EDT on it.
+     */
+    public CompletableFuture<SimulationSnapshot> simulationPublished() {
+        return simulation.published();
     }
 
     /** The recorded waveforms of this document's channels (spec §3.3); safe to read from any thread. */

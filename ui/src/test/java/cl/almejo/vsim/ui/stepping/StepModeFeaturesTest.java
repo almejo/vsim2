@@ -38,6 +38,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 
+import static cl.almejo.vsim.ui.UiTestSupport.awaitSimulation;
 import static cl.almejo.vsim.ui.UiTestSupport.place;
 import static cl.almejo.vsim.ui.UiTestSupport.waitUntil;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -92,12 +93,19 @@ class StepModeFeaturesTest {
         features.snapshotPublished(openDocument.latestSnapshot());
     }
 
+    /** Waits until every request so far is published, then checks that it made step {@code sequence}. */
+    private void awaitStep(long sequence) {
+        awaitSimulation(openDocument);
+        assertThat(openDocument.latestStep()).hasValueSatisfying(
+                report -> assertThat(report.sequence()).isEqualTo(sequence));
+    }
+
     /** Lets the running simulation settle (pausing at once would leave events pending), then enters the mode. */
     private void settleThenEnterStepMode() {
         waitUntil(() -> openDocument.latestSnapshot().token() == openDocument.netlistToken()
                 && openDocument.latestSnapshot().running() && openDocument.latestNextEventTime().isEmpty());
         perform(features.stepModeAction());
-        waitUntil(() -> !openDocument.latestSnapshot().running());
+        assertThat(awaitSimulation(openDocument).running()).isFalse();
         showLatestSnapshot();
     }
 
@@ -154,7 +162,7 @@ class StepModeFeaturesTest {
         long before = openDocument.latestSnapshot().time();
 
         openDocument.interact(toggle.id());
-        waitUntil(() -> openDocument.latestStep().isPresent() && openDocument.latestNextEventTime().isPresent());
+        awaitStep(1);
         clock.set(1_000);
         showLatestSnapshot();
         assertThat(features.overlay().current()).hasValueSatisfying(highlight -> {
@@ -165,8 +173,8 @@ class StepModeFeaturesTest {
         assertThat(panel.cursorTime()).hasValue(before);
 
         perform(features.advanceAction());
-        waitUntil(() -> openDocument.latestStep().orElseThrow().sequence() == 2
-                && openDocument.latestSnapshot().time() == before + 1);
+        awaitStep(2);
+        assertThat(openDocument.latestSnapshot().time()).isEqualTo(before + 1);
         showLatestSnapshot();
         assertThat(features.overlay().current().orElseThrow().wires()).isEqualTo(Set.of(output.id()));
         assertThat(features.status().getText()).isEqualTo("Sin eventos pendientes: el circuito está estable");
@@ -187,13 +195,13 @@ class StepModeFeaturesTest {
         waitUntil(() -> openDocument.latestSnapshot().token() == openDocument.netlistToken()
                 && openDocument.latestSnapshot().running() && openDocument.latestNextEventTime().isEmpty());
         openDocument.pause();
-        waitUntil(() -> !openDocument.latestSnapshot().running());
+        assertThat(awaitSimulation(openDocument).running()).isFalse();
         showLatestSnapshot();
         long reading = openDocument.latestSnapshot().time() + 1_000; // the user reads another part of the trace
         panel.placeCursorAtTime(reading);
 
         openDocument.interact(toggle.id());
-        waitUntil(() -> openDocument.latestStep().isPresent());
+        awaitStep(1);
         clock.set(1_000);
         showLatestSnapshot();
 
@@ -231,18 +239,18 @@ class StepModeFeaturesTest {
         assertThat(features.pendingOverlay().current().components()).isEmpty();
 
         openDocument.interact(toggle.id());
-        waitUntil(() -> openDocument.latestStep().isPresent() && openDocument.latestNextEventTime().isPresent());
+        awaitStep(1);
         showLatestSnapshot();
         assertThat(features.pendingOverlay().current().components()).containsExactly(first.id());
         assertThat(features.pendingOverlay().current().matches(openDocument.netlistToken())).isTrue();
 
         perform(features.advanceAction());
-        waitUntil(() -> openDocument.latestStep().orElseThrow().sequence() == 2);
+        awaitStep(2);
         showLatestSnapshot();
         assertThat(features.pendingOverlay().current().components()).containsExactly(second.id());
 
         perform(features.advanceAction());
-        waitUntil(() -> openDocument.latestStep().orElseThrow().sequence() == 3);
+        awaitStep(3);
         showLatestSnapshot();
         assertThat(features.pendingOverlay().current().components()).as("stable").isEmpty();
 
@@ -263,15 +271,15 @@ class StepModeFeaturesTest {
         features.snapshotPublished(SimulationSnapshot.EMPTY.withRunning(true));
         assertThat(features.clockEdgeAction().isEnabled()).as("running").isFalse();
         perform(features.stepModeAction());
-        waitUntil(() -> !openDocument.latestSnapshot().running());
+        assertThat(awaitSimulation(openDocument).running()).isFalse();
         showLatestSnapshot();
         assertThat(features.clockEdgeAction().isEnabled()).isTrue();
         assertThat(features.clockEdgeButton().isVisible()).isTrue();
 
         perform(features.clockEdgeAction());
-        waitUntil(() -> openDocument.latestStep().isPresent());
+        awaitStep(1);
         StepResult edge = openDocument.latestStep().orElseThrow().result();
-        waitUntil(() -> openDocument.latestSnapshot().time() == edge.time());
+        assertThat(openDocument.latestSnapshot().time()).isEqualTo(edge.time());
         assertThat(edge.time()).isGreaterThan(edge.fromTime());
         assertThat(openDocument.latestSnapshot().componentState(clock.id().value()))
                 .as("stopped right after the clock fell").isEqualTo(new VisibleState.ClockState(Value.ZERO));
@@ -285,14 +293,14 @@ class StepModeFeaturesTest {
         addWire(4, 1, 8, 1);
         place(openDocument, StandardComponentTypes.NOT, 8, -1, Map.of());                       // (8,1) → (12,1)
         settleThenEnterStepMode();
-        waitUntil(() -> openDocument.latestSnapshot().time() > 0);
+        assertThat(openDocument.latestSnapshot().time()).as("the NOT gate settled after t = 0").isPositive();
         openDocument.interact(toggle.id());
-        waitUntil(() -> openDocument.latestStep().isPresent() && openDocument.latestNextEventTime().isPresent());
+        awaitStep(1);
         showLatestSnapshot();
         assertThat(features.overlay().current()).isPresent();
 
         perform(view.actions().restart());
-        waitUntil(() -> openDocument.latestSnapshot().time() == 0);
+        assertThat(awaitSimulation(openDocument).time()).isZero();
         showLatestSnapshot();
 
         assertThat(features.overlay().current()).as("time went back: the old glow is gone").isEmpty();
@@ -311,14 +319,14 @@ class StepModeFeaturesTest {
         waitUntil(() -> openDocument.latestSnapshot().token() == openDocument.netlistToken()
                 && openDocument.latestSnapshot().running() && openDocument.latestNextEventTime().isEmpty());
         openDocument.pause();
-        waitUntil(() -> !openDocument.latestSnapshot().running());
+        assertThat(awaitSimulation(openDocument).running()).isFalse();
         long before = openDocument.latestSnapshot().time();
         openDocument.interact(toggle.id());
-        waitUntil(() -> openDocument.latestStep().isPresent());
+        awaitStep(1);
 
         perform(view.actions().step());
-        waitUntil(() -> openDocument.latestStep().orElseThrow().sequence() == 2
-                && openDocument.latestSnapshot().time() == before + 10);
+        awaitStep(2);
+        assertThat(openDocument.latestSnapshot().time()).isEqualTo(before + 10);
         clock.set(5_000);
         showLatestSnapshot();
 
@@ -338,7 +346,7 @@ class StepModeFeaturesTest {
         place(openDocument, StandardComponentTypes.NOT, 8, -1, Map.of());                       // (8,1) → (12,1)
         settleThenEnterStepMode();
         openDocument.interact(toggle.id());
-        waitUntil(() -> openDocument.latestStep().isPresent() && openDocument.latestNextEventTime().isPresent());
+        awaitStep(1);
         SimulationSnapshot carrier = openDocument.latestSnapshot();
         addWire(12, 1, 16, 1); // the circuit changes before the canvas shows the carrier
 
@@ -360,8 +368,8 @@ class StepModeFeaturesTest {
         SimulationSnapshot older = openDocument.latestSnapshot();
         openDocument.interact(toggle.id());
         perform(features.advanceAction());
-        waitUntil(() -> openDocument.latestStep().map(report -> report.sequence() == 2).orElse(false)
-                && openDocument.latestSnapshot().time() == older.time() + 1);
+        awaitStep(2);
+        assertThat(openDocument.latestSnapshot().time()).isEqualTo(older.time() + 1);
 
         // the canvas frame read its snapshot just before the simulation thread published the step
         features.snapshotPublished(older);
@@ -381,12 +389,12 @@ class StepModeFeaturesTest {
         SimulationSnapshot older = openDocument.latestSnapshot();
         openDocument.interact(toggle.id());
         perform(features.advanceAction());
-        waitUntil(() -> openDocument.latestStep().map(report -> report.sequence() == 2).orElse(false)
-                && openDocument.latestSnapshot().time() == older.time() + 1);
+        awaitStep(2);
+        assertThat(openDocument.latestSnapshot().time()).isEqualTo(older.time() + 1);
         features.snapshotPublished(older);
 
         perform(view.actions().restart());
-        waitUntil(() -> openDocument.latestSnapshot().time() == 0);
+        assertThat(awaitSimulation(openDocument).time()).isZero();
         showLatestSnapshot();
 
         assertThat(features.overlay().current()).as("the old timeline's step is gone").isEmpty();
