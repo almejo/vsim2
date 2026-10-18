@@ -245,6 +245,18 @@ class BusInputValueEditorTest {
     }
 
     @Test
+    void aValueConfirmedAfterTheWidthChangedHasTheNewWidth() {
+        Component input = inputWithOutput(Map.of("width", 8));
+        actions.editValue(input);
+        ComponentType type = openDocument.registry().typeOf(input);
+        openDocument.execute(new ChangeParametersCommand(input.id(), type, Map.of("value", "0", "width", 4)));
+        waitUntil(() -> stateOf(input).equals(new VisibleState.SwitchState(Value.of(4, 0))));
+        editor.field().setText("-1");
+        editor.confirm();
+        waitUntil(() -> stateOf(input).equals(new VisibleState.SwitchState(Value.of(4, 0xF))));
+    }
+
+    @Test
     void oneBitPinsAndOtherComponentsGetNoValueEditor() {
         Component oneBit = place(openDocument, StandardComponentTypes.INPUT_PIN, 0, 0, Map.of());
         actions.editValue(oneBit);

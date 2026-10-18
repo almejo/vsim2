@@ -117,6 +117,19 @@ class ConstantComponentTest {
     }
 
     @Test
+    void theCheckReadsAWidthWrittenAsTextAndLeavesABadWidthToTheWidthParameter() {
+        assertThat(constant.check(Map.of("width", " 4 ", "value", "0x1F"))).contains(
+                new ParameterProblem("value", "constant.doesNotFit", List.of(4)));
+        assertThat(constant.check(Map.of("value", "0x1F"))).as("the default width is 4").contains(
+                new ParameterProblem("value", "constant.doesNotFit", List.of(4)));
+        assertThat(constant.check(Map.of("width", 4))).as("the default value is 0").isEmpty();
+        assertThat(constant.check(Map.of("width", "cuatro", "value", "0x1F"))).isEmpty();
+        assertThat(constant.check(Map.of("width", 0, "value", "0x1F"))).isEmpty();
+        assertThat(constant.check(Map.of("width", 33, "value", "0x1F"))).isEmpty();
+        assertThat(constant.check(null)).isEmpty();
+    }
+
+    @Test
     void resolvingAndSpecializingRefuseWhatTheCheckRefuses() {
         assertThatThrownBy(() -> constant.resolveParameters(parameters(4, "0x1F", "auto")))
                 .isInstanceOf(IllegalArgumentException.class);
