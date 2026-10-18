@@ -7,6 +7,7 @@ import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
+import cl.almejo.vsim.core.simulation.DisplayBusOverride;
 import cl.almejo.vsim.core.simulation.DriverRef;
 import cl.almejo.vsim.core.simulation.FlatPinRef;
 import cl.almejo.vsim.core.simulation.InstancePath;
@@ -28,14 +29,26 @@ public final class ProblemText {
     private static final String PATH_SEPARATOR = " › ";
 
     private static final Comparator<Problem> ORDER = Comparator
-            .comparingInt((Problem problem) -> problem instanceof ShortCircuit ? 0 : 1)
+            .comparingInt(ProblemText::rank)
             .thenComparingLong(problem -> problem instanceof ShortCircuit shortCircuit ? shortCircuit.sinceTime() : 0)
             .thenComparing(Problem::netId);
 
     private ProblemText() {
     }
 
-    /** Short circuits first, oldest first, then width mismatches; ties by net id, so the order is stable. */
+    /** Short circuits first, then width mismatches, then the soft warnings of the displays. */
+    private static int rank(Problem problem) {
+        return switch (problem) {
+            case ShortCircuit shortCircuit -> 0;
+            case WidthMismatch mismatch -> 1;
+            case DisplayBusOverride display -> 2;
+        };
+    }
+
+    /**
+     * Short circuits first, oldest first, then width mismatches, then display warnings; ties by net id, so the order
+     * is stable.
+     */
     public static List<Problem> ordered(List<Problem> problems) {
         return problems.stream().sorted(ORDER).toList();
     }
@@ -54,7 +67,19 @@ public final class ProblemText {
             case WidthMismatch mismatch -> Messages.format("problem.widthMismatch", mismatch.pins().stream()
                     .map(pin -> pin(pin, document, registry))
                     .collect(Collectors.joining(SEPARATOR)));
+            case DisplayBusOverride display -> displayBus(display, document);
         };
+    }
+
+    /** "Display 'Total': se usa el bus; …", by label; a display inside a template by its path. */
+    private static String displayBus(DisplayBusOverride display, CircuitDocument document) {
+        if (InstancePath.isNested(display.componentId())) {
+            return Messages.format("problem.displayBusNested",
+                    path(display.componentId(), document).orElse(display.componentId()));
+        }
+        String label = document.component(new ElementId(display.componentId())).map(Component::label).orElse("");
+        return label.isBlank() ? Messages.text("problem.displayBus")
+                : Messages.format("problem.displayBusLabeled", label);
     }
 
     private static String driver(DriverRef driver, CircuitDocument document) {

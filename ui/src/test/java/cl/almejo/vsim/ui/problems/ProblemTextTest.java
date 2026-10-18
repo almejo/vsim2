@@ -11,6 +11,7 @@ import cl.almejo.vsim.core.io.CircuitFragment;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.ExampleDefinitions;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
+import cl.almejo.vsim.core.simulation.DisplayBusOverride;
 import cl.almejo.vsim.core.simulation.DriverRef;
 import cl.almejo.vsim.core.simulation.FlatPinRef;
 import cl.almejo.vsim.core.simulation.Problem;
@@ -108,6 +109,30 @@ class ProblemTextTest {
         Problem early = new ShortCircuit("n:c", List.of(), 2);
         assertThat(ProblemText.ordered(List.of(mismatch, late, lateTie, early)))
                 .containsExactly(early, lateTie, late, mismatch);
+    }
+
+    @Test
+    void displayWarningsComeLastAfterEveryOtherProblem() {
+        Problem display = new DisplayBusOverride("n:0", "c1");
+        Problem mismatch = new WidthMismatch("n:z", List.of());
+        Problem shortCircuit = new ShortCircuit("n:y", List.of(), 9);
+        assertThat(ProblemText.ordered(List.of(display, mismatch, shortCircuit)))
+                .containsExactly(shortCircuit, mismatch, display);
+    }
+
+    @Test
+    void aDisplayWarningSaysTheBusWinsAndNamesTheDisplayByItsLabel() {
+        Component display = place(StandardComponentTypes.SEVEN_SEGMENTS_DISPLAY, 20, 0, "");
+        Component labeled = place(StandardComponentTypes.SEVEN_SEGMENTS_DISPLAY_DOUBLE, 30, 0, "Total");
+        assertThat(ProblemText.describe(new DisplayBusOverride("n", display.id().value()), document, registry))
+                .isEqualTo("Display: se usa el bus; los cables de bit se ignoran");
+        assertThat(ProblemText.describe(new DisplayBusOverride("n", labeled.id().value()), document, registry))
+                .isEqualTo("Display 'Total': se usa el bus; los cables de bit se ignoran");
+        assertThat(ProblemText.describe(new DisplayBusOverride("c5/n", "c5/c2"), nestedDocument(), registry))
+                .isEqualTo("Display (U1 › U3 (NOT)): se usa el bus; los cables de bit se ignoran");
+        Messages.initialize(Locale.ENGLISH);
+        assertThat(ProblemText.describe(new DisplayBusOverride("n", display.id().value()), document, registry))
+                .isEqualTo("Display: the bus is used; the bit wires are ignored");
     }
 
     @Test

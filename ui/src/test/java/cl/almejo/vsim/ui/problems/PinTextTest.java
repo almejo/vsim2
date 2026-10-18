@@ -75,6 +75,21 @@ class PinTextTest {
     }
 
     @Test
+    void theBusInputOfADisplayShowsItsWidthAndValueButNoBit() {
+        String display = StandardComponentTypes.SEVEN_SEGMENTS_DISPLAY;
+        assertThat(describe(display, Map.of(), 4, true, Optional.empty())).isEqualTo("bus · 4 bits");
+        assertThat(describe(display, Map.of(), 4, false, Optional.of(Value.of(4, 0x9))))
+                .isEqualTo("bus · 4 bits = 0x9 (1001)");
+        assertThat(describe(display, Map.of(), 4, true, Optional.of(Value.highImpedance(4))))
+                .isEqualTo("bus · 4 bits = 0xZ (ZZZZ) (sin conectar)");
+        String twoDigits = StandardComponentTypes.SEVEN_SEGMENTS_DISPLAY_DOUBLE;
+        assertThat(describe(twoDigits, Map.of(), 8, true, Optional.empty())).isEqualTo("bus · 8 bits");
+        assertThat(describe(twoDigits, Rotation.R180, Map.of(), 7, true, Optional.empty()))
+                .as("the last bit pin is still named by where it is drawn")
+                .isEqualTo("in7 · bit 7 (el de la derecha)");
+    }
+
+    @Test
     void theBitWordFollowsTheRotationOfTheDisplay() {
         String display = StandardComponentTypes.SEVEN_SEGMENTS_DISPLAY;
         assertThat(describe(display, Rotation.R180, Map.of(), 0, true, Optional.empty()))

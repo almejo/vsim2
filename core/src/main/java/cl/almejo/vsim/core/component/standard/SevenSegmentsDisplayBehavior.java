@@ -6,15 +6,18 @@ import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.value.BitState;
 import cl.almejo.vsim.core.value.Value;
 
-/** Combines N one-bit inputs into an N-bit value (pin 0 = least significant bit). */
+/**
+ * Shows an N-bit value: the bus input (pin N) when any of its bits is not Z, else the N one-bit inputs combined (pin 0 =
+ * least significant bit). A bus with some Z bits is shown as it is, Z bits included.
+ */
 final class SevenSegmentsDisplayBehavior implements Behavior {
 
-    private final int pinCount;
+    private final int bitCount;
     private Value value;
 
-    SevenSegmentsDisplayBehavior(int pinCount) {
-        this.pinCount = pinCount;
-        this.value = Value.highImpedance(pinCount);
+    SevenSegmentsDisplayBehavior(int bitCount) {
+        this.bitCount = bitCount;
+        this.value = Value.highImpedance(bitCount);
     }
 
     @Override
@@ -28,9 +31,14 @@ final class SevenSegmentsDisplayBehavior implements Behavior {
     }
 
     private void recompute(BehaviorContext context) {
+        Value bus = context.input(bitCount);
+        if (bus.width() == bitCount && !bus.isFullyHighImpedance()) {
+            value = bus;
+            return;
+        }
         long bits = 0;
         long highImpedance = 0;
-        for (int index = 0; index < pinCount; index++) {
+        for (int index = 0; index < bitCount; index++) {
             BitState bit = context.input(index).bit(0);
             if (bit == BitState.ONE) {
                 bits |= 1L << index;
@@ -38,7 +46,7 @@ final class SevenSegmentsDisplayBehavior implements Behavior {
                 highImpedance |= 1L << index;
             }
         }
-        value = new Value(pinCount, bits, highImpedance, false);
+        value = new Value(bitCount, bits, highImpedance, false);
     }
 
     @Override

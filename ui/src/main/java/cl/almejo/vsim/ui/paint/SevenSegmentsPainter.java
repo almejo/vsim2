@@ -6,8 +6,10 @@ import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.value.BitState;
 import cl.almejo.vsim.core.value.Value;
 
+import java.awt.BasicStroke;
 import java.awt.Graphics2D;
 import java.awt.Shape;
+import java.awt.geom.Line2D;
 import java.awt.geom.Path2D;
 import java.awt.geom.RoundRectangle2D;
 import java.util.Map;
@@ -15,9 +17,9 @@ import java.util.Map;
 import static cl.almejo.vsim.ui.paint.PainterSupport.UNIT;
 
 /**
- * One display module with a seven-segment digit per 4 input pins (pin 0 is the least significant bit). Segments are
- * beveled bars lit with {@code segmentOn} or left in {@code segmentOff}; a digit with a Z or conflicting bit shows a
- * centered dash.
+ * One display module with a seven-segment digit per 4 one-bit input pins (pin 0 is the least significant bit), led in
+ * from the top edge, and the bus input led in from the bottom edge with a wide lead. Segments are beveled bars lit with
+ * {@code segmentOn} or left in {@code segmentOff}; a digit with a Z or conflicting bit shows a centered dash.
  */
 public final class SevenSegmentsPainter implements ComponentPainter {
 
@@ -29,7 +31,10 @@ public final class SevenSegmentsPainter implements ComponentPainter {
     static final double SEGMENT_THICKNESS = 3;
     static final double SEGMENT_GAP = 0.6;
     private static final double MODULE_TOP = 6;
+    /** The module ends this far above the bottom edge, where the bus input's lead comes in (as far as the top leads). */
+    private static final double MODULE_BOTTOM_INSET = 6;
     private static final double MODULE_LEFT = 1;
+    private static final BasicStroke BUS_STROKE = new BasicStroke(3.5f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
     /** Start and end of segments a..g in a unit digit box: {x1, y1, x2, y2}. */
     private static final double[][] SEGMENT_LINES = {
             {0, 0, 1, 0}, {1, 0, 1, 0.5}, {1, 0.5, 1, 1}, {0, 1, 1, 1}, {0, 0.5, 0, 1}, {0, 0, 0, 0.5}, {0, 0.5, 1, 0.5}};
@@ -41,10 +46,16 @@ public final class SevenSegmentsPainter implements ComponentPainter {
         double height = type.size().height() * UNIT;
         for (PinSpec pin : type.pins()) {
             double pinX = pin.position().x() * UNIT;
-            PainterSupport.lead(graphics, pinX, pin.position().y() * UNIT, pinX, MODULE_TOP, scheme);
+            if (pin.width() > 1) {
+                graphics.setColor(scheme.componentStroke());
+                graphics.setStroke(BUS_STROKE);
+                graphics.draw(new Line2D.Double(pinX, height, pinX, height - MODULE_BOTTOM_INSET));
+            } else {
+                PainterSupport.lead(graphics, pinX, pin.position().y() * UNIT, pinX, MODULE_TOP, scheme);
+            }
         }
         PainterSupport.body(graphics, new RoundRectangle2D.Double(MODULE_LEFT, MODULE_TOP, width - MODULE_LEFT,
-                height - MODULE_TOP - 1, 6, 6), scheme, scheme.displayBackground());
+                moduleHeight(type), 6, 6), scheme, scheme.displayBackground());
         Value value = state instanceof VisibleState.SevenSegmentsState display ? display.value() : null;
         for (int digit = 0; digit < digitCount(type); digit++) {
             int lit = litSegments(value, digit);
@@ -56,8 +67,13 @@ public final class SevenSegmentsPainter implements ComponentPainter {
         PainterSupport.pinDots(graphics, type, scheme);
     }
 
+    /** One digit per 4 one-bit inputs; the bus input does not count. */
     static int digitCount(ComponentType type) {
-        return type.pinCount() / 4;
+        return (int) type.pins().stream().filter(pin -> pin.width() == 1).count() / 4;
+    }
+
+    private static double moduleHeight(ComponentType type) {
+        return type.size().height() * UNIT - MODULE_TOP - MODULE_BOTTOM_INSET;
     }
 
     /**
@@ -87,11 +103,10 @@ public final class SevenSegmentsPainter implements ComponentPainter {
     /** Segment {@code segment} (0 = a … 6 = g) of {@code digit} (0 = rightmost), in local coordinates. */
     static Shape segmentShape(ComponentType type, int digit, int segment) {
         double width = type.size().width() * UNIT;
-        double height = type.size().height() * UNIT;
         int digitCount = digitCount(type);
         double slot = (width - MODULE_LEFT) / digitCount;
         double left = MODULE_LEFT + (digitCount - 1 - digit) * slot + (slot - DIGIT_WIDTH) / 2;
-        double top = MODULE_TOP + (height - MODULE_TOP - 1 - DIGIT_HEIGHT) / 2;
+        double top = MODULE_TOP + (moduleHeight(type) - DIGIT_HEIGHT) / 2;
         double[] line = SEGMENT_LINES[segment];
         return beveledBar(left + line[0] * DIGIT_WIDTH, top + line[1] * DIGIT_HEIGHT,
                 left + line[2] * DIGIT_WIDTH, top + line[3] * DIGIT_HEIGHT);

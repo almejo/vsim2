@@ -51,13 +51,16 @@ public final class ExampleChecks {
 
     /**
      * The block control inputs that may stay unconnected because they take a rest value (spec M7 §2.1: Cin = 0,
-     * EN = 1, CLR = LD = 0), by block type and pin name. Any other input alone on its net is a problem.
+     * EN = 1, CLR = LD = 0), by block type and pin name, and the 7-segment displays' bus input (the examples feed
+     * their displays bit by bit). Any other input alone on its net is a problem.
      */
     private static final Map<String, Set<String>> RESTING_PINS = Map.of(
             StandardComponentTypes.ADDER, Set.of("Cin"),
             StandardComponentTypes.DECODER, Set.of("EN"),
             StandardComponentTypes.REGISTER, Set.of("EN", "CLR"),
-            StandardComponentTypes.COUNTER, Set.of("LD", "EN", "CLR"));
+            StandardComponentTypes.COUNTER, Set.of("LD", "EN", "CLR"),
+            StandardComponentTypes.SEVEN_SEGMENTS_DISPLAY, Set.of(StandardComponentTypes.DISPLAY_BUS_PIN),
+            StandardComponentTypes.SEVEN_SEGMENTS_DISPLAY_DOUBLE, Set.of(StandardComponentTypes.DISPLAY_BUS_PIN));
 
     private ExampleChecks() {
     }

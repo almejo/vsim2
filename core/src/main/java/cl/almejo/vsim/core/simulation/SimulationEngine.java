@@ -452,6 +452,31 @@ public final class SimulationEngine {
         }
     }
 
+    /**
+     * The soft warning of a 7-segment display whose bus input and at least one bit input are both joined to a driver
+     * pin (a wiring check: what the drivers drive does not matter).
+     */
+    private static Optional<Problem> displayBusOverride(ComponentInstance instance) {
+        if (!StandardComponentTypes.isSevenSegmentsDisplay(instance.type.id())) {
+            return Optional.empty();
+        }
+        int busPin = StandardComponentTypes.sevenSegmentsBusPin(instance.type);
+        RuntimeNet bus = instance.pins[busPin].net;
+        if (!hasDriver(bus)) {
+            return Optional.empty();
+        }
+        for (int bit = 0; bit < busPin; bit++) {
+            if (hasDriver(instance.pins[bit].net)) {
+                return Optional.of(new DisplayBusOverride(bus.id, instance.id));
+            }
+        }
+        return Optional.empty();
+    }
+
+    private static boolean hasDriver(RuntimeNet net) {
+        return net != null && net.pins.stream().anyMatch(pin -> pin.spec.isDriver());
+    }
+
     public SimulationSnapshot snapshot() {
         Map<String, Value> netValues = new HashMap<>();
         List<Problem> problems = new ArrayList<>();
@@ -473,6 +498,7 @@ public final class SimulationEngine {
         }
         Map<String, VisibleState> states = new HashMap<>();
         for (ComponentInstance instance : instances.values()) {
+            displayBusOverride(instance).ifPresent(problems::add);
             VisibleState state = instance.behavior.visibleState();
             if (!(state instanceof VisibleState.None)) {
                 states.put(instance.id, state);

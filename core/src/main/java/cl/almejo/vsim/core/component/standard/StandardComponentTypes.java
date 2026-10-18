@@ -65,6 +65,8 @@ public final class StandardComponentTypes {
     public static final String DECODER = "decoder";
     public static final String REGISTER = "register";
     public static final String COUNTER = "counter";
+    /** The name of a 7-segment display's bus input. */
+    public static final String DISPLAY_BUS_PIN = "bus";
     /** The parameter that sets a bus component's width in bits. */
     public static final String WIDTH = "width";
 
@@ -349,13 +351,28 @@ public final class StandardComponentTypes {
                 parameters -> new LogicGateBehavior(operation, inputCount, (Integer) parameters.get("delay")));
     }
 
-    private static ComponentType sevenSegments(String id, int pinCount) {
+    /**
+     * A display of {@code bitCount} one-bit inputs in0.. on the top edge (in0, bit 0, on the right) and, appended after
+     * them so their indices never change, a {@code bitCount}-bit bus input on the bottom edge, centred.
+     */
+    private static ComponentType sevenSegments(String id, int bitCount) {
         List<PinSpec> pins = new ArrayList<>();
-        for (int index = 0; index < pinCount; index++) {
-            pins.add(PinSpec.input("in" + index, pinCount - index, 0));
+        for (int index = 0; index < bitCount; index++) {
+            pins.add(PinSpec.input("in" + index, bitCount - index, 0));
         }
-        return new ComponentType(id, ComponentCategory.INPUT_OUTPUT, new GridSize(pinCount, 6), pins, List.of(),
-                parameters -> new SevenSegmentsDisplayBehavior(pinCount));
+        pins.add(PinSpec.input(DISPLAY_BUS_PIN, bitCount / 2, 6, bitCount));
+        return new ComponentType(id, ComponentCategory.INPUT_OUTPUT, new GridSize(bitCount, 6), pins, List.of(),
+                parameters -> new SevenSegmentsDisplayBehavior(bitCount));
+    }
+
+    /** True for both 7-segment displays. */
+    public static boolean isSevenSegmentsDisplay(String typeId) {
+        return SEVEN_SEGMENTS_DISPLAY.equals(typeId) || SEVEN_SEGMENTS_DISPLAY_DOUBLE.equals(typeId);
+    }
+
+    /** The index of a 7-segment display's bus input: the last pin, after the one-bit inputs 0..index-1. */
+    public static int sevenSegmentsBusPin(ComponentType display) {
+        return display.pinCount() - 1;
     }
 
     /**

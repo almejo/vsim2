@@ -8,6 +8,7 @@ import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.netlist.PinRef;
+import cl.almejo.vsim.core.simulation.DisplayBusOverride;
 import cl.almejo.vsim.core.simulation.DriverRef;
 import cl.almejo.vsim.core.simulation.FlatPinRef;
 import cl.almejo.vsim.core.simulation.WidthMismatch;
@@ -227,6 +228,38 @@ class ProblemsControllerTest {
         assertThat(view.canvas().getToolTipText(hoverAt(176, 24))).as("a readable digit").isNull();
         assertThat(view.canvas().getToolTipText(hoverAt(192, 0))).as("its pins keep their tooltip")
                 .isEqualTo("in0 · bit 0 (el de la derecha)");
+    }
+
+    @Test
+    void theBusInputOfADisplayNamesItsWidth() {
+        place(openDocument, StandardComponentTypes.SEVEN_SEGMENTS_DISPLAY, 20, 0, Map.of()); // bus at (22, 6)
+        assertThat(view.canvas().getToolTipText(hoverAt(176, 48))).isEqualTo("bus · 4 bits");
+    }
+
+    @Test
+    void aDisplayWarningIsListedWithoutAlarmingTheStatusBarAndGoesAwayWithIt() {
+        Component display = place(openDocument, StandardComponentTypes.SEVEN_SEGMENTS_DISPLAY, 20, 0, Map.of());
+        ProblemsController problems = view.problems();
+        DisplayBusOverride warning = new DisplayBusOverride(netOfPin(display, 4), display.id().value());
+        SimulationSnapshot withWarning = new SimulationSnapshot(1, openDocument.netlistToken(), 10, true, Map.of(),
+                Map.of(), List.of(warning), Optional.empty());
+        problems.showSnapshot(withWarning);
+        view.statusBar().showSnapshot(withWarning);
+
+        assertThat(problems.panel().problemList().getModel().getSize()).isEqualTo(1);
+        assertThat(problems.panel().summaryText()).isEqualTo("1 problema");
+        assertThat(Arrays.stream(view.statusBar().getComponents())
+                .filter(JLabel.class::isInstance)
+                .map(JLabel.class::cast)
+                .filter(JLabel::isVisible)
+                .map(JLabel::getText))
+                .noneMatch(text -> text.startsWith("⚠"));
+        assertThat(problems.navigator().next()).contains(warning);
+        assertThat(view.canvas().selection().ids()).containsExactly(display.id());
+
+        problems.showSnapshot(currentSnapshot(Map.of(), Map.of()));
+        assertThat(problems.panel().problemList().getModel().getSize()).isZero();
+        assertThat(problems.nextProblem().isEnabled()).isFalse();
     }
 
     @Test

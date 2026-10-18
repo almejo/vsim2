@@ -140,4 +140,23 @@ class SevenSegmentsPainterTest {
         Rectangle2D right = SevenSegmentsPainter.segmentShape(twoDigits, 0, 6).getBounds2D();
         assertThat(colorAt(image, (left.getMaxX() + right.getMinX()) / 2, left.getCenterY())).isEqualTo(MODULE);
     }
+
+    @Test
+    void theBusInputHasAWideLeadBelowTheModuleAndASquareDot() {
+        for (ComponentType type : new ComponentType[]{single, twoDigits}) {
+            int busPin = StandardComponentTypes.sevenSegmentsBusPin(type);
+            double busX = type.pin(busPin).position().x() * 8.0;
+            double bottom = type.size().height() * 8.0;
+            BufferedImage image = draw(type, showing(Value.of(type.pin(busPin).width(), 1)));
+            Color stroke = ColorScheme.LIGHT.componentStroke();
+            assertThat(colorAt(image, busX, bottom - 0.5)).as(type.id() + " the square on the pin").isEqualTo(stroke);
+            assertThat(colorAt(image, busX, bottom - 4)).as(type.id() + " the lead").isEqualTo(stroke);
+            assertThat(colorAt(image, busX - 1, bottom - 4)).as(type.id() + " a bus lead is wide").isEqualTo(stroke);
+            assertThat(colorAt(image, busX + 6, bottom - 4)).as(type.id() + " beside the lead")
+                    .isNotEqualTo(MODULE);
+            assertThat(colorAt(image, busX, bottom - 10)).as(type.id() + " the module above").isEqualTo(MODULE);
+        }
+        assertThat(SevenSegmentsPainter.digitCount(single)).isEqualTo(1);
+        assertThat(SevenSegmentsPainter.digitCount(twoDigits)).isEqualTo(2);
+    }
 }

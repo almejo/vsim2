@@ -14,8 +14,8 @@ import java.util.Set;
 
 /**
  * The tooltip of one component pin (M6.1-E, spec §6b.4): «in0 · bit 0 (el de la derecha) = Z (sin conectar)». The
- * pin name; its bit when the component reads its pins as a number (the 7-segment displays: pin {@code k} is bit
- * {@code k}); its width when it is wider than one bit; and the value, when one is given, written like the bus
+ * pin name; its bit when the component reads its one-bit pins as a number (the 7-segment displays: pin {@code k} is
+ * bit {@code k}; their bus input has no bit); its width when it is wider than one bit; and the value, when one is given, written like the bus
  * tooltip («0x9 (1001)», {@code X} for a conflict). A fully Z value on a pin that touches nothing says so.
  */
 final class PinText {
@@ -37,7 +37,7 @@ final class PinText {
                            Optional<Value> value) {
         PinSpec pin = type.pin(pinIndex);
         StringBuilder text = new StringBuilder(pin.name());
-        if (NUMBER_READERS.contains(component.typeId())) {
+        if (NUMBER_READERS.contains(component.typeId()) && pin.width() == 1) {
             text.append(SEPARATOR).append(Messages.format(bitKey(component, type, pinIndex), pinIndex));
         }
         if (pin.width() > 1) {
@@ -47,9 +47,15 @@ final class PinText {
         return text.toString();
     }
 
-    /** Bit 0 and the last bit are named by where they are drawn, so a rotated display still points the right way. */
+    /**
+     * Bit 0 and the last bit are named by where they are drawn, so a rotated display still points the right way. The
+     * last bit is the last one-bit pin: the display's bus input comes after the bits.
+     */
     private static String bitKey(Component component, ComponentType type, int pinIndex) {
         int last = type.pinCount() - 1;
+        while (last > 0 && type.pin(last).width() > 1) {
+            last--;
+        }
         if (pinIndex != 0 && pinIndex != last) {
             return "pin.bit";
         }

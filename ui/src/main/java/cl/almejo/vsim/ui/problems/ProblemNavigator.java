@@ -10,6 +10,7 @@ import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.netlist.Net;
 import cl.almejo.vsim.core.netlist.NetId;
 import cl.almejo.vsim.core.netlist.PinRef;
+import cl.almejo.vsim.core.simulation.DisplayBusOverride;
 import cl.almejo.vsim.core.simulation.InstancePath;
 import cl.almejo.vsim.core.simulation.Problem;
 import cl.almejo.vsim.core.simulation.ShortCircuit;
@@ -109,6 +110,7 @@ public final class ProblemNavigator {
         switch (problem) {
             case ShortCircuit shortCircuit -> shortCircuit.drivers().forEach(driver -> ids.add(driver.componentId()));
             case WidthMismatch mismatch -> mismatch.pins().forEach(pin -> ids.add(pin.componentId()));
+            case DisplayBusOverride display -> ids.add(display.componentId());
         }
         CircuitDocument document = canvas.openDocument().document();
         ComponentTypeRegistry registry = canvas.openDocument().registry();
