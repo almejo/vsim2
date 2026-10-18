@@ -51,7 +51,8 @@ public final class SwingLibraryDialogs implements LibraryDialogs {
         JButton cancel = new JButton(Messages.text("template.dialog.cancel"));
         boolean[] accepted = {false};
         accept.setEnabled(form.canAccept());
-        form.addListener(() -> accept.setEnabled(form.canAccept()));
+        Runnable enabler = () -> accept.setEnabled(form.canAccept());
+        form.addListener(enabler);
         accept.addActionListener(event -> {
             accepted[0] = true;
             dialog.dispose();
@@ -60,7 +61,8 @@ public final class SwingLibraryDialogs implements LibraryDialogs {
         JPanel buttons = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         buttons.add(cancel);
         buttons.add(accept);
-        dialog.getContentPane().add(new ComponentFormPanel(form), BorderLayout.CENTER);
+        ComponentFormPanel panel = new ComponentFormPanel(form);
+        dialog.getContentPane().add(panel, BorderLayout.CENTER);
         dialog.getContentPane().add(buttons, BorderLayout.SOUTH);
         dialog.getRootPane().setDefaultButton(accept);
         dialog.getRootPane().registerKeyboardAction(event -> dialog.dispose(),
@@ -68,7 +70,18 @@ public final class SwingLibraryDialogs implements LibraryDialogs {
         dialog.pack();
         dialog.setLocationRelativeTo(parent);
         dialog.setVisible(true);
+        form.removeListener(enabler); // «Volver» shows the same form again in a new dialog
+        form.removeListener(panel.refresher());
         return accepted[0] && form.canAccept() ? Optional.of(form.result()) : Optional.empty();
+    }
+
+    @Override
+    public boolean confirmMissingPins(java.awt.Component parent, String message) {
+        Object[] options = {Messages.text("template.missingPins.createAnyway"),
+                Messages.text("template.missingPins.back")};
+        int answer = JOptionPane.showOptionDialog(parent, message, Messages.text("template.dialog.createTitle"),
+                JOptionPane.DEFAULT_OPTION, JOptionPane.WARNING_MESSAGE, null, options, options[1]);
+        return answer == 0;
     }
 
     @Override

@@ -9,6 +9,7 @@ import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.io.CircuitFragment;
 import cl.almejo.vsim.core.library.ComponentDefinition;
+import cl.almejo.vsim.core.library.DefinitionBuilder;
 import cl.almejo.vsim.core.library.DefinitionPin;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.core.netlist.Netlist;
@@ -215,10 +216,6 @@ public final class TruthTableScope {
 
     /** 1 → A, 26 → Z, 27 → AA, like spreadsheet columns. */
     static String letters(int number) {
-        StringBuilder text = new StringBuilder();
-        for (int remaining = number; remaining > 0; remaining = (remaining - 1) / 26) {
-            text.insert(0, (char) ('A' + (remaining - 1) % 26));
-        }
-        return text.toString();
+        return DefinitionBuilder.letters(number);
     }
 }

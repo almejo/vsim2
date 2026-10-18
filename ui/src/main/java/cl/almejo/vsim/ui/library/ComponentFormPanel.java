@@ -1,6 +1,7 @@
 package cl.almejo.vsim.ui.library;
 
 import cl.almejo.vsim.core.library.ComponentDefinition;
+import cl.almejo.vsim.core.library.TestParts;
 import cl.almejo.vsim.ui.i18n.Messages;
 import net.miginfocom.swing.MigLayout;
 
@@ -19,6 +20,7 @@ import javax.swing.UIManager;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import java.awt.Color;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BiConsumer;
 
@@ -45,6 +47,10 @@ public final class ComponentFormPanel extends JPanel {
     private final JComboBox<ComponentDefinition> target = new JComboBox<>();
     private final JLabel pinsHelp = new JLabel("<html><body style='width:" + NOTE_WIDTH + "px'>"
             + Messages.text("template.dialog.pinsHelp") + "</body></html>");
+    private final JPanel testPartsPanel = new JPanel(new MigLayout("insets 0, wrap 2", "[grow, fill][]"));
+    private final List<JCheckBox> testPartChoices = new ArrayList<>();
+    private final List<JLabel> testPartOutcomes = new ArrayList<>();
+    private final Runnable refresher = this::refresh;
 
     JLabel pinsHelpLabel() {
         return pinsHelp;
@@ -100,6 +106,9 @@ public final class ComponentFormPanel extends JPanel {
         Color error = UIManager.getColor("Actions.Red");
         message.setForeground(error == null ? ERROR_FALLBACK : error);
         add(message, "span 2");
+        if (!form.testParts().isEmpty()) {
+            addTestParts();
+        }
         add(new JLabel(Messages.text("template.dialog.inputs")));
         add(new JLabel(Messages.text("template.dialog.outputs")));
         inputs.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
@@ -113,8 +122,66 @@ public final class ComponentFormPanel extends JPanel {
             replace.addActionListener(event -> form.setReplaceSelection(replace.isSelected()));
             add(replace, "span 2");
         }
-        form.addListener(this::refresh);
+        form.addListener(refresher);
         refresh();
+    }
+
+    /**
+     * The test parts, one row each: a check box with the part's label (a constant's value after it, «Cin = 0») and
+     * what the part becomes, «Entrada»/«Salida» when checked, «Queda como constante», «Reloj interno» or «Se quita»
+     * when not.
+     */
+    private void addTestParts() {
+        JLabel title = new JLabel(Messages.text("template.testParts.title"));
+        title.setFont(title.getFont().deriveFont(java.awt.Font.BOLD));
+        add(title, "span 2, gaptop 6");
+        add(new JLabel("<html><body style='width:" + NOTE_WIDTH + "px'>" + Messages.text("template.testParts.help")
+                + "</body></html>"), "span 2");
+        for (TestParts.TestPart part : form.testParts()) {
+            JCheckBox choice = new JCheckBox(partText(part), form.isConverted(part.id()));
+            choice.addActionListener(event -> form.setConverted(part.id(), choice.isSelected()));
+            JLabel outcome = new JLabel();
+            testPartChoices.add(choice);
+            testPartOutcomes.add(outcome);
+            testPartsPanel.add(choice);
+            testPartsPanel.add(outcome);
+        }
+        JScrollPane scroll = new JScrollPane(testPartsPanel);
+        scroll.setBorder(null);
+        add(scroll, "span 2, h ::160, gapbottom 6");
+    }
+
+    private static String partText(TestParts.TestPart part) {
+        String name = part.label().isEmpty() ? Messages.componentName(part.typeId()) : part.label();
+        return part.kind() == TestParts.Kind.CONSTANT ? name + " = " + part.value() : name;
+    }
+
+    private static String outcome(TestParts.Kind kind, boolean converted) {
+        if (converted) {
+            return Messages.text(kind.becomesInput() ? "template.testParts.input" : "template.testParts.output");
+        }
+        return Messages.text(switch (kind) {
+            case SWITCH, CONSTANT -> "template.testParts.constant";
+            case CLOCK -> "template.testParts.internalClock";
+            case LED, SEVEN_SEGMENTS_DISPLAY, TIME_DIAGRAM -> "template.testParts.removed";
+        });
+    }
+
+    /** What the panel listens to on its form; the dialog removes it when the panel goes away. */
+    Runnable refresher() {
+        return refresher;
+    }
+
+    JPanel testPartsPanel() {
+        return testPartsPanel;
+    }
+
+    List<JCheckBox> testPartChoices() {
+        return testPartChoices;
+    }
+
+    List<JLabel> testPartOutcomes() {
+        return testPartOutcomes;
     }
 
     JTextField nameField() {
@@ -170,6 +237,12 @@ public final class ComponentFormPanel extends JPanel {
         replaceItems(inputModel, form.inputNames());
         replaceItems(outputModel, form.outputNames());
         message.setText(form.problem().orElse(" "));
+        List<TestParts.TestPart> parts = form.testParts();
+        for (int index = 0; index < testPartChoices.size(); index++) {
+            boolean converted = form.isConverted(parts.get(index).id());
+            testPartChoices.get(index).setSelected(converted);
+            testPartOutcomes.get(index).setText(outcome(parts.get(index).kind(), converted));
+        }
     }
 
     private static void replaceItems(DefaultListModel<String> model, List<String> items) {

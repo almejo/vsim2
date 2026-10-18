@@ -12,6 +12,12 @@ public interface LibraryDialogs {
     /** Shows the create/update dialog; empty when the user cancels. */
     Optional<ComponentForm.Result> editComponent(java.awt.Component parent, ComponentForm form);
 
+    /**
+     * Warns that the component being created lacks pins ({@code message}): true for «Crear igual», false for «Volver»
+     * (back to the dialog).
+     */
+    boolean confirmMissingPins(java.awt.Component parent, String message);
+
     Optional<String> askNewName(java.awt.Component parent, String currentName);
 
     Optional<Path> chooseExportFile(java.awt.Component parent, String suggestedFileName);

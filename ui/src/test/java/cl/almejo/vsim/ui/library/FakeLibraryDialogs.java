@@ -22,6 +22,9 @@ final class FakeLibraryDialogs implements LibraryDialogs {
     final List<String> messages = new ArrayList<>();
     final List<String> errors = new ArrayList<>();
     final List<Path> shownInFolder = new ArrayList<>();
+    /** «Crear igual» (true) or «Volver» (false) for each missing-pins warning; empty means «Crear igual». */
+    final Deque<Boolean> missingPinsAnswers = new ArrayDeque<>();
+    final List<String> missingPinsMessages = new ArrayList<>();
 
     /** The next form is edited by {@code edit} and accepted when it is valid. */
     FakeLibraryDialogs acceptForm(Consumer<ComponentForm> edit) {
@@ -69,6 +72,12 @@ final class FakeLibraryDialogs implements LibraryDialogs {
     @Override
     public boolean confirmRemove(java.awt.Component parent, String componentName) {
         return !confirmations.isEmpty() && confirmations.removeFirst();
+    }
+
+    @Override
+    public boolean confirmMissingPins(java.awt.Component parent, String message) {
+        missingPinsMessages.add(message);
+        return missingPinsAnswers.isEmpty() || missingPinsAnswers.removeFirst();
     }
 
     @Override

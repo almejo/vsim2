@@ -20,6 +20,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.IntFunction;
 
 /**
  * Turns a selection into a template (spec §5.6, overview "Decisions per track → M4-A"): inputs on the left, outputs on
@@ -33,6 +34,7 @@ public final class DefinitionBuilder {
 
     private static final String INPUT_PREFIX = "in";
     private static final String OUTPUT_PREFIX = "out";
+    private static final String CONVERTED_OUTPUT_PREFIX = "Y";
 
     private static final Comparator<Component> TOP_TO_BOTTOM = Comparator
             .comparingInt((Component component) -> component.position().y())
@@ -58,6 +60,16 @@ public final class DefinitionBuilder {
      * Pass the default order so names do not change when the user reorders.
      */
     public static Map<ElementId, String> pinNames(CircuitDocument document, PinOrder order) {
+        return pinNames(document, order, Set.of());
+    }
+
+    /**
+     * {@link #pinNames(CircuitDocument, PinOrder)} where the pins in {@code converted} came from test parts
+     * ({@link ConvertedSelection}): blank ones are named like the truth table's columns, {@code A}, {@code B}, … on the
+     * left and {@code Y1}, {@code Y2}, … on the right, counting only the converted pins of that side.
+     */
+    public static Map<ElementId, String> pinNames(CircuitDocument document, PinOrder order,
+                                                  Set<ElementId> converted) {
         List<ElementId> all = new ArrayList<>(order.inputs());
         all.addAll(order.outputs());
         Map<ElementId, String> labels = new HashMap<>();
@@ -74,13 +86,26 @@ public final class DefinitionBuilder {
                 assigned.put(id, taken.add(label) ? label : firstFree(label, 2, reserved, taken));
             }
         }
-        assignFallbacks(order.inputs(), INPUT_PREFIX, labels, reserved, taken, assigned);
-        assignFallbacks(order.outputs(), OUTPUT_PREFIX, labels, reserved, taken, assigned);
+        assignFallbacks(order.inputs(), converted, INPUT_PREFIX, labels, reserved, taken, assigned);
+        assignFallbacks(order.outputs(), converted, OUTPUT_PREFIX, labels, reserved, taken, assigned);
+        assignConvertedFallbacks(order.inputs(), converted, DefinitionBuilder::letters, labels, reserved, taken,
+                assigned);
+        assignConvertedFallbacks(order.outputs(), converted, number -> CONVERTED_OUTPUT_PREFIX + number, labels,
+                reserved, taken, assigned);
         Map<ElementId, String> names = new LinkedHashMap<>();
         for (ElementId id : all) {
             names.put(id, assigned.get(id));
         }
         return names;
+    }
+
+    /** 1 → A, 26 → Z, 27 → AA, like spreadsheet columns (and the truth table's input columns). */
+    public static String letters(int number) {
+        StringBuilder text = new StringBuilder();
+        for (int remaining = number; remaining > 0; remaining = (remaining - 1) / 26) {
+            text.insert(0, (char) ('A' + (remaining - 1) % 26));
+        }
+        return text.toString();
     }
 
     public static GridSize boxSize(int inputs, int outputs) {
@@ -111,7 +136,16 @@ public final class DefinitionBuilder {
         if (!samePins(pinOrder.inputs(), found.inputs()) || !samePins(pinOrder.outputs(), found.outputs())) {
             throw new IllegalArgumentException("the pin order must list each selected interface pin once: " + pinOrder);
         }
-        Map<ElementId, String> names = pinNames(document, found);
+        return assemble(document, ids, id, name, pinOrder, pinNames(document, found), registry);
+    }
+
+    /**
+     * The definition of the selected elements with {@code pinOrder} (already checked) and its pins' {@code names}; an
+     * empty order gives a definition without pins.
+     */
+    static DefinitionBundle assemble(CircuitDocument document, Collection<ElementId> ids, String id, String name,
+                                     PinOrder pinOrder, Map<ElementId, String> names,
+                                     ComponentTypeRegistry registry) {
         List<DefinitionPin> pinout = new ArrayList<>();
         for (int index = 0; index < pinOrder.inputs().size(); index++) {
             ElementId source = pinOrder.inputs().get(index);
@@ -128,6 +162,11 @@ public final class DefinitionBuilder {
         ComponentDefinition definition = new ComponentDefinition(id, name, "",
                 boxSize(pinOrder.inputs().size(), pinOrder.outputs().size()), pinout, body);
         return new DefinitionBundle(definition, selected.definitions());
+    }
+
+    /** True when {@code given} lists each pin of {@code expected} once, on the same side. */
+    static boolean sameOrder(PinOrder given, PinOrder expected) {
+        return samePins(given.inputs(), expected.inputs()) && samePins(given.outputs(), expected.outputs());
     }
 
     private static boolean samePins(List<ElementId> given, List<ElementId> expected) {
@@ -147,13 +186,35 @@ public final class DefinitionBuilder {
                 .toList();
     }
 
-    /** Blank-labeled pins get {@code prefix} plus their position (1-based), or the next free number after it. */
-    private static void assignFallbacks(List<ElementId> ids, String prefix, Map<ElementId, String> labels,
-                                        Set<String> reserved, Set<String> taken, Map<ElementId, String> assigned) {
+    /**
+     * Blank-labeled pins not in {@code converted} get {@code prefix} plus their position (1-based), or the next free
+     * number after it.
+     */
+    private static void assignFallbacks(List<ElementId> ids, Set<ElementId> converted, String prefix,
+                                        Map<ElementId, String> labels, Set<String> reserved, Set<String> taken,
+                                        Map<ElementId, String> assigned) {
         for (int index = 0; index < ids.size(); index++) {
             ElementId id = ids.get(index);
-            if (labels.get(id).isEmpty()) {
+            if (labels.get(id).isEmpty() && !converted.contains(id)) {
                 assigned.put(id, firstFree(prefix, index + 1, reserved, taken));
+            }
+        }
+    }
+
+    /** Blank-labeled pins in {@code converted} get {@code fallback(1)}, {@code fallback(2)}, … skipping used names. */
+    private static void assignConvertedFallbacks(List<ElementId> ids, Set<ElementId> converted,
+                                                 IntFunction<String> fallback, Map<ElementId, String> labels,
+                                                 Set<String> reserved, Set<String> taken,
+                                                 Map<ElementId, String> assigned) {
+        int number = 1;
+        for (ElementId id : ids) {
+            if (labels.get(id).isEmpty() && converted.contains(id)) {
+                String candidate = fallback.apply(number++);
+                while (reserved.contains(candidate) || taken.contains(candidate)) {
+                    candidate = fallback.apply(number++);
+                }
+                taken.add(candidate);
+                assigned.put(id, candidate);
             }
         }
     }

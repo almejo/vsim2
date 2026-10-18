@@ -53,9 +53,10 @@ class DefinitionFormatTest {
                 .put("type", "subcircuit:inverter")), CircuitFormatException.Reason.INVALID_ELEMENT);
         assertReason(mutated(inverter, root -> root.put("id", "Not A Slug")), CircuitFormatException.Reason.INVALID_ELEMENT);
         assertReason(mutated(inverter, root -> root.put("name", " ")), CircuitFormatException.Reason.INVALID_ELEMENT);
-        assertReason(mutated(inverter, root -> ((ArrayNode) root.path("pinout")).removeAll()),
-                CircuitFormatException.Reason.INVALID_ELEMENT);
         assertThatThrownBy(() -> format.read(null)).isInstanceOf(CircuitFormatException.class);
+        // A component without pins is valid since «Crear componente» can make one (after a warning).
+        assertThat(format.read(mutated(inverter, root -> ((ArrayNode) root.path("pinout")).removeAll())).root()
+                .pinout()).isEmpty();
     }
 
     @Test
