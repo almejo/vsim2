@@ -154,6 +154,23 @@ class ConvertedSelectionTest {
     }
 
     @Test
+    void renamedConvertedPinsNameTheDefinitionOnly() {
+        drawSwitchNotLed();
+        Map<ElementId, DocumentElement> before = elementsOf(document);
+        ConvertedSelection converted = convert(allParts());
+        PinOrder order = converted.defaultPinOrder();
+
+        DefinitionBundle bundle = converted.definition("negador", "Negador", order,
+                Map.of(order.inputs().get(0), "Entrada", order.outputs().get(0), "Salida"), registry);
+
+        assertThat(bundle.root().pinout()).extracting(pin -> pin.spec().name()).containsExactly("Entrada", "Salida");
+        assertThat(bundle.root().body().components()).filteredOn(component -> InterfacePins.isInterface(component.typeId()))
+                .extracting(Component::label).containsExactlyInAnyOrder("Entrada", "Salida");
+        assertThat(converted.pinNames()).containsValues("Cin", "S");
+        assertThat(elementsOf(document)).isEqualTo(before);
+    }
+
+    @Test
     void anUncheckedSwitchStaysInsideAsAConstantOfItsCurrentValue() {
         Component input = drawSwitchNotLed().get(0);
 

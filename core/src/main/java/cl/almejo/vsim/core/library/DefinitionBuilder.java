@@ -20,6 +20,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.function.IntFunction;
 
 /**
@@ -54,9 +55,10 @@ public final class DefinitionBuilder {
     }
 
     /**
-     * Pin names, unique across both sides: the interface pin's stripped label, or {@code in1}, {@code in2}, … /
-     * {@code out1}, … by position in {@code order} for blank labels. Labels are claimed first, so a blank pin never
-     * takes a label's name; a repeated label becomes {@code a2}, {@code a3}, … (first free number) in {@code order}.
+     * Pin names, unique across both sides ignoring case (the dialog checks them that way): the interface pin's
+     * stripped label, or {@code in1}, {@code in2}, … / {@code out1}, … by position in {@code order} for blank labels.
+     * Labels are claimed first, so a blank pin never takes a label's name; a repeated label (also «a» after «A»)
+     * becomes {@code a2}, {@code a3}, … (first free number) in {@code order}.
      * Pass the default order so names do not change when the user reorders.
      */
     public static Map<ElementId, String> pinNames(CircuitDocument document, PinOrder order) {
@@ -76,9 +78,10 @@ public final class DefinitionBuilder {
         for (ElementId id : all) {
             labels.put(id, document.component(id).map(Component::label).orElse("").strip());
         }
-        Set<String> reserved = new HashSet<>(labels.values());
+        Set<String> reserved = new TreeSet<>(String.CASE_INSENSITIVE_ORDER); // names differ ignoring case
+        reserved.addAll(labels.values());
         reserved.remove("");
-        Set<String> taken = new HashSet<>();
+        Set<String> taken = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
         Map<ElementId, String> assigned = new HashMap<>();
         for (ElementId id : all) {
             String label = labels.get(id);
@@ -129,6 +132,17 @@ public final class DefinitionBuilder {
      */
     public static DefinitionBundle fromSelection(CircuitDocument document, Collection<ElementId> ids, String id,
                                                  String name, PinOrder pinOrder, ComponentTypeRegistry registry) {
+        return fromSelection(document, ids, id, name, pinOrder, Map.of(), registry);
+    }
+
+    /**
+     * {@link #fromSelection(CircuitDocument, Collection, String, String, PinOrder, ComponentTypeRegistry)} where the
+     * pins in {@code renamed} get the user's name instead of the default one, in the pinout and as the label of their
+     * interface pin inside the body (so «Desarmar» and «Actualizar componente…» keep it); the document is not touched.
+     */
+    public static DefinitionBundle fromSelection(CircuitDocument document, Collection<ElementId> ids, String id,
+                                                 String name, PinOrder pinOrder, Map<ElementId, String> renamed,
+                                                 ComponentTypeRegistry registry) {
         PinOrder found = defaultPinOrder(document, ids);
         if (found.isEmpty()) {
             throw new IllegalArgumentException("the selection has no interface pins");
@@ -136,16 +150,29 @@ public final class DefinitionBuilder {
         if (!samePins(pinOrder.inputs(), found.inputs()) || !samePins(pinOrder.outputs(), found.outputs())) {
             throw new IllegalArgumentException("the pin order must list each selected interface pin once: " + pinOrder);
         }
-        return assemble(document, ids, id, name, pinOrder, pinNames(document, found), registry);
+        return assemble(document, ids, id, name, pinOrder, pinNames(document, found), renamed, registry);
     }
 
     /**
-     * The definition of the selected elements with {@code pinOrder} (already checked) and its pins' {@code names}; an
-     * empty order gives a definition without pins.
+     * The definition of the selected elements with {@code pinOrder} (already checked) and its pins' default
+     * {@code defaultNames}, except those in {@code renamed}, which also relabel their interface pin in the body; an
+     * empty order gives a definition without pins. A blank new name is refused.
      */
     static DefinitionBundle assemble(CircuitDocument document, Collection<ElementId> ids, String id, String name,
-                                     PinOrder pinOrder, Map<ElementId, String> names,
-                                     ComponentTypeRegistry registry) {
+                                     PinOrder pinOrder, Map<ElementId, String> defaultNames,
+                                     Map<ElementId, String> renamed, ComponentTypeRegistry registry) {
+        Map<ElementId, String> names = new HashMap<>(defaultNames);
+        Map<ElementId, String> relabels = new HashMap<>();
+        renamed.forEach((pin, newName) -> {
+            String stripped = newName == null ? "" : newName.strip();
+            if (stripped.isEmpty()) {
+                throw new IllegalArgumentException("a pin name cannot be blank: " + pin);
+            }
+            if (!stripped.equals(defaultNames.get(pin))) {
+                names.put(pin, stripped);
+                relabels.put(pin, stripped);
+            }
+        });
         List<DefinitionPin> pinout = new ArrayList<>();
         for (int index = 0; index < pinOrder.inputs().size(); index++) {
             ElementId source = pinOrder.inputs().get(index);
@@ -158,7 +185,11 @@ public final class DefinitionBuilder {
                     FIRST_PIN_Y + PIN_SPACING * index, widthOf(document, source)), source));
         }
         CircuitFragment selected = CircuitFragment.of(document, ids, registry);
-        CircuitFragment body = new CircuitFragment(selected.components(), selected.wires(), selected.labels());
+        List<Component> components = selected.components().stream()
+                .map(component -> relabels.containsKey(component.id())
+                        ? component.withLabel(relabels.get(component.id())) : component)
+                .toList();
+        CircuitFragment body = new CircuitFragment(components, selected.wires(), selected.labels());
         ComponentDefinition definition = new ComponentDefinition(id, name, "",
                 boxSize(pinOrder.inputs().size(), pinOrder.outputs().size()), pinout, body);
         return new DefinitionBundle(definition, selected.definitions());

@@ -11,6 +11,7 @@ import cl.almejo.vsim.ui.i18n.Messages;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -22,7 +23,8 @@ import java.util.function.Function;
 
 /**
  * What the "Crear componente" / "Actualizar componente" dialog edits (spec §5.6): the name (required, unique ignoring
- * case and surrounding spaces), the pin order of each side and, when creating, whether the selection is replaced and
+ * case and surrounding spaces), the pin order of each side, the pins' names (only in the component; unique across both
+ * sides, ignoring case and surrounding spaces) and, when creating, whether the selection is replaced and
  * which of its test parts (switches, constants, clocks, LEDs, displays, time diagrams) become pins.
  * No Swing here, so the rules are tested headless.
  */
@@ -31,16 +33,24 @@ public final class ComponentForm {
     public enum Mode { CREATE, UPDATE }
 
     /**
-     * What the user accepted: a new unique slug id when creating, the target's id when updating, and the test parts
-     * checked to become pins.
+     * What the user accepted: a new unique slug id when creating, the target's id when updating, the test parts
+     * checked to become pins and the new names of the pins the user renamed (stripped; only those whose name differs
+     * from the default one).
      */
     public record Result(String definitionId, String name, PinOrder pinOrder, boolean replaceSelection,
-                         Set<ElementId> convertedParts) {
+                         Set<ElementId> convertedParts, Map<ElementId, String> pinNames) {
         public Result {
             convertedParts = Set.copyOf(convertedParts);
+            pinNames = Map.copyOf(pinNames);
         }
 
-        /** A result without test parts. */
+        /** A result without renamed pins. */
+        public Result(String definitionId, String name, PinOrder pinOrder, boolean replaceSelection,
+                      Set<ElementId> convertedParts) {
+            this(definitionId, name, pinOrder, replaceSelection, convertedParts, Map.of());
+        }
+
+        /** A result without test parts nor renamed pins. */
         public Result(String definitionId, String name, PinOrder pinOrder, boolean replaceSelection) {
             this(definitionId, name, pinOrder, replaceSelection, Set.of());
         }
@@ -69,6 +79,8 @@ public final class ComponentForm {
     private final Function<Set<ElementId>, PinPlan> planner;
     private final Set<ElementId> convertedParts = new LinkedHashSet<>();
     private Map<ElementId, String> pinNames;
+    /** The names the user typed, as typed; kept for pins that disappear (a test part unchecked) and come back. */
+    private final Map<ElementId, String> renamedPins = new HashMap<>();
     private Map<ElementId, ConvertedSelection.PartPins> partPins;
     private final List<String> takenNames;
     private final Set<String> takenIds;
@@ -231,10 +243,10 @@ public final class ComponentForm {
                 new ConvertedSelection.PartPins(List.of(), Optional.empty()));
         if (given.pins().isEmpty()) {
             return given.sharedWith()
-                    .map(pin -> Messages.format("template.testParts.sharedOutput", pinNames.get(pin)))
+                    .map(pin -> Messages.format("template.testParts.sharedOutput", pinName(pin)))
                     .orElseGet(() -> Messages.text("template.testParts.unconnected"));
         }
-        String names = String.join(", ", given.pins().stream().map(pinNames::get).toList());
+        String names = String.join(", ", given.pins().stream().map(this::pinName).toList());
         String key = kind.becomesInput() ? "template.testParts.input"
                 : given.pins().size() == 1 ? "template.testParts.output" : "template.testParts.outputs";
         return Messages.format(key, names);
@@ -260,12 +272,94 @@ public final class ComponentForm {
         }
     }
 
+    /** The inputs' names in their current order: the user's name (as typed) or the default one. */
     public List<String> inputNames() {
-        return inputs.stream().map(pinNames::get).toList();
+        return inputs.stream().map(this::pinName).toList();
     }
 
     public List<String> outputNames() {
-        return outputs.stream().map(pinNames::get).toList();
+        return outputs.stream().map(this::pinName).toList();
+    }
+
+    /**
+     * Gives input {@code index} the name {@code newName}, only in the component (the circuit keeps its labels). Its
+     * default name undoes the rename. Blank or repeated names are accepted here and reported by {@link #problem()}.
+     */
+    public void renameInput(int index, String newName) {
+        rename(inputs, index, newName);
+    }
+
+    public void renameOutput(int index, String newName) {
+        rename(outputs, index, newName);
+    }
+
+    /** Why input {@code index}'s name cannot be used (blank, or another pin has it), ready to show. */
+    public Optional<String> inputProblem(int index) {
+        return pinProblem(inputs, index);
+    }
+
+    public Optional<String> outputProblem(int index) {
+        return pinProblem(outputs, index);
+    }
+
+    private String pinName(ElementId pin) {
+        return renamedPins.getOrDefault(pin, pinNames.get(pin));
+    }
+
+    private void rename(List<ElementId> pins, int index, String newName) {
+        if (index < 0 || index >= pins.size()) {
+            return;
+        }
+        ElementId pin = pins.get(index);
+        String next = newName == null ? "" : newName;
+        if (next.equals(pinName(pin))) {
+            return;
+        }
+        if (next.equals(pinNames.get(pin))) {
+            renamedPins.remove(pin);
+        } else {
+            renamedPins.put(pin, next);
+        }
+        fire();
+    }
+
+    private Optional<String> pinProblem(List<ElementId> pins, int index) {
+        if (index < 0 || index >= pins.size()) {
+            return Optional.empty();
+        }
+        String pinName = pinName(pins.get(index));
+        if (pinName == null || pinName.isBlank()) {
+            return Optional.of(Messages.text("template.pins.empty"));
+        }
+        long sameName = visiblePins().stream()
+                .map(this::pinName)
+                .filter(other -> other != null && DefinitionNames.same(other, pinName))
+                .count();
+        return sameName > 1 ? Optional.of(Messages.format("template.pins.repeated", pinName.strip()))
+                : Optional.empty();
+    }
+
+    /** The first pin problem, inputs then outputs, top to bottom. */
+    private Optional<String> firstPinProblem() {
+        for (int index = 0; index < inputs.size(); index++) {
+            Optional<String> found = inputProblem(index);
+            if (found.isPresent()) {
+                return found;
+            }
+        }
+        for (int index = 0; index < outputs.size(); index++) {
+            Optional<String> found = outputProblem(index);
+            if (found.isPresent()) {
+                return found;
+            }
+        }
+        return Optional.empty();
+    }
+
+    private List<ElementId> visiblePins() {
+        List<ElementId> all = new ArrayList<>(inputs);
+        all.addAll(outputs);
+        return all;
     }
 
     /** Moves input {@code index} by {@code offset} places; moves that leave the list are ignored. */
@@ -277,8 +371,15 @@ public final class ComponentForm {
         move(outputs, index, offset);
     }
 
-    /** Why OK is disabled, ready to show; empty when the form can be accepted. */
+    /**
+     * Why OK is disabled, ready to show; empty when the form can be accepted. A pin name problem comes first: it is
+     * what the user just typed (the component's name is empty until the user gives it one).
+     */
     public Optional<String> problem() {
+        Optional<String> pinProblem = firstPinProblem();
+        if (pinProblem.isPresent()) {
+            return pinProblem;
+        }
         List<String> others = mode == Mode.UPDATE
                 ? takenNames.stream().filter(taken -> !DefinitionNames.same(taken, target.name())).toList()
                 : takenNames;
@@ -294,7 +395,15 @@ public final class ComponentForm {
             throw new IllegalStateException("the form cannot be accepted: " + problem().orElse(""));
         }
         String id = mode == Mode.CREATE ? DefinitionIds.slug(name, takenIds) : target.id();
-        return new Result(id, name.strip(), new PinOrder(inputs, outputs), replaceSelection, convertedParts);
+        Map<ElementId, String> renamed = new HashMap<>();
+        for (ElementId pin : visiblePins()) {
+            String newName = renamedPins.containsKey(pin) ? renamedPins.get(pin).strip() : null;
+            if (newName != null && !newName.equals(pinNames.get(pin))) {
+                renamed.put(pin, newName);
+            }
+        }
+        return new Result(id, name.strip(), new PinOrder(inputs, outputs), replaceSelection, convertedParts,
+                renamed);
     }
 
     public void addListener(Runnable listener) {

@@ -6,7 +6,6 @@ import cl.almejo.vsim.ui.i18n.Messages;
 import net.miginfocom.swing.MigLayout;
 
 import javax.swing.DefaultListCellRenderer;
-import javax.swing.DefaultListModel;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
@@ -14,8 +13,8 @@ import javax.swing.JLabel;
 import javax.swing.JList;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
+import javax.swing.JTable;
 import javax.swing.JTextField;
-import javax.swing.ListSelectionModel;
 import javax.swing.UIManager;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
@@ -25,7 +24,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BiConsumer;
 
-/** The body of the create/update dialog: target (update), name with its inline message, pin order, replace box. */
+/**
+ * The body of the create/update dialog: target (update), name with its inline message, pin order and names (edited in
+ * place, {@link PinNameTable}), replace box.
+ */
 public final class ComponentFormPanel extends JPanel {
 
     private static final Color ERROR_FALLBACK = new Color(0xDB5860);
@@ -36,10 +38,10 @@ public final class ComponentFormPanel extends JPanel {
     private final ComponentForm form;
     private final JTextField name = new JTextField(24);
     private final JLabel message = new JLabel(" ");
-    private final DefaultListModel<String> inputModel = new DefaultListModel<>();
-    private final DefaultListModel<String> outputModel = new DefaultListModel<>();
-    private final JList<String> inputs = new JList<>(inputModel);
-    private final JList<String> outputs = new JList<>(outputModel);
+    private final PinNameTable inputs;
+    private final PinNameTable outputs;
+    private final JLabel renameHelp = new JLabel("<html><body style='width:" + NOTE_WIDTH + "px'>"
+            + Messages.text("template.pins.renameHelp") + "</body></html>");
     private final JButton inputUp = new JButton(Messages.text("template.dialog.up"));
     private final JButton inputDown = new JButton(Messages.text("template.dialog.down"));
     private final JButton outputUp = new JButton(Messages.text("template.dialog.up"));
@@ -60,6 +62,8 @@ public final class ComponentFormPanel extends JPanel {
     public ComponentFormPanel(ComponentForm form) {
         super(new MigLayout("insets dialog, wrap 2, fillx", "[grow, fill][grow, fill]"));
         this.form = form;
+        this.inputs = new PinNameTable(form::inputNames, form::renameInput, form::inputProblem);
+        this.outputs = new PinNameTable(form::outputNames, form::renameOutput, form::outputProblem);
         add(pinsHelp, "span 2, gapbottom 6");
         if (form.mode() == ComponentForm.Mode.UPDATE) {
             form.targets().forEach(target::addItem);
@@ -112,12 +116,11 @@ public final class ComponentFormPanel extends JPanel {
         }
         add(new JLabel(Messages.text("template.dialog.inputs")));
         add(new JLabel(Messages.text("template.dialog.outputs")));
-        inputs.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-        outputs.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         add(new JScrollPane(inputs), "h 80:120");
         add(new JScrollPane(outputs), "h 80:120");
         add(buttons(inputs, inputUp, inputDown, form::moveInput));
         add(buttons(outputs, outputUp, outputDown, form::moveOutput));
+        add(renameHelp, "span 2");
         if (form.mode() == ComponentForm.Mode.CREATE) {
             replace.setSelected(form.replaceSelection());
             replace.addActionListener(event -> form.setReplaceSelection(replace.isSelected()));
@@ -182,11 +185,11 @@ public final class ComponentFormPanel extends JPanel {
         return message;
     }
 
-    JList<String> inputList() {
+    JTable inputTable() {
         return inputs;
     }
 
-    JList<String> outputList() {
+    JTable outputTable() {
         return outputs;
     }
 
@@ -202,30 +205,33 @@ public final class ComponentFormPanel extends JPanel {
         return target;
     }
 
-    private static JPanel buttons(JList<String> list, JButton up, JButton down, BiConsumer<Integer, Integer> move) {
-        up.addActionListener(event -> moveSelected(list, move, -1));
-        down.addActionListener(event -> moveSelected(list, move, 1));
+    private static JPanel buttons(PinNameTable table, JButton up, JButton down,
+                                  BiConsumer<Integer, Integer> move) {
+        up.addActionListener(event -> moveSelected(table, move, -1));
+        down.addActionListener(event -> moveSelected(table, move, 1));
         JPanel panel = new JPanel(new MigLayout("insets 0", "[][]"));
         panel.add(up);
         panel.add(down);
         return panel;
     }
 
-    private static void moveSelected(JList<String> list, BiConsumer<Integer, Integer> move, int offset) {
-        int index = list.getSelectedIndex();
+    /** Moves the selected pin; a name being edited is kept first, so it moves with its pin. */
+    private static void moveSelected(PinNameTable table, BiConsumer<Integer, Integer> move, int offset) {
+        table.stopEditing();
+        int index = table.getSelectedRow();
         if (index < 0) {
             return;
         }
         move.accept(index, offset);
         int destination = index + offset;
-        if (destination >= 0 && destination < list.getModel().getSize()) {
-            list.setSelectedIndex(destination);
+        if (destination >= 0 && destination < table.getRowCount()) {
+            table.setRowSelectionInterval(destination, destination);
         }
     }
 
     private void refresh() {
-        replaceItems(inputModel, form.inputNames());
-        replaceItems(outputModel, form.outputNames());
+        inputs.refresh();
+        outputs.refresh();
         message.setText(form.problem().orElse(" "));
         List<TestParts.TestPart> parts = form.testParts();
         for (int index = 0; index < testPartChoices.size(); index++) {
@@ -233,10 +239,5 @@ public final class ComponentFormPanel extends JPanel {
             testPartChoices.get(index).setSelected(converted);
             testPartOutcomes.get(index).setText(form.outcome(parts.get(index).id()));
         }
-    }
-
-    private static void replaceItems(DefaultListModel<String> model, List<String> items) {
-        model.clear();
-        model.addAll(items);
     }
 }

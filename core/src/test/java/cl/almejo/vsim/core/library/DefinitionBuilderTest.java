@@ -88,6 +88,37 @@ class DefinitionBuilderTest {
     }
 
     @Test
+    void renamedPinsNameTheDefinitionsPinsAndItsBodyButNotTheUsersCircuit() {
+        Component input = place(InterfacePins.INPUT_PIN, 10, 11, "a");
+        Component blank = place(InterfacePins.INPUT_PIN, 10, 13, "");
+        Component gate = place(StandardComponentTypes.AND2, 12, 10, "");
+        Component output = place(InterfacePins.OUTPUT_PIN, 16, 11, "y");
+        List<ElementId> selection = ids(input, blank, gate, output);
+
+        DefinitionBundle bundle = DefinitionBuilder.fromSelection(document, selection, "y-logico", "Y lógico",
+                DefinitionBuilder.defaultPinOrder(document, selection),
+                Map.of(input.id(), "Entrada", output.id(), "Salida"), registry);
+
+        assertThat(bundle.root().pinout()).extracting(pin -> pin.spec().name())
+                .containsExactly("Entrada", "in2", "Salida");
+        assertThat(bundle.root().body().components()).extracting(Component::label)
+                .containsExactly("Entrada", "", "", "Salida");
+        assertThat(document.component(input.id()).orElseThrow().label()).isEqualTo("a");
+        assertThat(document.component(output.id()).orElseThrow().label()).isEqualTo("y");
+    }
+
+    @Test
+    void aBlankPinNameIsRefused() {
+        Component input = place(InterfacePins.INPUT_PIN, 10, 11, "a");
+        Component output = place(InterfacePins.OUTPUT_PIN, 16, 11, "y");
+        List<ElementId> selection = ids(input, output);
+
+        assertThatThrownBy(() -> DefinitionBuilder.fromSelection(document, selection, "x", "X",
+                DefinitionBuilder.defaultPinOrder(document, selection), Map.of(input.id(), "  "), registry))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
     void theChosenOrderSetsThePinPositionsAndBlankLabelsGetStableDefaultNames() {
         Component first = place(InterfacePins.INPUT_PIN, 0, 1, "");
         Component second = place(InterfacePins.INPUT_PIN, 0, 5, "b");
@@ -125,6 +156,22 @@ class DefinitionBuilderTest {
 
         assertThat(bundle.root().pinout()).extracting(pin -> pin.spec().name())
                 .containsExactly("in4", "in3", "a2", "a", "a3");
+    }
+
+    @Test
+    void defaultNamesDifferEvenIgnoringCaseSoTheyAreValidInTheDialog() {
+        Component lower = place(InterfacePins.INPUT_PIN, 0, 1, "a");
+        Component upper = place(InterfacePins.INPUT_PIN, 0, 5, "A");
+        Component labeledLikeAFallback = place(InterfacePins.INPUT_PIN, 0, 9, "IN4");
+        Component blank = place(InterfacePins.INPUT_PIN, 0, 13, "");
+        Component converted = place(InterfacePins.INPUT_PIN, 0, 17, "");
+        List<ElementId> selection = ids(lower, upper, labeledLikeAFallback, blank, converted);
+
+        Map<ElementId, String> names = DefinitionBuilder.pinNames(document,
+                DefinitionBuilder.defaultPinOrder(document, selection), java.util.Set.of(converted.id()));
+
+        assertThat(names).containsExactly(entry(lower.id(), "a"), entry(upper.id(), "A2"),
+                entry(labeledLikeAFallback.id(), "IN4"), entry(blank.id(), "in5"), entry(converted.id(), "B"));
     }
 
     @Test
