@@ -1,6 +1,7 @@
 package cl.almejo.vsim.ui.library;
 
 import cl.almejo.vsim.core.command.AddElementsCommand;
+import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
@@ -10,8 +11,10 @@ import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.DefinitionPin;
 import cl.almejo.vsim.core.library.InterfacePins;
+import cl.almejo.vsim.core.netlist.Netlist;
 import cl.almejo.vsim.core.netlist.NetlistCompiler;
 import cl.almejo.vsim.core.netlist.PinRef;
+import cl.almejo.vsim.core.value.Value;
 import cl.almejo.vsim.ui.i18n.Messages;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -25,6 +28,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static cl.almejo.vsim.ui.UiTestSupport.waitUntil;
 import static cl.almejo.vsim.ui.library.TemplateFixture.perform;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -101,9 +105,18 @@ class TestPartsCreationTest {
         assertThat(onlyDefinition().pinout()).extracting(pin -> pin.spec().name()).containsExactly("Cin", "S");
         assertThat(onlyDefinition().body().components()).extracting(Component::typeId).containsExactlyInAnyOrder(
                 InterfacePins.INPUT_PIN, StandardComponentTypes.NOT, InterfacePins.OUTPUT_PIN);
-        assertThat(fixture.openDocument.document().components()).singleElement()
-                .satisfies(instance -> assertThat(instance.typeId()).isEqualTo("subcircuit:negador"));
+        // The switch and the LED stay in the circuit, connected to the instance; the NOT and the wires went inside.
+        Component instance = instance();
+        assertThat(fixture.openDocument.document().components()).containsExactlyInAnyOrder(parts.get(0),
+                parts.get(2), instance);
+        Netlist netlist = new NetlistCompiler(fixture.openDocument.registry()).compile(
+                fixture.openDocument.document());
+        assertThat(netlist.netForPin(new PinRef(parts.get(0).id(), 0)).orElseThrow().pins())
+                .contains(new PinRef(instance.id(), indexOf(onlyDefinition().pinout(), "Cin")));
+        assertThat(netlist.netForPin(new PinRef(parts.get(2).id(), 0)).orElseThrow().pins())
+                .contains(new PinRef(instance.id(), indexOf(onlyDefinition().pinout(), "S")));
         assertThat(fixture.dialogs.missingPinsMessages).isEmpty();
+        assertThat(fixture.dialogs.messages).isEmpty();
 
         fixture.openDocument.history().undo();
 
@@ -216,7 +229,48 @@ class TestPartsCreationTest {
         int outputIndex = indexOf(onlyDefinition().pinout(), "S");
         assertThat(pins).contains(new PinRef(instance.id(), outputIndex));
         assertThat(fixture.dialogs.messages).isEmpty();
-        assertThat(document.component(parts.get(2).id())).isEmpty();
+        assertThat(document.component(parts.get(2).id())).contains(parts.get(2));
+    }
+
+    @Test
+    void theKeptSwitchDrivesTheInstanceAndTheKeptLedShowsItsOutput() {
+        List<Component> parts = drawSwitchNotLed();
+        fixture.dialogs.acceptForm(form -> form.setName("Negador"));
+
+        perform(fixture.features.actions().createComponent());
+
+        Component led = parts.get(2);
+        // The switch starts at 1, so the LED shows 0 through the instance's NOT; toggling it lights the LED.
+        waitUntil(() -> new VisibleState.LedState(Value.ZERO).equals(fixture.stateOf(led)));
+        fixture.openDocument.interact(parts.get(0).id());
+        waitUntil(() -> new VisibleState.LedState(Value.ONE).equals(fixture.stateOf(led)));
+    }
+
+    @Test
+    void anUncheckedSwitchKeepsTheValueItShowsWhileSimulating() {
+        Component input = drawSwitchNotLed().get(0);
+        waitUntil(() -> new VisibleState.SwitchState(Value.ONE).equals(fixture.stateOf(input)));
+        fixture.openDocument.interact(input.id());
+        waitUntil(() -> new VisibleState.SwitchState(Value.ZERO).equals(fixture.stateOf(input)));
+        fixture.dialogs.acceptForm(form -> {
+            form.setName("Fijo");
+            form.setConverted(input.id(), false);
+        });
+
+        perform(fixture.features.actions().createComponent());
+
+        assertThat(onlyDefinition().body().components())
+                .filteredOn(component -> component.typeId().equals(StandardComponentTypes.CONSTANT))
+                .singleElement()
+                .satisfies(constant -> assertThat(constant.parameters()).containsEntry("value", "0"));
+        // The saved switch still says 1 (the default): the constant took the value it showed.
+        assertThat(input.parameters()).containsEntry("value", "1");
+    }
+
+    private Component instance() {
+        return fixture.openDocument.document().components().stream()
+                .filter(component -> component.typeId().startsWith("subcircuit:"))
+                .findFirst().orElseThrow();
     }
 
     @Test

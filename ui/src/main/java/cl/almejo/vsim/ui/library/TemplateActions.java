@@ -99,8 +99,9 @@ public final class TemplateActions {
 
     /**
      * Without interface pins or test parts the dialog does not open and a message says why. Checked test parts become
-     * pins of the definition only ({@link ConvertedSelection}). Otherwise, once accepted: one undo step
-     * that adds the definitions and, if asked, replaces the selection by one instance at its top-left, with
+     * pins of the definition ({@link ConvertedSelection}). Otherwise, once accepted: one undo step
+     * that adds the definitions and, if asked, replaces the selection by one instance at its top-left (the checked
+     * test parts that gave pins stay in the circuit, connected to the instance), with
      * {@link PinBridges} keeping what was connected to the interface pins from outside (pins it cannot connect safely
      * are named in a message). When an instance pin would land on something outside, the selection is kept and only
      * the definitions are added, with a message. Then the bundle is written to the library (a write failure is
@@ -158,7 +159,7 @@ public final class TemplateActions {
             }
             Optional<String> missing = missingPins(result.get().pinOrder());
             if (missing.isEmpty() || dialogs.confirmMissingPins(canvas, missing.get())) {
-                create(ids, converter.apply(result.get().convertedParts()), result.get(), frameToRemove);
+                create(converter.apply(result.get().convertedParts()), result.get(), frameToRemove);
                 return;
             }
         }
@@ -317,10 +318,11 @@ public final class TemplateActions {
     }
 
     /**
-     * Adds the definition of {@code converted} (the selection {@code ids} with its checked test parts turned into
-     * pins) and, if asked, replaces {@code ids} by an instance; the user's own elements are only read.
+     * Adds the definition of {@code converted} (the selection with its checked test parts turned into pins) and, if
+     * asked, replaces the selection by an instance: the checked test parts that gave pins stay, connected to it
+     * ({@link ConvertedSelection#keptParts()}); everything else goes.
      */
-    private void create(Set<ElementId> ids, ConvertedSelection converted, ComponentForm.Result result,
+    private void create(ConvertedSelection converted, ComponentForm.Result result,
                         Optional<ElementId> frameToRemove) {
         CircuitDocument document = openDocument.document();
         ComponentTypeRegistry registry = openDocument.registry();
@@ -331,7 +333,7 @@ public final class TemplateActions {
         Component instance = null;
         String message = null;
         if (result.replaceSelection()) {
-            GridPoint origin = DefinitionBuilder.origin(document, ids, registry);
+            GridPoint origin = converted.instanceOrigin(registry);
             PinBridges.Bridging bridging = converted.bridges(bundle.root(), origin, registry);
             if (!bridging.blockedPins().isEmpty()) {
                 message = Messages.format("template.notReplaced", String.join(", ", bridging.blockedPins()));
@@ -340,7 +342,9 @@ public final class TemplateActions {
                         origin, Rotation.R0, Map.of(), "");
                 List<DocumentElement> added = new ArrayList<>(List.of(instance));
                 added.addAll(bridging.wires());
-                steps.add(new RemoveElementsCommand(ids));
+                if (!converted.replacedIds().isEmpty()) {
+                    steps.add(new RemoveElementsCommand(converted.replacedIds()));
+                }
                 frameToRemove.ifPresent(frameId -> steps.add(new RemoveElementsCommand(List.of(frameId))));
                 steps.add(new AddElementsCommand(added));
                 if (!bridging.unconnectedPins().isEmpty()) {

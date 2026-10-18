@@ -1,6 +1,7 @@
 package cl.almejo.vsim.core.library;
 
 import cl.almejo.vsim.core.component.ComponentType;
+import cl.almejo.vsim.core.component.ElementBounds;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.standard.ConstantValue;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
@@ -19,12 +20,13 @@ import cl.almejo.vsim.core.value.Value;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 
@@ -43,22 +45,48 @@ import java.util.Set;
  * at Z, a constant cannot float), an unchecked constant or clock as it is; an unchecked LED, display or time diagram is
  * left out (nobody could see it) while the wires that fed it stay. Gates, blocks and everything else go in as they
  * are. The user's document is never changed: the conversion works on a copy, {@link #document()}.
+ * <p>
+ * When the selection is replaced by an instance, the checked parts that gave pins stay in the user's circuit
+ * ({@link #keptParts()}): their pins sit on the converted pins' points, so {@link #bridges} connects them to the
+ * instance like any outside pin. Everything else in the selection goes ({@link #replacedIds()}), a checked part that
+ * gave no pin included.
  */
 public final class ConvertedSelection {
 
     private static final String BIT_SEPARATOR = " bit ";
 
+    /** Gap, in grid units, between the selection and an instance placed right of it. */
+    private static final int INSTANCE_GAP = 4;
+
+    /**
+     * The pins a test part gives (empty when unchecked, or when checked but it gives none), and, for a checked part
+     * that gives no output because its wire already has one, that output pin.
+     */
+    public record PartPins(List<ElementId> pins, Optional<ElementId> sharedWith) {
+        public PartPins {
+            pins = List.copyOf(pins);
+            Objects.requireNonNull(sharedWith, "sharedWith");
+        }
+    }
+
     private final CircuitDocument original;
     private final CircuitDocument document;
+    private final Set<ElementId> selection;
     private final Set<ElementId> ids;
     private final Set<ElementId> convertedPins;
+    private final Map<ElementId, PartPins> parts;
+    private final Set<ElementId> keptParts;
 
-    private ConvertedSelection(CircuitDocument original, CircuitDocument document, Set<ElementId> ids,
-                               Set<ElementId> convertedPins) {
+    private ConvertedSelection(CircuitDocument original, CircuitDocument document, Collection<ElementId> selection,
+                               Set<ElementId> ids, Set<ElementId> convertedPins, Map<ElementId, PartPins> parts,
+                               Set<ElementId> keptParts) {
         this.original = original;
         this.document = document;
+        this.selection = Collections.unmodifiableSet(new LinkedHashSet<>(selection));
         this.ids = Set.copyOf(ids);
         this.convertedPins = Set.copyOf(convertedPins);
+        this.parts = Collections.unmodifiableMap(new LinkedHashMap<>(parts));
+        this.keptParts = Collections.unmodifiableSet(new LinkedHashSet<>(keptParts));
     }
 
     /**
@@ -71,7 +99,8 @@ public final class ConvertedSelection {
                                         ComponentTypeRegistry registry) {
         List<Component> parts = TestParts.components(document, ids);
         if (parts.isEmpty()) {
-            return new ConvertedSelection(document, document, new LinkedHashSet<>(ids), Set.of());
+            return new ConvertedSelection(document, document, ids, new LinkedHashSet<>(ids), Set.of(), Map.of(),
+                    Set.of());
         }
         return new Conversion(document, ids, registry).run(parts, convertedParts, currentValues);
     }
@@ -89,6 +118,40 @@ public final class ConvertedSelection {
     /** The interface pins that came from test parts. */
     public Set<ElementId> convertedPins() {
         return convertedPins;
+    }
+
+    /** What each test part gives, by the part's id in the user's document (position order). */
+    public Map<ElementId, PartPins> parts() {
+        return parts;
+    }
+
+    /** The checked test parts that gave at least one pin: replacing the selection keeps them in the circuit. */
+    public Set<ElementId> keptParts() {
+        return keptParts;
+    }
+
+    /** The user's elements that replacing the selection removes: the selection but the {@link #keptParts()}. */
+    public Set<ElementId> replacedIds() {
+        Set<ElementId> replaced = new LinkedHashSet<>(selection);
+        replaced.removeAll(keptParts);
+        return Collections.unmodifiableSet(replaced);
+    }
+
+    /**
+     * Where the replacing instance goes: the top-left of the {@link #replacedIds()}; when only kept parts were
+     * selected, right of them, so it does not sit on them.
+     */
+    public GridPoint instanceOrigin(ComponentTypeRegistry registry) {
+        Set<ElementId> replaced = replacedIds();
+        if (!replaced.isEmpty()) {
+            return DefinitionBuilder.origin(original, replaced, registry);
+        }
+        List<DocumentElement> selected = original.elements().stream()
+                .filter(element -> selection.contains(element.id()))
+                .toList();
+        return ElementBounds.union(selected, registry)
+                .map(bounds -> new GridPoint(bounds.maximumX() + INSTANCE_GAP, bounds.y()))
+                .orElse(GridPoint.ORIGIN);
     }
 
     /** The body's interface pins, each side by position ({@link DefinitionBuilder#defaultPinOrder}). */
@@ -114,15 +177,19 @@ public final class ConvertedSelection {
 
     /**
      * {@link PinBridges#wires} for replacing the selection by an instance of {@code definition} at
-     * {@code instancePosition}: outside wires on a converted part reach its pin like they reach an interface pin. The
-     * bridge ids are fresh in the user's document.
+     * {@code instancePosition}: outside wires on a converted part, and the {@link #keptParts()} themselves, reach its
+     * pin like they reach an interface pin. The bridge ids are fresh in the user's document.
      */
     public PinBridges.Bridging bridges(ComponentDefinition definition, GridPoint instancePosition,
                                        ComponentTypeRegistry registry) {
-        PinBridges.Bridging bridging = PinBridges.wires(document, ids, definition, instancePosition, registry);
         if (document == original) {
-            return bridging;
+            return PinBridges.wires(document, ids, definition, instancePosition, registry);
         }
+        CircuitDocument after = new CircuitDocument();
+        document.definitions().forEach(after::putDefinition);
+        document.elements().forEach(after::add);
+        keptParts.forEach(id -> original.element(id).ifPresent(after::add));
+        PinBridges.Bridging bridging = PinBridges.wires(after, ids, definition, instancePosition, registry);
         List<Wire> wires = bridging.wires().stream()
                 .map(wire -> new Wire(original.newWireId(), wire.start(), wire.end()))
                 .toList();
@@ -137,11 +204,16 @@ public final class ConvertedSelection {
         private final Set<ElementId> ids;
         private final ComponentTypeRegistry registry;
         private final Netlist body;
-        private final Set<NetId> watched = new HashSet<>();
+        private final Set<ElementId> selection;
+        private final Map<NetId, ElementId> watched = new HashMap<>();
         private final Set<ElementId> convertedPins = new LinkedHashSet<>();
+        private final Map<ElementId, List<ElementId>> partPins = new LinkedHashMap<>();
+        private final Map<ElementId, ElementId> sharedWith = new HashMap<>();
+        private final Set<ElementId> keptParts = new LinkedHashSet<>();
 
         Conversion(CircuitDocument original, Collection<ElementId> ids, ComponentTypeRegistry registry) {
             this.original = original;
+            this.selection = new LinkedHashSet<>(ids);
             this.ids = new LinkedHashSet<>(ids);
             this.registry = registry;
             original.definitions().forEach(working::putDefinition);
@@ -149,7 +221,7 @@ public final class ConvertedSelection {
             this.body = compileBody();
             for (Component component : original.components()) {
                 if (this.ids.contains(component.id()) && component.typeId().equals(InterfacePins.OUTPUT_PIN)) {
-                    netOf(component.id(), 0).ifPresent(net -> watched.add(net.id()));
+                    netOf(component.id(), 0).ifPresent(net -> watched.putIfAbsent(net.id(), component.id()));
                 }
             }
         }
@@ -166,10 +238,18 @@ public final class ConvertedSelection {
                 }
                 slots.put(part.id(), partSlots);
             }
+            Map<ElementId, PartPins> results = new LinkedHashMap<>();
             for (Component part : parts) {
-                convert(part, convertedParts.contains(part.id()), slots.get(part.id()), currentValues.get(part.id()));
+                partPins.put(part.id(), new ArrayList<>());
+                boolean checked = convertedParts.contains(part.id());
+                convert(part, checked, slots.get(part.id()), currentValues.get(part.id()));
+                List<ElementId> given = partPins.get(part.id());
+                if (checked && !given.isEmpty()) {
+                    keptParts.add(part.id());
+                }
+                results.put(part.id(), new PartPins(given, Optional.ofNullable(sharedWith.get(part.id()))));
             }
-            return new ConvertedSelection(original, working, ids, convertedPins);
+            return new ConvertedSelection(original, working, selection, ids, convertedPins, results, keptParts);
         }
 
         private void convert(Component part, boolean checked, List<ElementId> slots, Value currentValue) {
@@ -237,19 +317,23 @@ public final class ConvertedSelection {
             Component pin = placed(InterfacePins.INPUT_PIN, slot, pinPoint(part, 0), part, parameters, part.label());
             add(pin);
             convertedPins.add(pin.id());
+            partPins.get(part.id()).add(pin.id());
         }
 
         /** An output pin on pin {@code pinIndex} of {@code part}, unless its net already has one. */
         private void addOutput(Component part, int pinIndex, ElementId slot, String label) {
             Optional<Net> net = netOf(part.id(), pinIndex);
-            if (net.isPresent() && !watched.add(net.get().id())) {
+            if (net.isPresent() && watched.containsKey(net.get().id())) {
+                sharedWith.putIfAbsent(part.id(), watched.get(net.get().id()));
                 return;
             }
+            net.ifPresent(found -> watched.put(found.id(), slot));
             int width = typeOf(part).pin(pinIndex).width();
             Component pin = placed(InterfacePins.OUTPUT_PIN, slot, pinPoint(part, pinIndex), part,
                     Map.of(InterfacePins.WIDTH, width), label);
             add(pin);
             convertedPins.add(pin.id());
+            partPins.get(part.id()).add(pin.id());
         }
 
         /** A new {@code typeId} with {@code source}'s rotation whose (only) pin is on {@code pinPoint}. */

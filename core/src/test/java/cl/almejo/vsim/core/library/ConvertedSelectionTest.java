@@ -11,8 +11,14 @@ import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
+import cl.almejo.vsim.core.netlist.Net;
+import cl.almejo.vsim.core.netlist.Netlist;
+import cl.almejo.vsim.core.netlist.NetlistCompiler;
+import cl.almejo.vsim.core.netlist.PinRef;
 import cl.almejo.vsim.core.value.Value;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -20,6 +26,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -375,5 +382,158 @@ class ConvertedSelectionTest {
         assertThat(bridging.wires()).anySatisfy(bridge -> assertThat(bridge.contains(instancePin)).isTrue());
         assertThat(bridging.wires()).allSatisfy(bridge -> assertThat(document.element(bridge.id())).isEmpty());
         assertThat(document.component(parts.get(0).id())).isPresent();
+    }
+
+    /**
+     * Replaces the selection in {@code document} the way «Reemplazar la selección» does: definitions in, the replaced
+     * ids out, the instance and its bridges in. Returns the instance.
+     */
+    private Component replace(ConvertedSelection converted, String id) {
+        DefinitionBundle bundle = converted.definition(id, id, converted.defaultPinOrder(), registry);
+        GridPoint origin = converted.instanceOrigin(registry);
+        PinBridges.Bridging bridging = converted.bridges(bundle.root(), origin, registry);
+        assertThat(bridging.blockedPins()).isEmpty();
+        assertThat(bridging.unconnectedPins()).isEmpty();
+        bundle.all().forEach(document::putDefinition);
+        converted.replacedIds().forEach(document::remove);
+        Component instance = new Component(document.newComponentId(), SubcircuitTypes.typeIdOf(id), origin,
+                Rotation.R0, Map.of(), "");
+        document.add(instance);
+        bridging.wires().forEach(document::add);
+        return instance;
+    }
+
+    private Net netOf(Netlist netlist, Component component, int pinIndex) {
+        return netlist.netForPin(new PinRef(component.id(), pinIndex)).orElseThrow();
+    }
+
+    private static int pinIndex(ComponentDefinition definition, String name) {
+        List<String> names = definition.pinout().stream().map(pin -> pin.spec().name()).toList();
+        return names.indexOf(name);
+    }
+
+    @Test
+    void theCheckedPartsThatGivePinsStayInTheCircuitAndTheRestIsReplaced() {
+        List<Component> parts = drawSwitchNotLed();
+        Set<ElementId> body = new HashSet<>(selection);
+        body.removeAll(Set.of(parts.get(0).id(), parts.get(2).id()));
+
+        ConvertedSelection converted = convert(allParts());
+        ConvertedSelection unchecked = convert(Set.of(parts.get(2).id()));
+
+        assertThat(converted.keptParts()).containsExactlyInAnyOrder(parts.get(0).id(), parts.get(2).id());
+        assertThat(converted.replacedIds()).containsExactlyInAnyOrderElementsOf(body);
+        assertThat(converted.instanceOrigin(registry)).isEqualTo(DefinitionBuilder.origin(document, body, registry));
+        // The unchecked switch went inside as a constant: it goes with the rest.
+        assertThat(unchecked.keptParts()).containsExactly(parts.get(2).id());
+        assertThat(unchecked.replacedIds()).contains(parts.get(0).id()).doesNotContain(parts.get(2).id());
+    }
+
+    @Test
+    void theKeptPartsAreConnectedToTheInstancePins() {
+        List<Component> parts = drawSwitchNotLed();
+        ConvertedSelection converted = convert(allParts());
+
+        Component instance = replace(converted, "negador");
+
+        ComponentDefinition definition = document.definition("negador").orElseThrow();
+        Netlist netlist = compile();
+        assertThat(document.component(parts.get(0).id())).contains(parts.get(0));
+        assertThat(document.component(parts.get(2).id())).contains(parts.get(2));
+        assertThat(document.component(parts.get(1).id())).isEmpty();
+        assertThat(netOf(netlist, parts.get(0), 0).pins())
+                .contains(new PinRef(instance.id(), pinIndex(definition, "Cin")));
+        assertThat(netOf(netlist, parts.get(2), 0).pins())
+                .contains(new PinRef(instance.id(), pinIndex(definition, "S")));
+    }
+
+    @ParameterizedTest
+    @EnumSource(Rotation.class)
+    void aRotatedKeptSwitchIsConnectedToItsInstancePin(Rotation rotation) {
+        Component gate = place(StandardComponentTypes.NOT, 6, 0, "");
+        wire(10, 2, 12, 2);
+        place(StandardComponentTypes.LED, 11, -1, "S");
+        Component input = registry.require(StandardComponentTypes.SWITCH).newComponent(document.newComponentId(),
+                new GridPoint(-12, 12), rotation, Map.of(), "A");
+        document.add(input);
+        selection.add(input.id());
+        GridPoint point = pinPoint(input, 0);
+        wire(point.x(), point.y(), point.x(), 2);
+        wire(point.x(), 2, 6, 2);
+
+        Component instance = replace(convert(allParts()), "negador");
+
+        ComponentDefinition definition = document.definition("negador").orElseThrow();
+        assertThat(netOf(compile(), input, 0).pins())
+                .contains(new PinRef(instance.id(), pinIndex(definition, "A")));
+        assertThat(gate).isNotNull();
+    }
+
+    @Test
+    void aKeptDisplayStaysOnItsBusOutputWithTheSameWidth() {
+        Component source = place(InterfacePins.INPUT_PIN, 10, 19, "x", Map.of(InterfacePins.WIDTH, 4));
+        Component display = place(StandardComponentTypes.SEVEN_SEGMENTS_DISPLAY, 20, 10, "D");
+        GridPoint sourcePoint = pinPoint(source, 0);
+        wire(sourcePoint.x(), sourcePoint.y(), 22, sourcePoint.y());
+        wire(22, sourcePoint.y(), 22, 16);
+
+        Component instance = replace(convert(Set.of(display.id())), "copia");
+
+        ComponentDefinition definition = document.definition("copia").orElseThrow();
+        Net net = netOf(compile(), display, StandardComponentTypes.sevenSegmentsBusPin(registry.typeOf(display)
+                .forComponent(display)));
+        assertThat(net.pins()).contains(new PinRef(instance.id(), pinIndex(definition, "D")));
+        assertThat(net.width()).isEqualTo(4);
+        assertThat(net.widthMismatch()).isFalse();
+    }
+
+    @Test
+    void eachPartReportsThePinsItGivesOrWhyItGivesNone() {
+        Component firstLed = place(StandardComponentTypes.LED, 23, 3, "L");
+        Component secondLed = place(StandardComponentTypes.LED, 25, 3, "M");
+        wire(24, 6, 26, 6);
+        Component lonely = place(StandardComponentTypes.SEVEN_SEGMENTS_DISPLAY, 40, 10, "D");
+        Component display = place(StandardComponentTypes.SEVEN_SEGMENTS_DISPLAY, 20, 10, "E");
+        wire(24, 10, 24, 8);
+        wire(22, 10, 22, 8);
+        Component output = place(InterfacePins.OUTPUT_PIN, 60, 0, "y");
+        Component watcher = place(StandardComponentTypes.LED, 63, -2, "W");
+        wire(58, 1, 64, 1);
+
+        ConvertedSelection converted = convert(allParts());
+
+        Map<ElementId, ConvertedSelection.PartPins> parts = converted.parts();
+        ElementId firstPin = parts.get(firstLed.id()).pins().get(0);
+        assertThat(converted.pinNames().get(firstPin)).isEqualTo("L");
+        assertThat(parts.get(secondLed.id()).pins()).isEmpty();
+        assertThat(parts.get(secondLed.id()).sharedWith()).contains(firstPin);
+        assertThat(parts.get(lonely.id())).isEqualTo(new ConvertedSelection.PartPins(List.of(), Optional.empty()));
+        assertThat(parts.get(display.id()).pins()).extracting(converted.pinNames()::get)
+                .containsExactly("E bit 0", "E bit 2");
+        assertThat(parts.get(watcher.id()).sharedWith()).contains(output.id());
+        assertThat(converted.keptParts()).containsExactlyInAnyOrder(firstLed.id(), display.id());
+        // A checked part that gives no pin goes with the selection.
+        assertThat(converted.replacedIds()).contains(secondLed.id(), lonely.id(), watcher.id());
+    }
+
+    @Test
+    void withOnlyKeptPartsTheInstanceGoesRightOfTheSelection() {
+        Component clock = place(StandardComponentTypes.CLOCK, 0, 0, "CLK");
+        Component led = place(StandardComponentTypes.LED, 1, -1, "");
+        ConvertedSelection converted = convert(allParts());
+
+        Component instance = replace(converted, "parpadeo");
+
+        assertThat(converted.replacedIds()).isEmpty();
+        assertThat(instance.position().x()).isGreaterThan(pinPoint(clock, 0).x());
+        assertThat(document.component(clock.id())).isPresent();
+        assertThat(document.component(led.id())).isPresent();
+        ComponentDefinition definition = document.definition("parpadeo").orElseThrow();
+        assertThat(netOf(compile(), clock, 0).pins())
+                .contains(new PinRef(instance.id(), pinIndex(definition, "CLK")));
+    }
+
+    private Netlist compile() {
+        return new NetlistCompiler(registry).compile(document);
     }
 }
