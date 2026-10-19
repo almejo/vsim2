@@ -36,7 +36,7 @@ class AsWrittenCircuitTest {
         Random random = new Random(7);
         int built = 0;
         for (int trial = 0; built < 120 && trial < 1000; trial++) {
-            int inputCount = 1 + trial % TruthTableSpec.MAXIMUM_INPUTS;
+            int inputCount = 1 + trial % ExpressionTable.MAXIMUM_INPUTS;
             List<String> names = new ArrayList<>();
             for (int input = 0; input < inputCount; input++) {
                 names.add(String.valueOf((char) ('A' + input)));

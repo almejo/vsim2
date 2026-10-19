@@ -40,7 +40,7 @@ class ExpressionTableTest {
     void rowsEqualTheDirectEvaluationOfRandomLines() {
         Random random = new Random(42);
         for (int trial = 0; trial < 200; trial++) {
-            int inputCount = 1 + random.nextInt(TruthTableSpec.MAXIMUM_INPUTS);
+            int inputCount = 1 + random.nextInt(ExpressionTable.MAXIMUM_INPUTS);
             int outputCount = 1 + random.nextInt(3);
             List<String> names = new ArrayList<>();
             for (int input = 0; input < inputCount; input++) {

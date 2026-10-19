@@ -363,17 +363,19 @@ class TableImportTest {
 
     @Test
     void theInputAndOutputCountsHaveLimits() {
-        String header = "I1,I2,I3,I4,I5,I6,I7,I8,I9,F\n";
-        ImportedGrid nineInputs = TableImport.readCsv(header + "0,0,0,0,0,0,0,0,0,1\n");
+        assertThat(TruthTableSpec.MAXIMUM_INPUTS).isEqualTo(10);
+        String header = names("I", 11) + ",F\n";
+        ImportedGrid elevenInputs = TableImport.readCsv(header + "0,".repeat(11) + "1\n");
 
-        assertThat(TableImport.toSpec(nineInputs, 9, "T").problems())
-                .containsExactly(new ImportProblem(ImportProblem.TOO_MANY_INPUTS, List.of(9, 8), 0, 0));
-        assertThat(TableImport.toSpec(nineInputs, 0, "T").problems())
+        assertThat(TableImport.toSpec(elevenInputs, 11, "T").problems())
+                .containsExactly(new ImportProblem(ImportProblem.TOO_MANY_INPUTS, List.of(11, 10), 0, 0));
+        assertThat(TableImport.toSpec(elevenInputs, 10, "T").problems()).as("10 inputs are fine").isEmpty();
+        assertThat(TableImport.toSpec(elevenInputs, 0, "T").problems())
                 .containsExactly(new ImportProblem(ImportProblem.NO_INPUTS, List.of(), 0, 0));
-        assertThat(TableImport.toSpec(nineInputs, 10, "T").problems())
-                .containsExactly(new ImportProblem(ImportProblem.TOO_MANY_INPUTS, List.of(10, 8), 0, 0),
+        assertThat(TableImport.toSpec(elevenInputs, 12, "T").problems())
+                .containsExactly(new ImportProblem(ImportProblem.TOO_MANY_INPUTS, List.of(12, 10), 0, 0),
                         new ImportProblem(ImportProblem.NO_OUTPUTS, List.of(), 0, 0));
-        assertThat(TableImport.toSpec(nineInputs, 1, "T").problems()).as("9 outputs are fine").isEmpty();
+        assertThat(TableImport.toSpec(elevenInputs, 1, "T").problems()).as("11 outputs are fine").isEmpty();
 
         ImportedGrid seventeenOutputs = TableImport.readCsv(names("A", 1) + "," + names("Y", 17) + "\n"
                 + "0" + ",0".repeat(17) + "\n");
@@ -477,6 +479,25 @@ class TableImportTest {
                     int second = row & 3;
                     return List.of(first > second ? 1 : 0, first == second ? 1 : 0, first < second ? 1 : 0);
                 }))).as("2-bit comparator").isEqualTo(4);
+    }
+
+    @Test
+    void tenInputsAreProposedFromTheRowsEvenWhenSomeInputNamesLookLikeOutputs() {
+        assertThat(TableImport.proposedInputCount(table(List.of("A4", "A3", "A2", "A1", "A0", "B4", "B3", "B2", "B1",
+                "B0", "Mayor", "Igual", "Menor"), 10, row -> {
+                    int first = row >> 5;
+                    int second = row & 31;
+                    return List.of(first > second ? 1 : 0, first == second ? 1 : 0, first < second ? 1 : 0);
+                }))).as("5-bit comparator").isEqualTo(10);
+        // F, G and H look like outputs, but 1 024 rows cannot be told apart by A..E: the names mislead.
+        assertThat(TableImport.proposedInputCount(table(List.of("A", "B", "C", "D", "E", "F", "G", "H", "I", "J",
+                "P"), 10, row -> List.of(Integer.bitCount(row) & 1)))).as("parity of 10").isEqualTo(10);
+        assertThat(TableImport.proposedInputCount(table(List.of("A", "B", "C", "D", "E", "F", "P"), 6,
+                row -> List.of(Integer.bitCount(row) & 1)))).as("parity of 6").isEqualTo(6);
+        // One repeated combination is a mistake in the table, not misleading names: F stays an output.
+        ImportedGrid conflict = TableImport.readCsv("A,B,C,F\n0,0,0,0\n0,0,1,1\n0,1,0,1\n0,1,1,0\n0,1,1,1\n"
+                + "1,0,0,1\n1,0,1,0\n1,1,0,0\n1,1,1,1\n");
+        assertThat(TableImport.proposedInputCount(conflict)).isEqualTo(3);
     }
 
     @Test

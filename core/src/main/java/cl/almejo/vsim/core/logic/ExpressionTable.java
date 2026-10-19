@@ -20,6 +20,8 @@ public final class ExpressionTable {
 
     /** The most lines (outputs) of «Circuito desde expresiones»; tables imported from a file may have more. */
     public static final int MAXIMUM_LINES = 8;
+    /** The most inputs (names) the lines may use. */
+    public static final int MAXIMUM_INPUTS = 8;
 
     /**
      * The order of the inputs: names compared piece by piece, letters ignoring case (then with case, so the order is
@@ -76,9 +78,9 @@ public final class ExpressionTable {
         if (inputNames.isEmpty()) {
             problems.add(ExpressionProblem.general(ExpressionProblem.NO_INPUTS));
         }
-        if (inputNames.size() > TruthTableSpec.MAXIMUM_INPUTS) {
+        if (inputNames.size() > MAXIMUM_INPUTS) {
             problems.add(ExpressionProblem.general(ExpressionProblem.TOO_MANY_INPUTS, inputNames.size(),
-                    TruthTableSpec.MAXIMUM_INPUTS));
+                    MAXIMUM_INPUTS));
         }
         if (!problems.isEmpty()) {
             return new Result(Optional.empty(), inputNames, problems);

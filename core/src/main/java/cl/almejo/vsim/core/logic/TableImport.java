@@ -41,6 +41,11 @@ public final class TableImport {
      * against zip bombs), or from a text file.
      */
     public static final int MAXIMUM_FILE_MEGABYTES = 64;
+    /**
+     * The largest circuit «Crear» builds from an imported table: past it the layout and the check take more than
+     * about 3 s (a 10-input parity needs 2 229 gates) and the circuit is too large to read anyway.
+     */
+    public static final int MAXIMUM_GATES = 2_000;
     /** Excel's last row and last column ({@code XFD}): a reference beyond them is not a real workbook. */
     private static final int MAXIMUM_ROW = 1_048_576;
     private static final int MAXIMUM_COLUMN = 16_384;
@@ -714,8 +719,9 @@ public final class TableImport {
 
     /**
      * How many of the table's columns ({@link #columns}) probably are inputs, looking at the names and then at the
-     * rows: the names before the first one that looks like an output (as {@link #proposedInputCount(List)}); when no
-     * name does, the fewest leading columns that hold only 0 and 1 and whose combinations are all different across
+     * rows: the names before the first one that looks like an output (as {@link #proposedInputCount(List)}), unless
+     * more than a quarter of the rows repeat a combination of those columns (a parity of A..J, where F looks like an
+     * output); when no name does, or the names mislead, the fewest leading columns that hold only 0 and 1 and whose combinations are all different across
      * the rows (a complete table gives log2 of its rows; missing rows or any order are fine); when none do, half of
      * the columns. Within the limits of inputs and outputs when the column count allows it.
      */
@@ -729,16 +735,44 @@ public final class TableImport {
         int smallest = smallestInputCount(columnCount);
         int largest = largestInputCount(columnCount);
         Optional<Integer> byName = firstOutputLooking(names);
-        if (byName.isPresent()) {
-            return Math.clamp(byName.get(), smallest, largest);
-        }
         List<List<String>> rows = grid.rows().stream().filter(row -> !isBlank(row)).toList();
+        if (byName.isPresent()) {
+            int named = Math.clamp(byName.get(), smallest, largest);
+            if (repeatedCombinations(rows, columns.subList(0, named)) * 4 <= rows.size()) {
+                return named;
+            }
+            // Far more rows than the named inputs can tell apart (inputs A..J, where F, G and H look like outputs):
+            // the rows decide, when they can.
+            return byRows(rows, columns, smallest, largest).orElse(named);
+        }
+        return byRows(rows, columns, smallest, largest).orElse(Math.clamp(columnCount / 2, smallest, largest));
+    }
+
+    /** The fewest leading columns, from {@code smallest} to {@code largest}, whose combinations are all different. */
+    private static Optional<Integer> byRows(List<List<String>> rows, List<Integer> columns, int smallest,
+                                            int largest) {
         for (int count = smallest; count <= largest && !rows.isEmpty(); count++) {
             if (areDistinctCombinations(rows, columns.subList(0, count))) {
-                return count;
+                return Optional.of(count);
             }
         }
-        return Math.clamp(columnCount / 2, smallest, largest);
+        return Optional.empty();
+    }
+
+    /** How many rows repeat the cells of an earlier row in {@code columns}. */
+    private static int repeatedCombinations(List<List<String>> rows, List<Integer> columns) {
+        Set<List<String>> seen = new HashSet<>();
+        int repeated = 0;
+        for (List<String> row : rows) {
+            List<String> combination = new ArrayList<>();
+            for (int column : columns) {
+                combination.add(cell(row, column).strip());
+            }
+            if (!seen.add(combination)) {
+                repeated++;
+            }
+        }
+        return repeated;
     }
 
     /** Whether every row has only 0 or 1 in {@code columns} and no two rows have the same values there. */

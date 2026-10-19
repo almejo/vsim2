@@ -1,9 +1,12 @@
 package cl.almejo.vsim.ui.karnaugh;
 
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
+import cl.almejo.vsim.core.logic.CircuitGenerator;
 import cl.almejo.vsim.core.logic.LogicValue;
 import cl.almejo.vsim.core.logic.Minimization;
+import cl.almejo.vsim.core.logic.Minimizer;
 import cl.almejo.vsim.core.logic.TableCircuits;
+import cl.almejo.vsim.core.logic.TableImport;
 import cl.almejo.vsim.core.logic.TruthTableSpec;
 import cl.almejo.vsim.ui.i18n.Messages;
 import org.junit.jupiter.api.BeforeEach;
@@ -443,6 +446,8 @@ class TableImportPanelTest {
         assertThat(root.getDefaultButton()).as("Enter goes on").isSameAs(panel.nextButton());
         next();
         assertThat(panel.buttonBarTexts()).containsExactly("Abrir en el asistente", "Atrás", "Crear", "Cerrar");
+        assertThat(create.isEnabled()).as("its size is being counted").isFalse();
+        queued.removeFirst().run(); // the summary
         assertThat(create.isEnabled()).isTrue();
         assertThat(root.getDefaultButton()).isSameAs(create);
 
@@ -713,6 +718,77 @@ class TableImportPanelTest {
         assertThat(target.newCircuits.getFirst().notice()).startsWith("✓ El circuito cumple la tabla.");
         assertThat(target.saved).singleElement().satisfies(bundle -> assertThat(bundle.root().pinout())
                 .hasSize(20));
+    }
+
+    @Test
+    void tenInputsAreReadAndACircuitOverTheGateLimitCannotBeCreated() throws IOException {
+        chosen = write("paridad.csv", parity(10));
+        panel.openFileButton().doClick();
+
+        assertThat(panel.inputCountSpinner().getValue()).as("the rows decide: F, G, H are inputs here").isEqualTo(10);
+        assertThat(panel.problemsText()).isEmpty();
+        assertThat(panel.previewModel().getRowCount()).isEqualTo(1024);
+        TruthTableSpec spec = panel.model().spec().orElseThrow();
+        int gates = CircuitGenerator.cost(Minimizer.minimize(spec, Minimization.Form.SUM_OF_PRODUCTS),
+                WizardOptions.defaults().generatorOptions()).gateCount();
+        assertThat(gates).isGreaterThan(TableImport.MAXIMUM_GATES);
+        assertThat(panel.summaryText()).isEqualTo("10 entradas, 1 salida → 512 términos, "
+                + grouped(gates) + " compuertas");
+
+        next();
+        assertThat(panel.createButton().isEnabled()).isFalse();
+        assertThat(panel.gateLimitText()).isEqualTo("El circuito tendría " + grouped(gates)
+                + " compuertas; el máximo es 2 000.");
+        assertThat(panel.createButton().getToolTipText()).isEqualTo(panel.gateLimitText());
+        panel.createButton().doClick();
+        assertThat(target.newCircuits).isEmpty();
+    }
+
+    @Test
+    void aTenInputComparatorIsCreatedAndPassesTheCheck() throws IOException {
+        StringBuilder csv = new StringBuilder("A4,A3,A2,A1,A0,B4,B3,B2,B1,B0,Mayor,Igual,Menor\n");
+        for (int row = 0; row < 1024; row++) {
+            for (int bit = 9; bit >= 0; bit--) {
+                csv.append(row >> bit & 1).append(',');
+            }
+            int first = row >> 5;
+            int second = row & 31;
+            csv.append(first > second ? 1 : 0).append(',').append(first == second ? 1 : 0).append(',')
+                    .append(first < second ? 1 : 0).append('\n');
+        }
+        chosen = write("comparador.csv", csv.toString());
+        panel.openFileButton().doClick();
+        assertThat(panel.inputCountSpinner().getValue()).isEqualTo(10);
+
+        next();
+        assertThat(panel.gateLimitText()).isEmpty();
+        assertThat(panel.createButton().getToolTipText()).isNull();
+        panel.createButton().doClick();
+        assertThat(target.newCircuits).hasSize(1);
+        assertThat(target.newCircuits.getFirst().notice()).isEqualTo("✓ El circuito cumple la tabla.");
+    }
+
+    @Test
+    void createWaitsForTheSummaryThatCountsTheGates() throws IOException {
+        open(new Background(queued::add, Runnable::run));
+        chosen = write("sumador.csv", ADDER);
+        panel.openFileButton().doClick();
+        queued.removeFirst().run(); // the file
+        assertThat(panel.summaryText()).isEqualTo("Calculando…");
+        assertThat(panel.goTo(TableImportPanel.Page.CREATE)).isTrue();
+        assertThat(panel.createButton().isEnabled()).as("the size is not known yet").isFalse();
+
+        queued.removeFirst().run(); // the summary
+        assertThat(panel.createButton().isEnabled()).isTrue();
+        panel.gateButton(WizardOptions.GateChoice.NOR_ONLY).doClick();
+        assertThat(panel.createButton().isEnabled()).isFalse();
+        queued.removeFirst().run();
+        assertThat(panel.createButton().isEnabled()).isTrue();
+    }
+
+    /** «2 229»: thousands apart by a non-breaking space. */
+    private static String grouped(int number) {
+        return String.format(Locale.ROOT, "%,d", number).replace(',', ' ');
     }
 
     private static String parity(int inputs) {

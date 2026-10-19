@@ -43,9 +43,11 @@ class TruthTableSpecTest {
     }
 
     @Test
-    void limitsAreOneToEightInputsAndOutputs() {
-        List<String> nine = List.of("A", "B", "C", "D", "E", "G", "H", "I", "J");
-        assertThatThrownBy(() -> TruthTableSpec.zeros("T", nine, List.of("F")))
+    void limitsAreOneToTenInputs() {
+        List<String> ten = List.of("A", "B", "C", "D", "E", "G", "H", "I", "J", "K");
+        assertThat(TruthTableSpec.zeros("T", ten, List.of("F")).rowCount()).isEqualTo(1024);
+        List<String> eleven = List.of("A", "B", "C", "D", "E", "G", "H", "I", "J", "K", "L");
+        assertThatThrownBy(() -> TruthTableSpec.zeros("T", eleven, List.of("F")))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> TruthTableSpec.zeros("T", List.of(), List.of("F")))
                 .isInstanceOf(IllegalArgumentException.class);

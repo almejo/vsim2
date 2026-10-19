@@ -6,6 +6,7 @@ import cl.almejo.vsim.core.logic.ImportProblem;
 import cl.almejo.vsim.core.logic.ImportedGrid;
 import cl.almejo.vsim.core.logic.Minimization;
 import cl.almejo.vsim.core.logic.Minimizer;
+import cl.almejo.vsim.core.logic.TableImport;
 import cl.almejo.vsim.core.logic.TableImportException;
 import cl.almejo.vsim.core.logic.Term;
 import cl.almejo.vsim.core.logic.TruthTableSpec;
@@ -45,6 +46,7 @@ import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -136,6 +138,13 @@ public final class TableImportPanel extends JPanel {
     private final Map<Minimization.Form, JRadioButton> formButtons = new EnumMap<>(Minimization.Form.class);
     private final JCheckBox share = new JCheckBox(Messages.text("karnaugh.expression.share"));
     private final JLabel summary = new JLabel(" ");
+    /** «El circuito tendría 2 229 compuertas; el máximo es 2 000.» under the summary, when «Crear» is off for it. */
+    private final Paragraph gateLimit = new Paragraph("") {
+        @Override
+        public Color getForeground() {
+            return WizardColors.errorText();
+        }
+    };
     private final JButton close = new JButton(Messages.text("karnaugh.close"));
     private final JButton wizard = new JButton(Messages.text("tableImport.openInWizard"));
     private final WizardOpener openInWizard;
@@ -149,6 +158,8 @@ public final class TableImportPanel extends JPanel {
     private List<Object> summarized;
     /** The summary of {@link #summarized}; null while it is computed. */
     private String summarizedText;
+    /** The gates of {@link #summarized}'s circuit; null while computed, -1 when they could not be counted. */
+    private Integer summarizedGates;
     /** Counts the files read: a file whose number is not the latest (the dialog was closed) is dropped. */
     private long readRequest;
     /** The size the dialog was last given by {@link #fitWindow}; another size means the user resized it. */
@@ -168,7 +179,7 @@ public final class TableImportPanel extends JPanel {
         this.form = new CreationForm(target);
         this.controls = new CreationControls(form, new CircuitCreator(target, background), model::spec,
                 model::options, () -> onClose.run(), this::refreshButtons,
-                () -> !reading && page == Page.CREATE);
+                () -> !reading && page == Page.CREATE && sizeKnownAndAllowed());
 
         JPanel data = new JPanel(new MigLayout("insets 12 16 8 16, fill, wrap 1, hidemode 3", "[grow, fill]",
                 "[][]8[][][][grow]"));
@@ -210,6 +221,7 @@ public final class TableImportPanel extends JPanel {
         content.add(share, "span 2");
         summary.setFont(summary.getFont().deriveFont(Font.BOLD));
         content.add(summary, "span 2");
+        content.add(gateLimit, "span 2, growx, wmin 100, hidemode 3");
         content.add(controls, "span 2, growx");
 
         pageCards.add(data, Page.DATA.name());
@@ -425,8 +437,8 @@ public final class TableImportPanel extends JPanel {
         }
         share.setSelected(model.options().shareTerms());
         form.proposeName(model.title());
-        refreshButtons();
         summarize();
+        refreshButtons();
     }
 
     /**
@@ -437,6 +449,7 @@ public final class TableImportPanel extends JPanel {
         Optional<TruthTableSpec> spec = model.spec();
         if (spec.isEmpty()) {
             summary.setText(" ");
+            showGateLimit();
             return;
         }
         WizardOptions options = model.options();
@@ -444,28 +457,62 @@ public final class TableImportPanel extends JPanel {
         List<Object> key = List.of(table.inputNames(), table.outputNames(), table.outputs(), options);
         if (key.equals(summarized)) {
             summary.setText(summarizedText == null ? Messages.text("tableImport.summarizing") : summarizedText);
+            showGateLimit();
             return;
         }
         summarized = key;
         summarizedText = null;
+        summarizedGates = null;
         long request = ++summaryRequest;
         summary.setText(Messages.text("tableImport.summarizing"));
-        background.run(() -> summaryOf(table, options), text -> summarized(request, text),
-                failure -> summarized(request, " "));
+        showGateLimit();
+        background.run(() -> summaryOf(table, options), done -> summarized(request, done),
+                failure -> summarized(request, new Summary(" ", -1)));
     }
 
     /** A summary arrived: kept when it is the latest, and shown unless the table has a problem now. */
-    private void summarized(long request, String text) {
+    private void summarized(long request, Summary done) {
         if (request == summaryRequest) {
-            summarizedText = text;
+            summarizedText = done.text();
+            summarizedGates = done.gateCount();
             if (model.spec().isPresent()) {
-                summary.setText(text);
+                summary.setText(done.text());
             }
+            showGateLimit();
+            refreshButtons();
         }
     }
 
+    /**
+     * Whether the circuit's size allows «Crear»: its gates were counted and are at most {@value
+     * TableImport#MAXIMUM_GATES} (or could not be counted: the creation then says what went wrong).
+     */
+    private boolean sizeKnownAndAllowed() {
+        return summarizedGates != null && summarizedGates <= TableImport.MAXIMUM_GATES;
+    }
+
+    /** Says under the summary, and on «Crear», why a circuit too large cannot be created. */
+    private void showGateLimit() {
+        boolean tooLarge = model.spec().isPresent() && summarizedGates != null
+                && summarizedGates > TableImport.MAXIMUM_GATES;
+        String text = tooLarge ? Messages.format("tableImport.tooManyGates", grouped(summarizedGates),
+                grouped(TableImport.MAXIMUM_GATES)) : "";
+        gateLimit.setText(text);
+        gateLimit.setVisible(tooLarge);
+        controls.createButton().setToolTipText(tooLarge ? text : null);
+    }
+
+    /** «2 229»: thousands apart by a space that does not break the line. */
+    static String grouped(int number) {
+        return String.format(Locale.ROOT, "%,d", number).replace(',', '\u00A0');
+    }
+
+    /** What the summary line says, and the gates it counts. */
+    record Summary(String text, int gateCount) {
+    }
+
     /** «8 entradas, 8 salidas → 23 términos, 31 compuertas»: terms are counted once when they are shared. */
-    static String summaryOf(TruthTableSpec spec, WizardOptions options) {
+    static Summary summaryOf(TruthTableSpec spec, WizardOptions options) {
         Minimization minimization = Minimizer.minimize(spec, options.form());
         GateCost cost = CircuitGenerator.cost(minimization, options.generatorOptions());
         int terms = 0;
@@ -477,9 +524,9 @@ public final class TableImportPanel extends JPanel {
                 }
             }
         }
-        // The choices pick the wording by number; the counts themselves go as text (no thousands separator).
-        return Messages.format("tableImport.summary", spec.inputCount(), spec.outputCount(), terms,
-                cost.gateCount(), String.valueOf(terms), String.valueOf(cost.gateCount()));
+        // The choices pick the wording by number; the counts themselves go as text, grouped like the gate limit.
+        return new Summary(Messages.format("tableImport.summary", spec.inputCount(), spec.outputCount(), terms,
+                cost.gateCount(), grouped(terms), grouped(cost.gateCount())), cost.gateCount());
     }
 
     /**
@@ -584,6 +631,11 @@ public final class TableImportPanel extends JPanel {
 
     String summaryText() {
         return summary.getText();
+    }
+
+    /** Why «Crear» is off for the circuit's size, or empty. */
+    String gateLimitText() {
+        return gateLimit.isVisible() ? gateLimit.getText() : "";
     }
 
     String columnsText() {

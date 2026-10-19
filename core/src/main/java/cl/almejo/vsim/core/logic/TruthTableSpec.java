@@ -20,7 +20,11 @@ import java.util.Set;
 public record TruthTableSpec(String title, List<String> inputNames, List<String> outputNames,
                              List<List<LogicValue>> outputs) {
 
-    public static final int MAXIMUM_INPUTS = 8;
+    /**
+     * The import's limit: a 10-input table (1 024 rows) is minimized, built and checked in about 3 s at worst within
+     * {@link TableImport#MAXIMUM_GATES}. The wizard and the expressions have their own, smaller, limits.
+     */
+    public static final int MAXIMUM_INPUTS = 10;
     /** The import's limit (a decoder of 4 inputs has 16 outputs); the wizard and the expressions have their own. */
     public static final int MAXIMUM_OUTPUTS = 16;
 
