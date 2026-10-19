@@ -6,6 +6,7 @@ import cl.almejo.vsim.core.io.CircuitFragment;
 import cl.almejo.vsim.core.library.DefinitionBundle;
 import cl.almejo.vsim.core.library.DefinitionIds;
 import cl.almejo.vsim.core.logic.CircuitGenerator;
+import cl.almejo.vsim.core.logic.ExpressionLine;
 import cl.almejo.vsim.core.logic.GeneratedCircuit;
 import cl.almejo.vsim.core.logic.LogicValue;
 import cl.almejo.vsim.core.logic.Minimization;
@@ -23,8 +24,9 @@ import java.util.Optional;
 import java.util.function.Consumer;
 
 /**
- * «Crear» (spec §3 step 5, §6): minimizes the table, generates the circuit, checks its truth table and, when asked,
- * makes the library component, all on the {@link Background} worker; then, on the EDT, writes the component to the
+ * «Crear» (spec §3 step 5, §6): minimizes the table (or takes the expressions as written), generates the circuit,
+ * checks its truth table and, when asked, makes the library component, all on the {@link Background} worker; then,
+ * on the EDT, writes the component to the
  * library and opens the new circuit or floats the gates (or the component's instance) over the current one. Only
  * standard types are involved, so the worker uses its own registry and never touches an open document.
  */
@@ -32,14 +34,25 @@ final class CircuitCreator {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(CircuitCreator.class);
 
-    /** What to create: the table, the options and the choices of {@link CreationForm}. */
+    /**
+     * What to create: the table, the options and the choices of {@link CreationForm}. With {@code asWritten} (the
+     * lines of «Circuito desde expresiones» without «Simplificar», whose table is {@code spec}) the circuit has one
+     * gate per operator instead of the minimized one; only the options' sharing applies then.
+     */
     record Request(TruthTableSpec spec, WizardOptions options, CreationForm.Destination destination,
-                   Optional<String> componentName) {
+                   Optional<String> componentName, Optional<List<ExpressionLine>> asWritten) {
         Request {
             Objects.requireNonNull(spec, "spec");
             Objects.requireNonNull(options, "options");
             Objects.requireNonNull(destination, "destination");
             Objects.requireNonNull(componentName, "componentName");
+            asWritten = asWritten.map(List::copyOf);
+        }
+
+        /** The minimized circuit of {@code spec}. */
+        Request(TruthTableSpec spec, WizardOptions options, CreationForm.Destination destination,
+                Optional<String> componentName) {
+            this(spec, options, destination, componentName, Optional.empty());
         }
     }
 
@@ -128,9 +141,14 @@ final class CircuitCreator {
     private static Built build(Request request, Optional<String> definitionId) {
         ComponentTypeRegistry registry = StandardComponentTypes.registry();
         TruthTableSpec spec = request.spec();
-        Minimization minimization = Minimizer.minimize(spec, request.options().form());
-        GeneratedCircuit circuit = CircuitGenerator.generate(spec, minimization,
-                request.options().generatorOptions(), registry);
+        GeneratedCircuit circuit;
+        if (request.asWritten().isPresent()) {
+            circuit = CircuitGenerator.generateAsWritten(spec, request.asWritten().get(),
+                    request.options().shareTerms(), registry);
+        } else {
+            Minimization minimization = Minimizer.minimize(spec, request.options().form());
+            circuit = CircuitGenerator.generate(spec, minimization, request.options().generatorOptions(), registry);
+        }
         TableCircuits.Check check = TableCircuits.check(spec, circuit.fragment(), registry);
         DefinitionBundle bundle = definitionId
                 .map(id -> TableCircuits.component(spec, circuit.fragment(), id,

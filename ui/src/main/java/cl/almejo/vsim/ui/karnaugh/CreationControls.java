@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.karnaugh;
 
+import cl.almejo.vsim.core.logic.ExpressionLine;
 import cl.almejo.vsim.core.logic.TruthTableSpec;
 import cl.almejo.vsim.ui.i18n.Messages;
 import net.miginfocom.swing.MigLayout;
@@ -43,6 +44,7 @@ final class CreationControls extends JPanel {
     private final BooleanSupplier available;
     private final List<Runnable> refreshListeners = new ArrayList<>();
     private Runnable created = () -> { };
+    private Supplier<Optional<List<ExpressionLine>>> asWritten = Optional::empty;
     private final Map<CreationForm.Destination, JRadioButton> destinationButtons =
             new EnumMap<>(CreationForm.Destination.class);
     private final JCheckBox component = new JCheckBox(Messages.text("karnaugh.create.alsoComponent"));
@@ -177,6 +179,11 @@ final class CreationControls extends JPanel {
         created = action;
     }
 
+    /** The lines to build as written (when present) instead of minimizing the table; by default it is never. */
+    void setAsWritten(Supplier<Optional<List<ExpressionLine>>> lines) {
+        asWritten = lines;
+    }
+
     boolean isBusy() {
         return creator.isBusy();
     }
@@ -197,7 +204,7 @@ final class CreationControls extends JPanel {
             return;
         }
         CircuitCreator.Request request = new CircuitCreator.Request(table.get(), options.get(), form.destination(),
-                form.wantedComponent());
+                form.wantedComponent(), asWritten.get());
         result.setText("");
         creator.create(request, this::finished);
         if (creator.isBusy()) {

@@ -60,6 +60,7 @@ public final class AppPreferences {
     static final String ANIMATE_VIEW_MOVES = "animateViewMoves";
     static final String FIND_MATCH_CASE = "find.matchCase";
     static final String FIND_REGEX = "find.regex";
+    static final String SIMPLIFY_EXPRESSIONS = "expressions.simplify";
 
     /** «Avanzar 10 t» (M6.1-B): the fixed step until the user picks another size. */
     public static final long DEFAULT_STEP_UNITS = 10;
@@ -330,6 +331,20 @@ public final class AppPreferences {
             return;
         }
         put(FIND_REGEX, Boolean.toString(regex));
+    }
+
+    // --- Circuito desde expresiones ---
+
+    /** «Simplificar» of «Circuito desde expresiones»: minimize the outputs, not build them as written. On by default. */
+    public boolean simplifyExpressions() {
+        return node.getBoolean(SIMPLIFY_EXPRESSIONS, true);
+    }
+
+    public void setSimplifyExpressions(boolean simplify) {
+        if (simplifyExpressions() == simplify) {
+            return;
+        }
+        put(SIMPLIFY_EXPRESSIONS, Boolean.toString(simplify));
     }
 
     // --- M6.8 text font ---

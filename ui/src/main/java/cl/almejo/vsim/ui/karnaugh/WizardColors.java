@@ -40,6 +40,23 @@ final class WizardColors {
         return color("Component.error.focusedBorderColor", new Color(0xE53935));
     }
 
+    /**
+     * The error colour for text: {@link #error()} on a light theme; on a dark theme the theme's error colour is a dim
+     * border red, too dark to read as text, so a brighter red is used.
+     */
+    static Color errorText() {
+        return dark() ? new Color(0xFF7A7A) : error();
+    }
+
+    /**
+     * Amber for a warning that does not block anything (letters written together): a dark amber on a light theme and
+     * a bright one on a dark theme, both readable as text (the theme's own warning colour is a border colour, too
+     * pale for text on white).
+     */
+    static Color warning() {
+        return dark() ? new Color(0xE8B04A) : new Color(0x8A5A00);
+    }
+
     /** True on a dark theme: picks the bright variant of the group colours. */
     static boolean dark() {
         Color background = background();

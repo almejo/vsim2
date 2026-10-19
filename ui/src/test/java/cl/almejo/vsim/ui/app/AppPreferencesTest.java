@@ -78,6 +78,19 @@ class AppPreferencesTest {
     }
 
     @Test
+    void simplifyingExpressionsIsOnByDefaultAndOnlyRealChangesNotify() {
+        preferences.addListener(changes::incrementAndGet);
+        assertThat(preferences.simplifyExpressions()).isTrue();
+        preferences.setSimplifyExpressions(true);
+        assertThat(changes).hasValue(0);
+
+        preferences.setSimplifyExpressions(false);
+
+        assertThat(changes).hasValue(1);
+        assertThat(new AppPreferences(node).simplifyExpressions()).isFalse();
+    }
+
+    @Test
     void animatingViewMovesIsOnByDefaultAndOnlyRealChangesNotify() {
         preferences.addListener(changes::incrementAndGet);
         assertThat(preferences.animateViewMoves()).isTrue();
