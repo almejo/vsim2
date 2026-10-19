@@ -5,6 +5,8 @@ import cl.almejo.vsim.core.command.PutDefinitionsCommand;
 import cl.almejo.vsim.core.command.SetLabelCommand;
 import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
+import cl.almejo.vsim.core.logic.LogicValue;
+import cl.almejo.vsim.core.logic.TruthTableSpec;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
@@ -65,6 +67,7 @@ class TruthTableExtensionTest {
         OptionalInt currentRow = OptionalInt.empty();
         boolean tryingAllowed;
         boolean closed;
+        final List<Optional<String>> wizardOffers = new ArrayList<>();
 
         FakeDisplay(String title, Controls controls) {
             this.title = title;
@@ -76,6 +79,7 @@ class TruthTableExtensionTest {
         @Override public void showMessage(String message) { notices.add(message); }
         @Override public void showCurrentRow(OptionalInt row) { currentRow = row; }
         @Override public void allowTryingRows(boolean allowed) { tryingAllowed = allowed; }
+        @Override public void offerWizard(Optional<String> refusal) { wizardOffers.add(refusal); }
         @Override public void close() { closed = true; }
     }
 
@@ -483,6 +487,70 @@ class TruthTableExtensionTest {
             assertThat(messages).isEmpty();
         } finally {
             view.dispose();
+        }
+    }
+
+    @Test
+    void aTableOfTwoToFourOneBitInputsCanBeOpenedInTheKarnaughWizard() {
+        place(openDocument, StandardComponentTypes.SWITCH, 0, 0, Map.of());
+        place(openDocument, StandardComponentTypes.LED, 3, -2, Map.of());
+        place(openDocument, StandardComponentTypes.SWITCH, 0, 10, Map.of());
+        EditorView bare = new EditorView(openDocument, PainterRegistry.standard(), ColorScheme.LIGHT, NO_WINDOW);
+        List<TruthTableSpec> wizards = new ArrayList<>();
+        bare.setTableWizard(wizards::add);
+        TruthTableFeatures features = features(bare);
+        try {
+            perform(last(bare.menu(MenuId.SIMULATION)));
+            FakeDisplay display = displays.get(0);
+            assertThat(display.wizardOffers).containsExactly(Optional.empty());
+
+            display.controls.openInWizard();
+
+            assertThat(wizards).singleElement().satisfies(spec -> {
+                assertThat(spec.inputCount()).isEqualTo(2);
+                assertThat(spec.outputCount()).isEqualTo(1);
+                assertThat(spec.title()).isEqualTo(openDocument.displayName());
+                assertThat(spec.outputs().getFirst()).containsExactly(LogicValue.ZERO, LogicValue.ZERO,
+                        LogicValue.ONE, LogicValue.ONE);
+            });
+        } finally {
+            features.dispose();
+            bare.dispose();
+        }
+    }
+
+    @Test
+    void aTableTheWizardCannotTakeDisablesTheButtonWithTheReason() {
+        identityCircuit();
+        EditorView bare = new EditorView(openDocument, PainterRegistry.standard(), ColorScheme.LIGHT, NO_WINDOW);
+        List<TruthTableSpec> wizards = new ArrayList<>();
+        bare.setTableWizard(wizards::add);
+        TruthTableFeatures features = features(bare);
+        try {
+            perform(last(bare.menu(MenuId.SIMULATION)));
+            FakeDisplay display = displays.get(0);
+            assertThat(display.wizardOffers)
+                    .containsExactly(Optional.of("Karnaugh necesita al menos 2 entradas de 1 bit."));
+            display.controls.openInWizard();
+            assertThat(wizards).isEmpty();
+        } finally {
+            features.dispose();
+            bare.dispose();
+        }
+    }
+
+    @Test
+    void withoutTheWizardTheButtonIsNeverOffered() {
+        identityCircuit();
+        EditorView bare = new EditorView(openDocument, PainterRegistry.standard(), ColorScheme.LIGHT, NO_WINDOW);
+        TruthTableFeatures features = features(bare);
+        try {
+            perform(last(bare.menu(MenuId.SIMULATION)));
+            assertThat(displays.get(0).table).isNotNull();
+            assertThat(displays.get(0).wizardOffers).isEmpty();
+        } finally {
+            features.dispose();
+            bare.dispose();
         }
     }
 

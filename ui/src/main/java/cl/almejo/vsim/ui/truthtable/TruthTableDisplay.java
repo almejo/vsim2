@@ -2,6 +2,7 @@ package cl.almejo.vsim.ui.truthtable;
 
 import cl.almejo.vsim.core.truthtable.TruthTable;
 import cl.almejo.vsim.ui.window.EditorView;
+import java.util.Optional;
 import java.util.OptionalInt;
 
 /** One truth-table window as the feature sees it ({@link TruthTableWindow} in the application, a fake in tests). */
@@ -20,6 +21,10 @@ public interface TruthTableDisplay {
 
         /** Row {@code row} was double-clicked: try it in the live circuit when its inputs are switches. */
         void tryRow(int row);
+
+        /** «Abrir en el asistente de Karnaugh»: the table shown goes to a new Karnaugh wizard. */
+        default void openInWizard() {
+        }
     }
 
     /** Opens a window for {@code view} titled {@code title}, empty until the first table or message. */
@@ -41,6 +46,13 @@ public interface TruthTableDisplay {
 
     /** Whether a double-click on a row tries it in the circuit; the window's hint line shows only then. */
     void allowTryingRows(boolean allowed);
+
+    /**
+     * Shows «Abrir en el asistente de Karnaugh» for the table shown: enabled when {@code refusal} is empty, otherwise
+     * disabled with the reason as its tooltip. Never called when the wizard is not installed (the button stays hidden).
+     */
+    default void offerWizard(Optional<String> refusal) {
+    }
 
     /** Closes the window without calling {@link Controls#closed()}. */
     void close();

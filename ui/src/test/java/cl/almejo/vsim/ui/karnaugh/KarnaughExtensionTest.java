@@ -95,6 +95,18 @@ class KarnaughExtensionTest {
     }
 
     @Test
+    void theTruthTableWindowCanOpenAWizardOnItsTable() {
+        assertThat(view.tableWizard()).isPresent();
+        view.tableWizard().orElseThrow().accept(KarnaughModelTest.bcd());
+        assertThat(opened).singleElement().satisfies(wizard -> {
+            assertThat(wizard.model().inputNames()).containsExactly("A", "B", "C", "D");
+            assertThat(wizard.model().outputNames()).containsExactly("P", "M");
+            assertThat(wizard.step()).isEqualTo(KarnaughWizard.Step.TABLE);
+        });
+        assertThat(parents).containsExactly(view);
+    }
+
+    @Test
     void disposingTheViewTakesTheItemsAndTheShortcutsBack() {
         JMenu tools = view.menu(MenuId.TOOLS);
         JMenu file = view.menu(MenuId.FILE);
@@ -103,6 +115,7 @@ class KarnaughExtensionTest {
         assertThat(tools.getItemCount()).isZero();
         assertThat(file.getMenuComponentCount()).isEqualTo(fileItems - 1);
         assertThat(view.shortcutActions()).doesNotContainKeys("tools.circuitFromTruthTable", "file.importTruthTable");
+        assertThat(view.tableWizard()).isEmpty();
     }
 
     private static JMenu importMenu(JMenu file) {

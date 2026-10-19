@@ -31,6 +31,7 @@ import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.Optional;
 import java.util.OptionalInt;
 
 /**
@@ -57,6 +58,7 @@ final class TruthTableWindow extends JDialog implements TruthTableDisplay {
     private final JTable grid = new JTable();
     private final JButton copy = new JButton(Messages.text("truthTable.copy"));
     private final JButton export = new JButton(Messages.text("truthTable.exportCsv"));
+    private final JButton wizard = new JButton(Messages.text("truthTable.openInWizard"));
     private TruthTable shown;
     private boolean tryingAllowed;
     private boolean closing;
@@ -83,11 +85,12 @@ final class TruthTableWindow extends JDialog implements TruthTableDisplay {
         content.add(new JScrollPane(grid), "width 240:420:, height 160:360:");
         tryHint.setVisible(false);
         content.add(tryHint, "hidemode 3");
-        JPanel buttons = new JPanel(new MigLayout("insets 0", "[][]push[][]"));
+        JPanel buttons = new JPanel(new MigLayout("insets 0", "[][][]push[][]"));
         JButton recalculate = new JButton(Messages.text("truthTable.recalculate"));
         JButton close = new JButton(Messages.text("truthTable.close"));
         buttons.add(copy);
         buttons.add(export);
+        buttons.add(wizard, "hidemode 3");
         buttons.add(recalculate);
         buttons.add(close);
         content.add(buttons);
@@ -98,6 +101,8 @@ final class TruthTableWindow extends JDialog implements TruthTableDisplay {
         cancel.addActionListener(event -> controls.cancel());
         copy.addActionListener(event -> copyTable());
         export.addActionListener(event -> exportTable());
+        wizard.setVisible(false);
+        wizard.addActionListener(event -> controls.openInWizard());
         recalculate.addActionListener(event -> controls.recalculate());
         close.addActionListener(event -> dispose());
         grid.addMouseListener(new MouseAdapter() {
@@ -170,6 +175,13 @@ final class TruthTableWindow extends JDialog implements TruthTableDisplay {
     public void allowTryingRows(boolean allowed) {
         tryingAllowed = allowed;
         tryHint.setVisible(allowed);
+    }
+
+    @Override
+    public void offerWizard(Optional<String> refusal) {
+        wizard.setVisible(true);
+        wizard.setEnabled(refusal.isEmpty());
+        wizard.setToolTipText(refusal.orElse(null));
     }
 
     @Override

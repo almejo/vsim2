@@ -14,6 +14,7 @@ import cl.almejo.vsim.ui.actions.ContextMenuContributor;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.Selection;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.karnaugh.KarnaughHandoff;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuId;
 
@@ -158,11 +159,12 @@ public final class TruthTableFeatures {
             return;
         }
         Preparation.Ready ready = (Preparation.Ready) preparation;
-        String title = TruthTableMessages.title(scopeName(scope));
+        String scopeName = scopeName(scope);
+        String title = TruthTableMessages.title(scopeName);
         if (!confirmed(ready, 0, title)) {
             return;
         }
-        Session session = new Session(scope, title);
+        Session session = new Session(scope, title, scopeName);
         session.display = windows.open(view, title, session);
         sessions.add(session);
         updateFollowing();
@@ -249,6 +251,8 @@ public final class TruthTableFeatures {
 
         private final Set<ElementId> scope;
         private final String title;
+        /** What the table is of (the circuit's or the component's name): the wizard's title. */
+        private final String scopeName;
         private TruthTableDisplay display;
         /** The most rows the user accepted for this window: «Recalcular» asks again only for more. */
         private int acceptedRows;
@@ -268,9 +272,10 @@ public final class TruthTableFeatures {
         private boolean tryable;
         private boolean pendingTryable;
 
-        Session(Set<ElementId> scope, String title) {
+        Session(Set<ElementId> scope, String title, String scopeName) {
             this.scope = scope;
             this.title = title;
+            this.scopeName = scopeName;
         }
 
         void run(Preparation.Ready ready) {
@@ -368,6 +373,16 @@ public final class TruthTableFeatures {
             view.openDocument().setInputs(values);
         }
 
+        /** The table shown goes to a new Karnaugh wizard, titled after what it is the table of. */
+        @Override
+        public void openInWizard() {
+            if (disposed || closed || table == null || KarnaughHandoff.refusal(table).isPresent()) {
+                return;
+            }
+            TruthTable shown = table;
+            view.tableWizard().ifPresent(wizard -> wizard.accept(KarnaughHandoff.spec(shown, scopeName)));
+        }
+
         @Override
         public void progress(int percent) {
             lastPercent = percent;
@@ -384,6 +399,9 @@ public final class TruthTableFeatures {
                 tryable = pendingTryable;
                 display.allowTryingRows(tryable);
                 display.showTable(table);
+                if (view.tableWizard().isPresent()) {
+                    display.offerWizard(KarnaughHandoff.refusal(table));
+                }
                 this.table = table;
                 live = pendingLive;
                 shownRow = OptionalInt.empty();

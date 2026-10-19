@@ -16,7 +16,8 @@ import java.util.function.Function;
 /**
  * Adds Herramientas ▸ «Circuito desde tabla de verdad…» and Archivo ▸ Importar ▸ «Tabla de verdad desde Excel/CSV…»
  * (and their shortcut ids) to every editor view. Each click opens a fresh Karnaugh wizard with an empty 3-input table,
- * or a fresh import dialog; their «Crear» puts the circuit in a new window or over this view.
+ * or a fresh import dialog; their «Crear» puts the circuit in a new window or over this view. The view's truth-table
+ * windows can also open a wizard on their table ({@link EditorView#setTableWizard}).
  */
 public final class KarnaughExtension implements EditorExtension {
 
@@ -64,6 +65,12 @@ public final class KarnaughExtension implements EditorExtension {
         JMenuItem item = new JMenuItem(action);
         tools.add(item);
         Runnable shortcutRemover = view.registerShortcutAction(SHORTCUT_ID, action);
+        // The truth-table window's «Abrir en el asistente de Karnaugh» opens a wizard on its table.
+        view.setTableWizard(spec -> {
+            KarnaughModel model = new KarnaughModel();
+            model.load(spec);
+            opener.open(view, new KarnaughWizard(model, cost, target, background));
+        });
 
         Action importAction = new AbstractAction(Messages.text("action.importTruthTable")) {
             @Override
@@ -77,6 +84,7 @@ public final class KarnaughExtension implements EditorExtension {
         file.insert(importMenu, importPosition(file));
         Runnable importShortcutRemover = view.registerShortcutAction(IMPORT_SHORTCUT_ID, importAction);
         return () -> {
+            view.setTableWizard(null);
             importShortcutRemover.run();
             file.remove(importMenu);
             shortcutRemover.run();
