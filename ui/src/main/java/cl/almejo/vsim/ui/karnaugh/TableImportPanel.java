@@ -26,7 +26,6 @@ import javax.swing.JRootPane;
 import javax.swing.JScrollPane;
 import javax.swing.JSpinner;
 import javax.swing.JTextField;
-import javax.swing.JToggleButton;
 import javax.swing.SpinnerNumberModel;
 import javax.swing.SwingUtilities;
 import javax.swing.event.DocumentEvent;
@@ -157,7 +156,8 @@ public final class TableImportPanel extends JPanel {
     private final TablePreview preview = new TablePreview(previewModel);
     private final CardLayout pages = new CardLayout();
     private final JPanel pageCards = new JPanel(pages);
-    private final Map<Page, JToggleButton> pageButtons = new EnumMap<>(Page.class);
+    /** «Paso 1 de 2 · Datos»: two pages need no tabs, «Siguiente» and «Atrás» move between them. */
+    private final JLabel heading = new JLabel(" ");
     private final JButton back = new JButton(Messages.text("karnaugh.back"));
     private final JButton next = new JButton(Messages.text("karnaugh.next"));
     private Page page = Page.DATA;
@@ -217,7 +217,25 @@ public final class TableImportPanel extends JPanel {
         sourceRow.add(paste);
         sourceRow.add(sourceLabel);
         data.add(sourceRow);
-        data.add(help, "wmin 100");
+        // The format help in a soft box, so it reads as instructions and not as part of the form.
+        JPanel helpBox = new JPanel(new MigLayout("insets 8 12 8 12, fill", "[grow, fill]")) {
+            @Override
+            protected void paintComponent(Graphics graphics) {
+                Graphics2D graphics2D = (Graphics2D) graphics.create();
+                try {
+                    graphics2D.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                    graphics2D.setColor(WizardColors.sidePanel());
+                    graphics2D.fillRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 8, 8);
+                    graphics2D.setColor(WizardColors.sidePanelEdge());
+                    graphics2D.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 8, 8);
+                } finally {
+                    graphics2D.dispose();
+                }
+            }
+        };
+        helpBox.setOpaque(false);
+        helpBox.add(help, "wmin 100");
+        data.add(helpBox, "wmin 100");
         JPanel inputsRow = new JPanel(new MigLayout("insets 0", "[][]12[grow]"));
         inputsRow.add(new JLabel(Messages.text("tableImport.inputCount")));
         inputsRow.add(inputCount);
@@ -262,19 +280,9 @@ public final class TableImportPanel extends JPanel {
         pageCards.add(data, Page.DATA.name());
         pageCards.add(new JScrollPane(content), Page.CREATE.name());
 
-        JPanel stepBar = new JPanel(new MigLayout("insets 8 12 0 12, gap 4"));
-        ButtonGroup stepGroup = new ButtonGroup();
-        for (Page each : Page.values()) {
-            JToggleButton button = new JToggleButton(each.title());
-            button.addActionListener(event -> {
-                if (!goTo(each)) {
-                    pageButtons.get(page).setSelected(true);
-                }
-            });
-            stepGroup.add(button);
-            stepBar.add(button);
-            pageButtons.put(each, button);
-        }
+        JPanel headingBar = new JPanel(new MigLayout("insets 12 16 0 16"));
+        heading.setFont(heading.getFont().deriveFont(Font.BOLD));
+        headingBar.add(heading);
 
         buttonBar = new JPanel(new MigLayout("insets 6 12 10 12, fillx, hidemode 3", "[][grow][][][][]"));
         buttonBar.add(wizard, "cell 0 0");
@@ -282,7 +290,7 @@ public final class TableImportPanel extends JPanel {
         buttonBar.add(next, "cell 3 0");
         buttonBar.add(controls.createButton(), "cell 4 0");
         buttonBar.add(close, "cell 5 0, gapleft 12");
-        add(stepBar, BorderLayout.NORTH);
+        add(headingBar, BorderLayout.NORTH);
         add(pageCards, BorderLayout.CENTER);
         add(buttonBar, BorderLayout.SOUTH);
         controls.addRefreshListener(this::updateDefaultButton);
@@ -340,7 +348,8 @@ public final class TableImportPanel extends JPanel {
     private void display(Page target) {
         page = target;
         pages.show(pageCards, target.name());
-        pageButtons.get(target).setSelected(true);
+        heading.setText(Messages.format("tableImport.page.heading", target.ordinal() + 1, Page.values().length,
+                target.title()));
         refreshButtons();
     }
 
@@ -602,10 +611,6 @@ public final class TableImportPanel extends JPanel {
         next.setToolTipText(model.dataReady() ? null : Messages.text(model.problemLines().isEmpty()
                 ? "tableImport.next.noTable" : "tableImport.next.problems"));
         back.setEnabled(!busy);
-        if (!pageButtons.isEmpty()) {
-            pageButtons.get(Page.DATA).setEnabled(!busy);
-            pageButtons.get(Page.CREATE).setEnabled(!busy && model.dataReady());
-        }
         next.setVisible(onData);
         back.setVisible(!onData);
         wizard.setVisible(!onData);
@@ -648,6 +653,10 @@ public final class TableImportPanel extends JPanel {
 
     TablePreview preview() {
         return preview;
+    }
+
+    String pageHeading() {
+        return heading.getText();
     }
 
     JButton nextButton() {

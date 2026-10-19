@@ -17,6 +17,9 @@ import javax.swing.JButton;
 import javax.swing.JRootPane;
 import javax.swing.SpinnerNumberModel;
 import javax.swing.SwingUtilities;
+import javax.swing.JToggleButton;
+import java.awt.Component;
+import java.awt.Container;
 import java.awt.Dimension;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -134,6 +137,35 @@ class TableImportPanelTest {
         assertThat(panel.inputCountSpinner().getValue()).isEqualTo(3);
         assertThat(panel.columnsText()).isEqualTo("Entradas: A, B, C · Salidas: M");
         assertThat(panel.problemsText()).isEmpty();
+    }
+
+    @Test
+    void twoPagesNeedNoTabsAHeadingSaysWhereTheUserIs() throws IOException {
+        assertThat(panel.pageHeading()).isEqualTo("Paso 1 de 2 · Datos");
+        List<JToggleButton> tabs = new ArrayList<>();
+        collect(panel, JToggleButton.class, tabs);
+        // Radio buttons and check boxes are toggle buttons too: a step tab is a plain JToggleButton.
+        assertThat(tabs).filteredOn(button -> button.getClass() == JToggleButton.class)
+                .as("no step tabs: «Siguiente» and «Atrás» move between the pages").isEmpty();
+
+        chosen = write("sumador.csv", ADDER);
+        panel.openFileButton().doClick();
+        next();
+        assertThat(panel.pageHeading()).isEqualTo("Paso 2 de 2 · Crear");
+
+        panel.backButton().doClick();
+        assertThat(panel.pageHeading()).isEqualTo("Paso 1 de 2 · Datos");
+    }
+
+    private static <T> void collect(Container container, Class<T> type, List<T> found) {
+        for (Component child : container.getComponents()) {
+            if (type.isInstance(child)) {
+                found.add(type.cast(child));
+            }
+            if (child instanceof Container inner) {
+                collect(inner, type, found);
+            }
+        }
     }
 
     @Test
