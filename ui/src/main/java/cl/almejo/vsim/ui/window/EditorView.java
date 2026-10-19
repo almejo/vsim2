@@ -119,6 +119,7 @@ public final class EditorView extends JPanel implements CanvasHost {
                 services.appearance());
         this.selectionMoves = new SelectionMoves(services.preferences(), statusBar::showNotice);
         this.canvas = new CircuitCanvas(openDocument, renderer, this);
+        canvas.setAnimateViewMoves(services.preferences()::animateViewMoves);
         this.actions = new EditorActions(openDocument, canvas, window);
         this.selectionActions = new SelectionActions(openDocument, canvas, actions, FragmentClipboard.system());
         this.palette = new PalettePanel(openDocument.registry(), services.painters(), services.appearance(), type -> {

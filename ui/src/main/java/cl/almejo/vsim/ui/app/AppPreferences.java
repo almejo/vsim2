@@ -14,6 +14,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.function.BooleanSupplier;
 import java.util.prefs.BackingStoreException;
 import java.util.prefs.Preferences;
 
@@ -56,6 +57,7 @@ public final class AppPreferences {
     static final String TEXT_FONT_FAMILY = "textFontFamily";
     static final String TEXT_FONT_SIZE = "textFontSize";
     static final String COLOR_SCHEMES = "colorSchemes";
+    static final String ANIMATE_VIEW_MOVES = "animateViewMoves";
 
     /** «Avanzar 10 t» (M6.1-B): the fixed step until the user picks another size. */
     public static final long DEFAULT_STEP_UNITS = 10;
@@ -65,14 +67,21 @@ public final class AppPreferences {
     private static final String NODE = "cl/almejo/vsim2";
 
     private final Preferences node;
+    private final BooleanSupplier systemReducesMotion;
     private final List<Runnable> listeners = new CopyOnWriteArrayList<>();
 
     public AppPreferences(Preferences node) {
+        this(node, () -> false);
+    }
+
+    /** @param systemReducesMotion whether the desktop asks for less motion: the default of the animated view moves */
+    AppPreferences(Preferences node, BooleanSupplier systemReducesMotion) {
         this.node = node;
+        this.systemReducesMotion = systemReducesMotion;
     }
 
     public static AppPreferences system() {
-        return new AppPreferences(Preferences.userRoot().node(NODE));
+        return new AppPreferences(Preferences.userRoot().node(NODE), ReducedMotion::requested);
     }
 
     public static AppPreferences inMemory() {
@@ -272,6 +281,27 @@ public final class AppPreferences {
     public void setInvertModifier(InvertModifier modifier) {
         Objects.requireNonNull(modifier, "modifier");
         put(INVERT_MODIFIER, modifier.name());
+    }
+
+    // --- Buscar en el circuito: animated view moves ---
+
+    /**
+     * «Animar los movimientos de la vista»: the view travels (an eased pan or a «fly to») instead of jumping when the
+     * app takes it somewhere. On by default, unless the desktop asks for reduced motion; a stored choice wins.
+     */
+    public boolean animateViewMoves() {
+        String stored = node.get(ANIMATE_VIEW_MOVES, "");
+        if (stored.isEmpty()) {
+            return !systemReducesMotion.getAsBoolean();
+        }
+        return !"false".equals(stored);
+    }
+
+    public void setAnimateViewMoves(boolean animate) {
+        if (animateViewMoves() == animate) {
+            return;
+        }
+        put(ANIMATE_VIEW_MOVES, Boolean.toString(animate));
     }
 
     // --- M6.8 text font ---

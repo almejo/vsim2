@@ -25,6 +25,7 @@ import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.CanvasHost;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.canvas.CircuitRenderer;
+import cl.almejo.vsim.ui.canvas.ManualFrameTicker;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
 import org.junit.jupiter.api.AfterEach;
@@ -107,6 +108,18 @@ class ProblemNavigatorTest {
     void previousFromTheStartGoesToTheLast() {
         show(shortOn(netOf(left), 5), shortOn(netOf(right), 2));
         assertThat(navigator.previous()).map(Problem::netId).contains(netOf(left));
+    }
+
+    @Test
+    void navigatingTravelsToTheProblemWhenViewMovesAreAnimated() {
+        canvas.setAnimateViewMoves(() -> true);
+        ManualFrameTicker ticker = new ManualFrameTicker().drive(canvas);
+        show(shortOn(netOf(right), 2));
+        navigator.next();
+        assertThat(canvas.isTravelling()).isTrue();
+        assertThat(canvas.selection().ids()).containsExactly(right.id());
+        ticker.finish();
+        assertThat(canvas.viewport().gridToScreen(44, 4)).isEqualTo(new Point2D.Double(200, 150));
     }
 
     @Test

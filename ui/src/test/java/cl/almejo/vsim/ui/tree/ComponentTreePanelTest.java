@@ -21,6 +21,7 @@ import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.CanvasHost;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.canvas.CircuitRenderer;
+import cl.almejo.vsim.ui.canvas.ManualFrameTicker;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.Appearance;
 import cl.almejo.vsim.ui.paint.ColorScheme;
@@ -116,6 +117,21 @@ class ComponentTreePanelTest {
         Component gate = place(openDocument, StandardComponentTypes.NOT, 20, 10, Map.of());
         panel.tree().setSelectionPath(panel.treePath(gate.id().value()).orElseThrow());
         assertThat(canvas.selection().ids()).containsExactly(gate.id());
+        Point2D middle = center(ElementBounds.of(gate, openDocument.registry()));
+        assertThat(canvas.viewport().gridToScreen(middle.getX(), middle.getY()))
+                .isEqualTo(new Point2D.Double(200, 150));
+    }
+
+    @Test
+    void choosingARowTravelsToItsComponentWhenViewMovesAreAnimated() {
+        Component gate = place(openDocument, StandardComponentTypes.NOT, 20, 10, Map.of());
+        canvas.setAnimateViewMoves(() -> true);
+        ManualFrameTicker ticker = new ManualFrameTicker().drive(canvas);
+        Point2D origin = canvas.viewport().gridToScreen(0, 0);
+        panel.tree().setSelectionPath(panel.treePath(gate.id().value()).orElseThrow());
+        assertThat(canvas.isTravelling()).isTrue();
+        assertThat(canvas.viewport().gridToScreen(0, 0)).isEqualTo(origin);
+        ticker.finish();
         Point2D middle = center(ElementBounds.of(gate, openDocument.registry()));
         assertThat(canvas.viewport().gridToScreen(middle.getX(), middle.getY()))
                 .isEqualTo(new Point2D.Double(200, 150));

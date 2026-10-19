@@ -60,6 +60,41 @@ class AppPreferencesTest {
     }
 
     @Test
+    void animatingViewMovesIsOnByDefaultAndOnlyRealChangesNotify() {
+        preferences.addListener(changes::incrementAndGet);
+        assertThat(preferences.animateViewMoves()).isTrue();
+        preferences.setAnimateViewMoves(true);
+        assertThat(changes).hasValue(0);
+
+        preferences.setAnimateViewMoves(false);
+        assertThat(preferences.animateViewMoves()).isFalse();
+        assertThat(node.get("animateViewMoves", null)).isEqualTo("false");
+        assertThat(changes).hasValue(1);
+        assertThat(new AppPreferences(node).animateViewMoves()).isFalse();
+
+        preferences.setAnimateViewMoves(true);
+        assertThat(preferences.animateViewMoves()).isTrue();
+        assertThat(changes).hasValue(2);
+    }
+
+    @Test
+    void whenTheSystemAsksForReducedMotionViewMovesStartOffUntilTheUserChooses() {
+        AppPreferences reduced = new AppPreferences(new MemoryPreferences(), () -> true);
+        assertThat(reduced.animateViewMoves()).isFalse();
+        reduced.setAnimateViewMoves(true);
+        assertThat(reduced.animateViewMoves()).isTrue();
+    }
+
+    @Test
+    void reducedMotionReadsTheDesktopAnimationsSetting() {
+        assertThat(ReducedMotion.requested(name -> 0)).isTrue();
+        assertThat(ReducedMotion.requested(name -> 1)).isFalse();
+        assertThat(ReducedMotion.requested(name -> Boolean.FALSE)).isTrue();
+        assertThat(ReducedMotion.requested(name -> null)).isFalse();
+        assertThat(ReducedMotion.requested(name -> "whatever")).isFalse();
+    }
+
+    @Test
     void restoringTheSessionIsOnByDefaultAndOnlyRealChangesNotify() {
         preferences.addListener(changes::incrementAndGet);
         assertThat(preferences.restoreSession()).isTrue();
