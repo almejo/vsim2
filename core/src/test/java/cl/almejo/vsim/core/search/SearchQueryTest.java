@@ -111,6 +111,40 @@ class SearchQueryTest {
     }
 
     @Test
+    void theStepBudgetIsSharedByEveryTextOfOneQuery() {
+        // Each of these texts alone costs far less than the whole budget; together they must still make the
+        // query give up, so a document full of medium-cost labels cannot add up to a freeze.
+        CompiledQuery probe = new SearchQuery("^(a+)+\\1$", true, true).compile();
+        String label = "a".repeat(14) + "!";
+        probe.matches(label);
+        long stepsForOneText = CompiledQuery.STEP_BUDGET - probe.remainingSteps();
+        assertThat(probe.problem()).isEmpty();
+        assertThat(stepsForOneText).isPositive().isLessThan(CompiledQuery.STEP_BUDGET / 20);
+
+        CompiledQuery query = new SearchQuery("^(a+)+\\1$", true, true).compile();
+        long textsTried = 0;
+        while (!query.matchesNothing() && textsTried < 10_000) {
+            query.matches(label);
+            textsTried++;
+        }
+
+        assertThat(query.problem()).contains(new SearchProblem(SearchProblem.TOO_EXPENSIVE, List.of()));
+        assertThat(textsTried).isLessThanOrEqualTo(CompiledQuery.STEP_BUDGET / stepsForOneText + 1);
+    }
+
+    @Test
+    void eachCompiledQueryStartsWithAWholeBudget() {
+        CompiledQuery spent = new SearchQuery("^(a+)+\\1$", true, true).compile();
+        spent.matches("a".repeat(40) + "!");
+        assertThat(spent.matchesNothing()).isTrue();
+
+        CompiledQuery fresh = new SearchQuery("^(a+)+\\1$", true, true).compile();
+
+        assertThat(fresh.remainingSteps()).isEqualTo(CompiledQuery.STEP_BUDGET);
+        assertThat(fresh.matches("aa")).isTrue();
+    }
+
+    @Test
     void theClassicNestedRepetitionIsNoProblemForJava() {
         CompiledQuery query = new SearchQuery("(a+)+$", false, true).compile();
 

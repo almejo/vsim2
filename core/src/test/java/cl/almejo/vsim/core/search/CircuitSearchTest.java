@@ -68,6 +68,10 @@ class CircuitSearchTest {
         return frame;
     }
 
+    private static List<ElementId> ids(String... values) {
+        return java.util.Arrays.stream(values).map(ElementId::new).toList();
+    }
+
     private static Component part(String typeId, String id, int x, int y, String label) {
         return new Component(new ElementId(id), typeId, new GridPoint(x, y), Rotation.R0, Map.of(), label);
     }
@@ -89,14 +93,14 @@ class CircuitSearchTest {
         Component gate = place(StandardComponentTypes.AND2, 0, 0, "Acarreo");
 
         assertThat(find("acarreo"))
-                .containsExactly(new SearchHit(gate.id(), List.of(), SearchHit.Field.LABEL, "Acarreo"));
+                .containsExactly(new SearchHit(gate.id(), List.of(), List.of(), SearchHit.Field.LABEL, "Acarreo"));
     }
 
     @Test
     void findsTypeNamesThroughTheGivenDisplayName() {
         Component gate = place(StandardComponentTypes.AND2, 0, 0, "");
 
-        assertThat(find("and")).containsExactly(new SearchHit(gate.id(), List.of(), SearchHit.Field.TYPE, "And"));
+        assertThat(find("and")).containsExactly(new SearchHit(gate.id(), List.of(), List.of(), SearchHit.Field.TYPE, "And"));
     }
 
     @Test
@@ -105,8 +109,8 @@ class CircuitSearchTest {
         Frame frame = frame(0, 20, "Etapa de prueba");
 
         assertThat(find("prueba")).containsExactly(
-                new SearchHit(note.id(), List.of(), SearchHit.Field.TEXT, "Sumador de prueba"),
-                new SearchHit(frame.id(), List.of(), SearchHit.Field.FRAME_TITLE, "Etapa de prueba"));
+                new SearchHit(note.id(), List.of(), List.of(), SearchHit.Field.TEXT, "Sumador de prueba"),
+                new SearchHit(frame.id(), List.of(), List.of(), SearchHit.Field.FRAME_TITLE, "Etapa de prueba"));
     }
 
     @Test
@@ -115,9 +119,9 @@ class CircuitSearchTest {
         Component output = place(InterfacePins.OUTPUT_PIN, 0, 10, "Cout");
 
         assertThat(find("cin"))
-                .containsExactly(new SearchHit(input.id(), List.of(), SearchHit.Field.PIN_NAME, "Cin"));
+                .containsExactly(new SearchHit(input.id(), List.of(), List.of(), SearchHit.Field.PIN_NAME, "Cin"));
         assertThat(find("cout"))
-                .containsExactly(new SearchHit(output.id(), List.of(), SearchHit.Field.PIN_NAME, "Cout"));
+                .containsExactly(new SearchHit(output.id(), List.of(), List.of(), SearchHit.Field.PIN_NAME, "Cout"));
     }
 
     @Test
@@ -125,7 +129,7 @@ class CircuitSearchTest {
         Component gate = place(StandardComponentTypes.AND2, 0, 0, "Banda");
 
         assertThat(find("and"))
-                .containsExactly(new SearchHit(gate.id(), List.of(), SearchHit.Field.LABEL, "Banda"));
+                .containsExactly(new SearchHit(gate.id(), List.of(), List.of(), SearchHit.Field.LABEL, "Banda"));
     }
 
     @Test
@@ -169,8 +173,8 @@ class CircuitSearchTest {
         Component adder = place(SubcircuitTypes.typeIdOf(FULL_ADDER), 0, 0, "U3");
 
         assertThat(find("x1")).containsExactly(
-                new SearchHit(adder.id(), List.of("H1", "X1"), SearchHit.Field.LABEL, "X1"),
-                new SearchHit(adder.id(), List.of("H2", "X1"), SearchHit.Field.LABEL, "X1"));
+                new SearchHit(adder.id(), ids("c1", "c1"), List.of("H1", "X1"), SearchHit.Field.LABEL, "X1"),
+                new SearchHit(adder.id(), ids("c2", "c1"), List.of("H2", "X1"), SearchHit.Field.LABEL, "X1"));
     }
 
     @Test
@@ -182,7 +186,7 @@ class CircuitSearchTest {
                 typeDisplayName);
 
         assertThat(hits).containsExactly(
-                new SearchHit(adder.id(), List.of("Or"), SearchHit.Field.TYPE, "Or"));
+                new SearchHit(adder.id(), ids("c3"), List.of("Or"), SearchHit.Field.TYPE, "Or"));
     }
 
     @Test
@@ -192,10 +196,41 @@ class CircuitSearchTest {
         TextLabel note = text(0, 30, "Un sumador");
 
         assertThat(find("sumador")).containsExactly(
-                new SearchHit(adder.id(), List.of(), SearchHit.Field.TYPE, "Sumador completo"),
-                new SearchHit(adder.id(), List.of("H1"), SearchHit.Field.TYPE, "Medio sumador"),
-                new SearchHit(adder.id(), List.of("H2"), SearchHit.Field.TYPE, "Medio sumador"),
-                new SearchHit(note.id(), List.of(), SearchHit.Field.TEXT, "Un sumador"));
+                new SearchHit(adder.id(), List.of(), List.of(), SearchHit.Field.TYPE, "Sumador completo"),
+                new SearchHit(adder.id(), ids("c1"), List.of("H1"), SearchHit.Field.TYPE, "Medio sumador"),
+                new SearchHit(adder.id(), ids("c2"), List.of("H2"), SearchHit.Field.TYPE, "Medio sumador"),
+                new SearchHit(note.id(), List.of(), List.of(), SearchHit.Field.TEXT, "Un sumador"));
+    }
+
+    @Test
+    void twoUnlabeledPartsOfOneTypeAreTellApartByTheirIds() {
+        document.putDefinition(new ComponentDefinition("two-ors", "Dos o", "", new GridSize(4, 4), List.of(),
+                new CircuitFragment(List.of(part(StandardComponentTypes.OR2, "c1", 0, 0, ""),
+                        part(StandardComponentTypes.OR2, "c2", 0, 6, "")), List.of(), List.of())));
+        Component instance = place(SubcircuitTypes.typeIdOf("two-ors"), 0, 0, "");
+
+        List<SearchHit> hits = CircuitSearch.find(document, registry, new SearchQuery("Or", true, false).compile(),
+                typeDisplayName);
+
+        assertThat(hits).containsExactly(
+                new SearchHit(instance.id(), ids("c1"), List.of("Or"), SearchHit.Field.TYPE, "Or"),
+                new SearchHit(instance.id(), ids("c2"), List.of("Or"), SearchHit.Field.TYPE, "Or"));
+        assertThat(hits.get(0)).isNotEqualTo(hits.get(1));
+    }
+
+    @Test
+    void aQueryThatGivesUpFindsNothingAtAll() {
+        // The first labels match cheaply; the long ones exhaust the shared budget: no partial results.
+        place(StandardComponentTypes.LED, 0, 0, "aa");
+        for (int index = 0; index < 400; index++) {
+            place(StandardComponentTypes.LED, 0, 10 + index, "a".repeat(20) + "!");
+        }
+        CompiledQuery query = new SearchQuery("^(a+)+\\1$", true, true).compile();
+
+        List<SearchHit> hits = CircuitSearch.find(document, registry, query, typeDisplayName);
+
+        assertThat(query.problem()).contains(new SearchProblem(SearchProblem.TOO_EXPENSIVE, List.of()));
+        assertThat(hits).isEmpty();
     }
 
     @Test
@@ -205,6 +240,6 @@ class CircuitSearchTest {
         document.add(unknown);
 
         assertThat(find("miste"))
-                .containsExactly(new SearchHit(unknown.id(), List.of(), SearchHit.Field.LABEL, "misterio"));
+                .containsExactly(new SearchHit(unknown.id(), List.of(), List.of(), SearchHit.Field.LABEL, "misterio"));
     }
 }

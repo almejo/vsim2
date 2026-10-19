@@ -4,6 +4,7 @@ import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
+import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.Frame;
 import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.geometry.GridPoint;
@@ -35,7 +36,8 @@ public final class CircuitSearch {
     }
 
     /**
-     * Every hit of {@code query} in {@code document}. {@code typeDisplayName} gives the visible name of a type id
+     * Every hit of {@code query} in {@code document}; none at all when the query gives up on the way
+     * ({@link CompiledQuery#problem()} then says so). {@code typeDisplayName} gives the visible name of a type id
      * (the definition name for user components), so the UI decides the language.
      */
     public static List<SearchHit> find(CircuitDocument document, ComponentTypeRegistry registry, CompiledQuery query,
@@ -53,6 +55,9 @@ public final class CircuitSearch {
         Search search = new Search(document, query, typeDisplayName, new ArrayList<>());
         for (DocumentElement element : elements) {
             search.visit(element);
+            if (query.matchesNothing()) {
+                return List.of(); // the regular expression gave up: no partial results (see CompiledQuery)
+            }
         }
         return List.copyOf(search.hits());
     }
@@ -63,18 +68,18 @@ public final class CircuitSearch {
         void visit(DocumentElement element) {
             switch (element) {
                 case Component component -> {
-                    componentHit(component).ifPresent(hit -> hits.add(new SearchHit(component.id(), List.of(),
+                    componentHit(component).ifPresent(hit -> hits.add(new SearchHit(component.id(), List.of(), List.of(),
                             hit.field(), hit.text())));
-                    visitInside(component, component, List.of(), 0);
+                    visitInside(component, component, List.of(), List.of(), 0);
                 }
                 case TextLabel label -> {
                     if (query.matches(label.text())) {
-                        hits.add(new SearchHit(label.id(), List.of(), SearchHit.Field.TEXT, label.text()));
+                        hits.add(new SearchHit(label.id(), List.of(), List.of(), SearchHit.Field.TEXT, label.text()));
                     }
                 }
                 case Frame frame -> {
                     if (query.matches(frame.title())) {
-                        hits.add(new SearchHit(frame.id(), List.of(), SearchHit.Field.FRAME_TITLE, frame.title()));
+                        hits.add(new SearchHit(frame.id(), List.of(), List.of(), SearchHit.Field.FRAME_TITLE, frame.title()));
                     }
                 }
                 default -> {
@@ -83,7 +88,8 @@ public final class CircuitSearch {
         }
 
         /** The hits among the parts of {@code instance} (when it is a user component), reported on {@code topLevel}. */
-        private void visitInside(Component topLevel, Component instance, List<String> path, int depth) {
+        private void visitInside(Component topLevel, Component instance, List<ElementId> ids, List<String> path,
+                                 int depth) {
             if (depth >= MAXIMUM_DEPTH) {
                 return;
             }
@@ -93,11 +99,13 @@ public final class CircuitSearch {
                 return;
             }
             for (Component part : definition.get().body().components()) {
+                List<ElementId> partIds = new ArrayList<>(ids);
+                partIds.add(part.id());
                 List<String> partPath = new ArrayList<>(path);
                 partPath.add(part.label().isBlank() ? typeDisplayName.apply(part.typeId()) : part.label());
-                componentHit(part).ifPresent(hit -> hits.add(new SearchHit(topLevel.id(), partPath, hit.field(),
+                componentHit(part).ifPresent(hit -> hits.add(new SearchHit(topLevel.id(), partIds, partPath, hit.field(),
                         hit.text())));
-                visitInside(topLevel, part, partPath, depth + 1);
+                visitInside(topLevel, part, partIds, partPath, depth + 1);
             }
         }
 

@@ -5,26 +5,32 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.regex.Pattern;
 
 /**
  * A {@link SearchQuery} ready to test texts. Shared by the find bar and the component tree's filter so both always
- * agree.
+ * agree. Compile one per search (a keystroke, an edit): its budget is spent by that search.
  *
- * <p>Guard against pathological regular expressions (e.g. {@code (a+)+$}), which could otherwise freeze the EDT:
+ * <p>Guard against pathological regular expressions (e.g. {@code ^(a+)+\1$}), which could otherwise freeze the EDT:
  * only the first {@link #MAXIMUM_TEXT_LENGTH} characters of a text are searched, and the regular expression reads
- * them through a {@link CharSequence} that counts every character read and aborts after {@link #STEP_BUDGET} reads.
- * The first time that happens the query gives up for good: from then on it matches nothing and {@link #problem()}
- * reports {@link SearchProblem#TOO_EXPENSIVE}, so a large document cannot add many budgets up to a freeze. The
- * budget counts steps, never time, so its outcome does not depend on the machine.
+ * them through a {@link CharSequence} that counts every character read. One budget of {@link #STEP_BUDGET} reads is
+ * shared by every text this query tests, so a whole search (hundreds of labels, nested parts included) costs at most
+ * one budget, however many texts each cost a little. When it runs out the query gives up for good: from then on it
+ * matches nothing and {@link #problem()} reports {@link SearchProblem#TOO_EXPENSIVE}; callers then show no matches at
+ * all, not the ones found before it gave up. The budget counts steps, never time, so its outcome does not depend on
+ * the machine.
  */
 public final class CompiledQuery {
 
     /** Texts are cut to this many characters before searching. */
     public static final int MAXIMUM_TEXT_LENGTH = 1_000;
 
-    /** How many characters a regular expression may read for one text before the query gives up. */
-    public static final int STEP_BUDGET = 2_000_000;
+    /**
+     * How many characters a regular expression may read, over every text of this query, before it gives up: a few
+     * tens of milliseconds at worst, and thousands of times what an ordinary expression needs on a large document.
+     */
+    public static final int STEP_BUDGET = 5_000_000;
 
     private static final Pattern COMBINING_MARKS = Pattern.compile("\\p{M}+");
 
@@ -33,6 +39,7 @@ public final class CompiledQuery {
     private final Pattern pattern;
     private final SearchProblem compileProblem;
     private final AtomicBoolean gaveUp = new AtomicBoolean();
+    private final AtomicLong remainingSteps = new AtomicLong(STEP_BUDGET);
 
     private enum Kind { NOTHING, PLAIN, PLAIN_FOLDED, REGEX, INVALID }
 
@@ -88,9 +95,14 @@ public final class CompiledQuery {
                 : Optional.empty();
     }
 
+    /** The character reads this query may still spend (for tests). */
+    long remainingSteps() {
+        return Math.max(0, remainingSteps.get());
+    }
+
     private boolean findWithinBudget(String text) {
         try {
-            return pattern.matcher(new BudgetedText(text, new int[]{STEP_BUDGET})).find();
+            return pattern.matcher(new BudgetedText(text, remainingSteps)).find();
         } catch (BudgetExhausted exhausted) {
             gaveUp.set(true);
             return false;
@@ -107,19 +119,19 @@ public final class CompiledQuery {
         return COMBINING_MARKS.matcher(decomposed).replaceAll("").toLowerCase(Locale.ROOT);
     }
 
-    /** A text whose reads share one budget (sub-sequences included). */
+    /** A text whose reads spend the query's budget (sub-sequences included). */
     private static final class BudgetedText implements CharSequence {
         private final String text;
-        private final int[] remaining;
+        private final AtomicLong remaining;
 
-        BudgetedText(String text, int[] remaining) {
+        BudgetedText(String text, AtomicLong remaining) {
             this.text = text;
             this.remaining = remaining;
         }
 
         @Override
         public char charAt(int index) {
-            if (--remaining[0] < 0) {
+            if (remaining.decrementAndGet() < 0) {
                 throw new BudgetExhausted();
             }
             return text.charAt(index);

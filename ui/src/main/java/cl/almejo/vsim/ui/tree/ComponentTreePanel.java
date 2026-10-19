@@ -200,9 +200,12 @@ public final class ComponentTreePanel extends JPanel {
         CompiledQuery query = new SearchQuery(filterField.getText(), matchCase, regex).compile();
         List<ComponentTreeNode> kept = new ArrayList<>();
         for (ComponentTreeNode child : all.children()) {
-            ComponentTreeModel.filter(child, query).ifPresent(kept::add);
+            ComponentTreeModel.filter(child, query, openDocument.registry()).ifPresent(kept::add);
         }
         Optional<SearchProblem> problem = query.problem(); // after matching: a regex may give up while matching
+        if (problem.isPresent()) {
+            kept.clear(); // gave up part way: what it kept so far is not the answer
+        }
         filterField.showError(problem.isPresent() || kept.isEmpty());
         filterField.setToolTipText(problem.map(found -> Messages.format(found.messageKey(),
                 found.arguments().toArray())).orElse(kept.isEmpty() ? Messages.text("find.noResults") : null));

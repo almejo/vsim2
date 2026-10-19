@@ -247,6 +247,42 @@ class FindFeaturesTest {
     }
 
     @Test
+    void aRegexThatGivesUpSaysSoAndHighlightsNothing() {
+        labeled(StandardComponentTypes.NOT, 0, 0, "aa"); // matches cheaply, before the costly labels
+        for (int index = 0; index < 300; index++) {
+            labeled(StandardComponentTypes.NOT, 0, 10 + 10 * index, "a".repeat(20) + "!");
+        }
+        preferences.setFindMatchCase(true);
+        preferences.setFindRegex(true);
+        perform(features.findAction());
+
+        type("^(a+)+\\1$");
+
+        assertThat(features.bar().showsError()).isTrue();
+        assertThat(features.bar().messageText()).isEqualTo("Expresión demasiado costosa de buscar; simplifícala");
+        assertThat(features.hits()).isEmpty();
+        assertThat(features.current()).isEmpty();
+        assertThat(features.overlay().highlighted()).isEmpty();
+        assertThat(view.canvas().selection().isEmpty()).isTrue();
+    }
+
+    @Test
+    void twoUnlabeledPartsOfOneTypeStayApartWhenTheDocumentChanges() {
+        openDocument.execute(new PutDefinitionsCommand(List.of(ExampleDefinitions.inverter(),
+                ExampleDefinitions.doubleInverter())));
+        labeled(SubcircuitTypes.typeIdOf(ExampleDefinitions.DOUBLE_INVERTER), 4, 4, "D");
+        perform(features.findAction());
+        type("not"); // the NOT inside each of the two unlabeled «Inversor» parts
+        assertThat(features.hits()).hasSize(2);
+        press(KeyEvent.VK_ENTER, 0);
+        assertThat(features.bar().counterText()).isEqualTo("2 de 2");
+
+        place(openDocument, StandardComponentTypes.LED, 0, 100, Map.of());
+
+        assertThat(features.bar().counterText()).isEqualTo("2 de 2");
+    }
+
+    @Test
     void theOptionTogglesChangeTheResultsPersistAndFollowOtherViews() {
         labeled(StandardComponentTypes.NOT, 0, 0, "abc");
         labeled(StandardComponentTypes.NOT, 20, 0, "ABC");

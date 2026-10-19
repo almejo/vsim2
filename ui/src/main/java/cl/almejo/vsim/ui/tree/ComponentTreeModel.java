@@ -147,11 +147,16 @@ public final class ComponentTreeModel {
                 .map(entry -> new Group(entry.getKey(), typeName(entry.getKey(), registry), entry.getValue()))
                 .sorted(Comparator.comparing(Group::name, String.CASE_INSENSITIVE_ORDER)
                         .thenComparing(Group::typeId))
-                .map(group -> new ComponentTreeNode(ComponentTreeNode.Kind.GROUP,
-                        ComponentTreeNode.groupPath(parentPath, group.typeId()),
-                        Messages.format("tree.group", group.name(), group.members().size()), group.typeId(), false,
-                        group.members(), List.of()))
+                .map(group -> groupNode(ComponentTreeNode.groupPath(parentPath, group.typeId()), group.name(),
+                        group.typeId(), group.members()))
                 .toList();
+    }
+
+    /** A group row: «NOT (3)», counting {@code members}. */
+    private static ComponentTreeNode groupNode(String path, String name, String typeId,
+                                               List<ComponentTreeNode> members) {
+        return new ComponentTreeNode(ComponentTreeNode.Kind.GROUP, path,
+                Messages.format("tree.group", name, members.size()), typeId, false, members, List.of());
     }
 
     /** The visible type name (the definition name for user components); the raw id when the type is unknown. */
@@ -162,14 +167,20 @@ public final class ComponentTreeModel {
     /**
      * The rows of {@code node} that {@code query} matches (one of their {@link ComponentTreeNode#matchTexts()}) and
      * their ancestors; empty when none under it matches. The rows kept under a match that do not match themselves are
-     * left out. The document row itself is never matched: callers keep it.
+     * left out, and a group counts the rows it keeps. The document row itself is never matched: callers keep it.
      */
-    public static Optional<ComponentTreeNode> filter(ComponentTreeNode node, CompiledQuery query) {
+    public static Optional<ComponentTreeNode> filter(ComponentTreeNode node, CompiledQuery query,
+                                                     ComponentTypeRegistry registry) {
         List<ComponentTreeNode> kept = new ArrayList<>();
         for (ComponentTreeNode child : node.children()) {
-            filter(child, query).ifPresent(kept::add);
+            filter(child, query, registry).ifPresent(kept::add);
         }
         boolean matches = node.matchTexts().stream().anyMatch(query::matches);
-        return matches || !kept.isEmpty() ? Optional.of(node.withChildren(kept)) : Optional.empty();
+        if (!matches && kept.isEmpty()) {
+            return Optional.empty();
+        }
+        return Optional.of(node.kind() == ComponentTreeNode.Kind.GROUP
+                ? groupNode(node.path(), typeName(node.typeId(), registry), node.typeId(), kept)
+                : node.withChildren(kept));
     }
 }

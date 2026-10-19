@@ -52,8 +52,9 @@ import java.util.function.Supplier;
  * order) becomes current, without moving the view under the user's edits. Ctrl+F while the focus is inside a
  * component that has a filter of its own ({@link #FILTER_FOCUS_PROPERTY}, the component tree) focuses that filter.
  *
- * <p>Searching runs on the EDT: the core caps texts and gives a regular expression a step budget, so even a
- * pathological one costs a few milliseconds once, and the bundled examples search in well under a millisecond.
+ * <p>Searching runs on the EDT: the core caps texts and gives each search of a regular expression one step budget for
+ * all its texts, so even a pathological one costs a bounded few tens of milliseconds per keystroke (then the bar says
+ * it is too costly and highlights nothing), and the bundled examples search in well under a millisecond.
  * {@link #dispose()} takes back everything. EDT only.
  */
 public final class FindFeatures {
@@ -67,10 +68,10 @@ public final class FindFeatures {
     /** Why the matches are searched again: what the user typed or chose, or an edit of the document. */
     private enum Reason { QUERY, EDIT, QUIET_OPEN }
 
-    /** Identifies a match across searches: its element and where inside it. */
-    private record HitKey(ElementId elementId, List<String> nestedPath) {
+    /** Identifies a match across searches: its element and, inside it, the parts' ids (names may repeat). */
+    private record HitKey(ElementId elementId, List<ElementId> partIds) {
         static HitKey of(SearchHit hit) {
-            return new HitKey(hit.elementId(), hit.nestedPath());
+            return new HitKey(hit.elementId(), hit.partIds());
         }
     }
 

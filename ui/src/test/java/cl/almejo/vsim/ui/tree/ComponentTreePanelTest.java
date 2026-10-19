@@ -325,6 +325,40 @@ class ComponentTreePanelTest {
     }
 
     @Test
+    void aFilterRegexThatGivesUpKeepsNoRows() {
+        Component cheap = labeled(StandardComponentTypes.NOT, 0, 0, "aa");
+        for (int index = 0; index < 300; index++) {
+            labeled(StandardComponentTypes.NOT, 0, 10 + 10 * index, "a".repeat(20) + "!");
+        }
+        preferences.setFindMatchCase(true);
+        preferences.setFindRegex(true);
+
+        panel.filterField().setText("^(a+)+\\1$");
+
+        assertThat(panel.filterField().showsError()).isTrue();
+        assertThat(panel.filterField().getToolTipText()).isEqualTo("Expresión demasiado costosa de buscar; simplifícala");
+        assertThat(panel.rowText(cheap.id().value())).isEmpty();
+        assertThat(panel.tree().getModel().getChildCount(panel.tree().getModel().getRoot())).isZero();
+    }
+
+    @Test
+    void groupCountsCountTheRowsTheFilterKeeps() {
+        labeled(StandardComponentTypes.NOT, 0, 0, "U1");
+        labeled(StandardComponentTypes.NOT, 20, 0, "X");
+        labeled(StandardComponentTypes.NOT, 40, 0, "U2");
+        panel.groupByTypeToggle().setSelected(true);
+        assertThat(panel.rowText("/not")).contains("NOT (3)");
+
+        panel.filterField().setText("U");
+        assertThat(panel.rowText("/not")).contains("NOT (2)");
+
+        panel.filterField().setText("not"); // the group's type: every row it holds matches
+        assertThat(panel.rowText("/not")).contains("NOT (3)");
+        panel.filterField().setText("");
+        assertThat(panel.rowText("/not")).contains("NOT (3)");
+    }
+
+    @Test
     void theFilterAndTheFindBarAgreeOnWhatMatches() {
         addFrame(0, 0, 30, 20, "Sumador");
         labeled(StandardComponentTypes.NOT, 10, 8, "suma");
