@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.karnaugh;
 
+import cl.almejo.vsim.core.logic.CircuitGenerator;
 import cl.almejo.vsim.core.logic.Minimization;
 
 import java.util.Map;
@@ -10,6 +11,10 @@ import java.util.Map;
  */
 @FunctionalInterface
 public interface KarnaughCost {
+
+    /** The generator's own count ({@link CircuitGenerator#cost}): the cost line always matches the built circuit. */
+    KarnaughCost GENERATOR = (minimization, options) ->
+            CircuitGenerator.cost(minimization, options.generatorOptions()).gatesByType();
 
     Map<String, Integer> gatesByType(Minimization minimization, WizardOptions options);
 }

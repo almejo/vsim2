@@ -34,7 +34,7 @@ class KarnaughWizardTest {
     void create() {
         Messages.initialize(Messages.SPANISH);
         model = new KarnaughModel();
-        wizard = new KarnaughWizard(model, PlaceholderCost.INSTANCE);
+        wizard = new KarnaughWizard(model, KarnaughCost.GENERATOR, new FakeCreationTarget(), Background.inline());
     }
 
     private static void press(JTable table, int row, int column) {
@@ -263,9 +263,10 @@ class KarnaughWizardTest {
     }
 
     @Test
-    void theLastStepIsAPlaceholderForNow() {
+    void theLastStepCreatesAndHasNoNext() {
         assertThat(wizard.goTo(KarnaughWizard.Step.CREATE)).isTrue();
         assertThat(wizard.nextAction().isEnabled()).isFalse();
         assertThat(wizard.backAction().isEnabled()).isTrue();
+        assertThat(wizard.createPanel().controls().createButton().isEnabled()).isTrue();
     }
 }

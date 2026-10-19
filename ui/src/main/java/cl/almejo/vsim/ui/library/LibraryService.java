@@ -154,7 +154,7 @@ public final class LibraryService implements AutoCloseable {
     }
 
     /** The visible text for a failed write of {@code id}: its file and the reason. */
-    String writeError(String id, IOException exception) {
+    public String writeError(String id, IOException exception) {
         return Messages.format("library.error.write", fileOf(id), String.valueOf(exception.getMessage()));
     }
 

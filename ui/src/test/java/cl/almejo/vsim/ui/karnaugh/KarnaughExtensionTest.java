@@ -46,7 +46,7 @@ class KarnaughExtensionTest {
         KarnaughExtension extension = new KarnaughExtension((parent, wizard) -> {
             parents.add(parent);
             opened.add(wizard);
-        }, PlaceholderCost.INSTANCE);
+        }, KarnaughCost.GENERATOR, view -> new FakeCreationTarget(), Background.inline());
         EditorServices services = new EditorServices(PainterRegistry.standard(), new Appearance(ColorScheme.LIGHT),
                 AppPreferences.inMemory(), new ComponentLibrary(), List.of(extension));
         view = new EditorView(openDocument, services, NO_WINDOW);

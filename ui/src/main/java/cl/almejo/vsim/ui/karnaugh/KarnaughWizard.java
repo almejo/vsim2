@@ -75,7 +75,7 @@ public final class KarnaughWizard extends JPanel {
     private final MapPanel mapPanel;
     private final GroupsPanel groupsPanel;
     private final ExpressionPanel expressionPanel;
-    private final JPanel createPanel;
+    private final CreatePanel createPanel;
     private final Map<Step, Component> panels = new EnumMap<>(Step.class);
     private final Map<Step, JToggleButton> stepButtons = new EnumMap<>(Step.class);
     private final CardLayout cards = new CardLayout();
@@ -87,16 +87,19 @@ public final class KarnaughWizard extends JPanel {
     private Runnable onClose = () -> { };
     private Step step = Step.TABLE;
 
-    public KarnaughWizard(KarnaughModel model, KarnaughCost cost) {
+    /**
+     * @param target     where «Crear» puts the circuit (and the component)
+     * @param background where the circuit is built (off the EDT in the application)
+     */
+    public KarnaughWizard(KarnaughModel model, KarnaughCost cost, CreationTarget target, Background background) {
         super(new BorderLayout());
         this.model = model;
         this.tablePanel = new TablePanel(model, hover);
         this.mapPanel = new MapPanel(model, hover);
         this.groupsPanel = new GroupsPanel(model, hover);
         this.expressionPanel = new ExpressionPanel(model, cost);
-        // Step 5 «Crear» comes with Task 6; until then it only says so.
-        this.createPanel = new JPanel(new MigLayout("insets 24, fillx", "[grow, fill]"));
-        createPanel.add(new Paragraph(Messages.text("karnaugh.create.placeholder")), "wmin 100");
+        this.createPanel = new CreatePanel(model, new CreationForm(target), new CircuitCreator(target, background),
+                () -> onClose.run(), this::updateNavigation);
         panels.put(Step.TABLE, tablePanel);
         panels.put(Step.MAP, mapPanel);
         panels.put(Step.GROUPS, groupsPanel);
@@ -159,10 +162,11 @@ public final class KarnaughWizard extends JPanel {
     }
 
     /**
-     * Shows {@code target}; refused (false) while the table has a problem and {@code target} is past step 1.
+     * Shows {@code target}; refused (false) while the table has a problem and {@code target} is past step 1, and while
+     * «Crear» is building the circuit.
      */
     public boolean goTo(Step target) {
-        if (target != Step.TABLE && model.problem().isPresent()) {
+        if (createPanel.controls().isBusy() || target != Step.TABLE && model.problem().isPresent()) {
             return false;
         }
         display(target);
@@ -206,13 +210,16 @@ public final class KarnaughWizard extends JPanel {
         }
     }
 
+    /** While «Crear» builds the circuit every button is off: the table must not change under it. */
     private void updateNavigation() {
         Optional<String> problem = model.problem();
+        boolean busy = createPanel != null && createPanel.controls().isBusy();
         reason.setText(problem.orElse(""));
-        backAction.setEnabled(step.ordinal() > 0);
-        nextAction.setEnabled(step.ordinal() < Step.values().length - 1 && problem.isEmpty());
+        backAction.setEnabled(!busy && step.ordinal() > 0);
+        nextAction.setEnabled(!busy && step.ordinal() < Step.values().length - 1 && problem.isEmpty());
+        closeAction.setEnabled(!busy);
         for (Map.Entry<Step, JToggleButton> entry : stepButtons.entrySet()) {
-            entry.getValue().setEnabled(entry.getKey() == Step.TABLE || problem.isEmpty());
+            entry.getValue().setEnabled(!busy && (entry.getKey() == Step.TABLE || problem.isEmpty()));
         }
     }
 
@@ -232,8 +239,8 @@ public final class KarnaughWizard extends JPanel {
         return expressionPanel;
     }
 
-    /** Step 5's panel, a placeholder until Task 6 fills it. */
-    JPanel createPanel() {
+    /** Step 5 «Crear». */
+    CreatePanel createPanel() {
         return createPanel;
     }
 

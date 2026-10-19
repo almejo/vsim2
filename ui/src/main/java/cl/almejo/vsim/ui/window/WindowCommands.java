@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.window;
 
+import cl.almejo.vsim.core.command.Command;
 import cl.almejo.vsim.core.document.CircuitDocument;
 
 /** File and window operations the editor delegates to its window/application. */
@@ -25,5 +26,12 @@ public interface WindowCommands {
      * Nothing happens outside a real window.
      */
     default void openUntitled(CircuitDocument document) {
+    }
+
+    /**
+     * «Circuito desde tabla de verdad» ▸ Crear (circuito nuevo): a new window with an untitled document named
+     * {@code name} whose first undo step is {@code creation}. Nothing happens outside a real window.
+     */
+    default void openNewCircuit(String name, Command creation) {
     }
 }

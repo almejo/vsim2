@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.karnaugh;
 
+import cl.almejo.vsim.core.logic.GeneratorOptions;
 import cl.almejo.vsim.core.logic.Minimization;
 
 import java.util.Objects;
@@ -28,6 +29,11 @@ public record WizardOptions(GateChoice gates, Minimization.Form form, boolean sh
     /** AND / OR / NOT, sum of products, sharing on (spec §10.4). */
     public static WizardOptions defaults() {
         return new WizardOptions(GateChoice.AND_OR_NOT, Minimization.Form.SUM_OF_PRODUCTS, true);
+    }
+
+    /** The same options for the circuit generator ({@link GateChoice} maps one to one onto its gate style). */
+    public GeneratorOptions generatorOptions() {
+        return new GeneratorOptions(GeneratorOptions.GateStyle.valueOf(gates.name()), form, shareTerms);
     }
 
     public WizardOptions withGates(GateChoice newGates) {

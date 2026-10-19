@@ -16,6 +16,7 @@ import cl.almejo.vsim.ui.canvas.CircuitRenderer;
 import cl.almejo.vsim.ui.clipboard.FragmentClipboard;
 import cl.almejo.vsim.ui.icons.Icons;
 import cl.almejo.vsim.ui.inline.InlineTextEditor;
+import cl.almejo.vsim.core.logic.TruthTableSpec;
 import cl.almejo.vsim.ui.library.TemplateActions;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
@@ -100,6 +101,8 @@ public final class EditorView extends JPanel implements CanvasHost {
     private final Runnable textFontListener;
     private final List<Runnable> extensionDisposers = new ArrayList<>();
     private Consumer<List<Path>> componentFileImporter;
+    private final WindowCommands windowCommands;
+    private Consumer<TruthTableSpec> tableWizard;
     private Consumer<List<Path>> circuitOpener = files -> {
     };
 
@@ -111,6 +114,7 @@ public final class EditorView extends JPanel implements CanvasHost {
         super(new BorderLayout());
         this.openDocument = openDocument;
         this.services = services;
+        this.windowCommands = window;
         CircuitRenderer renderer = new CircuitRenderer(openDocument.registry(), services.painters(),
                 services.appearance());
         this.selectionMoves = new SelectionMoves(services.preferences(), statusBar::showNotice);
@@ -217,6 +221,21 @@ public final class EditorView extends JPanel implements CanvasHost {
     /** Set by the templates extension (and cleared with {@code null} when it is disposed). */
     public void setTemplateActions(TemplateActions actions) {
         this.templateActions = actions;
+    }
+
+    /** The file and window operations of the window this view is in (a do-nothing stand-in in tests). */
+    public WindowCommands windowCommands() {
+        return windowCommands;
+    }
+
+    /** Opens the Karnaugh wizard on a table, when the Karnaugh extension is installed (the truth-table window uses it). */
+    public Optional<Consumer<TruthTableSpec>> tableWizard() {
+        return Optional.ofNullable(tableWizard);
+    }
+
+    /** Set by the Karnaugh extension (and cleared with {@code null} when it is disposed). */
+    public void setTableWizard(Consumer<TruthTableSpec> opener) {
+        this.tableWizard = opener;
     }
     public ProblemsController problems() { return problems; }
     public JMenuBar menuBar() { return menuBar; }

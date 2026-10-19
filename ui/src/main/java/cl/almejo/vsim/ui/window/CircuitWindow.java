@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.window;
 
+import cl.almejo.vsim.core.command.Command;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.ui.app.Application;
 import cl.almejo.vsim.ui.app.DocumentWindows;
@@ -186,6 +187,11 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
     @Override
     public void openUntitled(CircuitDocument document) {
         application.openUntitled(document, this);
+    }
+
+    @Override
+    public void openNewCircuit(String name, Command creation) {
+        application.openNewCircuit(name, creation);
     }
 
     /** Opens the circuit files in new windows and imports the component files into the library (as a drop does). */
