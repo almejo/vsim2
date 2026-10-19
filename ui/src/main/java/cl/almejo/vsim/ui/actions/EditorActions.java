@@ -253,6 +253,7 @@ public final class EditorActions {
         simulation.add(startOrPause);
         simulation.add(restart);
         simulation.add(step);
+        JMenu tools = tagged(new JMenu(Messages.text("menu.tools")), MenuId.TOOLS); // filled by extensions
         JMenu windowMenu = tagged(new JMenu(Messages.text("menu.window")), MenuId.WINDOW);
         windowMenu.add(newView);
         JMenu help = tagged(new JMenu(Messages.text("menu.help")), MenuId.HELP);
@@ -261,6 +262,7 @@ public final class EditorActions {
         menuBar.add(edit);
         menuBar.add(view);
         menuBar.add(simulation);
+        menuBar.add(tools);
         menuBar.add(windowMenu);
         menuBar.add(help);
         return menuBar;

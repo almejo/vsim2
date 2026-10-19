@@ -57,7 +57,7 @@ class ShortcutsTableModelTest {
         assertThat(model.getColumnCount()).isEqualTo(2);
         assertThat(model.getColumnName(0)).isEqualTo("Acción");
         assertThat(model.getColumnName(1)).isEqualTo("Atajo");
-        assertThat(groups()).containsExactly("Archivo", "Editar", "Ver", "Simulación", "Ventana");
+        assertThat(groups()).containsExactly("Archivo", "Editar", "Ver", "Simulación", "Herramientas", "Ventana");
         assertThat(model.isGroupRow(0)).isTrue();
         assertThat(model.entryAt(0)).isEmpty();
         assertThat(model.getValueAt(1, 0)).isEqualTo("Nuevo");

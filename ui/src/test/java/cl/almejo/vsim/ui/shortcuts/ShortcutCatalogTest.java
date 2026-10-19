@@ -122,4 +122,14 @@ class ShortcutCatalogTest {
         assertThat(ShortcutCatalog.find("simulation.truthTable")).contains(new ShortcutEntry("simulation.truthTable",
                 "action.truthTable", MenuId.SIMULATION, Scope.WINDOW, Optional.empty()));
     }
+
+    @Test
+    void theToolsMenuHasTheKarnaughWizardWithoutADefaultStroke() {
+        List<String> tools = ShortcutCatalog.entries().stream()
+                .filter(entry -> entry.group() == MenuId.TOOLS).map(ShortcutEntry::id).toList();
+        assertThat(tools).containsExactly("tools.circuitFromTruthTable");
+        assertThat(ShortcutCatalog.find("tools.circuitFromTruthTable")).contains(new ShortcutEntry(
+                "tools.circuitFromTruthTable", "action.circuitFromTruthTable", MenuId.TOOLS, Scope.WINDOW,
+                Optional.empty()));
+    }
 }
