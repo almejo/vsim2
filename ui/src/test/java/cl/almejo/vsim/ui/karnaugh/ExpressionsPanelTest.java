@@ -10,14 +10,18 @@ import cl.almejo.vsim.core.logic.TableCircuits;
 import cl.almejo.vsim.core.logic.TruthTableSpec;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.i18n.Messages;
+import com.formdev.flatlaf.FlatDarkLaf;
+import com.formdev.flatlaf.FlatLightLaf;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import javax.swing.JScrollPane;
 import javax.swing.JTextField;
+import javax.swing.LookAndFeel;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 import javax.swing.plaf.FontUIResource;
+import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.event.FocusEvent;
@@ -422,6 +426,28 @@ class ExpressionsPanelTest {
                     .isGreaterThanOrEqualTo(500);
             assertThat(panel.legendScroll().getHorizontalScrollBar().isVisible()).isFalse();
             assertThat(panel.contentScroll().getHorizontalScrollBar().isVisible()).isFalse();
+        }
+    }
+
+    @Test
+    void theLegendIsASoftSidePanelWithReadableMutedExamplesInBothThemes() throws Exception {
+        LookAndFeel previous = UIManager.getLookAndFeel();
+        try {
+            for (LookAndFeel theme : List.of(new FlatLightLaf(), new FlatDarkLaf())) {
+                UIManager.setLookAndFeel(theme);
+                Color side = WizardColors.sidePanel();
+                assertThat(side).as(theme.getName()).isNotEqualTo(WizardColors.background());
+                assertThat(WizardColors.contrast(WizardColors.foreground(), side)).as(theme.getName())
+                        .isGreaterThanOrEqualTo(4.5);
+                Color muted = WizardColors.sidePanelMuted();
+                assertThat(muted).as(theme.getName()).isNotEqualTo(WizardColors.foreground());
+                assertThat(WizardColors.contrast(muted, side)).as(theme.getName()).isGreaterThanOrEqualTo(4.5);
+                open(Background.inline());
+                assertThat(panel.legend().example(ExpressionLegend.Row.OR).getForeground()).isEqualTo(muted);
+                assertThat(panel.legend().isOpaque()).as("the side panel paints the tint").isFalse();
+            }
+        } finally {
+            UIManager.setLookAndFeel(previous);
         }
     }
 

@@ -57,6 +57,51 @@ final class WizardColors {
         return dark() ? new Color(0xE8B04A) : new Color(0x8A5A00);
     }
 
+    /**
+     * The notation legend's side panel: a soft tint of the dialog's background, a touch darker than it (towards the
+     * text on a light theme, towards black on a dark one, where a lighter tint would eat the text's contrast).
+     */
+    static Color sidePanel() {
+        return dark() ? blend(Color.BLACK, background(), 0.12) : blend(foreground(), background(), 0.04);
+    }
+
+    /** The thin line on the side panel's edge. */
+    static Color sidePanelEdge() {
+        return gridLine();
+    }
+
+    /**
+     * Secondary text on the side panel (the legend's examples): the text colour faded towards the panel, but only as
+     * far as it stays readable (contrast of at least 4.5:1, WCAG AA).
+     */
+    static Color sidePanelMuted() {
+        Color text = foreground();
+        Color panel = sidePanel();
+        for (double share = 0.6; share < 1; share += 0.05) {
+            Color candidate = blend(text, panel, share);
+            if (contrast(candidate, panel) >= 4.6) {
+                return candidate;
+            }
+        }
+        return text;
+    }
+
+    /** The WCAG contrast ratio between two colours (1 to 21). */
+    static double contrast(Color first, Color second) {
+        double lighter = Math.max(luminance(first), luminance(second));
+        double darker = Math.min(luminance(first), luminance(second));
+        return (lighter + 0.05) / (darker + 0.05);
+    }
+
+    private static double luminance(Color color) {
+        return 0.2126 * linear(color.getRed()) + 0.7152 * linear(color.getGreen()) + 0.0722 * linear(color.getBlue());
+    }
+
+    private static double linear(int channel) {
+        double value = channel / 255.0;
+        return value <= 0.03928 ? value / 12.92 : Math.pow((value + 0.055) / 1.055, 2.4);
+    }
+
     /** True on a dark theme: picks the bright variant of the group colours. */
     static boolean dark() {
         Color background = background();

@@ -31,6 +31,7 @@ import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.Font;
+import java.awt.Graphics;
 import java.awt.GraphicsEnvironment;
 import java.awt.Insets;
 import java.awt.Rectangle;
@@ -215,7 +216,20 @@ public final class ExpressionsPanel extends JPanel {
                 return new Dimension(legendWidth(ExpressionsPanel.this.getWidth()), size.height);
             }
         };
-        legendScroll.setBorder(BorderFactory.createEmptyBorder(16, 8, 16, 16));
+        legendScroll.setBorder(BorderFactory.createEmptyBorder(16, 16, 16, 16));
+        legendScroll.setOpaque(false);
+        legendScroll.getViewport().setOpaque(false);
+        JPanel legendSide = new JPanel(new BorderLayout()) {
+            /** A soft tint and a thin line on its left edge, read from the theme at paint time. */
+            @Override
+            protected void paintComponent(Graphics graphics) {
+                graphics.setColor(WizardColors.sidePanel());
+                graphics.fillRect(0, 0, getWidth(), getHeight());
+                graphics.setColor(WizardColors.sidePanelEdge());
+                graphics.fillRect(0, 0, 1, getHeight());
+            }
+        };
+        legendSide.add(legendScroll, BorderLayout.CENTER);
         legend.setOnToggle(this::revalidate);
 
         buttonBar = new JPanel(new MigLayout("insets 6 12 10 12, fillx", "[grow][][]"));
@@ -223,7 +237,7 @@ public final class ExpressionsPanel extends JPanel {
         buttonBar.add(close, "gapleft 12");
         contentScroll = new JScrollPane(content);
         add(contentScroll, BorderLayout.CENTER);
-        add(legendScroll, BorderLayout.EAST);
+        add(legendSide, BorderLayout.EAST);
         add(buttonBar, BorderLayout.SOUTH);
         controls.addRefreshListener(this::updateDefaultButton);
 

@@ -8,6 +8,7 @@ import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import java.awt.BorderLayout;
+import java.awt.Color;
 import java.awt.Font;
 import java.util.EnumMap;
 import java.util.Map;
@@ -76,6 +77,9 @@ final class ExpressionLegend extends WidthTrackingPanel {
                 button.setToolTipText(Messages.text("expressions.legend.insert"));
                 button.setFocusable(false); // the caret stays in the line being typed
                 button.putClientProperty("JComponent.minimumWidth", BUTTON_WIDTH); // FlatLaf's default is wider
+                // Flat and light, like a toolbar button: the legend is a reference, not a row of commands.
+                button.putClientProperty("JButton.buttonType", "toolBarButton");
+                button.setFont(button.getFont().deriveFont(Font.BOLD));
                 button.addActionListener(event -> insert.accept(row.insertion));
                 buttons.put(row, button);
                 content.add(button, "top, sg insert");
@@ -87,7 +91,12 @@ final class ExpressionLegend extends WidthTrackingPanel {
                 content.add(detail, "span 2, growx, wmin 80");
             } else {
                 content.add(detail, "growx, wmin 80");
-                JLabel example = new JLabel(Messages.text(row.exampleKey));
+                JLabel example = new JLabel(Messages.text(row.exampleKey)) {
+                    @Override
+                    public Color getForeground() {
+                        return WizardColors.sidePanelMuted();
+                    }
+                };
                 examples.put(row, example);
                 content.add(example, "top");
             }
@@ -95,6 +104,10 @@ final class ExpressionLegend extends WidthTrackingPanel {
         toggle.setFocusable(false);
         toggle.addActionListener(event -> setExpanded(!expanded));
         JPanel header = new JPanel(new BorderLayout());
+        // The side panel behind paints the tint.
+        setOpaque(false);
+        header.setOpaque(false);
+        content.setOpaque(false);
         header.add(toggle, BorderLayout.WEST);
         add(header, BorderLayout.NORTH);
         add(content, BorderLayout.CENTER);
