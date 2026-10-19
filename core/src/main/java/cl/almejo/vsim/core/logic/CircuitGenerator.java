@@ -38,7 +38,8 @@ import java.util.Set;
  * Builds the circuit of a minimized table (spec §5): input pins on the left and output pins on the right, labelled
  * with the table's column names in table order, the inverters of the inputs next to them, then the gates in columns
  * by depth (terms, then sums; trees of 2..4-input gates for wide ones), constants for constant outputs, and a frame
- * titled with the table's title around everything.
+ * titled with the table's title around everything. The circuit of expressions as written
+ * ({@link #generateAsWritten}) uses the same layout with as many gate columns as its expressions are deep.
  * <p>
  * Layout: every part sits in a column; between two columns runs a channel. A net that skips columns crosses each one
  * as a straight horizontal wire (a «feedthrough») in a gap between the parts. In a channel each net gets its own
@@ -97,6 +98,31 @@ public final class CircuitGenerator {
         LogicNetwork network = LogicNetwork.of(minimization, options);
         Layout layout = new Layout(spec, network, registry);
         CircuitFragment fragment = layout.build();
+        GateCost cost = network.cost();
+        return new GeneratedCircuit(fragment, cost.gateCount(), cost.gatesByType());
+    }
+
+    /**
+     * The gate counts of the circuit {@link #generateAsWritten} would build, without building it (the cost line of
+     * «Circuito desde expresiones» without «Simplificar»).
+     *
+     * @throws IllegalArgumentException when {@code spec} is not a table of {@code lines}
+     */
+    public static GateCost costAsWritten(TruthTableSpec spec, List<ExpressionLine> lines, boolean shareTerms) {
+        return LogicNetwork.ofExpressions(spec, lines, shareTerms).cost();
+    }
+
+    /**
+     * The circuit of {@code lines} as written: one gate per operator ({@link LogicNetwork#ofExpressions}), laid out
+     * like the circuit of a minimized table. {@code spec} is the table of {@code lines} ({@link ExpressionTable#of});
+     * its inputs, in its order, are the input pins. {@code registry} must know the standard types.
+     *
+     * @throws IllegalArgumentException when {@code spec} is not a table of {@code lines}
+     */
+    public static GeneratedCircuit generateAsWritten(TruthTableSpec spec, List<ExpressionLine> lines,
+                                                     boolean shareTerms, ComponentTypeRegistry registry) {
+        LogicNetwork network = LogicNetwork.ofExpressions(spec, lines, shareTerms);
+        CircuitFragment fragment = new Layout(spec, network, registry).build();
         GateCost cost = network.cost();
         return new GeneratedCircuit(fragment, cost.gateCount(), cost.gatesByType());
     }
@@ -247,13 +273,24 @@ public final class CircuitGenerator {
                 gateCells.add(addCell(depths[index], new GateSignal(index), gate.inputs(),
                         component(gate.typeId(), Map.of(), "")));
             }
-            Set<Signal> constants = new HashSet<>();
+            // A constant sits in the column before the first part it feeds: the outputs' column for a constant output,
+            // the column before its first gate for a constant written in an expression.
+            Map<ConstantSignal, Integer> constantColumns = new LinkedHashMap<>();
             for (Signal output : network.outputs()) {
-                if (output instanceof ConstantSignal constant && constants.add(constant)) {
-                    addCell(outputColumn - 1, constant, List.of(), component(StandardComponentTypes.CONSTANT,
-                            Map.of("width", 1, "value", constant.value() ? "1" : "0"), ""));
+                if (output instanceof ConstantSignal constant) {
+                    constantColumns.putIfAbsent(constant, outputColumn - 1);
                 }
             }
+            for (int index = 0; index < gates.size(); index++) {
+                for (Signal input : gates.get(index).inputs()) {
+                    if (input instanceof ConstantSignal constant) {
+                        constantColumns.merge(constant, depths[index] - 1, Math::min);
+                    }
+                }
+            }
+            constantColumns.forEach((constant, column) -> addCell(column, constant, List.of(),
+                    component(StandardComponentTypes.CONSTANT,
+                            Map.of("width", 1, "value", constant.value() ? "1" : "0"), "")));
             for (int output = 0; output < spec.outputCount(); output++) {
                 addCell(outputColumn, null, List.of(network.outputs().get(output)),
                         component(StandardComponentTypes.OUTPUT_PIN, Map.of("width", 1),

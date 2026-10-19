@@ -74,11 +74,16 @@ final class LogicNetwork {
     private record Realization(Node node, boolean inverted) {
     }
 
+    /** A sub-expression of a written line; {@code owner} keeps the outputs apart when terms are not shared. */
+    private record Written(Expression expression, int owner) {
+    }
+
     private final GateStyle style;
     private final List<Gate> gates = new ArrayList<>();
     private final List<Signal> outputs = new ArrayList<>();
     private final Map<Realization, Signal> realized = new HashMap<>();
     private final Map<Signal, Signal> inverted = new HashMap<>();
+    private final Map<Written, Signal> written = new HashMap<>();
 
     private LogicNetwork(GateStyle style) {
         this.style = style;
@@ -96,6 +101,28 @@ final class LogicNetwork {
             int owner = options.shareTerms() ? 0 : expression.output() + 1;
             Node node = expressionOf(expression.terms(), minimization.form(), spec.inputCount(), owner);
             network.outputs.add(network.realize(node, false));
+        }
+        return network;
+    }
+
+    /**
+     * The gates of {@code lines} as written («Circuito desde expresiones» without «Simplificar», spec §3): one AND,
+     * OR, XOR or NOT per operator of the (flattened) trees, trees of 2..4-input gates for wider operations. NOT of a
+     * variable is the inverter next to that input (one per input, for every output); NOT of anything else is a NOT
+     * gate after it; a variable output is the input itself; a constant is a {@link ConstantSignal}. Equal
+     * sub-expressions are one gate inside one output always, and across outputs when {@code shareTerms}.
+     *
+     * @throws IllegalArgumentException when {@code spec} is not a table of {@code lines} (other outputs, or a variable
+     *                                  that is not one of its inputs)
+     */
+    static LogicNetwork ofExpressions(TruthTableSpec spec, List<ExpressionLine> lines, boolean shareTerms) {
+        if (!spec.outputNames().equals(lines.stream().map(ExpressionLine::outputName).toList())) {
+            throw new IllegalArgumentException("the table's outputs are not the lines' outputs");
+        }
+        LogicNetwork network = new LogicNetwork(GateStyle.AND_OR_NOT);
+        for (int output = 0; output < lines.size(); output++) {
+            int owner = shareTerms ? 0 : output + 1;
+            network.outputs.add(network.realizeWritten(lines.get(output).expression(), owner, spec));
         }
         return network;
     }
@@ -166,6 +193,44 @@ final class LogicNetwork {
             termNodes.add(literals.size() == 1 ? literals.get(0) : new Operation(products, literals, owner));
         }
         return termNodes.size() == 1 ? termNodes.get(0) : new Operation(!products, termNodes, owner);
+    }
+
+    // --- expressions as written ---
+
+    private Signal realizeWritten(Expression expression, int owner, TruthTableSpec spec) {
+        Written key = new Written(expression, owner);
+        Signal known = written.get(key);
+        if (known != null) {
+            return known;
+        }
+        Signal signal = switch (expression) {
+            case Expression.Variable variable -> inputSignal(variable, spec);
+            case Expression.Constant constant -> new ConstantSignal(constant.value(), owner);
+            case Expression.Not not -> not.operand() instanceof Expression.Variable variable
+                    ? invert(inputSignal(variable, spec))
+                    : invert(realizeWritten(not.operand(), owner, spec));
+            case Expression.And and -> tree(LogicOperation.AND, writtenSignals(and.operands(), owner, spec));
+            case Expression.Or or -> tree(LogicOperation.OR, writtenSignals(or.operands(), owner, spec));
+            case Expression.Xor xor -> tree(LogicOperation.XOR, writtenSignals(xor.operands(), owner, spec));
+        };
+        written.put(key, signal);
+        return signal;
+    }
+
+    private List<Signal> writtenSignals(List<Expression> operands, int owner, TruthTableSpec spec) {
+        List<Signal> signals = new ArrayList<>();
+        for (Expression operand : operands) {
+            signals.add(realizeWritten(operand, owner, spec));
+        }
+        return signals;
+    }
+
+    private static InputSignal inputSignal(Expression.Variable variable, TruthTableSpec spec) {
+        int input = spec.inputNames().indexOf(variable.name());
+        if (input < 0) {
+            throw new IllegalArgumentException("the table has no input " + variable.name());
+        }
+        return new InputSignal(input);
     }
 
     // --- realization in gates ---
