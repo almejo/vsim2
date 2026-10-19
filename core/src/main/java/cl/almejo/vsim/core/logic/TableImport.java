@@ -676,7 +676,7 @@ public final class TableImport {
     }
 
     /** The value a cell means, or null when it means none of 0, 1 or X. */
-    static LogicValue valueOf(String text) {
+    public static LogicValue valueOf(String text) {
         String value = text.strip();
         if (value.isEmpty() || value.equalsIgnoreCase("x") || value.equals("-")) {
             return LogicValue.DONT_CARE;

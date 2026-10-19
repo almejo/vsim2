@@ -24,10 +24,12 @@ import javax.swing.JRootPane;
 import javax.swing.JScrollPane;
 import javax.swing.JSpinner;
 import javax.swing.JTextField;
+import javax.swing.JToggleButton;
 import javax.swing.SpinnerNumberModel;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import java.awt.BorderLayout;
+import java.awt.CardLayout;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
@@ -43,11 +45,13 @@ import java.util.Set;
 import java.util.concurrent.Callable;
 
 /**
- * Archivo ▸ Importar ▸ «Tabla de verdad desde Excel/CSV…» (spec §6): «Abrir archivo…» or «Pegar» reads a table, the
- * user sets how many leading columns are inputs and the title, the problems are listed cell by cell, then the options
- * of step 4 (gates, form, sharing), a summary («8 entradas, 8 salidas → 23 términos, 31 compuertas») and the
- * {@link CreationControls} of step 5. Reading, the summary and «Crear» run on the {@link Background}; the EDT only
- * shows their results. A panel; {@link #showDialog} puts it in a modal dialog.
+ * Archivo ▸ Importar ▸ «Tabla de verdad desde Excel/CSV…» (spec §6), in two pages. «1 Datos»: «Abrir archivo…» or
+ * «Pegar» reads a table, the user sets how many leading columns are inputs, the problems are listed cell by cell and
+ * a preview shows how every cell was read ({@link TablePreview}); «Siguiente» goes on when the data has no problem.
+ * «2 Crear»: the title, the options of the wizard's step 4 (gates, form, sharing), a summary («8 entradas, 8 salidas →
+ * 23 términos, 31 compuertas») and the {@link CreationControls} of its step 5, with «Atrás», «Abrir en el asistente»
+ * and «Crear». Reading, the summary and «Crear» run on the {@link Background}; the EDT only shows their results. A
+ * panel; {@link #showDialog} puts it in a modal dialog.
  */
 public final class TableImportPanel extends JPanel {
 
@@ -70,7 +74,23 @@ public final class TableImportPanel extends JPanel {
         void open(TruthTableSpec spec, WizardOptions options);
     }
 
-    private static final Dimension DIALOG_SIZE = new Dimension(760, 640);
+    /** The two pages. */
+    enum Page {
+        DATA("tableImport.step.data"),
+        CREATE("tableImport.step.create");
+
+        private final String titleKey;
+
+        Page(String titleKey) {
+            this.titleKey = titleKey;
+        }
+
+        String title() {
+            return Messages.text(titleKey);
+        }
+    }
+
+    private static final Dimension DIALOG_SIZE = new Dimension(820, 700);
 
     private final TableImportModel model = new TableImportModel();
     private final TableSources sources;
@@ -86,9 +106,23 @@ public final class TableImportPanel extends JPanel {
     private final Paragraph problems = new Paragraph("") {
         @Override
         public Color getForeground() {
-            return WizardColors.error();
+            return WizardColors.errorText();
         }
     };
+    private final Paragraph titleProblem = new Paragraph("") {
+        @Override
+        public Color getForeground() {
+            return WizardColors.errorText();
+        }
+    };
+    private final TablePreviewModel previewModel = new TablePreviewModel();
+    private final TablePreview preview = new TablePreview(previewModel);
+    private final CardLayout pages = new CardLayout();
+    private final JPanel pageCards = new JPanel(pages);
+    private final Map<Page, JToggleButton> pageButtons = new EnumMap<>(Page.class);
+    private final JButton back = new JButton(Messages.text("karnaugh.back"));
+    private final JButton next = new JButton(Messages.text("karnaugh.next"));
+    private Page page = Page.DATA;
     private final Paragraph notice = new Paragraph("");
     private final Map<WizardOptions.GateChoice, JRadioButton> gateButtons =
             new EnumMap<>(WizardOptions.GateChoice.class);
@@ -122,25 +156,31 @@ public final class TableImportPanel extends JPanel {
         this.background = background;
         this.form = new CreationForm(target);
         this.controls = new CreationControls(form, new CircuitCreator(target, background), model::spec,
-                model::options, () -> onClose.run(), this::refreshButtons, () -> !reading);
+                model::options, () -> onClose.run(), this::refreshButtons,
+                () -> !reading && page == Page.CREATE);
 
-        JPanel content = new JPanel(new MigLayout("insets 16, fillx, wrap 2", "[][grow, fill]",
-                "[][]8[][][]12[][][]12[]12[]"));
+        JPanel data = new JPanel(new MigLayout("insets 12 16 8 16, fill, wrap 1, hidemode 3", "[grow, fill]",
+                "[][]8[][][][grow]"));
         JPanel sourceRow = new JPanel(new MigLayout("insets 0", "[][]12[grow]"));
         sourceRow.add(openFile);
         sourceRow.add(paste);
         sourceRow.add(sourceLabel);
-        content.add(sourceRow, "span 2");
-        content.add(new Paragraph(Messages.text("tableImport.help")), "span 2, growx, wmin 100");
-        content.add(new JLabel(Messages.text("karnaugh.table.titleLabel")));
-        content.add(title, "growx 0, wmin 200");
-        content.add(new JLabel(Messages.text("tableImport.inputCount")));
-        JPanel inputsRow = new JPanel(new MigLayout("insets 0", "[]12[grow]"));
+        data.add(sourceRow);
+        data.add(new Paragraph(Messages.text("tableImport.help")), "wmin 100");
+        JPanel inputsRow = new JPanel(new MigLayout("insets 0", "[][]12[grow]"));
+        inputsRow.add(new JLabel(Messages.text("tableImport.inputCount")));
         inputsRow.add(inputCount);
         inputsRow.add(columns);
-        content.add(inputsRow);
-        content.add(problems, "span 2, growx, wmin 100, hidemode 3");
-        content.add(notice, "span 2, growx, wmin 100, hidemode 3");
+        data.add(inputsRow);
+        data.add(problems, "wmin 100");
+        data.add(notice, "wmin 100");
+        data.add(preview, "grow, push, hmin 140");
+
+        JPanel content = new JPanel(new MigLayout("insets 16, fillx, wrap 2", "[][grow, fill]",
+                "[][]12[][][]12[]12[]"));
+        content.add(new JLabel(Messages.text("karnaugh.table.titleLabel")));
+        content.add(title, "growx 0, wmin 200");
+        content.add(titleProblem, "skip 1, growx, wmin 100, hidemode 3");
 
         ButtonGroup gates = new ButtonGroup();
         JPanel gatesPanel = new JPanel(new MigLayout("insets 0"));
@@ -161,11 +201,31 @@ public final class TableImportPanel extends JPanel {
         content.add(summary, "span 2");
         content.add(controls, "span 2, growx");
 
-        buttonBar = new JPanel(new MigLayout("insets 6 12 10 12, fillx", "[][grow][][]"));
-        buttonBar.add(wizard);
-        buttonBar.add(controls.createButton(), "skip 1");
-        buttonBar.add(close, "gapleft 12");
-        add(new JScrollPane(content), BorderLayout.CENTER);
+        pageCards.add(data, Page.DATA.name());
+        pageCards.add(new JScrollPane(content), Page.CREATE.name());
+
+        JPanel stepBar = new JPanel(new MigLayout("insets 8 12 0 12, gap 4"));
+        ButtonGroup stepGroup = new ButtonGroup();
+        for (Page each : Page.values()) {
+            JToggleButton button = new JToggleButton(each.title());
+            button.addActionListener(event -> {
+                if (!goTo(each)) {
+                    pageButtons.get(page).setSelected(true);
+                }
+            });
+            stepGroup.add(button);
+            stepBar.add(button);
+            pageButtons.put(each, button);
+        }
+
+        buttonBar = new JPanel(new MigLayout("insets 6 12 10 12, fillx, hidemode 3", "[][grow][][][][]"));
+        buttonBar.add(wizard, "cell 0 0");
+        buttonBar.add(back, "cell 2 0");
+        buttonBar.add(next, "cell 3 0");
+        buttonBar.add(controls.createButton(), "cell 4 0");
+        buttonBar.add(close, "cell 5 0, gapleft 12");
+        add(stepBar, BorderLayout.NORTH);
+        add(pageCards, BorderLayout.CENTER);
         add(buttonBar, BorderLayout.SOUTH);
         controls.addRefreshListener(this::updateDefaultButton);
 
@@ -173,6 +233,8 @@ public final class TableImportPanel extends JPanel {
         paste.addActionListener(event -> paste());
         close.addActionListener(event -> requestClose());
         wizard.addActionListener(event -> openWizard());
+        back.addActionListener(event -> goTo(Page.DATA));
+        next.addActionListener(event -> goTo(Page.CREATE));
         title.getDocument().addDocumentListener(new DocumentListener() {
             @Override
             public void insertUpdate(DocumentEvent event) {
@@ -196,6 +258,31 @@ public final class TableImportPanel extends JPanel {
         });
         model.addListener(this::modelChanged);
         modelChanged();
+        display(Page.DATA);
+    }
+
+    /** The page shown. */
+    Page page() {
+        return page;
+    }
+
+    /**
+     * Shows {@code target}; «2 Crear» is refused (false) while the data has a problem or none was read, and nothing
+     * changes page while a file is read or the circuit is built.
+     */
+    boolean goTo(Page target) {
+        if (reading || controls.isBusy() || target == Page.CREATE && !model.dataReady()) {
+            return false;
+        }
+        display(target);
+        return true;
+    }
+
+    private void display(Page target) {
+        page = target;
+        pages.show(pageCards, target.name());
+        pageButtons.get(target).setSelected(true);
+        refreshButtons();
     }
 
     private void addGate(ButtonGroup group, JPanel panel, WizardOptions.GateChoice choice, String key) {
@@ -240,7 +327,7 @@ public final class TableImportPanel extends JPanel {
      */
     private void openWizard() {
         Optional<TruthTableSpec> spec = model.spec();
-        if (!model.canOpenInWizard() || spec.isEmpty() || reading || controls.isBusy()) {
+        if (page != Page.CREATE || !model.canOpenInWizard() || spec.isEmpty() || reading || controls.isBusy()) {
             return;
         }
         WizardOptions options = model.options();
@@ -306,6 +393,15 @@ public final class TableImportPanel extends JPanel {
         List<String> lines = model.problemLines();
         problems.setText(String.join("\n", lines));
         problems.setVisible(!lines.isEmpty());
+        Optional<String> blankTitle = model.titleProblem();
+        titleProblem.setText(blankTitle.orElse(""));
+        titleProblem.setVisible(blankTitle.isPresent());
+        if (model.hasTable()) {
+            previewModel.show(model.grid(), model.tableColumns(), model.inputCount(), model.tableProblems());
+        } else if (!previewModel.isEmpty()) {
+            previewModel.clear();
+        }
+        preview.refresh();
         Optional<String> missing = model.missingNotice();
         notice.setText(missing.orElse(""));
         notice.setVisible(missing.isPresent());
@@ -403,15 +499,31 @@ public final class TableImportPanel extends JPanel {
         wizard.setEnabled(!busy && model.canOpenInWizard());
         boolean outOfRange = model.hasTable() && !model.splitFitsTheWizard();
         wizard.setToolTipText(outOfRange ? Messages.text("tableImport.openInWizard.range") : null);
+        boolean onData = page == Page.DATA;
+        next.setEnabled(!busy && model.dataReady());
+        next.setToolTipText(model.dataReady() ? null : Messages.text(model.problemLines().isEmpty()
+                ? "tableImport.next.noTable" : "tableImport.next.problems"));
+        back.setEnabled(!busy);
+        if (!pageButtons.isEmpty()) {
+            pageButtons.get(Page.DATA).setEnabled(!busy);
+            pageButtons.get(Page.CREATE).setEnabled(!busy && model.dataReady());
+        }
+        next.setVisible(onData);
+        back.setVisible(!onData);
+        wizard.setVisible(!onData);
+        controls.createButton().setVisible(!onData);
         controls.refresh();
+        updateDefaultButton();
     }
 
-    /** «Crear» is the default button (Enter) while it is on; otherwise Enter does nothing. */
+    /**
+     * Enter: «Siguiente» on page «Datos», «Crear» on page «Crear», while it is on; otherwise Enter does nothing.
+     */
     private void updateDefaultButton() {
         JRootPane root = getRootPane();
         if (root != null && buttonBar != null) {
-            JButton create = controls.createButton();
-            root.setDefaultButton(create.isEnabled() ? create : null);
+            JButton button = page == Page.DATA ? next : controls.createButton();
+            root.setDefaultButton(button.isEnabled() ? button : null);
         }
     }
 
@@ -425,6 +537,33 @@ public final class TableImportPanel extends JPanel {
 
     String problemsText() {
         return problems.isVisible() ? problems.getText() : "";
+    }
+
+    /** «Escribe un título para la tabla.» under the title on page «Crear», or empty. */
+    String titleProblemText() {
+        return titleProblem.isVisible() ? titleProblem.getText() : "";
+    }
+
+    TablePreviewModel previewModel() {
+        return previewModel;
+    }
+
+    TablePreview preview() {
+        return preview;
+    }
+
+    JButton nextButton() {
+        return next;
+    }
+
+    JButton backButton() {
+        return back;
+    }
+
+    /** «Siguiente»'s reason when it is off (its tooltip), or empty. */
+    String nextReasonText() {
+        String reason = next.getToolTipText();
+        return reason == null ? "" : reason;
     }
 
     String noticeText() {
@@ -462,7 +601,7 @@ public final class TableImportPanel extends JPanel {
     List<String> buttonBarTexts() {
         List<String> texts = new ArrayList<>();
         for (Component each : buttonBar.getComponents()) {
-            if (each instanceof AbstractButton button) {
+            if (each instanceof AbstractButton button && button.isVisible()) {
                 texts.add(button.getText());
             }
         }

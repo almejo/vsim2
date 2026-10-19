@@ -73,6 +73,36 @@ final class WizardColors {
         return blend(foreground(), sidePanel(), 0.28);
     }
 
+    /** The import preview's input columns: a soft tint of the theme's accent over the table's background. */
+    static Color previewInput() {
+        return readable(highlight(), dark() ? 0.32 : 0.15);
+    }
+
+    /** The import preview's output columns: a soft amber tint, apart from the inputs' one. */
+    static Color previewOutput() {
+        return readable(warning(), dark() ? 0.26 : 0.16);
+    }
+
+    /** A cell, row or name of the import preview with a problem: the theme's error colour as a tint. */
+    static Color previewProblem() {
+        return readable(error(), dark() ? 0.50 : 0.26);
+    }
+
+    /**
+     * {@code share} of {@code tint} over the table's background, less when needed for the text to keep a contrast of
+     * at least 4.5:1 (WCAG AA). On a dark theme the tint goes over a darker shade of the background: the light text
+     * keeps its contrast there, where a tint over the background itself would have to fade to nothing.
+     */
+    private static Color readable(Color tint, double share) {
+        Color text = foreground();
+        Color base = dark() ? blend(Color.BLACK, cellBackground(), 0.35) : cellBackground();
+        Color candidate = blend(tint, base, share);
+        for (double less = share; less > 0 && contrast(text, candidate) < 4.6; less -= 0.02) {
+            candidate = blend(tint, base, less);
+        }
+        return candidate;
+    }
+
     /** The thin line on the side panel's edge. */
     static Color sidePanelEdge() {
         return gridLine();

@@ -76,6 +76,12 @@ class TableImportPanelTest {
         });
     }
 
+    /** «Siguiente»: to page «Crear». */
+    private void next() {
+        panel.nextButton().doClick();
+        assertThat(panel.page()).isEqualTo(TableImportPanel.Page.CREATE);
+    }
+
     private Path write(String name, String content) throws IOException {
         Path file = directory.resolve(name);
         Files.writeString(file, content);
@@ -94,6 +100,9 @@ class TableImportPanelTest {
         assertThat(panel.problemsText()).isEmpty();
         assertThat(panel.noticeText()).isEmpty();
         assertThat(panel.summaryText()).startsWith("3 entradas, 2 salidas → ").endsWith("compuertas");
+        assertThat(panel.page()).isEqualTo(TableImportPanel.Page.DATA);
+        assertThat(panel.controls().createButton().isEnabled()).as("on page «Datos»").isFalse();
+        next();
         assertThat(panel.controls().createButton().isEnabled()).isTrue();
 
         panel.controls().createButton().doClick();
@@ -138,6 +147,9 @@ class TableImportPanelTest {
         panel.pasteButton().doClick();
         assertThat(panel.problemsText()).startsWith("El portapapeles no tiene texto");
         assertThat(panel.controls().createButton().isEnabled()).isFalse();
+        assertThat(panel.nextButton().isEnabled()).isFalse();
+        assertThat(panel.nextReasonText()).isEqualTo("Corrige primero los problemas de la lista.");
+        assertThat(panel.preview().showsHint()).isTrue();
     }
 
     @Test
@@ -182,6 +194,11 @@ class TableImportPanelTest {
                 "Celda C4: «7» no es un valor: usa 0, 1 o X.",
                 "Fila 5: La fila tiene 4 celdas, pero la tabla tiene 3 columnas."));
         assertThat(panel.controls().createButton().isEnabled()).isFalse();
+        assertThat(panel.nextButton().isEnabled()).isFalse();
+        assertThat(panel.goTo(TableImportPanel.Page.CREATE)).isFalse();
+        assertThat(panel.page()).isEqualTo(TableImportPanel.Page.DATA);
+        assertThat(panel.previewModel().isProblem(1, 2)).as("B3").isTrue();
+        assertThat(panel.previewModel().isProblem(3, 1)).as("row 5").isTrue();
         assertThat(panel.summaryText()).isBlank();
     }
 
@@ -190,6 +207,7 @@ class TableImportPanelTest {
         chosen = write("incompleta.csv", "A;B;C;Y\n0;0;0;1\n1;1;1;0\n0;1;0;1\n1;0;1;0\n");
         panel.openFileButton().doClick();
         assertThat(panel.noticeText()).isEqualTo("Faltaban 4 combinaciones: se tomaron como X.");
+        next();
         assertThat(panel.controls().createButton().isEnabled()).isTrue();
     }
 
@@ -213,8 +231,10 @@ class TableImportPanelTest {
     void aBlankTitleTurnsCreateOff() throws IOException {
         chosen = write("sumador.csv", ADDER);
         panel.openFileButton().doClick();
+        next();
         panel.titleField().setText(" ");
-        assertThat(panel.problemsText()).isEqualTo("Escribe un título para la tabla.");
+        assertThat(panel.titleProblemText()).isEqualTo("Escribe un título para la tabla.");
+        assertThat(panel.problemsText()).as("the data has no problem").isEmpty();
         assertThat(panel.controls().createButton().isEnabled()).isFalse();
     }
 
@@ -238,7 +258,10 @@ class TableImportPanelTest {
 
         assertThat(panel.problemsText()).isEmpty();
         assertThat(panel.summaryText()).matches("8 entradas, 8 salidas → \\d+ términos, \\d+ compuertas");
+        assertThat(panel.previewModel().getRowCount()).isEqualTo(256);
+        assertThat(panel.previewModel().isFirstOutput(9)).isTrue();
 
+        next();
         panel.controls().createButton().doClick();
         assertThat(target.newCircuits).hasSize(1);
         assertThat(panel.controls().resultText()).isEqualTo("✓ El circuito cumple la tabla.");
@@ -259,11 +282,14 @@ class TableImportPanelTest {
         queued.removeFirst().run(); // the summary
         assertThat(panel.summaryText()).startsWith("3 entradas");
 
+        next();
         panel.controls().createButton().doClick();
         assertThat(panel.controls().busyIndicatorShown()).isTrue();
         assertThat(panel.openFileButton().isEnabled()).isFalse();
         assertThat(panel.gateButton(WizardOptions.GateChoice.NAND_ONLY).isEnabled()).isFalse();
         assertThat(panel.inputCountSpinner().isEnabled()).isFalse();
+        assertThat(panel.backButton().isEnabled()).isFalse();
+        assertThat(panel.goTo(TableImportPanel.Page.DATA)).as("not while building").isFalse();
         assertThat(target.newCircuits).isEmpty();
         queued.removeFirst().run();
         assertThat(target.newCircuits).hasSize(1);
@@ -278,6 +304,7 @@ class TableImportPanelTest {
         panel.openFileButton().doClick();
         queued.removeFirst().run(); // the file
         queued.removeFirst().run(); // the summary
+        next();
         panel.controls().componentCheckBox().doClick();
         panel.controls().createButton().doClick();
 
@@ -322,6 +349,7 @@ class TableImportPanelTest {
     void insertingClosesTheDialog() throws IOException {
         chosen = write("sumador.csv", ADDER);
         panel.openFileButton().doClick();
+        next();
         panel.controls().destinationButton(CreationForm.Destination.INSERT).doClick();
         panel.controls().createButton().doClick();
         assertThat(target.floating).hasSize(1);
@@ -337,11 +365,13 @@ class TableImportPanelTest {
         assertThat(panel.columnsText()).isEqualTo("Entradas: A, B · Salidas: F");
         assertThat(((SpinnerNumberModel) panel.inputCountSpinner().getModel()).getMaximum()).isEqualTo(2);
         assertThat(panel.problemsText()).isEmpty();
+        assertThat(panel.previewModel().getColumnName(2)).isEqualTo("B");
+        next();
         assertThat(panel.controls().createButton().isEnabled()).isTrue();
     }
 
     @Test
-    void aLongListOfProblemsShowsTheFirstTwentyAndCountsTheRest() throws IOException {
+    void aLongListOfProblemsShowsTheFirstSixAndCountsTheRest() throws IOException {
         StringBuilder csv = new StringBuilder("A,B,C,D,E,F\n");
         for (int row = 0; row < 32; row++) {
             csv.append(row >> 4 & 1).append(',').append(row >> 3 & 1).append(',').append(row >> 2 & 1).append(',')
@@ -351,8 +381,8 @@ class TableImportPanelTest {
         panel.openFileButton().doClick();
 
         List<String> lines = panel.problemsText().lines().toList();
-        assertThat(lines).hasSize(21);
-        assertThat(lines.getLast()).isEqualTo("… y 12 problemas más.");
+        assertThat(lines).hasSize(7);
+        assertThat(lines.getLast()).isEqualTo("… y 26 problemas más.");
     }
 
     @Test
@@ -401,14 +431,17 @@ class TableImportPanelTest {
         JButton create = panel.createButton();
         assertThat(SwingUtilities.isDescendingFrom(create, panel.controls())).isFalse();
         assertThat(SwingUtilities.isDescendingFrom(create, panel)).isTrue();
-        assertThat(panel.buttonBarTexts()).containsExactly("Abrir en el asistente", "Crear", "Cerrar");
+        assertThat(panel.buttonBarTexts()).containsExactly("Siguiente", "Cerrar");
         assertThat(create.isEnabled()).as("no table yet").isFalse();
         assertThat(root.getDefaultButton()).isNull();
 
         chosen = write("sumador.csv", ADDER);
         panel.openFileButton().doClick();
-        assertThat(create.isEnabled()).as("while reading").isFalse();
+        assertThat(panel.nextButton().isEnabled()).as("while reading").isFalse();
         queued.removeFirst().run(); // the file
+        assertThat(root.getDefaultButton()).as("Enter goes on").isSameAs(panel.nextButton());
+        next();
+        assertThat(panel.buttonBarTexts()).containsExactly("Abrir en el asistente", "Atrás", "Crear", "Cerrar");
         assertThat(create.isEnabled()).isTrue();
         assertThat(root.getDefaultButton()).isSameAs(create);
 
@@ -465,6 +498,7 @@ class TableImportPanelTest {
     void openInTheWizardClosesTheDialogAndHandsOverTheTableWithItsOptions() throws IOException {
         chosen = write("incompleta.csv", "A;B;C;Y\n0;0;0;1\n1;1;1;0\n0;1;0;1\n1;0;1;0\n");
         panel.openFileButton().doClick();
+        next();
         panel.gateButton(WizardOptions.GateChoice.NAND_ONLY).doClick();
         assertThat(panel.wizardButton().isEnabled()).isTrue();
         assertThat(panel.wizardReasonText()).isEmpty();
@@ -497,9 +531,10 @@ class TableImportPanelTest {
         assertThat(panel.wizardReasonText()).isEqualTo("El asistente funciona con 2 a 4 entradas y hasta 4 salidas");
 
         panel.inputCountSpinner().setValue(3);
+        next();
         panel.titleField().setText(" ");
         assertThat(panel.wizardButton().isEnabled()).as("a blank title is a problem").isFalse();
-        assertThat(panel.wizardReasonText()).as("the problem is listed, the split fits").isEmpty();
+        assertThat(panel.wizardReasonText()).as("the problem is said, the split fits").isEmpty();
 
         panel.wizardButton().doClick();
         assertThat(events).isEmpty();
@@ -518,8 +553,96 @@ class TableImportPanelTest {
         panel.openFileButton().doClick();
         panel.inputCountSpinner().setValue(5);
         assertThat(panel.problemsText()).isEmpty();
+        next();
         assertThat(panel.createButton().isEnabled()).isTrue();
         assertThat(panel.wizardButton().isEnabled()).isFalse();
         assertThat(panel.wizardReasonText()).isEqualTo("El asistente funciona con 2 a 4 entradas y hasta 4 salidas");
+    }
+
+    @Test
+    void beforeAnythingIsReadThePreviewShowsAHintAndNextSaysWhatToDo() {
+        assertThat(panel.page()).isEqualTo(TableImportPanel.Page.DATA);
+        assertThat(panel.preview().showsHint()).isTrue();
+        assertThat(panel.previewModel().isEmpty()).isTrue();
+        assertThat(panel.nextButton().isEnabled()).isFalse();
+        assertThat(panel.nextReasonText()).isEqualTo("Primero abre un archivo o pega celdas.");
+        assertThat(panel.goTo(TableImportPanel.Page.CREATE)).isFalse();
+    }
+
+    @Test
+    void thePreviewShowsTheFileAndFollowsTheInputColumns() throws IOException {
+        chosen = write("sumador.csv", ADDER);
+        panel.openFileButton().doClick();
+
+        TablePreviewModel preview = panel.previewModel();
+        assertThat(panel.preview().showsHint()).isFalse();
+        assertThat(preview.getRowCount()).isEqualTo(8);
+        assertThat(preview.getColumnCount()).isEqualTo(6);
+        assertThat(preview.getValueAt(0, 0)).as("the file's row 2").isEqualTo(2);
+        assertThat(preview.getValueAt(7, 5)).isEqualTo("1");
+        assertThat(preview.isFirstOutput(4)).isTrue();
+        assertThat(panel.nextButton().isEnabled()).isTrue();
+        assertThat(panel.nextReasonText()).isEmpty();
+
+        panel.inputCountSpinner().setValue(4);
+        assertThat(preview.isInput(4)).isTrue();
+        assertThat(preview.isFirstOutput(5)).isTrue();
+
+        panel.inputCountSpinner().setValue(2);
+        assertThat(preview.isProblem(1, 1)).as("rows 2 and 3 conflict").isTrue();
+        assertThat(preview.isProblem(0, 1)).isTrue();
+        assertThat(panel.nextButton().isEnabled()).isFalse();
+        assertThat(panel.nextReasonText()).isEqualTo("Corrige primero los problemas de la lista.");
+    }
+
+    @Test
+    void pastedCellsArePreviewedWithWhatTheySaidInTheTooltip() {
+        clipboard = Optional.of("A\tB\tY\n0\t0\t1,0\n0\t1\tVERDADERO\n1\t0\t\n1\t1\t-\n");
+        panel.pasteButton().doClick();
+
+        TablePreviewModel preview = panel.previewModel();
+        assertThat(preview.shown(0, 3)).isEqualTo("1");
+        assertThat(preview.tooltip(0, 3)).isEqualTo("En el archivo: «1,0»");
+        assertThat(preview.shown(2, 3)).isEqualTo("X");
+        assertThat(preview.isBlankCell(2, 3)).isTrue();
+    }
+
+    @Test
+    void aFileThatCannotBeReadEmptiesThePreview() throws IOException {
+        chosen = write("sumador.csv", ADDER);
+        panel.openFileButton().doClick();
+        assertThat(panel.preview().showsHint()).isFalse();
+
+        chosen = write("roto.xlsx", "esto no es un zip");
+        panel.openFileButton().doClick();
+        assertThat(panel.preview().showsHint()).isTrue();
+        assertThat(panel.previewModel().isEmpty()).isTrue();
+    }
+
+    @Test
+    void nextAndBackKeepEverythingAndANewFileProposesTheTitleAgain() throws IOException {
+        chosen = write("sumador.csv", ADDER);
+        panel.openFileButton().doClick();
+        next();
+        assertThat(panel.backButton().isEnabled()).isTrue();
+        panel.titleField().setText("Sumador completo");
+        panel.gateButton(WizardOptions.GateChoice.NOR_ONLY).doClick();
+
+        panel.backButton().doClick();
+        assertThat(panel.page()).isEqualTo(TableImportPanel.Page.DATA);
+        assertThat(panel.buttonBarTexts()).containsExactly("Siguiente", "Cerrar");
+        assertThat(panel.titleField().getText()).isEqualTo("Sumador completo");
+        assertThat(panel.inputCountSpinner().getValue()).isEqualTo(3);
+        next();
+        assertThat(panel.titleField().getText()).isEqualTo("Sumador completo");
+        assertThat(panel.model().options().gates()).isEqualTo(WizardOptions.GateChoice.NOR_ONLY);
+
+        panel.backButton().doClick();
+        chosen = write("mayoria.csv", "A,B,C,M\n0,0,0,0\n0,1,1,1\n1,1,1,1\n");
+        panel.openFileButton().doClick();
+        assertThat(panel.page()).isEqualTo(TableImportPanel.Page.DATA);
+        next();
+        assertThat(panel.titleField().getText()).isEqualTo("mayoria");
+        assertThat(panel.controls().nameField().getText()).isEqualTo("mayoria");
     }
 }

@@ -18,8 +18,11 @@ import java.util.Optional;
  */
 final class TableImportModel {
 
-    /** The most problems listed; the rest are counted in one more line. */
-    static final int MAXIMUM_PROBLEM_LINES = 20;
+    /**
+     * The most problems listed; the rest are counted in one more line (the preview flags every one of them, and a long
+     * list would leave it no room).
+     */
+    static final int MAXIMUM_PROBLEM_LINES = 6;
 
     private final List<Runnable> listeners = new ArrayList<>();
     private ImportedGrid grid;
@@ -140,8 +143,9 @@ final class TableImportModel {
     }
 
     /**
-     * What is wrong, one line each, in the order found: «Celda D4: …», «Fila 5: …» or a line about the file; past
-     * {@value #MAXIMUM_PROBLEM_LINES} lines, one more counts the rest («… y 12 problemas más.»).
+     * What is wrong with the data (page «Datos»), one line each, in the order found: «Celda D4: …», «Fila 5: …» or a
+     * line about the file; past {@value #MAXIMUM_PROBLEM_LINES} lines, one more counts the rest («… y 12 problemas
+     * más.»). A blank title is not here: it is said on page «Crear», where the title is ({@link #titleProblem}).
      */
     List<String> problemLines() {
         List<String> lines = new ArrayList<>();
@@ -149,9 +153,6 @@ final class TableImportModel {
             lines.add(describe(readProblem));
         }
         if (result != null) {
-            if (title.isBlank()) {
-                lines.add(Messages.text("karnaugh.problem.title"));
-            }
             result.problems().forEach(problem -> lines.add(describe(problem)));
         }
         if (lines.size() > MAXIMUM_PROBLEM_LINES) {
@@ -161,6 +162,32 @@ final class TableImportModel {
             return shown;
         }
         return lines;
+    }
+
+    /** «Escribe un título para la tabla.» when a table is read and the title is blank. */
+    Optional<String> titleProblem() {
+        return result != null && title.isBlank() ? Optional.of(Messages.text("karnaugh.problem.title"))
+                : Optional.empty();
+    }
+
+    /** Whether the data reads without problems with this split: «Siguiente» can go to page «Crear». */
+    boolean dataReady() {
+        return result != null && result.spec().isPresent();
+    }
+
+    /** The grid read, or null when there is none. */
+    ImportedGrid grid() {
+        return grid;
+    }
+
+    /** The grid's columns that make the table. */
+    List<Integer> tableColumns() {
+        return columns;
+    }
+
+    /** The problems of the table made of the grid (none without a grid). */
+    List<ImportProblem> tableProblems() {
+        return result == null ? List.of() : result.problems();
     }
 
     /** «Faltaban 12 combinaciones: se tomaron como X.», when the table is usable and the file skipped some. */

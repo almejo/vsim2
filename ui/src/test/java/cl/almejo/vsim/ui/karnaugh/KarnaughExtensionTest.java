@@ -169,6 +169,7 @@ class KarnaughExtensionTest {
         int[] importClosed = {0};
         panel.setOnClose(() -> importClosed[0]++);
         panel.pasteButton().doClick();
+        panel.nextButton().doClick();
         panel.titleField().setText("Mi tabla");
         panel.gateButton(WizardOptions.GateChoice.NOR_ONLY).doClick();
 
