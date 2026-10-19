@@ -32,14 +32,17 @@ final class TableImportModel {
     private WizardOptions options = WizardOptions.defaults();
     private ImportResult result;
 
-    /** A grid was read from {@code source} (a file name, or the clipboard): the inputs are proposed from its names. */
+    /**
+     * A grid was read from {@code source} (a file name, or the clipboard): the inputs are proposed from its names and
+     * rows.
+     */
     void load(ImportedGrid newGrid, String newSource, String newTitle) {
         grid = newGrid;
         columns = TableImport.columns(newGrid);
         readProblem = null;
         source = newSource;
         title = newTitle;
-        inputCount = TableImport.proposedInputCount(names(0, columns.size()));
+        inputCount = TableImport.proposedInputCount(newGrid);
         changed();
     }
 

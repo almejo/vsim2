@@ -109,6 +109,21 @@ class TableImportPanelTest {
     }
 
     @Test
+    void theInputsAreGuessedFromTheRowsWhenNoNameLooksLikeAnOutput() {
+        StringBuilder majority = new StringBuilder("A\tB\tC\tM\n");
+        for (int row = 0; row < 8; row++) {
+            majority.append(row >> 2 & 1).append('\t').append(row >> 1 & 1).append('\t').append(row & 1).append('\t')
+                    .append(Integer.bitCount(row) >= 2 ? 1 : 0).append('\n');
+        }
+        clipboard = Optional.of(majority.toString());
+        panel.pasteButton().doClick();
+
+        assertThat(panel.inputCountSpinner().getValue()).isEqualTo(3);
+        assertThat(panel.columnsText()).isEqualTo("Entradas: A, B, C · Salidas: M");
+        assertThat(panel.problemsText()).isEmpty();
+    }
+
+    @Test
     void pastedCellsAreTabSeparatedAndTheTitleIsTabla() {
         clipboard = Optional.of("A\tB\tY\r\n0\t0\t0\r\n0\t1\t1\r\n1\t0\t1\r\n1\t1\t0\r\n");
         panel.pasteButton().doClick();

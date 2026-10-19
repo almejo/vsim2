@@ -708,16 +708,74 @@ public final class TableImport {
         if (columnCount <= 1) {
             return 1;
         }
-        int proposed = columnCount / 2;
-        for (int index = 1; index < columnCount; index++) {
-            if (looksLikeOutput(header.get(index))) {
-                proposed = index;
-                break;
+        int proposed = firstOutputLooking(header).orElse(columnCount / 2);
+        return Math.clamp(proposed, smallestInputCount(columnCount), largestInputCount(columnCount));
+    }
+
+    /**
+     * How many of the table's columns ({@link #columns}) probably are inputs, looking at the names and then at the
+     * rows: the names before the first one that looks like an output (as {@link #proposedInputCount(List)}); when no
+     * name does, the fewest leading columns that hold only 0 and 1 and whose combinations are all different across
+     * the rows (a complete table gives log2 of its rows; missing rows or any order are fine); when none do, half of
+     * the columns. Within the limits of inputs and outputs when the column count allows it.
+     */
+    public static int proposedInputCount(ImportedGrid grid) {
+        List<Integer> columns = columns(grid);
+        int columnCount = columns.size();
+        if (columnCount <= 1) {
+            return 1;
+        }
+        List<String> names = columns.stream().map(column -> cell(grid.header(), column).strip()).toList();
+        int smallest = smallestInputCount(columnCount);
+        int largest = largestInputCount(columnCount);
+        Optional<Integer> byName = firstOutputLooking(names);
+        if (byName.isPresent()) {
+            return Math.clamp(byName.get(), smallest, largest);
+        }
+        List<List<String>> rows = grid.rows().stream().filter(row -> !isBlank(row)).toList();
+        for (int count = smallest; count <= largest && !rows.isEmpty(); count++) {
+            if (areDistinctCombinations(rows, columns.subList(0, count))) {
+                return count;
             }
         }
-        int smallest = Math.max(1, columnCount - TruthTableSpec.MAXIMUM_OUTPUTS);
-        int largest = Math.max(smallest, Math.min(TruthTableSpec.MAXIMUM_INPUTS, columnCount - 1));
-        return Math.clamp(proposed, smallest, largest);
+        return Math.clamp(columnCount / 2, smallest, largest);
+    }
+
+    /** Whether every row has only 0 or 1 in {@code columns} and no two rows have the same values there. */
+    private static boolean areDistinctCombinations(List<List<String>> rows, List<Integer> columns) {
+        Set<List<LogicValue>> seen = new HashSet<>();
+        for (List<String> row : rows) {
+            List<LogicValue> combination = new ArrayList<>();
+            for (int column : columns) {
+                LogicValue value = valueOf(cell(row, column));
+                if (value != LogicValue.ZERO && value != LogicValue.ONE) {
+                    return false;
+                }
+                combination.add(value);
+            }
+            if (!seen.add(combination)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /** The index of the first name after the first that looks like an output. */
+    private static Optional<Integer> firstOutputLooking(List<String> names) {
+        for (int index = 1; index < names.size(); index++) {
+            if (looksLikeOutput(names.get(index))) {
+                return Optional.of(index);
+            }
+        }
+        return Optional.empty();
+    }
+
+    private static int smallestInputCount(int columnCount) {
+        return Math.max(1, columnCount - TruthTableSpec.MAXIMUM_OUTPUTS);
+    }
+
+    private static int largestInputCount(int columnCount) {
+        return Math.max(smallestInputCount(columnCount), Math.min(TruthTableSpec.MAXIMUM_INPUTS, columnCount - 1));
     }
 
     private static boolean looksLikeOutput(String name) {

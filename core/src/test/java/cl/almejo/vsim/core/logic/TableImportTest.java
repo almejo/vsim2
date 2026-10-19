@@ -13,6 +13,7 @@ import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.IntFunction;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
@@ -432,6 +433,62 @@ class TableImportTest {
         assertThat(TableImport.proposedInputCount(List.of("Cin", "A", "B", "Cout", "Suma"))).isEqualTo(3);
         assertThat(TableImport.proposedInputCount(List.of("F"))).isEqualTo(1);
         assertThat(TableImport.proposedInputCount(List.of())).isEqualTo(1);
+    }
+
+    @Test
+    void withoutOutputLookingNamesTheInputsAreTheFewestLeadingBinaryColumnsWhoseCombinationsAreAllDifferent() {
+        assertThat(TableImport.proposedInputCount(table(List.of("A", "B", "C", "M"), 3,
+                row -> List.of(Integer.bitCount(row) >= 2 ? 1 : 0)))).as("majority").isEqualTo(3);
+        assertThat(TableImport.proposedInputCount(table(List.of("A", "B", "C", "D", "E", "P"), 5,
+                row -> List.of(Integer.bitCount(row) & 1)))).as("parity").isEqualTo(5);
+        assertThat(TableImport.proposedInputCount(table(List.of("A1", "A0", "B1", "B0", "Mayor", "Igual", "Menor"), 4,
+                row -> {
+                    int first = row >> 2;
+                    int second = row & 3;
+                    return List.of(first > second ? 1 : 0, first == second ? 1 : 0, first < second ? 1 : 0);
+                }))).as("2-bit comparator").isEqualTo(4);
+    }
+
+    @Test
+    void theDataGuessWorksWithMissingRowsAndInAnyOrder() {
+        ImportedGrid grid = TableImport.readCsv("A,B,C,M\n1,1,1,1\n0,0,0,0\n1,0,1,1\n0,1,1,1\n0,0,1,0\n");
+        assertThat(TableImport.proposedInputCount(grid)).isEqualTo(3);
+    }
+
+    @Test
+    void outputLookingNamesWinOverTheData() {
+        // The data alone would give 2 (00, 01, 10 are all different), the name F says 3.
+        ImportedGrid grid = TableImport.readCsv("A,B,C,F\n0,0,0,0\n0,1,1,1\n1,0,1,1\n");
+        assertThat(TableImport.proposedInputCount(grid)).isEqualTo(3);
+    }
+
+    @Test
+    void withoutNamesOrDataToGoByItIsHalf() {
+        assertThat(TableImport.proposedInputCount(TableImport.readCsv("Uno,Dos,Tres,Cuatro\n"))).isEqualTo(2);
+        assertThat(TableImport.proposedInputCount(TableImport.readCsv("Uno,Dos,Tres,Cuatro\na,b,c,d\n")))
+                .as("no binary column").isEqualTo(2);
+        assertThat(TableImport.proposedInputCount(TableImport.readCsv("Uno,Dos,Tres,Cuatro\n0,0,0,1\n0,0,0,1\n")))
+                .as("a repeated row leaves no column set with all combinations different").isEqualTo(2);
+        assertThat(TableImport.proposedInputCount(TableImport.readCsv(""))).isEqualTo(1);
+    }
+
+    @Test
+    void aBlankSpacerColumnDoesNotCountForTheDataGuess() {
+        ImportedGrid grid = TableImport.readCsv("A,,B,M\n0,,0,0\n0,,1,1\n1,,0,1\n1,,1,0\n");
+        assertThat(TableImport.proposedInputCount(grid)).isEqualTo(2);
+    }
+
+    /** A complete table: the first {@code inputCount} columns count in binary, the rest from {@code outputs}. */
+    private static ImportedGrid table(List<String> names, int inputCount,
+                                      IntFunction<List<Integer>> outputs) {
+        StringBuilder text = new StringBuilder(String.join(",", names)).append('\n');
+        for (int row = 0; row < 1 << inputCount; row++) {
+            for (int bit = inputCount - 1; bit >= 0; bit--) {
+                text.append(row >> bit & 1).append(',');
+            }
+            text.append(String.join(",", outputs.apply(row).stream().map(String::valueOf).toList())).append('\n');
+        }
+        return TableImport.readCsv(text.toString());
     }
 
     private static byte[] zip(Map<String, String> entries) throws IOException {
