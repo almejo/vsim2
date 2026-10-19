@@ -60,6 +60,24 @@ class AppPreferencesTest {
     }
 
     @Test
+    void theFindOptionsAreOffByDefaultRoundTripAndOnlyRealChangesNotify() {
+        preferences.addListener(changes::incrementAndGet);
+        assertThat(preferences.findMatchCase()).isFalse();
+        assertThat(preferences.findRegex()).isFalse();
+        preferences.setFindMatchCase(false);
+        preferences.setFindRegex(false);
+        assertThat(changes).hasValue(0);
+
+        preferences.setFindMatchCase(true);
+        preferences.setFindRegex(true);
+
+        assertThat(changes).hasValue(2);
+        AppPreferences reread = new AppPreferences(node);
+        assertThat(reread.findMatchCase()).isTrue();
+        assertThat(reread.findRegex()).isTrue();
+    }
+
+    @Test
     void animatingViewMovesIsOnByDefaultAndOnlyRealChangesNotify() {
         preferences.addListener(changes::incrementAndGet);
         assertThat(preferences.animateViewMoves()).isTrue();

@@ -82,6 +82,7 @@ class ActionIconsTest {
         used.addAll(cl.almejo.vsim.ui.frames.FrameIcons.names());
         used.addAll(cl.almejo.vsim.ui.wiring.WiresFollowIcons.names());
         used.addAll(cl.almejo.vsim.ui.inline.InlineIcons.names());
+        used.addAll(cl.almejo.vsim.ui.search.FindIcons.names());
         assertThat(used).containsExactlyElementsOf(IconsTest.iconNames());
     }
 

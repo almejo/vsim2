@@ -58,6 +58,8 @@ public final class AppPreferences {
     static final String TEXT_FONT_SIZE = "textFontSize";
     static final String COLOR_SCHEMES = "colorSchemes";
     static final String ANIMATE_VIEW_MOVES = "animateViewMoves";
+    static final String FIND_MATCH_CASE = "find.matchCase";
+    static final String FIND_REGEX = "find.regex";
 
     /** «Avanzar 10 t» (M6.1-B): the fixed step until the user picks another size. */
     public static final long DEFAULT_STEP_UNITS = 10;
@@ -302,6 +304,32 @@ public final class AppPreferences {
             return;
         }
         put(ANIMATE_VIEW_MOVES, Boolean.toString(animate));
+    }
+
+    // --- Buscar en el circuito: match options ---
+
+    /** «Aa» of the find bar and the component tree's filter: match upper and lower case (and accents). Off by default. */
+    public boolean findMatchCase() {
+        return node.getBoolean(FIND_MATCH_CASE, false);
+    }
+
+    public void setFindMatchCase(boolean matchCase) {
+        if (findMatchCase() == matchCase) {
+            return;
+        }
+        put(FIND_MATCH_CASE, Boolean.toString(matchCase));
+    }
+
+    /** «.*» of the find bar and the component tree's filter: the text is a regular expression. Off by default. */
+    public boolean findRegex() {
+        return node.getBoolean(FIND_REGEX, false);
+    }
+
+    public void setFindRegex(boolean regex) {
+        if (findRegex() == regex) {
+            return;
+        }
+        put(FIND_REGEX, Boolean.toString(regex));
     }
 
     // --- M6.8 text font ---

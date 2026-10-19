@@ -36,6 +36,7 @@ import javax.swing.AbstractAction;
 import javax.swing.Action;
 import javax.swing.ButtonGroup;
 import javax.swing.JComboBox;
+import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JMenu;
 import javax.swing.JMenuBar;
@@ -81,6 +82,7 @@ public final class EditorView extends JPanel implements CanvasHost {
     private final StatusBar statusBar = new StatusBar();
     private final SelectionMoves selectionMoves;
     private final InspectorPanel inspector = new InspectorPanel();
+    private final CanvasArea canvasArea;
     private final BottomDock bottomDock;
     private final ProblemsController problems;
     private final JMenuBar menuBar;
@@ -133,7 +135,8 @@ public final class EditorView extends JPanel implements CanvasHost {
         panButton = new JToggleButton(actions.panTool());
         buildToolBar();
 
-        this.bottomDock = new BottomDock(canvas);
+        this.canvasArea = new CanvasArea(canvas);
+        this.bottomDock = new BottomDock(canvasArea);
         JSplitPane inspectorSplit = new InspectorSplit(bottomDock, inspector);
         JSplitPane split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, palette, inspectorSplit);
         split.setDividerLocation(PALETTE_WIDTH);
@@ -249,6 +252,23 @@ public final class EditorView extends JPanel implements CanvasHost {
             throw new IllegalStateException("the menu bar has no " + id + " menu");
         }
         return menu;
+    }
+
+    /**
+     * Shows {@code header} between the toolbar and the canvas, as wide as the canvas (the find bar): it pushes the
+     * canvas down, and the circuit stays where it was on screen. The returned runnable takes it away again.
+     */
+    public Runnable addAboveCanvas(JComponent header) {
+        canvasArea.add(header, BorderLayout.NORTH);
+        canvasArea.revalidate();
+        canvasArea.repaint();
+        return () -> {
+            if (header.getParent() == canvasArea) {
+                canvasArea.remove(header);
+                canvasArea.revalidate();
+                canvasArea.repaint();
+            }
+        };
     }
 
     /** Adds items to every context menu from now on; the returned runnable takes the contributor back. */
@@ -513,6 +533,33 @@ public final class EditorView extends JPanel implements CanvasHost {
         toolBar.add(actions.zoomOut());
         toolBar.add(actions.zoomIn());
         toolBar.add(actions.centerView());
+    }
+
+    /**
+     * The canvas with what {@link #addAboveCanvas} puts over it. When the canvas's top edge moves (a header shows or
+     * goes), the view pans by the same amount in the other direction, in the same layout pass, so the circuit does not
+     * jump on screen.
+     */
+    private static final class CanvasArea extends JPanel {
+
+        private final CircuitCanvas canvas;
+
+        CanvasArea(CircuitCanvas canvas) {
+            super(new BorderLayout());
+            this.canvas = canvas;
+            add(canvas, BorderLayout.CENTER);
+        }
+
+        @Override
+        public void doLayout() {
+            int topBefore = canvas.getY();
+            boolean laidOut = canvas.getWidth() > 0 && canvas.getHeight() > 0;
+            super.doLayout();
+            int shift = canvas.getY() - topBefore;
+            if (laidOut && shift != 0) {
+                canvas.viewport().panBy(0, -shift);
+            }
+        }
     }
 
     /** Runs {@code action} as its toolbar button would: only while it is enabled (the status-bar run state). */

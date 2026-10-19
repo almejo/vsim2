@@ -118,6 +118,24 @@ class ApplicationExtensionsTest {
     }
 
     @Test
+    void theEditMenuOffersTheFindItemsWithCtrlFAndF3() {
+        EditorView view = new EditorView(openDocument, services, NO_WINDOW);
+        try {
+            assertThat(texts(view.menu(MenuId.EDIT))).containsSubsequence("Seleccionar todo", "---", "Buscar…",
+                    "Buscar siguiente", "Buscar anterior");
+            assertThat(view.shortcutActions().get("edit.find").getValue(Action.ACCELERATOR_KEY))
+                    .isEqualTo(KeyStroke.getKeyStroke(KeyEvent.VK_F, ShortcutCatalog.menuMask()));
+            assertThat(view.shortcutActions().get("edit.findNext").getValue(Action.ACCELERATOR_KEY))
+                    .isEqualTo(KeyStroke.getKeyStroke(KeyEvent.VK_F3, 0));
+            assertThat(view.shortcutActions().get("edit.findPrevious").getValue(Action.ACCELERATOR_KEY))
+                    .isEqualTo(KeyStroke.getKeyStroke(KeyEvent.VK_F3, InputEvent.SHIFT_DOWN_MASK));
+            assertThat(view.shortcutActions().get("edit.find").getValue(Action.SMALL_ICON)).isNotNull();
+        } finally {
+            view.dispose();
+        }
+    }
+
+    @Test
     void theViewMenuEndsWithTheWaveformsToggle() {
         EditorView view = new EditorView(openDocument, services, NO_WINDOW);
         try {

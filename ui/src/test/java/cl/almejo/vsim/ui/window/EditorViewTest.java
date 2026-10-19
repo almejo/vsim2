@@ -188,7 +188,7 @@ class EditorViewTest {
         assertThat(inspector.isVisible()).isTrue();
         assertThat(inspector.tabCount()).isEqualTo(2); // the Properties and Problems tabs
         assertThat(((JSplitPane) inspector.getParent()).getLeftComponent()).isSameAs(view.bottomDock());
-        assertThat(view.bottomDock().getTopComponent()).isSameAs(view.canvas());
+        assertThat(view.bottomDock().getTopComponent()).isSameAs(view.canvas().getParent());
         inspector.addTab("Uno", new JLabel("1"));
         inspector.addTab("Dos", new JLabel("2"));
         assertThat(inspector.isVisible()).isTrue();

@@ -24,6 +24,7 @@ import cl.almejo.vsim.ui.paint.Appearance;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.preferences.PreferencesFeature;
+import cl.almejo.vsim.ui.search.FindExtension;
 import cl.almejo.vsim.ui.session.AutosaveService;
 import cl.almejo.vsim.ui.session.RecentFiles;
 import cl.almejo.vsim.ui.session.RecentFilesFeature;
@@ -118,6 +119,7 @@ public final class Application {
         editorExtensions.add(new FramesExtension());
         editorExtensions.add(new WiresFollowExtension());
         editorExtensions.add(new KarnaughExtension(libraryService));
+        editorExtensions.add(new FindExtension());
         editorExtensions.add(new ActionIcons());
         editorExtensions.add(new PreferencesFeature());
         editorExtensions.add(new RecentFilesFeature());

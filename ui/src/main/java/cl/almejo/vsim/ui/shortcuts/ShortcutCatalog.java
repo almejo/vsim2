@@ -14,8 +14,8 @@ import java.util.Set;
 
 /**
  * Every action whose keyboard shortcut the user can change (spec §5.2), ordered by menu and then menu order. Ids are
- * {@code <group>.<action>}; the name is the action's own menu text. The 38 defaults are the editor's accelerators
- * (F5 for «Iniciar o pausar», F6 for «Avanzar N t»), its canvas keys (the eight arrows that move the selection included), F7 and Mayús+F7 for M6.1-B's two advances; the others start without a
+ * {@code <group>.<action>}; the name is the action's own menu text. The 41 defaults are the editor's accelerators
+ * (F5 for «Iniciar o pausar», F6 for «Avanzar N t», Ctrl+F, F3 and Mayús+F3 for «Buscar»), its canvas keys (the eight arrows that move the selection included), F7 and Mayús+F7 for M6.1-B's two advances; the others start without a
  * shortcut. Defaults use the platform menu modifier (⌘ on macOS).
  */
 public final class ShortcutCatalog {
@@ -70,6 +70,9 @@ public final class ShortcutCatalog {
         window(entries, "edit.paste", "action.paste", MenuId.EDIT, stroke(KeyEvent.VK_V, menu));
         window(entries, "edit.duplicate", "action.duplicate", MenuId.EDIT, stroke(KeyEvent.VK_D, menu));
         window(entries, "edit.selectAll", "action.selectAll", MenuId.EDIT, stroke(KeyEvent.VK_A, menu));
+        window(entries, "edit.find", "action.find", MenuId.EDIT, stroke(KeyEvent.VK_F, menu));
+        window(entries, "edit.findNext", "action.findNext", MenuId.EDIT, stroke(KeyEvent.VK_F3, 0));
+        window(entries, "edit.findPrevious", "action.findPrevious", MenuId.EDIT, stroke(KeyEvent.VK_F3, shift));
         window(entries, "edit.frameSelection", "action.frameSelection", MenuId.EDIT, stroke(KeyEvent.VK_G, menu));
         window(entries, "edit.tidyWires", "action.tidyWires", MenuId.EDIT,
                 stroke(KeyEvent.VK_L, menu | InputEvent.ALT_DOWN_MASK));
