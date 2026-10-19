@@ -27,6 +27,7 @@ import java.awt.Font;
 import java.awt.FontMetrics;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
+import java.awt.Insets;
 import java.awt.RenderingHints;
 
 /**
@@ -42,6 +43,14 @@ final class TablePreview extends JPanel {
     private static final int ROW_NUMBER_WIDTH = 52;
     private static final int MINIMUM_COLUMN_WIDTH = 44;
     private static final int DIVIDER = 2;
+    /** The most rows the preview asks room for; a longer table scrolls (the user can still make it taller). */
+    static final int VISIBLE_ROWS = 20;
+    /** The fewest rows it keeps when the dialog is made small. */
+    private static final int MINIMUM_ROWS = 3;
+    /** The widest it asks to be; a wider table scrolls sideways. */
+    private static final int MAXIMUM_PREFERRED_WIDTH = 900;
+    /** The height of the hint shown before anything is read. */
+    private static final int HINT_HEIGHT = 140;
 
     private final TablePreviewModel model;
     private final CardLayout cards = new CardLayout();
@@ -49,6 +58,7 @@ final class TablePreview extends JPanel {
     private final GroupBar groupBar = new GroupBar();
     /** The column header: the bar of «Entradas» · «Salidas» over the names. */
     private final JPanel names = new JPanel(new BorderLayout());
+    private final JScrollPane scroll;
     private boolean showsHint = true;
 
     TablePreview(TablePreviewModel model) {
@@ -80,7 +90,7 @@ final class TablePreview extends JPanel {
         names.setOpaque(false);
         names.add(groupBar, BorderLayout.NORTH);
         names.add(table.getTableHeader(), BorderLayout.CENTER);
-        JScrollPane scroll = new JScrollPane(table);
+        scroll = new JScrollPane(table);
         scroll.setColumnHeaderView(names); // set again when the table is shown: JTable puts its bare header there
         add(hintPanel, HINT);
         add(scroll, TABLE);
@@ -91,6 +101,7 @@ final class TablePreview extends JPanel {
     void refresh() {
         showsHint = model.isEmpty();
         cards.show(this, showsHint ? HINT : TABLE);
+        revalidate(); // its size follows the rows
         if (showsHint) {
             return;
         }
@@ -112,6 +123,70 @@ final class TablePreview extends JPanel {
 
     boolean showsHint() {
         return showsHint;
+    }
+
+    /**
+     * As tall as the names and the rows, up to {@value #VISIBLE_ROWS} rows (then it scrolls); as wide as the columns,
+     * up to {@value #MAXIMUM_PREFERRED_WIDTH} pixels (then it scrolls sideways). The hint asks for a fixed height.
+     */
+    @Override
+    public Dimension getPreferredSize() {
+        if (isPreferredSizeSet()) {
+            return super.getPreferredSize();
+        }
+        if (showsHint) {
+            return new Dimension(super.getPreferredSize().width, HINT_HEIGHT);
+        }
+        return sizeFor(Math.min(model.getRowCount(), VISIBLE_ROWS));
+    }
+
+    /**
+     * Never larger than the whole table (every row, every column and room for a scroll bar): past that there would be
+     * only empty space beside or under it.
+     */
+    @Override
+    public Dimension getMaximumSize() {
+        if (isMaximumSizeSet() || showsHint) {
+            return super.getMaximumSize();
+        }
+        Insets insets = scroll.getInsets();
+        return new Dimension(table.getColumnModel().getTotalColumnWidth() + insets.left + insets.right
+                + scroll.getVerticalScrollBar().getPreferredSize().width, sizeFor(model.getRowCount()).height);
+    }
+
+    /** A small table keeps its own size at the top left instead of stretching over the space it was given. */
+    @Override
+    public void doLayout() {
+        super.doLayout();
+        if (!showsHint) {
+            Dimension largest = getMaximumSize();
+            scroll.setSize(Math.min(getWidth(), largest.width), Math.min(getHeight(), largest.height));
+            scroll.validate();
+        }
+    }
+
+    @Override
+    public Dimension getMinimumSize() {
+        if (isMinimumSizeSet()) {
+            return super.getMinimumSize();
+        }
+        if (showsHint) {
+            return new Dimension(0, HINT_HEIGHT / 2);
+        }
+        return new Dimension(0, sizeFor(Math.min(model.getRowCount(), MINIMUM_ROWS)).height);
+    }
+
+    /** The scroll pane showing {@code rows} rows, with room for the scroll bars it will need. */
+    private Dimension sizeFor(int rows) {
+        Insets insets = scroll.getInsets();
+        int contentWidth = table.getColumnModel().getTotalColumnWidth();
+        boolean scrollsDown = model.getRowCount() > rows;
+        int width = contentWidth + insets.left + insets.right
+                + (scrollsDown ? scroll.getVerticalScrollBar().getPreferredSize().width : 0);
+        boolean scrollsSideways = width > MAXIMUM_PREFERRED_WIDTH;
+        int height = names.getPreferredSize().height + rows * table.getRowHeight() + insets.top + insets.bottom
+                + (scrollsSideways ? scroll.getHorizontalScrollBar().getPreferredSize().height : 0);
+        return new Dimension(Math.min(width, MAXIMUM_PREFERRED_WIDTH), height);
     }
 
     JTable table() {

@@ -26,6 +26,7 @@ import javax.swing.JSpinner;
 import javax.swing.JTextField;
 import javax.swing.JToggleButton;
 import javax.swing.SpinnerNumberModel;
+import javax.swing.SwingUtilities;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import java.awt.BorderLayout;
@@ -34,6 +35,11 @@ import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.Font;
+import java.awt.GraphicsConfiguration;
+import java.awt.Insets;
+import java.awt.Rectangle;
+import java.awt.Toolkit;
+import java.awt.Window;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.EnumMap;
@@ -90,7 +96,8 @@ public final class TableImportPanel extends JPanel {
         }
     }
 
-    private static final Dimension DIALOG_SIZE = new Dimension(820, 700);
+    /** The dialog is never smaller than this when it fits itself to its content (page «Crear» needs about that). */
+    static final Dimension MINIMUM_DIALOG_SIZE = new Dimension(640, 440);
 
     private final TableImportModel model = new TableImportModel();
     private final TableSources sources;
@@ -144,6 +151,10 @@ public final class TableImportPanel extends JPanel {
     private String summarizedText;
     /** Counts the files read: a file whose number is not the latest (the dialog was closed) is dropped. */
     private long readRequest;
+    /** The size the dialog was last given by {@link #fitWindow}; another size means the user resized it. */
+    private Dimension fittedSize;
+    /** The size the user resized the dialog to, or null: fitting never makes it smaller than that. */
+    private Dimension userSize;
 
     /**
      * @param openInWizard «Abrir en el asistente»: opens the wizard on the table once this dialog is closed
@@ -174,7 +185,7 @@ public final class TableImportPanel extends JPanel {
         data.add(inputsRow);
         data.add(problems, "wmin 100");
         data.add(notice, "wmin 100");
-        data.add(preview, "grow, push, hmin 140");
+        data.add(preview, "grow, push, align left top");
 
         JPanel content = new JPanel(new MigLayout("insets 16, fillx, wrap 2", "[][grow, fill]",
                 "[][]12[][][]12[]12[]"));
@@ -365,6 +376,7 @@ public final class TableImportPanel extends JPanel {
             if (request == readRequest) {
                 reading = false;
                 model.load(grid, source, proposedTitle);
+                fitWindow();
             }
         }, failure -> {
             if (request == readRequest) {
@@ -627,6 +639,54 @@ public final class TableImportPanel extends JPanel {
     }
 
     /**
+     * Sizes the dialog to its content: the larger of the two pages (so changing page does not make it jump), with the
+     * preview as tall as its rows up to {@value TablePreview#VISIBLE_ROWS}. Called when it opens and each time a
+     * table is read; never smaller than {@link #MINIMUM_DIALOG_SIZE} or than the size the user gave it, never larger
+     * than the screen. Nothing happens while the panel is not in a dialog.
+     */
+    void fitWindow() {
+        if (!(SwingUtilities.getWindowAncestor(this) instanceof JDialog dialog)) {
+            return;
+        }
+        Dimension current = dialog.getSize();
+        if (fittedSize != null && !current.equals(fittedSize)) {
+            userSize = current;
+        }
+        Rectangle screen = usableScreen(dialog);
+        Dimension size = fittedSize(dialog.getPreferredSize(), userSize, screen.getSize());
+        fittedSize = size;
+        dialog.setSize(size);
+        int x = Math.clamp(dialog.getX(), screen.x, Math.max(screen.x, screen.x + screen.width - size.width));
+        int y = Math.clamp(dialog.getY(), screen.y, Math.max(screen.y, screen.y + screen.height - size.height));
+        if (x != dialog.getX() || y != dialog.getY()) {
+            dialog.setLocation(x, y);
+        }
+    }
+
+    /**
+     * The dialog's size for content that asks for {@code preferred}: at least {@link #MINIMUM_DIALOG_SIZE} and the
+     * size the user resized it to ({@code user}, null when they did not), at most {@code screen}.
+     */
+    static Dimension fittedSize(Dimension preferred, Dimension user, Dimension screen) {
+        int width = Math.max(preferred.width, MINIMUM_DIALOG_SIZE.width);
+        int height = Math.max(preferred.height, MINIMUM_DIALOG_SIZE.height);
+        if (user != null) {
+            width = Math.max(width, user.width);
+            height = Math.max(height, user.height);
+        }
+        return new Dimension(Math.min(width, screen.width), Math.min(height, screen.height));
+    }
+
+    /** The screen the dialog is on, without the task bars. */
+    private static Rectangle usableScreen(Window window) {
+        GraphicsConfiguration configuration = window.getGraphicsConfiguration();
+        Rectangle bounds = configuration.getBounds();
+        Insets insets = Toolkit.getDefaultToolkit().getScreenInsets(configuration);
+        return new Rectangle(bounds.x + insets.left, bounds.y + insets.top, bounds.width - insets.left - insets.right,
+                bounds.height - insets.top - insets.bottom);
+    }
+
+    /**
      * Shows {@code panel} in a dialog over {@code parent}; «Cerrar», Escape and the close box all go through
      * {@link #requestClose()}. Like the wizard's, it blocks only its own window.
      */
@@ -635,7 +695,8 @@ public final class TableImportPanel extends JPanel {
                 panel::requestClose);
         panel.setOnClose(dialog::dispose);
         panel.updateDefaultButton();
-        dialog.setSize(DIALOG_SIZE);
+        dialog.pack();
+        panel.fitWindow();
         dialog.setLocationRelativeTo(parent);
         dialog.setVisible(true);
     }

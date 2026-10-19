@@ -14,6 +14,7 @@ import javax.swing.JButton;
 import javax.swing.JRootPane;
 import javax.swing.SpinnerNumberModel;
 import javax.swing.SwingUtilities;
+import java.awt.Dimension;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
@@ -644,5 +645,58 @@ class TableImportPanelTest {
         next();
         assertThat(panel.titleField().getText()).isEqualTo("mayoria");
         assertThat(panel.controls().nameField().getText()).isEqualTo("mayoria");
+    }
+
+    @Test
+    void thePreviewIsAsTallAsItsRowsUpToTwentyThenItScrolls() throws IOException {
+        int hintHeight = panel.preview().getPreferredSize().height;
+        chosen = write("or.csv", "A,B,Y\n0,0,0\n0,1,1\n1,0,1\n1,1,1\n");
+        panel.openFileButton().doClick();
+        int rowHeight = panel.preview().table().getRowHeight();
+        int fourRows = panel.preview().getPreferredSize().height;
+        assertThat(fourRows).as("four rows and the names").isLessThan(hintHeight + rowHeight * 2);
+
+        chosen = write("sumador.csv", ADDER);
+        panel.openFileButton().doClick();
+        int eightRows = panel.preview().getPreferredSize().height;
+        assertThat(eightRows - fourRows).isEqualTo(4 * rowHeight);
+
+        chosen = write("paridad.csv", parity(5));
+        panel.openFileButton().doClick();
+        int capped = panel.preview().getPreferredSize().height;
+        assertThat(capped - eightRows).as("twenty rows at most").isEqualTo(12 * rowHeight);
+        assertThat(panel.preview().getMaximumSize().height).as("it may grow to show every row")
+                .isEqualTo(capped + 12 * rowHeight);
+        assertThat(panel.preview().getMinimumSize().height).isLessThan(capped);
+    }
+
+    @Test
+    void theDialogFitsItsContentNeverBelowTheUsersSizeAndWithinTheScreen() {
+        Dimension minimum = TableImportPanel.MINIMUM_DIALOG_SIZE;
+        Dimension screen = new Dimension(1920, 1040);
+
+        assertThat(TableImportPanel.fittedSize(new Dimension(300, 200), null, screen))
+                .as("a small table: the minimum").isEqualTo(minimum);
+        assertThat(TableImportPanel.fittedSize(new Dimension(900, 760), null, screen))
+                .isEqualTo(new Dimension(900, 760));
+        assertThat(TableImportPanel.fittedSize(new Dimension(900, 500), new Dimension(1000, 900), screen))
+                .as("the user made it larger").isEqualTo(new Dimension(1000, 900));
+        assertThat(TableImportPanel.fittedSize(new Dimension(2400, 1500), null, screen))
+                .as("never larger than the screen").isEqualTo(screen);
+    }
+
+    private static String parity(int inputs) {
+        StringBuilder csv = new StringBuilder();
+        for (int input = 0; input < inputs; input++) {
+            csv.append((char) ('A' + input)).append(',');
+        }
+        csv.append("P\n");
+        for (int row = 0; row < 1 << inputs; row++) {
+            for (int bit = inputs - 1; bit >= 0; bit--) {
+                csv.append(row >> bit & 1).append(',');
+            }
+            csv.append(Integer.bitCount(row) & 1).append('\n');
+        }
+        return csv.toString();
     }
 }
