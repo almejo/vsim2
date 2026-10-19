@@ -107,7 +107,7 @@ class ApplicationExtensionsTest {
         EditorView view = new EditorView(openDocument, services, NO_WINDOW);
         try {
             assertThat(texts(view.menu(MenuId.FILE))).containsExactly("Nuevo", "Abrir…", "Recientes", "Ejemplos",
-                    "Guardar", "Guardar como…", "Exportar imagen…", "---", "Importar componente…", "---",
+                    "Guardar", "Guardar como…", "Exportar imagen…", "---", "Importar componente…", "Importar", "---",
                     "Preferencias…", "---",
                     "Cerrar ventana", "Salir");
             assertThat(texts(view.menu(MenuId.EDIT))).containsSubsequence("Deshacer", "Rehacer", "Cortar", "Copiar",

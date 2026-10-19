@@ -20,6 +20,7 @@ import javax.swing.JMenu;
 import java.awt.Component;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -36,6 +37,7 @@ class KarnaughExtensionTest {
 
     private final List<KarnaughWizard> opened = new ArrayList<>();
     private final List<Component> parents = new ArrayList<>();
+    private final List<TableImportPanel> imports = new ArrayList<>();
     private OpenDocument openDocument;
     private EditorView view;
 
@@ -46,7 +48,8 @@ class KarnaughExtensionTest {
         KarnaughExtension extension = new KarnaughExtension((parent, wizard) -> {
             parents.add(parent);
             opened.add(wizard);
-        }, KarnaughCost.GENERATOR, view -> new FakeCreationTarget(), Background.inline());
+        }, (parent, panel) -> imports.add(panel), new TableSources(parent -> Optional.empty(), Optional::empty),
+                KarnaughCost.GENERATOR, view -> new FakeCreationTarget(), Background.inline());
         EditorServices services = new EditorServices(PainterRegistry.standard(), new Appearance(ColorScheme.LIGHT),
                 AppPreferences.inMemory(), new ComponentLibrary(), List.of(extension));
         view = new EditorView(openDocument, services, NO_WINDOW);
@@ -75,10 +78,39 @@ class KarnaughExtensionTest {
     }
 
     @Test
-    void disposingTheViewTakesTheItemAndTheShortcutBack() {
+    void theFileMenuImportsATruthTableFromItsImportSubmenu() {
+        JMenu file = view.menu(MenuId.FILE);
+        JMenu importMenu = importMenu(file);
+        assertThat(importMenu.getText()).isEqualTo("Importar");
+        assertThat(importMenu.getItemCount()).isEqualTo(1);
+        assertThat(importMenu.getItem(0).getText()).isEqualTo("Tabla de verdad desde Excel/CSV…");
+        assertThat(view.shortcutActions().get("file.importTruthTable")).isSameAs(importMenu.getItem(0).getAction());
+
+        importMenu.getItem(0).doClick();
+        importMenu.getItem(0).doClick();
+
+        assertThat(imports).hasSize(2);
+        assertThat(imports.get(0)).isNotSameAs(imports.get(1));
+        assertThat(imports.get(0).model().hasTable()).isFalse();
+    }
+
+    @Test
+    void disposingTheViewTakesTheItemsAndTheShortcutsBack() {
         JMenu tools = view.menu(MenuId.TOOLS);
+        JMenu file = view.menu(MenuId.FILE);
+        int fileItems = file.getMenuComponentCount();
         view.dispose();
         assertThat(tools.getItemCount()).isZero();
-        assertThat(view.shortcutActions()).doesNotContainKey("tools.circuitFromTruthTable");
+        assertThat(file.getMenuComponentCount()).isEqualTo(fileItems - 1);
+        assertThat(view.shortcutActions()).doesNotContainKeys("tools.circuitFromTruthTable", "file.importTruthTable");
+    }
+
+    private static JMenu importMenu(JMenu file) {
+        for (java.awt.Component child : file.getMenuComponents()) {
+            if (child instanceof JMenu menu && menu.getText().equals("Importar")) {
+                return menu;
+            }
+        }
+        throw new AssertionError("no Importar submenu");
     }
 }

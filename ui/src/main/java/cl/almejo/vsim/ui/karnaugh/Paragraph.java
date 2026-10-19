@@ -6,7 +6,7 @@ import javax.swing.UIManager;
 import java.awt.Font;
 
 /** Read-only text that wraps at the width it is given and looks like a label (follows the theme on updateUI). */
-final class Paragraph extends JTextArea {
+class Paragraph extends JTextArea {
 
     private final int style;
 

@@ -14,31 +14,38 @@ import java.awt.event.ActionEvent;
 import java.util.function.Function;
 
 /**
- * Adds Herramientas ▸ «Circuito desde tabla de verdad…» (and its shortcut id) to every editor view: each click opens a
- * fresh Karnaugh wizard with an empty 3-input table, whose «Crear» puts the circuit in a new window or over this view.
+ * Adds Herramientas ▸ «Circuito desde tabla de verdad…» and Archivo ▸ Importar ▸ «Tabla de verdad desde Excel/CSV…»
+ * (and their shortcut ids) to every editor view. Each click opens a fresh Karnaugh wizard with an empty 3-input table,
+ * or a fresh import dialog; their «Crear» puts the circuit in a new window or over this view.
  */
 public final class KarnaughExtension implements EditorExtension {
 
     static final String SHORTCUT_ID = "tools.circuitFromTruthTable";
+    static final String IMPORT_SHORTCUT_ID = "file.importTruthTable";
 
     private final KarnaughWizard.Opener opener;
+    private final TableImportPanel.Opener importOpener;
+    private final TableSources sources;
     private final KarnaughCost cost;
     private final Function<EditorView, CreationTarget> targets;
     private final Background background;
 
     /** The real dialog, the generator's cost, the library of {@code service}, circuits built off the EDT. */
     public KarnaughExtension(LibraryService service) {
-        this(KarnaughWizard.Opener.dialog(), KarnaughCost.GENERATOR, view -> new ViewCreationTarget(view, service),
-                Background.application());
+        this(KarnaughWizard.Opener.dialog(), TableImportPanel.Opener.dialog(), TableSources.system(),
+                KarnaughCost.GENERATOR, view -> new ViewCreationTarget(view, service), Background.application());
     }
 
     /**
-     * @param targets    where a view's wizard creates circuits
-     * @param background where circuits are built
+     * @param sources    where the import dialog reads tables
+     * @param targets    where a view's wizard and import dialog create circuits
+     * @param background where tables are read and circuits are built
      */
-    public KarnaughExtension(KarnaughWizard.Opener opener, KarnaughCost cost,
-                             Function<EditorView, CreationTarget> targets, Background background) {
+    public KarnaughExtension(KarnaughWizard.Opener opener, TableImportPanel.Opener importOpener, TableSources sources,
+                             KarnaughCost cost, Function<EditorView, CreationTarget> targets, Background background) {
         this.opener = opener;
+        this.importOpener = importOpener;
+        this.sources = sources;
         this.cost = cost;
         this.targets = targets;
         this.background = background;
@@ -57,9 +64,35 @@ public final class KarnaughExtension implements EditorExtension {
         JMenuItem item = new JMenuItem(action);
         tools.add(item);
         Runnable shortcutRemover = view.registerShortcutAction(SHORTCUT_ID, action);
+
+        Action importAction = new AbstractAction(Messages.text("action.importTruthTable")) {
+            @Override
+            public void actionPerformed(ActionEvent event) {
+                importOpener.open(view, new TableImportPanel(sources, target, background));
+            }
+        };
+        JMenu file = view.menu(MenuId.FILE);
+        JMenu importMenu = new JMenu(Messages.text("menu.file.import"));
+        importMenu.add(new JMenuItem(importAction));
+        file.insert(importMenu, importPosition(file));
+        Runnable importShortcutRemover = view.registerShortcutAction(IMPORT_SHORTCUT_ID, importAction);
         return () -> {
+            importShortcutRemover.run();
+            file.remove(importMenu);
             shortcutRemover.run();
             tools.remove(item);
         };
+    }
+
+    /** Right after «Importar componente…»; at the end of the menu without it. */
+    static int importPosition(JMenu file) {
+        String importComponent = Messages.text("action.importComponent");
+        for (int index = 0; index < file.getMenuComponentCount(); index++) {
+            if (file.getMenuComponent(index) instanceof JMenuItem menuItem
+                    && importComponent.equals(menuItem.getText())) {
+                return index + 1;
+            }
+        }
+        return file.getMenuComponentCount();
     }
 }
