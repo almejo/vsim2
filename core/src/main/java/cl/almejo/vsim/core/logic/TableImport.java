@@ -721,9 +721,10 @@ public final class TableImport {
      * How many of the table's columns ({@link #columns}) probably are inputs, looking at the names and then at the
      * rows: the names before the first one that looks like an output (as {@link #proposedInputCount(List)}), unless
      * more than a quarter of the rows repeat a combination of those columns (a parity of A..J, where F looks like an
-     * output); when no name does, or the names mislead, the fewest leading columns that hold only 0 and 1 and whose combinations are all different across
-     * the rows (a complete table gives log2 of its rows; missing rows or any order are fine); when none do, half of
-     * the columns. Within the limits of inputs and outputs when the column count allows it.
+     * output); when no name does, or the names mislead, the fewest leading columns that hold only 0 and 1 and whose
+     * combinations are all different across the rows (a complete table gives log2 of its rows; missing rows or any
+     * order are fine); when none do, half of the columns. Within the limits of inputs and outputs when the column
+     * count allows it.
      */
     public static int proposedInputCount(ImportedGrid grid) {
         List<Integer> columns = columns(grid);
