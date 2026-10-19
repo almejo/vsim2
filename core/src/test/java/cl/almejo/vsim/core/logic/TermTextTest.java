@@ -79,4 +79,20 @@ class TermTextTest {
         assertThat(TermText.expression(minimization, 0)).isEqualTo("P = B'C + BD");
         assertThat(TermText.expression(minimization, 1)).isEqualTo("M = A + BD + BC");
     }
+
+    @Test
+    void aProductOfSumsSeparatesABareLiteralFromALongerNameWithADot() {
+        List<String> names = List.of("Cin", "A", "B");
+        // (Cin)·(A'): without the dot it would read «CinA'».
+        assertThat(TermText.expression("F", Minimization.Form.PRODUCT_OF_SUMS,
+                List.of(new Term(0b100, 0b000), new Term(0b010, 0b010)), names)).isEqualTo("F = Cin·A'");
+        assertThat(TermText.expression("F", Minimization.Form.PRODUCT_OF_SUMS,
+                List.of(new Term(0b110, 0b000), new Term(0b001, 0b001)), names)).isEqualTo("F = (Cin + A)·B'");
+        assertThat(TermText.expression("F", Minimization.Form.PRODUCT_OF_SUMS,
+                List.of(new Term(0b110, 0b000), new Term(0b011, 0b001)), names))
+                .as("two parenthesized sums need no dot").isEqualTo("F = (Cin + A)(A + B')");
+        assertThat(TermText.expression("F", Minimization.Form.PRODUCT_OF_SUMS,
+                List.of(new Term(0b1000, 0b0000), new Term(0b0011, 0b0001)), NAMES))
+                .as("one-letter names keep the juxtaposition").isEqualTo("F = A(C + D')");
+    }
 }

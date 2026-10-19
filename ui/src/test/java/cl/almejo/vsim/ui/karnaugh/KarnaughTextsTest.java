@@ -97,6 +97,18 @@ class KarnaughTextsTest {
     }
 
     @Test
+    void anOutputThatIsAllXSaysSoAndWhatVSimMakesOfIt() {
+        TruthTableSpec spec = new TruthTableSpec("T", List.of("A", "B"), List.of("F"),
+                List.of(Collections.nCopies(4, LogicValue.DONT_CARE)));
+        assertThat(KarnaughTexts.specialCase(Minimizer.minimize(spec, Minimization.Form.SUM_OF_PRODUCTS), 0))
+                .contains("F: todas las filas son X («no importa»), así que no hay nada que agrupar; VSim la deja "
+                        + "en 0.");
+        assertThat(KarnaughTexts.specialCase(Minimizer.minimize(spec, Minimization.Form.PRODUCT_OF_SUMS), 0))
+                .contains("F: todas las filas son X («no importa»), así que no hay nada que agrupar; VSim la deja "
+                        + "en 1.");
+    }
+
+    @Test
     void theRulesTalkAboutOnesOrZerosByForm() {
         assertThat(KarnaughTexts.rules(Minimization.Form.SUM_OF_PRODUCTS)).first().asString()
                 .startsWith("Se agrupan solo los 1 (y las X, si ayudan a hacer un grupo más grande); nunca un 0.");

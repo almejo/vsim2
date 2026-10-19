@@ -145,14 +145,14 @@ class KarnaughModelTest {
     }
 
     @Test
-    void sharedTermsShareTheirColourAndOtherwiseColoursCountPerOutput() {
+    void sharedTermsShareTheirColourAndTheOtherGroupsTakeTheFirstColoursFreeOnTheirMap() {
         model.load(bcd());
-        // P = B'C + BD, M = BD + BC + A: BD is the second colour in both when sharing.
+        // P = B'C + BD, M = BD + BC + A: BD keeps its colour on M; BC and A take the first ones free there.
         assertThat(model.colorIndex(0, 0)).isZero();
         assertThat(model.colorIndex(0, 1)).isEqualTo(1);
         assertThat(model.colorIndex(1, 0)).isEqualTo(1);
-        assertThat(model.colorIndex(1, 1)).isEqualTo(2);
-        assertThat(model.colorIndex(1, 2)).isEqualTo(3);
+        assertThat(model.colorIndex(1, 1)).isZero();
+        assertThat(model.colorIndex(1, 2)).isEqualTo(2);
         assertThat(model.sharedWith(1, 0)).containsExactly("P");
         assertThat(model.sharedWith(1, 1)).isEmpty();
 
@@ -160,5 +160,39 @@ class KarnaughModelTest {
         assertThat(model.colorIndex(1, 0)).isZero();
         assertThat(model.colorIndex(1, 2)).isEqualTo(2);
         assertThat(model.sharedWith(1, 0)).isEmpty();
+    }
+
+    @Test
+    void noTwoGroupsOfOneMapShareAColourEvenWithManySharedTerms() {
+        java.util.Random random = new java.util.Random(7);
+        for (int round = 0; round < 300; round++) {
+            List<List<LogicValue>> columns = new java.util.ArrayList<>();
+            for (int output = 0; output < 4; output++) {
+                List<LogicValue> column = new java.util.ArrayList<>();
+                for (int row = 0; row < 16; row++) {
+                    column.add(random.nextInt(3) == 0 ? LogicValue.ONE : LogicValue.ZERO);
+                }
+                columns.add(column);
+            }
+            model.load(new TruthTableSpec("T", List.of("A", "B", "C", "D"), List.of("F", "G", "H", "I"), columns));
+            for (int output = 0; output < 4; output++) {
+                int terms = model.minimization().outputs().get(output).terms().size();
+                java.util.Set<Integer> colours = new java.util.HashSet<>();
+                for (int term = 0; term < terms; term++) {
+                    colours.add(Math.floorMod(model.colorIndex(output, term), GroupPalette.size()));
+                }
+                assertThat(colours).as("round %d, output %d", round, output).hasSize(terms);
+            }
+        }
+    }
+
+    @Test
+    void aOneLiteralTermIsNotSaidToBeSharedItIsNotAGate() {
+        // F = A, G = A + B: the term A is a wire, not a shared gate.
+        List<LogicValue> first = List.of(LogicValue.ZERO, LogicValue.ZERO, LogicValue.ONE, LogicValue.ONE);
+        List<LogicValue> second = List.of(LogicValue.ZERO, LogicValue.ONE, LogicValue.ONE, LogicValue.ONE);
+        model.load(new TruthTableSpec("T", List.of("A", "B"), List.of("F", "G"), List.of(first, second)));
+        assertThat(model.sharedWith(1, 0)).isEmpty();
+        assertThat(model.sharedWith(0, 0)).isEmpty();
     }
 }

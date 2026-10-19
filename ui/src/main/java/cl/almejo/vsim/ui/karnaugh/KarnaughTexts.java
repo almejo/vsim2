@@ -1,9 +1,11 @@
 package cl.almejo.vsim.ui.karnaugh;
 
 import cl.almejo.vsim.core.logic.GroupExplanation;
+import cl.almejo.vsim.core.logic.LogicValue;
 import cl.almejo.vsim.core.logic.Minimization;
 import cl.almejo.vsim.core.logic.Term;
 import cl.almejo.vsim.core.logic.TermText;
+import cl.almejo.vsim.core.logic.TruthTableSpec;
 import cl.almejo.vsim.ui.i18n.Messages;
 
 import java.util.ArrayList;
@@ -117,6 +119,15 @@ final class KarnaughTexts {
         List<Term> terms = minimization.outputs().get(output).terms();
         String name = minimization.spec().outputNames().get(output);
         boolean sumOfProducts = minimization.form() == Minimization.Form.SUM_OF_PRODUCTS;
+        TruthTableSpec spec = minimization.spec();
+        boolean allDontCare = true;
+        for (int row = 0; row < spec.rowCount() && allDontCare; row++) {
+            allDontCare = spec.value(output, row) == LogicValue.DONT_CARE;
+        }
+        if (allDontCare) {
+            return Optional.of(Messages.format("karnaugh.groups.allDontCare", name, terms.isEmpty() == sumOfProducts
+                    ? "0" : "1"));
+        }
         if (terms.isEmpty()) {
             return Optional.of(Messages.format(sumOfProducts ? "karnaugh.groups.alwaysZero"
                     : "karnaugh.groups.alwaysOneProduct", name));

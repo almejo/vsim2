@@ -126,6 +126,12 @@ final class ExpressionPanel extends JPanel implements WizardStep {
                 text = TermText.expression(outputName, minimization.form(), terms, spec.inputNames())
                         .substring(outputName.length() + 3);
             } else {
+                if (index > 0) {
+                    String separator = TermText.sumSeparator(terms.get(index - 1), term, spec.inputNames());
+                    if (!separator.isEmpty()) {
+                        runs.add(new ExpressionLine.Run(separator, -1));
+                    }
+                }
                 text = TermText.sum(term, spec.inputNames());
             }
             runs.add(new ExpressionLine.Run(text, model.colorIndex(output, index)));

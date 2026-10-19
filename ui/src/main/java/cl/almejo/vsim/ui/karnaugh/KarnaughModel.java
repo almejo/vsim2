@@ -10,8 +10,8 @@ import cl.almejo.vsim.ui.i18n.Messages;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -256,19 +256,38 @@ public final class KarnaughModel {
     }
 
     /**
-     * The palette colour of term {@code term} of output {@code output}. With sharing on, one colour per distinct
-     * term across the outputs (a shared group looks the same everywhere); otherwise the groups of each output count
-     * from the first colour.
+     * The palette colour of term {@code term} of output {@code output}. Without sharing, the groups of each output
+     * count from the first colour. With sharing, a term has one colour on every map it is on (a shared group looks
+     * the same everywhere), and no two groups of one map share a colour: going through the distinct terms in table
+     * order, each takes the first palette colour that no term already coloured on any of its maps uses.
      */
     public int colorIndex(int output, int term) {
         if (!options.shareTerms()) {
             return term;
         }
-        Map<Term, Integer> colours = new LinkedHashMap<>();
         List<Minimization.OutputExpression> expressions = minimization().outputs();
-        for (int index = 0; index <= output; index++) {
-            for (Term each : expressions.get(index).terms()) {
-                colours.putIfAbsent(each, colours.size());
+        Map<Term, Integer> colours = new HashMap<>();
+        for (Minimization.OutputExpression expression : expressions) {
+            for (Term each : expression.terms()) {
+                if (colours.containsKey(each)) {
+                    continue;
+                }
+                Set<Integer> taken = new HashSet<>();
+                for (Minimization.OutputExpression map : expressions) {
+                    if (map.terms().contains(each)) {
+                        for (Term neighbour : map.terms()) {
+                            Integer colour = colours.get(neighbour);
+                            if (colour != null) {
+                                taken.add(Math.floorMod(colour, GroupPalette.size()));
+                            }
+                        }
+                    }
+                }
+                int colour = 0;
+                while (colour < GroupPalette.size() && taken.contains(colour)) {
+                    colour++;
+                }
+                colours.put(each, colour < GroupPalette.size() ? colour : colours.size());
             }
         }
         return colours.get(expressions.get(output).terms().get(term));
@@ -276,11 +295,11 @@ public final class KarnaughModel {
 
     /**
      * The other outputs that use term {@code term} of output {@code output} when sharing is on (one gate feeds them
-     * all), in table order; empty without sharing or for a constant.
+     * all), in table order; empty without sharing, for a constant, and for a single literal (a wire, not a gate).
      */
     public List<String> sharedWith(int output, int term) {
         Term shared = minimization().outputs().get(output).terms().get(term);
-        if (!options.shareTerms() || shared.mask() == 0) {
+        if (!options.shareTerms() || shared.literalCount() <= 1) {
             return List.of();
         }
         List<String> names = new ArrayList<>();

@@ -7,6 +7,7 @@ import cl.almejo.vsim.core.logic.TruthTableSpec;
 import cl.almejo.vsim.ui.i18n.Messages;
 import net.miginfocom.swing.MigLayout;
 
+import javax.swing.AbstractAction;
 import javax.swing.AbstractButton;
 import javax.swing.BorderFactory;
 import javax.swing.JComponent;
@@ -14,6 +15,7 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JToggleButton;
+import javax.swing.KeyStroke;
 import javax.swing.Scrollable;
 import java.awt.Color;
 import java.awt.Dimension;
@@ -22,6 +24,10 @@ import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Rectangle;
 import java.awt.RenderingHints;
+import java.awt.event.ActionEvent;
+import java.awt.event.FocusAdapter;
+import java.awt.event.FocusEvent;
+import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.ArrayList;
@@ -31,7 +37,8 @@ import java.util.Optional;
 /**
  * Step 3 «Grupos» (spec §3): the map of each output with its minimal groups, a legend (① B'C, ② BD…) in the groups'
  * colours, and the explanation of the group under the mouse — what each variable does, the size, «¿Por qué?» with the
- * algebra — plus the collapsible «Reglas». A constant output is explained in words instead.
+ * algebra — plus the collapsible «Reglas». A constant output is explained in words instead. The legend works from the
+ * keyboard too: Tab reaches it and the arrows go through the groups.
  */
 final class GroupsPanel extends JPanel implements WizardStep {
 
@@ -128,7 +135,7 @@ final class GroupsPanel extends JPanel implements WizardStep {
         List<Term> terms = minimization.outputs().get(output).terms();
         TruthTableSpec spec = minimization.spec();
         for (int index = 0; index < terms.size(); index++) {
-            String text = circled(model.colorIndex(output, index)) + " "
+            String text = circled(index) + " "
                     + KarnaughTexts.termText(terms.get(index), spec.inputNames(), minimization.form());
             List<String> shared = model.sharedWith(output, index);
             if (!shared.isEmpty()) {
@@ -184,13 +191,18 @@ final class GroupsPanel extends JPanel implements WizardStep {
         return String.join("\n", bulleted);
     }
 
-    private static String circled(int colorIndex) {
-        int position = colorIndex % CIRCLED_DIGITS.length();
+    /** ①, ②… numbered per map, so every map's legend starts at ① whatever the groups' colours. */
+    private static String circled(int index) {
+        int position = index % CIRCLED_DIGITS.length();
         return CIRCLED_DIGITS.substring(position, position + 1);
     }
 
     List<String> legendTexts() {
         return entries.stream().map(LegendEntry::getText).toList();
+    }
+
+    JComponent legendEntry(int index) {
+        return entries.get(index);
     }
 
     int explainedGroup() {
@@ -266,9 +278,20 @@ final class GroupsPanel extends JPanel implements WizardStep {
         }
     }
 
+    /** Explains the group {@code delta} entries away from {@code group} (clamped) and moves the focus there. */
+    private void moveFrom(int group, int delta) {
+        if (entries.isEmpty()) {
+            return;
+        }
+        int target = Math.clamp(group + delta, 0, entries.size() - 1);
+        hover.setGroup(target);
+        entries.get(target).requestFocusInWindow();
+    }
+
     /**
      * One legend line: a swatch and the term in the group's colour (read at paint time), stronger while explained.
-     * Hovering it explains the group.
+     * Hovering it, clicking it or reaching it with Tab explains the group; the arrows move to the previous or next
+     * group, and space or Enter opens or closes «¿Por qué?».
      */
     private final class LegendEntry extends JLabel {
 
@@ -282,10 +305,44 @@ final class GroupsPanel extends JPanel implements WizardStep {
             this.colorIndex = colorIndex;
             setBorder(BorderFactory.createEmptyBorder(2, SWATCH + 10, 2, 6));
             setFont(getFont().deriveFont(Font.BOLD, getFont().getSize2D() + 2f));
+            setFocusable(true);
             addMouseListener(new MouseAdapter() {
                 @Override
                 public void mouseEntered(MouseEvent event) {
                     hover.setGroup(LegendEntry.this.group);
+                }
+
+                @Override
+                public void mousePressed(MouseEvent event) {
+                    hover.setGroup(LegendEntry.this.group);
+                    requestFocusInWindow();
+                }
+            });
+            addFocusListener(new FocusAdapter() {
+                @Override
+                public void focusGained(FocusEvent event) {
+                    hover.setGroup(LegendEntry.this.group);
+                    repaint();
+                }
+
+                @Override
+                public void focusLost(FocusEvent event) {
+                    repaint();
+                }
+            });
+            bind("legendPrevious", () -> moveFrom(this.group, -1), KeyEvent.VK_UP, KeyEvent.VK_LEFT);
+            bind("legendNext", () -> moveFrom(this.group, 1), KeyEvent.VK_DOWN, KeyEvent.VK_RIGHT);
+            bind("legendToggleWhy", whyToggle::doClick, KeyEvent.VK_SPACE, KeyEvent.VK_ENTER);
+        }
+
+        private void bind(String name, Runnable action, int... keyCodes) {
+            for (int keyCode : keyCodes) {
+                getInputMap(JComponent.WHEN_FOCUSED).put(KeyStroke.getKeyStroke(keyCode, 0), name);
+            }
+            getActionMap().put(name, new AbstractAction() {
+                @Override
+                public void actionPerformed(ActionEvent event) {
+                    action.run();
                 }
             });
         }
@@ -318,6 +375,9 @@ final class GroupsPanel extends JPanel implements WizardStep {
                 graphics2D.fillRoundRect(4, top, SWATCH, SWATCH, 6, 6);
                 graphics2D.setColor(GroupPalette.color(colorIndex, dark));
                 graphics2D.drawRoundRect(4, top, SWATCH, SWATCH, 6, 6);
+                if (isFocusOwner()) {
+                    graphics2D.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 8, 8);
+                }
             } finally {
                 graphics2D.dispose();
             }

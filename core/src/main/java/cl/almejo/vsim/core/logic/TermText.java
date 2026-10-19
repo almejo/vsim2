@@ -5,7 +5,8 @@ import java.util.List;
 
 /**
  * Terms and expressions as text: {@code '} for negation, products by juxtaposition ({@code B'C}; with a name longer
- * than one character the literals are separated by {@code ·}), sums in parentheses ({@code (B + C')}).
+ * than one character the literals are separated by {@code ·}), sums in parentheses ({@code (B + C')}); in a product
+ * of sums, a bare literal next to a longer name is separated by {@code ·} too ({@code Cin·A'}).
  */
 public final class TermText {
 
@@ -62,8 +63,11 @@ public final class TermText {
             right = bareSum(terms.getFirst(), inputNames);
         } else {
             StringBuilder sums = new StringBuilder();
-            for (Term term : terms) {
-                sums.append(sum(term, inputNames));
+            for (int index = 0; index < terms.size(); index++) {
+                if (index > 0) {
+                    sums.append(sumSeparator(terms.get(index - 1), terms.get(index), inputNames));
+                }
+                sums.append(sum(terms.get(index), inputNames));
             }
             right = sums.toString();
         }
@@ -76,6 +80,16 @@ public final class TermText {
         Minimization.OutputExpression outputExpression = minimization.outputs().get(output);
         return expression(spec.outputNames().get(outputExpression.output()), minimization.form(),
                 outputExpression.terms(), spec.inputNames());
+    }
+
+    /**
+     * What goes between two sums of a product of sums: nothing ({@code (A + B)(C + D')}, {@code A(C + D')}), or
+     * {@code ·} when one of them is a bare literal and a name is longer than one character, which would otherwise run
+     * into its neighbour ({@code Cin·A'}, not {@code CinA'}).
+     */
+    public static String sumSeparator(Term left, Term right, List<String> inputNames) {
+        boolean bare = left.literalCount() <= 1 || right.literalCount() <= 1;
+        return bare && (!separator(left, inputNames).isEmpty() || !separator(right, inputNames).isEmpty()) ? "·" : "";
     }
 
     private static String bareSum(Term term, List<String> inputNames) {

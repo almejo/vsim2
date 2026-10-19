@@ -14,6 +14,7 @@ import javax.swing.table.DefaultTableCellRenderer;
 import java.awt.Component;
 import java.awt.Font;
 import java.awt.event.ActionEvent;
+import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
@@ -84,6 +85,9 @@ final class WizardTable extends JTable {
             bindKey("karnaugh.dontCare", (output, row) -> model.setValue(output, row, LogicValue.DONT_CARE),
                     KeyEvent.VK_X);
             bindKey("karnaugh.cycle", model::cycle, KeyEvent.VK_SPACE);
+            // Shift+X (an upper-case X) writes X too.
+            getInputMap(JComponent.WHEN_FOCUSED).put(
+                    KeyStroke.getKeyStroke(KeyEvent.VK_X, InputEvent.SHIFT_DOWN_MASK), "karnaugh.dontCare");
         }
     }
 

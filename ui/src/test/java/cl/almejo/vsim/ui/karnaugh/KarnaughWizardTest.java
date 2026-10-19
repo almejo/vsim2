@@ -15,6 +15,9 @@ import java.awt.Color;
 import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.event.ActionEvent;
+import java.awt.event.FocusEvent;
+import java.awt.event.FocusListener;
+import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
@@ -73,9 +76,14 @@ class KarnaughWizardTest {
     }
 
     private static void key(JTable table, int keyCode) {
-        Object name = table.getInputMap(JComponent.WHEN_FOCUSED).get(KeyStroke.getKeyStroke(keyCode, 0));
-        Action action = table.getActionMap().get(name);
-        action.actionPerformed(new ActionEvent(table, ActionEvent.ACTION_PERFORMED, ""));
+        key(table, KeyStroke.getKeyStroke(keyCode, 0));
+    }
+
+    private static void key(JComponent component, KeyStroke stroke) {
+        Object name = component.getInputMap(JComponent.WHEN_FOCUSED).get(stroke);
+        assertThat(name).as("bound: %s", stroke).isNotNull();
+        Action action = component.getActionMap().get(name);
+        action.actionPerformed(new ActionEvent(component, ActionEvent.ACTION_PERFORMED, ""));
     }
 
     @Test
@@ -131,6 +139,39 @@ class KarnaughWizardTest {
         assertThat(table.getSelectedRow()).as("editing keeps the cell selected").isEqualTo(3);
         key(table, KeyEvent.VK_NUMPAD0);
         assertThat(model.value(0, 3)).isEqualTo(LogicValue.ZERO);
+        key(table, KeyStroke.getKeyStroke(KeyEvent.VK_X, InputEvent.SHIFT_DOWN_MASK));
+        assertThat(model.value(0, 3)).as("Shift+X writes X too").isEqualTo(LogicValue.DONT_CARE);
+    }
+
+    @Test
+    void theLegendExplainsAGroupFromTheKeyboard() {
+        model.load(KarnaughModelTest.bcd());
+        wizard.goTo(KarnaughWizard.Step.GROUPS);
+        GroupsPanel groups = wizard.groupsPanel();
+        groups.selectOutput(1);
+        JComponent first = groups.legendEntry(0);
+        assertThat(first.isFocusable()).as("Tab reaches the legend").isTrue();
+
+        key(first, KeyStroke.getKeyStroke(KeyEvent.VK_DOWN, 0));
+        assertThat(groups.explainedGroup()).isEqualTo(1);
+        key(groups.legendEntry(1), KeyStroke.getKeyStroke(KeyEvent.VK_RIGHT, 0));
+        assertThat(groups.explainedGroup()).isEqualTo(2);
+        key(groups.legendEntry(2), KeyStroke.getKeyStroke(KeyEvent.VK_DOWN, 0));
+        assertThat(groups.explainedGroup()).as("stays on the last").isEqualTo(2);
+        key(groups.legendEntry(2), KeyStroke.getKeyStroke(KeyEvent.VK_UP, 0));
+        assertThat(groups.explainedGroup()).isEqualTo(1);
+
+        JComponent tabbedTo = groups.legendEntry(0);
+        for (FocusListener listener : tabbedTo.getFocusListeners()) {
+            listener.focusGained(new FocusEvent(tabbedTo, FocusEvent.FOCUS_GAINED));
+        }
+        assertThat(groups.explainedGroup()).as("tabbing onto an entry explains it").isZero();
+        assertThat(groups.variablesText()).startsWith("A cambia → se va · B = 1 → B");
+
+        groups.whyToggle().doClick();
+        assertThat(groups.whyVisible()).isTrue();
+        key(groups.legendEntry(0), KeyStroke.getKeyStroke(KeyEvent.VK_SPACE, 0));
+        assertThat(groups.whyVisible()).as("space opens and closes «¿Por qué?»").isFalse();
     }
 
     @Test
@@ -209,7 +250,8 @@ class KarnaughWizardTest {
                 "Las celdas 13 y 15 son X («no importa»): aquí las tomamos como 1 para agrandar el grupo.");
 
         groups.selectOutput(1);
-        assertThat(groups.legendTexts()).containsExactly("② BD — compartido con P", "③ BC", "④ A");
+        assertThat(groups.legendTexts()).as("numbered per map").containsExactly("① BD — compartido con P", "② BC",
+                "③ A");
         assertThat(groups.rulesVisible()).isFalse();
         groups.rulesToggle().doClick();
         assertThat(groups.rulesVisible()).isTrue();
@@ -248,7 +290,7 @@ class KarnaughWizardTest {
         ExpressionPanel expression = wizard.expressionPanel();
         assertThat(expression.expressionTexts()).containsExactly("P = B'C + BD", "M = BD + BC + A");
         assertThat(expression.line(1).runs()).extracting(ExpressionLine.Run::colorIndex)
-                .containsExactly(-1, 1, -1, 2, -1, 3);
+                .containsExactly(-1, 1, -1, 0, -1, 2);
         assertThat(expression.costText()).isEqualTo("3 AND, 2 OR, 1 NOT (6 compuertas)");
 
         expression.shareCheckBox().doClick();
