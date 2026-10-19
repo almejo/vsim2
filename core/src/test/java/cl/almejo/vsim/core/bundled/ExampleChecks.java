@@ -85,6 +85,22 @@ public final class ExampleChecks {
         Netlist netlist = new NetlistCompiler(registry).compile(document);
         List<String> problems = new ArrayList<>();
         intendedJoins(builder, registry, netlist, problems);
+        problems.addAll(layoutProblems(document, registry, netlist));
+        return problems;
+    }
+
+    /**
+     * The checks that need no list of intended joins (used on generated circuits, whose meaning the caller checks
+     * with a truth table): shorts, mismatches, unconnected inputs, wires over pins, bodies or wires, pins on pins,
+     * loose wire ends and covered texts.
+     */
+    public static List<String> layoutProblems(CircuitDocument document, ComponentTypeRegistry registry) {
+        return layoutProblems(document, registry, new NetlistCompiler(registry).compile(document));
+    }
+
+    private static List<String> layoutProblems(CircuitDocument document, ComponentTypeRegistry registry,
+                                               Netlist netlist) {
+        List<String> problems = new ArrayList<>();
         drivers(document, registry, netlist, problems);
         wiresOverPins(document, registry, problems);
         pinsOnPins(document, registry, problems);
