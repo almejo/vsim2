@@ -292,7 +292,7 @@ class KarnaughWizardTest {
         wizard.goTo(KarnaughWizard.Step.EXPRESSION);
         ExpressionPanel expression = wizard.expressionPanel();
         assertThat(expression.expressionTexts()).containsExactly("P = B'C + BD", "M = BD + BC + A");
-        assertThat(expression.line(1).runs()).extracting(ExpressionLine.Run::colorIndex)
+        assertThat(expression.line(1).runs()).extracting(ColoredExpression.Run::colorIndex)
                 .containsExactly(-1, 1, -1, 0, -1, 2);
         assertThat(expression.costText()).isEqualTo("3 AND, 2 OR, 1 NOT (6 compuertas)");
 

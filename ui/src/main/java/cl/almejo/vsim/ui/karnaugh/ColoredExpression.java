@@ -13,7 +13,7 @@ import java.util.List;
  * One minimized expression, «F = B'C + BD», with each term painted in its group's colour (read at paint time, so a
  * theme change recolours it) and the rest in the theme's text colour.
  */
-final class ExpressionLine extends JComponent {
+final class ColoredExpression extends JComponent {
 
     /** A piece of the text: a term with its palette colour, or plain text ({@code colorIndex} -1). */
     record Run(String text, int colorIndex) {
@@ -24,7 +24,7 @@ final class ExpressionLine extends JComponent {
 
     private final List<Run> runs;
 
-    ExpressionLine(List<Run> runs) {
+    ColoredExpression(List<Run> runs) {
         this.runs = List.copyOf(runs);
     }
 

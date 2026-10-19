@@ -6,7 +6,9 @@ import java.util.List;
 /**
  * Terms and expressions as text: {@code '} for negation, products by juxtaposition ({@code B'C}; with a name longer
  * than one character the literals are separated by {@code ·}), sums in parentheses ({@code (B + C')}); in a product
- * of sums, a bare literal next to a longer name is separated by {@code ·} too ({@code Cin·A'}).
+ * of sums, a bare literal next to a longer name is separated by {@code ·} too ({@code Cin·A'}). «Typed» text is for
+ * «Circuito desde expresiones», where letters written together are one name: it also separates one-letter literals
+ * that would merge ({@code A·B'C}, {@code B·A}).
  */
 public final class TermText {
 
@@ -15,11 +17,35 @@ public final class TermText {
 
     /** A product term: {@code B'C}; {@code 1} when no variable is left. */
     public static String product(Term term, List<String> inputNames) {
+        return product(term, inputNames, false);
+    }
+
+    /** A product term; {@code typed} separates literals that would merge into one name ({@code A·B'C}). */
+    private static String product(Term term, List<String> inputNames, boolean typed) {
         List<String> literals = literals(term, inputNames, false);
         if (literals.isEmpty()) {
             return "1";
         }
-        return String.join(separator(term, inputNames), literals);
+        String separator = separator(term, inputNames);
+        if (!typed || !separator.isEmpty()) {
+            return String.join(separator, literals);
+        }
+        StringBuilder product = new StringBuilder(literals.getFirst());
+        for (int index = 1; index < literals.size(); index++) {
+            product.append(typedSeparator(product, literals.get(index))).append(literals.get(index));
+        }
+        return product.toString();
+    }
+
+    /** {@code ·} when {@code left} ends in a name and {@code right} starts with one: side by side they would merge. */
+    private static String typedSeparator(CharSequence left, String right) {
+        boolean leftEndsInName = !left.isEmpty() && isNamePart(left.charAt(left.length() - 1));
+        boolean rightStartsWithName = !right.isEmpty() && isNamePart(right.charAt(0));
+        return leftEndsInName && rightStartsWithName ? "·" : "";
+    }
+
+    private static boolean isNamePart(char character) {
+        return Character.isLetterOrDigit(character) || character == '_';
     }
 
     /**
@@ -47,6 +73,17 @@ public final class TermText {
      */
     public static String expression(String outputName, Minimization.Form form, List<Term> terms,
                                      List<String> inputNames) {
+        return expression(outputName, form, terms, inputNames, false);
+    }
+
+    /**
+     * A whole output; {@code typed} writes it in the notation of «Circuito desde expresiones», where letters written
+     * together are one name: adjacent literals are separated by {@code ·} unless a {@code '} or a parenthesis already
+     * separates them ({@code F = A·B + A'C}, {@code F = B·A(C + D')}), so the text pasted into a line reads back as
+     * the same function.
+     */
+    public static String expression(String outputName, Minimization.Form form, List<Term> terms,
+                                     List<String> inputNames, boolean typed) {
         boolean sumOfProducts = form == Minimization.Form.SUM_OF_PRODUCTS;
         String right;
         if (terms.isEmpty()) {
@@ -56,7 +93,7 @@ public final class TermText {
         } else if (sumOfProducts) {
             List<String> products = new ArrayList<>();
             for (Term term : terms) {
-                products.add(product(term, inputNames));
+                products.add(product(term, inputNames, typed));
             }
             right = String.join(" + ", products);
         } else if (terms.size() == 1) {
@@ -64,10 +101,12 @@ public final class TermText {
         } else {
             StringBuilder sums = new StringBuilder();
             for (int index = 0; index < terms.size(); index++) {
+                String next = sum(terms.get(index), inputNames);
                 if (index > 0) {
-                    sums.append(sumSeparator(terms.get(index - 1), terms.get(index), inputNames));
+                    String separator = sumSeparator(terms.get(index - 1), terms.get(index), inputNames);
+                    sums.append(typed && separator.isEmpty() ? typedSeparator(sums, next) : separator);
                 }
-                sums.append(sum(terms.get(index), inputNames));
+                sums.append(next);
             }
             right = sums.toString();
         }
@@ -76,10 +115,19 @@ public final class TermText {
 
     /** Output {@code output} of a minimization, with the table's names. */
     public static String expression(Minimization minimization, int output) {
+        return expression(minimization, output, false);
+    }
+
+    /** Output {@code output} of a minimization as «Circuito desde expresiones» reads it ({@code F = A·B + C}). */
+    public static String typedExpression(Minimization minimization, int output) {
+        return expression(minimization, output, true);
+    }
+
+    private static String expression(Minimization minimization, int output, boolean typed) {
         TruthTableSpec spec = minimization.spec();
         Minimization.OutputExpression outputExpression = minimization.outputs().get(output);
         return expression(spec.outputNames().get(outputExpression.output()), minimization.form(),
-                outputExpression.terms(), spec.inputNames());
+                outputExpression.terms(), spec.inputNames(), typed);
     }
 
     /**

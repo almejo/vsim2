@@ -5,6 +5,7 @@ import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.logic.CircuitGenerator;
 import cl.almejo.vsim.core.logic.ExpressionLine;
 import cl.almejo.vsim.core.logic.GateCost;
+import cl.almejo.vsim.core.logic.Minimization;
 import cl.almejo.vsim.core.logic.TableCircuits;
 import cl.almejo.vsim.core.logic.TruthTableSpec;
 import cl.almejo.vsim.ui.app.AppPreferences;
@@ -13,6 +14,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import javax.swing.JTextField;
+import javax.swing.UIManager;
+import javax.swing.plaf.FontUIResource;
+import java.awt.Font;
 import java.awt.event.FocusEvent;
 import java.awt.event.FocusListener;
 import java.util.ArrayList;
@@ -55,6 +59,9 @@ class ExpressionsPanelTest {
     @Test
     void typingParsesTheLineListsTheInputsAndPreviewsTheSimplifiedExpression() {
         assertThat(panel.lineField(0).getText()).isEqualTo("F = ");
+        assertThat(panel.problemText(0)).as("a fresh dialog shows no error").isEmpty();
+        type(0, "F = A");
+        type(0, "F = ");
         assertThat(panel.problemText(0)).isEqualTo("Falta la expresión a la derecha del «=» (posición 4)");
 
         type(0, "F = A B + A B'");
@@ -89,6 +96,25 @@ class ExpressionsPanelTest {
         queued.get(1).run();
         assertThat(panel.previewText(0)).isEqualTo("ya está simplificada");
         queued.get(0).run();
+        assertThat(panel.previewText(0)).isEqualTo("ya está simplificada");
+    }
+
+    @Test
+    void aPreviewAlreadyStaleWhenTheWorkerReachesItIsNotComputed() {
+        List<Minimization> costed = new ArrayList<>();
+        panel = new ExpressionsPanel(target, new Background(queued::add, Runnable::run), preferences,
+                (minimization, options) -> {
+                    costed.add(minimization);
+                    return KarnaughCost.GENERATOR.gatesByType(minimization, options);
+                }, wizardTables::add);
+        type(0, "F = A B + A B'");
+        type(0, "F = A + B");
+
+        queued.get(0).run();
+        assertThat(costed).isEmpty();
+        assertThat(panel.previewText(0)).isEqualTo("calculando…");
+        queued.get(1).run();
+        assertThat(costed).hasSize(1);
         assertThat(panel.previewText(0)).isEqualTo("ya está simplificada");
     }
 
@@ -174,6 +200,66 @@ class ExpressionsPanelTest {
         panel.legend().rowButton(ExpressionLegend.Row.PARENTHESES).doClick();
         assertThat(panel.lineField(1).getText()).isEqualTo("G = A·B()");
         assertThat(panel.lineField(1).getCaretPosition()).isEqualTo(8);
+    }
+
+    @Test
+    void aLegendConstantDoesNotGlueOntoTheNameBeforeIt() {
+        type(0, "F = A");
+        focus(panel.lineField(0));
+        panel.lineField(0).setCaretPosition(5);
+        panel.legend().rowButton(ExpressionLegend.Row.ONE).doClick();
+        assertThat(panel.lineField(0).getText()).isEqualTo("F = A 1");
+        assertThat(panel.lineField(0).getCaretPosition()).isEqualTo(7);
+
+        type(0, "F = A + ");
+        panel.lineField(0).setCaretPosition(8);
+        panel.legend().rowButton(ExpressionLegend.Row.ZERO).doClick();
+        assertThat(panel.lineField(0).getText()).isEqualTo("F = A + 0");
+    }
+
+    @Test
+    void theLegendKeepsTypingIntoTheSameLineWhenAnEarlierOneIsRemoved() {
+        type(0, "F = A");
+        panel.addLineButton().doClick();
+        type(1, "G = B");
+        panel.addLineButton().doClick();
+        type(2, "H = C");
+        focus(panel.lineField(2));
+        panel.lineField(2).setCaretPosition(5);
+
+        panel.removeLineButton(0).doClick();
+        panel.legend().rowButton(ExpressionLegend.Row.NOT).doClick();
+
+        assertThat(panel.lineField(0).getText()).isEqualTo("G = B");
+        assertThat(panel.lineField(1).getText()).isEqualTo("H = C'");
+    }
+
+    @Test
+    void enterInALineGoesToTheNextLineAddingOneAtTheEndInsteadOfCreating() {
+        type(0, "F = A B");
+        panel.lineField(0).postActionEvent();
+        assertThat(panel.lineCount()).isEqualTo(2);
+        assertThat(target.newCircuits).isEmpty();
+
+        type(1, "G = A");
+        focus(panel.lineField(0));
+        panel.lineField(0).postActionEvent();
+        assertThat(panel.lineCount()).as("not the last line: no new one").isEqualTo(2);
+        panel.legend().rowButton(ExpressionLegend.Row.NOT).doClick();
+        assertThat(panel.lineField(1).getText()).as("the next line is the one typed into").endsWith("'");
+    }
+
+    @Test
+    void theLineFontFollowsTheThemesTextFont() {
+        Font original = UIManager.getFont("TextField.font");
+        try {
+            UIManager.put("TextField.font", new FontUIResource(Font.SANS_SERIF, Font.PLAIN, 20));
+            panel.lineField(0).updateUI();
+            assertThat(panel.lineField(0).getFont().getName()).isEqualTo(Font.MONOSPACED);
+            assertThat(panel.lineField(0).getFont().getSize()).isEqualTo(24);
+        } finally {
+            UIManager.put("TextField.font", original);
+        }
     }
 
     @Test

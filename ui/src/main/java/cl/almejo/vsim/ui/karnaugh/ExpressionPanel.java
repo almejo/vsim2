@@ -28,7 +28,7 @@ final class ExpressionPanel extends JPanel implements WizardStep {
     private final KarnaughModel model;
     private final KarnaughCost cost;
     private final JPanel expressions = new JPanel(new MigLayout("insets 0, gap 0 6, wrap 1"));
-    private final List<ExpressionLine> lines = new ArrayList<>();
+    private final List<ColoredExpression> lines = new ArrayList<>();
     private final Map<WizardOptions.GateChoice, JRadioButton> gateButtons =
             new EnumMap<>(WizardOptions.GateChoice.class);
     private final Map<Minimization.Form, JRadioButton> formButtons = new EnumMap<>(Minimization.Form.class);
@@ -92,7 +92,7 @@ final class ExpressionPanel extends JPanel implements WizardStep {
         expressions.removeAll();
         lines.clear();
         for (int output = 0; output < minimization.outputs().size(); output++) {
-            ExpressionLine line = new ExpressionLine(runs(minimization, output));
+            ColoredExpression line = new ColoredExpression(runs(minimization, output));
             lines.add(line);
             expressions.add(line);
         }
@@ -102,23 +102,23 @@ final class ExpressionPanel extends JPanel implements WizardStep {
     }
 
     /** «F = » plain, then each term in its group's colour; constants and the joining signs plain. */
-    private List<ExpressionLine.Run> runs(Minimization minimization, int output) {
+    private List<ColoredExpression.Run> runs(Minimization minimization, int output) {
         TruthTableSpec spec = minimization.spec();
         List<Term> terms = minimization.outputs().get(output).terms();
         boolean sumOfProducts = minimization.form() == Minimization.Form.SUM_OF_PRODUCTS;
-        List<ExpressionLine.Run> runs = new ArrayList<>();
+        List<ColoredExpression.Run> runs = new ArrayList<>();
         String outputName = spec.outputNames().get(output);
         if (terms.isEmpty() || terms.getFirst().mask() == 0) {
-            runs.add(new ExpressionLine.Run(TermText.expression(minimization, output), -1));
+            runs.add(new ColoredExpression.Run(TermText.expression(minimization, output), -1));
             return runs;
         }
-        runs.add(new ExpressionLine.Run(outputName + " = ", -1));
+        runs.add(new ColoredExpression.Run(outputName + " = ", -1));
         for (int index = 0; index < terms.size(); index++) {
             Term term = terms.get(index);
             String text;
             if (sumOfProducts) {
                 if (index > 0) {
-                    runs.add(new ExpressionLine.Run(" + ", -1));
+                    runs.add(new ColoredExpression.Run(" + ", -1));
                 }
                 text = TermText.product(term, spec.inputNames());
             } else if (terms.size() == 1) {
@@ -129,21 +129,21 @@ final class ExpressionPanel extends JPanel implements WizardStep {
                 if (index > 0) {
                     String separator = TermText.sumSeparator(terms.get(index - 1), term, spec.inputNames());
                     if (!separator.isEmpty()) {
-                        runs.add(new ExpressionLine.Run(separator, -1));
+                        runs.add(new ColoredExpression.Run(separator, -1));
                     }
                 }
                 text = TermText.sum(term, spec.inputNames());
             }
-            runs.add(new ExpressionLine.Run(text, model.colorIndex(output, index)));
+            runs.add(new ColoredExpression.Run(text, model.colorIndex(output, index)));
         }
         return runs;
     }
 
     List<String> expressionTexts() {
-        return lines.stream().map(ExpressionLine::text).toList();
+        return lines.stream().map(ColoredExpression::text).toList();
     }
 
-    ExpressionLine line(int output) {
+    ColoredExpression line(int output) {
         return lines.get(output);
     }
 

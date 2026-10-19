@@ -26,7 +26,7 @@ class ExpressionsModelTest {
     void itStartsWithOneEmptyLineNamedFAndTheDefaultTitle() {
         assertThat(model.title()).isEqualTo("Expresiones");
         assertThat(model.lines()).containsExactly("F = ");
-        assertThat(model.lineProblem(0)).contains("Falta la expresión a la derecha del «=» (posición 4)");
+        assertThat(model.lineProblem(0)).as("not before the user types").isEmpty();
         assertThat(model.spec()).isEmpty();
         assertThat(model.inputsText()).isEqualTo("Entradas: ninguna");
     }
@@ -129,7 +129,38 @@ class ExpressionsModelTest {
         assertThat(previewOf("F = C + B A'")).isEqualTo("ya está simplificada");
         assertThat(previewOf("F = A B + A B'")).isEqualTo("→ F = A");
         assertThat(previewOf("F = (A + B)'")).isEqualTo("→ F = A'B'");
-        assertThat(previewOf("F = A ^ B")).isEqualTo("→ F = A'B + AB'");
+        assertThat(previewOf("F = A ^ B")).isEqualTo("→ F = A'B + A·B'");
+    }
+
+    @Test
+    void thePreviewSeparatesLettersSoItReadsBackInThisDialog() {
+        assertThat(previewOf("F = A B C + A B C'")).isEqualTo("→ F = A·B");
+        model.setOptions(model.options().withForm(Minimization.Form.PRODUCT_OF_SUMS));
+        assertThat(previewOf("F = A B C + A B C'")).isEqualTo("→ F = B·A");
+    }
+
+    @Test
+    void aRepeatedTermOrLiteralIsNotAlreadySimplified() {
+        assertThat(previewOf("F = A + A")).isEqualTo("→ F = A");
+        assertThat(previewOf("F = A B + B A")).isEqualTo("→ F = A·B");
+        model.setOptions(model.options().withForm(Minimization.Form.PRODUCT_OF_SUMS));
+        assertThat(previewOf("F = A A")).isEqualTo("→ F = A");
+    }
+
+    @Test
+    void anEmptyLineShowsItsProblemOnlyOnceItWasEdited() {
+        model.addLine();
+        assertThat(model.lineProblem(1)).isEmpty();
+        model.setLine(0, "F = A");
+        model.setLine(0, "F = ");
+        assertThat(model.lineProblem(0)).contains("Falta la expresión a la derecha del «=» (posición 4)");
+        model.setLine(1, "");
+        assertThat(model.lineProblem(1)).isPresent();
+        model.removeLine(0);
+        assertThat(model.lineProblem(0)).as("the edited line moved up").isPresent();
+        model.addLine();
+        assertThat(model.lineProblem(1)).isEmpty();
+        assertThat(model.spec()).isEmpty();
     }
 
     @Test

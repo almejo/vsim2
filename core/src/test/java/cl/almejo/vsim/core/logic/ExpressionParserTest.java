@@ -48,7 +48,7 @@ class ExpressionParserTest {
 
     @Test
     void everyNotNotationGivesTheSameComplement() {
-        for (String text : List.of("A'", "¬A", "!A", "~A", "¬ A", "A '")) {
+        for (String text : List.of("A'", "¬A", "!A", "~A", "¬ A", "A '", "A’", "A′", "Aʹ")) {
             assertThat(expression(text)).as(text).isEqualTo(new Not(A));
         }
     }
@@ -161,6 +161,13 @@ class ExpressionParserTest {
         ParseResult result = ExpressionParser.parseLine("F = A $ B");
         assertThat(result.problem().orElseThrow().arguments()).containsExactly("$");
         assertThat(result.line()).isEmpty();
+    }
+
+    @Test
+    void aCharacterOutsideTheBasicPlaneIsNamedWhole() {
+        ParseResult result = ExpressionParser.parseLine("F = A 😀 B");
+        assertThat(result.problem().orElseThrow().arguments()).containsExactly("😀");
+        assertThat(result.problem().orElseThrow().column()).isEqualTo(6);
     }
 
     @Test

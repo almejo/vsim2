@@ -58,7 +58,7 @@ public final class ExpressionParser {
 
     /** True for a valid variable or output name: a letter, then letters, digits or {@code _}. */
     public static boolean isName(String text) {
-        if (text.isEmpty() || !Character.isLetter(text.charAt(0))) {
+        if (text.isEmpty() || !Character.isLetter(text.charAt(0)) || isPrime(text.charAt(0))) {
             return false;
         }
         for (int index = 1; index < text.length(); index++) {
@@ -137,7 +137,7 @@ public final class ExpressionParser {
                 index++;
                 continue;
             }
-            if (Character.isLetter(character)) {
+            if (Character.isLetter(character) && !isPrime(character)) {
                 int end = index + 1;
                 while (end < text.length() && isNamePart(text.charAt(end))) {
                     end++;
@@ -149,7 +149,7 @@ public final class ExpressionParser {
             Kind kind = switch (character) {
                 case '0', '1' -> Kind.CONSTANT;
                 case '¬', '!', '~' -> Kind.PREFIX_NOT;
-                case '\'', '’' -> Kind.POSTFIX_NOT;
+                case '\'', '’', '′', 'ʹ' -> Kind.POSTFIX_NOT;
                 case '*', '·', '&', '∧' -> Kind.AND;
                 case '^', '⊕' -> Kind.XOR;
                 case '+', '|', '∨' -> Kind.OR;
@@ -157,10 +157,13 @@ public final class ExpressionParser {
                 case ')' -> Kind.CLOSE;
                 default -> Kind.INVALID;
             };
-            tokens.add(new Token(kind, String.valueOf(character), index));
             if (kind == Kind.INVALID) {
+                // Named whole, also a character outside the basic plane (an emoji is two chars).
+                int codePoint = text.codePointAt(index);
+                tokens.add(new Token(kind, Character.toString(codePoint), index));
                 return tokens;
             }
+            tokens.add(new Token(kind, String.valueOf(character), index));
             index++;
         }
         tokens.add(new Token(Kind.END, "", text.length()));
@@ -168,7 +171,12 @@ public final class ExpressionParser {
     }
 
     private static boolean isNamePart(char character) {
-        return Character.isLetterOrDigit(character) || character == '_';
+        return (Character.isLetterOrDigit(character) || character == '_') && !isPrime(character);
+    }
+
+    /** {@code ʹ} (modifier letter prime) is a letter to Java, but pasted after a name it means NOT, like {@code '}. */
+    private static boolean isPrime(char character) {
+        return character == 'ʹ';
     }
 
     // --- grammar ---

@@ -32,6 +32,10 @@ final class ExpressionsModel {
     /** The names a new line proposes, in order; a name already used (ignoring case) is skipped. */
     private static final String PROPOSED_NAMES = "FGHIJKLMNOPQRSTUVWXYZABCDE";
 
+    /** What a line the dialog proposed («F = ») has until the user types its expression. */
+    private static final Set<String> EMPTY_PROBLEMS =
+            Set.of(ExpressionProblem.EMPTY_EXPRESSION, ExpressionProblem.EMPTY_LINE);
+
     /** What closing compares: the dialog asks before discarding only when these differ from the start. */
     record Contents(String title, List<String> lines) {
         Contents {
@@ -42,6 +46,8 @@ final class ExpressionsModel {
     private final List<Runnable> listeners = new ArrayList<>();
     private final List<String> lines = new ArrayList<>();
     private final List<ExpressionParser.ParseResult> parsed = new ArrayList<>();
+    /** Per line, whether the user changed it: an untouched «G = » does not show that it misses its expression. */
+    private final List<Boolean> edited = new ArrayList<>();
     private final Set<String> dismissed = new HashSet<>();
     private String title = Messages.text("expressions.defaultTitle");
     private boolean simplify;
@@ -52,6 +58,7 @@ final class ExpressionsModel {
         this.simplify = simplify;
         lines.add(proposedLine());
         parsed.add(ExpressionParser.parseLine(lines.getFirst()));
+        edited.add(false);
         update();
     }
 
@@ -83,6 +90,7 @@ final class ExpressionsModel {
         if (!text.equals(lines.get(index))) {
             lines.set(index, text);
             parsed.set(index, ExpressionParser.parseLine(text));
+            edited.set(index, true);
             changed();
         }
     }
@@ -99,6 +107,7 @@ final class ExpressionsModel {
         String line = proposedLine();
         lines.add(line);
         parsed.add(ExpressionParser.parseLine(line));
+        edited.add(false);
         changed();
         return true;
     }
@@ -112,6 +121,7 @@ final class ExpressionsModel {
         if (canRemoveLine()) {
             lines.remove(index);
             parsed.remove(index);
+            edited.remove(index);
             changed();
         }
     }
@@ -138,9 +148,14 @@ final class ExpressionsModel {
         }
     }
 
-    /** Why line {@code index} does not read, ready to show («Falta cerrar un paréntesis (posición 9)»). */
+    /**
+     * Why line {@code index} does not read, ready to show («Falta cerrar un paréntesis (posición 9)»); a line the user
+     * has not edited yet does not complain that it is empty (the table still waits for it).
+     */
     Optional<String> lineProblem(int index) {
-        return parsed.get(index).problem().map(ExpressionsModel::describe);
+        return parsed.get(index).problem()
+                .filter(problem -> edited.get(index) || !EMPTY_PROBLEMS.contains(problem.messageKey()))
+                .map(ExpressionsModel::describe);
     }
 
     /** The first name of line {@code index} that looks like letters written together and was not dismissed. */
@@ -213,34 +228,36 @@ final class ExpressionsModel {
     }
 
     /**
-     * What goes under a line while simplifying: «→ F = A'B + C», or «ya está simplificada» when the line is already a
-     * sum of products (a product of sums in that form) with the minimized terms.
+     * What goes under a line while simplifying: «→ F = A'B + C», written so that this dialog reads it back
+     * ({@code A·B}, not {@code AB}), or «ya está simplificada» when the line is already a sum of products (a product of
+     * sums in that form) with exactly the minimized terms, none repeated.
      */
     static String previewText(ExpressionLine line, Minimization minimization, int output) {
         List<Term> terms = minimization.outputs().get(output).terms();
-        Optional<Set<Term>> written = termsOf(line.expression(), minimization.form(),
+        Optional<List<Term>> written = termsOf(line.expression(), minimization.form(),
                 minimization.spec().inputNames());
-        if (written.isPresent() && written.get().equals(new HashSet<>(terms))) {
+        if (written.isPresent() && written.get().size() == terms.size()
+                && new HashSet<>(written.get()).equals(new HashSet<>(terms))) {
             return Messages.text("expressions.preview.simplified");
         }
-        return Messages.format("expressions.preview.simplifies", TermText.expression(minimization, output));
+        return Messages.format("expressions.preview.simplifies", TermText.typedExpression(minimization, output));
     }
 
     /**
      * The terms {@code expression} is written as, in the {@link Term} convention of {@code form}: a sum of products
-     * (or one product, or a constant) for a sum of products, a product of sums for a product of sums. Empty when it is
-     * written otherwise, or a term names a variable twice.
+     * (or one product, or a constant) for a sum of products, a product of sums for a product of sums, in the order
+     * written and with any repeats. Empty when it is written otherwise, or a term names a variable twice.
      */
-    static Optional<Set<Term>> termsOf(Expression expression, Minimization.Form form, List<String> inputNames) {
+    static Optional<List<Term>> termsOf(Expression expression, Minimization.Form form, List<String> inputNames) {
         boolean sumOfProducts = form == Minimization.Form.SUM_OF_PRODUCTS;
         if (expression instanceof Expression.Constant constant) {
             // A sum of products: 0 has no terms, 1 is the term of every row; a product of sums the other way round.
-            return Optional.of(constant.value() == sumOfProducts ? Set.of(new Term(0, 0)) : Set.of());
+            return Optional.of(constant.value() == sumOfProducts ? List.of(new Term(0, 0)) : List.of());
         }
         List<Expression> terms = sumOfProducts
                 ? expression instanceof Expression.Or or ? or.operands() : List.of(expression)
                 : expression instanceof Expression.And and ? and.operands() : List.of(expression);
-        Set<Term> result = new HashSet<>();
+        List<Term> result = new ArrayList<>();
         for (Expression term : terms) {
             List<Expression> literals = sumOfProducts
                     ? term instanceof Expression.And and ? and.operands() : List.of(term)

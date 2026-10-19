@@ -22,8 +22,10 @@ import javax.swing.JRadioButton;
 import javax.swing.JRootPane;
 import javax.swing.JScrollPane;
 import javax.swing.JTextField;
+import javax.swing.UIManager;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
+import javax.swing.plaf.FontUIResource;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
@@ -36,6 +38,7 @@ import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.Callable;
 import java.util.function.Consumer;
 
 /**
@@ -116,8 +119,11 @@ public final class ExpressionsPanel extends JPanel {
     /** The line the legend types into: the last one that had the focus. */
     private int lastFocused;
     private boolean syncing;
-    /** Counts the previews asked for: only the latest one is shown. */
-    private long previewRequest;
+    /**
+     * Counts the previews asked for: only the latest one is shown, and one already stale when the worker reaches it is
+     * not computed. Written on the EDT only; volatile so the worker sees it.
+     */
+    private volatile long previewRequest;
     /** What the preview shown (or being computed) is of; null when there is none. */
     private List<Object> previewed;
     /** The preview of {@link #previewed}; null while it is computed. */
@@ -265,17 +271,44 @@ public final class ExpressionsPanel extends JPanel {
         }
     }
 
-    /** A legend row: its operator goes in at the caret of the last focused line ({@code ()} with the caret inside). */
-    private void insert(String text) {
+    /**
+     * A legend row: its operator goes in at the caret of the last focused line ({@code ()} with the caret inside); a
+     * constant right after a name gets a space first, or it would become part of the name ({@code A 1}, not
+     * {@code A1}).
+     */
+    private void insert(String operator) {
         JTextField field = rows.get(Math.min(lastFocused, rows.size() - 1)).field;
         if (!field.isEnabled()) {
             return;
         }
         int start = field.getSelectionStart();
+        String before = field.getText().substring(0, start);
+        boolean glued = !before.isEmpty() && isNamePart(before.charAt(before.length() - 1))
+                && Character.isDigit(operator.charAt(0));
+        String text = glued ? " " + operator : operator;
         field.replaceSelection(text);
         // Set explicitly: off the EDT the caret does not follow the insertion by itself.
         field.setCaretPosition(start + text.length() - (text.equals("()") ? 1 : 0));
         field.requestFocusInWindow();
+    }
+
+    private static boolean isNamePart(char character) {
+        return Character.isLetterOrDigit(character) || character == '_';
+    }
+
+    /**
+     * Enter in a line: on to the next line, or a new one after the last (none past eight); «Crear» stays on its button,
+     * so typing a line never builds the circuit by surprise.
+     */
+    private void nextLine(int index) {
+        if (index < rows.size() - 1) {
+            lastFocused = index + 1;
+            JTextField field = rows.get(lastFocused).field;
+            field.setCaretPosition(field.getText().length());
+            field.requestFocusInWindow();
+        } else {
+            addLine();
+        }
     }
 
     /**
@@ -370,10 +403,12 @@ public final class ExpressionsPanel extends JPanel {
         refreshPreview();
     }
 
+    /** Adds or drops rows at the end to match the model; the rows kept keep their fields (text, caret, focus). */
     private void rebuildRows() {
-        linesPanel.removeAll();
-        rows.clear();
-        for (int index = 0; index < model.lineCount(); index++) {
+        while (rows.size() > model.lineCount()) {
+            linesPanel.remove(rows.removeLast());
+        }
+        while (rows.size() < model.lineCount()) {
             LineRow row = new LineRow();
             rows.add(row);
             linesPanel.add(row);
@@ -411,8 +446,11 @@ public final class ExpressionsPanel extends JPanel {
         long request = ++previewRequest;
         showPreview();
         List<ExpressionLine> written = lines.get();
-        background.run(() -> previewOf(table, written, simplifying, options, cost), result -> {
-            if (request == previewRequest) {
+        // A job a newer one replaced before the worker reached it answers null instead of minimizing.
+        Callable<Preview> work = () -> request == previewRequest
+                ? previewOf(table, written, simplifying, options, cost) : null;
+        background.run(work, result -> {
+            if (request == previewRequest && result != null) {
                 preview = result;
                 showPreview();
             }
@@ -495,7 +533,19 @@ public final class ExpressionsPanel extends JPanel {
     /** One line: its text field and ✕, its problem, the merged-letters warning with its ✕, and its preview. */
     private final class LineRow extends JPanel {
 
-        final JTextField field = new JTextField(30);
+        final JTextField field = new JTextField(30) {
+            /** Monospaced and larger than the theme's text font, derived again when the theme or scale changes. */
+            @Override
+            public void updateUI() {
+                super.updateUI();
+                Font base = UIManager.getFont("TextField.font");
+                if (base != null) {
+                    // A UI resource, so the next theme replaces it and this derives it again.
+                    setFont(new FontUIResource(Font.MONOSPACED, Font.PLAIN,
+                            Math.round(base.getSize2D() * LINE_FONT_FACTOR)));
+                }
+            }
+        };
         final JButton remove = new JButton("✕");
         final JLabel problem = new JLabel(" ") {
             @Override
@@ -516,8 +566,6 @@ public final class ExpressionsPanel extends JPanel {
 
         LineRow() {
             super(new MigLayout("insets 0, fillx, wrap 2, gapy 2", "[grow, fill][]", ""));
-            Font base = field.getFont();
-            field.setFont(new Font(Font.MONOSPACED, Font.PLAIN, Math.round(base.getSize2D() * LINE_FONT_FACTOR)));
             remove.setToolTipText(Messages.text("expressions.removeLine"));
             dismiss.setToolTipText(Messages.text("expressions.merged.dismiss"));
             dismiss.putClientProperty("JButton.buttonType", "borderless");
@@ -545,8 +593,22 @@ public final class ExpressionsPanel extends JPanel {
             });
             remove.addActionListener(event -> {
                 int index = rows.indexOf(this);
-                if (index >= 0) {
+                if (index >= 0 && model.canRemoveLine()) {
+                    // This row goes, so the others keep their fields; the legend follows the line it typed into.
+                    rows.remove(index);
+                    linesPanel.remove(this);
+                    if (index < lastFocused) {
+                        lastFocused--;
+                    }
                     model.removeLine(index);
+                    linesPanel.revalidate();
+                    linesPanel.repaint();
+                }
+            });
+            field.addActionListener(event -> {
+                int index = rows.indexOf(this);
+                if (index >= 0) {
+                    nextLine(index);
                 }
             });
             dismiss.addActionListener(event -> {

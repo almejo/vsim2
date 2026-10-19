@@ -39,7 +39,8 @@ public final class KarnaughExtension implements EditorExtension {
     /** The real dialog, the generator's cost, the library of {@code service}, circuits built off the EDT. */
     public KarnaughExtension(LibraryService service) {
         this(KarnaughWizard.Opener.dialog(), TableImportPanel.Opener.dialog(), ExpressionsPanel.Opener.dialog(),
-                TableSources.system(), KarnaughCost.GENERATOR, view -> new ViewCreationTarget(view, service), Background.application());
+                TableSources.system(), KarnaughCost.GENERATOR, view -> new ViewCreationTarget(view, service),
+                Background.application());
     }
 
     /**
