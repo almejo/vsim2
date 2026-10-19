@@ -31,6 +31,9 @@ import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.Font;
+import java.awt.GraphicsEnvironment;
+import java.awt.Insets;
+import java.awt.Rectangle;
 import java.awt.event.FocusAdapter;
 import java.awt.event.FocusEvent;
 import java.util.ArrayList;
@@ -69,7 +72,11 @@ public final class ExpressionsPanel extends JPanel {
     }
 
     private static final Dimension DIALOG_SIZE = new Dimension(1040, 700);
-    private static final Dimension LEGEND_SIZE = new Dimension(380, 0);
+    /** The left side's width in the default dialog; the dialog widens so the legend's rows fit beside it. */
+    private static final int LEFT_PREFERRED = 640;
+    /** Below this the legend gives up width (its details wrap) so the lines keep room. */
+    private static final int LEFT_MINIMUM = 520;
+    private static final int LEGEND_MINIMUM = 300;
     private static final float LINE_FONT_FACTOR = 1.2f;
 
     private final ExpressionsModel model;
@@ -112,6 +119,8 @@ public final class ExpressionsPanel extends JPanel {
     private final JButton close = new JButton(Messages.text("karnaugh.close"));
     private final ExpressionLegend legend;
     private final JPanel buttonBar;
+    private final JScrollPane contentScroll;
+    private final JScrollPane legendScroll;
     private Runnable onClose = () -> { };
     private KarnaughWizard.DiscardConfirmation discardConfirmation = discardDialog();
     /** The lines as the dialog opened, or as «Crear» last created them: closing asks only when they differ. */
@@ -152,20 +161,22 @@ public final class ExpressionsPanel extends JPanel {
         this.unchanged = model.contents();
         this.legend = new ExpressionLegend(this::insert);
 
-        JPanel content = new JPanel(new MigLayout("insets 16, fillx, wrap 2", "[][grow, fill]", ""));
+        // The left side scrolls only up and down: it takes the dialog's width, so the lines fill it and shrink with it.
+        JPanel content = new WidthTrackingPanel(new MigLayout("insets 16, fillx, wrap 2", "[][grow, fill]", ""));
         content.add(new JLabel(Messages.text("karnaugh.table.titleLabel")));
         content.add(title, "growx 0, wmin 200");
-        content.add(linesPanel, "span 2, growx, gaptop 8");
+        content.add(linesPanel, "span 2, growx, wmin 0, gaptop 8");
         content.add(addLine, "span 2, growx 0");
         content.add(inputs, "span 2, gaptop 8");
         content.add(tableProblems, "span 2, growx, wmin 100, hidemode 3");
 
-        JPanel simplifyRow = new JPanel(new MigLayout("insets 0", "[]16[][]"));
+        JPanel simplifyRow = new JPanel(new MigLayout("insets 0", "[]16[]"));
         simplifyRow.add(simplify);
         wizardLink.putClientProperty("JButton.buttonType", "borderless");
         simplifyRow.add(wizardLink, "hidemode 3");
-        simplifyRow.add(wizardReason, "hidemode 3");
         content.add(simplifyRow, "span 2, gaptop 12");
+        // On a line of its own, so it does not widen the row of «Simplificar».
+        content.add(wizardReason, "span 2, hidemode 3");
 
         ButtonGroup gates = new ButtonGroup();
         JPanel gatesPanel = new JPanel(new MigLayout("insets 0"));
@@ -190,19 +201,28 @@ public final class ExpressionsPanel extends JPanel {
         content.add(costRow, "span 2");
         content.add(controls, "span 2, growx, gaptop 12");
 
-        JScrollPane legendScroll = new JScrollPane(legend);
+        legendScroll = new JScrollPane(legend) {
+            /**
+             * Open, as wide as its rows on one line, but never so wide that the lines get less than
+             * {@link #LEFT_MINIMUM}; collapsed, only the width of its «Notación» button. Measured each time.
+             */
+            @Override
+            public Dimension getPreferredSize() {
+                Dimension size = super.getPreferredSize();
+                if (!legend.isExpanded()) {
+                    return size;
+                }
+                return new Dimension(legendWidth(ExpressionsPanel.this.getWidth()), size.height);
+            }
+        };
         legendScroll.setBorder(BorderFactory.createEmptyBorder(16, 8, 16, 16));
-        legendScroll.setPreferredSize(LEGEND_SIZE);
-        legend.setOnToggle(() -> {
-            // Collapsed, the legend takes only the width of its «Notación» button.
-            legendScroll.setPreferredSize(legend.isExpanded() ? LEGEND_SIZE : null);
-            revalidate();
-        });
+        legend.setOnToggle(this::revalidate);
 
         buttonBar = new JPanel(new MigLayout("insets 6 12 10 12, fillx", "[grow][][]"));
         buttonBar.add(controls.createButton(), "skip 1");
         buttonBar.add(close, "gapleft 12");
-        add(new JScrollPane(content), BorderLayout.CENTER);
+        contentScroll = new JScrollPane(content);
+        add(contentScroll, BorderLayout.CENTER);
         add(legendScroll, BorderLayout.EAST);
         add(buttonBar, BorderLayout.SOUTH);
         controls.addRefreshListener(this::updateDefaultButton);
@@ -566,12 +586,13 @@ public final class ExpressionsPanel extends JPanel {
 
         LineRow() {
             super(new MigLayout("insets 0, fillx, wrap 2, gapy 2", "[grow, fill][]", ""));
+            // Its columns are only a preferred width: the field fills the line's width and shrinks with it.
             remove.setToolTipText(Messages.text("expressions.removeLine"));
             dismiss.setToolTipText(Messages.text("expressions.merged.dismiss"));
             dismiss.putClientProperty("JButton.buttonType", "borderless");
             warningRow.add(warning);
             warningRow.add(dismiss);
-            add(field);
+            add(field, "wmin 0");
             add(remove);
             add(problem, "span 2, hidemode 3");
             add(warningRow, "span 2, hidemode 3");
@@ -711,6 +732,31 @@ public final class ExpressionsPanel extends JPanel {
     }
 
     /**
+     * The open legend's width in a panel {@code panelWidth} wide (0 before it is laid out: the full width): its rows
+     * on one line, its border and room for its scrollbar, capped so the left side keeps {@link #LEFT_MINIMUM}.
+     */
+    int legendWidth(int panelWidth) {
+        Insets insets = legendScroll.getInsets();
+        int natural = legend.rowsWidth() + insets.left + insets.right
+                + legendScroll.getVerticalScrollBar().getPreferredSize().width;
+        return panelWidth <= 0 ? natural : Math.min(natural, Math.max(LEGEND_MINIMUM, panelWidth - LEFT_MINIMUM));
+    }
+
+    /** The dialog's first size: wide enough for the left side and the legend's rows on one line. */
+    Dimension dialogSize() {
+        return new Dimension(Math.max(DIALOG_SIZE.width, LEFT_PREFERRED + legendWidth(0)), DIALOG_SIZE.height);
+    }
+
+    JScrollPane legendScroll() {
+        return legendScroll;
+    }
+
+    /** The scroll pane of the left side (the lines, the options and «Crear»). */
+    JScrollPane contentScroll() {
+        return contentScroll;
+    }
+
+    /**
      * Shows {@code panel} in a dialog over {@code parent}; «Cerrar», Escape and the close box all go through
      * {@link #requestClose()}. Like the wizard's, it blocks only its own window.
      */
@@ -719,7 +765,10 @@ public final class ExpressionsPanel extends JPanel {
                 panel::requestClose);
         panel.setOnClose(dialog::dispose);
         panel.updateDefaultButton();
-        dialog.setSize(DIALOG_SIZE);
+        Dimension size = panel.dialogSize();
+        // Not wider than the screen: there the legend's details wrap instead.
+        Rectangle screen = GraphicsEnvironment.getLocalGraphicsEnvironment().getMaximumWindowBounds();
+        dialog.setSize(Math.min(size.width, screen.width), Math.min(size.height, screen.height));
         dialog.setLocationRelativeTo(parent);
         dialog.setVisible(true);
     }

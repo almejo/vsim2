@@ -13,14 +13,18 @@ import cl.almejo.vsim.ui.i18n.Messages;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import javax.swing.JScrollPane;
 import javax.swing.JTextField;
+import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 import javax.swing.plaf.FontUIResource;
+import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.event.FocusEvent;
 import java.awt.event.FocusListener;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -347,6 +351,98 @@ class ExpressionsPanelTest {
         panel.requestClose();
         assertThat(discardQuestions).isZero();
         assertThat(closed).isEqualTo(1);
+    }
+
+    @Test
+    void theLinesFillTheLeftSideWithoutAHorizontalScrollbarAndShrinkWithTheDialog() {
+        for (int index = 0; index < 5; index++) {
+            panel.addLineButton().doClick();
+        }
+        for (int index = 0; index < 6; index++) {
+            type(index, "F" + index + " = A B + C' D ^ (E + F)");
+        }
+        panel.setSize(panel.dialogSize().width, 660);
+        layOut(panel);
+        JScrollPane scroll = panel.contentScroll();
+        assertThat(scroll.getVerticalScrollBar().isVisible()).as("enough lines to scroll").isTrue();
+        assertThat(scroll.getHorizontalScrollBar().isVisible()).isFalse();
+        int wide = panel.lineField(0).getWidth();
+        assertThat(rightEdgeInViewport(scroll, panel.lineField(0))).isLessThanOrEqualTo(scroll.getViewport().getWidth());
+        assertThat(wide).as("the line takes the room there is").isGreaterThan(scroll.getViewport().getWidth() / 2);
+
+        panel.setSize(900, 660);
+        layOut(panel);
+        assertThat(scroll.getHorizontalScrollBar().isVisible()).isFalse();
+        assertThat(panel.lineField(0).getWidth()).as("it shrinks with the dialog").isLessThan(wide);
+        assertThat(rightEdgeInViewport(scroll, panel.lineField(0))).isLessThanOrEqualTo(scroll.getViewport().getWidth());
+
+        panel.setSize(panel.dialogSize().width + 200, 660);
+        layOut(panel);
+        assertThat(panel.lineField(0).getWidth()).as("and grows again").isGreaterThan(wide);
+        assertThat(scroll.getHorizontalScrollBar().isVisible()).isFalse();
+    }
+
+    @Test
+    void theLegendExamplesAreLabelsOfTheirOwnSoAnExpressionIsNeverBrokenInTwo() {
+        assertThat(panel.legend().example(ExpressionLegend.Row.NOT).getText()).isEqualTo("Ejemplo: (A + B)'");
+        assertThat(panel.legend().example(ExpressionLegend.Row.AND).getText()).isEqualTo("Ejemplo: A'B, A(B + C)");
+        assertThat(panel.legend().example(ExpressionLegend.Row.NAMES)).isNull();
+    }
+
+    @Test
+    void theLegendIsWideEnoughForEachRowOnOneLineAndGivesThatWidthBackWhenCollapsed() {
+        for (Locale language : List.of(Messages.SPANISH, Locale.ENGLISH)) {
+            Messages.initialize(language);
+            open(Background.inline());
+            Dimension size = panel.dialogSize();
+            assertThat(size.width).isGreaterThanOrEqualTo(1040);
+            panel.setSize(size.width, 660);
+            layOut(panel);
+            for (ExpressionLegend.Row row : ExpressionLegend.Row.values()) {
+                if (row != ExpressionLegend.Row.NAMES) {
+                    Paragraph detail = panel.legend().detail(row);
+                    int lineHeight = detail.getFontMetrics(detail.getFont()).getHeight();
+                    assertThat(detail.getHeight()).as(language + " " + row + " on one line")
+                            .isLessThan(2 * lineHeight);
+                }
+            }
+            assertThat(panel.legendScroll().getHorizontalScrollBar().isVisible()).isFalse();
+            assertThat(panel.contentScroll().getWidth()).as("the lines keep their room").isGreaterThanOrEqualTo(600);
+
+            int left = panel.contentScroll().getWidth();
+            panel.legend().toggleButton().doClick();
+            layOut(panel);
+            assertThat(panel.contentScroll().getWidth()).as("collapsed, the lines get the width back")
+                    .isGreaterThan(left + 200);
+
+            panel.legend().toggleButton().doClick();
+            panel.setSize(900, 660);
+            layOut(panel);
+            assertThat(panel.contentScroll().getWidth()).as("a narrow dialog keeps the lines' room")
+                    .isGreaterThanOrEqualTo(500);
+            assertThat(panel.legendScroll().getHorizontalScrollBar().isVisible()).isFalse();
+            assertThat(panel.contentScroll().getHorizontalScrollBar().isVisible()).isFalse();
+        }
+    }
+
+    private static int rightEdgeInViewport(JScrollPane scroll, java.awt.Component component) {
+        return SwingUtilities.convertPoint(component, component.getWidth(), 0, scroll.getViewport()).x;
+    }
+
+    /** Lays the tree out a few times, as a shown window settles (wrapped paragraphs change their height). */
+    private static void layOut(java.awt.Component root) {
+        for (int round = 0; round < 4; round++) {
+            layOutTree(root);
+        }
+    }
+
+    private static void layOutTree(java.awt.Component component) {
+        component.doLayout();
+        if (component instanceof java.awt.Container container) {
+            for (java.awt.Component child : container.getComponents()) {
+                layOutTree(child);
+            }
+        }
     }
 
     private static void focus(JTextField field) {

@@ -16,13 +16,11 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JToggleButton;
 import javax.swing.KeyStroke;
-import javax.swing.Scrollable;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
-import java.awt.Rectangle;
 import java.awt.RenderingHints;
 import java.awt.event.ActionEvent;
 import java.awt.event.FocusAdapter;
@@ -243,39 +241,6 @@ final class GroupsPanel extends JPanel implements WizardStep {
 
     AbstractButton rulesToggle() {
         return rulesToggle;
-    }
-
-    /** A panel that takes the width of its scroll pane, so the paragraphs wrap instead of running off the side. */
-    private static final class WidthTrackingPanel extends JPanel implements Scrollable {
-
-        WidthTrackingPanel(MigLayout layout) {
-            super(layout);
-        }
-
-        @Override
-        public Dimension getPreferredScrollableViewportSize() {
-            return getPreferredSize();
-        }
-
-        @Override
-        public int getScrollableUnitIncrement(Rectangle visible, int orientation, int direction) {
-            return 16;
-        }
-
-        @Override
-        public int getScrollableBlockIncrement(Rectangle visible, int orientation, int direction) {
-            return visible.height;
-        }
-
-        @Override
-        public boolean getScrollableTracksViewportWidth() {
-            return true;
-        }
-
-        @Override
-        public boolean getScrollableTracksViewportHeight() {
-            return false;
-        }
     }
 
     /** Explains the group {@code delta} entries away from {@code group} (clamped) and moves the focus there. */

@@ -18,47 +18,56 @@ import java.util.function.Consumer;
  * operation with its symbols and an example. Clicking the button of a row inserts its operator into the line the
  * user was typing in ({@code insert}). Open by default; «Notación» collapses it.
  */
-final class ExpressionLegend extends JPanel {
+final class ExpressionLegend extends WidthTrackingPanel {
 
     /** A row of the notation; {@code insertion} is what its button types, empty for a row that only explains. */
     enum Row {
-        NOT("'", "expressions.legend.not", "expressions.legend.not.detail"),
-        AND("·", "expressions.legend.and", "expressions.legend.and.detail"),
-        OR("+", "expressions.legend.or", "expressions.legend.or.detail"),
-        XOR("^", "expressions.legend.xor", "expressions.legend.xor.detail"),
-        PARENTHESES("()", "expressions.legend.parentheses", "expressions.legend.parentheses.detail"),
-        ZERO("0", "expressions.legend.zero", "expressions.legend.zero.detail"),
-        ONE("1", "expressions.legend.one", "expressions.legend.one.detail"),
-        PRECEDENCE("", "expressions.legend.precedence", "expressions.legend.precedence.detail"),
-        NAMES("", "expressions.legend.names", "expressions.legend.names.detail");
+        NOT("'", "not", true),
+        AND("·", "and", true),
+        OR("+", "or", true),
+        XOR("^", "xor", true),
+        PARENTHESES("()", "parentheses", true),
+        ZERO("0", "zero", true),
+        ONE("1", "one", true),
+        PRECEDENCE("", "precedence", false),
+        NAMES("", "names", false);
 
         final String insertion;
         final String nameKey;
         final String detailKey;
+        /** Its example, on a line of its own that never wraps (an expression broken in two reads wrong); or null. */
+        final String exampleKey;
 
-        Row(String insertion, String nameKey, String detailKey) {
+        Row(String insertion, String key, boolean hasExample) {
             this.insertion = insertion;
-            this.nameKey = nameKey;
-            this.detailKey = detailKey;
+            this.nameKey = "expressions.legend." + key;
+            this.detailKey = nameKey + ".detail";
+            this.exampleKey = hasExample ? nameKey + ".example" : null;
         }
     }
 
     private static final int BUTTON_WIDTH = 40;
+    private static final int COLUMN_GAP = 8;
+    private static final int EXAMPLE_GAP = 16;
 
     private final JButton toggle = new JButton();
-    private final JPanel content = new JPanel(new MigLayout("insets 0 0 0 0, wrap 3, fillx",
-            "[]8[]8[grow]", ""));
+    private final JPanel content = new JPanel(new MigLayout("insets 0 0 0 0, wrap 4, fillx",
+            "[]" + COLUMN_GAP + "[]" + COLUMN_GAP + "[grow]" + EXAMPLE_GAP + "[]", ""));
+    private final Map<Row, JLabel> names = new EnumMap<>(Row.class);
+    private final Map<Row, Paragraph> details = new EnumMap<>(Row.class);
     private final Map<Row, JButton> buttons = new EnumMap<>(Row.class);
+    private final Map<Row, JLabel> examples = new EnumMap<>(Row.class);
     private boolean expanded = true;
     private Runnable onToggle = () -> { };
 
     ExpressionLegend(Consumer<String> insert) {
         super(new BorderLayout(0, 8));
         Paragraph instructions = new Paragraph(Messages.text("expressions.legend.instructions"));
-        content.add(instructions, "span 3, growx, wmin 100, gapbottom 8");
+        content.add(instructions, "span 4, growx, wmin 100, gapbottom 8");
         for (Row row : Row.values()) {
             JLabel name = new JLabel(Messages.text(row.nameKey));
             name.setFont(name.getFont().deriveFont(Font.BOLD));
+            names.put(row, name);
             content.add(name, "top");
             if (row.insertion.isEmpty()) {
                 content.add(new JLabel(""), "top");
@@ -71,8 +80,17 @@ final class ExpressionLegend extends JPanel {
                 buttons.put(row, button);
                 content.add(button, "top, sg insert");
             }
-            content.add(new Paragraph(Messages.text(row.detailKey)),
-                    "growx, wmin 80");
+            // The detail wraps only when the dialog is too narrow for the row; the example never does.
+            Paragraph detail = new Paragraph(Messages.text(row.detailKey));
+            details.put(row, detail);
+            if (row.exampleKey == null) {
+                content.add(detail, "span 2, growx, wmin 80");
+            } else {
+                content.add(detail, "growx, wmin 80");
+                JLabel example = new JLabel(Messages.text(row.exampleKey));
+                examples.put(row, example);
+                content.add(example, "top");
+            }
         }
         toggle.setFocusable(false);
         toggle.addActionListener(event -> setExpanded(!expanded));
@@ -81,6 +99,39 @@ final class ExpressionLegend extends JPanel {
         add(header, BorderLayout.NORTH);
         add(content, BorderLayout.CENTER);
         setExpanded(true);
+    }
+
+    /**
+     * The width that puts every notation row on one line with the current fonts: the widest name, the button, the
+     * widest detail and the widest example (a row without example spreads over both). «Nombres» is prose and wraps
+     * like the instructions, so it does not count. Measured each time (fonts follow the theme).
+     */
+    int rowsWidth() {
+        int nameWidth = 0;
+        int detailWidth = 0;
+        int exampleWidth = 0;
+        int spreadWidth = 0;
+        for (Row row : Row.values()) {
+            nameWidth = Math.max(nameWidth, names.get(row).getPreferredSize().width);
+            if (row == Row.NAMES) {
+                continue;
+            }
+            Paragraph detail = details.get(row);
+            int textWidth = detail.getFontMetrics(detail.getFont()).stringWidth(detail.getText()) + 2;
+            JLabel example = examples.get(row);
+            if (example == null) {
+                spreadWidth = Math.max(spreadWidth, textWidth);
+            } else {
+                detailWidth = Math.max(detailWidth, textWidth);
+                exampleWidth = Math.max(exampleWidth, example.getPreferredSize().width);
+            }
+        }
+        int buttonWidth = BUTTON_WIDTH;
+        for (JButton button : buttons.values()) {
+            buttonWidth = Math.max(buttonWidth, button.getPreferredSize().width);
+        }
+        int textColumns = Math.max(detailWidth + EXAMPLE_GAP + exampleWidth, spreadWidth);
+        return nameWidth + COLUMN_GAP + buttonWidth + COLUMN_GAP + textColumns;
     }
 
     boolean isExpanded() {
@@ -107,5 +158,14 @@ final class ExpressionLegend extends JPanel {
 
     AbstractButton rowButton(Row row) {
         return buttons.get(row);
+    }
+
+    Paragraph detail(Row row) {
+        return details.get(row);
+    }
+
+    /** The example of a row (after its detail), or null for a row without one. */
+    JLabel example(Row row) {
+        return examples.get(row);
     }
 }
