@@ -205,6 +205,8 @@ class KarnaughWizardTest {
         mouse(view, MouseEvent.MOUSE_MOVED, new Point((int) piece.getCenterX(), (int) piece.getCenterY()));
         assertThat(groups.explainedGroup()).isEqualTo(1);
         assertThat(groups.variablesText()).isEqualTo("A cambia → se va · B = 1 → B · C cambia → se va · D = 1 → D");
+        assertThat(groups.whyText()).contains(
+                "Las celdas 13 y 15 son X («no importa»): aquí las tomamos como 1 para agrandar el grupo.");
 
         groups.selectOutput(1);
         assertThat(groups.legendTexts()).containsExactly("② BD — compartido con P", "③ BC", "④ A");

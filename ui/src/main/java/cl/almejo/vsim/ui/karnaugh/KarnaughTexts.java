@@ -44,8 +44,8 @@ final class KarnaughTexts {
     }
 
     /**
-     * The lines of «¿Por qué?»: the rule, the cells as full terms, then for each variable that changes the pairs it
-     * combines, and the term that is left.
+     * The lines of «¿Por qué?»: the rule, the cells as full terms, which of them are X (taken as 1, or as 0 in a
+     * product of sums), then for each variable that changes the pairs it combines, and the term that is left.
      */
     static List<String> algebra(GroupExplanation explanation, List<String> inputNames) {
         boolean sumOfProducts = explanation.form() == Minimization.Form.SUM_OF_PRODUCTS;
@@ -59,6 +59,7 @@ final class KarnaughTexts {
                 cells.add(text(cell, inputNames, sumOfProducts));
             }
             lines.add(Messages.format("karnaugh.why.cells", String.join(sumOfProducts ? " + " : "·", cells)));
+            dontCareLine(explanation, sumOfProducts).ifPresent(lines::add);
             for (GroupExplanation.AlgebraStep step : explanation.steps()) {
                 String name = inputNames.get(step.eliminatedInput());
                 lines.add(Messages.format("karnaugh.why.step", name));
@@ -69,6 +70,26 @@ final class KarnaughTexts {
         }
         lines.add(Messages.format("karnaugh.why.result", explanation.termText()));
         return lines;
+    }
+
+    /**
+     * «Las celdas 13 y 15 son X («no importa»): aquí las tomamos como 1 para agrandar el grupo.» (as 0 in a product of
+     * sums); empty when the group has no X cell.
+     */
+    private static Optional<String> dontCareLine(GroupExplanation explanation, boolean sumOfProducts) {
+        List<Integer> rows = explanation.dontCareRows();
+        if (rows.isEmpty()) {
+            return Optional.empty();
+        }
+        String takenAs = sumOfProducts ? "1" : "0";
+        if (rows.size() == 1) {
+            return Optional.of(Messages.format("karnaugh.why.dontCare.one", String.valueOf(rows.getFirst()),
+                    takenAs));
+        }
+        List<String> numbers = rows.stream().map(String::valueOf).toList();
+        String listed = Messages.format("karnaugh.why.list",
+                String.join(", ", numbers.subList(0, numbers.size() - 1)), numbers.getLast());
+        return Optional.of(Messages.format("karnaugh.why.dontCare.many", listed, takenAs));
     }
 
     private static String combination(GroupExplanation.Combination combination, String name,

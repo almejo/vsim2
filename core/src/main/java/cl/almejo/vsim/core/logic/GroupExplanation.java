@@ -6,8 +6,9 @@ import java.util.List;
 /**
  * Why a Karnaugh group gives its term, as data for the UI to render: per input whether it stays 0, stays 1 or changes
  * inside the group («A cambia → se va · B = 0 → B' · C = 1 → C»), the term, the cell count, and the algebra that
- * reduces the cells to the term — one step per changing input, each combining pairs with X·Y + X·Y' = X (in a
- * product of sums, the dual (X + Y)(X + Y') = X on the same terms).
+ * reduces the cells to the term — one step per changing input, each combining pairs with P·Q + P·Q' = P (in a
+ * product of sums, the dual (P + Q)(P + Q') = P on the same terms) — and which of the cells are X in the output
+ * («no importa»: the group takes them as 1, or as 0 in a product of sums).
  *
  * @param term      the group's term
  * @param form      sum of products (a group of 1s) or product of sums (a group of 0s)
@@ -15,14 +16,16 @@ import java.util.List;
  * @param termText  the term as written ({@code B'C}, {@code (B + C')}, {@code 1} or {@code 0} for the whole map)
  * @param cellTerms the cells as full terms (every input present), in truth-table row order
  * @param steps     the algebra, one step per changing input in input order; empty for a single cell
+ * @param dontCareRows the rows of the group whose value in the output is X, in order; empty when no output was given
  */
 public record GroupExplanation(Term term, Minimization.Form form, List<VariableRole> variables, String termText,
-                               List<Term> cellTerms, List<AlgebraStep> steps) {
+                               List<Term> cellTerms, List<AlgebraStep> steps, List<Integer> dontCareRows) {
 
     public GroupExplanation {
         variables = List.copyOf(variables);
         cellTerms = List.copyOf(cellTerms);
         steps = List.copyOf(steps);
+        dontCareRows = List.copyOf(dontCareRows);
     }
 
     public enum VariableBehavior {
@@ -42,7 +45,7 @@ public record GroupExplanation(Term term, Minimization.Form form, List<VariableR
     public record VariableRole(int input, String name, VariableBehavior behavior, String literal) {
     }
 
-    /** One application of X·Y + X·Y' = X: {@code first} has the eliminated input at 0, {@code second} at 1. */
+    /** One application of P·Q' + P·Q = P: {@code first} has the eliminated input at 0, {@code second} at 1. */
     public record Combination(Term first, Term second, Term result) {
     }
 
@@ -59,7 +62,13 @@ public record GroupExplanation(Term term, Minimization.Form form, List<VariableR
         return of(term, spec, Minimization.Form.SUM_OF_PRODUCTS);
     }
 
+    /** The explanation of a group, with no output to tell which of its cells are X. */
     public static GroupExplanation of(Term term, TruthTableSpec spec, Minimization.Form form) {
+        return of(term, spec, form, -1);
+    }
+
+    /** The explanation of a group of output {@code output} (its X cells are listed); -1 for none. */
+    public static GroupExplanation of(Term term, TruthTableSpec spec, Minimization.Form form, int output) {
         int inputCount = spec.inputCount();
         long all = (1L << inputCount) - 1;
         if ((term.mask() & ~all) != 0) {
@@ -83,9 +92,13 @@ public record GroupExplanation(Term term, Minimization.Form form, List<VariableR
                 : TermText.sum(term, spec.inputNames());
 
         List<Term> cellTerms = new ArrayList<>();
+        List<Integer> dontCareRows = new ArrayList<>();
         for (int row = 0; row <= all; row++) {
             if (term.covers(row)) {
                 cellTerms.add(new Term(all, row));
+                if (output >= 0 && spec.value(output, row) == LogicValue.DONT_CARE) {
+                    dontCareRows.add(row);
+                }
             }
         }
 
@@ -110,7 +123,7 @@ public record GroupExplanation(Term term, Minimization.Form form, List<VariableR
             steps.add(new AlgebraStep(input, combinations));
             current = next;
         }
-        return new GroupExplanation(term, form, variables, termText, cellTerms, steps);
+        return new GroupExplanation(term, form, variables, termText, cellTerms, steps, dontCareRows);
     }
 
     /** How many cells the group covers (1, 2, 4, 8 or 16). */

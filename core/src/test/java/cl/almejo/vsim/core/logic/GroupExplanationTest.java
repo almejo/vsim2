@@ -108,4 +108,18 @@ class GroupExplanationTest {
 
         assertThat(explanation.termText()).isEqualTo("0");
     }
+
+    @Test
+    void theCellsOfTheGroupThatAreXInTheOutputAreNamed() {
+        // F = 1 on rows 4 and 5, X on 6 and 7: the group A uses the two X.
+        TruthTableSpec spec = THREE_INPUTS
+                .withValue(0, 4, LogicValue.ONE).withValue(0, 5, LogicValue.ONE)
+                .withValue(0, 6, LogicValue.DONT_CARE).withValue(0, 7, LogicValue.DONT_CARE)
+                .withValue(0, 1, LogicValue.DONT_CARE);
+        GroupExplanation explanation =
+                GroupExplanation.of(new Term(0b100, 0b100), spec, Minimization.Form.SUM_OF_PRODUCTS, 0);
+        assertThat(explanation.dontCareRows()).containsExactly(6, 7);
+        assertThat(GroupExplanation.of(new Term(0b100, 0b100), spec).dontCareRows())
+                .as("without an output there is nothing to say").isEmpty();
+    }
 }

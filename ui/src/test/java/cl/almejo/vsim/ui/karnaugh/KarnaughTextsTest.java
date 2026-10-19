@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -47,7 +48,7 @@ class KarnaughTextsTest {
         GroupExplanation explanation = GroupExplanation.of(new Term(0b0110, 0b0010), bcd);
         assertThat(KarnaughTexts.algebra(explanation, bcd.inputNames())).containsExactly(
                 "Cada celda es un producto con todas las variables. Sumamos las celdas del grupo y usamos "
-                        + "X·Y' + X·Y = X·(Y' + Y) = X, porque Y' + Y = 1: la variable que cambia se va.",
+                        + "P·Q' + P·Q = P·(Q' + Q) = P, porque Q' + Q = 1: la variable que cambia se va.",
                 "Celdas: A'B'CD' + A'B'CD + AB'CD' + AB'CD",
                 "Se va A:",
                 "    A'B'CD' + AB'CD' = B'CD'·(A' + A) = B'CD'",
@@ -74,7 +75,7 @@ class KarnaughTextsTest {
         assertThat(KarnaughTexts.variablesLine(explanation)).isEqualTo("A cambia → se va · B = 0 → B");
         assertThat(KarnaughTexts.algebra(explanation, spec.inputNames())).containsExactly(
                 "Cada celda de 0 es una suma con todas las variables. Multiplicamos las sumas del grupo y usamos "
-                        + "(X + Y)·(X + Y') = X + Y·Y' = X, porque Y·Y' = 0: la variable que cambia se va.",
+                        + "(P + Q)·(P + Q') = P + Q·Q' = P, porque Q·Q' = 0: la variable que cambia se va.",
                 "Celdas: (A + B)·(A' + B)",
                 "Se va A:",
                 "    (A + B)·(A' + B) = B + A·A' = B",
@@ -102,5 +103,43 @@ class KarnaughTextsTest {
         assertThat(KarnaughTexts.rules(Minimization.Form.PRODUCT_OF_SUMS)).first().asString()
                 .startsWith("Se agrupan solo los 0");
         assertThat(KarnaughTexts.rules(Minimization.Form.SUM_OF_PRODUCTS)).hasSize(6);
+    }
+
+    @Test
+    void whySaysWhichCellsAreXAndThatTheyAreTakenAsOne() {
+        // BCD: rows 10 to 15 are X; the group BD (rows 5, 7, 13, 15) uses two of them.
+        GroupExplanation explanation = GroupExplanation.of(new Term(0b0101, 0b0101), bcd,
+                Minimization.Form.SUM_OF_PRODUCTS, 0);
+        assertThat(KarnaughTexts.algebra(explanation, bcd.inputNames())).element(2).isEqualTo(
+                "Las celdas 13 y 15 son X («no importa»): aquí las tomamos como 1 para agrandar el grupo.");
+        assertThat(KarnaughTexts.algebra(explanation, bcd.inputNames())).element(1)
+                .isEqualTo("Celdas: A'BC'D + A'BCD + ABC'D + ABCD");
+    }
+
+    @Test
+    void oneXCellOrThreeAreSaidNaturallyAndAsZeroInAProductOfSums() {
+        TruthTableSpec spec = TruthTableSpec.zeros("T", List.of("A", "B", "C"), List.of("F"))
+                .withValue(0, 0, LogicValue.ONE).withValue(0, 1, LogicValue.DONT_CARE)
+                .withValue(0, 3, LogicValue.DONT_CARE).withValue(0, 5, LogicValue.DONT_CARE)
+                .withValue(0, 2, LogicValue.ONE).withValue(0, 4, LogicValue.ONE).withValue(0, 6, LogicValue.ONE);
+        // Zeros only on row 7; as a product of sums, the group of C = 1 (rows 1, 3, 5, 7) uses three X.
+        GroupExplanation zeros = GroupExplanation.of(new Term(0b001, 0b001), spec,
+                Minimization.Form.PRODUCT_OF_SUMS, 0);
+        assertThat(KarnaughTexts.algebra(zeros, spec.inputNames())).element(2).isEqualTo(
+                "Las celdas 1, 3 y 5 son X («no importa»): aquí las tomamos como 0 para agrandar el grupo.");
+        // The group A'C' (rows 0 and 2) uses none; A'B' (rows 0, 1) uses one.
+        GroupExplanation one = GroupExplanation.of(new Term(0b110, 0b000), spec,
+                Minimization.Form.SUM_OF_PRODUCTS, 0);
+        assertThat(KarnaughTexts.algebra(one, spec.inputNames())).element(2).isEqualTo(
+                "La celda 1 es X («no importa»): aquí la tomamos como 1 para agrandar el grupo.");
+        GroupExplanation none = GroupExplanation.of(new Term(0b101, 0b000), spec,
+                Minimization.Form.SUM_OF_PRODUCTS, 0);
+        assertThat(KarnaughTexts.algebra(none, spec.inputNames())).element(2).asString().startsWith("Se va");
+
+        Messages.initialize(Locale.ENGLISH);
+        assertThat(KarnaughTexts.algebra(zeros, spec.inputNames())).element(2).isEqualTo(
+                "Cells 1, 3 and 5 are X (“don’t care”): here we take them as 0 to make the group bigger.");
+        assertThat(KarnaughTexts.algebra(one, spec.inputNames())).element(2).isEqualTo(
+                "Cell 1 is X (“don’t care”): here we take it as 1 to make the group bigger.");
     }
 }

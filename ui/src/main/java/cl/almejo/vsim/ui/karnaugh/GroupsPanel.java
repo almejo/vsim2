@@ -159,7 +159,8 @@ final class GroupsPanel extends JPanel implements WizardStep {
             return;
         }
         TruthTableSpec spec = minimization.spec();
-        GroupExplanation explanation = GroupExplanation.of(terms.get(hover.group()), spec, minimization.form());
+        GroupExplanation explanation = GroupExplanation.of(terms.get(hover.group()), spec, minimization.form(),
+                model.selectedOutput());
         variables.setText(KarnaughTexts.variablesLine(explanation));
         size.setText(KarnaughTexts.sizeLine(explanation));
         why.setText(String.join("\n", KarnaughTexts.algebra(explanation, spec.inputNames())));
