@@ -77,7 +77,7 @@ class CircuitGeneratorTest {
         assertThat(fragment.frames()).hasSize(1);
         Frame frame = fragment.frames().get(0);
         assertThat(frame.title()).isEqualTo("Mi tabla");
-        assertThat(frame.locked()).isFalse();
+        assertThat(frame.locked()).isTrue();
         assertEnclosed(fragment);
         assertMatches(spec, circuit);
     }

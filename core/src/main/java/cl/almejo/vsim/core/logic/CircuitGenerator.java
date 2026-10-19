@@ -643,7 +643,7 @@ public final class CircuitGenerator {
             return new Frame(document.newFrameId(), new GridPoint(frameLeft, frameTop),
                     Math.max(Frame.MINIMUM_WIDTH, right + FRAME_MARGIN - frameLeft),
                     Math.max(Frame.MINIMUM_HEIGHT, bottom + FRAME_MARGIN - frameTop), spec.title(), FrameTint.NONE,
-                    false);
+                    true);
         }
     }
 }
