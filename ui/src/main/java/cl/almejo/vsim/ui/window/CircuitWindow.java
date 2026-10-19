@@ -190,8 +190,11 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
     }
 
     @Override
-    public void openNewCircuit(String name, Command creation) {
-        application.openNewCircuit(name, creation);
+    public void openNewCircuit(String name, Command creation, String notice) {
+        CircuitWindow created = application.openNewCircuit(name, creation);
+        if (!notice.isEmpty()) {
+            created.view.statusBar().showNotice(notice);
+        }
     }
 
     /** Opens the circuit files in new windows and imports the component files into the library (as a drop does). */

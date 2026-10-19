@@ -175,8 +175,11 @@ class ExpressionsPanelTest {
             assertThat(created.fragment().components().stream().map(Component::typeId)).contains("xor3");
             assertThat(TableCircuits.check(spec, created.fragment(), StandardComponentTypes.registry()).passed())
                     .isTrue();
+            assertThat(created.notice()).isEqualTo("✓ El circuito cumple la tabla.");
         });
         assertThat(panel.resultText()).isEqualTo("✓ El circuito cumple la tabla.");
+        assertThat(closed).as("the work is done: the dialog closes").isEqualTo(1);
+        assertThat(discardQuestions).isZero();
     }
 
     @Test
@@ -352,9 +355,10 @@ class ExpressionsPanelTest {
     void afterCreatingClosingDoesNotAsk() {
         type(0, "F = A + B");
         panel.createButton().doClick();
+        assertThat(closed).isEqualTo(1);
         panel.requestClose();
         assertThat(discardQuestions).isZero();
-        assertThat(closed).isEqualTo(1);
+        assertThat(closed).isEqualTo(2);
     }
 
     @Test

@@ -14,8 +14,11 @@ import java.util.Set;
  */
 public interface CreationTarget {
 
-    /** Opens a new circuit window named {@code name} whose first undo step adds {@code fragment}. */
-    void openNewCircuit(String name, CircuitFragment fragment);
+    /**
+     * Opens a new circuit window named {@code name} whose first undo step adds {@code fragment}, with {@code notice}
+     * (how the creation went) in its status bar.
+     */
+    void openNewCircuit(String name, CircuitFragment fragment, String notice);
 
     /** Whether there is a circuit to insert into («Insertar en el circuito actual» is off otherwise). */
     boolean canInsert();

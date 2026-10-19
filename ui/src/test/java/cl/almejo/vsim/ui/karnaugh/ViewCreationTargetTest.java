@@ -39,7 +39,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class ViewCreationTargetTest {
 
-    private record Opened(String name, Command creation) {
+    private record Opened(String name, Command creation, String notice) {
     }
 
     private final List<Opened> opened = new ArrayList<>();
@@ -52,8 +52,8 @@ class ViewCreationTargetTest {
         @Override public void exit() { }
 
         @Override
-        public void openNewCircuit(String name, Command creation) {
-            opened.add(new Opened(name, creation));
+        public void openNewCircuit(String name, Command creation, String notice) {
+            opened.add(new Opened(name, creation, notice));
         }
     };
 
@@ -94,9 +94,12 @@ class ViewCreationTargetTest {
     @Test
     void aNewCircuitIsOneUndoStepOfANewWindow() {
         GeneratedCircuit circuit = bcd();
-        target.openNewCircuit("BCD", circuit.fragment());
+        target.openNewCircuit("BCD", circuit.fragment(), "✓ El circuito cumple la tabla.");
 
-        assertThat(opened).singleElement().satisfies(window -> assertThat(window.name()).isEqualTo("BCD"));
+        assertThat(opened).singleElement().satisfies(window -> {
+            assertThat(window.name()).isEqualTo("BCD");
+            assertThat(window.notice()).isEqualTo("✓ El circuito cumple la tabla.");
+        });
         OpenDocument created = OpenDocument.createEmpty(StandardComponentTypes.registry());
         try {
             created.execute(opened.getFirst().creation());

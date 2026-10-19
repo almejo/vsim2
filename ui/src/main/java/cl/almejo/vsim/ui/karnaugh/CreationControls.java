@@ -30,8 +30,10 @@ import java.util.function.Supplier;
  * nuevo / insertar en el circuito actual), «Crear también como componente» with its name, a busy indicator while the
  * circuit is built off the EDT, and the outcome («✓ El circuito cumple la tabla»). The «Crear» button belongs to these
  * controls (they decide when it is on) but its owner puts it in the dialog's button bar, next to «Cerrar»; owners hear
- * every {@link #refresh()} to follow its state (the default button). Everything is disabled while busy. After an «Insertar» the dialog closes so the user can drop the floating circuit, and the outcome goes to
- * the status bar. Closing the dialog while busy {@linkplain #cancel() cancels} the creation.
+ * every {@link #refresh()} to follow its state (the default button). Everything is disabled while busy. After a
+ * successful creation (the check passed and the component, if any, was saved) the dialog closes without asking, and
+ * the outcome goes to the status bar of the window that got the circuit (with the drop hint after an «Insertar»);
+ * when something failed the dialog stays open showing it. Closing the dialog while busy {@linkplain #cancel() cancels} the creation.
  */
 final class CreationControls extends JPanel {
 
@@ -64,7 +66,7 @@ final class CreationControls extends JPanel {
 
     /**
      * @param spec        the table to create, empty while it has problems (then «Crear» is off)
-     * @param closeDialog closes the dialog (after an «Insertar»)
+     * @param closeDialog closes the dialog (after a successful creation)
      * @param busyChanged told when a creation starts or ends ({@link #isBusy()}), so the owner disables its buttons
      * @param available   whether the owner lets «Crear» run now (the wizard's last step; no file being read)
      */
@@ -174,7 +176,7 @@ final class CreationControls extends JPanel {
         refreshListeners.add(listener);
     }
 
-    /** Told when a creation succeeded (the circuit was opened or floated), before an «Insertar» closes the dialog. */
+    /** Told when a circuit was created (opened or floated), before a successful creation closes the dialog. */
     void setOnCreated(Runnable action) {
         created = action;
     }
@@ -220,8 +222,12 @@ final class CreationControls extends JPanel {
             created.run();
         }
         busyChanged.run();
-        if (outcome.created() && form.destination() == CreationForm.Destination.INSERT) {
-            form.target().notice(outcome.text() + " " + Messages.text("karnaugh.create.dropHint"));
+        if (outcome.succeeded()) {
+            // The work is done: the outcome goes to the window that got the circuit (a new circuit's own status bar
+            // got it when it opened) and the dialog closes. A failed check or component stays here to be read.
+            if (form.destination() == CreationForm.Destination.INSERT) {
+                form.target().notice(outcome.text() + " " + Messages.text("karnaugh.create.dropHint"));
+            }
             closeDialog.run();
         }
     }

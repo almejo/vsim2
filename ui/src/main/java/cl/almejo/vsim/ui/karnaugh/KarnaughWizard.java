@@ -360,7 +360,7 @@ public final class KarnaughWizard extends JPanel {
     /**
      * Shows {@code wizard} in a large dialog over {@code parent}; «Cerrar», Escape and the close box all go through
      * {@link #requestClose()}. The dialog blocks only its own window, so a «Circuito nuevo» window opened from it is
-     * usable (and comes to the front) while the wizard stays open to try other options.
+     * usable (and comes to the front); a successful «Crear» closes the wizard, one that failed leaves it open.
      */
     public static void showDialog(Component parent, KarnaughWizard wizard) {
         JDialog dialog = WizardDialogs.create(parent, Messages.text("karnaugh.title"), wizard, wizard::requestClose);

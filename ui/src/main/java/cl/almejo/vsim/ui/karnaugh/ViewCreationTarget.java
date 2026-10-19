@@ -37,8 +37,9 @@ final class ViewCreationTarget implements CreationTarget {
     }
 
     @Override
-    public void openNewCircuit(String name, CircuitFragment fragment) {
-        view.windowCommands().openNewCircuit(name, new PasteCommand(fragment, TableCircuits.NEW_CIRCUIT_ORIGIN));
+    public void openNewCircuit(String name, CircuitFragment fragment, String notice) {
+        view.windowCommands().openNewCircuit(name, new PasteCommand(fragment, TableCircuits.NEW_CIRCUIT_ORIGIN),
+                notice);
     }
 
     @Override

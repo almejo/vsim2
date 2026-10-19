@@ -90,6 +90,8 @@ class TableImportPanelTest {
                     StandardComponentTypes.registry()).passed()).isTrue();
         });
         assertThat(panel.controls().resultText()).isEqualTo("✓ El circuito cumple la tabla.");
+        assertThat(target.newCircuits.getFirst().notice()).isEqualTo("✓ El circuito cumple la tabla.");
+        assertThat(closed).as("the work is done: the dialog closes").isEqualTo(1);
     }
 
     @Test

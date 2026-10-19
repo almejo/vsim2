@@ -12,7 +12,7 @@ import java.util.Set;
 /** Records what «Crear» does instead of opening windows, floating fragments or writing the library. */
 class FakeCreationTarget implements CreationTarget {
 
-    record NewCircuit(String name, CircuitFragment fragment) {
+    record NewCircuit(String name, CircuitFragment fragment, String notice) {
     }
 
     final List<NewCircuit> newCircuits = new ArrayList<>();
@@ -25,8 +25,8 @@ class FakeCreationTarget implements CreationTarget {
     Optional<String> saveError = Optional.empty();
 
     @Override
-    public void openNewCircuit(String name, CircuitFragment fragment) {
-        newCircuits.add(new NewCircuit(name, fragment));
+    public void openNewCircuit(String name, CircuitFragment fragment, String notice) {
+        newCircuits.add(new NewCircuit(name, fragment, notice));
     }
 
     @Override

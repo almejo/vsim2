@@ -58,11 +58,17 @@ final class CircuitCreator {
 
     /**
      * What happened, ready to show: {@code lines} are the check («✓ El circuito cumple la tabla»), the component's
-     * fate and any failure; {@code passed} is true when the circuit was created and gives the table.
+     * fate and any failure; {@code passed} is true when the circuit was created and gives the table; {@code saved}
+     * is false only when the component was asked for and could not be written.
      */
-    record Outcome(boolean created, boolean passed, List<String> lines) {
+    record Outcome(boolean created, boolean passed, boolean saved, List<String> lines) {
         Outcome {
             lines = List.copyOf(lines);
+        }
+
+        /** Created, the check passed and the component (if any) saved: the work is done and the dialog can go. */
+        boolean succeeded() {
+            return created && passed && saved;
         }
 
         String text() {
@@ -134,7 +140,7 @@ final class CircuitCreator {
     /** The details go to the log; the user reads a fixed sentence, never an internal (English) message. */
     private static Outcome failed(Request request, Throwable failure) {
         LOGGER.error("Could not create the circuit of the table {}", request.spec().title(), failure);
-        return new Outcome(false, false, List.of(Messages.text("karnaugh.create.failed")));
+        return new Outcome(false, false, true, List.of(Messages.text("karnaugh.create.failed")));
     }
 
     /** The worker's part. */
@@ -162,8 +168,10 @@ final class CircuitCreator {
         List<String> lines = new ArrayList<>();
         lines.add(checkText(built.check()));
         CircuitFragment placed = built.circuit().fragment();
+        boolean saved = true;
         if (built.bundle() != null) {
             Optional<String> error = target.saveComponent(built.bundle());
+            saved = error.isEmpty();
             lines.add(error.orElseGet(() -> Messages.format("karnaugh.create.componentSaved",
                     built.bundle().root().name())));
             if (request.destination() == CreationForm.Destination.INSERT) {
@@ -171,11 +179,11 @@ final class CircuitCreator {
             }
         }
         if (request.destination() == CreationForm.Destination.NEW_CIRCUIT) {
-            target.openNewCircuit(request.spec().title(), placed);
+            target.openNewCircuit(request.spec().title(), placed, String.join(" ", lines));
         } else {
             target.insertFloating(placed);
         }
-        return new Outcome(true, built.check().passed(), lines);
+        return new Outcome(true, built.check().passed(), saved, lines);
     }
 
     /** «✓ El circuito cumple la tabla», or the first row where it does not (a bug: it should never show). */

@@ -16,7 +16,8 @@ import java.awt.event.WindowListener;
  * The dialog of the wizard and of the table import. Every way of closing it (Escape, the window's close box, and the
  * panel's own «Cerrar») goes through the panel's {@code requestClose}, which cancels work in progress before the
  * dialog goes away. It is document modal: it blocks the circuit window it came from, but a «Circuito nuevo» window
- * opened from it is a window of its own and can be used, and come to the front, while the dialog stays open.
+ * opened from it is a window of its own and can be used, and come to the front, even while the dialog is still open
+ * (a successful «Crear» closes it; one that failed leaves it open to show why).
  */
 final class WizardDialogs {
 

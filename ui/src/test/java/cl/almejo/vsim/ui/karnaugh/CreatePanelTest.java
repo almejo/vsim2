@@ -68,11 +68,13 @@ class CreatePanelTest {
                     .satisfies(frame -> assertThat(frame.title()).isEqualTo("BCD"));
             assertThat(TableCircuits.check(model.spec(), created.fragment(), StandardComponentTypes.registry())
                     .passed()).isTrue();
+            assertThat(created.notice()).as("in the new window's status bar").isEqualTo("✓ El circuito cumple la tabla.");
         });
         assertThat(controls().resultText()).isEqualTo("✓ El circuito cumple la tabla.");
         assertThat(target.floating).isEmpty();
         assertThat(target.saved).isEmpty();
-        assertThat(closed).isZero();
+        assertThat(closed).as("the work is done: the dialog closes").isEqualTo(1);
+        assertThat(asked).isZero();
     }
 
     @Test
@@ -278,23 +280,24 @@ class CreatePanelTest {
         wizard.goTo(KarnaughWizard.Step.CREATE);
         wizard.createButton().doClick();
         assertThat(target.newCircuits).hasSize(1);
+        assertThat(closed).isEqualTo(1);
 
         wizard.requestClose();
         assertThat(asked).isZero();
-        assertThat(closed).isEqualTo(1);
+        assertThat(closed).isEqualTo(2);
 
         wizard.goTo(KarnaughWizard.Step.TABLE);
         model.cycle(0, 1);
         wizard.requestClose();
         assertThat(asked).isEqualTo(1);
-        assertThat(closed).isEqualTo(1);
+        assertThat(closed).isEqualTo(2);
     }
 
     @Test
     void aFailedCreationStillCountsAsUnsaved() {
         CreationTarget failing = new FakeCreationTarget() {
             @Override
-            public void openNewCircuit(String name, CircuitFragment fragment) {
+            public void openNewCircuit(String name, CircuitFragment fragment, String notice) {
                 throw new IllegalStateException("could not route channel 3");
             }
         };
@@ -346,7 +349,7 @@ class CreatePanelTest {
     void aFailureWhileApplyingEndsTheCreationWithAReadableMessage() {
         CreationTarget failing = new FakeCreationTarget() {
             @Override
-            public void openNewCircuit(String name, CircuitFragment fragment) {
+            public void openNewCircuit(String name, CircuitFragment fragment, String notice) {
                 throw new IllegalStateException("could not route channel 3");
             }
         };
@@ -368,6 +371,13 @@ class CreatePanelTest {
         controls().createButton().doClick();
         assertThat(controls().resultText()).isEqualTo("✓ El circuito cumple la tabla. No se pudo escribir");
         assertThat(target.newCircuits).hasSize(1);
+        assertThat(closed).as("the dialog stays to show what failed").isZero();
+
+        controls().destinationButton(CreationForm.Destination.INSERT).doClick();
+        controls().createButton().doClick();
+        assertThat(target.floating).hasSize(1);
+        assertThat(closed).as("an «Insertar» whose component failed stays too").isZero();
+        assertThat(target.notices).isEmpty();
     }
 
     @Test
