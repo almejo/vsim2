@@ -275,6 +275,8 @@ final class TablePreview extends JPanel {
             super.configureEnclosingScrollPane();
             Container viewport = getParent();
             if (viewport != null && viewport.getParent() instanceof JScrollPane scroll) {
+                // super moved the header into the scroll pane (a component has one parent): take it back.
+                names.add(getTableHeader(), BorderLayout.CENTER);
                 scroll.setColumnHeaderView(names);
             }
         }
