@@ -205,6 +205,49 @@ class TableImportTest {
     }
 
     @Test
+    void aDecimalCommaOrPointAfterZeroOrOneIsTheSameValue() {
+        assertThat(TableImport.valueOf("1,0")).isEqualTo(ONE);
+        assertThat(TableImport.valueOf("0,0")).isEqualTo(ZERO);
+        assertThat(TableImport.valueOf("1.0")).isEqualTo(ONE);
+        assertThat(TableImport.valueOf("0,000")).isEqualTo(ZERO);
+        assertThat(TableImport.valueOf(" 1, ")).as("Excel's «1,» with no decimals shown").isEqualTo(ONE);
+        assertThat(TableImport.valueOf("1,5")).isNull();
+        assertThat(TableImport.valueOf("2,0")).isNull();
+        assertThat(TableImport.valueOf("1,0,0")).isNull();
+    }
+
+    @Test
+    void aSemicolonFileFromASpanishExcelReadsDecimalCommasAsZeroAndOne() {
+        ImportedGrid grid = TableImport.readCsv("A;B;F\n0,0;0,0;1,0\n0,0;1,0;0,0\n1,0;0,0;1.0\n1,0;1,0;0\n");
+
+        ImportResult result = TableImport.toSpec(grid, 2, "T");
+
+        assertThat(result.problems()).isEmpty();
+        assertThat(result.spec().orElseThrow().outputs()).containsExactly(List.of(ONE, ZERO, ONE, ZERO));
+    }
+
+    @Test
+    void tabSeparatedCellsPastedFromASpanishExcelReadDecimalCommas() {
+        ImportedGrid grid = TableImport.readTabSeparated("A\tB\tF\n0\t0\t0,0\n0\t1\t1,0\n1,0\t0\t1,0\n1,0\t1,0\t0,0\n");
+
+        ImportResult result = TableImport.toSpec(grid, 2, "T");
+
+        assertThat(result.problems()).isEmpty();
+        assertThat(result.spec().orElseThrow().outputs()).containsExactly(List.of(ZERO, ONE, ONE, ZERO));
+    }
+
+    @Test
+    void inACommaSeparatedFileADecimalCommaSplitsTheCellInTwo() {
+        // Documented: with commas as the separator «1,0» cannot be one cell (unless it is quoted), so the row has one
+        // cell too many. Excel uses the semicolon whenever the decimal separator is the comma.
+        ImportedGrid grid = TableImport.readCsv("A,B,F\n0,0,1,0\n0,1,\"1,0\"\n");
+
+        assertThat(grid.rows().getFirst()).containsExactly("0", "0", "1", "0");
+        assertThat(TableImport.toSpec(grid, 2, "T").problems())
+                .containsExactly(new ImportProblem(ImportProblem.WRONG_CELL_COUNT, List.of(4, 3), 2, 0));
+    }
+
+    @Test
     void rowsInAnyOrderAndMissingCombinationsBecomeXAndAreCounted() {
         ImportedGrid grid = TableImport.readCsv("A,B,C,F\n1,1,1,1\n0,0,0,0\n1,1,1,1\n");
 

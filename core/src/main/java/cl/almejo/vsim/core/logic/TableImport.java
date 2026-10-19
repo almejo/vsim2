@@ -493,7 +493,9 @@ public final class TableImport {
      * Understands a grid as a truth table whose first {@code inputCount} columns are the inputs and the rest the
      * outputs. Columns with no name and no value are left out (keeping the other columns' numbers). Names are taken
      * without surrounding spaces. Inputs must be 0 or 1; outputs 0, 1 or X ({@code x}, {@code -} and empty also mean
-     * X); {@code TRUE}/{@code FALSE}/{@code VERDADERO}/{@code FALSO} and {@code 0.0}/{@code 1.0} are accepted. Rows may
+     * X); {@code TRUE}/{@code FALSE}/{@code VERDADERO}/{@code FALSO}, {@code 0.0}/{@code 1.0} and, with a
+     * decimal comma, {@code 0,0}/{@code 1,0} (in semicolon or tab separated text; with commas they are two cells) are
+     * accepted. Rows may
      * come in any order; a combination written twice must have the same outputs; missing combinations become X.
      */
     public static ImportResult toSpec(ImportedGrid grid, int inputCount, String title) {
