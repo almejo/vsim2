@@ -2,6 +2,7 @@ package cl.almejo.vsim.ui.search;
 
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.icons.Icons;
+import cl.almejo.vsim.ui.inline.ProblemBadge;
 import net.miginfocom.swing.MigLayout;
 
 import javax.swing.AbstractButton;
@@ -10,12 +11,15 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JToggleButton;
 import javax.swing.UIManager;
+import javax.swing.border.EmptyBorder;
 import javax.swing.border.AbstractBorder;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.FontMetrics;
 import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
 import java.awt.Insets;
 import java.util.List;
 
@@ -47,6 +51,8 @@ public final class FindBar extends JPanel {
         super(new MigLayout("insets 3 6 3 6, gap 2, novisualpadding, hidemode 3",
                 "[]6[]4[][]8[][][]8[grow, fill]8[]", "[center]"));
         setBorder(new BottomLine());
+        counter.setBorder(new EmptyBorder(1, 4, 1, 4)); // room for the badge around the text
+        message.setBorder(new EmptyBorder(1, 4, 1, 4));
         add(field, "w " + MINIMUM_FIELD_WIDTH + ":" + FIELD_WIDTH + ":" + FIELD_WIDTH);
         add(counter);
         add(previousButton);
@@ -86,16 +92,23 @@ public final class FindBar extends JPanel {
         return closeButton;
     }
 
-    /** «3 de 7», «Sin resultados» or nothing; red with the field when {@code error}. */
+    /**
+     * «3 de 7», «Sin resultados» or nothing, and the message. With {@code error} the field gets the error outline and
+     * tint and the texts show as the {@link ProblemBadge}.
+     */
     void showState(String counterText, String messageText, boolean error) {
-        counter.setText(counterText);
-        counter.error = error;
-        counter.repaint();
-        message.setText(messageText);
+        counter.show(counterText, error);
+        message.show(messageText, error);
         message.setToolTipText(messageText.isEmpty() ? null : messageText);
-        message.error = error;
-        message.repaint();
         field.showError(error);
+    }
+
+    JLabel counterLabel() {
+        return counter;
+    }
+
+    JLabel messageLabel() {
+        return message;
     }
 
     String counterText() {
@@ -120,26 +133,52 @@ public final class FindBar extends JPanel {
         return button;
     }
 
-    /** The theme's error red, read every time (the theme may change while the bar shows). */
-    private static Color errorColor() {
-        for (String key : List.of("Actions.Red", "Component.error.focusedBorderColor")) {
-            Color color = UIManager.getColor(key);
-            if (color != null) {
-                return color;
-            }
-        }
-        return new Color(0xDB5860);
-    }
+    /**
+     * A label that shows its text as the {@link ProblemBadge} (white on a solid red, readable in light and dark themes)
+     * while the bar shows an error, and as plain text otherwise. The badge is only as wide as the text.
+     */
+    private static class StateLabel extends JLabel {
 
-    /** As wide as its widest text, whatever it shows now, so the arrows after it never move. */
-    private static final class CounterLabel extends JLabel {
+        private static final int ARC = 6;
 
         private boolean error;
 
+        void show(String text, boolean inError) {
+            setText(text);
+            error = inError;
+            repaint();
+        }
+
+        boolean showsBadge() {
+            return error && !getText().isEmpty();
+        }
+
         @Override
         public Color getForeground() {
-            return error ? errorColor() : super.getForeground();
+            return error ? ProblemBadge.foreground() : super.getForeground();
         }
+
+        @Override
+        protected void paintComponent(Graphics graphics) {
+            if (showsBadge()) {
+                Insets insets = getInsets();
+                int width = Math.min(getWidth(),
+                        getFontMetrics(getFont()).stringWidth(getText()) + insets.left + insets.right);
+                Graphics2D badge = (Graphics2D) graphics.create();
+                try {
+                    badge.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                    badge.setColor(ProblemBadge.background());
+                    badge.fillRoundRect(0, 0, width, getHeight(), ARC, ARC);
+                } finally {
+                    badge.dispose();
+                }
+            }
+            super.paintComponent(graphics);
+        }
+    }
+
+    /** As wide as its widest text, whatever it shows now, so the arrows after it never move. */
+    private static final class CounterLabel extends StateLabel {
 
         @Override
         public Dimension getPreferredSize() {
@@ -159,14 +198,7 @@ public final class FindBar extends JPanel {
         }
     }
 
-    private static final class MessageLabel extends JLabel {
-
-        private boolean error;
-
-        @Override
-        public Color getForeground() {
-            return error ? errorColor() : super.getForeground();
-        }
+    private static final class MessageLabel extends StateLabel {
     }
 
     /** A one-pixel line under the bar in the theme's separator colour, read at paint time. */

@@ -18,8 +18,6 @@ import javax.swing.JTextField;
 import javax.swing.KeyStroke;
 import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
-import javax.swing.UIManager;
-import javax.swing.border.EmptyBorder;
 import javax.swing.event.DocumentEvent;
 import java.awt.AWTEvent;
 import java.awt.Color;
@@ -71,14 +69,13 @@ public final class InlineTextEditor {
     private static final String OUTLINE = "JComponent.outline";
     private static final String OUTLINE_ERROR = "error";
     /** WCAG AA contrast for normal text. */
-    private static final double MINIMUM_PROBLEM_CONTRAST = 4.5;
 
     private final CircuitCanvas canvas;
     private final JPanel panel = new JPanel(null);
     private final Field field = new Field();
     private final JButton confirmButton;
     private final JButton cancelButton;
-    private final JLabel problemText = new ProblemLabel();
+    private final JLabel problemText = new ProblemBadge();
     private final AWTEventListener pressListener = this::anywhereInTheApplication;
     private final DocumentListener documentListener = this::documentChanged;
     private final List<Runnable> whileOpen = new ArrayList<>();
@@ -98,8 +95,6 @@ public final class InlineTextEditor {
         field.setFocusTraversalKeysEnabled(false); // Tab does nothing: the focus stays in the field
         confirmButton = iconButton(InlineIcons.CONFIRM, "inline.confirm", this::confirm);
         cancelButton = iconButton(InlineIcons.CANCEL, "inline.cancel", this::cancel);
-        problemText.setOpaque(true);
-        problemText.setBorder(new EmptyBorder(1, 4, 1, 4));
         problemText.setVisible(false);
         panel.add(field);
         panel.add(confirmButton);
@@ -393,43 +388,12 @@ public final class InlineTextEditor {
 
     /** White on the solid red badge of {@link #problemBackground()}. */
     static Color problemForeground() {
-        return Color.WHITE;
+        return ProblemBadge.foreground();
     }
 
-    /**
-     * The problem's badge: the theme's error red (read every time: the theme may change while it shows), darkened
-     * until white text on it reaches the WCAG AA contrast for normal text in light and dark themes alike.
-     */
+    /** The problem's badge: see {@link ProblemBadge#background()}. */
     static Color problemBackground() {
-        Color color = themeErrorColor();
-        while (contrastWithWhite(color) < MINIMUM_PROBLEM_CONTRAST) {
-            color = new Color((int) (color.getRed() * 0.9), (int) (color.getGreen() * 0.9),
-                    (int) (color.getBlue() * 0.9));
-        }
-        return color;
-    }
-
-    private static Color themeErrorColor() {
-        for (String key : List.of("Actions.Red", "Component.error.focusedBorderColor")) {
-            Color color = UIManager.getColor(key);
-            if (color != null) {
-                return color;
-            }
-        }
-        return new Color(0xDB5860);
-    }
-
-    private static double contrastWithWhite(Color color) {
-        return 1.05 / (relativeLuminance(color) + 0.05);
-    }
-
-    private static double relativeLuminance(Color color) {
-        return 0.2126 * linear(color.getRed()) + 0.7152 * linear(color.getGreen()) + 0.0722 * linear(color.getBlue());
-    }
-
-    private static double linear(int channel) {
-        double fraction = channel / 255.0;
-        return fraction <= 0.03928 ? fraction / 12.92 : Math.pow((fraction + 0.055) / 1.055, 2.4);
+        return ProblemBadge.background();
     }
 
     /**
@@ -460,19 +424,6 @@ public final class InlineTextEditor {
             boolean alt = (modifiers & InputEvent.ALT_DOWN_MASK) != 0;
             boolean controlOrMeta = (modifiers & (InputEvent.CTRL_DOWN_MASK | InputEvent.META_DOWN_MASK)) != 0;
             return !alt || controlOrMeta;
-        }
-    }
-
-    private static final class ProblemLabel extends JLabel {
-
-        @Override
-        public Color getForeground() {
-            return problemForeground();
-        }
-
-        @Override
-        public Color getBackground() {
-            return problemBackground();
         }
     }
 }

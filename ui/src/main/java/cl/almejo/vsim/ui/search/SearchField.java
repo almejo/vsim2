@@ -2,6 +2,7 @@ package cl.almejo.vsim.ui.search;
 
 import cl.almejo.vsim.ui.clipboard.FragmentRefusingTransferHandler;
 import cl.almejo.vsim.ui.icons.Icons;
+import cl.almejo.vsim.ui.inline.ProblemBadge;
 import cl.almejo.vsim.ui.shortcuts.ShortcutCatalog;
 
 import javax.swing.AbstractAction;
@@ -9,6 +10,7 @@ import javax.swing.JTextField;
 import javax.swing.KeyStroke;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
+import java.awt.Color;
 import java.awt.event.ActionEvent;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
@@ -47,9 +49,29 @@ public final class SearchField extends JTextField {
         });
     }
 
-    /** Red outline (FlatLaf's error outline) or the normal one. */
+    /** How much of the theme's error red tints the background of a field in error. */
+    private static final double ERROR_TINT = 0.12;
+
+    /** FlatLaf's error outline and a red-tinted background, or the normal look. */
     public void showError(boolean error) {
         putClientProperty("JComponent.outline", error ? "error" : null);
+        repaint();
+    }
+
+    /** In error, the theme's background tinted with its error red, both read now (the theme may change). */
+    @Override
+    public Color getBackground() {
+        Color background = super.getBackground();
+        if (background == null || !showsError()) {
+            return background;
+        }
+        Color red = ProblemBadge.themeErrorColor();
+        return new Color(mix(background.getRed(), red.getRed()), mix(background.getGreen(), red.getGreen()),
+                mix(background.getBlue(), red.getBlue()));
+    }
+
+    private static int mix(int base, int tint) {
+        return (int) Math.round(base + (tint - base) * ERROR_TINT);
     }
 
     public boolean showsError() {
