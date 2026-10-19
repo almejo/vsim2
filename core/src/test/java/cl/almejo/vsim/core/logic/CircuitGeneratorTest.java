@@ -25,6 +25,7 @@ import cl.almejo.vsim.core.value.Value;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -35,12 +36,15 @@ import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.fail;
 
 class CircuitGeneratorTest {
 
     private static final List<String> INPUT_NAMES = List.of("A", "B", "C", "D", "E", "F", "G", "H");
     private static final List<String> OUTPUT_NAMES = List.of("P", "Q", "R", "S", "T", "U", "V", "W");
     private static final ComponentTypeRegistry REGISTRY = StandardComponentTypes.registry();
+    /** Random tables up to this many inputs also go through the simulator (it is slow on 6..8 inputs). */
+    private static final int SIMULATED_INPUTS = 5;
 
     @Test
     void theBcdExampleBuildsTheCircuitOfTheTalk() {
@@ -79,21 +83,46 @@ class CircuitGeneratorTest {
     }
 
     @Test
-    void randomTablesGiveCircuitsThatMatchTheTableInEveryStyle() {
+    void randomNetworksMatchTheirTableInEveryStyleFormAndSharing() {
+        // The gate network itself, evaluated row by row without the simulator: hundreds of tables in well under a
+        // second. Circuits built from networks go through the simulator in the other tests, on chosen tables.
         Random random = new Random(20261019L);
         int checked = 0;
-        for (int round = 0; round < 24; round++) {
+        for (int round = 0; round < 200; round++) {
+            TruthTableSpec spec = randomSpec(random, 1 + random.nextInt(8), 1 + random.nextInt(8), 0.6);
+            for (Form form : Form.values()) {
+                Minimization minimization = Minimizer.minimize(spec, form);
+                for (GateStyle style : GateStyle.values()) {
+                    for (boolean share : List.of(true, false)) {
+                        GeneratorOptions options = new GeneratorOptions(style, form, share);
+                        LogicNetwork network = LogicNetwork.of(minimization, options);
+                        assertNetworkMatches(spec, network, options);
+                        assertThat(CircuitGenerator.cost(minimization, options)).isEqualTo(network.cost());
+                        checked++;
+                    }
+                }
+            }
+        }
+        assertThat(checked).isEqualTo(200 * 12);
+    }
+
+    @Test
+    void randomTablesGiveCleanLayoutsAndTheSmallOnesMatchThroughTheSimulator() {
+        Random random = new Random(20261019L);
+        for (int round = 0; round < 12; round++) {
             int inputs = 2 + random.nextInt(7);
             int outputs = 1 + random.nextInt(inputs > 6 ? 3 : 8);
             TruthTableSpec spec = randomSpec(random, inputs, outputs);
             for (GateStyle style : GateStyle.values()) {
                 Form form = random.nextBoolean() ? Form.SUM_OF_PRODUCTS : Form.PRODUCT_OF_SUMS;
-                boolean share = random.nextBoolean();
-                checkEverything(spec, new GeneratorOptions(style, form, share));
-                checked++;
+                GeneratorOptions options = new GeneratorOptions(style, form, random.nextBoolean());
+                if (inputs <= SIMULATED_INPUTS) {
+                    checkEverything(spec, options);
+                } else {
+                    checkLayoutAndNetwork(spec, options);
+                }
             }
         }
-        assertThat(checked).isEqualTo(72);
     }
 
     @Test
@@ -104,11 +133,25 @@ class CircuitGeneratorTest {
         for (TruthTableSpec spec : specs) {
             for (GateStyle style : GateStyle.values()) {
                 for (Form form : Form.values()) {
-                    checkEverything(spec, new GeneratorOptions(style, form, true));
-                    checkEverything(spec, new GeneratorOptions(style, form, false));
+                    for (boolean share : List.of(true, false)) {
+                        GeneratorOptions options = new GeneratorOptions(style, form, share);
+                        if (spec.inputCount() <= SIMULATED_INPUTS) {
+                            checkEverything(spec, options);
+                        } else {
+                            checkLayoutAndNetwork(spec, options);
+                        }
+                    }
                 }
             }
         }
+    }
+
+    @Test
+    void chosenLargeTablesMatchThroughTheSimulator() {
+        // A 4-bit adder (8 inputs, 5 outputs) and 8-input parity without sharing (128 terms of 8 literals, deep
+        // NAND trees): the worst cases of the import, through the real simulator once each.
+        checkEverything(adder(), GeneratorOptions.DEFAULTS);
+        checkEverything(parity(), new GeneratorOptions(GateStyle.NAND_ONLY, Form.SUM_OF_PRODUCTS, false));
     }
 
     @Test
@@ -220,7 +263,15 @@ class CircuitGeneratorTest {
 
     // --- helpers ---
 
+    /** {@link #checkLayoutAndNetwork}, then the circuit's truth table through the simulator. */
     private static GeneratedCircuit checkEverything(TruthTableSpec spec, GeneratorOptions options) {
+        GeneratedCircuit circuit = checkLayoutAndNetwork(spec, options);
+        assertMatches(spec, circuit);
+        return circuit;
+    }
+
+    /** The layout is clean, the cost is the built gates, and the gate network gives the table (no simulator). */
+    private static GeneratedCircuit checkLayoutAndNetwork(TruthTableSpec spec, GeneratorOptions options) {
         Minimization minimization = Minimizer.minimize(spec, options.form());
         GeneratedCircuit circuit = CircuitGenerator.generate(spec, minimization, options, REGISTRY);
         String context = options + " on " + spec.inputCount() + "x" + spec.outputCount() + " " + spec.outputs();
@@ -232,8 +283,80 @@ class CircuitGeneratorTest {
         assertThat(circuit.fragment().frames()).as(context).hasSize(1);
         assertThat(CircuitGenerator.cost(minimization, options)).as(context).isEqualTo(circuit.cost());
         assertThat(countGates(circuit.fragment())).as(context).isEqualTo(circuit.gatesByType());
-        assertMatches(spec, circuit);
+        assertNetworkMatches(spec, LogicNetwork.of(minimization, options), options);
         return circuit;
+    }
+
+    /**
+     * Evaluates {@code network} without the simulator and compares each output with the table, X rows aside; also
+     * checks each gate's fan-in and that a style uses only its own gates. Every signal is a bit set over the rows
+     * (bit {@code row} is its value on that row), so one pass over the gates (sources come first) evaluates all
+     * rows at once.
+     */
+    private static void assertNetworkMatches(TruthTableSpec spec, LogicNetwork network, GeneratorOptions options) {
+        Set<String> families = switch (options.gates()) {
+            case NAND_ONLY -> Set.of("nand");
+            case NOR_ONLY -> Set.of("nor");
+            case AND_OR_NOT -> Set.of("and", "or", "not");
+        };
+        int words = (spec.rowCount() + Long.SIZE - 1) / Long.SIZE;
+        long[][] gateValues = new long[network.gates().size()][];
+        for (int index = 0; index < gateValues.length; index++) {
+            LogicNetwork.Gate gate = network.gates().get(index);
+            String family = gate.typeId().replaceAll("\\d", "");
+            if (!families.contains(family) || gate.inputs().isEmpty()
+                    || gate.inputs().size() > LogicNetwork.MAXIMUM_FAN_IN) {
+                fail("%s: gate %s with %d inputs", options, gate.typeId(), gate.inputs().size());
+            }
+            boolean conjunction = family.equals("and") || family.equals("nand") || family.equals("not");
+            boolean negated = !family.equals("and") && !family.equals("or");
+            long[] value = new long[words];
+            Arrays.fill(value, conjunction ? -1L : 0L);
+            for (LogicNetwork.Signal input : gate.inputs()) {
+                long[] operand = signalValue(input, spec, gateValues);
+                for (int word = 0; word < words; word++) {
+                    value[word] = conjunction ? value[word] & operand[word] : value[word] | operand[word];
+                }
+            }
+            if (negated) {
+                for (int word = 0; word < words; word++) {
+                    value[word] = ~value[word];
+                }
+            }
+            gateValues[index] = value;
+        }
+        for (int output = 0; output < spec.outputCount(); output++) {
+            long[] actual = signalValue(network.outputs().get(output), spec, gateValues);
+            for (int row = 0; row < spec.rowCount(); row++) {
+                LogicValue expected = spec.value(output, row);
+                boolean value = (actual[row / Long.SIZE] >>> (row % Long.SIZE) & 1) == 1;
+                if (expected != LogicValue.DONT_CARE && value != (expected == LogicValue.ONE)) {
+                    fail("%s: output %d row %d of %s", options, output, row, spec.outputs());
+                }
+            }
+        }
+    }
+
+    private static long[] signalValue(LogicNetwork.Signal signal, TruthTableSpec spec, long[][] gateValues) {
+        int words = (spec.rowCount() + Long.SIZE - 1) / Long.SIZE;
+        return switch (signal) {
+            case LogicNetwork.GateSignal gate -> gateValues[gate.gate()];
+            case LogicNetwork.ConstantSignal constant -> {
+                long[] value = new long[words];
+                Arrays.fill(value, constant.value() ? -1L : 0L);
+                yield value;
+            }
+            case LogicNetwork.InputSignal input -> {
+                long[] value = new long[words];
+                int shift = spec.inputCount() - 1 - input.input();
+                for (int row = 0; row < spec.rowCount(); row++) {
+                    if ((row >> shift & 1) == 1) {
+                        value[row / Long.SIZE] |= 1L << (row % Long.SIZE);
+                    }
+                }
+                yield value;
+            }
+        };
     }
 
     private static Map<String, Integer> countGates(CircuitFragment fragment) {
@@ -307,8 +430,35 @@ class CircuitGeneratorTest {
                 List.of(column(16, List.of(2, 3, 5, 7), notDigits), column(16, List.of(5, 6, 7, 8, 9), notDigits)));
     }
 
+    /** 4-bit A + B (A = inputs A..D, B = E..H): the sum S3..S0 and the carry Cout. */
+    private static TruthTableSpec adder() {
+        List<List<LogicValue>> columns = new ArrayList<>();
+        for (int bit = 3; bit >= -1; bit--) {
+            List<LogicValue> column = new ArrayList<>();
+            for (int row = 0; row < 256; row++) {
+                int sum = (row >> 4) + (row & 0xF);
+                column.add((sum >> (bit < 0 ? 4 : bit) & 1) == 1 ? LogicValue.ONE : LogicValue.ZERO);
+            }
+            columns.add(column);
+        }
+        return new TruthTableSpec("Sumador", INPUT_NAMES, List.of("S3", "S2", "S1", "S0", "Cout"), columns);
+    }
+
+    /** The parity of 8 inputs: 128 minterms, no two of which combine. */
+    private static TruthTableSpec parity() {
+        List<LogicValue> column = new ArrayList<>();
+        for (int row = 0; row < 256; row++) {
+            column.add(Integer.bitCount(row) % 2 == 1 ? LogicValue.ONE : LogicValue.ZERO);
+        }
+        return new TruthTableSpec("Paridad", INPUT_NAMES, List.of("Impar"), List.of(column));
+    }
+
     private static TruthTableSpec randomSpec(Random random, int inputs, int outputs) {
-        double dontCare = random.nextDouble() * 0.3;
+        return randomSpec(random, inputs, outputs, 0.3);
+    }
+
+    private static TruthTableSpec randomSpec(Random random, int inputs, int outputs, double maximumDontCare) {
+        double dontCare = random.nextDouble() * maximumDontCare;
         double ones = 0.2 + random.nextDouble() * 0.6;
         List<List<LogicValue>> columns = new ArrayList<>();
         for (int output = 0; output < outputs; output++) {

@@ -3,12 +3,16 @@ package cl.almejo.vsim.core.logic;
 import cl.almejo.vsim.core.logic.Minimization.Form;
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertTimeout;
 
 class MinimizerTest {
 
@@ -98,11 +102,14 @@ class MinimizerTest {
     }
 
     @Test
-    void everyFunctionOfThreeInputsIsMinimal() {
-        for (int code = 0; code < 256; code++) {
+    void everyFunctionOfThreeInputsWithDontCaresIsMinimal() {
+        // All 3^8 = 6 561 functions, every cell 0, 1 or X, in both forms.
+        for (int code = 0; code < 6561; code++) {
             List<LogicValue> values = new ArrayList<>();
+            int remaining = code;
             for (int row = 0; row < 8; row++) {
-                values.add((code >> row & 1) == 1 ? LogicValue.ONE : LogicValue.ZERO);
+                values.add(LogicValue.values()[remaining % 3]);
+                remaining /= 3;
             }
             checkAgainstBruteForce(values, 3);
         }
@@ -128,22 +135,22 @@ class MinimizerTest {
 
     @Test
     void randomLargerFunctionsAreEquivalentAndFast() {
-        Random random = new Random(42L);
-        for (int inputs = 5; inputs <= 8; inputs++) {
-            for (int sample = 0; sample < 12; sample++) {
-                List<LogicValue> values = randomValues(random, 1 << inputs, sample % 3 == 0 ? 0.0 : 0.2);
-                TruthTableSpec spec = spec(inputs, values);
-                for (Form form : Form.values()) {
-                    long start = System.nanoTime();
-                    List<Term> terms = Minimizer.minimize(spec, form).outputs().get(0).terms();
-                    long elapsedMilliseconds = (System.nanoTime() - start) / 1_000_000;
-                    LogicValue covered = form == Form.SUM_OF_PRODUCTS ? LogicValue.ONE : LogicValue.ZERO;
-                    assertCoversExactly(values, covered, terms);
-                    assertThat(elapsedMilliseconds).as("%d inputs, sample %d, %s", inputs, sample, form)
-                            .isLessThan(200);
+        // The search is bounded by Minimizer.NODE_BUDGET; one generous limit for the whole loop (about 0.1 s on a
+        // quiet machine) catches a runaway without tripping on a GC pause or a cold JIT the way a per-call limit did.
+        assertTimeout(Duration.ofSeconds(10), () -> {
+            Random random = new Random(42L);
+            for (int inputs = 5; inputs <= 8; inputs++) {
+                for (int sample = 0; sample < 12; sample++) {
+                    List<LogicValue> values = randomValues(random, 1 << inputs, sample % 3 == 0 ? 0.0 : 0.2);
+                    TruthTableSpec spec = spec(inputs, values);
+                    for (Form form : Form.values()) {
+                        List<Term> terms = Minimizer.minimize(spec, form).outputs().get(0).terms();
+                        LogicValue covered = form == Form.SUM_OF_PRODUCTS ? LogicValue.ONE : LogicValue.ZERO;
+                        assertCoversExactly(values, covered, terms);
+                    }
                 }
             }
-        }
+        });
     }
 
     @Test
@@ -156,11 +163,9 @@ class MinimizerTest {
         TruthTableSpec spec = new TruthTableSpec("T", NAMES, List.of("P", "Q", "R", "S", "T", "U", "V", "W"),
                 outputs);
 
-        long start = System.nanoTime();
-        Minimization minimization = Minimizer.minimize(spec, Form.SUM_OF_PRODUCTS);
-        long elapsedMilliseconds = (System.nanoTime() - start) / 1_000_000;
+        Minimization minimization = assertTimeout(Duration.ofSeconds(10),
+                () -> Minimizer.minimize(spec, Form.SUM_OF_PRODUCTS));
 
-        assertThat(elapsedMilliseconds).isLessThan(1600);
         assertThat(minimization.outputs()).hasSize(8);
         for (int output = 0; output < 8; output++) {
             assertThat(minimization.outputs().get(output).output()).isEqualTo(output);
@@ -231,77 +236,61 @@ class MinimizerTest {
             LogicValue covered = form == Form.SUM_OF_PRODUCTS ? LogicValue.ONE : LogicValue.ZERO;
             List<Term> terms = Minimizer.minimize(spec, form).outputs().get(0).terms();
             assertCoversExactly(values, covered, terms);
+            assertThat(Minimizer.minimize(spec, form).outputs().get(0).terms()).as("deterministic").isEqualTo(terms);
             int[] best = bruteForceMinimum(values, covered, inputs);
             assertThat(new int[] {terms.size(), literalCount(terms)}).as("%s %s", form, values)
                     .containsExactly(best);
         }
     }
 
-    /** The minimum (term count, literal count) over every set of implicants, primes or not. */
+    /**
+     * The minimum (term count, literal count) over every set of implicants, primes or not, independent of the
+     * minimizer: a dynamic program over the subsets of the rows still to cover. The lowest open row must be covered
+     * by some implicant, so trying each implicant that covers it and solving the rest finds the minimum.
+     */
     private static int[] bruteForceMinimum(List<LogicValue> values, LogicValue covered, int inputs) {
         LogicValue avoided = covered == LogicValue.ONE ? LogicValue.ZERO : LogicValue.ONE;
-        List<Integer> required = new ArrayList<>();
+        int required = 0;
+        int forbidden = 0;
         for (int row = 0; row < values.size(); row++) {
-            if (values.get(row) == covered) {
-                required.add(row);
-            }
+            required |= values.get(row) == covered ? 1 << row : 0;
+            forbidden |= values.get(row) == avoided ? 1 << row : 0;
         }
-        if (required.isEmpty()) {
-            return new int[] {0, 0};
-        }
-        List<Term> implicants = new ArrayList<>();
+        List<int[]> implicants = new ArrayList<>(); // {rows covered as bits, literal count}
         for (Term term : allTerms(inputs)) {
-            boolean valid = true;
+            int rows = 0;
             for (int row = 0; row < values.size(); row++) {
-                if (term.covers(row) && values.get(row) == avoided) {
-                    valid = false;
-                    break;
-                }
+                rows |= term.covers(row) ? 1 << row : 0;
             }
-            if (valid) {
-                implicants.add(term);
+            if ((rows & forbidden) == 0) {
+                implicants.add(new int[] {rows, term.literalCount()});
             }
         }
-        for (int size = 1; size <= implicants.size(); size++) {
-            int bestLiterals = Integer.MAX_VALUE;
-            int[] chosen = new int[size];
-            bestLiterals = combinations(implicants, required, chosen, 0, 0, bestLiterals);
-            if (bestLiterals != Integer.MAX_VALUE) {
-                return new int[] {size, bestLiterals};
-            }
-        }
-        throw new AssertionError("no cover");
+        return cheapestCover(required, implicants, new HashMap<>());
     }
 
-    private static int combinations(List<Term> implicants, List<Integer> required, int[] chosen, int depth,
-                                    int start, int bestLiterals) {
-        if (depth == chosen.length) {
-            int literals = 0;
-            for (int index : chosen) {
-                literals += implicants.get(index).literalCount();
-            }
-            if (literals >= bestLiterals) {
-                return bestLiterals;
-            }
-            for (int row : required) {
-                boolean rowCovered = false;
-                for (int index : chosen) {
-                    if (implicants.get(index).covers(row)) {
-                        rowCovered = true;
-                        break;
-                    }
-                }
-                if (!rowCovered) {
-                    return bestLiterals;
+    private static int[] cheapestCover(int open, List<int[]> implicants, Map<Integer, int[]> known) {
+        if (open == 0) {
+            return new int[] {0, 0};
+        }
+        int[] remembered = known.get(open);
+        if (remembered != null) {
+            return remembered;
+        }
+        int lowest = Integer.lowestOneBit(open);
+        int[] best = {Integer.MAX_VALUE, Integer.MAX_VALUE};
+        for (int[] implicant : implicants) {
+            if ((implicant[0] & lowest) != 0) {
+                int[] rest = cheapestCover(open & ~implicant[0], implicants, known);
+                int terms = rest[0] + 1;
+                int literals = rest[1] + implicant[1];
+                if (terms < best[0] || terms == best[0] && literals < best[1]) {
+                    best = new int[] {terms, literals};
                 }
             }
-            return literals;
         }
-        for (int index = start; index < implicants.size(); index++) {
-            chosen[depth] = index;
-            bestLiterals = combinations(implicants, required, chosen, depth + 1, index + 1, bestLiterals);
-        }
-        return bestLiterals;
+        known.put(open, best);
+        return best;
     }
 
     static List<Term> allTerms(int inputs) {
