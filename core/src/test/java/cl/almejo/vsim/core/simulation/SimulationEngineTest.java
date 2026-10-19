@@ -76,6 +76,20 @@ class SimulationEngineTest {
     }
 
     @Test
+    void aNetValueIsReadWithoutASnapshotAndAnUnknownNetIsHighImpedance() {
+        ElementId source = place(TestComponentTypes.SOURCE, 0, 0, Map.of("value", "1"));
+        ElementId buffer = place(TestComponentTypes.BUFFER, 2, 0, Map.of("delay", 3));
+        synchronize();
+        engine.advance(3);
+        String netId = netlist.netForPin(new PinRef(buffer, 1)).orElseThrow().id().value();
+
+        assertThat(engine.netValue(netId)).isEqualTo(Value.ONE).isEqualTo(engine.snapshot().netValue(netId));
+        assertThat(engine.netValue(netlist.netForPin(new PinRef(source, 0)).orElseThrow().id().value()))
+                .isEqualTo(Value.ONE);
+        assertThat(engine.netValue("no-such-net")).isEqualTo(Value.HIGH_IMPEDANCE);
+    }
+
+    @Test
     void nextEventTimeIsThePendingGateOutputAndEmptyOnceStable() {
         assertThat(engine.nextEventTime()).isEmpty();
         place(TestComponentTypes.SOURCE, 0, 0, Map.of("value", "1"));

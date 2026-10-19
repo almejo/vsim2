@@ -421,6 +421,15 @@ public final class SimulationEngine {
         return recorder.snapshot(now());
     }
 
+    /**
+     * The value net {@code netId} (or one of its aliases) carries now, as {@link #snapshot()} would give it, without
+     * copying every net: high impedance for an unknown id.
+     */
+    public Value netValue(String netId) {
+        RuntimeNet net = netWithId(netId);
+        return net == null ? Value.HIGH_IMPEDANCE : net.value;
+    }
+
     private RuntimeNet netWithId(String id) {
         RuntimeNet net = nets.get(id);
         return net != null ? net : aliasRoots.get(id);

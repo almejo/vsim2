@@ -13,6 +13,7 @@ import cl.almejo.vsim.core.library.DefinitionBuilder;
 import cl.almejo.vsim.core.library.DefinitionBundle;
 import cl.almejo.vsim.core.library.PinOrder;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
+import cl.almejo.vsim.core.simulation.SimulationEngine;
 import cl.almejo.vsim.core.truthtable.Column;
 import cl.almejo.vsim.core.truthtable.Preparation;
 import cl.almejo.vsim.core.truthtable.Row;
@@ -27,6 +28,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.OptionalLong;
 import java.util.Set;
 
 /**
@@ -65,6 +67,11 @@ public final class TableCircuits {
     /**
      * Evaluates {@code fragment}'s truth table and compares it with {@code spec} on every row that is not X
      * («✓ El circuito cumple la tabla»). An unsettled row counts as a mismatch.
+     * <p>
+     * A generated circuit is combinational (gates only, no loop), so what it settles to depends only on the inputs:
+     * the rows run on one engine, in Gray-code order (one input changes from a row to the next), which is many times
+     * faster than {@link TruthTableEvaluator}'s fresh engine per row on the large tables of the import. A circuit with
+     * a loop (never a generated one) goes through the evaluator.
      */
     public static Check check(TruthTableSpec spec, CircuitFragment fragment, ComponentTypeRegistry registry) {
         CircuitDocument document = scratch(fragment);
@@ -73,20 +80,68 @@ public final class TableCircuits {
                 || !names(ready.outputs()).equals(spec.outputNames())) {
             return new Check(false, List.of());
         }
+        return new Check(true, ready.hasFeedback() ? evaluatedMismatches(spec, ready) : settledMismatches(spec, ready));
+    }
+
+    private static List<Mismatch> evaluatedMismatches(TruthTableSpec spec, Preparation.Ready ready) {
         TruthTable table = TruthTableEvaluator.evaluate(ready, percent -> {
         }, () -> false).orElseThrow();
         List<Mismatch> mismatches = new ArrayList<>();
         for (int row = 0; row < spec.rowCount(); row++) {
             Row computed = table.rows().get(row);
             for (int output = 0; output < spec.outputCount(); output++) {
-                LogicValue expected = spec.value(output, row);
-                if (expected != LogicValue.DONT_CARE && (!computed.settled()
-                        || !computed.outputs().get(output).equals(Value.of(expected == LogicValue.ONE)))) {
-                    mismatches.add(new Mismatch(row, spec.outputNames().get(output), expected));
-                }
+                compare(spec, row, output, computed.settled(), computed.outputs().get(output), mismatches);
             }
         }
-        return new Check(true, mismatches);
+        return mismatches;
+    }
+
+    private static List<Mismatch> settledMismatches(TruthTableSpec spec, Preparation.Ready ready) {
+        SimulationEngine engine = new SimulationEngine();
+        engine.update(ready.circuit());
+        List<Mismatch> mismatches = new ArrayList<>();
+        int previous = -1;
+        for (int index = 0; index < spec.rowCount(); index++) {
+            int row = index ^ index >> 1;
+            for (int input = 0; input < spec.inputCount(); input++) {
+                if (previous < 0 || spec.inputValue(row, input) != spec.inputValue(previous, input)) {
+                    engine.setInput(ready.inputs().get(input).componentId(), Value.of(spec.inputValue(row, input)));
+                }
+            }
+            previous = row;
+            boolean settled = settle(engine);
+            for (int output = 0; output < spec.outputCount(); output++) {
+                Value value = engine.netValue(ready.outputNets().get(ready.outputs().get(output).componentId()));
+                compare(spec, row, output, settled, value, mismatches);
+            }
+        }
+        mismatches.sort(Comparator.comparingInt(Mismatch::row)
+                .thenComparingInt(mismatch -> spec.outputNames().indexOf(mismatch.output())));
+        return mismatches;
+    }
+
+    /** Runs the engine until nothing is pending, within the evaluator's limits; false when it did not settle. */
+    private static boolean settle(SimulationEngine engine) {
+        long start = engine.now();
+        for (int step = 0; step < TruthTableEvaluator.SETTLE_STEP_LIMIT; step++) {
+            OptionalLong next = engine.nextEventTime();
+            if (next.isEmpty()) {
+                return true;
+            }
+            if (next.getAsLong() - start > TruthTableEvaluator.SETTLE_TIME_LIMIT) {
+                return false;
+            }
+            engine.runUntil(next.getAsLong());
+        }
+        return engine.nextEventTime().isEmpty();
+    }
+
+    private static void compare(TruthTableSpec spec, int row, int output, boolean settled, Value value,
+                                List<Mismatch> mismatches) {
+        LogicValue expected = spec.value(output, row);
+        if (expected != LogicValue.DONT_CARE && (!settled || !value.equals(Value.of(expected == LogicValue.ONE)))) {
+            mismatches.add(new Mismatch(row, spec.outputNames().get(output), expected));
+        }
     }
 
     /**

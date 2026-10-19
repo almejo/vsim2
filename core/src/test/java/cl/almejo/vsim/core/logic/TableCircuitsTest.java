@@ -11,13 +11,17 @@ import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.DefinitionBundle;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.core.truthtable.Column;
+import cl.almejo.vsim.core.truthtable.Preparation;
 import cl.almejo.vsim.core.truthtable.Row;
 import cl.almejo.vsim.core.truthtable.TruthTable;
+import cl.almejo.vsim.core.truthtable.TruthTableEvaluator;
+import cl.almejo.vsim.core.truthtable.TruthTableScope;
 import cl.almejo.vsim.core.value.Value;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -60,6 +64,40 @@ class TableCircuitsTest {
         assertThat(check.passed()).isFalse();
         // Row 15 was X in the circuit's table: whatever the circuit gives there may differ from 1.
         assertThat(check.mismatches()).first().isEqualTo(new TableCircuits.Mismatch(0, "P", LogicValue.ONE));
+    }
+
+    @Test
+    void theCheckFindsWhatTheEvaluatorFindsRowByRowInTableOrder() {
+        // The check runs the rows on one engine in Gray-code order; the mismatches must be those of a fresh engine per
+        // row (the evaluator of Herramientas ▸ Tabla de verdad), in row order then output order.
+        TruthTableSpec spec = bcd();
+        CircuitFragment fragment = generated(spec).fragment();
+        TruthTableSpec other = spec;
+        for (int row : List.of(0, 3, 4, 9, 12, 13)) {
+            for (int output = 0; output < 2; output++) {
+                other = other.withValue(output, row, (row + output) % 2 == 0 ? LogicValue.ONE : LogicValue.ZERO);
+            }
+        }
+        CircuitDocument document = new CircuitDocument();
+        new PasteCommand(fragment, GridPoint.ORIGIN).apply(document);
+        TruthTable table = TruthTableEvaluator.evaluate((Preparation.Ready) TruthTableScope.prepare(document,
+                Set.of(), REGISTRY), percent -> {
+                }, () -> false).orElseThrow();
+        List<TableCircuits.Mismatch> expected = new ArrayList<>();
+        for (int row = 0; row < 16; row++) {
+            for (int output = 0; output < 2; output++) {
+                LogicValue wanted = other.value(output, row);
+                if (wanted != LogicValue.DONT_CARE
+                        && !table.rows().get(row).outputs().get(output).equals(Value.of(wanted == LogicValue.ONE))) {
+                    expected.add(new TableCircuits.Mismatch(row, other.outputNames().get(output), wanted));
+                }
+            }
+        }
+
+        TableCircuits.Check check = TableCircuits.check(other, fragment, REGISTRY);
+
+        assertThat(expected).hasSizeGreaterThan(3);
+        assertThat(check.mismatches()).isEqualTo(expected);
     }
 
     @Test
