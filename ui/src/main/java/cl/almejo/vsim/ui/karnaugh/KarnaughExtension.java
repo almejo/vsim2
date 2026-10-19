@@ -12,7 +12,10 @@ import javax.swing.Action;
 import javax.swing.JMenu;
 import javax.swing.JMenuItem;
 import java.awt.event.ActionEvent;
+import java.nio.file.Path;
+import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 /**
  * Adds Herramientas ▸ «Circuito desde tabla de verdad…» and «Circuito desde expresiones…», and Archivo ▸ Importar ▸
@@ -35,10 +38,14 @@ public final class KarnaughExtension implements EditorExtension {
     private final Function<EditorView, CreationTarget> targets;
     private final Background background;
 
-    /** The real dialog, the generator's cost, the library of {@code service}, circuits built off the EDT. */
-    public KarnaughExtension(LibraryService service) {
+    /**
+     * The real dialog, the generator's cost, the library of {@code service}, circuits built off the EDT; the import's
+     * file chooser opens in {@code startDirectory} and reports the chosen file to {@code chosen} (the folder «Abrir»
+     * uses and remembers).
+     */
+    public KarnaughExtension(LibraryService service, Supplier<Path> startDirectory, Consumer<Path> chosen) {
         this(KarnaughWizard.Opener.dialog(), TableImportPanel.Opener.dialog(), ExpressionsPanel.Opener.dialog(),
-                TableSources.system(), KarnaughCost.GENERATOR, view -> new ViewCreationTarget(view, service),
+                TableSources.system(startDirectory, chosen), KarnaughCost.GENERATOR, view -> new ViewCreationTarget(view, service),
                 Background.application());
     }
 

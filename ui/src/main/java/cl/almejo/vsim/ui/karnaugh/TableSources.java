@@ -21,6 +21,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 /**
@@ -40,9 +41,34 @@ public record TableSources(Chooser chooser, Supplier<Optional<String>> clipboard
         Optional<Path> choose(Component parent);
     }
 
-    /** The file chooser and the system clipboard. */
-    public static TableSources system() {
-        return new TableSources(TableSources::chooseFile, TableSources::clipboardText);
+    /** Shows a file chooser over a component and answers how it was closed ({@link JFileChooser#APPROVE_OPTION}…). */
+    @FunctionalInterface
+    interface ChooserDialog {
+        int show(JFileChooser chooser, Component parent);
+    }
+
+    /**
+     * The file chooser and the system clipboard. The chooser opens in {@code startDirectory} (the folder «Abrir»
+     * uses) and hands the chosen file to {@code chosen}, so the next «Abrir» or import starts there too.
+     */
+    public static TableSources system(Supplier<Path> startDirectory, Consumer<Path> chosen) {
+        return new TableSources(fileChooser(startDirectory, chosen, (chooser, parent) -> chooser.showOpenDialog(parent)),
+                TableSources::clipboardText);
+    }
+
+    static Chooser fileChooser(Supplier<Path> startDirectory, Consumer<Path> chosen, ChooserDialog dialog) {
+        return parent -> {
+            JFileChooser chooser = new JFileChooser(startDirectory.get().toFile());
+            chooser.setDialogTitle(Messages.text("tableImport.choose.title"));
+            chooser.setFileFilter(new FileNameExtensionFilter(Messages.text("tableImport.choose.filter"),
+                    "xlsx", "csv", "tsv", "txt"));
+            if (dialog.show(chooser, parent) != JFileChooser.APPROVE_OPTION) {
+                return Optional.empty();
+            }
+            Path file = chooser.getSelectedFile().toPath();
+            chosen.accept(file);
+            return Optional.of(file);
+        };
     }
 
     /** Reads {@code file}: an {@code .xlsx} as a workbook, anything else as separated text (UTF-8, else Latin-1). */
@@ -78,15 +104,6 @@ public record TableSources(Chooser chooser, Supplier<Optional<String>> clipboard
         } catch (CharacterCodingException exception) {
             return new String(bytes, StandardCharsets.ISO_8859_1);
         }
-    }
-
-    private static Optional<Path> chooseFile(Component parent) {
-        JFileChooser chooser = new JFileChooser();
-        chooser.setDialogTitle(Messages.text("tableImport.choose.title"));
-        chooser.setFileFilter(new FileNameExtensionFilter(Messages.text("tableImport.choose.filter"),
-                "xlsx", "csv", "tsv", "txt"));
-        return chooser.showOpenDialog(parent) == JFileChooser.APPROVE_OPTION
-                ? Optional.of(chooser.getSelectedFile().toPath()) : Optional.empty();
     }
 
     private static Optional<String> clipboardText() {

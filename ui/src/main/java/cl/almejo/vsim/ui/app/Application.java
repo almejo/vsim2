@@ -67,6 +67,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 /** Open windows and documents of the running application (EDT only). A document closes with its last window. */
 public final class Application {
@@ -94,7 +95,8 @@ public final class Application {
         this.preferences = preferences;
         this.libraryService = new LibraryService(preferences, library, registry);
         this.services = new EditorServices(PainterRegistry.standard(), appearance, preferences, library,
-                editorExtensions(libraryService, SwingLibraryDialogs.INSTANCE));
+                editorExtensions(libraryService, SwingLibraryDialogs.INSTANCE, this::initialDirectory,
+                        this::rememberDirectory));
         // Lives as long as the application: it follows the preferences and is never disposed.
         this.themeManager = ThemeManager.forCurrentPlatform(preferences, appearance);
         this.textFontManager = new TextFontManager(preferences);
@@ -104,8 +106,19 @@ public final class Application {
         this.autosave = AutosaveService.create(recoveryStore);
     }
 
-    /** The extensions of every editor view, in install order. Package-private so a test can install them all. */
+    /** The extensions with the import's file chooser starting in the user's home and remembering nothing (tests). */
     static List<EditorExtension> editorExtensions(LibraryService libraryService, LibraryDialogs libraryDialogs) {
+        return editorExtensions(libraryService, libraryDialogs, () -> Path.of(System.getProperty("user.home")),
+                path -> { });
+    }
+
+    /**
+     * The extensions of every editor view, in install order. Package-private so a test can install them all.
+     * {@code startDirectory} and {@code chosen} are the folder «Abrir» starts in and remembers, shared with the
+     * table import's file chooser.
+     */
+    static List<EditorExtension> editorExtensions(LibraryService libraryService, LibraryDialogs libraryDialogs,
+                                                  Supplier<Path> startDirectory, Consumer<Path> chosen) {
         List<EditorExtension> editorExtensions = new ArrayList<>();
         // M6: waveforms before ActionIcons, recents after PreferencesFeature, shortcuts last. M6.1: the step mode and
         // the truth table before ActionIcons, the examples after RecentFilesFeature (its submenu goes after «Recientes»).
@@ -118,7 +131,7 @@ public final class Application {
         editorExtensions.add(new TidyWiresExtension());
         editorExtensions.add(new FramesExtension());
         editorExtensions.add(new WiresFollowExtension());
-        editorExtensions.add(new KarnaughExtension(libraryService));
+        editorExtensions.add(new KarnaughExtension(libraryService, startDirectory, chosen));
         editorExtensions.add(new FindExtension());
         editorExtensions.add(new ActionIcons());
         editorExtensions.add(new PreferencesFeature());
