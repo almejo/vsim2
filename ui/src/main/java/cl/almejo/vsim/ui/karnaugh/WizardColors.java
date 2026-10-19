@@ -65,6 +65,14 @@ final class WizardColors {
         return dark() ? blend(Color.BLACK, background(), 0.12) : blend(foreground(), background(), 0.04);
     }
 
+    /**
+     * The faint outline of the legend's operator buttons, so they read as buttons before the mouse is over them:
+     * between the panel and the text, nearer the panel.
+     */
+    static Color legendButtonEdge() {
+        return blend(foreground(), sidePanel(), 0.28);
+    }
+
     /** The thin line on the side panel's edge. */
     static Color sidePanelEdge() {
         return gridLine();

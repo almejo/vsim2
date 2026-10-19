@@ -10,6 +10,9 @@ import javax.swing.JPanel;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Font;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
 import java.util.EnumMap;
 import java.util.Map;
 import java.util.function.Consumer;
@@ -73,11 +76,12 @@ final class ExpressionLegend extends WidthTrackingPanel {
             if (row.insertion.isEmpty()) {
                 content.add(new JLabel(""), "top");
             } else {
-                JButton button = new JButton(row.insertion);
+                JButton button = new OutlinedButton(row.insertion);
                 button.setToolTipText(Messages.text("expressions.legend.insert"));
                 button.setFocusable(false); // the caret stays in the line being typed
                 button.putClientProperty("JComponent.minimumWidth", BUTTON_WIDTH); // FlatLaf's default is wider
-                // Flat and light, like a toolbar button: the legend is a reference, not a row of commands.
+                // Flat and light, like a toolbar button (the legend is a reference, not a row of commands), with a faint
+                // outline so it still reads as clickable before the mouse is over it.
                 button.putClientProperty("JButton.buttonType", "toolBarButton");
                 button.setFont(button.getFont().deriveFont(Font.BOLD));
                 button.addActionListener(event -> insert.accept(row.insertion));
@@ -180,5 +184,29 @@ final class ExpressionLegend extends WidthTrackingPanel {
     /** The example of a row (after its detail), or null for a row without one. */
     JLabel example(Row row) {
         return examples.get(row);
+    }
+
+    /** A toolbar-style button with a faint rounded outline, its colour read at paint time (themes change live). */
+    private static final class OutlinedButton extends JButton {
+
+        private static final int ARC = 6;
+
+        OutlinedButton(String text) {
+            super(text);
+        }
+
+        /** After the look and feel's border, so the outline is on top of whatever it draws. */
+        @Override
+        protected void paintBorder(Graphics graphics) {
+            super.paintBorder(graphics);
+            Graphics2D outline = (Graphics2D) graphics.create();
+            try {
+                outline.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                outline.setColor(WizardColors.legendButtonEdge());
+                outline.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, ARC, ARC);
+            } finally {
+                outline.dispose();
+            }
+        }
     }
 }

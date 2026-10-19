@@ -15,6 +15,7 @@ import com.formdev.flatlaf.FlatLightLaf;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import javax.swing.AbstractButton;
 import javax.swing.JScrollPane;
 import javax.swing.JTextField;
 import javax.swing.LookAndFeel;
@@ -24,7 +25,9 @@ import javax.swing.plaf.FontUIResource;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Font;
+import java.awt.Graphics2D;
 import java.awt.event.FocusEvent;
+import java.awt.image.BufferedImage;
 import java.awt.event.FocusListener;
 import java.util.ArrayList;
 import java.util.List;
@@ -189,6 +192,23 @@ class ExpressionsPanelTest {
         assertThat(target.newCircuits).singleElement().satisfies(created ->
                 assertThat(created.fragment().components().stream().map(Component::typeId))
                         .noneMatch(type -> type.startsWith("and") || type.startsWith("or")));
+    }
+
+    @Test
+    void theLegendButtonsHaveAFaintEdgeSoTheyLookClickable() {
+        AbstractButton button = panel.legend().rowButton(ExpressionLegend.Row.OR);
+        Dimension size = button.getPreferredSize();
+        button.setSize(size);
+        BufferedImage image = new BufferedImage(size.width, size.height, BufferedImage.TYPE_INT_RGB);
+        Graphics2D graphics = image.createGraphics();
+        graphics.setColor(WizardColors.sidePanel());
+        graphics.fillRect(0, 0, size.width, size.height);
+        button.paint(graphics);
+        graphics.dispose();
+
+        Color top = new Color(image.getRGB(size.width / 2, 0));
+        assertThat(top).as("the top edge, without hovering").isEqualTo(WizardColors.legendButtonEdge());
+        assertThat(WizardColors.legendButtonEdge()).isNotEqualTo(WizardColors.sidePanel());
     }
 
     @Test
