@@ -369,13 +369,43 @@ class TableImportTest {
         assertThat(TableImport.toSpec(nineInputs, 9, "T").problems())
                 .containsExactly(new ImportProblem(ImportProblem.TOO_MANY_INPUTS, List.of(9, 8), 0, 0));
         assertThat(TableImport.toSpec(nineInputs, 0, "T").problems())
-                .containsExactly(new ImportProblem(ImportProblem.NO_INPUTS, List.of(), 0, 0),
-                        new ImportProblem(ImportProblem.TOO_MANY_OUTPUTS, List.of(10, 8), 0, 0));
+                .containsExactly(new ImportProblem(ImportProblem.NO_INPUTS, List.of(), 0, 0));
         assertThat(TableImport.toSpec(nineInputs, 10, "T").problems())
                 .containsExactly(new ImportProblem(ImportProblem.TOO_MANY_INPUTS, List.of(10, 8), 0, 0),
                         new ImportProblem(ImportProblem.NO_OUTPUTS, List.of(), 0, 0));
-        assertThat(TableImport.toSpec(nineInputs, 1, "T").problems())
-                .containsExactly(new ImportProblem(ImportProblem.TOO_MANY_OUTPUTS, List.of(9, 8), 0, 0));
+        assertThat(TableImport.toSpec(nineInputs, 1, "T").problems()).as("9 outputs are fine").isEmpty();
+
+        ImportedGrid seventeenOutputs = TableImport.readCsv(names("A", 1) + "," + names("Y", 17) + "\n"
+                + "0" + ",0".repeat(17) + "\n");
+        assertThat(TableImport.toSpec(seventeenOutputs, 1, "T").problems())
+                .containsExactly(new ImportProblem(ImportProblem.TOO_MANY_OUTPUTS, List.of(17, 16), 0, 0));
+        assertThat(TableImport.toSpec(seventeenOutputs, 2, "T").problems()).isEmpty();
+    }
+
+    @Test
+    void aDecoderOfFourInputsAndSixteenOutputsIsReadWithItsInputsProposed() {
+        StringBuilder csv = new StringBuilder(names("D", 4) + "," + names("Y", 16) + "\n");
+        for (int row = 0; row < 16; row++) {
+            for (int bit = 3; bit >= 0; bit--) {
+                csv.append(row >> bit & 1).append(',');
+            }
+            for (int output = 0; output < 16; output++) {
+                csv.append(output == row ? 1 : 0).append(output < 15 ? "," : "\n");
+            }
+        }
+        ImportedGrid grid = TableImport.readCsv(csv.toString());
+
+        assertThat(TableImport.proposedInputCount(grid)).isEqualTo(4);
+        TruthTableSpec spec = TableImport.toSpec(grid, 4, "Decodificador").spec().orElseThrow();
+        assertThat(spec.outputCount()).isEqualTo(16);
+        assertThat(spec.value(9, 9)).isEqualTo(LogicValue.ONE);
+        assertThat(spec.value(9, 8)).isEqualTo(LogicValue.ZERO);
+    }
+
+    /** «A0,A1,…» */
+    private static String names(String prefix, int count) {
+        return String.join(",", java.util.stream.IntStream.range(0, count).mapToObj(index -> prefix + index)
+                .toList());
     }
 
     @Test

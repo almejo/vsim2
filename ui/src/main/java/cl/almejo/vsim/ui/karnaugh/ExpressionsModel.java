@@ -27,7 +27,7 @@ import java.util.Set;
  */
 final class ExpressionsModel {
 
-    static final int MAXIMUM_LINES = TruthTableSpec.MAXIMUM_OUTPUTS;
+    static final int MAXIMUM_LINES = ExpressionTable.MAXIMUM_LINES;
 
     /** The names a new line proposes, in order; a name already used (ignoring case) is skipped. */
     private static final String PROPOSED_NAMES = "FGHIJKLMNOPQRSTUVWXYZABCDE";

@@ -685,6 +685,36 @@ class TableImportPanelTest {
                 .as("never larger than the screen").isEqualTo(screen);
     }
 
+    @Test
+    void aDecoderWithSixteenOutputsIsSummarizedAndCreated() throws IOException {
+        StringBuilder csv = new StringBuilder("D3,D2,D1,D0");
+        for (int output = 0; output < 16; output++) {
+            csv.append(",Y").append(output);
+        }
+        csv.append('\n');
+        for (int row = 0; row < 16; row++) {
+            for (int bit = 3; bit >= 0; bit--) {
+                csv.append(row >> bit & 1).append(',');
+            }
+            for (int output = 0; output < 16; output++) {
+                csv.append(output == row ? 1 : 0).append(output < 15 ? "," : "\n");
+            }
+        }
+        chosen = write("decodificador.csv", csv.toString());
+        panel.openFileButton().doClick();
+
+        assertThat(panel.inputCountSpinner().getValue()).isEqualTo(4);
+        assertThat(panel.problemsText()).isEmpty();
+        assertThat(panel.summaryText()).startsWith("4 entradas, 16 salidas → 16 términos, ");
+        next();
+        panel.controls().componentCheckBox().doClick();
+        panel.controls().createButton().doClick();
+        assertThat(target.newCircuits).hasSize(1);
+        assertThat(target.newCircuits.getFirst().notice()).startsWith("✓ El circuito cumple la tabla.");
+        assertThat(target.saved).singleElement().satisfies(bundle -> assertThat(bundle.root().pinout())
+                .hasSize(20));
+    }
+
     private static String parity(int inputs) {
         StringBuilder csv = new StringBuilder();
         for (int input = 0; input < inputs; input++) {

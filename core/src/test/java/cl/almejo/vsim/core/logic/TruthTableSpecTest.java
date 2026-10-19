@@ -52,6 +52,20 @@ class TruthTableSpecTest {
     }
 
     @Test
+    void upToSixteenOutputs() {
+        assertThat(TruthTableSpec.MAXIMUM_OUTPUTS).isEqualTo(16);
+        assertThat(TruthTableSpec.zeros("T", List.of("A"), outputs(16)).outputCount()).isEqualTo(16);
+        assertThatThrownBy(() -> TruthTableSpec.zeros("T", List.of("A"), outputs(17)))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> TruthTableSpec.zeros("T", List.of("A"), List.of()))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    private static List<String> outputs(int count) {
+        return java.util.stream.IntStream.range(0, count).mapToObj(index -> "Y" + index).toList();
+    }
+
+    @Test
     void aTermCoversTheRowsOfItsGroup() {
         // B'C over A, B, C, D: B (bit 2) = 0, C (bit 1) = 1 → rows 2, 3, 10, 11
         Term term = new Term(0b0110, 0b0010);

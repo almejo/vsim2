@@ -18,6 +18,9 @@ import java.util.Set;
  */
 public final class ExpressionTable {
 
+    /** The most lines (outputs) of «Circuito desde expresiones»; tables imported from a file may have more. */
+    public static final int MAXIMUM_LINES = 8;
+
     /**
      * The order of the inputs: names compared piece by piece, letters ignoring case (then with case, so the order is
      * total) and numbers by value ({@code X2} before {@code X10}).
@@ -47,9 +50,9 @@ public final class ExpressionTable {
         if (lines.isEmpty()) {
             problems.add(ExpressionProblem.general(ExpressionProblem.NO_OUTPUTS));
         }
-        if (lines.size() > TruthTableSpec.MAXIMUM_OUTPUTS) {
+        if (lines.size() > MAXIMUM_LINES) {
             problems.add(ExpressionProblem.general(ExpressionProblem.TOO_MANY_OUTPUTS, lines.size(),
-                    TruthTableSpec.MAXIMUM_OUTPUTS));
+                    MAXIMUM_LINES));
         }
         Map<String, String> outputs = new HashMap<>();
         for (ExpressionLine line : lines) {

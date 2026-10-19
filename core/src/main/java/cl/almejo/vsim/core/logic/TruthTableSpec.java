@@ -21,7 +21,8 @@ public record TruthTableSpec(String title, List<String> inputNames, List<String>
                              List<List<LogicValue>> outputs) {
 
     public static final int MAXIMUM_INPUTS = 8;
-    public static final int MAXIMUM_OUTPUTS = 8;
+    /** The import's limit (a decoder of 4 inputs has 16 outputs); the wizard and the expressions have their own. */
+    public static final int MAXIMUM_OUTPUTS = 16;
 
     public TruthTableSpec {
         title = title == null ? "" : title;

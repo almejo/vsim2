@@ -42,7 +42,8 @@ import static org.assertj.core.api.Assertions.fail;
 class CircuitGeneratorTest {
 
     private static final List<String> INPUT_NAMES = List.of("A", "B", "C", "D", "E", "F", "G", "H");
-    private static final List<String> OUTPUT_NAMES = List.of("P", "Q", "R", "S", "T", "U", "V", "W");
+    private static final List<String> OUTPUT_NAMES = List.of("P", "Q", "R", "S", "T", "U", "V", "W", "Y0", "Y1", "Y2",
+            "Y3", "Y4", "Y5", "Y6", "Y7");
     private static final ComponentTypeRegistry REGISTRY = StandardComponentTypes.registry();
     /** Random tables up to this many inputs also go through the simulator (it is slow on 6..8 inputs). */
     private static final int SIMULATED_INPUTS = 5;
@@ -160,6 +161,22 @@ class CircuitGeneratorTest {
         // The import's largest table, irregular on purpose (a third of the cells X): hundreds of gates.
         TruthTableSpec spec = randomSpec(new Random(88L), 8, 8);
         checkEverything(spec, GeneratorOptions.DEFAULTS);
+    }
+
+    @Test
+    void sixteenOutputsGiveCleanLayoutsThatPassTheCheck() {
+        // The import's widest tables: 4 x 16 in every style, and an irregular 8 x 16 (hundreds of gates).
+        Random random = new Random(1616L);
+        TruthTableSpec narrow = randomSpec(random, 4, 16);
+        for (GateStyle style : GateStyle.values()) {
+            GeneratorOptions options = new GeneratorOptions(style, Form.SUM_OF_PRODUCTS, true);
+            GeneratedCircuit circuit = checkEverything(narrow, options);
+            assertThat(TableCircuits.check(narrow, circuit.fragment(), REGISTRY).passed()).as("%s", style).isTrue();
+        }
+        TruthTableSpec wide = randomSpec(random, 8, 16);
+        GeneratedCircuit circuit = checkLayoutAndNetwork(wide, GeneratorOptions.DEFAULTS);
+        assertThat(sortedLabels(circuit.fragment(), StandardComponentTypes.OUTPUT_PIN)).isEqualTo(wide.outputNames());
+        assertThat(TableCircuits.check(wide, circuit.fragment(), REGISTRY).passed()).isTrue();
     }
 
     @Test
