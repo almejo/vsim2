@@ -72,6 +72,7 @@ public final class PreferencesForm extends JPanel {
     private final JButton chooseLibraryButton = new JButton(Messages.text("preferences.library.choose"));
     private final JButton restoreLibraryButton = new JButton(Messages.text("preferences.library.restore"));
     private final JCheckBox restoreSessionBox = new JCheckBox(Messages.text("preferences.restoreSession"));
+    private final JCheckBox animateViewMovesBox = new JCheckBox(Messages.text("preferences.animateViewMoves"));
     private final JComboBox<Choice<String>> fontFamilyChoice = new JComboBox<>();
     private final JSpinner fontSizeSpinner = new JSpinner();
     private final CustomColorSchemes customSchemes;
@@ -146,6 +147,9 @@ public final class PreferencesForm extends JPanel {
         refreshLibrary();
         restoreSessionBox.setSelected(preferences.restoreSession());
         restoreSessionBox.addActionListener(event -> preferences.setRestoreSession(restoreSessionBox.isSelected()));
+        animateViewMovesBox.setSelected(preferences.animateViewMoves());
+        animateViewMovesBox.addActionListener(
+                event -> preferences.setAnimateViewMoves(animateViewMovesBox.isSelected()));
 
         add(new JLabel(Messages.text("preferences.theme")));
         add(themeChoice);
@@ -161,6 +165,7 @@ public final class PreferencesForm extends JPanel {
         add(chooseLibraryButton, "skip 1, split 2, growx 0");
         add(restoreLibraryButton, "growx 0");
         add(restoreSessionBox, "skip 1, gaptop 12");
+        add(animateViewMovesBox, "skip 1");
         add(new JLabel(Messages.text("preferences.invertModifier")), "gaptop 12");
         add(invertModifierChoice, "gaptop 12");
         addTextFontRows();
@@ -324,6 +329,10 @@ public final class PreferencesForm extends JPanel {
 
     JCheckBox restoreSessionBox() {
         return restoreSessionBox;
+    }
+
+    JCheckBox animateViewMovesBox() {
+        return animateViewMovesBox;
     }
 
     /** The text of an invert key, also used by the follow toggle's tooltip. */

@@ -68,6 +68,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.LongSupplier;
 import java.util.function.Predicate;
 
 /** The drawing surface of one window. Mouse input goes to the current {@link Tool}. */
@@ -77,6 +78,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     private static final int ANTS_MILLISECONDS = 90;
     private static final int AUTOSCROLL_MILLISECONDS = 30;
     private static final double WHEEL_SCROLL_PIXELS = 40;
+    private static final double FIT_FRACTION = 0.9;
 
     private final OpenDocument openDocument;
     private final CircuitRenderer renderer;
@@ -127,6 +129,10 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     private Point panAnchor;
     private GridPoint mousePoint;
     private Cursor toolCursor = Cursor.getDefaultCursor();
+    private BooleanSupplier animateViewMoves = () -> false;
+    private boolean showingTravelFrame;
+    private final ViewAnimator viewAnimator = new ViewAnimator(FrameTicker.swing(FRAME_MILLISECONDS),
+            () -> System.nanoTime() / 1_000_000, this::showTravelFrame, () -> animateViewMoves.getAsBoolean());
 
     public CircuitCanvas(OpenDocument openDocument, CircuitRenderer renderer, CanvasHost host) {
         this.openDocument = openDocument;
@@ -170,6 +176,11 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         antsTimer = new Timer(ANTS_MILLISECONDS, event -> animationTick());
         problemPulseTimer = new Timer(ProblemPulse.TICK_MILLISECONDS, event -> problemPulseTick());
         autoscrollTimer = new Timer(AUTOSCROLL_MILLISECONDS, event -> autoscrollTick());
+        viewport.addChangeListener(() -> {
+            if (!showingTravelFrame) {
+                viewAnimator.stop(); // the user (or another move) took the view: it stays where it is
+            }
+        });
     }
 
     /** Places the palette entry encoded in {@code transferText} at {@code screenPoint}; false when it is not one. */
@@ -482,10 +493,12 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         antsTimer.stop();
         problemPulseTimer.stop();
         watchWindow(null);
+        viewAnimator.finish();
         super.removeNotify();
     }
 
     public void dispose() {
+        viewAnimator.stop();
         stopAutoscroll();
         frameTimer.stop();
         animationSuspended = true;
@@ -587,10 +600,71 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         viewChanged();
     }
 
-    /** Centers the view on {@code bounds} (grid units) without changing the zoom. */
+    /**
+     * Centers the view on {@code bounds} (grid units) at once, without changing the zoom. For moves that must not
+     * animate; the ones that take the user somewhere use {@link #travelTo}.
+     */
     public void centerOn(Bounds bounds) {
         viewport.center(bounds, getWidth(), getHeight());
         viewChanged();
+    }
+
+    /**
+     * Takes the view to {@code bounds} (grid units): centred on them at the user's zoom, zooming out only as far as
+     * needed for them to fit. With view moves animated ({@link #setAnimateViewMoves}) it travels there: an eased pan
+     * when the target is near, a «fly to» (out and back in) when it is far; a call during a travel continues from
+     * where the view is. Otherwise, or before the canvas has a size, it jumps.
+     */
+    public void travelTo(Bounds bounds) {
+        int width = getWidth();
+        int height = getHeight();
+        double restingZoom = viewAnimator.target().map(ViewState::zoom).orElse(viewport.zoom());
+        ViewState target = new ViewState(
+                Math.max(Viewport.MINIMUM_ZOOM, Math.min(restingZoom, fittingZoom(bounds, width, height))),
+                bounds.x() + bounds.width() / 2.0, bounds.y() + bounds.height() / 2.0);
+        if (width <= 0 || height <= 0 || !animateViewMoves.getAsBoolean()) {
+            viewAnimator.stop();
+            applyViewState(target);
+            return;
+        }
+        viewAnimator.travel(viewState(), target, width, height);
+    }
+
+    /** The largest zoom at which {@code bounds} fill at most nine tenths of the canvas each way. */
+    private static double fittingZoom(Bounds bounds, int width, int height) {
+        double fitting = Double.MAX_VALUE;
+        if (bounds.width() > 0 && width > 0) {
+            fitting = Math.min(fitting, width * FIT_FRACTION / (bounds.width() * (double) GridPoint.PIXELS_PER_UNIT));
+        }
+        if (bounds.height() > 0 && height > 0) {
+            fitting = Math.min(fitting, height * FIT_FRACTION / (bounds.height() * (double) GridPoint.PIXELS_PER_UNIT));
+        }
+        return fitting;
+    }
+
+    private void showTravelFrame(ViewState state) {
+        showingTravelFrame = true;
+        try {
+            viewport.showAt(state.zoom(), state.centerX(), state.centerY(), getWidth(), getHeight());
+        } finally {
+            showingTravelFrame = false;
+        }
+        viewChanged();
+    }
+
+    /** Whether {@link #travelTo} animates; read at each call and each frame (the preference can change mid-flight). */
+    public void setAnimateViewMoves(BooleanSupplier animate) {
+        animateViewMoves = animate;
+    }
+
+    /** True while the view travels to a target. */
+    public boolean isTravelling() {
+        return viewAnimator.isTravelling();
+    }
+
+    /** Drives the travels with {@code ticker} and {@code clock} (milliseconds) instead of a Swing timer: for tests. */
+    public void useViewTicker(FrameTicker ticker, LongSupplier clock) {
+        viewAnimator.use(ticker, clock);
     }
 
     public void addOverlay(CanvasOverlay overlay) {

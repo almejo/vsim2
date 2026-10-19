@@ -165,6 +165,17 @@ class PreferencesFormTest {
     }
 
     @Test
+    void theAnimateViewMovesBoxShowsAndChangesThePreference() {
+        PreferencesForm form = form();
+        assertThat(form.animateViewMovesBox().getText()).isEqualTo("Animar los movimientos de la vista");
+        assertThat(form.animateViewMovesBox().isSelected()).isTrue();
+
+        form.animateViewMovesBox().doClick(0);
+        assertThat(preferences.animateViewMoves()).isFalse();
+        assertThat(form().animateViewMovesBox().isSelected()).isFalse();
+    }
+
+    @Test
     void theInvertKeyComboOffersShiftAltAndNoneAndSavesTheChoice() {
         PreferencesForm form = form();
         assertThat(labels(form.invertModifierChoice())).containsExactly("Mayús", "Alt", "Ninguna");

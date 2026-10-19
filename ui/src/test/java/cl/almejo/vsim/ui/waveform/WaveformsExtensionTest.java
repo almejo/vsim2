@@ -13,6 +13,8 @@ import cl.almejo.vsim.core.library.ComponentLibrary;
 import cl.almejo.vsim.ui.actions.TextPrompt;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.OpenDocument;
+import cl.almejo.vsim.ui.canvas.ManualFrameTicker;
+import cl.almejo.vsim.ui.canvas.ViewState;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.Appearance;
 import cl.almejo.vsim.ui.paint.ColorScheme;
@@ -197,6 +199,37 @@ class WaveformsExtensionTest {
 
             assertThat(view.canvas().selection().ids()).containsExactly(wire.id());
             assertThat(features.blink().isBlinking()).isTrue();
+        } finally {
+            features.dispose();
+            view.dispose();
+        }
+    }
+
+    @Test
+    void showInCircuitTravelsThereFollowingThePreference() {
+        place(openDocument, StandardComponentTypes.SWITCH, 0, 0, Map.of());
+        Wire wire = new Wire(openDocument.document().newWireId(), new GridPoint(4, 1), new GridPoint(8, 1));
+        openDocument.execute(new AddElementsCommand(List.of(wire)));
+        AppPreferences preferences = AppPreferences.inMemory();
+        EditorView view = new EditorView(openDocument, new EditorServices(PainterRegistry.standard(), appearance,
+                preferences, new ComponentLibrary(), List.of()), NO_WINDOW);
+        WaveformFeatures features = new WaveformFeatures(view, NO_ANSWER, (parent, message) -> messages.add(message));
+        try {
+            view.canvas().setSize(400, 300);
+            view.canvas().applyViewState(new ViewState(1, -20, 0));
+            ManualFrameTicker ticker = new ManualFrameTicker().drive(view.canvas());
+            String probeId = features.actions().addWire(wire.id()).addedIds().get(0);
+
+            features.showInCircuit(probeId);
+            assertThat(view.canvas().isTravelling()).isTrue();
+            ticker.finish();
+            assertThat(view.canvas().viewState()).isEqualTo(new ViewState(1, 6, 1));
+
+            preferences.setAnimateViewMoves(false);
+            view.canvas().applyViewState(new ViewState(1, -20, 0));
+            features.showInCircuit(probeId);
+            assertThat(view.canvas().isTravelling()).isFalse();
+            assertThat(view.canvas().viewState()).isEqualTo(new ViewState(1, 6, 1));
         } finally {
             features.dispose();
             view.dispose();

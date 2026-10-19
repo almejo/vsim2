@@ -202,7 +202,7 @@ public final class ComponentTreePanel extends JPanel {
         }
         chosenNode().flatMap(this::elementOf).ifPresent(element -> {
             canvas.selection().select(element.id());
-            canvas.centerOn(ElementBounds.of(element, openDocument.registry()));
+            canvas.travelTo(ElementBounds.of(element, openDocument.registry()));
         });
     }
 
