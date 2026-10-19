@@ -105,6 +105,7 @@ public final class ShortcutCatalog {
         window(entries, "simulation.advanceToClockEdge", "action.advanceToClockEdge", MenuId.SIMULATION,
                 stroke(KeyEvent.VK_F7, shift));
         window(entries, "simulation.truthTable", "action.truthTable", MenuId.SIMULATION, null);
+        window(entries, "tools.circuitFromTruthTable", "action.circuitFromTruthTable", MenuId.TOOLS, null);
         window(entries, "window.newView", "action.newWindow", MenuId.WINDOW, null);
         return List.copyOf(entries);
     }

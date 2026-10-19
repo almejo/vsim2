@@ -147,6 +147,17 @@ class ApplicationExtensionsTest {
     }
 
     @Test
+    void theToolsMenuOpensTheKarnaughWizard() {
+        EditorView view = new EditorView(openDocument, services, NO_WINDOW);
+        try {
+            assertThat(texts(view.menu(MenuId.TOOLS))).containsExactly("Circuito desde tabla de verdad…");
+            assertThat(view.shortcutActions()).containsKey("tools.circuitFromTruthTable");
+        } finally {
+            view.dispose();
+        }
+    }
+
+    @Test
     void theStepModeControlsAreIconOnlyButtonsNamedByTheirTooltip() {
         EditorView view = new EditorView(openDocument, services, NO_WINDOW);
         try {

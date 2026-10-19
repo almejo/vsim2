@@ -10,6 +10,7 @@ import cl.almejo.vsim.core.library.ComponentLibrary;
 import cl.almejo.vsim.ui.examples.ExamplesFeature;
 import cl.almejo.vsim.ui.export.ExportImageExtension;
 import cl.almejo.vsim.ui.frames.FramesExtension;
+import cl.almejo.vsim.ui.karnaugh.KarnaughExtension;
 import cl.almejo.vsim.ui.wiring.TidyWiresExtension;
 import cl.almejo.vsim.ui.wiring.WiresFollowExtension;
 import cl.almejo.vsim.ui.i18n.Messages;
@@ -115,6 +116,7 @@ public final class Application {
         editorExtensions.add(new TidyWiresExtension());
         editorExtensions.add(new FramesExtension());
         editorExtensions.add(new WiresFollowExtension());
+        editorExtensions.add(new KarnaughExtension());
         editorExtensions.add(new ActionIcons());
         editorExtensions.add(new PreferencesFeature());
         editorExtensions.add(new RecentFilesFeature());
