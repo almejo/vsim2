@@ -37,8 +37,8 @@ import java.util.zip.ZipInputStream;
 public final class TableImport {
 
     /**
-     * The most bytes read: from the parts of an {@code .xlsx}, together (a guard against zip bombs), or from a text
-     * file.
+     * The most bytes read: inflated from all the entries of an {@code .xlsx} together, the ones skipped too (a guard
+     * against zip bombs), or from a text file.
      */
     public static final int MAXIMUM_FILE_MEGABYTES = 64;
     /** Excel's last row and last column ({@code XFD}): a reference beyond them is not a real workbook. */
@@ -221,13 +221,13 @@ public final class TableImport {
         long total = 0;
         try (ZipInputStream zip = new ZipInputStream(input)) {
             ZipEntry entry;
+            byte[] buffer = new byte[8192];
             while ((entry = zip.getNextEntry()) != null) {
                 String name = entry.getName().startsWith("/") ? entry.getName().substring(1) : entry.getName();
-                if (entry.isDirectory() || !isWanted(name)) {
-                    continue;
-                }
-                ByteArrayOutputStream bytes = new ByteArrayOutputStream();
-                byte[] buffer = new byte[8192];
+                // A part that is not read is still inflated to reach the next one: its bytes count too, so a zip
+                // bomb in an image or a style sheet costs no more than one in the sheet.
+                boolean wanted = !entry.isDirectory() && isWanted(name);
+                ByteArrayOutputStream bytes = wanted ? new ByteArrayOutputStream() : null;
                 int read;
                 while ((read = zip.read(buffer)) > 0) {
                     total += read;
@@ -235,9 +235,13 @@ public final class TableImport {
                         throw new TableImportException(
                                 ImportProblem.general(ImportProblem.TOO_LARGE, MAXIMUM_FILE_MEGABYTES), null);
                     }
-                    bytes.write(buffer, 0, read);
+                    if (wanted) {
+                        bytes.write(buffer, 0, read);
+                    }
                 }
-                parts.put(name, bytes.toByteArray());
+                if (wanted) {
+                    parts.put(name, bytes.toByteArray());
+                }
             }
         } catch (ZipException exception) {
             throw notASpreadsheet(exception);

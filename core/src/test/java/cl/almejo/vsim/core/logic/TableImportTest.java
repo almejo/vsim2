@@ -164,6 +164,41 @@ class TableImportTest {
     }
 
     @Test
+    void theBytesInflatedWhileSkippingEntriesCountTowardTheLimit() throws IOException {
+        // A zip bomb in a part VSim does not read: a few kilobytes that inflate past the limit, before the sheet.
+        int limit = TableImport.MAXIMUM_FILE_MEGABYTES * 1024 * 1024;
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        try (ZipOutputStream output = new ZipOutputStream(bytes)) {
+            output.putNextEntry(new ZipEntry("xl/media/image1.png"));
+            byte[] zeros = new byte[1024 * 1024];
+            for (int megabyte = 0; megabyte <= TableImport.MAXIMUM_FILE_MEGABYTES; megabyte++) {
+                output.write(zeros);
+            }
+            output.closeEntry();
+            output.putNextEntry(new ZipEntry("xl/worksheets/sheet1.xml"));
+            output.write("<worksheet><sheetData><row r=\"1\"><c t=\"inlineStr\"><is><t>A</t></is></c></row>"
+                    .concat("</sheetData></worksheet>").getBytes(StandardCharsets.UTF_8));
+            output.closeEntry();
+        }
+        assertThat(bytes.size()).isLessThan(limit / 100);
+
+        assertThatThrownBy(() -> TableImport.readXlsx(new ByteArrayInputStream(bytes.toByteArray())))
+                .isInstanceOfSatisfying(TableImportException.class, exception ->
+                        assertThat(exception.problem().messageKey()).isEqualTo(ImportProblem.TOO_LARGE));
+    }
+
+    @Test
+    void smallSkippedEntriesDoNotStopTheSheetFromBeingRead() throws IOException {
+        Map<String, String> entries = new LinkedHashMap<>();
+        entries.put("docProps/core.xml", "<coreProperties/>");
+        entries.put("xl/styles.xml", "<styleSheet/>");
+        entries.put("xl/worksheets/sheet1.xml",
+                "<worksheet><sheetData><row r=\"1\"><c t=\"inlineStr\"><is><t>A</t></is></c></row></sheetData></worksheet>");
+
+        assertThat(TableImport.readXlsx(new ByteArrayInputStream(zip(entries))).header()).containsExactly("A");
+    }
+
+    @Test
     void aFileLargerThanTheLimitIsRefusedBeforeReadingIt() throws TableImportException {
         TableImport.checkSize(TableImport.MAXIMUM_FILE_MEGABYTES * 1024L * 1024L);
         assertThatThrownBy(() -> TableImport.checkSize(TableImport.MAXIMUM_FILE_MEGABYTES * 1024L * 1024L + 1))
