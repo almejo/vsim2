@@ -276,8 +276,18 @@ class TableImportTest {
         ImportResult result = TableImport.toSpec(grid, 2, "T");
 
         assertThat(result.spec()).isEmpty();
-        assertThat(result.problems())
-                .containsExactly(new ImportProblem(ImportProblem.CONFLICTING_ROW, List.of(2), 4, 4));
+        assertThat(result.problems()).containsExactly(new ImportProblem(ImportProblem.CONFLICTING_ROW,
+                List.of("0 1", List.of("G"), 1, 2, 4), 0, 0));
+    }
+
+    @Test
+    void aRepeatedCombinationNamesEveryOutputThatDiffers() {
+        ImportedGrid grid = TableImport.readCsv("A,B,C,F,G,H\n0,1,1,0,1,0\n1,1,1,0,0,0\n0,1,1,1,1,1\n");
+
+        ImportResult result = TableImport.toSpec(grid, 3, "T");
+
+        assertThat(result.problems()).containsExactly(new ImportProblem(ImportProblem.CONFLICTING_ROW,
+                List.of("0 1 1", List.of("F", "H"), 2, 2, 4), 0, 0));
     }
 
     @Test

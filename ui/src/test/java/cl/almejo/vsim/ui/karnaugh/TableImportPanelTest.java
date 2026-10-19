@@ -21,6 +21,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
@@ -189,7 +190,8 @@ class TableImportPanelTest {
         panel.inputCountSpinner().setValue(2);
         assertThat(panel.columnsText()).isEqualTo("Entradas: Cin, A · Salidas: B, Cout, Suma");
         assertThat(panel.model().spec()).isEmpty();
-        assertThat(panel.problemsText()).startsWith("Celda C3: Esta combinación ya estaba en la fila 2");
+        assertThat(panel.problemsText())
+                .startsWith("La combinación 0 0 aparece dos veces con B y Suma distintas (filas 2 y 3).");
     }
 
     @Test
@@ -422,6 +424,26 @@ class TableImportPanelTest {
         panel.openFileButton().doClick();
         assertThat(panel.problemsText()).isNotEmpty();
         assertThat(panel.createButton().isEnabled()).isFalse();
+    }
+
+    @Test
+    void aRepeatedCombinationNamesTheOutputsThatDifferAndBothRows() {
+        clipboard = Optional.of("A\tB\tC\tF\tG\n0\t0\t0\t0\t0\n0\t0\t1\t0\t0\n0\t1\t0\t0\t0\n0\t1\t1\t1\t0\n"
+                + "1\t0\t0\t0\t0\n1\t0\t1\t0\t0\n1\t1\t0\t0\t0\n1\t1\t1\t0\t0\n0\t1\t1\t0\t0\n0\t1\t1\t0\t1\n");
+        panel.pasteButton().doClick();
+
+        assertThat(panel.problemsText()).isEqualTo("""
+                La combinación 0 1 1 aparece dos veces con F distinta (filas 5 y 10).
+                La combinación 0 1 1 aparece dos veces con F y G distintas (filas 5 y 11).""");
+
+        Messages.initialize(Locale.ENGLISH);
+        try {
+            assertThat(panel.model().problemLines()).containsExactly(
+                    "The combination 0 1 1 appears twice with a different F (rows 5 and 10).",
+                    "The combination 0 1 1 appears twice with different F and G (rows 5 and 11).");
+        } finally {
+            Messages.initialize(Messages.SPANISH);
+        }
     }
 
     @Test

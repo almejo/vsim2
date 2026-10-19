@@ -171,12 +171,25 @@ final class TableImportModel {
 
     /** A problem as the user reads it, with its cell or row when it has one. */
     static String describe(ImportProblem problem) {
-        String message = Messages.format(problem.messageKey(), problem.arguments().toArray());
+        Object[] arguments = problem.arguments().stream()
+                .map(argument -> argument instanceof List<?> names ? listed(names) : argument)
+                .toArray();
+        String message = Messages.format(problem.messageKey(), arguments);
         if (problem.row() == 0) {
             return message;
         }
         return Messages.format(problem.column() == 0 ? "tableImport.atRow" : "tableImport.atCell",
                 problem.cellName(), message);
+    }
+
+    /** «F», «F y G», «F, G y H». */
+    private static String listed(List<?> names) {
+        List<String> texts = names.stream().map(String::valueOf).toList();
+        if (texts.size() < 2) {
+            return String.join("", texts);
+        }
+        return Messages.format("karnaugh.why.list", String.join(", ", texts.subList(0, texts.size() - 1)),
+                texts.getLast());
     }
 
     void addListener(Runnable listener) {

@@ -534,7 +534,7 @@ public final class TableImport {
             List<String> row = grid.rows().get(index);
             int rowNumber = grid.headerRow() + 1 + index;
             if (!isBlank(row)) {
-                readRow(row, rowNumber, columns, inputCount, width, values, firstRows, problems);
+                readRow(row, rowNumber, columns, names, inputCount, width, values, firstRows, problems);
             }
         }
 
@@ -577,8 +577,9 @@ public final class TableImport {
         return problems;
     }
 
-    private static void readRow(List<String> row, int rowNumber, List<Integer> columns, int inputCount, int width,
-                                LogicValue[][] values, int[] firstRows, List<ImportProblem> problems) {
+    private static void readRow(List<String> row, int rowNumber, List<Integer> columns, List<String> names,
+                                int inputCount, int width, LogicValue[][] values, int[] firstRows,
+                                List<ImportProblem> problems) {
         int cellCount = row.size();
         while (cellCount > 0 && row.get(cellCount - 1).isBlank()) {
             cellCount--;
@@ -618,12 +619,19 @@ public final class TableImport {
             firstRows[combination] = rowNumber;
             return;
         }
+        List<String> differing = new ArrayList<>();
         for (int output = 0; output < outputs.length; output++) {
             if (outputs[output] != values[combination][output]) {
-                problems.add(new ImportProblem(ImportProblem.CONFLICTING_ROW, List.of(firstRows[combination]),
-                        rowNumber, columns.get(inputCount + output) + 1));
-                return;
+                differing.add(names.get(inputCount + output));
             }
+        }
+        if (!differing.isEmpty()) {
+            StringBuilder written = new StringBuilder();
+            for (int input = inputCount - 1; input >= 0; input--) {
+                written.append(written.isEmpty() ? "" : " ").append(combination >> input & 1);
+            }
+            problems.add(ImportProblem.general(ImportProblem.CONFLICTING_ROW, written.toString(),
+                    List.copyOf(differing), differing.size(), firstRows[combination], rowNumber));
         }
     }
 

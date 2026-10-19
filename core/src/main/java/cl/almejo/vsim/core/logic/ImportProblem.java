@@ -41,7 +41,11 @@ public record ImportProblem(String messageKey, List<Object> arguments, int row, 
     public static final String INPUT_NOT_BINARY = "tableImport.problem.inputNotBinary";
     /** An output cell that is not 0, 1 or X. Arguments: the text. */
     public static final String INVALID_VALUE = "tableImport.problem.invalidValue";
-    /** The same combination already appeared with different outputs. Arguments: the earlier row. */
+    /**
+     * The same combination appears twice with different outputs; a problem about the file (it names both rows).
+     * Arguments: the combination as written ({@code "0 1 1"}), the names of the outputs that differ (a
+     * {@code List<String>}), how many they are, the earlier row and the later row.
+     */
     public static final String CONFLICTING_ROW = "tableImport.problem.conflictingRow";
 
     /** Every message key, for the bundle completeness test. */
