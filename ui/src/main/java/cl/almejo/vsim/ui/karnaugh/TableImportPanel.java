@@ -16,7 +16,6 @@ import javax.swing.AbstractButton;
 import javax.swing.ButtonGroup;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
-import javax.swing.JComponent;
 import javax.swing.JDialog;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
@@ -24,9 +23,7 @@ import javax.swing.JRadioButton;
 import javax.swing.JScrollPane;
 import javax.swing.JSpinner;
 import javax.swing.JTextField;
-import javax.swing.KeyStroke;
 import javax.swing.SpinnerNumberModel;
-import javax.swing.SwingUtilities;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import java.awt.BorderLayout;
@@ -34,7 +31,7 @@ import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.Font;
-import java.awt.event.KeyEvent;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.HashSet;
@@ -94,6 +91,8 @@ public final class TableImportPanel extends JPanel {
     private boolean syncing;
     /** Counts the summaries asked for: only the latest one is shown. */
     private long summaryRequest;
+    /** Counts the files read: a file whose number is not the latest (the dialog was closed) is dropped. */
+    private long readRequest;
 
     public TableImportPanel(TableSources sources, CreationTarget target, Background background) {
         super(new BorderLayout());
@@ -147,7 +146,7 @@ public final class TableImportPanel extends JPanel {
 
         openFile.addActionListener(event -> openFile());
         paste.addActionListener(event -> paste());
-        close.addActionListener(event -> onClose.run());
+        close.addActionListener(event -> requestClose());
         title.getDocument().addDocumentListener(new DocumentListener() {
             @Override
             public void insertUpdate(DocumentEvent event) {
@@ -195,7 +194,21 @@ public final class TableImportPanel extends JPanel {
         }
     }
 
-    /** What «Cerrar» (and Escape, and an «Insertar») does. */
+    /**
+     * Every way of closing the dialog («Cerrar», which reads «Cancelar» while busy, Escape and the close box) comes
+     * here: a file being read is dropped and a creation that is running is cancelled, then the dialog closes.
+     */
+    public void requestClose() {
+        if (reading) {
+            readRequest++;
+            reading = false;
+        }
+        summaryRequest++;
+        controls.cancel();
+        onClose.run();
+    }
+
+    /** What closing (and an «Insertar») does once the work is cancelled (the dialog disposes itself). */
     public void setOnClose(Runnable action) {
         onClose = action;
     }
@@ -219,15 +232,19 @@ public final class TableImportPanel extends JPanel {
 
     private void read(Callable<ImportedGrid> reader, String source, String proposedTitle) {
         reading = true;
+        long request = ++readRequest;
         refreshButtons();
         background.run(reader, grid -> {
-            reading = false;
-            model.load(grid, source, proposedTitle);
-        }, exception -> {
-            reading = false;
-            model.loadFailed(exception instanceof TableImportException unreadable ? unreadable.problem()
-                    : ImportProblem.general("tableImport.readFailed", String.valueOf(exception.getMessage())),
-                    source);
+            if (request == readRequest) {
+                reading = false;
+                model.load(grid, source, proposedTitle);
+            }
+        }, failure -> {
+            if (request == readRequest) {
+                reading = false;
+                model.loadFailed(failure instanceof TableImportException unreadable ? unreadable.problem()
+                        : ImportProblem.general("tableImport.readFailed", readFailure(failure)), source);
+            }
         });
     }
 
@@ -278,7 +295,7 @@ public final class TableImportPanel extends JPanel {
             if (request == summaryRequest) {
                 summary.setText(text);
             }
-        }, exception -> {
+        }, failure -> {
             if (request == summaryRequest) {
                 summary.setText(" ");
             }
@@ -303,12 +320,26 @@ public final class TableImportPanel extends JPanel {
                 cost.gateCount(), String.valueOf(terms), String.valueOf(cost.gateCount()));
     }
 
-    /** While a file is read or the circuit is built, the buttons that would change the table are off. */
+    /**
+     * Why a file could not be read, for the user: the system's message for an input/output error (it names the file
+     * and the cause), a fixed sentence for anything else (a bug, or a file too large to read).
+     */
+    private static String readFailure(Throwable failure) {
+        if (failure instanceof IOException && failure.getMessage() != null) {
+            return failure.getMessage();
+        }
+        return Messages.text("tableImport.readFailedUnexpected");
+    }
+
+    /**
+     * While a file is read or the circuit is built, the buttons that would change the table are off, and «Cerrar»
+     * reads «Cancelar».
+     */
     private void refreshButtons() {
         boolean busy = reading || controls.isBusy();
         openFile.setEnabled(!busy);
         paste.setEnabled(!busy);
-        close.setEnabled(!busy);
+        close.setText(Messages.text(busy ? "karnaugh.cancel" : "karnaugh.close"));
         title.setEnabled(!busy && model.hasTable());
         inputCount.setEnabled(!busy && model.hasTable());
         List<AbstractButton> optionButtons = new ArrayList<>(gateButtons.values());
@@ -366,15 +397,14 @@ public final class TableImportPanel extends JPanel {
         return gateButtons.get(choice);
     }
 
-    /** Shows {@code panel} in a modal dialog over {@code parent}; «Cerrar» and Escape close it. */
+    /**
+     * Shows {@code panel} in a dialog over {@code parent}; «Cerrar», Escape and the close box all go through
+     * {@link #requestClose()}. Like the wizard's, it blocks only its own window.
+     */
     public static void showDialog(Component parent, TableImportPanel panel) {
-        JDialog dialog = new JDialog(parent == null ? null : SwingUtilities.getWindowAncestor(parent),
-                Messages.text("tableImport.title"), JDialog.DEFAULT_MODALITY_TYPE);
-        dialog.setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
+        JDialog dialog = WizardDialogs.create(parent, Messages.text("tableImport.title"), panel,
+                panel::requestClose);
         panel.setOnClose(dialog::dispose);
-        dialog.setContentPane(panel);
-        dialog.getRootPane().registerKeyboardAction(event -> dialog.dispose(),
-                KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), JComponent.WHEN_IN_FOCUSED_WINDOW);
         dialog.setSize(DIALOG_SIZE);
         dialog.setLocationRelativeTo(parent);
         dialog.setVisible(true);

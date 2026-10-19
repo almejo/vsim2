@@ -36,14 +36,18 @@ public record Background(Executor worker, Executor edt) {
         return new Background(Runnable::run, Runnable::run);
     }
 
-    /** Runs {@code work} on the worker; {@code done} or {@code failed} then runs on the EDT. */
-    public <T> void run(Callable<T> work, Consumer<T> done, Consumer<Exception> failed) {
+    /**
+     * Runs {@code work} on the worker; {@code done} or {@code failed} then runs on the EDT. Anything {@code work}
+     * throws, an {@link Error} too (out of memory, a stack overflow), reaches {@code failed}, so the caller always
+     * hears back and never stays busy.
+     */
+    public <T> void run(Callable<T> work, Consumer<T> done, Consumer<Throwable> failed) {
         worker.execute(() -> {
             T result;
             try {
                 result = work.call();
-            } catch (Exception exception) {
-                edt.execute(() -> failed.accept(exception));
+            } catch (Throwable failure) {
+                edt.execute(() -> failed.accept(failure));
                 return;
             }
             edt.execute(() -> done.accept(result));

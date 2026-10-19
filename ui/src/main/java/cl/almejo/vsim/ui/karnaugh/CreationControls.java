@@ -26,7 +26,7 @@ import java.util.function.Supplier;
  * nuevo / insertar en el circuito actual), «Crear también como componente» with its name, «Crear», a busy indicator
  * while the circuit is built off the EDT, and the outcome («✓ El circuito cumple la tabla»). Everything is disabled
  * while busy. After an «Insertar» the dialog closes so the user can drop the floating circuit, and the outcome goes to
- * the status bar.
+ * the status bar. Closing the dialog while busy {@linkplain #cancel() cancels} the creation.
  */
 final class CreationControls extends JPanel {
 
@@ -152,6 +152,15 @@ final class CreationControls extends JPanel {
 
     boolean isBusy() {
         return creator.isBusy();
+    }
+
+    /** Drops the creation that is running, if any (the dialog is closing): its result will be ignored. */
+    void cancel() {
+        if (creator.isBusy()) {
+            creator.cancel();
+            refresh();
+            busyChanged.run();
+        }
     }
 
     /** «Crear»: builds the circuit off the EDT; the controls are off until it is done. */

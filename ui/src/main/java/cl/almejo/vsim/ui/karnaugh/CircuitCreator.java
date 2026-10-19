@@ -63,6 +63,8 @@ final class CircuitCreator {
     private final CreationTarget target;
     private final Background background;
     private boolean busy;
+    /** Counts the creations started or cancelled: a result whose number is not the latest is dropped. */
+    private long generation;
 
     CircuitCreator(CreationTarget target, Background background) {
         this.target = target;
@@ -75,25 +77,51 @@ final class CircuitCreator {
 
     /**
      * Creates what {@code request} asks for; {@code done} hears the outcome on the EDT (at once with an inline
-     * background). Ignored while a creation is running.
+     * background), unless the creation is {@linkplain #cancel() cancelled} first. Ignored while a creation is running.
      */
     void create(Request request, Consumer<Outcome> done) {
         if (busy) {
             return;
         }
         busy = true;
+        long job = ++generation;
         Optional<String> definitionId = request.componentName()
                 .map(name -> DefinitionIds.slug(name, target.takenComponentIds()));
         background.run(() -> build(request, definitionId), built -> {
+            if (job != generation) {
+                return;
+            }
             busy = false;
-            done.accept(apply(request, built));
-        }, exception -> {
-            busy = false;
-            LOGGER.error("Could not create the circuit of the table {}", request.spec().title(), exception);
-            done.accept(new Outcome(false, false, List.of(Messages.format("karnaugh.create.failed",
-                    String.valueOf(exception.getMessage() == null ? exception.getClass().getSimpleName()
-                            : exception.getMessage())))));
+            Outcome outcome;
+            try {
+                outcome = apply(request, built);
+            } catch (RuntimeException exception) {
+                outcome = failed(request, exception);
+            }
+            done.accept(outcome);
+        }, failure -> {
+            if (job == generation) {
+                busy = false;
+                done.accept(failed(request, failure));
+            }
         });
+    }
+
+    /**
+     * Drops the creation that is running (its dialog was closed): when its result arrives nothing is written to the
+     * library, no window opens and nothing floats. The worker is not interrupted; its result is just ignored.
+     */
+    void cancel() {
+        if (busy) {
+            generation++;
+            busy = false;
+        }
+    }
+
+    /** The details go to the log; the user reads a fixed sentence, never an internal (English) message. */
+    private static Outcome failed(Request request, Throwable failure) {
+        LOGGER.error("Could not create the circuit of the table {}", request.spec().title(), failure);
+        return new Outcome(false, false, List.of(Messages.text("karnaugh.create.failed")));
     }
 
     /** The worker's part. */

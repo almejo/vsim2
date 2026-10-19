@@ -10,7 +10,7 @@ import java.util.Optional;
 import java.util.Set;
 
 /** Records what «Crear» does instead of opening windows, floating fragments or writing the library. */
-final class FakeCreationTarget implements CreationTarget {
+class FakeCreationTarget implements CreationTarget {
 
     record NewCircuit(String name, CircuitFragment fragment) {
     }

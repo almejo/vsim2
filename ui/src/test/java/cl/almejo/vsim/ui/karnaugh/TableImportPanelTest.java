@@ -215,7 +215,8 @@ class TableImportPanelTest {
         panel.openFileButton().doClick();
         assertThat(panel.openFileButton().isEnabled()).isFalse();
         assertThat(panel.pasteButton().isEnabled()).isFalse();
-        assertThat(panel.closeButton().isEnabled()).isFalse();
+        assertThat(panel.closeButton().isEnabled()).as("closing cancels").isTrue();
+        assertThat(panel.closeButton().getText()).isEqualTo("Cancelar");
         queued.removeFirst().run(); // the file
         assertThat(panel.openFileButton().isEnabled()).isTrue();
         assertThat(panel.summaryText()).isEqualTo("Calculando…");
@@ -231,7 +232,40 @@ class TableImportPanelTest {
         queued.removeFirst().run();
         assertThat(target.newCircuits).hasSize(1);
         assertThat(panel.openFileButton().isEnabled()).isTrue();
-        assertThat(panel.closeButton().isEnabled()).isTrue();
+        assertThat(panel.closeButton().getText()).isEqualTo("Cerrar");
+    }
+
+    @Test
+    void closingWhileTheCircuitIsBuiltCancelsItAndTheLateResultIsIgnored() throws IOException {
+        open(new Background(queued::add, Runnable::run));
+        chosen = write("sumador.csv", ADDER);
+        panel.openFileButton().doClick();
+        queued.removeFirst().run(); // the file
+        queued.removeFirst().run(); // the summary
+        panel.controls().componentCheckBox().doClick();
+        panel.controls().createButton().doClick();
+
+        panel.closeButton().doClick();
+
+        assertThat(closed).isEqualTo(1);
+        queued.removeFirst().run();
+        assertThat(target.saved).isEmpty();
+        assertThat(target.newCircuits).isEmpty();
+        assertThat(target.floating).isEmpty();
+    }
+
+    @Test
+    void closingWhileAFileIsReadDropsTheFile() throws IOException {
+        open(new Background(queued::add, Runnable::run));
+        chosen = write("sumador.csv", ADDER);
+        panel.openFileButton().doClick();
+
+        panel.requestClose();
+
+        assertThat(closed).isEqualTo(1);
+        queued.removeFirst().run();
+        assertThat(panel.model().hasTable()).isFalse();
+        assertThat(queued).as("no summary for a dropped file").isEmpty();
     }
 
     @Test

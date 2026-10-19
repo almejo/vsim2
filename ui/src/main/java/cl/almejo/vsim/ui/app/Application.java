@@ -257,21 +257,24 @@ public final class Application {
     }
 
     /**
-     * Archivo ▸ Ejemplos (M6.1-A): {@code document} in a new window as an untitled, unmodified document, so Guardar
-     * asks for a file name and nothing is added to Recientes. Like Abrir, a pristine requester window goes away.
-     */
-    /**
      * A new window with an untitled document named {@code name} whose first undo step is {@code creation} (a circuit
-     * built from a truth table). The requester stays: the wizard that asked is a dialog over it.
+     * built from a truth table). The requester stays: the wizard that asked is a dialog over it, so the new window is
+     * brought to the front once the dialog's event is over.
      */
     public CircuitWindow openNewCircuit(String name, Command creation) {
         OpenDocument created = OpenDocument.createEmpty(registry);
         // Not a user edit: the name is what the window shows until the document is saved.
         created.document().setName(name);
         created.execute(creation);
-        return show(created);
+        CircuitWindow window = show(created);
+        SwingUtilities.invokeLater(() -> focus(window));
+        return window;
     }
 
+    /**
+     * Archivo ▸ Ejemplos (M6.1-A): {@code document} in a new window as an untitled, unmodified document, so Guardar
+     * asks for a file name and nothing is added to Recientes. Like Abrir, a pristine requester window goes away.
+     */
     public void openUntitled(CircuitDocument document, CircuitWindow requester) {
         show(new OpenDocument(document, registry, null, false));
         windows.replacedBy(requester).forEach(CircuitWindow::closeQuietly);

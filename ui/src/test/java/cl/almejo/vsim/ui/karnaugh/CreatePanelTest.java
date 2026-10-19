@@ -10,6 +10,7 @@ import cl.almejo.vsim.ui.i18n.Messages;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import javax.swing.Action;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -167,7 +168,8 @@ class CreatePanelTest {
         assertThat(controls().createButton().isEnabled()).isFalse();
         assertThat(controls().componentCheckBox().isEnabled()).isFalse();
         assertThat(wizard.backAction().isEnabled()).isFalse();
-        assertThat(wizard.closeAction().isEnabled()).isFalse();
+        assertThat(wizard.closeAction().isEnabled()).as("closing cancels the creation").isTrue();
+        assertThat(wizard.closeAction().getValue(Action.NAME)).isEqualTo("Cancelar");
         assertThat(wizard.stepButton(KarnaughWizard.Step.TABLE).isEnabled()).isFalse();
         assertThat(wizard.goTo(KarnaughWizard.Step.TABLE)).isFalse();
         assertThat(target.newCircuits).as("the EDT only applies the result").isEmpty();
@@ -178,7 +180,78 @@ class CreatePanelTest {
         assertThat(controls().busyIndicatorShown()).isFalse();
         assertThat(controls().createButton().isEnabled()).isTrue();
         assertThat(wizard.backAction().isEnabled()).isTrue();
-        assertThat(wizard.closeAction().isEnabled()).isTrue();
+        assertThat(wizard.closeAction().getValue(Action.NAME)).isEqualTo("Cerrar");
+    }
+
+    @Test
+    void closingWhileTheCircuitIsBuiltCancelsItAndTheLateResultIsIgnored() {
+        open(new Background(queued::add, Runnable::run));
+        controls().componentCheckBox().doClick();
+        controls().createButton().doClick();
+
+        wizard.closeAction().actionPerformed(null);
+
+        assertThat(closed).isEqualTo(1);
+        assertThat(controls().isBusy()).isFalse();
+        queued.removeFirst().run();
+        assertThat(target.saved).as("nothing goes to the library").isEmpty();
+        assertThat(target.newCircuits).isEmpty();
+        assertThat(target.floating).isEmpty();
+        assertThat(target.notices).isEmpty();
+        assertThat(controls().resultText()).isEmpty();
+        assertThat(closed).isEqualTo(1);
+    }
+
+    @Test
+    void escapeOrTheCloseBoxWhileInsertingCancelsTooAndAFailureArrivingLateIsIgnored() {
+        List<Runnable> edt = new ArrayList<>();
+        open(new Background(queued::add, edt::add));
+        controls().destinationButton(CreationForm.Destination.INSERT).doClick();
+        controls().createButton().doClick();
+
+        wizard.requestClose();
+        queued.removeFirst().run();
+        edt.removeFirst().run();
+
+        assertThat(target.floating).isEmpty();
+        assertThat(target.notices).isEmpty();
+        assertThat(closed).isEqualTo(1);
+        assertThat(controls().resultText()).isEmpty();
+    }
+
+    @Test
+    void closingWhenIdleJustCloses() {
+        wizard.requestClose();
+        assertThat(closed).isEqualTo(1);
+        assertThat(target.newCircuits).isEmpty();
+    }
+
+    @Test
+    void anErrorInTheWorkerIsReportedLikeAFailure() {
+        List<String> failures = new ArrayList<>();
+        Background.inline().<String>run(() -> {
+            throw new StackOverflowError("deep");
+        }, result -> failures.add("done " + result), failure -> failures.add(failure.getMessage()));
+        assertThat(failures).containsExactly("deep");
+    }
+
+    @Test
+    void aFailureWhileApplyingEndsTheCreationWithAReadableMessage() {
+        CreationTarget failing = new FakeCreationTarget() {
+            @Override
+            public void openNewCircuit(String name, CircuitFragment fragment) {
+                throw new IllegalStateException("could not route channel 3");
+            }
+        };
+        wizard = new KarnaughWizard(model, KarnaughCost.GENERATOR, failing, Background.inline());
+        wizard.goTo(KarnaughWizard.Step.CREATE);
+        controls().createButton().doClick();
+
+        assertThat(controls().isBusy()).isFalse();
+        assertThat(controls().createButton().isEnabled()).isTrue();
+        assertThat(controls().resultText())
+                .isEqualTo("No se pudo crear el circuito. Es un error de VSim: por favor, avísanos.")
+                .doesNotContain("route");
     }
 
     @Test

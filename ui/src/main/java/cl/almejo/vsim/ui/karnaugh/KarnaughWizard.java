@@ -8,20 +8,16 @@ import javax.swing.AbstractButton;
 import javax.swing.Action;
 import javax.swing.ButtonGroup;
 import javax.swing.JButton;
-import javax.swing.JComponent;
 import javax.swing.JDialog;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JToggleButton;
-import javax.swing.KeyStroke;
-import javax.swing.SwingUtilities;
 import java.awt.BorderLayout;
 import java.awt.CardLayout;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.event.ActionEvent;
-import java.awt.event.KeyEvent;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
@@ -121,7 +117,7 @@ public final class KarnaughWizard extends JPanel {
         closeAction = new AbstractAction(Messages.text("karnaugh.close")) {
             @Override
             public void actionPerformed(ActionEvent event) {
-                onClose.run();
+                requestClose();
             }
         };
 
@@ -185,7 +181,16 @@ public final class KarnaughWizard extends JPanel {
         }
     }
 
-    /** What «Cerrar» does (the dialog closes itself). */
+    /**
+     * Every way of closing the wizard («Cerrar», which reads «Cancelar» while «Crear» is building, Escape and the
+     * window's close box) comes here: a creation that is running is cancelled, then the dialog closes.
+     */
+    public void requestClose() {
+        createPanel.controls().cancel();
+        onClose.run();
+    }
+
+    /** What closing does once the creation is cancelled (the dialog disposes itself). */
     public void setOnClose(Runnable action) {
         onClose = action;
     }
@@ -210,14 +215,17 @@ public final class KarnaughWizard extends JPanel {
         }
     }
 
-    /** While «Crear» builds the circuit every button is off: the table must not change under it. */
+    /**
+     * While «Crear» builds the circuit every button is off (the table must not change under it) except «Cerrar»,
+     * which then reads «Cancelar».
+     */
     private void updateNavigation() {
         Optional<String> problem = model.problem();
         boolean busy = createPanel != null && createPanel.controls().isBusy();
         reason.setText(problem.orElse(""));
         backAction.setEnabled(!busy && step.ordinal() > 0);
         nextAction.setEnabled(!busy && step.ordinal() < Step.values().length - 1 && problem.isEmpty());
-        closeAction.setEnabled(!busy);
+        closeAction.putValue(Action.NAME, Messages.text(busy ? "karnaugh.cancel" : "karnaugh.close"));
         for (Map.Entry<Step, JToggleButton> entry : stepButtons.entrySet()) {
             entry.getValue().setEnabled(!busy && (entry.getKey() == Step.TABLE || problem.isEmpty()));
         }
@@ -276,15 +284,14 @@ public final class KarnaughWizard extends JPanel {
         return titles;
     }
 
-    /** Shows {@code wizard} in a large modal dialog over {@code parent}; «Cerrar» and Escape close it. */
+    /**
+     * Shows {@code wizard} in a large dialog over {@code parent}; «Cerrar», Escape and the close box all go through
+     * {@link #requestClose()}. The dialog blocks only its own window, so a «Circuito nuevo» window opened from it is
+     * usable (and comes to the front) while the wizard stays open to try other options.
+     */
     public static void showDialog(Component parent, KarnaughWizard wizard) {
-        JDialog dialog = new JDialog(parent == null ? null : SwingUtilities.getWindowAncestor(parent),
-                Messages.text("karnaugh.title"), JDialog.DEFAULT_MODALITY_TYPE);
-        dialog.setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
+        JDialog dialog = WizardDialogs.create(parent, Messages.text("karnaugh.title"), wizard, wizard::requestClose);
         wizard.setOnClose(dialog::dispose);
-        dialog.setContentPane(wizard);
-        dialog.getRootPane().registerKeyboardAction(event -> dialog.dispose(),
-                KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), JComponent.WHEN_IN_FOCUSED_WINDOW);
         dialog.setSize(DIALOG_SIZE);
         dialog.setLocationRelativeTo(parent);
         dialog.setVisible(true);

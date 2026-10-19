@@ -12,6 +12,7 @@ import cl.almejo.vsim.ui.window.EditorView;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.swing.SwingUtilities;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -51,7 +52,9 @@ final class ViewCreationTarget implements CreationTarget {
         // The fragment follows the pointer once it moves over the canvas; until then it waits at the view's center.
         GridPoint center = canvas.viewport().snap(canvas.getWidth() / 2.0, canvas.getHeight() / 2.0);
         canvas.setTool(new FloatingSelectionTool(fragment, center));
-        canvas.requestFocusInWindow();
+        // The dialog still blocks the window now; it closes in this same event, so ask for the focus after it, or
+        // Escape (cancel the paste) would not reach the canvas until a click.
+        SwingUtilities.invokeLater(canvas::requestFocusInWindow);
     }
 
     @Override
