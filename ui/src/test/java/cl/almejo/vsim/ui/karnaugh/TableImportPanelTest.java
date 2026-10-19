@@ -799,6 +799,47 @@ class TableImportPanelTest {
         }
     }
 
+    @Test
+    void aTableThatFitsTheWizardSuggestsItOnPageOneAndItsButtonOpensIt() throws IOException {
+        assertThat(panel.wizardHintShown()).as("no table yet").isFalse();
+        chosen = write("sumador.csv", ADDER);
+        panel.openFileButton().doClick();
+
+        assertThat(panel.page()).isEqualTo(TableImportPanel.Page.DATA);
+        assertThat(panel.wizardHintShown()).isTrue();
+        assertThat(panel.wizardHintText()).isEqualTo(
+                "Esta tabla cabe en el asistente de Karnaugh, que muestra el mapa y explica cada grupo.");
+        assertThat(panel.wizardHintButton().getText()).isEqualTo("Abrir en el asistente");
+        assertThat(panel.wizardHintButton().isEnabled()).isTrue();
+
+        panel.inputCountSpinner().setValue(1);
+        assertThat(panel.wizardHintShown()).as("1 input, 4 outputs: with problems and out of range").isFalse();
+        panel.inputCountSpinner().setValue(3);
+        assertThat(panel.wizardHintShown()).isTrue();
+
+        panel.wizardHintButton().doClick();
+
+        assertThat(events).as("as page 2's button: the dialog closes first").containsExactly("closed", "wizard");
+        assertThat(wizardSpecs.getFirst().inputNames()).containsExactly("Cin", "A", "B");
+        assertThat(wizardSpecs.getFirst().title()).isEqualTo("sumador");
+        assertThat(wizardOptions.getFirst()).isEqualTo(WizardOptions.defaults());
+    }
+
+    @Test
+    void theHintStaysAsideForLargerTablesAndNextStillGoesOn() throws IOException {
+        chosen = write("paridad.csv", parity(5));
+        panel.openFileButton().doClick();
+        assertThat(panel.wizardHintShown()).as("5 inputs").isFalse();
+
+        chosen = write("sumador.csv", ADDER);
+        panel.openFileButton().doClick();
+        assertThat(panel.wizardHintShown()).isTrue();
+        next();
+        assertThat(panel.wizardHintShown()).as("only on page «Datos»").isFalse();
+        panel.wizardHintButton().doClick();
+        assertThat(events).as("the hint's button acts only on page «Datos»").isEmpty();
+    }
+
     /** «2 229»: thousands apart by a non-breaking space. */
     private static String grouped(int number) {
         return String.format(Locale.ROOT, "%,d", number).replace(',', ' ');

@@ -197,6 +197,9 @@ class TablePreviewModelTest {
                         WizardColors.previewProblem())) {
                     assertThat(WizardColors.contrast(text, background)).as(theme.getName()).isGreaterThan(4.5);
                 }
+                assertThat(WizardColors.contrast(text, WizardColors.hint())).as("hint " + theme.getName())
+                        .isGreaterThan(4.5);
+                assertThat(WizardColors.hint()).isNotEqualTo(WizardColors.background());
                 assertThat(WizardColors.previewInput()).isNotEqualTo(WizardColors.previewOutput());
                 assertThat(WizardColors.previewProblem()).isNotEqualTo(WizardColors.cellBackground());
             }

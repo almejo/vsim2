@@ -11,6 +11,7 @@ import cl.almejo.vsim.core.logic.TableImportException;
 import cl.almejo.vsim.core.logic.Term;
 import cl.almejo.vsim.core.logic.TruthTableSpec;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.icons.Icons;
 import net.miginfocom.swing.MigLayout;
 
 import javax.swing.AbstractButton;
@@ -36,9 +37,12 @@ import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.Font;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
 import java.awt.GraphicsConfiguration;
 import java.awt.Insets;
 import java.awt.Rectangle;
+import java.awt.RenderingHints;
 import java.awt.Toolkit;
 import java.awt.Window;
 import java.io.IOException;
@@ -98,6 +102,9 @@ public final class TableImportPanel extends JPanel {
         }
     }
 
+    /** The icon of page «Datos»'s suggestion of the wizard (a light bulb). */
+    public static final String HINT_ICON = "hint";
+
     /** The dialog is never smaller than this when it fits itself to its content (page «Crear» needs about that). */
     static final Dimension MINIMUM_DIALOG_SIZE = new Dimension(640, 440);
 
@@ -126,6 +133,24 @@ public final class TableImportPanel extends JPanel {
         @Override
         public Color getForeground() {
             return WizardColors.errorText();
+        }
+    };
+    private final JButton hintButton = new JButton(Messages.text("tableImport.openInWizard"));
+    private final Paragraph hintText = new Paragraph(Messages.text("tableImport.wizardHint"));
+    /** Page «Datos»'s suggestion of the Karnaugh wizard, over the preview, for a table that fits it. */
+    private final JPanel wizardHint = new JPanel(new MigLayout("insets 6 10 6 8", "[]8[grow, fill]12[]", "[center]")) {
+        @Override
+        protected void paintComponent(Graphics graphics) {
+            Graphics2D graphics2D = (Graphics2D) graphics.create();
+            try {
+                graphics2D.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                graphics2D.setColor(WizardColors.hint());
+                graphics2D.fillRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 8, 8);
+                graphics2D.setColor(WizardColors.hintEdge());
+                graphics2D.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 8, 8);
+            } finally {
+                graphics2D.dispose();
+            }
         }
     };
     private final TablePreviewModel previewModel = new TablePreviewModel();
@@ -186,7 +211,7 @@ public final class TableImportPanel extends JPanel {
                 () -> !reading && page == Page.CREATE && sizeKnownAndAllowed());
 
         JPanel data = new JPanel(new MigLayout("insets 12 16 8 16, fill, wrap 1, hidemode 3", "[grow, fill]",
-                "[][]8[][][][grow]"));
+                "[][]8[][][][][grow]"));
         JPanel sourceRow = new JPanel(new MigLayout("insets 0", "[][]12[grow]"));
         sourceRow.add(openFile);
         sourceRow.add(paste);
@@ -200,6 +225,12 @@ public final class TableImportPanel extends JPanel {
         data.add(inputsRow);
         data.add(problems, "wmin 100");
         data.add(notice, "wmin 100");
+        wizardHint.setOpaque(false);
+        // A drawn bulb: the fonts Java finds rarely have the emoji 💡, which would show as an empty box or nothing.
+        wizardHint.add(new JLabel(Icons.get(HINT_ICON, Icons.MENU_SIZE)));
+        wizardHint.add(hintText, "wmin 100");
+        wizardHint.add(hintButton);
+        data.add(wizardHint, "wmin 100");
         data.add(preview, "grow, push, align left top");
 
         JPanel content = new JPanel(new MigLayout("insets 16, fillx, wrap 2", "[][grow, fill]",
@@ -259,7 +290,8 @@ public final class TableImportPanel extends JPanel {
         openFile.addActionListener(event -> openFile());
         paste.addActionListener(event -> paste());
         close.addActionListener(event -> requestClose());
-        wizard.addActionListener(event -> openWizard());
+        wizard.addActionListener(event -> openWizard(Page.CREATE));
+        hintButton.addActionListener(event -> openWizard(Page.DATA));
         back.addActionListener(event -> goTo(Page.DATA));
         next.addActionListener(event -> goTo(Page.CREATE));
         title.getDocument().addDocumentListener(new DocumentListener() {
@@ -349,12 +381,13 @@ public final class TableImportPanel extends JPanel {
     }
 
     /**
-     * «Abrir en el asistente»: this dialog closes without asking (nothing is lost: the table, its title and the
-     * options move into the wizard, missing rows as X) and the wizard opens on its map.
+     * «Abrir en el asistente» (on page «Crear», or in page «Datos»'s suggestion, {@code from}): this dialog closes
+     * without asking (nothing is lost: the table, its title and the options move into the wizard, missing rows as X)
+     * and the wizard opens on its map.
      */
-    private void openWizard() {
+    private void openWizard(Page from) {
         Optional<TruthTableSpec> spec = model.spec();
-        if (page != Page.CREATE || !model.canOpenInWizard() || spec.isEmpty() || reading || controls.isBusy()) {
+        if (page != from || !model.canOpenInWizard() || spec.isEmpty() || reading || controls.isBusy()) {
             return;
         }
         WizardOptions options = model.options();
@@ -560,6 +593,8 @@ public final class TableImportPanel extends JPanel {
         optionButtons.add(share);
         optionButtons.forEach(button -> button.setEnabled(!busy));
         wizard.setEnabled(!busy && model.canOpenInWizard());
+        wizardHint.setVisible(model.dataReady() && model.splitFitsTheWizard());
+        hintButton.setEnabled(!busy && model.canOpenInWizard());
         boolean outOfRange = model.hasTable() && !model.splitFitsTheWizard();
         wizard.setToolTipText(outOfRange ? Messages.text("tableImport.openInWizard.range") : null);
         boolean onData = page == Page.DATA;
@@ -640,6 +675,19 @@ public final class TableImportPanel extends JPanel {
     /** Why «Crear» is off for the circuit's size, or empty. */
     String gateLimitText() {
         return gateLimit.isVisible() ? gateLimit.getText() : "";
+    }
+
+    /** Whether page «Datos» shows the suggestion of the Karnaugh wizard. */
+    boolean wizardHintShown() {
+        return wizardHint.isVisible() && page == Page.DATA;
+    }
+
+    String wizardHintText() {
+        return hintText.getText();
+    }
+
+    JButton wizardHintButton() {
+        return hintButton;
     }
 
     String helpText() {

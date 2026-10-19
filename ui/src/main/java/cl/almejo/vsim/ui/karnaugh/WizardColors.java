@@ -83,6 +83,27 @@ final class WizardColors {
         return readable(warning(), dark() ? 0.26 : 0.16);
     }
 
+    /**
+     * The soft background of a suggestion (the import's «Esta tabla cabe en el asistente…»): a tint of the accent over
+     * the dialog's background, faded until the text keeps a contrast of at least 4.5:1.
+     */
+    static Color hint() {
+        Color text = foreground();
+        Color base = background();
+        for (double share = dark() ? 0.22 : 0.12; share > 0; share -= 0.02) {
+            Color candidate = blend(highlight(), base, share);
+            if (contrast(text, candidate) >= 4.6) {
+                return candidate;
+            }
+        }
+        return base;
+    }
+
+    /** The thin edge of {@link #hint()}: the accent, halfway to the background. */
+    static Color hintEdge() {
+        return blend(highlight(), background(), dark() ? 0.45 : 0.35);
+    }
+
     /** A cell, row or name of the import preview with a problem: the theme's error colour as a tint. */
     static Color previewProblem() {
         return readable(error(), dark() ? 0.50 : 0.26);

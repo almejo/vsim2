@@ -83,6 +83,7 @@ class ActionIconsTest {
         used.addAll(cl.almejo.vsim.ui.wiring.WiresFollowIcons.names());
         used.addAll(cl.almejo.vsim.ui.inline.InlineIcons.names());
         used.addAll(cl.almejo.vsim.ui.search.FindIcons.names());
+        used.add(cl.almejo.vsim.ui.karnaugh.TableImportPanel.HINT_ICON);
         assertThat(used).containsExactlyElementsOf(IconsTest.iconNames());
     }
 
