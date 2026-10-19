@@ -43,7 +43,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.Callable;
-import java.util.function.Consumer;
 
 /**
  * Herramientas ▸ «Circuito desde expresiones…» (spec §3): one {@code NOMBRE = expresión} line per output, each read
@@ -65,6 +64,15 @@ public final class ExpressionsPanel extends JPanel {
         }
     }
 
+    /**
+     * «Ver en Karnaugh…»: opens the wizard on {@code spec} over {@code owner}, which stays open underneath; a
+     * successful «Crear» in the wizard closes {@code owner} too ({@link #closeAfterCreating()}).
+     */
+    @FunctionalInterface
+    public interface WizardOpener {
+        void open(ExpressionsPanel owner, TruthTableSpec spec);
+    }
+
     /** What is under the lines once computed: one text per line (empty without «Simplificar») and the cost line. */
     record Preview(List<String> lineTexts, String cost) {
         Preview {
@@ -84,7 +92,7 @@ public final class ExpressionsPanel extends JPanel {
     private final Background background;
     private final AppPreferences preferences;
     private final KarnaughCost cost;
-    private final Consumer<TruthTableSpec> openInWizard;
+    private final WizardOpener openInWizard;
     private final CreationForm form;
     private final CreationControls controls;
     private final JTextField title = new JTextField(20);
@@ -144,10 +152,10 @@ public final class ExpressionsPanel extends JPanel {
      * @param background   where the previews are computed and the circuit is built
      * @param preferences  where «Simplificar» is remembered
      * @param cost         the gates of a minimized circuit, for the cost line
-     * @param openInWizard «Ver en Karnaugh…»: opens the wizard on the table (this dialog closes first)
+     * @param openInWizard «Ver en Karnaugh…»: opens the wizard on the table, over this dialog
      */
     public ExpressionsPanel(CreationTarget target, Background background, AppPreferences preferences,
-                            KarnaughCost cost, Consumer<TruthTableSpec> openInWizard) {
+                            KarnaughCost cost, WizardOpener openInWizard) {
         super(new BorderLayout());
         this.model = new ExpressionsModel(preferences.simplifyExpressions());
         this.background = background;
@@ -359,12 +367,18 @@ public final class ExpressionsPanel extends JPanel {
         onClose.run();
     }
 
+    /** The wizard opened from «Ver en Karnaugh…» created the circuit: the work is done, so this closes without asking. */
+    void closeAfterCreating() {
+        previewRequest++;
+        onClose.run();
+    }
+
     /** What asks before discarding the lines; the real one shows a dialog, tests answer it. */
     public void setDiscardConfirmation(KarnaughWizard.DiscardConfirmation confirmation) {
         discardConfirmation = confirmation;
     }
 
-    /** What closing (and an «Insertar», and «Ver en Karnaugh…») does (the dialog disposes itself). */
+    /** What closing (and a successful «Crear», here or in the wizard over it) does (the dialog disposes itself). */
     public void setOnClose(Runnable action) {
         onClose = action;
     }
@@ -381,15 +395,16 @@ public final class ExpressionsPanel extends JPanel {
         };
     }
 
-    /** «Ver en Karnaugh…»: this dialog closes (the table goes with the wizard) and the wizard opens on it. */
+    /**
+     * «Ver en Karnaugh…»: the wizard opens over this dialog, which stays open with its lines; closing the wizard comes
+     * back here, and a circuit created there closes both.
+     */
     private void openWizard() {
         Optional<TruthTableSpec> spec = model.spec();
         if (!model.canOpenInWizard() || spec.isEmpty() || controls.isBusy()) {
             return;
         }
-        previewRequest++;
-        onClose.run();
-        openInWizard.accept(spec.get());
+        openInWizard.open(this, spec.get());
     }
 
     private void modelChanged() {

@@ -18,6 +18,8 @@ import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * The truth table of the wizard: row number, inputs, outputs. Step 1 edits it (a click on an output cycles
@@ -34,9 +36,13 @@ final class WizardTable extends JTable {
     private final TableModel tableModel;
     private int shownInputs;
     private int shownOutputs;
+    /** Whether clicks and keys change the output cells (step 1, unless the table comes from expressions). */
+    private boolean editsCells;
+    private final List<KeyStroke> boundKeys = new ArrayList<>();
 
     WizardTable(KarnaughModel model, HoverState hover, boolean editable) {
         this.model = model;
+        this.editsCells = editable;
         this.hover = hover;
         this.tableModel = new TableModel();
         this.shownInputs = model.inputCount();
@@ -66,7 +72,7 @@ final class WizardTable extends JTable {
 
             @Override
             public void mousePressed(MouseEvent event) {
-                if (editable && event.getButton() == MouseEvent.BUTTON1) {
+                if (editsCells && event.getButton() == MouseEvent.BUTTON1) {
                     int row = rowAtPoint(event.getPoint());
                     int output = outputOf(columnAtPoint(event.getPoint()));
                     if (row >= 0 && output >= 0) {
@@ -86,9 +92,20 @@ final class WizardTable extends JTable {
                     KeyEvent.VK_X);
             bindKey("karnaugh.cycle", model::cycle, KeyEvent.VK_SPACE);
             // Shift+X (an upper-case X) writes X too.
-            getInputMap(JComponent.WHEN_FOCUSED).put(
-                    KeyStroke.getKeyStroke(KeyEvent.VK_X, InputEvent.SHIFT_DOWN_MASK), "karnaugh.dontCare");
+            KeyStroke shiftX = KeyStroke.getKeyStroke(KeyEvent.VK_X, InputEvent.SHIFT_DOWN_MASK);
+            getInputMap(JComponent.WHEN_FOCUSED).put(shiftX, "karnaugh.dontCare");
+            boundKeys.add(shiftX);
         }
+    }
+
+    /** Off for good: the table only shows the values (the table of «Circuito desde expresiones» in the wizard). */
+    void stopEditing() {
+        editsCells = false;
+        setCellSelectionEnabled(false);
+        setRowSelectionAllowed(false);
+        setFocusable(false);
+        boundKeys.forEach(stroke -> getInputMap(JComponent.WHEN_FOCUSED).remove(stroke));
+        boundKeys.clear();
     }
 
     /** Which output a view column shows, or -1 for the row number and the inputs. */
@@ -103,7 +120,9 @@ final class WizardTable extends JTable {
 
     private void bindKey(String name, CellEdit edit, int... keyCodes) {
         for (int keyCode : keyCodes) {
-            getInputMap(JComponent.WHEN_FOCUSED).put(KeyStroke.getKeyStroke(keyCode, 0), name);
+            KeyStroke stroke = KeyStroke.getKeyStroke(keyCode, 0);
+            getInputMap(JComponent.WHEN_FOCUSED).put(stroke, name);
+            boundKeys.add(stroke);
         }
         getActionMap().put(name, new AbstractAction() {
             @Override

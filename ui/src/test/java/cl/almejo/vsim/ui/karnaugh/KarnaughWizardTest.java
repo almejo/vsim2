@@ -359,4 +359,67 @@ class KarnaughWizardTest {
         wizard.back();
         assertThat(root.getDefaultButton()).isSameAs(wizard.nextButton());
     }
+
+    @Test
+    void fromTheExpressionsTheTableIsReadOnlyAndClosingGoesBackWithoutAsking() {
+        model.load(KarnaughModelTest.bcd());
+        int[] closed = {0};
+        int[] afterCreating = {0};
+        int[] asked = {0};
+        wizard = new KarnaughWizard(model, KarnaughCost.GENERATOR, new FakeCreationTarget(), Background.inline());
+        wizard.setOnClose(() -> closed[0]++);
+        wizard.setDiscardConfirmation(parent -> {
+            asked[0]++;
+            return false;
+        });
+        wizard.showTableFromExpressions(() -> afterCreating[0]++);
+        wizard.goTo(KarnaughWizard.Step.GROUPS);
+
+        assertThat(wizard.closeAction().getValue(Action.NAME)).isEqualTo("Volver a las expresiones");
+        TablePanel table = wizard.tablePanel();
+        assertThat(table.noteText())
+                .isEqualTo("La tabla viene de tus expresiones; para cambiarla, edita las expresiones.");
+        assertThat(table.titleField().isEditable()).isFalse();
+        assertThat(table.inputCountSpinner().isEnabled()).isFalse();
+        assertThat(table.outputCountSpinner().isEnabled()).isFalse();
+        assertThat(table.inputNameFields()).allSatisfy(field -> assertThat(field.isEditable()).isFalse());
+        assertThat(table.outputNameFields()).allSatisfy(field -> assertThat(field.isEditable()).isFalse());
+        LogicValue before = model.value(0, 2);
+        press(table.table(), 2, table.table().getColumnCount() - 1);
+        assertThat(model.value(0, 2)).as("a click does not change a cell").isEqualTo(before);
+        assertThat(table.table().getInputMap(JComponent.WHEN_FOCUSED).get(KeyStroke.getKeyStroke(KeyEvent.VK_1, 0)))
+                .as("nor a key").isNull();
+
+        // Step 4's options may change; nothing the user wrote can be lost by going back.
+        model.setOptions(model.options().withShareTerms(!model.options().shareTerms()));
+        wizard.requestClose();
+        assertThat(asked[0]).isZero();
+        assertThat(closed[0]).isEqualTo(1);
+        assertThat(afterCreating[0]).isZero();
+    }
+
+    @Test
+    void fromTheExpressionsASuccessfulCreateClosesTheWizardAndTheExpressions() {
+        model.load(KarnaughModelTest.bcd());
+        int[] closed = {0};
+        int[] afterCreating = {0};
+        FakeCreationTarget target = new FakeCreationTarget();
+        wizard = new KarnaughWizard(model, KarnaughCost.GENERATOR, target, Background.inline());
+        wizard.setOnClose(() -> closed[0]++);
+        wizard.showTableFromExpressions(() -> afterCreating[0]++);
+        wizard.goTo(KarnaughWizard.Step.CREATE);
+        wizard.createButton().doClick();
+
+        assertThat(target.newCircuits).hasSize(1);
+        assertThat(closed[0]).isEqualTo(1);
+        assertThat(afterCreating[0]).isEqualTo(1);
+    }
+
+    @Test
+    void theNormalWizardKeepsItsEditableTableAndCerrar() {
+        assertThat(wizard.closeAction().getValue(Action.NAME)).isEqualTo("Cerrar");
+        assertThat(wizard.tablePanel().noteText()).isEmpty();
+        assertThat(wizard.tablePanel().titleField().isEditable()).isTrue();
+        assertThat(wizard.tablePanel().inputCountSpinner().isEnabled()).isTrue();
+    }
 }

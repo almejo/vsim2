@@ -16,6 +16,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import javax.swing.Action;
 import javax.swing.JMenu;
 import java.awt.Component;
 import java.util.ArrayList;
@@ -113,8 +114,32 @@ class KarnaughExtensionTest {
             assertThat(wizard.model().inputNames()).containsExactly("A", "B", "C");
             assertThat(wizard.model().outputNames()).containsExactly("M");
             assertThat(wizard.model().spec()).isEqualTo(panel.model().spec().orElseThrow());
+            assertThat(wizard.closeAction().getValue(Action.NAME)).isEqualTo("Volver a las expresiones");
+            assertThat(wizard.tablePanel().titleField().isEditable()).isFalse();
         });
-        assertThat(parents).containsExactly(view, view);
+        assertThat(parents).as("the wizard opens over the expressions dialog").containsExactly(view, panel);
+    }
+
+    @Test
+    void creatingFromTheWizardOverTheExpressionsClosesBoth() {
+        view.menu(MenuId.TOOLS).getItem(1).doClick();
+        ExpressionsPanel panel = expressions.getFirst();
+        int[] expressionsClosed = {0};
+        int[] wizardClosed = {0};
+        panel.setOnClose(() -> expressionsClosed[0]++);
+        panel.lineField(0).setText("M = A B + A C + B C");
+        panel.wizardLink().doClick();
+        KarnaughWizard wizard = opened.getFirst();
+        wizard.setOnClose(() -> wizardClosed[0]++);
+
+        wizard.requestClose();
+        assertThat(wizardClosed[0]).isEqualTo(1);
+        assertThat(expressionsClosed[0]).as("going back keeps the expressions").isZero();
+
+        wizard.goTo(KarnaughWizard.Step.CREATE);
+        wizard.createButton().doClick();
+        assertThat(wizardClosed[0]).isEqualTo(2);
+        assertThat(expressionsClosed[0]).as("the work is done").isEqualTo(1);
     }
 
     @Test

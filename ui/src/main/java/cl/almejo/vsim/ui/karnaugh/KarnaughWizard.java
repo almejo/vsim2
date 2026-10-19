@@ -108,6 +108,11 @@ public final class KarnaughWizard extends JPanel {
     /** The table as the wizard opened it, or as «Crear» last created it: closing asks only when it differs. */
     private KarnaughModel.Contents unchanged;
     private Step step = Step.TABLE;
+    /**
+     * Set when the wizard shows the table of «Circuito desde expresiones» (over that dialog): what closes the
+     * expressions dialog after a successful «Crear». Null in the normal wizard.
+     */
+    private Runnable afterCreating;
 
     /**
      * @param target     where «Crear» puts the circuit (and the component)
@@ -121,7 +126,7 @@ public final class KarnaughWizard extends JPanel {
         this.groupsPanel = new GroupsPanel(model, hover);
         this.expressionPanel = new ExpressionPanel(model, cost);
         this.createPanel = new CreatePanel(model, new CreationForm(target), new CircuitCreator(target, background),
-                () -> onClose.run(), this::updateNavigation, () -> step == Step.CREATE);
+                this::closeAfterCreating, this::updateNavigation, () -> step == Step.CREATE);
         this.unchanged = model.contents();
         createPanel.controls().setOnCreated(() -> unchanged = model.contents());
         panels.put(Step.TABLE, tablePanel);
@@ -178,6 +183,25 @@ public final class KarnaughWizard extends JPanel {
         display(Step.TABLE);
     }
 
+    /**
+     * «Ver en Karnaugh…» of «Circuito desde expresiones»: the table comes from the expressions, so step 1 shows it
+     * read-only with a note, and closing reads «Volver a las expresiones» and never asks (nothing typed here can be
+     * lost). A successful «Crear» closes the wizard and then runs {@code closeExpressions}.
+     */
+    void showTableFromExpressions(Runnable closeExpressions) {
+        afterCreating = closeExpressions;
+        tablePanel.setReadOnly();
+        updateNavigation();
+    }
+
+    /** The creation is done (closing after it never asks); over the expressions, they close too. */
+    private void closeAfterCreating() {
+        onClose.run();
+        if (afterCreating != null) {
+            afterCreating.run();
+        }
+    }
+
     public KarnaughModel model() {
         return model;
     }
@@ -213,11 +237,12 @@ public final class KarnaughWizard extends JPanel {
     /**
      * Every way of closing the wizard («Cerrar», which reads «Cancelar» while «Crear» is building, Escape and the
      * window's close box) comes here: a creation that is running is cancelled; then, when the table was edited and
-     * not created since, the user is asked «¿Descartar la tabla?», and «Seguir editando» keeps the wizard open.
+     * not created since, the user is asked «¿Descartar la tabla?», and «Seguir editando» keeps the wizard open. Over
+     * the expressions («Volver a las expresiones») it never asks: the table there cannot be edited.
      */
     public void requestClose() {
         createPanel.controls().cancel();
-        if (edited() && !discardConfirmation.discard(this)) {
+        if (afterCreating == null && edited() && !discardConfirmation.discard(this)) {
             return;
         }
         onClose.run();
@@ -272,7 +297,8 @@ public final class KarnaughWizard extends JPanel {
         reason.setText(problem.orElse(""));
         backAction.setEnabled(!busy && step.ordinal() > 0);
         nextAction.setEnabled(!busy && step.ordinal() < Step.values().length - 1 && problem.isEmpty());
-        closeAction.putValue(Action.NAME, Messages.text(busy ? "karnaugh.cancel" : "karnaugh.close"));
+        closeAction.putValue(Action.NAME, Messages.text(busy ? "karnaugh.cancel"
+                : afterCreating != null ? "expressions.wizard.back" : "karnaugh.close"));
         for (Map.Entry<Step, JToggleButton> entry : stepButtons.entrySet()) {
             entry.getValue().setEnabled(!busy && (entry.getKey() == Step.TABLE || problem.isEmpty()));
         }

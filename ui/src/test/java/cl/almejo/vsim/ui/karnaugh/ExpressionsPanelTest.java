@@ -52,7 +52,7 @@ class ExpressionsPanelTest {
     }
 
     private void open(Background background) {
-        panel = new ExpressionsPanel(target, background, preferences, KarnaughCost.GENERATOR, wizardTables::add);
+        panel = new ExpressionsPanel(target, background, preferences, KarnaughCost.GENERATOR, (owner, spec) -> wizardTables.add(spec));
         panel.setOnClose(() -> closed++);
         panel.setDiscardConfirmation(parent -> {
             discardQuestions++;
@@ -114,7 +114,7 @@ class ExpressionsPanelTest {
                 (minimization, options) -> {
                     costed.add(minimization);
                     return KarnaughCost.GENERATOR.gatesByType(minimization, options);
-                }, wizardTables::add);
+                }, (owner, spec) -> wizardTables.add(spec));
         type(0, "F = A B + A B'");
         type(0, "F = A + B");
 
@@ -326,7 +326,7 @@ class ExpressionsPanelTest {
 
         panel.wizardLink().doClick();
 
-        assertThat(closed).isEqualTo(1);
+        assertThat(closed).as("the expressions stay open under the wizard").isZero();
         assertThat(discardQuestions).isZero();
         assertThat(wizardTables).singleElement().satisfies(spec -> {
             assertThat(spec.title()).isEqualTo("Mi tabla");

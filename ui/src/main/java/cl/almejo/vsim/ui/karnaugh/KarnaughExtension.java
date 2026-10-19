@@ -1,6 +1,5 @@
 package cl.almejo.vsim.ui.karnaugh;
 
-import cl.almejo.vsim.core.logic.TruthTableSpec;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.library.LibraryService;
 import cl.almejo.vsim.ui.window.EditorExtension;
@@ -12,7 +11,6 @@ import javax.swing.Action;
 import javax.swing.JMenu;
 import javax.swing.JMenuItem;
 import java.awt.event.ActionEvent;
-import java.util.function.Consumer;
 import java.util.function.Function;
 
 /**
@@ -80,13 +78,15 @@ public final class KarnaughExtension implements EditorExtension {
             opener.open(view, new KarnaughWizard(model, cost, target, background));
         });
 
-        // «Ver en Karnaugh…» of the expressions dialog: a wizard on the table, showing the groups (step 3).
-        Consumer<TruthTableSpec> openInWizard = spec -> {
+        // «Ver en Karnaugh…» of the expressions dialog: a wizard over it on the expressions' table (read-only there),
+        // showing the groups (step 3); going back leaves the expressions as they were, creating closes both.
+        ExpressionsPanel.WizardOpener openInWizard = (owner, spec) -> {
             KarnaughModel model = new KarnaughModel();
             model.load(spec);
             KarnaughWizard wizard = new KarnaughWizard(model, cost, target, background);
+            wizard.showTableFromExpressions(owner::closeAfterCreating);
             wizard.goTo(KarnaughWizard.Step.GROUPS);
-            opener.open(view, wizard);
+            opener.open(owner, wizard);
         };
         Action expressionsAction = new AbstractAction(Messages.text("action.circuitFromExpressions")) {
             @Override

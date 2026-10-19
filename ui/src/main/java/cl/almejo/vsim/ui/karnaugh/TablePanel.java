@@ -34,6 +34,9 @@ final class TablePanel extends JPanel {
     private final List<JTextField> inputNameFields = new ArrayList<>();
     private final List<JTextField> outputNameFields = new ArrayList<>();
     private final WizardTable table;
+    private final Paragraph help = new Paragraph(Messages.text("karnaugh.table.help"));
+    /** True over «Circuito desde expresiones»: the table comes from the expressions and cannot be edited here. */
+    private boolean readOnly;
 
     TablePanel(KarnaughModel model, HoverState hover) {
         super(new MigLayout("insets 12, fillx, wrap 4", "[][grow, fill][][grow, fill]", "[][][][][][][grow, fill]"));
@@ -59,12 +62,32 @@ final class TablePanel extends JPanel {
         add(inputNamesPanel, "span 3");
         add(new JLabel(Messages.text("karnaugh.table.outputNames")));
         add(outputNamesPanel, "span 3");
-        add(new Paragraph(Messages.text("karnaugh.table.help")), "span 4, growx, wmin 100");
+        add(help, "span 4, growx, wmin 100");
         add(new Paragraph(Messages.text("karnaugh.table.dontCare")), "span 4, growx, wmin 100");
         add(new JScrollPane(table), "span 4, grow, push");
 
         rebuildNameFields();
         model.addListener(this::modelChanged);
+    }
+
+    /**
+     * The table comes from «Circuito desde expresiones»: nothing here can be edited (title, counts, names, cells), and
+     * the help about editing becomes the note that says where to change it.
+     */
+    void setReadOnly() {
+        readOnly = true;
+        titleField.setEditable(false);
+        inputCount.setEnabled(false);
+        outputCount.setEnabled(false);
+        inputNameFields.forEach(field -> field.setEditable(false));
+        outputNameFields.forEach(field -> field.setEditable(false));
+        table.stopEditing();
+        help.setText(Messages.text("expressions.wizard.tableNote"));
+    }
+
+    /** The read-only note, empty when the table can be edited. */
+    String noteText() {
+        return readOnly ? help.getText() : "";
     }
 
     WizardTable table() {
@@ -119,19 +142,20 @@ final class TablePanel extends JPanel {
     }
 
     private void rebuildNameFields() {
-        rebuild(inputNamesPanel, inputNameFields, model::inputNames, model::setInputName);
-        rebuild(outputNamesPanel, outputNameFields, model::outputNames, model::setOutputName);
+        rebuild(inputNamesPanel, inputNameFields, model::inputNames, model::setInputName, !readOnly);
+        rebuild(outputNamesPanel, outputNameFields, model::outputNames, model::setOutputName, !readOnly);
         revalidate();
         repaint();
     }
 
     private static void rebuild(JPanel panel, List<JTextField> fields, Supplier<List<String>> names,
-                                BiConsumer<Integer, String> rename) {
+                                BiConsumer<Integer, String> rename, boolean editable) {
         panel.removeAll();
         fields.clear();
         List<String> current = names.get();
         for (int index = 0; index < current.size(); index++) {
             JTextField field = new JTextField(current.get(index), NAME_COLUMNS);
+            field.setEditable(editable);
             int position = index;
             onEdit(field, () -> rename.accept(position, field.getText()));
             fields.add(field);
