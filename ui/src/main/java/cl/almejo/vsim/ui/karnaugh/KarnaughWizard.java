@@ -10,7 +10,9 @@ import javax.swing.ButtonGroup;
 import javax.swing.JButton;
 import javax.swing.JDialog;
 import javax.swing.JLabel;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
+import javax.swing.JRootPane;
 import javax.swing.JToggleButton;
 import java.awt.BorderLayout;
 import java.awt.CardLayout;
@@ -26,9 +28,10 @@ import java.util.Optional;
 
 /**
  * The «Circuito desde tabla de verdad» wizard (spec §3): a step bar («1 Tabla · 2 Mapa · 3 Grupos · 4 Expresión ·
- * 5 Crear»), the step panels, and «Atrás» / «Siguiente». Every step derives from one {@link KarnaughModel}, so going
- * back and changing anything recomputes the later steps. While the table has a problem (a blank or repeated name)
- * only step 1 is reachable and the reason shows next to «Siguiente».
+ * 5 Crear»), the step panels, and «Atrás» · «Siguiente» · «Crear» · «Cerrar». Every step derives from one
+ * {@link KarnaughModel}, so going back and changing anything recomputes the later steps. While the table has a
+ * problem (a blank or repeated name) only step 1 is reachable and the reason shows next to «Siguiente». Closing a
+ * table edited since it opened (or since «Crear» last made it) asks first.
  * <p>
  * The wizard is a panel; {@link #showDialog} puts it in a modal dialog, and the menu item reaches it through an
  * {@link Opener} so tests never show it.
@@ -63,6 +66,24 @@ public final class KarnaughWizard extends JPanel {
         }
     }
 
+    /** Asks «¿Descartar la tabla?» before closing a wizard whose table was edited; true discards it. */
+    @FunctionalInterface
+    public interface DiscardConfirmation {
+        boolean discard(Component parent);
+
+        /** «Descartar» / «Seguir editando», with «Seguir editando» as the default answer. */
+        static DiscardConfirmation dialog() {
+            return parent -> {
+                String discard = Messages.text("karnaugh.discard.discard");
+                String keep = Messages.text("karnaugh.discard.keep");
+                int answer = JOptionPane.showOptionDialog(parent, Messages.text("karnaugh.discard.message"),
+                        Messages.text("karnaugh.discard.title"), JOptionPane.YES_NO_OPTION,
+                        JOptionPane.WARNING_MESSAGE, null, new Object[] {discard, keep}, keep);
+                return answer == 0;
+            };
+        }
+    }
+
     private static final Dimension DIALOG_SIZE = new Dimension(1000, 680);
 
     private final KarnaughModel model;
@@ -80,7 +101,12 @@ public final class KarnaughWizard extends JPanel {
     private final Action backAction;
     private final Action nextAction;
     private final Action closeAction;
+    private final JButton nextButton;
+    private final JPanel buttonBar;
     private Runnable onClose = () -> { };
+    private DiscardConfirmation discardConfirmation = DiscardConfirmation.dialog();
+    /** The table as the wizard opened it, or as «Crear» last created it: closing asks only when it differs. */
+    private KarnaughModel.Contents unchanged;
     private Step step = Step.TABLE;
 
     /**
@@ -95,7 +121,9 @@ public final class KarnaughWizard extends JPanel {
         this.groupsPanel = new GroupsPanel(model, hover);
         this.expressionPanel = new ExpressionPanel(model, cost);
         this.createPanel = new CreatePanel(model, new CreationForm(target), new CircuitCreator(target, background),
-                () -> onClose.run(), this::updateNavigation);
+                () -> onClose.run(), this::updateNavigation, () -> step == Step.CREATE);
+        this.unchanged = model.contents();
+        createPanel.controls().setOnCreated(() -> unchanged = model.contents());
         panels.put(Step.TABLE, tablePanel);
         panels.put(Step.MAP, mapPanel);
         panels.put(Step.GROUPS, groupsPanel);
@@ -135,16 +163,17 @@ public final class KarnaughWizard extends JPanel {
             stepButtons.put(each, button);
             content.add(panels.get(each), each.name());
         }
-        JPanel buttons = new JPanel(new MigLayout("insets 6 12 10 12, fillx", "[grow, fill][][][]"));
-        buttons.add(reason);
-        buttons.add(new JButton(backAction));
-        JButton nextButton = new JButton(nextAction);
-        buttons.add(nextButton);
-        buttons.add(new JButton(closeAction), "gapleft 12");
+        buttonBar = new JPanel(new MigLayout("insets 6 12 10 12, fillx", "[grow, fill][][][][]"));
+        buttonBar.add(reason);
+        buttonBar.add(new JButton(backAction));
+        nextButton = new JButton(nextAction);
+        buttonBar.add(nextButton);
+        buttonBar.add(createPanel.controls().createButton());
+        buttonBar.add(new JButton(closeAction), "gapleft 12");
 
         add(bar, BorderLayout.NORTH);
         add(content, BorderLayout.CENTER);
-        add(buttons, BorderLayout.SOUTH);
+        add(buttonBar, BorderLayout.SOUTH);
         model.addListener(this::modelChanged);
         display(Step.TABLE);
     }
@@ -183,11 +212,28 @@ public final class KarnaughWizard extends JPanel {
 
     /**
      * Every way of closing the wizard («Cerrar», which reads «Cancelar» while «Crear» is building, Escape and the
-     * window's close box) comes here: a creation that is running is cancelled, then the dialog closes.
+     * window's close box) comes here: a creation that is running is cancelled; then, when the table was edited and
+     * not created since, the user is asked «¿Descartar la tabla?», and «Seguir editando» keeps the wizard open.
      */
     public void requestClose() {
         createPanel.controls().cancel();
+        if (edited() && !discardConfirmation.discard(this)) {
+            return;
+        }
         onClose.run();
+    }
+
+    /**
+     * Whether any cell, name, count or the title differs from how the wizard opened (a table computed by «Tabla de
+     * verdad…» counts as the start) or from the table «Crear» last created.
+     */
+    boolean edited() {
+        return !model.contents().equals(unchanged);
+    }
+
+    /** What asks «¿Descartar la tabla?»; the real one shows a dialog, tests answer it. */
+    public void setDiscardConfirmation(DiscardConfirmation confirmation) {
+        discardConfirmation = confirmation;
     }
 
     /** What closing does once the creation is cancelled (the dialog disposes itself). */
@@ -217,9 +263,10 @@ public final class KarnaughWizard extends JPanel {
 
     /**
      * While «Crear» builds the circuit every button is off (the table must not change under it) except «Cerrar»,
-     * which then reads «Cancelar».
+     * which then reads «Cancelar». «Crear» is on only on step 5 (its controls decide the rest); there it is the
+     * default button (Enter), and «Siguiente» is on steps 1 to 4.
      */
-    private void updateNavigation() {
+    void updateNavigation() {
         Optional<String> problem = model.problem();
         boolean busy = createPanel != null && createPanel.controls().isBusy();
         reason.setText(problem.orElse(""));
@@ -229,6 +276,32 @@ public final class KarnaughWizard extends JPanel {
         for (Map.Entry<Step, JToggleButton> entry : stepButtons.entrySet()) {
             entry.getValue().setEnabled(!busy && (entry.getKey() == Step.TABLE || problem.isEmpty()));
         }
+        if (createPanel != null) {
+            createPanel.controls().refresh();
+            JRootPane root = getRootPane();
+            if (root != null) {
+                root.setDefaultButton(step == Step.CREATE ? createPanel.controls().createButton() : nextButton);
+            }
+        }
+    }
+
+    /** «Crear», in the button bar; on only on step 5 with valid names and nothing being built. */
+    JButton createButton() {
+        return createPanel.controls().createButton();
+    }
+
+    JButton nextButton() {
+        return nextButton;
+    }
+
+    List<String> buttonBarTexts() {
+        List<String> texts = new ArrayList<>();
+        for (Component each : buttonBar.getComponents()) {
+            if (each instanceof AbstractButton button) {
+                texts.add(button.getText());
+            }
+        }
+        return texts;
     }
 
     TablePanel tablePanel() {
@@ -292,6 +365,7 @@ public final class KarnaughWizard extends JPanel {
     public static void showDialog(Component parent, KarnaughWizard wizard) {
         JDialog dialog = WizardDialogs.create(parent, Messages.text("karnaugh.title"), wizard, wizard::requestClose);
         wizard.setOnClose(dialog::dispose);
+        wizard.updateNavigation(); // the default button, now that there is a root pane
         dialog.setSize(DIALOG_SIZE);
         dialog.setLocationRelativeTo(parent);
         dialog.setVisible(true);

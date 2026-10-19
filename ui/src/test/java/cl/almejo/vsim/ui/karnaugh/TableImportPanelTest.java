@@ -7,7 +7,10 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import javax.swing.JButton;
+import javax.swing.JRootPane;
 import javax.swing.SpinnerNumberModel;
+import javax.swing.SwingUtilities;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
@@ -356,5 +359,53 @@ class TableImportPanelTest {
             xml.append("</row>");
         }
         return xml.append("</sheetData></worksheet>").toString();
+    }
+
+    @Test
+    void createSitsInTheBottomBarAndIsOnOnlyForALoadedTableWithValidOptions() throws IOException {
+        open(new Background(queued::add, Runnable::run));
+        JRootPane root = new JRootPane();
+        root.getContentPane().add(panel);
+        JButton create = panel.createButton();
+        assertThat(SwingUtilities.isDescendingFrom(create, panel.controls())).isFalse();
+        assertThat(SwingUtilities.isDescendingFrom(create, panel)).isTrue();
+        assertThat(panel.buttonBarTexts()).containsExactly("Crear", "Cerrar");
+        assertThat(create.isEnabled()).as("no table yet").isFalse();
+        assertThat(root.getDefaultButton()).isNull();
+
+        chosen = write("sumador.csv", ADDER);
+        panel.openFileButton().doClick();
+        assertThat(create.isEnabled()).as("while reading").isFalse();
+        queued.removeFirst().run(); // the file
+        assertThat(create.isEnabled()).isTrue();
+        assertThat(root.getDefaultButton()).isSameAs(create);
+
+        panel.controls().componentCheckBox().doClick();
+        panel.controls().nameField().setText(" ");
+        assertThat(create.isEnabled()).as("a blank component name").isFalse();
+        assertThat(root.getDefaultButton()).isNull();
+        panel.controls().nameField().setText("Sumador");
+        assertThat(create.isEnabled()).isTrue();
+        assertThat(root.getDefaultButton()).isSameAs(create);
+
+        panel.titleField().setText("");
+        assertThat(create.isEnabled()).as("a blank title").isFalse();
+        panel.titleField().setText("sumador");
+
+        queued.clear(); // the summaries
+        create.doClick();
+        assertThat(create.isEnabled()).as("while building").isFalse();
+        assertThat(root.getDefaultButton()).isNull();
+        queued.removeFirst().run();
+        assertThat(target.newCircuits).hasSize(1);
+        assertThat(create.isEnabled()).isTrue();
+    }
+
+    @Test
+    void aTableWithProblemsCannotBeCreated() throws IOException {
+        chosen = write("malo.csv", "A,B,F\n0,0,2\n");
+        panel.openFileButton().doClick();
+        assertThat(panel.problemsText()).isNotEmpty();
+        assertThat(panel.createButton().isEnabled()).isFalse();
     }
 }

@@ -8,6 +8,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import javax.swing.Action;
+import javax.swing.JButton;
+import javax.swing.JRootPane;
+import javax.swing.SwingUtilities;
 import javax.swing.JComponent;
 import javax.swing.JTable;
 import javax.swing.KeyStroke;
@@ -312,5 +315,48 @@ class KarnaughWizardTest {
         assertThat(wizard.nextAction().isEnabled()).isFalse();
         assertThat(wizard.backAction().isEnabled()).isTrue();
         assertThat(wizard.createPanel().controls().createButton().isEnabled()).isTrue();
+    }
+
+    @Test
+    void createSitsInTheButtonBarAndIsOnOnlyOnTheLastStepWithValidNames() {
+        JButton create = wizard.createButton();
+        assertThat(SwingUtilities.isDescendingFrom(create, wizard.createPanel())).as("not inside step 5").isFalse();
+        assertThat(SwingUtilities.isDescendingFrom(create, wizard)).isTrue();
+        assertThat(wizard.buttonBarTexts()).containsExactly("Atrás", "Siguiente", "Crear", "Cerrar");
+        for (KarnaughWizard.Step step : List.of(KarnaughWizard.Step.TABLE, KarnaughWizard.Step.MAP,
+                KarnaughWizard.Step.GROUPS, KarnaughWizard.Step.EXPRESSION)) {
+            assertThat(wizard.goTo(step)).isTrue();
+            assertThat(create.isEnabled()).as("on %s", step).isFalse();
+            assertThat(wizard.nextAction().isEnabled()).isTrue();
+        }
+        wizard.next();
+        assertThat(wizard.step()).isEqualTo(KarnaughWizard.Step.CREATE);
+        assertThat(create.isEnabled()).isTrue();
+        assertThat(wizard.nextAction().isEnabled()).isFalse();
+
+        CreationControls controls = wizard.createPanel().controls();
+        controls.componentCheckBox().doClick();
+        controls.nameField().setText("  ");
+        assertThat(create.isEnabled()).as("a blank component name").isFalse();
+        controls.nameField().setText("Mío");
+        assertThat(create.isEnabled()).isTrue();
+        controls.componentCheckBox().doClick();
+        controls.nameField().setText("");
+        assertThat(create.isEnabled()).as("no component wanted").isTrue();
+
+        wizard.back();
+        assertThat(create.isEnabled()).isFalse();
+    }
+
+    @Test
+    void theDefaultButtonIsSiguienteUntilTheLastStepThenCrear() {
+        JRootPane root = new JRootPane();
+        root.getContentPane().add(wizard);
+        wizard.goTo(KarnaughWizard.Step.MAP);
+        assertThat(root.getDefaultButton()).isSameAs(wizard.nextButton());
+        wizard.goTo(KarnaughWizard.Step.CREATE);
+        assertThat(root.getDefaultButton()).isSameAs(wizard.createButton());
+        wizard.back();
+        assertThat(root.getDefaultButton()).isSameAs(wizard.nextButton());
     }
 }

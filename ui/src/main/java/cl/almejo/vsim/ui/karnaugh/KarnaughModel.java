@@ -333,6 +333,15 @@ public final class KarnaughModel {
         return name.strip().toLowerCase(Locale.ROOT);
     }
 
+    /** What the user edits by hand (title, names, counts, values), to tell whether it changed; options are left out. */
+    record Contents(String title, List<String> inputNames, List<String> outputNames, List<List<LogicValue>> values) {
+    }
+
+    Contents contents() {
+        return new Contents(title, List.copyOf(inputNames), List.copyOf(outputNames),
+                values.stream().map(List::copyOf).toList());
+    }
+
     private void changed() {
         minimization = null;
         fire();

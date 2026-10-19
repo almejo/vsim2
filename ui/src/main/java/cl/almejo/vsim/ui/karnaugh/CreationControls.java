@@ -16,16 +16,20 @@ import javax.swing.JTextField;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import java.awt.Color;
+import java.util.ArrayList;
 import java.util.EnumMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 
 /**
  * The «Crear» part shared by the wizard's step 5 and the import dialog (spec §3 step 5, §6): «Destino» (circuito
- * nuevo / insertar en el circuito actual), «Crear también como componente» with its name, «Crear», a busy indicator
- * while the circuit is built off the EDT, and the outcome («✓ El circuito cumple la tabla»). Everything is disabled
- * while busy. After an «Insertar» the dialog closes so the user can drop the floating circuit, and the outcome goes to
+ * nuevo / insertar en el circuito actual), «Crear también como componente» with its name, a busy indicator while the
+ * circuit is built off the EDT, and the outcome («✓ El circuito cumple la tabla»). The «Crear» button belongs to these
+ * controls (they decide when it is on) but its owner puts it in the dialog's button bar, next to «Cerrar»; owners hear
+ * every {@link #refresh()} to follow its state (the default button). Everything is disabled while busy. After an «Insertar» the dialog closes so the user can drop the floating circuit, and the outcome goes to
  * the status bar. Closing the dialog while busy {@linkplain #cancel() cancels} the creation.
  */
 final class CreationControls extends JPanel {
@@ -36,6 +40,9 @@ final class CreationControls extends JPanel {
     private final Supplier<WizardOptions> options;
     private final Runnable closeDialog;
     private final Runnable busyChanged;
+    private final BooleanSupplier available;
+    private final List<Runnable> refreshListeners = new ArrayList<>();
+    private Runnable created = () -> { };
     private final Map<CreationForm.Destination, JRadioButton> destinationButtons =
             new EnumMap<>(CreationForm.Destination.class);
     private final JCheckBox component = new JCheckBox(Messages.text("karnaugh.create.alsoComponent"));
@@ -57,9 +64,11 @@ final class CreationControls extends JPanel {
      * @param spec        the table to create, empty while it has problems (then «Crear» is off)
      * @param closeDialog closes the dialog (after an «Insertar»)
      * @param busyChanged told when a creation starts or ends ({@link #isBusy()}), so the owner disables its buttons
+     * @param available   whether the owner lets «Crear» run now (the wizard's last step; no file being read)
      */
     CreationControls(CreationForm form, CircuitCreator creator, Supplier<Optional<TruthTableSpec>> spec,
-                     Supplier<WizardOptions> options, Runnable closeDialog, Runnable busyChanged) {
+                     Supplier<WizardOptions> options, Runnable closeDialog, Runnable busyChanged,
+                     BooleanSupplier available) {
         super(new MigLayout("insets 0, fillx, wrap 2", "[][grow, fill]", "[][][][]12[]"));
         this.form = form;
         this.creator = creator;
@@ -67,6 +76,7 @@ final class CreationControls extends JPanel {
         this.options = options;
         this.closeDialog = closeDialog;
         this.busyChanged = busyChanged;
+        this.available = available;
 
         ButtonGroup destinations = new ButtonGroup();
         JPanel destinationPanel = new JPanel(new MigLayout("insets 0"));
@@ -99,8 +109,7 @@ final class CreationControls extends JPanel {
         add(nameLabel, "gapleft 24");
         add(name, "growx 0, wmin 160");
         add(reason, "span 2");
-        JPanel action = new JPanel(new MigLayout("insets 0", "[][]8[]"));
-        action.add(create);
+        JPanel action = new JPanel(new MigLayout("insets 0", "[]8[]"));
         action.add(progress, "hidemode 3, wmax 120");
         action.add(busyLabel, "hidemode 3");
         add(action, "span 2");
@@ -123,7 +132,7 @@ final class CreationControls extends JPanel {
         }
     }
 
-    /** Shows the form and the table as they are now (call when the table may have changed). */
+    /** Shows the form and the table as they are now (call when the table may have changed), then tells the owner. */
     void refresh() {
         boolean busy = creator.isBusy();
         syncing = true;
@@ -145,9 +154,27 @@ final class CreationControls extends JPanel {
         name.setEnabled(!busy && form.alsoComponent());
         Optional<String> problem = form.problem();
         reason.setText(problem.orElse(" "));
-        create.setEnabled(!busy && problem.isEmpty() && spec.get().isPresent());
+        create.setEnabled(canCreate());
         progress.setVisible(busy);
         busyLabel.setVisible(busy);
+        for (Runnable listener : List.copyOf(refreshListeners)) {
+            listener.run();
+        }
+    }
+
+    /** Whether «Crear» would run now: the owner allows it, nothing is being built and every name is valid. */
+    boolean canCreate() {
+        return available.getAsBoolean() && !creator.isBusy() && form.problem().isEmpty() && spec.get().isPresent();
+    }
+
+    /** Runs after every {@link #refresh()}; it must not call {@code refresh} itself. */
+    void addRefreshListener(Runnable listener) {
+        refreshListeners.add(listener);
+    }
+
+    /** Told when a creation succeeded (the circuit was opened or floated), before an «Insertar» closes the dialog. */
+    void setOnCreated(Runnable action) {
+        created = action;
     }
 
     boolean isBusy() {
@@ -166,7 +193,7 @@ final class CreationControls extends JPanel {
     /** «Crear»: builds the circuit off the EDT; the controls are off until it is done. */
     void create() {
         Optional<TruthTableSpec> table = spec.get();
-        if (table.isEmpty() || form.problem().isPresent() || creator.isBusy()) {
+        if (!canCreate() || table.isEmpty()) {
             return;
         }
         CircuitCreator.Request request = new CircuitCreator.Request(table.get(), options.get(), form.destination(),
@@ -182,6 +209,9 @@ final class CreationControls extends JPanel {
     private void finished(CircuitCreator.Outcome outcome) {
         result.setText(outcome.text());
         refresh();
+        if (outcome.created()) {
+            created.run();
+        }
         busyChanged.run();
         if (outcome.created() && form.destination() == CreationForm.Destination.INSERT) {
             form.target().notice(outcome.text() + " " + Messages.text("karnaugh.create.dropHint"));
@@ -201,6 +231,7 @@ final class CreationControls extends JPanel {
         return name;
     }
 
+    /** «Crear», which the owner puts in its button bar. */
     JButton createButton() {
         return create;
     }

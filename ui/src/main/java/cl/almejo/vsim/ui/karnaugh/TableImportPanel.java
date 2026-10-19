@@ -20,6 +20,7 @@ import javax.swing.JDialog;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JRadioButton;
+import javax.swing.JRootPane;
 import javax.swing.JScrollPane;
 import javax.swing.JSpinner;
 import javax.swing.JTextField;
@@ -86,6 +87,7 @@ public final class TableImportPanel extends JPanel {
     private final JCheckBox share = new JCheckBox(Messages.text("karnaugh.expression.share"));
     private final JLabel summary = new JLabel(" ");
     private final JButton close = new JButton(Messages.text("karnaugh.close"));
+    private final JPanel buttonBar;
     private Runnable onClose = () -> { };
     private boolean reading;
     private boolean syncing;
@@ -104,7 +106,7 @@ public final class TableImportPanel extends JPanel {
         this.background = background;
         this.form = new CreationForm(target);
         this.controls = new CreationControls(form, new CircuitCreator(target, background), model::spec,
-                model::options, () -> onClose.run(), this::refreshButtons);
+                model::options, () -> onClose.run(), this::refreshButtons, () -> !reading);
 
         JPanel content = new JPanel(new MigLayout("insets 16, fillx, wrap 2", "[][grow, fill]",
                 "[][]8[][][]12[][][]12[]12[]"));
@@ -143,10 +145,12 @@ public final class TableImportPanel extends JPanel {
         content.add(summary, "span 2");
         content.add(controls, "span 2, growx");
 
-        JPanel buttons = new JPanel(new MigLayout("insets 6 12 10 12, fillx", "[grow][]"));
-        buttons.add(close, "skip 1");
+        buttonBar = new JPanel(new MigLayout("insets 6 12 10 12, fillx", "[grow][][]"));
+        buttonBar.add(controls.createButton(), "skip 1");
+        buttonBar.add(close, "gapleft 12");
         add(new JScrollPane(content), BorderLayout.CENTER);
-        add(buttons, BorderLayout.SOUTH);
+        add(buttonBar, BorderLayout.SOUTH);
+        controls.addRefreshListener(this::updateDefaultButton);
 
         openFile.addActionListener(event -> openFile());
         paste.addActionListener(event -> paste());
@@ -367,6 +371,15 @@ public final class TableImportPanel extends JPanel {
         controls.refresh();
     }
 
+    /** «Crear» is the default button (Enter) while it is on; otherwise Enter does nothing. */
+    private void updateDefaultButton() {
+        JRootPane root = getRootPane();
+        if (root != null && buttonBar != null) {
+            JButton create = controls.createButton();
+            root.setDefaultButton(create.isEnabled() ? create : null);
+        }
+    }
+
     TableImportModel model() {
         return model;
     }
@@ -407,6 +420,20 @@ public final class TableImportPanel extends JPanel {
         return paste;
     }
 
+    JButton createButton() {
+        return controls.createButton();
+    }
+
+    List<String> buttonBarTexts() {
+        List<String> texts = new ArrayList<>();
+        for (Component each : buttonBar.getComponents()) {
+            if (each instanceof AbstractButton button) {
+                texts.add(button.getText());
+            }
+        }
+        return texts;
+    }
+
     JButton closeButton() {
         return close;
     }
@@ -423,6 +450,7 @@ public final class TableImportPanel extends JPanel {
         JDialog dialog = WizardDialogs.create(parent, Messages.text("tableImport.title"), panel,
                 panel::requestClose);
         panel.setOnClose(dialog::dispose);
+        panel.updateDefaultButton();
         dialog.setSize(DIALOG_SIZE);
         dialog.setLocationRelativeTo(parent);
         dialog.setVisible(true);

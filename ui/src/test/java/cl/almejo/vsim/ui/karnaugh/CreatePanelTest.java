@@ -5,6 +5,7 @@ import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.io.CircuitFragment;
 import cl.almejo.vsim.core.library.DefinitionBundle;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
+import cl.almejo.vsim.core.logic.LogicValue;
 import cl.almejo.vsim.core.logic.TableCircuits;
 import cl.almejo.vsim.ui.i18n.Messages;
 import org.junit.jupiter.api.BeforeEach;
@@ -24,6 +25,8 @@ class CreatePanelTest {
     private KarnaughModel model;
     private KarnaughWizard wizard;
     private int closed;
+    private int asked;
+    private boolean discard;
 
     @BeforeEach
     void create() {
@@ -37,6 +40,10 @@ class CreatePanelTest {
     private void open(Background background) {
         wizard = new KarnaughWizard(model, KarnaughCost.GENERATOR, target, background);
         wizard.setOnClose(() -> closed++);
+        wizard.setDiscardConfirmation(parent -> {
+            asked++;
+            return discard;
+        });
         assertThat(wizard.goTo(KarnaughWizard.Step.CREATE)).isTrue();
     }
 
@@ -223,7 +230,107 @@ class CreatePanelTest {
     void closingWhenIdleJustCloses() {
         wizard.requestClose();
         assertThat(closed).isEqualTo(1);
+        assertThat(asked).as("the table is as it opened").isZero();
         assertThat(target.newCircuits).isEmpty();
+    }
+
+    @Test
+    void closingAnEditedTableAsksAndSeguirEditandoKeepsTheDialogAndTheTable() {
+        wizard.goTo(KarnaughWizard.Step.TABLE);
+        model.cycle(0, 0);
+
+        wizard.closeAction().actionPerformed(null);
+
+        assertThat(asked).isEqualTo(1);
+        assertThat(closed).isZero();
+        assertThat(model.value(0, 0)).isEqualTo(LogicValue.ONE);
+
+        discard = true;
+        wizard.requestClose();
+        assertThat(asked).isEqualTo(2);
+        assertThat(closed).isEqualTo(1);
+    }
+
+    @Test
+    void everyKindOfEditCountsAndUndoingItByHandDoesNot() {
+        wizard.goTo(KarnaughWizard.Step.TABLE);
+        model.setTitle("Otra");
+        wizard.requestClose();
+        model.setTitle("BCD");
+        model.setInputName(0, "X");
+        wizard.requestClose();
+        model.setInputName(0, "A");
+        model.setOutputCount(3);
+        wizard.requestClose();
+        model.setOutputCount(2);
+        assertThat(asked).isEqualTo(3);
+        assertThat(closed).isZero();
+
+        wizard.requestClose();
+        assertThat(asked).as("back to how it opened").isEqualTo(3);
+        assertThat(closed).isEqualTo(1);
+    }
+
+    @Test
+    void afterCreatingTheTableClosingDoesNotAskUntilItIsEditedAgain() {
+        wizard.goTo(KarnaughWizard.Step.TABLE);
+        model.cycle(0, 0);
+        wizard.goTo(KarnaughWizard.Step.CREATE);
+        wizard.createButton().doClick();
+        assertThat(target.newCircuits).hasSize(1);
+
+        wizard.requestClose();
+        assertThat(asked).isZero();
+        assertThat(closed).isEqualTo(1);
+
+        wizard.goTo(KarnaughWizard.Step.TABLE);
+        model.cycle(0, 1);
+        wizard.requestClose();
+        assertThat(asked).isEqualTo(1);
+        assertThat(closed).isEqualTo(1);
+    }
+
+    @Test
+    void aFailedCreationStillCountsAsUnsaved() {
+        CreationTarget failing = new FakeCreationTarget() {
+            @Override
+            public void openNewCircuit(String name, CircuitFragment fragment) {
+                throw new IllegalStateException("could not route channel 3");
+            }
+        };
+        wizard = new KarnaughWizard(model, KarnaughCost.GENERATOR, failing, Background.inline());
+        wizard.setOnClose(() -> closed++);
+        wizard.setDiscardConfirmation(parent -> {
+            asked++;
+            return discard;
+        });
+        model.cycle(0, 0);
+        wizard.goTo(KarnaughWizard.Step.CREATE);
+        wizard.createButton().doClick();
+
+        wizard.requestClose();
+        assertThat(asked).isEqualTo(1);
+        assertThat(closed).isZero();
+    }
+
+    @Test
+    void closingWhileAnEditedTableIsBuiltCancelsFirstThenAsks() {
+        open(new Background(queued::add, Runnable::run));
+        wizard.goTo(KarnaughWizard.Step.TABLE);
+        model.cycle(0, 0);
+        wizard.goTo(KarnaughWizard.Step.CREATE);
+        wizard.createButton().doClick();
+        assertThat(controls().isBusy()).isTrue();
+
+        wizard.requestClose();
+
+        assertThat(controls().isBusy()).as("cancelled before asking").isFalse();
+        assertThat(asked).isEqualTo(1);
+        assertThat(closed).isZero();
+        assertThat(wizard.createButton().isEnabled()).as("the user can create again").isTrue();
+        assertThat(wizard.closeAction().getValue(Action.NAME)).isEqualTo("Cerrar");
+        queued.removeFirst().run();
+        assertThat(target.newCircuits).as("the cancelled result is ignored").isEmpty();
     }
 
     @Test
