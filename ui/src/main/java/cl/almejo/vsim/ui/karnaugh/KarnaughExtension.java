@@ -100,10 +100,20 @@ public final class KarnaughExtension implements EditorExtension {
         Runnable expressionsShortcutRemover = view.registerShortcutAction(EXPRESSIONS_SHORTCUT_ID,
                 expressionsAction);
 
+        // «Abrir en el asistente» of the import dialog: that dialog is closed, the normal (editable) wizard opens over
+        // the view on the map, with the table and the dialog's options.
+        TableImportPanel.WizardOpener importInWizard = (spec, options) -> {
+            KarnaughModel model = new KarnaughModel();
+            model.load(spec);
+            model.setOptions(options);
+            KarnaughWizard wizard = new KarnaughWizard(model, cost, target, background);
+            wizard.goTo(KarnaughWizard.Step.MAP);
+            opener.open(view, wizard);
+        };
         Action importAction = new AbstractAction(Messages.text("action.importTruthTable")) {
             @Override
             public void actionPerformed(ActionEvent event) {
-                importOpener.open(view, new TableImportPanel(sources, target, background));
+                importOpener.open(view, new TableImportPanel(sources, target, background, importInWizard));
             }
         };
         JMenu file = view.menu(MenuId.FILE);

@@ -121,6 +121,22 @@ final class TableImportModel {
     }
 
     /**
+     * Whether the chosen split fits the Karnaugh wizard: {@value KarnaughModel#MINIMUM_INPUTS}..{@value
+     * KarnaughModel#MAXIMUM_INPUTS} inputs and up to {@value KarnaughModel#MAXIMUM_OUTPUTS} outputs. False without a
+     * table.
+     */
+    boolean splitFitsTheWizard() {
+        int outputCount = columnCount() - inputCount;
+        return hasTable() && inputCount >= KarnaughModel.MINIMUM_INPUTS && inputCount <= KarnaughModel.MAXIMUM_INPUTS
+                && outputCount >= KarnaughModel.MINIMUM_OUTPUTS && outputCount <= KarnaughModel.MAXIMUM_OUTPUTS;
+    }
+
+    /** Whether «Abrir en el asistente» can take the table: it fits the wizard and has no problems. */
+    boolean canOpenInWizard() {
+        return splitFitsTheWizard() && spec().isPresent();
+    }
+
+    /**
      * What is wrong, one line each, in the order found: «Celda D4: …», «Fila 5: …» or a line about the file; past
      * {@value #MAXIMUM_PROBLEM_LINES} lines, one more counts the rest («… y 12 problemas más.»).
      */

@@ -42,6 +42,7 @@ class KarnaughExtensionTest {
     private final List<ExpressionsPanel> expressions = new ArrayList<>();
     private OpenDocument openDocument;
     private EditorView view;
+    private Optional<String> clipboard = Optional.empty();
 
     @BeforeEach
     void create() {
@@ -53,7 +54,7 @@ class KarnaughExtensionTest {
         }, (parent, panel) -> imports.add(panel), (parent, panel) -> {
             parents.add(parent);
             expressions.add(panel);
-        }, new TableSources(parent -> Optional.empty(), Optional::empty), KarnaughCost.GENERATOR,
+        }, new TableSources(parent -> Optional.empty(), () -> clipboard), KarnaughCost.GENERATOR,
                 view -> new FakeCreationTarget(), Background.inline());
         EditorServices services = new EditorServices(PainterRegistry.standard(), new Appearance(ColorScheme.LIGHT),
                 AppPreferences.inMemory(), new ComponentLibrary(), List.of(extension));
@@ -157,6 +158,33 @@ class KarnaughExtensionTest {
         assertThat(imports).hasSize(2);
         assertThat(imports.get(0)).isNotSameAs(imports.get(1));
         assertThat(imports.get(0).model().hasTable()).isFalse();
+    }
+
+    @Test
+    void anImportedTableOpensInTheWizardOnTheMapOverTheView() {
+        clipboard = Optional.of("A\tB\tC\tY\n0\t0\t0\t1\n1\t1\t1\t0\n0\t1\t0\t1\n");
+        importMenu(view.menu(MenuId.FILE)).getItem(0).doClick();
+        TableImportPanel panel = imports.getFirst();
+        int[] importClosed = {0};
+        panel.setOnClose(() -> importClosed[0]++);
+        panel.pasteButton().doClick();
+        panel.titleField().setText("Mi tabla");
+        panel.gateButton(WizardOptions.GateChoice.NOR_ONLY).doClick();
+
+        panel.wizardButton().doClick();
+
+        assertThat(importClosed[0]).isEqualTo(1);
+        assertThat(opened).singleElement().satisfies(wizard -> {
+            assertThat(wizard.step()).isEqualTo(KarnaughWizard.Step.MAP);
+            assertThat(wizard.model().title()).isEqualTo("Mi tabla");
+            assertThat(wizard.model().inputNames()).containsExactly("A", "B", "C");
+            assertThat(wizard.model().outputNames()).containsExactly("Y");
+            assertThat(wizard.model().spec()).isEqualTo(panel.model().spec().orElseThrow());
+            assertThat(wizard.model().options().gates()).isEqualTo(WizardOptions.GateChoice.NOR_ONLY);
+            assertThat(wizard.tablePanel().titleField().isEditable()).as("the normal, editable wizard").isTrue();
+            assertThat(wizard.edited()).as("closing it untouched does not ask").isFalse();
+        });
+        assertThat(parents).as("the wizard opens over the view: the import dialog is gone").containsExactly(view);
     }
 
     @Test

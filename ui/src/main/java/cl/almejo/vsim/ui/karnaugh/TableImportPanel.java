@@ -61,6 +61,15 @@ public final class TableImportPanel extends JPanel {
         }
     }
 
+    /**
+     * «Abrir en el asistente»: opens the Karnaugh wizard on {@code spec} (2..4 inputs, up to 4 outputs) with the
+     * dialog's {@code options}; the import dialog is already closed (the table moves into the wizard).
+     */
+    @FunctionalInterface
+    public interface WizardOpener {
+        void open(TruthTableSpec spec, WizardOptions options);
+    }
+
     private static final Dimension DIALOG_SIZE = new Dimension(760, 640);
 
     private final TableImportModel model = new TableImportModel();
@@ -87,6 +96,8 @@ public final class TableImportPanel extends JPanel {
     private final JCheckBox share = new JCheckBox(Messages.text("karnaugh.expression.share"));
     private final JLabel summary = new JLabel(" ");
     private final JButton close = new JButton(Messages.text("karnaugh.close"));
+    private final JButton wizard = new JButton(Messages.text("tableImport.openInWizard"));
+    private final WizardOpener openInWizard;
     private final JPanel buttonBar;
     private Runnable onClose = () -> { };
     private boolean reading;
@@ -100,9 +111,14 @@ public final class TableImportPanel extends JPanel {
     /** Counts the files read: a file whose number is not the latest (the dialog was closed) is dropped. */
     private long readRequest;
 
-    public TableImportPanel(TableSources sources, CreationTarget target, Background background) {
+    /**
+     * @param openInWizard «Abrir en el asistente»: opens the wizard on the table once this dialog is closed
+     */
+    public TableImportPanel(TableSources sources, CreationTarget target, Background background,
+                            WizardOpener openInWizard) {
         super(new BorderLayout());
         this.sources = sources;
+        this.openInWizard = openInWizard;
         this.background = background;
         this.form = new CreationForm(target);
         this.controls = new CreationControls(form, new CircuitCreator(target, background), model::spec,
@@ -145,7 +161,8 @@ public final class TableImportPanel extends JPanel {
         content.add(summary, "span 2");
         content.add(controls, "span 2, growx");
 
-        buttonBar = new JPanel(new MigLayout("insets 6 12 10 12, fillx", "[grow][][]"));
+        buttonBar = new JPanel(new MigLayout("insets 6 12 10 12, fillx", "[][grow][][]"));
+        buttonBar.add(wizard);
         buttonBar.add(controls.createButton(), "skip 1");
         buttonBar.add(close, "gapleft 12");
         add(new JScrollPane(content), BorderLayout.CENTER);
@@ -155,6 +172,7 @@ public final class TableImportPanel extends JPanel {
         openFile.addActionListener(event -> openFile());
         paste.addActionListener(event -> paste());
         close.addActionListener(event -> requestClose());
+        wizard.addActionListener(event -> openWizard());
         title.getDocument().addDocumentListener(new DocumentListener() {
             @Override
             public void insertUpdate(DocumentEvent event) {
@@ -214,6 +232,20 @@ public final class TableImportPanel extends JPanel {
         summaryRequest++;
         controls.cancel();
         onClose.run();
+    }
+
+    /**
+     * «Abrir en el asistente»: this dialog closes without asking (nothing is lost: the table, its title and the
+     * options move into the wizard, missing rows as X) and the wizard opens on its map.
+     */
+    private void openWizard() {
+        Optional<TruthTableSpec> spec = model.spec();
+        if (!model.canOpenInWizard() || spec.isEmpty() || reading || controls.isBusy()) {
+            return;
+        }
+        WizardOptions options = model.options();
+        requestClose();
+        openInWizard.open(spec.get(), options);
     }
 
     /** What closing (and an «Insertar») does once the work is cancelled (the dialog disposes itself). */
@@ -368,6 +400,9 @@ public final class TableImportPanel extends JPanel {
         optionButtons.addAll(formButtons.values());
         optionButtons.add(share);
         optionButtons.forEach(button -> button.setEnabled(!busy));
+        wizard.setEnabled(!busy && model.canOpenInWizard());
+        boolean outOfRange = model.hasTable() && !model.splitFitsTheWizard();
+        wizard.setToolTipText(outOfRange ? Messages.text("tableImport.openInWizard.range") : null);
         controls.refresh();
     }
 
@@ -432,6 +467,16 @@ public final class TableImportPanel extends JPanel {
             }
         }
         return texts;
+    }
+
+    JButton wizardButton() {
+        return wizard;
+    }
+
+    /** Why «Abrir en el asistente» is off (its tooltip), or empty. */
+    String wizardReasonText() {
+        String reason = wizard.getToolTipText();
+        return reason == null ? "" : reason;
     }
 
     JButton closeButton() {

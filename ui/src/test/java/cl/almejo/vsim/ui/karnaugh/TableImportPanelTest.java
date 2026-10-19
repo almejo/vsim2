@@ -1,7 +1,10 @@
 package cl.almejo.vsim.ui.karnaugh;
 
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
+import cl.almejo.vsim.core.logic.LogicValue;
+import cl.almejo.vsim.core.logic.Minimization;
 import cl.almejo.vsim.core.logic.TableCircuits;
+import cl.almejo.vsim.core.logic.TruthTableSpec;
 import cl.almejo.vsim.ui.i18n.Messages;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -47,6 +50,9 @@ class TableImportPanelTest {
     private int chooserCalls;
     private TableImportPanel panel;
     private int closed;
+    private final List<String> events = new ArrayList<>();
+    private final List<TruthTableSpec> wizardSpecs = new ArrayList<>();
+    private final List<WizardOptions> wizardOptions = new ArrayList<>();
 
     @BeforeEach
     void create() {
@@ -58,8 +64,15 @@ class TableImportPanelTest {
         panel = new TableImportPanel(new TableSources(parent -> {
             chooserCalls++;
             return Optional.ofNullable(chosen);
-        }, () -> clipboard), target, background);
-        panel.setOnClose(() -> closed++);
+        }, () -> clipboard), target, background, (spec, options) -> {
+            events.add("wizard");
+            wizardSpecs.add(spec);
+            wizardOptions.add(options);
+        });
+        panel.setOnClose(() -> {
+            closed++;
+            events.add("closed");
+        });
     }
 
     private Path write(String name, String content) throws IOException {
@@ -371,7 +384,7 @@ class TableImportPanelTest {
         JButton create = panel.createButton();
         assertThat(SwingUtilities.isDescendingFrom(create, panel.controls())).isFalse();
         assertThat(SwingUtilities.isDescendingFrom(create, panel)).isTrue();
-        assertThat(panel.buttonBarTexts()).containsExactly("Crear", "Cerrar");
+        assertThat(panel.buttonBarTexts()).containsExactly("Abrir en el asistente", "Crear", "Cerrar");
         assertThat(create.isEnabled()).as("no table yet").isFalse();
         assertThat(root.getDefaultButton()).isNull();
 
@@ -409,5 +422,67 @@ class TableImportPanelTest {
         panel.openFileButton().doClick();
         assertThat(panel.problemsText()).isNotEmpty();
         assertThat(panel.createButton().isEnabled()).isFalse();
+    }
+
+    @Test
+    void openInTheWizardClosesTheDialogAndHandsOverTheTableWithItsOptions() throws IOException {
+        chosen = write("incompleta.csv", "A;B;C;Y\n0;0;0;1\n1;1;1;0\n0;1;0;1\n1;0;1;0\n");
+        panel.openFileButton().doClick();
+        panel.gateButton(WizardOptions.GateChoice.NAND_ONLY).doClick();
+        assertThat(panel.wizardButton().isEnabled()).isTrue();
+        assertThat(panel.wizardReasonText()).isEmpty();
+
+        panel.wizardButton().doClick();
+
+        assertThat(events).as("the dialog closes first, without asking").containsExactly("closed", "wizard");
+        TruthTableSpec spec = wizardSpecs.getFirst();
+        assertThat(spec.title()).isEqualTo("incompleta");
+        assertThat(spec.inputNames()).containsExactly("A", "B", "C");
+        assertThat(spec.outputNames()).containsExactly("Y");
+        assertThat(spec.outputs().getFirst()).containsExactly(LogicValue.ONE, LogicValue.DONT_CARE, LogicValue.ONE,
+                LogicValue.DONT_CARE, LogicValue.DONT_CARE, LogicValue.ZERO, LogicValue.DONT_CARE, LogicValue.ZERO);
+        assertThat(wizardOptions.getFirst().gates()).isEqualTo(WizardOptions.GateChoice.NAND_ONLY);
+        assertThat(wizardOptions.getFirst().form()).isEqualTo(Minimization.Form.SUM_OF_PRODUCTS);
+    }
+
+    @Test
+    void openInTheWizardIsOffWithTheReasonWhenTheSplitDoesNotFitTheWizard() throws IOException {
+        assertThat(panel.wizardButton().isEnabled()).as("no table yet").isFalse();
+        assertThat(panel.wizardReasonText()).isEmpty();
+
+        chosen = write("sumador.csv", ADDER);
+        panel.openFileButton().doClick();
+        assertThat(panel.wizardButton().isEnabled()).isTrue();
+
+        panel.inputCountSpinner().setValue(1);
+        assertThat(panel.problemsText()).isNotEmpty();
+        assertThat(panel.wizardButton().isEnabled()).as("1 input, 4 outputs").isFalse();
+        assertThat(panel.wizardReasonText()).isEqualTo("El asistente funciona con 2 a 4 entradas y hasta 4 salidas");
+
+        panel.inputCountSpinner().setValue(3);
+        panel.titleField().setText(" ");
+        assertThat(panel.wizardButton().isEnabled()).as("a blank title is a problem").isFalse();
+        assertThat(panel.wizardReasonText()).as("the problem is listed, the split fits").isEmpty();
+
+        panel.wizardButton().doClick();
+        assertThat(events).isEmpty();
+    }
+
+    @Test
+    void aTableWithMoreThanFourInputsCannotGoToTheWizard() throws IOException {
+        StringBuilder parity = new StringBuilder("A,B,C,D,E,P\n");
+        for (int row = 0; row < 32; row++) {
+            for (int bit = 4; bit >= 0; bit--) {
+                parity.append(row >> bit & 1).append(',');
+            }
+            parity.append(Integer.bitCount(row) & 1).append('\n');
+        }
+        chosen = write("paridad.csv", parity.toString());
+        panel.openFileButton().doClick();
+        panel.inputCountSpinner().setValue(5);
+        assertThat(panel.problemsText()).isEmpty();
+        assertThat(panel.createButton().isEnabled()).isTrue();
+        assertThat(panel.wizardButton().isEnabled()).isFalse();
+        assertThat(panel.wizardReasonText()).isEqualTo("El asistente funciona con 2 a 4 entradas y hasta 4 salidas");
     }
 }
