@@ -112,6 +112,10 @@ public final class TableImportPanel extends JPanel {
     private final JTextField title = new JTextField(20);
     private final JSpinner inputCount = new JSpinner(new SpinnerNumberModel(1, 1, 1, 1));
     private final JLabel columns = new JLabel(" ");
+    /** How the file must look, and the limits («Hasta 10 entradas y 16 salidas.»). */
+    private final Paragraph help = new Paragraph(Messages.text("tableImport.help") + " "
+            + Messages.format("tableImport.limits", String.valueOf(TruthTableSpec.MAXIMUM_INPUTS),
+            String.valueOf(TruthTableSpec.MAXIMUM_OUTPUTS)));
     private final Paragraph problems = new Paragraph("") {
         @Override
         public Color getForeground() {
@@ -188,7 +192,7 @@ public final class TableImportPanel extends JPanel {
         sourceRow.add(paste);
         sourceRow.add(sourceLabel);
         data.add(sourceRow);
-        data.add(new Paragraph(Messages.text("tableImport.help")), "wmin 100");
+        data.add(help, "wmin 100");
         JPanel inputsRow = new JPanel(new MigLayout("insets 0", "[][]12[grow]"));
         inputsRow.add(new JLabel(Messages.text("tableImport.inputCount")));
         inputsRow.add(inputCount);
@@ -636,6 +640,10 @@ public final class TableImportPanel extends JPanel {
     /** Why «Crear» is off for the circuit's size, or empty. */
     String gateLimitText() {
         return gateLimit.isVisible() ? gateLimit.getText() : "";
+    }
+
+    String helpText() {
+        return help.getText();
     }
 
     String columnsText() {

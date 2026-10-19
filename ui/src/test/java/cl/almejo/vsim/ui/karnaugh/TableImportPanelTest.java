@@ -786,6 +786,19 @@ class TableImportPanelTest {
         assertThat(panel.createButton().isEnabled()).isTrue();
     }
 
+    @Test
+    void theHelpSaysTheLimits() {
+        assertThat(panel.helpText()).startsWith("La primera fila lleva los nombres de las columnas")
+                .endsWith(" Hasta 10 entradas y 16 salidas.");
+        Messages.initialize(Locale.ENGLISH);
+        try {
+            open(Background.inline());
+            assertThat(panel.helpText()).endsWith(" Up to 10 inputs and 16 outputs.");
+        } finally {
+            Messages.initialize(Messages.SPANISH);
+        }
+    }
+
     /** «2 229»: thousands apart by a non-breaking space. */
     private static String grouped(int number) {
         return String.format(Locale.ROOT, "%,d", number).replace(',', ' ');
