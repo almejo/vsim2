@@ -9,6 +9,7 @@ import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.Frame;
+import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.io.CircuitFragment;
@@ -175,6 +176,20 @@ class CircuitGeneratorTest {
                         .isNotEmpty()
                         .allSatisfy(component -> assertThat(component.parameters().get("width")).isEqualTo(1));
             }
+        }
+    }
+
+    @Test
+    void theInputsOfAGateFollowTheirSourcesFromTopToBottomSoTheWiresDoNotCross() {
+        // F = A + B and F = A + B + C: the minimizer lists the terms B before A, the OR must still take A on top.
+        TruthTableSpec twoInputs = new TruthTableSpec("T", List.of("A", "B"), List.of("F"),
+                List.of(values(2, 0, 1, 1, 1)));
+        TruthTableSpec threeInputs = new TruthTableSpec("T", List.of("A", "B", "C"), List.of("F"),
+                List.of(values(3, 0, 1, 1, 1, 1, 1, 1, 1)));
+
+        for (TruthTableSpec spec : List.of(twoInputs, threeInputs)) {
+            GeneratedCircuit circuit = checkEverything(spec, GeneratorOptions.DEFAULTS);
+            assertThat(crossings(circuit.fragment())).as(spec.inputNames() + " into one OR").isZero();
         }
     }
 
@@ -422,6 +437,31 @@ class CircuitGeneratorTest {
                 .sorted(Comparator.comparingInt((Component component) -> component.position().y()))
                 .map(Component::label)
                 .toList();
+    }
+
+    /** Places where a horizontal and a vertical wire cross inside both (no junction there). */
+    private static int crossings(CircuitFragment fragment) {
+        int count = 0;
+        for (Wire horizontal : fragment.wires()) {
+            if (horizontal.start().y() != horizontal.end().y()) {
+                continue;
+            }
+            int left = Math.min(horizontal.start().x(), horizontal.end().x());
+            int right = Math.max(horizontal.start().x(), horizontal.end().x());
+            for (Wire vertical : fragment.wires()) {
+                if (vertical.start().x() != vertical.end().x()) {
+                    continue;
+                }
+                int top = Math.min(vertical.start().y(), vertical.end().y());
+                int bottom = Math.max(vertical.start().y(), vertical.end().y());
+                int x = vertical.start().x();
+                int y = horizontal.start().y();
+                if (left < x && x < right && top < y && y < bottom) {
+                    count++;
+                }
+            }
+        }
+        return count;
     }
 
     private static TruthTableSpec bcd() {

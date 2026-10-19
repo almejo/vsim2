@@ -134,8 +134,8 @@ public final class CircuitGenerator {
         final int order;
         /** The net it drives (the net it carries, for a feedthrough); null for an output pin. */
         final Signal driven;
-        /** The net of each input pin, in pin order. */
-        final List<Signal> loads;
+        /** The net of each input pin, in pin order (a gate's may be reordered once placed, see alignGateInputs). */
+        List<Signal> loads;
         final boolean feedthrough;
         final Component prototype;
         final int width;
@@ -231,6 +231,7 @@ public final class CircuitGenerator {
             createCells();
             order();
             place();
+            alignGateInputs();
             List<List<ChannelNet>> channels = route();
             List<ElementId> wires = draw(channels);
             tidy(wires);
@@ -324,6 +325,38 @@ public final class CircuitGenerator {
                 loads.computeIfAbsent(inputs.get(slot), net -> new ArrayList<>()).add(new Load(cell, slot));
             }
             return cell;
+        }
+
+        /**
+         * Gives each gate's input pins (top to bottom) its nets in the order they arrive from the left (top to
+         * bottom), so two wires never cross just before a gate. The gates are AND, OR, XOR, NAND and NOR, all
+         * commutative, so the circuit's function does not change. Without this the pins follow the network's order:
+         * a sum takes its terms in the minimizer's order, which put B above A in A + B.
+         */
+        private void alignGateInputs() {
+            for (Cell cell : gateCells) {
+                if (cell.loads.size() < 2) {
+                    continue;
+                }
+                List<Signal> aligned = new ArrayList<>(cell.loads);
+                aligned.sort(Comparator.comparingInt(net -> arrivalY(net, cell.column)));
+                if (aligned.equals(cell.loads)) {
+                    continue;
+                }
+                for (Signal net : new HashSet<>(cell.loads)) {
+                    loads.get(net).removeIf(load -> load.cell() == cell);
+                }
+                cell.loads = List.copyOf(aligned);
+                for (int slot = 0; slot < aligned.size(); slot++) {
+                    loads.get(aligned.get(slot)).add(new Load(cell, slot));
+                }
+            }
+        }
+
+        /** The height at which {@code net} leaves the column left of {@code column} (its source or feedthrough). */
+        private int arrivalY(Signal net, int column) {
+            Cell left = presence.getOrDefault(net, Map.of()).get(column - 1);
+            return (left != null ? left : sources.get(net)).outputY();
         }
 
         // --- order within the columns ---
