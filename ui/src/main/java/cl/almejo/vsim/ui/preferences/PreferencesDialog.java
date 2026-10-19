@@ -24,6 +24,16 @@ public final class PreferencesDialog {
         Object[] options = {Messages.text("preferences.close")};
         JOptionPane.showOptionDialog(parent, tabs, Messages.text("preferences.title"), JOptionPane.DEFAULT_OPTION,
                 JOptionPane.PLAIN_MESSAGE, null, options, options[0]);
+        dispose(tabs); // modal: it is closed now
+    }
+
+    /** Lets the tabs stop following the preferences once the dialog is closed. */
+    static void dispose(JTabbedPane tabs) {
+        for (int index = 0; index < tabs.getTabCount(); index++) {
+            if (tabs.getComponentAt(index) instanceof PreferencesForm form) {
+                form.dispose();
+            }
+        }
     }
 
     /** «General» (the unchanged form) and «Atajos de teclado» (M6-C); package-private so a headless test sees them. */

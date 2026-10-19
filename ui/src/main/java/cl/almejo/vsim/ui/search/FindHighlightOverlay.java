@@ -2,7 +2,6 @@ package cl.almejo.vsim.ui.search;
 
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.document.CircuitDocument;
-import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.Frame;
@@ -82,13 +81,9 @@ public final class FindHighlightOverlay implements CanvasOverlay {
         Color selection = scheme.get().selection();
         CircuitDocument document = state.document();
         for (ElementId id : shown) {
-            document.element(id).filter(this::paintable).ifPresent(element ->
+            document.element(id).ifPresent(element ->
                     paint(graphics, element, selection, current.filter(id::equals).isPresent()));
         }
-    }
-
-    private boolean paintable(DocumentElement element) {
-        return !(element instanceof Component component) || registry.findTypeOf(component).isPresent();
     }
 
     private void paint(Graphics2D graphics, DocumentElement element, Color selection, boolean isCurrent) {

@@ -212,6 +212,85 @@ class FindFeaturesTest {
     }
 
     @Test
+    void reopeningTheBarGoesOnFromTheMatchTheUserWasOn() {
+        Component first = labeled(StandardComponentTypes.NOT, 0, 0, "U1");
+        Component second = labeled(StandardComponentTypes.NOT, 20, 0, "U2");
+        Component third = labeled(StandardComponentTypes.NOT, 40, 0, "U3");
+        perform(features.findAction());
+        type("U");
+        press(KeyEvent.VK_ENTER, 0);
+        press(KeyEvent.VK_ENTER, 0);
+        assertThat(currentIds()).containsExactly(third.id());
+        press(KeyEvent.VK_ESCAPE, 0);
+
+        perform(features.findAction()); // Ctrl+F: back on the same match
+        assertThat(currentIds()).containsExactly(third.id());
+        press(KeyEvent.VK_ESCAPE, 0);
+
+        perform(features.findNextAction()); // F3: the one after it, wrapping around
+        assertThat(currentIds()).containsExactly(first.id());
+        press(KeyEvent.VK_ESCAPE, 0);
+
+        perform(features.findPreviousAction()); // Mayús+F3: the one before it
+        assertThat(currentIds()).containsExactly(third.id());
+        assertThat(second).isNotNull();
+    }
+
+    @Test
+    void f3WhenTheMatchOfBeforeIsGoneStartsAtTheFirstAndMayusF3AtTheLast() {
+        Component first = labeled(StandardComponentTypes.NOT, 0, 0, "U1");
+        Component second = labeled(StandardComponentTypes.NOT, 20, 0, "U2");
+        Component third = labeled(StandardComponentTypes.NOT, 40, 0, "U3");
+        perform(features.findAction());
+        type("U");
+        press(KeyEvent.VK_ENTER, 0); // on U2
+        press(KeyEvent.VK_ESCAPE, 0);
+        openDocument.execute(new RemoveElementsCommand(List.of(second.id())));
+
+        perform(features.findNextAction());
+        assertThat(currentIds()).containsExactly(first.id());
+
+        press(KeyEvent.VK_ESCAPE, 0);
+        openDocument.execute(new RemoveElementsCommand(List.of(first.id())));
+        labeled(StandardComponentTypes.NOT, 60, 0, "U4");
+        perform(features.findPreviousAction());
+        assertThat(features.current().orElseThrow().matchedText()).isEqualTo("U4");
+        assertThat(third).isNotNull();
+    }
+
+    @Test
+    void aComponentOfAnUnknownTypeIsHighlightedLikeAnyOther() {
+        // An open document cannot hold one (its netlist would not compile), but the overlay paints any document.
+        cl.almejo.vsim.core.document.CircuitDocument document = new cl.almejo.vsim.core.document.CircuitDocument();
+        Component unknown = new Component(document.newComponentId(), "no-such-type", new GridPoint(3, 3),
+                cl.almejo.vsim.core.geometry.Rotation.R0, Map.of(), "misterio");
+        document.add(unknown);
+        FindHighlightOverlay overlay = new FindHighlightOverlay(() -> ColorScheme.LIGHT,
+                StandardComponentTypes.registry(), () -> { });
+        overlay.show(java.util.Set.of(unknown.id()), java.util.Optional.of(unknown.id()));
+
+        java.awt.image.BufferedImage image = new java.awt.image.BufferedImage(200, 200,
+                java.awt.image.BufferedImage.TYPE_INT_ARGB);
+        java.awt.Graphics2D graphics = image.createGraphics();
+        overlay.paint(graphics, new cl.almejo.vsim.ui.canvas.RenderState(document, null, 0,
+                cl.almejo.vsim.core.simulation.SimulationSnapshot.EMPTY, java.util.Set.of(), 0));
+        graphics.dispose();
+
+        int pixel = 3 * GridPoint.PIXELS_PER_UNIT; // its position: the only place known for it
+        assertThat(image.getRGB(pixel, pixel) >>> 24).as("alpha of the patch").isPositive();
+    }
+
+    @Test
+    void inANarrowWindowTheFieldShrinksBeforeTheCloseButtonIsCut() {
+        FindBar bar = features.bar();
+        bar.setSize(400, bar.getPreferredSize().height);
+        bar.doLayout();
+
+        assertThat(bar.closeButton().getBounds().getMaxX()).isLessThanOrEqualTo(400);
+        assertThat(bar.field().getWidth()).isLessThan(260).isGreaterThanOrEqualTo(100);
+    }
+
+    @Test
     void noMatchTurnsTheFieldRedWithSinResultados() {
         labeled(StandardComponentTypes.NOT, 0, 0, "U1");
         perform(features.findAction());

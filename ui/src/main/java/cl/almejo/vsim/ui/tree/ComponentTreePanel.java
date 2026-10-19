@@ -1,12 +1,12 @@
 package cl.almejo.vsim.ui.tree;
 
-import cl.almejo.vsim.core.component.ElementBounds;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.simulation.InstancePath;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
+import cl.almejo.vsim.ui.canvas.DrawnBounds;
 import cl.almejo.vsim.ui.frames.FrameIcons;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.icons.Icons;
@@ -334,7 +334,7 @@ public final class ComponentTreePanel extends JPanel {
         }
         chosenNode().flatMap(this::elementOf).ifPresent(element -> {
             canvas.selection().select(element.id());
-            canvas.travelTo(ElementBounds.of(element, openDocument.registry()));
+            canvas.travelTo(DrawnBounds.of(element, openDocument.registry())); // like the find bar
         });
     }
 

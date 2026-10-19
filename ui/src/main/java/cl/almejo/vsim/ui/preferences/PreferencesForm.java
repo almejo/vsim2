@@ -73,6 +73,7 @@ public final class PreferencesForm extends JPanel {
     private final JButton restoreLibraryButton = new JButton(Messages.text("preferences.library.restore"));
     private final JCheckBox restoreSessionBox = new JCheckBox(Messages.text("preferences.restoreSession"));
     private final JCheckBox animateViewMovesBox = new JCheckBox(Messages.text("preferences.animateViewMoves"));
+    private final Runnable preferenceListener = this::followPreferences;
     private final JComboBox<Choice<String>> fontFamilyChoice = new JComboBox<>();
     private final JSpinner fontSizeSpinner = new JSpinner();
     private final CustomColorSchemes customSchemes;
@@ -150,6 +151,8 @@ public final class PreferencesForm extends JPanel {
         animateViewMovesBox.setSelected(preferences.animateViewMoves());
         animateViewMovesBox.addActionListener(
                 event -> preferences.setAnimateViewMoves(animateViewMovesBox.isSelected()));
+        // the find bar's ↷ changes it too, also while this dialog is open
+        preferences.addListener(preferenceListener);
 
         add(new JLabel(Messages.text("preferences.theme")));
         add(themeChoice);
@@ -329,6 +332,16 @@ public final class PreferencesForm extends JPanel {
 
     JCheckBox restoreSessionBox() {
         return restoreSessionBox;
+    }
+
+    /** Stops following the preferences: the dialog closed. */
+    public void dispose() {
+        preferences.removeListener(preferenceListener);
+    }
+
+    /** Shows the options that can change elsewhere while the dialog is open (setSelected fires no action). */
+    private void followPreferences() {
+        animateViewMovesBox.setSelected(preferences.animateViewMoves());
     }
 
     JCheckBox animateViewMovesBox() {

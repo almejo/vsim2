@@ -29,6 +29,8 @@ import java.util.List;
 public final class FindBar extends JPanel {
 
     private static final int FIELD_WIDTH = 260;
+    /** In a narrow window the field gives way first, down to this width, so ✕ stays on screen. */
+    private static final int MINIMUM_FIELD_WIDTH = 100;
 
     private final SearchField field = new SearchField(Messages.text("find.placeholder"));
     private final CounterLabel counter = new CounterLabel();
@@ -45,7 +47,7 @@ public final class FindBar extends JPanel {
         super(new MigLayout("insets 3 6 3 6, gap 2, novisualpadding, hidemode 3",
                 "[]6[]4[][]8[][][]8[grow, fill]8[]", "[center]"));
         setBorder(new BottomLine());
-        add(field, "w " + FIELD_WIDTH + "!");
+        add(field, "w " + MINIMUM_FIELD_WIDTH + ":" + FIELD_WIDTH + ":" + FIELD_WIDTH);
         add(counter);
         add(previousButton);
         add(nextButton);

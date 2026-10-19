@@ -22,4 +22,17 @@ class PreferencesDialogTest {
         assertThat(tabs.getComponentAt(0)).isInstanceOf(PreferencesForm.class);
         assertThat(tabs.getComponentAt(1)).isInstanceOf(ShortcutsPanel.class);
     }
+
+    @Test
+    void closingTheDialogStopsTheFormFollowingThePreferences() {
+        Messages.initialize(Messages.SPANISH);
+        AppPreferences preferences = AppPreferences.inMemory();
+        int listeners = preferences.listenerCount();
+        JTabbedPane tabs = PreferencesDialog.tabs(preferences, (parent, current) -> Optional.empty());
+        assertThat(preferences.listenerCount()).isGreaterThan(listeners);
+
+        PreferencesDialog.dispose(tabs);
+
+        assertThat(preferences.listenerCount()).isEqualTo(listeners);
+    }
 }

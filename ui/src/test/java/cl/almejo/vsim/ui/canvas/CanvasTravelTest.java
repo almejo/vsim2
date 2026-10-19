@@ -163,6 +163,45 @@ class CanvasTravelTest {
     }
 
     @Test
+    void afterAZoomOutToFitTheNextTargetComesBackToTheUsersZoom() {
+        for (boolean animated : new boolean[]{true, false}) {
+            animate.set(animated);
+            canvas.applyViewState(new ViewState(2, 0, 0)); // the user's zoom
+            canvas.travelTo(new Bounds(0, 0, 200, 10)); // too wide: zooms out to fit
+            ticker.finish();
+            assertThat(canvas.viewState().zoom()).as("animated " + animated).isLessThan(1.0);
+
+            canvas.travelTo(new Bounds(40, 40, 2, 2));
+            ticker.finish();
+
+            assertThat(canvas.viewState()).as("animated " + animated).isEqualTo(new ViewState(2, 41, 41));
+        }
+    }
+
+    @Test
+    void aZoomByHandBecomesTheUsersZoom() {
+        canvas.travelTo(new Bounds(0, 0, 200, 10));
+        ticker.finish();
+        canvas.viewport().zoomAt(200, 150, 0.75);
+
+        canvas.travelTo(new Bounds(40, 40, 2, 2));
+        ticker.finish();
+
+        assertThat(canvas.viewState().zoom()).isEqualTo(0.75);
+    }
+
+    @Test
+    void aDisposedCanvasJumpsInsteadOfStartingATravel() {
+        canvas.dispose();
+
+        canvas.travelTo(new Bounds(20, 10, 0, 0));
+
+        assertThat(canvas.isTravelling()).isFalse();
+        assertThat(ticker.isRunning()).isFalse();
+        assertThat(canvas.viewState()).isEqualTo(new ViewState(1, 20, 10));
+    }
+
+    @Test
     void turningTheAnimationOffMidFlightJumpsToTheTarget() {
         canvas.travelTo(new Bounds(20, 10, 0, 0));
         ticker.advance(48);

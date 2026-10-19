@@ -176,6 +176,20 @@ class PreferencesFormTest {
     }
 
     @Test
+    void theAnimateViewMovesBoxFollowsChangesMadeElsewhereUntilDisposed() {
+        int listeners = preferences.listenerCount();
+        PreferencesForm form = form();
+
+        preferences.setAnimateViewMoves(false); // the find bar's ↷ while the dialog is open
+        assertThat(form.animateViewMovesBox().isSelected()).isFalse();
+        preferences.setAnimateViewMoves(true);
+        assertThat(form.animateViewMovesBox().isSelected()).isTrue();
+
+        form.dispose();
+        assertThat(preferences.listenerCount()).isEqualTo(listeners);
+    }
+
+    @Test
     void theInvertKeyComboOffersShiftAltAndNoneAndSavesTheChoice() {
         PreferencesForm form = form();
         assertThat(labels(form.invertModifierChoice())).containsExactly("Mayús", "Alt", "Ninguna");

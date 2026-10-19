@@ -27,6 +27,7 @@ import cl.almejo.vsim.ui.search.FindFeatures;
 import cl.almejo.vsim.ui.search.TypeNames;
 import cl.almejo.vsim.ui.canvas.CanvasHost;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
+import cl.almejo.vsim.ui.canvas.DrawnBounds;
 import cl.almejo.vsim.ui.canvas.CircuitRenderer;
 import cl.almejo.vsim.ui.canvas.ManualFrameTicker;
 import cl.almejo.vsim.ui.i18n.Messages;
@@ -126,6 +127,20 @@ class ComponentTreePanelTest {
         panel.tree().setSelectionPath(panel.treePath(gate.id().value()).orElseThrow());
         assertThat(canvas.selection().ids()).containsExactly(gate.id());
         Point2D middle = center(ElementBounds.of(gate, openDocument.registry()));
+        assertThat(canvas.viewport().gridToScreen(middle.getX(), middle.getY()))
+                .isEqualTo(new Point2D.Double(200, 150));
+    }
+
+    @Test
+    void theTreeCentresOnWhatIsDrawnLikeTheFindBar() {
+        Component gate = labeled(StandardComponentTypes.NOT, 20, 10, "Una etiqueta bastante larga");
+        Bounds drawn = DrawnBounds.of(openDocument.document().component(gate.id()).orElseThrow(),
+                openDocument.registry());
+        assertThat(drawn).isNotEqualTo(ElementBounds.of(gate, openDocument.registry()));
+
+        panel.tree().setSelectionPath(panel.treePath(gate.id().value()).orElseThrow());
+
+        Point2D middle = center(drawn);
         assertThat(canvas.viewport().gridToScreen(middle.getX(), middle.getY()))
                 .isEqualTo(new Point2D.Double(200, 150));
     }

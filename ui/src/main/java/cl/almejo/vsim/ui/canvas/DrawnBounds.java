@@ -18,7 +18,8 @@ import java.util.Optional;
 /**
  * The grid area elements cover on screen: like {@link ElementBounds}, plus the text the canvas draws for them (a
  * component's label, a free label's whole text, a bus pin's value box), which can stick out of the element's own
- * bounds.
+ * bounds. A component of an unknown type (only possible in a document that is not open in an editor) is its
+ * position, the only place known for it.
  */
 public final class DrawnBounds {
 
@@ -40,7 +41,11 @@ public final class DrawnBounds {
     public static Bounds of(DocumentElement element, ComponentTypeRegistry registry) {
         return switch (element) {
             case Component component -> {
-                ComponentType type = registry.typeOf(component);
+                Optional<ComponentType> known = registry.findTypeOf(component);
+                if (known.isEmpty()) {
+                    yield new Bounds(component.position().x(), component.position().y(), 0, 0);
+                }
+                ComponentType type = known.get();
                 Bounds body = type.bounds(component);
                 if (InterfacePins.isInterface(component.typeId())) {
                     // M7: a bus pin's value box sits beside its tag

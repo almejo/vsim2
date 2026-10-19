@@ -1,11 +1,8 @@
 package cl.almejo.vsim.ui.search;
 
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
-import cl.almejo.vsim.core.component.ElementBounds;
 import cl.almejo.vsim.core.document.Component;
-import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.ElementId;
-import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.search.CircuitSearch;
 import cl.almejo.vsim.core.search.CompiledQuery;
 import cl.almejo.vsim.core.search.SearchHit;
@@ -47,7 +44,8 @@ import java.util.function.Supplier;
  * <p>Typing searches at once (the shared {@link CompiledQuery} of the core, with the «Aa» and «.*» preferences): every
  * match is highlighted and the current one is selected and travelled to ({@link CircuitCanvas#travelTo}). Enter / ↓ /
  * F3 go to the next match and Shift+Enter / ↑ / Mayús+F3 to the previous one, wrapping around; Esc or ✕ close the bar,
- * clear the highlights and give the focus back to the canvas. While the bar is open every document change searches
+ * clear the highlights and give the focus back to the canvas, keeping the text. Reopening goes on from the match the
+ * user was on: Ctrl+F shows it again, F3 / Mayús+F3 go to the one after / before it. While the bar is open every document change searches
  * again: the current match stays current while it still matches, else the one now in its place (the next one in
  * order) becomes current, without moving the view under the user's edits. Ctrl+F while the focus is inside a
  * component that has a filter of its own ({@link #FILTER_FOCUS_PROPERTY}, the component tree) focuses that filter.
@@ -94,6 +92,8 @@ public final class FindFeatures {
     private Runnable removeBar;
     private List<SearchHit> hits = List.of();
     private int currentIndex = -1;
+    /** The current match when the bar closed: reopening goes on from it (like a browser's find bar). */
+    private Optional<HitKey> matchWhenClosed = Optional.empty();
     private boolean matchCase;
     private boolean regex;
 
@@ -194,7 +194,11 @@ public final class FindFeatures {
         step(-1);
     }
 
-    /** Goes {@code direction} matches further, wrapping around; with the bar closed it opens it first (F3). */
+    /**
+     * Goes {@code direction} matches further, wrapping around. With the bar closed it opens it first (F3): it goes on
+     * from the match the user was on when the bar closed; when that one no longer matches, F3 lands on the first match
+     * and Mayús+F3 on the last.
+     */
     private void step(int direction) {
         if (!isOpen()) {
             openBar(Reason.QUIET_OPEN);
@@ -203,7 +207,8 @@ public final class FindFeatures {
         if (hits.isEmpty()) {
             return;
         }
-        currentIndex = Math.floorMod(currentIndex + direction, hits.size());
+        currentIndex = currentIndex < 0 ? (direction > 0 ? 0 : hits.size() - 1)
+                : Math.floorMod(currentIndex + direction, hits.size());
         showResults();
         goToCurrent();
     }
@@ -211,7 +216,9 @@ public final class FindFeatures {
     private void openBar(Reason reason) {
         removeBar = view.addAboveCanvas(bar);
         openDocument.addChangeListener(documentListener);
-        search(reason);
+        Optional<HitKey> remembered = matchWhenClosed;
+        matchWhenClosed = Optional.empty();
+        search(reason, remembered, true);
     }
 
     /** Esc and ✕: closes the bar and gives the focus back to the canvas. */
@@ -229,6 +236,7 @@ public final class FindFeatures {
         removeBar.run();
         removeBar = null;
         openDocument.removeChangeListener(documentListener);
+        matchWhenClosed = current().map(HitKey::of);
         hits = List.of();
         currentIndex = -1;
         overlay.clear();
@@ -236,6 +244,14 @@ public final class FindFeatures {
 
     /** Searches the document again and shows the matches; see the class comment for which one becomes current. */
     private void search(Reason reason) {
+        search(reason, current().map(HitKey::of), false);
+    }
+
+    /**
+     * {@code previousKey}: the match that stays current if it still matches. {@code opening}: the bar has just opened
+     * (Ctrl+F travels to the current match even when it is the one of before; F3 leaves the choice to its step).
+     */
+    private void search(Reason reason, Optional<HitKey> previousKey, boolean opening) {
         if (!isOpen()) {
             return;
         }
@@ -244,7 +260,6 @@ public final class FindFeatures {
         ComponentTypeRegistry registry = openDocument.registry();
         List<SearchHit> found = CircuitSearch.find(openDocument.document(), registry, query, TypeNames.in(registry));
         Optional<SearchProblem> problem = query.problem(); // after the search: a regex may give up while searching
-        Optional<HitKey> previousKey = current().map(HitKey::of);
         int previousIndex = currentIndex;
         hits = found;
         int index = -1;
@@ -256,13 +271,13 @@ public final class FindFeatures {
                 }
             }
         }
-        if (index < 0 && !hits.isEmpty()) {
+        if (index < 0 && !hits.isEmpty() && reason != Reason.QUIET_OPEN) {
             index = reason == Reason.EDIT && previousIndex >= 0 && previousIndex < hits.size() ? previousIndex : 0;
         }
-        currentIndex = hits.isEmpty() ? -1 : index;
+        currentIndex = hits.isEmpty() ? -1 : index; // QUIET_OPEN without the match of before: none yet, F3 picks
         showResults(text, problem);
         boolean currentChanged = !Objects.equals(previousKey, current().map(HitKey::of));
-        if (reason == Reason.QUERY && currentChanged) {
+        if (reason == Reason.QUERY && (currentChanged || opening)) {
             goToCurrent();
         }
     }
@@ -307,16 +322,8 @@ public final class FindFeatures {
     private void goToCurrent() {
         current().flatMap(hit -> openDocument.document().element(hit.elementId())).ifPresent(element -> {
             canvas.selection().select(element.id());
-            canvas.travelTo(boundsOf(element));
+            canvas.travelTo(DrawnBounds.of(element, openDocument.registry()));
         });
-    }
-
-    private Bounds boundsOf(DocumentElement element) {
-        ComponentTypeRegistry registry = openDocument.registry();
-        if (element instanceof Component component && registry.findTypeOf(component).isEmpty()) {
-            return ElementBounds.of(element, registry);
-        }
-        return DrawnBounds.of(element, registry);
     }
 
     private void wireBar() {

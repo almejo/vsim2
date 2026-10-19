@@ -132,6 +132,12 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     private BooleanSupplier animateViewMoves = () -> false;
     /** True while the view moves in a way that must not stop a travel (a travel frame, a layout compensation). */
     private boolean movingWithTheTravel;
+    /**
+     * The zoom the user chose (wheel, buttons, a restored view): where {@link #travelTo} rests, even after a travel
+     * that zoomed out for its target to fit. Moves made by travels never change it.
+     */
+    private double userZoom = 1;
+    private boolean disposed;
     private final ViewAnimator viewAnimator = new ViewAnimator(FrameTicker.swing(FRAME_MILLISECONDS),
             () -> System.nanoTime() / 1_000_000, this::showTravelFrame, () -> animateViewMoves.getAsBoolean());
 
@@ -180,6 +186,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         viewport.addChangeListener(() -> {
             if (!movingWithTheTravel) {
                 viewAnimator.stop(); // the user (or another move) took the view: it stays where it is
+                userZoom = viewport.zoom();
             }
         });
     }
@@ -499,6 +506,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     }
 
     public void dispose() {
+        disposed = true;
         viewAnimator.stop();
         stopAutoscroll();
         frameTimer.stop();
@@ -614,18 +622,24 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
      * Takes the view to {@code bounds} (grid units): centred on them at the user's zoom, zooming out only as far as
      * needed for them to fit. With view moves animated ({@link #setAnimateViewMoves}) it travels there: an eased pan
      * when the target is near, a «fly to» (out and back in) when it is far; a call during a travel continues from
-     * where the view is. Otherwise, or before the canvas has a size, it jumps.
+     * where the view is. Otherwise, before the canvas has a size or once it is disposed, it jumps. The user's zoom is
+     * the last one the user chose, so after a zoom-out to fit, the next target comes back to it.
      */
     public void travelTo(Bounds bounds) {
         int width = getWidth();
         int height = getHeight();
-        double restingZoom = viewAnimator.target().map(ViewState::zoom).orElse(viewport.zoom());
         ViewState target = new ViewState(
-                Math.max(Viewport.MINIMUM_ZOOM, Math.min(restingZoom, fittingZoom(bounds, width, height))),
+                Math.max(Viewport.MINIMUM_ZOOM, Math.min(userZoom, fittingZoom(bounds, width, height))),
                 bounds.x() + bounds.width() / 2.0, bounds.y() + bounds.height() / 2.0);
-        if (width <= 0 || height <= 0 || !animateViewMoves.getAsBoolean()) {
+        if (disposed || width <= 0 || height <= 0 || !animateViewMoves.getAsBoolean()) {
             viewAnimator.stop();
-            applyViewState(target);
+            movingWithTheTravel = true; // a jump to a target is not the user's zoom either
+            try {
+                viewport.showAt(target.zoom(), target.centerX(), target.centerY(), width, height);
+            } finally {
+                movingWithTheTravel = false;
+            }
+            viewChanged();
             return;
         }
         viewAnimator.travel(viewState(), target, width, height);
