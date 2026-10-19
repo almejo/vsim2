@@ -12,10 +12,12 @@ import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.InterfacePins;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.core.simulation.InstancePath;
+import cl.almejo.vsim.core.search.CompiledQuery;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.core.value.Value;
 import cl.almejo.vsim.ui.canvas.BusValueText;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.search.TypeNames;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -54,7 +56,7 @@ public final class ComponentTreeModel {
         }
         Contents contents = new Contents(document, registry, groupByType, framesByParent, componentsByParent);
         return new ComponentTreeNode(ComponentTreeNode.Kind.DOCUMENT, ComponentTreeNode.DOCUMENT_PATH, documentName,
-                "", false, contents.childrenOf(Optional.empty(), ComponentTreeNode.DOCUMENT_PATH));
+                "", false, contents.childrenOf(Optional.empty(), ComponentTreeNode.DOCUMENT_PATH), List.of());
     }
 
     /** What each parent (a frame, or the document for {@code Optional.empty()}) holds directly. */
@@ -69,7 +71,7 @@ public final class ComponentTreeModel {
                 String path = ComponentTreeNode.framePath(frame.id());
                 String text = frame.title().isBlank() ? Messages.text("properties.frame") : frame.title();
                 children.add(new ComponentTreeNode(ComponentTreeNode.Kind.FRAME, path, text, "", false,
-                        childrenOf(Optional.of(frame.id()), path)));
+                        childrenOf(Optional.of(frame.id()), path), List.of(frame.title())));
             }
             List<Component> components = componentsByParent.getOrDefault(parent, List.of());
             List<ComponentTreeNode> nodes = new ArrayList<>();
@@ -125,7 +127,7 @@ public final class ComponentTreeModel {
             }
         }
         return new ComponentTreeNode(ComponentTreeNode.Kind.COMPONENT, path, text, component.typeId(),
-                showsValue(path, component.typeId()), children);
+                showsValue(path, component.typeId()), children, List.of(component.label(), name));
     }
 
     private static boolean showsValue(String path, String typeId) {
@@ -148,12 +150,26 @@ public final class ComponentTreeModel {
                 .map(group -> new ComponentTreeNode(ComponentTreeNode.Kind.GROUP,
                         ComponentTreeNode.groupPath(parentPath, group.typeId()),
                         Messages.format("tree.group", group.name(), group.members().size()), group.typeId(), false,
-                        group.members()))
+                        group.members(), List.of()))
                 .toList();
     }
 
     /** The visible type name (the definition name for user components); the raw id when the type is unknown. */
     private static String typeName(String typeId, ComponentTypeRegistry registry) {
-        return registry.find(typeId).map(type -> Messages.componentName(type)).orElse(typeId);
+        return TypeNames.of(typeId, registry);
+    }
+
+    /**
+     * The rows of {@code node} that {@code query} matches (one of their {@link ComponentTreeNode#matchTexts()}) and
+     * their ancestors; empty when none under it matches. The rows kept under a match that do not match themselves are
+     * left out. The document row itself is never matched: callers keep it.
+     */
+    public static Optional<ComponentTreeNode> filter(ComponentTreeNode node, CompiledQuery query) {
+        List<ComponentTreeNode> kept = new ArrayList<>();
+        for (ComponentTreeNode child : node.children()) {
+            filter(child, query).ifPresent(kept::add);
+        }
+        boolean matches = node.matchTexts().stream().anyMatch(query::matches);
+        return matches || !kept.isEmpty() ? Optional.of(node.withChildren(kept)) : Optional.empty();
     }
 }

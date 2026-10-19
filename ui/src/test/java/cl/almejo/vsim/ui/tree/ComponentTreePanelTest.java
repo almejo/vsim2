@@ -17,7 +17,14 @@ import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.core.simulation.InstancePath;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.core.value.Value;
+import cl.almejo.vsim.core.command.SetLabelCommand;
+import cl.almejo.vsim.core.search.CircuitSearch;
+import cl.almejo.vsim.core.search.SearchHit;
+import cl.almejo.vsim.core.search.SearchQuery;
+import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.OpenDocument;
+import cl.almejo.vsim.ui.search.FindFeatures;
+import cl.almejo.vsim.ui.search.TypeNames;
 import cl.almejo.vsim.ui.canvas.CanvasHost;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.canvas.CircuitRenderer;
@@ -62,13 +69,14 @@ class ComponentTreePanelTest {
                 }
             });
     private final Appearance appearance = new Appearance(ColorScheme.LIGHT);
+    private final AppPreferences preferences = AppPreferences.inMemory();
     private ComponentTreePanel panel;
 
     @BeforeEach
     void create() {
         Messages.initialize(Messages.SPANISH);
         canvas.setSize(400, 300);
-        panel = new ComponentTreePanel(openDocument, canvas, PainterRegistry.standard(), appearance);
+        panel = new ComponentTreePanel(openDocument, canvas, PainterRegistry.standard(), appearance, preferences);
     }
 
     @AfterEach
@@ -241,6 +249,127 @@ class ComponentTreePanelTest {
         Component gate = place(openDocument, StandardComponentTypes.NOT, 20, 10, Map.of());
         assertThat(panel.rowText(gate.id().value())).isEmpty();
     }
+    private Component labeled(String typeId, int x, int y, String label) {
+        Component component = place(openDocument, typeId, x, y, Map.of());
+        openDocument.execute(new SetLabelCommand(component.id(), label));
+        return component;
+    }
+
+    @Test
+    void theFilterKeepsTheMatchingRowsAndTheirAncestorsExpanded() {
+        Frame block = addFrame(0, 0, 30, 20, "ALU");
+        Component inside = labeled(StandardComponentTypes.NOT, 10, 8, "U1");
+        Component outside = labeled(StandardComponentTypes.AND2, 60, 8, "U2");
+        Component instance = inverterInstance(); // at (4, -1), outside the frame; its part c2 is a NOT
+        String framePath = ComponentTreeNode.framePath(block.id());
+        String nestedNot = InstancePath.child(instance.id().value(), "c2");
+
+        panel.filterField().setText("not");
+
+        assertThat(panel.rowText(inside.id().value())).isPresent();
+        assertThat(panel.rowText(nestedNot)).isPresent();
+        assertThat(panel.rowText(outside.id().value())).isEmpty();
+        assertThat(panel.rowText(InstancePath.child(instance.id().value(), "c1"))).isEmpty();
+        assertThat(panel.tree().isExpanded(panel.treePath(framePath).orElseThrow())).isTrue();
+        assertThat(panel.tree().isExpanded(panel.treePath(instance.id().value()).orElseThrow())).isTrue();
+        assertThat(panel.filterField().showsError()).isFalse();
+
+        panel.filterField().setText("U2");
+        assertThat(panel.rowText(outside.id().value())).isPresent();
+        assertThat(panel.rowText(framePath)).isEmpty();
+    }
+
+    @Test
+    void clearingTheFilterRestoresTheExpansionOfBefore() {
+        Frame block = addFrame(0, 0, 30, 20, "ALU");
+        labeled(StandardComponentTypes.NOT, 10, 8, "U1");
+        Component instance = inverterInstance();
+        String framePath = ComponentTreeNode.framePath(block.id());
+        panel.tree().expandPath(panel.treePath(framePath).orElseThrow());
+        panel.tree().collapsePath(panel.treePath(instance.id().value()).orElseThrow());
+
+        panel.filterField().setText("no");
+        panel.filterField().setText("not");
+        assertThat(panel.tree().isExpanded(panel.treePath(instance.id().value()).orElseThrow())).isTrue();
+        panel.filterField().setText("");
+
+        assertThat(panel.tree().isExpanded(panel.treePath(framePath).orElseThrow())).isTrue();
+        assertThat(panel.tree().isExpanded(panel.treePath(instance.id().value()).orElseThrow())).isFalse();
+        assertThat(panel.rowText(InstancePath.child(instance.id().value(), "c1"))).isPresent();
+    }
+
+    @Test
+    void theFilterFollowsTheEditsAndTheFindOptions() {
+        Component lower = labeled(StandardComponentTypes.NOT, 0, 0, "abc");
+        Component upper = labeled(StandardComponentTypes.NOT, 20, 0, "ABC");
+        panel.filterField().setText("abc");
+        assertThat(panel.rowText(upper.id().value())).isPresent();
+
+        preferences.setFindMatchCase(true);
+        assertThat(panel.rowText(upper.id().value())).isEmpty();
+        assertThat(panel.rowText(lower.id().value())).isPresent();
+
+        openDocument.execute(new SetLabelCommand(upper.id(), "abcd"));
+        assertThat(panel.rowText(upper.id().value())).isPresent();
+
+        preferences.setFindRegex(true);
+        panel.filterField().setText("abc(");
+        assertThat(panel.filterField().showsError()).isTrue();
+        assertThat(panel.filterField().getToolTipText()).isEqualTo("Expresión no válida: falta cerrar un paréntesis");
+        panel.filterField().setText("^abc$");
+        assertThat(panel.filterField().showsError()).isFalse();
+        assertThat(panel.rowText(lower.id().value())).isPresent();
+        assertThat(panel.rowText(upper.id().value())).isEmpty();
+        panel.filterField().setText("zzz");
+        assertThat(panel.filterField().showsError()).isTrue();
+    }
+
+    @Test
+    void theFilterAndTheFindBarAgreeOnWhatMatches() {
+        addFrame(0, 0, 30, 20, "Sumador");
+        labeled(StandardComponentTypes.NOT, 10, 8, "suma");
+        labeled(StandardComponentTypes.AND2, 60, 8, "");
+        Component instance = inverterInstance();
+        for (String text : List.of("sum", "and", "not", "a", "inversor")) {
+            panel.filterField().setText(text);
+            List<SearchHit> hits = CircuitSearch.find(openDocument.document(), openDocument.registry(),
+                    new SearchQuery(text, false, false).compile(), TypeNames.in(openDocument.registry()));
+            for (SearchHit hit : hits) {
+                String path = hit.field() == SearchHit.Field.FRAME_TITLE ? ComponentTreeNode.framePath(hit.elementId())
+                        : hit.elementId().value();
+                assertThat(panel.rowText(path)).as(text + " finds " + path).isPresent();
+            }
+            assertThat(hits).as(text).isNotEmpty();
+        }
+        assertThat(instance).isNotNull();
+    }
+
+    @Test
+    void ctrlFInTheTreeFocusesItsFilter() {
+        assertThat(panel.getClientProperty(FindFeatures.FILTER_FOCUS_PROPERTY)).isInstanceOf(Runnable.class);
+    }
+
+    @Test
+    void escapeInTheFilterClearsIt() {
+        labeled(StandardComponentTypes.NOT, 0, 0, "U1");
+        panel.filterField().setText("U1");
+
+        panel.filterField().deliver(new java.awt.event.KeyEvent(panel.filterField(),
+                java.awt.event.KeyEvent.KEY_PRESSED, 0, 0, java.awt.event.KeyEvent.VK_ESCAPE,
+                java.awt.event.KeyEvent.CHAR_UNDEFINED));
+
+        assertThat(panel.filterField().getText()).isEmpty();
+    }
+
+    @Test
+    void disposeStopsFollowingTheFindOptions() {
+        int listeners = preferences.listenerCount();
+        panel.dispose();
+        assertThat(preferences.listenerCount()).isLessThan(listeners);
+        panel = new ComponentTreePanel(openDocument, canvas, PainterRegistry.standard(), appearance, preferences);
+        assertThat(preferences.listenerCount()).isEqualTo(listeners);
+    }
+
     private Frame addFrame(int x, int y, int width, int height, String title) {
         Frame frame = new Frame(openDocument.document().newFrameId(), new GridPoint(x, y), width, height, title,
                 FrameTint.NONE, false);
