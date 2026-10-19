@@ -148,6 +148,36 @@ class TableImportTest {
                         assertThat(exception.problem().messageKey()).isEqualTo(ImportProblem.NOT_A_SPREADSHEET));
     }
 
+    @Test
+    void anXlsxRowOrColumnBeyondExcelsLimitsIsNotASpreadsheet() {
+        for (String row : List.of(
+                "<row r=\"2000000000\"><c><v>1</v></c></row>",
+                "<row r=\"0\"><c><v>1</v></c></row>",
+                "<row r=\"1\"><c r=\"ZZZZZZ1\"><v>1</v></c></row>")) {
+            Map<String, String> entries = new LinkedHashMap<>();
+            entries.put("xl/worksheets/sheet1.xml", "<worksheet><sheetData>" + row + "</sheetData></worksheet>");
+            assertThatThrownBy(() -> TableImport.readXlsx(new ByteArrayInputStream(zip(entries))))
+                    .as(row)
+                    .isInstanceOfSatisfying(TableImportException.class, exception ->
+                            assertThat(exception.problem().messageKey()).isEqualTo(ImportProblem.NOT_A_SPREADSHEET));
+        }
+    }
+
+    @Test
+    void aFileLargerThanTheLimitIsRefusedBeforeReadingIt() throws TableImportException {
+        TableImport.checkSize(TableImport.MAXIMUM_FILE_MEGABYTES * 1024L * 1024L);
+        assertThatThrownBy(() -> TableImport.checkSize(TableImport.MAXIMUM_FILE_MEGABYTES * 1024L * 1024L + 1))
+                .isInstanceOfSatisfying(TableImportException.class, exception ->
+                        assertThat(exception.problem().messageKey()).isEqualTo(ImportProblem.TOO_LARGE));
+    }
+
+    @Test
+    void theKeptColumnsLeaveOutTheOnesWithNoNameAndNoValue() {
+        ImportedGrid grid = TableImport.readCsv("A,,B,F,\n0,,0,1\n1,,1,0\n");
+        assertThat(TableImport.columns(grid)).containsExactly(0, 2, 3);
+        assertThat(TableImport.columns(TableImport.readCsv("A,,F\n0,1,1\n"))).containsExactly(0, 1, 2);
+    }
+
     // --- toSpec ---
 
     @Test

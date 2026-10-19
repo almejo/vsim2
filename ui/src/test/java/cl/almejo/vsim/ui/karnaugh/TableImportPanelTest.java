@@ -7,6 +7,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import javax.swing.SpinnerNumberModel;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
@@ -290,6 +291,56 @@ class TableImportPanelTest {
         panel.controls().createButton().doClick();
         assertThat(target.floating).hasSize(1);
         assertThat(closed).isEqualTo(1);
+    }
+
+    @Test
+    void aBlankSpacerColumnIsLeftOutOfTheProposalAndTheNames() throws IOException {
+        chosen = write("espacio.csv", "A,,B,F\n0,,0,0\n0,,1,1\n1,,0,1\n1,,1,0\n");
+        panel.openFileButton().doClick();
+
+        assertThat(panel.inputCountSpinner().getValue()).isEqualTo(2);
+        assertThat(panel.columnsText()).isEqualTo("Entradas: A, B · Salidas: F");
+        assertThat(((SpinnerNumberModel) panel.inputCountSpinner().getModel()).getMaximum()).isEqualTo(2);
+        assertThat(panel.problemsText()).isEmpty();
+        assertThat(panel.controls().createButton().isEnabled()).isTrue();
+    }
+
+    @Test
+    void aLongListOfProblemsShowsTheFirstTwentyAndCountsTheRest() throws IOException {
+        StringBuilder csv = new StringBuilder("A,B,C,D,E,F\n");
+        for (int row = 0; row < 32; row++) {
+            csv.append(row >> 4 & 1).append(',').append(row >> 3 & 1).append(',').append(row >> 2 & 1).append(',')
+                    .append(row >> 1 & 1).append(',').append(row & 1).append(",Q\n");
+        }
+        chosen = write("mala.csv", csv.toString());
+        panel.openFileButton().doClick();
+
+        List<String> lines = panel.problemsText().lines().toList();
+        assertThat(lines).hasSize(21);
+        assertThat(lines.getLast()).isEqualTo("… y 12 problemas más.");
+    }
+
+    @Test
+    void typingTheTitleDoesNotRecomputeTheSummary() throws IOException {
+        open(new Background(queued::add, Runnable::run));
+        chosen = write("sumador.csv", ADDER);
+        panel.openFileButton().doClick();
+        queued.removeFirst().run(); // the file
+        queued.removeFirst().run(); // the summary
+        String summary = panel.summaryText();
+
+        panel.titleField().setText("Sumador completo");
+        assertThat(queued).as("the title does not change the circuit").isEmpty();
+        assertThat(panel.summaryText()).isEqualTo(summary);
+
+        panel.titleField().setText(" ");
+        assertThat(panel.summaryText()).isBlank();
+        panel.titleField().setText("Sumador");
+        assertThat(queued).isEmpty();
+        assertThat(panel.summaryText()).isEqualTo(summary);
+
+        panel.gateButton(WizardOptions.GateChoice.NAND_ONLY).doClick();
+        assertThat(queued).hasSize(1);
     }
 
     private static String sheet(List<List<String>> rows) {

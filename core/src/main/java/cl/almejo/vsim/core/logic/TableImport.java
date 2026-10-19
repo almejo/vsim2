@@ -36,8 +36,14 @@ import java.util.zip.ZipInputStream;
  */
 public final class TableImport {
 
-    /** The most bytes read from the parts of an {@code .xlsx}, together (a guard against zip bombs). */
-    static final int MAXIMUM_XLSX_MEGABYTES = 64;
+    /**
+     * The most bytes read: from the parts of an {@code .xlsx}, together (a guard against zip bombs), or from a text
+     * file.
+     */
+    public static final int MAXIMUM_FILE_MEGABYTES = 64;
+    /** Excel's last row and last column ({@code XFD}): a reference beyond them is not a real workbook. */
+    private static final int MAXIMUM_ROW = 1_048_576;
+    private static final int MAXIMUM_COLUMN = 16_384;
 
     private static final String SPREADSHEET_NAMESPACE = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
     private static final String RELATIONSHIPS_NAMESPACE =
@@ -201,9 +207,17 @@ public final class TableImport {
         }
     }
 
+    /** Refuses a file of {@code bytes} bytes when it is larger than {@value #MAXIMUM_FILE_MEGABYTES} MB. */
+    public static void checkSize(long bytes) throws TableImportException {
+        if (bytes > MAXIMUM_FILE_MEGABYTES * 1024L * 1024L) {
+            throw new TableImportException(ImportProblem.general(ImportProblem.TOO_LARGE, MAXIMUM_FILE_MEGABYTES),
+                    null);
+        }
+    }
+
     private static Map<String, byte[]> xlsxParts(InputStream input) throws IOException {
         Map<String, byte[]> parts = new HashMap<>();
-        long limit = MAXIMUM_XLSX_MEGABYTES * 1024L * 1024L;
+        long limit = MAXIMUM_FILE_MEGABYTES * 1024L * 1024L;
         long total = 0;
         try (ZipInputStream zip = new ZipInputStream(input)) {
             ZipEntry entry;
@@ -219,7 +233,7 @@ public final class TableImport {
                     total += read;
                     if (total > limit) {
                         throw new TableImportException(
-                                ImportProblem.general(ImportProblem.TOO_LARGE, MAXIMUM_XLSX_MEGABYTES), null);
+                                ImportProblem.general(ImportProblem.TOO_LARGE, MAXIMUM_FILE_MEGABYTES), null);
                     }
                     bytes.write(buffer, 0, read);
                 }
@@ -356,11 +370,11 @@ public final class TableImport {
                 String name = reader.getLocalName();
                 if (name.equals("row")) {
                     String number = attribute(reader, "r");
-                    rowNumber = number == null ? rowNumber + 1 : Integer.parseInt(number.strip());
+                    rowNumber = within(number == null ? rowNumber + 1 : Integer.parseInt(number.strip()), MAXIMUM_ROW);
                     columnNumber = 0;
                 } else if (name.equals("c")) {
                     String reference = attribute(reader, "r");
-                    columnNumber = reference == null ? columnNumber + 1 : columnOf(reference);
+                    columnNumber = within(reference == null ? columnNumber + 1 : columnOf(reference), MAXIMUM_COLUMN);
                     String value = cellValue(reader, attribute(reader, "t"), sharedStrings);
                     if (!value.isEmpty()) {
                         cells.computeIfAbsent(rowNumber, ignored -> new TreeMap<>()).put(columnNumber, value);
@@ -384,6 +398,14 @@ public final class TableImport {
             records.add(Arrays.asList(record));
         }
         return records;
+    }
+
+    /** {@code number} when it is 1..{@code maximum}; otherwise the sheet is not a real one (it would not fit). */
+    private static int within(int number, int maximum) {
+        if (number < 1 || number > maximum) {
+            throw new IllegalArgumentException("row or column out of range: " + number);
+        }
+        return number;
     }
 
     /** The text of the current {@code c} element, by its type; ends on the cell's end tag. */
@@ -475,19 +497,11 @@ public final class TableImport {
      * come in any order; a combination written twice must have the same outputs; missing combinations become X.
      */
     public static ImportResult toSpec(ImportedGrid grid, int inputCount, String title) {
-        int width = grid.header().size();
-        while (width > 0 && grid.header().get(width - 1).isBlank()) {
-            width--;
-        }
+        int width = width(grid);
         if (width == 0) {
             return failed(List.of(ImportProblem.general(ImportProblem.EMPTY_FILE)), 0);
         }
-        List<Integer> columns = new ArrayList<>();
-        for (int column = 0; column < width; column++) {
-            if (!cell(grid.header(), column).isBlank() || columnHasValues(grid, column)) {
-                columns.add(column);
-            }
-        }
+        List<Integer> columns = columns(grid);
         int outputCount = columns.size() - inputCount;
         List<ImportProblem> problems = new ArrayList<>(countProblems(inputCount, outputCount));
         if (!problems.isEmpty()) {
@@ -613,6 +627,30 @@ public final class TableImport {
 
     private static ImportResult failed(List<ImportProblem> problems, int missingRows) {
         return new ImportResult(Optional.empty(), problems, missingRows);
+    }
+
+    /**
+     * The columns of {@code grid} that make the table (0 = first), up to the last name written: those with a name or
+     * a value. {@link #toSpec}'s input count counts these; a blank spacer column is not one of them.
+     */
+    public static List<Integer> columns(ImportedGrid grid) {
+        List<Integer> columns = new ArrayList<>();
+        int width = width(grid);
+        for (int column = 0; column < width; column++) {
+            if (!cell(grid.header(), column).isBlank() || columnHasValues(grid, column)) {
+                columns.add(column);
+            }
+        }
+        return columns;
+    }
+
+    /** The header up to its last name. */
+    private static int width(ImportedGrid grid) {
+        int width = grid.header().size();
+        while (width > 0 && grid.header().get(width - 1).isBlank()) {
+            width--;
+        }
+        return width;
     }
 
     private static boolean columnHasValues(ImportedGrid grid, int column) {

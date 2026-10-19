@@ -91,6 +91,10 @@ public final class TableImportPanel extends JPanel {
     private boolean syncing;
     /** Counts the summaries asked for: only the latest one is shown. */
     private long summaryRequest;
+    /** What the summary shown (or being computed) is of: the table without its title, and the options. */
+    private List<Object> summarized;
+    /** The summary of {@link #summarized}; null while it is computed. */
+    private String summarizedText;
     /** Counts the files read: a file whose number is not the latest (the dialog was closed) is dropped. */
     private long readRequest;
 
@@ -281,25 +285,39 @@ public final class TableImportPanel extends JPanel {
         summarize();
     }
 
-    /** The summary of the table as it is now, computed off the EDT; an older one arriving late is dropped. */
+    /**
+     * The summary of the table as it is now, computed off the EDT; an older one arriving late is dropped. The title
+     * does not change it, so typing one does not compute it again.
+     */
     private void summarize() {
-        long request = ++summaryRequest;
         Optional<TruthTableSpec> spec = model.spec();
         if (spec.isEmpty()) {
             summary.setText(" ");
             return;
         }
-        summary.setText(Messages.text("tableImport.summarizing"));
         WizardOptions options = model.options();
-        background.run(() -> summaryOf(spec.get(), options), text -> {
-            if (request == summaryRequest) {
+        TruthTableSpec table = spec.get();
+        List<Object> key = List.of(table.inputNames(), table.outputNames(), table.outputs(), options);
+        if (key.equals(summarized)) {
+            summary.setText(summarizedText == null ? Messages.text("tableImport.summarizing") : summarizedText);
+            return;
+        }
+        summarized = key;
+        summarizedText = null;
+        long request = ++summaryRequest;
+        summary.setText(Messages.text("tableImport.summarizing"));
+        background.run(() -> summaryOf(table, options), text -> summarized(request, text),
+                failure -> summarized(request, " "));
+    }
+
+    /** A summary arrived: kept when it is the latest, and shown unless the table has a problem now. */
+    private void summarized(long request, String text) {
+        if (request == summaryRequest) {
+            summarizedText = text;
+            if (model.spec().isPresent()) {
                 summary.setText(text);
             }
-        }, failure -> {
-            if (request == summaryRequest) {
-                summary.setText(" ");
-            }
-        });
+        }
     }
 
     /** «8 entradas, 8 salidas → 23 términos, 31 compuertas»: terms are counted once when they are shared. */

@@ -52,6 +52,7 @@ public record TableSources(Chooser chooser, Supplier<Optional<String>> clipboard
                 return TableImport.readXlsx(input);
             }
         }
+        TableImport.checkSize(Files.size(file)); // read whole: a huge file must not run out of memory
         return TableImport.readCsv(decoded(Files.readAllBytes(file)));
     }
 

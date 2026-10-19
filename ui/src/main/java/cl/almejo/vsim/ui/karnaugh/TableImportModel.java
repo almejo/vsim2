@@ -18,8 +18,13 @@ import java.util.Optional;
  */
 final class TableImportModel {
 
+    /** The most problems listed; the rest are counted in one more line. */
+    static final int MAXIMUM_PROBLEM_LINES = 20;
+
     private final List<Runnable> listeners = new ArrayList<>();
     private ImportedGrid grid;
+    /** The grid's columns that make the table ({@link TableImport#columns}): a blank spacer column is not one. */
+    private List<Integer> columns = List.of();
     private ImportProblem readProblem;
     private String source = "";
     private String title = "";
@@ -30,16 +35,18 @@ final class TableImportModel {
     /** A grid was read from {@code source} (a file name, or the clipboard): the inputs are proposed from its names. */
     void load(ImportedGrid newGrid, String newSource, String newTitle) {
         grid = newGrid;
+        columns = TableImport.columns(newGrid);
         readProblem = null;
         source = newSource;
         title = newTitle;
-        inputCount = TableImport.proposedInputCount(newGrid.header().subList(0, columnCount(newGrid)));
+        inputCount = TableImport.proposedInputCount(names(0, columns.size()));
         changed();
     }
 
     /** {@code source} could not be read at all: {@code problem} says why; the previous table is gone. */
     void loadFailed(ImportProblem problem, String newSource) {
         grid = null;
+        columns = List.of();
         readProblem = problem;
         source = newSource;
         changed();
@@ -76,17 +83,9 @@ final class TableImportModel {
         }
     }
 
-    /** The table's columns: the names up to the last one written. */
+    /** The table's columns: up to the last name written, without the blank spacer columns. */
     int columnCount() {
-        return grid == null ? 0 : columnCount(grid);
-    }
-
-    private static int columnCount(ImportedGrid grid) {
-        int width = grid.header().size();
-        while (width > 0 && grid.header().get(width - 1).isBlank()) {
-            width--;
-        }
-        return width;
+        return columns.size();
     }
 
     List<String> inputNames() {
@@ -98,7 +97,11 @@ final class TableImportModel {
     }
 
     private List<String> names(int from, int to) {
-        return grid.header().subList(from, to).stream().map(String::strip).toList();
+        List<String> names = new ArrayList<>();
+        for (int column : columns.subList(from, to)) {
+            names.add(column < grid.header().size() ? grid.header().get(column).strip() : "");
+        }
+        return names;
     }
 
     WizardOptions options() {
@@ -117,7 +120,10 @@ final class TableImportModel {
         return result == null || title.isBlank() ? Optional.empty() : result.spec();
     }
 
-    /** What is wrong, one line each, in the order found: «Celda D4: …», «Fila 5: …» or a line about the file. */
+    /**
+     * What is wrong, one line each, in the order found: «Celda D4: …», «Fila 5: …» or a line about the file; past
+     * {@value #MAXIMUM_PROBLEM_LINES} lines, one more counts the rest («… y 12 problemas más.»).
+     */
     List<String> problemLines() {
         List<String> lines = new ArrayList<>();
         if (readProblem != null) {
@@ -128,6 +134,12 @@ final class TableImportModel {
                 lines.add(Messages.text("karnaugh.problem.title"));
             }
             result.problems().forEach(problem -> lines.add(describe(problem)));
+        }
+        if (lines.size() > MAXIMUM_PROBLEM_LINES) {
+            int rest = lines.size() - MAXIMUM_PROBLEM_LINES;
+            List<String> shown = new ArrayList<>(lines.subList(0, MAXIMUM_PROBLEM_LINES));
+            shown.add(Messages.format("tableImport.moreProblems", rest, String.valueOf(rest)));
+            return shown;
         }
         return lines;
     }
