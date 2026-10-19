@@ -38,6 +38,7 @@ class KarnaughExtensionTest {
     private final List<KarnaughWizard> opened = new ArrayList<>();
     private final List<Component> parents = new ArrayList<>();
     private final List<TableImportPanel> imports = new ArrayList<>();
+    private final List<ExpressionsPanel> expressions = new ArrayList<>();
     private OpenDocument openDocument;
     private EditorView view;
 
@@ -48,8 +49,11 @@ class KarnaughExtensionTest {
         KarnaughExtension extension = new KarnaughExtension((parent, wizard) -> {
             parents.add(parent);
             opened.add(wizard);
-        }, (parent, panel) -> imports.add(panel), new TableSources(parent -> Optional.empty(), Optional::empty),
-                KarnaughCost.GENERATOR, view -> new FakeCreationTarget(), Background.inline());
+        }, (parent, panel) -> imports.add(panel), (parent, panel) -> {
+            parents.add(parent);
+            expressions.add(panel);
+        }, new TableSources(parent -> Optional.empty(), Optional::empty), KarnaughCost.GENERATOR,
+                view -> new FakeCreationTarget(), Background.inline());
         EditorServices services = new EditorServices(PainterRegistry.standard(), new Appearance(ColorScheme.LIGHT),
                 AppPreferences.inMemory(), new ComponentLibrary(), List.of(extension));
         view = new EditorView(openDocument, services, NO_WINDOW);
@@ -64,7 +68,7 @@ class KarnaughExtensionTest {
     @Test
     void theToolsMenuItemOpensAFreshWizardOnTheTable() {
         JMenu tools = view.menu(MenuId.TOOLS);
-        assertThat(tools.getItemCount()).isEqualTo(1);
+        assertThat(tools.getItemCount()).isEqualTo(2);
         assertThat(tools.getItem(0).getText()).isEqualTo("Circuito desde tabla de verdad…");
         assertThat(view.shortcutActions().get("tools.circuitFromTruthTable")).isSameAs(tools.getItem(0).getAction());
 
@@ -75,6 +79,42 @@ class KarnaughExtensionTest {
         assertThat(opened.get(0)).isNotSameAs(opened.get(1));
         assertThat(opened.get(0).step()).isEqualTo(KarnaughWizard.Step.TABLE);
         assertThat(parents.getFirst()).isSameAs(view);
+    }
+
+    @Test
+    void theToolsMenuOpensAFreshExpressionsDialogRightAfterTheWizard() {
+        JMenu tools = view.menu(MenuId.TOOLS);
+        assertThat(tools.getItem(1).getText()).isEqualTo("Circuito desde expresiones…");
+        assertThat(view.shortcutActions().get("tools.circuitFromExpressions"))
+                .isSameAs(tools.getItem(1).getAction());
+
+        tools.getItem(1).doClick();
+        tools.getItem(1).doClick();
+
+        assertThat(expressions).hasSize(2);
+        assertThat(expressions.get(0)).isNotSameAs(expressions.get(1));
+        assertThat(expressions.get(0).lineField(0).getText()).isEqualTo("F = ");
+        assertThat(parents).containsExactly(view, view);
+        assertThat(opened).isEmpty();
+    }
+
+    @Test
+    void seeInKarnaughOpensTheWizardOnTheGroupsWithTheTable() {
+        view.menu(MenuId.TOOLS).getItem(1).doClick();
+        ExpressionsPanel panel = expressions.getFirst();
+        panel.titleField().setText("Mayoría");
+        panel.lineField(0).setText("M = A B + A C + B C");
+
+        panel.wizardLink().doClick();
+
+        assertThat(opened).singleElement().satisfies(wizard -> {
+            assertThat(wizard.step()).isEqualTo(KarnaughWizard.Step.GROUPS);
+            assertThat(wizard.model().title()).isEqualTo("Mayoría");
+            assertThat(wizard.model().inputNames()).containsExactly("A", "B", "C");
+            assertThat(wizard.model().outputNames()).containsExactly("M");
+            assertThat(wizard.model().spec()).isEqualTo(panel.model().spec().orElseThrow());
+        });
+        assertThat(parents).containsExactly(view, view);
     }
 
     @Test
@@ -114,7 +154,8 @@ class KarnaughExtensionTest {
         view.dispose();
         assertThat(tools.getItemCount()).isZero();
         assertThat(file.getMenuComponentCount()).isEqualTo(fileItems - 1);
-        assertThat(view.shortcutActions()).doesNotContainKeys("tools.circuitFromTruthTable", "file.importTruthTable");
+        assertThat(view.shortcutActions()).doesNotContainKeys("tools.circuitFromTruthTable",
+                "tools.circuitFromExpressions", "file.importTruthTable");
         assertThat(view.tableWizard()).isEmpty();
     }
 
