@@ -140,7 +140,7 @@ class ExpressionsPanelTest {
         assertThat(panel.shareBox().isEnabled()).isTrue();
         assertThat(panel.costText()).isEqualTo("1 XOR (1 compuerta)");
         assertThat(panel.previewText(0)).isEmpty();
-        assertThat(panel.wizardLink().isVisible()).isFalse();
+        assertThat(panel.wizardLink().isVisible()).as("seeing the map does not depend on simplifying").isTrue();
 
         panel.simplifyBox().doClick();
         assertThat(preferences.simplifyExpressions()).isTrue();
@@ -316,6 +316,8 @@ class ExpressionsPanelTest {
     void seeInKarnaughNeedsTwoToFourInputsAndOpensTheWizardWithTheTable() {
         type(0, "F = A");
         assertThat(panel.wizardLink().isVisible()).isTrue();
+        assertThat(panel.buttonBarTexts()).as("a button at the bottom, not an option of «Simplificar»")
+                .containsExactly("Ver en Karnaugh…", "Crear", "Cerrar");
         assertThat(panel.wizardLink().isEnabled()).isFalse();
         assertThat(panel.wizardReasonText()).isEqualTo("El asistente funciona con 2 a 4 entradas y hasta 4 salidas");
 

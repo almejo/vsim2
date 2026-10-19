@@ -108,12 +108,6 @@ public final class ExpressionsPanel extends JPanel {
     };
     private final JCheckBox simplify = new JCheckBox(Messages.text("expressions.simplify"));
     private final JButton wizardLink = new JButton(Messages.text("expressions.openInWizard"));
-    private final JLabel wizardReason = new JLabel(" ") {
-        @Override
-        public Color getForeground() {
-            return WizardColors.muted();
-        }
-    };
     private final Map<WizardOptions.GateChoice, JRadioButton> gateButtons =
             new EnumMap<>(WizardOptions.GateChoice.class);
     private final Map<Minimization.Form, JRadioButton> formButtons = new EnumMap<>(Minimization.Form.class);
@@ -179,13 +173,7 @@ public final class ExpressionsPanel extends JPanel {
         content.add(inputs, "span 2, gaptop 8");
         content.add(tableProblems, "span 2, growx, wmin 100, hidemode 3");
 
-        JPanel simplifyRow = new JPanel(new MigLayout("insets 0", "[]16[]"));
-        simplifyRow.add(simplify);
-        wizardLink.putClientProperty("JButton.buttonType", "borderless");
-        simplifyRow.add(wizardLink, "hidemode 3");
-        content.add(simplifyRow, "span 2, gaptop 12");
-        // On a line of its own, so it does not widen the row of «Simplificar».
-        content.add(wizardReason, "span 2, hidemode 3");
+        content.add(simplify, "span 2, gaptop 12");
 
         ButtonGroup gates = new ButtonGroup();
         JPanel gatesPanel = new JPanel(new MigLayout("insets 0"));
@@ -240,7 +228,9 @@ public final class ExpressionsPanel extends JPanel {
         legendSide.add(legendScroll, BorderLayout.CENTER);
         legend.setOnToggle(this::revalidate);
 
-        buttonBar = new JPanel(new MigLayout("insets 6 12 10 12, fillx", "[grow][][]"));
+        // «Ver en Karnaugh…» is a way to look at the table, not an option of «Simplificar»: it sits at the bottom left.
+        buttonBar = new JPanel(new MigLayout("insets 6 12 10 12, fillx", "[][grow][][]"));
+        buttonBar.add(wizardLink);
         buttonBar.add(controls.createButton(), "skip 1");
         buttonBar.add(close, "gapleft 12");
         contentScroll = new JScrollPane(content);
@@ -562,11 +552,9 @@ public final class ExpressionsPanel extends JPanel {
         minimizing.forEach(button -> button.setEnabled(!busy && simplifying));
         formReason.setVisible(!simplifying);
         share.setEnabled(!busy);
-        wizardLink.setVisible(simplifying);
         wizardLink.setEnabled(!busy && model.canOpenInWizard());
-        boolean outOfRange = simplifying && model.spec().isPresent() && !model.canOpenInWizard();
-        wizardReason.setText(outOfRange ? Messages.text("expressions.openInWizard.range") : "");
-        wizardReason.setVisible(outOfRange);
+        boolean outOfRange = model.spec().isPresent() && !model.canOpenInWizard();
+        wizardLink.setToolTipText(outOfRange ? Messages.text("expressions.openInWizard.range") : null);
         controls.refresh();
     }
 
@@ -716,8 +704,20 @@ public final class ExpressionsPanel extends JPanel {
         return costLine.getText();
     }
 
+    /** Why «Ver en Karnaugh…» is off (its tooltip), or empty. */
     String wizardReasonText() {
-        return wizardReason.isVisible() ? wizardReason.getText() : "";
+        String reason = wizardLink.getToolTipText();
+        return reason == null ? "" : reason;
+    }
+
+    List<String> buttonBarTexts() {
+        List<String> texts = new ArrayList<>();
+        for (Component each : buttonBar.getComponents()) {
+            if (each instanceof AbstractButton button) {
+                texts.add(button.getText());
+            }
+        }
+        return texts;
     }
 
     String resultText() {
