@@ -8,6 +8,7 @@ import cl.almejo.vsim.core.io.CircuitFormatException;
 import cl.almejo.vsim.core.library.ExampleDefinitions;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.core.logic.ImportProblem;
+import cl.almejo.vsim.core.search.SearchProblem;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
@@ -94,6 +95,11 @@ class MessagesTest {
     @Test
     void everyTableImportProblemHasAMessage() {
         assertThat(missing(ImportProblem.MESSAGE_KEYS)).isEmpty();
+    }
+
+    @Test
+    void everySearchProblemHasAMessage() {
+        assertThat(missing(SearchProblem.MESSAGE_KEYS)).isEmpty();
     }
 
     @Test
