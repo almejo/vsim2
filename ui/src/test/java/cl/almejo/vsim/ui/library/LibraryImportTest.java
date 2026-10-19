@@ -8,12 +8,14 @@ import cl.almejo.vsim.core.library.DefinitionBundle;
 import cl.almejo.vsim.core.library.ExampleDefinitions;
 import cl.almejo.vsim.ui.clipboard.FileListTransferable;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.window.ImportMenu;
 import cl.almejo.vsim.ui.window.MenuId;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import javax.swing.JMenu;
 import javax.swing.JTree;
 import javax.swing.SwingUtilities;
 import javax.swing.TransferHandler;
@@ -61,7 +63,10 @@ class LibraryImportTest {
     @Test
     void theFileMenuImportsIntoTheLibrary() throws Exception {
         assertThat(texts(fixture.view.menu(MenuId.FILE)))
-                .containsSequence("Guardar como…", "---", "Importar componente…", "---");
+                .containsSequence("Guardar como…", "---", "Importar", "---");
+        JMenu importMenu = ImportMenu.find(fixture.view.menu(MenuId.FILE)).orElseThrow();
+        assertThat(texts(importMenu)).containsExactly("Componente…");
+        assertThat(importMenu.getItem(0).getAction()).isSameAs(fixture.features.importComponent());
         fixture.dialogs.importFiles.add(List.of(outside("inverter.vsimcomponent.json", inverter)));
 
         perform(fixture.features.importComponent());

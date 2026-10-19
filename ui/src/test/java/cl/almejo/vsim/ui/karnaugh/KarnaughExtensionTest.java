@@ -10,6 +10,7 @@ import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.window.EditorServices;
 import cl.almejo.vsim.ui.window.EditorView;
+import cl.almejo.vsim.ui.window.ImportMenu;
 import cl.almejo.vsim.ui.window.MenuId;
 import cl.almejo.vsim.ui.window.WindowCommands;
 import org.junit.jupiter.api.AfterEach;
@@ -206,18 +207,14 @@ class KarnaughExtensionTest {
         int fileItems = file.getMenuComponentCount();
         view.dispose();
         assertThat(tools.getItemCount()).isZero();
-        assertThat(file.getMenuComponentCount()).isEqualTo(fileItems - 1);
+        assertThat(file.getMenuComponentCount()).as("the submenu and its separator").isEqualTo(fileItems - 2);
+        assertThat(ImportMenu.find(file)).isEmpty();
         assertThat(view.shortcutActions()).doesNotContainKeys("tools.circuitFromTruthTable",
                 "tools.circuitFromExpressions", "file.importTruthTable");
         assertThat(view.tableWizard()).isEmpty();
     }
 
     private static JMenu importMenu(JMenu file) {
-        for (java.awt.Component child : file.getMenuComponents()) {
-            if (child instanceof JMenu menu && menu.getText().equals("Importar")) {
-                return menu;
-            }
-        }
-        throw new AssertionError("no Importar submenu");
+        return ImportMenu.find(file).orElseThrow(() -> new AssertionError("no Importar submenu"));
     }
 }

@@ -2,12 +2,14 @@ package cl.almejo.vsim.ui.library;
 
 import cl.almejo.vsim.core.io.CircuitFragment;
 import cl.almejo.vsim.core.io.LibraryProblem;
+import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.window.EditorView;
+import cl.almejo.vsim.ui.window.ImportMenu;
 import cl.almejo.vsim.ui.window.MenuId;
 
 import javax.swing.Action;
 import javax.swing.JMenu;
-import javax.swing.JSeparator;
+import javax.swing.JMenuItem;
 import javax.swing.SwingUtilities;
 import java.util.List;
 import java.util.function.Consumer;
@@ -20,18 +22,20 @@ public final class TemplateFeatures {
     private final TemplateActions actions;
     private final LibraryPalette palette;
     private final Action importComponent;
+    private final Runnable importItemRemover;
     private final LibraryVersionBadge badge;
     private final Runnable problemsListener;
     private final Consumer<CircuitFragment> keptVersionsWarning;
 
     private TemplateFeatures(EditorView view, LibraryService service, TemplateActions actions, LibraryPalette palette,
-                             Action importComponent, LibraryVersionBadge badge, Runnable problemsListener,
-                             Consumer<CircuitFragment> keptVersionsWarning) {
+                             Action importComponent, Runnable importItemRemover, LibraryVersionBadge badge,
+                             Runnable problemsListener, Consumer<CircuitFragment> keptVersionsWarning) {
         this.view = view;
         this.service = service;
         this.actions = actions;
         this.palette = palette;
         this.importComponent = importComponent;
+        this.importItemRemover = importItemRemover;
         this.badge = badge;
         this.problemsListener = problemsListener;
         this.keptVersionsWarning = keptVersionsWarning;
@@ -48,7 +52,10 @@ public final class TemplateFeatures {
 
         LibraryImport importer = new LibraryImport(service, dialogs);
         Action importComponent = importer.action(view);
-        addAfterSaving(view.menu(MenuId.FILE), importComponent);
+        // Archivo ▸ Importar ▸ «Componente…» (the palette's menu keeps the action's «Importar componente…»).
+        JMenuItem importItem = new JMenuItem(importComponent);
+        importItem.setText(Messages.text("menu.file.import.component"));
+        Runnable importItemRemover = ImportMenu.add(view.menu(MenuId.FILE), importItem);
 
         LibraryPalette palette = new LibraryPalette(view, service, dialogs, importer, importComponent);
         palette.install();
@@ -80,8 +87,8 @@ public final class TemplateFeatures {
                 .message(view.openDocument().document(), fragment)
                 .ifPresent(message -> SwingUtilities.invokeLater(() -> dialogs.showMessage(view.canvas(), message)));
         view.canvas().addIncomingFragmentListener(keptVersionsWarning);
-        return new TemplateFeatures(view, service, actions, palette, importComponent, badge, problemsListener,
-                keptVersionsWarning);
+        return new TemplateFeatures(view, service, actions, palette, importComponent, importItemRemover, badge,
+                problemsListener, keptVersionsWarning);
     }
 
     public TemplateActions actions() {
@@ -92,7 +99,7 @@ public final class TemplateFeatures {
         return palette;
     }
 
-    /** Archivo ▸ Importar componente… */
+    /** Archivo ▸ Importar ▸ Componente… (and the palette's «Importar componente…»). */
     public Action importComponent() {
         return importComponent;
     }
@@ -101,8 +108,12 @@ public final class TemplateFeatures {
         return badge;
     }
 
-    /** Removes every listener registered on shared objects (document, library, service) and the overlay. */
+    /**
+     * Removes every listener registered on shared objects (document, library, service), the overlay and the item of
+     * Archivo ▸ Importar.
+     */
     public void dispose() {
+        importItemRemover.run();
         view.setComponentFileImporter(null);
         view.setTemplateActions(null);
         view.canvas().removeIncomingFragmentListener(keptVersionsWarning);
@@ -112,18 +123,5 @@ public final class TemplateFeatures {
         badge.dispose();
         palette.dispose();
         actions.dispose();
-    }
-
-    /** Archivo: …, Guardar como…, ---, Importar componente…, ---, Cerrar, Salir. */
-    private static void addAfterSaving(JMenu file, Action action) {
-        for (int index = 0; index < file.getMenuComponentCount(); index++) {
-            if (file.getMenuComponent(index) instanceof JSeparator) {
-                file.insertSeparator(index);
-                file.insert(action, index + 1);
-                return;
-            }
-        }
-        file.addSeparator();
-        file.add(action);
     }
 }

@@ -14,6 +14,7 @@ import cl.almejo.vsim.ui.shortcuts.ShortcutCatalog;
 import cl.almejo.vsim.ui.stepping.StepIcons;
 import cl.almejo.vsim.ui.window.EditorServices;
 import cl.almejo.vsim.ui.window.EditorView;
+import cl.almejo.vsim.ui.window.ImportMenu;
 import cl.almejo.vsim.ui.window.MenuId;
 import cl.almejo.vsim.ui.window.WindowCommands;
 import org.junit.jupiter.api.AfterEach;
@@ -107,9 +108,13 @@ class ApplicationExtensionsTest {
         EditorView view = new EditorView(openDocument, services, NO_WINDOW);
         try {
             assertThat(texts(view.menu(MenuId.FILE))).containsExactly("Nuevo", "Abrir…", "Recientes", "Ejemplos",
-                    "Guardar", "Guardar como…", "Exportar imagen…", "---", "Importar componente…", "Importar", "---",
+                    "Guardar", "Guardar como…", "Exportar imagen…", "---", "Importar", "---",
                     "Preferencias…", "---",
                     "Cerrar ventana", "Salir");
+            JMenu importMenu = ImportMenu.find(view.menu(MenuId.FILE)).orElseThrow();
+            assertThat(texts(importMenu)).containsExactly("Componente…", "Tabla de verdad desde Excel/CSV…");
+            assertThat(view.shortcutActions().get("file.importTruthTable"))
+                    .isSameAs(importMenu.getItem(1).getAction());
             assertThat(texts(view.menu(MenuId.EDIT))).containsSubsequence("Deshacer", "Rehacer", "Cortar", "Copiar",
                     "Pegar", "Crear componente desde selección…", "Actualizar componente…");
         } finally {

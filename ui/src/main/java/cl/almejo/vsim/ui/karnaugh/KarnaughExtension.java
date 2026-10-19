@@ -4,6 +4,7 @@ import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.library.LibraryService;
 import cl.almejo.vsim.ui.window.EditorExtension;
 import cl.almejo.vsim.ui.window.EditorView;
+import cl.almejo.vsim.ui.window.ImportMenu;
 import cl.almejo.vsim.ui.window.MenuId;
 
 import javax.swing.AbstractAction;
@@ -116,31 +117,16 @@ public final class KarnaughExtension implements EditorExtension {
                 importOpener.open(view, new TableImportPanel(sources, target, background, importInWizard));
             }
         };
-        JMenu file = view.menu(MenuId.FILE);
-        JMenu importMenu = new JMenu(Messages.text("menu.file.import"));
-        importMenu.add(new JMenuItem(importAction));
-        file.insert(importMenu, importPosition(file));
+        Runnable importItemRemover = ImportMenu.add(view.menu(MenuId.FILE), new JMenuItem(importAction));
         Runnable importShortcutRemover = view.registerShortcutAction(IMPORT_SHORTCUT_ID, importAction);
         return () -> {
             view.setTableWizard(null);
             importShortcutRemover.run();
-            file.remove(importMenu);
+            importItemRemover.run();
             expressionsShortcutRemover.run();
             tools.remove(expressionsItem);
             shortcutRemover.run();
             tools.remove(item);
         };
-    }
-
-    /** Right after «Importar componente…»; at the end of the menu without it. */
-    static int importPosition(JMenu file) {
-        String importComponent = Messages.text("action.importComponent");
-        for (int index = 0; index < file.getMenuComponentCount(); index++) {
-            if (file.getMenuComponent(index) instanceof JMenuItem menuItem
-                    && importComponent.equals(menuItem.getText())) {
-                return index + 1;
-            }
-        }
-        return file.getMenuComponentCount();
     }
 }
