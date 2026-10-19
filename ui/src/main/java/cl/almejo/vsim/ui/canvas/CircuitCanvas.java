@@ -130,7 +130,8 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     private GridPoint mousePoint;
     private Cursor toolCursor = Cursor.getDefaultCursor();
     private BooleanSupplier animateViewMoves = () -> false;
-    private boolean showingTravelFrame;
+    /** True while the view moves in a way that must not stop a travel (a travel frame, a layout compensation). */
+    private boolean movingWithTheTravel;
     private final ViewAnimator viewAnimator = new ViewAnimator(FrameTicker.swing(FRAME_MILLISECONDS),
             () -> System.nanoTime() / 1_000_000, this::showTravelFrame, () -> animateViewMoves.getAsBoolean());
 
@@ -177,7 +178,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         problemPulseTimer = new Timer(ProblemPulse.TICK_MILLISECONDS, event -> problemPulseTick());
         autoscrollTimer = new Timer(AUTOSCROLL_MILLISECONDS, event -> autoscrollTick());
         viewport.addChangeListener(() -> {
-            if (!showingTravelFrame) {
+            if (!movingWithTheTravel) {
                 viewAnimator.stop(); // the user (or another move) took the view: it stays where it is
             }
         });
@@ -643,11 +644,26 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     }
 
     private void showTravelFrame(ViewState state) {
-        showingTravelFrame = true;
+        movingWithTheTravel = true;
         try {
             viewport.showAt(state.zoom(), state.centerX(), state.centerY(), getWidth(), getHeight());
         } finally {
-            showingTravelFrame = false;
+            movingWithTheTravel = false;
+        }
+        viewChanged();
+    }
+
+    /**
+     * Pans the view by ({@code deltaX}, {@code deltaY}) pixels because the canvas itself moved in its window (a header
+     * above it showed or went), so the circuit stays where it was on screen. It is not a user move: a travel in
+     * progress goes on (its frames derive the view from the centre and the current size).
+     */
+    public void compensateCanvasMove(double deltaX, double deltaY) {
+        movingWithTheTravel = true;
+        try {
+            viewport.panBy(deltaX, deltaY);
+        } finally {
+            movingWithTheTravel = false;
         }
         viewChanged();
     }

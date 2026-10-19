@@ -260,13 +260,11 @@ public final class EditorView extends JPanel implements CanvasHost {
      */
     public Runnable addAboveCanvas(JComponent header) {
         canvasArea.add(header, BorderLayout.NORTH);
-        canvasArea.revalidate();
-        canvasArea.repaint();
+        canvasArea.layOutNow();
         return () -> {
             if (header.getParent() == canvasArea) {
                 canvasArea.remove(header);
-                canvasArea.revalidate();
-                canvasArea.repaint();
+                canvasArea.layOutNow();
             }
         };
     }
@@ -538,7 +536,8 @@ public final class EditorView extends JPanel implements CanvasHost {
     /**
      * The canvas with what {@link #addAboveCanvas} puts over it. When the canvas's top edge moves (a header shows or
      * goes), the view pans by the same amount in the other direction, in the same layout pass, so the circuit does not
-     * jump on screen.
+     * jump on screen. Adding or removing a header lays the area out at once ({@link #layOutNow}), so whatever runs next
+     * (the find bar searching and travelling to a match) already sees the canvas at its new size and place.
      */
     private static final class CanvasArea extends JPanel {
 
@@ -557,8 +556,20 @@ public final class EditorView extends JPanel implements CanvasHost {
             super.doLayout();
             int shift = canvas.getY() - topBefore;
             if (laidOut && shift != 0) {
-                canvas.viewport().panBy(0, -shift);
+                canvas.compensateCanvasMove(0, -shift);
             }
+        }
+
+        /**
+         * Lays out the header and the canvas now (also without a window: tests) when the area already has a size; Swing
+         * validates as usual afterwards.
+         */
+        void layOutNow() {
+            revalidate();
+            if (getWidth() > 0 && getHeight() > 0) {
+                doLayout();
+            }
+            repaint();
         }
     }
 

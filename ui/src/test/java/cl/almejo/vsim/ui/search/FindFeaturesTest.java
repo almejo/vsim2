@@ -8,12 +8,14 @@ import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.TextLabel;
+import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.library.ComponentLibrary;
 import cl.almejo.vsim.core.library.ExampleDefinitions;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.OpenDocument;
+import cl.almejo.vsim.ui.canvas.DrawnBounds;
 import cl.almejo.vsim.ui.canvas.ManualFrameTicker;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.Appearance;
@@ -43,6 +45,7 @@ import java.util.Map;
 
 import static cl.almejo.vsim.ui.UiTestSupport.place;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.within;
 
 class FindFeaturesTest {
 
@@ -369,16 +372,57 @@ class FindFeaturesTest {
         window.setSize(900, 600);
         layoutTree(window);
         Point2D before = onScreen(view, 10, 10);
+        List<String> viewChanges = new ArrayList<>();
+        view.canvas().addViewListener(() -> viewChanges.add("changed"));
 
         perform(features.findAction());
         layoutTree(window);
 
         assertThat(view.canvas().getY()).isPositive();
         assertThat(onScreen(view, 10, 10)).isEqualTo(before);
+        assertThat(viewChanges).isNotEmpty(); // the compensation pan is a view change (the saved view state follows)
         press(KeyEvent.VK_ESCAPE, 0);
         layoutTree(window);
         assertThat(view.canvas().getY()).isZero();
         assertThat(onScreen(view, 10, 10)).isEqualTo(before);
+    }
+
+    @Test
+    void reopeningTheBarWithTextTravelsAllTheWayToTheMatchCentred() {
+        reopenWithTextAndCheckTheViewEndsOnTheMatch(true);
+    }
+
+    @Test
+    void reopeningTheBarWithTextJumpsCentredOnTheMatchWithoutAnimation() {
+        reopenWithTextAndCheckTheViewEndsOnTheMatch(false);
+    }
+
+    private void reopenWithTextAndCheckTheViewEndsOnTheMatch(boolean animate) {
+        preferences.setAnimateViewMoves(animate);
+        Component far = labeled(StandardComponentTypes.NOT, 300, 200, "lejos");
+        JPanel window = new JPanel(new java.awt.BorderLayout());
+        window.add(view);
+        window.setSize(900, 600);
+        layoutTree(window);
+        ManualFrameTicker ticker = new ManualFrameTicker().drive(view.canvas());
+        perform(features.findAction());
+        layoutTree(window);
+        type("lejos");
+        ticker.finish();
+        press(KeyEvent.VK_ESCAPE, 0);
+        layoutTree(window);
+        view.canvas().applyViewState(new cl.almejo.vsim.ui.canvas.ViewState(1, 0, 0));
+
+        perform(features.findAction()); // the text was kept: it searches again and goes to the match
+        layoutTree(window); // what Swing's validation does next
+        ticker.finish();
+
+        Bounds target = DrawnBounds.of(openDocument.document().component(far.id()).orElseThrow(),
+                openDocument.registry());
+        Point2D centre = view.canvas().viewport().screenToGrid(view.canvas().getWidth() / 2.0,
+                view.canvas().getHeight() / 2.0);
+        assertThat(centre.getX()).isCloseTo(target.x() + target.width() / 2.0, within(0.01));
+        assertThat(centre.getY()).isCloseTo(target.y() + target.height() / 2.0, within(0.01));
     }
 
     @Test
