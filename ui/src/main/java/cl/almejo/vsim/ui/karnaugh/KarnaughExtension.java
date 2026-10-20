@@ -18,15 +18,17 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 
 /**
- * Adds Herramientas ▸ «Circuito desde tabla de verdad…» and «Circuito desde expresiones…», and Archivo ▸ Importar ▸
- * «Tabla de verdad desde Excel/CSV…» (and their shortcut ids) to every editor view. Each click opens a fresh Karnaugh
- * wizard with an empty 3-input table, a fresh expressions dialog or a fresh import dialog; their «Crear» puts the
- * circuit in a new window or over this view. The view's truth-table windows ({@link EditorView#setTableWizard}) and
- * the expressions dialog's «Ver en Karnaugh…» can also open a wizard on their table.
+ * Adds Herramientas ▸ «Circuito desde tabla de verdad…», «Practicar Karnaugh…» and «Circuito desde expresiones…», and
+ * Archivo ▸ Importar ▸ «Tabla de verdad desde Excel/CSV…» (and their shortcut ids) to every editor view. Each click
+ * opens a fresh Karnaugh wizard with an empty 3-input table (the solution, or the practice for «Practicar Karnaugh…»),
+ * a fresh expressions dialog or a fresh import dialog; their «Crear» puts the circuit in a new window or over this
+ * view. The view's truth-table windows ({@link EditorView#setTableWizard}), the expressions dialog's «Ver en
+ * Karnaugh…» and the import's «Abrir en el asistente» can also open a (solution) wizard on their table.
  */
 public final class KarnaughExtension implements EditorExtension {
 
     static final String SHORTCUT_ID = "tools.circuitFromTruthTable";
+    static final String PRACTICE_SHORTCUT_ID = "tools.karnaughPractice";
     static final String IMPORT_SHORTCUT_ID = "file.importTruthTable";
     static final String EXPRESSIONS_SHORTCUT_ID = "tools.circuitFromExpressions";
 
@@ -79,6 +81,16 @@ public final class KarnaughExtension implements EditorExtension {
         JMenuItem item = new JMenuItem(action);
         tools.add(item);
         Runnable shortcutRemover = view.registerShortcutAction(SHORTCUT_ID, action);
+        Action practiceAction = new AbstractAction(Messages.text("action.karnaughPractice")) {
+            @Override
+            public void actionPerformed(ActionEvent event) {
+                opener.open(view, new KarnaughWizard(new KarnaughModel(), cost, target, background,
+                        KarnaughWizard.Mode.PRACTICE));
+            }
+        };
+        JMenuItem practiceItem = new JMenuItem(practiceAction);
+        tools.add(practiceItem);
+        Runnable practiceShortcutRemover = view.registerShortcutAction(PRACTICE_SHORTCUT_ID, practiceAction);
         // The truth-table window's «Abrir en el asistente de Karnaugh» opens a wizard on its table.
         view.setTableWizard(spec -> {
             KarnaughModel model = new KarnaughModel();
@@ -132,6 +144,8 @@ public final class KarnaughExtension implements EditorExtension {
             importItemRemover.run();
             expressionsShortcutRemover.run();
             tools.remove(expressionsItem);
+            practiceShortcutRemover.run();
+            tools.remove(practiceItem);
             shortcutRemover.run();
             tools.remove(item);
         };

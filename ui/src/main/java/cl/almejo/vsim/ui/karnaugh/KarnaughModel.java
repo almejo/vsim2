@@ -286,8 +286,38 @@ public final class KarnaughModel {
     }
 
     /**
-     * Whether steps 4 and 5 use the student's groups: «Usar mis grupos» is on (it is by default), some output was
-     * practised in the chosen form and {@link #studentGroupsProblem()} is empty.
+     * What step 4 shows (its expressions and colours): {@link #effectiveMinimization()}, except that in the practice
+     * wizard an output whose solution was not revealed yet («Revisar» or «Me rindo» in step 3) shows the student's
+     * terms (their groups that are not red, possibly none), so VSim's answer never shows before the student asks.
+     */
+    Minimization shownMinimization() {
+        Minimization effective = effectiveMinimization();
+        if (!practice.practising()) {
+            return effective;
+        }
+        Minimization.Form form = options.form();
+        List<Minimization.OutputExpression> outputs = new ArrayList<>();
+        for (Minimization.OutputExpression expression : effective.outputs()) {
+            int output = expression.output();
+            outputs.add(practice.revealed(output, form) ? expression
+                    : new Minimization.OutputExpression(output, practice.validTerms(output, form)));
+        }
+        return new Minimization(effective.spec(), form, outputs);
+    }
+
+    /**
+     * Whether step 4 says «F: todavía sin grupos» for output {@code output}: in the practice wizard, not revealed, no
+     * groups drawn in the chosen form, and the table needs some (an output that needs none shows its constant).
+     */
+    boolean waitingForGroups(int output) {
+        Minimization.Form form = options.form();
+        return practice.practising() && !practice.revealed(output, form) && !practice.practised(output, form)
+                && !practice.result(output, form).equivalent();
+    }
+
+    /**
+     * Whether steps 4 and 5 use the student's groups: «Usar mis grupos» is on (it is by default), this is the practice
+     * wizard, some output was practised in the chosen form and {@link #studentGroupsProblem()} is empty.
      */
     public boolean usingStudentGroups() {
         return useStudentGroups && anyPractised() && studentGroupsProblem().isEmpty();
@@ -301,8 +331,14 @@ public final class KarnaughModel {
         }
     }
 
-    /** Whether some output was practised in the chosen form (step 4 shows «Usar mis grupos» only then). */
+    /**
+     * Whether some output was practised in the chosen form, in the practice wizard (step 4 shows «Usar mis grupos» only
+     * then).
+     */
     public boolean anyPractised() {
+        if (!practice.practising()) {
+            return false;
+        }
         for (int output = 0; output < outputNames.size(); output++) {
             if (practice.practised(output, options.form())) {
                 return true;

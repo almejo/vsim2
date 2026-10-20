@@ -19,7 +19,10 @@ import static cl.almejo.vsim.core.logic.Minimization.Form.PRODUCT_OF_SUMS;
 import static cl.almejo.vsim.core.logic.Minimization.Form.SUM_OF_PRODUCTS;
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** «Usar mis grupos» (spec §2): steps 4 and 5 build from the student's groups when they cover the table. */
+/**
+ * Step 4 of the practice wizard (spec §2): the student's expression until «Revisar» or «Me rindo» reveals VSim's, and
+ * «Usar mis grupos», with which steps 4 and 5 build from the student's groups when they cover the table.
+ */
 class StudentGroupsTest {
 
     private static final long A = 0b100;
@@ -40,7 +43,8 @@ class StudentGroupsTest {
             model.setValue(0, row, LogicValue.ONE);
         }
         model.setTitle("Mi tabla");
-        wizard = new KarnaughWizard(model, KarnaughCost.GENERATOR, target, Background.inline());
+        wizard = new KarnaughWizard(model, KarnaughCost.GENERATOR, target, Background.inline(),
+                KarnaughWizard.Mode.PRACTICE);
         wizard.setOnClose(() -> { });
         expression = wizard.expressionPanel();
     }
@@ -62,11 +66,40 @@ class StudentGroupsTest {
     }
 
     @Test
-    void withoutPractiseTheCheckBoxIsHiddenAndStepFourIsVsims() {
+    void withoutGroupsTheCheckBoxIsHiddenAndStepFourSaysSoUntilTheOutputIsRevealed() {
         wizard.goTo(KarnaughWizard.Step.EXPRESSION);
         assertThat(expression.useMineCheckBox().isVisible()).isFalse();
         assertThat(expression.useMineReasonText()).isEmpty();
+        assertThat(expression.expressionTexts()).containsExactly("F: todavía sin grupos (dibújalos en el paso 3)");
+        model.practice().reveal(0, SUM_OF_PRODUCTS);
         assertThat(expression.expressionTexts()).containsExactly("F = A'B + AC");
+    }
+
+    @Test
+    void anOutputThatNeedsNoGroupsShowsItsConstant() {
+        for (int row : new int[] {2, 3, 5, 7}) {
+            model.setValue(0, row, LogicValue.ZERO);
+        }
+        wizard.goTo(KarnaughWizard.Step.EXPRESSION);
+        assertThat(expression.expressionTexts()).containsExactly("F = 0");
+    }
+
+    @Test
+    void theSolutionWizardNeverOffersTheStudentsGroups() {
+        KarnaughModel solutionModel = new KarnaughModel();
+        for (int row : new int[] {2, 3, 5, 7}) {
+            solutionModel.setValue(0, row, LogicValue.ONE);
+        }
+        KarnaughWizard solution = new KarnaughWizard(solutionModel, KarnaughCost.GENERATOR, target,
+                Background.inline());
+        solutionModel.practice().add(0, SUM_OF_PRODUCTS, group(A | B, B));
+        solutionModel.practice().add(0, SUM_OF_PRODUCTS, group(A | C, A | C));
+        solutionModel.practice().add(0, SUM_OF_PRODUCTS, group(B | C, B | C));
+        solution.goTo(KarnaughWizard.Step.EXPRESSION);
+        assertThat(solution.expressionPanel().useMineCheckBox().isVisible()).isFalse();
+        assertThat(solutionModel.usingStudentGroups()).isFalse();
+        assertThat(solutionModel.effectiveMinimization()).isEqualTo(solutionModel.minimization());
+        assertThat(solution.expressionPanel().expressionTexts()).containsExactly("F = A'B + AC");
     }
 
     @Test
@@ -87,8 +120,11 @@ class StudentGroupsTest {
 
         expression.useMineCheckBox().doClick();
         assertThat(model.usingStudentGroups()).isFalse();
-        assertThat(expression.expressionTexts()).containsExactly("F = A'B + AC");
+        assertThat(expression.expressionTexts()).as("VSim's is not revealed yet")
+                .containsExactly("F = A'B + AC + BC");
         assertThat(expression.costText()).isEqualTo(vsimCost);
+        model.practice().reveal(0, SUM_OF_PRODUCTS);
+        assertThat(expression.expressionTexts()).containsExactly("F = A'B + AC");
         expression.useMineCheckBox().doClick();
         assertThat(expression.expressionTexts()).containsExactly("F = A'B + AC + BC");
     }
@@ -102,7 +138,7 @@ class StudentGroupsTest {
         assertThat(expression.useMineCheckBox().isSelected()).isFalse();
         assertThat(expression.useMineCheckBox().getToolTipText()).isEqualTo("F: tus grupos no cubren la tabla");
         assertThat(expression.useMineReasonText()).isEqualTo("F: tus grupos no cubren la tabla");
-        assertThat(expression.expressionTexts()).containsExactly("F = A'B + AC");
+        assertThat(expression.expressionTexts()).as("the student's, not VSim's").containsExactly("F = A'B");
         model.practice().add(0, SUM_OF_PRODUCTS, group(A | C, A | C));
         assertThat(expression.useMineCheckBox().isEnabled()).isTrue();
         assertThat(expression.useMineCheckBox().isSelected()).isTrue();
@@ -116,6 +152,10 @@ class StudentGroupsTest {
         model.setValue(1, 0, LogicValue.ONE);
         practiseWithAnExtraGroup();
         wizard.goTo(KarnaughWizard.Step.EXPRESSION);
+        assertThat(expression.expressionTexts()).containsExactly("F = A'B + AC + BC",
+                "G: todavía sin grupos (dibújalos en el paso 3)");
+        assertThat(model.effectiveMinimization().outputs().get(1).terms()).hasSize(1);
+        model.practice().reveal(1, SUM_OF_PRODUCTS);
         assertThat(expression.expressionTexts()).containsExactly("F = A'B + AC + BC", "G = A'B'C'");
     }
 
@@ -127,6 +167,7 @@ class StudentGroupsTest {
         assertThat(expression.useMineCheckBox().isVisible()).isFalse();
         Minimization vsim = model.minimization();
         assertThat(model.effectiveMinimization()).isEqualTo(vsim);
+        assertThat(expression.expressionTexts()).containsExactly("F: todavía sin grupos (dibújalos en el paso 3)");
         expression.formButton(SUM_OF_PRODUCTS).doClick();
         assertThat(expression.expressionTexts()).containsExactly("F = A'B + AC + BC");
     }

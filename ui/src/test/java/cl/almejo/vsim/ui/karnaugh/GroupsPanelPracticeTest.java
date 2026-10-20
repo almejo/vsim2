@@ -13,10 +13,13 @@ import com.formdev.flatlaf.FlatLightLaf;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import javax.swing.AbstractButton;
 import javax.swing.JComponent;
 import javax.swing.LookAndFeel;
 import javax.swing.UIManager;
 import java.awt.Color;
+import java.awt.Component;
+import java.awt.Container;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.util.ArrayList;
@@ -27,7 +30,10 @@ import static cl.almejo.vsim.core.logic.Minimization.Form.PRODUCT_OF_SUMS;
 import static cl.almejo.vsim.core.logic.Minimization.Form.SUM_OF_PRODUCTS;
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** Step 3's practice side (spec §2): the switch, the form, the verdicts, the counter, Pista, Revisar, Borrar todos. */
+/**
+ * Step 3 of the practice wizard (spec §2, «Practicar Karnaugh…»): no mode switch, the form, the verdicts, the counter,
+ * Pista, Revisar, «Me rindo», Borrar todos.
+ */
 class GroupsPanelPracticeTest {
 
     private KarnaughModel model;
@@ -36,17 +42,24 @@ class GroupsPanelPracticeTest {
     private PracticePanel practicePanel;
     private final List<Integer> confirmations = new ArrayList<>();
     private boolean confirmAnswer;
+    private int giveUpQuestions;
+    private boolean giveUpAnswer;
 
     @BeforeEach
     void create() {
         Messages.initialize(Messages.SPANISH);
         model = new KarnaughModel();
-        wizard = new KarnaughWizard(model, KarnaughCost.GENERATOR, new FakeCreationTarget(), Background.inline());
+        wizard = new KarnaughWizard(model, KarnaughCost.GENERATOR, new FakeCreationTarget(), Background.inline(),
+                KarnaughWizard.Mode.PRACTICE);
         panel = wizard.groupsPanel();
         practicePanel = panel.practicePanel();
         practicePanel.setClearConfirmation((parent, count, name) -> {
             confirmations.add(count);
             return confirmAnswer;
+        });
+        practicePanel.setGiveUpConfirmation((parent, outputName) -> {
+            giveUpQuestions++;
+            return giveUpAnswer;
         });
     }
 
@@ -56,7 +69,20 @@ class GroupsPanelPracticeTest {
             model.setValue(0, row, LogicValue.ONE);
         }
         wizard.goTo(KarnaughWizard.Step.GROUPS);
-        panel.practiceModeButton().doClick();
+    }
+
+    /** Every button text in {@code root}'s tree. */
+    private static List<String> buttonTexts(Container root) {
+        List<String> texts = new ArrayList<>();
+        for (Component child : root.getComponents()) {
+            if (child instanceof AbstractButton button) {
+                texts.add(button.getText());
+            }
+            if (child instanceof Container container) {
+                texts.addAll(buttonTexts(container));
+            }
+        }
+        return texts;
     }
 
     private DrawnGroup group(long mask, long value) {
@@ -84,35 +110,38 @@ class GroupsPanelPracticeTest {
     private static final long B = 0b010;
 
     @Test
-    void theSolutionStaysTheDefaultAndLooksAsBefore() {
-        model.setValue(0, 1, LogicValue.ONE);
-        wizard.goTo(KarnaughWizard.Step.GROUPS);
-        assertThat(panel.solutionModeButton().isSelected()).isTrue();
-        assertThat(panel.practiceModeButton().getText()).isEqualTo("Practicar");
-        assertThat(panel.solutionModeButton().getText()).isEqualTo("Ver la solución");
-        assertThat(panel.practicePanelVisible()).isFalse();
-        assertThat(panel.practiceFormVisible()).isFalse();
-        assertThat(panel.headerText()).isEqualTo(Messages.text("karnaugh.groups.header.sop"));
-        assertThat(panel.legendTexts()).containsExactly("① A'B'C");
+    void theSolutionWizardShowsStepThreeAsBeforeThePracticeWithNoModeControl() {
+        KarnaughModel solutionModel = new KarnaughModel();
+        KarnaughWizard solution = new KarnaughWizard(solutionModel, KarnaughCost.GENERATOR,
+                new FakeCreationTarget(), Background.inline());
+        solutionModel.setValue(0, 1, LogicValue.ONE);
+        solution.goTo(KarnaughWizard.Step.GROUPS);
+        GroupsPanel groups = solution.groupsPanel();
+        assertThat(solution.mode()).isEqualTo(KarnaughWizard.Mode.SOLUTION);
+        assertThat(solutionModel.practice().practising()).isFalse();
+        assertThat(groups.practicePanelVisible()).isFalse();
+        assertThat(groups.practiceFormVisible()).isFalse();
+        assertThat(groups.solutionSideVisible()).isTrue();
+        assertThat(groups.headerText()).isEqualTo(Messages.text("karnaugh.groups.header.sop"));
+        assertThat(groups.legendTexts()).containsExactly("① A'B'C");
+        assertThat(buttonTexts(solution)).doesNotContain("Practicar", "Ver la solución", "Me rindo · Ver la solución");
     }
 
     @Test
-    void switchingModesKeepsTheGroups() {
+    void thePracticeWizardShowsOnlyThePracticeWithNoModeControlAndKeepsTheGroupsAcrossSteps() {
         practise(1, 3, 5, 7);
+        assertThat(wizard.mode()).isEqualTo(KarnaughWizard.Mode.PRACTICE);
         assertThat(model.practice().practising()).isTrue();
         assertThat(panel.practicePanelVisible()).isTrue();
         assertThat(panel.practiceFormVisible()).isTrue();
+        assertThat(panel.solutionSideVisible()).isFalse();
+        assertThat(buttonTexts(wizard)).doesNotContain("Practicar", "Ver la solución");
         add(SUM_OF_PRODUCTS, group(C, C));
-        assertThat(practicePanel.legendTexts()).containsExactly("① C");
-        panel.solutionModeButton().doClick();
-        assertThat(model.practice().practising()).isFalse();
-        assertThat(panel.practicePanelVisible()).isFalse();
-        assertThat(panel.legendTexts()).containsExactly("① C");
-        panel.practiceModeButton().doClick();
         assertThat(practicePanel.legendTexts()).containsExactly("① C");
         wizard.goTo(KarnaughWizard.Step.TABLE);
         wizard.goTo(KarnaughWizard.Step.GROUPS);
         assertThat(practicePanel.legendTexts()).containsExactly("① C");
+        assertThat(model.practice().practising()).isTrue();
     }
 
     @Test
@@ -264,6 +293,63 @@ class GroupsPanelPracticeTest {
         add(SUM_OF_PRODUCTS, group(C, C));
         add(SUM_OF_PRODUCTS, KarnaughLayout.of(3).drawn(0, 0, 1, 3));
         assertThat(practicePanel.reviewButton().isEnabled()).isFalse();
+    }
+
+    @Test
+    void nothingShowsVsimsSolutionBeforeRevisarOrMeRindo() {
+        practise(1, 3, 5, 7);
+        add(SUM_OF_PRODUCTS, group(A | C, C));
+        assertThat(practicePanel.solutionMapVisible()).isFalse();
+        assertThat(practicePanel.reviewText()).isEmpty();
+        assertThat(model.practice().revealed(0, SUM_OF_PRODUCTS)).isFalse();
+        assertThat(practicePanel.giveUpButton().getText()).isEqualTo("Me rindo · Ver la solución");
+        assertThat(practicePanel.giveUpButton().isEnabled()).isTrue();
+    }
+
+    @Test
+    void meRindoAsksFirstAndNoKeepsPractising() {
+        practise(1, 3, 5, 7);
+        giveUpAnswer = false;
+        practicePanel.giveUpButton().doClick();
+        assertThat(giveUpQuestions).isEqualTo(1);
+        assertThat(practicePanel.solutionMapVisible()).isFalse();
+        assertThat(model.practice().revealed(0, SUM_OF_PRODUCTS)).isFalse();
+    }
+
+    @Test
+    void meRindoShowsVsimsMapWithoutGradingUntilTheGroupsOutputOrFormChange() {
+        practise(1, 3, 5, 7);
+        giveUpAnswer = true;
+        practicePanel.giveUpButton().doClick();
+        assertThat(giveUpQuestions).isEqualTo(1);
+        assertThat(model.practice().practising()).as("the mode stays").isTrue();
+        assertThat(panel.practicePanelVisible()).isTrue();
+        assertThat(practicePanel.solutionMapVisible()).isTrue();
+        assertThat(practicePanel.solutionTitleText()).isEqualTo("Solución de VSim");
+        assertThat(practicePanel.solutionMap().groups()).hasSize(1);
+        assertThat(practicePanel.reviewText()).as("nothing was graded").isEmpty();
+        assertThat(practicePanel.giveUpButton().isEnabled()).as("already shown").isFalse();
+        assertThat(model.practice().revealed(0, SUM_OF_PRODUCTS)).isTrue();
+        assertThat(model.practice().revealed(0, PRODUCT_OF_SUMS)).isFalse();
+
+        add(SUM_OF_PRODUCTS, group(C, C));
+        assertThat(practicePanel.solutionMapVisible()).isFalse();
+        assertThat(practicePanel.giveUpButton().isEnabled()).isTrue();
+        assertThat(model.practice().revealed(0, SUM_OF_PRODUCTS)).as("seen once, revealed for good").isTrue();
+
+        practicePanel.giveUpButton().doClick();
+        assertThat(practicePanel.solutionMapVisible()).isTrue();
+        panel.practiceFormButton(PRODUCT_OF_SUMS).doClick();
+        assertThat(practicePanel.solutionMapVisible()).isFalse();
+    }
+
+    @Test
+    void revisarRevealsTheOutputToo() {
+        practise(1, 3, 5, 7);
+        add(SUM_OF_PRODUCTS, group(C, C));
+        practicePanel.reviewButton().doClick();
+        assertThat(model.practice().revealed(0, SUM_OF_PRODUCTS)).isTrue();
+        assertThat(giveUpQuestions).isZero();
     }
 
     @Test

@@ -174,9 +174,9 @@ class ApplicationExtensionsTest {
         EditorView view = new EditorView(openDocument, services, NO_WINDOW);
         try {
             assertThat(texts(view.menu(MenuId.TOOLS))).containsExactly("Circuito desde tabla de verdad…",
-                    "Circuito desde expresiones…");
+                    "Practicar Karnaugh…", "Circuito desde expresiones…");
             assertThat(view.shortcutActions()).containsKeys("tools.circuitFromTruthTable",
-                    "tools.circuitFromExpressions");
+                    "tools.karnaughPractice", "tools.circuitFromExpressions");
         } finally {
             view.dispose();
         }

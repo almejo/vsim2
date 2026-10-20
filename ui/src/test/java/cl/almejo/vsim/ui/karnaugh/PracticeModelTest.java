@@ -272,8 +272,40 @@ class PracticeModelTest {
     }
 
     @Test
+    void outsideThePracticeTheStudentsGroupsAreNeverUsed() {
+        load(List.of(1, 3, 5, 7), List.of(0, 4));
+        practice.add(0, SUM_OF_PRODUCTS, drawn(new Term(0b001, 0b001)));
+        assertThat(model.usingStudentGroups()).isFalse();
+        assertThat(model.effectiveMinimization()).isEqualTo(model.minimization());
+        practice.setPractising(true);
+        assertThat(model.usingStudentGroups()).isTrue();
+    }
+
+    @Test
+    void anOutputStaysRevealedPerFormUntilItsColumnChanges() {
+        load(List.of(1, 3, 7), List.of(0, 4));
+        int[] events = {0};
+        model.addListener(() -> events[0]++);
+        assertThat(practice.revealed(0, SUM_OF_PRODUCTS)).isFalse();
+        practice.reveal(0, SUM_OF_PRODUCTS);
+        assertThat(events[0]).isEqualTo(1);
+        practice.reveal(0, SUM_OF_PRODUCTS);
+        assertThat(events[0]).as("once is enough").isEqualTo(1);
+        assertThat(practice.revealed(0, SUM_OF_PRODUCTS)).isTrue();
+        assertThat(practice.revealed(0, PRODUCT_OF_SUMS)).isFalse();
+        assertThat(practice.revealed(1, SUM_OF_PRODUCTS)).isFalse();
+        practice.add(0, SUM_OF_PRODUCTS, cell(1));
+        practice.clear(0, SUM_OF_PRODUCTS);
+        model.setOutputName(0, "Z");
+        assertThat(practice.revealed(0, SUM_OF_PRODUCTS)).isTrue();
+        model.setValue(0, 0, LogicValue.ONE);
+        assertThat(practice.revealed(0, SUM_OF_PRODUCTS)).as("a new function").isFalse();
+    }
+
+    @Test
     void theEffectiveMinimizationUsesTheStudentsTermsOnlyForEquivalentPractisedOutputs() {
         load(List.of(1, 3, 7), List.of(0, 4));
+        practice.setPractising(true);
         Minimization vsim = model.minimization();
         assertThat(model.anyPractised()).isFalse();
         assertThat(model.usingStudentGroups()).isFalse();

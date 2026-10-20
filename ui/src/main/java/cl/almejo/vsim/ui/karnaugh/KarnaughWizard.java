@@ -35,6 +35,10 @@ import java.util.Optional;
  * <p>
  * The wizard is a panel; {@link #showDialog} puts it in a modal dialog, and the menu item reaches it through an
  * {@link Opener} so tests never show it.
+ * <p>
+ * Its {@link Mode} is fixed when it is created: «Circuito desde tabla de verdad…» (and every handoff) opens the
+ * solution, «Practicar Karnaugh…» the practice (spec §2), where step 3 is only the student's groups and nothing shows
+ * VSim's answer before «Revisar» or «Me rindo».
  */
 public final class KarnaughWizard extends JPanel {
 
@@ -54,6 +58,14 @@ public final class KarnaughWizard extends JPanel {
         public String title() {
             return Messages.text(titleKey);
         }
+    }
+
+    /** What the wizard is for; it never changes once the wizard is created. */
+    public enum Mode {
+        /** «Circuito desde tabla de verdad…»: step 3 shows VSim's groups and explains them. */
+        SOLUTION,
+        /** «Practicar Karnaugh…»: step 3 is the student's groups; step 4 offers «Usar mis grupos». */
+        PRACTICE
     }
 
     /** Shows a wizard to the user; the real one opens {@link #showDialog}. */
@@ -87,6 +99,7 @@ public final class KarnaughWizard extends JPanel {
     private static final Dimension DIALOG_SIZE = new Dimension(1000, 680);
 
     private final KarnaughModel model;
+    private final Mode mode;
     private final HoverState hover = new HoverState();
     private final TablePanel tablePanel;
     private final MapPanel mapPanel;
@@ -114,13 +127,22 @@ public final class KarnaughWizard extends JPanel {
      */
     private Runnable afterCreating;
 
+    /** A solution wizard ({@link Mode#SOLUTION}). */
+    public KarnaughWizard(KarnaughModel model, KarnaughCost cost, CreationTarget target, Background background) {
+        this(model, cost, target, background, Mode.SOLUTION);
+    }
+
     /**
      * @param target     where «Crear» puts the circuit (and the component)
      * @param background where the circuit is built (off the EDT in the application)
+     * @param mode       the solution or the practice, for good
      */
-    public KarnaughWizard(KarnaughModel model, KarnaughCost cost, CreationTarget target, Background background) {
+    public KarnaughWizard(KarnaughModel model, KarnaughCost cost, CreationTarget target, Background background,
+                          Mode mode) {
         super(new BorderLayout());
         this.model = model;
+        this.mode = mode;
+        model.practice().setPractising(mode == Mode.PRACTICE);
         this.tablePanel = new TablePanel(model, hover);
         this.mapPanel = new MapPanel(model, hover);
         this.groupsPanel = new GroupsPanel(model, hover);
@@ -204,6 +226,15 @@ public final class KarnaughWizard extends JPanel {
 
     public KarnaughModel model() {
         return model;
+    }
+
+    public Mode mode() {
+        return mode;
+    }
+
+    /** «Circuito desde tabla de verdad» or «Práctica de Karnaugh»: the dialog's title. */
+    public String dialogTitle() {
+        return Messages.text(mode == Mode.PRACTICE ? "karnaugh.practice.title" : "karnaugh.title");
     }
 
     public Step step() {
@@ -389,7 +420,7 @@ public final class KarnaughWizard extends JPanel {
      * usable (and comes to the front); a successful «Crear» closes the wizard, one that failed leaves it open.
      */
     public static void showDialog(Component parent, KarnaughWizard wizard) {
-        JDialog dialog = WizardDialogs.create(parent, Messages.text("karnaugh.title"), wizard, wizard::requestClose);
+        JDialog dialog = WizardDialogs.create(parent, wizard.dialogTitle(), wizard, wizard::requestClose);
         wizard.setOnClose(dialog::dispose);
         wizard.updateNavigation(); // the default button, now that there is a root pane
         dialog.setSize(DIALOG_SIZE);

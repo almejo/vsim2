@@ -71,7 +71,7 @@ class KarnaughExtensionTest {
     @Test
     void theToolsMenuItemOpensAFreshWizardOnTheTable() {
         JMenu tools = view.menu(MenuId.TOOLS);
-        assertThat(tools.getItemCount()).isEqualTo(2);
+        assertThat(tools.getItemCount()).isEqualTo(3);
         assertThat(tools.getItem(0).getText()).isEqualTo("Circuito desde tabla de verdad…");
         assertThat(view.shortcutActions().get("tools.circuitFromTruthTable")).isSameAs(tools.getItem(0).getAction());
 
@@ -81,18 +81,40 @@ class KarnaughExtensionTest {
         assertThat(opened).hasSize(2);
         assertThat(opened.get(0)).isNotSameAs(opened.get(1));
         assertThat(opened.get(0).step()).isEqualTo(KarnaughWizard.Step.TABLE);
+        assertThat(opened.get(0).mode()).isEqualTo(KarnaughWizard.Mode.SOLUTION);
+        assertThat(opened.get(0).model().practice().practising()).isFalse();
+        assertThat(opened.get(0).dialogTitle()).isEqualTo("Circuito desde tabla de verdad");
         assertThat(parents.getFirst()).isSameAs(view);
+    }
+
+    @Test
+    void thePracticeItemComesRightAfterTheWizardAndOpensAFreshWizardInPracticeMode() {
+        JMenu tools = view.menu(MenuId.TOOLS);
+        assertThat(tools.getItem(1).getText()).isEqualTo("Practicar Karnaugh…");
+        assertThat(view.shortcutActions().get("tools.karnaughPractice")).isSameAs(tools.getItem(1).getAction());
+
+        tools.getItem(1).doClick();
+        tools.getItem(1).doClick();
+
+        assertThat(opened).hasSize(2);
+        assertThat(opened.get(0)).isNotSameAs(opened.get(1));
+        assertThat(opened.get(0).model()).isNotSameAs(opened.get(1).model());
+        assertThat(opened.get(0).step()).isEqualTo(KarnaughWizard.Step.TABLE);
+        assertThat(opened.get(0).mode()).isEqualTo(KarnaughWizard.Mode.PRACTICE);
+        assertThat(opened.get(0).model().practice().practising()).isTrue();
+        assertThat(opened.get(0).dialogTitle()).isEqualTo("Práctica de Karnaugh");
+        assertThat(parents).containsExactly(view, view);
     }
 
     @Test
     void theToolsMenuOpensAFreshExpressionsDialogRightAfterTheWizard() {
         JMenu tools = view.menu(MenuId.TOOLS);
-        assertThat(tools.getItem(1).getText()).isEqualTo("Circuito desde expresiones…");
+        assertThat(tools.getItem(2).getText()).isEqualTo("Circuito desde expresiones…");
         assertThat(view.shortcutActions().get("tools.circuitFromExpressions"))
-                .isSameAs(tools.getItem(1).getAction());
+                .isSameAs(tools.getItem(2).getAction());
 
-        tools.getItem(1).doClick();
-        tools.getItem(1).doClick();
+        tools.getItem(2).doClick();
+        tools.getItem(2).doClick();
 
         assertThat(expressions).hasSize(2);
         assertThat(expressions.get(0)).isNotSameAs(expressions.get(1));
@@ -103,7 +125,7 @@ class KarnaughExtensionTest {
 
     @Test
     void seeInKarnaughOpensTheWizardOnTheGroupsWithTheTable() {
-        view.menu(MenuId.TOOLS).getItem(1).doClick();
+        view.menu(MenuId.TOOLS).getItem(2).doClick();
         ExpressionsPanel panel = expressions.getFirst();
         panel.titleField().setText("Mayoría");
         panel.lineField(0).setText("M = A B + A C + B C");
@@ -112,6 +134,7 @@ class KarnaughExtensionTest {
 
         assertThat(opened).singleElement().satisfies(wizard -> {
             assertThat(wizard.step()).isEqualTo(KarnaughWizard.Step.GROUPS);
+            assertThat(wizard.mode()).isEqualTo(KarnaughWizard.Mode.SOLUTION);
             assertThat(wizard.model().title()).isEqualTo("Mayoría");
             assertThat(wizard.model().inputNames()).containsExactly("A", "B", "C");
             assertThat(wizard.model().outputNames()).containsExactly("M");
@@ -124,7 +147,7 @@ class KarnaughExtensionTest {
 
     @Test
     void creatingFromTheWizardOverTheExpressionsClosesBoth() {
-        view.menu(MenuId.TOOLS).getItem(1).doClick();
+        view.menu(MenuId.TOOLS).getItem(2).doClick();
         ExpressionsPanel panel = expressions.getFirst();
         int[] expressionsClosed = {0};
         int[] wizardClosed = {0};
@@ -178,6 +201,7 @@ class KarnaughExtensionTest {
         assertThat(importClosed[0]).isEqualTo(1);
         assertThat(opened).singleElement().satisfies(wizard -> {
             assertThat(wizard.step()).isEqualTo(KarnaughWizard.Step.MAP);
+            assertThat(wizard.mode()).isEqualTo(KarnaughWizard.Mode.SOLUTION);
             assertThat(wizard.model().title()).isEqualTo("Mi tabla");
             assertThat(wizard.model().inputNames()).containsExactly("A", "B", "C");
             assertThat(wizard.model().outputNames()).containsExactly("Y");
@@ -197,6 +221,7 @@ class KarnaughExtensionTest {
             assertThat(wizard.model().inputNames()).containsExactly("A", "B", "C", "D");
             assertThat(wizard.model().outputNames()).containsExactly("P", "M");
             assertThat(wizard.step()).isEqualTo(KarnaughWizard.Step.TABLE);
+            assertThat(wizard.mode()).isEqualTo(KarnaughWizard.Mode.SOLUTION);
         });
         assertThat(parents).containsExactly(view);
     }
@@ -211,7 +236,7 @@ class KarnaughExtensionTest {
         assertThat(file.getMenuComponentCount()).as("the submenu and its separator").isEqualTo(fileItems - 2);
         assertThat(ImportMenu.find(file)).isEmpty();
         assertThat(view.shortcutActions()).doesNotContainKeys("tools.circuitFromTruthTable",
-                "tools.circuitFromExpressions", "file.importTruthTable");
+                "tools.karnaughPractice", "tools.circuitFromExpressions", "file.importTruthTable");
         assertThat(view.tableWizard()).isEmpty();
     }
 

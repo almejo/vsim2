@@ -23,9 +23,12 @@ import java.util.Optional;
 
 /**
  * Step 4 «Expresión» (spec §3): each output's minimized expression with its terms in their groups' colours, the
- * options (gates, form, sharing) and a live cost line. Once the student practised in step 3 (spec §2), «Usar mis
- * grupos» shows: on (by default) while every practised output's groups cover the table, the expressions, colours and
- * cost (and step 5's «Crear») use {@link KarnaughModel#effectiveMinimization()}; otherwise it is off with the reason.
+ * options (gates, form, sharing) and a live cost line. In the practice wizard (spec §2) each output shows the
+ * student's expression until step 3 revealed VSim's («Revisar» or «Me rindo»), see
+ * {@link KarnaughModel#shownMinimization()}; and once the student drew groups «Usar mis grupos» shows: on (by default)
+ * while every practised output's groups cover the table, the expressions, colours and cost (and step 5's «Crear») use
+ * {@link KarnaughModel#effectiveMinimization()}; otherwise it is off with the reason. The cost line is always what
+ * «Crear» builds.
  */
 final class ExpressionPanel extends JPanel implements WizardStep {
 
@@ -103,7 +106,7 @@ final class ExpressionPanel extends JPanel implements WizardStep {
         formButtons.get(options.form()).setSelected(true);
         share.setSelected(options.shareTerms());
         refreshUseMine();
-        Minimization minimization = model.effectiveMinimization();
+        Minimization minimization = model.shownMinimization();
         expressions.removeAll();
         lines.clear();
         for (int output = 0; output < minimization.outputs().size(); output++) {
@@ -113,7 +116,7 @@ final class ExpressionPanel extends JPanel implements WizardStep {
         }
         expressions.revalidate();
         expressions.repaint();
-        costLabel.setText(CostLine.text(cost.gatesByType(minimization, options)));
+        costLabel.setText(CostLine.text(cost.gatesByType(model.effectiveMinimization(), options)));
     }
 
     /** «Usar mis grupos»: only after some practice; off with the reason while the student's groups miss something. */
@@ -135,6 +138,10 @@ final class ExpressionPanel extends JPanel implements WizardStep {
         boolean sumOfProducts = minimization.form() == Minimization.Form.SUM_OF_PRODUCTS;
         List<ColoredExpression.Run> runs = new ArrayList<>();
         String outputName = spec.outputNames().get(output);
+        if (model.waitingForGroups(output)) {
+            runs.add(new ColoredExpression.Run(Messages.format("karnaugh.practice.noGroups", outputName), -1));
+            return runs;
+        }
         if (terms.isEmpty() || terms.getFirst().mask() == 0) {
             runs.add(new ColoredExpression.Run(TermText.expression(minimization, output), -1));
             return runs;

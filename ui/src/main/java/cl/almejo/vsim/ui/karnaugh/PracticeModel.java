@@ -44,6 +44,8 @@ public final class PracticeModel {
         private int hintedRow = -1;
         private boolean hintGroupShown;
         private int hintsUsed;
+        /** VSim's solution was shown («Revisar» or «Me rindo»); kept until the output's column changes. */
+        private boolean revealed;
     }
 
     private final KarnaughModel model;
@@ -68,12 +70,16 @@ public final class PracticeModel {
         listeners.remove(listener);
     }
 
-    /** Whether step 3 shows «Practicar» (true) or «Ver la solución» (false, the default). */
+    /**
+     * Whether the wizard is the practice one («Practicar Karnaugh…»): step 3 is the practice and step 4 offers
+     * «Usar mis grupos». Fixed by the wizard when it is created ({@link KarnaughWizard.Mode}); false (the solution)
+     * by default.
+     */
     public boolean practising() {
         return practising;
     }
 
-    public void setPractising(boolean newPractising) {
+    void setPractising(boolean newPractising) {
         if (newPractising != practising) {
             practising = newPractising;
             fire();
@@ -233,6 +239,25 @@ public final class PracticeModel {
     public int hintsUsed(int output, Form form) {
         Work work = works.get(new Key(output, form));
         return work == null ? 0 : work.hintsUsed;
+    }
+
+    /**
+     * Whether VSim's solution of output {@code output} in {@code form} was shown («Revisar» or «Me rindo»): from then
+     * on step 4 may show VSim's expression for it. It stays revealed (whatever the groups do) until the output's column
+     * changes, which makes it a new function.
+     */
+    public boolean revealed(int output, Form form) {
+        Work work = works.get(new Key(output, form));
+        return work != null && work.revealed;
+    }
+
+    /** VSim's solution of output {@code output} in {@code form} was shown. */
+    public void reveal(int output, Form form) {
+        Work work = work(output, form);
+        if (!work.revealed) {
+            work.revealed = true;
+            fire();
+        }
     }
 
     /** The names of the outputs whose groups a table change dropped, for «La tabla cambió…»; empty when none. */

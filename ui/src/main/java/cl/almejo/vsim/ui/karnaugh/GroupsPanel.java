@@ -44,9 +44,9 @@ import java.util.Optional;
  * explanation so the mouse can travel to «¿Por qué?» (spec §5); another click on it, a click on the map outside every
  * group, Esc or another output lets it go.
  * <p>
- * At the top, «Ver la solución» (the default) · «Practicar» (spec §2): while practising, the form can be chosen here
- * too (the same option as step 4), the maps take the student's groups and the right side becomes the
- * {@link PracticePanel}. Switching back and forth never loses the student's groups.
+ * In the practice wizard («Practicar Karnaugh…», spec §2) step 3 is the practice only: the form can be chosen at the
+ * top (the same option as step 4), the maps take the student's groups and the right side is the {@link PracticePanel}.
+ * The mode is the wizard's and never changes here; the solution wizard's step 3 is as it was before the practice.
  */
 final class GroupsPanel extends JPanel implements WizardStep {
 
@@ -68,8 +68,6 @@ final class GroupsPanel extends JPanel implements WizardStep {
     private final Paragraph why = new Paragraph("");
     private final JToggleButton rulesToggle = new JToggleButton();
     private final Paragraph rules = new Paragraph("");
-    private final JToggleButton solutionMode = new JToggleButton(Messages.text("karnaugh.practice.mode.solution"));
-    private final JToggleButton practiceMode = new JToggleButton(Messages.text("karnaugh.practice.mode.practice"));
     private final JPanel practiceForm = new JPanel(new MigLayout("insets 0"));
     private final Map<Minimization.Form, JRadioButton> formButtons = new EnumMap<>(Minimization.Form.class);
     private final JPanel solutionSide = new JPanel(new MigLayout("insets 0, fillx, wrap 1, hidemode 3",
@@ -80,7 +78,7 @@ final class GroupsPanel extends JPanel implements WizardStep {
     private boolean active;
 
     GroupsPanel(KarnaughModel model, HoverState hover) {
-        super(new MigLayout("insets 12, fill", "[grow, fill][400!, fill]", "[][grow, fill]"));
+        super(new MigLayout("insets 12, fill, hidemode 3", "[grow, fill][400!, fill]", "[][grow, fill]"));
         this.model = model;
         this.hover = hover;
         this.tabs = new OutputTabs(model, hover, true);
@@ -106,12 +104,13 @@ final class GroupsPanel extends JPanel implements WizardStep {
         solutionSide.add(why, "wmin 100");
         solutionSide.add(rulesToggle, "growx 0, gaptop 8");
         solutionSide.add(rules, "wmin 100");
-        right.add(solutionSide, "wmin 100");
-        right.add(practicePanel, "wmin 100");
+        // The wizard's mode is fixed: only its side is in the panel (the solution wizard has no practice controls).
+        right.add(model.practice().practising() ? practicePanel : solutionSide, "wmin 100");
         JScrollPane scroll = new JScrollPane(right);
         scroll.setBorder(BorderFactory.createEmptyBorder());
         scroll.getVerticalScrollBar().setUnitIncrement(16);
-        add(modeBar(), "span 2, growx");
+        buildPracticeForm();
+        add(practiceForm, "span 2, growx");
         add(tabs, "newline");
         add(scroll);
         hover.addListener(this::explain);
@@ -119,26 +118,13 @@ final class GroupsPanel extends JPanel implements WizardStep {
         updateToggles();
     }
 
-    /** «Ver la solución» · «Practicar» and, while practising, the form (the same option as step 4). */
-    private JPanel modeBar() {
-        ButtonGroup modes = new ButtonGroup();
-        JPanel bar = new JPanel(new MigLayout("insets 0, gap 0, hidemode 3", "[][]24[]"));
-        for (JToggleButton button : List.of(solutionMode, practiceMode)) {
-            modes.add(button);
-            bar.add(button);
-        }
-        solutionMode.putClientProperty("JButton.buttonType", "roundRect");
-        practiceMode.putClientProperty("JButton.buttonType", "roundRect");
-        solutionMode.setSelected(true);
-        solutionMode.addActionListener(event -> setPractising(false));
-        practiceMode.addActionListener(event -> setPractising(true));
+    /** The practice's «Forma:» (the same option as step 4); hidden in the solution wizard. */
+    private void buildPracticeForm() {
         ButtonGroup forms = new ButtonGroup();
         practiceForm.add(new JLabel(Messages.text("karnaugh.practice.form")));
         addForm(forms, Minimization.Form.SUM_OF_PRODUCTS, "karnaugh.expression.form.sop");
         addForm(forms, Minimization.Form.PRODUCT_OF_SUMS, "karnaugh.expression.form.pos");
-        practiceForm.setVisible(false);
-        bar.add(practiceForm);
-        return bar;
+        practiceForm.setVisible(model.practice().practising());
     }
 
     private void addForm(ButtonGroup group, Minimization.Form form, String key) {
@@ -147,12 +133,6 @@ final class GroupsPanel extends JPanel implements WizardStep {
         group.add(button);
         practiceForm.add(button);
         formButtons.put(form, button);
-    }
-
-    private void setPractising(boolean practising) {
-        hover.unpin();
-        model.practice().setPractising(practising);
-        refresh();
     }
 
     /** Esc lets a pinned group go; unpinned, the action is off so Esc reaches the window (which closes). */
@@ -190,7 +170,6 @@ final class GroupsPanel extends JPanel implements WizardStep {
         }
         tabs.refresh();
         boolean practising = model.practice().practising();
-        (practising ? practiceMode : solutionMode).setSelected(true);
         practiceForm.setVisible(practising);
         formButtons.get(model.options().form()).setSelected(true);
         solutionSide.setVisible(!practising);
@@ -290,12 +269,8 @@ final class GroupsPanel extends JPanel implements WizardStep {
         return CIRCLED_DIGITS.substring(position, position + 1);
     }
 
-    AbstractButton solutionModeButton() {
-        return solutionMode;
-    }
-
-    AbstractButton practiceModeButton() {
-        return practiceMode;
+    boolean solutionSideVisible() {
+        return solutionSide.isVisible();
     }
 
     AbstractButton practiceFormButton(Minimization.Form form) {
