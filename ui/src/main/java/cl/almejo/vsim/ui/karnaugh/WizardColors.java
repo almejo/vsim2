@@ -58,6 +58,23 @@ final class WizardColors {
     }
 
     /**
+     * Red for something wrong in the practice (a group that is no group, «No es equivalente»): a dark red on a light
+     * theme and a bright one on a dark theme, both readable as text at 4.5:1 (the theme's error colour and
+     * {@link #errorText()} stay a little under that).
+     */
+    static Color failure() {
+        return dark() ? new Color(0xFF8F8F) : new Color(0xC62828);
+    }
+
+    /**
+     * Green for something right (a practice group that is useful, «¡Mínima!»): a dark green on a light theme and a
+     * bright one on a dark theme, both readable as text.
+     */
+    static Color success() {
+        return dark() ? new Color(0x7FD083) : new Color(0x2E7D32);
+    }
+
+    /**
      * The dotted ring of a Karnaugh cell the practice still has to group: between the text and the cell, soft enough
      * not to compete with the groups.
      */

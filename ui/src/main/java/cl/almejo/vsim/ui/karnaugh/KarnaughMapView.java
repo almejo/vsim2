@@ -78,6 +78,7 @@ final class KarnaughMapView extends JComponent {
     private final int output;
     private final boolean showGroups;
     private boolean followsPractice = true;
+    private boolean compact;
     private final MarchingAnts ants = new MarchingAnts();
     private FrameTicker ticker = FrameTicker.swing(ANTS_MILLISECONDS);
     private BooleanSupplier showing = this::isShowing;
@@ -173,6 +174,12 @@ final class KarnaughMapView extends JComponent {
         refreshPractice();
     }
 
+    /** Makes this map ask for the smallest cells (the small solution map of the practice). */
+    void setCompact() {
+        compact = true;
+        revalidate();
+    }
+
     /** Whether this map shows the student's groups and takes their gestures. */
     boolean practising() {
         return showGroups && followsPractice && model.practice().practising();
@@ -264,6 +271,10 @@ final class KarnaughMapView extends JComponent {
     @Override
     public Dimension getPreferredSize() {
         KarnaughLayout layout = karnaughLayout();
+        if (compact) {
+            return new Dimension(2 * MARGIN + headerSize() + layout.columns() * MINIMUM_CELL,
+                    2 * MARGIN + headerSize() + layout.rows() * MINIMUM_CELL);
+        }
         int cell = (MINIMUM_CELL + MAXIMUM_CELL) / 2;
         return new Dimension(2 * MARGIN + headerSize() + layout.columns() * cell + cell,
                 2 * MARGIN + headerSize() + layout.rows() * cell + cell);
