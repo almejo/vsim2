@@ -24,7 +24,29 @@ change it here in the same commit.
 - Test methods are sentences describing the behaviour:
   `draggingAGateDragsItsWireAndTheLampStaysConnected()`.
 
-## 3. Architecture boundaries
+## 3. Clean Code
+
+We apply Clean Code (Robert C. Martin) to new code and to the code we modify (section 1 says how far):
+
+- **Small functions that do one thing**, at one level of abstraction; a method that needs a comment to separate its
+  parts is several methods. Prefer early returns over deep nesting.
+- **Single responsibility**: a class has one reason to change. A panel lays out and wires; the rules live in a model
+  or a core class (e.g. `PracticeModel`, `GroupCheck`), so they can be tested without Swing.
+- **Intention-revealing names** (section 2): a reader should not need the body to know what a method returns or does.
+  Boolean queries read as questions (`isBusy()`, `practised(output, form)`).
+- **Few arguments**: more than three usually means a missing record (`Request`, `GeneratorOptions`). No boolean flag
+  arguments that switch behaviour when two methods or an enum say it better.
+- **No side effects hidden in queries**; a method either answers or changes state (command–query separation).
+- **No duplication**: reuse the existing helper (find it before writing one); extract when the same rule appears twice.
+- **No magic numbers or strings**: named constants (`MAXIMUM_INPUTS`, `NODE_BUDGET`) with a word on where they come
+  from.
+- **No dead code**: no commented-out code, unused parameters, fields, keys or methods. Delete them; git remembers.
+- **Comments say why, not what** — they complement good names, they do not excuse bad ones (the Javadoc rule of
+  section 5 still applies).
+- **Boy Scout rule**, inside the limits of section 1: leave the code you touch a little cleaner than you found it.
+- **Tests are clean code too**: one behaviour per test, readable arrange–act–assert, helpers instead of copy-paste.
+
+## 4. Architecture boundaries
 
 - `core` is headless: it never imports `java.awt` or `javax.swing` (see `core/package-info.java`). Core returns enums,
   records and **message keys + arguments**, never formatted user text.
@@ -37,7 +59,7 @@ change it here in the same commit.
   made on shared objects (document, history, library, preferences, listeners, timers).
 - Never modify `ui/.../HitTester.java`.
 
-## 4. Java style
+## 5. Java style
 
 - Java 21. Prefer **records** for values, **sealed interfaces** for closed hierarchies, **switch expressions** over
   if-chains on enums.
@@ -52,14 +74,14 @@ change it here in the same commit.
   plainly does. Match the comment density of the surrounding code.
 - Compilation runs with `-Xlint:all`: new code introduces no warnings.
 
-## 5. Errors and logging
+## 6. Errors and logging
 
 - Catch the most specific exception that can happen; never swallow one silently. Log with SLF4J (`LoggerFactory`),
   never `System.out`/`System.err` outside the command-line tools.
 - The user never reads an internal (English) exception message: show a fixed sentence from the bundles and put the
   details in the log.
 
-## 6. UI rules
+## 7. UI rules
 
 - **Every visible string** comes from `ui/src/main/resources/i18n/messages_{es,en}.properties` through `Messages`, in
   both bundles, under the section header of the feature. In texts with `{0}` placeholders apostrophes are doubled
@@ -72,12 +94,12 @@ change it here in the same commit.
   `FrameTicker`), so tests never show a window or wait on a real clock.
 - Preferences go through `AppPreferences`.
 
-## 7. File format
+## 8. File format
 
 - Files stay compatible: new fields are optional with a default, old files load unchanged and save byte-for-byte the
   same when nothing changed.
 
-## 8. Tests
+## 9. Tests
 
 - **Test first**: write the key test, see it fail for the expected reason, then implement.
 - JUnit 5 + **AssertJ**. Tests are **headless and deterministic**: no shown `JFrame`/`JDialog`/popups, no sleeps, no
@@ -88,7 +110,7 @@ change it here in the same commit.
 - Before every commit: `./gradlew test :ui:executableJarTest --continue` (in the main checkout,
   `ExampleCircuitsTest.everyCommittedFileHasABuilderAndViceVersa` fails only because of the user's untracked files).
 
-## 9. Commits and documentation
+## 10. Commits and documentation
 
 - One logical change per commit; imperative English message; the `Co-Authored-By:` trailer of the model that wrote
   it. Stage by path only (never `git add -A` / `git commit -a`); never commit the user's untracked circuits, scratch
