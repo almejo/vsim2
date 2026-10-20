@@ -137,11 +137,9 @@ public final class ProblemsPanel extends JPanel {
         model.clear();
         model.addAll(problems);
         if (selected != null) {
-            for (int index = 0; index < problems.size(); index++) {
-                if (problems.get(index).netId().equals(selected.netId())) {
-                    list.setSelectedIndex(index);
-                    break;
-                }
+            int kept = ProblemNavigator.indexToKeep(problems, selected);
+            if (kept >= 0) {
+                list.setSelectedIndex(kept);
             }
         }
         summary.setText(Messages.format("problems.count", problems.size()));

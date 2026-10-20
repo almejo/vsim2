@@ -3,6 +3,7 @@ package cl.almejo.vsim.core.tunnel;
 import cl.almejo.vsim.core.command.ChangeParametersCommand;
 import cl.almejo.vsim.core.command.Command;
 import cl.almejo.vsim.core.command.CompositeCommand;
+import cl.almejo.vsim.core.command.MoveElementsCommand;
 import cl.almejo.vsim.core.component.ComponentShape;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.ParameterSpec;
@@ -10,7 +11,9 @@ import cl.almejo.vsim.core.component.PinSpec;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.GridSize;
+import cl.almejo.vsim.core.io.CircuitFragment;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -44,6 +47,8 @@ public final class Tunnels {
     /** Proposed names are this prefix and a number: T1, T2, … */
     private static final String NAME_PREFIX = "T";
     private static final String DEFAULT_NAME = NAME_PREFIX + 1;
+    /** A name renamed apart from another keeps it and adds this and a number: CLK_2, CLK_3, … */
+    private static final String VARIANT_SEPARATOR = "_";
     /** Room for the hole and the arrow next to it, in grid units. */
     private static final int HOLE_AND_ARROW_UNITS = 3;
     /** Room around the name, in grid units; the name itself takes one unit per character (like a constant's text). */
@@ -154,6 +159,64 @@ public final class Tunnels {
         return List.copyOf(namesInside);
     }
 
+    /**
+     * A fragment after {@link #renamedApartFrom}: {@code renames} maps each name that changed to its new name, sorted
+     * by the old name; empty when nothing changed (then {@code fragment} is the one given).
+     */
+    public record RenamedFragment(CircuitFragment fragment, Map<String, String> renames) {
+        public RenamedFragment {
+            renames = Collections.unmodifiableMap(new TreeMap<>(renames));
+        }
+    }
+
+    /**
+     * {@code fragment} ready to be pasted into {@code document} without joining anything through a name: each name of
+     * its tunnels that a tunnel of {@code document} already uses becomes the first free {@code NAME_2}, {@code NAME_3},
+     * … (free in both), on every tunnel of that name in the fragment, each kept at its pin ({@link #renamedInPlace}).
+     * «Desarmar» uses it so a component's inner tunnels stay its own once pasted.
+     */
+    public static RenamedFragment renamedApartFrom(CircuitDocument document, CircuitFragment fragment,
+                                                   ComponentTypeRegistry registry) {
+        Set<String> namesOutside = tunnelNames(document.components());
+        Set<String> namesInside = new TreeSet<>(tunnelNames(fragment.components()));
+        Set<String> taken = new HashSet<>(namesOutside);
+        taken.addAll(namesInside);
+        Map<String, String> renames = new TreeMap<>();
+        for (String name : namesInside) {
+            if (namesOutside.contains(name)) {
+                String free = freeVariantOf(name, taken);
+                taken.add(free);
+                renames.put(name, free);
+            }
+        }
+        if (renames.isEmpty()) {
+            return new RenamedFragment(fragment, renames);
+        }
+        List<Component> components = fragment.components().stream()
+                .map(component -> isTunnel(component.typeId()) && renames.containsKey(nameOf(component))
+                        ? renamedInPlace(component, renames.get(nameOf(component)), registry)
+                        : component)
+                .toList();
+        return new RenamedFragment(new CircuitFragment(components, fragment.wires(), fragment.labels(),
+                fragment.definitions(), fragment.frames()), renames);
+    }
+
+    /** The first of {@code name_2}, {@code name_3}, … not in {@code taken}. */
+    private static String freeVariantOf(String name, Set<String> taken) {
+        int number = 2;
+        while (taken.contains(name + VARIANT_SEPARATOR + number)) {
+            number++;
+        }
+        return name + VARIANT_SEPARATOR + number;
+    }
+
+    private static Set<String> tunnelNames(List<Component> components) {
+        return components.stream()
+                .filter(component -> isTunnel(component.typeId()))
+                .map(Tunnels::nameOf)
+                .collect(Collectors.toSet());
+    }
+
     private static Set<String> unionOfKeys(Map<String, ?> first, Map<String, ?> second) {
         Set<String> names = new HashSet<>(first.keySet());
         names.addAll(second.keySet());
@@ -217,10 +280,11 @@ public final class Tunnels {
     }
 
     /**
-     * The command (one undo step) that renames tunnel {@code id} to {@code newName} (trimmed). An entrada takes every
-     * tunnel of its old name along (its salidas, and any other entrada of that name), unless another entrada already
-     * has {@code newName}: then only this one changes and the duplicate shows as a problem. A salida renames only
-     * itself. Throws IllegalArgumentException when {@code id} is not a tunnel or the name is blank.
+     * The command (one undo step) that renames tunnel {@code id} to {@code newName} (trimmed). The only entrada of its
+     * name takes its salidas along, unless another entrada already has {@code newName}: then only this one changes and
+     * the duplicate shows as a problem. One of two or more entradas of a name (a pasted or duplicated copy) renames
+     * only itself, so renaming the copy fixes the duplicate instead of carrying the original along. A salida renames
+     * only itself. Throws IllegalArgumentException when {@code id} is not a tunnel or the name is blank.
      */
     public static Command renameCommand(CircuitDocument document, ComponentTypeRegistry registry, ElementId id,
                                         String newName) {
@@ -231,18 +295,48 @@ public final class Tunnels {
         List<Component> renamed = carriesItsName(document, tunnel, name)
                 ? tunnelsNamed(document, nameOf(tunnel))
                 : List.of(tunnel);
-        List<Command> changes = renamed.stream()
-                .<Command>map(component -> new ChangeParametersCommand(component.id(), registry.typeOf(component),
-                        withName(component, name)))
-                .toList();
+        List<Command> changes = new ArrayList<>();
+        for (Component component : renamed) {
+            changes.add(new ChangeParametersCommand(component.id(), registry.typeOf(component),
+                    withName(component, name)));
+            GridPoint shift = positionShift(component, renamedInPlace(component, name, registry));
+            if (!shift.equals(GridPoint.ORIGIN)) {
+                changes.add(new MoveElementsCommand(List.of(component.id()), shift.x(), shift.y()));
+            }
+        }
         return new CompositeCommand("command.renameTunnel", changes);
     }
 
-    /** True when renaming {@code tunnel} to {@code newName} renames every tunnel of its current name. */
+    /**
+     * Tunnel {@code tunnel} named {@code newName} (trimmed), moved so its pin stays where its wire is: the tag grows
+     * with the name, and a salida's pin sits at the far end of the tag, so a longer name would otherwise move it.
+     */
+    public static Component renamedInPlace(Component tunnel, String newName, ComponentTypeRegistry registry) {
+        Component renamed = tunnel.withParameters(withName(tunnel, normalizeName(newName)));
+        GridPoint before = registry.typeOf(tunnel).pinLocation(tunnel, 0);
+        GridPoint after = registry.typeOf(renamed).pinLocation(renamed, 0);
+        return renamed.translate(before.x() - after.x(), before.y() - after.y());
+    }
+
+    /** How far {@code moved} lies from {@code original}. */
+    private static GridPoint positionShift(Component original, Component moved) {
+        return new GridPoint(moved.position().x() - original.position().x(),
+                moved.position().y() - original.position().y());
+    }
+
+    /**
+     * True when renaming {@code tunnel} to {@code newName} renames every tunnel of its current name: it is the only
+     * entrada of that name and no other entrada has {@code newName}.
+     */
     private static boolean carriesItsName(CircuitDocument document, Component tunnel, String newName) {
-        return kindOf(tunnel).orElseThrow() == TunnelKind.ENTRANCE
-                && entrances(document).stream()
-                .noneMatch(entrance -> !entrance.id().equals(tunnel.id()) && nameOf(entrance).equals(newName));
+        if (kindOf(tunnel).orElseThrow() != TunnelKind.ENTRANCE) {
+            return false;
+        }
+        String oldName = nameOf(tunnel);
+        return entrances(document).stream()
+                .filter(entrance -> !entrance.id().equals(tunnel.id()))
+                .map(Tunnels::nameOf)
+                .noneMatch(name -> name.equals(oldName) || name.equals(newName));
     }
 
     private static List<Component> tunnelsNamed(CircuitDocument document, String name) {

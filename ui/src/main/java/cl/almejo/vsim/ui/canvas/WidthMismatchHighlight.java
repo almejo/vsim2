@@ -58,8 +58,11 @@ public record WidthMismatchHighlight(Set<ElementId> wires, Map<GridPoint, List<I
                 for (PinRef pin : net.pins()) {
                     document.component(pin.componentId()).ifPresent(component -> {
                         ComponentType type = registry.typeOf(component);
-                        widths.computeIfAbsent(type.pinLocation(component, pin.pinIndex()), point -> new TreeSet<>())
-                                .add(type.pin(pin.pinIndex()).width());
+                        // a tunnel's pin has no width of its own (it takes the net's), so it is not part of the clash
+                        if (!type.pin(pin.pinIndex()).isAdaptiveWidth()) {
+                            widths.computeIfAbsent(type.pinLocation(component, pin.pinIndex()),
+                                    point -> new TreeSet<>()).add(type.pin(pin.pinIndex()).width());
+                        }
                     });
                 }
             });

@@ -52,6 +52,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * Template editing for one canvas (spec §5.6, §6.6): create from the selection, update a definition from the
@@ -229,7 +230,7 @@ public final class TemplateActions {
                     Messages.format("library.place.componentName", definition.get().name())));
             return;
         }
-        PasteCommand paste = new PasteCommand(definition.get().body(), plan.offset());
+        PasteCommand paste = new PasteCommand(plan.body(), plan.offset());
         List<Command> steps = new ArrayList<>(List.of(new RemoveElementsCommand(List.of(instance.id())), paste));
         if (!plan.bridges().isEmpty()) {
             steps.add(new AddElementsCommand(List.copyOf(plan.bridges())));
@@ -240,6 +241,17 @@ public final class TemplateActions {
             dialogs.showMessage(canvas, Messages.format("template.pinsUnconnected",
                     String.join(", ", plan.unconnectedPins())));
         }
+        if (!plan.renamedTunnels().isEmpty()) {
+            dialogs.showMessage(canvas, Messages.format("template.tunnelsRenamed",
+                    renamesText(plan.renamedTunnels())));
+        }
+    }
+
+    /** «A → A_2, CLK → CLK_2». */
+    private static String renamesText(Map<String, String> renames) {
+        return renames.entrySet().stream()
+                .map(rename -> Messages.format("template.tunnelRename", rename.getKey(), rename.getValue()))
+                .collect(Collectors.joining(", "));
     }
 
     /**

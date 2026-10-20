@@ -226,6 +226,39 @@ class TunnelsTest {
     }
 
     @Test
+    void renamingATunnelKeepsItsPinWhereItsWireIsWhateverTheKindAndTurn() {
+        for (TunnelKind kind : TunnelKind.values()) {
+            for (Rotation rotation : Rotation.values()) {
+                Component tunnel = circuit.place(kind.typeId(), 10, 10, rotation, Map.of(Tunnels.NAME, "A"));
+                GridPoint pin = circuit.pin(tunnel, 0);
+                History history = new History(circuit.document());
+
+                history.execute(Tunnels.renameCommand(circuit.document(), circuit.registry(), tunnel.id(),
+                        "CLOCK_ENABLE"));
+
+                assertThat(circuit.pin(circuit.component(tunnel.id()), 0)).as(kind + " " + rotation).isEqualTo(pin);
+                history.undo();
+                assertThat(circuit.component(tunnel.id())).isEqualTo(tunnel);
+                circuit.document().remove(tunnel.id());
+            }
+        }
+    }
+
+    @Test
+    void renamingOneOfTwoEntrancesOfANameChangesOnlyThatOne() {
+        Component original = circuit.entrance("CLK", new GridPoint(0, 0));
+        Component copy = circuit.entrance("CLK", new GridPoint(0, 10));
+        Component exit = circuit.exit("CLK", new GridPoint(0, 20));
+        History history = new History(circuit.document());
+
+        history.execute(Tunnels.renameCommand(circuit.document(), circuit.registry(), copy.id(), "CLK2"));
+
+        assertThat(Tunnels.groups(circuit.document())).containsOnly(
+                Map.entry("CLK", new Tunnels.TunnelGroup("CLK", List.of(original.id()), List.of(exit.id()))),
+                Map.entry("CLK2", new Tunnels.TunnelGroup("CLK2", List.of(copy.id()), List.of())));
+    }
+
+    @Test
     void renamingAnExitChangesOnlyThatExit() {
         circuit.entrance("CLK", new GridPoint(0, 0));
         Component renamed = circuit.exit("CLK", new GridPoint(0, 10));

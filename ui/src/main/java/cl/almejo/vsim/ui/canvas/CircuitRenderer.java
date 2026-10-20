@@ -82,6 +82,7 @@ public final class CircuitRenderer {
     private final PainterRegistry painters;
     private final Appearance appearance;
     private final HighlightCache highlights;
+    private final ConnectionPoints connectionPoints;
 
     public CircuitRenderer(ComponentTypeRegistry registry, PainterRegistry painters, ColorScheme scheme) {
         this(registry, painters, new Appearance(scheme));
@@ -92,6 +93,7 @@ public final class CircuitRenderer {
         this.painters = painters;
         this.appearance = appearance;
         this.highlights = new HighlightCache(registry);
+        this.connectionPoints = new ConnectionPoints(registry);
     }
 
     /** The scheme in use right now; it changes when the user picks another one. */
@@ -331,7 +333,7 @@ public final class CircuitRenderer {
                     continue;
                 }
                 Optional<Net> net = state.netlist().netForPin(new PinRef(component.id(), pinIndex));
-                boolean open = ConnectionPoints.isOpen(net);
+                boolean open = connectionPoints.isOpen(state.document(), component, pinIndex, net);
                 if (!open) {
                     continue;
                 }

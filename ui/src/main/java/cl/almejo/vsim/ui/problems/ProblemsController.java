@@ -272,7 +272,7 @@ public final class ProblemsController {
         Optional<Value> value = withValues
                 ? net.map(found -> snapshot.netValues().get(found.id().value()))
                 : Optional.empty();
-        boolean unconnected = ConnectionPoints.isOpen(net);
+        boolean unconnected = connectionPoints.isOpen(document, component, pin.pinIndex(), net);
         String text = PinText.describe(component, openDocument.registry().typeOf(component),
                 pin.pinIndex(), unconnected, value);
         Optional<String> problem = current ? net.flatMap(found -> problemText(document, found)) : Optional.empty();
@@ -329,10 +329,18 @@ public final class ProblemsController {
                 .findFirst();
         if (mismatch.isEmpty() && net.widthMismatch()) {
             mismatch = Optional.of(new WidthMismatch(net.id().value(), net.pins().stream()
+                    .filter(pin -> hasAWidthOfItsOwn(document, pin))
                     .map(pin -> new FlatPinRef(pin.componentId().value(), pin.pinIndex()))
                     .toList()));
         }
         return mismatch.map(found -> ProblemText.describe(found, document, openDocument.registry()));
+    }
+
+    /** False for a tunnel's pin: it takes the net's width, so it is never one side of a mismatch (like the engine). */
+    private boolean hasAWidthOfItsOwn(CircuitDocument document, PinRef pin) {
+        return document.component(pin.componentId())
+                .map(component -> !openDocument.registry().typeOf(component).pin(pin.pinIndex()).isAdaptiveWidth())
+                .orElse(true);
     }
 
     private static Action action(String name, Runnable behavior) {

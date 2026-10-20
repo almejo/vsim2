@@ -94,6 +94,18 @@ class TunnelProblemsTest {
     }
 
     @Test
+    void anExitOnTheWireOfItsOwnEntranceIsNotFlagged() {
+        Component source = switchAt(0, 0);
+        circuit.entrance("CLK", circuit.pin(source, 0));
+        GridPoint farEnd = new GridPoint(circuit.pin(source, 0).x() + 20, circuit.pin(source, 0).y());
+        circuit.wire(circuit.pin(source, 0), farEnd);
+        circuit.exit("CLK", farEnd);
+        circuit.exit("CLK", circuit.pin(ledAt(40, 20), 0));
+
+        assertThat(problems()).isEmpty();
+    }
+
+    @Test
     void anExitDrivenThroughAnotherTunnelIsNotFlagged() {
         circuit.entrance("A", circuit.pin(switchAt(0, 0), 0));
         GridPoint shared = new GridPoint(30, 30);

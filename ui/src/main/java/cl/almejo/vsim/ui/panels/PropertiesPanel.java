@@ -1,7 +1,6 @@
 package cl.almejo.vsim.ui.panels;
 
 import cl.almejo.vsim.core.command.ChangeFrameCommand;
-import cl.almejo.vsim.core.command.ChangeParametersCommand;
 import cl.almejo.vsim.core.command.Command;
 import cl.almejo.vsim.core.command.CompositeCommand;
 import cl.almejo.vsim.core.command.SetLabelCommand;
@@ -17,7 +16,6 @@ import cl.almejo.vsim.core.document.FrameContents;
 import cl.almejo.vsim.core.document.FrameTint;
 import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.document.Wire;
-import cl.almejo.vsim.core.tunnel.Tunnels;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.Selection;
 import cl.almejo.vsim.ui.clipboard.FragmentRefusingTransferHandler;
@@ -39,7 +37,6 @@ import javax.swing.UIManager;
 import java.awt.Color;
 import java.awt.event.FocusAdapter;
 import java.awt.event.FocusEvent;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -183,13 +180,14 @@ public final class PropertiesPanel extends JPanel {
         ParameterForm form = new ParameterForm(type, component.parameters());
         // the parameter rows join this panel's grid, so «Etiqueta» and the parameters share the same columns
         form.addRowsTo(this);
-        Runnable applyParameters = () -> applyIfCurrent(built,
-                () -> parametersCommand(id, type, form).ifPresent(openDocument::execute));
+        Runnable applyParameters = () -> applyIfCurrent(built, () -> TunnelNames.executeRemembering(openDocument, id,
+                () -> parametersCommand(id, type, form).ifPresent(openDocument::execute)));
         form.addCommitListener(applyParameters);
         parameterForm = form;
         // Both editors still pending (selection change, focus leaving the panel) are one user action: one undo step.
-        pendingEdits = () -> applyIfCurrent(built, () -> executeTogether(Stream.of(labelCommand(id, field),
-                parametersCommand(id, type, form)).flatMap(Optional::stream).toList()));
+        pendingEdits = () -> applyIfCurrent(built, () -> TunnelNames.executeRemembering(openDocument, id,
+                () -> executeTogether(Stream.of(labelCommand(id, field), parametersCommand(id, type, form))
+                        .flatMap(Optional::stream).toList())));
     }
 
     private void showText(TextLabel label) {
@@ -387,27 +385,8 @@ public final class PropertiesPanel extends JPanel {
         if (values.equals(current)) {
             return Optional.empty();
         }
-        if (Tunnels.isTunnel(type.id()) && !values.get(Tunnels.NAME).equals(current.get(Tunnels.NAME))) {
-            return Optional.of(tunnelRename(id, type, values, current));
-        }
-        return Optional.of(new ChangeParametersCommand(id, type, values));
-    }
-
-    /**
-     * A tunnel whose name changed: the rename that carries an entrada's salidas along (spec §7), then the other
-     * parameters (an entrada's colour) when they changed too, as one undo step.
-     */
-    private Command tunnelRename(ElementId id, ComponentType type, Map<String, Object> values,
-                                 Map<String, Object> current) {
-        Command rename = TunnelNames.renameCommand(openDocument, id, (String) values.get(Tunnels.NAME))
-                .orElseThrow();
-        Map<String, Object> renamed = new HashMap<>(current);
-        renamed.put(Tunnels.NAME, values.get(Tunnels.NAME));
-        Command command = renamed.equals(values) ? rename
-                : new CompositeCommand("command.configure", List.of(rename,
-                new ChangeParametersCommand(id, type, values)));
-        TunnelNames.rememberEntrance(openDocument, id, (String) values.get(Tunnels.NAME));
-        return command;
+        // a tunnel whose name changed follows the rename rules (spec §7), as «Configurar…» does
+        return Optional.of(TunnelNames.parametersCommand(openDocument, id, type, values));
     }
 
     /** One undo step for whatever the editors asked for. */

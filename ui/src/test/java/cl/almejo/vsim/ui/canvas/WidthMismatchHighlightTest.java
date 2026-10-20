@@ -11,6 +11,7 @@ import cl.almejo.vsim.core.netlist.Netlist;
 import cl.almejo.vsim.core.netlist.NetlistCompiler;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.core.simulation.WidthMismatch;
+import cl.almejo.vsim.core.tunnel.Tunnels;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import org.junit.jupiter.api.Test;
 
@@ -56,6 +57,24 @@ class WidthMismatchHighlightTest {
         assertThat(marked.wires()).containsExactly(bus.id());
         assertThat(marked.pinWidths()).containsOnly(entry(new GridPoint(10, 0), List.of(4)),
                 entry(new GridPoint(0, 0), List.of(1)));
+    }
+
+    @Test
+    void aMismatchThroughATunnelMarksOnlyThePartsPinsNotTheTunnels() {
+        busOfFourBits();
+        document.add(registry.require(StandardComponentTypes.TUNNEL_ENTRANCE).newComponent(new ElementId("c2"),
+                new GridPoint(0, -1), Rotation.R0, Map.of(Tunnels.NAME, "D"), "")); // its pin is at (0, 0)
+        document.add(registry.require(StandardComponentTypes.LED).newComponent(new ElementId("c3"),
+                new GridPoint(29, 17), Rotation.R0, Map.of(), "")); // its pin is at (30, 20)
+        document.add(registry.require(StandardComponentTypes.TUNNEL_EXIT).newComponent(new ElementId("c4"),
+                new GridPoint(30 - (1 + Tunnels.lengthInGridUnits("D")), 19), Rotation.R0,
+                Map.of(Tunnels.NAME, "D"), "")); // its pin is at (30, 20) too
+
+        WidthMismatchHighlight marked = highlight(SimulationSnapshot.EMPTY, document.revision());
+
+        assertThat(marked.wires()).containsExactly(bus.id());
+        assertThat(marked.pinWidths()).containsOnly(entry(new GridPoint(10, 0), List.of(4)),
+                entry(new GridPoint(30, 20), List.of(1)));
     }
 
     @Test

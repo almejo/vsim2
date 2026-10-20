@@ -8,31 +8,39 @@ import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.io.CircuitFragment;
+import cl.almejo.vsim.core.tunnel.Tunnels;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 
 /**
  * What "Desarmar" does to an instance (spec §5.6): its body comes back unrotated with the body's top-left at the
  * instance's top-left, and {@link PinBridges} bridges join each instance pin that had an outside connection to the
  * pasted interface pin that stands for it. The body may not touch anything outside except through those joins: when
  * a pasted pin or wire end lands on an outside wire or pin of another net (or an outside one lands on a pasted wire),
- * the instance must not be disassembled. Outside nets are never joined.
+ * the instance must not be disassembled. Outside nets are never joined, not even through a tunnel name: the body's
+ * tunnels whose names the circuit already uses are renamed apart ({@link Tunnels#renamedApartFrom}).
  */
 public final class Disassembly {
 
     /**
-     * Where to paste the body ({@code offset} added to its positions), the bridge wires to add, the pins left
-     * unconnected (pinout order) and whether disassembling would join the body to something foreign.
+     * The body to paste (the definition's, with tunnels renamed apart from the circuit's), where to paste it
+     * ({@code offset} added to its positions), the bridge wires to add, the pins left unconnected (pinout order),
+     * whether disassembling would join the body to something foreign, and the tunnel names that changed (old → new,
+     * sorted), so the user can be told.
      */
-    public record Plan(GridPoint offset, List<Wire> bridges, List<String> unconnectedPins, boolean blocked) {
+    public record Plan(CircuitFragment body, GridPoint offset, List<Wire> bridges, List<String> unconnectedPins,
+                       boolean blocked, Map<String, String> renamedTunnels) {
         public Plan {
             bridges = List.copyOf(bridges);
             unconnectedPins = List.copyOf(unconnectedPins);
+            renamedTunnels = Collections.unmodifiableMap(new TreeMap<>(renamedTunnels));
         }
     }
 
@@ -108,7 +116,11 @@ public final class Disassembly {
         }
         boolean blocked = !bridging.blockedPins().isEmpty()
                 || touchesForeign(intended, outsideWires, outsidePoints, body.wires(), pastedPoints);
-        return new Plan(offset, bridging.wires(), bridging.unconnectedPins(), blocked);
+        // Tunnels join by name after the paste, so a body name the circuit already uses would join outside nets;
+        // renaming keeps every pin where it was, so the checks above still hold.
+        Tunnels.RenamedFragment renamed = Tunnels.renamedApartFrom(document, definition.body(), registry);
+        return new Plan(renamed.fragment(), offset, bridging.wires(), bridging.unconnectedPins(), blocked,
+                renamed.renames());
     }
 
     /** True when a contact between the body and the outside joins nets that should stay apart. */

@@ -15,6 +15,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Finds what is wrong with the tunnels of one circuit body: a name with two entradas, salidas without entrada, an
@@ -28,7 +29,8 @@ public final class TunnelChecks {
     /**
      * The tunnel problems of {@code body}, whose nets (tunnels joined) are {@code netlist}; sorted by name, then by
      * kind. A salida is «driven» when its wire as drawn (before joining by name) holds a driver pin of a part that is
-     * not a tunnel; it is only checked when the name has an entrada (without one, the missing entrada is the error).
+     * not a tunnel and no entrada of its name; it is only checked when the name has an entrada (without one, the
+     * missing entrada is the error).
      */
     public static List<TunnelProblem> problems(CircuitDocument body, Netlist netlist, ComponentTypeRegistry registry) {
         Map<String, Tunnels.TunnelGroup> groups = Tunnels.groups(body);
@@ -48,7 +50,7 @@ public final class TunnelChecks {
                     drawn = Optional.of(new NetlistCompiler(registry).compileAsDrawn(body));
                 }
                 for (ElementId exit : group.exits()) {
-                    if (isDrivenAsDrawn(exit, drawn.get(), body, registry)) {
+                    if (isDrivenAsDrawn(exit, group, drawn.get(), body, registry)) {
                         problems.add(problem(netId, Kind.EXIT_DRIVEN, group, List.of(exit)));
                     }
                 }
@@ -66,11 +68,19 @@ public final class TunnelChecks {
         return new TunnelProblem(netId, kind, group.name(), tunnels.stream().map(ElementId::value).toList());
     }
 
-    private static boolean isDrivenAsDrawn(ElementId exit, Netlist drawn, CircuitDocument body,
-                                           ComponentTypeRegistry registry) {
+    /**
+     * True when the salida's wire as drawn has a driver of a part on it, unless an entrada of its own name is on that
+     * wire too: then the driver feeds that entrada and the salida only gives the same signal back.
+     */
+    private static boolean isDrivenAsDrawn(ElementId exit, Tunnels.TunnelGroup group, Netlist drawn,
+                                           CircuitDocument body, ComponentTypeRegistry registry) {
         Optional<Net> wireSide = drawn.netForPin(new PinRef(exit, 0));
-        return wireSide.isPresent() && wireSide.get().pins().stream().anyMatch(pin -> isDriverOfAPart(pin, body,
-                registry));
+        if (wireSide.isEmpty()) {
+            return false;
+        }
+        Set<PinRef> pins = wireSide.get().pins();
+        boolean holdsItsEntrance = pins.stream().anyMatch(pin -> group.entrances().contains(pin.componentId()));
+        return !holdsItsEntrance && pins.stream().anyMatch(pin -> isDriverOfAPart(pin, body, registry));
     }
 
     private static boolean isDriverOfAPart(PinRef pin, CircuitDocument body, ComponentTypeRegistry registry) {

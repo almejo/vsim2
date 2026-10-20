@@ -14,6 +14,7 @@ import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.geometry.GridPoint;
+import cl.almejo.vsim.core.geometry.GridSize;
 import cl.almejo.vsim.core.geometry.Rotation;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.DefinitionBundle;
@@ -332,6 +333,30 @@ class TemplateEditingTest {
         assertThat(fixture.openDocument.history().undoDescription()).contains("command.disassemble");
         fixture.openDocument.history().undo();
         assertThat(document.components()).containsExactly(instance);
+    }
+
+    @Test
+    void disassemblingABodyWhoseTunnelNameIsUsedOutsideRenamesItAndSaysSo() {
+        ComponentTypeRegistry standard = StandardComponentTypes.registry();
+        Component entrance = standard.require(StandardComponentTypes.TUNNEL_ENTRANCE).newComponent(
+                new ElementId("c1"), new GridPoint(0, 0), Rotation.R0, Map.of("name", "A"), "");
+        Component exit = standard.require(StandardComponentTypes.TUNNEL_EXIT).newComponent(
+                new ElementId("c2"), new GridPoint(0, 4), Rotation.R0, Map.of("name", "A"), "");
+        ComponentDefinition tunnels = new ComponentDefinition("tuneles", "Túneles", "",
+                new GridSize(4, 4), List.of(),
+                new CircuitFragment(List.of(entrance, exit), List.of(), List.of()));
+        fixture.openDocument.execute(new PutDefinitionsCommand(List.of(tunnels)));
+        Component instance = fixture.place("subcircuit:tuneles", 40, 40, "U1");
+        fixture.place(StandardComponentTypes.TUNNEL_ENTRANCE, 0, 0, Map.of("name", "A"));
+        fixture.select(instance);
+
+        click(contribute(instance), "Desarmar");
+
+        assertThat(fixture.dialogs.messages).containsExactly(Messages.format("template.tunnelsRenamed",
+                Messages.format("template.tunnelRename", "A", "A_2")));
+        assertThat(document.components()).filteredOn(component -> component.typeId().startsWith("tunnel"))
+                .extracting(component -> component.parameters().get("name"))
+                .containsExactlyInAnyOrder("A", "A_2", "A_2");
     }
 
     @Test

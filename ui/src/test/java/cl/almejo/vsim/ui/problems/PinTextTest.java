@@ -46,6 +46,16 @@ class PinTextTest {
     }
 
     @Test
+    void aTunnelsPinIsNamedAfterTheTunnelAndShowsItsNetsWidth() {
+        assertThat(describe(StandardComponentTypes.TUNNEL_EXIT, Map.of("name", "CLK"), 0, false, Optional.empty()))
+                .isEqualTo("«CLK»");
+        assertThat(describe(StandardComponentTypes.TUNNEL_ENTRANCE, Map.of("name", "CLK"), 0, false,
+                Optional.of(Value.ONE))).isEqualTo("«CLK» = 1");
+        assertThat(describe(StandardComponentTypes.TUNNEL_ENTRANCE, Map.of("name", "DATA"), 0, false,
+                Optional.of(Value.of(8, 5)))).isEqualTo("«DATA» · 8 bits = 0x05 (0000 0101)");
+    }
+
+    @Test
     void theValueFollowsAndALooseZInputSaysItIsNotConnected() {
         assertThat(describe(StandardComponentTypes.NOT, Map.of(), 1, false, Optional.of(Value.ONE)))
                 .isEqualTo("out = 1");

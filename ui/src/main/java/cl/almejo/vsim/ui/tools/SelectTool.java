@@ -308,7 +308,7 @@ public final class SelectTool implements Tool {
                 narrowOnRelease = true;
             } else {
                 wire = new WireDrawing(pin.get().point(), event.gridPosition(),
-                        connectionPoints(context).widthAt(context.openDocument().document(), pin.get().point()));
+                        widthAt(context, pin.get().point()));
             }
             return;
         }
@@ -497,8 +497,7 @@ public final class SelectTool implements Tool {
         GridPoint nearest = pin.map(ConnectionPoints.PinHit::point).orElse(null);
         if (!Objects.equals(nearest, hoverPin)) {
             hoverPin = nearest;
-            hoverWidth = nearest == null ? 1
-                    : connectionPoints(context).widthAt(context.openDocument().document(), nearest);
+            hoverWidth = nearest == null ? 1 : widthAt(context, nearest);
             context.repaint();
         }
         showCursor(context, cursorAt(context, event.gridPosition(), pin, event));
@@ -873,6 +872,12 @@ public final class SelectTool implements Tool {
     /** For tests: how many times the nearest pin was looked for. */
     int pinSearches() {
         return pinSearches;
+    }
+
+    /** The width a wire starting at {@code point} previews with. */
+    private int widthAt(ToolContext context, GridPoint point) {
+        return connectionPoints(context).widthAt(context.openDocument().document(), context.openDocument().netlist(),
+                point);
     }
 
     private ConnectionPoints connectionPoints(ToolContext context) {

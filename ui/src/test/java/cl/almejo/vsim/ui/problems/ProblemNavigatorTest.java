@@ -187,6 +187,25 @@ class ProblemNavigatorTest {
     }
 
     @Test
+    void theCursorStaysOnTheSameProblemWhenOthersShareItsNet() {
+        TunnelProblem duplicate = new TunnelProblem("n:t", TunnelProblem.Kind.DUPLICATE_ENTRANCE, "CLK",
+                List.of("c1", "c2"));
+        TunnelProblem driven = new TunnelProblem("n:t", TunnelProblem.Kind.EXIT_DRIVEN, "CLK", List.of("c7"));
+        TunnelProblem other = new TunnelProblem("n:o", TunnelProblem.Kind.EXIT_WITHOUT_ENTRANCE, "OTHER",
+                List.of("c9"));
+        show(duplicate, driven);
+        while (!navigator.next().orElseThrow().equals(driven)) {
+            // walk to the salida's problem
+        }
+
+        show(duplicate, driven, other);
+
+        List<Problem> problems = navigator.problems();
+        Problem after = problems.get((problems.indexOf(driven) + 1) % problems.size());
+        assertThat(navigator.next()).contains(after);
+    }
+
+    @Test
     void aShortInsideATemplateCentersOnAndSelectsItsInstance() {
         openDocument.execute(new PutDefinitionsCommand(List.of(ExampleDefinitions.inverter())));
         Component instance = place(openDocument, SubcircuitTypes.typeIdOf(ExampleDefinitions.INVERTER), 60, 20,

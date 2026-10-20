@@ -1,6 +1,5 @@
 package cl.almejo.vsim.ui.actions;
 
-import cl.almejo.vsim.core.command.ChangeParametersCommand;
 import cl.almejo.vsim.core.command.History;
 import cl.almejo.vsim.core.command.HistoryListener;
 import cl.almejo.vsim.core.command.RemoveElementsCommand;
@@ -17,6 +16,7 @@ import cl.almejo.vsim.ui.shortcuts.ShortcutCatalog;
 import cl.almejo.vsim.ui.tools.PanTool;
 import cl.almejo.vsim.ui.tools.SelectTool;
 import cl.almejo.vsim.ui.tools.WireTool;
+import cl.almejo.vsim.ui.tunnel.TunnelNames;
 import cl.almejo.vsim.ui.waveform.TimeAxis;
 import cl.almejo.vsim.ui.window.MenuId;
 import cl.almejo.vsim.ui.window.WindowCommands;
@@ -205,14 +205,17 @@ public final class EditorActions {
         return stepUnits;
     }
 
-    /** Opens the Configure dialog for {@code component}; an accepted change becomes one undo step. */
+    /**
+     * Opens the Configure dialog for {@code component}; an accepted change becomes one undo step, with the tunnel
+     * rename rules when a tunnel's name changes (the same change as the inspector's).
+     */
     public void configure(Component component) {
         ComponentType type = openDocument.registry().typeOf(component);
         if (type.parameters().isEmpty()) {
             return;
         }
         ConfigureDialog.show(canvas, type, component)
-                .ifPresent(values -> openDocument.execute(new ChangeParametersCommand(component.id(), type, values)));
+                .ifPresent(values -> TunnelNames.applyParameters(openDocument, component.id(), type, values));
     }
 
     /** Stops following the shared document: the window showing these actions closed, the document may live on. */

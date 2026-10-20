@@ -5,6 +5,7 @@ import cl.almejo.vsim.core.component.PinSpec;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.geometry.GridPoint;
+import cl.almejo.vsim.core.tunnel.Tunnels;
 import cl.almejo.vsim.core.value.Value;
 import cl.almejo.vsim.ui.canvas.BusValueText;
 import cl.almejo.vsim.ui.i18n.Messages;
@@ -36,15 +37,24 @@ final class PinText {
     static String describe(Component component, ComponentType type, int pinIndex, boolean unconnected,
                            Optional<Value> value) {
         PinSpec pin = type.pin(pinIndex);
-        StringBuilder text = new StringBuilder(pin.name());
+        StringBuilder text = new StringBuilder(pinName(component, pin));
         if (NUMBER_READERS.contains(component.typeId()) && pin.width() == 1) {
             text.append(SEPARATOR).append(Messages.format(bitKey(component, type, pinIndex), pinIndex));
         }
-        if (pin.width() > 1) {
-            text.append(SEPARATOR).append(Messages.format("pin.width", pin.width()));
+        // a tunnel's pin has no width of its own: it shows its net's, known from the value
+        int width = pin.isAdaptiveWidth() ? value.map(Value::width).orElse(1) : pin.width();
+        if (width > 1) {
+            text.append(SEPARATOR).append(Messages.format("pin.width", width));
         }
         value.ifPresent(current -> text.append(" = ").append(valueText(current, unconnected)));
         return text.toString();
+    }
+
+    /** The pin's own name; a tunnel's single pin goes by the tunnel's name («CLK»), which is what the user knows. */
+    private static String pinName(Component component, PinSpec pin) {
+        return Tunnels.isTunnel(component.typeId())
+                ? Messages.format("pin.tunnel", Tunnels.nameOf(component))
+                : pin.name();
     }
 
     /**

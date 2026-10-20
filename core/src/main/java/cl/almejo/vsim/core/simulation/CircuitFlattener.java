@@ -73,18 +73,20 @@ public final class CircuitFlattener {
 
     public FlatCircuit flatten(CircuitDocument document, Netlist netlist) {
         Expansion expansion = new Expansion();
-        expansion.addLevel("", document, netlist, 0);
+        expansion.addLevel("", document, netlist, TunnelChecks.problems(document, netlist, registry), 0);
         return new FlatCircuit(document.revision(), expansion.components, expansion.flatNets(),
                 expansion.tunnelProblems);
     }
 
-    private record Body(CircuitDocument document, Netlist netlist) {
+    /** A definition's body compiled once per flatten call, with its tunnel problems (the same for every instance). */
+    private record Body(CircuitDocument document, Netlist netlist, List<TunnelProblem> tunnelProblems) {
     }
 
     private Body compileBody(ComponentDefinition definition) {
         CircuitDocument body = new CircuitDocument();
         definition.body().elements().forEach(body::add);
-        return new Body(body, compiler.compile(body));
+        Netlist netlist = compiler.compile(body);
+        return new Body(body, netlist, TunnelChecks.problems(body, netlist, registry));
     }
 
     private static final class NetBuilder {
@@ -106,15 +108,15 @@ public final class CircuitFlattener {
         final Map<ComponentDefinition, Body> bodies = new IdentityHashMap<>();
         final List<TunnelProblem> tunnelProblems = new ArrayList<>();
 
-        void addLevel(String prefix, CircuitDocument level, Netlist levelNetlist, int depth) {
+        void addLevel(String prefix, CircuitDocument level, Netlist levelNetlist, List<TunnelProblem> levelProblems,
+                      int depth) {
             if (depth > MAXIMUM_DEPTH) {
                 throw new IllegalStateException("sub-circuits nest more than " + MAXIMUM_DEPTH + " levels");
             }
             for (Net net : levelNetlist.nets()) {
                 nets.put(prefix + net.id().value(), new NetBuilder(net.width(), net.widthMismatch()));
             }
-            TunnelChecks.problems(level, levelNetlist, registry)
-                    .forEach(problem -> tunnelProblems.add(problem.nestedIn(prefix)));
+            levelProblems.forEach(problem -> tunnelProblems.add(problem.nestedIn(prefix)));
             for (Component component : level.components()) {
                 String flatId = prefix + component.id().value();
                 ComponentType type = registry.typeOf(component);
@@ -148,7 +150,7 @@ public final class CircuitFlattener {
                             Netlist levelNetlist, String prefix, int depth) {
             Body body = bodies.computeIfAbsent(definition, CircuitFlattener.this::compileBody);
             String innerPrefix = instanceId + InstancePath.SEPARATOR;
-            addLevel(innerPrefix, body.document(), body.netlist(), depth + 1);
+            addLevel(innerPrefix, body.document(), body.netlist(), body.tunnelProblems(), depth + 1);
             for (int pinIndex = 0; pinIndex < definition.pinout().size(); pinIndex++) {
                 Optional<Net> outer = levelNetlist.netForPin(new PinRef(instance.id(), pinIndex));
                 Optional<Net> inner = body.netlist()

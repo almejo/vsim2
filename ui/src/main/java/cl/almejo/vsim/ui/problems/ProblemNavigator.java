@@ -37,21 +37,36 @@ public final class ProblemNavigator {
         this.blink = blink;
     }
 
-    /** Takes the problems of {@code snapshot} in {@link ProblemText#ordered} order, keeping the cursor on its net. */
+    /**
+     * Takes the problems of {@code snapshot} in {@link ProblemText#ordered} order, keeping the cursor on the same
+     * problem ({@link #indexToKeep}).
+     */
     public void showSnapshot(SimulationSnapshot snapshot) {
         List<Problem> ordered = ProblemText.ordered(snapshot.problems());
         if (ordered.equals(problems)) {
             return;
         }
-        String currentNet = current >= 0 ? problems.get(current).netId() : null;
+        Optional<Problem> previous = current >= 0 ? Optional.of(problems.get(current)) : Optional.empty();
         problems = ordered;
-        current = -1;
+        current = previous.map(problem -> indexToKeep(ordered, problem)).orElse(-1);
+    }
+
+    /**
+     * Where {@code previous} is in the refreshed {@code problems}: the same problem when it is still there, else the
+     * first one on its net (a short whose start time changed, a mismatch whose pins changed), else -1. Several problems
+     * can share a net (every tunnel problem of a name, a mismatch on the same net), so the net alone would jump.
+     */
+    static int indexToKeep(List<Problem> problems, Problem previous) {
+        int same = problems.indexOf(previous);
+        if (same >= 0) {
+            return same;
+        }
         for (int index = 0; index < problems.size(); index++) {
-            if (problems.get(index).netId().equals(currentNet)) {
-                current = index;
-                break;
+            if (problems.get(index).netId().equals(previous.netId())) {
+                return index;
             }
         }
+        return -1;
     }
 
     public List<Problem> problems() {

@@ -12,6 +12,7 @@ import cl.almejo.vsim.core.simulation.DisplayBusOverride;
 import cl.almejo.vsim.core.simulation.DriverRef;
 import cl.almejo.vsim.core.simulation.FlatPinRef;
 import cl.almejo.vsim.core.simulation.WidthMismatch;
+import cl.almejo.vsim.core.tunnel.Tunnels;
 import cl.almejo.vsim.core.simulation.ShortCircuit;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.core.value.Value;
@@ -406,6 +407,25 @@ class ProblemsControllerTest {
         view.problems().showSnapshot(new SimulationSnapshot(1, openDocument.netlistToken(), 10, true, Map.of(),
                 Map.of(), List.of(elsewhere), Optional.empty()));
         assertThat(view.canvas().getToolTipText(hoverAt(120, 8))).startsWith("⚠ Anchos incompatibles: ");
+    }
+
+    @Test
+    void theMismatchTextBeforeASnapshotLeavesOutTunnelPins() {
+        // bus pin at (20, 1)
+        place(openDocument, StandardComponentTypes.BUS_SPLITTER, 20, 1, Map.of(StandardComponentTypes.WIDTH, 4));
+        Wire bus = new Wire(openDocument.document().newWireId(), new GridPoint(4, 1), new GridPoint(20, 1));
+        openDocument.execute(new AddWireCommand(bus));
+        // an entrada whose pin sits on the wire at (12, 1)
+        place(openDocument, StandardComponentTypes.TUNNEL_ENTRANCE, 12, 0, Map.of(Tunnels.NAME, "D"));
+
+        view.problems().showSnapshot(new SimulationSnapshot(1, openDocument.netlistToken(), 10, true, Map.of(),
+                Map.of(), List.of(), Optional.empty()));
+
+        // grid (8, 1): on the wire, left of the entrada's tag
+        assertThat(view.canvas().getToolTipText(hoverAt(64, 8)))
+                .startsWith("⚠ Anchos incompatibles: ")
+                .contains("Separador de bus (4 bits)", "Interruptor (1 bit)")
+                .doesNotContain("Túnel");
     }
 
     @Test

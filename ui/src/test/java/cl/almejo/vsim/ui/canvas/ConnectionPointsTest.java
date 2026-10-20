@@ -3,11 +3,16 @@ package cl.almejo.vsim.ui.canvas;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.CircuitDocument;
+import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
 import cl.almejo.vsim.core.library.InterfacePins;
+import cl.almejo.vsim.core.netlist.Netlist;
+import cl.almejo.vsim.core.netlist.NetlistCompiler;
+import cl.almejo.vsim.core.netlist.PinRef;
+import cl.almejo.vsim.core.tunnel.Tunnels;
 import org.junit.jupiter.api.Test;
 
 import java.awt.geom.Point2D;
@@ -62,23 +67,83 @@ class ConnectionPointsTest {
     void widthAtIsTheWidthOfTheInterfacePinOrSplitterBusPinThere() {
         place(StandardComponentTypes.INPUT_PIN, 0, 0, Map.of(InterfacePins.WIDTH, 8));
         place(StandardComponentTypes.BUS_SPLITTER, 20, 0, Map.of());
-        assertThat(points.widthAt(document, registry.typeOf(document.components().get(0))
+        assertThat(widthAt(registry.typeOf(document.components().get(0))
                 .pinLocation(document.components().get(0), 0))).isEqualTo(8);
-        assertThat(points.widthAt(document, new GridPoint(20, 0))).isEqualTo(8);
-        assertThat(points.widthAt(document, new GridPoint(22, 1))).isEqualTo(1);
+        assertThat(widthAt(new GridPoint(20, 0))).isEqualTo(8);
+        assertThat(widthAt(new GridPoint(22, 1))).isEqualTo(1);
     }
 
     @Test
     void widthAtIsOneForAGatePinAndForEmptySpace() {
         place(StandardComponentTypes.NOT, 0, 0);
-        assertThat(points.widthAt(document, new GridPoint(0, 2))).isEqualTo(1);
-        assertThat(points.widthAt(document, new GridPoint(50, 50))).isEqualTo(1);
+        assertThat(widthAt(new GridPoint(0, 2))).isEqualTo(1);
+        assertThat(widthAt(new GridPoint(50, 50))).isEqualTo(1);
     }
 
     @Test
     void widthAtIsTheWidestWhenPinsOfDifferentWidthsShareAPoint() {
         place(StandardComponentTypes.NOT, 0, 0);
         place(StandardComponentTypes.BUS_SPLITTER, 0, 2);
-        assertThat(points.widthAt(document, new GridPoint(0, 2))).isEqualTo(8);
+        assertThat(widthAt(new GridPoint(0, 2))).isEqualTo(8);
+    }
+
+    @Test
+    void widthAtATunnelsPinIsTheWidthOfItsNet() {
+        place(StandardComponentTypes.INPUT_PIN, 0, 0, Map.of(InterfacePins.WIDTH, 8));
+        GridPoint bus = registry.typeOf(document.components().get(0)).pinLocation(document.components().get(0), 0);
+        Component entrance = tunnelWithPinAt(StandardComponentTypes.TUNNEL_ENTRANCE, "D", bus);
+        Component exit = tunnelWithPinAt(StandardComponentTypes.TUNNEL_EXIT, "D", new GridPoint(40, 41));
+        Component lone = tunnelWithPinAt(StandardComponentTypes.TUNNEL_EXIT, "LONE", new GridPoint(40, 51));
+
+        assertThat(widthAt(pinOf(entrance))).isEqualTo(8);
+        assertThat(widthAt(pinOf(exit))).isEqualTo(8);
+        assertThat(widthAt(pinOf(lone))).isEqualTo(1);
+    }
+
+    @Test
+    void aTunnelsPinIsOpenWhenNothingIsDrawnAtItEvenIfItsNameJoinsItToOthers() {
+        Component entrance = tunnelWithPinAt(StandardComponentTypes.TUNNEL_ENTRANCE, "A", new GridPoint(0, 1));
+        Component exit = tunnelWithPinAt(StandardComponentTypes.TUNNEL_EXIT, "A", new GridPoint(40, 41));
+        assertThat(isOpen(entrance)).isTrue();
+        assertThat(isOpen(exit)).isTrue();
+
+        document.add(new Wire(document.newWireId(), new GridPoint(-10, 1), new GridPoint(0, 1)));
+        assertThat(isOpen(entrance)).isFalse();
+        assertThat(isOpen(exit)).isTrue();
+
+        place(StandardComponentTypes.LED, 39, 38); // its pin lands on the salida's, at (40, 41)
+        assertThat(isOpen(exit)).isFalse();
+    }
+
+    @Test
+    void anyOtherPinIsOpenWhenItsNetHoldsNothingElse() {
+        place(StandardComponentTypes.NOT, 0, 0);
+        Component gate = document.components().get(0);
+        assertThat(isOpen(gate)).isTrue();
+
+        document.add(new Wire(document.newWireId(), new GridPoint(-10, 2), new GridPoint(0, 2)));
+        assertThat(isOpen(gate)).isFalse();
+    }
+
+    private int widthAt(GridPoint point) {
+        return points.widthAt(document, new NetlistCompiler(registry).compile(document), point);
+    }
+
+    private boolean isOpen(Component component) {
+        Netlist netlist = new NetlistCompiler(registry).compile(document);
+        return points.isOpen(document, component, 0, netlist.netForPin(new PinRef(component.id(), 0)));
+    }
+
+    private GridPoint pinOf(Component component) {
+        return registry.typeOf(component).pinLocation(component, 0);
+    }
+
+    private Component tunnelWithPinAt(String typeId, String name, GridPoint pin) {
+        Component atOrigin = registry.require(typeId).newComponent(document.newComponentId(), GridPoint.ORIGIN,
+                Rotation.R0, Map.of(Tunnels.NAME, name), "");
+        GridPoint offset = pinOf(atOrigin);
+        Component placed = atOrigin.translate(pin.x() - offset.x(), pin.y() - offset.y());
+        document.add(placed);
+        return placed;
     }
 }

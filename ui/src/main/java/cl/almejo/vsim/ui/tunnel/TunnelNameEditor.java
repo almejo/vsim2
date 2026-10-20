@@ -53,9 +53,7 @@ public final class TunnelNameEditor {
     }
 
     private void rename(ElementId id, String newName) {
-        TunnelNames.renameCommand(openDocument, id, newName).ifPresent(command -> {
-            openDocument.execute(command);
-            TunnelNames.rememberEntrance(openDocument, id, newName);
-        });
+        TunnelNames.renameCommand(openDocument, id, newName).ifPresent(command ->
+                TunnelNames.executeRemembering(openDocument, id, () -> openDocument.execute(command)));
     }
 }
