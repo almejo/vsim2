@@ -128,6 +128,39 @@ class GroupsPanelPracticeTest {
     }
 
     @Test
+    void theSolutionWizardsMapStartsRightBelowTheInsetsAsBeforeThePractice() {
+        KarnaughWizard solution = new KarnaughWizard(new KarnaughModel(), KarnaughCost.GENERATOR,
+                new FakeCreationTarget(), Background.inline());
+        solution.goTo(KarnaughWizard.Step.GROUPS);
+        GroupsPanel groups = solution.groupsPanel();
+        groups.setSize(1000, 700);
+        groups.doLayout();
+        Component tabs = java.util.Arrays.stream(groups.getComponents())
+                .filter(child -> child instanceof OutputTabs).findFirst().orElseThrow();
+        assertThat(tabs.getY()).isEqualTo(12);
+    }
+
+    @Test
+    void theHeaderAlsoTellsTheKeyboardGestures() {
+        practise(1);
+        assertThat(practicePanel.headerText()).contains("Mayús+flechas", "Enter");
+        panel.practiceFormButton(PRODUCT_OF_SUMS).doClick();
+        assertThat(practicePanel.headerText()).contains("Mayús+flechas", "Enter");
+    }
+
+    @Test
+    void aSpecialCaseThatTellsTheAnswerWaitsUntilTheOutputIsRevealed() {
+        // Only 1s and X: VSim takes the X as 1 and groups the whole map, which is the answer.
+        for (int row = 0; row < 8; row++) {
+            model.setValue(0, row, row == 5 ? LogicValue.DONT_CARE : LogicValue.ONE);
+        }
+        wizard.goTo(KarnaughWizard.Step.GROUPS);
+        assertThat(practicePanel.specialCaseText()).isEmpty();
+        model.practice().reveal(0, SUM_OF_PRODUCTS);
+        assertThat(practicePanel.specialCaseText()).isEqualTo(Messages.format("karnaugh.groups.alwaysOne", "F"));
+    }
+
+    @Test
     void thePracticeWizardShowsOnlyThePracticeWithNoModeControlAndKeepsTheGroupsAcrossSteps() {
         practise(1, 3, 5, 7);
         assertThat(wizard.mode()).isEqualTo(KarnaughWizard.Mode.PRACTICE);
@@ -240,6 +273,7 @@ class GroupsPanelPracticeTest {
         assertThat(practicePanel.hintText()).isEqualTo(Messages.text("karnaugh.practice.hint.group"));
         assertThat(model.practice().hintGroup()).contains(new Term(C, C));
         assertThat(practicePanel.hintsUsedText()).isEqualTo("2 pistas usadas");
+        assertThat(practicePanel.hintButton().isEnabled()).as("a third press would do nothing").isFalse();
         add(SUM_OF_PRODUCTS, group(C, C));
         assertThat(practicePanel.hintText()).isEmpty();
         assertThat(practicePanel.hintsUsedText()).isEqualTo("2 pistas usadas");

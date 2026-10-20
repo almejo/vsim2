@@ -44,6 +44,30 @@ class MessagesTest {
                 .containsExactlyInAnyOrderElementsOf(Messages.bundle(Messages.SPANISH).keySet());
     }
 
+    /** A lone ' starts a MessageFormat quote, so a formatted text (one with {0}…) must write an apostrophe as ''. */
+    @Test
+    void everyApostropheInAFormattedTextIsDoubled() {
+        Pattern argument = Pattern.compile("\\{\\d");
+        for (Locale locale : List.of(Messages.SPANISH, Locale.ENGLISH)) {
+            ResourceBundle bundle = Messages.bundle(locale);
+            List<String> lone = new ArrayList<>();
+            for (String key : bundle.keySet()) {
+                String value = bundle.getString(key);
+                if (argument.matcher(value).find() && value.replace("''", "").contains("'")) {
+                    lone.add(key);
+                }
+            }
+            assertThat(lone).as("formatted texts with a lone apostrophe in %s", locale).isEmpty();
+        }
+    }
+
+    @Test
+    void theGiveUpQuestionKeepsItsApostropheInEnglish() {
+        Messages.initialize(Locale.ENGLISH);
+        assertThat(Messages.format("karnaugh.practice.giveUp.message", "F"))
+                .isEqualTo("See VSim's solution for F? You can keep practising afterwards.");
+    }
+
     @Test
     void everyLiteralKeyUsedInTheSourcesExists() throws IOException {
         assertThat(missing(literalKeysIn(Path.of("src/main/java"), KEY_USAGE))).isEmpty();

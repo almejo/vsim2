@@ -306,6 +306,15 @@ public final class KarnaughModel {
     }
 
     /**
+     * Whether step 4 shows exactly what «Crear» builds, so its cost line can be shown: always outside the practice; in
+     * the practice wizard only when no output whose solution was not revealed would be built from VSim's terms (an
+     * incomplete cover, «Usar mis grupos» off, an output not practised), else the cost would hint at VSim's answer.
+     */
+    boolean showsWhatCrearBuilds() {
+        return shownMinimization().equals(effectiveMinimization());
+    }
+
+    /**
      * Whether step 4 says «F: todavía sin grupos» for output {@code output}: in the practice wizard, not revealed, no
      * groups drawn in the chosen form, and the table needs some (an output that needs none shows its constant).
      */

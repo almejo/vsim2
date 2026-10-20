@@ -180,7 +180,9 @@ final class PracticePanel extends JPanel {
         notice.setText(dropped.isEmpty() ? "" : Messages.format("karnaugh.practice.tableChanged",
                 String.join(", ", dropped)));
         notice.setVisible(!dropped.isEmpty());
-        Optional<String> special = KarnaughTexts.specialCase(model.minimization(), output);
+        // A table with X may hide its answer in the special case («F = 1» uses the X): only once revealed.
+        Optional<String> special = practice.revealed(output, form) || !hasDontCare(spec, output)
+                ? KarnaughTexts.specialCase(model.minimization(), output) : Optional.empty();
         specialCase.setText(special.orElse(""));
         specialCase.setVisible(special.isPresent());
 
@@ -203,7 +205,8 @@ final class PracticePanel extends JPanel {
                     : "karnaugh.practice.remaining.pos", uncovered));
         }
 
-        hintButton.setEnabled(uncovered > 0);
+        // After the second press (the group shows) another press does nothing until the groups change.
+        hintButton.setEnabled(uncovered > 0 && practice.hintGroup().isEmpty());
         String hintLine = practice.hintGroup().isPresent() ? Messages.text("karnaugh.practice.hint.group")
                 : practice.hintRow().isPresent() ? Messages.text("karnaugh.practice.hint.cell") : "";
         hint.setText(hintLine);
@@ -221,6 +224,15 @@ final class PracticePanel extends JPanel {
         showReview(spec, output, form, result);
         revalidate();
         repaint();
+    }
+
+    private static boolean hasDontCare(TruthTableSpec spec, int output) {
+        for (int row = 0; row < spec.rowCount(); row++) {
+            if (spec.value(output, row) == LogicValue.DONT_CARE) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private void rebuildLegend(List<DrawnGroup> groups, List<GroupCheck.Result> verdicts, TruthTableSpec spec,

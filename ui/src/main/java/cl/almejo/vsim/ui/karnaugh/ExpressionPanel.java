@@ -28,7 +28,8 @@ import java.util.Optional;
  * {@link KarnaughModel#shownMinimization()}; and once the student drew groups «Usar mis grupos» shows: on (by default)
  * while every practised output's groups cover the table, the expressions, colours and cost (and step 5's «Crear») use
  * {@link KarnaughModel#effectiveMinimization()}; otherwise it is off with the reason. The cost line is always what
- * «Crear» builds.
+ * «Crear» builds; in practice it waits (with a line saying so) while that would count VSim's terms for an output not
+ * revealed, see {@link KarnaughModel#showsWhatCrearBuilds()}.
  */
 final class ExpressionPanel extends JPanel implements WizardStep {
 
@@ -116,7 +117,10 @@ final class ExpressionPanel extends JPanel implements WizardStep {
         }
         expressions.revalidate();
         expressions.repaint();
-        costLabel.setText(CostLine.text(cost.gatesByType(model.effectiveMinimization(), options)));
+        boolean costShown = model.showsWhatCrearBuilds();
+        costLabel.setText(costShown ? CostLine.text(cost.gatesByType(model.effectiveMinimization(), options))
+                : Messages.text("karnaugh.practice.costHidden"));
+        costLabel.setFont(costLabel.getFont().deriveFont(costShown ? Font.BOLD : Font.PLAIN));
     }
 
     /** «Usar mis grupos»: only after some practice; off with the reason while the student's groups miss something. */

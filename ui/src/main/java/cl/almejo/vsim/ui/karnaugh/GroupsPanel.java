@@ -78,7 +78,9 @@ final class GroupsPanel extends JPanel implements WizardStep {
     private boolean active;
 
     GroupsPanel(KarnaughModel model, HoverState hover) {
-        super(new MigLayout("insets 12, fill, hidemode 3", "[grow, fill][400!, fill]", "[][grow, fill]"));
+        // The solution wizard keeps step 3's layout from before the practice: no «Forma:» row.
+        super(new MigLayout("insets 12, fill, hidemode 3", "[grow, fill][400!, fill]",
+                model.practice().practising() ? "[][grow, fill]" : "[grow, fill]"));
         this.model = model;
         this.hover = hover;
         this.tabs = new OutputTabs(model, hover, true);
@@ -110,15 +112,17 @@ final class GroupsPanel extends JPanel implements WizardStep {
         scroll.setBorder(BorderFactory.createEmptyBorder());
         scroll.getVerticalScrollBar().setUnitIncrement(16);
         buildPracticeForm();
-        add(practiceForm, "span 2, growx");
-        add(tabs, "newline");
+        if (model.practice().practising()) {
+            add(practiceForm, "span 2, growx, wrap");
+        }
+        add(tabs);
         add(scroll);
         hover.addListener(this::explain);
         bindEscape();
         updateToggles();
     }
 
-    /** The practice's «Forma:» (the same option as step 4); hidden in the solution wizard. */
+    /** The practice's «Forma:» (the same option as step 4); not in the solution wizard's panel. */
     private void buildPracticeForm() {
         ButtonGroup forms = new ButtonGroup();
         practiceForm.add(new JLabel(Messages.text("karnaugh.practice.form")));

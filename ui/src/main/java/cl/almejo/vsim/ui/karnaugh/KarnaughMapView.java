@@ -53,8 +53,9 @@ import java.util.function.BooleanSupplier;
  * covering both; dragging out of an edge goes on from the opposite edge (a wrap group). A click on a cell adds a
  * one-cell group, a click on a group selects it (the smallest under the pointer), a click off the cells clears the
  * selection, Ctrl+click on a corner adds the four corners, Supr deletes the selected group. From the keyboard the
- * arrows move a cell cursor, Shift+arrows stretch a rectangle from it (wrapping too), Enter adds it and Escape drops
- * it. The selected group, the rectangle being drawn and the keyboard cursor are outlined with marching ants (along
+ * arrows move a cell cursor, Shift+arrows stretch a rectangle from it (wrapping too), Enter adds it (only while the
+ * keyboard is in use, else Enter is the wizard's «Siguiente») and Escape drops it, or else lets the selected group go
+ * (with neither, Escape reaches the window). The selected group, the rectangle being drawn and the keyboard cursor are outlined with marching ants (along
  * their closed sides), which move only while something is outlined and the map shows. The cells the form still needs
  * get a dotted ring, the hinted cell a stronger one and the hinted group a dashed outline.
  * Colours are read from the theme at paint time.
@@ -190,6 +191,7 @@ final class KarnaughMapView extends JComponent {
      * when the mode goes, and the ants run or stop.
      */
     void refreshPractice() {
+        fitCursor();
         boolean practising = practising();
         setFocusable(practising);
         if (!practising) {
@@ -231,10 +233,19 @@ final class KarnaughMapView extends JComponent {
         if (dragRectangle != null) {
             return Optional.of(dragRectangle);
         }
+        fitCursor();
         if (stretch != null) {
             return Optional.of(rectangle(cursor, cursor.row() + stretch[0], cursor.column() + stretch[1]));
         }
         return Optional.empty();
+    }
+
+    /**
+     * VSim's group drawn stronger (the one explained), outside the practice; none on the small solution map, which
+     * explains nothing.
+     */
+    OptionalInt explainedGroup() {
+        return followsPractice && hover.group() >= 0 ? OptionalInt.of(hover.group()) : OptionalInt.empty();
     }
 
     /** The keyboard's cell cursor. */
@@ -284,14 +295,17 @@ final class KarnaughMapView extends JComponent {
     void pointAt(Point point) {
         MapGeometry geometry = geometry();
         hover.setRow(geometry.tableRowAt(point).orElse(-1));
-        if (showGroups && !practising()) {
+        if (showGroups && followsPractice && !practising()) {
             groupAt(geometry, point).ifPresent(hover::setGroup);
         }
     }
 
-    /** A click at {@code point}, with groups: pins the group under it (or lets it go), unpins outside every group. */
+    /**
+     * A click at {@code point}, with groups: pins the group under it (or lets it go), unpins outside every group. The
+     * small solution map explains nothing, so it ignores clicks.
+     */
     void clickAt(Point point) {
-        if (!showGroups) {
+        if (!showGroups || !followsPractice) {
             return;
         }
         OptionalInt group = groupAt(geometry(), point);
@@ -439,10 +453,13 @@ final class KarnaughMapView extends JComponent {
         bind("practiceStretchDown", () -> stretchRectangle(1, 0), KeyEvent.VK_DOWN, InputEvent.SHIFT_DOWN_MASK);
         bind("practiceStretchLeft", () -> stretchRectangle(0, -1), KeyEvent.VK_LEFT, InputEvent.SHIFT_DOWN_MASK);
         bind("practiceStretchRight", () -> stretchRectangle(0, 1), KeyEvent.VK_RIGHT, InputEvent.SHIFT_DOWN_MASK);
-        bind("practiceAdd", this::addKeyboardRectangle, KeyEvent.VK_ENTER, 0);
+        // Enter adds only while the keyboard is in use (the cursor shows); after a click it reaches «Siguiente».
+        bindKeys("practiceAdd", this::addKeyboardRectangle, () -> keyboardActive || stretch != null,
+                KeyEvent.VK_ENTER);
         bindKeys("practiceDelete", this::deleteSelected, () -> model.practice().selected().isPresent(),
                 KeyEvent.VK_DELETE, KeyEvent.VK_BACK_SPACE);
-        bindKeys("practiceCancel", this::cancelKeyboardRectangle, () -> stretch != null, KeyEvent.VK_ESCAPE);
+        bindKeys("practiceCancel", this::cancelKeyboardRectangle,
+                () -> stretch != null || model.practice().selected().isPresent(), KeyEvent.VK_ESCAPE);
     }
 
     private void bind(String name, Runnable action, int keyCode, int modifiers) {
@@ -482,6 +499,7 @@ final class KarnaughMapView extends JComponent {
     }
 
     private void moveCursor(int rowDelta, int columnDelta) {
+        fitCursor();
         KarnaughLayout layout = karnaughLayout();
         stretch = null;
         cursor = new KarnaughLayout.GridCell(Math.floorMod(cursor.row() + rowDelta, layout.rows()),
@@ -489,6 +507,7 @@ final class KarnaughMapView extends JComponent {
     }
 
     private void stretchRectangle(int rowDelta, int columnDelta) {
+        fitCursor();
         KarnaughLayout layout = karnaughLayout();
         if (stretch == null) {
             stretch = new int[2];
@@ -505,8 +524,25 @@ final class KarnaughMapView extends JComponent {
         addGroup(group);
     }
 
+    /** Esc: drops the stretched rectangle, else lets the selected group go (only then Esc reaches the window). */
     private void cancelKeyboardRectangle() {
-        stretch = null;
+        if (stretch != null) {
+            stretch = null;
+        } else {
+            model.practice().clearSelection();
+        }
+    }
+
+    /**
+     * Fewer inputs make a smaller map while this view stays: a cursor left outside it goes back to the first cell and
+     * the stretched rectangle goes.
+     */
+    private void fitCursor() {
+        KarnaughLayout layout = karnaughLayout();
+        if (cursor.row() >= layout.rows() || cursor.column() >= layout.columns()) {
+            cursor = new KarnaughLayout.GridCell(0, 0);
+            stretch = null;
+        }
     }
 
     private void deleteSelected() {
@@ -682,7 +718,7 @@ final class KarnaughMapView extends JComponent {
         for (int position = 0; position < order.size(); position++) {
             int index = order.get(position);
             boolean explained = practice ? selected.isPresent() && selected.getAsInt() == index
-                    : index == hover.group();
+                    : explainedGroup().equals(OptionalInt.of(index));
             int colour = practice ? index : model.colorIndex(output, index);
             for (Rectangle2D piece : geometry.pieces(groups.get(index), inset(position))) {
                 RoundRectangle2D shape = new RoundRectangle2D.Double(piece.getX(), piece.getY(), piece.getWidth(),

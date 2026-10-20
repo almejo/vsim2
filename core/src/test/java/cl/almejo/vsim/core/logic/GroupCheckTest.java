@@ -174,6 +174,84 @@ class GroupCheckTest {
     }
 
     @Test
+    void aRingOfGroupsCoveringEachOtherKeepsEnoughOfThemToCoverEverything() {
+        // 3 inputs, A' all 1s: the pairs m0m1, m1m3, m3m2, m2m0 cover every 1 twice. Judged from the last drawn to
+        // the first, the last and the second sobran; the first and the third stay (and can grow to A').
+        TruthTableSpec spec = spec(3, List.of(LogicValue.ONE, LogicValue.ONE, LogicValue.ONE, LogicValue.ONE,
+                LogicValue.ZERO, LogicValue.ZERO, LogicValue.ZERO, LogicValue.ZERO));
+        KarnaughLayout layout = KarnaughLayout.of(3);
+        List<Set<GridCell>> ring = List.of(layout.drawn(0, 0, 1, 2).cells(), layout.drawn(0, 1, 1, 2).cells(),
+                layout.drawn(0, 2, 1, 2).cells(), layout.drawn(0, 3, 1, 2).cells());
+
+        List<Result> results = GroupCheck.checkAll(spec, 0, Form.SUM_OF_PRODUCTS, ring);
+
+        assertThat(results).extracting(Result::verdict).containsExactly(Verdict.CAN_GROW, Verdict.REDUNDANT,
+                Verdict.CAN_GROW, Verdict.REDUNDANT);
+        assertThat(results.getFirst().largerTerm()).contains(new Term(0b100, 0));
+    }
+
+    @Test
+    void checkAllAgreesWithABruteForceAndTheGroupsThatStayCoverWhatAllTheValidOnesCover() {
+        Random random = new Random(20261020L);
+        for (int inputCount = 2; inputCount <= 4; inputCount++) {
+            KarnaughLayout layout = KarnaughLayout.of(inputCount);
+            List<Set<GridCell>> rectangles = everyDrawnRectangle(layout);
+            for (int sample = 0; sample < 600; sample++) {
+                TruthTableSpec spec = spec(inputCount, randomValues(random, 1 << inputCount, sample % 5 == 0 ? 0.0
+                        : 0.25));
+                Form form = sample % 2 == 0 ? Form.SUM_OF_PRODUCTS : Form.PRODUCT_OF_SUMS;
+                LogicValue wanted = form == Form.SUM_OF_PRODUCTS ? LogicValue.ONE : LogicValue.ZERO;
+                List<Set<GridCell>> groups = new ArrayList<>();
+                int groupCount = 1 + random.nextInt(6);
+                for (int index = 0; index < groupCount; index++) {
+                    groups.add(rectangles.get(random.nextInt(rectangles.size())));
+                }
+
+                List<Result> actual = GroupCheck.checkAll(spec, 0, form, groups);
+
+                // The rule: from the last group to the first, each against the others not already redundant.
+                Result[] expected = new Result[groups.size()];
+                for (int index = groups.size() - 1; index >= 0; index--) {
+                    List<Set<GridCell>> others = new ArrayList<>();
+                    for (int otherIndex = 0; otherIndex < groups.size(); otherIndex++) {
+                        if (otherIndex != index && (expected[otherIndex] == null
+                                || expected[otherIndex].verdict() != Verdict.REDUNDANT)) {
+                            others.add(groups.get(otherIndex));
+                        }
+                    }
+                    expected[index] = bruteForce(layout, spec, form, groups.get(index), others);
+                }
+                assertThat(actual).as("%d inputs, %s, groups %s, values %s", inputCount, form, groups,
+                        spec.outputs().get(0)).containsExactly(expected);
+
+                Set<GridCell> coveredByValid = new HashSet<>();
+                Set<GridCell> coveredByKept = new HashSet<>();
+                for (int index = 0; index < groups.size(); index++) {
+                    Verdict verdict = actual.get(index).verdict();
+                    if (!verdict.isInvalid()) {
+                        coveredByValid.addAll(required(layout, spec, groups.get(index), wanted));
+                        if (verdict != Verdict.REDUNDANT) {
+                            coveredByKept.addAll(required(layout, spec, groups.get(index), wanted));
+                        }
+                    }
+                }
+                assertThat(coveredByKept).as("what the groups that stay cover").isEqualTo(coveredByValid);
+            }
+        }
+    }
+
+    private static Set<GridCell> required(KarnaughLayout layout, TruthTableSpec spec, Set<GridCell> cells,
+                                          LogicValue wanted) {
+        Set<GridCell> required = new HashSet<>();
+        for (GridCell cell : cells) {
+            if (valueAt(layout, spec, cell) == wanted) {
+                required.add(cell);
+            }
+        }
+        return required;
+    }
+
+    @Test
     void theWholeMapOfAConstantOneIsValid() {
         TruthTableSpec spec = spec(4, Collections.nCopies(16, LogicValue.ONE));
 

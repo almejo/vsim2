@@ -259,6 +259,81 @@ class KarnaughMapViewPracticeTest {
     }
 
     @Test
+    void aCursorLeftOutsideTheMapByFewerInputsGoesBackToTheFirstCell() {
+        key(KeyEvent.VK_LEFT, 0);
+        key(KeyEvent.VK_UP, 0);
+        assertThat(view.cursor()).isEqualTo(new KarnaughLayout.GridCell(3, 3));
+        key(KeyEvent.VK_RIGHT, InputEvent.SHIFT_DOWN_MASK);
+
+        model.setInputCount(3);
+        view.refreshPractice();
+
+        assertThat(view.cursor()).isEqualTo(new KarnaughLayout.GridCell(0, 0));
+        assertThat(view.pendingRectangle()).isEmpty();
+        key(KeyEvent.VK_ENTER, 0);
+        assertThat(groups()).containsExactly(layout().drawn(0, 0, 1, 1));
+        view.paint(new BufferedImage(400, 400, BufferedImage.TYPE_INT_ARGB).createGraphics());
+    }
+
+    @Test
+    void aCursorLeftOutsideTheMapIsFixedEvenBeforeTheMapIsRefreshed() {
+        key(KeyEvent.VK_LEFT, 0);
+        key(KeyEvent.VK_RIGHT, InputEvent.SHIFT_DOWN_MASK);
+        model.setInputCount(2);
+        assertThat(view.pendingRectangle()).isEmpty();
+        key(KeyEvent.VK_ENTER, 0);
+        assertThat(groups()).containsExactly(layout().drawn(0, 0, 1, 1));
+    }
+
+    @Test
+    void enterAddsAGroupOnlyWhileTheKeyboardIsInUseSoAfterAClickItReachesSiguiente() {
+        Action enter = boundAction(KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, 0));
+        assertThat(enter.isEnabled()).isFalse();
+        click(at(1, 1));
+        assertThat(enter.isEnabled()).isFalse();
+        key(KeyEvent.VK_RIGHT, 0);
+        assertThat(enter.isEnabled()).isTrue();
+        click(new Point(2, 2));
+        assertThat(enter.isEnabled()).isFalse();
+    }
+
+    @Test
+    void escapeLetsTheSelectedGroupGoBeforeItReachesTheWindow() {
+        Action escape = boundAction(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0));
+        click(at(1, 1));
+        assertThat(escape.isEnabled()).isFalse();
+        click(at(1, 1));
+        assertThat(practice.selected()).isEqualTo(OptionalInt.of(0));
+        assertThat(escape.isEnabled()).isTrue();
+
+        key(KeyEvent.VK_ESCAPE, 0);
+
+        assertThat(practice.selected()).isEmpty();
+        assertThat(groups()).hasSize(1);
+        assertThat(escape.isEnabled()).isFalse();
+    }
+
+    @Test
+    void theSmallSolutionMapEmphasisesNoGroupAndIgnoresTheMouseOnGroups() {
+        model.setValue(0, 6, LogicValue.ONE);
+        model.setValue(0, 7, LogicValue.ONE);
+        HoverState hover = new HoverState();
+        KarnaughMapView solution = new KarnaughMapView(model, hover, 0, true);
+        solution.setSize(400, 400);
+        solution.showSolutionOnly();
+        assertThat(solution.explainedGroup()).isEmpty();
+
+        KarnaughLayout.GridCell six = layout().cell(6);
+        MapGeometry geometry = solution.geometry();
+        Point inside = new Point(geometry.grid().x + six.column() * geometry.cellSize() + geometry.cellSize() / 2,
+                geometry.grid().y + six.row() * geometry.cellSize() + geometry.cellSize() / 2);
+        solution.pointAt(inside);
+        solution.clickAt(inside);
+        assertThat(hover.pinnedGroup()).isEqualTo(-1);
+        assertThat(solution.explainedGroup()).isEmpty();
+    }
+
+    @Test
     void theAntsRunOnlyWhileSomethingIsOutlinedAndTheMapShows() {
         assertThat(ticker.isRunning()).isFalse();
         click(at(0, 0));

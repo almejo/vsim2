@@ -122,9 +122,11 @@ class StudentGroupsTest {
         assertThat(model.usingStudentGroups()).isFalse();
         assertThat(expression.expressionTexts()).as("VSim's is not revealed yet")
                 .containsExactly("F = A'B + AC + BC");
-        assertThat(expression.costText()).isEqualTo(vsimCost);
+        assertThat(expression.costText()).as("VSim's cost is not revealed either")
+                .isEqualTo(Messages.text("karnaugh.practice.costHidden"));
         model.practice().reveal(0, SUM_OF_PRODUCTS);
         assertThat(expression.expressionTexts()).containsExactly("F = A'B + AC");
+        assertThat(expression.costText()).isEqualTo(vsimCost);
         expression.useMineCheckBox().doClick();
         assertThat(expression.expressionTexts()).containsExactly("F = A'B + AC + BC");
     }
@@ -144,6 +146,35 @@ class StudentGroupsTest {
         assertThat(expression.useMineCheckBox().isSelected()).isTrue();
         assertThat(expression.useMineReasonText()).isEmpty();
         assertThat(expression.expressionTexts()).containsExactly("F = A'B + AC");
+    }
+
+    @Test
+    void theCostLineWaitsUntilStepFourShowsWhatCrearBuilds() {
+        String hidden = Messages.text("karnaugh.practice.costHidden");
+        wizard.goTo(KarnaughWizard.Step.EXPRESSION);
+        assertThat(expression.costText()).as("no groups yet").isEqualTo(hidden);
+
+        model.practice().add(0, SUM_OF_PRODUCTS, group(A | B, B));
+        assertThat(expression.costText()).as("an incomplete cover: Crear would build VSim's").isEqualTo(hidden);
+
+        model.practice().reveal(0, SUM_OF_PRODUCTS);
+        assertThat(expression.costText()).isEqualTo(CostLine.text(KarnaughCost.GENERATOR.gatesByType(
+                model.minimization(), model.options())));
+    }
+
+    @Test
+    void theCostLineWaitsForEveryOutputWhoseTermsAreVsims() {
+        model.setOutputCount(2);
+        model.setValue(1, 0, LogicValue.ONE);
+        practiseWithAnExtraGroup();
+        wizard.goTo(KarnaughWizard.Step.EXPRESSION);
+        assertThat(model.usingStudentGroups()).isTrue();
+        assertThat(expression.costText()).as("G would be built from VSim's terms")
+                .isEqualTo(Messages.text("karnaugh.practice.costHidden"));
+
+        model.practice().reveal(1, SUM_OF_PRODUCTS);
+        assertThat(expression.costText()).isEqualTo(CostLine.text(KarnaughCost.GENERATOR.gatesByType(
+                model.effectiveMinimization(), model.options())));
     }
 
     @Test

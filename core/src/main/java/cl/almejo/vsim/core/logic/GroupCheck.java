@@ -94,23 +94,25 @@ public final class GroupCheck {
     }
 
     /**
-     * Judges every group of one output and form, each against the others. A group equal to an earlier one does not
-     * count against that earlier one, so of the same group drawn twice only the second is {@link Verdict#REDUNDANT}.
+     * Judges every group of one output and form, each against the others. Redundancy is judged from the last group
+     * drawn to the first, each against the other groups not already found {@link Verdict#REDUNDANT}: so of groups that
+     * cover each other (a ring of pairs, or the same group drawn twice) the later ones «sobran» and enough earlier
+     * ones stay to cover every cell the valid groups cover. Deleting every redundant group never uncovers a cell.
      */
     public static List<Result> checkAll(TruthTableSpec spec, int output, Form form, List<Set<GridCell>> groups) {
-        List<Result> results = new ArrayList<>();
-        for (int index = 0; index < groups.size(); index++) {
-            Set<GridCell> cells = groups.get(index);
+        Result[] results = new Result[groups.size()];
+        for (int index = groups.size() - 1; index >= 0; index--) {
             List<Set<GridCell>> others = new ArrayList<>();
             for (int otherIndex = 0; otherIndex < groups.size(); otherIndex++) {
-                Set<GridCell> other = groups.get(otherIndex);
-                if (otherIndex < index || otherIndex > index && !other.equals(cells)) {
-                    others.add(other);
+                boolean alreadyRedundant = results[otherIndex] != null
+                        && results[otherIndex].verdict() == Verdict.REDUNDANT;
+                if (otherIndex != index && !alreadyRedundant) {
+                    others.add(groups.get(otherIndex));
                 }
             }
-            results.add(check(spec, output, form, cells, others));
+            results[index] = check(spec, output, form, groups.get(index), others);
         }
-        return List.copyOf(results);
+        return List.of(results);
     }
 
     /** The prime implicants of the output for the form that cover at least one required cell. */
