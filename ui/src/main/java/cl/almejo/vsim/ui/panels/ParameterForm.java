@@ -4,8 +4,11 @@ import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.ParameterKind;
 import cl.almejo.vsim.core.component.ParameterProblem;
 import cl.almejo.vsim.core.component.ParameterSpec;
+import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
+import cl.almejo.vsim.core.tunnel.Tunnels;
 import cl.almejo.vsim.ui.clipboard.FragmentRefusingTransferHandler;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.tunnel.TunnelColorSwatches;
 import net.miginfocom.swing.MigLayout;
 
 import javax.swing.DefaultListCellRenderer;
@@ -51,7 +54,7 @@ public final class ParameterForm extends JPanel {
         this.type = type;
         this.initial = type.resolveParameters(currentParameters);
         for (ParameterSpec parameter : type.parameters()) {
-            JComponent editor = editorFor(parameter, initial.get(parameter.name()));
+            JComponent editor = editorFor(type, parameter, initial.get(parameter.name()));
             editor.setName(parameter.name());
             editors.put(parameter.name(), editor);
             JLabel label = new JLabel(labelText(parameter.name()));
@@ -201,6 +204,7 @@ public final class ParameterForm extends JPanel {
                     field.addFocusListener(onFocusLost);
                 }
                 case JComboBox<?> box -> box.addActionListener(event -> listener.run());
+                case TunnelColorSwatches swatches -> swatches.addChoiceListener(listener);
                 default -> throw new IllegalStateException("unexpected editor " + editor.getClass());
             }
         }
@@ -210,7 +214,11 @@ public final class ParameterForm extends JPanel {
         return ((JSpinner.DefaultEditor) spinner.getEditor()).getTextField();
     }
 
-    private static JComponent editorFor(ParameterSpec parameter, Object value) {
+    /** A tunnel entrada's colour is picked from swatches (spec §5); every other parameter by its kind. */
+    private static JComponent editorFor(ComponentType type, ParameterSpec parameter, Object value) {
+        if (type.id().equals(StandardComponentTypes.TUNNEL_ENTRANCE) && parameter.name().equals(Tunnels.COLOR)) {
+            return new TunnelColorSwatches((Integer) value);
+        }
         return switch (parameter.kind()) {
             case INTEGER -> {
                 JSpinner spinner = new JSpinner(new SpinnerNumberModel(((Integer) value).intValue(),
@@ -250,6 +258,7 @@ public final class ParameterForm extends JPanel {
             }
             case JTextField field -> field.getText();
             case JComboBox<?> box -> box.getSelectedItem();
+            case TunnelColorSwatches swatches -> swatches.selectedColor();
             default -> throw new IllegalStateException("unexpected editor " + editor.getClass());
         };
     }

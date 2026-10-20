@@ -4,11 +4,11 @@ import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
+import cl.almejo.vsim.ui.tunnel.NewTunnels;
 
 import java.awt.Cursor;
 import java.awt.Graphics2D;
 import java.awt.event.KeyEvent;
-import java.util.Map;
 
 /** Places a component where the user clicks, then returns to the default tool (Shift keeps placing). */
 public final class PlaceComponentTool implements Tool {
@@ -79,7 +79,8 @@ public final class PlaceComponentTool implements Tool {
     @Override
     public void paintOverlay(Graphics2D graphics, ToolContext context) {
         if (hover != null) {
-            context.paintGhost(graphics, type.newComponent(PREVIEW_ID, hover, rotation, Map.of(), ""));
+            context.paintGhost(graphics, type.newComponent(PREVIEW_ID, hover, rotation,
+                    NewTunnels.parameters(context.openDocument(), type), ""));
         }
     }
 

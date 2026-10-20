@@ -74,6 +74,30 @@ public record ColorScheme(Color background, Color grid, Color wireZero, Color wi
         return new Color((rgb & 0xFFFFFF) | ((isDark() ? DARK_TINT_ALPHA : LIGHT_TINT_ALPHA) << 24), true);
     }
 
+    /**
+     * The colour of a wire tunnel: its entrada's palette entry ({@code 0} .. {@code Tunnels.COLOR_COUNT - 1}), or grey
+     * for any other index ({@code Tunnels.NO_COLOR}: a salida without entrada). Like the frame tints, each colour has a
+     * light and a dark variant ({@link #isDark}), both readable on {@link #tunnelSurface()}.
+     */
+    public Color tunnelColor(int index) {
+        return new Color(TunnelPalette.rgb(index, isDark()));
+    }
+
+    /** The inside of a tunnel's tag: white on a light board, a dark grey on a dark one, whatever the scheme's fill. */
+    public Color tunnelSurface() {
+        return new Color(TunnelPalette.surface(isDark()));
+    }
+
+    /** The hole of a tunnel's tag, where its wire goes in. */
+    public Color tunnelHole() {
+        return new Color(TunnelPalette.hole(isDark()));
+    }
+
+    /** The thin light rim around a tunnel's hole. */
+    public Color tunnelHoleRim() {
+        return new Color(TunnelPalette.holeRim(isDark()));
+    }
+
     /** The border of a frame. */
     public Color frameBorder() {
         return new Color((componentStroke.getRGB() & 0xFFFFFF) | (BORDER_ALPHA << 24), true);

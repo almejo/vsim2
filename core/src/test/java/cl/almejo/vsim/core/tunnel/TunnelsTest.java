@@ -103,6 +103,18 @@ class TunnelsTest {
     }
 
     @Test
+    void theColoursByNameTakeTheFirstEntranceOfEachName() {
+        Component first = circuit.entrance("CLK", 5, new GridPoint(0, 0));
+        circuit.entrance("CLK", 2, new GridPoint(0, 10));
+        circuit.entrance("SEL", 1, new GridPoint(0, 20));
+        Component exit = circuit.exit("ORPHAN", new GridPoint(0, 30));
+
+        assertThat(Tunnels.colorsByName(circuit.document())).isEqualTo(Map.of("CLK", 5, "SEL", 1));
+        assertThat(Tunnels.colorParameterOf(circuit.component(first.id()))).isEqualTo(5);
+        assertThat(Tunnels.colorParameterOf(circuit.component(exit.id()))).isEqualTo(Tunnels.NO_COLOR);
+    }
+
+    @Test
     void anExitHasNoColourParameter() {
         ComponentType exit = circuit.registry().require(StandardComponentTypes.TUNNEL_EXIT);
         ComponentType entrance = circuit.registry().require(StandardComponentTypes.TUNNEL_ENTRANCE);

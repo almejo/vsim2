@@ -13,6 +13,7 @@ import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.netlist.Net;
 import cl.almejo.vsim.core.netlist.PinRef;
+import cl.almejo.vsim.core.tunnel.Tunnels;
 import cl.almejo.vsim.ui.frames.FramePainter;
 import cl.almejo.vsim.ui.paint.Appearance;
 import cl.almejo.vsim.ui.paint.ColorScheme;
@@ -21,6 +22,7 @@ import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.paint.PainterSupport;
 import cl.almejo.vsim.ui.paint.TextFonts;
 import cl.almejo.vsim.ui.paint.SignalColors;
+import cl.almejo.vsim.ui.paint.TunnelPainter;
 
 import java.awt.AlphaComposite;
 import java.awt.BasicStroke;
@@ -184,10 +186,17 @@ public final class CircuitRenderer {
             graphics.fill(circle(junction, busPoints.contains(junction) ? BUS_JUNCTION_RADIUS : JUNCTION_RADIUS));
         }
 
+        Map<String, Integer> tunnelColors = Tunnels.colorsByName(state.document());
         for (Component component : state.document().components()) {
             ComponentType type = registry.typeOf(component);
-            ComponentDrawing.paint(graphics, type, component, state.snapshot().componentState(component.id().value()),
-                    scheme, painters);
+            if (painters.painterFor(type.id()) instanceof TunnelPainter tunnelPainter) {
+                TunnelPainter.Look look = tunnelLook(component, state, tunnelColors);
+                ComponentDrawing.paintPlaced(graphics, component,
+                        local -> tunnelPainter.paint(local, component, look, scheme));
+            } else {
+                ComponentDrawing.paint(graphics, type, component,
+                        state.snapshot().componentState(component.id().value()), scheme, painters);
+            }
             if (highlight.components().contains(component.id())) {
                 graphics.setStroke(CONFLICT_OUTLINE);
                 graphics.setColor(scheme.wireConflict());
@@ -212,6 +221,19 @@ public final class CircuitRenderer {
         }
         paintPinWidths(graphics, mismatches);
         paintOpenPins(graphics, state);
+    }
+
+    /**
+     * How a tunnel looks this frame: a salida takes its entrada's colour (grey without one), and the stub is drawn
+     * like the wire it joins, in its net's state colour and thick when that net is a bus. The tunnel's pin has no
+     * width of its own, so the width is the net's.
+     */
+    private TunnelPainter.Look tunnelLook(Component tunnel, RenderState state, Map<String, Integer> tunnelColors) {
+        ColorScheme scheme = scheme();
+        Optional<Net> net = state.netlist().netForPin(new PinRef(tunnel.id(), 0));
+        return new TunnelPainter.Look(scheme.tunnelColor(TunnelPainter.colorIndex(tunnel, tunnelColors)),
+                SignalColors.wireColor(net, state.snapshot(), state.netlistToken(), scheme),
+                net.map(found -> found.width() > 1).orElse(false));
     }
 
     /** Frames under everything else, the larger first so a nested frame's tint shows over its parent's. */

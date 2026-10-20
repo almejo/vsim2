@@ -174,11 +174,24 @@ public final class Tunnels {
 
     /** The colour of {@code name}: its entrada's (the first in document order), or {@link #NO_COLOR} without one. */
     public static int colorOf(CircuitDocument document, String name) {
-        return entrances(document).stream()
-                .filter(entrance -> nameOf(entrance).equals(name))
-                .findFirst()
-                .map(Tunnels::colorParameter)
-                .orElse(NO_COLOR);
+        return colorsByName(document).getOrDefault(name, NO_COLOR);
+    }
+
+    /**
+     * The colour of every name that has an entrada (the first entrada's, in document order), in one pass over the
+     * document: what a frame needs to colour each salida like its entrada. Names without entrada are absent.
+     */
+    public static Map<String, Integer> colorsByName(CircuitDocument document) {
+        Map<String, Integer> colors = new HashMap<>();
+        for (Component entrance : entrances(document)) {
+            colors.putIfAbsent(nameOf(entrance), colorParameter(entrance));
+        }
+        return Collections.unmodifiableMap(colors);
+    }
+
+    /** The palette colour of an entrada component (its parameter), or {@link #NO_COLOR} for a salida. */
+    public static int colorParameterOf(Component tunnel) {
+        return kindOf(tunnel).orElse(null) == TunnelKind.ENTRANCE ? colorParameter(tunnel) : NO_COLOR;
     }
 
     /**

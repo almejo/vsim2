@@ -136,6 +136,35 @@ public final class PainterSupport {
         }
     }
 
+    /**
+     * Draws {@code text} centred in the local {@code box}, along the box's local x axis and readable on screen: left to
+     * right when that axis is horizontal on screen (never upside down), bottom to top when it is vertical (a tunnel
+     * turned 90° or 270°). The font shrinks below {@code size} when the text would not fit the box's length.
+     */
+    static void textAlong(Graphics2D graphics, String text, Rectangle2D box, float size, Color color) {
+        double centerX = box.getCenterX();
+        double centerY = box.getCenterY();
+        Graphics2D along = (Graphics2D) graphics.create();
+        try {
+            along.rotate(-quarterTurns(graphics) * Math.PI / 2, centerX, centerY);
+            if (turnedSideways(graphics)) {
+                along.rotate(-Math.PI / 2, centerX, centerY);
+            }
+            Font font = BASE_FONT.deriveFont(size);
+            double width = along.getFontMetrics(font).getStringBounds(text, along).getWidth();
+            if (width > box.getWidth()) {
+                font = BASE_FONT.deriveFont((float) (size * box.getWidth() / width));
+            }
+            along.setFont(font);
+            along.setColor(color);
+            FontMetrics metrics = along.getFontMetrics();
+            along.drawString(text, (float) (centerX - metrics.getStringBounds(text, along).getWidth() / 2),
+                    (float) (centerY + (metrics.getAscent() - metrics.getDescent()) / 2.0));
+        } finally {
+            along.dispose();
+        }
+    }
+
     /** The rotation of {@code graphics}' transform in quarter turns, from -2 to 2 (0 and ±2: texts run along local x). */
     static int quarterTurns(Graphics2D graphics) {
         AffineTransform transform = graphics.getTransform();

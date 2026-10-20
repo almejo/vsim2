@@ -37,6 +37,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.Set;
@@ -70,6 +71,7 @@ public final class OpenDocument implements AutoCloseable {
     private Map<String, String> probeNets = Map.of();
     private long changeCount;
     private boolean stepMode;
+    private String lastTunnelEntranceName;
     /** Whether the simulated circuit has a clock, also inside a user component (M6.1-B); set with each recompile. */
     private boolean hasClock;
     private final List<Runnable> stepModeListeners = new CopyOnWriteArrayList<>();
@@ -293,6 +295,18 @@ public final class OpenDocument implements AutoCloseable {
     /** «Limpiar trazas»: drops the recorded events and keeps the channels. */
     public void clearWaveforms() {
         simulation.clearWaveforms();
+    }
+
+    /**
+     * The name of the last tunnel entrada placed or renamed in this document during this session, which a new salida
+     * proposes (spec §2); empty until there is one.
+     */
+    public Optional<String> lastTunnelEntranceName() {
+        return Optional.ofNullable(lastTunnelEntranceName);
+    }
+
+    public void rememberTunnelEntranceName(String name) {
+        lastTunnelEntranceName = Objects.requireNonNull(name);
     }
 
     /** «Paso a paso» (M6.1-B): a session mode of the document, shared by all its views; off when opened. */

@@ -15,10 +15,12 @@ import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.library.ExampleDefinitions;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
+import cl.almejo.vsim.core.tunnel.Tunnels;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.Selection;
 import cl.almejo.vsim.ui.clipboard.FragmentTransferable;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.tunnel.TunnelColorSwatches;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -128,6 +130,30 @@ class PropertiesPanelTest {
         ((JSpinner) panel.parameterForm().editor("delay")).setValue(5);
         assertThat(current(gate).parameters()).containsEntry("delay", 5);
         assertThat(openDocument.history().undoDescription()).contains("command.configure");
+    }
+
+    @Test
+    void choosingATunnelSwatchRecoloursTheEntradaInOneStep() {
+        Component entrance = place(openDocument, StandardComponentTypes.TUNNEL_ENTRANCE, 0, 0,
+                Map.of(Tunnels.NAME, "CLK"));
+        selection.select(entrance.id());
+        TunnelColorSwatches swatches = (TunnelColorSwatches) panel.parameterForm().editor(Tunnels.COLOR);
+        assertThat(swatches.selectedColor()).isZero();
+
+        swatches.swatch(5).doClick();
+
+        assertThat(current(entrance).parameters()).containsEntry(Tunnels.COLOR, 5);
+        assertThat(openDocument.history().undoDescription()).contains("command.configure");
+        openDocument.history().undo();
+        assertThat(current(entrance).parameters()).containsEntry(Tunnels.COLOR, 0);
+        assertThat(openDocument.history().undoDescription()).contains("command.add");
+    }
+
+    @Test
+    void aTunnelSalidaHasNoColourToChoose() {
+        Component exit = place(openDocument, StandardComponentTypes.TUNNEL_EXIT, 0, 0, Map.of(Tunnels.NAME, "CLK"));
+        selection.select(exit.id());
+        assertThat(panel.parameterForm().editor(Tunnels.COLOR)).isNull();
     }
 
     @Test

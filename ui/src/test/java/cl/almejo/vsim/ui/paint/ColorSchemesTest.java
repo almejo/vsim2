@@ -1,6 +1,7 @@
 package cl.almejo.vsim.ui.paint;
 
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.core.tunnel.Tunnels;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -24,6 +25,8 @@ class ColorSchemesTest {
     private static final double PORT_LEGIBLE = 1.5;
     /** Text on the component fill of a port (a fill we chose): Twilight's blue labels reach 3.96 on its dark fill. */
     private static final double PORT_TEXT_ON_FILL = 3.0;
+    /** A tunnel's name and hole against the inside of its tag (WCAG large or bold text). */
+    private static final double TUNNEL_TEXT = 3.0;
 
     private static final List<ColorScheme> ALL = List.of(ColorSchemes.CLASSIC, ColorSchemes.LIGHT, ColorSchemes.DARK,
             ColorSchemes.PASTEL, ColorSchemes.CSIM, ColorSchemes.TWILIGHT);
@@ -163,6 +166,21 @@ class ColorSchemesTest {
         for (Function<ColorScheme, Color> state : WIRE_STATES) {
             assertThat(contrast(state.apply(ColorSchemes.DARK), ColorSchemes.DARK.background()))
                     .isGreaterThanOrEqualTo(DARK_WIRES);
+        }
+    }
+
+    @Test
+    void tunnelNamesAreReadableOnTheirTagAndTheColoursCanBeToldApart() {
+        for (ColorScheme scheme : ALL) {
+            for (int color = Tunnels.NO_COLOR; color < Tunnels.COLOR_COUNT; color++) {
+                assertThat(contrast(scheme.tunnelColor(color), scheme.tunnelSurface())).as("%s colour %d", scheme, color)
+                        .isGreaterThanOrEqualTo(TUNNEL_TEXT);
+                for (int other = color + 1; other < Tunnels.COLOR_COUNT; other++) {
+                    assertThat(distance(scheme.tunnelColor(color), scheme.tunnelColor(other)))
+                            .as("%s colours %d and %d", scheme, color, other).isGreaterThanOrEqualTo(DISTINCT);
+                }
+            }
+            assertThat(contrast(scheme.tunnelHoleRim(), scheme.tunnelHole())).isGreaterThanOrEqualTo(TUNNEL_TEXT);
         }
     }
 

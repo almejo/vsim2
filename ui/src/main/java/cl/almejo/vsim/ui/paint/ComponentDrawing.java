@@ -8,6 +8,7 @@ import cl.almejo.vsim.core.geometry.Bounds;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.geom.Rectangle2D;
+import java.util.function.Consumer;
 
 import static cl.almejo.vsim.ui.paint.PainterSupport.UNIT;
 
@@ -19,6 +20,16 @@ public final class ComponentDrawing {
     /** Paints {@code component} in document coordinates: moves to its origin and applies its rotation. */
     public static void paint(Graphics2D graphics, ComponentType type, Component component, VisibleState state,
                              ColorScheme scheme, PainterRegistry painters) {
+        paintPlaced(graphics, component,
+                local -> painters.painterFor(type.id()).paint(local, type, component.parameters(), state, scheme));
+    }
+
+    /**
+     * Runs {@code painting} in {@code component}'s local coordinates (moved to its origin and turned by its rotation),
+     * with antialiasing on: for a painter that needs more than {@link ComponentPainter} gives it (a tunnel's colour
+     * and wire come from the circuit).
+     */
+    public static void paintPlaced(Graphics2D graphics, Component component, Consumer<Graphics2D> painting) {
         Graphics2D local = (Graphics2D) graphics.create();
         try {
             local.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
@@ -27,7 +38,7 @@ public final class ComponentDrawing {
             local.translate(component.position().x() * UNIT, component.position().y() * UNIT);
             // Rotation.apply matches Java2D's rotate(+90°) on a y-down screen.
             local.rotate(component.rotation().quarterTurns() * Math.PI / 2);
-            painters.painterFor(type.id()).paint(local, type, component.parameters(), state, scheme);
+            painting.accept(local);
         } finally {
             local.dispose();
         }
