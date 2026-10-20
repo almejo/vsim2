@@ -139,4 +139,16 @@ class ShortcutCatalogTest {
                 "tools.circuitFromExpressions", "action.circuitFromExpressions", MenuId.TOOLS, Scope.WINDOW,
                 Optional.empty()));
     }
+
+    @Test
+    void exportPdfFollowsExportImageWithNoDefaultStrokeAndLeavesCtrlPFree() {
+        assertThat(ids()).containsSubsequence("file.exportImage", "file.exportPdf");
+        assertThat(ids().indexOf("file.exportPdf")).isEqualTo(ids().indexOf("file.exportImage") + 1);
+        ShortcutEntry entry = ShortcutCatalog.find("file.exportPdf").orElseThrow();
+        assertThat(entry.scope()).isEqualTo(Scope.WINDOW);
+        assertThat(entry.group()).isEqualTo(MenuId.FILE);
+        assertThat(entry.defaultStroke()).isEmpty();
+        KeyStroke print = KeyStroke.getKeyStroke(KeyEvent.VK_P, ShortcutCatalog.menuMask());
+        assertThat(ShortcutCatalog.entries()).noneMatch(each -> each.defaultStroke().equals(Optional.of(print)));
+    }
 }

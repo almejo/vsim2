@@ -86,6 +86,7 @@ Una línea por función; el detalle está en [docs/funciones.md](docs/funciones.
 
 - [Abrir y guardar](docs/funciones.md#abrir-y-guardar) circuitos de VSim 2 y del VSim original.
 - [Exportar imagen](docs/funciones.md#exportar-imagen) en PNG o SVG.
+- [Exportar a PDF](docs/funciones.md#exportar-a-pdf) vectorial, en una hoja o en varias para pegar, A4, Carta, Oficio o A3, también en blanco y negro.
 - [Importar componentes](docs/funciones.md#componentes-propios) a la librería y [tablas de verdad desde Excel o CSV](docs/funciones.md#importar-una-tabla-desde-excel-o-csv).
 
 ### Buscar

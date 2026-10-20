@@ -108,7 +108,7 @@ class ApplicationExtensionsTest {
         EditorView view = new EditorView(openDocument, services, NO_WINDOW);
         try {
             assertThat(texts(view.menu(MenuId.FILE))).containsExactly("Nuevo", "Abrir…", "Recientes", "Ejemplos",
-                    "Guardar", "Guardar como…", "Exportar imagen…", "---", "Importar", "---",
+                    "Guardar", "Guardar como…", "Exportar imagen…", "Exportar a PDF…", "---", "Importar", "---",
                     "Preferencias…", "---",
                     "Cerrar ventana", "Salir");
             JMenu importMenu = ImportMenu.find(view.menu(MenuId.FILE)).orElseThrow();

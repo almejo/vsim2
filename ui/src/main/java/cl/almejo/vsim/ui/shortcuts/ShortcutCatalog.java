@@ -55,6 +55,8 @@ public final class ShortcutCatalog {
         window(entries, "file.save", "action.save", MenuId.FILE, stroke(KeyEvent.VK_S, menu));
         window(entries, "file.saveAs", "action.saveAs", MenuId.FILE, stroke(KeyEvent.VK_S, menu | shift));
         window(entries, "file.exportImage", "action.exportImage", MenuId.FILE, null);
+        // no default: Ctrl/⌘+P stays free for «Imprimir…»
+        window(entries, "file.exportPdf", "action.exportPdf", MenuId.FILE, null);
         window(entries, "file.importTruthTable", "action.importTruthTable", MenuId.FILE, null);
         window(entries, "file.preferences", "action.preferences", MenuId.FILE, null);
         window(entries, "file.close", "action.close", MenuId.FILE, stroke(KeyEvent.VK_W, menu));
