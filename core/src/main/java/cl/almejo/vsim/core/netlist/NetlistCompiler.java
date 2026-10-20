@@ -7,6 +7,7 @@ import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
+import cl.almejo.vsim.core.tunnel.Tunnels;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -16,6 +17,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
+import java.util.Objects;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
@@ -26,7 +28,8 @@ import java.util.stream.Stream;
  * Each net is named {@code "n:" + anchor}, where the anchor is the smallest of {@code "w:" + wireId} and
  * {@code "p:" + componentId + "#" + pinIndex} over its wires and pins, so the id survives edits that keep it. Anchors
  * order pins before wires, then by the numeric part of the element id (so {@code c10} comes after {@code c9}), then by
- * pin index.
+ * pin index. Tunnel pins have no width of their own ({@link cl.almejo.vsim.core.component.PinSpec#ADAPTIVE_WIDTH}):
+ * a net's width comes from its other pins, and is one bit when it has none.
  */
 public final class NetlistCompiler {
 
@@ -36,25 +39,46 @@ public final class NetlistCompiler {
         this.registry = registry;
     }
 
+    /**
+     * The nets of {@code document}: what its wires and pins join, plus every tunnel joined to the other tunnels of the
+     * same name in this document (so names never cross a component boundary: each body is compiled on its own).
+     */
     public Netlist compile(CircuitDocument document) {
-        Map<GridPoint, List<PinRef>> pinsAtPoint = new LinkedHashMap<>();
-        Map<PinRef, Integer> pinWidths = new HashMap<>();
+        Connections connections = connect(document);
+        connections.joinTunnelsByName(document);
+        return connections.nets(document);
+    }
+
+    /** The nets as drawn: like {@link #compile} without joining tunnels by name (to tell a tunnel's wire side). */
+    public Netlist compileAsDrawn(CircuitDocument document) {
+        return connect(document).nets(document);
+    }
+
+    private Connections connect(CircuitDocument document) {
+        Connections connections = new Connections();
         for (Component component : document.components()) {
             ComponentType type = registry.typeOf(component);
             for (int pinIndex = 0; pinIndex < type.pinCount(); pinIndex++) {
                 PinRef pin = new PinRef(component.id(), pinIndex);
-                pinsAtPoint.computeIfAbsent(type.pinLocation(component, pinIndex), point -> new ArrayList<>()).add(pin);
-                pinWidths.put(pin, type.pin(pinIndex).width());
+                GridPoint location = type.pinLocation(component, pinIndex);
+                connections.pinsAtPoint.computeIfAbsent(location, point -> new ArrayList<>()).add(pin);
+                if (!type.pin(pinIndex).isAdaptiveWidth()) {
+                    connections.pinWidths.put(pin, type.pin(pinIndex).width());
+                }
+                if (Tunnels.isTunnel(component.typeId())) {
+                    connections.tunnelPins.put(component.id(), location);
+                }
             }
         }
 
-        Set<GridPoint> pointsOfInterest = new HashSet<>(pinsAtPoint.keySet());
+        Set<GridPoint> pointsOfInterest = connections.pointsOfInterest;
+        pointsOfInterest.addAll(connections.pinsAtPoint.keySet());
         for (Wire wire : document.wires()) {
             pointsOfInterest.add(wire.start());
             pointsOfInterest.add(wire.end());
         }
 
-        UnionFind unionFind = new UnionFind();
+        UnionFind unionFind = connections.unionFind;
         pointsOfInterest.forEach(unionFind::add);
         // points of interest by row and by column, so each wire finds the ones it contains with a range lookup
         Map<Integer, TreeMap<Integer, GridPoint>> rows = new HashMap<>();
@@ -71,22 +95,46 @@ public final class NetlistCompiler {
                 unionFind.union(wire.start(), point);
             }
         }
+        return connections;
+    }
 
-        Map<GridPoint, NetBuilder> builders = new LinkedHashMap<>();
-        for (GridPoint point : pointsOfInterest) {
-            builders.computeIfAbsent(unionFind.find(point), root -> new NetBuilder()).points.add(point);
-        }
-        pinsAtPoint.forEach((point, pins) -> builders.get(unionFind.find(point)).pins.addAll(pins));
-        for (Wire wire : document.wires()) {
-            builders.get(unionFind.find(wire.start())).wires.add(wire.id());
+    /** The grid points joined so far, with the pins on them; {@link #nets} turns them into nets. */
+    private static final class Connections {
+        final Map<GridPoint, List<PinRef>> pinsAtPoint = new LinkedHashMap<>();
+        /** Widths of the pins that have one (adaptive pins are left out, see {@link NetBuilder#build}). */
+        final Map<PinRef, Integer> pinWidths = new HashMap<>();
+        final Map<ElementId, GridPoint> tunnelPins = new LinkedHashMap<>();
+        final Set<GridPoint> pointsOfInterest = new HashSet<>();
+        final UnionFind unionFind = new UnionFind();
+
+        void joinTunnelsByName(CircuitDocument document) {
+            Map<String, GridPoint> firstOfName = new HashMap<>();
+            tunnelPins.forEach((tunnelId, location) -> {
+                String name = Tunnels.nameOf(document.component(tunnelId).orElseThrow());
+                GridPoint first = firstOfName.putIfAbsent(name, location);
+                if (first != null) {
+                    unionFind.union(first, location);
+                }
+            });
         }
 
-        List<Net> nets = new ArrayList<>();
-        for (NetBuilder builder : builders.values()) {
-            nets.add(builder.build(pinWidths));
+        Netlist nets(CircuitDocument document) {
+            Map<GridPoint, NetBuilder> builders = new LinkedHashMap<>();
+            for (GridPoint point : pointsOfInterest) {
+                builders.computeIfAbsent(unionFind.find(point), root -> new NetBuilder()).points.add(point);
+            }
+            pinsAtPoint.forEach((point, pins) -> builders.get(unionFind.find(point)).pins.addAll(pins));
+            for (Wire wire : document.wires()) {
+                builders.get(unionFind.find(wire.start())).wires.add(wire.id());
+            }
+
+            List<Net> nets = new ArrayList<>();
+            for (NetBuilder builder : builders.values()) {
+                nets.add(builder.build(pinWidths));
+            }
+            nets.sort(Comparator.comparing(net -> net.id().value()));
+            return Netlist.of(nets);
         }
-        nets.sort(Comparator.comparing(net -> net.id().value()));
-        return Netlist.of(nets);
     }
 
     private static final class NetBuilder {
@@ -96,7 +144,7 @@ public final class NetlistCompiler {
 
         Net build(Map<PinRef, Integer> pinWidths) {
             Set<Integer> widths = new HashSet<>();
-            pins.forEach(pin -> widths.add(pinWidths.get(pin)));
+            pins.stream().map(pinWidths::get).filter(Objects::nonNull).forEach(widths::add);
             int width = widths.stream().mapToInt(Integer::intValue).max().orElse(1);
             return new Net(new NetId("n:" + anchor()), pins, wires, points, width, widths.size() > 1);
         }

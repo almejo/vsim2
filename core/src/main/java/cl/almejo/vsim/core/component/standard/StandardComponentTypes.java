@@ -12,6 +12,8 @@ import cl.almejo.vsim.core.component.PinSpec;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.GridSize;
 import cl.almejo.vsim.core.library.InterfacePins;
+import cl.almejo.vsim.core.tunnel.TunnelKind;
+import cl.almejo.vsim.core.tunnel.Tunnels;
 import cl.almejo.vsim.core.value.Value;
 
 import java.util.ArrayList;
@@ -65,6 +67,10 @@ public final class StandardComponentTypes {
     public static final String DECODER = "decoder";
     public static final String REGISTER = "register";
     public static final String COUNTER = "counter";
+    /** «Túnel (entrada)»: gives its wire's signal a name (see {@link Tunnels}). */
+    public static final String TUNNEL_ENTRANCE = "tunnel-in";
+    /** «Túnel (salida)»: puts the signal of its name on its wire. */
+    public static final String TUNNEL_EXIT = "tunnel-out";
     /** The name of a 7-segment display's bus input. */
     public static final String DISPLAY_BUS_PIN = "bus";
     /** The parameter that sets a bus component's width in bits. */
@@ -78,6 +84,12 @@ public final class StandardComponentTypes {
     private static final ParameterSpec MUX_INPUTS = ParameterSpec.choice("inputs", "2", List.of("2", "4"));
     /** «Bits de entrada» of the decoder: 1..4 address bits, so 2..16 outputs. */
     private static final ParameterSpec DECODER_INPUT_BITS = ParameterSpec.integer("inputBits", 2, 1, 4);
+    /**
+     * Tunnels only join nets: the flattener leaves them out, so this behaviour never runs; it exists because every
+     * type has one.
+     */
+    private static final Behavior TUNNEL_BEHAVIOR = (context, pinIndex) -> {
+    };
 
     private StandardComponentTypes() {
     }
@@ -161,6 +173,10 @@ public final class StandardComponentTypes {
         registry.register(ComponentType.parameterized(BUS_JOINER, ComponentCategory.BASIC, List.of(BUS_WIDTH),
                 parameters -> busShape((Integer) parameters.get(WIDTH), true),
                 parameters -> new BusJoinerBehavior((Integer) parameters.get(WIDTH))));
+        for (TunnelKind kind : TunnelKind.values()) {
+            registry.register(ComponentType.parameterized(kind.typeId(), ComponentCategory.INPUT_OUTPUT,
+                    Tunnels.parameters(kind), Tunnels::shape, parameters -> TUNNEL_BEHAVIOR));
+        }
         registerBlocks(registry);
     }
 

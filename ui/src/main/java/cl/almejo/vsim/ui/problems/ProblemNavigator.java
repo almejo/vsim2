@@ -14,6 +14,7 @@ import cl.almejo.vsim.core.simulation.DisplayBusOverride;
 import cl.almejo.vsim.core.simulation.InstancePath;
 import cl.almejo.vsim.core.simulation.Problem;
 import cl.almejo.vsim.core.simulation.ShortCircuit;
+import cl.almejo.vsim.core.simulation.TunnelProblem;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.core.simulation.WidthMismatch;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
@@ -111,6 +112,7 @@ public final class ProblemNavigator {
             case ShortCircuit shortCircuit -> shortCircuit.drivers().forEach(driver -> ids.add(driver.componentId()));
             case WidthMismatch mismatch -> mismatch.pins().forEach(pin -> ids.add(pin.componentId()));
             case DisplayBusOverride display -> ids.add(display.componentId());
+            case TunnelProblem tunnel -> ids.addAll(tunnel.tunnels());
         }
         CircuitDocument document = canvas.openDocument().document();
         ComponentTypeRegistry registry = canvas.openDocument().registry();

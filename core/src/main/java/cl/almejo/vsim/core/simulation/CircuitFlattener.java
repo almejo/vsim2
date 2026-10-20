@@ -17,6 +17,8 @@ import cl.almejo.vsim.core.netlist.Net;
 import cl.almejo.vsim.core.netlist.Netlist;
 import cl.almejo.vsim.core.netlist.NetlistCompiler;
 import cl.almejo.vsim.core.netlist.PinRef;
+import cl.almejo.vsim.core.tunnel.TunnelChecks;
+import cl.almejo.vsim.core.tunnel.Tunnels;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -34,7 +36,8 @@ import java.util.concurrent.ConcurrentHashMap;
  * {@code c2} of instance {@code c5} becomes {@code c5/c2} ({@link InstancePath}), the instance itself disappears, and
  * each instance pin joins the outer net with the net of the matching interface pin inside. Interface pins inside an
  * instance become passive probes as wide as they are ({@link #interfaceProbe}), so their value stays visible under their own id. Merged nets keep
- * the id closest to the top level; the others become {@link FlatNet#aliases()}.
+ * the id closest to the top level; the others become {@link FlatNet#aliases()}. Tunnels are left out (the netlist
+ * already joined them by name); their problems, found per body, go in {@link FlatCircuit#tunnelProblems()}.
  */
 public final class CircuitFlattener {
 
@@ -70,17 +73,18 @@ public final class CircuitFlattener {
 
     public FlatCircuit flatten(CircuitDocument document, Netlist netlist) {
         Expansion expansion = new Expansion();
-        expansion.addLevel("", document.components(), netlist, 0);
-        return new FlatCircuit(document.revision(), expansion.components, expansion.flatNets());
+        expansion.addLevel("", document, netlist, 0);
+        return new FlatCircuit(document.revision(), expansion.components, expansion.flatNets(),
+                expansion.tunnelProblems);
     }
 
-    private record Body(List<Component> components, Netlist netlist) {
+    private record Body(CircuitDocument document, Netlist netlist) {
     }
 
     private Body compileBody(ComponentDefinition definition) {
         CircuitDocument body = new CircuitDocument();
         definition.body().elements().forEach(body::add);
-        return new Body(body.components(), compiler.compile(body));
+        return new Body(body, compiler.compile(body));
     }
 
     private static final class NetBuilder {
@@ -100,17 +104,24 @@ public final class CircuitFlattener {
         final Map<String, NetBuilder> nets = new LinkedHashMap<>();
         final Map<String, String> parents = new HashMap<>();
         final Map<ComponentDefinition, Body> bodies = new IdentityHashMap<>();
+        final List<TunnelProblem> tunnelProblems = new ArrayList<>();
 
-        void addLevel(String prefix, List<Component> levelComponents, Netlist levelNetlist, int depth) {
+        void addLevel(String prefix, CircuitDocument level, Netlist levelNetlist, int depth) {
             if (depth > MAXIMUM_DEPTH) {
                 throw new IllegalStateException("sub-circuits nest more than " + MAXIMUM_DEPTH + " levels");
             }
             for (Net net : levelNetlist.nets()) {
                 nets.put(prefix + net.id().value(), new NetBuilder(net.width(), net.widthMismatch()));
             }
-            for (Component component : levelComponents) {
+            TunnelChecks.problems(level, levelNetlist, registry)
+                    .forEach(problem -> tunnelProblems.add(problem.nestedIn(prefix)));
+            for (Component component : level.components()) {
                 String flatId = prefix + component.id().value();
                 ComponentType type = registry.typeOf(component);
+                if (Tunnels.isTunnel(type.id())) {
+                    // tunnels only join nets, which the netlist already did
+                    continue;
+                }
                 Optional<ComponentDefinition> definition = SubcircuitTypes.definitionOf(type);
                 if (definition.isPresent()) {
                     expand(flatId, component, definition.get(), levelNetlist, prefix, depth);
@@ -137,7 +148,7 @@ public final class CircuitFlattener {
                             Netlist levelNetlist, String prefix, int depth) {
             Body body = bodies.computeIfAbsent(definition, CircuitFlattener.this::compileBody);
             String innerPrefix = instanceId + InstancePath.SEPARATOR;
-            addLevel(innerPrefix, body.components(), body.netlist(), depth + 1);
+            addLevel(innerPrefix, body.document(), body.netlist(), depth + 1);
             for (int pinIndex = 0; pinIndex < definition.pinout().size(); pinIndex++) {
                 Optional<Net> outer = levelNetlist.netForPin(new PinRef(instance.id(), pinIndex));
                 Optional<Net> inner = body.netlist()

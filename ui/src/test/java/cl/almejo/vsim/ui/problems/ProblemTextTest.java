@@ -16,6 +16,7 @@ import cl.almejo.vsim.core.simulation.DriverRef;
 import cl.almejo.vsim.core.simulation.FlatPinRef;
 import cl.almejo.vsim.core.simulation.Problem;
 import cl.almejo.vsim.core.simulation.ShortCircuit;
+import cl.almejo.vsim.core.simulation.TunnelProblem;
 import cl.almejo.vsim.core.simulation.WidthMismatch;
 import cl.almejo.vsim.core.value.Value;
 import cl.almejo.vsim.ui.i18n.Messages;
@@ -112,7 +113,7 @@ class ProblemTextTest {
     }
 
     @Test
-    void displayWarningsComeLastAfterEveryOtherProblem() {
+    void displayWarningsComeAfterShortCircuitsAndWidthMismatches() {
         Problem display = new DisplayBusOverride("n:0", "c1");
         Problem mismatch = new WidthMismatch("n:z", List.of());
         Problem shortCircuit = new ShortCircuit("n:y", List.of(), 9);
@@ -195,5 +196,29 @@ class ProblemTextTest {
                 new FlatPinRef(notGate.id().value(), 0)));
         assertThat(ProblemText.describe(mismatch, document, registry))
                 .isEqualTo("⚠ Anchos incompatibles: Separador de bus (4 bits) · NOT (1 bit)");
+    }
+
+    @Test
+    void tunnelErrorsComeBeforeTheDisplayWarningsAndTunnelWarningsLast() {
+        Problem tunnelWarning = new TunnelProblem("n:a", TunnelProblem.Kind.ENTRANCE_WITHOUT_EXITS, "A", List.of("c1"));
+        Problem display = new DisplayBusOverride("n:b", "c2");
+        Problem tunnelError = new TunnelProblem("n:c", TunnelProblem.Kind.EXIT_WITHOUT_ENTRANCE, "C", List.of("c3"));
+        Problem mismatch = new WidthMismatch("n:d", List.of());
+        assertThat(ProblemText.ordered(List.of(tunnelWarning, display, tunnelError, mismatch)))
+                .containsExactly(mismatch, tunnelError, display, tunnelWarning);
+    }
+
+    @Test
+    void eachTunnelProblemSaysWhatIsWrongWithTheName() {
+        assertThat(ProblemText.describe(new TunnelProblem("n", TunnelProblem.Kind.DUPLICATE_ENTRANCE, "CLK",
+                List.of("c1", "c2")), document, registry))
+                .isEqualTo("Hay 2 entradas «CLK»: un nombre tiene una sola entrada.");
+        assertThat(ProblemText.describe(new TunnelProblem("n", TunnelProblem.Kind.EXIT_WITHOUT_ENTRANCE, "CLK",
+                List.of("c1")), document, registry)).isEqualTo("La salida «CLK» no tiene entrada.");
+        assertThat(ProblemText.describe(new TunnelProblem("n", TunnelProblem.Kind.ENTRANCE_WITHOUT_EXITS, "CLK",
+                List.of("c1")), document, registry)).isEqualTo("La entrada «CLK» no tiene salidas.");
+        assertThat(ProblemText.describe(new TunnelProblem("n", TunnelProblem.Kind.EXIT_DRIVEN, "CLK",
+                List.of("c1")), document, registry))
+                .isEqualTo("La salida «CLK» recibe una señal: ¿querías una entrada?");
     }
 }

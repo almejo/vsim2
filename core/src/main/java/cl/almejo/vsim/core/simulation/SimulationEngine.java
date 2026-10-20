@@ -32,6 +32,8 @@ public final class SimulationEngine {
     private int waveformRebinds;
     /** Alias id → the root net that carries it (FlatNet#aliases), rebuilt with the nets. */
     private Map<String, RuntimeNet> aliasRoots = Map.of();
+    /** The wiring problems of the tunnels of the circuit last applied (FlatCircuit#tunnelProblems). */
+    private List<TunnelProblem> tunnelProblems = List.of();
 
     /** At most this many events run in one {@link #advanceToNextEvent()} (a zero-delay loop never lets time move). */
     public static final int STEP_EVENT_BUDGET = 100_000;
@@ -87,6 +89,7 @@ public final class SimulationEngine {
             rebindWaveforms();
         }
         token = circuit.token();
+        tunnelProblems = circuit.tunnelProblems();
         revision++;
     }
 
@@ -505,6 +508,7 @@ public final class SimulationEngine {
                         .toList(), net.conflictSince));
             }
         }
+        problems.addAll(tunnelProblems);
         Map<String, VisibleState> states = new HashMap<>();
         for (ComponentInstance instance : instances.values()) {
             displayBusOverride(instance).ifPresent(problems::add);

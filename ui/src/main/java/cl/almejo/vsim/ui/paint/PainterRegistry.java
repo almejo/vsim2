@@ -49,6 +49,9 @@ public final class PainterRegistry {
         InterfacePinPainter interfacePin = new InterfacePinPainter();
         registry.register(InterfacePins.INPUT_PIN, interfacePin);
         registry.register(InterfacePins.OUTPUT_PIN, interfacePin);
+        TunnelPainter tunnel = new TunnelPainter();
+        registry.register(StandardComponentTypes.TUNNEL_ENTRANCE, tunnel);
+        registry.register(StandardComponentTypes.TUNNEL_EXIT, tunnel);
         registerBlocks(registry);
         return registry;
     }

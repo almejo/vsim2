@@ -13,6 +13,7 @@ import cl.almejo.vsim.core.simulation.FlatPinRef;
 import cl.almejo.vsim.core.simulation.InstancePath;
 import cl.almejo.vsim.core.simulation.Problem;
 import cl.almejo.vsim.core.simulation.ShortCircuit;
+import cl.almejo.vsim.core.simulation.TunnelProblem;
 import cl.almejo.vsim.core.simulation.WidthMismatch;
 import cl.almejo.vsim.ui.i18n.Messages;
 
@@ -36,18 +37,20 @@ public final class ProblemText {
     private ProblemText() {
     }
 
-    /** Short circuits first, then width mismatches, then the soft warnings of the displays. */
+    /** Errors before warnings: short circuits, width mismatches, tunnel errors, then display and tunnel warnings. */
     private static int rank(Problem problem) {
         return switch (problem) {
             case ShortCircuit shortCircuit -> 0;
             case WidthMismatch mismatch -> 1;
-            case DisplayBusOverride display -> 2;
+            case TunnelProblem tunnel when !tunnel.isWarning() -> 2;
+            case DisplayBusOverride display -> 3;
+            case TunnelProblem tunnel -> 4;
         };
     }
 
     /**
-     * Short circuits first, oldest first, then width mismatches, then display warnings; ties by net id, so the order
-     * is stable.
+     * Short circuits first, oldest first, then width mismatches, tunnel errors, display warnings and tunnel warnings;
+     * ties by net id, so the order is stable.
      */
     public static List<Problem> ordered(List<Problem> problems) {
         return problems.stream().sorted(ORDER).toList();
@@ -68,6 +71,18 @@ public final class ProblemText {
                     .map(pin -> pin(pin, document, registry))
                     .collect(Collectors.joining(SEPARATOR)));
             case DisplayBusOverride display -> displayBus(display, document);
+            case TunnelProblem tunnel -> tunnel(tunnel);
+        };
+    }
+
+    /** «La salida «CLK» no tiene entrada.»: one sentence per kind, naming the tunnel. */
+    private static String tunnel(TunnelProblem problem) {
+        return switch (problem.kind()) {
+            case DUPLICATE_ENTRANCE -> Messages.format("problem.tunnel.duplicateEntrance", problem.tunnels().size(),
+                    problem.name());
+            case EXIT_WITHOUT_ENTRANCE -> Messages.format("problem.tunnel.exitWithoutEntrance", problem.name());
+            case ENTRANCE_WITHOUT_EXITS -> Messages.format("problem.tunnel.entranceWithoutExits", problem.name());
+            case EXIT_DRIVEN -> Messages.format("problem.tunnel.exitDriven", problem.name());
         };
     }
 
