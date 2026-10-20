@@ -7,7 +7,7 @@ import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.TextFonts;
 
 import cl.almejo.vsim.ui.icons.Icons;
-import cl.almejo.vsim.ui.print.MonochromeScheme;
+import cl.almejo.vsim.ui.paint.MonochromeScheme;
 
 import javax.swing.Icon;
 import java.awt.AlphaComposite;

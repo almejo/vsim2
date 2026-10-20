@@ -24,8 +24,8 @@ import cl.almejo.vsim.ui.paint.TextFonts;
 import cl.almejo.vsim.ui.paint.SignalColors;
 import cl.almejo.vsim.ui.paint.TunnelPainter;
 import cl.almejo.vsim.ui.paint.WireState;
-import cl.almejo.vsim.ui.print.MonochromeGraphics;
-import cl.almejo.vsim.ui.print.MonochromeScheme;
+import cl.almejo.vsim.ui.paint.MonochromeGraphics;
+import cl.almejo.vsim.ui.paint.MonochromeScheme;
 
 import java.awt.AlphaComposite;
 import java.awt.BasicStroke;

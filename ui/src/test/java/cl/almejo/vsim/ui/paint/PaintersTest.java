@@ -302,6 +302,8 @@ class PaintersTest {
         try (Stream<Path> sources = Files.list(Path.of("src/main/java/cl/almejo/vsim/ui/paint"))) {
             List<String> offenders = sources
                     .filter(path -> !path.getFileName().toString().equals("PainterSupport.java"))
+                    // a Graphics2D that passes text on, not a painter
+                    .filter(path -> !path.getFileName().toString().equals("MonochromeGraphics.java"))
                     .filter(path -> {
                         String source = readSource(path);
                         return source.contains("drawString(") || source.contains("drawGlyphVector(")

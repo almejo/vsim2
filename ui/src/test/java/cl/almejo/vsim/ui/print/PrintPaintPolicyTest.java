@@ -23,6 +23,7 @@ import cl.almejo.vsim.ui.export.CircuitImage;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.ColorSchemes;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
+import cl.almejo.vsim.ui.paint.MonochromeScheme;
 import cl.almejo.vsim.ui.paint.WireState;
 import org.junit.jupiter.api.Test;
 

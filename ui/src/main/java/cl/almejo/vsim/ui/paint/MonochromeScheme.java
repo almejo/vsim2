@@ -1,7 +1,4 @@
-package cl.almejo.vsim.ui.print;
-
-import cl.almejo.vsim.ui.paint.ColorScheme;
-import cl.almejo.vsim.ui.paint.WireState;
+package cl.almejo.vsim.ui.paint;
 
 import java.awt.BasicStroke;
 import java.awt.Color;

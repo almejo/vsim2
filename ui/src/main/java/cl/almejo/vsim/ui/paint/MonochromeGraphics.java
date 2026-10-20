@@ -1,4 +1,4 @@
-package cl.almejo.vsim.ui.print;
+package cl.almejo.vsim.ui.paint;
 
 import java.awt.Color;
 import java.awt.Composite;

@@ -1,6 +1,7 @@
 package cl.almejo.vsim.ui.print;
 
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.paint.MonochromeScheme;
 import cl.almejo.vsim.ui.paint.WireState;
 
 import java.awt.BasicStroke;
