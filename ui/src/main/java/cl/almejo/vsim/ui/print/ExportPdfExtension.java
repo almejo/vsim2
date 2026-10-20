@@ -5,7 +5,6 @@ import cl.almejo.vsim.ui.window.EditorView;
 
 import java.time.Clock;
 import java.util.Objects;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -38,9 +37,7 @@ public final class ExportPdfExtension implements EditorExtension {
     }
 
     private static PdfExporter realExporter(Executor executor) {
-        // TASK 6 WIRING: replace the next line with `return new PdfExport(executor);` when PdfExport is merged.
-        return (pages, target, progress) -> CompletableFuture.failedFuture(new UnsupportedOperationException(
-                "PdfExport is not wired yet (Task 6); cannot write " + target + " with " + executor));
+        return new PdfExport(executor);
     }
 
     @Override

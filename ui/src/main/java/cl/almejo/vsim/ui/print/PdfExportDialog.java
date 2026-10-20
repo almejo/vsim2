@@ -61,8 +61,8 @@ import java.util.function.Supplier;
  */
 public final class PdfExportDialog extends JPanel {
 
-    public static final int CONFIRM_ABOVE_PAGES = 50;
-    public static final int REFUSE_ABOVE_PAGES = 1000;
+    public static final int CONFIRM_ABOVE_PAGES = PdfExport.CONFIRM_ABOVE_PAGES;
+    public static final int REFUSE_ABOVE_PAGES = PdfExport.REFUSE_ABOVE_PAGES;
     /** Text on paper under this many points is hard to read (spec §3.3). */
     static final double MINIMUM_LEGIBLE_POINTS = 6;
     static final int PREVIEW_DELAY_MILLISECONDS = 150;
