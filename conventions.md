@@ -34,8 +34,9 @@ We apply Clean Code (Robert C. Martin) to new code and to the code we modify (se
   or a core class (e.g. `PracticeModel`, `GroupCheck`), so they can be tested without Swing.
 - **Intention-revealing names** (section 2): a reader should not need the body to know what a method returns or does.
   Boolean queries read as questions (`isBusy()`, `practised(output, form)`).
-- **Few arguments**: more than three usually means a missing record (`Request`, `GeneratorOptions`). No boolean flag
-  arguments that switch behaviour when two methods or an enum say it better.
+- **Arguments**: up to five are fine; beyond that, or when the same group of arguments travels together through
+  several methods, consider a record (`Request`, `GeneratorOptions`). No boolean flag arguments that switch behaviour
+  when two methods or an enum say it better.
 - **No side effects hidden in queries**; a method either answers or changes state (command–query separation).
 - **No duplication**: reuse the existing helper (find it before writing one); extract when the same rule appears twice.
 - **No magic numbers or strings**: named constants (`MAXIMUM_INPUTS`, `NODE_BUDGET`) with a word on where they come
