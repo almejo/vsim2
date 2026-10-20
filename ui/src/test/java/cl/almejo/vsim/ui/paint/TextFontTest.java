@@ -4,7 +4,9 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 import java.awt.Font;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -73,5 +75,43 @@ class TextFontTest {
         } finally {
             TextFonts.removeListener(listener);
         }
+    }
+
+    @Test
+    void aFontCanBeLentToOneThreadForAPaintWithoutChangingTheAppsFont() throws Exception {
+        TextFonts.set(new TextFont(Font.SERIF, 12));
+        AtomicInteger changes = new AtomicInteger();
+        Runnable listener = changes::incrementAndGet;
+        TextFonts.addListener(listener);
+        TextFont frozen = new TextFont(Font.MONOSPACED, 20);
+        AtomicReference<TextFont> otherThread = new AtomicReference<>();
+        try {
+            Font label = TextFonts.withFont(frozen, () -> {
+                assertThat(TextFonts.current()).isEqualTo(frozen);
+                assertThat(TextFonts.titleFont()).isEqualTo(frozen.titleFont());
+                assertThat(TextFonts.tagFont()).isEqualTo(frozen.tagFont());
+                CompletableFuture.runAsync(() -> otherThread.set(TextFonts.current())).join();
+                TextFont nested = new TextFont(Font.SANS_SERIF, 9);
+                TextFonts.runWithFont(nested, () -> assertThat(TextFonts.current()).isEqualTo(nested));
+                assertThat(TextFonts.current()).isEqualTo(frozen);
+                return TextFonts.labelFont();
+            });
+            assertThat(label).isEqualTo(frozen.labelFont());
+        } finally {
+            TextFonts.removeListener(listener);
+        }
+        assertThat(otherThread.get()).isEqualTo(new TextFont(Font.SERIF, 12));
+        assertThat(TextFonts.current()).isEqualTo(new TextFont(Font.SERIF, 12));
+        assertThat(TextFonts.labelFont()).isEqualTo(new TextFont(Font.SERIF, 12).labelFont());
+        assertThat(changes).hasValue(0);
+    }
+
+    @Test
+    void aLentFontIsGivenBackWhenThePaintThrows() {
+        TextFont frozen = new TextFont(Font.MONOSPACED, 20);
+        assertThatThrownBy(() -> TextFonts.runWithFont(frozen, () -> {
+            throw new IllegalStateException("paint failed");
+        })).isInstanceOf(IllegalStateException.class);
+        assertThat(TextFonts.current()).isEqualTo(TextFont.DEFAULT);
     }
 }
