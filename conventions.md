@@ -97,8 +97,11 @@ We apply Clean Code (Robert C. Martin) to new code and to the code we modify (se
 
 ## 8. File format
 
-- Files stay compatible: new fields are optional with a default, old files load unchanged and save byte-for-byte the
-  same when nothing changed.
+- Until VSim 2.0 is declared final the VSim 2 format may change freely (agreed with the user 2026-10-20): no
+  compatibility with older VSim 2 builds is needed, but every committed file (`examples/`, bundled examples, test
+  resources) is migrated in the same work so it keeps loading. The VSim 1 importer stays.
+- From 2.0 final on, files stay compatible: new fields are optional with a default, old files load unchanged and save
+  byte-for-byte the same when nothing changed.
 
 ## 9. Tests
 
