@@ -10,10 +10,13 @@ import cl.almejo.vsim.ui.icons.Icons;
 import cl.almejo.vsim.ui.paint.TextFonts;
 
 import javax.swing.AbstractAction;
+import javax.swing.DefaultListModel;
 import javax.swing.JButton;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
+import javax.swing.JList;
 import javax.swing.JPanel;
+import javax.swing.ListSelectionModel;
 import javax.swing.JTextField;
 import javax.swing.KeyStroke;
 import javax.swing.SwingConstants;
@@ -39,6 +42,7 @@ import java.awt.event.MouseEvent;
 import java.awt.geom.Rectangle2D;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
@@ -51,6 +55,9 @@ import java.util.function.Consumer;
  * <p>
  * While the field has the focus it keeps every key to itself (only Alt combinations go on, for the menu mnemonics):
  * Supr, Ctrl+Z or the arrows edit the text and never reach the canvas bindings or the menu accelerators.
+ * <p>
+ * A request with suggestions shows the ones that fit what is typed in a list under the field (all of them until the
+ * user types): a click on one, or Down/Up to pick one and Enter, puts it in the field and confirms.
  * <p>
  * One editor per canvas, reused: opening a new request confirms (or, when invalid, cancels) the current one. EDT only.
  */
@@ -66,6 +73,10 @@ public final class InlineTextEditor {
     private static final int GAP = 2;
     private static final String CONFIRM = "inline-confirm";
     private static final String CANCEL = "inline-cancel";
+    private static final String NEXT_SUGGESTION = "inline-next-suggestion";
+    private static final String PREVIOUS_SUGGESTION = "inline-previous-suggestion";
+    /** The suggestion list shows at most this many rows; the user narrows longer lists by typing. */
+    private static final int MAXIMUM_SUGGESTIONS = 6;
     private static final String OUTLINE = "JComponent.outline";
     private static final String OUTLINE_ERROR = "error";
     /** WCAG AA contrast for normal text. */
@@ -76,12 +87,16 @@ public final class InlineTextEditor {
     private final JButton confirmButton;
     private final JButton cancelButton;
     private final JLabel problemText = new ProblemBadge();
+    private final DefaultListModel<String> suggestionModel = new DefaultListModel<>();
+    private final JList<String> suggestionList = new JList<>(suggestionModel);
     private final AWTEventListener pressListener = this::anywhereInTheApplication;
     private final DocumentListener documentListener = this::documentChanged;
     private final List<Runnable> whileOpen = new ArrayList<>();
     private InlineEditRequest request;
     private BooleanSupplier stillValid = () -> true;
     private Optional<String> problem = Optional.empty();
+    /** False until the user changes the text: the suggestions are not filtered by the initial text. */
+    private boolean edited;
 
     public InlineTextEditor(CircuitCanvas canvas) {
         this.canvas = canvas;
@@ -96,14 +111,33 @@ public final class InlineTextEditor {
         confirmButton = iconButton(InlineIcons.CONFIRM, "inline.confirm", this::confirm);
         cancelButton = iconButton(InlineIcons.CANCEL, "inline.cancel", this::cancel);
         problemText.setVisible(false);
+        suggestionList.setVisible(false);
+        suggestionList.setFocusable(false); // the field keeps the focus, and its keys
+        suggestionList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        suggestionList.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        suggestionList.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mousePressed(MouseEvent event) {
+                int index = suggestionList.locationToIndex(event.getPoint());
+                if (index >= 0) {
+                    chooseSuggestion(suggestionModel.getElementAt(index));
+                }
+            }
+        });
         panel.add(field);
         panel.add(confirmButton);
         panel.add(cancelButton);
+        panel.add(suggestionList);
         panel.add(problemText);
         field.getInputMap(JComponent.WHEN_FOCUSED).put(KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, 0), CONFIRM);
         field.getInputMap(JComponent.WHEN_FOCUSED).put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), CANCEL);
-        field.getActionMap().put(CONFIRM, action(this::confirm));
+        field.getInputMap(JComponent.WHEN_FOCUSED).put(KeyStroke.getKeyStroke(KeyEvent.VK_DOWN, 0), NEXT_SUGGESTION);
+        field.getInputMap(JComponent.WHEN_FOCUSED).put(KeyStroke.getKeyStroke(KeyEvent.VK_UP, 0),
+                PREVIOUS_SUGGESTION);
+        field.getActionMap().put(CONFIRM, action(this::confirmOrTakeSuggestion));
         field.getActionMap().put(CANCEL, action(this::cancel));
+        field.getActionMap().put(NEXT_SUGGESTION, action(() -> moveSuggestion(1)));
+        field.getActionMap().put(PREVIOUS_SUGGESTION, action(() -> moveSuggestion(-1)));
         field.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
             @Override
             public void insertUpdate(DocumentEvent event) {
@@ -147,6 +181,7 @@ public final class InlineTextEditor {
         });
         field.setText(newRequest.initialText());
         field.selectAll();
+        edited = false;
         whileOpen.add(canvas.addFloatingComponent(panel));
         whileOpen.add(canvas.addViewportListener(this::layOut));
         CircuitDocument document = canvas.openDocument().document();
@@ -208,6 +243,41 @@ public final class InlineTextEditor {
         return problemText;
     }
 
+    /** The suggestions that fit the text now; hidden when there are none. */
+    public JList<String> suggestionList() {
+        return suggestionList;
+    }
+
+    /** Puts {@code suggestion} in the field and confirms it, as a click on it in the list does. */
+    public void chooseSuggestion(String suggestion) {
+        if (!isOpen()) {
+            return;
+        }
+        field.setText(suggestion);
+        confirm();
+    }
+
+    /** Enter: the suggestion picked with Down/Up when there is one, else the text as typed. */
+    private void confirmOrTakeSuggestion() {
+        String picked = suggestionList.isVisible() ? suggestionList.getSelectedValue() : null;
+        if (picked != null) {
+            chooseSuggestion(picked);
+        } else {
+            confirm();
+        }
+    }
+
+    /** Down/Up: picks the next or previous suggestion, wrapping around; nothing without suggestions. */
+    private void moveSuggestion(int step) {
+        int size = suggestionModel.getSize();
+        if (!suggestionList.isVisible() || size == 0) {
+            return;
+        }
+        int selected = suggestionList.getSelectedIndex();
+        int next = selected < 0 ? (step > 0 ? 0 : size - 1) : Math.floorMod(selected + step, size);
+        suggestionList.setSelectedIndex(next);
+    }
+
     /**
      * Confirms the open edit when its text is valid and cancels it otherwise; nothing when closed. The window calls it
      * before it closes (M6.8), so «¿Guardar cambios?» sees a half-typed edit instead of losing it.
@@ -239,8 +309,35 @@ public final class InlineTextEditor {
 
     private void textChanged() {
         if (isOpen()) {
+            edited = true;
             check();
         }
+    }
+
+    /**
+     * The suggestions that fit {@code text}: before the user types, every one but the text itself; after, those that
+     * start with it, ignoring case (and not the text itself).
+     */
+    private void showSuggestions(String text) {
+        String typed = text.toLowerCase(Locale.ROOT);
+        List<String> fitting = request.suggestions().stream()
+                .filter(suggestion -> !suggestion.equals(text))
+                .filter(suggestion -> !edited || suggestion.toLowerCase(Locale.ROOT).startsWith(typed))
+                .limit(MAXIMUM_SUGGESTIONS)
+                .toList();
+        if (!fitting.equals(currentSuggestions())) {
+            suggestionModel.clear();
+            suggestionModel.addAll(fitting);
+        }
+        suggestionList.setVisible(!fitting.isEmpty());
+    }
+
+    private List<String> currentSuggestions() {
+        List<String> shown = new ArrayList<>();
+        for (int index = 0; index < suggestionModel.getSize(); index++) {
+            shown.add(suggestionModel.getElementAt(index));
+        }
+        return shown;
     }
 
     /** Runs the validator on the current text and shows what it says. */
@@ -250,6 +347,7 @@ public final class InlineTextEditor {
         problemText.setText(problem.orElse(""));
         problemText.setVisible(problem.isPresent());
         confirmButton.setEnabled(problem.isEmpty());
+        showSuggestions(field.getText());
         layOut();
     }
 
@@ -348,6 +446,13 @@ public final class InlineTextEditor {
         Rectangle confirmBounds = new Rectangle(fieldBounds.x + fieldWidth + GAP, buttonY, side, side);
         Rectangle cancelBounds = new Rectangle(confirmBounds.x + side, buttonY, side, side);
         Rectangle all = fieldBounds.union(confirmBounds).union(cancelBounds);
+        Rectangle suggestionBounds = new Rectangle(fieldBounds.x, all.y + all.height + GAP, 0, 0);
+        if (suggestionList.isVisible()) {
+            suggestionList.setFont(font);
+            Dimension listSize = suggestionList.getPreferredSize();
+            suggestionBounds.setSize(Math.max(fieldWidth, listSize.width), listSize.height);
+            all = all.union(suggestionBounds);
+        }
         Rectangle problemBounds = new Rectangle(fieldBounds.x, all.y + all.height + GAP, 0, 0);
         if (problemText.isVisible()) {
             problemBounds.setSize(problemText.getPreferredSize());
@@ -357,6 +462,7 @@ public final class InlineTextEditor {
         field.setBounds(relative(fieldBounds, all));
         confirmButton.setBounds(relative(confirmBounds, all));
         cancelButton.setBounds(relative(cancelBounds, all));
+        suggestionList.setBounds(relative(suggestionBounds, all));
         problemText.setBounds(relative(problemBounds, all));
         panel.revalidate();
         panel.repaint();

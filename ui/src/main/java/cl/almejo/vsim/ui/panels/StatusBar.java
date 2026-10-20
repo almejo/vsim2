@@ -25,6 +25,7 @@ public final class StatusBar extends JPanel {
     private final JLabel time = new JLabel();
     private final JLabel zoom = new JLabel();
     private final JLabel selection = new JLabel();
+    private final JLabel hint = new JLabel();
     private final JLabel notice = new JLabel();
     private final JLabel shortCircuits = new JLabel();
     private final JLabel failure = new JLabel();
@@ -39,7 +40,7 @@ public final class StatusBar extends JPanel {
 
     /** {@code noticeTimerFactory} builds the one-shot timer that hides a notice; tests pass a fake. */
     public StatusBar(Function<Runnable, Timer> noticeTimerFactory) {
-        super(new MigLayout("insets 2 8 2 8", "[][][][][]push[][]"));
+        super(new MigLayout("insets 2 8 2 8", "[][][][][][]push[][]"));
         noticeTimer = noticeTimerFactory.apply(this::hideNotice);
         shortCircuits.setForeground(WARNING);
         failure.setForeground(WARNING);
@@ -48,10 +49,12 @@ public final class StatusBar extends JPanel {
         add(time);
         add(zoom);
         add(selection);
+        add(hint);
         add(notice);
         add(shortCircuits);
         add(failure);
         selection.setVisible(false);
+        hint.setVisible(false);
         notice.setVisible(false);
         shortCircuits.setVisible(false);
         failure.setVisible(false);
@@ -78,6 +81,27 @@ public final class StatusBar extends JPanel {
      * its tooltip is always the generic "next problem" one.
      */
     public void showProblems(int shortCircuitCount, int widthMismatchCount) {
+        showProblems(shortCircuitCount, widthMismatchCount, 0);
+    }
+
+    /**
+     * Like {@link #showProblems(int, int)}, then «N errores de túneles» (duplicate entradas, salidas without entrada)
+     * after them, or on its own with the ⚠ when there is nothing else.
+     */
+    public void showProblems(int shortCircuitCount, int widthMismatchCount, int tunnelErrorCount) {
+        String text = problemsText(shortCircuitCount, widthMismatchCount);
+        if (tunnelErrorCount > 0) {
+            text = text.isEmpty() ? Messages.format("status.tunnelErrors", tunnelErrorCount)
+                    : text + " · " + Messages.format("status.moreTunnelErrors", tunnelErrorCount);
+        }
+        shortCircuits.setText(text);
+        shortCircuits.setVisible(!text.isEmpty());
+        if (clickable) {
+            shortCircuits.setToolTipText(Messages.text(CLICK_TOOLTIP));
+        }
+    }
+
+    private static String problemsText(int shortCircuitCount, int widthMismatchCount) {
         String text;
         if (shortCircuitCount > 0 && widthMismatchCount > 0) {
             text = Messages.format("status.shortCircuitsAndWidthMismatches", shortCircuitCount, widthMismatchCount);
@@ -88,11 +112,7 @@ public final class StatusBar extends JPanel {
         } else {
             text = "";
         }
-        shortCircuits.setText(text);
-        shortCircuits.setVisible(!text.isEmpty());
-        if (clickable) {
-            shortCircuits.setToolTipText(Messages.text(CLICK_TOOLTIP));
-        }
+        return text;
     }
 
     /** Clicking the "⚠ N cortocircuitos" warning runs {@code action} (jump to the next problem). */
@@ -173,6 +193,15 @@ public final class StatusBar extends JPanel {
         selection.setVisible(count > 0);
     }
 
+    /**
+     * Shows {@code text} while the pointer is over something that explains itself (a tunnel: «CLK: 1 entrada, 3
+     * salidas»); an empty text hides it.
+     */
+    public void showHint(String text) {
+        hint.setText(text);
+        hint.setVisible(!text.isEmpty());
+    }
+
     /** How long a notice stays, in milliseconds. */
     public static final int NOTICE_MILLISECONDS = 4000;
 
@@ -201,7 +230,7 @@ public final class StatusBar extends JPanel {
 
     /** Visible texts joined with " · " (what the user reads, left to right). */
     public String text() {
-        return List.of(simulation, time, zoom, selection, notice, shortCircuits, failure).stream()
+        return List.of(simulation, time, zoom, selection, hint, notice, shortCircuits, failure).stream()
                 .filter(JLabel::isVisible)
                 .map(JLabel::getText)
                 .filter(text -> !text.isEmpty())

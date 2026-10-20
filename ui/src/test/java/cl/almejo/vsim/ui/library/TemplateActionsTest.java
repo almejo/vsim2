@@ -234,6 +234,21 @@ class TemplateActionsTest {
                 .containsExactly("Estos pines quedaron sin conectar: a. Conéctalos a mano.");
     }
 
+    @Test
+    void replacingASelectionThatSplitsATunnelNameSaysWhichNames() {
+        List<Component> parts = new java.util.ArrayList<>(fixture.drawInverter(0, 0));
+        parts.add(fixture.place(StandardComponentTypes.TUNNEL_ENTRANCE, 0, 10, Map.of("name", "CLK")));
+        parts.add(fixture.place(StandardComponentTypes.TUNNEL_ENTRANCE, 0, 14, Map.of("name", "SEL")));
+        parts.add(fixture.place(StandardComponentTypes.TUNNEL_EXIT, 10, 14, Map.of("name", "SEL")));
+        fixture.place(StandardComponentTypes.TUNNEL_EXIT, 40, 40, Map.of("name", "CLK"));
+        fixture.select(parts.toArray(Component[]::new));
+        fixture.dialogs.acceptForm(form -> form.setName("Negador"));
+
+        perform(fixture.features.actions().createComponent());
+
+        assertThat(fixture.dialogs.messages).containsExactly(Messages.format("template.tunnelsSplit", "CLK"));
+    }
+
     private void assertNotReplaced(List<Component> parts, List<Wire> wires, String definitionId) {
         CircuitDocument document = fixture.openDocument.document();
         assertThat(document.components()).containsExactlyInAnyOrderElementsOf(parts);

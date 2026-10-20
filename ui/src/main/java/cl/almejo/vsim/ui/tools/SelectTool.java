@@ -16,6 +16,7 @@ import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.io.CircuitFragment;
 import cl.almejo.vsim.core.library.InterfacePins;
+import cl.almejo.vsim.core.tunnel.Tunnels;
 import cl.almejo.vsim.core.value.Value;
 import cl.almejo.vsim.core.wiring.WireStretch;
 import cl.almejo.vsim.ui.canvas.ConnectionPoints;
@@ -255,7 +256,7 @@ public final class SelectTool implements Tool {
                     context.openDocument().setInputValue(component.id(), toggledByFirstClick.valueBefore());
                     context.editValue(component, toggledByFirstClick.valueBefore());
                 } else if (component.typeId().equals(StandardComponentTypes.CONSTANT)
-                        || InterfacePins.isBusInput(component)) {
+                        || InterfacePins.isBusInput(component) || Tunnels.isTunnel(component.typeId())) {
                     context.editValue(component);
                 } else {
                     context.configure(component);

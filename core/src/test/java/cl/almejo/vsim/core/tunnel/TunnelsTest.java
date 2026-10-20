@@ -103,6 +103,20 @@ class TunnelsTest {
     }
 
     @Test
+    void theNamesSplitByASelectionHaveTunnelsOnBothSides() {
+        Component clockIn = circuit.entrance("CLK", new GridPoint(0, 0));
+        circuit.exit("CLK", new GridPoint(0, 10));
+        Component selectIn = circuit.entrance("SEL", new GridPoint(0, 20));
+        Component selectOut = circuit.exit("SEL", new GridPoint(0, 30));
+        Component dataOut = circuit.exit("DATA", new GridPoint(0, 40));
+        circuit.entrance("DATA", new GridPoint(0, 50));
+
+        assertThat(Tunnels.namesSplitBy(circuit.document(),
+                List.of(clockIn.id(), selectIn.id(), selectOut.id(), dataOut.id())))
+                .containsExactly("CLK", "DATA");
+    }
+
+    @Test
     void theColoursByNameTakeTheFirstEntranceOfEachName() {
         Component first = circuit.entrance("CLK", 5, new GridPoint(0, 0));
         circuit.entrance("CLK", 2, new GridPoint(0, 10));

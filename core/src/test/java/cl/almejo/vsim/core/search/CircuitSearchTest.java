@@ -16,6 +16,7 @@ import cl.almejo.vsim.core.io.CircuitFragment;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.InterfacePins;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
+import cl.almejo.vsim.core.tunnel.Tunnels;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -122,6 +123,21 @@ class CircuitSearchTest {
                 .containsExactly(new SearchHit(input.id(), List.of(), List.of(), SearchHit.Field.PIN_NAME, "Cin"));
         assertThat(find("cout"))
                 .containsExactly(new SearchHit(output.id(), List.of(), List.of(), SearchHit.Field.PIN_NAME, "Cout"));
+    }
+
+    @Test
+    void findsTunnelsByTheirName() {
+        Component entrance = registry.require(StandardComponentTypes.TUNNEL_ENTRANCE).newComponent(
+                document.newComponentId(), new GridPoint(0, 0), Rotation.R0, Map.of(Tunnels.NAME, "CLK"), "");
+        Component exit = registry.require(StandardComponentTypes.TUNNEL_EXIT).newComponent(
+                document.newComponentId(), new GridPoint(0, 10), Rotation.R0, Map.of(Tunnels.NAME, "CLK"), "");
+        document.add(entrance);
+        document.add(exit);
+        place(StandardComponentTypes.AND2, 0, 20, "");
+
+        assertThat(find("clk")).containsExactly(
+                new SearchHit(entrance.id(), List.of(), List.of(), SearchHit.Field.TUNNEL_NAME, "CLK"),
+                new SearchHit(exit.id(), List.of(), List.of(), SearchHit.Field.TUNNEL_NAME, "CLK"));
     }
 
     @Test

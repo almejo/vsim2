@@ -10,6 +10,7 @@ import cl.almejo.vsim.core.netlist.Netlist;
 import cl.almejo.vsim.core.netlist.PinRef;
 import cl.almejo.vsim.core.simulation.FlatPinRef;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
+import cl.almejo.vsim.core.simulation.TunnelProblem;
 import cl.almejo.vsim.core.simulation.WidthMismatch;
 import cl.almejo.vsim.core.value.Value;
 import cl.almejo.vsim.ui.canvas.BusValueText;
@@ -147,10 +148,18 @@ public final class ProblemsController {
         navigator.showSnapshot(latest);
         panel.showSnapshot(latest);
         pulse.showSnapshot(latest);
-        statusBar.showProblems(latest.shortCircuits().size(), latest.widthMismatches().size());
+        statusBar.showProblems(latest.shortCircuits().size(), latest.widthMismatches().size(),
+                tunnelErrorCount(latest));
         boolean anyProblem = !navigator.problems().isEmpty();
         nextProblem.setEnabled(anyProblem);
         previousProblem.setEnabled(anyProblem);
+    }
+
+    /** The tunnel problems that are errors (the warnings show only in the Problems tab, like display warnings). */
+    private static int tunnelErrorCount(SimulationSnapshot snapshot) {
+        return (int) snapshot.problems().stream()
+                .filter(problem -> problem instanceof TunnelProblem tunnel && !tunnel.isWarning())
+                .count();
     }
 
     /**

@@ -17,11 +17,13 @@ import cl.almejo.vsim.core.document.FrameContents;
 import cl.almejo.vsim.core.document.FrameTint;
 import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.document.Wire;
+import cl.almejo.vsim.core.tunnel.Tunnels;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.Selection;
 import cl.almejo.vsim.ui.clipboard.FragmentRefusingTransferHandler;
 import cl.almejo.vsim.ui.i18n.FrameTintNames;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.tunnel.TunnelNames;
 import cl.almejo.vsim.ui.wiring.SelectionMoves;
 import net.miginfocom.swing.MigLayout;
 
@@ -37,6 +39,7 @@ import javax.swing.UIManager;
 import java.awt.Color;
 import java.awt.event.FocusAdapter;
 import java.awt.event.FocusEvent;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -380,10 +383,31 @@ public final class PropertiesPanel extends JPanel {
         error.setText(" ");
         form.showNormalizedText();
         Map<String, Object> values = type.resolveParameters(form.rawValues());
-        if (values.equals(type.resolveParameters(component.get().parameters()))) {
+        Map<String, Object> current = type.resolveParameters(component.get().parameters());
+        if (values.equals(current)) {
             return Optional.empty();
         }
+        if (Tunnels.isTunnel(type.id()) && !values.get(Tunnels.NAME).equals(current.get(Tunnels.NAME))) {
+            return Optional.of(tunnelRename(id, type, values, current));
+        }
         return Optional.of(new ChangeParametersCommand(id, type, values));
+    }
+
+    /**
+     * A tunnel whose name changed: the rename that carries an entrada's salidas along (spec §7), then the other
+     * parameters (an entrada's colour) when they changed too, as one undo step.
+     */
+    private Command tunnelRename(ElementId id, ComponentType type, Map<String, Object> values,
+                                 Map<String, Object> current) {
+        Command rename = TunnelNames.renameCommand(openDocument, id, (String) values.get(Tunnels.NAME))
+                .orElseThrow();
+        Map<String, Object> renamed = new HashMap<>(current);
+        renamed.put(Tunnels.NAME, values.get(Tunnels.NAME));
+        Command command = renamed.equals(values) ? rename
+                : new CompositeCommand("command.configure", List.of(rename,
+                new ChangeParametersCommand(id, type, values)));
+        TunnelNames.rememberEntrance(openDocument, id, (String) values.get(Tunnels.NAME));
+        return command;
     }
 
     /** One undo step for whatever the editors asked for. */

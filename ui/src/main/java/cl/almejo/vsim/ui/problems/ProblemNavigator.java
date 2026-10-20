@@ -78,6 +78,9 @@ public final class ProblemNavigator {
         if (index >= 0) {
             current = index;
         }
+        if (problem instanceof TunnelProblem tunnel && navigateToTunnels(tunnel)) {
+            return true;
+        }
         Optional<Net> net = canvas.openDocument().netlist().net(new NetId(problem.netId()));
         if (net.isEmpty()) {
             return navigateToInstances(problem);
@@ -103,6 +106,34 @@ public final class ProblemNavigator {
         }
         blink.start(net.wires());
         canvas.requestFocusInWindow();
+    }
+
+    /**
+     * A tunnel problem of the top circuit: travels to its tunnels (the two entradas of a duplicate, the lone salida)
+     * and selects them, which says more than the net they share. False when none of them is in the top circuit (a
+     * problem inside a component goes to its instance instead).
+     */
+    private boolean navigateToTunnels(TunnelProblem problem) {
+        CircuitDocument document = canvas.openDocument().document();
+        ComponentTypeRegistry registry = canvas.openDocument().registry();
+        List<Component> tunnels = problem.tunnels().stream()
+                .filter(id -> !InstancePath.isNested(id))
+                .map(id -> document.component(new ElementId(id)))
+                .flatMap(Optional::stream)
+                .toList();
+        if (tunnels.isEmpty()) {
+            return false;
+        }
+        Bounds result = null;
+        for (Component tunnel : tunnels) {
+            Bounds bounds = registry.typeOf(tunnel).bounds(tunnel);
+            result = result == null ? bounds : result.union(bounds);
+        }
+        canvas.travelTo(result);
+        canvas.selection().set(tunnels.stream().map(Component::id).toList());
+        blink.stop();
+        canvas.requestFocusInWindow();
+        return true;
     }
 
     private boolean navigateToInstances(Problem problem) {

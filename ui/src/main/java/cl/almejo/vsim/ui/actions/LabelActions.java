@@ -18,6 +18,7 @@ import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
 import cl.almejo.vsim.core.library.InterfacePins;
+import cl.almejo.vsim.core.tunnel.Tunnels;
 import cl.almejo.vsim.core.value.Value;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.LabelLayout;
@@ -29,6 +30,7 @@ import cl.almejo.vsim.ui.inline.InlineTextEditor;
 import cl.almejo.vsim.ui.inline.InlineValidators;
 import cl.almejo.vsim.ui.paint.ConstantPainter;
 import cl.almejo.vsim.ui.paint.InterfacePinPainter;
+import cl.almejo.vsim.ui.tunnel.TunnelNameEditor;
 
 import javax.swing.AbstractAction;
 import javax.swing.Action;
@@ -44,7 +46,7 @@ import java.util.function.Supplier;
 /**
  * Label edits of one editor, done in place over the canvas: component labels, free texts, frame titles, the value of a
  * Constante, and cutting wire stretches. Each one is one undo step. M7: also the live value of a bus input pin, which
- * goes to the simulation and is no undo step.
+ * goes to the simulation and is no undo step. Wire tunnels: their name (a double click, or F2 with one selected).
  */
 public final class LabelActions {
 
@@ -52,15 +54,17 @@ public final class LabelActions {
     private final Selection selection;
     private final InlineTextEditor editor;
     private final Action editLabel;
+    private final TunnelNameEditor tunnelNames;
 
     public LabelActions(OpenDocument openDocument, Selection selection, InlineTextEditor editor) {
         this.openDocument = openDocument;
         this.selection = selection;
         this.editor = editor;
+        this.tunnelNames = new TunnelNameEditor(openDocument, editor);
         editLabel = new AbstractAction(Messages.text("action.label")) {
             @Override
             public void actionPerformed(ActionEvent event) {
-                singleLabelled().ifPresent(LabelActions.this::editLabel);
+                singleLabelled().ifPresent(LabelActions.this::editNameOrLabel);
             }
         };
         editLabel.putValue(Action.SHORT_DESCRIPTION, Messages.text("tooltip.label"));
@@ -68,9 +72,18 @@ public final class LabelActions {
         refresh();
     }
 
-    /** "Etiqueta…" for the single selected component or free text (F2, Edit menu). */
+    /** "Etiqueta…" for the single selected component or free text (F2, Edit menu); a tunnel's name instead. */
     public Action editLabel() {
         return editLabel;
+    }
+
+    /** F2: a tunnel's name (what a tunnel shows), any other element's label. */
+    private void editNameOrLabel(DocumentElement element) {
+        if (element instanceof Component component && Tunnels.isTunnel(component.typeId())) {
+            tunnelNames.edit(component);
+        } else {
+            editLabel(element);
+        }
     }
 
     /**
@@ -134,14 +147,16 @@ public final class LabelActions {
     }
 
     /**
-     * The value edit of a double click or «Valor…»: the Constante's value, or (M7) the live value of a bus input pin.
-     * Anything else is ignored.
+     * The value edit of a double click or «Valor…»: the Constante's value, (M7) the live value of a bus input pin, or
+     * a tunnel's name. Anything else is ignored.
      */
     public void editValue(Component component) {
         if (component.typeId().equals(StandardComponentTypes.CONSTANT)) {
             editConstantValue(component);
         } else if (InterfacePins.isBusInput(component)) {
             editInputValue(component);
+        } else if (Tunnels.isTunnel(component.typeId())) {
+            tunnelNames.edit(component);
         }
     }
 

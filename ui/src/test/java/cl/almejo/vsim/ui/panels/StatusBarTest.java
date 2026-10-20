@@ -104,6 +104,16 @@ class StatusBarTest {
     }
 
     @Test
+    void countsTunnelErrorsAfterTheOtherProblems() {
+        statusBar.showProblems(0, 0, 2);
+        assertThat(statusBar.text()).contains("⚠ 2 errores de túneles");
+        statusBar.showProblems(1, 0, 1);
+        assertThat(statusBar.text()).contains("⚠ 1 cortocircuito · 1 error de túnel");
+        statusBar.showProblems(0, 0, 0);
+        assertThat(statusBar.text()).doesNotContain("⚠");
+    }
+
+    @Test
     void theWarningTooltipStaysTheGenericOneWhenOnlyMismatchesAreCounted() {
         statusBar.onShortCircuitsClicked(() -> { });
         JLabel warning = statusBar.shortCircuitsLabel();

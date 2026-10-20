@@ -302,8 +302,17 @@ public final class FindFeatures {
         overlay.show(highlighted, current().map(SearchHit::elementId));
     }
 
-    /** «"NOT", dentro de "Inversor" (U3)» for a match inside a user component; empty for a top-level one. */
+    /**
+     * «"NOT", dentro de "Inversor" (U3)» for a match inside a user component; «Túnel (entrada) «CLK»» for a tunnel
+     * found by its name; empty for any other top-level one.
+     */
     private String whereText(SearchHit hit) {
+        if (!hit.nested() && hit.field() == SearchHit.Field.TUNNEL_NAME) {
+            return openDocument.document().component(hit.elementId())
+                    .map(tunnel -> Messages.format("find.tunnel",
+                            TypeNames.of(tunnel.typeId(), openDocument.registry()), hit.matchedText()))
+                    .orElse("");
+        }
         if (!hit.nested()) {
             return "";
         }

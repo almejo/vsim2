@@ -71,12 +71,25 @@ public final class ProblemText {
                     .map(pin -> pin(pin, document, registry))
                     .collect(Collectors.joining(SEPARATOR)));
             case DisplayBusOverride display -> displayBus(display, document);
-            case TunnelProblem tunnel -> tunnel(tunnel);
+            case TunnelProblem tunnel -> tunnel(tunnel, document);
         };
     }
 
-    /** «La salida «CLK» no tiene entrada.»: one sentence per kind, naming the tunnel. */
-    private static String tunnel(TunnelProblem problem) {
+    /**
+     * «La salida «CLK» no tiene entrada.»: one sentence per kind, naming the tunnel. A problem inside a user component
+     * says first which instance it is in: «Dentro de U1 (Contador): …».
+     */
+    private static String tunnel(TunnelProblem problem, CircuitDocument document) {
+        String sentence = tunnelSentence(problem);
+        Optional<String> nested = problem.tunnels().stream().filter(InstancePath::isNested).findFirst();
+        if (nested.isEmpty()) {
+            return sentence;
+        }
+        String instanceId = nested.get().substring(0, nested.get().lastIndexOf('/'));
+        return Messages.format("problem.tunnel.inside", path(instanceId, document).orElse(instanceId), sentence);
+    }
+
+    private static String tunnelSentence(TunnelProblem problem) {
         return switch (problem.kind()) {
             case DUPLICATE_ENTRANCE -> Messages.format("problem.tunnel.duplicateEntrance", problem.tunnels().size(),
                     problem.name());

@@ -19,6 +19,7 @@ import cl.almejo.vsim.core.simulation.FlatPinRef;
 import cl.almejo.vsim.core.simulation.Problem;
 import cl.almejo.vsim.core.simulation.ShortCircuit;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
+import cl.almejo.vsim.core.simulation.TunnelProblem;
 import cl.almejo.vsim.core.simulation.WidthMismatch;
 import cl.almejo.vsim.core.value.Value;
 import cl.almejo.vsim.ui.app.OpenDocument;
@@ -93,6 +94,18 @@ class ProblemNavigatorTest {
     private void show(Problem... problems) {
         navigator.showSnapshot(new SimulationSnapshot(1, openDocument.netlistToken(), 10, true, Map.of(), Map.of(),
                 List.of(problems), Optional.empty()));
+    }
+
+    @Test
+    void aTunnelProblemSelectsItsTunnels() {
+        Component first = place(openDocument, StandardComponentTypes.TUNNEL_ENTRANCE, 80, 20, Map.of("name", "CLK"));
+        Component second = place(openDocument, StandardComponentTypes.TUNNEL_ENTRANCE, 80, 30, Map.of("name", "CLK"));
+
+        boolean found = navigator.navigateTo(new TunnelProblem("n:none", TunnelProblem.Kind.DUPLICATE_ENTRANCE, "CLK",
+                List.of(first.id().value(), second.id().value())));
+
+        assertThat(found).isTrue();
+        assertThat(canvas.selection().ids()).containsExactlyInAnyOrder(first.id(), second.id());
     }
 
     @Test

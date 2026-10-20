@@ -11,6 +11,7 @@ import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.InterfacePins;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
+import cl.almejo.vsim.core.tunnel.Tunnels;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -20,8 +21,8 @@ import java.util.function.Function;
 
 /**
  * Finds the elements of a document whose texts match a {@link CompiledQuery}: component labels (the pin name for
- * input and output pins), type names, free texts and frame titles; wires have no text. Matches inside user components
- * are reported through their top-level instance (see {@link SearchHit}).
+ * input and output pins), tunnel names, type names, free texts and frame titles; wires have no text. Matches inside
+ * user components are reported through their top-level instance (see {@link SearchHit}).
  *
  * <p>Order: the top-level elements in reading order of their bounds (top, then left; ties by document order); right
  * after an instance's own hit come the hits inside it, depth first in the order of each definition's body (like the
@@ -109,11 +110,17 @@ public final class CircuitSearch {
             }
         }
 
-        /** The label first (a pin name for interface pins), then the type name: one hit per component. */
+        /**
+         * The label first (a pin name for interface pins), then a tunnel's name, then the type name: one hit per
+         * component.
+         */
         private Optional<FieldMatch> componentHit(Component component) {
             if (query.matches(component.label())) {
                 return Optional.of(new FieldMatch(InterfacePins.isInterface(component.typeId())
                         ? SearchHit.Field.PIN_NAME : SearchHit.Field.LABEL, component.label()));
+            }
+            if (Tunnels.isTunnel(component.typeId()) && query.matches(Tunnels.nameOf(component))) {
+                return Optional.of(new FieldMatch(SearchHit.Field.TUNNEL_NAME, Tunnels.nameOf(component)));
             }
             String typeName = typeDisplayName.apply(component.typeId());
             if (query.matches(typeName)) {

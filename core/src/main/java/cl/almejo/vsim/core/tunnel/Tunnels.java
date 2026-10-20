@@ -13,6 +13,7 @@ import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.geometry.GridSize;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -21,6 +22,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.TreeSet;
 import java.util.stream.Collectors;
 
 /**
@@ -130,6 +132,23 @@ public final class Tunnels {
                     exits.getOrDefault(name, List.of())));
         }
         return Collections.unmodifiableMap(groups);
+    }
+
+    /**
+     * The names, sorted, that have tunnels both among {@code ids} and outside them in {@code document}: replacing
+     * {@code ids} by a component would cut those names in two, since names never cross a component's boundary.
+     */
+    public static List<String> namesSplitBy(CircuitDocument document, Collection<ElementId> ids) {
+        Set<ElementId> inside = Set.copyOf(ids);
+        Set<String> namesInside = new TreeSet<>();
+        Set<String> namesOutside = new HashSet<>();
+        for (Component component : document.components()) {
+            if (isTunnel(component.typeId())) {
+                (inside.contains(component.id()) ? namesInside : namesOutside).add(nameOf(component));
+            }
+        }
+        namesInside.retainAll(namesOutside);
+        return List.copyOf(namesInside);
     }
 
     private static Set<String> unionOfKeys(Map<String, ?> first, Map<String, ?> second) {

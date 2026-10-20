@@ -135,4 +135,18 @@ public final class TunnelShape {
     public Rectangle2D documentTextBox(Component component) {
         return placement(component).createTransformedShape(textBox()).getBounds2D();
     }
+
+    /**
+     * Where an upright editor of the name goes, in document pixels: the text box itself when the tag is horizontal; a
+     * horizontal box of the same size centred on it when the tag is vertical (the name is drawn sideways there, but
+     * it is typed upright).
+     */
+    public Rectangle2D documentNameArea(Component component) {
+        Rectangle2D box = documentTextBox(component);
+        if (!textSideways(component.rotation())) {
+            return box;
+        }
+        return new Rectangle2D.Double(box.getCenterX() - box.getHeight() / 2, box.getCenterY() - box.getWidth() / 2,
+                box.getHeight(), box.getWidth());
+    }
 }

@@ -150,6 +150,44 @@ class PropertiesPanelTest {
     }
 
     @Test
+    void renamingAnEntradaInTheInspectorRenamesItsSalidasInOneStep() {
+        Component entrance = place(openDocument, StandardComponentTypes.TUNNEL_ENTRANCE, 0, 0,
+                Map.of(Tunnels.NAME, "CLK"));
+        Component exit = place(openDocument, StandardComponentTypes.TUNNEL_EXIT, 20, 0, Map.of(Tunnels.NAME, "CLK"));
+        selection.select(entrance.id());
+        JTextField name = (JTextField) panel.parameterForm().editor(Tunnels.NAME);
+
+        name.setText("RELOJ");
+        name.postActionEvent();
+
+        assertThat(current(entrance).parameters()).containsEntry(Tunnels.NAME, "RELOJ");
+        assertThat(current(exit).parameters()).containsEntry(Tunnels.NAME, "RELOJ");
+        assertThat(openDocument.history().undoDescription()).contains("command.renameTunnel");
+        openDocument.history().undo();
+        assertThat(current(exit).parameters()).containsEntry(Tunnels.NAME, "CLK");
+    }
+
+    @Test
+    void renamingAndRecolouringAnEntradaTogetherIsOneStep() {
+        Component entrance = place(openDocument, StandardComponentTypes.TUNNEL_ENTRANCE, 0, 0,
+                Map.of(Tunnels.NAME, "CLK"));
+        Component exit = place(openDocument, StandardComponentTypes.TUNNEL_EXIT, 20, 0, Map.of(Tunnels.NAME, "CLK"));
+        selection.select(entrance.id());
+        JTextField name = (JTextField) panel.parameterForm().editor(Tunnels.NAME);
+        name.setText("RELOJ");
+        TunnelColorSwatches swatches = (TunnelColorSwatches) panel.parameterForm().editor(Tunnels.COLOR);
+
+        swatches.swatch(4).doClick();
+
+        assertThat(current(entrance).parameters()).containsEntry(Tunnels.NAME, "RELOJ")
+                .containsEntry(Tunnels.COLOR, 4);
+        assertThat(current(exit).parameters()).containsEntry(Tunnels.NAME, "RELOJ");
+        openDocument.history().undo();
+        assertThat(current(entrance).parameters()).containsEntry(Tunnels.NAME, "CLK").containsEntry(Tunnels.COLOR, 0);
+        assertThat(current(exit).parameters()).containsEntry(Tunnels.NAME, "CLK");
+    }
+
+    @Test
     void aTunnelSalidaHasNoColourToChoose() {
         Component exit = place(openDocument, StandardComponentTypes.TUNNEL_EXIT, 0, 0, Map.of(Tunnels.NAME, "CLK"));
         selection.select(exit.id());

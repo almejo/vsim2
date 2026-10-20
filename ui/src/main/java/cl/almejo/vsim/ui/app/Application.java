@@ -42,6 +42,7 @@ import cl.almejo.vsim.ui.theme.TextFontManager;
 import cl.almejo.vsim.ui.theme.ThemeManager;
 import cl.almejo.vsim.ui.tree.ComponentTreeExtension;
 import cl.almejo.vsim.ui.truthtable.TruthTableExtension;
+import cl.almejo.vsim.ui.tunnel.TunnelsExtension;
 import cl.almejo.vsim.ui.waveform.WaveformsExtension;
 import cl.almejo.vsim.ui.window.CircuitWindow;
 import cl.almejo.vsim.ui.window.CloseSequence;
@@ -133,6 +134,7 @@ public final class Application {
         editorExtensions.add(new WiresFollowExtension());
         editorExtensions.add(new KarnaughExtension(libraryService, startDirectory, chosen));
         editorExtensions.add(new FindExtension());
+        editorExtensions.add(new TunnelsExtension());
         editorExtensions.add(new ActionIcons());
         editorExtensions.add(new PreferencesFeature());
         editorExtensions.add(new RecentFilesFeature());

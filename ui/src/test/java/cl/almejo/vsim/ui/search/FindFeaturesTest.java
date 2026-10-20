@@ -470,6 +470,22 @@ class FindFeaturesTest {
     }
 
     @Test
+    void tunnelsAreFoundByTheirNameAndSayWhatTheyAre() {
+        Component entrance = place(openDocument, StandardComponentTypes.TUNNEL_ENTRANCE, 4, 4, Map.of("name", "CLK"));
+        Component exit = place(openDocument, StandardComponentTypes.TUNNEL_EXIT, 4, 14, Map.of("name", "CLK"));
+        perform(features.findAction());
+
+        type("clk");
+
+        assertThat(features.bar().counterText()).isEqualTo("1 de 2");
+        assertThat(view.canvas().selection().ids()).containsExactly(entrance.id());
+        assertThat(features.bar().messageText()).isEqualTo("Túnel (entrada) «CLK»");
+        perform(features.findNextAction());
+        assertThat(view.canvas().selection().ids()).containsExactly(exit.id());
+        assertThat(features.bar().messageText()).isEqualTo("Túnel (salida) «CLK»");
+    }
+
+    @Test
     void freeTextsAreFoundToo() {
         TextLabel text = new TextLabel(openDocument.document().newLabelId(), new GridPoint(3, 3), "Acción");
         openDocument.execute(new AddElementsCommand(List.of(text)));

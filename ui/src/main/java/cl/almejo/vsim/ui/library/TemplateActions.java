@@ -29,6 +29,7 @@ import cl.almejo.vsim.core.library.PinOrder;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.core.library.TestParts;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
+import cl.almejo.vsim.core.tunnel.Tunnels;
 import cl.almejo.vsim.core.value.Value;
 import cl.almejo.vsim.ui.actions.ContextMenuContributor;
 import cl.almejo.vsim.ui.app.OpenDocument;
@@ -352,6 +353,7 @@ public final class TemplateActions {
                     message = Messages.format("template.pinsUnconnected",
                             String.join(", ", bridging.unconnectedPins()));
                 }
+                message = withSplitTunnels(message, Tunnels.namesSplitBy(document, converted.replacedIds()));
             }
         }
         openDocument.execute(new CompositeCommand("command.createComponent", steps));
@@ -362,6 +364,18 @@ public final class TemplateActions {
             dialogs.showMessage(canvas, message);
         }
         saveToLibrary(bundle);
+    }
+
+    /**
+     * {@code message} (null when there is none) followed by the tunnel names the replace cut in two: names never
+     * cross a component's boundary, so the tunnels that went into the component no longer reach those left outside.
+     */
+    private static String withSplitTunnels(String message, List<String> splitNames) {
+        if (splitNames.isEmpty()) {
+            return message;
+        }
+        String split = Messages.format("template.tunnelsSplit", String.join(", ", splitNames));
+        return message == null ? split : message + "\n" + split;
     }
 
     private void update(Set<ElementId> ids, ComponentForm.Result result) {

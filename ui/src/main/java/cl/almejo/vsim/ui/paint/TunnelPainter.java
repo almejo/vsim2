@@ -9,6 +9,7 @@ import cl.almejo.vsim.ui.tunnel.TunnelShape;
 
 import java.awt.BasicStroke;
 import java.awt.Color;
+import java.awt.Font;
 import java.awt.Graphics2D;
 import java.awt.geom.Ellipse2D;
 import java.awt.geom.Point2D;
@@ -39,6 +40,11 @@ public final class TunnelPainter implements ComponentPainter {
      * stub (its net's state colour), {@code bus} true when its net is wider than one bit.
      */
     public record Look(Color color, Color wire, boolean bus) {
+    }
+
+    /** The font of the name at 100 %, for an editor that sits over it. */
+    public static Font nameFont() {
+        return PainterSupport.BASE_FONT.deriveFont(TEXT_SIZE);
     }
 
     /** The palette colour {@code tunnel} is drawn in: an entrada's own, a salida's entrada's (from {@code colors}). */

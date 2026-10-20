@@ -166,6 +166,15 @@ class SelectToolTest {
         assertThat(context.selection.ids()).containsExactly(constant.id());
     }
 
+    @Test
+    void doubleClickOnATunnelEditsItsNameInsteadOfConfiguring() {
+        Component tunnel = place(context.openDocument(), StandardComponentTypes.TUNNEL_EXIT, 0, 0,
+                Map.of("name", "CLK"));
+        doubleClick(5, 1);
+        assertThat(context.valueEdited).isEqualTo(tunnel);
+        assertThat(context.configured).isNull();
+    }
+
     private void doubleClick(double x, double y) {
         tool.mousePressed(context, TestToolContext.at(x, y));
         tool.mouseReleased(context, TestToolContext.at(x, y));

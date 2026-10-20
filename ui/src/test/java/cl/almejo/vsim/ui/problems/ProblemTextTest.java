@@ -221,4 +221,12 @@ class ProblemTextTest {
                 List.of("c1")), document, registry))
                 .isEqualTo("La salida «CLK» recibe una señal: ¿querías una entrada?");
     }
+
+    @Test
+    void aTunnelProblemInsideAComponentSaysWhichInstanceItIsIn() {
+        String text = ProblemText.describe(new TunnelProblem("c5/n", TunnelProblem.Kind.EXIT_WITHOUT_ENTRANCE, "CLK",
+                List.of("c5/c2")), nestedDocument(), registry);
+
+        assertThat(text).startsWith("Dentro de U1").endsWith(": La salida «CLK» no tiene entrada.");
+    }
 }

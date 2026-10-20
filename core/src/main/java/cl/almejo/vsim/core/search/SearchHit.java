@@ -19,10 +19,11 @@ public record SearchHit(ElementId elementId, List<ElementId> partIds, List<Strin
 
     /**
      * Where the match is. An element matching on several fields gives one hit, with the first field in this order:
-     * its label ({@link #LABEL}, or {@link #PIN_NAME} for an input or output pin), then its type ({@link #TYPE}).
+     * its label ({@link #LABEL}, or {@link #PIN_NAME} for an input or output pin), then a tunnel's name
+     * ({@link #TUNNEL_NAME}), then its type ({@link #TYPE}).
      * Free texts and frames have one field each.
      */
-    public enum Field { LABEL, TYPE, TEXT, FRAME_TITLE, PIN_NAME }
+    public enum Field { LABEL, TYPE, TEXT, FRAME_TITLE, PIN_NAME, TUNNEL_NAME }
 
     public SearchHit {
         Objects.requireNonNull(elementId, "elementId");
