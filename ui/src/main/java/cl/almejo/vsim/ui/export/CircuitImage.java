@@ -11,6 +11,7 @@ import cl.almejo.vsim.core.netlist.Netlist;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.ui.canvas.CircuitBounds;
 import cl.almejo.vsim.ui.canvas.CircuitRenderer;
+import cl.almejo.vsim.ui.canvas.PaintPolicy;
 import cl.almejo.vsim.ui.canvas.RenderState;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
@@ -123,12 +124,20 @@ public final class CircuitImage {
      * problem wires is canvas chrome and is not painted (the problem wires keep their own color and thickness).
      */
     public void paint(Graphics2D graphics, double scale) {
-        graphics.setColor(scheme.background());
+        paint(graphics, scale, PaintPolicy.CANVAS);
+    }
+
+    /**
+     * Like {@link #paint(Graphics2D, double)} under {@code policy} (the PNG/SVG export uses {@link PaintPolicy#CANVAS});
+     * in black and white the background is white whatever the scheme.
+     */
+    public void paint(Graphics2D graphics, double scale, PaintPolicy policy) {
+        graphics.setColor(policy.monochrome() ? Color.WHITE : scheme.background());
         graphics.fillRect(0, 0, width(scale), height(scale));
         graphics.scale(scale, scale);
         graphics.translate(-gridBounds.x() * GridPoint.PIXELS_PER_UNIT, -gridBounds.y() * GridPoint.PIXELS_PER_UNIT);
         new CircuitRenderer(registry, painters, scheme)
                 .paint(graphics, new RenderState(document, netlist, netlistToken, snapshot, Set.of(), 0,
-                        RenderState.NO_PROBLEM_GLOW));
+                        RenderState.NO_PROBLEM_GLOW, Set.of(), policy));
     }
 }

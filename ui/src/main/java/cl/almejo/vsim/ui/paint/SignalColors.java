@@ -13,16 +13,7 @@ public final class SignalColors {
     }
 
     public static Color valueColor(Value value, ColorScheme scheme) {
-        if (value.conflict()) {
-            return scheme.wireConflict();
-        }
-        if (value.isFullyHighImpedance()) {
-            return scheme.wireHighImpedance();
-        }
-        if (value.highImpedanceMask() != 0) {
-            return scheme.wireUnknown();
-        }
-        return value.bits() != 0 ? scheme.wireOne() : scheme.wireZero();
+        return WireState.of(value).color(scheme);
     }
 
     /**
@@ -30,10 +21,6 @@ public final class SignalColors {
      * netlist (its token differs) the value cannot be trusted and the wire is drawn in the unknown color.
      */
     public static Color wireColor(Optional<Net> net, SimulationSnapshot snapshot, long netlistToken, ColorScheme scheme) {
-        if (net.isEmpty() || snapshot.token() != netlistToken) {
-            return scheme.wireUnknown();
-        }
-        Value value = snapshot.netValues().get(net.get().id().value());
-        return value == null ? scheme.wireUnknown() : valueColor(value, scheme);
+        return WireState.of(net, snapshot, netlistToken).color(scheme);
     }
 }
