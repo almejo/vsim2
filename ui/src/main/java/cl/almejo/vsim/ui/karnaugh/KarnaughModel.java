@@ -46,12 +46,21 @@ public final class KarnaughModel {
     private WizardOptions options = WizardOptions.defaults();
     private int selectedOutput;
     private Minimization minimization;
+    private final PracticeModel practice = new PracticeModel(this);
+    private boolean useStudentGroups = true;
 
     public KarnaughModel() {
         title = Messages.text("karnaugh.table.defaultTitle");
         inputNames.addAll(DEFAULT_INPUT_NAMES.subList(0, DEFAULT_INPUTS));
         outputNames.add(DEFAULT_OUTPUT_NAMES.getFirst());
         values.add(new ArrayList<>(Collections.nCopies(rowCount(), LogicValue.ZERO)));
+        practice.tableChanged(values, outputNames);
+        practice.addListener(this::fire);
+    }
+
+    /** The student's groups of the practice mode (step 3); its changes reach this model's listeners too. */
+    public PracticeModel practice() {
+        return practice;
     }
 
     public void addListener(Runnable listener) {
@@ -256,6 +265,67 @@ public final class KarnaughModel {
     }
 
     /**
+     * What steps 4 and 5 build: {@link #minimization()}, except that while {@link #usingStudentGroups()} every output
+     * the student practised in the chosen form takes the terms of their groups that are not red (in drawing order);
+     * the outputs not practised keep VSim's terms.
+     */
+    public Minimization effectiveMinimization() {
+        Minimization base = minimization();
+        if (!usingStudentGroups()) {
+            return base;
+        }
+        Minimization.Form form = options.form();
+        List<Minimization.OutputExpression> outputs = new ArrayList<>();
+        for (Minimization.OutputExpression expression : base.outputs()) {
+            int output = expression.output();
+            outputs.add(practice.practised(output, form)
+                    ? new Minimization.OutputExpression(output, practice.validTerms(output, form))
+                    : expression);
+        }
+        return new Minimization(base.spec(), form, outputs);
+    }
+
+    /**
+     * Whether steps 4 and 5 use the student's groups: «Usar mis grupos» is on (it is by default), some output was
+     * practised in the chosen form and {@link #studentGroupsProblem()} is empty.
+     */
+    public boolean usingStudentGroups() {
+        return useStudentGroups && anyPractised() && studentGroupsProblem().isEmpty();
+    }
+
+    /** «Usar mis grupos» checked or not; it only counts while the student's groups are allowed. */
+    public void setUseStudentGroups(boolean use) {
+        if (use != useStudentGroups) {
+            useStudentGroups = use;
+            fire();
+        }
+    }
+
+    /** Whether some output was practised in the chosen form (step 4 shows «Usar mis grupos» only then). */
+    public boolean anyPractised() {
+        for (int output = 0; output < outputNames.size(); output++) {
+            if (practice.practised(output, options.form())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Why the student's groups cannot be used: the first practised output whose cover is not equivalent to the table
+     * («F: tus grupos no cubren la tabla»); empty when they can (or when nothing was practised).
+     */
+    public Optional<String> studentGroupsProblem() {
+        Minimization.Form form = options.form();
+        for (int output = 0; output < outputNames.size(); output++) {
+            if (practice.practised(output, form) && !practice.result(output, form).equivalent()) {
+                return Optional.of(Messages.format("karnaugh.practice.notCovered", outputNames.get(output).strip()));
+            }
+        }
+        return Optional.empty();
+    }
+
+    /**
      * The palette colour of term {@code term} of output {@code output}. Without sharing, the groups of each output
      * count from the first colour. With sharing, a term has one colour on every map it is on (a shared group looks
      * the same everywhere), and no two groups of one map share a colour: going through the distinct terms in table
@@ -344,6 +414,7 @@ public final class KarnaughModel {
 
     private void changed() {
         minimization = null;
+        practice.tableChanged(values, outputNames);
         fire();
     }
 
