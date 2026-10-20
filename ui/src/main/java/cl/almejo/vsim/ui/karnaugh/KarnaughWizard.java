@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.karnaugh;
 
+import cl.almejo.vsim.core.logic.Minimization;
 import cl.almejo.vsim.ui.i18n.Messages;
 import net.miginfocom.swing.MigLayout;
 
@@ -38,7 +39,7 @@ import java.util.Optional;
  * <p>
  * Its {@link Mode} is fixed when it is created: «Circuito desde tabla de verdad…» (and every handoff) opens the
  * solution, «Practicar Karnaugh…» the practice (spec §2), where step 3 is only the student's groups and nothing shows
- * VSim's answer before «Revisar» or «Me rindo».
+ * VSim's answer before «Revisar» or «Me rindo», and going on from step 3 asks while some output is still pending.
  */
 public final class KarnaughWizard extends JPanel {
 
@@ -96,6 +97,27 @@ public final class KarnaughWizard extends JPanel {
         }
     }
 
+    /**
+     * Asks before leaving step 3 of the practice with outputs still pending («Te falta: G (sin grupos)… Si sigues, te
+     * rindes en esas salidas…»); true goes on («Seguir igual»), false stays («Seguir practicando»).
+     */
+    @FunctionalInterface
+    public interface LeaveConfirmation {
+        boolean leave(Component parent, String message);
+
+        /** «Seguir practicando» / «Seguir igual», with «Seguir practicando» as the default answer. */
+        static LeaveConfirmation dialog() {
+            return (parent, message) -> {
+                String stay = Messages.text("karnaugh.practice.leave.stay");
+                String go = Messages.text("karnaugh.practice.leave.go");
+                int answer = JOptionPane.showOptionDialog(parent, message,
+                        Messages.text("karnaugh.practice.leave.title"), JOptionPane.YES_NO_OPTION,
+                        JOptionPane.QUESTION_MESSAGE, null, new Object[] {stay, go}, stay);
+                return answer == 1;
+            };
+        }
+    }
+
     private static final Dimension DIALOG_SIZE = new Dimension(1000, 680);
 
     private final KarnaughModel model;
@@ -118,6 +140,7 @@ public final class KarnaughWizard extends JPanel {
     private final JPanel buttonBar;
     private Runnable onClose = () -> { };
     private DiscardConfirmation discardConfirmation = DiscardConfirmation.dialog();
+    private LeaveConfirmation leaveConfirmation = LeaveConfirmation.dialog();
     /** The table as the wizard opened it, or as «Crear» last created it: closing asks only when it differs. */
     private KarnaughModel.Contents unchanged;
     private Step step = Step.TABLE;
@@ -243,14 +266,59 @@ public final class KarnaughWizard extends JPanel {
 
     /**
      * Shows {@code target}; refused (false) while the table has a problem and {@code target} is past step 1, and while
-     * «Crear» is building the circuit.
+     * «Crear» is building the circuit. In the practice, going on from step 3 with outputs still pending asks first:
+     * «Seguir igual» gives up on them (for good) and goes on, «Seguir practicando» stays on step 3 showing the first
+     * pending output (false).
      */
     public boolean goTo(Step target) {
         if (createPanel.controls().isBusy() || target != Step.TABLE && model.problem().isPresent()) {
             return false;
         }
+        if (step == Step.GROUPS && target.ordinal() > Step.GROUPS.ordinal() && !leavePractice()) {
+            return false;
+        }
         display(target);
         return true;
+    }
+
+    /** Whether step 3 may be left: nothing pending, or the student chose «Seguir igual» (giving those outputs up). */
+    private boolean leavePractice() {
+        PracticeModel practice = model.practice();
+        if (!practice.practising()) {
+            return true;
+        }
+        List<Integer> pending = practice.pendingOutputs();
+        if (pending.isEmpty()) {
+            return true;
+        }
+        if (leaveConfirmation.leave(this, leaveMessage(pending))) {
+            for (int output : pending) {
+                practice.giveUp(output, model.options().form());
+            }
+            return true;
+        }
+        model.setSelectedOutput(pending.getFirst());
+        display(Step.GROUPS);
+        return false;
+    }
+
+    /** «Te falta: G (sin grupos), H (faltan 2 unos). Si sigues, te rindes en esas salidas…». */
+    private String leaveMessage(List<Integer> pending) {
+        PracticeModel practice = model.practice();
+        Minimization.Form form = model.options().form();
+        boolean sumOfProducts = form == Minimization.Form.SUM_OF_PRODUCTS;
+        List<String> items = new ArrayList<>();
+        for (int output : pending) {
+            String name = model.outputNames().get(output).strip();
+            if (!practice.practised(output, form)) {
+                items.add(Messages.format("karnaugh.practice.leave.noGroups", name));
+            } else {
+                int uncovered = practice.result(output, form).uncoveredRows().size();
+                items.add(Messages.format(sumOfProducts ? "karnaugh.practice.leave.remaining.sop"
+                        : "karnaugh.practice.leave.remaining.pos", name, uncovered));
+            }
+        }
+        return Messages.format("karnaugh.practice.leave.message", String.join(", ", items));
     }
 
     public void next() {
@@ -290,6 +358,11 @@ public final class KarnaughWizard extends JPanel {
     /** What asks «¿Descartar la tabla?»; the real one shows a dialog, tests answer it. */
     public void setDiscardConfirmation(DiscardConfirmation confirmation) {
         discardConfirmation = confirmation;
+    }
+
+    /** What asks before leaving step 3 of the practice with outputs pending; the real one shows a dialog. */
+    public void setLeaveConfirmation(LeaveConfirmation confirmation) {
+        leaveConfirmation = confirmation;
     }
 
     /** What closing does once the creation is cancelled (the dialog disposes itself). */

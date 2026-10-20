@@ -36,7 +36,9 @@ import java.util.function.Supplier;
  * group with its verdict (red: not a group; amber: can grow or not needed; green: its term), what is left to group,
  * «Pista», «Me rindo · Ver la solución», «Revisar» with the grade and VSim's solution in a small map, and «Borrar
  * todos». Nothing shows VSim's answer before «Revisar» or «Me rindo» (which asks first); either one reveals the output
- * ({@link PracticeModel#reveal}) and shows the small map until the groups, the output or the form change.
+ * ({@link PracticeModel#reveal}). «Revisar» shows the small map until the groups, the output or the form change; «Me
+ * rindo» gives up on the map for good ({@link PracticeModel#giveUp}): the small map stays, the student's map is
+ * read-only and every button here is off with the reason.
  * Everything is read from the model's {@link PracticeModel} on each {@link #refresh()}; a click on a legend line
  * selects that group on the map.
  */
@@ -64,12 +66,12 @@ final class PracticePanel extends JPanel {
         }
     }
 
-    /** Asks «¿Ver la solución de VSim para F?» before «Me rindo» shows it; true shows it. Tests answer it. */
+    /** Asks «¿Rendirte en F y ver la solución de VSim?» before «Me rindo» gives up; true gives up. Tests answer it. */
     @FunctionalInterface
     interface GiveUpConfirmation {
         boolean giveUp(Component parent, String outputName);
 
-        /** «Ver la solución» / «Seguir intentando», with «Seguir intentando» as the default answer. */
+        /** «Me rindo» / «Seguir intentando», with «Seguir intentando» as the default answer. */
         static GiveUpConfirmation dialog() {
             return (parent, outputName) -> {
                 String show = Messages.text("karnaugh.practice.giveUp.confirm");
@@ -83,11 +85,8 @@ final class PracticePanel extends JPanel {
         }
     }
 
-    /**
-     * VSim's solution shown for a cover, graded by «Revisar» or not («Me rindo»): shown while the output, the form and
-     * the groups stay as they were.
-     */
-    private record Review(int output, Form form, List<DrawnGroup> groups, boolean graded) {
+    /** A cover graded by «Revisar»: the grade and VSim's map show while the output, the form and the groups stay. */
+    private record Review(int output, Form form, List<DrawnGroup> groups) {
 
         boolean sameCover(int otherOutput, Form otherForm, List<DrawnGroup> otherGroups) {
             return output == otherOutput && form == otherForm && groups.equals(otherGroups);
@@ -99,6 +98,7 @@ final class PracticePanel extends JPanel {
     private final Paragraph header = new Paragraph("");
     private final Paragraph specialCase = new Paragraph("", Font.BOLD);
     private final Paragraph notice = new ColouredParagraph(WizardColors::warning);
+    private final Paragraph givenUpNote = new ColouredParagraph(WizardColors::muted);
     private final Paragraph full = new ColouredParagraph(WizardColors::warning);
     private final Paragraph empty = new ColouredParagraph(WizardColors::muted);
     private final JPanel legend = new JPanel(new MigLayout("insets 0, gap 2, wrap 1"));
@@ -142,6 +142,7 @@ final class PracticePanel extends JPanel {
 
         add(header, "wmin 100");
         add(notice, "gaptop 6, wmin 100");
+        add(givenUpNote, "gaptop 6, wmin 100");
         add(specialCase, "gaptop 6, wmin 100");
         add(legend, "gaptop 6");
         add(empty, "wmin 100");
@@ -176,10 +177,13 @@ final class PracticePanel extends JPanel {
         PracticeResult result = practice.result(output, form);
 
         header.setText(Messages.text(sumOfProducts ? "karnaugh.practice.header.sop" : "karnaugh.practice.header.pos"));
-        List<String> dropped = practice.droppedOutputs();
-        notice.setText(dropped.isEmpty() ? "" : Messages.format("karnaugh.practice.tableChanged",
-                String.join(", ", dropped)));
-        notice.setVisible(!dropped.isEmpty());
+        notice.setText(practice.restarted() ? Messages.text("karnaugh.practice.tableChanged") : "");
+        notice.setVisible(practice.restarted());
+        boolean givenUp = practice.givenUp(output, form);
+        String givenUpReason = givenUp
+                ? Messages.format("karnaugh.practice.givenUp", model.outputNames().get(output).strip()) : null;
+        givenUpNote.setText(givenUp ? givenUpReason : "");
+        givenUpNote.setVisible(givenUp);
         // A table with X may hide its answer in the special case («F = 1» uses the X): only once revealed.
         Optional<String> special = practice.revealed(output, form) || !hasDontCare(spec, output)
                 ? KarnaughTexts.specialCase(model.minimization(), output) : Optional.empty();
@@ -206,7 +210,7 @@ final class PracticePanel extends JPanel {
         }
 
         // After the second press (the group shows) another press does nothing until the groups change.
-        hintButton.setEnabled(uncovered > 0 && practice.hintGroup().isEmpty());
+        hintButton.setEnabled(!givenUp && uncovered > 0 && practice.hintGroup().isEmpty());
         String hintLine = practice.hintGroup().isPresent() ? Messages.text("karnaugh.practice.hint.group")
                 : practice.hintRow().isPresent() ? Messages.text("karnaugh.practice.hint.cell") : "";
         hint.setText(hintLine);
@@ -215,13 +219,16 @@ final class PracticePanel extends JPanel {
         hintsUsed.setText(used == 0 ? "" : Messages.format("karnaugh.practice.hintsUsed", used));
 
         boolean anyRed = verdicts.stream().anyMatch(verdict -> verdict.verdict().isInvalid());
-        reviewButton.setEnabled(!groups.isEmpty() && !anyRed);
-        clearAllButton.setEnabled(!groups.isEmpty());
+        reviewButton.setEnabled(!givenUp && !groups.isEmpty() && !anyRed);
+        clearAllButton.setEnabled(!givenUp && !groups.isEmpty());
         if (review != null && !review.sameCover(output, form, groups)) {
             review = null;
         }
-        giveUpButton.setEnabled(review == null);
-        showReview(spec, output, form, result);
+        giveUpButton.setEnabled(!givenUp && review == null);
+        for (JComponent button : List.of(hintButton, reviewButton, clearAllButton, giveUpButton)) {
+            button.setToolTipText(givenUpReason);
+        }
+        showReview(spec, output, form, result, givenUp);
         revalidate();
         repaint();
     }
@@ -288,36 +295,40 @@ final class PracticePanel extends JPanel {
         return count;
     }
 
-    private void review() {
-        showSolution(true);
-    }
-
-    /** «Me rindo · Ver la solución»: after asking, VSim's map without a grade; the mode stays the practice. */
+    /**
+     * «Me rindo · Ver la solución»: after asking, gives up on the shown map for good ({@link PracticeModel#giveUp}):
+     * VSim's map shows without a grade and stays, and the student's map becomes read-only.
+     */
     private void giveUp() {
-        if (giveUpConfirmation.giveUp(this, model.outputNames().get(model.selectedOutput()).strip())) {
-            showSolution(false);
+        int output = model.selectedOutput();
+        if (giveUpConfirmation.giveUp(this, model.outputNames().get(output).strip())) {
+            model.practice().giveUp(output, model.options().form());
         }
     }
 
-    private void showSolution(boolean graded) {
+    private void review() {
         int output = model.selectedOutput();
         Form form = model.options().form();
-        review = new Review(output, form, model.practice().groups(output, form), graded);
+        review = new Review(output, form, model.practice().groups(output, form));
         model.practice().reveal(output, form); // step 4 may show VSim's expression of this output from now on
         refresh();
     }
 
-    /** «¡Mínima!», «Correcta pero no mínima…» or «No es equivalente…», and VSim's map beside it, after «Revisar». */
-    private void showReview(TruthTableSpec spec, int output, Form form, PracticeResult result) {
-        boolean shown = review != null;
-        reviewText.setVisible(shown && review.graded());
+    /**
+     * After «Revisar» «¡Mínima!», «Correcta pero no mínima…» or «No es equivalente…» and VSim's map beside it; on a
+     * map given up VSim's map alone, for good.
+     */
+    private void showReview(TruthTableSpec spec, int output, Form form, PracticeResult result, boolean givenUp) {
+        boolean graded = review != null && !givenUp;
+        boolean shown = graded || givenUp;
+        reviewText.setVisible(graded);
         solutionTitle.setVisible(shown);
         solutionHolder.setVisible(shown);
         if (!shown) {
             reviewText.setText("");
             return;
         }
-        if (!review.graded()) {
+        if (!graded) {
             reviewText.setText("");
         } else if (!result.equivalent()) {
             int row = result.firstDifferingRow().orElseThrow();
@@ -381,6 +392,10 @@ final class PracticePanel extends JPanel {
 
     String noticeText() {
         return notice.isVisible() ? notice.getText() : "";
+    }
+
+    String givenUpText() {
+        return givenUpNote.isVisible() ? givenUpNote.getText() : "";
     }
 
     String specialCaseText() {

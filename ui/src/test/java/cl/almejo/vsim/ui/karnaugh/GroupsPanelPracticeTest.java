@@ -351,7 +351,7 @@ class GroupsPanelPracticeTest {
     }
 
     @Test
-    void meRindoShowsVsimsMapWithoutGradingUntilTheGroupsOutputOrFormChange() {
+    void meRindoShowsVsimsMapWithoutGradingForGoodOnThatMapOnly() {
         practise(1, 3, 5, 7);
         giveUpAnswer = true;
         practicePanel.giveUpButton().doClick();
@@ -362,19 +362,19 @@ class GroupsPanelPracticeTest {
         assertThat(practicePanel.solutionTitleText()).isEqualTo("Solución de VSim");
         assertThat(practicePanel.solutionMap().groups()).hasSize(1);
         assertThat(practicePanel.reviewText()).as("nothing was graded").isEmpty();
-        assertThat(practicePanel.giveUpButton().isEnabled()).as("already shown").isFalse();
+        assertThat(practicePanel.giveUpButton().isEnabled()).as("given up for good").isFalse();
         assertThat(model.practice().revealed(0, SUM_OF_PRODUCTS)).isTrue();
+        assertThat(model.practice().givenUp(0, SUM_OF_PRODUCTS)).isTrue();
         assertThat(model.practice().revealed(0, PRODUCT_OF_SUMS)).isFalse();
 
-        add(SUM_OF_PRODUCTS, group(C, C));
-        assertThat(practicePanel.solutionMapVisible()).isFalse();
-        assertThat(practicePanel.giveUpButton().isEnabled()).isTrue();
-        assertThat(model.practice().revealed(0, SUM_OF_PRODUCTS)).as("seen once, revealed for good").isTrue();
-
-        practicePanel.giveUpButton().doClick();
+        assertThat(model.practice().add(0, SUM_OF_PRODUCTS, group(C, C))).as("the map is read-only").isFalse();
         assertThat(practicePanel.solutionMapVisible()).isTrue();
+
         panel.practiceFormButton(PRODUCT_OF_SUMS).doClick();
-        assertThat(practicePanel.solutionMapVisible()).isFalse();
+        assertThat(practicePanel.solutionMapVisible()).as("the other form is another map").isFalse();
+        assertThat(practicePanel.giveUpButton().isEnabled()).isTrue();
+        panel.practiceFormButton(SUM_OF_PRODUCTS).doClick();
+        assertThat(practicePanel.solutionMapVisible()).isTrue();
     }
 
     @Test
@@ -427,7 +427,7 @@ class GroupsPanelPracticeTest {
         wizard.goTo(KarnaughWizard.Step.TABLE);
         model.setValue(0, 0, LogicValue.ONE);
         wizard.goTo(KarnaughWizard.Step.GROUPS);
-        assertThat(practicePanel.noticeText()).isEqualTo("La tabla cambió: se borraron tus grupos de F");
+        assertThat(practicePanel.noticeText()).isEqualTo("La tabla cambió: la práctica empezó de nuevo");
         assertThat(practicePanel.legendTexts()).isEmpty();
         add(SUM_OF_PRODUCTS, group(C, C));
         assertThat(practicePanel.noticeText()).isEmpty();

@@ -11,7 +11,6 @@ import cl.almejo.vsim.core.logic.TruthTableSpec;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -24,15 +23,31 @@ import java.util.Set;
  * drawing order, the selected group, and the hints. The verdicts and the grade come from core ({@link GroupCheck},
  * {@link PracticeResult}) and are cached until the groups or the table change.
  * <p>
- * Table changes (told by the model through {@link #tableChanged}): an output whose column changed (values or input
- * count) loses its groups in both forms, and its name goes to {@link #droppedOutputs()} when it had any; a removed
- * output loses them silently; titles and names keep them. The «selected» and hint accessors without arguments are
- * about the output and form the wizard shows ({@link KarnaughModel#selectedOutput()}, the step-4 form).
+ * Each map (one output in one form) is {@link MapState#PENDING pending}, {@link MapState#DONE done} (the groups that
+ * are not red cover the table, minimal or not) or {@link MapState#GIVEN_UP given up} («Me rindo», or «Seguir igual»
+ * when leaving step 3): giving up is for good, the map's groups stay but can no longer change, and steps 4 and 5 use
+ * VSim's terms for it.
+ * <p>
+ * Table changes (told by the model through {@link #tableChanged}): any change of the values, the input count or the
+ * output count restarts the whole practice (every group, give-up, hint and reveal of every output and form), and
+ * {@link #restarted()} says so until the next drawing; titles and names keep everything. The «selected» and hint
+ * accessors without arguments are about the output and form the wizard shows ({@link KarnaughModel#selectedOutput()},
+ * the step-4 form).
  */
 public final class PracticeModel {
 
     /** The most groups one output and form can have (a 4×4 map has 16 cells). */
     public static final int MAXIMUM_GROUPS = 16;
+
+    /** Where one map (one output in one form) stands. */
+    public enum MapState {
+        /** Something still to group. */
+        PENDING,
+        /** The student's groups that are not red cover the table (minimal or not). */
+        DONE,
+        /** The student gave up on it: read-only, VSim's solution shows. */
+        GIVEN_UP
+    }
 
     private record Key(int output, Form form) {
     }
@@ -44,8 +59,15 @@ public final class PracticeModel {
         private int hintedRow = -1;
         private boolean hintGroupShown;
         private int hintsUsed;
-        /** VSim's solution was shown («Revisar» or «Me rindo»); kept until the output's column changes. */
+        /** VSim's solution was shown («Revisar» or «Me rindo»); kept until the table changes. */
         private boolean revealed;
+        /** The student gave up on this map, for good (until the table changes). */
+        private boolean givenUp;
+
+        /** Nothing done here that a restart would lose. */
+        boolean blank() {
+            return groups.isEmpty() && !revealed && !givenUp && hintsUsed == 0 && hintedRow < 0;
+        }
     }
 
     private final KarnaughModel model;
@@ -53,7 +75,8 @@ public final class PracticeModel {
     private final Map<Key, Work> works = new HashMap<>();
     private final Map<Key, List<GroupCheck.Result>> verdictCache = new HashMap<>();
     private final Map<Key, PracticeResult> resultCache = new HashMap<>();
-    private final List<String> droppedOutputs = new ArrayList<>();
+    /** «La tabla cambió: la práctica empezó de nuevo» shows until the next drawing. */
+    private boolean restarted;
     /** The output columns when the groups were last checked against the table. */
     private List<List<LogicValue>> knownColumns = List.of();
     private boolean practising;
@@ -98,10 +121,13 @@ public final class PracticeModel {
         return work != null && !work.groups.isEmpty();
     }
 
-    /** Adds {@code group} after the others; refused (false) when the output already has {@link #MAXIMUM_GROUPS}. */
+    /**
+     * Adds {@code group} after the others; refused (false) when the output already has {@link #MAXIMUM_GROUPS} or the
+     * student gave up on it.
+     */
     public boolean add(int output, Form form, DrawnGroup group) {
         Work work = work(output, form);
-        if (work.groups.size() >= MAXIMUM_GROUPS) {
+        if (work.givenUp || work.groups.size() >= MAXIMUM_GROUPS) {
             return false;
         }
         work.groups.add(group);
@@ -112,7 +138,7 @@ public final class PracticeModel {
     /** Removes the group at {@code index}; the selection follows the group it pointed at (cleared when removed). */
     public void remove(int output, Form form, int index) {
         Work work = work(output, form);
-        if (index < 0 || index >= work.groups.size()) {
+        if (work.givenUp || index < 0 || index >= work.groups.size()) {
             return;
         }
         work.groups.remove(index);
@@ -127,7 +153,7 @@ public final class PracticeModel {
     /** «Borrar todos»: removes every group of output {@code output} in {@code form}. */
     public void clear(int output, Form form) {
         Work work = work(output, form);
-        if (work.groups.isEmpty()) {
+        if (work.givenUp || work.groups.isEmpty()) {
             return;
         }
         work.groups.clear();
@@ -145,10 +171,13 @@ public final class PracticeModel {
         return work == null || work.selected < 0 ? OptionalInt.empty() : OptionalInt.of(work.selected);
     }
 
-    /** Selects group {@code index} of the shown output and form (out of range clears the selection). */
+    /**
+     * Selects group {@code index} of the shown output and form (out of range, or on a map given up, clears the
+     * selection).
+     */
     public void select(int index) {
         Work work = work(model.selectedOutput(), shownForm());
-        int newSelected = index >= 0 && index < work.groups.size() ? index : -1;
+        int newSelected = !work.givenUp && index >= 0 && index < work.groups.size() ? index : -1;
         if (newSelected != work.selected) {
             work.selected = newSelected;
             fire();
@@ -197,11 +226,14 @@ public final class PracticeModel {
      * «Pista» on the shown output and form: the first press marks an uncovered cell (an essential one first); a
      * second press on the same cell shows a group that covers it. Any edit of the groups takes the hint away, so a
      * press after it marks a cell again. Each press that shows something counts; false when every cell the form needs
-     * is covered (nothing to hint, not counted).
+     * is covered or the map was given up (nothing to hint, not counted).
      */
     public boolean pressHint() {
         int output = model.selectedOutput();
         Form form = shownForm();
+        if (givenUp(output, form)) {
+            return false;
+        }
         OptionalInt row = PracticeResult.hintRow(spec(), output, form, validTerms(output, form));
         if (row.isEmpty()) {
             return false;
@@ -243,8 +275,8 @@ public final class PracticeModel {
 
     /**
      * Whether VSim's solution of output {@code output} in {@code form} was shown («Revisar» or «Me rindo»): from then
-     * on step 4 may show VSim's expression for it. It stays revealed (whatever the groups do) until the output's column
-     * changes, which makes it a new function.
+     * on step 4 may show VSim's expression for it. It stays revealed (whatever the groups do) until the table changes,
+     * which restarts the practice.
      */
     public boolean revealed(int output, Form form) {
         Work work = works.get(new Key(output, form));
@@ -260,57 +292,81 @@ public final class PracticeModel {
         }
     }
 
-    /** The names of the outputs whose groups a table change dropped, for «La tabla cambió…»; empty when none. */
-    public List<String> droppedOutputs() {
-        return List.copyOf(droppedOutputs);
+    /** Whether the student gave up on output {@code output} in {@code form} (for good, until the table changes). */
+    public boolean givenUp(int output, Form form) {
+        Work work = works.get(new Key(output, form));
+        return work != null && work.givenUp;
     }
 
-    /** Dismisses «La tabla cambió…» (the next edit of the groups dismisses it too). */
-    public void clearDroppedNotice() {
-        if (!droppedOutputs.isEmpty()) {
-            droppedOutputs.clear();
+    /**
+     * Gives up on output {@code output} in {@code form}, for good: VSim's solution is revealed, the map keeps the
+     * student's groups but takes no more edits, selections or hints, and steps 4 and 5 use VSim's terms for it.
+     */
+    public void giveUp(int output, Form form) {
+        Work work = work(output, form);
+        if (work.givenUp) {
+            return;
+        }
+        work.givenUp = true;
+        work.revealed = true;
+        work.selected = -1;
+        work.hintedRow = -1;
+        work.hintGroupShown = false;
+        fire();
+    }
+
+    /** Where map {@code output} in {@code form} stands: given up, done (its cover is equivalent) or pending. */
+    public MapState state(int output, Form form) {
+        if (givenUp(output, form)) {
+            return MapState.GIVEN_UP;
+        }
+        return result(output, form).equivalent() ? MapState.DONE : MapState.PENDING;
+    }
+
+    /** The outputs whose map in the chosen form is still pending, in table order. */
+    public List<Integer> pendingOutputs() {
+        List<Integer> pending = new ArrayList<>();
+        for (int output = 0; output < model.outputCount(); output++) {
+            if (state(output, shownForm()) == MapState.PENDING) {
+                pending.add(output);
+            }
+        }
+        return pending;
+    }
+
+    /** Whether a table change restarted the practice and nothing was drawn since («La tabla cambió…»). */
+    public boolean restarted() {
+        return restarted;
+    }
+
+    /** Dismisses «La tabla cambió…» (the next drawing dismisses it too). */
+    public void clearRestartedNotice() {
+        if (restarted) {
+            restarted = false;
             fire();
         }
     }
 
     /**
-     * The table changed (anything: values, counts, names, title): drops the groups of every output whose column is
-     * not the one they were drawn on, and of removed outputs. Called by the model before it tells its listeners, so
-     * this fires nothing itself.
+     * The table changed (anything: values, counts, names, title): when the output columns are not the ones the
+     * practice was done on (a value, the input count or the output count changed) the whole practice restarts, with
+     * the notice when it loses something. Called by the model before it tells its listeners, so this fires nothing.
      */
-    void tableChanged(List<List<LogicValue>> columns, List<String> outputNames) {
+    void tableChanged(List<List<LogicValue>> columns) {
         verdictCache.clear();
         resultCache.clear();
-        Iterator<Map.Entry<Key, Work>> iterator = works.entrySet().iterator();
-        while (iterator.hasNext()) {
-            int output = iterator.next().getKey().output();
-            if (output >= columns.size()) {
-                iterator.remove();
-            }
-        }
-        for (int output = 0; output < columns.size() && output < knownColumns.size(); output++) {
-            if (!columns.get(output).equals(knownColumns.get(output))) {
-                drop(output, outputNames.get(output).strip());
-            }
+        if (!columns.equals(knownColumns)) {
+            boolean lost = works.values().stream().anyMatch(work -> !work.blank());
+            works.clear();
+            restarted |= lost;
         }
         knownColumns = columns.stream().map(List::copyOf).toList();
-    }
-
-    private void drop(int output, String name) {
-        boolean hadGroups = false;
-        for (Form form : Form.values()) {
-            Work work = works.remove(new Key(output, form));
-            hadGroups |= work != null && !work.groups.isEmpty();
-        }
-        if (hadGroups && !droppedOutputs.contains(name)) {
-            droppedOutputs.add(name);
-        }
     }
 
     private void edited(Work work) {
         work.hintedRow = -1;
         work.hintGroupShown = false;
-        droppedOutputs.clear();
+        restarted = false;
         fire();
     }
 

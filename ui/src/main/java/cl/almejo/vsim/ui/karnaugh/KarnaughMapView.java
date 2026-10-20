@@ -57,7 +57,8 @@ import java.util.function.BooleanSupplier;
  * keyboard is in use, else Enter is the wizard's «Siguiente») and Escape drops it, or else lets the selected group go
  * (with neither, Escape reaches the window). The selected group, the rectangle being drawn and the keyboard cursor are outlined with marching ants (along
  * their closed sides), which move only while something is outlined and the map shows. The cells the form still needs
- * get a dotted ring, the hinted cell a stronger one and the hinted group a dashed outline.
+ * get a dotted ring, the hinted cell a stronger one and the hinted group a dashed outline. A map the student gave up
+ * on ({@link PracticeModel#givenUp}) keeps their groups drawn but is read-only: no gestures, keys or selection.
  * Colours are read from the theme at paint time.
  */
 final class KarnaughMapView extends JComponent {
@@ -111,9 +112,9 @@ final class KarnaughMapView extends JComponent {
 
             @Override
             public void mousePressed(MouseEvent event) {
-                if (practising()) {
+                if (editable()) {
                     practicePress(event.getPoint(), (event.getModifiersEx() & InputEvent.CTRL_DOWN_MASK) != 0);
-                } else {
+                } else if (!practising()) {
                     clickAt(event.getPoint());
                 }
             }
@@ -187,14 +188,22 @@ final class KarnaughMapView extends JComponent {
     }
 
     /**
-     * The model or the mode changed: the map takes the keyboard only while practising, a gesture in progress ends
-     * when the mode goes, and the ants run or stop.
+     * Whether the student can draw on this map: practising, and not given up on this output in the chosen form (a map
+     * given up keeps the student's groups drawn but takes no gestures, keys or selection).
+     */
+    boolean editable() {
+        return practising() && !model.practice().givenUp(output, model.options().form());
+    }
+
+    /**
+     * The model or the mode changed: the map takes the keyboard only while the student can draw on it, a gesture in
+     * progress ends when that stops, and the ants run or stop.
      */
     void refreshPractice() {
         fitCursor();
-        boolean practising = practising();
-        setFocusable(practising);
-        if (!practising) {
+        boolean editable = editable();
+        setFocusable(editable);
+        if (!editable) {
             anchor = null;
             dragRectangle = null;
             stretch = null;
@@ -372,7 +381,7 @@ final class KarnaughMapView extends JComponent {
     }
 
     private void practiceDrag(Point point) {
-        if (anchor == null || !practising()) {
+        if (anchor == null || !editable()) {
             return;
         }
         MapGeometry geometry = geometry();
@@ -390,7 +399,7 @@ final class KarnaughMapView extends JComponent {
 
     /** The end of a drag adds its rectangle; a click selects the group under it or adds a one-cell group. */
     private void practiceRelease(Point point) {
-        if (anchor == null || !practising()) {
+        if (anchor == null || !editable()) {
             return;
         }
         KarnaughLayout.GridCell start = anchor;
@@ -483,7 +492,7 @@ final class KarnaughMapView extends JComponent {
         getActionMap().put(name, new AbstractAction() {
             @Override
             public boolean isEnabled() {
-                return practising() && condition.getAsBoolean();
+                return editable() && condition.getAsBoolean();
             }
 
             @Override
@@ -554,7 +563,7 @@ final class KarnaughMapView extends JComponent {
 
     /** Whether the ants have something to outline: the selected group, a rectangle being drawn or the cursor. */
     private boolean outlining() {
-        if (!practising()) {
+        if (!editable()) {
             return false;
         }
         return pendingRectangle().isPresent() || keyboardActive || selectedHere().isPresent();

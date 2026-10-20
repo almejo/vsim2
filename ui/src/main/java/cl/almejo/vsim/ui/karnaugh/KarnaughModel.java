@@ -54,7 +54,7 @@ public final class KarnaughModel {
         inputNames.addAll(DEFAULT_INPUT_NAMES.subList(0, DEFAULT_INPUTS));
         outputNames.add(DEFAULT_OUTPUT_NAMES.getFirst());
         values.add(new ArrayList<>(Collections.nCopies(rowCount(), LogicValue.ZERO)));
-        practice.tableChanged(values, outputNames);
+        practice.tableChanged(values);
         practice.addListener(this::fire);
     }
 
@@ -267,7 +267,7 @@ public final class KarnaughModel {
     /**
      * What steps 4 and 5 build: {@link #minimization()}, except that while {@link #usingStudentGroups()} every output
      * the student practised in the chosen form takes the terms of their groups that are not red (in drawing order);
-     * the outputs not practised keep VSim's terms.
+     * the outputs not practised, or given up, keep VSim's terms.
      */
     public Minimization effectiveMinimization() {
         Minimization base = minimization();
@@ -278,7 +278,7 @@ public final class KarnaughModel {
         List<Minimization.OutputExpression> outputs = new ArrayList<>();
         for (Minimization.OutputExpression expression : base.outputs()) {
             int output = expression.output();
-            outputs.add(practice.practised(output, form)
+            outputs.add(usesStudentTerms(output, form)
                     ? new Minimization.OutputExpression(output, practice.validTerms(output, form))
                     : expression);
         }
@@ -341,15 +341,15 @@ public final class KarnaughModel {
     }
 
     /**
-     * Whether some output was practised in the chosen form, in the practice wizard (step 4 shows «Usar mis grupos» only
-     * then).
+     * Whether some output was practised in the chosen form and not given up, in the practice wizard (step 4 shows
+     * «Usar mis grupos» only then).
      */
     public boolean anyPractised() {
         if (!practice.practising()) {
             return false;
         }
         for (int output = 0; output < outputNames.size(); output++) {
-            if (practice.practised(output, options.form())) {
+            if (usesStudentTerms(output, options.form())) {
                 return true;
             }
         }
@@ -363,11 +363,16 @@ public final class KarnaughModel {
     public Optional<String> studentGroupsProblem() {
         Minimization.Form form = options.form();
         for (int output = 0; output < outputNames.size(); output++) {
-            if (practice.practised(output, form) && !practice.result(output, form).equivalent()) {
+            if (usesStudentTerms(output, form) && !practice.result(output, form).equivalent()) {
                 return Optional.of(Messages.format("karnaugh.practice.notCovered", outputNames.get(output).strip()));
             }
         }
         return Optional.empty();
+    }
+
+    /** Whether output {@code output} in {@code form} has the student's groups to use: drawn, and not given up. */
+    private boolean usesStudentTerms(int output, Minimization.Form form) {
+        return practice.practised(output, form) && !practice.givenUp(output, form);
     }
 
     /**
@@ -465,7 +470,7 @@ public final class KarnaughModel {
 
     private void changed() {
         minimization = null;
-        practice.tableChanged(values, outputNames);
+        practice.tableChanged(values);
         fire();
     }
 

@@ -104,46 +104,54 @@ class PracticeModelTest {
         assertThat(practice.groups(0, SUM_OF_PRODUCTS)).containsExactly(drawn(A_NOT_C));
         assertThat(practice.groups(0, PRODUCT_OF_SUMS)).containsExactly(cell(0));
         assertThat(practice.groups(1, SUM_OF_PRODUCTS)).containsExactly(cell(0));
-        assertThat(practice.droppedOutputs()).isEmpty();
+        assertThat(practice.restarted()).isFalse();
     }
 
     @Test
-    void aChangedColumnDropsOnlyThatOutputsGroupsInBothFormsWithTheNotice() {
+    void anyChangedValueRestartsThePracticeOfEveryOutputAndFormWithTheNotice() {
         load(List.of(1, 3, 7), List.of(0, 4));
+        practice.setPractising(true);
         practice.add(0, SUM_OF_PRODUCTS, drawn(A_NOT_C));
         practice.add(0, PRODUCT_OF_SUMS, cell(0));
         practice.add(1, SUM_OF_PRODUCTS, cell(0));
+        practice.pressHint();
+        practice.reveal(1, SUM_OF_PRODUCTS);
+        practice.giveUp(1, PRODUCT_OF_SUMS);
 
-        model.setValue(0, 5, LogicValue.DONT_CARE);
+        model.setValue(1, 5, LogicValue.DONT_CARE); // only G's column changed: every output restarts
 
-        assertThat(practice.groups(0, SUM_OF_PRODUCTS)).isEmpty();
-        assertThat(practice.groups(0, PRODUCT_OF_SUMS)).isEmpty();
-        assertThat(practice.groups(1, SUM_OF_PRODUCTS)).containsExactly(cell(0));
-        assertThat(practice.droppedOutputs()).containsExactly("F");
+        for (int output = 0; output < 2; output++) {
+            for (Form form : Form.values()) {
+                assertThat(practice.groups(output, form)).isEmpty();
+                assertThat(practice.revealed(output, form)).isFalse();
+                assertThat(practice.givenUp(output, form)).isFalse();
+                assertThat(practice.hintsUsed(output, form)).isZero();
+            }
+        }
+        assertThat(practice.hintRow()).isEmpty();
+        assertThat(practice.restarted()).isTrue();
 
-        model.setValue(0, 6, LogicValue.ONE); // F has no groups left: nothing more to tell
-        assertThat(practice.droppedOutputs()).containsExactly("F");
-
-        practice.add(1, SUM_OF_PRODUCTS, cell(4)); // the next edit dismisses the notice
-        assertThat(practice.droppedOutputs()).isEmpty();
+        practice.add(1, SUM_OF_PRODUCTS, cell(4)); // the next drawing dismisses the notice
+        assertThat(practice.restarted()).isFalse();
     }
 
     @Test
-    void theNoticeCanBeDismissedAndAColumnWithoutGroupsSaysNothing() {
+    void theNoticeCanBeDismissedAndARestartWithNothingToLoseSaysNothing() {
         load(List.of(1, 3, 7), List.of(0, 4));
-        practice.add(0, SUM_OF_PRODUCTS, drawn(A_NOT_C));
+        practice.setPractising(true);
 
         model.setValue(1, 2, LogicValue.ONE);
-        assertThat(practice.droppedOutputs()).isEmpty();
+        assertThat(practice.restarted()).as("nothing was practised").isFalse();
 
+        practice.add(0, SUM_OF_PRODUCTS, drawn(A_NOT_C));
         model.setValue(0, 2, LogicValue.ONE);
-        assertThat(practice.droppedOutputs()).containsExactly("F");
-        practice.clearDroppedNotice();
-        assertThat(practice.droppedOutputs()).isEmpty();
+        assertThat(practice.restarted()).isTrue();
+        practice.clearRestartedNotice();
+        assertThat(practice.restarted()).isFalse();
     }
 
     @Test
-    void aChangedInputCountDropsEveryOutputsGroups() {
+    void aChangedInputOrOutputCountRestartsThePractice() {
         load(List.of(1, 3, 7), List.of(0, 4));
         practice.add(0, SUM_OF_PRODUCTS, drawn(A_NOT_C));
         practice.add(1, PRODUCT_OF_SUMS, cell(1));
@@ -152,21 +160,97 @@ class PracticeModelTest {
 
         assertThat(practice.groups(0, SUM_OF_PRODUCTS)).isEmpty();
         assertThat(practice.groups(1, PRODUCT_OF_SUMS)).isEmpty();
-        assertThat(practice.droppedOutputs()).containsExactly("F", "G");
+        assertThat(practice.restarted()).isTrue();
+
+        model.setInputCount(3);
+        practice.add(0, SUM_OF_PRODUCTS, cell(0));
+        model.setOutputCount(3);
+        assertThat(practice.groups(0, SUM_OF_PRODUCTS)).as("an added output restarts too").isEmpty();
+        practice.add(0, SUM_OF_PRODUCTS, cell(0));
+        model.setOutputCount(1);
+        assertThat(practice.groups(0, SUM_OF_PRODUCTS)).as("and a removed one").isEmpty();
+        assertThat(practice.restarted()).isTrue();
     }
 
     @Test
-    void removedOutputsLoseTheirGroupsQuietlyAndAnAddedOneStartsEmpty() {
+    void anOutputIsPendingDoneOrGivenUpPerForm() {
+        load(List.of(1, 3, 7), List.of());
+        practice.setPractising(true);
+        assertThat(practice.state(0, SUM_OF_PRODUCTS)).isEqualTo(PracticeModel.MapState.PENDING);
+        assertThat(practice.state(1, SUM_OF_PRODUCTS)).as("no 1s to group").isEqualTo(PracticeModel.MapState.DONE);
+        assertThat(practice.pendingOutputs()).containsExactly(0);
+
+        practice.add(0, SUM_OF_PRODUCTS, drawn(A_NOT_C));
+        practice.add(0, SUM_OF_PRODUCTS, cell(0)); // red: it does not count
+        assertThat(practice.state(0, SUM_OF_PRODUCTS)).isEqualTo(PracticeModel.MapState.PENDING);
+        practice.add(0, SUM_OF_PRODUCTS, cell(7)); // covers everything, not minimal: done anyway
+        assertThat(practice.state(0, SUM_OF_PRODUCTS)).isEqualTo(PracticeModel.MapState.DONE);
+        assertThat(practice.pendingOutputs()).isEmpty();
+        assertThat(practice.state(0, PRODUCT_OF_SUMS)).isEqualTo(PracticeModel.MapState.PENDING);
+        assertThat(practice.state(1, PRODUCT_OF_SUMS)).isEqualTo(PracticeModel.MapState.PENDING);
+
+        model.setOptions(model.options().withForm(PRODUCT_OF_SUMS));
+        assertThat(practice.pendingOutputs()).as("the chosen form's maps").containsExactly(0, 1);
+    }
+
+    @Test
+    void givingUpIsPermanentPerMapAndMakesItReadOnly() {
         load(List.of(1, 3, 7), List.of(0, 4));
+        practice.setPractising(true);
+        practice.add(0, SUM_OF_PRODUCTS, drawn(A_NOT_C));
+        practice.select(0);
+        practice.pressHint();
+        int[] events = {0};
+        model.addListener(() -> events[0]++);
+
+        practice.giveUp(0, SUM_OF_PRODUCTS);
+
+        assertThat(events[0]).isEqualTo(1);
+        assertThat(practice.givenUp(0, SUM_OF_PRODUCTS)).isTrue();
+        assertThat(practice.revealed(0, SUM_OF_PRODUCTS)).isTrue();
+        assertThat(practice.state(0, SUM_OF_PRODUCTS)).isEqualTo(PracticeModel.MapState.GIVEN_UP);
+        assertThat(practice.givenUp(0, PRODUCT_OF_SUMS)).isFalse();
+        assertThat(practice.givenUp(1, SUM_OF_PRODUCTS)).isFalse();
+        assertThat(practice.selected()).isEmpty();
+        assertThat(practice.hintRow()).isEmpty();
+        assertThat(practice.groups(0, SUM_OF_PRODUCTS)).as("the student's groups stay")
+                .containsExactly(drawn(A_NOT_C));
+
+        assertThat(practice.add(0, SUM_OF_PRODUCTS, drawn(B_C))).isFalse();
+        practice.remove(0, SUM_OF_PRODUCTS, 0);
+        practice.clear(0, SUM_OF_PRODUCTS);
+        practice.select(0);
+        assertThat(practice.pressHint()).isFalse();
+        assertThat(practice.groups(0, SUM_OF_PRODUCTS)).containsExactly(drawn(A_NOT_C));
+        assertThat(practice.selected()).isEmpty();
+
+        model.setOutputName(0, "Z");
+        model.setTitle("Otra");
+        assertThat(practice.givenUp(0, SUM_OF_PRODUCTS)).as("renames keep it").isTrue();
+    }
+
+    @Test
+    void aGivenUpOutputUsesVsimsTermsInStepFour() {
+        load(List.of(1, 3, 7), List.of(0, 4));
+        practice.setPractising(true);
+        Minimization vsim = model.minimization();
         practice.add(0, SUM_OF_PRODUCTS, drawn(A_NOT_C));
         practice.add(1, SUM_OF_PRODUCTS, cell(0));
+        practice.add(1, SUM_OF_PRODUCTS, cell(4));
+        assertThat(model.studentGroupsProblem()).contains("F: tus grupos no cubren la tabla");
 
-        model.setOutputCount(1);
-        model.setOutputCount(2);
+        practice.giveUp(0, SUM_OF_PRODUCTS);
 
-        assertThat(practice.groups(0, SUM_OF_PRODUCTS)).containsExactly(drawn(A_NOT_C));
-        assertThat(practice.groups(1, SUM_OF_PRODUCTS)).isEmpty();
-        assertThat(practice.droppedOutputs()).isEmpty();
+        assertThat(model.studentGroupsProblem()).isEmpty();
+        assertThat(model.usingStudentGroups()).isTrue();
+        Minimization effective = model.effectiveMinimization();
+        assertThat(effective.outputs().get(0)).isEqualTo(vsim.outputs().get(0));
+        assertThat(effective.outputs().get(1).terms()).hasSize(2);
+        assertThat(model.shownMinimization().outputs().get(0)).isEqualTo(vsim.outputs().get(0));
+
+        practice.giveUp(1, SUM_OF_PRODUCTS);
+        assertThat(model.anyPractised()).as("nothing of the student's left to use").isFalse();
+        assertThat(model.effectiveMinimization()).isEqualTo(vsim);
     }
 
     @Test
@@ -282,7 +366,7 @@ class PracticeModelTest {
     }
 
     @Test
-    void anOutputStaysRevealedPerFormUntilItsColumnChanges() {
+    void anOutputStaysRevealedPerFormUntilTheTableChanges() {
         load(List.of(1, 3, 7), List.of(0, 4));
         int[] events = {0};
         model.addListener(() -> events[0]++);
@@ -298,8 +382,8 @@ class PracticeModelTest {
         practice.clear(0, SUM_OF_PRODUCTS);
         model.setOutputName(0, "Z");
         assertThat(practice.revealed(0, SUM_OF_PRODUCTS)).isTrue();
-        model.setValue(0, 0, LogicValue.ONE);
-        assertThat(practice.revealed(0, SUM_OF_PRODUCTS)).as("a new function").isFalse();
+        model.setValue(1, 1, LogicValue.ONE);
+        assertThat(practice.revealed(0, SUM_OF_PRODUCTS)).as("a new table, even another column").isFalse();
     }
 
     @Test

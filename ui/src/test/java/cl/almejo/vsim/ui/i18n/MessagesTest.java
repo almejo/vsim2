@@ -65,7 +65,8 @@ class MessagesTest {
     void theGiveUpQuestionKeepsItsApostropheInEnglish() {
         Messages.initialize(Locale.ENGLISH);
         assertThat(Messages.format("karnaugh.practice.giveUp.message", "F"))
-                .isEqualTo("See VSim's solution for F? You can keep practising afterwards.");
+                .isEqualTo("Give up on F and see VSim's solution? That map closes: your groups stay, but you can't "
+                        + "change them any more.");
     }
 
     @Test
