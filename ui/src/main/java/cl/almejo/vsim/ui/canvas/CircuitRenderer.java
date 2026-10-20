@@ -23,6 +23,9 @@ import cl.almejo.vsim.ui.paint.PainterSupport;
 import cl.almejo.vsim.ui.paint.TextFonts;
 import cl.almejo.vsim.ui.paint.SignalColors;
 import cl.almejo.vsim.ui.paint.TunnelPainter;
+import cl.almejo.vsim.ui.paint.WireState;
+import cl.almejo.vsim.ui.print.MonochromeGraphics;
+import cl.almejo.vsim.ui.print.MonochromeScheme;
 
 import java.awt.AlphaComposite;
 import java.awt.BasicStroke;
@@ -126,14 +129,25 @@ public final class CircuitRenderer {
         }
     }
 
+    /**
+     * Paints the frame under {@code state.policy()}: in black and white with {@link MonochromeScheme} and through
+     * {@link MonochromeGraphics}, so no colour gets through.
+     */
     public void paint(Graphics2D graphics, RenderState state) {
-        ColorScheme scheme = scheme();
+        if (state.policy().monochrome()) {
+            paintScene(new MonochromeGraphics(graphics), state, MonochromeScheme.of(scheme()));
+        } else {
+            paintScene(graphics, state, scheme());
+        }
+    }
+
+    private void paintScene(Graphics2D graphics, RenderState state, ColorScheme scheme) {
         graphics.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         graphics.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
         ShortCircuitHighlight highlight = highlights.shortCircuits(state);
         WidthMismatchHighlight mismatches = highlights.widthMismatches(state);
 
-        paintFrames(graphics, state);
+        paintFrames(graphics, state, scheme);
         for (Wire wire : state.document().wires()) {
             if (state.selection().contains(wire.id()) && !state.hiddenWires().contains(wire.id())) {
                 Shape halo = SELECTED_WIRE.createStrokedShape(line(wire));
@@ -164,17 +178,17 @@ public final class CircuitRenderer {
         Map<ElementId, WireLook> looks = gaps.isEmpty() ? Map.of() : new HashMap<>();
         if (!gaps.isEmpty()) {
             for (Wire wire : state.document().wires()) {
-                looks.put(wire.id(), WireLook.of(wire, state, highlight, mismatches));
+                looks.put(wire.id(), WireLook.of(wire, state, highlight, mismatches, scheme));
             }
         }
         for (Wire wire : state.document().wires()) {
             if (state.hiddenWires().contains(wire.id())) {
                 continue;
             }
-            WireLook look = gaps.isEmpty() ? WireLook.of(wire, state, highlight, mismatches) : looks.get(wire.id());
+            WireLook look = gaps.isEmpty() ? WireLook.of(wire, state, highlight, mismatches, scheme)
+                    : looks.get(wire.id());
             graphics.setStroke(look.stroke());
-            graphics.setColor(look.conflict() ? scheme.wireConflict()
-                    : SignalColors.wireColor(look.net(), state.snapshot(), state.netlistToken(), scheme));
+            graphics.setColor(look.color());
             List<Crossing> crossings = gaps.getOrDefault(wire.id(), List.of());
             if (crossings.isEmpty()) {
                 graphics.draw(line(wire));
@@ -192,7 +206,7 @@ public final class CircuitRenderer {
         for (Component component : state.document().components()) {
             ComponentType type = registry.typeOf(component);
             if (painters.painterFor(type.id()) instanceof TunnelPainter tunnelPainter) {
-                TunnelPainter.Look look = tunnelLook(component, state, tunnelColors);
+                TunnelPainter.Look look = tunnelLook(component, state, tunnelColors, scheme);
                 ComponentDrawing.paintPlaced(graphics, component,
                         local -> tunnelPainter.paint(local, component, look, scheme));
             } else {
@@ -210,9 +224,9 @@ public final class CircuitRenderer {
             }
         }
 
-        paintComponentLabels(graphics, state);
-        paintTextLabels(graphics, state);
-        paintBusValues(graphics, state);
+        paintComponentLabels(graphics, state, scheme);
+        paintTextLabels(graphics, state, scheme);
+        paintBusValues(graphics, state, scheme);
 
         for (GridPoint pin : highlight.driverPins()) {
             graphics.setColor(PainterSupport.withAlpha(scheme.wireConflict(), 90));
@@ -221,36 +235,40 @@ public final class CircuitRenderer {
             graphics.setColor(scheme.wireConflict());
             graphics.draw(circle(pin, HALO_RADIUS));
         }
-        paintPinWidths(graphics, mismatches);
-        paintOpenPins(graphics, state);
+        paintPinWidths(graphics, mismatches, scheme);
+        paintOpenPins(graphics, state, scheme);
     }
 
     /**
      * How a tunnel looks this frame: a salida takes its entrada's colour (grey without one), and the stub is drawn
      * like the wire it joins, in its net's state colour and thick when that net is a bus. The tunnel's pin has no
-     * width of its own, so the width is the net's.
+     * width of its own, so the width is the net's. In black and white every tunnel is the same dark grey and the
+     * stub takes its wire's grey.
      */
-    private TunnelPainter.Look tunnelLook(Component tunnel, RenderState state, Map<String, Integer> tunnelColors) {
-        ColorScheme scheme = scheme();
+    private TunnelPainter.Look tunnelLook(Component tunnel, RenderState state, Map<String, Integer> tunnelColors,
+                                          ColorScheme scheme) {
         Optional<Net> net = state.netlist().netForPin(new PinRef(tunnel.id(), 0));
+        boolean bus = net.map(found -> found.width() > 1).orElse(false);
+        if (state.policy().monochrome()) {
+            return new TunnelPainter.Look(MonochromeScheme.TUNNEL, MonochromeScheme.monochromeLook(
+                    WireState.of(net, state.snapshot(), state.netlistToken()), bus).color(), bus);
+        }
         return new TunnelPainter.Look(scheme.tunnelColor(TunnelPainter.colorIndex(tunnel, tunnelColors)),
-                SignalColors.wireColor(net, state.snapshot(), state.netlistToken(), scheme),
-                net.map(found -> found.width() > 1).orElse(false));
+                SignalColors.wireColor(net, state.snapshot(), state.netlistToken(), scheme), bus);
     }
 
     /** Frames under everything else, the larger first so a nested frame's tint shows over its parent's. */
-    private void paintFrames(Graphics2D graphics, RenderState state) {
+    private void paintFrames(Graphics2D graphics, RenderState state, ColorScheme scheme) {
         List<Frame> frames = state.document().frames();
         if (frames.isEmpty()) {
             return;
         }
-        ColorScheme scheme = scheme();
         double pixelsPerGrid = UNIT * graphics.getTransform().getScaleX();
         for (Frame frame : frames.stream()
                 .sorted(Comparator.comparingLong((Frame candidate) -> (long) candidate.width() * candidate.height())
                         .reversed())
                 .toList()) {
-            FramePainter.paint(graphics, frame, scheme, pixelsPerGrid);
+            FramePainter.paint(graphics, frame, scheme, pixelsPerGrid, state.policy());
             if (state.selection().contains(frame.id())) {
                 Rectangle2D bounds = FramePainter.bounds(frame);
                 MarchingAnts.draw(graphics, new Rectangle2D.Double(bounds.getX() - OUTLINE_GAP,
@@ -262,22 +280,38 @@ public final class CircuitRenderer {
     }
 
     /**
-     * How one wire is drawn this frame: its net (looked up once per wire per frame), its stroke and whether it is
-     * drawn in the conflict color (short circuit or width mismatch).
+     * How one wire is drawn this frame: its stroke and colour, from its net (looked up once per wire per frame) and
+     * whether it is a problem wire (short circuit or width mismatch, in the conflict color). In black and white the
+     * state is told by grey level and dash pattern ({@link MonochromeScheme#monochromeLook}); a mismatched wire keeps
+     * its own dashes, in black. The stroke is never thinner than the policy's minimum.
      */
-    private record WireLook(Optional<Net> net, BasicStroke stroke, boolean conflict) {
+    private record WireLook(BasicStroke stroke, Color color) {
 
         static WireLook of(Wire wire, RenderState state, ShortCircuitHighlight highlight,
-                           WidthMismatchHighlight mismatches) {
+                           WidthMismatchHighlight mismatches, ColorScheme scheme) {
+            PaintPolicy policy = state.policy();
             Optional<Net> net = state.netlist().netForWire(wire.id());
+            boolean bus = net.map(found -> found.width() > 1).orElse(false);
+            if (policy.monochrome()) {
+                MonochromeScheme.WireLook look;
+                if (highlight.wires().contains(wire.id())) {
+                    look = MonochromeScheme.monochromeLook(WireState.CONFLICT, bus);
+                } else if (mismatches.wires().contains(wire.id())) {
+                    look = new MonochromeScheme.WireLook(MonochromeScheme.BLACK, MISMATCH_WIRE);
+                } else {
+                    look = MonochromeScheme.monochromeLook(
+                            WireState.of(net, state.snapshot(), state.netlistToken()), bus);
+                }
+                return new WireLook(policy.widened(look.stroke()), look.color());
+            }
             if (highlight.wires().contains(wire.id())) {
-                return new WireLook(net, CONFLICT_WIRE, true);
+                return new WireLook(policy.widened(CONFLICT_WIRE), scheme.wireConflict());
             }
             if (mismatches.wires().contains(wire.id())) {
-                return new WireLook(net, MISMATCH_WIRE, true);
+                return new WireLook(policy.widened(MISMATCH_WIRE), scheme.wireConflict());
             }
-            boolean bus = net.map(found -> found.width() > 1).orElse(false);
-            return new WireLook(net, bus ? BUS_WIRE : WIRE, false);
+            return new WireLook(policy.widened(bus ? BUS_WIRE : WIRE),
+                    SignalColors.wireColor(net, state.snapshot(), state.netlistToken(), scheme));
         }
     }
 
@@ -318,11 +352,10 @@ public final class CircuitRenderer {
      * every pin of a bus splitter or joiner, so a bit left unwired is noticed. Outputs of other components keep their
      * dot. Only with a netlist that matches the document.
      */
-    private void paintOpenPins(Graphics2D graphics, RenderState state) {
+    private void paintOpenPins(Graphics2D graphics, RenderState state, ColorScheme scheme) {
         if (state.netlistToken() != state.document().revision()) {
             return;
         }
-        ColorScheme scheme = scheme();
         graphics.setStroke(OPEN_PIN_RING);
         for (Component component : state.document().components()) {
             boolean busPart = StandardComponentTypes.BUS_SPLITTER.equals(component.typeId())
@@ -352,8 +385,7 @@ public final class CircuitRenderer {
     }
 
     /** The widths of the pins of mismatched nets ("1", "8", or "1/8" for pins touching at one point). */
-    private void paintPinWidths(Graphics2D graphics, WidthMismatchHighlight mismatches) {
-        ColorScheme scheme = scheme();
+    private void paintPinWidths(Graphics2D graphics, WidthMismatchHighlight mismatches, ColorScheme scheme) {
         graphics.setFont(TextFonts.tagFont());
         graphics.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
         FontMetrics metrics = graphics.getFontMetrics();
@@ -361,7 +393,7 @@ public final class CircuitRenderer {
             String text = entry.getValue().stream().map(String::valueOf).collect(Collectors.joining("/"));
             double left = entry.getKey().x() * UNIT + PIN_WIDTH_OFFSET;
             double baseline = entry.getKey().y() * UNIT - PIN_WIDTH_OFFSET;
-            paintTag(graphics, metrics, text, left, baseline, scheme.wireConflict());
+            paintTag(graphics, metrics, text, left, baseline, scheme.wireConflict(), scheme);
         }
     }
 
@@ -391,8 +423,7 @@ public final class CircuitRenderer {
         }
     }
 
-    private void paintComponentLabels(Graphics2D graphics, RenderState state) {
-        ColorScheme scheme = scheme();
+    private void paintComponentLabels(Graphics2D graphics, RenderState state, ColorScheme scheme) {
         graphics.setFont(LabelLayout.font());
         graphics.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
         graphics.setColor(scheme.text());
@@ -404,8 +435,7 @@ public final class CircuitRenderer {
 
 
     /** Each bus's value in hex, above its longest wire (beside it when vertical), on a backdrop of the board color. */
-    private void paintBusValues(Graphics2D graphics, RenderState state) {
-        ColorScheme scheme = scheme();
+    private void paintBusValues(Graphics2D graphics, RenderState state, ColorScheme scheme) {
         graphics.setFont(TextFonts.tagFont());
         graphics.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
         FontMetrics metrics = graphics.getFontMetrics();
@@ -414,18 +444,17 @@ public final class CircuitRenderer {
             double left = label.vertical() ? label.x() + BUS_LABEL_GAP : label.x() - textWidth / 2;
             double baseline = label.vertical() ? label.y() + (metrics.getAscent() - metrics.getDescent()) / 2.0
                     : label.y() - BUS_LABEL_GAP;
-            paintTag(graphics, metrics, label.text(), left, baseline, scheme.text());
+            paintTag(graphics, metrics, label.text(), left, baseline, scheme.text(), scheme);
         }
     }
 
     /** Text on a translucent backdrop of the board color, so it stays legible over wires. */
-    private void paintTag(Graphics2D graphics, FontMetrics metrics, String text, double left, double baseline,
-                          Color color) {
-        PainterSupport.paintTag(graphics, metrics, text, left, baseline, color, scheme().background());
+    private static void paintTag(Graphics2D graphics, FontMetrics metrics, String text, double left,
+                                 double baseline, Color color, ColorScheme scheme) {
+        PainterSupport.paintTag(graphics, metrics, text, left, baseline, color, scheme.background());
     }
 
-    private void paintTextLabels(Graphics2D graphics, RenderState state) {
-        ColorScheme scheme = scheme();
+    private void paintTextLabels(Graphics2D graphics, RenderState state, ColorScheme scheme) {
         for (TextLabel label : state.document().labels()) {
             paintText(graphics, label, scheme.text());
             if (state.selection().contains(label.id())) {

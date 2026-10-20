@@ -2,10 +2,12 @@ package cl.almejo.vsim.ui.frames;
 
 import cl.almejo.vsim.core.document.Frame;
 import cl.almejo.vsim.core.geometry.GridPoint;
+import cl.almejo.vsim.ui.canvas.PaintPolicy;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.TextFonts;
 
 import cl.almejo.vsim.ui.icons.Icons;
+import cl.almejo.vsim.ui.print.MonochromeScheme;
 
 import javax.swing.Icon;
 import java.awt.AlphaComposite;
@@ -122,31 +124,45 @@ public final class FramePainter {
         graphics.setComposite(previous);
     }
 
-    /** {@code pixelsPerGrid} is the screen size of one grid unit (8 at 100 %). */
+    /** {@code pixelsPerGrid} is the screen size of one grid unit (8 at 100 %). As the canvas paints it. */
     public static void paint(Graphics2D graphics, Frame frame, ColorScheme scheme, double pixelsPerGrid) {
+        paint(graphics, frame, scheme, pixelsPerGrid, PaintPolicy.CANVAS);
+    }
+
+    /**
+     * The frame under {@code policy}: on paper the title is painted however small a grid unit is and may use the room
+     * of the buttons; in black and white the frame has no fill at all (neither tint nor title band), only its border
+     * in dark grey and its title.
+     */
+    public static void paint(Graphics2D graphics, Frame frame, ColorScheme scheme, double pixelsPerGrid,
+                             PaintPolicy policy) {
         Rectangle2D bounds = bounds(frame);
-        Color tint = scheme.frameTint(frame.tint());
-        if (tint.getAlpha() > 0) {
-            graphics.setColor(tint);
-            graphics.fill(bounds);
-        }
         Rectangle2D bar = titleBarBounds(frame);
-        graphics.setColor(new Color((scheme.frameBorder().getRGB() & 0xFFFFFF) | (BAND_ALPHA << 24), true));
-        graphics.fill(bar);
-        graphics.setStroke(BORDER);
-        graphics.setColor(scheme.frameBorder());
+        Color border = policy.monochrome() ? MonochromeScheme.FRAME_BORDER : scheme.frameBorder();
+        if (!policy.monochrome()) {
+            Color tint = scheme.frameTint(frame.tint());
+            if (tint.getAlpha() > 0) {
+                graphics.setColor(tint);
+                graphics.fill(bounds);
+            }
+            graphics.setColor(new Color((border.getRGB() & 0xFFFFFF) | (BAND_ALPHA << 24), true));
+            graphics.fill(bar);
+        }
+        graphics.setStroke(policy.widened(BORDER));
+        graphics.setColor(border);
         graphics.draw(bounds);
         graphics.draw(new Line2D.Double(bar.getMinX(), bar.getMaxY(), bar.getMaxX(), bar.getMaxY()));
-        if (!frame.title().isEmpty() && pixelsPerGrid >= MINIMUM_PIXELS_PER_GRID_FOR_TITLE) {
-            paintTitle(graphics, frame.title(), bar, scheme);
+        if (!frame.title().isEmpty() && (policy.alwaysShowFrameTitles() || showsDetails(pixelsPerGrid))) {
+            paintTitle(graphics, frame.title(), bar, scheme, policy.paintFrameButtons() ? CONTROLS_WIDTH : 0);
         }
     }
 
-    private static void paintTitle(Graphics2D graphics, String title, Rectangle2D bar, ColorScheme scheme) {
+    private static void paintTitle(Graphics2D graphics, String title, Rectangle2D bar, ColorScheme scheme,
+                                   double controlsWidth) {
         graphics.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
         graphics.setFont(titleFont());
         FontMetrics metrics = graphics.getFontMetrics();
-        String shown = fit(title, metrics, bar.getWidth() - 2 * TITLE_PADDING - CONTROLS_WIDTH);
+        String shown = fit(title, metrics, bar.getWidth() - 2 * TITLE_PADDING - controlsWidth);
         if (shown.isEmpty()) {
             return;
         }
