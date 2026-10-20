@@ -329,13 +329,19 @@ public final class KarnaughModel {
      * The palette colour of term {@code term} of output {@code output}. Without sharing, the groups of each output
      * count from the first colour. With sharing, a term has one colour on every map it is on (a shared group looks
      * the same everywhere), and no two groups of one map share a colour: going through the distinct terms in table
-     * order, each takes the first palette colour that no term already coloured on any of its maps uses.
+     * order, each takes the first palette colour that no term already coloured on any of its maps uses. Over VSim's
+     * {@link #minimization()} (step 3's solution).
      */
     public int colorIndex(int output, int term) {
+        return colorIndex(minimization(), output, term);
+    }
+
+    /** {@link #colorIndex(int, int)} over {@code minimization} (step 4 colours the {@link #effectiveMinimization()}). */
+    int colorIndex(Minimization minimization, int output, int term) {
         if (!options.shareTerms()) {
             return term;
         }
-        List<Minimization.OutputExpression> expressions = minimization().outputs();
+        List<Minimization.OutputExpression> expressions = minimization.outputs();
         Map<Term, Integer> colours = new HashMap<>();
         for (Minimization.OutputExpression expression : expressions) {
             for (Term each : expression.terms()) {

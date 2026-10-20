@@ -13,15 +13,19 @@ import javax.swing.JCheckBox;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JRadioButton;
+import java.awt.Color;
 import java.awt.Font;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * Step 4 «Expresión» (spec §3): each output's minimized expression with its terms in their groups' colours, the
- * options (gates, form, sharing) and a live cost line.
+ * options (gates, form, sharing) and a live cost line. Once the student practised in step 3 (spec §2), «Usar mis
+ * grupos» shows: on (by default) while every practised output's groups cover the table, the expressions, colours and
+ * cost (and step 5's «Crear») use {@link KarnaughModel#effectiveMinimization()}; otherwise it is off with the reason.
  */
 final class ExpressionPanel extends JPanel implements WizardStep {
 
@@ -33,10 +37,17 @@ final class ExpressionPanel extends JPanel implements WizardStep {
             new EnumMap<>(WizardOptions.GateChoice.class);
     private final Map<Minimization.Form, JRadioButton> formButtons = new EnumMap<>(Minimization.Form.class);
     private final JCheckBox share = new JCheckBox(Messages.text("karnaugh.expression.share"));
+    private final JCheckBox useMine = new JCheckBox(Messages.text("karnaugh.practice.useMine"));
+    private final JLabel useMineReason = new JLabel() {
+        @Override
+        public Color getForeground() {
+            return WizardColors.warning();
+        }
+    };
     private final JLabel costLabel = new JLabel();
 
     ExpressionPanel(KarnaughModel model, KarnaughCost cost) {
-        super(new MigLayout("insets 12, fillx, wrap 2", "[][grow, fill]", "[][]12[][][]12[]"));
+        super(new MigLayout("insets 12, fillx, wrap 2, hidemode 3", "[][grow, fill]", "[][]12[][][][][]12[]"));
         this.model = model;
         this.cost = cost;
 
@@ -50,6 +61,7 @@ final class ExpressionPanel extends JPanel implements WizardStep {
         addForm(forms, formsPanel, Minimization.Form.SUM_OF_PRODUCTS, "karnaugh.expression.form.sop");
         addForm(forms, formsPanel, Minimization.Form.PRODUCT_OF_SUMS, "karnaugh.expression.form.pos");
         share.addActionListener(event -> model.setOptions(model.options().withShareTerms(share.isSelected())));
+        useMine.addActionListener(event -> model.setUseStudentGroups(useMine.isSelected()));
         costLabel.setFont(costLabel.getFont().deriveFont(Font.BOLD));
 
         add(new Paragraph(Messages.text("karnaugh.expression.help")), "span 2, growx, wmin 100");
@@ -59,6 +71,8 @@ final class ExpressionPanel extends JPanel implements WizardStep {
         add(new JLabel(Messages.text("karnaugh.expression.form")));
         add(formsPanel);
         add(share, "skip 1");
+        add(useMine, "skip 1");
+        add(useMineReason, "skip 1, gapleft 24");
         add(new JLabel(Messages.text("karnaugh.expression.cost")));
         add(costLabel);
     }
@@ -88,7 +102,8 @@ final class ExpressionPanel extends JPanel implements WizardStep {
         gateButtons.get(options.gates()).setSelected(true);
         formButtons.get(options.form()).setSelected(true);
         share.setSelected(options.shareTerms());
-        Minimization minimization = model.minimization();
+        refreshUseMine();
+        Minimization minimization = model.effectiveMinimization();
         expressions.removeAll();
         lines.clear();
         for (int output = 0; output < minimization.outputs().size(); output++) {
@@ -99,6 +114,18 @@ final class ExpressionPanel extends JPanel implements WizardStep {
         expressions.revalidate();
         expressions.repaint();
         costLabel.setText(CostLine.text(cost.gatesByType(minimization, options)));
+    }
+
+    /** «Usar mis grupos»: only after some practice; off with the reason while the student's groups miss something. */
+    private void refreshUseMine() {
+        boolean practised = model.anyPractised();
+        Optional<String> problem = model.studentGroupsProblem();
+        useMine.setVisible(practised);
+        useMine.setEnabled(problem.isEmpty());
+        useMine.setSelected(model.usingStudentGroups());
+        useMine.setToolTipText(problem.orElse(null));
+        useMineReason.setText(problem.orElse(""));
+        useMineReason.setVisible(practised && problem.isPresent());
     }
 
     /** «F = » plain, then each term in its group's colour; constants and the joining signs plain. */
@@ -134,7 +161,7 @@ final class ExpressionPanel extends JPanel implements WizardStep {
                 }
                 text = TermText.sum(term, spec.inputNames());
             }
-            runs.add(new ColoredExpression.Run(text, model.colorIndex(output, index)));
+            runs.add(new ColoredExpression.Run(text, model.colorIndex(minimization, output, index)));
         }
         return runs;
     }
@@ -153,6 +180,14 @@ final class ExpressionPanel extends JPanel implements WizardStep {
 
     AbstractButton shareCheckBox() {
         return share;
+    }
+
+    AbstractButton useMineCheckBox() {
+        return useMine;
+    }
+
+    String useMineReasonText() {
+        return useMineReason.isVisible() ? useMineReason.getText() : "";
     }
 
     AbstractButton gateButton(WizardOptions.GateChoice choice) {

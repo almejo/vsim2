@@ -37,22 +37,32 @@ final class CircuitCreator {
     /**
      * What to create: the table, the options and the choices of {@link CreationForm}. With {@code asWritten} (the
      * lines of «Circuito desde expresiones» without «Simplificar», whose table is {@code spec}) the circuit has one
-     * gate per operator instead of the minimized one; only the options' sharing applies then.
+     * gate per operator instead of the minimized one; only the options' sharing applies then. With
+     * {@code minimization} (the student's groups of the Karnaugh practice, «Usar mis grupos») the circuit is built
+     * from those terms instead of minimizing the table; the check still compares it with {@code spec}.
      */
     record Request(TruthTableSpec spec, WizardOptions options, CreationForm.Destination destination,
-                   Optional<String> componentName, Optional<List<ExpressionLine>> asWritten) {
+                   Optional<String> componentName, Optional<List<ExpressionLine>> asWritten,
+                   Optional<Minimization> minimization) {
         Request {
             Objects.requireNonNull(spec, "spec");
             Objects.requireNonNull(options, "options");
             Objects.requireNonNull(destination, "destination");
             Objects.requireNonNull(componentName, "componentName");
+            Objects.requireNonNull(minimization, "minimization");
             asWritten = asWritten.map(List::copyOf);
+        }
+
+        /** The minimized circuit of {@code spec}, or the lines as written. */
+        Request(TruthTableSpec spec, WizardOptions options, CreationForm.Destination destination,
+                Optional<String> componentName, Optional<List<ExpressionLine>> asWritten) {
+            this(spec, options, destination, componentName, asWritten, Optional.empty());
         }
 
         /** The minimized circuit of {@code spec}. */
         Request(TruthTableSpec spec, WizardOptions options, CreationForm.Destination destination,
                 Optional<String> componentName) {
-            this(spec, options, destination, componentName, Optional.empty());
+            this(spec, options, destination, componentName, Optional.empty(), Optional.empty());
         }
     }
 
@@ -152,7 +162,8 @@ final class CircuitCreator {
             circuit = CircuitGenerator.generateAsWritten(spec, request.asWritten().get(),
                     request.options().shareTerms(), registry);
         } else {
-            Minimization minimization = Minimizer.minimize(spec, request.options().form());
+            Minimization minimization = request.minimization()
+                    .orElseGet(() -> Minimizer.minimize(spec, request.options().form()));
             circuit = CircuitGenerator.generate(spec, minimization, request.options().generatorOptions(), registry);
         }
         TableCircuits.Check check = TableCircuits.check(spec, circuit.fragment(), registry);

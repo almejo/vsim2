@@ -10,7 +10,7 @@ import java.util.function.BooleanSupplier;
 /**
  * Step 5 «Crear» (spec §3): a short explanation and the {@link CreationControls} for the wizard's table and options;
  * the «Crear» button itself is in the wizard's button bar. The component's name follows the table's title until the
- * user types one.
+ * user types one. With «Usar mis grupos» on (step 4) «Crear» builds the student's groups.
  */
 final class CreatePanel extends JPanel implements WizardStep {
 
@@ -26,6 +26,8 @@ final class CreatePanel extends JPanel implements WizardStep {
         this.controls = new CreationControls(form, creator,
                 () -> model.problem().isEmpty() ? Optional.of(model.spec()) : Optional.empty(),
                 model::options, closeDialog, busyChanged, available);
+        controls.setMinimization(() -> model.problem().isEmpty() && model.usingStudentGroups()
+                ? Optional.of(model.effectiveMinimization()) : Optional.empty());
         add(new Paragraph(Messages.text("karnaugh.create.intro")), "wmin 100");
         add(controls);
     }
