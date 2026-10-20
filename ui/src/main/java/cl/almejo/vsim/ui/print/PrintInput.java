@@ -34,7 +34,9 @@ import java.util.Set;
  * against that copy, the netlist and simulation values only when they belong to the copied revision, the colour
  * scheme, the text font, the names and the date. The preview and the PDF paint only from it, so editing the circuit
  * in another view, changing the scheme or the font, or closing the circuit changes nothing until «Actualizar» takes
- * a new capture. Capturing creates no command, leaves «modificado», the selection and the simulation alone.
+ * a new capture. Capturing creates no command, leaves «modificado», the selection and the simulation alone. The
+ * dialog is modal, so today only the simulation moves while it is open (what «Actualizar» picks up); the copy still
+ * keeps the export thread away from the live document, registry and font.
  *
  * <p>Nothing mutates the copy after the capture, so it may be read from the export thread too (the fields are final
  * and the registry's resolver only reads the copy's definitions). Never change {@link #document()}.
