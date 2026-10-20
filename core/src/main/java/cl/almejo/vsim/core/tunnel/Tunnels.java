@@ -71,14 +71,17 @@ public final class Tunnels {
     }
 
     /**
-     * The shape of a tunnel with these (resolved) parameters: the pin at (0, 1), one grid unit outside the tag on the
-     * wire's side, and the tag from x = 1, {@link #lengthInGridUnits} long and two units thick. The pin has no width
-     * of its own ({@link PinSpec#adaptive}).
+     * The shape of a tunnel of {@code kind} with these (resolved) parameters: a tag {@link #lengthInGridUnits} long
+     * and two units thick, and the pin one grid unit outside it on the wire's side, in the middle of a short side. At
+     * rotation 0 the wire arrives at an entrada from the left (pin at (0, 1), tag from x = 1) and leaves a salida to
+     * the right (tag from x = 0, pin at the right end), so the two kinds look different. The pin has no width of its
+     * own ({@link PinSpec#adaptive}).
      */
-    public static ComponentShape shape(Map<String, Object> parameters) {
+    public static ComponentShape shape(TunnelKind kind, Map<String, Object> parameters) {
         int length = lengthInGridUnits((String) parameters.get(NAME));
+        int pinX = kind == TunnelKind.ENTRANCE ? 0 : 1 + length;
         return new ComponentShape(new GridSize(1 + length, TAG_THICKNESS),
-                List.of(PinSpec.adaptive("pin", 0, TAG_THICKNESS / 2)));
+                List.of(PinSpec.adaptive("pin", pinX, TAG_THICKNESS / 2)));
     }
 
     /**

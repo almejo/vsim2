@@ -39,16 +39,33 @@ class TunnelShapeTest {
     @ParameterizedTest
     @EnumSource(Rotation.class)
     void theStubGoesFromThePinToTheCentreOfTheHole(Rotation rotation) {
-        Component component = tunnel(TunnelKind.ENTRANCE, rotation, "CLK");
-        TunnelShape shape = TunnelShape.of(component);
-        GridPoint pin = registry.typeOf(component).pinLocation(component, 0);
+        for (TunnelKind kind : TunnelKind.values()) {
+            Component component = tunnel(kind, rotation, "CLK");
+            TunnelShape shape = TunnelShape.of(component);
+            GridPoint pin = registry.typeOf(component).pinLocation(component, 0);
 
-        Point2D stubStart = inDocument(component, shape.stub().getP1());
-        Point2D stubEnd = inDocument(component, shape.stub().getP2());
+            Point2D stubStart = inDocument(component, shape.stub().getP1());
+            Point2D stubEnd = inDocument(component, shape.stub().getP2());
 
-        assertThat(stubStart.getX()).isCloseTo(pin.x() * UNIT, within(0.001));
-        assertThat(stubStart.getY()).isCloseTo(pin.y() * UNIT, within(0.001));
-        assertThat(stubEnd.distance(inDocument(component, shape.holeCentre()))).isLessThan(0.001);
+            assertThat(stubStart.getX()).as(kind.name()).isCloseTo(pin.x() * UNIT, within(0.001));
+            assertThat(stubStart.getY()).as(kind.name()).isCloseTo(pin.y() * UNIT, within(0.001));
+            assertThat(stubEnd.distance(inDocument(component, shape.holeCentre()))).isLessThan(0.001);
+        }
+    }
+
+    @Test
+    void unturnedAnEntranceHasItsWireSideOnTheLeftAndAnExitOnTheRight() {
+        TunnelShape entrance = TunnelShape.of(tunnel(TunnelKind.ENTRANCE, Rotation.R0, "CLK"));
+        TunnelShape exit = TunnelShape.of(tunnel(TunnelKind.EXIT, Rotation.R0, "CLK"));
+
+        assertThat(entrance.pin().getX()).isLessThan(entrance.tag().getMinX());
+        assertThat(entrance.holeCentre().getX()).isLessThan(entrance.arrowTip().getX());
+        assertThat(entrance.arrowTip().getX()).isLessThan(entrance.textBox().getMinX());
+
+        assertThat(exit.pin().getX()).isGreaterThan(exit.tag().getMaxX());
+        assertThat(exit.holeCentre().getX()).isGreaterThan(exit.arrowBack().getX());
+        assertThat(exit.arrowTip().getX()).isGreaterThan(exit.textBox().getMaxX());
+        assertThat(exit.tag().getMinX()).isCloseTo(0, within(0.001));
     }
 
     @ParameterizedTest
@@ -89,14 +106,31 @@ class TunnelShapeTest {
     @ParameterizedTest
     @EnumSource(Rotation.class)
     void theArrowSitsRightNextToTheHoleAndTheTextAfterIt(Rotation rotation) {
-        TunnelShape shape = TunnelShape.of(tunnel(TunnelKind.ENTRANCE, rotation, "CLK"));
+        for (TunnelKind kind : TunnelKind.values()) {
+            TunnelShape shape = TunnelShape.of(tunnel(kind, rotation, "CLK"));
 
-        double holeEdge = shape.holeCentre().getX() + TunnelShape.HOLE_RADIUS;
-        double arrowStart = Math.min(shape.arrowTip().getX(), shape.arrowBack().getX());
-        double arrowEnd = Math.max(shape.arrowTip().getX(), shape.arrowBack().getX());
-        assertThat(arrowStart - holeEdge).isBetween(0.0, UNIT / 2);
-        assertThat(shape.textBox().getMinX()).isGreaterThanOrEqualTo(arrowEnd);
-        assertThat(shape.textBox().getMaxX()).isLessThanOrEqualTo(shape.tag().getMaxX());
+            double hole = shape.holeCentre().getX();
+            double arrowNear = Math.abs(shape.arrowTip().getX() - hole) < Math.abs(shape.arrowBack().getX() - hole)
+                    ? shape.arrowTip().getX() : shape.arrowBack().getX();
+            double arrowFar = shape.arrowTip().getX() + shape.arrowBack().getX() - arrowNear;
+            assertThat(Math.abs(arrowNear - hole) - TunnelShape.HOLE_RADIUS).as(kind.name())
+                    .isBetween(0.0, UNIT / 2);
+            assertThat(shape.textBox().getMinX()).isGreaterThanOrEqualTo(shape.tag().getMinX());
+            assertThat(shape.textBox().getMaxX()).isLessThanOrEqualTo(shape.tag().getMaxX());
+            assertThat(shape.textBox().contains(arrowFar, shape.holeCentre().getY())).isFalse();
+            assertThat(Math.abs(shape.textBox().getCenterX() - hole)).as(kind.name())
+                    .isGreaterThan(Math.abs(arrowFar - hole));
+        }
+    }
+
+    @Test
+    void turnedHalfwayAnExitsTextBoxLiesOnTheFarSideFromItsPin() {
+        Component component = tunnel(TunnelKind.EXIT, Rotation.R180, "CLK");
+        Rectangle2D textBox = TunnelShape.of(component).documentTextBox(component);
+        GridPoint pin = registry.typeOf(component).pinLocation(component, 0);
+
+        assertThat(textBox.getMinX()).isGreaterThan(pin.x() * UNIT);
+        assertThat(textBox.getHeight()).isLessThan(textBox.getWidth());
     }
 
     @Test

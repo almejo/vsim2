@@ -163,6 +163,19 @@ class TunnelsTest {
     }
 
     @Test
+    void anEntrancesPinIsOnTheLeftAndAnExitsOnTheRight() {
+        Component entrance = circuit.entrance("CLK", new GridPoint(0, 0));
+        Component exit = circuit.exit("CLK", new GridPoint(0, 10));
+        ComponentType entranceType = circuit.registry().typeOf(entrance);
+        ComponentType exitType = circuit.registry().typeOf(exit);
+
+        assertThat(entranceType.pin(0).position()).isEqualTo(new GridPoint(0, 1));
+        assertThat(exitType.pin(0).position()).isEqualTo(new GridPoint(1 + Tunnels.lengthInGridUnits("CLK"), 1));
+        assertThat(exitType.size()).isEqualTo(entranceType.size());
+        assertThat(exitType.pin(0).isAdaptiveWidth()).isTrue();
+    }
+
+    @Test
     void thePinStaysOnTheWireSideAtEveryRotation() {
         for (Rotation rotation : Rotation.values()) {
             Component tunnel = circuit.place(StandardComponentTypes.TUNNEL_EXIT, 0, 0, rotation,

@@ -39,8 +39,10 @@ class TunnelSimulationTest {
                 new GridPoint(0, 1), Rotation.R0, Map.of(), "a");
         Component entrance = standard.require(StandardComponentTypes.TUNNEL_ENTRANCE).newComponent(
                 new ElementId("c2"), new GridPoint(2, 1), Rotation.R0, Map.of(Tunnels.NAME, "A"), "");
+        // A salida's pin is at the right end of its tag, so it sits left of the output pin
+        int exitX = 12 - (1 + Tunnels.lengthInGridUnits(exitName));
         Component exit = standard.require(StandardComponentTypes.TUNNEL_EXIT).newComponent(new ElementId("c3"),
-                new GridPoint(12, 1), Rotation.R0, Map.of(Tunnels.NAME, exitName), "");
+                new GridPoint(exitX, 1), Rotation.R0, Map.of(Tunnels.NAME, exitName), "");
         Component output = standard.require(InterfacePins.OUTPUT_PIN).newComponent(new ElementId("c4"),
                 new GridPoint(12, 1), Rotation.R0, Map.of(), "y");
         return new ComponentDefinition(TUNNEL_BUFFER, "Búfer por túnel", "", new GridSize(4, 4),

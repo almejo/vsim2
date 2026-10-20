@@ -175,7 +175,8 @@ public final class StandardComponentTypes {
                 parameters -> new BusJoinerBehavior((Integer) parameters.get(WIDTH))));
         for (TunnelKind kind : TunnelKind.values()) {
             registry.register(ComponentType.parameterized(kind.typeId(), ComponentCategory.INPUT_OUTPUT,
-                    Tunnels.parameters(kind), Tunnels::shape, parameters -> TUNNEL_BEHAVIOR));
+                    Tunnels.parameters(kind), parameters -> Tunnels.shape(kind, parameters),
+                    parameters -> TUNNEL_BEHAVIOR));
         }
         registerBlocks(registry);
     }

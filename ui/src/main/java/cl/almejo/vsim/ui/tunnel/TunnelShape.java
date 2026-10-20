@@ -15,10 +15,12 @@ import java.awt.geom.RoundRectangle2D;
 
 /**
  * Where the parts of a wire tunnel lie (spec §3, sketch v5), in the component's local pixels before its rotation
- * (8 px per grid unit, the pin at the origin's left edge): the pin one grid unit outside the tag, the tag from there
- * as long as {@link Tunnels#lengthInGridUnits} says, the hole inside the tag on the wire's side, the stub from the pin
- * to the hole's centre, the arrow right next to the hole (pointing at it for an entrada, away from it for a salida) and
- * the box the name fills. The painter draws these, and the inline name editor sits on {@link #documentTextBox}.
+ * (8 px per grid unit): the pin one grid unit outside the tag, the tag as long as {@link Tunnels#lengthInGridUnits}
+ * says, the hole inside the tag on the wire's side, the stub from the pin to the hole's centre, the arrow right next to
+ * the hole (pointing at it for an entrada, away from it for a salida) and the box the name fills. The wire's side is
+ * the left for an entrada (the wire arrives from the left) and the right for a salida (the wire leaves to the right),
+ * like {@link Tunnels#shape}: a salida is an entrada mirrored left to right, with its arrow turned. The painter draws
+ * these, and the inline name editor sits on {@link #documentTextBox}.
  */
 public final class TunnelShape {
 
@@ -30,22 +32,23 @@ public final class TunnelShape {
     /** The tag leaves a pixel above and below, so its border stays inside the component's two grid units. */
     private static final double TAG_INSET = 1;
     private static final double TAG_CORNER = 8;
-    /** The hole's centre: one grid unit into the tag. */
-    private static final double HOLE_CENTRE_X = 2 * UNIT;
+    /** The hole's centre: one grid unit into the tag from the wire's side. */
+    private static final double HOLE_CENTRE_FROM_PIN = 2 * UNIT;
     /** The gap between the hole's edge and the arrow. */
     private static final double ARROW_GAP = 1.5;
     private static final double ARROW_LENGTH = 6;
     private static final double ARROW_HALF_HEIGHT = 3.5;
-    /** The name's box starts after the arrow and stops this far before the end of the tag. */
+    /** The name's box starts after the arrow and stops this far before the far end of the tag. */
     private static final double TEXT_GAP = 2;
     private static final double TEXT_END_MARGIN = UNIT / 2;
 
     private final TunnelKind kind;
-    private final double tagEnd;
+    /** The whole component's width: the pin's grid unit plus the tag. */
+    private final double width;
 
     private TunnelShape(TunnelKind kind, String name) {
         this.kind = kind;
-        this.tagEnd = (1 + Tunnels.lengthInGridUnits(name)) * UNIT;
+        this.width = (1 + Tunnels.lengthInGridUnits(name)) * UNIT;
     }
 
     /** The shape of a tunnel of {@code kind} named {@code name}. */
@@ -78,17 +81,26 @@ public final class TunnelShape {
         return kind;
     }
 
+    /**
+     * The local x of a point {@code distance} pixels in from the wire's side: from the left edge for an entrada, from
+     * the right edge for a salida.
+     */
+    private double fromWireSide(double distance) {
+        return kind == TunnelKind.ENTRANCE ? distance : width - distance;
+    }
+
     public Point2D pin() {
-        return new Point2D.Double(0, MIDDLE);
+        return new Point2D.Double(fromWireSide(0), MIDDLE);
     }
 
     public RoundRectangle2D tag() {
-        return new RoundRectangle2D.Double(UNIT, TAG_INSET, tagEnd - UNIT, 2 * MIDDLE - 2 * TAG_INSET, TAG_CORNER,
+        double left = Math.min(fromWireSide(UNIT), fromWireSide(width));
+        return new RoundRectangle2D.Double(left, TAG_INSET, width - UNIT, 2 * MIDDLE - 2 * TAG_INSET, TAG_CORNER,
                 TAG_CORNER);
     }
 
     public Point2D holeCentre() {
-        return new Point2D.Double(HOLE_CENTRE_X, MIDDLE);
+        return new Point2D.Double(fromWireSide(HOLE_CENTRE_FROM_PIN), MIDDLE);
     }
 
     /** The wire from the pin into the centre of the hole. */
@@ -96,21 +108,21 @@ public final class TunnelShape {
         return new Line2D.Double(pin(), holeCentre());
     }
 
-    /** The end of the arrow nearer the hole. */
-    private double arrowNear() {
-        return HOLE_CENTRE_X + HOLE_RADIUS + ARROW_GAP;
+    /** How far the end of the arrow nearer the hole is from the wire's side. */
+    private static double arrowNear() {
+        return HOLE_CENTRE_FROM_PIN + HOLE_RADIUS + ARROW_GAP;
     }
 
     /** The point of the arrow: at the hole for an entrada, away from it for a salida. */
     public Point2D arrowTip() {
-        double x = kind == TunnelKind.ENTRANCE ? arrowNear() : arrowNear() + ARROW_LENGTH;
-        return new Point2D.Double(x, MIDDLE);
+        double distance = kind == TunnelKind.ENTRANCE ? arrowNear() : arrowNear() + ARROW_LENGTH;
+        return new Point2D.Double(fromWireSide(distance), MIDDLE);
     }
 
     /** The middle of the arrow's flat back. */
     public Point2D arrowBack() {
-        double x = kind == TunnelKind.ENTRANCE ? arrowNear() + ARROW_LENGTH : arrowNear();
-        return new Point2D.Double(x, MIDDLE);
+        double distance = kind == TunnelKind.ENTRANCE ? arrowNear() + ARROW_LENGTH : arrowNear();
+        return new Point2D.Double(fromWireSide(distance), MIDDLE);
     }
 
     /** The arrow, a filled triangle from its back to its tip. */
@@ -125,10 +137,12 @@ public final class TunnelShape {
         return arrow;
     }
 
-    /** Where the name goes: the rest of the tag after the arrow. */
+    /** Where the name goes: the rest of the tag after the arrow, on the side away from the wire. */
     public Rectangle2D textBox() {
-        double left = arrowNear() + ARROW_LENGTH + TEXT_GAP;
-        return new Rectangle2D.Double(left, TAG_INSET, tagEnd - TEXT_END_MARGIN - left, 2 * MIDDLE - 2 * TAG_INSET);
+        double near = fromWireSide(arrowNear() + ARROW_LENGTH + TEXT_GAP);
+        double far = fromWireSide(width - TEXT_END_MARGIN);
+        return new Rectangle2D.Double(Math.min(near, far), TAG_INSET, Math.abs(far - near),
+                2 * MIDDLE - 2 * TAG_INSET);
     }
 
     /** {@link #textBox()} of {@code component} in document pixels. */
