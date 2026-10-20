@@ -260,6 +260,115 @@ class KarnaughWizardTest {
         assertThat(groups.rulesVisible()).isTrue();
     }
 
+    /** The centre of the visible part of {@code group}'s first piece (a wrapped piece runs past the map edge). */
+    private static Point centerOfGroup(KarnaughMapView view, int group) {
+        Rectangle2D piece = view.geometry().pieces(view.groups().get(group), 4).getFirst()
+                .createIntersection(view.geometry().grid());
+        return new Point((int) piece.getCenterX(), (int) piece.getCenterY());
+    }
+
+    @Test
+    void clickingAGroupOnTheMapPinsItsExplanationUntilClickedAgain() {
+        model.load(KarnaughModelTest.bcd());
+        wizard.goTo(KarnaughWizard.Step.GROUPS);
+        GroupsPanel groups = wizard.groupsPanel();
+        String hint = groups.explanationHeaderText();
+        assertThat(hint).doesNotContain("Fijado");
+        KarnaughMapView view = groups.mapView(0);
+        view.setSize(400, 300);
+
+        mouse(view, MouseEvent.MOUSE_PRESSED, centerOfGroup(view, 1));
+        assertThat(wizard.hover().pinnedGroup()).isEqualTo(1);
+        assertThat(groups.explainedGroup()).isEqualTo(1);
+        assertThat(groups.explanationHeaderText()).isEqualTo("📌 Fijado · Clic para soltar");
+
+        mouse(view, MouseEvent.MOUSE_MOVED, centerOfGroup(view, 0));
+        assertThat(groups.explainedGroup()).as("hover does not move a pinned explanation").isEqualTo(1);
+        assertThat(groups.variablesText()).startsWith("A cambia → se va · B = 1 → B");
+        assertThat(wizard.hover().row()).as("the cell under the mouse still lights").isNotEqualTo(-1);
+
+        mouse(view, MouseEvent.MOUSE_PRESSED, centerOfGroup(view, 0));
+        assertThat(wizard.hover().pinnedGroup()).as("a click on another group pins that one").isZero();
+        assertThat(groups.explainedGroup()).isZero();
+
+        mouse(view, MouseEvent.MOUSE_PRESSED, centerOfGroup(view, 0));
+        assertThat(wizard.hover().pinnedGroup()).as("a click on the pinned group lets it go").isEqualTo(-1);
+        assertThat(groups.explanationHeaderText()).isEqualTo(hint);
+        mouse(view, MouseEvent.MOUSE_MOVED, centerOfGroup(view, 1));
+        assertThat(groups.explainedGroup()).isEqualTo(1);
+    }
+
+    @Test
+    void aClickOutsideEveryGroupOrEscapeLetsThePinGo() {
+        model.load(KarnaughModelTest.bcd());
+        wizard.goTo(KarnaughWizard.Step.GROUPS);
+        GroupsPanel groups = wizard.groupsPanel();
+        KarnaughMapView view = groups.mapView(0);
+        view.setSize(400, 300);
+
+        mouse(view, MouseEvent.MOUSE_PRESSED, centerOfGroup(view, 1));
+        mouse(view, MouseEvent.MOUSE_PRESSED, new Point(2, 2));
+        assertThat(wizard.hover().pinnedGroup()).isEqualTo(-1);
+        assertThat(groups.explainedGroup()).as("the explanation stays where it was").isEqualTo(1);
+
+        Object name = groups.getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT)
+                .get(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0));
+        Action escape = groups.getActionMap().get(name);
+        assertThat(escape.isEnabled()).as("unpinned, Escape is left to the window (it closes)").isFalse();
+        mouse(view, MouseEvent.MOUSE_PRESSED, centerOfGroup(view, 1));
+        assertThat(escape.isEnabled()).isTrue();
+        escape.actionPerformed(new ActionEvent(groups, ActionEvent.ACTION_PERFORMED, ""));
+        assertThat(wizard.hover().pinnedGroup()).isEqualTo(-1);
+        assertThat(escape.isEnabled()).isFalse();
+    }
+
+    @Test
+    void aClickOnALegendEntryPinsItAndTheArrowsMoveThePin() {
+        model.load(KarnaughModelTest.bcd());
+        wizard.goTo(KarnaughWizard.Step.GROUPS);
+        GroupsPanel groups = wizard.groupsPanel();
+        groups.selectOutput(1);
+
+        mouse(groups.legendEntry(1), MouseEvent.MOUSE_PRESSED, new Point(2, 2));
+        assertThat(wizard.hover().pinnedGroup()).isEqualTo(1);
+        assertThat(groups.explanationHeaderText()).isEqualTo("📌 Fijado · Clic para soltar");
+        mouse(groups.legendEntry(2), MouseEvent.MOUSE_ENTERED, new Point(2, 2));
+        assertThat(groups.explainedGroup()).as("hovering another entry does not move the pin").isEqualTo(1);
+
+        key(groups.legendEntry(1), KeyStroke.getKeyStroke(KeyEvent.VK_DOWN, 0));
+        assertThat(wizard.hover().pinnedGroup()).as("the arrows carry the pin").isEqualTo(2);
+        assertThat(groups.explainedGroup()).isEqualTo(2);
+        JComponent tabbedTo = groups.legendEntry(0);
+        for (FocusListener listener : tabbedTo.getFocusListeners()) {
+            listener.focusGained(new FocusEvent(tabbedTo, FocusEvent.FOCUS_GAINED));
+        }
+        assertThat(wizard.hover().pinnedGroup()).as("so does tabbing onto an entry").isZero();
+
+        mouse(groups.legendEntry(0), MouseEvent.MOUSE_PRESSED, new Point(2, 2));
+        assertThat(wizard.hover().pinnedGroup()).as("a click on the pinned entry lets it go").isEqualTo(-1);
+        key(groups.legendEntry(0), KeyStroke.getKeyStroke(KeyEvent.VK_DOWN, 0));
+        assertThat(wizard.hover().pinnedGroup()).as("unpinned arrows only explain").isEqualTo(-1);
+        assertThat(groups.explainedGroup()).isEqualTo(1);
+    }
+
+    @Test
+    void changingTheOutputOrTheGroupsLetsThePinGo() {
+        model.load(KarnaughModelTest.bcd());
+        wizard.goTo(KarnaughWizard.Step.GROUPS);
+        GroupsPanel groups = wizard.groupsPanel();
+        mouse(groups.legendEntry(1), MouseEvent.MOUSE_PRESSED, new Point(2, 2));
+        assertThat(wizard.hover().pinnedGroup()).isEqualTo(1);
+
+        groups.selectOutput(1);
+        assertThat(wizard.hover().pinnedGroup()).isEqualTo(-1);
+        assertThat(groups.explainedGroup()).isZero();
+        assertThat(groups.explanationHeaderText()).doesNotContain("Fijado");
+
+        mouse(groups.legendEntry(2), MouseEvent.MOUSE_PRESSED, new Point(2, 2));
+        model.setOptions(model.options().withForm(Minimization.Form.PRODUCT_OF_SUMS));
+        assertThat(wizard.hover().pinnedGroup()).as("other groups, other pin").isEqualTo(-1);
+    }
+
     @Test
     void aConstantOutputIsExplainedInsteadOfGrouped() {
         wizard.goTo(KarnaughWizard.Step.GROUPS);

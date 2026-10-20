@@ -30,7 +30,8 @@ import java.util.OptionalInt;
  * The Karnaugh map of one output (spec §3 steps 2 and 3): the variables in the corner, the Gray codes on the headers,
  * each cell's value large and its table row small. Hovering a cell lights its table row (through {@link HoverState})
  * and the row under the mouse in the table lights its cell. With groups on, the minimal cover is drawn as rounded
- * translucent rectangles in the palette colours, the explained group stronger; hovering a group explains it.
+ * translucent rectangles in the palette colours, the explained group stronger; hovering a group explains it and a
+ * click pins its explanation (another click, or a click outside every group, lets it go).
  * Colours are read from the theme at paint time.
  */
 final class KarnaughMapView extends JComponent {
@@ -61,6 +62,11 @@ final class KarnaughMapView extends JComponent {
             @Override
             public void mouseExited(MouseEvent event) {
                 hover.setRow(-1);
+            }
+
+            @Override
+            public void mousePressed(MouseEvent event) {
+                clickAt(event.getPoint());
             }
         };
         addMouseListener(mouse);
@@ -125,6 +131,19 @@ final class KarnaughMapView extends JComponent {
         hover.setRow(geometry.tableRowAt(point).orElse(-1));
         if (showGroups) {
             groupAt(geometry, point).ifPresent(hover::setGroup);
+        }
+    }
+
+    /** A click at {@code point}, with groups: pins the group under it (or lets it go), unpins outside every group. */
+    void clickAt(Point point) {
+        if (!showGroups) {
+            return;
+        }
+        OptionalInt group = groupAt(geometry(), point);
+        if (group.isPresent()) {
+            hover.togglePin(group.getAsInt());
+        } else {
+            hover.unpin();
         }
     }
 

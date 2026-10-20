@@ -36,7 +36,9 @@ import java.util.Optional;
  * Step 3 «Grupos» (spec §3): the map of each output with its minimal groups, a legend (① B'C, ② BD…) in the groups'
  * colours, and the explanation of the group under the mouse — what each variable does, the size, «¿Por qué?» with the
  * algebra — plus the collapsible «Reglas». A constant output is explained in words instead. The legend works from the
- * keyboard too: Tab reaches it and the arrows go through the groups.
+ * keyboard too: Tab reaches it and the arrows go through the groups. A click on a group (map or legend) pins its
+ * explanation so the mouse can travel to «¿Por qué?» (spec §5); another click on it, a click on the map outside every
+ * group, Esc or another output lets it go.
  */
 final class GroupsPanel extends JPanel implements WizardStep {
 
@@ -51,6 +53,7 @@ final class GroupsPanel extends JPanel implements WizardStep {
     private final Paragraph specialCase = new Paragraph("", Font.BOLD);
     private final JPanel legend = new JPanel(new MigLayout("insets 0, gap 2, wrap 1"));
     private final List<LegendEntry> entries = new ArrayList<>();
+    private final Paragraph explanationHeader = new Paragraph("");
     private final Paragraph variables = new Paragraph("", Font.BOLD);
     private final Paragraph size = new Paragraph("");
     private final JToggleButton whyToggle = new JToggleButton();
@@ -58,6 +61,7 @@ final class GroupsPanel extends JPanel implements WizardStep {
     private final JToggleButton rulesToggle = new JToggleButton();
     private final Paragraph rules = new Paragraph("");
     private int shownOutput = -1;
+    private List<Term> shownTerms = List.of();
     private boolean active;
 
     GroupsPanel(KarnaughModel model, HoverState hover) {
@@ -78,7 +82,7 @@ final class GroupsPanel extends JPanel implements WizardStep {
         right.add(header, "wmin 100");
         right.add(specialCase, "wmin 100");
         right.add(legend, "gaptop 6");
-        right.add(new Paragraph(Messages.text("karnaugh.groups.hint")), "gaptop 8, wmin 100");
+        right.add(explanationHeader, "gaptop 8, wmin 100");
         right.add(variables, "gaptop 4, wmin 100");
         right.add(size, "wmin 100");
         right.add(whyToggle, "growx 0");
@@ -91,7 +95,25 @@ final class GroupsPanel extends JPanel implements WizardStep {
         add(tabs);
         add(scroll);
         hover.addListener(this::explain);
+        bindEscape();
         updateToggles();
+    }
+
+    /** Esc lets a pinned group go; unpinned, the action is off so Esc reaches the window (which closes). */
+    private void bindEscape() {
+        getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT)
+                .put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "unpinGroup");
+        getActionMap().put("unpinGroup", new AbstractAction() {
+            @Override
+            public boolean isEnabled() {
+                return hover.pinnedGroup() >= 0;
+            }
+
+            @Override
+            public void actionPerformed(ActionEvent event) {
+                hover.unpin();
+            }
+        });
     }
 
     KarnaughMapView mapView(int output) {
@@ -112,11 +134,17 @@ final class GroupsPanel extends JPanel implements WizardStep {
         }
         tabs.refresh();
         int output = model.selectedOutput();
+        Minimization minimization = model.minimization();
+        List<Term> terms = minimization.outputs().get(output).terms();
         if (output != shownOutput) {
             shownOutput = output;
+            shownTerms = terms;
+            hover.unpin();
             hover.setGroup(0);
+        } else if (!terms.equals(shownTerms)) {
+            shownTerms = terms;
+            hover.unpin(); // other groups: the pinned index means another group now
         }
-        Minimization minimization = model.minimization();
         boolean sumOfProducts = minimization.form() == Minimization.Form.SUM_OF_PRODUCTS;
         header.setText(Messages.text(sumOfProducts ? "karnaugh.groups.header.sop" : "karnaugh.groups.header.pos"));
         Optional<String> special = KarnaughTexts.specialCase(minimization, output);
@@ -155,6 +183,8 @@ final class GroupsPanel extends JPanel implements WizardStep {
         Minimization minimization = model.minimization();
         List<Term> terms = minimization.outputs().get(model.selectedOutput()).terms();
         entries.forEach(JComponent::repaint);
+        explanationHeader.setText(Messages.text(hover.pinnedGroup() >= 0 ? "karnaugh.practice.pinned"
+                : "karnaugh.groups.hint"));
         boolean hasGroup = hover.group() >= 0 && hover.group() < terms.size();
         variables.setVisible(hasGroup);
         size.setVisible(hasGroup);
@@ -207,6 +237,10 @@ final class GroupsPanel extends JPanel implements WizardStep {
         return hover.group();
     }
 
+    String explanationHeaderText() {
+        return explanationHeader.getText();
+    }
+
     String headerText() {
         return header.getText();
     }
@@ -249,14 +283,23 @@ final class GroupsPanel extends JPanel implements WizardStep {
             return;
         }
         int target = Math.clamp(group + delta, 0, entries.size() - 1);
-        hover.setGroup(target);
+        explainFromLegend(target);
         entries.get(target).requestFocusInWindow();
+    }
+
+    /** The legend reached {@code group}: it is explained, and pinned instead when a group was pinned. */
+    private void explainFromLegend(int group) {
+        if (hover.pinnedGroup() >= 0) {
+            hover.pin(group);
+        } else {
+            hover.setGroup(group);
+        }
     }
 
     /**
      * One legend line: a swatch and the term in the group's colour (read at paint time), stronger while explained.
-     * Hovering it, clicking it or reaching it with Tab explains the group; the arrows move to the previous or next
-     * group, and space or Enter opens or closes «¿Por qué?».
+     * Hovering it or reaching it with Tab explains the group and clicking it pins it (or lets it go); the arrows move
+     * to the previous or next group (carrying the pin), and space or Enter opens or closes «¿Por qué?».
      */
     private final class LegendEntry extends JLabel {
 
@@ -279,14 +322,14 @@ final class GroupsPanel extends JPanel implements WizardStep {
 
                 @Override
                 public void mousePressed(MouseEvent event) {
-                    hover.setGroup(LegendEntry.this.group);
+                    hover.togglePin(LegendEntry.this.group);
                     requestFocusInWindow();
                 }
             });
             addFocusListener(new FocusAdapter() {
                 @Override
                 public void focusGained(FocusEvent event) {
-                    hover.setGroup(LegendEntry.this.group);
+                    explainFromLegend(LegendEntry.this.group);
                     repaint();
                 }
 
