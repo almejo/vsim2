@@ -1,4 +1,4 @@
-package cl.almejo.vsim.ui.tunnel;
+package cl.almejo.vsim.ui.paint;
 
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.geometry.GridPoint;

@@ -1,4 +1,4 @@
-package cl.almejo.vsim.ui.tunnel;
+package cl.almejo.vsim.ui.paint;
 
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;

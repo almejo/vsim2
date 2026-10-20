@@ -5,7 +5,6 @@ import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.tunnel.TunnelKind;
 import cl.almejo.vsim.core.tunnel.Tunnels;
-import cl.almejo.vsim.ui.tunnel.TunnelShape;
 
 import java.awt.BasicStroke;
 import java.awt.Color;

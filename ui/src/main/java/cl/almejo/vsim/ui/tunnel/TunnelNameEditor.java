@@ -8,6 +8,7 @@ import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.inline.InlineEditRequest;
 import cl.almejo.vsim.ui.inline.InlineTextEditor;
 import cl.almejo.vsim.ui.paint.TunnelPainter;
+import cl.almejo.vsim.ui.paint.TunnelShape;
 
 import java.util.List;
 import java.util.Optional;
