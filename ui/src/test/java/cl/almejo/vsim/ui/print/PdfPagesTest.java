@@ -204,6 +204,24 @@ class PdfPagesTest {
     }
 
     @Test
+    void disposingAChildAgainLaterMovesNothing() throws IOException {
+        // java.awt.Graphics disposes a graphics again when it is finalised, at any moment of a later page.
+        Path file = write(List.of(new PdfPages.PageSize(200, 200)), (pageIndex, graphics) -> {
+            Graphics2D child = (Graphics2D) graphics.create();
+            child.translate(100, 100);
+            child.dispose();
+            graphics.translate(0, 50);
+            child.dispose();
+            graphics.setColor(Color.BLACK);
+            graphics.fill(new Rectangle2D.Double(10, 10, 30, 30));
+        });
+
+        BufferedImage page = PdfReading.render(file, 0, 1);
+        assertThat(new Color(page.getRGB(25, 75))).as("where the parent's own translation puts it")
+                .isEqualTo(Color.BLACK);
+    }
+
+    @Test
     void aGradientIsPlacedUnderTheCurrentTransform() throws IOException {
         // JFreePDF writes a gradient's points in page coordinates: a moved, scaled one came out all dark.
         Path file = write(List.of(new PdfPages.PageSize(200, 200)), (pageIndex, graphics) -> {
