@@ -6,7 +6,8 @@ import java.util.List;
 
 /**
  * One tab per output with its Karnaugh map (steps 2 and 3). The selected tab follows the model's selected output both
- * ways, so steps 2 and 3 show the same output; the tabs are rebuilt when the outputs change.
+ * ways, so steps 2 and 3 show the same output; the tabs are rebuilt when the outputs change. A refresh also tells
+ * the maps that the practice may have changed (their mode, gestures and ants).
  */
 final class OutputTabs extends JTabbedPane {
 
@@ -52,7 +53,7 @@ final class OutputTabs extends JTabbedPane {
         } finally {
             updating = false;
         }
-        repaintViews();
+        views.forEach(KarnaughMapView::refreshPractice);
     }
 
     private void rebuild() {

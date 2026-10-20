@@ -1,5 +1,7 @@
 package cl.almejo.vsim.ui.karnaugh;
 
+import cl.almejo.vsim.core.logic.DrawnGroup;
+import cl.almejo.vsim.core.logic.KarnaughGroup;
 import cl.almejo.vsim.core.logic.KarnaughLayout;
 import cl.almejo.vsim.core.logic.Term;
 import org.junit.jupiter.api.Test;
@@ -7,6 +9,8 @@ import org.junit.jupiter.api.Test;
 import java.awt.Color;
 import java.awt.Point;
 import java.awt.Rectangle;
+import java.awt.geom.Path2D;
+import java.awt.geom.PathIterator;
 import java.awt.geom.Rectangle2D;
 import java.util.List;
 import java.util.OptionalInt;
@@ -68,6 +72,45 @@ class MapGeometryTest {
         Rectangle2D bottomRight = pieces.get(3);
         assertThat(bottomRight.getMaxX()).isGreaterThan(grid.getMaxX());
         assertThat(bottomRight.getMaxY()).isGreaterThan(grid.getMaxY());
+    }
+
+    @Test
+    void thePointerCellIsCountedPastTheEdgesToo() {
+        assertThat(geometry.columnAt(LEFT + 2 * CELL + 1)).isEqualTo(2);
+        assertThat(geometry.columnAt(LEFT - 1)).isEqualTo(-1);
+        assertThat(geometry.columnAt(LEFT + 4 * CELL + CELL + 1)).isEqualTo(5);
+        assertThat(geometry.rowAt(TOP - CELL - 1)).isEqualTo(-2);
+        assertThat(geometry.rowAt(TOP)).isZero();
+    }
+
+    @Test
+    void aDrawnGroupIsDrawnLikeTheSameKarnaughGroup() {
+        KarnaughGroup corners = layout.group(new Term(0b0101, 0b0000));
+        DrawnGroup drawn = layout.corners().orElseThrow();
+        assertThat(geometry.pieces(drawn, INSET)).isEqualTo(geometry.pieces(corners, INSET));
+    }
+
+    @Test
+    void theClosedSidesOfAnInnerGroupAreItsWholeOutline() {
+        DrawnGroup inner = layout.drawn(1, 1, 2, 2);
+        Rectangle2D bounds = geometry.closedSides(inner.rectangles(), INSET).getBounds2D();
+        assertThat(bounds).isEqualTo(geometry.pieces(inner, INSET).getFirst());
+    }
+
+    @Test
+    void theClosedSidesOfAWrappedGroupLeaveTheOpenEdgesOut() {
+        DrawnGroup wrapped = layout.drawn(1, 3, 1, 2); // columns 3 and 0 of row 1
+        Path2D sides = geometry.closedSides(wrapped.rectangles(), INSET);
+        Rectangle grid = geometry.grid();
+        assertThat(sides.getBounds2D().getMinX()).isEqualTo(LEFT);
+        assertThat(sides.getBounds2D().getMaxX()).isEqualTo(grid.getMaxX());
+        int segments = 0;
+        for (PathIterator iterator = sides.getPathIterator(null); !iterator.isDone(); iterator.next()) {
+            if (iterator.currentSegment(new double[6]) == PathIterator.SEG_LINETO) {
+                segments++;
+            }
+        }
+        assertThat(segments).isEqualTo(6); // each half: top, bottom and its inner side
     }
 
     @Test

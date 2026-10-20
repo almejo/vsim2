@@ -58,6 +58,19 @@ final class WizardColors {
     }
 
     /**
+     * The dotted ring of a Karnaugh cell the practice still has to group: between the text and the cell, soft enough
+     * not to compete with the groups.
+     */
+    static Color uncoveredRing() {
+        return blend(foreground(), cellBackground(), dark() ? 0.55 : 0.45);
+    }
+
+    /** The ring of the cell a practice hint points at and the outline of the group it shows: the readable amber. */
+    static Color hintRing() {
+        return warning();
+    }
+
+    /**
      * The notation legend's side panel: a soft tint of the dialog's background, a touch darker than it (towards the
      * text on a light theme, towards black on a dark one, where a lighter tint would eat the text's contrast).
      */
