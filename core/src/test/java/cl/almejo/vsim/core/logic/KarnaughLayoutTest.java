@@ -9,6 +9,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -199,6 +200,236 @@ class KarnaughLayoutTest {
     void aTermUsingInputsBeyondTheMapIsRefused() {
         assertThatThrownBy(() -> KarnaughLayout.of(3).group(new Term(0b1000, 0b1000)))
                 .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {2, 3, 4})
+    void everyDrawnRectangleCoversItsPositionsModuloTheAxes(int inputCount) {
+        KarnaughLayout layout = KarnaughLayout.of(inputCount);
+        for (int firstRow = 0; firstRow < layout.rows(); firstRow++) {
+            for (int firstColumn = 0; firstColumn < layout.columns(); firstColumn++) {
+                for (int rowSpan = 1; rowSpan <= layout.rows(); rowSpan++) {
+                    for (int columnSpan = 1; columnSpan <= layout.columns(); columnSpan++) {
+                        DrawnGroup drawn = layout.drawn(firstRow, firstColumn, rowSpan, columnSpan);
+                        String description = firstRow + "," + firstColumn + " " + rowSpan + "x" + columnSpan;
+
+                        Set<GridCell> expected = new HashSet<>();
+                        for (int rowOffset = 0; rowOffset < rowSpan; rowOffset++) {
+                            for (int columnOffset = 0; columnOffset < columnSpan; columnOffset++) {
+                                expected.add(new GridCell((firstRow + rowOffset) % layout.rows(),
+                                        (firstColumn + columnOffset) % layout.columns()));
+                            }
+                        }
+                        assertThat(drawn.cells()).as(description).isEqualTo(expected);
+                        assertThat(tableRows(layout, drawn.cells())).as(description).isSorted();
+                        assertThat(cellsOfThePieces(layout, drawn.rectangles())).as(description).isEqualTo(expected);
+                        boolean rowsWrap = wraps(firstRow, rowSpan, layout.rows());
+                        boolean columnsWrap = wraps(firstColumn, columnSpan, layout.columns());
+                        assertThat(drawn.rectangles()).as(description)
+                                .hasSize((rowsWrap ? 2 : 1) * (columnsWrap ? 2 : 1));
+                        for (CellRectangle rectangle : drawn.rectangles()) {
+                            assertThat(rectangle.isOpen(Side.TOP)).as(description)
+                                    .isEqualTo(rowsWrap && rectangle.row() == 0);
+                            assertThat(rectangle.isOpen(Side.BOTTOM)).as(description)
+                                    .isEqualTo(rowsWrap && rectangle.row() + rectangle.rowSpan() == layout.rows());
+                            assertThat(rectangle.isOpen(Side.LEFT)).as(description)
+                                    .isEqualTo(columnsWrap && rectangle.column() == 0);
+                            assertThat(rectangle.isOpen(Side.RIGHT)).as(description).isEqualTo(
+                                    columnsWrap && rectangle.column() + rectangle.columnSpan() == layout.columns());
+                        }
+                        layout.term(drawn.cells()).ifPresent(term -> assertThat(drawn.rectangles())
+                                .as(description).isEqualTo(layout.group(term).rectangles()));
+                    }
+                }
+            }
+        }
+    }
+
+    @Test
+    void aRectanglePassingTheRightEdgeIsTwoHalvesOpenAtTheEdges() {
+        DrawnGroup drawn = KarnaughLayout.of(4).drawn(1, 3, 2, 2);
+
+        assertThat(drawn.rectangles()).containsExactly(
+                new CellRectangle(1, 0, 2, 1, Set.of(Side.LEFT)),
+                new CellRectangle(1, 3, 2, 1, Set.of(Side.RIGHT)));
+    }
+
+    @Test
+    void aRectanglePassingTheBottomOfTheTwoByFourMapIsTheWholeAxisAndWrapsNowhere() {
+        DrawnGroup drawn = KarnaughLayout.of(3).drawn(1, 1, 2, 2);
+
+        assertThat(drawn.rectangles()).containsExactly(new CellRectangle(0, 1, 2, 2, Set.of()));
+    }
+
+    @Test
+    void aRectanglePassingTheRightEdgeOfTheTwoByTwoMapIsTheWholeAxis() {
+        DrawnGroup drawn = KarnaughLayout.of(2).drawn(0, 1, 1, 2);
+
+        assertThat(drawn.rectangles()).containsExactly(new CellRectangle(0, 0, 1, 2, Set.of()));
+    }
+
+    @Test
+    void aRectangleOverBothEdgesIsFourQuarters() {
+        DrawnGroup drawn = KarnaughLayout.of(4).drawn(3, 3, 2, 2);
+
+        assertThat(drawn.rectangles()).containsExactly(
+                new CellRectangle(0, 0, 1, 1, Set.of(Side.TOP, Side.LEFT)),
+                new CellRectangle(0, 3, 1, 1, Set.of(Side.TOP, Side.RIGHT)),
+                new CellRectangle(3, 0, 1, 1, Set.of(Side.BOTTOM, Side.LEFT)),
+                new CellRectangle(3, 3, 1, 1, Set.of(Side.BOTTOM, Side.RIGHT)));
+    }
+
+    @Test
+    void aSpanOfTheWholeAxisStartingInTheMiddleIsOnePiece() {
+        DrawnGroup drawn = KarnaughLayout.of(4).drawn(2, 1, 1, 4);
+
+        assertThat(drawn.rectangles()).containsExactly(new CellRectangle(2, 0, 1, 4, Set.of()));
+        assertThat(drawn.cells()).hasSize(4);
+    }
+
+    @Test
+    void aThreeWideRectangleIsStillDrawnButIsNoTerm() {
+        KarnaughLayout layout = KarnaughLayout.of(4);
+        DrawnGroup drawn = layout.drawn(0, 0, 1, 3);
+
+        assertThat(drawn.cells()).hasSize(3);
+        assertThat(drawn.rectangles()).containsExactly(new CellRectangle(0, 0, 1, 3, Set.of()));
+        assertThat(layout.term(drawn.cells())).isEmpty();
+        assertThat(layout.term(layout.drawn(1, 3, 3, 1).cells())).isEmpty();
+    }
+
+    @Test
+    void aTwoWideRectangleInTheMiddleOfTheTwoByFourMapIsATerm() {
+        KarnaughLayout layout = KarnaughLayout.of(3);
+
+        // Columns 01 and 11: C.
+        assertThat(layout.term(layout.drawn(0, 1, 2, 2).cells())).contains(new Term(0b001, 0b001));
+    }
+
+    @Test
+    void drawnRectanglesOutsideTheMapAreRefused() {
+        KarnaughLayout layout = KarnaughLayout.of(3);
+
+        assertThatThrownBy(() -> layout.drawn(2, 0, 1, 1)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> layout.drawn(-1, 0, 1, 1)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> layout.drawn(0, 4, 1, 1)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> layout.drawn(0, -1, 1, 1)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> layout.drawn(0, 0, 0, 1)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> layout.drawn(0, 0, 3, 1)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> layout.drawn(0, 0, 1, 5)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> layout.drawn(0, 0, 1, 0)).isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void theCornersOfTheFourByFourMapAreFourQuartersLikeTheirTerm() {
+        KarnaughLayout layout = KarnaughLayout.of(4);
+        DrawnGroup corners = layout.corners().orElseThrow();
+
+        assertThat(corners.cells()).containsExactlyInAnyOrder(new GridCell(0, 0), new GridCell(0, 3),
+                new GridCell(3, 0), new GridCell(3, 3));
+        // B'D'
+        assertThat(layout.term(corners.cells())).contains(new Term(0b0101, 0b0000));
+        assertThat(corners.rectangles()).isEqualTo(layout.group(new Term(0b0101, 0b0000)).rectangles());
+        assertThat(corners.rectangles()).hasSize(4);
+    }
+
+    @Test
+    void theCornersOfTheTwoByFourMapAreTheTwoEdgeColumnsDrawnLikeTheirTerm() {
+        KarnaughLayout layout = KarnaughLayout.of(3);
+        DrawnGroup corners = layout.corners().orElseThrow();
+
+        assertThat(corners.cells()).containsExactlyInAnyOrder(new GridCell(0, 0), new GridCell(0, 3),
+                new GridCell(1, 0), new GridCell(1, 3));
+        // C'
+        assertThat(layout.term(corners.cells())).contains(new Term(0b001, 0b000));
+        assertThat(corners.rectangles()).isEqualTo(layout.group(new Term(0b001, 0b000)).rectangles());
+    }
+
+    @Test
+    void theTwoByTwoMapHasNoCornersGesture() {
+        assertThat(KarnaughLayout.of(2).corners()).isEmpty();
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {2, 3, 4})
+    void theTermOfADrawnRectangleIsTheSubcubeWithExactlyItsCells(int inputCount) {
+        KarnaughLayout layout = KarnaughLayout.of(inputCount);
+        for (int firstRow = 0; firstRow < layout.rows(); firstRow++) {
+            for (int firstColumn = 0; firstColumn < layout.columns(); firstColumn++) {
+                for (int rowSpan = 1; rowSpan <= layout.rows(); rowSpan++) {
+                    for (int columnSpan = 1; columnSpan <= layout.columns(); columnSpan++) {
+                        Set<GridCell> cells = layout.drawn(firstRow, firstColumn, rowSpan, columnSpan).cells();
+                        assertThat(layout.term(cells)).as("%d,%d %dx%d", firstRow, firstColumn, rowSpan, columnSpan)
+                                .isEqualTo(bruteForceSubcube(layout, cells));
+                    }
+                }
+            }
+        }
+    }
+
+    @Test
+    void cellsThatAreNoSubcubeHaveNoTerm() {
+        KarnaughLayout layout = KarnaughLayout.of(4);
+
+        assertThat(layout.term(Set.of())).isEmpty();
+        assertThat(layout.term(Set.of(new GridCell(0, 0), new GridCell(1, 1)))).isEmpty();
+        assertThat(layout.term(Set.of(new GridCell(0, 0), new GridCell(0, 2)))).isEmpty();
+        assertThat(layout.term(Set.of(new GridCell(0, 0), new GridCell(0, 1), new GridCell(1, 0),
+                new GridCell(2, 2)))).isEmpty();
+        assertThat(layout.term(Set.of(new GridCell(0, 1)))).contains(new Term(0b1111, 0b0001));
+    }
+
+    @Test
+    void cellsOutsideTheMapAreRefusedByTerm() {
+        assertThatThrownBy(() -> KarnaughLayout.of(3).term(Set.of(new GridCell(2, 0))))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    private static Optional<Term> bruteForceSubcube(KarnaughLayout layout, Set<GridCell> cells) {
+        int all = (1 << layout.inputCount()) - 1;
+        for (int mask = 0; mask <= all; mask++) {
+            for (int value = 0; value <= all; value++) {
+                if ((value & ~mask) != 0) {
+                    continue;
+                }
+                Set<GridCell> covered = new HashSet<>();
+                for (int tableRow = 0; tableRow <= all; tableRow++) {
+                    if ((tableRow & mask) == value) {
+                        covered.add(layout.cell(tableRow));
+                    }
+                }
+                if (covered.equals(cells)) {
+                    return Optional.of(new Term(mask, value));
+                }
+            }
+        }
+        return Optional.empty();
+    }
+
+    private static boolean wraps(int first, int span, int size) {
+        return span < size && first + span > size;
+    }
+
+    private static List<Integer> tableRows(KarnaughLayout layout, Set<GridCell> cells) {
+        List<Integer> rows = new java.util.ArrayList<>();
+        for (GridCell cell : cells) {
+            rows.add(layout.tableRow(cell.row(), cell.column()));
+        }
+        return rows;
+    }
+
+    private static Set<GridCell> cellsOfThePieces(KarnaughLayout layout, List<CellRectangle> rectangles) {
+        Set<GridCell> cells = new HashSet<>();
+        for (CellRectangle rectangle : rectangles) {
+            assertThat(rectangle.row() + rectangle.rowSpan()).isLessThanOrEqualTo(layout.rows());
+            assertThat(rectangle.column() + rectangle.columnSpan()).isLessThanOrEqualTo(layout.columns());
+            for (int row = rectangle.row(); row < rectangle.row() + rectangle.rowSpan(); row++) {
+                for (int column = rectangle.column(); column < rectangle.column() + rectangle.columnSpan(); column++) {
+                    assertThat(cells.add(new GridCell(row, column))).as("pieces overlap").isTrue();
+                }
+            }
+        }
+        return cells;
     }
 
     private static List<List<Integer>> rowsOfTheMap(KarnaughLayout layout) {
