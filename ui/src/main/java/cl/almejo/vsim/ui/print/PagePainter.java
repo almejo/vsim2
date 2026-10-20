@@ -1,6 +1,8 @@
 package cl.almejo.vsim.ui.print;
 
+import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
@@ -18,6 +20,8 @@ import java.awt.geom.Rectangle2D;
 import java.time.format.DateTimeFormatter;
 import java.time.format.FormatStyle;
 import java.util.AbstractList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -48,6 +52,11 @@ public final class PagePainter {
 
     private static final String SHEET_POSITION = "print.sheet.position";
     private static final String SHEET_NUMBER = "print.sheet.number";
+    /**
+     * How far, in grid units, around a sheet's part of the circuit an element may be and still paint on it: shadows,
+     * strokes, junction and open-pin dots, value tags.
+     */
+    static final int SHEET_REACH = 4;
 
     private final PrintInput input;
     private final PrintArea area;
@@ -56,6 +65,16 @@ public final class PagePainter {
     private final boolean showsValues;
     private final PaintPolicy policy;
     private final Optional<CircuitImage> image;
+    /** Where each element of {@link #image} is drawn, measured under the frozen font; empty without an image. */
+    private final Map<ElementId, Bounds> drawnBounds;
+    /** Wires of nets wider than a bit: every sheet keeps them, so each bus writes its value on its longest wire. */
+    private final Set<ElementId> busWires;
+    /**
+     * For each vertical wire, the wires that cross or touch it and the components with a pin on it: where they are
+     * decides the wire's gaps under crossings, and a dashed wire restarts its dashes after each gap.
+     */
+    private final Map<ElementId, Set<ElementId>> verticalWireCompanions;
+    private final boolean cutsToSheet;
     private final PageDecorations decorations;
     private final PdfPages.PageSize pageSize;
     private final String title;
@@ -67,6 +86,15 @@ public final class PagePainter {
      * @throws IllegalArgumentException when the options ask for a header and footer the layout has no band for
      */
     public PagePainter(PrintInput input, PrintArea area, PrintOptions options, PageLayout layout) {
+        this(input, area, options, layout, true);
+    }
+
+    /**
+     * Like the public constructor; {@code cutsToSheet} false paints the whole circuit on every sheet and lets the
+     * clip cut it (only for tests that check that leaving the other sheets' elements out changes nothing).
+     */
+    PagePainter(PrintInput input, PrintArea area, PrintOptions options, PageLayout layout, boolean cutsToSheet) {
+        this.cutsToSheet = cutsToSheet;
         this.input = Objects.requireNonNull(input, "input");
         this.area = Objects.requireNonNull(area, "area");
         this.options = Objects.requireNonNull(options, "options");
@@ -78,6 +106,10 @@ public final class PagePainter {
         this.policy = PaintPolicy.print(options.blackAndWhite()).atPageScale(layout.scale());
         // the circuit's bounds depend on the label font: measure them with the frozen one
         this.image = TextFonts.withFont(input.textFont(), () -> circuitImage(input, area, showsValues));
+        this.drawnBounds = image.map(present -> TextFonts.withFont(input.textFont(), present::drawnBounds))
+                .orElse(Map.of());
+        this.busWires = busWires(input);
+        this.verticalWireCompanions = verticalWireCompanions(input, drawnBounds.keySet());
         this.decorations = new PageDecorations(input.textFont().installedFamily());
         this.pageSize = new PdfPages.PageSize(layout.geometry().paperWidthPoints(),
                 layout.geometry().paperHeightPoints());
@@ -93,6 +125,62 @@ public final class PagePainter {
         SimulationSnapshot snapshot = showsValues ? input.snapshot() : withoutValues(input.netlistToken());
         return CircuitImage.of(input.document(), input.netlist(), input.netlistToken(), snapshot, input.registry(),
                 PainterRegistry.standard(), paperScheme(input.scheme()), only);
+    }
+
+    private static Set<ElementId> busWires(PrintInput input) {
+        Set<ElementId> result = new HashSet<>();
+        for (Wire wire : input.document().wires()) {
+            input.netlist().netForWire(wire.id()).filter(net -> net.width() > 1)
+                    .ifPresent(net -> result.add(wire.id()));
+        }
+        return Set.copyOf(result);
+    }
+
+    private static Map<ElementId, Set<ElementId>> verticalWireCompanions(PrintInput input, Set<ElementId> painted) {
+        List<Wire> wires = input.document().wires().stream().filter(wire -> painted.contains(wire.id())).toList();
+        List<Component> components = input.document().components().stream()
+                .filter(component -> painted.contains(component.id())).toList();
+        Map<ElementId, Set<ElementId>> result = new HashMap<>();
+        for (Wire vertical : wires) {
+            if (vertical.isHorizontal()) {
+                continue;
+            }
+            Set<ElementId> companions = new HashSet<>();
+            for (Wire other : wires) {
+                if (other != vertical && touches(vertical, other)) {
+                    companions.add(other.id());
+                }
+            }
+            for (Component component : components) {
+                input.registry().findTypeOf(component).ifPresent(type -> {
+                    for (int pinIndex = 0; pinIndex < type.pinCount(); pinIndex++) {
+                        if (contains(vertical, type.pinLocation(component, pinIndex))) {
+                            companions.add(component.id());
+                            return;
+                        }
+                    }
+                });
+            }
+            if (!companions.isEmpty()) {
+                result.put(vertical.id(), Set.copyOf(companions));
+            }
+        }
+        return Map.copyOf(result);
+    }
+
+    /** Whether the axis-aligned wires {@code first} and {@code second} share a point. */
+    private static boolean touches(Wire first, Wire second) {
+        return Math.min(first.start().x(), first.end().x()) <= Math.max(second.start().x(), second.end().x())
+                && Math.min(second.start().x(), second.end().x()) <= Math.max(first.start().x(), first.end().x())
+                && Math.min(first.start().y(), first.end().y()) <= Math.max(second.start().y(), second.end().y())
+                && Math.min(second.start().y(), second.end().y()) <= Math.max(first.start().y(), first.end().y());
+    }
+
+    private static boolean contains(Wire wire, GridPoint point) {
+        return point.x() >= Math.min(wire.start().x(), wire.end().x())
+                && point.x() <= Math.max(wire.start().x(), wire.end().x())
+                && point.y() >= Math.min(wire.start().y(), wire.end().y())
+                && point.y() <= Math.max(wire.start().y(), wire.end().y());
     }
 
     /**
@@ -205,10 +293,37 @@ public final class PagePainter {
             Bounds imageBounds = image.get().gridBounds();
             circuit.translate(paper.getX() + (imageBounds.x() - grid.getX()) * pointsPerGridUnit,
                     paper.getY() + (imageBounds.y() - grid.getY()) * pointsPerGridUnit);
-            image.get().paint(circuit, layout.scale(), policy);
+            sheetShare(grid).paint(circuit, layout.scale(), policy);
         } finally {
             circuit.dispose();
         }
+    }
+
+    /**
+     * The elements drawn within {@link #SHEET_REACH} of the sheet's part of the circuit, wires crossing it included,
+     * plus the bus wires and what shapes the gaps of the vertical wires kept, so the sheet looks exactly as when the
+     * clip cuts the whole circuit: the PDF keeps every element painted on a page, clipped or not, so a tiled PDF would
+     * otherwise carry the whole circuit once per sheet.
+     */
+    private CircuitImage sheetShare(Rectangle2D grid) {
+        CircuitImage whole = image.orElseThrow();
+        if (!cutsToSheet) {
+            return whole;
+        }
+        int fromX = (int) Math.floor(grid.getMinX()) - SHEET_REACH;
+        int fromY = (int) Math.floor(grid.getMinY()) - SHEET_REACH;
+        Bounds reach = new Bounds(fromX, fromY, (int) Math.ceil(grid.getMaxX()) + SHEET_REACH - fromX,
+                (int) Math.ceil(grid.getMaxY()) + SHEET_REACH - fromY);
+        Set<ElementId> share = new HashSet<>();
+        drawnBounds.forEach((id, bounds) -> {
+            if (bounds.intersects(reach) || busWires.contains(id)) {
+                share.add(id);
+            }
+        });
+        List<Set<ElementId>> companions = share.stream().map(verticalWireCompanions::get)
+                .filter(Objects::nonNull).toList();
+        companions.forEach(share::addAll);
+        return share.size() == drawnBounds.size() ? whole : whole.only(share);
     }
 
     private void paintDecorations(Graphics2D sheet, PrintPage page, int pageCount) {

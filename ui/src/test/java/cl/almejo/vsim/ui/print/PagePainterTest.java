@@ -740,4 +740,60 @@ class PagePainterTest {
         assertThePdfLooksLikeThePreview(painter(input, options(new PrintScope.WholeCircuit(),
                 new ScaleMode.FitToOnePage(), false, true, false)), folder);
     }
+
+    // --- each sheet carries its own share ----------------------------------------------------------------------
+
+    /** Labelled gates every 8 units over about 2 × 2 A4 portrait sheets at 100 %, a free text and long wires. */
+    private void spreadCircuit() {
+        for (int x = 0; x <= 96; x += 8) {
+            for (int y = 0; y <= 120; y += 8) {
+                Component gate = registry.require(StandardComponentTypes.AND2).newComponent(document.newComponentId(),
+                        new GridPoint(x, y), Rotation.R0, Map.of(), "G" + x + "_" + y);
+                document.add(gate);
+            }
+        }
+        value(wire(-2, 62, 104, 62), Value.ONE);
+        wire(50, -2, 50, 126);
+        document.add(new TextLabel(document.newLabelId(), new GridPoint(40, 60), "Una nota sobre el borde"));
+    }
+
+    private static Path writePdf(PagePainter painter, Path file) throws IOException {
+        try (OutputStream output = Files.newOutputStream(file)) {
+            PdfPages.write(output, painter.pages().stream().map(PagePainter.Page::size).toList(),
+                    (pageIndex, graphics) -> painter.paint(graphics, pageIndex));
+        }
+        return file;
+    }
+
+    @Test
+    void aTiledPdfCarriesOnlyEachSheetsShareOfTheCircuit(@TempDir Path folder) throws IOException {
+        spreadCircuit();
+        PrintInput input = input();
+        PagePainter tiled = painter(input, atFullSize());
+        assertThat(tiled.pages()).hasSize(4);
+        long single = Files.size(writePdf(painter(input, fit()), folder.resolve("una.pdf")));
+        long fourSheets = Files.size(writePdf(tiled, folder.resolve("cuatro.pdf")));
+
+        assertThat(fourSheets).as("2 × 2 sheets against %d bytes for one", single).isLessThan(2 * single);
+    }
+
+    @Test
+    void leavingTheOtherSheetsElementsOutChangesNoPixelOfAnySheet() {
+        spreadCircuit();
+        PrintInput input = input();
+        PrintArea area = PrintScopes.area(input, new PrintScope.WholeCircuit()).orElseThrow();
+        for (PrintOptions options : List.of(atFullSize(), options(new PrintScope.WholeCircuit(),
+                new ScaleMode.Percentage(100), true, true, true))) {
+            PageGeometry geometry = PageGeometry.standard(options.paper(), options.orientation(),
+                    options.headerFooter());
+            PageLayout layout = PageLayout.of(area.gridArea(), geometry, options.scaleMode());
+            PagePainter cut = new PagePainter(input, area, options, layout, true);
+            PagePainter whole = new PagePainter(input, area, options, layout, false);
+            assertThat(cut.pages()).hasSize(4);
+            for (int pageIndex = 0; pageIndex < 4; pageIndex++) {
+                assertThat(samePixels(render(cut, pageIndex, 2), render(whole, pageIndex, 2)))
+                        .as("sheet %d", pageIndex + 1).isTrue();
+            }
+        }
+    }
 }

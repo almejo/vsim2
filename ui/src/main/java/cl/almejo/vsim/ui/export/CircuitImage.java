@@ -11,6 +11,7 @@ import cl.almejo.vsim.core.netlist.Netlist;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.ui.canvas.CircuitBounds;
 import cl.almejo.vsim.ui.canvas.CircuitRenderer;
+import cl.almejo.vsim.ui.canvas.DrawnBounds;
 import cl.almejo.vsim.ui.canvas.PaintPolicy;
 import cl.almejo.vsim.ui.canvas.RenderState;
 import cl.almejo.vsim.ui.paint.ColorScheme;
@@ -18,6 +19,8 @@ import cl.almejo.vsim.ui.paint.PainterRegistry;
 
 import java.awt.Color;
 import java.awt.Graphics2D;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
@@ -41,7 +44,7 @@ public final class CircuitImage {
 
     private CircuitImage(CircuitDocument document, Netlist netlist, long netlistToken, SimulationSnapshot snapshot,
                          ComponentTypeRegistry registry, PainterRegistry painters, ColorScheme scheme,
-                         Bounds circuitBounds) {
+                         Bounds gridBounds) {
         this.document = document;
         this.netlist = netlist;
         this.netlistToken = netlistToken;
@@ -49,8 +52,7 @@ public final class CircuitImage {
         this.registry = registry;
         this.painters = painters;
         this.scheme = scheme;
-        this.gridBounds = new Bounds(circuitBounds.x() - MARGIN, circuitBounds.y() - MARGIN,
-                circuitBounds.width() + 2 * MARGIN, circuitBounds.height() + 2 * MARGIN);
+        this.gridBounds = gridBounds;
     }
 
     /**
@@ -63,20 +65,55 @@ public final class CircuitImage {
                                             Optional<Set<ElementId>> only) {
         if (only.isEmpty()) {
             return CircuitBounds.of(document, registry).map(bounds ->
-                    new CircuitImage(document, netlist, netlistToken, snapshot, registry, painters, scheme, bounds));
+                    new CircuitImage(document, netlist, netlistToken, snapshot, registry, painters, scheme,
+                            withMargin(bounds)));
         }
         CircuitDocument copy = filtered(document, only.get());
-        // The copy has its own revision, and the renderer trusts the netlist and the values only while their tokens
-        // match the document's: carry over exactly which of the two matched the original.
-        boolean netlistMatches = netlistToken == document.revision();
-        boolean valuesMatch = netlistToken == snapshot.token();
-        long copyToken = netlistMatches ? copy.revision() : copy.revision() + 1;
-        long snapshotToken = valuesMatch ? copyToken : copyToken + 1;
-        SimulationSnapshot copySnapshot = new SimulationSnapshot(snapshot.revision(), snapshotToken, snapshot.time(),
-                snapshot.running(), snapshot.netValues(), snapshot.componentStates(), snapshot.problems(),
-                snapshot.failure());
+        long copyToken = copyToken(copy, document, netlistToken);
+        SimulationSnapshot copySnapshot = copySnapshot(snapshot, copyToken, netlistToken);
         return CircuitBounds.of(copy, registry).map(bounds ->
-                new CircuitImage(copy, netlist, copyToken, copySnapshot, registry, painters, scheme, bounds));
+                new CircuitImage(copy, netlist, copyToken, copySnapshot, registry, painters, scheme,
+                        withMargin(bounds)));
+    }
+
+    /**
+     * This image with only {@code ids} of its elements, painted at the same place (the same {@link #gridBounds()},
+     * values and colours): one printed sheet's share of a big circuit, so a sheet does not carry the whole circuit.
+     */
+    public CircuitImage only(Set<ElementId> ids) {
+        CircuitDocument copy = filtered(document, ids);
+        long copyToken = copyToken(copy, document, netlistToken);
+        return new CircuitImage(copy, netlist, copyToken, copySnapshot(snapshot, copyToken, netlistToken), registry,
+                painters, scheme, gridBounds);
+    }
+
+    private static Bounds withMargin(Bounds circuitBounds) {
+        return new Bounds(circuitBounds.x() - MARGIN, circuitBounds.y() - MARGIN, circuitBounds.width() + 2 * MARGIN,
+                circuitBounds.height() + 2 * MARGIN);
+    }
+
+    /**
+     * Where each element is drawn, in grid units ({@link DrawnBounds}, text included, so measure it under the font
+     * that will paint), in paint order.
+     */
+    public Map<ElementId, Bounds> drawnBounds() {
+        Map<ElementId, Bounds> result = new LinkedHashMap<>();
+        for (DocumentElement element : document.elements()) {
+            result.put(element.id(), DrawnBounds.of(element, registry));
+        }
+        return result;
+    }
+
+    // A copy has its own revision, and the renderer trusts the netlist and the values only while their tokens match
+    // the document's: carry over exactly which of the two matched the original.
+    private static long copyToken(CircuitDocument copy, CircuitDocument original, long netlistToken) {
+        return netlistToken == original.revision() ? copy.revision() : copy.revision() + 1;
+    }
+
+    private static SimulationSnapshot copySnapshot(SimulationSnapshot snapshot, long copyToken, long netlistToken) {
+        long snapshotToken = netlistToken == snapshot.token() ? copyToken : copyToken + 1;
+        return new SimulationSnapshot(snapshot.revision(), snapshotToken, snapshot.time(), snapshot.running(),
+                snapshot.netValues(), snapshot.componentStates(), snapshot.problems(), snapshot.failure());
     }
 
     /** {@code scheme} on a white background (the «Fondo blanco para imprimir» option). */
