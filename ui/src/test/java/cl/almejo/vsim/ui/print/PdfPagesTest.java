@@ -7,6 +7,7 @@ import java.awt.AlphaComposite;
 import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Font;
+import java.awt.GradientPaint;
 import java.awt.Graphics2D;
 import java.awt.geom.Line2D;
 import java.awt.geom.Rectangle2D;
@@ -117,6 +118,55 @@ class PdfPagesTest {
     }
 
     @Test
+    void aDisposedChildLeavesNoColourStrokeNorTransparencyBehind() throws IOException {
+        // JFreePDF's children share the page's stream and its setters skip a value they believe is current.
+        Path file = write(List.of(new PdfPages.PageSize(200, 200)), (pageIndex, graphics) -> {
+            graphics.setColor(Color.BLACK);
+            graphics.fill(new Rectangle2D.Double(10, 10, 50, 50));
+            Graphics2D child = (Graphics2D) graphics.create();
+            child.setColor(Color.RED);
+            child.setStroke(new BasicStroke(9f));
+            child.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.2f));
+            child.fill(new Rectangle2D.Double(70, 10, 50, 50));
+            child.dispose();
+            graphics.setColor(Color.BLACK);
+            graphics.fill(new Rectangle2D.Double(130, 10, 50, 50));
+            graphics.draw(new Line2D.Double(10, 150, 190, 150));
+        });
+
+        BufferedImage page = PdfReading.render(file, 0, 1);
+        assertThat(new Color(page.getRGB(155, 35))).as("the parent's black after the child").isEqualTo(Color.BLACK);
+        assertThat(isDark(page.getRGB(100, 150))).as("the parent's opaque thin line").isTrue();
+        assertThat(isDark(page.getRGB(100, 146))).as("not the child's wide stroke").isFalse();
+    }
+
+    @Test
+    void twoLiveChildrenPaintingInTurnKeepTheirOwnState() throws IOException {
+        Path file = write(List.of(new PdfPages.PageSize(200, 200)), (pageIndex, graphics) -> {
+            Graphics2D red = (Graphics2D) graphics.create();
+            red.setColor(Color.RED);
+            Graphics2D blue = (Graphics2D) graphics.create();
+            blue.translate(100, 0);
+            blue.setColor(Color.BLUE);
+            red.fill(new Rectangle2D.Double(10, 10, 30, 30));
+            blue.fill(new Rectangle2D.Double(10, 10, 30, 30));
+            red.fill(new Rectangle2D.Double(10, 100, 30, 30));
+            graphics.translate(0, 50);
+            red.dispose();
+            graphics.setColor(Color.BLACK);
+            graphics.fill(new Rectangle2D.Double(150, 100, 30, 30));
+            blue.dispose();
+        });
+
+        BufferedImage page = PdfReading.render(file, 0, 1);
+        assertThat(new Color(page.getRGB(25, 25))).isEqualTo(Color.RED);
+        assertThat(new Color(page.getRGB(125, 25))).isEqualTo(Color.BLUE);
+        assertThat(new Color(page.getRGB(25, 115))).as("red, not at the blue one's translation")
+                .isEqualTo(Color.RED);
+        assertThat(new Color(page.getRGB(165, 165))).as("the parent's own translation").isEqualTo(Color.BLACK);
+    }
+
+    @Test
     void paintsThePagesInOrderWithTheirIndices() throws IOException {
         List<Integer> painted = new ArrayList<>();
         write(List.of(A4_PORTRAIT, A4_PORTRAIT, A4_PORTRAIT), (pageIndex, graphics) -> painted.add(pageIndex));
@@ -151,5 +201,23 @@ class PdfPagesTest {
     private static boolean isDark(int rgb) {
         Color color = new Color(rgb);
         return color.getRed() + color.getGreen() + color.getBlue() < 3 * 96;
+    }
+
+    @Test
+    void aGradientIsPlacedUnderTheCurrentTransform() throws IOException {
+        // JFreePDF writes a gradient's points in page coordinates: a moved, scaled one came out all dark.
+        Path file = write(List.of(new PdfPages.PageSize(200, 200)), (pageIndex, graphics) -> {
+            Graphics2D child = (Graphics2D) graphics.create();
+            child.translate(50, 50);
+            child.scale(2, 2);
+            child.setPaint(new GradientPaint(0, 0, Color.WHITE, 0, 50, Color.BLACK));
+            child.fill(new Rectangle2D.Double(0, 0, 50, 50));
+            child.dispose();
+        });
+
+        BufferedImage page = PdfReading.render(file, 0, 1);
+        assertThat(new Color(page.getRGB(100, 52)).getRed()).as("light at the top").isGreaterThan(240);
+        assertThat(new Color(page.getRGB(100, 100)).getRed()).as("half way").isBetween(110, 145);
+        assertThat(new Color(page.getRGB(100, 147)).getRed()).as("dark at the bottom").isLessThan(20);
     }
 }

@@ -27,6 +27,9 @@ import java.util.Objects;
  * standard text mode only knows the 14 base fonts and writes the string unescaped, which breaks on «ñ», «á» and
  * parentheses.
  *
+ * <p>The painters get each page's graphics wrapped in a {@link SharedStreamGraphics}: JFreePDF's child graphics
+ * share the page's stream and would otherwise leave their colour, stroke and transparency to their parent.
+ *
  * <p>The document is assembled in memory and written to {@code output} only after every page painted, so a page that
  * throws (a failure, or a cancellation surfaced as an exception) leaves {@code output} untouched.
  */
@@ -71,8 +74,9 @@ public final class PdfPages {
             graphics.setRenderingHint(PDFHints.KEY_DRAW_STRING_TYPE, PDFHints.VALUE_DRAW_STRING_TYPE_VECTOR);
             double truncatedHeight = (int) size.heightPoints();
             graphics.translate(0, truncatedHeight - size.heightPoints());
-            content.paint(pageIndex, graphics);
-            graphics.dispose();
+            Graphics2D painted = SharedStreamGraphics.forPage(graphics);
+            content.paint(pageIndex, painted);
+            painted.dispose();
         }
         output.write(document.getPDFBytes());
         output.flush();

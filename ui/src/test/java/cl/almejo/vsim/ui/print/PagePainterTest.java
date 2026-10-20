@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.print;
 
+import cl.almejo.vsim.core.bundled.BundledExamples;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
@@ -7,9 +8,11 @@ import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.Frame;
 import cl.almejo.vsim.core.document.FrameTint;
+import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.geometry.Rotation;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
+import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.core.netlist.Netlist;
 import cl.almejo.vsim.core.netlist.NetlistCompiler;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
@@ -606,5 +609,135 @@ class PagePainterTest {
         assertThat(ink(first, rightNeighbourMark)).isPositive();
         assertThat(ink(PdfReading.render(file, 3, 1), new Rectangle2D.Double(window.getX(), window.getY(), 80, 80)))
                 .isZero();
+    }
+
+    /**
+     * A switch (its value text is white), labelled components and free text: what JFreePDF's shared stream used to
+     * lose. The PDF of the sheet, read back by PDFBox, must look like the preview's image of the same sheet.
+     */
+    private void labelledCircuit() {
+        Component input = registry.require(StandardComponentTypes.SWITCH).newComponent(document.newComponentId(),
+                new GridPoint(4, 6), Rotation.R0, Map.of("value", "1"), "Cin");
+        document.add(input);
+        Component gate = registry.require(StandardComponentTypes.AND2).newComponent(document.newComponentId(),
+                new GridPoint(14, 6), Rotation.R0, Map.of(), "resultado");
+        document.add(gate);
+        Component led = registry.require(StandardComponentTypes.LED).newComponent(document.newComponentId(),
+                new GridPoint(26, 6), Rotation.R0, Map.of("color", "green"), "Cero");
+        document.add(led);
+        componentStates.put(led.id().value(), new VisibleState.LedState(Value.ONE));
+        document.add(new TextLabel(document.newLabelId(), new GridPoint(4, 16), "ALU de 4 bits — señal"));
+        value(wire(7, 6, 14, 6), Value.ONE);
+    }
+
+    /** The PDF's page {@code pageIndex} and the preview's image of it, at the same resolution, side by side. */
+    private static void assertThePdfLooksLikeThePreview(PagePainter painter, Path folder) throws IOException {
+        Path file = folder.resolve("vista.pdf");
+        try (OutputStream output = Files.newOutputStream(file)) {
+            PdfPages.write(output, painter.pages().stream().map(PagePainter.Page::size).toList(),
+                    (pageIndex, graphics) -> painter.paint(graphics, pageIndex));
+        }
+        float pixelsPerPoint = 2;
+        BufferedImage pdf = PdfReading.render(file, 0, pixelsPerPoint);
+        BufferedImage preview = render(painter, 0, pixelsPerPoint);
+        int previewDark = darkPixels(preview);
+        assertThat(previewDark).as("something dark on the preview").isGreaterThan(1000);
+        // The two rasterisers place an edge up to a pixel apart and spread a thin grey line differently, so a dark
+        // pixel only needs a darkish neighbour; a label lost or painted white has none.
+        assertThat(darkPixelsWithoutADarkNeighbour(preview, pdf)).as("dark on the preview but not in the PDF")
+                .isLessThan(previewDark / 100);
+        assertThat(darkPixelsWithoutADarkNeighbour(pdf, preview)).as("dark in the PDF but not on the preview")
+                .isLessThan(previewDark / 100);
+        double[] pdfColour = averageColour(pdf);
+        double[] previewColour = averageColour(preview);
+        for (int channel = 0; channel < 3; channel++) {
+            assertThat(pdfColour[channel]).as("average colour, channel %d", channel)
+                    .isCloseTo(previewColour[channel], org.assertj.core.api.Assertions.within(1.0));
+        }
+    }
+
+    /** The average red, green and blue of the sheet. */
+    private static double[] averageColour(BufferedImage image) {
+        double[] sums = new double[3];
+        for (int x = 0; x < image.getWidth(); x++) {
+            for (int y = 0; y < image.getHeight(); y++) {
+                Color color = new Color(image.getRGB(x, y));
+                sums[0] += color.getRed();
+                sums[1] += color.getGreen();
+                sums[2] += color.getBlue();
+            }
+        }
+        double pixels = (double) image.getWidth() * image.getHeight();
+        return new double[] {sums[0] / pixels, sums[1] / pixels, sums[2] / pixels};
+    }
+
+    private static boolean isDark(BufferedImage image, int x, int y) {
+        Color color = new Color(image.getRGB(x, y));
+        return color.getRed() + color.getGreen() + color.getBlue() < 3 * 128;
+    }
+
+    private static int darkPixels(BufferedImage image) {
+        int count = 0;
+        for (int x = 0; x < image.getWidth(); x++) {
+            for (int y = 0; y < image.getHeight(); y++) {
+                if (isDark(image, x, y)) {
+                    count++;
+                }
+            }
+        }
+        return count;
+    }
+
+    /** Dark pixels of {@code first} with no darkish pixel of {@code second} within two pixels. */
+    private static int darkPixelsWithoutADarkNeighbour(BufferedImage first, BufferedImage second) {
+        int reach = 2;
+        int count = 0;
+        for (int x = 0; x < first.getWidth(); x++) {
+            for (int y = 0; y < first.getHeight(); y++) {
+                if (!isDark(first, x, y)) {
+                    continue;
+                }
+                boolean found = false;
+                for (int neighbourX = Math.max(0, x - reach);
+                     !found && neighbourX <= Math.min(second.getWidth() - 1, x + reach); neighbourX++) {
+                    for (int neighbourY = Math.max(0, y - reach);
+                         !found && neighbourY <= Math.min(second.getHeight() - 1, y + reach); neighbourY++) {
+                        Color neighbour = new Color(second.getRGB(neighbourX, neighbourY));
+                        found = neighbour.getRed() + neighbour.getGreen() + neighbour.getBlue() < 3 * 176;
+                    }
+                }
+                if (!found) {
+                    count++;
+                }
+            }
+        }
+        return count;
+    }
+
+    @Test
+    void theLabelsOfThePdfAreTheOnesOfThePreview(@TempDir Path folder) throws IOException {
+        labelledCircuit();
+        assertThePdfLooksLikeThePreview(painter(input(), fit()), folder);
+    }
+
+    @Test
+    void theLabelsOfABlackAndWhitePdfAreTheOnesOfThePreview(@TempDir Path folder) throws IOException {
+        labelledCircuit();
+        assertThePdfLooksLikeThePreview(painter(input(), options(new PrintScope.WholeCircuit(),
+                new ScaleMode.FitToOnePage(), true, true, true)), folder);
+    }
+
+    @Test
+    void theLabelsOfTheBundledAluArePrintedInThePdf(@TempDir Path folder) throws Exception {
+        ComponentTypeRegistry aluRegistry = StandardComponentTypes.registry();
+        CircuitDocument alu = BundledExamples.open("alu-4-bits", aluRegistry);
+        aluRegistry.addResolver(SubcircuitTypes.resolverFor(alu));
+        Netlist netlist = new NetlistCompiler(aluRegistry).compile(alu);
+        PrintInput input = PrintInput.capture(new PrintInput.LiveCircuit(alu, aluRegistry, netlist, alu.revision(),
+                SimulationSnapshot.EMPTY, "alu-4-bits", circuitPath), Set.of(), ColorScheme.LIGHT, TextFont.DEFAULT,
+                CLOCK);
+        assertThePdfLooksLikeThePreview(painter(input, fit()), folder);
+        assertThePdfLooksLikeThePreview(painter(input, options(new PrintScope.WholeCircuit(),
+                new ScaleMode.FitToOnePage(), false, true, false)), folder);
     }
 }
