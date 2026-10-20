@@ -5,6 +5,22 @@ Los cambios de VSim 2 que se notan al usarlo, del más nuevo al más antiguo. El
 sección es un conjunto de funciones, con las fechas en que se hizo. El detalle de cada función está en
 [docs/funciones.md](docs/funciones.md).
 
+## 2026-10-19 — 2026-10-20 — Exportar a PDF
+
+### Agregado
+
+- Archivo ▸ «Exportar a PDF…» guarda un PDF vectorial de todo el circuito, de la selección o de un marco, en A4,
+  Carta, Oficio o A3, vertical u horizontal.
+- «Ajustar a una hoja» lo achica a una sola hoja (avisa si el texto queda muy chico y ofrece «Dividir en varias
+  hojas»); con un porcentaje se reparte en varias hojas que se solapan 1 cm, con marcas de corte y «Fila · Columna —
+  Hoja n de N» para pegarlas.
+- «Blanco y negro» para imprimir en láser (marcos sin relleno, estados de los cables por gris y trazo, con leyenda),
+  «Con valores» y «Encabezado y pie de página» con título, archivo, fecha y número de hoja.
+- Vista previa igual al PDF, con un mapa de hojas y la hoja elegida en grande; el diálogo cuenta las hojas, pide
+  confirmación sobre 50 y no deja pasar de 1.000.
+- Se escribe sin congelar la ventana, con barra de avance y «Cancelar»; un PDF anterior con el mismo nombre no se
+  pierde si cancelas o falla. Las opciones y la carpeta se recuerdan solo al guardar.
+
 ## 2026-10-20 — Túneles de cables
 
 ### Agregado

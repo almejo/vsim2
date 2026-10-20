@@ -149,6 +149,44 @@ public final class PagePainter {
         }
     }
 
+    /** The area to print, in grid units: what {@link #paintOverview} covers. */
+    public Rectangle2D gridArea() {
+        return layout.gridArea();
+    }
+
+    /**
+     * Paints the whole area to print on white, at the layout's scale, in points with the origin at the area's
+     * top-left corner and no sheet decorations: the dialog's page map. Same content decisions as {@link #paint} (the
+     * print policy at the layout's scale, the frozen font, values only when shown), so the map and the sheets agree.
+     */
+    public void paintOverview(Graphics2D graphics) {
+        Rectangle2D gridArea = layout.gridArea();
+        double pointsPerGridUnit = GridPoint.PIXELS_PER_UNIT * layout.scale();
+        Rectangle2D printed = new Rectangle2D.Double(0, 0, gridArea.getWidth() * pointsPerGridUnit,
+                gridArea.getHeight() * pointsPerGridUnit);
+        Graphics2D overview = (Graphics2D) graphics.create();
+        try {
+            overview.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            overview.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+            overview.setColor(Color.WHITE);
+            overview.fill(printed);
+            if (image.isEmpty()) {
+                return;
+            }
+            overview.clip(printed);
+            area.clip().ifPresent(crop -> overview.clip(new Rectangle2D.Double(
+                    (crop.getX() - gridArea.getX()) * pointsPerGridUnit,
+                    (crop.getY() - gridArea.getY()) * pointsPerGridUnit,
+                    crop.getWidth() * pointsPerGridUnit, crop.getHeight() * pointsPerGridUnit)));
+            Bounds imageBounds = image.get().gridBounds();
+            overview.translate((imageBounds.x() - gridArea.getX()) * pointsPerGridUnit,
+                    (imageBounds.y() - gridArea.getY()) * pointsPerGridUnit);
+            TextFonts.runWithFont(input.textFont(), () -> image.get().paint(overview, layout.scale(), policy));
+        } finally {
+            overview.dispose();
+        }
+    }
+
     /** The part of the circuit on {@code page}, cut to its paper rectangle and, for a frame, to the frame's crop. */
     private void paintCircuit(Graphics2D sheet, PrintPage page) {
         if (image.isEmpty()) {

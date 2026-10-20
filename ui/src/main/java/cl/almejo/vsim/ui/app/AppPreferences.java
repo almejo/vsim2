@@ -2,6 +2,11 @@ package cl.almejo.vsim.ui.app;
 
 import cl.almejo.vsim.core.wiring.TidyOptions;
 import cl.almejo.vsim.ui.paint.TextFont;
+import cl.almejo.vsim.ui.print.PageOrientation;
+import cl.almejo.vsim.ui.print.Paper;
+import cl.almejo.vsim.ui.print.PrintOptions;
+import cl.almejo.vsim.ui.print.PrintScope;
+import cl.almejo.vsim.ui.print.ScaleMode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -61,6 +66,14 @@ public final class AppPreferences {
     static final String FIND_MATCH_CASE = "find.matchCase";
     static final String FIND_REGEX = "find.regex";
     static final String SIMPLIFY_EXPRESSIONS = "expressions.simplify";
+    static final String PRINT_PAPER = "print.paper";
+    static final String PRINT_ORIENTATION = "print.orientation";
+    static final String PRINT_SCALE = "print.scale";
+    static final String PRINT_WITH_VALUES = "print.withValues";
+    static final String PRINT_BLACK_AND_WHITE = "print.blackAndWhite";
+    static final String PRINT_HEADER_FOOTER = "print.headerFooter";
+    static final String PRINT_DIRECTORY = "print.directory";
+    private static final String PRINT_FIT = "fit";
 
     /** «Avanzar 10 t» (M6.1-B): the fixed step until the user picks another size. */
     public static final long DEFAULT_STEP_UNITS = 10;
@@ -243,6 +256,78 @@ public final class AppPreferences {
 
     public void setExportPrintBackground(boolean enabled) {
         put(EXPORT_PRINT_BACKGROUND, Boolean.toString(enabled));
+    }
+
+    // --- Exportar a PDF e imprimir ---
+
+    /**
+     * The options «Exportar a PDF…» opens with: the remembered paper, orientation, scale and appearance switches, the
+     * whole circuit and {@code title}. What to export and the title depend on the circuit and are never remembered;
+     * unknown or corrupt values give the defaults of {@link PrintOptions#defaults}.
+     */
+    public PrintOptions printOptions(String title) {
+        PrintOptions defaults = PrintOptions.defaults(title);
+        return new PrintOptions(new PrintScope.WholeCircuit(),
+                enumValue(PRINT_PAPER, Paper.class, defaults.paper()),
+                enumValue(PRINT_ORIENTATION, PageOrientation.class, defaults.orientation()),
+                printScale(defaults.scaleMode()),
+                !"false".equals(node.get(PRINT_WITH_VALUES, "true")),
+                "true".equals(node.get(PRINT_BLACK_AND_WHITE, "false")),
+                "true".equals(node.get(PRINT_HEADER_FOOTER, "false")),
+                title);
+    }
+
+    private ScaleMode printScale(ScaleMode fallback) {
+        String stored = node.get(PRINT_SCALE, PRINT_FIT);
+        if (PRINT_FIT.equals(stored)) {
+            return new ScaleMode.FitToOnePage();
+        }
+        try {
+            int percent = Integer.parseInt(stored);
+            return percent >= ScaleMode.MINIMUM_PERCENT && percent <= ScaleMode.MAXIMUM_PERCENT
+                    ? new ScaleMode.Percentage(percent) : fallback;
+        } catch (NumberFormatException exception) {
+            return fallback;
+        }
+    }
+
+    private <E extends Enum<E>> E enumValue(String key, Class<E> type, E fallback) {
+        try {
+            return Enum.valueOf(type, node.get(key, fallback.name()));
+        } catch (IllegalArgumentException exception) {
+            return fallback;
+        }
+    }
+
+    /** Remembers everything of {@code options} but the scope and the title; called only when a PDF was saved. */
+    public void setPrintOptions(PrintOptions options) {
+        Objects.requireNonNull(options, "options");
+        put(PRINT_PAPER, options.paper().name());
+        put(PRINT_ORIENTATION, options.orientation().name());
+        put(PRINT_SCALE, switch (options.scaleMode()) {
+            case ScaleMode.FitToOnePage fit -> PRINT_FIT;
+            case ScaleMode.Percentage percentage -> Integer.toString(percentage.percent());
+        });
+        put(PRINT_WITH_VALUES, Boolean.toString(options.withValues()));
+        put(PRINT_BLACK_AND_WHITE, Boolean.toString(options.blackAndWhite()));
+        put(PRINT_HEADER_FOOTER, Boolean.toString(options.headerFooter()));
+    }
+
+    /** The folder of the last saved PDF; empty until the first one. */
+    public Optional<Path> printDirectory() {
+        return optional(PRINT_DIRECTORY).flatMap(stored -> {
+            try {
+                return Optional.of(Path.of(stored));
+            } catch (InvalidPathException exception) {
+                LOGGER.warn("Ignoring the stored PDF directory {}", stored, exception);
+                return Optional.empty();
+            }
+        });
+    }
+
+    public void setPrintDirectory(Path directory) {
+        Objects.requireNonNull(directory, "directory");
+        put(PRINT_DIRECTORY, directory.toAbsolutePath().toString());
     }
 
     // --- M6.2 tidy wires ---

@@ -1,6 +1,11 @@
 package cl.almejo.vsim.ui.app;
 
 import cl.almejo.vsim.ui.paint.TextFont;
+import cl.almejo.vsim.ui.print.PageOrientation;
+import cl.almejo.vsim.ui.print.Paper;
+import cl.almejo.vsim.ui.print.PrintOptions;
+import cl.almejo.vsim.ui.print.PrintScope;
+import cl.almejo.vsim.ui.print.ScaleMode;
 import org.junit.jupiter.api.Test;
 
 import java.nio.file.Path;
@@ -347,5 +352,47 @@ class AppPreferencesTest {
         assertThat(alt.isHeld(false, true)).isTrue();
         assertThat(alt.isHeld(true, false)).isFalse();
         assertThat(none.isHeld(true, true)).isFalse();
+    }
+
+    // --- Exportar a PDF e imprimir ---
+
+    @Test
+    void thePdfOptionsStartAsTheDefaultsWithTheGivenTitle() {
+        assertThat(preferences.printOptions("Sumador")).isEqualTo(PrintOptions.defaults("Sumador"));
+        assertThat(preferences.printDirectory()).isEmpty();
+    }
+
+    @Test
+    void thePdfOptionsAreRememberedButNotTheScopeNorTheTitle() {
+        preferences.setPrintOptions(new PrintOptions(new PrintScope.Selection(java.util.Set.of()), Paper.OFICIO,
+                PageOrientation.LANDSCAPE, new ScaleMode.Percentage(75), false, true, true, "Mi título"));
+        preferences.setPrintDirectory(home.resolve("pdf"));
+        AppPreferences reread = new AppPreferences(node);
+        assertThat(reread.printOptions("Otro")).isEqualTo(new PrintOptions(new PrintScope.WholeCircuit(),
+                Paper.OFICIO, PageOrientation.LANDSCAPE, new ScaleMode.Percentage(75), false, true, true, "Otro"));
+        assertThat(reread.printDirectory()).contains(home.resolve("pdf").toAbsolutePath());
+        assertThat(node.get("print.paper", null)).isEqualTo("OFICIO");
+        assertThat(node.get("print.scale", null)).isEqualTo("75");
+    }
+
+    @Test
+    void fitToOnePageIsStoredAsFit() {
+        preferences.setPrintOptions(new PrintOptions(new PrintScope.WholeCircuit(), Paper.A3,
+                PageOrientation.PORTRAIT, new ScaleMode.FitToOnePage(), true, false, false, ""));
+        assertThat(node.get("print.scale", null)).isEqualTo("fit");
+        assertThat(preferences.printOptions("").scaleMode()).isEqualTo(new ScaleMode.FitToOnePage());
+    }
+
+    @Test
+    void unknownOrCorruptPdfValuesFallBackToTheDefaults() {
+        node.put("print.paper", "TABLOID");
+        node.put("print.orientation", "SIDEWAYS");
+        node.put("print.scale", "9000");
+        node.put("print.withValues", "maybe");
+        node.put("print.blackAndWhite", "maybe");
+        node.put("print.headerFooter", "maybe");
+        assertThat(preferences.printOptions("C")).isEqualTo(PrintOptions.defaults("C"));
+        node.put("print.scale", "many");
+        assertThat(preferences.printOptions("C").scaleMode()).isEqualTo(new ScaleMode.FitToOnePage());
     }
 }
