@@ -116,5 +116,8 @@ We apply Clean Code (Robert C. Martin) to new code and to the code we modify (se
 - One logical change per commit; imperative English message; the `Co-Authored-By:` trailer of the model that wrote
   it. Stage by path only (never `git add -A` / `git commit -a`); never commit the user's untracked circuits, scratch
   folders or `CLAUDE.md`. Push only with the user's explicit OK.
-- A user-visible feature updates the README (Spanish) in the same work; decisions and deferred items go to
-  `docs/superpowers/plans/2026-10-08-m1-followups.md`.
+- A user-visible feature updates three documents (all in Spanish) in the same work: its one-line entry in the
+  README's «Funciones» list (under its area, linking to its section), its full detail in `docs/funciones.md` (under
+  the same area, never by milestone) and an entry in `CHANGELOG.md` (newest section first, «Agregado» / «Cambiado» /
+  «Arreglado», written as what the user notices). User-visible fixes get a changelog entry too. Decisions and
+  deferred items go to `docs/superpowers/plans/2026-10-08-m1-followups.md`.
