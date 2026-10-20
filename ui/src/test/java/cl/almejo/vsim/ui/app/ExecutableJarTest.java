@@ -62,6 +62,7 @@ class ExecutableJarTest {
                 "com/formdev/flatlaf/themes/FlatMacDarkLaf.class",
                 "net/miginfocom/swing/MigLayout.class",
                 "org/jfree/svg/SVGGraphics2D.class",
+                "org/jfree/pdf/PDFDocument.class",
                 "com/fasterxml/jackson/databind/ObjectMapper.class",
                 "org/slf4j/LoggerFactory.class",
                 "ch/qos/logback/classic/Logger.class");
@@ -79,6 +80,12 @@ class ExecutableJarTest {
     void itCarriesTheBundledExamples() throws IOException {
         assertThat(entryNames()).containsAll(BundledExamples.all().stream()
                 .map(example -> example.resourceName().substring(1)).toList());
+    }
+
+    @Test
+    void leavesOutTheTestOnlyPdfReader() throws IOException {
+        assertThat(entryNames()).noneMatch(name -> name.startsWith("org/apache/pdfbox/")
+                || name.startsWith("org/apache/fontbox/"));
     }
 
     @Test

@@ -8,12 +8,14 @@ dependencies {
     implementation(libs.flatlaf.extras)
     implementation(libs.miglayout.swing)
     implementation(libs.jfreesvg)
+    implementation(libs.jfreepdf)
     implementation(libs.slf4j.api)
     runtimeOnly(libs.logback.classic)
 
     testImplementation(platform(libs.junit.bom))
     testImplementation(libs.junit.jupiter)
     testImplementation(libs.assertj.core)
+    testImplementation(libs.pdfbox)
     testRuntimeOnly(libs.junit.launcher)
 }
 

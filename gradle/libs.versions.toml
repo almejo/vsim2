@@ -7,6 +7,8 @@ assertj = "3.27.3"
 flatlaf = "3.5.4"
 miglayout = "11.4.2"
 jfreesvg = "5.0.7"
+jfreepdf = "2.0.1"
+pdfbox = "3.0.8"
 
 [libraries]
 jackson-databind = { module = "com.fasterxml.jackson.core:jackson-databind", version.ref = "jackson" }
@@ -20,3 +22,5 @@ flatlaf = { module = "com.formdev:flatlaf", version.ref = "flatlaf" }
 flatlaf-extras = { module = "com.formdev:flatlaf-extras", version.ref = "flatlaf" }
 miglayout-swing = { module = "com.miglayout:miglayout-swing", version.ref = "miglayout" }
 jfreesvg = { module = "org.jfree:org.jfree.svg", version.ref = "jfreesvg" }
+jfreepdf = { module = "org.jfree:org.jfree.pdf", version.ref = "jfreepdf" }
+pdfbox = { module = "org.apache.pdfbox:pdfbox", version.ref = "pdfbox" }
