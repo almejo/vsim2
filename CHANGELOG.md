@@ -5,6 +5,21 @@ Los cambios de VSim 2 que se notan al usarlo, del más nuevo al más antiguo. El
 sección es un conjunto de funciones, con las fechas en que se hizo. El detalle de cada función está en
 [docs/funciones.md](docs/funciones.md).
 
+## 2026-10-21 — Dividir la vista
+
+### Agregado
+
+- El lienzo de una ventana se divide en 2 paneles (arriba y abajo, o a los lados) o en 4, como en Excel: arrastrando
+  la pestañita de arriba del borde derecho hacia abajo o la de la punta del borde de abajo hacia la izquierda, o
+  desde Ventana ▸ «Dividir ▸» («Arriba y abajo», «A los lados», «Quitar división»). Cada panel muestra el mismo
+  circuito con su propio zoom y centro; los divisores se arrastran (el cruce mueve los dos) y se quitan llevándolos
+  al borde o con doble clic.
+- El panel activo (el último donde hiciste clic) tiene un borde fino de color y Ventana ▸ «Siguiente panel» pasa al
+  otro. La selección y la herramienta son las mismas en todos los paneles; el zoom, «Centrar circuito», la búsqueda,
+  F8 y Nueva vista actúan en el panel activo, y los brillos, problemas, guías y marcas se ven en todos.
+- La división se recuerda por archivo en las preferencias, nunca en el .vsim: al volver a abrir un circuito la
+  ventana vuelve dividida como estaba, y dividir no lo deja «modificado» ni agrega un paso de deshacer.
+
 ## 2026-10-21 — Ajustar, guías y cuadrícula
 
 ### Agregado
