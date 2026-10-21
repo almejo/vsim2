@@ -57,6 +57,7 @@ public final class EditorAutomationHost implements AutomationHost {
     private final SimulationHostSupport simulation;
     private final EditHostSupport edits;
     private final ExportHostSupport exports;
+    private final EditorQueue queue = new EditorQueue();
 
     /** @param openDocuments the open circuits, one per circuit however many views it has; called on the EDT */
     public EditorAutomationHost(Supplier<List<OpenDocument>> openDocuments) {
@@ -93,8 +94,9 @@ public final class EditorAutomationHost implements AutomationHost {
         this.proposals = proposals;
         this.reads = new ReadHostSupport(windowsOf);
         // An id VSim never gave is an INVALID_REFERENCE, a closed circuit's DOCUMENT_CLOSED (documentOf).
-        this.simulation = new SimulationHostSupport(id -> Optional.of(documentOf(id)), SwingUtilities::invokeLater);
-        this.edits = new EditHostSupport(id -> Optional.of(documentOf(id)), this.windows::libraryComponents);
+        this.simulation = new SimulationHostSupport(id -> Optional.of(documentOf(id)), SwingUtilities::invokeLater,
+                queue);
+        this.edits = new EditHostSupport(id -> Optional.of(documentOf(id)), this.windows::libraryComponents, queue);
         this.exports = new ExportHostSupport(windowsOf, () -> Path.of(System.getProperty("user.home")),
                 ForkJoinPool.commonPool(), SwingUtilities::invokeLater, Clock.systemDefaultZone(),
                 FolderOpener.desktop());
@@ -153,11 +155,24 @@ public final class EditorAutomationHost implements AutomationHost {
                 new AutomationException(AutomationError.NOT_ALLOWED, "This editor takes no preference proposals"));
     }
 
+    /** «Desactivar» or quitting: the AI's jobs still waiting for the EDT are refused at once and never run. */
+    public void refuseQueuedWork() {
+        queue.refuse();
+    }
+
+    /** «Activar»: the AI's jobs run again. */
+    public void acceptQueuedWork() {
+        queue.accept();
+    }
+
     @Override
     public <T> CompletableFuture<T> onEditorThread(Function<EditorAccess, T> work) {
         requestListeners.forEach(Runnable::run);
-        CompletableFuture<T> result = new CompletableFuture<>();
+        CompletableFuture<T> result = queue.track(new CompletableFuture<>());
         SwingUtilities.invokeLater(() -> {
+            if (EditorQueue.skips(result)) {
+                return;
+            }
             try {
                 result.complete(work.apply(new Access()));
             } catch (RuntimeException | Error failure) {

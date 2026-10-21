@@ -1,5 +1,7 @@
 package cl.almejo.vsim.ui.ai;
 
+import cl.almejo.vsim.automation.AutomationError;
+import cl.almejo.vsim.automation.AutomationException;
 import cl.almejo.vsim.automation.DocumentSummary;
 import cl.almejo.vsim.automation.EditorAccess;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
@@ -40,6 +42,38 @@ class EditorAutomationHostTest {
     void theWorkRunsOnTheEditorThread() throws Exception {
         assertThat(host.onEditorThread(access -> SwingUtilities.isEventDispatchThread()).get(5, TimeUnit.SECONDS))
                 .isTrue();
+    }
+
+    @Test
+    void workStillQueuedWhenTheAiIsTurnedOffIsRefusedAtOnceAndNeverRuns() throws Exception {
+        java.util.concurrent.CountDownLatch editorBusy = new java.util.concurrent.CountDownLatch(1);
+        SwingUtilities.invokeLater(() -> {
+            try {
+                editorBusy.await(5, TimeUnit.SECONDS);
+            } catch (InterruptedException interrupted) {
+                Thread.currentThread().interrupt();
+            }
+        });
+        java.util.concurrent.atomic.AtomicBoolean ran = new java.util.concurrent.atomic.AtomicBoolean();
+        java.util.concurrent.CompletableFuture<Boolean> queued = host.onEditorThread(access -> ran.getAndSet(true));
+        java.util.concurrent.CompletableFuture<Boolean> edit = host.onCircuit(
+                new cl.almejo.vsim.automation.DocumentId("circuit-1"), circuit -> ran.getAndSet(true));
+
+        host.refuseQueuedWork();
+
+        for (java.util.concurrent.CompletableFuture<Boolean> future : List.of(queued, edit)) {
+            assertThat(future).isCompletedExceptionally();
+            assertThatThrownBy(future::join).hasCauseInstanceOf(AutomationException.class)
+                    .cause().satisfies(cause -> assertThat(((AutomationException) cause).error())
+                            .isEqualTo(AutomationError.NOT_ALLOWED));
+        }
+        editorBusy.countDown();
+        SwingUtilities.invokeAndWait(() -> { });
+        assertThat(ran).isFalse();
+        assertThat(host.onEditorThread(access -> "later")).failsWithin(5, TimeUnit.SECONDS);
+
+        host.acceptQueuedWork();
+        assertThat(host.onEditorThread(access -> "again").get(5, TimeUnit.SECONDS)).isEqualTo("again");
     }
 
     @Test

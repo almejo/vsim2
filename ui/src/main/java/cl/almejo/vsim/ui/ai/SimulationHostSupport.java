@@ -52,19 +52,30 @@ final class SimulationHostSupport {
 
     private final Function<DocumentId, Optional<OpenDocument>> documents;
     private final Executor editorThread;
+    private final EditorQueue queue;
 
     /**
      * @param documents    the open circuit with that id, empty when there is none; called on the EDT
      * @param editorThread runs a task on the EDT later ({@code SwingUtilities::invokeLater})
      */
     SimulationHostSupport(Function<DocumentId, Optional<OpenDocument>> documents, Executor editorThread) {
+        this(documents, editorThread, new EditorQueue());
+    }
+
+    /** @param queue refuses the jobs still waiting for the EDT once the AI is turned off */
+    SimulationHostSupport(Function<DocumentId, Optional<OpenDocument>> documents, Executor editorThread,
+                          EditorQueue queue) {
         this.documents = Objects.requireNonNull(documents, "documents");
         this.editorThread = Objects.requireNonNull(editorThread, "editorThread");
+        this.queue = Objects.requireNonNull(queue, "queue");
     }
 
     CompletableFuture<SimulationReceipt> simulate(SimulationRequest request) {
-        CompletableFuture<SimulationReceipt> result = new CompletableFuture<>();
+        CompletableFuture<SimulationReceipt> result = queue.track(new CompletableFuture<>());
         editorThread.execute(() -> {
+            if (EditorQueue.skips(result)) {
+                return;
+            }
             try {
                 OpenDocument document = document(request.document());
                 DocumentVersion version = versionOf(document);
@@ -90,8 +101,11 @@ final class SimulationHostSupport {
     }
 
     CompletableFuture<PreparedTruthTable> prepareTruthTable(TruthTableRequest request) {
-        CompletableFuture<PreparedTruthTable> result = new CompletableFuture<>();
+        CompletableFuture<PreparedTruthTable> result = queue.track(new CompletableFuture<>());
         editorThread.execute(() -> {
+            if (EditorQueue.skips(result)) {
+                return;
+            }
             try {
                 OpenDocument document = document(request.document());
                 Set<ElementId> scope = new HashSet<>();

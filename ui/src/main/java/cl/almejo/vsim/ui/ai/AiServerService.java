@@ -57,6 +57,23 @@ public final class AiServerService {
     private static final SecureRandom RANDOM = new SecureRandom();
     private static final Logger LOGGER = LoggerFactory.getLogger(AiServerService.class);
 
+    /** The AI's work waiting for the EDT: refused while the server is off (review M1). */
+    public interface QueuedWork {
+        QueuedWork NONE = new QueuedWork() {
+            @Override
+            public void refuse() {
+            }
+
+            @Override
+            public void accept() {
+            }
+        };
+
+        void refuse();
+
+        void accept();
+    }
+
     /** Hears the server's state and the AI's tasks, on the EDT. */
     public interface Listener {
         default void stateChanged() {
@@ -77,6 +94,7 @@ public final class AiServerService {
     private final AiTasks tasks;
     private final Executor editorThread;
     private final Executor background;
+    private final QueuedWork queuedWork;
     private final List<Listener> listeners = new CopyOnWriteArrayList<>();
     /** The running tasks, in the order they started. */
     private final Map<String, TaskInfo> runningTasks = new LinkedHashMap<>();
@@ -87,20 +105,32 @@ public final class AiServerService {
     private boolean portChanged;
 
     public AiServerService(AppPreferences preferences, AutomationApi api) {
-        this(preferences, api, AiTasks.of(api), SwingUtilities::invokeLater, backgroundExecutor());
+        this(preferences, api, QueuedWork.NONE);
+    }
+
+    /** @param queuedWork the editor's queue of the AI's work, refused while the server is off */
+    public AiServerService(AppPreferences preferences, AutomationApi api, QueuedWork queuedWork) {
+        this(preferences, api, AiTasks.of(api), SwingUtilities::invokeLater, backgroundExecutor(), queuedWork);
+    }
+
+    AiServerService(AppPreferences preferences, AutomationApi api, AiTasks tasks, Executor editorThread,
+                    Executor background) {
+        this(preferences, api, tasks, editorThread, background, QueuedWork.NONE);
     }
 
     /**
      * @param editorThread runs the task events and the outcomes on the EDT ({@code SwingUtilities::invokeLater})
-     * @param background   runs «Detener» and «Deshacer lo que hizo la IA», which may wait for the EDT, off it
+     * @param background   runs «Deshacer lo que hizo la IA», which waits for the EDT, off it
+     * @param queuedWork   the editor's queue of the AI's work, refused while the server is off
      */
     AiServerService(AppPreferences preferences, AutomationApi api, AiTasks tasks, Executor editorThread,
-                    Executor background) {
+                    Executor background, QueuedWork queuedWork) {
         this.preferences = Objects.requireNonNull(preferences, "preferences");
         this.api = Objects.requireNonNull(api, "api");
         this.tasks = Objects.requireNonNull(tasks, "tasks");
         this.editorThread = Objects.requireNonNull(editorThread, "editorThread");
         this.background = Objects.requireNonNull(background, "background");
+        this.queuedWork = Objects.requireNonNull(queuedWork, "queuedWork");
         // Both live as long as the application, like this service.
         preferences.addListener(this::followPreferences);
         tasks.addListener(new TaskEvents());
@@ -122,15 +152,20 @@ public final class AiServerService {
             return;
         }
         String secret = ensureSecret();
+        queuedWork.accept();
         running = VsimMcpServer.start(api, new McpServerSettings(preferences.aiPort(), secret));
         runningSecret = secret;
         failure = null;
         connected = false;
     }
 
-    /** Stops serving and frees the port (requests in flight get a moment to finish); a no-op when not running. */
+    /**
+     * Stops serving and frees the port; a no-op when not running. The AI's work still waiting for the EDT is refused
+     * first, so the requests in flight answer at once and stopping never waits for the EDT it runs on.
+     */
     public void stop() {
         if (running != null) {
+            queuedWork.refuse();
             running.stop();
             running = null;
             runningSecret = null;
@@ -317,16 +352,17 @@ public final class AiServerService {
         return List.copyOf(runningTasks.values());
     }
 
-    /** «Detener»: asked off the EDT; the task's applied edits stay, its pending ones are dropped. */
+    /**
+     * «Detener»: stopped at once, on the caller's thread (it never waits for the EDT), so an edit of the task queued
+     * on the EDT behind this click is refused; the task's applied edits stay.
+     */
     public void stopTask(String taskId) {
         Objects.requireNonNull(taskId, "taskId");
-        background.execute(() -> {
-            try {
-                tasks.stopTask(taskId);
-            } catch (RuntimeException exception) {
-                LOGGER.warn("Could not stop the AI task {}", taskId, exception);
-            }
-        });
+        try {
+            tasks.stopTask(taskId);
+        } catch (RuntimeException exception) {
+            LOGGER.warn("Could not stop the AI task {}", taskId, exception);
+        }
     }
 
     /** «Deshacer lo que hizo la IA»: undone off the EDT; {@code done} hears the outcome on the EDT. */

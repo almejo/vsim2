@@ -32,6 +32,40 @@ class AiServerServiceTest {
     }
 
     @Test
+    void stoppingRefusesTheQueuedWorkFirstAndStartingTakesWorkAgain() throws Exception {
+        List<String> gate = new java.util.ArrayList<>();
+        AiServerService gated = new AiServerService(preferences, new AutomationApi(new NoDocuments()),
+                new FakeAiTasks(), Runnable::run, Runnable::run, new AiServerService.QueuedWork() {
+                    @Override
+                    public void refuse() {
+                        gate.add("refuse");
+                    }
+
+                    @Override
+                    public void accept() {
+                        gate.add("accept");
+                    }
+                });
+        preferences.setAiPort(freePort());
+
+        gated.start();
+        gated.stop();
+
+        assertThat(gate).containsExactly("accept", "refuse");
+    }
+
+    @Test
+    void detenerStopsTheTaskAtOnceOnTheEditorThreadWithoutWaitingForAnotherThread() {
+        FakeAiTasks tasks = new FakeAiTasks();
+        AiServerService neverInTheBackground = new AiServerService(preferences, new AutomationApi(new NoDocuments()),
+                tasks, Runnable::run, runnable -> { });
+
+        neverInTheBackground.stopTask("task-1");
+
+        assertThat(tasks.stopped).containsExactly("task-1");
+    }
+
+    @Test
     void theFirstStartMakesASecretAndRemembersItForTheNext() throws Exception {
         preferences.setAiPort(freePort());
 

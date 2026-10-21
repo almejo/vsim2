@@ -120,7 +120,18 @@ public final class Application {
         this.proposals = new PreferenceProposals(preferences);
         this.automationHost = new EditorAutomationHost(windows::documents,
                 document -> ShownWindow.activeFirst(windows.windowsOf(document)), new ApplicationWindows(), proposals);
-        this.aiServer = new AiServerService(preferences, new AutomationApi(automationHost));
+        this.aiServer = new AiServerService(preferences, new AutomationApi(automationHost),
+                new AiServerService.QueuedWork() {
+                    @Override
+                    public void refuse() {
+                        automationHost.refuseQueuedWork();
+                    }
+
+                    @Override
+                    public void accept() {
+                        automationHost.acceptQueuedWork();
+                    }
+                });
         automationHost.addRequestListener(aiServer::requestServed);
         aiServer.addListener(new AiServerService.Listener() {
             @Override

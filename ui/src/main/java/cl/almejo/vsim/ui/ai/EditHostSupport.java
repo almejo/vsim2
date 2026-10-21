@@ -30,6 +30,7 @@ final class EditHostSupport {
 
     private final Function<DocumentId, Optional<OpenDocument>> circuits;
     private final Supplier<List<DefinitionBundle>> library;
+    private final EditorQueue queue;
 
     /** @param circuits the open circuit with an id, or empty when none has it; called on the EDT */
     EditHostSupport(Function<DocumentId, Optional<OpenDocument>> circuits) {
@@ -39,8 +40,15 @@ final class EditHostSupport {
     /** @param library the user's component library, which the AI may place from; called on the EDT */
     EditHostSupport(Function<DocumentId, Optional<OpenDocument>> circuits,
                     Supplier<List<DefinitionBundle>> library) {
+        this(circuits, library, new EditorQueue());
+    }
+
+    /** @param queue refuses the jobs still waiting for the EDT once the AI is turned off */
+    EditHostSupport(Function<DocumentId, Optional<OpenDocument>> circuits,
+                    Supplier<List<DefinitionBundle>> library, EditorQueue queue) {
         this.circuits = Objects.requireNonNull(circuits, "circuits");
         this.library = Objects.requireNonNull(library, "library");
+        this.queue = Objects.requireNonNull(queue, "queue");
     }
 
     /**
@@ -48,8 +56,12 @@ final class EditHostSupport {
      * hizo la IA» from a button must not wait for a turn of its own thread), later otherwise.
      */
     <T> CompletableFuture<T> onCircuit(DocumentId document, Function<EditableCircuit, T> work) {
-        CompletableFuture<T> result = new CompletableFuture<>();
+        CompletableFuture<T> result = SwingUtilities.isEventDispatchThread() ? new CompletableFuture<>()
+                : queue.track(new CompletableFuture<>());
         Runnable job = () -> {
+            if (EditorQueue.skips(result)) {
+                return;
+            }
             try {
                 OpenDocument circuit = circuits.apply(document).orElseThrow(() -> closed(document));
                 result.complete(work.apply(new Circuit(circuit, library.get())));
