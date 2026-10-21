@@ -24,6 +24,7 @@ public final class ColorSchemes {
     public static final ColorScheme CLASSIC = new ColorScheme(
             new Color(0xBDBDBD),          // background      (VSim "background")
             new Color(0xCCCCCC),          // grid            (VSim "grid")
+            ColorScheme.derivedGridLine(new Color(0xCCCCCC)), // gridLine (VSim's grid, faint)
             new Color(0x000000),          // wireZero        (VSim "off")
             new Color(0xFF0000),          // wireOne         (VSim "wires-on")
             new Color(0x00FF00),          // wireHighImpedance (VSim "ground", its Z color)
@@ -50,6 +51,7 @@ public final class ColorSchemes {
     public static final ColorScheme DARK = new ColorScheme(
             new Color(0x1E1F22),          // background
             new Color(0x393B40),          // grid
+            ColorScheme.derivedGridLine(new Color(0x393B40)), // gridLine
             new Color(0x3D8B40),          // wireZero
             new Color(0x7CFC7C),          // wireOne
             new Color(0x5C9DFF),          // wireHighImpedance
@@ -73,6 +75,7 @@ public final class ColorSchemes {
     public static final ColorScheme PASTEL = new ColorScheme(
             new Color(0xBDBDBD),          // background      (VSim "background")
             new Color(0xCCCCCC),          // grid            (VSim "grid")
+            ColorScheme.derivedGridLine(new Color(0xCCCCCC)), // gridLine (VSim's grid, faint)
             new Color(0x000000),          // wireZero        (VSim "off")
             new Color(0xDB5340),          // wireOne         (VSim "wires-on")
             new Color(0x00FF00),          // wireHighImpedance (VSim "ground")
@@ -96,6 +99,7 @@ public final class ColorSchemes {
     public static final ColorScheme CSIM = new ColorScheme(
             new Color(0x0033CC),          // background      (VSim "background")
             new Color(0x0033CC),          // grid            (VSim "grid": the same blue, so no visible dots)
+            new Color(255, 255, 255, 24), // gridLine        (faint white: the dots' blue would not show)
             new Color(0x000000),          // wireZero        (VSim "off")
             new Color(0xFFFFFF),          // wireOne         (VSim "wires-on")
             new Color(0x00FF00),          // wireHighImpedance (VSim "ground")
@@ -119,6 +123,7 @@ public final class ColorSchemes {
     public static final ColorScheme TWILIGHT = new ColorScheme(
             new Color(0x000000),          // background      (VSim "background")
             new Color(0x1C1C1C),          // grid            (VSim "grid")
+            new Color(255, 255, 255, 20), // gridLine        (faint white: the dots' grey is lost on black)
             new Color(0x808080),          // wireZero        (VSim "off")
             new Color(0x800000),          // wireOne         (VSim "wires-on")
             new Color(0x008000),          // wireHighImpedance (VSim "ground")

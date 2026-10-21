@@ -152,6 +152,19 @@ class ApplicationExtensionsTest {
     }
 
     @Test
+    void theViewMenuHasTheGridSubmenuAfterTheZoomGroup() {
+        EditorView view = new EditorView(openDocument, services, NO_WINDOW);
+        try {
+            assertThat(texts(view.menu(MenuId.VIEW))).containsExactly("Selección", "Cable", "Marco",
+                    "Mover vista", "---", "Acercar", "Alejar", "Zoom 100 %", "Centrar circuito", "---", "Cuadrícula",
+                    "---", "Siguiente problema", "Problema anterior", "---", "Formas de onda");
+            assertThat(view.shortcutActions()).containsKey("view.cycleGrid");
+        } finally {
+            view.dispose();
+        }
+    }
+
+    @Test
     void theSimulationMenuHasRestartTheFixedStepAndTheStepByStepItemsInOrder() {
         EditorView view = new EditorView(openDocument, services, NO_WINDOW);
         try {

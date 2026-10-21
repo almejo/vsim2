@@ -5,6 +5,16 @@ Los cambios de VSim 2 que se notan al usarlo, del más nuevo al más antiguo. El
 sección es un conjunto de funciones, con las fechas en que se hizo. El detalle de cada función está en
 [docs/funciones.md](docs/funciones.md).
 
+## 2026-10-21 — Ajustar, guías y cuadrícula
+
+### Agregado
+
+- Ver ▸ «Cuadrícula ▸» dibuja detrás del circuito puntos (como siempre), líneas como papel cuadriculado (una fina
+  cada 2 unidades y una más marcada cada 10) o nada. Vale para todas las ventanas y se recuerda; «Cambiar el estilo
+  de la cuadrícula» pasa de uno a otro y acepta un atajo propio. Las líneas no salen en las imágenes ni en el PDF.
+- Cada esquema de colores tiene un color nuevo, «Líneas de la cuadrícula», que se puede cambiar en el editor de
+  esquemas; los esquemas propios ya guardados lo toman de sus puntos.
+
 ## 2026-10-21 — Tareas cortas
 
 ### Agregado

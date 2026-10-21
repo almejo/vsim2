@@ -118,7 +118,7 @@ public final class CircuitImage {
 
     /** {@code scheme} on a white background (the «Fondo blanco para imprimir» option). */
     public static ColorScheme printScheme(ColorScheme scheme) {
-        return new ColorScheme(Color.WHITE, scheme.grid(), scheme.wireZero(), scheme.wireOne(),
+        return new ColorScheme(Color.WHITE, scheme.grid(), scheme.gridLine(), scheme.wireZero(), scheme.wireOne(),
                 scheme.wireHighImpedance(), scheme.wireConflict(), scheme.wireUnknown(), scheme.componentStroke(),
                 scheme.componentFill(), scheme.componentShade(), scheme.shadow(), scheme.text(), scheme.selection(),
                 scheme.preview(), scheme.displayBackground(), scheme.segmentOn(), scheme.segmentOff(),

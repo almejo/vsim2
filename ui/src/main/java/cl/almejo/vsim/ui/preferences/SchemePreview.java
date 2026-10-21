@@ -18,6 +18,7 @@ import cl.almejo.vsim.core.netlist.NetlistCompiler;
 import cl.almejo.vsim.core.simulation.CircuitFlattener;
 import cl.almejo.vsim.core.simulation.SimulationEngine;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
+import cl.almejo.vsim.ui.app.AppPreferences.GridStyle;
 import cl.almejo.vsim.ui.canvas.CircuitBounds;
 import cl.almejo.vsim.ui.canvas.CircuitRenderer;
 import cl.almejo.vsim.ui.canvas.RenderState;
@@ -38,7 +39,8 @@ import java.util.Set;
 /**
  * The live preview of the scheme editor (M6.8): a small sample circuit (three switches, a NOT and an AND gate, wires at
  * 0, 1 and Z, an open input, three LEDs, a selected gate, a tinted frame and a free text) painted by the canvas's
- * own {@link CircuitRenderer}, so it uses the same painters and the current text font. The scheme lives in a local
+ * own {@link CircuitRenderer}, so it uses the same painters and the current text font, over the grid of lines with
+ * the dots on top (both grid colours show). The scheme lives in a local
  * {@link Appearance} that only this preview reads.
  */
 final class SchemePreview extends JComponent {
@@ -118,7 +120,9 @@ final class SchemePreview extends JComponent {
         try {
             Viewport viewport = new Viewport();
             viewport.center(sampleBounds, getWidth(), getHeight());
-            renderer.paintBackground(canvas, viewport, getWidth(), getHeight());
+            // Both grids, so the dots' and the lines' colours can be seen while they are edited.
+            renderer.paintBackground(canvas, viewport, getWidth(), getHeight(), GridStyle.LINES);
+            renderer.paintGridDots(canvas, viewport, getWidth(), getHeight());
             canvas.transform(viewport.documentTransform());
             renderer.paint(canvas, new RenderState(document, netlist, document.revision(), snapshot, selection, 0,
                     RenderState.NO_PROBLEM_GLOW));

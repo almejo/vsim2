@@ -9,7 +9,7 @@ public final class AppearanceTestSupport {
 
     /** {@code base} with another background, for tests that need a second scheme. */
     public static ColorScheme withBackground(ColorScheme base, Color background) {
-        return new ColorScheme(background, base.grid(), base.wireZero(), base.wireOne(), base.wireHighImpedance(),
+        return new ColorScheme(background, base.grid(), base.gridLine(), base.wireZero(), base.wireOne(), base.wireHighImpedance(),
                 base.wireConflict(), base.wireUnknown(), base.componentStroke(), base.componentFill(),
                 base.componentShade(), base.shadow(), base.text(), base.selection(), base.preview(),
                 base.displayBackground(), base.segmentOn(), base.segmentOff(), base.diagramBackground(),
@@ -18,7 +18,7 @@ public final class AppearanceTestSupport {
 
     /** {@code base} with another selection color (also used by the problem blink). */
     public static ColorScheme withSelection(ColorScheme base, Color selection) {
-        return new ColorScheme(base.background(), base.grid(), base.wireZero(), base.wireOne(),
+        return new ColorScheme(base.background(), base.grid(), base.gridLine(), base.wireZero(), base.wireOne(),
                 base.wireHighImpedance(), base.wireConflict(), base.wireUnknown(), base.componentStroke(),
                 base.componentFill(), base.componentShade(), base.shadow(), base.text(), selection, base.preview(),
                 base.displayBackground(), base.segmentOn(), base.segmentOff(), base.diagramBackground(),
