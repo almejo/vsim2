@@ -33,10 +33,6 @@ public final class ProblemNavigator {
     private List<Problem> problems = List.of();
     private int current = -1;
 
-    public ProblemNavigator(CircuitCanvas canvas, NetBlink blink) {
-        this(() -> canvas, blink);
-    }
-
     /** {@code canvas} is resolved at every travel: the window's active pane. */
     public ProblemNavigator(Supplier<CircuitCanvas> canvas, NetBlink blink) {
         this.canvas = canvas;

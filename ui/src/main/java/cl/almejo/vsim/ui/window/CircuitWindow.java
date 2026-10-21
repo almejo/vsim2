@@ -33,6 +33,7 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.BooleanSupplier;
 
 /** A top-level window showing one {@link OpenDocument}. */
 public final class CircuitWindow extends JFrame implements WindowCommands {
@@ -83,7 +84,7 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
                 view.canvas().requestFocusInWindow();
             }
         });
-        view.forEachPane(this::watchForTheInitialView);
+        watchForTheInitialView(view, initialView, this::isMaximized);
         addComponentListener(new ComponentAdapter() {
             @Override
             public void componentMoved(ComponentEvent event) {
@@ -155,10 +156,28 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
     }
 
     /**
-     * The user's own moves on any pane keep the view they chose; a pane's resize can be the maximized layout arriving
-     * (InitialView only acts on the first one after opening). Returns what stops watching the pane.
+     * The user's own moves on any pane keep the view they chose; a resize of the canvas area can be the maximized
+     * layout arriving (InitialView only acts on the first one after opening). The area is watched, not each pane: a
+     * split, even the remembered one applied at opening, resizes the panes but not the area, and must not use up
+     * the wait for the maximized size. Returns what stops watching. Package-private for tests.
      */
-    private Runnable watchForTheInitialView(CircuitCanvas pane) {
+    static Runnable watchForTheInitialView(EditorView view, InitialView initialView, BooleanSupplier maximized) {
+        Runnable paneWatchRemover = view.forEachPane(pane -> watchForTheUsersView(pane, initialView));
+        ComponentAdapter resizeListener = new ComponentAdapter() {
+            @Override
+            public void componentResized(ComponentEvent event) {
+                initialView.canvasResized(maximized.getAsBoolean());
+            }
+        };
+        view.canvasPanes().addComponentListener(resizeListener);
+        return () -> {
+            paneWatchRemover.run();
+            view.canvasPanes().removeComponentListener(resizeListener);
+        };
+    }
+
+    /** The user's own moves on {@code pane} keep the view they chose. Returns what stops watching the pane. */
+    private static Runnable watchForTheUsersView(CircuitCanvas pane, InitialView initialView) {
         Runnable viewListenerRemover = pane.addViewListener(initialView::viewChanged);
         // Pans by drag, wheel or autoscroll do not reach the view listeners; any press or wheel turn counts as one.
         MouseAdapter pressListener = new MouseAdapter() {
@@ -168,20 +187,12 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
             }
         };
         MouseWheelListener wheelListener = event -> initialView.userInteracted();
-        ComponentAdapter resizeListener = new ComponentAdapter() {
-            @Override
-            public void componentResized(ComponentEvent event) {
-                initialView.canvasResized(isMaximized());
-            }
-        };
         pane.addMouseListener(pressListener);
         pane.addMouseWheelListener(wheelListener);
-        pane.addComponentListener(resizeListener);
         return () -> {
             viewListenerRemover.run();
             pane.removeMouseListener(pressListener);
             pane.removeMouseWheelListener(wheelListener);
-            pane.removeComponentListener(resizeListener);
         };
     }
 

@@ -73,7 +73,7 @@ class InlineTextEditorTest {
                 NO_WINDOW);
         canvas = view.canvas();
         canvas.setSize(800, 600);
-        editor = new InlineTextEditor(canvas);
+        editor = new InlineTextEditor(() -> canvas);
     }
 
     @AfterEach

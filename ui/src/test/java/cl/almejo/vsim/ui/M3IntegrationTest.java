@@ -90,7 +90,8 @@ class M3IntegrationTest {
 
     /** The view's clipboard actions, on a private clipboard instead of the system one. */
     private SelectionActions clipboardActions(EditorView view) {
-        return new SelectionActions(view.openDocument(), view.canvas(), view.actions(), clipboard);
+        return new SelectionActions(view.openDocument(), view::canvas, view.canvas().selection(), view.actions(),
+                clipboard);
     }
 
     private static void perform(Action action) {

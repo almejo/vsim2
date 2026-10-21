@@ -57,7 +57,7 @@ class ProblemNavigatorTest {
                 }
             });
     private final NetBlink blink = new NetBlink(canvas::scheme, canvas::repaint);
-    private final ProblemNavigator navigator = new ProblemNavigator(canvas, blink);
+    private final ProblemNavigator navigator = new ProblemNavigator(() -> canvas, blink);
     private Wire left;
     private Wire right;
 

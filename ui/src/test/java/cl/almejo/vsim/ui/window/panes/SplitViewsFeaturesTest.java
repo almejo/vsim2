@@ -274,6 +274,23 @@ class SplitViewsFeaturesTest {
     }
 
     @Test
+    void thePreviewHidesWhileReleasingThereWouldSplitNothing() {
+        CircuitCanvas pane = view.canvas();
+        Rectangle grip = hitArea(pane, Orientation.HORIZONTAL);
+
+        press(pane, centerX(grip), centerY(grip));
+        drag(pane, centerX(grip), 200);
+        assertThat(view.canvasPanes().splitPreview()).isPresent();
+        drag(pane, centerX(grip), 20);
+        assertThat(view.canvasPanes().splitPreview()).as("within 24 px of the edge").isEmpty();
+        drag(pane, centerX(grip), 250);
+        assertThat(view.canvasPanes().splitPreview()).as("back where a release splits").isPresent();
+        release(pane, centerX(grip), 250);
+
+        assertThat(view.panes()).hasSize(2);
+    }
+
+    @Test
     void escapeCancelsAGripDrag() {
         CircuitCanvas pane = view.canvas();
         Rectangle grip = hitArea(pane, Orientation.HORIZONTAL);

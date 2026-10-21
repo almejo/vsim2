@@ -33,11 +33,6 @@ public final class ShortCircuitPulse implements CanvasOverlay {
     private final LongSupplier nanoClock;
     private final Timer timer;
 
-    /** {@code highlights} is the canvas's ({@link cl.almejo.vsim.ui.canvas.CircuitCanvas#highlights()}). */
-    public ShortCircuitPulse(HighlightCache highlights, Runnable repaint, LongSupplier nanoClock) {
-        this(() -> highlights, repaint, nanoClock);
-    }
-
     /**
      * {@code highlights} is asked on every paint: the active pane's cache when one pulse is painted in every pane of a
      * window (they all show the same document and snapshot).

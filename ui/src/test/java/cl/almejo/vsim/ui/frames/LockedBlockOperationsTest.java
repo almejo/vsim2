@@ -68,7 +68,8 @@ class LockedBlockOperationsTest {
                 NO_WINDOW);
         view.canvas().setSize(400, 300);
         features = new FramesFeatures(view);
-        selectionActions = new SelectionActions(openDocument, view.canvas(), view.actions(), clipboard);
+        selectionActions = new SelectionActions(openDocument, view::canvas, view.canvas().selection(), view.actions(),
+                clipboard);
     }
 
     @AfterEach

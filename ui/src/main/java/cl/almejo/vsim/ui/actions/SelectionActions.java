@@ -58,12 +58,6 @@ public final class SelectionActions {
     private final Action duplicate;
     private final Action selectAll;
 
-    /** The actions of a window whose only pane is {@code canvas}. */
-    public SelectionActions(OpenDocument openDocument, CircuitCanvas canvas, EditorActions editorActions,
-                            FragmentClipboard clipboard) {
-        this(openDocument, () -> canvas, canvas.selection(), editorActions, clipboard);
-    }
-
     /**
      * The actions of a window: {@code selection} is its one selection, {@code activePane} (where a paste or a
      * duplicate floats) is resolved each time an action runs.

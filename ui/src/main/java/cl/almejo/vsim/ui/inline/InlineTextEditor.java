@@ -102,11 +102,6 @@ public final class InlineTextEditor {
     /** False until the user changes the text: the suggestions are not filtered by the initial text. */
     private boolean edited;
 
-    /** An editor that always opens over {@code canvas}. */
-    public InlineTextEditor(CircuitCanvas canvas) {
-        this(() -> canvas);
-    }
-
     /**
      * An editor for a window with several panes: each edit opens over the pane {@code paneForNewEdits} gives when it
      * opens (the active one) and stays there until it closes.

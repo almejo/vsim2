@@ -21,10 +21,10 @@ import java.util.Set;
 /**
  * Applies the keyboard shortcuts of {@link KeyBindings} to one editor view (spec §5.2): menu accelerators for WINDOW
  * entries, canvas bindings named {@code shortcut.<id>} for CANVAS entries on every pane of the view. Installed last,
- * so the actions earlier extensions registered ({@link EditorView#registerShortcutAction}) are there. It re-applies on every preference
- * change, so a change made in any window shows at once in all of them. A catalog id without an action in this view
- * is skipped. If stored overrides give two actions the same stroke, the first in catalog order keeps it. Toolbar
- * tooltips end with the current shortcut ({@link ToolbarTooltips}, M6.1-E).
+ * so the actions earlier extensions registered ({@link EditorView#registerShortcutAction}) are there. It re-applies
+ * on every preference change, so a change made in any window shows at once in all of them. A catalog id without an
+ * action in this view is skipped. If stored overrides give two actions the same stroke, the first in catalog order
+ * keeps it. Toolbar tooltips end with the current shortcut ({@link ToolbarTooltips}, M6.1-E).
  */
 public final class ShortcutsExtension implements EditorExtension {
 

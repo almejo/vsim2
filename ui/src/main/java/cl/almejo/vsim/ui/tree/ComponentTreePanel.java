@@ -98,15 +98,6 @@ public final class ComponentTreePanel extends JPanel {
     private ComponentTreeNode root;
     private boolean rebuilding;
 
-    /** A panel that travels in {@code canvas} and shows its snapshots. */
-    public ComponentTreePanel(OpenDocument openDocument, CircuitCanvas canvas, PainterRegistry painters,
-                              Appearance appearance, AppPreferences preferences) {
-        this(openDocument, () -> canvas, listener -> {
-            canvas.addSnapshotListener(listener);
-            return () -> canvas.removeSnapshotListener(listener);
-        }, painters, appearance, preferences);
-    }
-
     /**
      * {@code canvas} is resolved when a row is chosen (the window's active pane); {@code followSnapshots} registers
      * the listener of the displayed snapshots and returns its removal.

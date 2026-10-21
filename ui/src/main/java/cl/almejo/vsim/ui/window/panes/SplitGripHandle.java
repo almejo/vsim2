@@ -141,12 +141,20 @@ final class SplitGripHandle implements EdgeHandle {
                 : pane.getX() + (int) Math.round(point.getX());
     }
 
-    /** Pulling the grip: the divider's preview follows the pointer; the release splits, unless next to an edge. */
+    /**
+     * Pulling the grip: the divider's preview follows the pointer, and hides next to an edge so the user sees that
+     * releasing there does nothing (canvas-edges §3); the release splits, unless next to an edge.
+     */
     private final class Pull implements EdgeGesture {
 
         @Override
         public void drag(CanvasMouseEvent event) {
-            panes.showSplitPreview(orientation, positionInArea(event));
+            int position = positionInArea(event);
+            if (panes.isNearAnEdge(orientation, position)) {
+                panes.hideSplitPreview();
+            } else {
+                panes.showSplitPreview(orientation, position);
+            }
         }
 
         @Override

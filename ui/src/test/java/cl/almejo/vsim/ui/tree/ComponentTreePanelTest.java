@@ -77,7 +77,7 @@ class ComponentTreePanelTest {
     void create() {
         Messages.initialize(Messages.SPANISH);
         canvas.setSize(400, 300);
-        panel = new ComponentTreePanel(openDocument, canvas, PainterRegistry.standard(), appearance, preferences);
+        panel = treePanel();
     }
 
     @AfterEach
@@ -85,6 +85,14 @@ class ComponentTreePanelTest {
         panel.dispose();
         canvas.dispose();
         openDocument.close();
+    }
+
+    /** A panel that travels in {@code canvas} and shows its snapshots. */
+    private ComponentTreePanel treePanel() {
+        return new ComponentTreePanel(openDocument, () -> canvas, listener -> {
+            canvas.addSnapshotListener(listener);
+            return () -> canvas.removeSnapshotListener(listener);
+        }, PainterRegistry.standard(), appearance, preferences);
     }
 
     private Component inverterInstance() {
@@ -415,7 +423,7 @@ class ComponentTreePanelTest {
         int listeners = preferences.listenerCount();
         panel.dispose();
         assertThat(preferences.listenerCount()).isLessThan(listeners);
-        panel = new ComponentTreePanel(openDocument, canvas, PainterRegistry.standard(), appearance, preferences);
+        panel = treePanel();
         assertThat(preferences.listenerCount()).isEqualTo(listeners);
     }
 

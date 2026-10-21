@@ -77,9 +77,14 @@ class ShortCircuitPulseTest {
                 .isEqualTo(ShortCircuitPulse.MAXIMUM_ALPHA);
     }
 
+    private ShortCircuitPulse pulse() {
+        HighlightCache highlights = new HighlightCache(registry);
+        return new ShortCircuitPulse(() -> highlights, () -> { }, nanos::get);
+    }
+
     @Test
     void paintsAVeilOverShortedWiresThatFollowsTheClock() {
-        ShortCircuitPulse pulse = new ShortCircuitPulse(new HighlightCache(registry), () -> { }, nanos::get);
+        ShortCircuitPulse pulse = pulse();
         assertThat(pixelOnTheWire(pulse, withShort())).isZero();
         nanos.set(ShortCircuitPulse.PERIOD_NANOS / 2);
         assertThat(pixelOnTheWire(pulse, withShort())).isNotZero();
@@ -89,7 +94,7 @@ class ShortCircuitPulseTest {
     @Test
     void theRepaintTimerRunsOnlyWhileShortsExist() throws Exception {
         SwingUtilities.invokeAndWait(() -> {
-            ShortCircuitPulse pulse = new ShortCircuitPulse(new HighlightCache(registry), () -> { }, nanos::get);
+            ShortCircuitPulse pulse = pulse();
             assertThat(pulse.isPulsing()).isFalse();
             pulse.showSnapshot(withShort());
             assertThat(pulse.isPulsing()).isTrue();

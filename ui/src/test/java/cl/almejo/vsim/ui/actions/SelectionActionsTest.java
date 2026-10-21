@@ -61,7 +61,8 @@ class SelectionActionsTest {
         openDocument = OpenDocument.createEmpty(StandardComponentTypes.registry());
         view = new EditorView(openDocument, PainterRegistry.standard(), ColorScheme.LIGHT, NO_WINDOW);;
         view.canvas().setSize(400, 300);
-        actions = new SelectionActions(openDocument, view.canvas(), view.actions(), clipboard);
+        actions = new SelectionActions(openDocument, view::canvas, view.canvas().selection(), view.actions(),
+                clipboard);
     }
 
     @AfterEach
@@ -204,8 +205,8 @@ class SelectionActionsTest {
         EditorView otherView = new EditorView(other, PainterRegistry.standard(), ColorScheme.LIGHT, NO_WINDOW);
         try {
             otherView.canvas().setSize(400, 300);
-            SelectionActions otherActions = new SelectionActions(other, otherView.canvas(), otherView.actions(),
-                    clipboard);
+            SelectionActions otherActions = new SelectionActions(other, otherView::canvas, otherView.canvas().selection(),
+                    otherView.actions(), clipboard);
             Component gate = place(other, StandardComponentTypes.NOT, 10, 4, Map.of());
             otherView.canvas().selection().select(gate.id());
             perform(otherActions.copy());
@@ -231,8 +232,8 @@ class SelectionActionsTest {
         EditorView second = new EditorView(openDocument, PainterRegistry.standard(), ColorScheme.LIGHT, NO_WINDOW);
         try {
             second.canvas().setSize(400, 300);
-            SelectionActions secondActions = new SelectionActions(openDocument, second.canvas(), second.actions(),
-                    clipboard);
+            SelectionActions secondActions = new SelectionActions(openDocument, second::canvas, second.canvas().selection(),
+                    second.actions(), clipboard);
             copyGateAt(10, 4);
 
             perform(secondActions.paste());
