@@ -44,6 +44,8 @@ public final class CircuitDocument {
     private final List<Runnable> probeListeners = new CopyOnWriteArrayList<>();
     private List<Probe> probes = List.of();
     private long nextProbeNumber = 1;
+    private final List<Runnable> guideListeners = new CopyOnWriteArrayList<>();
+    private List<Guide> guides = List.of();
 
     public String name() {
         return name;
@@ -332,6 +334,41 @@ public final class CircuitDocument {
     /** For tests: views and extensions must remove the probe listeners they add when disposed. */
     public int probeListenerCount() {
         return probeListeners.size();
+    }
+
+    /**
+     * The alignment guides, in the order they were added. Like probes they are not elements: changing them never
+     * bumps {@link #revision()}, so nothing is recompiled or resimulated.
+     */
+    public List<Guide> guides() {
+        return guides;
+    }
+
+    /**
+     * Replaces the guides and notifies the guide listeners (never the document listeners). Duplicates (same
+     * orientation and position) collapse into the first one; an equal list notifies nobody. Use it through
+     * commands only.
+     */
+    public void setGuides(List<Guide> newGuides) {
+        List<Guide> distinct = List.copyOf(new LinkedHashSet<>(List.copyOf(newGuides)));
+        if (distinct.equals(guides)) {
+            return;
+        }
+        guides = distinct;
+        guideListeners.forEach(Runnable::run);
+    }
+
+    public void addGuideListener(Runnable listener) {
+        guideListeners.add(listener);
+    }
+
+    public void removeGuideListener(Runnable listener) {
+        guideListeners.remove(listener);
+    }
+
+    /** For tests: views and extensions must remove the guide listeners they add when disposed. */
+    public int guideListenerCount() {
+        return guideListeners.size();
     }
 
     private void reserveProbeId(String id) {
