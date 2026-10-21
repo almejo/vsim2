@@ -12,7 +12,9 @@ import java.util.function.Supplier;
  * Keeps one window's split in the {@link SplitLayoutStore} (Dividir la vista, spec §7): restores it when the window of
  * a file being opened is first shown, saves it a moment after the split changes and at once when the window closes,
  * and follows the file through «Guardar como». Nothing for an unsaved circuit. It never touches the document: the
- * split is not an edit. EDT only.
+ * split is not an edit. A window writes the store only once the split is its own (it applied the remembered one, or
+ * the user split, moved or removed something in it): another view of the file, or a window whose remembered split did
+ * not fit, leaves the remembered split as it was. EDT only.
  */
 public final class RememberedSplit {
 
@@ -47,6 +49,8 @@ public final class RememberedSplit {
     private boolean restoreRequested;
     private Optional<PaneLayout> toRestore = Optional.empty();
     private boolean closed;
+    /** This window's split is the one to keep: it was restored here, or the user changed it here. */
+    private boolean owned;
 
     /** @param file the circuit's file now (empty while unsaved); read every time, so Save As is followed */
     public RememberedSplit(SplitLayoutStore store, CanvasPanes panes, Supplier<Optional<Path>> file, Delay delay) {
@@ -54,7 +58,7 @@ public final class RememberedSplit {
         this.panes = panes;
         this.file = file;
         this.delay = delay;
-        this.removeLayoutListener = panes.addLayoutListener(this::scheduleSave);
+        this.removeLayoutListener = panes.addLayoutListener(this::layoutChanged);
     }
 
     /**
@@ -83,21 +87,37 @@ public final class RememberedSplit {
     /**
      * The circuit was just written to {@code target}, before that {@code previous} (empty for its first save): the
      * split is remembered for {@code target} now and, when the file changed (Save As), forgotten for {@code previous}.
+     * A window whose split is not its own only moves the remembered split, if any, from {@code previous} to
+     * {@code target}.
      */
     public void saved(Optional<Path> previous, Path target) {
-        previous.filter(old -> !FileNames.normalized(old).equals(FileNames.normalized(target)))
-                .ifPresent(store::forget);
-        stopPendingSave.run();
-        store.remember(target, panes.paneLayout());
+        Optional<Path> renamed = previous
+                .filter(old -> !FileNames.normalized(old).equals(FileNames.normalized(target)));
+        if (owned) {
+            renamed.ifPresent(store::forget);
+            stopPendingSave.run();
+            store.remember(target, panes.paneLayout());
+            return;
+        }
+        renamed.ifPresent(old -> {
+            Optional<PaneLayout> layout = store.layoutFor(old);
+            store.forget(old);
+            layout.ifPresent(remembered -> store.remember(target, remembered));
+        });
     }
 
-    /** The window closes: saves the split now, stops the pending save and stops listening. Idempotent. */
+    /**
+     * The window closes: saves the split now (when it is this window's own), stops the pending save and stops
+     * listening. Idempotent.
+     */
     public void close() {
         if (closed) {
             return;
         }
         stopPendingSave.run();
-        save();
+        if (owned) {
+            save();
+        }
         removeLayoutListener.run();
         closed = true;
     }
@@ -118,10 +138,11 @@ public final class RememberedSplit {
         return before >= MINIMUM_PANE_SIZE && available - before >= MINIMUM_PANE_SIZE;
     }
 
-    private void scheduleSave() {
+    private void layoutChanged() {
         if (closed) {
             return;
         }
+        owned = true;
         stopPendingSave.run();
         stopPendingSave = delay.after(SAVE_DELAY_MILLISECONDS, this::save);
     }

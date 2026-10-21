@@ -309,4 +309,70 @@ class RememberedSplitTest {
         reopened.save(file);
         assertThat(Files.readString(file)).isEqualTo(unsplit).doesNotContain("horizontal", "vertical", "zoom");
     }
+    @Test
+    void closingAnUnsplitSecondViewAfterTheSplitOneKeepsTheRememberedSplit() throws Exception {
+        OpenDocument document = savedDocument("contador.vsim");
+        Path file = document.path().orElseThrow();
+        Editor split = open(document, 800, 600);
+        split.opened();
+        Editor newView = open(document, 800, 600); // Ventana ▸ Nueva vista: one pane, never touched
+        split.panes().split(Orientation.HORIZONTAL, 0.5);
+
+        split.close(); // Archivo ▸ Salir closes the windows in order
+        assertThat(store.layoutFor(file)).as("after the split window closed").isPresent();
+        newView.close();
+
+        assertThat(store.layoutFor(file)).as("after the unsplit Nueva vista closed").isPresent();
+        assertThat(store.layoutFor(file).orElseThrow().horizontalDivider()).isEqualTo(OptionalDouble.of(0.5));
+    }
+
+    @Test
+    void savingFromAnUnsplitSecondViewKeepsTheRememberedSplit() throws Exception {
+        OpenDocument document = savedDocument("contador.vsim");
+        Path file = document.path().orElseThrow();
+        Editor split = open(document, 800, 600);
+        split.opened();
+        split.panes().split(Orientation.VERTICAL, 0.5);
+        delay.elapse();
+        Editor newView = open(document, 800, 600);
+
+        document.save(file); // Ctrl+S in the Nueva vista window
+        newView.remembered().saved(Optional.of(file), file);
+
+        assertThat(store.layoutFor(file)).isPresent();
+    }
+
+    @Test
+    void saveAsFromAnUnsplitSecondViewMovesTheRememberedSplitToTheNewFile() throws Exception {
+        OpenDocument document = savedDocument("contador.vsim");
+        Path old = document.path().orElseThrow();
+        Editor split = open(document, 800, 600);
+        split.opened();
+        split.panes().split(Orientation.VERTICAL, 0.5);
+        delay.elapse();
+        Editor newView = open(document, 800, 600);
+
+        Path target = folder.resolve("copia.vsim");
+        document.save(target);
+        newView.remembered().saved(Optional.of(old), target);
+
+        assertThat(store.layoutFor(old)).isEmpty();
+        assertThat(store.layoutFor(target).orElseThrow().verticalDivider()).isEqualTo(OptionalDouble.of(0.5));
+    }
+
+    @Test
+    void aLayoutThatDidNotFitIsStillRememberedAfterTheWindowCloses() throws Exception {
+        OpenDocument document = savedDocument("contador.vsim");
+        Path file = document.path().orElseThrow();
+        ViewState view = new ViewState(1, 0, 0);
+        store.remember(file, new PaneLayout(OptionalDouble.of(0.05), OptionalDouble.empty(), List.of(view, view)));
+        Editor small = open(document, 800, 300);
+        small.opened();
+        assertThat(small.panes().panes()).hasSize(1);
+
+        small.close();
+
+        assertThat(store.layoutFor(file)).as("not applied is not deleted").isPresent();
+        toClose.remove(small);
+    }
 }
