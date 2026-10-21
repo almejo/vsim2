@@ -4,6 +4,7 @@ import cl.almejo.vsim.core.command.AddElementsCommand;
 import cl.almejo.vsim.core.command.AddWireCommand;
 import cl.almejo.vsim.core.command.CreateFrameCommand;
 import cl.almejo.vsim.core.component.ElementBounds;
+import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.Frame;
@@ -15,6 +16,7 @@ import cl.almejo.vsim.core.geometry.Axis;
 import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.SnapMatch;
+import cl.almejo.vsim.core.value.Value;
 import cl.almejo.vsim.ui.snap.DefaultSnapper;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -26,6 +28,7 @@ import java.util.List;
 import java.util.Map;
 
 import static cl.almejo.vsim.ui.UiTestSupport.place;
+import static cl.almejo.vsim.ui.UiTestSupport.waitUntil;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -316,5 +319,38 @@ class SelectToolSnapTest {
         assertThat(tool.alignmentMatches()).isEmpty();
         assertThat(tool.refreshSnap(context)).isFalse();
         assertThat(position(moved)).isEqualTo(new GridPoint(20, 10));
+    }
+
+    @Test
+    void aDragTheMagnetPullsBackToZeroKeepsTheSelectionAndMovesNothing() {
+        Component first = gate(20, 0);
+        Component second = gate(30, 0);
+        context.selection.set(List.of(first.id(), second.id()));
+        String before = context.openDocument().history().undoDescription().toString();
+        tool.mousePressed(context, TestToolContext.at(22, 2));
+        tool.mouseDragged(context, TestToolContext.at(22, 3)); // the tops go back to the anchor's
+        tool.mouseReleased(context, TestToolContext.at(22, 3));
+        assertThat(context.selection.ids()).containsExactlyInAnyOrder(first.id(), second.id());
+        assertThat(context.openDocument().history().undoDescription().toString()).isEqualTo(before);
+        assertThat(position(first)).isEqualTo(new GridPoint(20, 0));
+    }
+
+    @Test
+    void aSwitchDraggedBackToItsPlaceByTheMagnetIsNotToggled() throws InterruptedException {
+        Component lever = place(context.openDocument(), StandardComponentTypes.SWITCH, 20, 0,
+                Map.of("value", "1"));
+        gate(20, 10); // its left, centre and right lines are the switch's
+        waitUntil(() -> context.openDocument().latestSnapshot().componentState(lever.id().value())
+                .equals(new VisibleState.SwitchState(Value.ONE)));
+        Bounds bounds = ElementBounds.of(lever, context.openDocument().registry());
+        double centreX = bounds.x() + bounds.width() / 2.0;
+        double centreY = bounds.y() + bounds.height() / 2.0;
+        tool.mousePressed(context, TestToolContext.at(centreX, centreY));
+        tool.mouseDragged(context, TestToolContext.at(centreX + 1, centreY));
+        tool.mouseReleased(context, TestToolContext.at(centreX + 1, centreY));
+        assertThat(position(lever)).isEqualTo(new GridPoint(20, 0));
+        Thread.sleep(300); // an interaction would be published well within this
+        assertThat(context.openDocument().latestSnapshot().componentState(lever.id().value()))
+                .isEqualTo(new VisibleState.SwitchState(Value.ONE));
     }
 }

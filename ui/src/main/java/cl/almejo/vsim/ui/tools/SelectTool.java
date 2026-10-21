@@ -84,7 +84,9 @@ import java.util.concurrent.CopyOnWriteArrayList;
  * <p>Ajustar (alignment-guides spec §3): a move, a Ctrl copy and a segment drag go through the canvas's
  * {@link cl.almejo.vsim.ui.snap.Snapper} before the locked-frame walls and the segment axis lock, which still win;
  * the alignment lines that hold at the final delta are drawn after the move preview. {@link #refreshSnap} redoes the
- * drag at the last pointer position, so a release right after a toggle or a zoom commits what is shown.
+ * drag at the last pointer position, so a release right after a toggle or a zoom commits what is shown. A drag the
+ * magnet (or a locked frame's wall) brings back to a zero delta moves nothing and is no click either: it neither
+ * narrows the selection nor toggles a switch.
  *
  * <p>{@link SelectToolDelegate}s (M6.3: frames) are asked first: a press one of them takes, with its drag and
  * release, is theirs alone.
@@ -133,6 +135,12 @@ public final class SelectTool implements Tool {
     /** The drag's delta before the locked-frame walls: what a Ctrl copy uses, as copies leave the originals. */
     private int copyDeltaX;
     private int copyDeltaY;
+    /**
+     * The pointer's own grid delta at the last drag, before the magnet and the locked-frame walls: when it is not
+     * zero but they bring the move back to zero, the release moved nothing and was no click either.
+     */
+    private int pointerDeltaX;
+    private int pointerDeltaY;
     private boolean followWires;
     /** The drag moves a single selected wire sideways (the segment key is held). */
     private boolean segmentDrag;
@@ -400,6 +408,7 @@ public final class SelectTool implements Tool {
                 click(context);
             }
         } else if (pressPoint != null) {
+            boolean pointerMoved = pointerDeltaX != 0 || pointerDeltaY != 0;
             if (deltaX != 0 || deltaY != 0 || copyDeltaX != 0 || copyDeltaY != 0) {
                 if (segmentWire(context).isPresent()) {
                     dragTo(context, event); // the segment key at the release decides the direction
@@ -416,6 +425,8 @@ public final class SelectTool implements Tool {
                                 context.selectionMoves().follows(event.shiftDown(), event.altDown()));
                     }
                 }
+            } else if (pointerMoved) {
+                // the magnet (or a locked frame's wall) pulled the drag back to where it started: nothing to do
             } else if (selectionClick) {
                 if (removeOnRelease) {
                     context.selection().remove(pressedElement.id());
@@ -439,6 +450,8 @@ public final class SelectTool implements Tool {
     private void dragTo(ToolContext context, CanvasMouseEvent event) {
         int rawDeltaX = event.snapped().x() - pressPoint.x();
         int rawDeltaY = event.snapped().y() - pressPoint.y();
+        pointerDeltaX = rawDeltaX;
+        pointerDeltaY = rawDeltaY;
         Optional<Wire> segment = segmentWire(context)
                 .filter(wire -> context.selectionMoves().segmentKeyHeld(event.shiftDown(), event.altDown()));
         segmentDrag = segment.isPresent();
@@ -1085,6 +1098,8 @@ public final class SelectTool implements Tool {
         deltaY = 0;
         copyDeltaX = 0;
         copyDeltaY = 0;
+        pointerDeltaX = 0;
+        pointerDeltaY = 0;
         followWires = false;
         segmentDrag = false;
         lastDrag = null;
