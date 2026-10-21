@@ -8,6 +8,7 @@ import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.tunnel.Tunnels;
 import cl.almejo.vsim.ui.clipboard.FragmentRefusingTransferHandler;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.LedPainter;
 import cl.almejo.vsim.ui.tunnel.TunnelColorSwatches;
 import net.miginfocom.swing.MigLayout;
@@ -30,6 +31,7 @@ import java.awt.event.KeyEvent;
 import java.text.ParseException;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.function.Supplier;
 import java.util.Optional;
 import java.util.Set;
 
@@ -51,11 +53,16 @@ public final class ParameterForm extends JPanel {
     private final Map<String, JLabel> labels = new LinkedHashMap<>();
 
     public ParameterForm(ComponentType type, Map<String, Object> currentParameters) {
+        this(type, currentParameters, TunnelColorSwatches.THEME_SCHEME);
+    }
+
+    /** {@code scheme} gives the colours the canvas paints with now (the swatches read it at every paint). */
+    public ParameterForm(ComponentType type, Map<String, Object> currentParameters, Supplier<ColorScheme> scheme) {
         super(new MigLayout("wrap 2, insets dialog", "[right][grow, fill]"));
         this.type = type;
         this.initial = type.resolveParameters(currentParameters);
         for (ParameterSpec parameter : type.parameters()) {
-            JComponent editor = editorFor(type, parameter, initial.get(parameter.name()));
+            JComponent editor = editorFor(type, parameter, initial.get(parameter.name()), scheme);
             editor.setName(parameter.name());
             editors.put(parameter.name(), editor);
             JLabel label = new JLabel(labelText(parameter.name()));
@@ -219,9 +226,10 @@ public final class ParameterForm extends JPanel {
      * A tunnel entrada's palette colour (an integer, spec §5) and every {@code COLOR} parameter are picked from
      * swatches; every other parameter by its kind.
      */
-    private static JComponent editorFor(ComponentType type, ParameterSpec parameter, Object value) {
+    private static JComponent editorFor(ComponentType type, ParameterSpec parameter, Object value,
+                                        Supplier<ColorScheme> scheme) {
         if (type.id().equals(StandardComponentTypes.TUNNEL_ENTRANCE) && parameter.name().equals(Tunnels.COLOR)) {
-            return TunnelColorSwatches.create((Integer) value);
+            return TunnelColorSwatches.create((Integer) value, scheme);
         }
         return switch (parameter.kind()) {
             case INTEGER -> {

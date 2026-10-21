@@ -6,6 +6,7 @@ import cl.almejo.vsim.core.component.ParameterKind;
 import cl.almejo.vsim.core.component.ParameterSpec;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.paint.ColorSchemes;
 import cl.almejo.vsim.ui.paint.LedPainter;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -99,6 +100,16 @@ class ParameterFormTest {
         colors.swatch(6).doClick();
 
         assertThat(form.rawValues()).containsEntry("color", 6);
+    }
+
+    @Test
+    void theTunnelSwatchesPaintWithTheColourSchemeTheCanvasUses() {
+        // a dark scheme chosen in Preferencias on a light theme: the swatches show the dark variant, like the canvas
+        ParameterForm form = new ParameterForm(registry.require(StandardComponentTypes.TUNNEL_ENTRANCE), Map.of(),
+                () -> ColorSchemes.DARK);
+        ColorSwatches<?> colors = (ColorSwatches<?>) form.editor("color");
+
+        assertThat(SwatchPixels.centre(colors.swatch(5))).isEqualTo(ColorSchemes.DARK.tunnelColor(5).getRGB());
     }
 
     @Test

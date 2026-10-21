@@ -21,11 +21,11 @@ import cl.almejo.vsim.ui.canvas.Selection;
 import cl.almejo.vsim.ui.clipboard.FragmentRefusingTransferHandler;
 import cl.almejo.vsim.ui.i18n.FrameTintNames;
 import cl.almejo.vsim.ui.i18n.Messages;
-import cl.almejo.vsim.ui.paint.ColorSchemes;
+import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.theme.ErrorTextLabel;
+import cl.almejo.vsim.ui.tunnel.TunnelColorSwatches;
 import cl.almejo.vsim.ui.tunnel.TunnelNames;
 import cl.almejo.vsim.ui.wiring.SelectionMoves;
-import com.formdev.flatlaf.FlatLaf;
 import net.miginfocom.swing.MigLayout;
 
 import javax.swing.JLabel;
@@ -40,6 +40,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
 import java.util.stream.Stream;
 
@@ -58,6 +59,7 @@ public final class PropertiesPanel extends JPanel {
     private Set<ElementId> shown = Set.of();
     private JTextField textField;
     private ParameterForm parameterForm;
+    private final Supplier<ColorScheme> scheme;
     private ColorSwatches<FrameTint> frameColor;
     private JSpinner[] frameSpinners;
     private Runnable pendingEdits = () -> { };
@@ -71,7 +73,14 @@ public final class PropertiesPanel extends JPanel {
 
     /** {@code selectionMoves} makes the moves of X/Y (M6.7: the wires follow by the follow mode). */
     public PropertiesPanel(OpenDocument openDocument, Selection selection, SelectionMoves selectionMoves) {
+        this(openDocument, selection, selectionMoves, TunnelColorSwatches.THEME_SCHEME);
+    }
+
+    /** {@code scheme} gives the colours the canvas paints with now: the colour swatches show the same ones. */
+    public PropertiesPanel(OpenDocument openDocument, Selection selection, SelectionMoves selectionMoves,
+                           Supplier<ColorScheme> scheme) {
         super(new MigLayout("wrap 2, insets dialog", "[right][grow, fill]"));
+        this.scheme = scheme;
         this.openDocument = openDocument;
         this.selection = selection;
         this.selectionMoves = selectionMoves;
@@ -178,7 +187,7 @@ public final class PropertiesPanel extends JPanel {
             pendingEdits = applyLabel;
             return;
         }
-        ParameterForm form = new ParameterForm(type, component.parameters());
+        ParameterForm form = new ParameterForm(type, component.parameters(), scheme);
         // the parameter rows join this panel's grid, so «Etiqueta» and the parameters share the same columns
         form.addRowsTo(this);
         Runnable applyParameters = () -> applyIfCurrent(built, () -> TunnelNames.executeRemembering(openDocument, id,
@@ -246,12 +255,12 @@ public final class PropertiesPanel extends JPanel {
      * One swatch per frame tint, painted opaque in the variant of the theme shown now (the frame itself is a veil of
      * it); «Sin color» is the crossed-out swatch.
      */
-    private static ColorSwatches<FrameTint> frameTintSwatches(FrameTint selected) {
+    private ColorSwatches<FrameTint> frameTintSwatches(FrameTint selected) {
         return new ColorSwatches<>(List.of(FrameTint.values()), selected, FrameTintNames::of, tint -> {
             if (tint == FrameTint.NONE) {
                 return Optional.empty();
             }
-            Color veil = ColorSchemes.forTheme(FlatLaf.isLafDark()).frameTint(tint);
+            Color veil = scheme.get().frameTint(tint);
             return Optional.of(new Color(veil.getRed(), veil.getGreen(), veil.getBlue()));
         });
     }

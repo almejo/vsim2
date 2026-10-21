@@ -15,7 +15,8 @@ sección es un conjunto de funciones, con las fechas en que se hizo. El detalle 
 ### Cambiado
 
 - El color de un LED y el de un marco se eligen con la misma fila de muestras que la entrada de un túnel, cada una
-  con su nombre al pasar el mouse; «Sin color» es la muestra tachada.
+  con su nombre al pasar el mouse; «Sin color» es la muestra tachada. Las muestras usan los colores del esquema
+  elegido en Preferencias, como el lienzo.
 - El anillo de la muestra elegida es azul (oscuro en el tema claro, claro en el oscuro) y se distingue del fondo en
   todos los temas. Con el teclado la fila es una sola parada de Tab, las flechas pasan de una muestra a otra,
   Espacio elige y Enter elige y acepta «Configurar…»; los lectores de pantalla anuncian la fila como un grupo.

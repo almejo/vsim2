@@ -214,7 +214,7 @@ public final class EditorActions {
         if (type.parameters().isEmpty()) {
             return;
         }
-        ConfigureDialog.show(canvas, type, component)
+        ConfigureDialog.show(canvas, type, component, canvas::scheme)
                 .ifPresent(values -> TunnelNames.applyParameters(openDocument, component.id(), type, values));
     }
 

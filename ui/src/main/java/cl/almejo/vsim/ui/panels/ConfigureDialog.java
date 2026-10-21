@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.panels;
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.theme.ErrorTextLabel;
 
 import javax.swing.JDialog;
@@ -18,6 +19,7 @@ import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Supplier;
 
 /**
  * Modal "Configure…" dialog. An OK with invalid values keeps it open and shows the error under the form.
@@ -28,9 +30,10 @@ public final class ConfigureDialog {
     private ConfigureDialog() {
     }
 
+    /** {@code scheme} gives the colours the canvas paints with now, for the colour swatches. */
     public static Optional<Map<String, Object>> show(java.awt.Component owner, ComponentType type,
-                                                     Component component) {
-        ParameterForm form = new ParameterForm(type, component.parameters());
+                                                     Component component, Supplier<ColorScheme> scheme) {
+        ParameterForm form = new ParameterForm(type, component.parameters(), scheme);
         JLabel error = newErrorLabel();
         JPanel content = new JPanel(new BorderLayout(0, 8));
         content.add(form, BorderLayout.CENTER);

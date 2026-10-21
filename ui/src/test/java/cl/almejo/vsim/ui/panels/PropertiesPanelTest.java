@@ -21,6 +21,8 @@ import cl.almejo.vsim.ui.canvas.Selection;
 import cl.almejo.vsim.ui.clipboard.FragmentTransferable;
 import cl.almejo.vsim.ui.i18n.FrameTintNames;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.paint.ColorSchemes;
+import cl.almejo.vsim.ui.wiring.SelectionMoves;
 import cl.almejo.vsim.ui.theme.FlatLafInstaller;
 import cl.almejo.vsim.ui.theme.ReadableColors;
 import org.junit.jupiter.api.AfterEach;
@@ -34,6 +36,7 @@ import javax.swing.LookAndFeel;
 import javax.swing.TransferHandler;
 import javax.swing.UIManager;
 import javax.swing.text.JTextComponent;
+import java.awt.Color;
 import java.awt.datatransfer.StringSelection;
 import java.util.Arrays;
 import java.util.List;
@@ -181,6 +184,17 @@ class PropertiesPanelTest {
 
         assertThat(current(frame).tint()).isEqualTo(FrameTint.BLUE);
         assertThat(panel.frameColor().selectedValue()).isEqualTo(FrameTint.BLUE);
+    }
+
+    @Test
+    void theFrameSwatchesPaintWithTheColourSchemeTheCanvasUses() {
+        panel.dispose();
+        panel = new PropertiesPanel(openDocument, selection, SelectionMoves.detached(), () -> ColorSchemes.DARK);
+        frame(false);
+
+        Color veil = ColorSchemes.DARK.frameTint(FrameTint.GREEN);
+        assertThat(SwatchPixels.centre(panel.frameColor().swatch(FrameTint.GREEN.ordinal())))
+                .isEqualTo(new Color(veil.getRed(), veil.getGreen(), veil.getBlue()).getRGB());
     }
 
     @Test
