@@ -230,6 +230,21 @@ class ExportHostSupportTest {
     }
 
     @Test
+    void aNameIsCutWholeWithinWhatFileSystemsTakeAndNeverAReservedOne() {
+        String emoji = "\uD83D\uDE00";
+        String cut = ExportHostSupport.baseName(emoji.repeat(100));
+        assertThat(cut.getBytes(java.nio.charset.StandardCharsets.UTF_8).length)
+                .isLessThanOrEqualTo(ExportHostSupport.MAXIMUM_NAME_BYTES);
+        assertThat(cut).isEqualTo(emoji.repeat(cut.length() / 2));
+        assertThat(ExportHostSupport.baseName("a".repeat(300))).hasSize(ExportHostSupport.MAXIMUM_NAME_LENGTH);
+        assertThat(ExportHostSupport.baseName("x\uD800y")).isEqualTo("xy");
+        assertThat(ExportHostSupport.baseName("Sumador. . ")).isEqualTo("Sumador");
+        assertThat(ExportHostSupport.baseName("CON")).isEqualTo("_CON");
+        assertThat(ExportHostSupport.baseName("lpt1.txt")).isEqualTo("_lpt1.txt");
+        assertThat(ExportHostSupport.baseName("console")).isEqualTo("console");
+    }
+
+    @Test
     void theOnlyElementsExportedAreTheOnesNamed() throws Exception {
         preferences.setExportDirectory(remembered);
         Component second = onEditor(() -> place(document, StandardComponentTypes.NAND2, 40, 0, Map.of()));

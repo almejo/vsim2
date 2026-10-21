@@ -51,6 +51,23 @@ class ImageExportTest {
     }
 
     @Test
+    void writingIntoAReservedFileNeverFollowsALinkPlantedInItsPlace() throws Exception {
+        Path elsewhere = Files.writeString(directory.resolve("elsewhere.txt"), "not yours");
+        Path link = Files.createSymbolicLink(directory.resolve("circuit.png"), elsewhere);
+        BufferedImage pixels = new BufferedImage(4, 4, BufferedImage.TYPE_INT_ARGB);
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> ImageExport.writePngInto(link, pixels))
+                .isInstanceOf(java.io.IOException.class);
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> ImageExport.writeSvgInto(link, "<svg/>"))
+                .isInstanceOf(java.io.IOException.class);
+        assertThat(Files.readString(elsewhere)).isEqualTo("not yours");
+
+        Path reserved = Files.createFile(directory.resolve("reserved.png"));
+        ImageExport.writePngInto(reserved, pixels);
+        assertThat(ImageIO.read(reserved.toFile()).getWidth()).isEqualTo(4);
+    }
+
+    @Test
     void theSvgIsWellFormedXmlWithTheSizeOfTheBounds() throws Exception {
         try (OpenDocument source = example(BundledExamples.ids().get(0))) {
             CircuitImage image = imageOf(source, ColorScheme.LIGHT);

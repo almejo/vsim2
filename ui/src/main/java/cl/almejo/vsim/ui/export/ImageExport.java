@@ -14,7 +14,9 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.util.Iterator;
 
 /** Writes a {@link CircuitImage} as a PNG (any scale) or an SVG (always 1x, text as vector shapes). */
@@ -87,6 +89,24 @@ public final class ImageExport {
             writer.dispose();
         }
         return bytes.toByteArray();
+    }
+
+    /**
+     * Encodes {@code pixels} as a PNG into {@code reserved}, a file the caller has just created: written in place,
+     * never following a link planted there meanwhile (the write fails instead).
+     */
+    public static void writePngInto(Path reserved, BufferedImage pixels) throws IOException {
+        writeInto(reserved, pngBytes(pixels));
+    }
+
+    /** {@link #writePngInto} for an SVG document. */
+    public static void writeSvgInto(Path reserved, String svgDocument) throws IOException {
+        writeInto(reserved, svgDocument.getBytes(StandardCharsets.UTF_8));
+    }
+
+    private static void writeInto(Path reserved, byte[] bytes) throws IOException {
+        Files.write(reserved, bytes, StandardOpenOption.WRITE, StandardOpenOption.TRUNCATE_EXISTING,
+                LinkOption.NOFOLLOW_LINKS);
     }
 
     private static IOException tooLarge(int width, int height, Throwable cause) {

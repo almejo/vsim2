@@ -34,8 +34,10 @@ import cl.almejo.vsim.ui.print.ScaleMode;
 
 import java.awt.image.BufferedImage;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.time.Clock;
 import java.util.List;
@@ -48,6 +50,7 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
@@ -66,7 +69,12 @@ final class ExportHostSupport {
     static final String DEFAULT_FOLDER = "VSim";
     /** Suffixes tried before giving up: name-2 … name-9999. */
     static final int MAXIMUM_SUFFIX = 9_999;
-    private static final int MAXIMUM_NAME_LENGTH = 80;
+    /** A file name keeps at most this many characters (code points) of the name asked for… */
+    static final int MAXIMUM_NAME_LENGTH = 80;
+    /** …and at most this many bytes in UTF-8, so the suffix and extension still fit the usual 255-byte limit. */
+    static final int MAXIMUM_NAME_BYTES = 200;
+    /** Names Windows keeps for devices, alone or before a dot. */
+    private static final Pattern RESERVED_NAME = Pattern.compile("(?i)(con|prn|aux|nul|com[1-9]|lpt[1-9])(\\..*)?");
 
     private final Function<OpenDocument, List<ShownWindow>> windowsOf;
     private final Supplier<Path> home;
@@ -169,7 +177,7 @@ final class ExportHostSupport {
         if (request.format() == ExportRequest.Format.SVG) {
             String svg = ImageExport.svgDocument(image);
             return new Prepared(id, version, document, request.format(), folder, baseName,
-                    target -> ImageExport.writeSvg(target, svg), image.width(1), image.height(1), 1);
+                    target -> ImageExport.writeSvgInto(target, svg), image.width(1), image.height(1), 1);
         }
         BufferedImage pixels;
         try {
@@ -180,7 +188,7 @@ final class ExportHostSupport {
                     + " pixels); use a smaller scale", Map.of("scales", ExportRequest.ImageOptions.SCALES));
         }
         return new Prepared(id, version, document, request.format(), folder, baseName,
-                target -> ImageExport.writePng(target, pixels), pixels.getWidth(), pixels.getHeight(), 1);
+                target -> ImageExport.writePngInto(target, pixels), pixels.getWidth(), pixels.getHeight(), 1);
     }
 
     private static Bounds frameBounds(OpenDocument document, String frameId) {
@@ -272,16 +280,36 @@ final class ExportHostSupport {
                 .toAbsolutePath();
     }
 
-    /** A file name of {@code wanted}: no folders, no characters file systems refuse, no extension. */
+    /**
+     * A file name of {@code wanted}: no folders, no characters file systems refuse, no extension, no lone surrogate,
+     * cut whole within {@value #MAXIMUM_NAME_LENGTH} characters and {@value #MAXIMUM_NAME_BYTES} UTF-8 bytes, no
+     * trailing dots or spaces, and a {@code _} before a name Windows reserves.
+     */
     static String baseName(String wanted) {
-        String name = withoutExtension(wanted.strip())
+        String cleaned = withoutExtension(wanted.strip())
                 .replaceAll("[/\\\\:*?\"<>|\\p{Cntrl}]", "_")
                 .replaceAll("^[.\\s]+", "")
                 .strip();
-        if (name.length() > MAXIMUM_NAME_LENGTH) {
-            name = name.substring(0, MAXIMUM_NAME_LENGTH).strip();
+        StringBuilder name = new StringBuilder();
+        int characters = 0;
+        int bytes = 0;
+        for (int codePoint : cleaned.codePoints().toArray()) {
+            if (Character.getType(codePoint) == Character.SURROGATE) {
+                continue; // a lone half of a pair: no file system takes it
+            }
+            int size = new String(Character.toChars(codePoint)).getBytes(StandardCharsets.UTF_8).length;
+            if (characters == MAXIMUM_NAME_LENGTH || bytes + size > MAXIMUM_NAME_BYTES) {
+                break;
+            }
+            name.appendCodePoint(codePoint);
+            characters++;
+            bytes += size;
         }
-        return name.isEmpty() ? "circuito" : name;
+        String result = name.toString().replaceAll("[.\\s]+$", "");
+        if (result.isEmpty()) {
+            return "circuito";
+        }
+        return RESERVED_NAME.matcher(result).matches() ? "_" + result : result;
     }
 
     private static String withoutExtension(String name) {
@@ -296,7 +324,13 @@ final class ExportHostSupport {
     /** Creates {@code name.ext}, else {@code name-2.ext}, …: the first that did not exist, created empty now. */
     static Path reserve(Path folder, String baseName, String extension) {
         for (int suffix = 1; suffix <= MAXIMUM_SUFFIX; suffix++) {
-            Path candidate = folder.resolve(baseName + (suffix == 1 ? "" : "-" + suffix) + "." + extension);
+            Path candidate;
+            try {
+                candidate = folder.resolve(baseName + (suffix == 1 ? "" : "-" + suffix) + "." + extension);
+            } catch (InvalidPathException invalid) {
+                throw new AutomationException(AutomationError.INVALID_PARAMETER, "That file name cannot be used here: "
+                        + invalid.getReason() + "; give another fileName");
+            }
             try {
                 return Files.createFile(candidate);
             } catch (FileAlreadyExistsException taken) {
