@@ -21,14 +21,13 @@ import cl.almejo.vsim.ui.canvas.Selection;
 import cl.almejo.vsim.ui.clipboard.FragmentRefusingTransferHandler;
 import cl.almejo.vsim.ui.i18n.FrameTintNames;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.paint.ColorSchemes;
 import cl.almejo.vsim.ui.tunnel.TunnelNames;
 import cl.almejo.vsim.ui.wiring.SelectionMoves;
+import com.formdev.flatlaf.FlatLaf;
 import net.miginfocom.swing.MigLayout;
 
-import javax.swing.DefaultListCellRenderer;
-import javax.swing.JComboBox;
 import javax.swing.JLabel;
-import javax.swing.JList;
 import javax.swing.JSpinner;
 import javax.swing.SpinnerNumberModel;
 import javax.swing.JPanel;
@@ -59,7 +58,7 @@ public final class PropertiesPanel extends JPanel {
     private Set<ElementId> shown = Set.of();
     private JTextField textField;
     private ParameterForm parameterForm;
-    private JComboBox<FrameTint> frameColor;
+    private ColorSwatches<FrameTint> frameColor;
     private JSpinner[] frameSpinners;
     private Runnable pendingEdits = () -> { };
     private int generation;
@@ -216,20 +215,10 @@ public final class PropertiesPanel extends JPanel {
         textField = field;
         pendingEdits = applyTitle;
 
-        JComboBox<FrameTint> color = new JComboBox<>(FrameTint.values());
-        color.setRenderer(new DefaultListCellRenderer() {
-            @Override
-            public java.awt.Component getListCellRendererComponent(JList<?> list, Object value, int index,
-                                                                   boolean selected, boolean focused) {
-                return super.getListCellRendererComponent(list,
-                        value instanceof FrameTint tint ? FrameTintNames.of(tint) : value, index, selected,
-                        focused);
-            }
-        });
-        color.setSelectedItem(frame.tint());
+        ColorSwatches<FrameTint> color = frameTintSwatches(frame.tint());
         addRow(Messages.text("properties.frameColor"), color);
-        color.addActionListener(event -> applyIfCurrent(built, () -> editFrame(id,
-                now -> now.withTint((FrameTint) color.getSelectedItem()))));
+        color.addChoiceListener(() -> applyIfCurrent(built, () -> editFrame(id,
+                now -> now.withTint(color.selectedValue()))));
         frameColor = color;
 
         JSpinner x = spinner(frame.topLeft().x(), Integer.MIN_VALUE / 2);
@@ -249,6 +238,20 @@ public final class PropertiesPanel extends JPanel {
         width.setEnabled(!frame.locked());
         height.setEnabled(!frame.locked());
         frameSpinners = new JSpinner[]{x, y, width, height};
+    }
+
+    /**
+     * One swatch per frame tint, painted opaque in the variant of the theme shown now (the frame itself is a veil of
+     * it); «Sin color» is the crossed-out swatch.
+     */
+    private static ColorSwatches<FrameTint> frameTintSwatches(FrameTint selected) {
+        return new ColorSwatches<>(List.of(FrameTint.values()), selected, FrameTintNames::of, tint -> {
+            if (tint == FrameTint.NONE) {
+                return Optional.empty();
+            }
+            Color veil = ColorSchemes.forTheme(FlatLaf.isLafDark()).frameTint(tint);
+            return Optional.of(new Color(veil.getRed(), veil.getGreen(), veil.getBlue()));
+        });
     }
 
     private static JSpinner spinner(int value, int minimum) {
@@ -296,7 +299,7 @@ public final class PropertiesPanel extends JPanel {
             return;
         }
         Frame now = frame.get();
-        frameColor.setSelectedItem(now.tint());
+        frameColor.select(now.tint());
         frameSpinners[0].setValue(now.topLeft().x());
         frameSpinners[1].setValue(now.topLeft().y());
         frameSpinners[2].setValue(now.width());
@@ -305,7 +308,7 @@ public final class PropertiesPanel extends JPanel {
         frameSpinners[3].setEnabled(!now.locked());
     }
 
-    JComboBox<FrameTint> frameColor() {
+    ColorSwatches<FrameTint> frameColor() {
         return frameColor;
     }
 

@@ -1,6 +1,7 @@
 package cl.almejo.vsim.core.component;
 
 import cl.almejo.vsim.core.TestComponentTypes;
+import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.geometry.Bounds;
@@ -38,6 +39,23 @@ class ComponentTypeTest {
         assertThat(value.normalize("Z")).isEqualTo("Z");
         assertThatThrownBy(() -> value.normalize("2")).isInstanceOf(IllegalArgumentException.class);
         assertThat(ParameterSpec.text("color", "red").normalize(42)).isEqualTo("42");
+    }
+
+    @Test
+    void aColourParameterIsAChoiceOfColourNames() {
+        ParameterSpec color = ParameterSpec.color("color", "red", List.of("red", "green"));
+        assertThat(color.kind()).isEqualTo(ParameterKind.COLOR);
+        assertThat(color.normalize("green")).isEqualTo("green");
+        assertThatThrownBy(() -> color.normalize("pink")).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> ParameterSpec.color("color", "pink", List.of("red")))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void theLedColourIsAColourParameter() {
+        ComponentType led = StandardComponentTypes.registry().require(StandardComponentTypes.LED);
+        assertThat(led.parameters().getFirst().kind()).isEqualTo(ParameterKind.COLOR);
+        assertThat(led.resolveParameters(Map.of())).isEqualTo(Map.of("color", "red"));
     }
 
     @Test

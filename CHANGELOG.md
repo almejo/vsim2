@@ -7,6 +7,13 @@ sección es un conjunto de funciones, con las fechas en que se hizo. El detalle 
 
 ## 2026-10-21 — Tareas cortas
 
+### Cambiado
+
+- El color de un LED y el de un marco se eligen con la misma fila de muestras que la entrada de un túnel, cada una
+  con su nombre al pasar el mouse; «Sin color» es la muestra tachada.
+- El anillo de la muestra elegida usa el color de acento del tema y se ve bien también en el tema claro y en el
+  oscuro; las flechas pasan de una muestra a otra y Enter o Espacio elige.
+
 ### Arreglado
 
 - Los mensajes de error del asistente de Karnaugh, de la importación de tablas y de las expresiones contrastaban
