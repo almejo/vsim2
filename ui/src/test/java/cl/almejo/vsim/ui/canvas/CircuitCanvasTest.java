@@ -17,6 +17,7 @@ import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.core.simulation.DriverRef;
 import cl.almejo.vsim.core.simulation.ShortCircuit;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
+import cl.almejo.vsim.core.tunnel.Tunnels;
 import cl.almejo.vsim.core.value.Value;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.clipboard.FileListTransferable;
@@ -1197,5 +1198,35 @@ class CircuitCanvasTest {
         modifierKey(KeyEvent.KEY_PRESSED, KeyEvent.VK_SHIFT, InputEvent.SHIFT_DOWN_MASK);
         modifierKey(KeyEvent.KEY_RELEASED, KeyEvent.VK_SHIFT, 0);
         assertThat(tool.modifierChanges).containsExactly("true false false", "true false false", "false false false");
+    }
+
+    @Test
+    void theGhostOfASalidaTakesTheColourOfTheEntradaOfItsNameInThisCircuit() {
+        place(openDocument, StandardComponentTypes.TUNNEL_ENTRANCE, 30, 30,
+                Map.of(Tunnels.NAME, "CLK", Tunnels.COLOR, 3));
+        GridPoint position = new GridPoint(2, 2);
+        Component exit = openDocument.registry().require(StandardComponentTypes.TUNNEL_EXIT).newComponent(
+                new ElementId("ghost"), position, Rotation.R0, Map.of(Tunnels.NAME, "CLK"), "");
+        CircuitRenderer renderer = new CircuitRenderer(openDocument.registry(), PainterRegistry.standard(),
+                ColorScheme.LIGHT);
+
+        BufferedImage onTheCanvas = ghostImage(graphics -> canvas.paintGhost(graphics, exit));
+        BufferedImage joined = ghostImage(graphics ->
+                renderer.paintGhost(graphics, exit, openDocument.registry(), Map.of("CLK", 3)));
+        BufferedImage alone = ghostImage(graphics -> renderer.paintGhost(graphics, exit));
+
+        int x = position.x() * GridPoint.PIXELS_PER_UNIT + 3 * GridPoint.PIXELS_PER_UNIT;
+        int y = position.y() * GridPoint.PIXELS_PER_UNIT + 1;
+        assertThat(onTheCanvas.getRGB(x, y)).isEqualTo(joined.getRGB(x, y)).isNotEqualTo(alone.getRGB(x, y));
+    }
+
+    private static BufferedImage ghostImage(java.util.function.Consumer<Graphics2D> painting) {
+        BufferedImage image = new BufferedImage(100, 100, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D graphics = image.createGraphics();
+        graphics.setColor(ColorScheme.LIGHT.background());
+        graphics.fillRect(0, 0, 100, 100);
+        painting.accept(graphics);
+        graphics.dispose();
+        return image;
     }
 }

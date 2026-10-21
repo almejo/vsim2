@@ -13,6 +13,7 @@ import cl.almejo.vsim.core.io.CircuitFragment;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.ExampleDefinitions;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
+import cl.almejo.vsim.core.tunnel.Tunnels;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
@@ -226,5 +227,26 @@ class FloatingSelectionToolTest {
         assertThat(document.components()).singleElement()
                 .extracting(Component::typeId).isEqualTo("subcircuit:inverter");
         assertThat(context.ghosts).isNotEmpty();
+    }
+
+    @Test
+    void theGhostsOfAPasteColourItsSalidasLikeTheEntradasTheyWillJoin() {
+        document.add(registry.require(StandardComponentTypes.TUNNEL_ENTRANCE).newComponent(document.newComponentId(),
+                new GridPoint(20, 20), Rotation.R0, Map.of(Tunnels.NAME, "CLK", Tunnels.COLOR, 3), ""));
+        CircuitFragment tunnels = new CircuitFragment(List.of(
+                registry.require(StandardComponentTypes.TUNNEL_EXIT).newComponent(new ElementId("t1"),
+                        GridPoint.ORIGIN, Rotation.R0, Map.of(Tunnels.NAME, "CLK"), ""),
+                registry.require(StandardComponentTypes.TUNNEL_ENTRANCE).newComponent(new ElementId("t2"),
+                        new GridPoint(0, 4), Rotation.R0, Map.of(Tunnels.NAME, "CLK", Tunnels.COLOR, 6), ""),
+                registry.require(StandardComponentTypes.TUNNEL_ENTRANCE).newComponent(new ElementId("t3"),
+                        new GridPoint(0, 8), Rotation.R0, Map.of(Tunnels.NAME, "DATA", Tunnels.COLOR, 4), "")),
+                List.of(), List.of());
+        FloatingSelectionTool tool = new FloatingSelectionTool(tunnels, new GridPoint(5, 5));
+        context.setTool(tool);
+
+        tool.paintOverlay(TestToolContext.scratchGraphics(), context);
+
+        assertThat(context.ghostTunnelColors).hasSize(3)
+                .allSatisfy(colors -> assertThat(colors).isEqualTo(Map.of("CLK", 3, "DATA", 4)));
     }
 }

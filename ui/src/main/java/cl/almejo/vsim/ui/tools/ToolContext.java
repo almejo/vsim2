@@ -13,6 +13,7 @@ import cl.almejo.vsim.ui.wiring.SelectionMoves;
 
 import java.awt.Graphics2D;
 import java.awt.geom.Point2D;
+import java.util.Map;
 import java.util.Optional;
 
 /** Everything a tool may use; implemented by the canvas and by a fake in tests. */
@@ -40,6 +41,17 @@ public interface ToolContext {
     /** Like {@link #paintGhost(Graphics2D, DocumentElement)}, resolving component types with {@code registry}. */
     default void paintGhost(Graphics2D graphics, DocumentElement element, ComponentTypeRegistry registry) {
         paintGhost(graphics, element);
+    }
+
+    /**
+     * Like {@link #paintGhost(Graphics2D, DocumentElement, ComponentTypeRegistry)}, a salida taking the colour of its
+     * name in {@code tunnelColors} (palette colour 0 for a name without one): for a tool whose ghosts join the circuit
+     * with entradas of their own (a paste, see {@link cl.almejo.vsim.core.tunnel.Tunnels#colorsByName(
+     * cl.almejo.vsim.core.document.CircuitDocument, java.util.Collection)}).
+     */
+    default void paintGhost(Graphics2D graphics, DocumentElement element, ComponentTypeRegistry registry,
+                            Map<String, Integer> tunnelColors) {
+        paintGhost(graphics, element, registry);
     }
 
     void repaint();

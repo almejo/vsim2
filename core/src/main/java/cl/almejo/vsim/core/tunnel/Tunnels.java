@@ -274,6 +274,21 @@ public final class Tunnels {
         return Collections.unmodifiableMap(colors);
     }
 
+    /**
+     * The colours by name once {@code added} (a pasted fragment, a component being placed) joins {@code document}:
+     * its entradas come after the circuit's, so a name the circuit already has keeps the circuit's colour and only
+     * new names take a pasted entrada's. What the ghost of a salida is drawn in.
+     */
+    public static Map<String, Integer> colorsByName(CircuitDocument document, Collection<Component> added) {
+        Map<String, Integer> colors = new HashMap<>(colorsByName(document));
+        for (Component component : added) {
+            if (kindOf(component).orElse(null) == TunnelKind.ENTRANCE) {
+                colors.putIfAbsent(nameOf(component), colorParameter(component));
+            }
+        }
+        return Collections.unmodifiableMap(colors);
+    }
+
     /** The palette colour of an entrada component (its parameter), or {@link #NO_COLOR} for a salida. */
     public static int colorParameterOf(Component tunnel) {
         return kindOf(tunnel).orElse(null) == TunnelKind.ENTRANCE ? colorParameter(tunnel) : NO_COLOR;

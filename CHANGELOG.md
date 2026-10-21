@@ -12,6 +12,8 @@ sección es un conjunto de funciones, con las fechas en que se hizo. El detalle 
 - Los mensajes de error del asistente de Karnaugh, de la importación de tablas y de las expresiones contrastaban
   poco con el fondo (3,7:1 en el tema claro, 4,2:1 en el oscuro): ahora van en un rojo con contraste de al menos
   4,5:1 en los dos temas.
+- La vista previa de un túnel de salida que estás poniendo o pegando muestra el color de la entrada de su nombre,
+  como se verá al soltarlo, y no siempre el primer color.
 
 ## 2026-10-19 — 2026-10-20 — Exportar a PDF
 

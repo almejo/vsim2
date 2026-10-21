@@ -6,11 +6,13 @@ import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.io.CircuitFragment;
+import cl.almejo.vsim.core.tunnel.Tunnels;
 
 import java.awt.Cursor;
 import java.awt.Graphics2D;
 import java.awt.event.KeyEvent;
 import java.awt.geom.Point2D;
+import java.util.Map;
 
 /**
  * A pasted or dropped fragment that floats over the canvas. It is not part of the document until it is committed as
@@ -152,8 +154,11 @@ public final class FloatingSelectionTool implements Tool {
         if (finished) {
             return;
         }
+        // a pasted salida shows the colour it will have: its entrada's in the circuit, else a pasted entrada's
+        Map<String, Integer> tunnelColors = Tunnels.colorsByName(context.openDocument().document(),
+                fragment.components());
         for (DocumentElement element : fragment.elements()) {
-            context.paintGhost(graphics, element.translate(position.x(), position.y()), types(context));
+            context.paintGhost(graphics, element.translate(position.x(), position.y()), types(context), tunnelColors);
         }
     }
 
