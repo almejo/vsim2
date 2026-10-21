@@ -176,7 +176,10 @@ final class PageDecorations {
         paintLegend(graphics, left, top + LEGEND_OFFSET_POINTS + metrics.getAscent());
     }
 
-    /** «Estados de los cables:», then a short wire of each state drawn as on paper, with its name. */
+    /**
+     * «Cables (1 y 0 difieren solo en el gris):» (spec §3.3: both are solid lines), then a short wire of each state
+     * drawn as on paper, with its name.
+     */
     private void paintLegend(Graphics2D graphics, double left, double baseline) {
         LineMetrics metrics = legendFont.getLineMetrics("Ag", MEASURE);
         double sampleY = baseline - metrics.getAscent() * 0.35;

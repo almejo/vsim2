@@ -54,8 +54,14 @@ public final class LedPainter implements ComponentPainter {
             graphics.setColor(PainterSupport.withAlpha(color, 70));
             graphics.fill(new Ellipse2D.Double(-3, -3, 22, 22));
         }
-        PainterSupport.body(graphics, new Ellipse2D.Double(0.5, 0.5, 15, 15), scheme,
-                lit ? color : unlitColorFor(colorName));
+        Color lens;
+        if (MonochromeScheme.isMonochrome(scheme)) {
+            // grey alone barely tells a lit LED from an unlit one on paper: filled black against an empty outline
+            lens = lit ? MonochromeScheme.BLACK : Color.WHITE;
+        } else {
+            lens = lit ? color : unlitColorFor(colorName);
+        }
+        PainterSupport.body(graphics, new Ellipse2D.Double(0.5, 0.5, 15, 15), scheme, lens);
         graphics.setColor(new Color(255, 255, 255, lit ? 170 : 110));
         graphics.fill(new Ellipse2D.Double(4, 3, 5, 4));
         PainterSupport.pinDots(graphics, type, scheme);

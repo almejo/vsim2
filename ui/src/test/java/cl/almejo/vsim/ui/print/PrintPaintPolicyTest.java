@@ -211,6 +211,24 @@ class PrintPaintPolicyTest {
     }
 
     @Test
+    void inBlackAndWhiteALitLedIsFilledDarkAndAnUnlitOneIsOnlyItsOutline() {
+        for (String colour : List.of("green", "red", "yellow", "white", "blue")) {
+            Component lit = add(StandardComponentTypes.LED, 2, 2, Map.of("color", colour));
+            componentStates.put(lit.id().value(), new VisibleState.LedState(Value.ONE));
+            Component unlit = add(StandardComponentTypes.LED, 8, 2, Map.of("color", colour));
+            componentStates.put(unlit.id().value(), new VisibleState.LedState(Value.ZERO));
+            BufferedImage image = render(ColorScheme.LIGHT, PaintPolicy.print(true), 1, 120, 60, true);
+            // the middle of the lens, below its highlight
+            int litLevel = new Color(image.getRGB(2 * UNIT + 8, 2 * UNIT + 11)).getRed();
+            int unlitLevel = new Color(image.getRGB(8 * UNIT + 8, 2 * UNIT + 11)).getRed();
+            assertThat(litLevel).as("lit %s", colour).isLessThan(60);
+            assertThat(unlitLevel).as("unlit %s", colour).isGreaterThan(200);
+            document.remove(lit.id());
+            document.remove(unlit.id());
+        }
+    }
+
+    @Test
     void inBlackAndWhiteAFrameHasNoFillOnlyItsBorderAndTitle() {
         frame(0, 0, 40, 30, "Marco", FrameTint.PURPLE);
         BufferedImage image = render(ColorScheme.LIGHT, PaintPolicy.print(true), 1, 340, 260, true);

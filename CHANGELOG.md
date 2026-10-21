@@ -14,8 +14,9 @@ sección es un conjunto de funciones, con las fechas en que se hizo. El detalle 
 - «Ajustar a una hoja» lo achica a una sola hoja (avisa si el texto queda muy chico y ofrece «Dividir en varias
   hojas»); con un porcentaje se reparte en varias hojas que se solapan 1 cm, con marcas de corte y «Fila · Columna —
   Hoja n de N» para pegarlas.
-- «Blanco y negro» para imprimir en láser (marcos sin relleno, estados de los cables por gris y trazo, con leyenda),
-  «Con valores» y «Encabezado y pie de página» con título, archivo, fecha y número de hoja.
+- «Blanco y negro» para imprimir en láser (marcos sin relleno, estados de los cables por gris y trazo, con leyenda;
+  un LED encendido va relleno y uno apagado solo con su contorno), «Con valores» y «Encabezado y pie de página» con
+  título, archivo, fecha y número de hoja.
 - Vista previa igual al PDF, con un mapa de hojas y la hoja elegida en grande; el diálogo cuenta las hojas, pide
   confirmación sobre 50 y no deja pasar de 1.000.
 - Se escribe sin congelar la ventana, con barra de avance y «Cancelar»; un PDF anterior con el mismo nombre no se

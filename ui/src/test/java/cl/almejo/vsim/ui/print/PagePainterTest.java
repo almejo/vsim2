@@ -19,10 +19,13 @@ import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.core.tunnel.TunnelKind;
 import cl.almejo.vsim.core.tunnel.Tunnels;
 import cl.almejo.vsim.core.value.Value;
+import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.ColorSchemes;
+import cl.almejo.vsim.ui.paint.MonochromeScheme;
 import cl.almejo.vsim.ui.paint.TextFont;
 import cl.almejo.vsim.ui.paint.TextFonts;
+import cl.almejo.vsim.ui.paint.WireState;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -497,6 +500,14 @@ class PagePainterTest {
         PrintInput unsimulated = input(SimulationSnapshot.EMPTY);
         assertThat(unsimulated.hasValues()).isFalse();
         assertThat(text(render(painter(unsimulated, legend), 0), footerMiddle)).as("not «sin valores»").isZero();
+    }
+
+    @Test
+    void theLegendSaysThatOneAndZeroDifferOnlyByGrey() {
+        // both are solid lines (spec §3.3); the title says so, and still fits between the date and the sheet number
+        assertThat(Messages.text("print.legend.title")).contains("1", "0");
+        assertThat(MonochromeScheme.monochromeLook(WireState.ONE, false).stroke())
+                .isEqualTo(MonochromeScheme.monochromeLook(WireState.ZERO, false).stroke());
     }
 
     @Test

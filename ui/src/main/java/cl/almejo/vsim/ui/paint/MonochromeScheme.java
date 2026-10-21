@@ -83,6 +83,11 @@ public final class MonochromeScheme {
         };
     }
 
+    /** Whether {@code scheme} is the black and white one: painters that draw a state by colour switch to shapes. */
+    public static boolean isMonochrome(ColorScheme scheme) {
+        return scheme == SCHEME;
+    }
+
     /** {@code color} as a grey of the same luminance, keeping its alpha. */
     public static Color grey(Color color) {
         int red = color.getRed();
