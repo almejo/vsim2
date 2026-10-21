@@ -27,6 +27,7 @@ import java.awt.event.KeyEvent;
 import java.util.List;
 import java.util.Map;
 
+import static cl.almejo.vsim.ui.UiTestSupport.awaitSimulation;
 import static cl.almejo.vsim.ui.UiTestSupport.place;
 import static cl.almejo.vsim.ui.UiTestSupport.waitUntil;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -336,7 +337,7 @@ class SelectToolSnapTest {
     }
 
     @Test
-    void aSwitchDraggedBackToItsPlaceByTheMagnetIsNotToggled() throws InterruptedException {
+    void aSwitchDraggedBackToItsPlaceByTheMagnetIsNotToggled() {
         Component lever = place(context.openDocument(), StandardComponentTypes.SWITCH, 20, 0,
                 Map.of("value", "1"));
         gate(20, 10); // its left, centre and right lines are the switch's
@@ -349,8 +350,7 @@ class SelectToolSnapTest {
         tool.mouseDragged(context, TestToolContext.at(centreX + 1, centreY));
         tool.mouseReleased(context, TestToolContext.at(centreX + 1, centreY));
         assertThat(position(lever)).isEqualTo(new GridPoint(20, 0));
-        Thread.sleep(300); // an interaction would be published well within this
-        assertThat(context.openDocument().latestSnapshot().componentState(lever.id().value()))
+        assertThat(awaitSimulation(context.openDocument()).componentState(lever.id().value()))
                 .isEqualTo(new VisibleState.SwitchState(Value.ONE));
     }
 }
