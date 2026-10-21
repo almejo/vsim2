@@ -346,7 +346,8 @@ final class SharedStreamGraphics extends Graphics2D {
         }
         Area area = new Area(transformed);
         area.intersect(new Area(clip));
-        clip = new Path2D.Double(area);
+        // an empty path would clip nothing in a PDF viewer; a rectangle of no size clips everything, as in JFreePDF
+        clip = area.isEmpty() ? new Rectangle2D.Double() : new Path2D.Double(area);
     }
 
     @Override

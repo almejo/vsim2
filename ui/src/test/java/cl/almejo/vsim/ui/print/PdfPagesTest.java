@@ -204,6 +204,25 @@ class PdfPagesTest {
     }
 
     @Test
+    void clippingToNothingPaintsNothing() throws IOException {
+        // a frame title whose bar lies on another sheet: the sheet's clip and the bar's do not meet
+        Path file = write(List.of(new PdfPages.PageSize(200, 200)), (pageIndex, graphics) -> {
+            Graphics2D sheet = (Graphics2D) graphics.create();
+            sheet.clip(new Rectangle2D.Double(0, 0, 100, 100));
+            Graphics2D bar = (Graphics2D) sheet.create();
+            bar.clip(new Rectangle2D.Double(120, 120, 50, 50));
+            bar.setColor(Color.BLACK);
+            bar.fill(new Rectangle2D.Double(0, 0, 200, 200));
+            bar.dispose();
+            sheet.dispose();
+        });
+
+        BufferedImage page = PdfReading.render(file, 0, 1);
+        assertThat(isDark(page.getRGB(50, 50))).as("inside the sheet's clip").isFalse();
+        assertThat(isDark(page.getRGB(140, 140))).as("inside the bar's clip").isFalse();
+    }
+
+    @Test
     void disposingAChildAgainLaterMovesNothing() throws IOException {
         // java.awt.Graphics disposes a graphics again when it is finalised, at any moment of a later page.
         Path file = write(List.of(new PdfPages.PageSize(200, 200)), (pageIndex, graphics) -> {
