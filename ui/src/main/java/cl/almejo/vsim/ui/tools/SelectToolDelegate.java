@@ -1,8 +1,10 @@
 package cl.almejo.vsim.ui.tools;
 
 import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.core.document.Guide;
 
 import java.awt.Graphics2D;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
@@ -48,6 +50,11 @@ public interface SelectToolDelegate {
      */
     default boolean refreshSnap(ToolContext context) {
         return false;
+    }
+
+    /** The guides the delegate's gesture lies on (see {@link Tool#snappedGuides}); none by default. */
+    default List<Guide> snappedGuides() {
+        return List.of();
     }
 
     /** Escape, or the tool going away, while a press of this delegate is held: forget it, change nothing. */

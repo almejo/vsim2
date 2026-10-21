@@ -17,6 +17,7 @@ import cl.almejo.vsim.core.geometry.SnapResult;
 import cl.almejo.vsim.core.geometry.SnapTarget;
 import cl.almejo.vsim.core.geometry.Snapping;
 import cl.almejo.vsim.ui.app.AppPreferences;
+import cl.almejo.vsim.ui.canvas.ConnectionPoints;
 import cl.almejo.vsim.ui.canvas.Viewport;
 import cl.almejo.vsim.ui.tools.ToolContext;
 
@@ -75,10 +76,42 @@ public final class DefaultSnapper implements Snapper {
                 .orElse(List.of());
     }
 
-    /** Task 8 snaps wire and frame points to guides and grid lines; until then a point stays on its grid point. */
+    /**
+     * Wire and frame points (spec §4.4, points rule): a point that already is a connection (a pin, a wire end, a
+     * wire's interior) never moves; any other point goes, per axis, to the nearest guide within reach, else to a grid
+     * line when they are chosen. Parts never pull a point.
+     */
     @Override
     public PointResolution snapPoint(ToolContext context, GridPoint point) {
-        return new PointResolution(point, PointResolution.Reason.GRID);
+        if (!preferences.snapToAlignments()) {
+            return new PointResolution(point, PointResolution.Reason.GRID);
+        }
+        List<SnapTarget> targets = guideTargets(context);
+        OptionalInt spacing = gridLineSpacing();
+        if (targets.isEmpty() && spacing.isEmpty()) {
+            return new PointResolution(point, PointResolution.Reason.GRID);
+        }
+        if (new ConnectionPoints(context.openDocument().registry())
+                .isConnection(context.openDocument().document(), point)) {
+            return new PointResolution(point, PointResolution.Reason.CONNECTION);
+        }
+        Map<Axis, List<Double>> movingLines = new EnumMap<>(Axis.class);
+        movingLines.put(Axis.X, List.of((double) point.x()));
+        movingLines.put(Axis.Y, List.of((double) point.y()));
+        SnapResult result = Snapping.solve(new SnapInput(movingLines, 0, 0, targets, thresholdUnits(context), spacing,
+                Optional.empty()));
+        List<Guide> guides = new ArrayList<>();
+        boolean onGridLine = false;
+        for (Optional<SnapTarget> winner : List.of(result.winnerX(), result.winnerY())) {
+            if (winner.isPresent() && winner.get().kind() == SnapKind.GUIDE) {
+                guides.add(MatchedGuides.guideOf(winner.get()));
+            } else if (winner.isPresent() && winner.get().kind() == SnapKind.GRID_LINE) {
+                onGridLine = true;
+            }
+        }
+        PointResolution.Reason reason = !guides.isEmpty() ? PointResolution.Reason.GUIDE
+                : onGridLine ? PointResolution.Reason.GRID_LINE : PointResolution.Reason.GRID;
+        return new PointResolution(point.translate(result.deltaX(), result.deltaY()), reason, guides);
     }
 
     @Override

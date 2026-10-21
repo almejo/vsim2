@@ -48,6 +48,27 @@ public final class ConnectionPoints {
     }
 
     /**
+     * True when {@code point} already is a connection: a component pin, a wire end or a point on a wire's interior.
+     * Ajustar never moves such a point to a guide or a grid line (alignment-guides spec §4.4).
+     */
+    public boolean isConnection(CircuitDocument document, GridPoint point) {
+        for (Wire wire : document.wires()) {
+            if (wire.contains(point)) {
+                return true;
+            }
+        }
+        for (Component component : document.components()) {
+            ComponentType type = registry.typeOf(component);
+            for (int pinIndex = 0; pinIndex < type.pinCount(); pinIndex++) {
+                if (type.pinLocation(component, pinIndex).equals(point)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
      * The widest pin of any component located at {@code point}; 1 when there is none. A pin without a width of its
      * own (a tunnel's) counts with the width of its net in {@code netlist}, so a wire drawn from a tunnel on a bus
      * previews as a bus.

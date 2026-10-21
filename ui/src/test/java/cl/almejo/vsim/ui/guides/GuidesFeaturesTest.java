@@ -467,6 +467,27 @@ class GuidesFeaturesTest {
         assertThat(hidden.getRGB(5, 83)).isEqualTo(hidden.getRGB(5, 43));
     }
 
+    @Test
+    void theGuideTheActiveGestureSnappedToIsDrawnSolidAndTheOthersStayDashed() {
+        BufferedImage without = paint(view.canvas());
+        setGuides(HORIZONTAL_10, HORIZONTAL_20);
+        BufferedImage dashed = paint(view.canvas());
+        view.canvas().setTool(new cl.almejo.vsim.ui.tools.Tool() {
+            @Override
+            public List<Guide> snappedGuides() {
+                return List.of(HORIZONTAL_10);
+            }
+        });
+        BufferedImage highlighted = paint(view.canvas());
+
+        int width = without.getWidth() - 20;
+        assertThat(differingPixels(without, dashed, 20, 80)).isLessThan(width * 3 / 4);
+        assertThat(differingPixels(without, highlighted, 20, 80)).isEqualTo(width); // solid across the canvas
+        assertThat(differingPixels(dashed, highlighted, 20, 160)).isZero(); // the other guide is still dashed
+        view.canvas().setTool(view.canvas().defaultTool());
+        assertThat(differingPixels(dashed, paint(view.canvas()), 20, 80)).isZero();
+    }
+
     private static BufferedImage paint(CircuitCanvas canvas) {
         BufferedImage image = new BufferedImage(canvas.getWidth(), canvas.getHeight(), BufferedImage.TYPE_INT_ARGB);
         Graphics2D graphics = image.createGraphics();

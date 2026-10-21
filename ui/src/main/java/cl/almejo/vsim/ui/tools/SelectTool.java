@@ -9,6 +9,7 @@ import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.core.document.Guide;
 import cl.almejo.vsim.core.document.LabelOffset;
 import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.document.Wire;
@@ -28,6 +29,7 @@ import cl.almejo.vsim.ui.paint.TextFonts;
 import cl.almejo.vsim.ui.canvas.MarchingAnts;
 import cl.almejo.vsim.ui.canvas.SelectionBounds;
 import cl.almejo.vsim.ui.snap.AlignmentLinesPainter;
+import cl.almejo.vsim.ui.snap.MatchedGuides;
 import cl.almejo.vsim.ui.snap.SnappedMove;
 import cl.almejo.vsim.ui.wiring.MovePreview;
 import cl.almejo.vsim.ui.wiring.SelectionMoves;
@@ -357,7 +359,7 @@ public final class SelectTool implements Tool {
             return;
         }
         if (wire != null) {
-            wire.dragTo(event);
+            wire.dragTo(context, event);
             context.repaint();
             return;
         }
@@ -635,11 +637,29 @@ public final class SelectTool implements Tool {
         if (activeDelegate != null) {
             return activeDelegate.refreshSnap(context);
         }
+        if (wire != null) {
+            boolean changed = wire.refreshSnap(context);
+            if (changed) {
+                context.repaint();
+            }
+            return changed;
+        }
         if (lastDrag == null || pressPoint == null || wire != null || bandStart != null || labelComponent != null) {
             return false;
         }
         mouseDragged(context, lastDrag);
         return true;
+    }
+
+    @Override
+    public List<Guide> snappedGuides() {
+        if (activeDelegate != null) {
+            return activeDelegate.snappedGuides();
+        }
+        if (wire != null) {
+            return wire.snappedGuides();
+        }
+        return lastDrag != null && pressPoint != null ? MatchedGuides.of(snappedMove.matches()) : List.of();
     }
 
     /** For tests: the alignment lines the current move draws. */

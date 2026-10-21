@@ -360,13 +360,22 @@ public final class GuidesFeatures {
      * {@code screenGraphics} is in logical pixels.
      */
     void paintGuideLine(Graphics2D screenGraphics, Guide guide) {
+        paintGuideLine(screenGraphics, guide, false);
+    }
+
+    /**
+     * Like {@link #paintGuideLine(Graphics2D, Guide)}; a {@code highlighted} guide (the one the gesture under way
+     * snapped to, spec §4.4) is drawn slightly stronger: solid and opaque instead of dashed.
+     */
+    void paintGuideLine(Graphics2D screenGraphics, Guide guide, boolean highlighted) {
         Color color = canvas.scheme().guide();
-        screenGraphics.setColor(color);
+        screenGraphics.setColor(highlighted ? new Color(color.getRGB() | 0xFF000000) : color);
         int at = (int) Math.round(screenCoordinate(guide));
         boolean horizontal = guide.orientation() == Orientation.HORIZONTAL;
         int length = horizontal ? canvas.getWidth() : canvas.getHeight();
-        for (int start = 0; start < length; start += 2 * DASH) {
-            int piece = Math.min(DASH, length - start);
+        int step = highlighted ? length : 2 * DASH;
+        for (int start = 0; start < length; start += step) {
+            int piece = highlighted ? length : Math.min(DASH, length - start);
             if (horizontal) {
                 screenGraphics.fillRect(start, at, piece, 1);
             } else {
