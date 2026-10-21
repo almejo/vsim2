@@ -19,8 +19,8 @@ import cl.almejo.vsim.core.tunnel.Tunnels;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.Selection;
 import cl.almejo.vsim.ui.clipboard.FragmentTransferable;
+import cl.almejo.vsim.ui.i18n.FrameTintNames;
 import cl.almejo.vsim.ui.i18n.Messages;
-import cl.almejo.vsim.ui.tunnel.TunnelColorSwatches;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -137,8 +137,8 @@ class PropertiesPanelTest {
         Component entrance = place(openDocument, StandardComponentTypes.TUNNEL_ENTRANCE, 0, 0,
                 Map.of(Tunnels.NAME, "CLK"));
         selection.select(entrance.id());
-        TunnelColorSwatches swatches = (TunnelColorSwatches) panel.parameterForm().editor(Tunnels.COLOR);
-        assertThat(swatches.selectedColor()).isZero();
+        ColorSwatches<?> swatches = (ColorSwatches<?>) panel.parameterForm().editor(Tunnels.COLOR);
+        assertThat(swatches.selectedValue()).isEqualTo(0);
 
         swatches.swatch(5).doClick();
 
@@ -147,6 +147,36 @@ class PropertiesPanelTest {
         openDocument.history().undo();
         assertThat(current(entrance).parameters()).containsEntry(Tunnels.COLOR, 0);
         assertThat(openDocument.history().undoDescription()).contains("command.add");
+    }
+
+    @Test
+    void choosingAnLedSwatchRecoloursTheLedInOneStep() {
+        Component led = place(openDocument, StandardComponentTypes.LED, 0, 0, Map.of());
+        selection.select(led.id());
+        ColorSwatches<?> swatches = (ColorSwatches<?>) panel.parameterForm().editor("color");
+        assertThat(swatches.selectedValue()).isEqualTo("red");
+
+        swatches.swatch(swatches.values().indexOf("green")).doClick();
+
+        assertThat(current(led).parameters()).containsEntry("color", "green");
+        assertThat(openDocument.history().undoDescription()).contains("command.configure");
+        openDocument.history().undo();
+        assertThat(current(led).parameters()).containsEntry("color", "red");
+        assertThat(openDocument.history().undoDescription()).contains("command.add");
+    }
+
+    @Test
+    void theFrameColourSwatchesOfferEveryTintNamedAndFollowAnUndo() {
+        Frame frame = frame(false);
+        ColorSwatches<FrameTint> swatches = panel.frameColor();
+        assertThat(swatches.values()).containsExactly(FrameTint.values());
+        assertThat(swatches.swatch(0).getToolTipText()).isEqualTo(FrameTintNames.of(FrameTint.NONE));
+
+        swatches.swatch(FrameTint.GREEN.ordinal()).doClick();
+        openDocument.history().undo();
+
+        assertThat(current(frame).tint()).isEqualTo(FrameTint.BLUE);
+        assertThat(panel.frameColor().selectedValue()).isEqualTo(FrameTint.BLUE);
     }
 
     @Test
@@ -175,7 +205,7 @@ class PropertiesPanelTest {
         selection.select(entrance.id());
         JTextField name = (JTextField) panel.parameterForm().editor(Tunnels.NAME);
         name.setText("RELOJ");
-        TunnelColorSwatches swatches = (TunnelColorSwatches) panel.parameterForm().editor(Tunnels.COLOR);
+        ColorSwatches<?> swatches = (ColorSwatches<?>) panel.parameterForm().editor(Tunnels.COLOR);
 
         swatches.swatch(4).doClick();
 
@@ -347,7 +377,7 @@ class PropertiesPanelTest {
         frame(false);
         assertThat(panel.heading()).isEqualTo("Marco");
         assertThat(panel.textField().getText()).isEqualTo("Sumador");
-        assertThat(panel.frameColor().getSelectedItem()).isEqualTo(FrameTint.BLUE);
+        assertThat(panel.frameColor().selectedValue()).isEqualTo(FrameTint.BLUE);
         assertThat(Arrays.stream(panel.frameSpinners()).map(JSpinner::getValue).toList())
                 .containsExactly(2, 3, 20, 12);
         assertThat(panel.frameSpinners()[2].isEnabled()).isTrue();
@@ -359,7 +389,7 @@ class PropertiesPanelTest {
         panel.textField().setText("Lógica");
         panel.commitEdits();
         assertThat(current(frame).title()).isEqualTo("Lógica");
-        panel.frameColor().setSelectedItem(FrameTint.RED);
+        panel.frameColor().swatch(FrameTint.RED.ordinal()).doClick();
         assertThat(current(frame).tint()).isEqualTo(FrameTint.RED);
         openDocument.history().undo();
         assertThat(current(frame).tint()).isEqualTo(FrameTint.BLUE);
@@ -418,7 +448,7 @@ class PropertiesPanelTest {
         place(openDocument, StandardComponentTypes.NOT, 6, 6, Map.of());
         assertThat(panel.heading()).isEqualTo("Marco");
         assertThat(panel.textField().getText()).isEqualTo("Sumador");
-        assertThat(panel.frameColor().getSelectedItem()).isEqualTo(FrameTint.BLUE);
+        assertThat(panel.frameColor().selectedValue()).isEqualTo(FrameTint.BLUE);
         assertThat(Arrays.stream(panel.frameSpinners()).map(JSpinner::getValue).toList())
                 .containsExactly(2, 3, 20, 12);
         assertThat(checkBoxesIn(panel)).isEmpty();

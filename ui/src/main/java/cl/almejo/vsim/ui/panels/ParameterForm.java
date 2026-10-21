@@ -8,6 +8,7 @@ import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.tunnel.Tunnels;
 import cl.almejo.vsim.ui.clipboard.FragmentRefusingTransferHandler;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.paint.LedPainter;
 import cl.almejo.vsim.ui.tunnel.TunnelColorSwatches;
 import net.miginfocom.swing.MigLayout;
 
@@ -204,7 +205,7 @@ public final class ParameterForm extends JPanel {
                     field.addFocusListener(onFocusLost);
                 }
                 case JComboBox<?> box -> box.addActionListener(event -> listener.run());
-                case TunnelColorSwatches swatches -> swatches.addChoiceListener(listener);
+                case ColorSwatches<?> swatches -> swatches.addChoiceListener(listener);
                 default -> throw new IllegalStateException("unexpected editor " + editor.getClass());
             }
         }
@@ -214,10 +215,13 @@ public final class ParameterForm extends JPanel {
         return ((JSpinner.DefaultEditor) spinner.getEditor()).getTextField();
     }
 
-    /** A tunnel entrada's colour is picked from swatches (spec §5); every other parameter by its kind. */
+    /**
+     * A tunnel entrada's palette colour (an integer, spec §5) and every {@code COLOR} parameter are picked from
+     * swatches; every other parameter by its kind.
+     */
     private static JComponent editorFor(ComponentType type, ParameterSpec parameter, Object value) {
         if (type.id().equals(StandardComponentTypes.TUNNEL_ENTRANCE) && parameter.name().equals(Tunnels.COLOR)) {
-            return new TunnelColorSwatches((Integer) value);
+            return TunnelColorSwatches.create((Integer) value);
         }
         return switch (parameter.kind()) {
             case INTEGER -> {
@@ -243,6 +247,10 @@ public final class ParameterForm extends JPanel {
                 });
                 yield box;
             }
+            // the LED's colour names are the colour vocabulary of COLOR parameters (it is the only one today)
+            case COLOR -> new ColorSwatches<>(parameter.choices(), (String) value,
+                    colorName -> Messages.choiceName(parameter.name(), colorName),
+                    colorName -> Optional.of(LedPainter.colorFor(colorName)));
         };
     }
 
@@ -258,7 +266,7 @@ public final class ParameterForm extends JPanel {
             }
             case JTextField field -> field.getText();
             case JComboBox<?> box -> box.getSelectedItem();
-            case TunnelColorSwatches swatches -> swatches.selectedColor();
+            case ColorSwatches<?> swatches -> swatches.selectedValue();
             default -> throw new IllegalStateException("unexpected editor " + editor.getClass());
         };
     }

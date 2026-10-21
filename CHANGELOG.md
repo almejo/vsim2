@@ -5,6 +5,15 @@ Los cambios de VSim 2 que se notan al usarlo, del más nuevo al más antiguo. El
 sección es un conjunto de funciones, con las fechas en que se hizo. El detalle de cada función está en
 [docs/funciones.md](docs/funciones.md).
 
+## 2026-10-21 — Mejoras cortas
+
+### Cambiado
+
+- El color de un LED y el de un marco se eligen con la misma fila de muestras que la entrada de un túnel, cada una
+  con su nombre al pasar el mouse; «Sin color» es la muestra tachada.
+- El anillo de la muestra elegida usa el color de acento del tema y se ve bien también en el tema claro y en el
+  oscuro; las flechas pasan de una muestra a otra y Enter o Espacio elige.
+
 ## 2026-10-19 — 2026-10-20 — Exportar a PDF
 
 ### Agregado

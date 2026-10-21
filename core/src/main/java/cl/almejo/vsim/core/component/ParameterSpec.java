@@ -27,7 +27,7 @@ public record ParameterSpec(String name, ParameterKind kind, Object defaultValue
         Objects.requireNonNull(name, "name");
         Objects.requireNonNull(kind, "kind");
         choices = choices == null ? List.of() : List.copyOf(choices);
-        if (kind == ParameterKind.CHOICE && !choices.contains(defaultValue)) {
+        if ((kind == ParameterKind.CHOICE || kind == ParameterKind.COLOR) && !choices.contains(defaultValue)) {
             throw new IllegalArgumentException("default " + defaultValue + " is not one of " + choices);
         }
     }
@@ -49,6 +49,14 @@ public record ParameterSpec(String name, ParameterKind kind, Object defaultValue
         return new ParameterSpec(name, ParameterKind.CHOICE, defaultValue, 0, 0, choices);
     }
 
+    /**
+     * A choice among colour names, shown as swatches. The names are plain values (core knows no colours); the UI
+     * paints each one, so a new colour parameter gets the swatch editor without any UI change.
+     */
+    public static ParameterSpec color(String name, String defaultValue, List<String> colorNames) {
+        return new ParameterSpec(name, ParameterKind.COLOR, defaultValue, 0, 0, colorNames);
+    }
+
     /** This parameter marked as {@linkplain #displayOnly() display-only}. */
     public ParameterSpec asDisplayOnly() {
         return new ParameterSpec(name, kind, defaultValue, minimum, maximum, choices, textNormalizer, true);
@@ -60,7 +68,7 @@ public record ParameterSpec(String name, ParameterKind kind, Object defaultValue
         return switch (kind) {
             case INTEGER -> normalizeInteger(raw);
             case TEXT -> textNormalizer == null ? raw.toString() : textNormalizer.apply(raw.toString());
-            case CHOICE -> {
+            case CHOICE, COLOR -> {
                 String text = raw.toString();
                 if (!choices.contains(text)) {
                     throw new IllegalArgumentException("parameter " + name + ": " + text + " is not one of " + choices);

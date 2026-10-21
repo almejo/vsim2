@@ -61,14 +61,41 @@ class ParameterFormTest {
 
     @Test
     void choiceEditorOffersTheParameterChoices() {
-        ParameterForm form = form(StandardComponentTypes.LED, Map.of());
+        ParameterForm form = form(StandardComponentTypes.INPUT_PIN, Map.of());
         @SuppressWarnings("unchecked")
-        JComboBox<String> colors = (JComboBox<String>) form.editor("color");
-        assertThat(colors.getItemCount()).isEqualTo(8);
-        assertThat(colors.getSelectedItem()).isEqualTo("red");
-        colors.setSelectedItem("green");
+        JComboBox<String> values = (JComboBox<String>) form.editor("value");
+        assertThat(values.getItemCount()).isEqualTo(3);
+        assertThat(values.getSelectedItem()).isEqualTo("0");
+        values.setSelectedItem("1");
+        assertThat(form.rawValues()).containsEntry("value", "1");
+        assertThat(form.hasChanges()).isTrue();
+    }
+
+    @Test
+    void aColourParameterIsChosenFromNamedSwatches() {
+        ParameterForm form = form(StandardComponentTypes.LED, Map.of());
+        ColorSwatches<?> colors = (ColorSwatches<?>) form.editor("color");
+        assertThat(colors.values()).hasSize(8);
+        assertThat(colors.selectedValue()).isEqualTo("red");
+        assertThat(colors.swatch(1).getToolTipText()).isEqualTo("Verde");
+
+        colors.swatch(1).doClick();
+
         assertThat(form.rawValues()).containsEntry("color", "green");
         assertThat(form.hasChanges()).isTrue();
+    }
+
+    @Test
+    void aTunnelEntradaPicksItsPaletteColourFromNamedSwatches() {
+        ParameterForm form = form(StandardComponentTypes.TUNNEL_ENTRANCE, Map.of());
+        ColorSwatches<?> colors = (ColorSwatches<?>) form.editor("color");
+        assertThat(colors.values()).hasSize(8);
+        assertThat(colors.swatch(0).getToolTipText()).isEqualTo(Messages.text("tunnel.color.red"));
+        assertThat(colors.swatch(6).getToolTipText()).isEqualTo(Messages.text("tunnel.color.pink"));
+
+        colors.swatch(6).doClick();
+
+        assertThat(form.rawValues()).containsEntry("color", 6);
     }
 
     @Test
@@ -97,9 +124,9 @@ class ParameterFormTest {
 
     @Test
     void choiceWithNothingSelectedReportsAnInvalidValue() {
-        ParameterForm form = form(StandardComponentTypes.LED, Map.of());
-        ((JComboBox<?>) form.editor("color")).setSelectedItem(null);
-        assertThat(form.validationError()).contains("Valor inválido para Color");
+        ParameterForm form = form(StandardComponentTypes.INPUT_PIN, Map.of());
+        ((JComboBox<?>) form.editor("value")).setSelectedItem(null);
+        assertThat(form.validationError()).contains("Valor inválido para " + Messages.parameterName("value"));
     }
 
     @Test
@@ -121,8 +148,14 @@ class ParameterFormTest {
         ParameterForm led = form(StandardComponentTypes.LED, Map.of());
         AtomicInteger choices = new AtomicInteger();
         led.addCommitListener(choices::incrementAndGet);
-        ((JComboBox<?>) led.editor("color")).setSelectedItem("green");
+        ((ColorSwatches<?>) led.editor("color")).swatch(1).doClick();
         assertThat(choices.get()).isPositive();
+
+        ParameterForm pin = form(StandardComponentTypes.INPUT_PIN, Map.of());
+        AtomicInteger pinChoices = new AtomicInteger();
+        pin.addCommitListener(pinChoices::incrementAndGet);
+        ((JComboBox<?>) pin.editor("value")).setSelectedItem("1");
+        assertThat(pinChoices.get()).isPositive();
     }
 
     private static JLabel labelOf(ParameterForm form, String parameterName) {

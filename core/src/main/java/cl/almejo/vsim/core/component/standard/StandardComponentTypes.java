@@ -140,7 +140,7 @@ public final class StandardComponentTypes {
                 }));
         registry.register(new ComponentType(LED, ComponentCategory.INPUT_OUTPUT, new GridSize(2, 3),
                 List.of(PinSpec.input("in", 1, 3)),
-                List.of(ParameterSpec.choice("color", "red",
+                List.of(ParameterSpec.color("color", "red",
                         List.of("red", "green", "yellow", "blue", "orange", "white", "purple", "cyan"))),
                 parameters -> new LedBehavior()));
         registry.register(sevenSegments(SEVEN_SEGMENTS_DISPLAY, 4));
