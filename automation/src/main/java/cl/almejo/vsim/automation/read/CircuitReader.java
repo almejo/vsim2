@@ -175,7 +175,7 @@ public final class CircuitReader {
         net.ifPresent(found -> nets.putIfAbsent(found.id(), found));
         int width = spec.isAdaptiveWidth() ? net.map(Net::width).orElse(1) : spec.width();
         boolean connected = net.map(found -> !found.wires().isEmpty() || found.pins().size() > 1).orElse(false);
-        return new PinView(new PinReference(component.id().value(), spec.name(), index), spec.direction().name(),
+        return new PinView(PinReference.of(component.id().value(), type, index), spec.direction().name(),
                 width, type.pinLocation(component, index), net.map(found -> found.id().value()).orElse(""),
                 connected);
     }
@@ -207,8 +207,7 @@ public final class CircuitReader {
         return source.document().component(pin.componentId())
                 .flatMap(component -> source.registry().findTypeOf(component))
                 .filter(type -> pin.pinIndex() < type.pinCount())
-                .map(type -> new PinReference(pin.componentId().value(), type.pin(pin.pinIndex()).name(),
-                        pin.pinIndex()));
+                .map(type -> PinReference.of(pin.componentId().value(), type, pin.pinIndex()));
     }
 
     private static Summary summary(ReadSource source) {

@@ -284,18 +284,7 @@ public final class SimulationEngine {
      * @throws IllegalStateException when more than {@link #STEP_EVENT_BUDGET} events would run at that time
      */
     public StepResult advanceToNextEvent() {
-        long fromTime = now();
-        OptionalLong next = nextEventTime();
-        if (next.isEmpty()) {
-            return StepResult.idle(fromTime);
-        }
-        Set<String> changed = startTracking();
-        try {
-            scheduler.runUntil(next.getAsLong(), STEP_EVENT_BUDGET);
-        } finally {
-            changedNets = null;
-        }
-        return new StepResult(fromTime, now(), changed, nextEventTime());
+        return advanceToNextEvent(STEP_EVENT_BUDGET);
     }
 
     /**
@@ -313,6 +302,11 @@ public final class SimulationEngine {
     }
 
     StepResult advanceToNextClockEdge(int maximumEventTimes) {
+        return advanceToNextClockEdge(maximumEventTimes, STEP_EVENT_BUDGET);
+    }
+
+    /** {@link #advanceToNextClockEdge(int)} with each event time limited to {@code maximumEventsPerTime} events. */
+    StepResult advanceToNextClockEdge(int maximumEventTimes, int maximumEventsPerTime) {
         long fromTime = now();
         List<RuntimeNet> clockOutputs = clockOutputs();
         if (clockOutputs.isEmpty()) {
@@ -320,7 +314,7 @@ public final class SimulationEngine {
         }
         for (int eventTimes = 0; eventTimes < maximumEventTimes; eventTimes++) {
             List<Value> before = clockOutputs.stream().map(net -> net.value).toList();
-            StepResult step = advanceToNextEvent();
+            StepResult step = advanceToNextEvent(maximumEventsPerTime);
             if (step.isIdle()) {
                 return new StepResult(fromTime, now(), Set.of(), OptionalLong.empty());
             }
@@ -368,6 +362,54 @@ public final class SimulationEngine {
             changedNets = null;
         }
         return new StepResult(now(), now(), changed, nextEventTime());
+    }
+
+    /**
+     * Runs {@code work} (any calls on this engine: inputs, clicks, steps, an update or a restart) allowing at most
+     * {@code maximumEvents} events in all, zero-delay effects and component initialization included (IA.1, A§7: the
+     * AI's requests never hang the simulation thread). When the next event would go over the budget the work stops
+     * there: the engine stays at the time it reached with that event pending, and nothing is rolled back. Outside this
+     * call the engine is unlimited, as for the user. A failure other than the budget reaches the caller.
+     *
+     * @throws IllegalArgumentException when {@code maximumEvents} is not positive
+     */
+    public EventBudgetRun runWithEventBudget(long maximumEvents, Runnable work) {
+        if (maximumEvents <= 0) {
+            throw new IllegalArgumentException("the event budget must be positive: " + maximumEvents);
+        }
+        long previousLimit = scheduler.eventLimit();
+        long start = scheduler.eventsRun();
+        scheduler.limitEvents(maximumEvents);
+        if (previousLimit < scheduler.eventLimit()) {
+            scheduler.restoreEventLimit(previousLimit); // a budget inside another never widens it
+        }
+        try {
+            work.run();
+            return new EventBudgetRun(scheduler.eventsRun() - start, false);
+        } catch (EventBudgetExceededException exception) {
+            return new EventBudgetRun(scheduler.eventsRun() - start, true);
+        } finally {
+            scheduler.restoreEventLimit(previousLimit);
+        }
+    }
+
+    /**
+     * {@link #advanceToNextEvent()} with another per-time event limit: {@link SimulationThread}'s budgeted step passes
+     * {@code Integer.MAX_VALUE} so that only its budget stops a zero-delay loop.
+     */
+    StepResult advanceToNextEvent(int maximumEvents) {
+        long fromTime = now();
+        OptionalLong next = nextEventTime();
+        if (next.isEmpty()) {
+            return StepResult.idle(fromTime);
+        }
+        Set<String> changed = startTracking();
+        try {
+            scheduler.runUntil(next.getAsLong(), maximumEvents);
+        } finally {
+            changedNets = null;
+        }
+        return new StepResult(fromTime, now(), changed, nextEventTime());
     }
 
     private Set<String> startTracking() {

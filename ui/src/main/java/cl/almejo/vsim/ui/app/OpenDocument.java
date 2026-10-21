@@ -18,6 +18,8 @@ import cl.almejo.vsim.core.netlist.NetlistCompiler;
 import cl.almejo.vsim.core.netlist.ProbeResolver;
 import cl.almejo.vsim.core.simulation.CircuitFlattener;
 import cl.almejo.vsim.core.simulation.FlatCircuit;
+import cl.almejo.vsim.core.simulation.InputAssignment;
+import cl.almejo.vsim.core.simulation.RequestReport;
 import cl.almejo.vsim.core.simulation.SimulationEngine;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.core.simulation.SimulationThread;
@@ -384,6 +386,47 @@ public final class OpenDocument implements AutoCloseable {
     /** The components (flat ids) with an event at the next event time; empty while running (M6.1-B). */
     public Set<String> latestPendingComponents() {
         return simulation.latestPendingComponents();
+    }
+
+    // --- IA.1: simulation requests with an event budget and one receipt each (SimulationThread, A§7) ---
+
+    /** Sets inputs in order, each reported accepted or rejected, within {@code eventBudget} events. */
+    public CompletableFuture<RequestReport> setInputsWithin(List<InputAssignment> inputs, long eventBudget) {
+        return simulation.setInputsWithin(inputs, eventBudget);
+    }
+
+    /** {@code count} «Avanzar» within {@code eventBudget} events; refused while running. */
+    public CompletableFuture<RequestReport> advanceToNextEventWithin(int count, long eventBudget) {
+        return simulation.advanceToNextEventWithin(count, eventBudget);
+    }
+
+    /** {@code count} «Avanzar al próximo flanco de reloj» within {@code eventBudget} events; refused while running. */
+    public CompletableFuture<RequestReport> advanceToNextClockEdgeWithin(int count, long eventBudget) {
+        return simulation.advanceToNextClockEdgeWithin(count, eventBudget);
+    }
+
+    /** «Avanzar N t» within {@code eventBudget} events; refused while running. */
+    public CompletableFuture<RequestReport> stepWithin(long duration, long eventBudget) {
+        return simulation.stepWithin(duration, eventBudget);
+    }
+
+    /**
+     * {@link #restart()} within {@code eventBudget} events. A circuit that cannot be flattened fails the future (and,
+     * as for the user, pauses the simulation with the failure).
+     */
+    public CompletableFuture<RequestReport> restartWithin(long eventBudget) {
+        try {
+            return simulation.restartWithin(flattener.flatten(document, netlist), updateProbeNets(), eventBudget);
+        } catch (RuntimeException exception) {
+            LOGGER.error("Could not restart the simulation of {}", displayName(), exception);
+            simulation.reportFailure(exception);
+            return CompletableFuture.failedFuture(exception);
+        }
+    }
+
+    /** A receipt of the simulation once every request made so far has run (nothing runs). */
+    public CompletableFuture<RequestReport> simulationReport() {
+        return simulation.report();
     }
 
     /** Probe id → top-level net id for the probes that resolve in the current netlist; the others are absent. */

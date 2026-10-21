@@ -17,6 +17,9 @@ final class Scheduler {
             Comparator.comparingLong(Entry::time).thenComparingLong(Entry::sequence));
     private long now;
     private long nextSequence;
+    private long eventsRun;
+    /** The value of {@link #eventsRun} at which the budget is used up; {@code Long.MAX_VALUE}: no budget. */
+    private long eventLimit = Long.MAX_VALUE;
 
     long now() {
         return now;
@@ -48,13 +51,17 @@ final class Scheduler {
         return owners;
     }
 
-    /** Runs every event with time &lt;= {@code until} (including ones scheduled meanwhile), then sets now = until. */
+    /**
+     * Runs every event with time &lt;= {@code until} (including ones scheduled meanwhile), then sets now = until. With a
+     * budget set ({@link #limitEvents}) it throws {@link EventBudgetExceededException} instead of going over it,
+     * leaving now at the time of the last event it ran.
+     */
     void runUntil(long until) {
         if (until < now) {
             throw new IllegalArgumentException("cannot go back in time from " + now + " to " + until);
         }
         while (!queue.isEmpty() && queue.peek().time() <= until) {
-            Entry entry = queue.poll();
+            Entry entry = nextWithinBudget();
             now = entry.time();
             entry.action().run();
         }
@@ -82,7 +89,7 @@ final class Scheduler {
             if (ran == maximumEvents) {
                 throw new IllegalStateException("too many events at t = " + queue.peek().time());
             }
-            Entry entry = queue.poll();
+            Entry entry = nextWithinBudget();
             now = entry.time();
             entry.action().run();
             ran++;
@@ -98,5 +105,45 @@ final class Scheduler {
 
     int pendingEvents() {
         return queue.size();
+    }
+
+    /**
+     * From now on every run (both {@code runUntil}s) stops with {@link EventBudgetExceededException} before it would
+     * run more than {@code maximumEvents} further events, until {@link #unlimitEvents()} (IA.1: the AI's runs).
+     */
+    void limitEvents(long maximumEvents) {
+        if (maximumEvents < 0) {
+            throw new IllegalArgumentException("negative event budget: " + maximumEvents);
+        }
+        eventLimit = maximumEvents > Long.MAX_VALUE - eventsRun ? Long.MAX_VALUE : eventsRun + maximumEvents;
+    }
+
+    /** Takes back {@link #limitEvents}: the runs are unlimited again, as the user's always are. */
+    void unlimitEvents() {
+        eventLimit = Long.MAX_VALUE;
+    }
+
+    /** How many events ran since this scheduler was made (never reset, not even by {@link #reset()}). */
+    long eventsRun() {
+        return eventsRun;
+    }
+
+    /** The event limit in force (an {@link #eventsRun()} value), {@code Long.MAX_VALUE} when there is none. */
+    long eventLimit() {
+        return eventLimit;
+    }
+
+    /** Restores a limit read with {@link #eventLimit()}. */
+    void restoreEventLimit(long limit) {
+        eventLimit = limit;
+    }
+
+    /** Takes the next event off the queue, counting it, or throws when the budget is used up. */
+    private Entry nextWithinBudget() {
+        if (eventsRun >= eventLimit) {
+            throw new EventBudgetExceededException(queue.peek().time());
+        }
+        eventsRun++;
+        return queue.poll();
     }
 }

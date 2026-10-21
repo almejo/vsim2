@@ -62,7 +62,7 @@ class ProblemsReaderTest {
 
         assertThat(problem.kind()).isEqualTo("WIDTH_MISMATCH");
         assertThat(problem.elementIds()).containsExactly(inverter.id().value());
-        assertThat(problem.pins()).containsExactly(new PinReference(inverter.id().value(), "y", 1));
+        assertThat(problem.pins()).containsExactly(new PinReference(inverter.id().value(), "y", 0));
         assertThat(problem.insidePaths()).containsExactly(inside);
     }
 

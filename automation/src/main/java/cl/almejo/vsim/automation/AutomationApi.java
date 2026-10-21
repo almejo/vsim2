@@ -9,12 +9,19 @@ import cl.almejo.vsim.automation.read.Reads;
 import cl.almejo.vsim.automation.read.RegionPicture;
 import cl.almejo.vsim.automation.read.WindowPicture;
 import cl.almejo.vsim.core.geometry.Bounds;
+import cl.almejo.vsim.automation.simulate.InputValue;
+import cl.almejo.vsim.automation.simulate.SignalsView;
+import cl.almejo.vsim.automation.simulate.SimulationOperations;
+import cl.almejo.vsim.automation.simulate.SimulationReceipt;
+import cl.almejo.vsim.automation.simulate.StepKind;
+import cl.almejo.vsim.automation.simulate.TruthTableView;
 
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
@@ -36,6 +43,7 @@ public final class AutomationApi {
     private final Duration editorTimeout;
     private final List<AutomationListener> listeners = new CopyOnWriteArrayList<>();
     private final Reads reads;
+    private final SimulationOperations simulation;
 
     public AutomationApi(AutomationHost host) {
         this(host, EDITOR_TIMEOUT);
@@ -45,6 +53,42 @@ public final class AutomationApi {
         this.host = Objects.requireNonNull(host, "host");
         this.editorTimeout = Objects.requireNonNull(editorTimeout, "editorTimeout");
         this.reads = new Reads(host, editorTimeout);
+        this.simulation = new SimulationOperations(host);
+    }
+
+    // --- Simulation with budgets and receipts (IA.1 Task 4): see SimulationOperations ---
+
+    public SimulationReceipt pause(DocumentId document) {
+        return simulation.pause(document);
+    }
+
+    public SimulationReceipt resume(DocumentId document) {
+        return simulation.resume(document);
+    }
+
+    public SimulationReceipt restart(DocumentId document) {
+        return simulation.restart(document);
+    }
+
+    public SimulationReceipt setInputs(DocumentId document, DocumentVersion version, String operationId,
+                                       List<InputValue> values) {
+        return simulation.setInputs(document, version, operationId, values);
+    }
+
+    public SimulationReceipt step(DocumentId document, StepKind kind, long amount, int eventBudget) {
+        return simulation.step(document, kind, amount, eventBudget);
+    }
+
+    public SignalsView readSignals(DocumentId document, List<PinReference> pins) {
+        return simulation.readSignals(document, pins);
+    }
+
+    public TruthTableView truthTable(DocumentId document, Set<String> elementIds, int maximumRows) {
+        return simulation.truthTable(document, elementIds, maximumRows, 0);
+    }
+
+    public TruthTableView truthTable(DocumentId document, Set<String> elementIds, int maximumRows, int eventBudget) {
+        return simulation.truthTable(document, elementIds, maximumRows, eventBudget);
     }
 
     /** The open circuits, one per circuit however many windows show it. */

@@ -6,6 +6,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -17,6 +18,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.LockSupport;
 import java.util.function.LongSupplier;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 /**
@@ -272,6 +274,202 @@ public final class SimulationThread implements AutoCloseable {
         CompletableFuture<SimulationSnapshot> future = new CompletableFuture<>();
         requests.add(() -> publicationWaiters.add(future));
         return future;
+    }
+
+    // --- Requests with an event budget and a receipt (IA.1 Task 4, A§7) ---
+    //
+    // Each one is queued like the others and runs on this thread within its budget; its future completes there, right
+    // after it ran, with one immutable RequestReport (never a mix of separately published fields). A request that
+    // runs out of budget stops at the time it reached and pauses the simulation, so the events left over cannot run
+    // away in the free run; nothing is rolled back. The user's own requests above keep their behaviour.
+
+    /**
+     * Sets input components one after another in the order given, each with its zero-delay effects before the next
+     * (sequential, not simultaneous: A§7), all of them within {@code eventBudget} events. Unlike {@link #setInputs}
+     * every input is reported accepted or rejected (an id that is gone, a component that is not an input, a value of
+     * another width). Running or paused stays as it was, unless the budget runs out. After the budget runs out the
+     * inputs not yet reached are reported rejected.
+     */
+    public CompletableFuture<RequestReport> setInputsWithin(List<InputAssignment> inputs, long eventBudget) {
+        List<InputAssignment> copy = List.copyOf(inputs);
+        requirePositiveBudget(eventBudget);
+        List<InputOutcome> outcomes = new ArrayList<>();
+        return budgeted(eventBudget, outcomes, () -> {
+            for (InputAssignment input : copy) {
+                try {
+                    engine.setInput(input.componentId(), input.value());
+                    outcomes.add(InputOutcome.accepted(input.componentId()));
+                } catch (IllegalArgumentException exception) {
+                    outcomes.add(InputOutcome.rejected(input.componentId(), String.valueOf(exception.getMessage())));
+                } catch (EventBudgetExceededException exception) {
+                    outcomes.add(new InputOutcome(input.componentId(), true,
+                            "set, but the event budget ran out during its zero-delay effects"));
+                    for (int index = outcomes.size(); index < copy.size(); index++) {
+                        outcomes.add(InputOutcome.rejected(copy.get(index).componentId(),
+                                "not set: the event budget ran out before it"));
+                    }
+                    throw exception;
+                }
+            }
+        });
+    }
+
+    /**
+     * {@code count} times {@link #advanceToNextEvent()}, all within {@code eventBudget} events (and no other per-time
+     * limit), stopping early once nothing is pending; paused only, published as one step.
+     *
+     * @throws IllegalArgumentException when {@code count} or {@code eventBudget} is not positive
+     */
+    public CompletableFuture<RequestReport> advanceToNextEventWithin(int count, long eventBudget) {
+        requirePositive(count, eventBudget);
+        return budgetedStep(eventBudget, () -> repeated(count, () -> engine.advanceToNextEvent(Integer.MAX_VALUE)));
+    }
+
+    /**
+     * {@code count} times {@link #advanceToNextClockEdge()}, all within {@code eventBudget} events, stopping early when
+     * one moves nothing (no clock, nothing pending); paused only, published as one step.
+     *
+     * @throws IllegalArgumentException when {@code count} or {@code eventBudget} is not positive
+     */
+    public CompletableFuture<RequestReport> advanceToNextClockEdgeWithin(int count, long eventBudget) {
+        requirePositive(count, eventBudget);
+        return budgetedStep(eventBudget, () -> repeated(count, () -> engine.advanceToNextClockEdge(
+                SimulationEngine.CLOCK_EDGE_TIME_BUDGET, Integer.MAX_VALUE)));
+    }
+
+    private static void requirePositive(int count, long eventBudget) {
+        if (count <= 0) {
+            throw new IllegalArgumentException("the count must be positive: " + count);
+        }
+        requirePositiveBudget(eventBudget);
+    }
+
+    /** {@code count} steps as one: from the first one's start to the last one's end, with every net that changed. */
+    private static StepResult repeated(int count, Supplier<StepResult> step) {
+        StepResult first = step.get();
+        StepResult last = first;
+        Set<String> changed = new LinkedHashSet<>(first.changedNets());
+        for (int done = 1; done < count && (last.time() != last.fromTime() || !last.changedNets().isEmpty())
+                && last.nextEventTime().isPresent(); done++) {
+            last = step.get();
+            changed.addAll(last.changedNets());
+        }
+        return new StepResult(first.fromTime(), last.time(), changed, last.nextEventTime());
+    }
+
+    /**
+     * «Avanzar N t» ({@link #step}) within {@code eventBudget} events; paused only. A time past the largest
+     * simulation time is refused.
+     *
+     * @throws IllegalArgumentException when {@code duration} or {@code eventBudget} is not positive
+     */
+    public CompletableFuture<RequestReport> stepWithin(long duration, long eventBudget) {
+        if (duration <= 0) {
+            throw new IllegalArgumentException("the duration must be positive: " + duration);
+        }
+        requirePositiveBudget(eventBudget);
+        CompletableFuture<RequestReport> future = new CompletableFuture<>();
+        requests.add(() -> {
+            if (duration > Long.MAX_VALUE - engine.now()) {
+                future.complete(reportOf(RequestReport.Status.REFUSED_TIME_OVERFLOW, engine.now(), 0, List.of()));
+                return;
+            }
+            runStep(future, eventBudget, () -> engine.advanceBy(duration));
+        });
+        return future;
+    }
+
+    /** {@link #restart} within {@code eventBudget} events (the components' initialization included). */
+    public CompletableFuture<RequestReport> restartWithin(FlatCircuit circuit, Map<String, String> channels,
+                                                          long eventBudget) {
+        Map<String, String> copy = Map.copyOf(channels);
+        requirePositiveBudget(eventBudget);
+        return budgeted(eventBudget, List.of(), () -> {
+            latestStep = null; // the old timeline's last jump must not come back as «(+N)»
+            failure = null;
+            pendingUnits = 0;
+            engine.restart(circuit, copy);
+        });
+    }
+
+    /** A receipt of the state once every earlier request ran: nothing runs (a reading of one instant). */
+    public CompletableFuture<RequestReport> report() {
+        CompletableFuture<RequestReport> future = new CompletableFuture<>();
+        requests.add(() -> future.complete(reportOf(RequestReport.Status.COMPLETED, engine.now(), 0, List.of())));
+        return future;
+    }
+
+    private static void requirePositiveBudget(long eventBudget) {
+        if (eventBudget <= 0) {
+            throw new IllegalArgumentException("the event budget must be positive: " + eventBudget);
+        }
+    }
+
+    /**
+     * Queues {@code work} to run within the budget, running or paused; {@code outcomes} is what the work reports per
+     * input (it fills it as it goes). A budget that runs out pauses the simulation.
+     */
+    private CompletableFuture<RequestReport> budgeted(long eventBudget, List<InputOutcome> outcomes, Runnable work) {
+        CompletableFuture<RequestReport> future = new CompletableFuture<>();
+        requests.add(() -> {
+            long fromTime = engine.now();
+            EventBudgetRun run;
+            try {
+                run = engine.runWithEventBudget(eventBudget, work);
+            } catch (RuntimeException exception) {
+                LOGGER.error("Simulation request failed; pausing", exception);
+                publishFailure(exception);
+                future.complete(reportOf(RequestReport.Status.FAILED, fromTime, 0, outcomes));
+                return;
+            }
+            if (run.exceeded()) {
+                running = false;
+            }
+            future.complete(reportOf(run.exceeded() ? RequestReport.Status.BUDGET_EXCEEDED
+                    : RequestReport.Status.COMPLETED, fromTime, run.eventsProcessed(), outcomes));
+        });
+        return future;
+    }
+
+    private CompletableFuture<RequestReport> budgetedStep(long eventBudget, Supplier<StepResult> step) {
+        CompletableFuture<RequestReport> future = new CompletableFuture<>();
+        requests.add(() -> runStep(future, eventBudget, step));
+        return future;
+    }
+
+    /**
+     * Runs one step on this thread within the budget: refused while running; otherwise published as
+     * {@link #latestStep()} like the user's «Avanzar» (when the budget ran out, without the nets that changed).
+     */
+    private void runStep(CompletableFuture<RequestReport> future, long eventBudget,
+                         Supplier<StepResult> step) {
+        long fromTime = engine.now();
+        if (running) {
+            future.complete(reportOf(RequestReport.Status.REFUSED_WHILE_RUNNING, fromTime, 0, List.of()));
+            return;
+        }
+        StepResult[] result = new StepResult[1];
+        EventBudgetRun run;
+        try {
+            run = engine.runWithEventBudget(eventBudget, () -> result[0] = step.get());
+        } catch (RuntimeException exception) {
+            LOGGER.error("Simulation step failed; pausing", exception);
+            publishFailure(exception);
+            future.complete(reportOf(RequestReport.Status.FAILED, fromTime, 0, List.of()));
+            return;
+        }
+        publishStep(result[0] == null
+                ? new StepResult(fromTime, engine.now(), Set.of(), engine.nextEventTime())
+                : result[0]);
+        future.complete(reportOf(run.exceeded() ? RequestReport.Status.BUDGET_EXCEEDED
+                : RequestReport.Status.COMPLETED, fromTime, run.eventsProcessed(), List.of()));
+    }
+
+    /** The receipt of the engine's state now; called on this thread right after a request. */
+    private RequestReport reportOf(RequestReport.Status status, long fromTime, long eventsProcessed,
+                                   List<InputOutcome> inputs) {
+        SimulationSnapshot snapshot = engine.snapshot().withRunning(running).withFailure(Optional.ofNullable(failure));
+        return new RequestReport(status, snapshot, engine.nextEventTime(), fromTime, eventsProcessed, inputs);
     }
 
     /** For tests: requests queued and not yet applied. */

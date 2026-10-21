@@ -52,8 +52,8 @@ class CircuitReaderTest {
         assertThat(part.bounds()).isEqualTo(fixture.registry.typeOf(flipFlop).bounds(flipFlop));
         assertThat(part.pins()).extracting(PinView::pin).containsExactly(
                 new PinReference(flipFlop.id().value(), "d", 0),
-                new PinReference(flipFlop.id().value(), "q", 1),
-                new PinReference(flipFlop.id().value(), "clock", 2));
+                new PinReference(flipFlop.id().value(), "q", 0),
+                new PinReference(flipFlop.id().value(), "clock", 0));
         assertThat(part.pins()).extracting(PinView::position)
                 .containsExactly(new GridPoint(10, 12), new GridPoint(14, 12), new GridPoint(12, 14));
         assertThat(part.pins()).extracting(PinView::direction).containsExactly("INPUT", "OUTPUT", "INPUT");
@@ -83,7 +83,7 @@ class CircuitReaderTest {
         assertThat(dataNet.wires()).containsExactly(data.id().value());
         assertThat(dataNet.width()).isEqualTo(1);
         assertThat(net(view, new PinReference(led.id().value(), "in", 0)).pins())
-                .contains(new PinReference(flipFlop.id().value(), "q", 1));
+                .contains(new PinReference(flipFlop.id().value(), "q", 0));
     }
 
     @Test
@@ -124,7 +124,7 @@ class CircuitReaderTest {
                 .extracting(PinView::pin, PinView::width, PinView::position)
                 .containsExactly(org.assertj.core.groups.Tuple.tuple(new PinReference(buffer.id().value(), "a", 0),
                                 8, new GridPoint(10, 12)),
-                        org.assertj.core.groups.Tuple.tuple(new PinReference(buffer.id().value(), "y", 1),
+                        org.assertj.core.groups.Tuple.tuple(new PinReference(buffer.id().value(), "y", 0),
                                 8, new GridPoint(14, 12)));
         assertThat(view.summary().userComponents()).containsExactly("Búfer de 8 bits");
     }

@@ -105,7 +105,7 @@ class EditorAutomationHostReadTest {
         assertThat(view.name()).isEqualTo("Contador");
         assertThat(view.version().value()).isEqualTo(document.changeCount());
         assertThat(view.parts()).singleElement().satisfies(part -> assertThat(part.pins())
-                .extracting(pin -> pin.pin()).contains(new PinReference(flipFlop.id().value(), "q", 1)));
+                .extracting(pin -> pin.pin()).contains(new PinReference(flipFlop.id().value(), "q", 0)));
     }
 
     @Test

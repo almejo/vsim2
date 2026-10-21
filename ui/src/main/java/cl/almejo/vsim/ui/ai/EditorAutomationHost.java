@@ -11,6 +11,10 @@ import cl.almejo.vsim.automation.read.ReadSource;
 import cl.almejo.vsim.automation.read.RegionPicture;
 import cl.almejo.vsim.automation.read.WindowPicture;
 import cl.almejo.vsim.core.geometry.Bounds;
+import cl.almejo.vsim.automation.simulate.PreparedTruthTable;
+import cl.almejo.vsim.automation.simulate.SimulationReceipt;
+import cl.almejo.vsim.automation.simulate.SimulationRequest;
+import cl.almejo.vsim.automation.simulate.TruthTableRequest;
 import cl.almejo.vsim.ui.app.OpenDocument;
 
 import javax.swing.SwingUtilities;
@@ -36,6 +40,7 @@ public final class EditorAutomationHost implements AutomationHost {
     private final Map<OpenDocument, DocumentId> ids = new WeakHashMap<>();
     private long lastId;
     private final ReadHostSupport reads;
+    private final SimulationHostSupport simulation;
 
     /** @param openDocuments the open circuits, one per circuit however many views it has; called on the EDT */
     public EditorAutomationHost(Supplier<List<OpenDocument>> openDocuments) {
@@ -47,6 +52,22 @@ public final class EditorAutomationHost implements AutomationHost {
                                 Function<OpenDocument, List<ShownWindow>> windowsOf) {
         this.openDocuments = Objects.requireNonNull(openDocuments, "openDocuments");
         this.reads = new ReadHostSupport(windowsOf);
+        this.simulation = new SimulationHostSupport(this::openDocumentWithId, SwingUtilities::invokeLater);
+    }
+
+    @Override
+    public CompletableFuture<SimulationReceipt> simulate(SimulationRequest request) {
+        return simulation.simulate(request);
+    }
+
+    @Override
+    public CompletableFuture<PreparedTruthTable> prepareTruthTable(TruthTableRequest request) {
+        return simulation.prepareTruthTable(request);
+    }
+
+    /** The open circuit with {@code id}, empty when it was closed. EDT only. */
+    private Optional<OpenDocument> openDocumentWithId(DocumentId id) {
+        return openDocuments.get().stream().filter(document -> idOf(document).equals(id)).findFirst();
     }
 
     @Override
