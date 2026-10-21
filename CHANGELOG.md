@@ -7,12 +7,20 @@ sección es un conjunto de funciones, con las fechas en que se hizo. El detalle 
 
 ## 2026-10-21 — Tareas cortas
 
+### Agregado
+
+- Los archivos de VSim 2 (circuitos, componentes de la librería y el portapapeles) dicen qué son y con qué versión se
+  guardaron (`"format" : "vsim2"`, `"savedWith"`). Los archivos anteriores se siguen abriendo.
+
 ### Cambiado
 
 - El color de un LED y el de un marco se eligen con la misma fila de muestras que la entrada de un túnel, cada una
   con su nombre al pasar el mouse; «Sin color» es la muestra tachada.
 - El anillo de la muestra elegida usa el color de acento del tema y se ve bien también en el tema claro y en el
   oscuro; las flechas pasan de una muestra a otra y Enter o Espacio elige.
+- Abrir un archivo de una versión más nueva de VSim 2 dice «Este archivo es de una versión más nueva de VSim 2
+  (formato N). Actualiza VSim para abrirlo.», y abrir un JSON que no es de VSim dice «Este archivo no es un circuito
+  de VSim.», en vez de un error técnico.
 
 ### Arreglado
 

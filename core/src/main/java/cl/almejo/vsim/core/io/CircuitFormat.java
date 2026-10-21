@@ -36,7 +36,7 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.function.Function;
 
-/** Reads and writes the VSim 2 circuit file format (JSON, formatVersion 2). */
+/** Reads and writes the VSim 2 circuit file format (JSON, formatVersion 2; first keys in {@link FileHeader}). */
 public final class CircuitFormat {
 
     public static final int FORMAT_VERSION = 2;
@@ -130,7 +130,7 @@ public final class CircuitFormat {
         };
     }
 
-    record CircuitFile(int formatVersion, String kind, String name, List<ComponentEntry> components,
+    record CircuitFile(String format, String savedWith, int formatVersion, String kind, String name, List<ComponentEntry> components,
                        List<WireEntry> wires, List<LabelEntry> labels,
                        @JsonInclude(JsonInclude.Include.NON_EMPTY) List<DefinitionEntries.DefinitionEntry> definitions,
                        @JsonInclude(JsonInclude.Include.NON_EMPTY) List<ProbeEntry> probes,
@@ -157,7 +157,7 @@ public final class CircuitFormat {
         } catch (IllegalArgumentException exception) {
             throw new IllegalStateException("the circuit cannot be saved: " + exception.getMessage(), exception);
         }
-        CircuitFile file = new CircuitFile(FORMAT_VERSION, KIND_CIRCUIT, document.name(),
+        CircuitFile file = new CircuitFile(FileHeader.FORMAT, FileHeader.savedWith(), FORMAT_VERSION, KIND_CIRCUIT, document.name(),
                 document.components().stream().map(CircuitFormat::componentEntry).toList(),
                 document.wires().stream().map(CircuitFormat::wireEntry).toList(),
                 document.labels().stream().map(CircuitFormat::labelEntry).toList(),
@@ -224,16 +224,12 @@ public final class CircuitFormat {
     }
 
     /**
-     * {@code root} as a {@code fileType} record, after the checks every VSim 2 file shares: an object root
-     * ({@code INVALID_ELEMENT}), the format version ({@code UNSUPPORTED_VERSION}), a well-formed record and the
-     * expected {@code kind} (both {@code INVALID_ELEMENT}).
+     * {@code root} as a {@code fileType} record, after the checks every VSim 2 file shares: the header
+     * ({@link FileHeader#check}), a well-formed record and the expected {@code kind} (both {@code INVALID_ELEMENT}).
      */
     static <T> T readFile(ObjectMapper mapper, JsonNode root, Class<T> fileType, String kind,
                           Function<T, String> kindOf) throws CircuitFormatException {
-        if (root == null || !root.isObject()) {
-            throw new CircuitFormatException(CircuitFormatException.Reason.INVALID_ELEMENT, "root must be a JSON object");
-        }
-        requireFormatVersion(root);
+        FileHeader.check(root);
         T file;
         try {
             file = mapper.treeToValue(root, fileType);
@@ -245,14 +241,6 @@ public final class CircuitFormat {
             throw new CircuitFormatException(CircuitFormatException.Reason.INVALID_ELEMENT, "kind " + fileKind);
         }
         return file;
-    }
-
-    static void requireFormatVersion(JsonNode root) throws CircuitFormatException {
-        JsonNode version = root.path("formatVersion");
-        if (!version.isIntegralNumber() || !version.canConvertToInt() || version.intValue() != FORMAT_VERSION) {
-            throw new CircuitFormatException(CircuitFormatException.Reason.UNSUPPORTED_VERSION,
-                    "formatVersion " + (version.isMissingNode() ? "missing" : version.toString()));
-        }
     }
 
     /** {@code entries}, or an empty list when the key was absent. */

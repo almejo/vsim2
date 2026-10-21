@@ -23,7 +23,7 @@ public final class DefinitionFormat {
     public static final String KIND_COMPONENT = "component";
     public static final String FILE_SUFFIX = ".vsimcomponent.json";
 
-    record ComponentFile(int formatVersion, String kind, String id, String name, String description, int width,
+    record ComponentFile(String format, String savedWith, int formatVersion, String kind, String id, String name, String description, int width,
                          int height, List<DefinitionEntries.PinEntry> pinout,
                          List<CircuitFormat.ComponentEntry> components, List<CircuitFormat.WireEntry> wires,
                          List<CircuitFormat.LabelEntry> labels,
@@ -41,7 +41,7 @@ public final class DefinitionFormat {
 
     public String write(DefinitionBundle bundle) {
         DefinitionEntries.DefinitionEntry root = DefinitionEntries.entry(bundle.root());
-        ComponentFile file = new ComponentFile(CircuitFormat.FORMAT_VERSION, KIND_COMPONENT, root.id(), root.name(),
+        ComponentFile file = new ComponentFile(FileHeader.FORMAT, FileHeader.savedWith(), CircuitFormat.FORMAT_VERSION, KIND_COMPONENT, root.id(), root.name(),
                 root.description(), root.width(), root.height(), root.pinout(), root.components(), root.wires(),
                 root.labels(), bundle.dependencies().stream().map(DefinitionEntries::entry).toList());
         try {

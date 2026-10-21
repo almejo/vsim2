@@ -10,7 +10,10 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-/** Opens any circuit file VSim 2 understands: format v2 or VSim 1 JSON. */
+/**
+ * Opens any circuit file VSim 2 understands: a VSim 2 file (see {@link FileHeader}) or VSim 1 JSON; other JSON is
+ * {@code NOT_VSIM_FILE}.
+ */
 public final class CircuitReader {
 
     private final ObjectMapper mapper = new ObjectMapper();
@@ -60,12 +63,12 @@ public final class CircuitReader {
         if (root == null || root.isMissingNode()) {
             throw new CircuitFormatException(CircuitFormatException.Reason.INVALID_JSON, "empty content");
         }
-        if (root.isObject() && root.has("formatVersion")) {
+        if (FileHeader.claimsVsim2(root)) {
             return new OpenedCircuit(format.read(root), false);
         }
         if (root.isObject() && root.path("gates").isArray()) {
             return new OpenedCircuit(importer.importDocument(root), true);
         }
-        throw new CircuitFormatException(CircuitFormatException.Reason.INVALID_ELEMENT, "not a VSim circuit");
+        throw new CircuitFormatException(CircuitFormatException.Reason.NOT_VSIM_FILE, "not a VSim circuit");
     }
 }

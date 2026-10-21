@@ -60,7 +60,8 @@ class LabelOffsetInFilesTest {
             committed = new String(stream.readAllBytes(), StandardCharsets.UTF_8);
         }
         // the bundled resources are written with a final newline (BundledCircuits)
-        assertThat(format.write(format.read(committed)) + "\n").isEqualTo(committed);
+        assertThat(SavedFiles.withoutSavedWith(format.write(format.read(committed)) + "\n"))
+                .isEqualTo(SavedFiles.withoutSavedWith(committed));
     }
 
     @Test

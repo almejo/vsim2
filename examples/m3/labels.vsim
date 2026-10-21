@@ -1,4 +1,6 @@
 {
+  "format" : "vsim2",
+  "savedWith" : "2.0.0-SNAPSHOT",
   "formatVersion" : 2,
   "kind" : "circuit",
   "name" : "labels",

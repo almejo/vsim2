@@ -41,10 +41,10 @@ class DefinitionFormatTest {
     void badFilesFailWithAReason() throws Exception {
         String inverter = format.write(inverterBundle);
         assertReason("no json", CircuitFormatException.Reason.INVALID_JSON);
-        assertReason("[1, 2]", CircuitFormatException.Reason.INVALID_ELEMENT);
+        assertReason("[1, 2]", CircuitFormatException.Reason.NOT_VSIM_FILE);
         assertReason(mutated(inverter, root -> root.put("kind", "circuit")), CircuitFormatException.Reason.INVALID_ELEMENT);
         assertReason(mutated(inverter, root -> root.put("formatVersion", 3)),
-                CircuitFormatException.Reason.UNSUPPORTED_VERSION);
+                CircuitFormatException.Reason.NEWER_FORMAT);
         assertReason(mutated(format.write(doubleBundle), root -> root.remove("definitions")),
                 CircuitFormatException.Reason.UNKNOWN_COMPONENT_TYPE);
         assertReason(mutated(inverter, root -> ((ObjectNode) root.path("pinout").get(0)).put("source", "c99")),

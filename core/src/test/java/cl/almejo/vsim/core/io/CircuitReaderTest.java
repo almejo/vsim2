@@ -36,7 +36,7 @@ class CircuitReaderTest {
         assertThatThrownBy(() -> reader.read("[]"))
                 .isInstanceOf(CircuitFormatException.class)
                 .satisfies(exception -> assertThat(((CircuitFormatException) exception).reason())
-                        .isEqualTo(CircuitFormatException.Reason.INVALID_ELEMENT));
+                        .isEqualTo(CircuitFormatException.Reason.NOT_VSIM_FILE));
         assertThatThrownBy(() -> reader.read("not json"))
                 .isInstanceOf(CircuitFormatException.class)
                 .satisfies(exception -> assertThat(((CircuitFormatException) exception).reason())
