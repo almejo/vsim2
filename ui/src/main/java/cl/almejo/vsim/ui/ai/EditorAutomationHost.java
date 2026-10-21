@@ -5,12 +5,14 @@ import cl.almejo.vsim.automation.DocumentId;
 import cl.almejo.vsim.automation.DocumentSummary;
 import cl.almejo.vsim.automation.DocumentVersion;
 import cl.almejo.vsim.automation.EditorAccess;
+import cl.almejo.vsim.automation.edit.EditableCircuit;
 import cl.almejo.vsim.ui.app.OpenDocument;
 
 import javax.swing.SwingUtilities;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.WeakHashMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
@@ -28,6 +30,7 @@ public final class EditorAutomationHost implements AutomationHost {
     /** EDT only. Weak, so a closed circuit's entry goes with it; the counter never gives an id twice. */
     private final Map<OpenDocument, DocumentId> ids = new WeakHashMap<>();
     private long lastId;
+    private final EditHostSupport edits = new EditHostSupport(this::circuitWithId);
 
     /** @param openDocuments the open circuits, one per circuit however many views it has; called on the EDT */
     public EditorAutomationHost(Supplier<List<OpenDocument>> openDocuments) {
@@ -45,6 +48,16 @@ public final class EditorAutomationHost implements AutomationHost {
             }
         });
         return result;
+    }
+
+    @Override
+    public <T> CompletableFuture<T> onCircuit(DocumentId document, Function<EditableCircuit, T> work) {
+        return edits.onCircuit(document, work);
+    }
+
+    /** The open circuit with {@code id}; EDT only. */
+    private Optional<OpenDocument> circuitWithId(DocumentId id) {
+        return openDocuments.get().stream().filter(document -> idOf(document).equals(id)).findFirst();
     }
 
     private DocumentId idOf(OpenDocument document) {

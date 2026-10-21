@@ -60,6 +60,24 @@ public final class CircuitDocument {
         return revision;
     }
 
+    /**
+     * A detached copy: the same elements at the same orders, definitions, probes, guides, name and next ids, without
+     * listeners. Changing it never touches this document, so a change can be tried on the copy first (the AI's edits
+     * are validated on one, then applied as one command) and the ids it gives are never used here already.
+     */
+    public CircuitDocument copy() {
+        CircuitDocument copy = new CircuitDocument();
+        copy.name = name;
+        copy.definitions.putAll(definitions);
+        orders.forEach((id, order) -> copy.put(element(id).orElseThrow(), order));
+        copy.nextIdNumber = nextIdNumber;
+        copy.nextOrder = nextOrder;
+        copy.probes = probes;
+        copy.nextProbeNumber = nextProbeNumber;
+        copy.guides = guides;
+        return copy;
+    }
+
     public ElementId newComponentId() {
         return new ElementId("c" + nextIdNumber++);
     }

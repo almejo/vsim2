@@ -53,10 +53,21 @@ class AutomationApiTest {
     }
 
     @Test
-    void untilTasksExistUndoingOneUndoesNothing() {
+    void undoingATaskThatNeverBeganIsAnInvalidReference() {
         AutomationApi api = new AutomationApi(new FakeHost(List.of()));
 
-        assertThat(api.undoTask("task-1")).isEqualTo(new UndoOutcome(0, false));
+        assertThatThrownBy(() -> api.undoTask("task-1"))
+                .isInstanceOfSatisfying(AutomationException.class,
+                        exception -> assertThat(exception.error()).isEqualTo(AutomationError.INVALID_REFERENCE));
+    }
+
+    @Test
+    void aHostWithoutEditableCircuitsSaysTheCircuitIsClosed() {
+        AutomationApi api = new AutomationApi(new FakeHost(List.of(ADDER)));
+
+        assertThatThrownBy(() -> api.beginTask(ADDER.id(), "Sumador", List.of()))
+                .isInstanceOfSatisfying(AutomationException.class,
+                        exception -> assertThat(exception.error()).isEqualTo(AutomationError.DOCUMENT_CLOSED));
     }
 
     @Test
