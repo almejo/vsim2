@@ -81,6 +81,12 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     private static final int ANTS_MILLISECONDS = 90;
     private static final int AUTOSCROLL_MILLISECONDS = 30;
     private static final double WHEEL_SCROLL_PIXELS = 40;
+    /**
+     * A touchpad's sideways swipe reaches Swing on Linux as presses of these extra mouse buttons (X11 buttons 6 and 7),
+     * not as a wheel turn; they scroll like Shift+wheel up and down.
+     */
+    private static final int SCROLL_LEFT_BUTTON = 4;
+    private static final int SCROLL_RIGHT_BUTTON = 5;
     private static final double FIT_FRACTION = 0.9;
 
     private final OpenDocument openDocument;
@@ -1140,8 +1146,17 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
             mousePoint = contains(event.getPoint()) ? viewport.snap(event.getX(), event.getY()) : null;
         }
 
+        /** Buttons past the third (sideways scrolling, back/forward) never reach the tool as a click. */
+        private static boolean isExtraButton(MouseEvent event) {
+            return event.getButton() > MouseEvent.BUTTON3;
+        }
+
         @Override
         public void mousePressed(MouseEvent event) {
+            if (isExtraButton(event)) {
+                scrollSideways(event.getButton());
+                return;
+            }
             track(event);
             endDragOut(); // a drag out that never reported its end must not turn a later drop into a move
             requestFocusInWindow();
@@ -1184,6 +1199,9 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
 
         @Override
         public void mouseReleased(MouseEvent event) {
+            if (isExtraButton(event)) {
+                return;
+            }
             stopAutoscroll();
             if (panAnchor != null) {
                 panAnchor = null;
@@ -1208,6 +1226,18 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         public void mouseExited(MouseEvent event) {
             mousePoint = null;
             tool.mouseExited(CircuitCanvas.this);
+        }
+
+        /** One sideways step, as far as one Shift+wheel step: left like wheel up, right like wheel down. */
+        private void scrollSideways(int button) {
+            if (button == SCROLL_LEFT_BUTTON) {
+                viewport.panBy(WHEEL_SCROLL_PIXELS, 0);
+            } else if (button == SCROLL_RIGHT_BUTTON) {
+                viewport.panBy(-WHEEL_SCROLL_PIXELS, 0);
+            } else {
+                return;
+            }
+            repaint();
         }
 
         @Override

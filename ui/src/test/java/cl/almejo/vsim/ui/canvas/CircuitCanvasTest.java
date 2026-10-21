@@ -129,6 +129,19 @@ class CircuitCanvasTest {
         return new MouseEvent(canvas, id, 0, modifiers, x, y, 1, false, button);
     }
 
+    /**
+     * An event of extra mouse button {@code button} (4, 5…). A headless toolkit refuses to build one directly (it has no
+     * mouse to ask how many buttons there are), so the event is built as button 1 and reports {@code button}.
+     */
+    private MouseEvent sideways(int id, int button) {
+        return new MouseEvent(canvas, id, 0, 0, 10, 10, 1, false, MouseEvent.BUTTON1) {
+            @Override
+            public int getButton() {
+                return button;
+            }
+        };
+    }
+
     @Test
     void pressReachesTheToolInGridCoordinates() {
         RecordingTool tool = new RecordingTool();
@@ -150,6 +163,41 @@ class CircuitCanvasTest {
         canvas.getMouseListeners()[0].mouseReleased(mouse(MouseEvent.MOUSE_RELEASED, 30, 15, 0, MouseEvent.BUTTON2));
         assertThat(tool.pressed).isEmpty();
         assertThat(canvas.viewport().gridToScreen(0, 0)).isEqualTo(new Point2D.Double(20, 5));
+    }
+
+    /**
+     * A touchpad's sideways swipe reaches Swing on Linux as presses of mouse buttons 4 (left) and 5 (right), not as a
+     * wheel turn: they scroll the view sideways like Shift+wheel and never reach the tool as a click.
+     */
+    @Test
+    void sidewaysScrollButtonsPanHorizontallyAndNeverReachTheTool() {
+        RecordingTool tool = new RecordingTool();
+        canvas.setTool(tool);
+        Point2D origin = canvas.viewport().gridToScreen(0, 0);
+        int scrollLeft = 4;
+        int scrollRight = 5;
+
+        canvas.getMouseListeners()[0].mousePressed(sideways(MouseEvent.MOUSE_PRESSED, scrollLeft));
+        canvas.getMouseListeners()[0].mouseReleased(sideways(MouseEvent.MOUSE_RELEASED, scrollLeft));
+        canvas.getMouseListeners()[0].mouseClicked(sideways(MouseEvent.MOUSE_CLICKED, scrollLeft));
+        assertThat(canvas.viewport().gridToScreen(0, 0).getX()).isGreaterThan(origin.getX());
+
+        canvas.getMouseListeners()[0].mousePressed(sideways(MouseEvent.MOUSE_PRESSED, scrollRight));
+        canvas.getMouseListeners()[0].mousePressed(sideways(MouseEvent.MOUSE_PRESSED, scrollRight));
+        assertThat(canvas.viewport().gridToScreen(0, 0).getX()).isLessThan(origin.getX());
+        assertThat(canvas.viewport().gridToScreen(0, 0).getY()).isEqualTo(origin.getY());
+        assertThat(tool.pressed).isEmpty();
+    }
+
+    @Test
+    void aSidewaysButtonScrollsAsFarAsAShiftWheelStep() {
+        Point2D origin = canvas.viewport().gridToScreen(0, 0);
+        canvas.getMouseWheelListeners()[0].mouseWheelMoved(new MouseWheelEvent(canvas, MouseEvent.MOUSE_WHEEL, 0,
+                InputEvent.SHIFT_DOWN_MASK, 10, 10, 0, false, MouseWheelEvent.WHEEL_UNIT_SCROLL, 3, -1));
+        double wheelStep = canvas.viewport().gridToScreen(0, 0).getX() - origin.getX();
+        canvas.getMouseListeners()[0].mousePressed(sideways(MouseEvent.MOUSE_PRESSED, 4));
+        double buttonStep = canvas.viewport().gridToScreen(0, 0).getX() - origin.getX() - wheelStep;
+        assertThat(buttonStep).isEqualTo(wheelStep);
     }
 
     @Test

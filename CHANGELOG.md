@@ -26,6 +26,8 @@ sección es un conjunto de funciones, con las fechas en que se hizo. El detalle 
 
 ### Arreglado
 
+- Deslizar dos dedos hacia los lados en un touchpad (en Linux) mueve el circuito hacia los lados. Antes no lo movía y
+  además llegaba al lienzo como un clic izquierdo, que podía quitar la selección.
 - Los mensajes de error del asistente de Karnaugh, de la importación de tablas y de las expresiones contrastaban
   poco con el fondo (3,7:1 en el tema claro, 4,2:1 en el oscuro): ahora van en un rojo con contraste de al menos
   4,5:1 en los dos temas.

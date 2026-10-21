@@ -288,7 +288,7 @@ Los mensajes de error del asistente de Karnaugh, de la importación de tablas y 
 
 ### Zoom y desplazamiento
 
-- Ctrl+rueda o Ctrl + / Ctrl − (también en el teclado numérico): zoom; rueda / Mayús+rueda: desplazar; botón del medio o Espacio+arrastrar: mover la vista. Un clic en «zoom 125 %» de la barra de estado vuelve a 100 % sin mover el centro.
+- Ctrl+rueda o Ctrl + / Ctrl − (también en el teclado numérico): zoom; rueda / Mayús+rueda: desplazar (en un touchpad, dos dedos hacia arriba, abajo o los lados); botón del medio o Espacio+arrastrar: mover la vista. Un clic en «zoom 125 %» de la barra de estado vuelve a 100 % sin mover el centro.
 
 ### Íconos, barra de herramientas y cursores
 
