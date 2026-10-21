@@ -5,7 +5,28 @@ Los cambios de VSim 2 que se notan al usarlo, del más nuevo al más antiguo. El
 sección es un conjunto de funciones, con las fechas en que se hizo. El detalle de cada función está en
 [docs/funciones.md](docs/funciones.md).
 
-## 2026-10-21 — Dividir la vista
+## 2026-10-21 — La IA trabaja (MCP)
+
+### Agregado
+
+- Claude Code se puede conectar al VSim abierto (por MCP, solo en tu computador) y trabajar en tus ventanas: le
+  pides «arma un flip-flop D», «conviértelo en componente», «prueba su tabla de verdad», «exporta a PDF» o «mira la
+  ventana» y lo ves aparecer. Lee el catálogo, el circuito y sus Problemas; coloca, conecta por nombre de pin,
+  etiqueta, mueve, borra, hace marcos, notas y guías, ordena cables, crea componentes e instancias; simula con un
+  límite de eventos, calcula tablas de verdad en una copia y pide imágenes de una zona o de la ventana. Cada pedido se
+  aplica entero o nada.
+- Herramientas ▸ «IA (MCP)…»: «Activar» / «Desactivar» y el estado en palabras y color («Apagada», «Escuchando en
+  127.0.0.1:47017», «Claude Code conectado», «IA trabajando: …»), los avisos de puerto ocupado («Usar el siguiente
+  libre») o de otro VSim con la IA, «Ajustes que tocó la IA» y las propuestas de la IA con «Aceptar» / «No».
+- Archivo ▸ Preferencias… ▸ «IA»: «Iniciar con VSim», el puerto (47017 por defecto), «Generar un secreto nuevo» y
+  «Copiar configuración para Claude Code», que copia la línea `claude mcp add …` para ejecutar una vez. «Lo que la
+  IA lee del circuito se envía a su proveedor».
+- Cada cambio de la IA es un Ctrl+Z («Deshacer cambio de la IA») que no se junta con los tuyos; la barra de estado
+  dice «IA trabajando: …» con «Detener» y «Deshacer lo que hizo la IA», que se detiene en tu primer cambio. Un cambio
+  preparado antes de que tú editaras se rechaza sin aplicar nada.
+- La IA cambia los ajustes del editor (ajustar, cuadrícula, guías, cables que siguen) solo en esa ventana y de forma
+  temporal; tus preferencias solo las propone; exporta solo a la carpeta de exportación sin sobrescribir; nunca
+  guarda, abre ni borra archivos.
 
 ### Agregado
 
