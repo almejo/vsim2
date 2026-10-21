@@ -96,7 +96,8 @@ public final class EditorAutomationHost implements AutomationHost {
         this.simulation = new SimulationHostSupport(id -> Optional.of(documentOf(id)), SwingUtilities::invokeLater);
         this.edits = new EditHostSupport(id -> Optional.of(documentOf(id)), this.windows::libraryComponents);
         this.exports = new ExportHostSupport(windowsOf, () -> Path.of(System.getProperty("user.home")),
-                ForkJoinPool.commonPool(), SwingUtilities::invokeLater, Clock.systemDefaultZone());
+                ForkJoinPool.commonPool(), SwingUtilities::invokeLater, Clock.systemDefaultZone(),
+                FolderOpener.desktop());
     }
 
     @Override

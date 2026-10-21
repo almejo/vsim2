@@ -197,6 +197,34 @@ class StatusBarTest {
     }
 
     @Test
+    void aNoticeWithAButtonRunsItsActionOnceClickedAndAPlainNoticeHidesTheButton() {
+        List<javax.swing.Timer> timers = new java.util.ArrayList<>();
+        StatusBar bar = new StatusBar(expire -> {
+            javax.swing.Timer timer = new javax.swing.Timer(Integer.MAX_VALUE, event -> expire.run());
+            timers.add(timer);
+            return timer;
+        });
+        List<String> clicked = new java.util.ArrayList<>();
+
+        bar.showNotice("Guardado", "Abrir carpeta", () -> clicked.add("open"));
+
+        assertThat(bar.text()).isEqualTo("Guardado");
+        assertThat(bar.noticeAction().isVisible()).isTrue();
+        assertThat(bar.noticeAction().getText()).isEqualTo("Abrir carpeta");
+        assertThat(timers.getFirst().getInitialDelay()).isEqualTo(StatusBar.ACTION_NOTICE_MILLISECONDS);
+        bar.noticeAction().doClick();
+        assertThat(clicked).containsExactly("open");
+        assertThat(bar.noticeAction().isVisible()).isFalse();
+        assertThat(bar.text()).isEmpty();
+
+        bar.showNotice("Otro", "Abrir carpeta", () -> clicked.add("again"));
+        bar.showNotice("Simple");
+        assertThat(bar.noticeAction().isVisible()).isFalse();
+        assertThat(timers.getFirst().getInitialDelay()).isEqualTo(StatusBar.NOTICE_MILLISECONDS);
+        bar.dispose();
+    }
+
+    @Test
     void theRealNoticeTimerLastsFourSeconds() {
         assertThat(StatusBar.NOTICE_MILLISECONDS).isEqualTo(4000);
     }

@@ -5,6 +5,7 @@ import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.theme.ErrorTextLabel;
 import net.miginfocom.swing.MigLayout;
 
+import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
@@ -26,6 +27,8 @@ public final class StatusBar extends JPanel {
     private final JLabel selection = new JLabel();
     private final JLabel hint = new JLabel();
     private final JLabel notice = new JLabel();
+    private final JButton noticeAction = new JButton();
+    private Runnable noticeActionRun = () -> { };
     private final JLabel shortCircuits = new ErrorTextLabel();
     private final JLabel failure = new ErrorTextLabel();
     private boolean clickable;
@@ -39,7 +42,7 @@ public final class StatusBar extends JPanel {
 
     /** {@code noticeTimerFactory} builds the one-shot timer that hides a notice; tests pass a fake. */
     public StatusBar(Function<Runnable, Timer> noticeTimerFactory) {
-        super(new MigLayout("insets 2 8 2 8", "[][][][][][]push[][]"));
+        super(new MigLayout("insets 2 8 2 8", "[][][][][][][]push[][]"));
         noticeTimer = noticeTimerFactory.apply(this::hideNotice);
         add(simulation);
         time.setToolTipText(Messages.text("status.timeTip"));
@@ -48,11 +51,15 @@ public final class StatusBar extends JPanel {
         add(selection);
         add(hint);
         add(notice);
+        noticeAction.putClientProperty("JButton.buttonType", "borderless");
+        noticeAction.addActionListener(event -> noticeActionRun.run());
+        add(noticeAction, "hidemode 3");
         add(shortCircuits);
         add(failure);
         selection.setVisible(false);
         hint.setVisible(false);
         notice.setVisible(false);
+        noticeAction.setVisible(false);
         shortCircuits.setVisible(false);
         failure.setVisible(false);
     }
@@ -205,6 +212,8 @@ public final class StatusBar extends JPanel {
 
     /** How long a notice stays, in milliseconds. */
     public static final int NOTICE_MILLISECONDS = 4000;
+    /** How long a notice with a button stays, so there is time to reach the button. */
+    public static final int ACTION_NOTICE_MILLISECONDS = 10_000;
 
     private static Timer swingNoticeTimer(Runnable hide) {
         Timer timer = new Timer(NOTICE_MILLISECONDS, event -> hide.run());
@@ -214,14 +223,43 @@ public final class StatusBar extends JPanel {
 
     /** Shows {@code text} for four seconds; a new notice replaces the one on screen and restarts the time. */
     public void showNotice(String text) {
+        showNotice(text, NOTICE_MILLISECONDS);
+        noticeAction.setVisible(false);
+        noticeActionRun = () -> { };
+    }
+
+    /**
+     * Shows {@code text} with a button {@code actionText} after it that runs {@code action} (once clicked the
+     * notice goes), for {@value #ACTION_NOTICE_MILLISECONDS} ms; a new notice replaces both.
+     */
+    public void showNotice(String text, String actionText, Runnable action) {
+        showNotice(text, ACTION_NOTICE_MILLISECONDS);
+        noticeAction.setText(actionText);
+        noticeAction.setVisible(true);
+        noticeActionRun = () -> {
+            hideNotice();
+            action.run();
+        };
+        revalidate();
+    }
+
+    private void showNotice(String text, int milliseconds) {
         notice.setText(text);
         notice.setVisible(true);
+        noticeTimer.setInitialDelay(milliseconds);
         noticeTimer.restart();
     }
 
     private void hideNotice() {
         notice.setText("");
         notice.setVisible(false);
+        noticeAction.setVisible(false);
+        noticeActionRun = () -> { };
+    }
+
+    /** The button of a notice shown with one (hidden otherwise). */
+    public JButton noticeAction() {
+        return noticeAction;
     }
 
     /** Stops the notice timer; the bar goes away with its window. */

@@ -157,7 +157,7 @@ public final class SwingLibraryDialogs implements LibraryDialogs {
      * Shows the folder of {@code file} in the system's file manager; false when the platform cannot (headless, no
      * desktop integration, a missing folder), so the caller says where the file is instead. Never throws.
      */
-    static boolean openFolder(Path file) {
+    public static boolean openFolder(Path file) {
         try {
             if (!Desktop.isDesktopSupported()) {
                 return false;

@@ -68,8 +68,27 @@ class ExportHostSupportTest {
     private final List<ShownWindow> windows = new ArrayList<>();
     private final List<EditorView> views = new ArrayList<>();
     private final AppPreferences preferences = AppPreferences.inMemory();
+    private final FakeOpener opener = new FakeOpener();
     private OpenDocument document;
     private ExportHostSupport exports;
+
+    /** Records the files it was asked to show; {@code works} and {@code available} say how the desktop behaves. */
+    private static final class FakeOpener implements FolderOpener {
+        final List<Path> opened = new ArrayList<>();
+        boolean available = true;
+        boolean works = true;
+
+        @Override
+        public boolean available() {
+            return available;
+        }
+
+        @Override
+        public boolean open(Path file) {
+            opened.add(file);
+            return works;
+        }
+    }
 
     @BeforeEach
     void aCircuitInAWindow() throws Exception {
@@ -78,7 +97,8 @@ class ExportHostSupportTest {
         circuit.setName("Sumador.vsim");
         document = new OpenDocument(circuit, StandardComponentTypes.registry(), null, false);
         exports = new ExportHostSupport(open -> List.copyOf(windows), () -> home, Runnable::run,
-                SwingUtilities::invokeLater, Clock.fixed(Instant.parse("2026-10-21T12:00:00Z"), ZoneOffset.UTC));
+                SwingUtilities::invokeLater, Clock.fixed(Instant.parse("2026-10-21T12:00:00Z"), ZoneOffset.UTC),
+                opener);
         onEditor(() -> place(document, StandardComponentTypes.NAND2, 0, 0, Map.of()));
         AtomicReference<EditorView> created = new AtomicReference<>();
         SwingUtilities.invokeAndWait(() -> {
@@ -107,6 +127,44 @@ class ExportHostSupportTest {
         assertThat(ImageIO.read(Path.of(receipt.path()).toFile()).getWidth()).isEqualTo(receipt.width());
         SwingUtilities.invokeAndWait(() -> { });
         assertThat(views.getFirst().statusBar().text()).contains("La IA guardó Sumador.png en " + remembered);
+    }
+
+    @Test
+    void theNoticeOffersAbrirCarpetaWhichShowsTheFileInItsFolder() throws Exception {
+        preferences.setExportDirectory(remembered);
+
+        ExportReceipt receipt = export(request(ExportRequest.Format.PNG, new ExportRequest.Scope.WholeCircuit()));
+        SwingUtilities.invokeAndWait(() -> { });
+
+        javax.swing.JButton openFolder = views.getFirst().statusBar().noticeAction();
+        assertThat(openFolder.isVisible()).isTrue();
+        assertThat(openFolder.getText()).isEqualTo("Abrir carpeta");
+        SwingUtilities.invokeAndWait(openFolder::doClick);
+        assertThat(opener.opened).containsExactly(Path.of(receipt.path()));
+    }
+
+    @Test
+    void whenTheFolderCannotBeOpenedTheNoticeSaysWhereTheFileIs() throws Exception {
+        preferences.setExportDirectory(remembered);
+        opener.works = false;
+
+        export(request(ExportRequest.Format.PNG, new ExportRequest.Scope.WholeCircuit()));
+        SwingUtilities.invokeAndWait(() -> { });
+        SwingUtilities.invokeAndWait(() -> views.getFirst().statusBar().noticeAction().doClick());
+
+        assertThat(views.getFirst().statusBar().text()).contains("No pude abrir la carpeta " + remembered);
+    }
+
+    @Test
+    void withoutADesktopToOpenFoldersTheNoticeHasNoButton() throws Exception {
+        preferences.setExportDirectory(remembered);
+        opener.available = false;
+
+        export(request(ExportRequest.Format.PNG, new ExportRequest.Scope.WholeCircuit()));
+        SwingUtilities.invokeAndWait(() -> { });
+
+        assertThat(views.getFirst().statusBar().noticeAction().isVisible()).isFalse();
+        assertThat(views.getFirst().statusBar().text()).contains("La IA guardó Sumador.png");
     }
 
     @Test

@@ -14,6 +14,7 @@ import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.export.CircuitImage;
 import cl.almejo.vsim.ui.export.ImageExport;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.panels.StatusBar;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.paint.TextFonts;
@@ -56,7 +57,8 @@ import java.util.stream.Collectors;
  * (an image: the image export's folder; a PDF: the PDF's; each falls back on the other, and with neither on the
  * user's {@code ~/VSim}), under a new name: never over an existing file ({@code -2}, {@code -3}… instead). The
  * picture is taken on the EDT, as the menus do; the file is written on {@code writer}. The circuit's windows then
- * say «La IA guardó …» in their status line. Nothing here asks the user anything or shows a dialog.
+ * say «La IA guardó …» in their status line, with «Abrir carpeta» where the desktop can show a folder. Nothing here
+ * asks the user anything or shows a dialog.
  */
 final class ExportHostSupport {
 
@@ -71,20 +73,23 @@ final class ExportHostSupport {
     private final Executor writer;
     private final Executor editorThread;
     private final Clock clock;
+    private final FolderOpener folderOpener;
 
     /**
      * @param windowsOf    the windows showing a circuit (their preferences, scheme and status line); EDT only
      * @param home         the user's home folder
      * @param writer       where files are written (never the EDT)
      * @param editorThread runs the status notices on the EDT
+     * @param folderOpener «Abrir carpeta» on the notice
      */
     ExportHostSupport(Function<OpenDocument, List<ShownWindow>> windowsOf, Supplier<Path> home, Executor writer,
-                      Executor editorThread, Clock clock) {
+                      Executor editorThread, Clock clock, FolderOpener folderOpener) {
         this.windowsOf = Objects.requireNonNull(windowsOf, "windowsOf");
         this.home = Objects.requireNonNull(home, "home");
         this.writer = Objects.requireNonNull(writer, "writer");
         this.editorThread = Objects.requireNonNull(editorThread, "editorThread");
         this.clock = Objects.requireNonNull(clock, "clock");
+        this.folderOpener = Objects.requireNonNull(folderOpener, "folderOpener");
     }
 
     /** What the EDT prepared: everything the file needs, and how to write it into a reserved path. */
@@ -133,7 +138,7 @@ final class ExportHostSupport {
                     Map.of("folder", prepared.folder().toString()));
         }
         String fileName = target.getFileName().toString();
-        editorThread.execute(() -> tellTheWindows(prepared.openDocument(), fileName, prepared.folder()));
+        editorThread.execute(() -> tellTheWindows(prepared.openDocument(), target, prepared.folder()));
         return new ExportReceipt(prepared.document(), prepared.version(), prepared.format(), fileName,
                 prepared.folder().toString(), target.toString(), prepared.width(), prepared.height(),
                 prepared.pages());
@@ -314,9 +319,21 @@ final class ExportHostSupport {
         }
     }
 
-    private void tellTheWindows(OpenDocument document, String fileName, Path folder) {
-        String notice = Messages.format("ai.export.saved", fileName, folder.toString());
-        windowsOf.apply(document).forEach(window -> window.view().statusBar().showNotice(notice));
+    private void tellTheWindows(OpenDocument document, Path file, Path folder) {
+        String notice = Messages.format("ai.export.saved", file.getFileName().toString(), folder.toString());
+        boolean canOpen = folderOpener.available();
+        for (ShownWindow window : windowsOf.apply(document)) {
+            StatusBar statusBar = window.view().statusBar();
+            if (canOpen) {
+                statusBar.showNotice(notice, Messages.text("ai.export.openFolder"), () -> {
+                    if (!folderOpener.open(file)) {
+                        statusBar.showNotice(Messages.format("ai.export.cannotOpen", folder.toString()));
+                    }
+                });
+            } else {
+                statusBar.showNotice(notice);
+            }
+        }
     }
 
     private static AutomationException nothing() {
