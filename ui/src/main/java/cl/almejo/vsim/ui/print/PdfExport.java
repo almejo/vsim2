@@ -23,6 +23,10 @@ import java.util.concurrent.Executor;
  * document in memory, so the temporary file is only created when the finished bytes are written: a cancellation or a
  * failure while painting leaves no file at all, and a failure while writing or moving deletes it. Either way an
  * earlier file at the target is untouched.
+ *
+ * <p>«Cancelar» is checked between sheets and once the bytes are ready; JFreePDF's assembling of the bytes itself
+ * cannot be interrupted, so a cancel during it waits for it (each sheet only carries its share of the circuit, which
+ * keeps that step short).
  */
 public final class PdfExport implements PdfExporter {
 

@@ -25,11 +25,9 @@ import javax.swing.KeyStroke;
 import javax.swing.SpinnerNumberModel;
 import javax.swing.SwingUtilities;
 import javax.swing.Timer;
-import javax.swing.UIManager;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import java.awt.BorderLayout;
-import java.awt.Color;
 import java.awt.Component;
 import java.awt.event.KeyEvent;
 import java.awt.event.WindowAdapter;
@@ -55,14 +53,12 @@ import java.util.function.Supplier;
  *
  * <p>Everything is painted from a frozen {@link PrintInput}; «Actualizar» takes a new one. The counts follow every
  * change at once; the preview is rebuilt on a short coalescing timer, so only the last option set is painted. Saving
- * confirms above {@link #CONFIRM_ABOVE_PAGES} sheets, is off above {@link #REFUSE_ABOVE_PAGES}, asks for the file,
- * writes off the EDT with a progress bar («Cancelar» stops it) and remembers the options only when the PDF was
- * written. EDT only; tests build it without showing it.
+ * confirms above {@link PdfExport#CONFIRM_ABOVE_PAGES} sheets, is off above {@link PdfExport#REFUSE_ABOVE_PAGES},
+ * asks for the file, writes off the EDT with a progress bar («Cancelar» stops it) and remembers the options only
+ * when the PDF was written. EDT only; tests build it without showing it.
  */
 public final class PdfExportDialog extends JPanel {
 
-    public static final int CONFIRM_ABOVE_PAGES = PdfExport.CONFIRM_ABOVE_PAGES;
-    public static final int REFUSE_ABOVE_PAGES = PdfExport.REFUSE_ABOVE_PAGES;
     /** Text on paper under this many points is hard to read (spec §3.3). */
     static final double MINIMUM_LEGIBLE_POINTS = 6;
     static final int PREVIEW_DELAY_MILLISECONDS = 150;
@@ -304,7 +300,7 @@ public final class PdfExportDialog extends JPanel {
 
         options.add(section("print.section.appearance"), "span 2, gaptop 12");
         options.add(withValues, "span 2");
-        valuesProblem.setForeground(hintColor());
+        hinted(valuesProblem);
         options.add(valuesProblem, "span 2, gapleft 20, hidemode 3");
         options.add(blackAndWhite, "span 2");
         options.add(headerFooter, "span 2");
@@ -323,7 +319,7 @@ public final class PdfExportDialog extends JPanel {
         warningRow.add(warning);
         warningRow.add(split);
         right.add(warningRow, "hidemode 3");
-        hint.setForeground(hintColor());
+        hinted(hint);
         right.add(hint, "hidemode 3");
         add(right, "wrap");
 
@@ -332,7 +328,7 @@ public final class PdfExportDialog extends JPanel {
         add(progress, "span 2, growx, hidemode 3, wrap");
         add(new JSeparator(), "span 2, growx, wrap");
         JLabel note = new JLabel(Messages.text("print.note"));
-        note.setForeground(hintColor());
+        hinted(note);
         add(note, "span 2, split 3, growx");
         add(save, "tag ok");
         add(cancel, "tag cancel");
@@ -345,9 +341,9 @@ public final class PdfExportDialog extends JPanel {
         return label;
     }
 
-    private static Color hintColor() {
-        Color color = UIManager.getColor("Label.disabledForeground");
-        return color != null ? color : Color.GRAY;
+    /** A hint's dimmed text colour, from the theme each time the look changes (FlatLaf resolves the style then). */
+    private static void hinted(JLabel label) {
+        label.putClientProperty("FlatLaf.style", "foreground: $Label.disabledForeground");
     }
 
     private void applyRemembered(PrintOptions remembered) {
@@ -478,8 +474,9 @@ public final class PdfExportDialog extends JPanel {
         double smallest = layout.smallestTextPoints(smallestTextPixels(area.get(), options));
         String warningText = options.scaleMode() instanceof ScaleMode.FitToOnePage && layout.scale() < 1
                 && smallest < MINIMUM_LEGIBLE_POINTS ? Messages.format("print.warning.smallText", smallest) : "";
-        boolean tooMany = layout.pageCountExact() > REFUSE_ABOVE_PAGES;
-        show(statusText, warningText, tooMany ? Messages.format("print.tooManyPages", REFUSE_ABOVE_PAGES) : "");
+        boolean tooMany = layout.pageCountExact() > PdfExport.REFUSE_ABOVE_PAGES;
+        show(statusText, warningText,
+                tooMany ? Messages.format("print.tooManyPages", PdfExport.REFUSE_ABOVE_PAGES) : "");
         save.setEnabled(idle && !tooMany);
         previewTimer.restart();
     }
@@ -553,10 +550,10 @@ public final class PdfExportDialog extends JPanel {
         }
         Plan chosen = plan.get();
         long count = chosen.layout().pageCountExact();
-        if (count > REFUSE_ABOVE_PAGES) {
+        if (count > PdfExport.REFUSE_ABOVE_PAGES) {
             return;
         }
-        if (count > CONFIRM_ABOVE_PAGES
+        if (count > PdfExport.CONFIRM_ABOVE_PAGES
                 && !collaborators.confirm().test(this, Messages.format("print.confirm.manyPages", count))) {
             return;
         }
@@ -728,6 +725,10 @@ public final class PdfExportDialog extends JPanel {
 
     JButton splitButton() {
         return split;
+    }
+
+    JLabel hintLabel() {
+        return hint;
     }
 
     JButton refreshButton() {

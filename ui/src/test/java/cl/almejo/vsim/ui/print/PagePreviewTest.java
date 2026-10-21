@@ -150,4 +150,27 @@ class PagePreviewTest {
         assertThat(white).isGreaterThan(1000);
         assertThat(green).as("the switches are drawn, in colour").isGreaterThan(0);
     }
+
+    @Test
+    void repaintingTheMapDoesNotPaintTheCircuitAgainUntilWhatItShowsChanges() {
+        BufferedImage shown = new BufferedImage(preview.map().getWidth(), preview.map().getHeight(),
+                BufferedImage.TYPE_INT_RGB);
+        Graphics2D graphics = shown.createGraphics();
+        preview.map().paint(graphics);
+        preview.map().paint(graphics);
+        preview.selectSheet(1);
+        preview.map().paint(graphics);
+        assertThat(preview.map().overviewRenders()).as("focus, hover and selection only").isEqualTo(1);
+        preview.map().setSize(preview.map().getWidth() + 20, preview.map().getHeight());
+        preview.map().paint(graphics);
+        assertThat(preview.map().overviewRenders()).as("a new size").isEqualTo(2);
+        PrintInput again = PrintInput.capture(openDocument, Set.of(), ColorScheme.LIGHT, TextFont.DEFAULT, CLOCK);
+        PrintArea area = PrintScopes.area(again, new PrintScope.WholeCircuit()).orElseThrow();
+        PrintOptions withoutValues = new PrintOptions(new PrintScope.WholeCircuit(), Paper.A4,
+                PageOrientation.PORTRAIT, new ScaleMode.Percentage(100), false, false, false, "");
+        preview.show(new PagePainter(again, area, withoutValues, layout), layout);
+        preview.map().paint(graphics);
+        graphics.dispose();
+        assertThat(preview.map().overviewRenders()).as("another painter").isEqualTo(3);
+    }
 }

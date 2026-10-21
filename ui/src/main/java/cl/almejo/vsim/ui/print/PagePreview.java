@@ -28,6 +28,7 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
+import java.awt.image.BufferedImage;
 import java.util.Optional;
 import java.util.OptionalInt;
 
@@ -179,6 +180,14 @@ final class PagePreview extends JPanel {
     /** The circuit miniature with the sheet grid; one sheet highlighted. */
     final class SheetMap extends JComponent {
 
+        /** What the cached overview was painted for: a new painter, layout, size or screen scale paints it again. */
+        private record OverviewKey(PagePainter painter, PageLayout layout, int width, int height, double deviceScale) {
+        }
+
+        private OverviewKey overviewKey;
+        private BufferedImage overview;
+        private int overviewRenders;
+
         SheetMap() {
             setFocusable(true);
             setToolTipText(Messages.text("print.preview.mapTip"));
@@ -310,20 +319,9 @@ final class PagePreview extends JPanel {
                 if (painter.isEmpty() || layout.isEmpty()) {
                     return;
                 }
-                PagePainter shown = painter.get();
                 PageLayout shownLayout = layout.get();
-                Rectangle2D area = shown.gridArea();
-                Point2D areaCorner = toMap(area.getX(), area.getY());
-                double scale = mapScale(world());
-                Graphics2D overview = (Graphics2D) canvas.create();
-                try {
-                    overview.translate(areaCorner.getX(), areaCorner.getY());
-                    overview.scale(scale / (GridPoint.PIXELS_PER_UNIT * shownLayout.scale()),
-                            scale / (GridPoint.PIXELS_PER_UNIT * shownLayout.scale()));
-                    shown.paintOverview(overview);
-                } finally {
-                    overview.dispose();
-                }
+                canvas.drawImage(overview(painter.get(), shownLayout, canvas.getTransform().getScaleX()), 0, 0,
+                        getWidth(), getHeight(), null);
                 if (outlined(shownLayout)) {
                     paintSheets(canvas, shownLayout);
                 }
@@ -334,6 +332,42 @@ final class PagePreview extends JPanel {
             } finally {
                 canvas.dispose();
             }
+        }
+
+        /**
+         * The circuit's miniature at the screen's resolution, painted again only when what it shows changes: focus,
+         * hover and selection repaint the map without painting the whole circuit again on the EDT.
+         */
+        private BufferedImage overview(PagePainter shown, PageLayout shownLayout, double deviceScale) {
+            OverviewKey key = new OverviewKey(shown, shownLayout, getWidth(), getHeight(), deviceScale);
+            if (key.equals(overviewKey)) {
+                return overview;
+            }
+            overviewRenders++;
+            BufferedImage image = new BufferedImage(Math.max(1, (int) Math.ceil(getWidth() * deviceScale)),
+                    Math.max(1, (int) Math.ceil(getHeight() * deviceScale)), BufferedImage.TYPE_INT_ARGB);
+            Graphics2D miniature = image.createGraphics();
+            try {
+                miniature.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                miniature.scale(deviceScale, deviceScale);
+                Rectangle2D area = shown.gridArea();
+                Point2D areaCorner = toMap(area.getX(), area.getY());
+                double scale = mapScale(world());
+                miniature.translate(areaCorner.getX(), areaCorner.getY());
+                miniature.scale(scale / (GridPoint.PIXELS_PER_UNIT * shownLayout.scale()),
+                        scale / (GridPoint.PIXELS_PER_UNIT * shownLayout.scale()));
+                shown.paintOverview(miniature);
+            } finally {
+                miniature.dispose();
+            }
+            overviewKey = key;
+            overview = image;
+            return image;
+        }
+
+        /** How many times the miniature was painted (for tests). */
+        int overviewRenders() {
+            return overviewRenders;
         }
 
         private void paintSheets(Graphics2D canvas, PageLayout shownLayout) {

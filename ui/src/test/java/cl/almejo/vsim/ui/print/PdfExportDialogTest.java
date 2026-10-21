@@ -18,7 +18,13 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import com.formdev.flatlaf.FlatDarkLaf;
+import com.formdev.flatlaf.FlatLightLaf;
+
+import javax.swing.LookAndFeel;
+import javax.swing.SwingUtilities;
 import javax.swing.Timer;
+import javax.swing.UIManager;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.nio.file.Path;
@@ -238,6 +244,25 @@ class PdfExportDialogTest {
         assertThat(layout.smallestTextPoints(TextFont.DEFAULT.size())).as("the labels alone read fine")
                 .isGreaterThanOrEqualTo(PdfExportDialog.MINIMUM_LEGIBLE_POINTS);
         assertThat(dialog.warningVisible()).as("the pin names do not").isTrue();
+    }
+
+    @Test
+    void theHintsTakeTheirDimColourFromTheThemeWhenItChanges() throws Exception {
+        LookAndFeel previous = UIManager.getLookAndFeel();
+        try {
+            UIManager.setLookAndFeel(new FlatLightLaf());
+            place(0, 0);
+            open();
+            SwingUtilities.updateComponentTreeUI(dialog);
+            assertThat(dialog.hintLabel().getForeground())
+                    .isEqualTo(UIManager.getColor("Label.disabledForeground"));
+            UIManager.setLookAndFeel(new FlatDarkLaf());
+            SwingUtilities.updateComponentTreeUI(dialog);
+            assertThat(dialog.hintLabel().getForeground())
+                    .isEqualTo(UIManager.getColor("Label.disabledForeground"));
+        } finally {
+            UIManager.setLookAndFeel(previous);
+        }
     }
 
     @Test
