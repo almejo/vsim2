@@ -15,18 +15,20 @@ public final class LedPainter implements ComponentPainter {
     private static final double UNLIT_SHARE = 0.35;
     private static final Color UNLIT_LENS = new Color(0x202020);
 
+    private static final Color RED = new Color(0xE53935);
+    /** The lit color of each colour name; also the colour vocabulary of every COLOR parameter's swatches. */
+    private static final Map<String, Color> LIT_COLORS = Map.of("red", RED, "green", new Color(0x43A047),
+            "yellow", new Color(0xFDD835), "blue", new Color(0x1E88E5), "orange", new Color(0xFB8C00),
+            "white", new Color(0xFFFFFF), "purple", new Color(0x8E24AA), "cyan", new Color(0x00E5FF));
+
     /** The lit color of each {@code color} choice; an unknown name is red, the default. */
     public static Color colorFor(String colorName) {
-        return switch (String.valueOf(colorName)) {
-            case "green" -> new Color(0x43A047);
-            case "yellow" -> new Color(0xFDD835);
-            case "blue" -> new Color(0x1E88E5);
-            case "orange" -> new Color(0xFB8C00);
-            case "white" -> new Color(0xFFFFFF);
-            case "purple" -> new Color(0x8E24AA);
-            case "cyan" -> new Color(0x00E5FF);
-            default -> new Color(0xE53935);
-        };
+        return LIT_COLORS.getOrDefault(String.valueOf(colorName), RED);
+    }
+
+    /** True when {@link #colorFor} has a colour of its own for {@code colorName} (it is not the red fallback). */
+    public static boolean knowsColor(String colorName) {
+        return colorName != null && LIT_COLORS.containsKey(colorName);
     }
 
     /**

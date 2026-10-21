@@ -2,8 +2,11 @@ package cl.almejo.vsim.ui.panels;
 
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
+import cl.almejo.vsim.core.component.ParameterKind;
+import cl.almejo.vsim.core.component.ParameterSpec;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.paint.LedPainter;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -207,5 +210,17 @@ class ParameterFormTest {
         typeInto((JSpinner) form.editor("time-up"), "0");
         assertThat(form.validationError()).isPresent();
         assertThat(((JSpinner) form.editor("time-up")).getClientProperty("JComponent.outline")).isEqualTo("error");
+    }
+
+    @Test
+    void everyColourParameterUsesOnlyColourNamesTheSwatchesCanPaint() {
+        for (ComponentType type : registry.all()) {
+            for (ParameterSpec parameter : type.parameters()) {
+                if (parameter.kind() == ParameterKind.COLOR) {
+                    assertThat(parameter.choices()).as(type.id() + "." + parameter.name())
+                            .allMatch(LedPainter::knowsColor);
+                }
+            }
+        }
     }
 }

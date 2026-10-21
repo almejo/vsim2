@@ -1220,6 +1220,19 @@ class CircuitCanvasTest {
         assertThat(onTheCanvas.getRGB(x, y)).isEqualTo(joined.getRGB(x, y)).isNotEqualTo(alone.getRGB(x, y));
     }
 
+    @Test
+    void theTunnelColoursOfTheGhostsAreWorkedOutOncePerDocumentChange() {
+        place(openDocument, StandardComponentTypes.TUNNEL_ENTRANCE, 30, 30,
+                Map.of(Tunnels.NAME, "CLK", Tunnels.COLOR, 3));
+        Map<String, Integer> first = canvas.tunnelColors();
+
+        assertThat(canvas.tunnelColors()).isSameAs(first).containsEntry("CLK", 3);
+
+        place(openDocument, StandardComponentTypes.TUNNEL_ENTRANCE, 60, 30,
+                Map.of(Tunnels.NAME, "RST", Tunnels.COLOR, 5));
+        assertThat(canvas.tunnelColors()).isNotSameAs(first).containsEntry("CLK", 3).containsEntry("RST", 5);
+    }
+
     private static BufferedImage ghostImage(java.util.function.Consumer<Graphics2D> painting) {
         BufferedImage image = new BufferedImage(100, 100, BufferedImage.TYPE_INT_ARGB);
         Graphics2D graphics = image.createGraphics();

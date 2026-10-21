@@ -47,7 +47,8 @@ final class FileHeader {
             throw new CircuitFormatException(CircuitFormatException.Reason.NOT_VSIM_FILE, "format " + marker);
         }
         JsonNode version = root.path(FORMAT_VERSION_KEY);
-        if (version.isIntegralNumber() && version.canConvertToInt() && version.intValue() == CircuitFormat.FORMAT_VERSION) {
+        if (version.isIntegralNumber() && version.canConvertToInt()
+                && version.intValue() == CircuitFormat.FORMAT_VERSION) {
             return;
         }
         if (version.isIntegralNumber()

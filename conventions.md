@@ -101,7 +101,8 @@ We apply Clean Code (Robert C. Martin) to new code and to the code we modify (se
   compatibility with older VSim 2 builds is needed, but every committed file (`examples/`, bundled examples, test
   resources) is migrated in the same work so it keeps loading. The VSim 1 importer stays.
 - From 2.0 final on, files stay compatible: new fields are optional with a default, old files load unchanged and save
-  byte-for-byte the same when nothing changed.
+  byte-for-byte the same when nothing changed. The one field allowed to differ is `savedWith` (the version of VSim
+  that saved the file): re-saving after an upgrade changes it, and that is the only change.
 
 ## 9. Tests
 

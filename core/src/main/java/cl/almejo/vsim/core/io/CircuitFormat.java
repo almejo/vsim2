@@ -130,8 +130,8 @@ public final class CircuitFormat {
         };
     }
 
-    record CircuitFile(String format, String savedWith, int formatVersion, String kind, String name, List<ComponentEntry> components,
-                       List<WireEntry> wires, List<LabelEntry> labels,
+    record CircuitFile(String format, String savedWith, int formatVersion, String kind, String name,
+                       List<ComponentEntry> components, List<WireEntry> wires, List<LabelEntry> labels,
                        @JsonInclude(JsonInclude.Include.NON_EMPTY) List<DefinitionEntries.DefinitionEntry> definitions,
                        @JsonInclude(JsonInclude.Include.NON_EMPTY) List<ProbeEntry> probes,
                        @JsonInclude(JsonInclude.Include.NON_EMPTY) List<FrameEntry> frames) {
@@ -157,7 +157,8 @@ public final class CircuitFormat {
         } catch (IllegalArgumentException exception) {
             throw new IllegalStateException("the circuit cannot be saved: " + exception.getMessage(), exception);
         }
-        CircuitFile file = new CircuitFile(FileHeader.FORMAT, FileHeader.savedWith(), FORMAT_VERSION, KIND_CIRCUIT, document.name(),
+        CircuitFile file = new CircuitFile(FileHeader.FORMAT, FileHeader.savedWith(), FORMAT_VERSION, KIND_CIRCUIT,
+                document.name(),
                 document.components().stream().map(CircuitFormat::componentEntry).toList(),
                 document.wires().stream().map(CircuitFormat::wireEntry).toList(),
                 document.labels().stream().map(CircuitFormat::labelEntry).toList(),

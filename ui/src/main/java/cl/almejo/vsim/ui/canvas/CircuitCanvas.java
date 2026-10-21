@@ -141,6 +141,10 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
      */
     private double userZoom = 1;
     private boolean disposed;
+    /** {@link #tunnelColors()} as last worked out, and the document and revision it was worked out for. */
+    private Map<String, Integer> tunnelColorsCache = Map.of();
+    private CircuitDocument tunnelColorsDocument;
+    private long tunnelColorsRevision = -1;
     private final ViewAnimator viewAnimator = new ViewAnimator(FrameTicker.swing(FRAME_MILLISECONDS),
             () -> System.nanoTime() / 1_000_000, this::showTravelFrame, () -> animateViewMoves.getAsBoolean());
 
@@ -952,8 +956,21 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     /** The circuit's tunnel colours when {@code element} is a salida (the only ghost that needs them), else none. */
     private Map<String, Integer> tunnelColorsFor(DocumentElement element) {
         return element instanceof Component component
-                && Tunnels.kindOf(component).orElse(null) == TunnelKind.EXIT
-                ? Tunnels.colorsByName(openDocument.document()) : Map.of();
+                && Tunnels.kindOf(component).orElse(null) == TunnelKind.EXIT ? tunnelColors() : Map.of();
+    }
+
+    /**
+     * The circuit's tunnel colours by name, worked out again only when the document changed: a moved block paints one
+     * ghost per salida in every frame, and each would otherwise walk the whole circuit.
+     */
+    Map<String, Integer> tunnelColors() {
+        CircuitDocument document = openDocument.document();
+        if (document != tunnelColorsDocument || document.revision() != tunnelColorsRevision) {
+            tunnelColorsCache = Tunnels.colorsByName(document);
+            tunnelColorsDocument = document;
+            tunnelColorsRevision = document.revision();
+        }
+        return tunnelColorsCache;
     }
 
     @Override

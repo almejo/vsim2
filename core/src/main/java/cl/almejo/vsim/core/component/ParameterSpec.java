@@ -51,7 +51,8 @@ public record ParameterSpec(String name, ParameterKind kind, Object defaultValue
 
     /**
      * A choice among colour names, shown as swatches. The names are plain values (core knows no colours); the UI
-     * paints each one, so a new colour parameter gets the swatch editor without any UI change.
+     * paints each one, so a new colour parameter gets the swatch editor once its names are in the UI's colour list
+     * ({@code LedPainter}'s today; a UI test checks every COLOR parameter of the standard types against it).
      */
     public static ParameterSpec color(String name, String defaultValue, List<String> colorNames) {
         return new ParameterSpec(name, ParameterKind.COLOR, defaultValue, 0, 0, colorNames);

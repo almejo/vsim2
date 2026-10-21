@@ -6,6 +6,7 @@ import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.io.CircuitFragment;
+import cl.almejo.vsim.core.tunnel.TunnelKind;
 import cl.almejo.vsim.core.tunnel.Tunnels;
 
 import java.awt.Cursor;
@@ -155,11 +156,17 @@ public final class FloatingSelectionTool implements Tool {
             return;
         }
         // a pasted salida shows the colour it will have: its entrada's in the circuit, else a pasted entrada's
-        Map<String, Integer> tunnelColors = Tunnels.colorsByName(context.openDocument().document(),
-                fragment.components());
+        Map<String, Integer> tunnelColors = hasSalida()
+                ? Tunnels.colorsByName(context.openDocument().document(), fragment.components()) : Map.of();
         for (DocumentElement element : fragment.elements()) {
             context.paintGhost(graphics, element.translate(position.x(), position.y()), types(context), tunnelColors);
         }
+    }
+
+    /** True when the fragment holds a salida: only its ghost needs the circuit's tunnel colours. */
+    private boolean hasSalida() {
+        return fragment.components().stream()
+                .anyMatch(component -> Tunnels.kindOf(component).orElse(null) == TunnelKind.EXIT);
     }
 
     @Override

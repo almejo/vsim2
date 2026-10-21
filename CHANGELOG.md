@@ -17,10 +17,11 @@ sección es un conjunto de funciones, con las fechas en que se hizo. El detalle 
 - El color de un LED y el de un marco se eligen con la misma fila de muestras que la entrada de un túnel, cada una
   con su nombre al pasar el mouse; «Sin color» es la muestra tachada.
 - El anillo de la muestra elegida es azul (oscuro en el tema claro, claro en el oscuro) y se distingue del fondo en
-  todos los temas; las flechas pasan de una muestra a otra y Enter o Espacio elige.
+  todos los temas. Con el teclado la fila es una sola parada de Tab, las flechas pasan de una muestra a otra,
+  Espacio elige y Enter elige y acepta «Configurar…»; los lectores de pantalla anuncian la fila como un grupo.
 - Abrir un archivo de una versión más nueva de VSim 2 dice «Este archivo es de una versión más nueva de VSim 2
-  (formato N). Actualiza VSim para abrirlo.», y abrir un JSON que no es de VSim dice «Este archivo no es un circuito
-  de VSim.», en vez de un error técnico.
+  (formato N). Actualiza VSim para abrirlo.», y abrir un JSON que no es de VSim dice «Este archivo no es de VSim.»,
+  en vez de un error técnico.
 
 ### Arreglado
 

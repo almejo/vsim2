@@ -4,9 +4,13 @@ import cl.almejo.vsim.ui.theme.AppThemes;
 import cl.almejo.vsim.ui.theme.ReadableColors;
 import org.junit.jupiter.api.Test;
 
+import javax.accessibility.AccessibleRole;
 import javax.swing.Action;
 import javax.swing.Icon;
+import javax.swing.JButton;
 import javax.swing.JComponent;
+import javax.swing.JLabel;
+import javax.swing.JRootPane;
 import javax.swing.JToggleButton;
 import javax.swing.KeyStroke;
 import javax.swing.LookAndFeel;
@@ -14,6 +18,8 @@ import javax.swing.UIManager;
 import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.event.ActionEvent;
+import java.awt.event.FocusEvent;
+import java.awt.event.FocusListener;
 import java.awt.event.KeyEvent;
 import java.awt.image.BufferedImage;
 import java.util.List;
@@ -110,6 +116,56 @@ class ColorSwatchesTest {
     }
 
     @Test
+    void enterOnASwatchPicksItAndThenPressesTheDialogsDefaultButton() {
+        ColorSwatches<String> swatches = swatches("red");
+        JRootPane dialog = new JRootPane();
+        dialog.getContentPane().add(swatches);
+        JButton okButton = new JButton("OK");
+        dialog.getContentPane().add(okButton);
+        dialog.setDefaultButton(okButton);
+        AtomicReference<String> chosenWhenOk = new AtomicReference<>();
+        okButton.addActionListener(event -> chosenWhenOk.set(swatches.selectedValue()));
+
+        press(swatches.swatch(2), KeyEvent.VK_ENTER);
+
+        assertThat(chosenWhenOk).hasValue("green");
+    }
+
+    @Test
+    void onlyTheChosenSwatchIsATabStopSoTabCrossesTheRowInOneStep() {
+        ColorSwatches<String> swatches = swatches("green");
+
+        assertThat(focusable(swatches)).containsExactly(false, false, true, false);
+
+        swatches.swatch(3).doClick();
+        assertThat(focusable(swatches)).containsExactly(false, false, false, true);
+
+        swatches.select("none");
+        assertThat(focusable(swatches)).containsExactly(true, false, false, false);
+    }
+
+    @Test
+    void anArrowMovesTheTabStopAndLeavingTheRowGivesItBackToTheChosenSwatch() {
+        ColorSwatches<String> swatches = swatches("red");
+
+        press(swatches.swatch(1), KeyEvent.VK_RIGHT);
+        focusGained(swatches.swatch(2));
+        assertThat(focusable(swatches)).containsExactly(false, false, true, false);
+
+        focusLost(swatches.swatch(2), new JButton("elsewhere"));
+        assertThat(focusable(swatches)).containsExactly(false, true, false, false);
+    }
+
+    @Test
+    void theRowIsAnnouncedAsAGroupNamedByItsCaption() {
+        ColorSwatches<String> swatches = swatches("red");
+        new JLabel("Color").setLabelFor(swatches);
+
+        assertThat(swatches.getAccessibleContext().getAccessibleName()).isEqualTo("Color");
+        assertThat(swatches.getAccessibleContext().getAccessibleRole()).isEqualTo(AccessibleRole.GROUP_BOX);
+    }
+
+    @Test
     void theArrowsAreBoundOnEverySwatch() {
         ColorSwatches<String> swatches = swatches("red");
 
@@ -160,6 +216,23 @@ class ColorSwatchesTest {
             }
         } finally {
             UIManager.setLookAndFeel(previous);
+        }
+    }
+
+    private static List<Boolean> focusable(ColorSwatches<String> swatches) {
+        return swatches.values().stream().map(value -> swatches.swatch(swatches.values().indexOf(value)))
+                .map(JToggleButton::isFocusable).toList();
+    }
+
+    private static void focusGained(JToggleButton swatch) {
+        for (FocusListener listener : swatch.getFocusListeners()) {
+            listener.focusGained(new FocusEvent(swatch, FocusEvent.FOCUS_GAINED));
+        }
+    }
+
+    private static void focusLost(JToggleButton swatch, java.awt.Component opposite) {
+        for (FocusListener listener : swatch.getFocusListeners()) {
+            listener.focusLost(new FocusEvent(swatch, FocusEvent.FOCUS_LOST, false, opposite));
         }
     }
 

@@ -3,15 +3,20 @@ package cl.almejo.vsim.ui.panels;
 import cl.almejo.vsim.ui.theme.ReadableColors;
 import net.miginfocom.swing.MigLayout;
 
+import javax.accessibility.AccessibleContext;
+import javax.accessibility.AccessibleRole;
 import javax.swing.AbstractAction;
 import javax.swing.AbstractButton;
 import javax.swing.ButtonGroup;
 import javax.swing.Icon;
 import javax.swing.InputMap;
+import javax.swing.JButton;
 import javax.swing.JComponent;
 import javax.swing.JPanel;
+import javax.swing.JRootPane;
 import javax.swing.JToggleButton;
 import javax.swing.KeyStroke;
+import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 import java.awt.BasicStroke;
 import java.awt.Color;
@@ -20,6 +25,8 @@ import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.event.ActionEvent;
+import java.awt.event.FocusAdapter;
+import java.awt.event.FocusEvent;
 import java.awt.event.KeyEvent;
 import java.awt.geom.Line2D;
 import java.awt.geom.RoundRectangle2D;
@@ -38,8 +45,11 @@ import java.util.function.Supplier;
  * an empty fill is a «no colour» swatch, drawn as an outline crossed by a diagonal.
  *
  * <p>The chosen swatch is pressed and circled by a ring in {@link #selectionRingColor()}, with a gap so the ring reads
- * on any hue. With the keyboard the arrows move between swatches and Space or Enter picks the focused one; only a
- * pick by the user calls the choice listeners, so each pick is one edit (one undo step for the callers).
+ * on any hue. With the keyboard the row is one Tab stop (the chosen swatch, or the one the arrows last moved to), the
+ * arrows move between swatches, Space picks the focused one and Enter picks it and then presses the dialog's default
+ * button (in «Configurar…», OK), as Enter on the old combo box did. Only a pick by the user calls the choice
+ * listeners, so each pick is one edit (one undo step for the callers). Screen readers announce the row as a group
+ * named by the caption whose {@code setLabelFor} points at it, and each swatch by its colour's name.
  *
  * @param <T> the kind of value chosen
  */
@@ -92,6 +102,7 @@ public final class ColorSwatches<T> extends JPanel {
             swatches.add(swatch);
             add(swatch);
         }
+        makeTabStop(this.values.indexOf(selected));
     }
 
     private JToggleButton newSwatch(int index, Function<? super T, String> nameOf,
@@ -104,8 +115,48 @@ public final class ColorSwatches<T> extends JPanel {
         swatch.putClientProperty("JButton.buttonType", "toolBarButton");
         swatch.setSelected(value.equals(selectedValue));
         swatch.addActionListener(event -> choose(value));
+        swatch.addFocusListener(new RovingTabStop(index));
         bindKeys(swatch, index);
         return swatch;
+    }
+
+    /**
+     * Keeps the row a single Tab stop: the swatch that gains the focus becomes the stop, and when the focus leaves the
+     * row the stop goes back to the chosen swatch.
+     */
+    private final class RovingTabStop extends FocusAdapter {
+
+        private final int index;
+
+        RovingTabStop(int index) {
+            this.index = index;
+        }
+
+        @Override
+        public void focusGained(FocusEvent event) {
+            makeTabStop(index);
+        }
+
+        @Override
+        public void focusLost(FocusEvent event) {
+            if (!swatches.contains(event.getOppositeComponent())) {
+                makeTabStop(values.indexOf(selectedValue));
+            }
+        }
+    }
+
+    /** Only the swatch at {@code index} takes the focus with Tab; the arrows reach the others. */
+    private void makeTabStop(int index) {
+        for (int swatchIndex = 0; swatchIndex < swatches.size(); swatchIndex++) {
+            swatches.get(swatchIndex).setFocusable(swatchIndex == index);
+        }
+    }
+
+    /** Moves the Tab stop to the chosen swatch unless the user is in the row now (it follows the focus there). */
+    private void moveTabStopToTheChosenSwatch() {
+        if (swatches.stream().noneMatch(JToggleButton::isFocusOwner)) {
+            makeTabStop(values.indexOf(selectedValue));
+        }
     }
 
     private void bindKeys(JToggleButton swatch, int index) {
@@ -115,7 +166,10 @@ public final class ColorSwatches<T> extends JPanel {
         keys.put(KeyStroke.getKeyStroke(KeyEvent.VK_UP, 0), PREVIOUS_ACTION);
         keys.put(KeyStroke.getKeyStroke(KeyEvent.VK_RIGHT, 0), NEXT_ACTION);
         keys.put(KeyStroke.getKeyStroke(KeyEvent.VK_DOWN, 0), NEXT_ACTION);
-        swatch.getActionMap().put(CHOOSE_ACTION, action(swatch::doClick));
+        swatch.getActionMap().put(CHOOSE_ACTION, action(() -> {
+            swatch.doClick();
+            pressDefaultButton(swatch);
+        }));
         swatch.getActionMap().put(PREVIOUS_ACTION, action(() -> focusSwatch(index - 1)));
         swatch.getActionMap().put(NEXT_ACTION, action(() -> focusSwatch(index + 1)));
     }
@@ -129,9 +183,24 @@ public final class ColorSwatches<T> extends JPanel {
         };
     }
 
-    /** Moves the keyboard focus to the swatch at {@code index}, wrapping around both ends. */
+    /** The default button of the window holding {@code swatch} (a dialog's OK), pressed if there is one. */
+    private static void pressDefaultButton(JToggleButton swatch) {
+        JRootPane rootPane = SwingUtilities.getRootPane(swatch);
+        JButton defaultButton = rootPane == null ? null : rootPane.getDefaultButton();
+        if (defaultButton != null && defaultButton.isEnabled()) {
+            defaultButton.doClick();
+        }
+    }
+
+    /**
+     * Moves the keyboard focus to the swatch at {@code index}, wrapping around both ends. It becomes focusable first;
+     * the others stop being focusable once it has the focus ({@link RovingTabStop}), not before, or Swing would push
+     * the focus out of the row.
+     */
     private void focusSwatch(int index) {
-        swatches.get(Math.floorMod(index, swatches.size())).requestFocusInWindow();
+        JToggleButton target = swatches.get(Math.floorMod(index, swatches.size()));
+        target.setFocusable(true);
+        target.requestFocusInWindow();
     }
 
     private void choose(T value) {
@@ -139,6 +208,7 @@ public final class ColorSwatches<T> extends JPanel {
             return;
         }
         selectedValue = value;
+        moveTabStopToTheChosenSwatch();
         listeners.forEach(Runnable::run);
     }
 
@@ -155,6 +225,7 @@ public final class ColorSwatches<T> extends JPanel {
         }
         selectedValue = value;
         swatches.get(index).setSelected(true);
+        moveTabStopToTheChosenSwatch();
     }
 
     /** The values offered, in the order shown. */
@@ -179,6 +250,20 @@ public final class ColorSwatches<T> extends JPanel {
      */
     static Color selectionRingColor() {
         return ReadableColors.dark() ? DARK_RING : LIGHT_RING;
+    }
+
+    /** The row is a group for screen readers (its name comes from the caption's {@code setLabelFor}). */
+    @Override
+    public AccessibleContext getAccessibleContext() {
+        if (accessibleContext == null) {
+            accessibleContext = new AccessibleJPanel() {
+                @Override
+                public AccessibleRole getAccessibleRole() {
+                    return AccessibleRole.GROUP_BOX;
+                }
+            };
+        }
+        return accessibleContext;
     }
 
     /** The theme's border colour, which outlines every swatch so a white or «no colour» one still shows its edge. */
