@@ -53,6 +53,15 @@ public interface Tool {
         return false;
     }
 
+    /**
+     * A snap preference, the viewport or the guides changed: a tool whose preview is snapped redoes it as if the
+     * pointer had moved, so a release or Enter right after commits the refreshed result; true when it repainted a
+     * changed preview. The default does nothing.
+     */
+    default boolean refreshSnap(ToolContext context) {
+        return false;
+    }
+
     /** Paints previews on top of the circuit, in document coordinates (8 px per grid unit). */
     default void paintOverlay(Graphics2D graphics, ToolContext context) {
     }

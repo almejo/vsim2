@@ -28,6 +28,66 @@ public final class AppPreferences {
 
     public enum Theme { LIGHT, DARK, SYSTEM }
 
+    /** How the canvas background shows the grid: dots (as always), soft lines, or nothing. */
+    public enum GridStyle { DOTS, LINES, NONE }
+
+    // --- Ajustar y guías ---
+
+    /** «Ajustar»: the magnet as a whole; on unless the user turned it off. */
+    public boolean snapToAlignments() {
+        return !"false".equals(node.get(SNAP_TO_ALIGNMENTS, "true"));
+    }
+
+    public void setSnapToAlignments(boolean snap) {
+        put(SNAP_TO_ALIGNMENTS, Boolean.toString(snap));
+    }
+
+    /** «Ajustar a ▸ Piezas»: edges and centres of other parts; on by default. */
+    public boolean snapToParts() {
+        return !"false".equals(node.get(SNAP_TO_PARTS, "true"));
+    }
+
+    public void setSnapToParts(boolean snap) {
+        put(SNAP_TO_PARTS, Boolean.toString(snap));
+    }
+
+    /** «Ajustar a ▸ Guías»; on by default. */
+    public boolean snapToGuides() {
+        return !"false".equals(node.get(SNAP_TO_GUIDES, "true"));
+    }
+
+    public void setSnapToGuides(boolean snap) {
+        put(SNAP_TO_GUIDES, Boolean.toString(snap));
+    }
+
+    /** «Ajustar a ▸ Líneas de la cuadrícula»; off by default. */
+    public boolean snapToGridLines() {
+        return "true".equals(node.get(SNAP_TO_GRID_LINES, "false"));
+    }
+
+    public void setSnapToGridLines(boolean snap) {
+        put(SNAP_TO_GRID_LINES, Boolean.toString(snap));
+    }
+
+    /** «Mostrar guías»: the rulers and the guides; on by default. */
+    public boolean showGuides() {
+        return !"false".equals(node.get(SHOW_GUIDES, "true"));
+    }
+
+    public void setShowGuides(boolean show) {
+        put(SHOW_GUIDES, Boolean.toString(show));
+    }
+
+    /** «Cuadrícula ▸»: dots unless the user chose otherwise (or the stored value is unreadable). */
+    public GridStyle gridStyle() {
+        return enumValue(GRID_STYLE, GridStyle.class, GridStyle.DOTS);
+    }
+
+    public void setGridStyle(GridStyle style) {
+        Objects.requireNonNull(style, "style");
+        put(GRID_STYLE, style.name());
+    }
+
     /** The key that inverts the follow mode while dragging (M6.7): Shift by default, Alt, or none. */
     public enum InvertModifier {
         SHIFT, ALT, NONE;
@@ -58,6 +118,12 @@ public final class AppPreferences {
     static final String TIDY_MERGE_SEGMENTS = "tidyMergeSegments";
     static final String TIDY_FLATTEN_DETOURS = "tidyFlattenDetours";
     static final String WIRES_FOLLOW = "wiresFollow";
+    static final String SNAP_TO_ALIGNMENTS = "snap.enabled";
+    static final String SNAP_TO_PARTS = "snap.parts";
+    static final String SNAP_TO_GUIDES = "snap.guides";
+    static final String SNAP_TO_GRID_LINES = "snap.gridLines";
+    static final String SHOW_GUIDES = "guides.show";
+    static final String GRID_STYLE = "grid.style";
     static final String INVERT_MODIFIER = "invertModifier";
     static final String TEXT_FONT_FAMILY = "textFontFamily";
     static final String TEXT_FONT_SIZE = "textFontSize";

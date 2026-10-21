@@ -319,6 +319,38 @@ class AppPreferencesTest {
     }
 
     @Test
+    void snapAndGuidePreferencesHaveTheirDefaultsAndRoundTripAndNotify() {
+        preferences.addListener(changes::incrementAndGet);
+        assertThat(preferences.snapToAlignments()).isTrue();
+        assertThat(preferences.snapToParts()).isTrue();
+        assertThat(preferences.snapToGuides()).isTrue();
+        assertThat(preferences.snapToGridLines()).isFalse();
+        assertThat(preferences.showGuides()).isTrue();
+        assertThat(preferences.gridStyle()).isEqualTo(AppPreferences.GridStyle.DOTS);
+
+        preferences.setSnapToAlignments(false);
+        preferences.setSnapToAlignments(false);
+        preferences.setSnapToParts(false);
+        preferences.setSnapToGuides(false);
+        preferences.setSnapToGridLines(true);
+        preferences.setShowGuides(false);
+        preferences.setGridStyle(AppPreferences.GridStyle.LINES);
+        preferences.setGridStyle(AppPreferences.GridStyle.LINES);
+        assertThat(changes).hasValue(6);
+
+        AppPreferences reloaded = new AppPreferences(node);
+        assertThat(reloaded.snapToAlignments()).isFalse();
+        assertThat(reloaded.snapToParts()).isFalse();
+        assertThat(reloaded.snapToGuides()).isFalse();
+        assertThat(reloaded.snapToGridLines()).isTrue();
+        assertThat(reloaded.showGuides()).isFalse();
+        assertThat(reloaded.gridStyle()).isEqualTo(AppPreferences.GridStyle.LINES);
+
+        node.put("grid.style", "SQUARES");
+        assertThat(preferences.gridStyle()).isEqualTo(AppPreferences.GridStyle.DOTS);
+    }
+
+    @Test
     void wiresFollowIsOnAndTheInvertKeyIsShiftByDefaultAndBothRoundTripAndNotify() {
         preferences.addListener(changes::incrementAndGet);
         assertThat(preferences.wiresFollow()).isTrue();

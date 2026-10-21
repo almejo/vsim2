@@ -20,6 +20,7 @@ import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.core.tunnel.TunnelKind;
 import cl.almejo.vsim.core.tunnel.Tunnels;
 import cl.almejo.vsim.ui.app.OpenDocument;
+import cl.almejo.vsim.ui.canvas.edges.EdgeHandle;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.panels.PaletteTransfer;
 import cl.almejo.vsim.ui.tools.CanvasCursor;
@@ -109,6 +110,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     private final List<CanvasOverlay> overlays = new CopyOnWriteArrayList<>();
     private final List<Function<Point2D, Optional<String>>> toolTipOverrides = new CopyOnWriteArrayList<>();
     private final List<Predicate<CanvasMouseEvent>> pressInterceptors = new CopyOnWriteArrayList<>();
+    private final List<EdgeHandle> edgeHandles = new CopyOnWriteArrayList<>();
     private final DocumentListener documentListener;
     private final SelectionMoves selectionMoves;
     private Consumer<List<Path>> fileDropHandler = files -> {
@@ -775,6 +777,24 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     public Runnable addPressInterceptor(Predicate<CanvasMouseEvent> interceptor) {
         pressInterceptors.add(interceptor);
         return () -> pressInterceptors.remove(interceptor);
+    }
+
+    /**
+     * Adds a handle at the canvas edges (a ruler; later a split grip) that takes presses before the press interceptors
+     * and the tool. The returned runnable removes it.
+     */
+    public Runnable addEdgeHandle(EdgeHandle handle) {
+        edgeHandles.add(handle);
+        repaint();
+        return () -> {
+            edgeHandles.remove(handle);
+            repaint();
+        };
+    }
+
+    /** For tests: the edge handles installed now. */
+    public List<EdgeHandle> edgeHandles() {
+        return List.copyOf(edgeHandles);
     }
 
     @Override

@@ -9,6 +9,7 @@ import cl.almejo.vsim.ui.canvas.HitTester;
 import cl.almejo.vsim.ui.canvas.Selection;
 import cl.almejo.vsim.ui.canvas.Viewport;
 import cl.almejo.vsim.ui.paint.ColorScheme;
+import cl.almejo.vsim.ui.snap.Snapper;
 import cl.almejo.vsim.ui.wiring.SelectionMoves;
 
 import java.awt.Graphics2D;
@@ -31,6 +32,11 @@ public interface ToolContext {
 
     /** How moves of the selection treat the attached wires (M6.7), and where their notices go. */
     SelectionMoves selectionMoves();
+
+    /** Snaps the tool's gestures to parts, guides and grid lines; by default nothing snaps. */
+    default Snapper snapper() {
+        return Snapper.none();
+    }
 
     /** The current dash phase of marching-ants outlines. */
     double selectionDashPhase();
