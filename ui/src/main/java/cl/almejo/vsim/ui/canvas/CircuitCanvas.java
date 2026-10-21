@@ -17,6 +17,8 @@ import cl.almejo.vsim.core.io.CircuitFormatException;
 import cl.almejo.vsim.core.io.CircuitFragment;
 import cl.almejo.vsim.core.io.FragmentFormat;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
+import cl.almejo.vsim.core.tunnel.TunnelKind;
+import cl.almejo.vsim.core.tunnel.Tunnels;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.panels.PaletteTransfer;
@@ -62,6 +64,7 @@ import java.awt.event.WindowStateListener;
 import java.awt.geom.Point2D;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.TooManyListenersException;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -457,7 +460,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         }
         for (ElementId id : dragOut.ids()) {
             openDocument.document().element(id).ifPresent(element ->
-                    renderer.paintGhost(graphics, element.translate(dragOutPreview.x(), dragOutPreview.y())));
+                    paintGhost(graphics, element.translate(dragOutPreview.x(), dragOutPreview.y())));
         }
     }
 
@@ -931,12 +934,26 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
 
     @Override
     public void paintGhost(Graphics2D graphics, DocumentElement element) {
-        renderer.paintGhost(graphics, element);
+        paintGhost(graphics, element, renderer.registry());
+    }
+
+    /** A salida's ghost takes the colour of the entrada of its name in this circuit (placing, moving it). */
+    @Override
+    public void paintGhost(Graphics2D graphics, DocumentElement element, ComponentTypeRegistry registry) {
+        renderer.paintGhost(graphics, element, registry, tunnelColorsFor(element));
     }
 
     @Override
-    public void paintGhost(Graphics2D graphics, DocumentElement element, ComponentTypeRegistry registry) {
-        renderer.paintGhost(graphics, element, registry);
+    public void paintGhost(Graphics2D graphics, DocumentElement element, ComponentTypeRegistry registry,
+                           Map<String, Integer> tunnelColors) {
+        renderer.paintGhost(graphics, element, registry, tunnelColors);
+    }
+
+    /** The circuit's tunnel colours when {@code element} is a salida (the only ghost that needs them), else none. */
+    private Map<String, Integer> tunnelColorsFor(DocumentElement element) {
+        return element instanceof Component component
+                && Tunnels.kindOf(component).orElse(null) == TunnelKind.EXIT
+                ? Tunnels.colorsByName(openDocument.document()) : Map.of();
     }
 
     @Override

@@ -397,17 +397,37 @@ public final class CircuitRenderer {
         }
     }
 
+    /** The registry this renderer resolves the circuit's components with. */
+    public ComponentTypeRegistry registry() {
+        return registry;
+    }
+
+    /** A ghost drawn without its circuit: a salida in palette colour 0 (see the four-argument overload). */
     public void paintGhost(Graphics2D graphics, DocumentElement element) {
         paintGhost(graphics, element, registry);
     }
 
-    /** A semi-transparent preview; {@code types} resolves components (a pasted fragment brings its own definitions). */
+    /** Like {@link #paintGhost(Graphics2D, DocumentElement, ComponentTypeRegistry, Map)} without tunnel colours. */
     public void paintGhost(Graphics2D graphics, DocumentElement element, ComponentTypeRegistry types) {
+        paintGhost(graphics, element, types, Map.of());
+    }
+
+    /**
+     * A semi-transparent preview; {@code types} resolves components (a pasted fragment brings its own definitions).
+     * A salida's tag takes the colour of its name in {@code tunnelColors} (palette colour 0 for a name without one),
+     * so the ghost shows the colour it will have once placed; the caller, who knows the target circuit, resolves them
+     * ({@link Tunnels#colorsByName}). An entrada keeps its own colour.
+     */
+    public void paintGhost(Graphics2D graphics, DocumentElement element, ComponentTypeRegistry types,
+                           Map<String, Integer> tunnelColors) {
         ColorScheme scheme = scheme();
         Composite previous = graphics.getComposite();
         graphics.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.5f));
         try {
             switch (element) {
+                case Component component when painters.painterFor(component.typeId())
+                        instanceof TunnelPainter tunnelPainter ->
+                        paintTunnelGhost(graphics, component, tunnelPainter, tunnelColors, scheme);
                 case Component component -> ComponentDrawing.paint(graphics, types.typeOf(component),
                         component, VisibleState.NONE, scheme, painters);
                 case Wire wire -> {
@@ -421,6 +441,14 @@ public final class CircuitRenderer {
         } finally {
             graphics.setComposite(previous);
         }
+    }
+
+    private static void paintTunnelGhost(Graphics2D graphics, Component tunnel, TunnelPainter tunnelPainter,
+                                         Map<String, Integer> tunnelColors, ColorScheme scheme) {
+        int colorIndex = TunnelPainter.colorIndex(tunnel, tunnelColors);
+        TunnelPainter.Look look = new TunnelPainter.Look(
+                scheme.tunnelColor(colorIndex == Tunnels.NO_COLOR ? 0 : colorIndex), scheme.componentStroke(), false);
+        ComponentDrawing.paintPlaced(graphics, tunnel, local -> tunnelPainter.paint(local, tunnel, look, scheme));
     }
 
     private void paintComponentLabels(Graphics2D graphics, RenderState state, ColorScheme scheme) {

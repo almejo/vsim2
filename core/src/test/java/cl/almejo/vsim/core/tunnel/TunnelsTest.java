@@ -129,6 +129,27 @@ class TunnelsTest {
     }
 
     @Test
+    void theColoursAfterAPasteKeepTheCircuitsEntrancesAndAddThePastedOnes() {
+        circuit.entrance("CLK", 5, new GridPoint(0, 0));
+        Component pastedClock = pastedTunnel(StandardComponentTypes.TUNNEL_ENTRANCE, "p1",
+                TunnelCircuit.parameters(Tunnels.NAME, "CLK", Tunnels.COLOR, 2));
+        Component pastedData = pastedTunnel(StandardComponentTypes.TUNNEL_ENTRANCE, "p2",
+                TunnelCircuit.parameters(Tunnels.NAME, "DATA", Tunnels.COLOR, 4));
+        Component pastedExit = pastedTunnel(StandardComponentTypes.TUNNEL_EXIT, "p3",
+                TunnelCircuit.parameters(Tunnels.NAME, "LOST"));
+
+        assertThat(Tunnels.colorsByName(circuit.document(), List.of(pastedClock, pastedData, pastedExit)))
+                .isEqualTo(Map.of("CLK", 5, "DATA", 4));
+        assertThat(Tunnels.colorsByName(circuit.document(), List.of()))
+                .isEqualTo(Tunnels.colorsByName(circuit.document()));
+    }
+
+    private Component pastedTunnel(String typeId, String id, Map<String, Object> parameters) {
+        return circuit.registry().require(typeId).newComponent(new ElementId(id), new GridPoint(40, 40),
+                Rotation.R0, parameters, "");
+    }
+
+    @Test
     void anExitHasNoColourParameter() {
         ComponentType exit = circuit.registry().require(StandardComponentTypes.TUNNEL_EXIT);
         ComponentType entrance = circuit.registry().require(StandardComponentTypes.TUNNEL_ENTRANCE);

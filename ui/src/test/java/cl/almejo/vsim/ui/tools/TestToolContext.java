@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.tools;
 
+import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
@@ -17,6 +18,7 @@ import java.awt.geom.Point2D;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /** ToolContext for tests: a real OpenDocument, recorded UI requests, no screen. */
@@ -25,6 +27,8 @@ public final class TestToolContext implements ToolContext, AutoCloseable {
     public final Selection selection = new Selection();
     public final Viewport viewport = new Viewport();
     public final List<DocumentElement> ghosts = new ArrayList<>();
+    /** The tunnel colours each ghost was given, in the order of {@link #ghosts} (empty when none were given). */
+    public final List<Map<String, Integer>> ghostTunnelColors = new ArrayList<>();
     public final Tool defaultTool = new SelectTool();
     public Tool tool = defaultTool;
     public Optional<DocumentElement> contextMenuTarget;
@@ -150,6 +154,14 @@ public final class TestToolContext implements ToolContext, AutoCloseable {
     @Override
     public void paintGhost(Graphics2D graphics, DocumentElement element) {
         ghosts.add(element);
+        ghostTunnelColors.add(Map.of());
+    }
+
+    @Override
+    public void paintGhost(Graphics2D graphics, DocumentElement element, ComponentTypeRegistry registry,
+                           Map<String, Integer> tunnelColors) {
+        ghosts.add(element);
+        ghostTunnelColors.add(tunnelColors);
     }
 
     @Override

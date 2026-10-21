@@ -5,6 +5,7 @@ import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
+import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
@@ -113,6 +114,71 @@ class CircuitRendererTunnelsTest {
         // two pixels off the stub's middle line: inside a bus stroke (4.5 px), outside a 1-bit one (2.5 px)
         Color besideTheStub = new Color(image.getRGB(pin.x() * UNIT + 4, pin.y() * UNIT + 1));
         assertThat(besideTheStub).isEqualTo(ColorScheme.LIGHT.wireOne());
+    }
+
+    @Test
+    void theGhostOfASalidaTakesTheColourItIsGivenForItsName() {
+        GridPoint position = new GridPoint(2, 2);
+        Component exit = tunnel(TunnelKind.EXIT, position, Map.of(Tunnels.NAME, "CLK"));
+        Component entranceInColourThree = tunnel(TunnelKind.ENTRANCE, position,
+                Map.of(Tunnels.NAME, "CLK", Tunnels.COLOR, 3));
+        Component entranceInColourZero = tunnel(TunnelKind.ENTRANCE, position,
+                Map.of(Tunnels.NAME, "CLK", Tunnels.COLOR, 0));
+
+        for (ColorScheme scheme : List.of(ColorScheme.LIGHT, ColorSchemes.DARK)) {
+            Color joined = tagBorder(ghost(scheme, exit, Map.of("CLK", 3)), position);
+            Color alone = tagBorder(ghost(scheme, exit, Map.of("OTHER", 3)), position);
+
+            assertThat(joined).isEqualTo(tagBorder(ghost(scheme, entranceInColourThree, Map.of()), position));
+            assertThat(alone).isEqualTo(tagBorder(ghost(scheme, entranceInColourZero, Map.of()), position));
+            assertThat(joined).isNotEqualTo(alone);
+        }
+    }
+
+    @Test
+    void theGhostOfAnEntradaKeepsItsOwnColour() {
+        GridPoint position = new GridPoint(2, 2);
+        Component entrance = tunnel(TunnelKind.ENTRANCE, position, Map.of(Tunnels.NAME, "CLK", Tunnels.COLOR, 3));
+
+        assertThat(tagBorder(ghost(ColorScheme.LIGHT, entrance, Map.of("CLK", 5)), position))
+                .isEqualTo(tagBorder(ghost(ColorScheme.LIGHT, entrance, Map.of()), position));
+    }
+
+    @Test
+    void aGhostWithoutColoursIsTheContextFreeDrawing() {
+        GridPoint position = new GridPoint(2, 2);
+        Component exit = tunnel(TunnelKind.EXIT, position, Map.of(Tunnels.NAME, "CLK"));
+        CircuitRenderer renderer = new CircuitRenderer(registry, PainterRegistry.standard(), ColorScheme.LIGHT);
+        BufferedImage image = blank(ColorScheme.LIGHT);
+        Graphics2D graphics = image.createGraphics();
+        renderer.paintGhost(graphics, exit);
+        graphics.dispose();
+
+        assertThat(tagBorder(image, position)).isEqualTo(tagBorder(ghost(ColorScheme.LIGHT, exit, Map.of()), position));
+    }
+
+    /** A tunnel that is not in the document, like one being placed or pasted. */
+    private Component tunnel(TunnelKind kind, GridPoint position, Map<String, Object> parameters) {
+        return registry.require(kind.typeId()).newComponent(new ElementId("ghost"), position, Rotation.R0,
+                parameters, "");
+    }
+
+    private BufferedImage ghost(ColorScheme scheme, Component component, Map<String, Integer> tunnelColors) {
+        BufferedImage image = blank(scheme);
+        Graphics2D graphics = image.createGraphics();
+        new CircuitRenderer(registry, PainterRegistry.standard(), scheme)
+                .paintGhost(graphics, component, registry, tunnelColors);
+        graphics.dispose();
+        return image;
+    }
+
+    private static BufferedImage blank(ColorScheme scheme) {
+        BufferedImage image = new BufferedImage(IMAGE_SIZE, IMAGE_SIZE, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D graphics = image.createGraphics();
+        graphics.setColor(scheme.background());
+        graphics.fillRect(0, 0, IMAGE_SIZE, IMAGE_SIZE);
+        graphics.dispose();
+        return image;
     }
 
     private static List<Color> paletteColours(ColorScheme scheme) {

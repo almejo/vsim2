@@ -20,8 +20,9 @@ import java.util.Map;
  * the pin outside it, a wire stub from the pin into the centre of the hole, the arrow next to the hole (pointing at it
  * for an entrada, away for a salida) and the name, upright when the tag is horizontal and sideways when vertical. The
  * geometry is {@link TunnelShape}'s. On the canvas the colour of a salida is its entrada's and the stub is drawn like
- * its wire ({@link Look}); without a circuit (palette icon, placement ghost) the painter uses the tunnel's own colour
- * parameter (palette colour 0 for a salida) and a plain stub.
+ * its wire ({@link Look}); without a circuit (palette icon) the painter uses the tunnel's own colour parameter (palette
+ * colour 0 for a salida) and a plain stub. A ghost being placed or pasted gets its colour from the tool that knows the
+ * target circuit ({@code CircuitRenderer.paintGhost} with the tunnel colours).
  */
 public final class TunnelPainter implements ComponentPainter {
 

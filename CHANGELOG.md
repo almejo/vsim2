@@ -5,6 +5,13 @@ Los cambios de VSim 2 que se notan al usarlo, del más nuevo al más antiguo. El
 sección es un conjunto de funciones, con las fechas en que se hizo. El detalle de cada función está en
 [docs/funciones.md](docs/funciones.md).
 
+## 2026-10-21 — Ajustes
+
+### Arreglado
+
+- La vista previa de un túnel de salida que estás poniendo o pegando muestra el color de la entrada de su nombre,
+  como se verá al soltarlo, y no siempre el primer color.
+
 ## 2026-10-19 — 2026-10-20 — Exportar a PDF
 
 ### Agregado
