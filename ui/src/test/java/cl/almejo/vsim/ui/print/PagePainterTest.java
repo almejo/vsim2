@@ -769,6 +769,9 @@ class PagePainterTest {
         assertThePdfLooksLikeThePreview(painter(input, fit()), folder);
         assertThePdfLooksLikeThePreview(painter(input, options(new PrintScope.WholeCircuit(),
                 new ScaleMode.FitToOnePage(), false, true, false)), folder);
+        // the first of several sheets: frames and their titles reaching into the other sheets stay cut
+        assertThePdfLooksLikeThePreview(painter(input, options(new PrintScope.WholeCircuit(),
+                new ScaleMode.Percentage(100), false, true, true)), folder);
     }
 
     // --- each sheet carries its own share ----------------------------------------------------------------------
