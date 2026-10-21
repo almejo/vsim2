@@ -86,7 +86,9 @@ final class CheckTools {
                         + "only when VSim finished it and every expectation held, FAILED with what differed, or "
                         + "NOT_FINISHED when VSim could not finish it (a budget, a row limit, a simulation that has "
                         + "not caught up, a circuit with no table): never say a stage is checked unless passed is "
-                        + "true. Report VSim's results, not your own expectations.",
+                        + "true (it is false too when the circuit changed while the checks ran: version differs from "
+                        + "currentVersion). The truth tables of one call share at most 1000000 events. Report "
+                        + "VSim's results, not your own expectations.",
                 Schema.object("")
                         .property("document", Common.document())
                         .property("taskId", Schema.string("The task, to label the result"))
@@ -105,7 +107,7 @@ final class CheckTools {
                                         .property("summary", Schema.string(""))
                                         .property("details", Schema.result("").build())
                                         .required("kind", "status", "summary").build()))
-                        .property("passed", Schema.bool("True only when every check PASSED"))
+                        .property("passed", Schema.bool("True only when every check PASSED on one version"))
                         .required("checks", "passed").build(),
                 Tool.Hints.READS,
                 List.of(Map.of("document", "circuit-1", "taskId", "task-1", "stage", "Semisumador", "checks",

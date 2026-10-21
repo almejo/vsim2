@@ -39,6 +39,11 @@ public final class StageChecks {
 
     /** At most this many checks in one call. */
     public static final int MAXIMUM_CHECKS = 20;
+    /**
+     * The truth tables of one call share this many events at most (each table's budget, 0 counting as
+     * {@link SimulationOperations#DEFAULT_EVENT_BUDGET}): a call never runs more than one largest table.
+     */
+    public static final long MAXIMUM_EVENTS_PER_CALL = SimulationOperations.MAXIMUM_EVENT_BUDGET;
     /** At most this many mismatches, problems or faults are listed per check (all are counted). */
     static final int LISTED = 20;
 
@@ -61,7 +66,8 @@ public final class StageChecks {
 
     /**
      * Runs every check in order. A circuit that is not open fails the whole call; any other refusal only makes its
-     * check NOT_FINISHED with the refusal in its details.
+     * check NOT_FINISHED with the refusal in its details. The call passes only when every check passed and the
+     * circuit did not change while they ran (the version before equals the one after).
      */
     public StageCheck.Result run(StageCheck.Request request) {
         if (request.checks().isEmpty()) {
@@ -71,13 +77,26 @@ public final class StageChecks {
             throw new AutomationException(AutomationError.INVALID_PARAMETER, "At most " + MAXIMUM_CHECKS
                     + " checks per call", Map.of("maximum", MAXIMUM_CHECKS));
         }
+        long events = request.checks().stream()
+                .filter(Check.TruthTable.class::isInstance)
+                .mapToLong(check -> {
+                    int budget = ((Check.TruthTable) check).eventBudget();
+                    return budget == 0 ? SimulationOperations.DEFAULT_EVENT_BUDGET : budget;
+                })
+                .sum();
+        if (events > MAXIMUM_EVENTS_PER_CALL) {
+            throw new AutomationException(AutomationError.INVALID_PARAMETER, "The truth tables of one call share at "
+                    + "most " + MAXIMUM_EVENTS_PER_CALL + " events (these ask for " + events + "); split the checks "
+                    + "into several calls", Map.of("maximum", MAXIMUM_EVENTS_PER_CALL));
+        }
         DocumentVersion before = measurements.problems(request.document()).version();
         List<CheckResult> results = new ArrayList<>();
         for (Check check : request.checks()) {
             results.add(runOne(request.document(), check));
         }
         DocumentVersion after = measurements.problems(request.document()).version();
-        boolean passed = results.stream().allMatch(result -> result.status() == Status.PASSED);
+        boolean passed = before.equals(after)
+                && results.stream().allMatch(result -> result.status() == Status.PASSED);
         return new StageCheck.Result(request.document(), before, after, request.taskId(), request.stage(), results,
                 passed);
     }

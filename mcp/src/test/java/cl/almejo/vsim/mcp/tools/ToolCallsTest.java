@@ -298,6 +298,9 @@ class ToolCallsTest {
 
     @Test
     void settingsGoToTheWindowAndPreferencesOnlyThroughAProposal() {
+        assertThat(refusal("vsim_set_editor_setting", Map.of("document", "circuit-1", "setting", "GRID_STYLE",
+                "value", "LINES"))).containsEntry("error", "NOT_ALLOWED");
+        beginTask();
         call("vsim_set_editor_setting", Map.of("document", "circuit-1", "setting", "GRID_STYLE", "value", "LINES"));
         assertThat(refusal("vsim_set_editor_setting", Map.of("document", "circuit-1", "setting", "GRID_SPACING",
                 "value", "7"))).containsEntry("error", "INVALID_PARAMETER");

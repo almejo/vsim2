@@ -103,11 +103,19 @@ public final class AutomationApi {
         return onEditorThread(access -> host.newCircuit(name));
     }
 
-    /** Changes an editor setting in the temporary layer of {@code document}'s window only (spec §7). */
+    /**
+     * Changes an editor setting in the temporary layer of {@code document}'s window only (spec §7), while a task runs
+     * on that circuit, so that the task's end takes it back; NOT_ALLOWED outside a task.
+     */
     public void setEditorSetting(DocumentId document, EditorSetting setting, String value) {
         Objects.requireNonNull(document, "document");
         Objects.requireNonNull(setting, "setting");
         Objects.requireNonNull(value, "value");
+        if (!edits.hasRunningTask(document)) {
+            throw new AutomationException(AutomationError.NOT_ALLOWED, "Editor settings change only inside a task "
+                    + "on that circuit (vsim_begin_task): they go back to the user's when it ends",
+                    Map.of("document", document.value()));
+        }
         onEditorThread(access -> {
             host.setEditorSetting(document, setting, value);
             return Boolean.TRUE;

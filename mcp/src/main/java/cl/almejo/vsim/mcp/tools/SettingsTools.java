@@ -40,6 +40,7 @@ final class SettingsTools {
                         + "«Mostrar guías», «Los cables siguen») in a temporary layer of the circuit's window only: "
                         + "the user's saved preferences and other windows never change, the panel lists it under "
                         + "«Ajustes que tocó la IA», and it goes back when the task ends unless the user keeps it. "
+                        + "Only inside a task on that circuit (vsim_begin_task first). "
                         + "Values: " + values + ".",
                 Schema.object("")
                         .property("document", Common.document())

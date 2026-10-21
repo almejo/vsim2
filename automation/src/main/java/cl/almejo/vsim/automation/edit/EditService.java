@@ -86,10 +86,21 @@ public final class EditService {
         }
         task.ifPresent(EditService::requireRunning);
         requireVersion(circuit, request.expected());
-        EditPlanner.PlannedEdit planned = EditPlanner.plan(circuit.document(), circuit.registry(), circuit.library(),
-                request.operations());
-        ReplaceContentCommand content = ReplaceContentCommand.between(circuit.document(), planned.candidate(),
-                AiEditCommand.DESCRIPTION);
+        EditPlanner.PlannedEdit planned;
+        ReplaceContentCommand content;
+        try {
+            planned = EditPlanner.plan(circuit.document(), circuit.registry(), circuit.library(),
+                    request.operations());
+            content = ReplaceContentCommand.between(circuit.document(), planned.candidate(),
+                    AiEditCommand.DESCRIPTION);
+        } catch (AutomationException | IllegalArgumentException refusal) {
+            throw refusal;
+        } catch (RuntimeException unexpected) {
+            // Planning works on a copy: whatever went wrong, the circuit was not touched (review M13).
+            throw new AutomationException(AutomationError.NOT_ALLOWED, "VSim could not carry out this edit ("
+                    + unexpected.getClass().getSimpleName() + "). Nothing was changed; read the circuit and try "
+                    + "another way");
+        }
         EditReceipt.ElementChanges changes = changesOf(content);
         if (request.validateOnly()) {
             return receipt(false, circuit.version(), planned, changes, List.of());
@@ -289,6 +300,11 @@ public final class EditService {
             case ENDED -> throw new AutomationException(AutomationError.NOT_ALLOWED, "The task "
                     + task.info().taskId() + " has ended; begin a new one", Map.of("taskId", task.info().taskId()));
         }
+    }
+
+    /** True while a task runs on {@code document}. */
+    public boolean hasRunningTask(DocumentId document) {
+        return runningTaskOf(document).isPresent();
     }
 
     private Optional<AiTask> runningTaskOf(DocumentId document) {

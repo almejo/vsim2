@@ -579,6 +579,46 @@ class EditServiceTest {
     }
 
     @Test
+    void anUnexpectedFailureBeforeTheWriteSaysNothingWasChanged() {
+        EditableCircuit broken = new EditableCircuit() {
+            @Override
+            public cl.almejo.vsim.core.document.CircuitDocument document() {
+                return circuit.document();
+            }
+
+            @Override
+            public cl.almejo.vsim.core.component.ComponentTypeRegistry registry() {
+                throw new IllegalStateException("a broken registry");
+            }
+
+            @Override
+            public cl.almejo.vsim.core.command.History history() {
+                return circuit.history();
+            }
+
+            @Override
+            public cl.almejo.vsim.automation.DocumentVersion version() {
+                return circuit.version();
+            }
+        };
+        EditService failing = new EditService(new cl.almejo.vsim.automation.EditHost() {
+            @Override
+            public <T> java.util.concurrent.CompletableFuture<T> onCircuit(DocumentId document,
+                                                                         java.util.function.Function<EditableCircuit,
+                                                                                 T> work) {
+                return java.util.concurrent.CompletableFuture.completedFuture(work.apply(broken));
+            }
+        }, listeners, Duration.ofSeconds(5), Runnable::run);
+
+        assertThatThrownBy(() -> failing.edit(request(place("gate", "nand2", 0, 0))))
+                .isInstanceOfSatisfying(AutomationException.class, refusal -> {
+                    assertThat(refusal.error()).isEqualTo(AutomationError.NOT_ALLOWED);
+                    assertThat(refusal.getMessage()).contains("Nothing was changed");
+                });
+        assertNothingChanged();
+    }
+
+    @Test
     void anEditForAClosedCircuitSaysSo() {
         EditRequest request = request(place("gate", "nand2", 0, 0));
         host.close(DOCUMENT);

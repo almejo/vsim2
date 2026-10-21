@@ -22,11 +22,26 @@ class AutomationApiSettingsTest {
     @Test
     void newCircuitsSettingsAndProposalsRunOnTheEditorThread() {
         assertThat(api.newCircuit("Sumador")).isEqualTo(new DocumentId("circuit-9"));
+        api.beginTask(new DocumentId("circuit-9"), "Mostrar la grilla", List.of());
         api.setEditorSetting(new DocumentId("circuit-9"), EditorSetting.GRID_STYLE, "LINES");
         assertThat(api.proposePreference(ProposedPreference.THEME, "DARK", "Para el video")).isEqualTo("proposal-1");
 
         assertThat(host.calls).containsExactly("editor:new Sumador", "editor:set circuit-9 GRID_STYLE=LINES",
                 "editor:propose THEME=DARK");
+    }
+
+    @Test
+    void anEditorSettingChangesOnlyInsideATaskOnThatCircuitSoItsEndTakesItBack() {
+        assertThatThrownBy(() -> api.setEditorSetting(new DocumentId("circuit-9"), EditorSetting.GRID_STYLE,
+                "LINES")).isInstanceOfSatisfying(AutomationException.class, refusal -> {
+                    assertThat(refusal.error()).isEqualTo(AutomationError.NOT_ALLOWED);
+                    assertThat(refusal.getMessage()).contains("vsim_begin_task");
+                });
+        TaskInfo task = api.beginTask(new DocumentId("circuit-9"), "Grilla", List.of());
+        api.endTask(task.taskId());
+        assertThatThrownBy(() -> api.setEditorSetting(new DocumentId("circuit-9"), EditorSetting.GRID_STYLE,
+                "LINES")).isInstanceOf(AutomationException.class);
+        assertThat(host.calls).isEmpty();
     }
 
     @Test
@@ -72,6 +87,13 @@ class AutomationApiSettingsTest {
             } finally {
                 onEditorThread = false;
             }
+        }
+
+        @Override
+        public <T> CompletableFuture<T> onCircuit(DocumentId document,
+                                                  Function<cl.almejo.vsim.automation.edit.EditableCircuit, T> work) {
+            // Beginning a task only checks that the circuit is open.
+            return CompletableFuture.completedFuture(work.apply(null));
         }
 
         private String where() {

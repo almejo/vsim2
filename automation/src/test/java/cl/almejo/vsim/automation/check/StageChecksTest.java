@@ -96,6 +96,34 @@ class StageChecksTest {
     }
 
     @Test
+    void checksAcrossAnEditOfTheUserNeverPass() {
+        measurements.table = andTable(false, 4, false);
+        measurements.problemsAfterTheFirstRead = new ProblemsView(DOCUMENT, new DocumentVersion(5), "0", true,
+                List.of());
+
+        StageCheck.Result result = checks.run(new StageCheck.Request(DOCUMENT, Optional.empty(), Optional.empty(),
+                List.of(truthTable(andRows()))));
+
+        assertThat(result.checks().getFirst().status()).isEqualTo(Status.PASSED);
+        assertThat(result.passed()).isFalse();
+    }
+
+    @Test
+    void theTruthTablesOfOneCallShareOneEventBudget() {
+        measurements.table = andTable(false, 4, false);
+        List<Check> tables = List.of(new Check.TruthTable(Set.of(), andRows(), 0, 600_000),
+                new Check.TruthTable(Set.of(), andRows(), 0, 600_000));
+
+        assertThatThrownBy(() -> checks.run(new StageCheck.Request(DOCUMENT, Optional.empty(), Optional.empty(),
+                tables))).isInstanceOfSatisfying(AutomationException.class,
+                refusal -> assertThat(refusal.error()).isEqualTo(AutomationError.INVALID_PARAMETER));
+        // Defaults (0) count as the default budget: ten of them fit.
+        List<Check> defaults = java.util.Collections.nCopies(10, truthTable(andRows()));
+        assertThat(checks.run(new StageCheck.Request(DOCUMENT, Optional.empty(), Optional.empty(), defaults))
+                .passed()).isTrue();
+    }
+
+    @Test
     void aTableCutByTheRowLimitSaysWhichLimitToRaise() {
         measurements.table = new TruthTableView(DOCUMENT, VERSION, AND_INPUTS, AND_OUTPUTS, andTable(false, 2, false)
                 .rows(), 4, true, false, false, 20, 100_000, false);
@@ -236,6 +264,7 @@ class StageChecksTest {
         TruthTableView table;
         AutomationException refusal;
         ProblemsView problems = new ProblemsView(DOCUMENT, VERSION, "0", true, List.of());
+        ProblemsView problemsAfterTheFirstRead;
         List<LayoutCheck.Fault> faults = List.of();
         List<SignalValue> signals = List.of();
         boolean staleSignals;
@@ -246,7 +275,11 @@ class StageChecksTest {
             if (closed) {
                 throw new AutomationException(AutomationError.DOCUMENT_CLOSED, "closed");
             }
-            return problems;
+            ProblemsView answer = problems;
+            if (problemsAfterTheFirstRead != null) {
+                problems = problemsAfterTheFirstRead;
+            }
+            return answer;
         }
 
         @Override
