@@ -10,7 +10,6 @@ import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.netlist.PinRef;
 
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -19,7 +18,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.function.Supplier;
 
@@ -39,7 +37,8 @@ import java.util.function.Supplier;
  * the moved one: a moved pin or moved wire end that touched a fixed pin or the interior of a fixed wire, and a fixed
  * pin or wire end on a moved wire's interior. A bridge is added only when the two are not on one net after the move.
  *
- * <p>Accidental contacts are points where things from two nets of before the move meet. For an L that causes one,
+ * <p>Accidental contacts are points where things from two nets of before the move meet (the rule of
+ * {@link ContactProbe}, shared with moves whose wires do not follow). For an L that causes one,
  * the other orientation (vertical first for a horizontal wire) is used when it is clean.
  */
 public final class WireFollow {
@@ -441,41 +440,37 @@ public final class WireFollow {
                 candidates.add(point);
             }
         });
-        List<NewContact> contacts = new ArrayList<>();
-        for (GridPoint point : candidates) {
-            List<PinRef> pins = after.pinsAt(point);
-            List<Wire> through = after.wiresThrough(point);
-            boolean anEndIsHere = !pins.isEmpty() || through.stream()
-                    .anyMatch(wire -> wire.start().equals(point) || wire.end().equals(point));
-            if (!anEndIsHere) {
-                continue;
+        return ContactProbe.contactsAt(candidates, after, new ContactProbe.Layout() {
+            @Override
+            public Object netOfWire(ElementId wireId) {
+                return draft.rootBefore(wireId);
             }
-            Map<GridPoint, Item> netsHere = new LinkedHashMap<>();
-            for (Wire wire : through) {
-                netsHere.putIfAbsent(draft.rootBefore(wire.id()), new WireItem(wire.id()));
-            }
-            for (PinRef pin : pins) {
-                netsHere.putIfAbsent(netsBefore.find(netsBefore.pinPoint(pin)), new PinItem(pin));
-            }
-            if (netsHere.size() > 1) {
-                contacts.add(contactAt(point, pins, through, draft));
-            }
-        }
-        return contacts;
-    }
 
-    /** Names the pin touched by something of another net, preferring a pin that stays over one that moved. */
-    private NewContact contactAt(GridPoint point, List<PinRef> pins, List<Wire> through, Draft draft) {
-        Set<GridPoint> wireNets = new HashSet<>();
-        through.forEach(wire -> wireNets.add(draft.rootBefore(wire.id())));
-        Optional<PinRef> named = pins.stream()
-                .sorted(Comparator.comparing((PinRef pin) -> isMovedPin(pin))
-                        .thenComparing(pin -> !wireNets.isEmpty()
-                                && wireNets.contains(netsBefore.find(netsBefore.pinPoint(pin))))
-                        .thenComparing(pin -> document.orderOf(pin.componentId()))
-                        .thenComparingInt(PinRef::pinIndex))
-                .findFirst();
-        return new NewContact(point, named.map(PinRef::componentId), named.map(pinNames::get));
+            @Override
+            public Object netOfPin(PinRef pin) {
+                return netsBefore.find(netsBefore.pinPoint(pin));
+            }
+
+            @Override
+            public boolean isMoved(PinRef pin) {
+                return isMovedPin(pin);
+            }
+
+            @Override
+            public long orderOf(ElementId componentId) {
+                return document.orderOf(componentId);
+            }
+
+            @Override
+            public ElementId reportedComponentId(ElementId componentId) {
+                return componentId;
+            }
+
+            @Override
+            public String pinName(PinRef pin) {
+                return pinNames.get(pin);
+            }
+        });
     }
 
     // --- model ---
@@ -593,72 +588,6 @@ public final class WireFollow {
                 }
             }
             return new FollowPlan(movedWholeWireIds, replacedWires, addedWires, removedWireIds, contacts);
-        }
-    }
-
-    /**
-     * Union-find over the points of interest (pins and wire ends) of one layout, with the connection rule of
-     * {@code NetlistCompiler}: a wire joins every point of interest it contains.
-     */
-    private static final class PointNets {
-
-        private final Map<GridPoint, GridPoint> parents = new HashMap<>();
-        private final Map<PinRef, GridPoint> pinPoints;
-        private final Map<ElementId, GridPoint> wireStarts = new HashMap<>();
-
-        PointNets(Map<PinRef, GridPoint> pinPoints, List<Wire> wires) {
-            this.pinPoints = pinPoints;
-            Map<Integer, TreeMap<Integer, GridPoint>> rows = new HashMap<>();
-            Map<Integer, TreeMap<Integer, GridPoint>> columns = new HashMap<>();
-            List<GridPoint> points = new ArrayList<>(pinPoints.values());
-            for (Wire wire : wires) {
-                points.add(wire.start());
-                points.add(wire.end());
-                wireStarts.put(wire.id(), wire.start());
-            }
-            for (GridPoint point : points) {
-                parents.putIfAbsent(point, point);
-                rows.computeIfAbsent(point.y(), row -> new TreeMap<>()).put(point.x(), point);
-                columns.computeIfAbsent(point.x(), column -> new TreeMap<>()).put(point.y(), point);
-            }
-            for (Wire wire : wires) {
-                Map<Integer, GridPoint> contained = wire.isHorizontal()
-                        ? rows.get(wire.start().y()).subMap(wire.start().x(), true, wire.end().x(), true)
-                        : columns.get(wire.start().x()).subMap(wire.start().y(), true, wire.end().y(), true);
-                for (GridPoint point : contained.values()) {
-                    union(wire.start(), point);
-                }
-            }
-        }
-
-        GridPoint pinPoint(PinRef pin) {
-            return pinPoints.get(pin);
-        }
-
-        GridPoint wireStart(ElementId wireId) {
-            return wireStarts.get(wireId);
-        }
-
-        GridPoint find(GridPoint point) {
-            GridPoint root = point;
-            while (!parents.get(root).equals(root)) {
-                root = parents.get(root);
-            }
-            GridPoint current = point;
-            while (!current.equals(root)) {
-                GridPoint next = parents.get(current);
-                parents.put(current, root);
-                current = next;
-            }
-            return root;
-        }
-
-        void union(GridPoint first, GridPoint second) {
-            GridPoint firstRoot = find(first);
-            GridPoint secondRoot = find(second);
-            if (!firstRoot.equals(secondRoot)) {
-                parents.put(secondRoot, firstRoot);
-            }
         }
     }
 }
