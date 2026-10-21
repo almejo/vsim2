@@ -269,7 +269,7 @@ public final class FrameGestures implements SelectToolDelegate {
                 context.paintGhost(graphics, resized(grabbed));
             } else {
                 movePreview.paint(graphics, context, context.selection().effectiveIds(), deltaX, deltaY,
-                        followWires);
+                        followWires, false, Optional.ofNullable(lastDrag).map(CanvasMouseEvent::gridPosition));
                 AlignmentLinesPainter.paint(graphics, context, snappedMove.movedBox(), snappedMove.matches());
             }
         }

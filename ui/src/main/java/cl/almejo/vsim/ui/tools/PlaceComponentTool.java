@@ -1,22 +1,31 @@
 package cl.almejo.vsim.ui.tools;
 
 import cl.almejo.vsim.core.component.ComponentType;
+import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
+import cl.almejo.vsim.core.wiring.NewContact;
 import cl.almejo.vsim.ui.snap.AlignmentLinesPainter;
+import cl.almejo.vsim.ui.snap.ContactCache;
+import cl.almejo.vsim.ui.snap.ContactDots;
 import cl.almejo.vsim.ui.snap.SnappedPlacement;
 import cl.almejo.vsim.ui.tunnel.NewTunnels;
 
 import java.awt.Cursor;
 import java.awt.Graphics2D;
 import java.awt.event.KeyEvent;
+import java.awt.geom.Point2D;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 
 /**
  * Places a component where the user clicks, then returns to the default tool (Shift keeps placing). Ajustar
  * (alignment-guides spec §3.4): the ghost is snapped to the circuit's parts, guides and grid lines and shows its
  * alignment lines; a press places it where the magnet takes the press point (the ghost's place when the pointer has
- * not moved), and R or {@link #refreshSnap} redo the ghost from the last raw point.
+ * not moved), and R or {@link #refreshSnap} redo the ghost from the last raw point. A dot marks each point where
+ * the ghost would touch a net of the circuit ({@link ContactDots}), before the lines.
  */
 public final class PlaceComponentTool implements Tool {
 
@@ -28,6 +37,9 @@ public final class PlaceComponentTool implements Tool {
     /** The grid point under the pointer before the magnet. */
     private GridPoint rawHover;
     private SnappedPlacement snapped;
+    private final ContactCache contactCache = new ContactCache();
+    /** Where the pointer last was, in grid units, for the pin names of the contacts. */
+    private Point2D pointer;
 
     public PlaceComponentTool(ComponentType type) {
         this.type = type;
@@ -49,6 +61,7 @@ public final class PlaceComponentTool implements Tool {
     @Override
     public void mouseMoved(ToolContext context, CanvasMouseEvent event) {
         rawHover = event.snapped();
+        pointer = event.gridPosition();
         snapHover(context);
         context.repaint();
     }
@@ -117,10 +130,26 @@ public final class PlaceComponentTool implements Tool {
     @Override
     public void paintOverlay(Graphics2D graphics, ToolContext context) {
         if (hover != null) {
-            context.paintGhost(graphics, type.newComponent(PREVIEW_ID, hover, rotation,
-                    NewTunnels.parameters(context.openDocument(), type), ""));
+            context.paintGhost(graphics, ghost(context));
+            ContactDots.paint(graphics, context, contacts(context), Optional.ofNullable(pointer));
             AlignmentLinesPainter.paint(graphics, context, snapped.box(), snapped.matches());
         }
+    }
+
+    private Component ghost(ToolContext context) {
+        return type.newComponent(PREVIEW_ID, hover, rotation, NewTunnels.parameters(context.openDocument(), type), "");
+    }
+
+    /**
+     * The points where the ghost, placed where it is, would join two nets of the circuit that are not joined today
+     * (spec §3.7); none before the pointer came over the canvas.
+     */
+    List<NewContact> contacts(ToolContext context) {
+        if (hover == null) {
+            return List.of();
+        }
+        return contactCache.contacts(context.openDocument().document(), context.openDocument().registry(),
+                List.of(ghost(context)), 0, 0, Set.of());
     }
 
     @Override

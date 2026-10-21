@@ -19,6 +19,7 @@ import cl.almejo.vsim.core.io.FragmentFormat;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.core.tunnel.TunnelKind;
 import cl.almejo.vsim.core.tunnel.Tunnels;
+import cl.almejo.vsim.core.wiring.NewContact;
 import cl.almejo.vsim.ui.app.AppPreferences.GridStyle;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.edges.EdgeController;
@@ -28,6 +29,7 @@ import cl.almejo.vsim.ui.panels.PaletteTransfer;
 import cl.almejo.vsim.ui.tools.CanvasCursor;
 import cl.almejo.vsim.ui.tools.CanvasMouseEvent;
 import cl.almejo.vsim.ui.tools.ComponentPlacement;
+import cl.almejo.vsim.ui.snap.ContactDots;
 import cl.almejo.vsim.ui.snap.SnappedMove;
 import cl.almejo.vsim.ui.snap.SnappedPlacement;
 import cl.almejo.vsim.ui.snap.Snapper;
@@ -35,6 +37,7 @@ import cl.almejo.vsim.ui.tools.FloatingSelectionTool;
 import cl.almejo.vsim.ui.tools.SelectTool;
 import cl.almejo.vsim.ui.tools.Tool;
 import cl.almejo.vsim.ui.tools.ToolContext;
+import cl.almejo.vsim.ui.wiring.MovePreview;
 import cl.almejo.vsim.ui.wiring.SelectionMoves;
 
 import javax.swing.Action;
@@ -124,6 +127,9 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     private DragOrigin dragOut;
     private String dragOutJson;
     private GridPoint dragOutPreview;
+    /** The contacts of the move a drag out brought back previews, and where the pointer is (grid units). */
+    private final MovePreview dragOutMoves = new MovePreview();
+    private Point2D dragOutPointer;
     private Function<Point2D, Optional<String>> toolTipProvider = gridPoint -> Optional.empty();
     private boolean toolTipProviderSet;
     private boolean pressIntercepted;
@@ -348,6 +354,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
             return;
         }
         GridPoint at = viewport.snap(point.x, point.y);
+        dragOutPointer = viewport.screenToGrid(point.x, point.y);
         SnappedMove snapped = SnappedMove.of(this, dragOut.ids(), false, at.x() - dragOut.pressPoint().x(),
                 at.y() - dragOut.pressPoint().y());
         GridPoint delta = new GridPoint(snapped.deltaX(), snapped.deltaY());
@@ -359,10 +366,24 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
 
     /** The drag out left this canvas (or ended): no preview. */
     void dragOutLeft() {
+        dragOutMoves.clear();
+        dragOutPointer = null;
         if (dragOutPreview != null) {
             dragOutPreview = null;
             repaint();
         }
+    }
+
+    /**
+     * The new contacts of the move being previewed (spec §3.7), with the wires following as the drop will move them;
+     * none when no move is previewed.
+     */
+    List<NewContact> dragOutContacts() {
+        if (dragOut == null || dragOutPreview == null) {
+            return List.of();
+        }
+        return dragOutMoves.contacts(this, dragOut.ids(), dragOutPreview.x(), dragOutPreview.y(),
+                selectionMoves.followMode(), false);
     }
 
     /** The move being previewed, as a delta in grid units. */
@@ -492,6 +513,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
             openDocument.document().element(id).ifPresent(element ->
                     paintGhost(graphics, element.translate(dragOutPreview.x(), dragOutPreview.y())));
         }
+        ContactDots.paint(graphics, this, dragOutContacts(), Optional.ofNullable(dragOutPointer));
     }
 
     /** Hides the preview when the drag leaves the canvas; Swing's drop target takes extra listeners. */

@@ -19,6 +19,7 @@ import cl.almejo.vsim.core.io.CircuitFragment;
 import cl.almejo.vsim.core.library.InterfacePins;
 import cl.almejo.vsim.core.tunnel.Tunnels;
 import cl.almejo.vsim.core.value.Value;
+import cl.almejo.vsim.core.wiring.NewContact;
 import cl.almejo.vsim.core.wiring.WireStretch;
 import cl.almejo.vsim.ui.canvas.ConnectionPoints;
 import cl.almejo.vsim.ui.canvas.LabelLayout;
@@ -642,6 +643,21 @@ public final class SelectTool implements Tool {
         return true;
     }
 
+    /** A Ctrl copy is being dragged (Ctrl at the release copies). */
+    private boolean copying() {
+        return lastDrag != null && lastDrag.controlDown();
+    }
+
+    /** The new contacts the current move shows (spec §3.7): none when nothing is being moved. */
+    List<NewContact> contacts(ToolContext context) {
+        if (activeDelegate != null || pressPoint == null || wire != null || bandStart != null
+                || labelOffset != null) {
+            return List.of();
+        }
+        return movePreview.contacts(context, context.selection().effectiveIds(), deltaX, deltaY, followWires,
+                copying());
+    }
+
     /** For tests: the alignment lines the current move draws. */
     List<SnapMatch> alignmentMatches() {
         return snappedMove.matches();
@@ -690,7 +706,8 @@ public final class SelectTool implements Tool {
         if (pressPoint == null) {
             return;
         }
-        movePreview.paint(graphics, context, context.selection().effectiveIds(), deltaX, deltaY, followWires);
+        movePreview.paint(graphics, context, context.selection().effectiveIds(), deltaX, deltaY, followWires,
+                copying(), Optional.ofNullable(lastDrag).map(CanvasMouseEvent::gridPosition));
         if (lastDrag != null) {
             AlignmentLinesPainter.paint(graphics, context, snappedMove.movedBox(), snappedMove.matches());
         }
