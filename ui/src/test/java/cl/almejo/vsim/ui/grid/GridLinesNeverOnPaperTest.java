@@ -143,5 +143,14 @@ class GridLinesNeverOnPaperTest {
             assertThat(pdfSheet(false)).as(style + " sheet").isEqualTo(dotsSheet);
             assertThat(pdfSheet(true)).as(style + " black and white sheet").isEqualTo(dotsMonochromeSheet);
         }
+        preferences.setGridStyle(GridStyle.LINES);
+        for (int spacing : AppPreferences.GRID_LINE_SPACINGS) {
+            preferences.setGridLineSpacing(spacing);
+            assertThat(view.canvas().gridLineSpacing()).isEqualTo(spacing);
+            assertThat(png("lines" + spacing)).as(spacing + " png").isEqualTo(dotsPng);
+            assertThat(svg("lines" + spacing)).as(spacing + " svg").isEqualTo(dotsSvg);
+            assertThat(pdfSheet(false)).as(spacing + " sheet").isEqualTo(dotsSheet);
+            assertThat(pdfSheet(true)).as(spacing + " black and white sheet").isEqualTo(dotsMonochromeSheet);
+        }
     }
 }

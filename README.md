@@ -100,7 +100,7 @@ Una línea por función; el detalle está en [docs/funciones.md](docs/funciones.
 
 - [Ventanas y vistas](docs/funciones.md#ventanas-y-vistas): varias vistas del mismo circuito.
 - [Zoom y desplazamiento](docs/funciones.md#zoom-y-desplazamiento) con rueda, teclado y botón del medio.
-- [Cuadrícula](docs/funciones.md#cuadrícula) de puntos, de líneas (cada 2 y más marcada cada 10) o ninguna, con su propio color en cada esquema.
+- [Cuadrícula](docs/funciones.md#cuadrícula) de puntos, de líneas (cada 2 y más marcada cada 10, o con la separación que elijas: 2, 4, 5 o 10 unidades) o ninguna, con su propio color en cada esquema.
 - [Ajustar](docs/funciones.md#ajustar): al mover, las piezas se alinean por bordes y centros con las vecinas, las guías o las líneas de la cuadrícula, y los puntos de un cable o las esquinas de un marco nuevo caen en las guías sin soltarse de un pin o un cable (Ctrl+Mayús+M lo apaga); mientras arrastras, un punto rojo marca cada pin o cable que quedaría tocando algo de otra red.
 - [Reglas y guías](docs/funciones.md#reglas-y-guías): guías que se sacan de las reglas del borde del lienzo, se guardan con el circuito y no salen al exportar.
 - [Íconos, barra de herramientas y cursores](docs/funciones.md#íconos-barra-de-herramientas-y-cursores) que dicen qué hará cada cosa.

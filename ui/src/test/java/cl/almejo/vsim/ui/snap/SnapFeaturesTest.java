@@ -188,6 +188,8 @@ class SnapFeaturesTest {
         assertThat(tool.refreshes).isEqualTo(4);
         openDocument.document().setGuides(List.of(new Guide(Guide.Orientation.VERTICAL, 5)));
         assertThat(tool.refreshes).isEqualTo(5);
+        preferences.setGridLineSpacing(10); // the grid lines now pull every 10 units
+        assertThat(tool.refreshes).isEqualTo(6);
     }
 
     @Test

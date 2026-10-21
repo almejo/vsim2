@@ -88,6 +88,25 @@ public final class AppPreferences {
         put(GRID_STYLE, style.name());
     }
 
+    /** «Cuadrícula ▸ Separación ▸»: the units between the grid lines, also where they attract; 2 by default. */
+    public int gridLineSpacing() {
+        try {
+            int stored = Integer.parseInt(node.get(GRID_LINE_SPACING, ""));
+            return GRID_LINE_SPACINGS.contains(stored) ? stored : DEFAULT_GRID_LINE_SPACING;
+        } catch (NumberFormatException exception) {
+            return DEFAULT_GRID_LINE_SPACING;
+        }
+    }
+
+    /** One of {@link #GRID_LINE_SPACINGS} (IllegalArgumentException otherwise). */
+    public void setGridLineSpacing(int spacing) {
+        if (!GRID_LINE_SPACINGS.contains(spacing)) {
+            throw new IllegalArgumentException("grid line spacing " + spacing + " is not one of "
+                    + GRID_LINE_SPACINGS);
+        }
+        put(GRID_LINE_SPACING, Integer.toString(spacing));
+    }
+
     /** The key that inverts the follow mode while dragging (M6.7): Shift by default, Alt, or none. */
     public enum InvertModifier {
         SHIFT, ALT, NONE;
@@ -124,6 +143,7 @@ public final class AppPreferences {
     static final String SNAP_TO_GRID_LINES = "snap.gridLines";
     static final String SHOW_GUIDES = "guides.show";
     static final String GRID_STYLE = "grid.style";
+    static final String GRID_LINE_SPACING = "grid.lineSpacing";
     static final String INVERT_MODIFIER = "invertModifier";
     static final String TEXT_FONT_FAMILY = "textFontFamily";
     static final String TEXT_FONT_SIZE = "textFontSize";
@@ -142,6 +162,9 @@ public final class AppPreferences {
     private static final String PRINT_FIT = "fit";
 
     /** «Avanzar 10 t» (M6.1-B): the fixed step until the user picks another size. */
+    /** The spacings «Cuadrícula ▸ Separación ▸» offers, in grid units. */
+    public static final List<Integer> GRID_LINE_SPACINGS = List.of(2, 4, 5, 10);
+    public static final int DEFAULT_GRID_LINE_SPACING = 2;
     public static final long DEFAULT_STEP_UNITS = 10;
     public static final long MAXIMUM_STEP_UNITS = 1_000_000_000;
 

@@ -293,7 +293,8 @@ Los mensajes de error del asistente de Karnaugh, de la importación de tablas y 
 ### Cuadrícula
 
 - Ver ▸ «Cuadrícula ▸» elige qué se dibuja detrás del circuito: «Puntos» (los de siempre, la opción por defecto), «Líneas» (papel cuadriculado: una línea fina cada 2 unidades y una un poco más marcada cada 10) o «Nada». La elección vale para todas las ventanas y vistas, cambia al instante y se recuerda al reiniciar. «Cambiar el estilo de la cuadrícula», en el mismo submenú, pasa de Puntos a Líneas, a Nada y de vuelta a Puntos; no trae atajo, pero se le puede dar uno en Preferencias ▸ «Atajos de teclado».
-- Al alejar, las líneas se ralean como los puntos: cuando las de cada 2 unidades quedarían a menos de unos 6 px solo se dibujan las de cada 10.
+- Ver ▸ «Cuadrícula ▸ Separación ▸» elige cada cuántas unidades va una línea: 2 (la opción por defecto), 4, 5 o 10. Cada quinta línea es la más marcada (cada 10 unidades con 2, cada 20 con 4, cada 25 con 5 y cada 50 con 10). La misma separación es la que usa «Ajustar a ▸ Líneas de la cuadrícula», aunque la cuadrícula se vea como puntos o no se vea. Vale para todas las ventanas y vistas y se recuerda al reiniciar; no se guarda en el circuito. Los pines y los cables siguen en la cuadrícula de una unidad, como siempre, y los puntos no cambian.
+- Al alejar, las líneas se ralean como los puntos: cuando las finas quedarían a menos de unos 6 px solo se dibujan las más marcadas, y si también esas quedan muy juntas no se dibuja ninguna.
 - Las líneas tienen su propio color en cada esquema («Líneas de la cuadrícula» en el editor de esquemas, muy suave sobre el fondo); la de cada 10 usa ese color con el doble de opacidad. Un esquema propio guardado antes de esta opción toma el color de sus puntos, más suave.
 - La cuadrícula es solo del editor: las imágenes exportadas (PNG, SVG) y el PDF salen iguales con puntos, líneas o nada.
 

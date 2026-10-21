@@ -123,6 +123,17 @@ class PointSnapTest {
     }
 
     @Test
+    void aFreePointGoesToTheGridLinesOfTheChosenSpacing() {
+        context.preferences.setSnapToGridLines(true);
+        context.preferences.setGridLineSpacing(10);
+        assertThat(resolve(31, 49)).isEqualTo(new PointResolution(new GridPoint(30, 50), Reason.GRID_LINE));
+        assertThat(resolve(35, 35)).as("five units from every line: out of reach")
+                .isEqualTo(new PointResolution(new GridPoint(35, 35), Reason.GRID));
+        context.preferences.setGridLineSpacing(5);
+        assertThat(resolve(36, 34)).isEqualTo(new PointResolution(new GridPoint(35, 35), Reason.GRID_LINE));
+    }
+
+    @Test
     void withAjustarOffHiddenGuidesOrGuiasOffThePointStays() {
         guides(new Guide(Orientation.VERTICAL, 31));
         context.preferences.setSnapToAlignments(false);

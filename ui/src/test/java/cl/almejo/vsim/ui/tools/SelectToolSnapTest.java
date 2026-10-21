@@ -208,6 +208,33 @@ class SelectToolSnapTest {
     }
 
     @Test
+    void theGridLinesPullTheTopLeftCornerToMultiplesOfTheChosenSpacing() {
+        context.preferences.setSnapToParts(false);
+        context.preferences.setSnapToGridLines(true);
+        context.preferences.setGridLineSpacing(10);
+        Component moved = gate(21, 31);
+        move(moved, 8, 18); // raw (29, 49): the lines 30 and 50 are one unit away
+        assertThat(position(moved)).isEqualTo(new GridPoint(30, 50));
+        context.preferences.setGridLineSpacing(4);
+        Component landed = context.openDocument().document().component(moved.id()).orElseThrow();
+        move(landed, -5, -1); // raw (25, 49): the lines 24 and 48 are one unit away
+        assertThat(position(moved)).isEqualTo(new GridPoint(24, 48));
+    }
+
+    @Test
+    void changingTheSpacingMidDragRefreshesThePreviewAndTheReleaseCommitsIt() {
+        context.preferences.setSnapToParts(false);
+        context.preferences.setSnapToGridLines(true);
+        context.preferences.setGridLineSpacing(5);
+        Component moved = gate(21, 31);
+        pressAndDrag(moved, 4, 18, false); // raw (25, 49): (25, 50) on the fives
+        context.preferences.setGridLineSpacing(4);
+        tool.refreshSnap(context);
+        tool.mouseReleased(context, TestToolContext.at(23 + 4, 33 + 18));
+        assertThat(position(moved)).isEqualTo(new GridPoint(24, 48));
+    }
+
+    @Test
     void aWireOnlySelectionSnapsItsEndsToAGuide() {
         Wire wire = new Wire(context.openDocument().document().newWireId(), new GridPoint(0, 40),
                 new GridPoint(10, 40));

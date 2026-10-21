@@ -15,14 +15,16 @@ import javax.swing.JRadioButtonMenuItem;
 import java.awt.Component;
 import java.awt.event.ActionEvent;
 import java.util.EnumMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
  * The grid style of one editor view (spec §4.6): Ver ▸ «Cuadrícula ▸» with the radio items Puntos / Líneas / Nada and
  * «Cambiar el estilo de la cuadrícula» (shortcut id {@code view.cycleGrid}, no default key), all on
- * {@link AppPreferences#gridStyle()}, so every view shows the same grid and repaints when it changes.
- * {@link #dispose()} takes back the submenu and its separator, the shortcut and the preferences listener, and gives
- * the canvas its default dots back.
+ * {@link AppPreferences#gridStyle()}, so every view shows the same grid and repaints when it changes; and
+ * «Separación ▸» with 2, 4, 5 and 10 units on {@link AppPreferences#gridLineSpacing()} (the minor lines, and where
+ * «Ajustar a ▸ Líneas de la cuadrícula» pulls, whatever style shows). {@link #dispose()} takes back the submenu and
+ * its separator, the shortcut and the preferences listener, and gives the canvas its default dots and spacing back.
  */
 public final class GridFeatures {
 
@@ -34,6 +36,7 @@ public final class GridFeatures {
     private final JMenu gridMenu;
     private final Component separator;
     private final Map<GridStyle, JRadioButtonMenuItem> items = new EnumMap<>(GridStyle.class);
+    private final Map<Integer, JRadioButtonMenuItem> spacingItems = new LinkedHashMap<>();
     private final Action cycle;
     private final Runnable shortcutRemover;
     private final Runnable preferencesListener;
@@ -56,6 +59,8 @@ public final class GridFeatures {
                 preferences.setGridStyle(next(preferences.gridStyle()));
             }
         };
+        gridMenu.addSeparator();
+        gridMenu.add(spacingMenu());
         gridMenu.addSeparator();
         gridMenu.add(new JMenuItem(cycle));
         this.viewMenu = view.menu(MenuId.VIEW);
@@ -88,6 +93,28 @@ public final class GridFeatures {
         };
     }
 
+    /** «Separación ▸»: one radio item per spacing the preferences accept. */
+    private JMenu spacingMenu() {
+        JMenu spacingMenu = new JMenu(Messages.text("menu.view.gridSpacing"));
+        ButtonGroup group = new ButtonGroup();
+        for (int spacing : AppPreferences.GRID_LINE_SPACINGS) {
+            JRadioButtonMenuItem item = new JRadioButtonMenuItem(chooseSpacing(spacing));
+            group.add(item);
+            spacingMenu.add(item);
+            spacingItems.put(spacing, item);
+        }
+        return spacingMenu;
+    }
+
+    private Action chooseSpacing(int spacing) {
+        return new AbstractAction(Messages.format("grid.spacing.units", spacing)) {
+            @Override
+            public void actionPerformed(ActionEvent event) {
+                preferences.setGridLineSpacing(spacing);
+            }
+        };
+    }
+
     private static String nameKey(GridStyle style) {
         return switch (style) {
             case DOTS -> "grid.style.dots";
@@ -96,11 +123,14 @@ public final class GridFeatures {
         };
     }
 
-    /** Shows the stored style in the items and on the canvas (also when another view changes it). */
+    /** Shows the stored style and spacing in the items and on the canvas (also when another view changes them). */
     private void refresh() {
         GridStyle style = preferences.gridStyle();
         items.get(style).setSelected(true);
         view.canvas().setGridStyle(style);
+        int spacing = preferences.gridLineSpacing();
+        spacingItems.get(spacing).setSelected(true);
+        view.canvas().setGridLineSpacing(spacing);
     }
 
     private int indexAfterCenterView() {
@@ -123,5 +153,6 @@ public final class GridFeatures {
         viewMenu.remove(gridMenu);
         viewMenu.remove(separator);
         view.canvas().setGridStyle(GridStyle.DOTS);
+        view.canvas().setGridLineSpacing(AppPreferences.DEFAULT_GRID_LINE_SPACING);
     }
 }
