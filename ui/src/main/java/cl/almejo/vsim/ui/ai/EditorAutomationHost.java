@@ -16,12 +16,16 @@ import cl.almejo.vsim.automation.simulate.SimulationReceipt;
 import cl.almejo.vsim.automation.simulate.SimulationRequest;
 import cl.almejo.vsim.automation.simulate.TruthTableRequest;
 import cl.almejo.vsim.automation.edit.EditableCircuit;
+import cl.almejo.vsim.automation.export.ExportReceipt;
+import cl.almejo.vsim.automation.export.ExportRequest;
 import cl.almejo.vsim.automation.EditorSetting;
 import cl.almejo.vsim.automation.ProposalAnswer;
 import cl.almejo.vsim.automation.ProposedPreference;
 import cl.almejo.vsim.ui.app.OpenDocument;
 
 import javax.swing.SwingUtilities;
+import java.nio.file.Path;
+import java.time.Clock;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -29,6 +33,7 @@ import java.util.Optional;
 import java.util.WeakHashMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ForkJoinPool;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -50,7 +55,8 @@ public final class EditorAutomationHost implements AutomationHost {
     private long lastId;
     private final ReadHostSupport reads;
     private final SimulationHostSupport simulation;
-    private final EditHostSupport edits = new EditHostSupport(this::circuitWithId);
+    private final EditHostSupport edits;
+    private final ExportHostSupport exports;
 
     /** @param openDocuments the open circuits, one per circuit however many views it has; called on the EDT */
     public EditorAutomationHost(Supplier<List<OpenDocument>> openDocuments) {
@@ -86,7 +92,11 @@ public final class EditorAutomationHost implements AutomationHost {
         this.windows = Objects.requireNonNull(windows, "windows");
         this.proposals = proposals;
         this.reads = new ReadHostSupport(windowsOf);
-        this.simulation = new SimulationHostSupport(this::openDocumentWithId, SwingUtilities::invokeLater);
+        // An id VSim never gave is an INVALID_REFERENCE, a closed circuit's DOCUMENT_CLOSED (documentOf).
+        this.simulation = new SimulationHostSupport(id -> Optional.of(documentOf(id)), SwingUtilities::invokeLater);
+        this.edits = new EditHostSupport(id -> Optional.of(documentOf(id)), this.windows::libraryComponents);
+        this.exports = new ExportHostSupport(windowsOf, () -> Path.of(System.getProperty("user.home")),
+                ForkJoinPool.commonPool(), SwingUtilities::invokeLater, Clock.systemDefaultZone());
     }
 
     @Override
@@ -97,11 +107,6 @@ public final class EditorAutomationHost implements AutomationHost {
     @Override
     public CompletableFuture<PreparedTruthTable> prepareTruthTable(TruthTableRequest request) {
         return simulation.prepareTruthTable(request);
-    }
-
-    /** The open circuit with {@code id}, empty when it was closed. EDT only. */
-    private Optional<OpenDocument> openDocumentWithId(DocumentId id) {
-        return openDocuments.get().stream().filter(document -> idOf(document).equals(id)).findFirst();
     }
 
     /** {@code listener} runs (on the caller's thread) at every request until the returned runnable takes it back. */
@@ -166,16 +171,21 @@ public final class EditorAutomationHost implements AutomationHost {
         return edits.onCircuit(document, work);
     }
 
-    /** The open circuit with {@code id}; EDT only. */
-    private Optional<OpenDocument> circuitWithId(DocumentId id) {
-        return openDocuments.get().stream().filter(document -> idOf(document).equals(id)).findFirst();
-    }
-
     // --- Reading (IA.1 Task 2): ReadHostSupport does the work; pictures are encoded off the EDT ---
 
     @Override
     public <T> CompletableFuture<T> reading(DocumentId id, Function<ReadSource, T> work) {
-        return onEditorThread(access -> work.apply(reads.source(id, documentOf(id))));
+        return onEditorThread(access -> work.apply(reads.source(id, documentOf(id), windows.libraryComponents())));
+    }
+
+    // --- Exports (spec §7): ExportHostSupport takes the picture on the EDT and writes the file off it ---
+
+    @Override
+    public CompletableFuture<ExportReceipt> export(ExportRequest request) {
+        return onEditorThread(access -> {
+            OpenDocument document = documentOf(request.document());
+            return exports.prepare(request.document(), ReadHostSupport.version(document), document, request);
+        }).thenApplyAsync(exports::write, exports.writer());
     }
 
     @Override

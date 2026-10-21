@@ -9,6 +9,7 @@ import cl.almejo.vsim.core.io.CircuitFormatException;
 import cl.almejo.vsim.core.io.CircuitReader;
 import cl.almejo.vsim.core.io.LibraryDirectory;
 import cl.almejo.vsim.core.library.ComponentLibrary;
+import cl.almejo.vsim.core.library.DefinitionBundle;
 import cl.almejo.vsim.ui.ai.AiExtension;
 import cl.almejo.vsim.ui.ai.AiServerService;
 import cl.almejo.vsim.ui.ai.EditorAutomationHost;
@@ -617,6 +618,11 @@ public final class Application {
             created.document().setName(name);
             show(created);
             return created;
+        }
+
+        @Override
+        public List<DefinitionBundle> libraryComponents() {
+            return library.entries();
         }
 
         /** The first window of the circuit is the one the AI works in. */

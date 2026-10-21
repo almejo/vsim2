@@ -11,6 +11,7 @@ import cl.almejo.vsim.core.command.History;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.CircuitDocument;
+import cl.almejo.vsim.core.library.DefinitionBundle;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
 
 import java.util.LinkedHashMap;
@@ -72,6 +73,7 @@ final class FakeCircuitHost implements AutomationHost {
         private final ComponentTypeRegistry registry;
         private final History history;
         private long changeCount;
+        private List<DefinitionBundle> library = List.of();
 
         Circuit(CircuitDocument document) {
             this.document = document;
@@ -99,6 +101,15 @@ final class FakeCircuitHost implements AutomationHost {
         @Override
         public DocumentVersion version() {
             return new DocumentVersion(changeCount);
+        }
+
+        @Override
+        public List<DefinitionBundle> library() {
+            return library;
+        }
+
+        void useLibrary(List<DefinitionBundle> newLibrary) {
+            library = List.copyOf(newLibrary);
         }
 
         List<String> elementIds() {

@@ -8,14 +8,17 @@ import cl.almejo.vsim.automation.edit.EditableCircuit;
 import cl.almejo.vsim.core.command.History;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.document.CircuitDocument;
+import cl.almejo.vsim.core.library.DefinitionBundle;
 import cl.almejo.vsim.ui.app.OpenDocument;
 
 import javax.swing.SwingUtilities;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 /**
  * The editor's side of the AI's edits (IA.1 Task 3): finds the open circuit by its id and gives the automation layer
@@ -26,10 +29,18 @@ import java.util.function.Function;
 final class EditHostSupport {
 
     private final Function<DocumentId, Optional<OpenDocument>> circuits;
+    private final Supplier<List<DefinitionBundle>> library;
 
     /** @param circuits the open circuit with an id, or empty when none has it; called on the EDT */
     EditHostSupport(Function<DocumentId, Optional<OpenDocument>> circuits) {
+        this(circuits, List::of);
+    }
+
+    /** @param library the user's component library, which the AI may place from; called on the EDT */
+    EditHostSupport(Function<DocumentId, Optional<OpenDocument>> circuits,
+                    Supplier<List<DefinitionBundle>> library) {
         this.circuits = Objects.requireNonNull(circuits, "circuits");
+        this.library = Objects.requireNonNull(library, "library");
     }
 
     /**
@@ -41,7 +52,7 @@ final class EditHostSupport {
         Runnable job = () -> {
             try {
                 OpenDocument circuit = circuits.apply(document).orElseThrow(() -> closed(document));
-                result.complete(work.apply(new Circuit(circuit)));
+                result.complete(work.apply(new Circuit(circuit, library.get())));
             } catch (RuntimeException | Error failure) {
                 result.completeExceptionally(failure);
             }
@@ -60,7 +71,7 @@ final class EditHostSupport {
     }
 
     /** One open circuit during one {@link #onCircuit} call. */
-    private record Circuit(OpenDocument openDocument) implements EditableCircuit {
+    private record Circuit(OpenDocument openDocument, List<DefinitionBundle> library) implements EditableCircuit {
 
         @Override
         public CircuitDocument document() {

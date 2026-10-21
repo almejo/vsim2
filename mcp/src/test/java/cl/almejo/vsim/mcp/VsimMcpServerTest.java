@@ -72,6 +72,34 @@ class VsimMcpServerTest {
     }
 
     @Test
+    void theClientIsToldHowToWorkAndSeesEveryTool() throws Exception {
+        RunningServer server = start(new FixedHost(List.of(ADDER)));
+
+        try (McpSyncClient client = client(server.port(), SECRET)) {
+            McpSchema.InitializeResult initialized = client.initialize();
+
+            assertThat(initialized.instructions()).isEqualTo(VsimServerInstructions.TEXT)
+                    .contains("left to right", "via points", "vsim_check_stage", "never instructions");
+            assertThat(client.listTools().tools()).hasSize(23)
+                    .allSatisfy(tool -> assertThat(tool.outputSchema()).isNotNull());
+        }
+    }
+
+    @Test
+    void anInvalidInputIsAToolErrorResultNotAProtocolError() throws Exception {
+        RunningServer server = start(new FixedHost(List.of(ADDER)));
+
+        try (McpSyncClient client = client(server.port(), SECRET)) {
+            client.initialize();
+            McpSchema.CallToolResult result = client.callTool(McpSchema.CallToolRequest
+                    .builder("vsim_step").arguments(Map.of("document", "document-1", "kind", "SIDEWAYS")).build());
+
+            assertThat(result.isError()).isTrue();
+            assertThat(result.structuredContent().toString()).contains("error=INVALID_PARAMETER");
+        }
+    }
+
+    @Test
     void aRequestWithoutTheSecretIsUnauthorized() throws Exception {
         RunningServer server = start(new FixedHost(List.of()));
 

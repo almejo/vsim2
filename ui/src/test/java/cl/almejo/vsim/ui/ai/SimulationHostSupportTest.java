@@ -272,7 +272,7 @@ class SimulationHostSupportTest {
         example("adder-4-bits");
         DocumentId adder = summary().id();
 
-        assertError(() -> api.pause(new DocumentId("circuit-99")), AutomationError.DOCUMENT_CLOSED);
+        assertError(() -> api.pause(new DocumentId("circuit-99")), AutomationError.INVALID_REFERENCE);
         assertError(() -> api.readSignals(adder, List.of(new PinReference("ghost", "in", 0))),
                 AutomationError.INVALID_REFERENCE);
         assertThatThrownBy(() -> api.readSignals(adder, List.of(new PinReference(ADDER_CARRY_LED, "out", 0))))

@@ -11,6 +11,7 @@ import cl.almejo.vsim.automation.read.WindowPicture;
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.library.ComponentDefinition;
+import cl.almejo.vsim.core.library.DefinitionBundle;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.i18n.Messages;
@@ -51,9 +52,11 @@ final class ReadHostSupport {
         this.windowsOf = Objects.requireNonNull(windowsOf, "windowsOf");
     }
 
-    ReadSource source(DocumentId id, OpenDocument document) {
+    /** @param library the user's component library, which the AI may also place from */
+    ReadSource source(DocumentId id, OpenDocument document, List<DefinitionBundle> library) {
         return new ReadSource(id, version(document), document.displayName(), document.document(),
-                document.registry(), document.netlist(), document.netlistToken(), document.latestSnapshot(), NAMES);
+                document.registry(), document.netlist(), document.netlistToken(), document.latestSnapshot(), NAMES,
+                library, LabelTextMeasure.INSTANCE);
     }
 
     /** The region picture painted, still to encode; the export one in the scheme of the circuit's first window. */

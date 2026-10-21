@@ -2,6 +2,7 @@ package cl.almejo.vsim.automation.read;
 
 import cl.almejo.vsim.automation.DocumentId;
 import cl.almejo.vsim.automation.DocumentVersion;
+import cl.almejo.vsim.automation.check.TextMeasure;
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
@@ -11,10 +12,12 @@ import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
+import cl.almejo.vsim.core.library.DefinitionBundle;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.core.netlist.NetlistCompiler;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 
+import java.util.List;
 import java.util.Map;
 
 /** A circuit as the editor would hand it to the readers, with the standard types and its own user components. */
@@ -38,6 +41,7 @@ final class ReadFixture {
             StandardComponentTypes.registry().extendedWith(SubcircuitTypes.resolverFor(document));
     private SimulationSnapshot snapshot = SimulationSnapshot.EMPTY;
     private long version = 7;
+    private List<DefinitionBundle> library = List.of();
 
     Component place(String typeId, int x, int y) {
         return place(typeId, x, y, Rotation.R0, Map.of(), "");
@@ -64,6 +68,10 @@ final class ReadFixture {
         snapshot = newSnapshot;
     }
 
+    void useLibrary(List<DefinitionBundle> newLibrary) {
+        library = List.copyOf(newLibrary);
+    }
+
     void useVersion(long newVersion) {
         version = newVersion;
     }
@@ -74,6 +82,7 @@ final class ReadFixture {
 
     ReadSource source() {
         return new ReadSource(ID, new DocumentVersion(version), "Prueba", document, registry,
-                new NetlistCompiler(registry).compile(document), document.revision(), snapshot, NAMES);
+                new NetlistCompiler(registry).compile(document), document.revision(), snapshot, NAMES, library,
+                TextMeasure.APPROXIMATE);
     }
 }

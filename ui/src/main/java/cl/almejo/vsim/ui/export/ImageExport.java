@@ -26,6 +26,16 @@ public final class ImageExport {
 
     /** @throws IOException also when the image is too large for {@link #MAXIMUM_PNG_PIXELS} or for the memory */
     public static void writePng(Path target, CircuitImage image, int scale) throws IOException {
+        writePng(target, pngPixels(image, scale));
+    }
+
+    /**
+     * The pixels a PNG export of {@code image} at {@code scale} holds, painted now (on the EDT: the image reads the
+     * live circuit); {@link #writePng(Path, BufferedImage)} can then encode them on another thread.
+     *
+     * @throws IOException when the image is too large for {@link #MAXIMUM_PNG_PIXELS} or for the memory
+     */
+    public static BufferedImage pngPixels(CircuitImage image, int scale) throws IOException {
         int width = image.width(scale);
         int height = image.height(scale);
         if ((long) width * height > MAXIMUM_PNG_PIXELS) {
@@ -43,6 +53,11 @@ public final class ImageExport {
         } finally {
             graphics.dispose();
         }
+        return pixels;
+    }
+
+    /** Encodes {@code pixels} as a PNG file at {@code target}. */
+    public static void writePng(Path target, BufferedImage pixels) throws IOException {
         if (!ImageIO.write(pixels, "png", target.toFile())) {
             throw new IOException("no PNG writer available");
         }
@@ -54,9 +69,18 @@ public final class ImageExport {
     }
 
     public static void writeSvg(Path target, CircuitImage image) throws IOException {
+        writeSvg(target, svgDocument(image));
+    }
+
+    /** The SVG document of {@code image}, painted now (on the EDT: the image reads the live circuit). */
+    public static String svgDocument(CircuitImage image) {
         SVGGraphics2D graphics = new SVGGraphics2D(image.width(1), image.height(1));
         graphics.setRenderingHint(SVGHints.KEY_DRAW_STRING_TYPE, SVGHints.VALUE_DRAW_STRING_TYPE_VECTOR);
         image.paint(graphics, 1);
-        Files.writeString(target, graphics.getSVGDocument(), StandardCharsets.UTF_8);
+        return graphics.getSVGDocument();
+    }
+
+    public static void writeSvg(Path target, String svgDocument) throws IOException {
+        Files.writeString(target, svgDocument, StandardCharsets.UTF_8);
     }
 }

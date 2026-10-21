@@ -83,7 +83,7 @@ public final class EditService {
         }
         task.ifPresent(EditService::requireRunning);
         requireVersion(circuit, request.expected());
-        EditPlanner.PlannedEdit planned = EditPlanner.plan(circuit.document(), circuit.registry(),
+        EditPlanner.PlannedEdit planned = EditPlanner.plan(circuit.document(), circuit.registry(), circuit.library(),
                 request.operations());
         ReplaceContentCommand content = ReplaceContentCommand.between(circuit.document(), planned.candidate(),
                 AiEditCommand.DESCRIPTION);

@@ -6,10 +6,12 @@ import cl.almejo.vsim.automation.read.ComponentTypeView.ParameterView;
 import cl.almejo.vsim.automation.read.ComponentTypeView.PinSpecView;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.geometry.GridPoint;
+import cl.almejo.vsim.core.library.DefinitionBundle;
 import cl.almejo.vsim.core.library.ExampleDefinitions;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -78,6 +80,29 @@ class CatalogReaderTest {
         assertThat(last.pins()).containsExactly(
                 new PinSpecView(0, "a", "INPUT", 8, false, new GridPoint(0, 2)),
                 new PinSpecView(1, "y", "OUTPUT", 8, false, new GridPoint(4, 2)));
+    }
+
+    @Test
+    void theLibrarysComponentsTheCircuitLacksComeAfterItsOwn() {
+        fixture.document.putDefinition(ExampleDefinitions.inverter());
+        fixture.useLibrary(List.of(new DefinitionBundle(ExampleDefinitions.inverter(), List.of()),
+                new DefinitionBundle(ExampleDefinitions.byteBuffer(), List.of())));
+
+        CatalogView catalog = CatalogReader.describeAll(fixture.source(), Optional.empty());
+
+        List<ComponentTypeView> users = catalog.types().stream().filter(ComponentTypeView::userComponent).toList();
+        assertThat(users).extracting(ComponentTypeView::typeId).containsExactly(
+                SubcircuitTypes.typeIdOf(ExampleDefinitions.INVERTER),
+                SubcircuitTypes.typeIdOf(ExampleDefinitions.BYTE_BUFFER));
+        assertThat(users).extracting(ComponentTypeView::origin).containsExactly(
+                ComponentTypeView.Origin.CIRCUIT, ComponentTypeView.Origin.LIBRARY);
+        assertThat(type(catalog, StandardComponentTypes.FLIP_FLOP_DATA).origin())
+                .isEqualTo(ComponentTypeView.Origin.BUILT_IN);
+        ComponentTypeView described = CatalogReader.describe(fixture.source(),
+                SubcircuitTypes.typeIdOf(ExampleDefinitions.BYTE_BUFFER), Map.of());
+        assertThat(described.origin()).isEqualTo(ComponentTypeView.Origin.LIBRARY);
+        assertThat(described.definitionName()).isEqualTo("Búfer de 8 bits");
+        assertThat(described.pins()).extracting(PinSpecView::width).containsExactly(8, 8);
     }
 
     @Test

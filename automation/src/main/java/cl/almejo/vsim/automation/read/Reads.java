@@ -4,12 +4,15 @@ import cl.almejo.vsim.automation.AutomationError;
 import cl.almejo.vsim.automation.AutomationException;
 import cl.almejo.vsim.automation.DocumentId;
 import cl.almejo.vsim.automation.ReadHost;
+import cl.almejo.vsim.automation.check.LayoutCheck;
+import cl.almejo.vsim.automation.check.StageCheck;
 import cl.almejo.vsim.core.geometry.Bounds;
 
 import java.time.Duration;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -49,6 +52,13 @@ public final class Reads {
 
     public ProblemsView readProblems(DocumentId document) {
         return await(host.reading(document, ProblemsReader::read));
+    }
+
+    /** The layout faults of circuit {@code document} that involve {@code elementIds} (empty: the whole circuit). */
+    public StageCheck.LayoutView layout(DocumentId document, Set<String> elementIds) {
+        Set<String> scope = Set.copyOf(elementIds);
+        return await(host.reading(document, source -> new StageCheck.LayoutView(source.id(), source.version(),
+                LayoutCheck.faults(source.document(), source.registry(), source.textMeasure(), scope))));
     }
 
     public RegionPicture pictureOf(DocumentId document, Optional<Bounds> region, boolean asOnScreen) {

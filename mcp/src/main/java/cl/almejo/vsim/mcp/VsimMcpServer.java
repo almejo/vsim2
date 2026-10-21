@@ -2,6 +2,7 @@ package cl.almejo.vsim.mcp;
 
 import cl.almejo.vsim.automation.AutomationApi;
 import cl.almejo.vsim.core.VsimVersion;
+import cl.almejo.vsim.mcp.tools.VsimTools;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.modelcontextprotocol.json.McpJsonMapper;
 import io.modelcontextprotocol.json.jackson2.JacksonMcpJsonMapper;
@@ -67,7 +68,10 @@ public final class VsimMcpServer {
                 .serverInfo(SERVER_NAME, VsimVersion.current())
                 .jsonMapper(jsonMapper)
                 .capabilities(McpSchema.ServerCapabilities.builder().tools(false).build())
-                .tools(new DocumentTools(api, new ToolResults(jsonMapper)).tools())
+                .instructions(VsimServerInstructions.TEXT)
+                // Each tool checks its own input, so a bad one is answered with {error, message, recovery}.
+                .validateToolInputs(false)
+                .tools(VsimTools.specifications(api, jsonMapper))
                 .build();
         Server jetty = new Server(threadPool());
         jetty.setStopTimeout(STOP_GRACE.toMillis());

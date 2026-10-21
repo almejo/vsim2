@@ -107,6 +107,7 @@ final class EditPlanner {
 
     private final CircuitDocument original;
     private final ComponentTypeRegistry liveRegistry;
+    private final List<DefinitionBundle> library;
     private final CircuitDocument candidate;
     private final ComponentTypeRegistry registry;
     private final NetlistCompiler compiler;
@@ -119,9 +120,11 @@ final class EditPlanner {
     private final List<String> warnings = new ArrayList<>();
     private int operationIndex;
 
-    private EditPlanner(CircuitDocument original, ComponentTypeRegistry liveRegistry) {
+    private EditPlanner(CircuitDocument original, ComponentTypeRegistry liveRegistry,
+                        List<DefinitionBundle> library) {
         this.original = original;
         this.liveRegistry = liveRegistry;
+        this.library = List.copyOf(library);
         this.candidate = original.copy();
         // The live registry resolves the live circuit's components; the candidate needs its own (it may add one).
         this.registry = liveRegistry.copy();
@@ -132,11 +135,17 @@ final class EditPlanner {
 
     /**
      * Carries out {@code operations} on a copy of {@code document}; {@code registry} is the circuit's own. Neither is
-     * changed.
+     * changed. {@code library} is the user's library: an instance of one of its components brings the component's
+     * definitions into the circuit, as placing it from the palette does.
      *
      * @throws AutomationException for the first operation that cannot be done, with its index in the recovery data
      */
     static PlannedEdit plan(CircuitDocument document, ComponentTypeRegistry registry,
+                            List<EditOperation> operations) {
+        return plan(document, registry, List.of(), operations);
+    }
+
+    static PlannedEdit plan(CircuitDocument document, ComponentTypeRegistry registry, List<DefinitionBundle> library,
                             List<EditOperation> operations) {
         if (operations.isEmpty()) {
             throw new AutomationException(AutomationError.INVALID_PARAMETER, "An edit needs at least one operation");
@@ -145,7 +154,7 @@ final class EditPlanner {
             throw new AutomationException(AutomationError.INVALID_PARAMETER, "An edit carries at most "
                     + MAXIMUM_OPERATIONS + " operations; split it", Map.of("maximum", MAXIMUM_OPERATIONS));
         }
-        EditPlanner planner = new EditPlanner(document, registry);
+        EditPlanner planner = new EditPlanner(document, registry, library);
         for (EditOperation operation : operations) {
             planner.carryOut(operation);
             planner.operationIndex++;
@@ -193,6 +202,7 @@ final class EditPlanner {
 
     private void placePart(PlacePart operation) {
         String alias = newAlias(operation.alias());
+        bringFromLibrary(operation.typeId());
         ComponentType type = registry.find(operation.typeId())
                 .orElseThrow(() -> new AutomationException(AutomationError.INVALID_REFERENCE, "There is no component "
                         + "type " + operation.typeId() + "; describe the components to see the types"));
@@ -404,6 +414,8 @@ final class EditPlanner {
         Map<ElementId, String> renamed = renamedPins(operation.pinNames(), selection);
         Set<String> takenIds = new LinkedHashSet<>();
         candidate.definitions().forEach(definition -> takenIds.add(definition.id()));
+        // A library component with the same id would make the new one look like an outdated copy of it.
+        library.forEach(bundle -> bundle.all().forEach(definition -> takenIds.add(definition.id())));
         DefinitionBundle bundle = selection.definition(DefinitionIds.slug(name, takenIds), name,
                 selection.defaultPinOrder(), renamed, registry);
         new PutDefinitionsCommand(bundle.all()).apply(candidate);
@@ -495,14 +507,46 @@ final class EditPlanner {
             }
             return candidate.definition(definitionId).orElseThrow();
         }
-        Optional<ComponentDefinition> byIdOrName = candidate.definition(reference)
-                .or(() -> candidate.definitions().stream()
-                        .filter(definition -> definition.name().equals(reference)).findFirst())
-                .or(() -> candidate.definitions().stream()
+        Optional<ComponentDefinition> byIdOrName = byIdOrName(candidate.definitions(), reference);
+        if (byIdOrName.isPresent()) {
+            return byIdOrName.get();
+        }
+        Optional<DefinitionBundle> fromLibrary = libraryBundle(reference);
+        if (fromLibrary.isPresent()) {
+            new PutDefinitionsCommand(fromLibrary.get().all()).apply(candidate);
+            return candidate.definition(fromLibrary.get().root().id()).orElseThrow();
+        }
+        List<String> known = new ArrayList<>(candidate.definitions().stream().map(ComponentDefinition::name).toList());
+        library.forEach(bundle -> known.add(bundle.root().name()));
+        throw new AutomationException(AutomationError.INVALID_REFERENCE, "Neither the circuit nor the user's library "
+                + "has a component " + reference, Map.of("components", known.stream().distinct().toList()));
+    }
+
+    /** By id, then by exact name, then by name ignoring case. */
+    private static Optional<ComponentDefinition> byIdOrName(List<ComponentDefinition> definitions, String reference) {
+        return definitions.stream().filter(definition -> definition.id().equals(reference)).findFirst()
+                .or(() -> definitions.stream().filter(definition -> definition.name().equals(reference)).findFirst())
+                .or(() -> definitions.stream()
                         .filter(definition -> definition.name().equalsIgnoreCase(reference)).findFirst());
-        return byIdOrName.orElseThrow(() -> new AutomationException(AutomationError.INVALID_REFERENCE, "The circuit "
-                + "has no component " + reference,
-                Map.of("components", candidate.definitions().stream().map(ComponentDefinition::name).toList())));
+    }
+
+    private Optional<DefinitionBundle> libraryBundle(String reference) {
+        return byIdOrName(library.stream().map(DefinitionBundle::root).toList(), reference)
+                .flatMap(root -> library.stream().filter(bundle -> bundle.root() == root).findFirst());
+    }
+
+    /**
+     * A {@code subcircuit:<id>} type the circuit lacks but the user's library has: its definitions come into the
+     * candidate first, as the palette brings them when the user places one.
+     */
+    private void bringFromLibrary(String typeId) {
+        if (registry.find(typeId).isPresent()) {
+            return;
+        }
+        SubcircuitTypes.definitionIdOf(typeId)
+                .flatMap(definitionId -> library.stream()
+                        .filter(bundle -> bundle.root().id().equals(definitionId)).findFirst())
+                .ifPresent(bundle -> new PutDefinitionsCommand(bundle.all()).apply(candidate));
     }
 
     // --- references ---

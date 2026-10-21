@@ -1,5 +1,9 @@
 package cl.almejo.vsim.automation;
 
+import cl.almejo.vsim.automation.check.StageCheck;
+import cl.almejo.vsim.automation.check.StageChecks;
+import cl.almejo.vsim.automation.export.ExportReceipt;
+import cl.almejo.vsim.automation.export.ExportRequest;
 import cl.almejo.vsim.automation.read.CatalogView;
 import cl.almejo.vsim.automation.read.CircuitView;
 import cl.almejo.vsim.automation.read.ComponentTypeView;
@@ -43,6 +47,10 @@ public final class AutomationApi {
 
     /** How long a request waits for the editor thread before telling the AI the outcome is unknown. */
     private static final Duration EDITOR_TIMEOUT = Duration.ofSeconds(10);
+    /** How long an export may take (a PDF of many sheets) before the AI is told the outcome is unknown. */
+    private static final Duration EXPORT_TIMEOUT = Duration.ofSeconds(60);
+    /** The longest wait for the user's answer to a proposal in one call: well under the client's tool timeout. */
+    public static final Duration MAXIMUM_PROPOSAL_WAIT = Duration.ofSeconds(30);
 
     private final AutomationHost host;
     private final Duration editorTimeout;
@@ -50,6 +58,7 @@ public final class AutomationApi {
     private final Reads reads;
     private final SimulationOperations simulation;
     private final EditService edits;
+    private final StageChecks checks;
 
     public AutomationApi(AutomationHost host) {
         this(host, EDITOR_TIMEOUT);
@@ -61,6 +70,104 @@ public final class AutomationApi {
         this.edits = new EditService(host, listeners, editorTimeout, new OrderedExecutor());
         this.reads = new Reads(host, editorTimeout);
         this.simulation = new SimulationOperations(host);
+        this.checks = new StageChecks(new StageChecks.Measurements() {
+            @Override
+            public ProblemsView problems(DocumentId document) {
+                return reads.readProblems(document);
+            }
+
+            @Override
+            public StageCheck.LayoutView layout(DocumentId document, Set<String> elementIds) {
+                return reads.layout(document, elementIds);
+            }
+
+            @Override
+            public TruthTableView truthTable(DocumentId document, Set<String> elementIds, int maximumRows,
+                                             int eventBudget) {
+                return simulation.truthTable(document, elementIds, maximumRows, eventBudget);
+            }
+
+            @Override
+            public SignalsView signals(DocumentId document, List<PinReference> pins) {
+                return simulation.readSignals(document, pins);
+            }
+        });
+    }
+
+    // --- New circuits, editor settings and preference proposals (spec §7): the host does them on the editor thread ---
+
+    /** Opens a new, unsaved circuit window named {@code name}; the AI never saves it. */
+    public DocumentId newCircuit(String name) {
+        Objects.requireNonNull(name, "name");
+        return onEditorThread(access -> host.newCircuit(name));
+    }
+
+    /** Changes an editor setting in the temporary layer of {@code document}'s window only (spec §7). */
+    public void setEditorSetting(DocumentId document, EditorSetting setting, String value) {
+        Objects.requireNonNull(document, "document");
+        Objects.requireNonNull(setting, "setting");
+        Objects.requireNonNull(value, "value");
+        onEditorThread(access -> {
+            host.setEditorSetting(document, setting, value);
+            return Boolean.TRUE;
+        });
+    }
+
+    /** Shows the user a proposal to change a preference; returns its id. Nothing changes until the user accepts. */
+    public String proposePreference(ProposedPreference preference, String value, String reason) {
+        Objects.requireNonNull(preference, "preference");
+        Objects.requireNonNull(value, "value");
+        Objects.requireNonNull(reason, "reason");
+        if (!preference.allowedValues().contains(value)) {
+            throw new AutomationException(AutomationError.INVALID_PARAMETER, preference + " takes one of "
+                    + preference.allowedValues(), Map.of("allowedValues", preference.allowedValues()));
+        }
+        return onEditorThread(access -> host.proposePreference(preference, value, reason));
+    }
+
+    /**
+     * The user's answer to proposal {@code proposalId}, waiting for it at most {@code wait} (capped at
+     * {@link #MAXIMUM_PROPOSAL_WAIT}); empty when the user has not answered yet (ask again).
+     */
+    public Optional<ProposalAnswer> awaitProposal(String proposalId, Duration wait) {
+        Objects.requireNonNull(proposalId, "proposalId");
+        Duration capped = wait.compareTo(MAXIMUM_PROPOSAL_WAIT) > 0 ? MAXIMUM_PROPOSAL_WAIT
+                : wait.isNegative() ? Duration.ZERO : wait;
+        CompletableFuture<ProposalAnswer> answer = onEditorThread(access -> host.proposalAnswer(proposalId));
+        try {
+            return Optional.of(answer.get(capped.toMillis(), TimeUnit.MILLISECONDS));
+        } catch (TimeoutException exception) {
+            return Optional.empty();
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            throw new AutomationException(AutomationError.OUTCOME_UNKNOWN, "The wait was interrupted; ask again");
+        } catch (ExecutionException exception) {
+            throw unwrap(exception.getCause());
+        }
+    }
+
+    // --- Exports (spec §7, Exports row) and stage checks (spec §3, A§9) ---
+
+    /** Writes a PDF, PNG or SVG into the remembered export folder under a new name; never overwrites. */
+    public ExportReceipt export(ExportRequest request) {
+        Objects.requireNonNull(request, "request");
+        CompletableFuture<ExportReceipt> result = host.export(request);
+        try {
+            return result.get(EXPORT_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
+        } catch (TimeoutException exception) {
+            throw new AutomationException(AutomationError.OUTCOME_UNKNOWN, "The export did not finish within "
+                    + EXPORT_TIMEOUT.toSeconds() + " s; look in the export folder before trying again");
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            throw new AutomationException(AutomationError.OUTCOME_UNKNOWN, "The export was interrupted");
+        } catch (ExecutionException exception) {
+            throw unwrap(exception.getCause());
+        }
+    }
+
+    /** Runs a stage's checks and reports what VSim measured; a check VSim did not finish never passes. */
+    public StageCheck.Result checkStage(StageCheck.Request request) {
+        return checks.run(request);
     }
 
     // --- Simulation with budgets and receipts (IA.1 Task 4): see SimulationOperations ---

@@ -8,17 +8,30 @@ import java.util.Map;
 /**
  * One component type as the AI places it: its id (what {@code PlacePart} takes), the palette's names, its parameters
  * and the size and pins of the instance the given parameters make (defaults when none are given). Pin positions are
- * relative to the part's origin, unrotated; {@code userComponent} marks the circuit's own components
- * ({@code definitionName} is then the name {@code PlaceInstance} takes, otherwise empty).
+ * relative to the part's origin, unrotated; {@code userComponent} marks user components, the circuit's own and those
+ * of the user's library ({@code definitionName} is then the name {@code PlaceInstance} takes, otherwise empty);
+ * {@code origin} says which.
  */
 public record ComponentTypeView(String typeId, String category, String spanishName, String englishName,
                                 boolean userComponent, String definitionName, Map<String, Object> parameterValues,
-                                List<ParameterView> parameters, int width, int height, List<PinSpecView> pins) {
+                                List<ParameterView> parameters, int width, int height, List<PinSpecView> pins,
+                                Origin origin) {
+
+    /** Where a type comes from. */
+    public enum Origin {
+        /** One of VSim's own components. */
+        BUILT_IN,
+        /** A user component this circuit already has. */
+        CIRCUIT,
+        /** A component of the user's library («Mis componentes») not yet in this circuit: placing it brings it in. */
+        LIBRARY
+    }
 
     public ComponentTypeView {
         parameterValues = Map.copyOf(parameterValues);
         parameters = List.copyOf(parameters);
         pins = List.copyOf(pins);
+        java.util.Objects.requireNonNull(origin, "origin");
     }
 
     /**
@@ -34,8 +47,8 @@ public record ComponentTypeView(String typeId, String category, String spanishNa
     }
 
     /**
-     * One pin of the specialised instance: {@code index} is its place in the part's pins (as {@code PinReference}
-     * has it), {@code direction} INPUT, OUTPUT or BIDIRECTIONAL, {@code width} in bits, 0 when it takes the width of
+     * One pin of the specialised instance: {@code index} is its place among the part's pins (what a pin named only
+     * by index means; a {@code PinReference}'s index is instead which pin of that name), {@code direction} INPUT, OUTPUT or BIDIRECTIONAL, {@code width} in bits, 0 when it takes the width of
      * what it is joined to ({@code adaptiveWidth}, a tunnel's pin).
      */
     public record PinSpecView(int index, String name, String direction, int width, boolean adaptiveWidth,

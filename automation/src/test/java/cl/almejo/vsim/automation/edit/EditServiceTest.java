@@ -28,6 +28,10 @@ import cl.almejo.vsim.core.document.Frame;
 import cl.almejo.vsim.core.document.Guide;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
+import cl.almejo.vsim.core.library.ComponentDefinition;
+import cl.almejo.vsim.core.library.DefinitionBundle;
+import cl.almejo.vsim.core.library.ExampleDefinitions;
+import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.core.netlist.Net;
 import cl.almejo.vsim.core.netlist.Netlist;
 import cl.almejo.vsim.core.netlist.NetlistCompiler;
@@ -497,6 +501,60 @@ class EditServiceTest {
         host.close(DOCUMENT);
 
         assertRefused(request, AutomationError.DOCUMENT_CLOSED);
+    }
+
+    // --- the user's library («Mis componentes») ---
+
+    @Test
+    void anInstanceOfALibraryComponentBringsItsDefinitionsIntoTheCircuit() {
+        circuit.useLibrary(List.of(new DefinitionBundle(ExampleDefinitions.doubleInverter(),
+                List.of(ExampleDefinitions.inverter()))));
+
+        EditReceipt receipt = service.edit(request(
+                new PlaceInstance(Optional.of("twice"), "Doble inversor", 0, 0, Rotation.R0)));
+
+        assertThat(circuit.document().definitions()).extracting(ComponentDefinition::id)
+                .containsExactlyInAnyOrder(ExampleDefinitions.INVERTER, ExampleDefinitions.DOUBLE_INVERTER);
+        assertThat(circuit.document().component(new ElementId(receipt.aliases().get("twice"))).orElseThrow().typeId())
+                .isEqualTo(SubcircuitTypes.typeIdOf(ExampleDefinitions.DOUBLE_INVERTER));
+        service.edit(request(new PlacePart(Optional.empty(),
+                SubcircuitTypes.typeIdOf(ExampleDefinitions.DOUBLE_INVERTER), 0, 20, Rotation.R0, Map.of(), "")));
+        assertThat(circuit.document().components()).hasSize(2);
+        circuit.history().undo();
+        circuit.history().undo();
+        assertThat(circuit.document().definitions()).isEmpty();
+    }
+
+    @Test
+    void aFailedCallLeavesNoLibraryDefinitionBehind() {
+        circuit.useLibrary(List.of(new DefinitionBundle(ExampleDefinitions.inverter(), List.of())));
+
+        assertRefused(request(new PlaceInstance(Optional.empty(), ExampleDefinitions.INVERTER, 0, 0, Rotation.R0),
+                place("gate", "flux-capacitor", 20, 0)), AutomationError.INVALID_REFERENCE);
+
+        assertNothingChanged();
+    }
+
+    @Test
+    void anUnknownComponentListsTheCircuitsAndTheLibrarysOnes() {
+        circuit.useLibrary(List.of(new DefinitionBundle(ExampleDefinitions.inverter(), List.of())));
+
+        AutomationException refusal = assertRefused(request(
+                new PlaceInstance(Optional.empty(), "Sumador", 0, 0, Rotation.R0)), AutomationError.INVALID_REFERENCE);
+
+        assertThat(refusal.recovery().get("components").toString()).contains(ExampleDefinitions.inverter().name());
+    }
+
+    @Test
+    void aNewComponentNeverTakesTheIdOfOneInTheLibrary() {
+        Map<String, String> ids = inverterParts();
+        ComponentDefinition inLibrary = ExampleDefinitions.inverter();
+        circuit.useLibrary(List.of(new DefinitionBundle(inLibrary, List.of())));
+
+        EditReceipt receipt = service.edit(request(new CreateComponent(Optional.empty(), "Inverter",
+                List.copyOf(ids.values()), Map.of(), false)));
+
+        assertThat(receipt.components().getFirst().definitionId()).isNotEqualTo(inLibrary.id());
     }
 
     // --- helpers ---
