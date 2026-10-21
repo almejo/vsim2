@@ -372,6 +372,45 @@ Los mensajes de error del asistente de Karnaugh, de la importación de tablas y 
 - Continuar donde quedaste: al salir (Salir, Cmd+Q o cerrando la última ventana) VSim recuerda los circuitos con archivo que estaban abiertos, con cada una de sus vistas, y los vuelve a abrir al iniciar sin archivos en la línea de comandos; los que ya no existen se avisan una vez. Se desactiva en Archivo ▸ Preferencias… ▸ General ▸ «Al iniciar, abrir los circuitos de la última sesión». Los circuitos sin nombre no se recuerdan (vuelven solo por la recuperación).
 - Dos VSim abiertos a la vez no se confunden: cada uno guarda sus copias en su propia carpeta y nunca ofrece recuperar las de otro que sigue abierto.
 
+## IA (MCP)
+
+Mientras VSim está abierto, Claude Code se puede conectar a él (por MCP, en tu propio computador) y trabajar en los circuitos que tienes abiertos: le pides en el chat «arma un flip-flop D», «conviértelo en componente», «prueba su tabla de verdad», «haz un sumador de 2 bits y con dos de ellos uno de 4», «exporta el circuito a PDF» o «mira la ventana», y lo ves aparecer en el editor. VSim no trae un chat ni un modelo propio y no pide claves: la IA es la de tu Claude Code.
+
+### Conectar Claude Code
+
+- Viene apagada. Archivo ▸ Preferencias… ▸ «IA» tiene «Iniciar con VSim» (apagado por defecto), el puerto (47017 por defecto, de 1024 a 65535, con «Usar el por defecto»), «Generar un secreto nuevo» y «Copiar configuración para Claude Code».
+- «Copiar configuración para Claude Code» (en Preferencias ▸ «IA» y en el panel) copia una línea para pegar en una terminal y ejecutar **una vez**; dice «Copiado: pégalo en una terminal y ejecútalo una vez». La línea es:
+
+      claude mcp add --transport http --scope user vsim http://127.0.0.1:<puerto>/mcp --header "Authorization: Bearer <secreto>"
+
+  Con `--scope user` queda configurada para todos tus proyectos de Claude Code, con el nombre `vsim`. El secreto se crea al azar la primera vez y VSim lo recuerda junto con el puerto, así la línea sigue sirviendo al reiniciar. «Generar un secreto nuevo» invalida el anterior al instante («Secreto nuevo: el anterior ya no sirve; vuelve a copiar la configuración en Claude Code»).
+- Herramientas ▸ «IA (MCP)…» abre un panel con «Activar» / «Desactivar» y el estado en palabras y color: «Apagada», «Escuchando en 127.0.0.1:47017», «Claude Code conectado» (desde su primer pedido) o «IA trabajando: <tarea>». Con «Iniciar con VSim» se activa sola al abrir VSim. Desactivar (o salir de VSim) apaga el servidor, detiene la tarea en curso y rechaza las propuestas pendientes.
+- El servidor escucha solo en tu computador (127.0.0.1), pide el secreto en cada pedido y rechaza los que vienen de páginas web.
+- **Puerto ocupado**: si otro programa usa el puerto, el panel dice en rojo «El puerto 47017 está ocupado por otro programa» y ofrece «Usar el siguiente libre»; al aceptarlo VSim recuerda el puerto nuevo y avisa «Cambió el puerto: vuelve a copiar la configuración en Claude Code» hasta que la copies. Si es otro VSim el que tiene la IA, dice «Otro VSim ya tiene la IA conectada; ciérralo o usa ese». VSim nunca cambia el puerto por su cuenta (Preferencias ▸ «IA» lo recuerda: «VSim nunca cambia el puerto por su cuenta: si lo cambias, vuelve a copiar la configuración»), así la configuración de Claude Code no se rompe sin aviso.
+- Los datos: lo que la IA lee del circuito (piezas, etiquetas, notas, valores y las imágenes que pide) viaja a su proveedor como parte de la conversación, igual que cualquier archivo que Claude Code lee. El panel y Preferencias ▸ «IA» lo dicen en una línea: «Lo que la IA lee del circuito se envía a su proveedor». VSim no lo envía a ningún otro lado. El secreto se guarda en las preferencias de VSim de tu usuario y el panel nunca lo muestra (solo lo copia).
+- Los textos del circuito (etiquetas, notas, títulos) son datos para la IA, nunca órdenes: nada en un circuito puede ampliar lo que la IA puede hacer.
+- Para probar sin abrir el panel (provisorio): `./gradlew :ui:run -Dvsim.ai=on` (o `java -Dvsim.ai=on -jar …`) la activa al iniciar y escribe en la terminal la línea `claude mcp add …` lista para copiar, o el motivo si el puerto está ocupado.
+
+### Qué puede hacer la IA
+
+- **Los circuitos abiertos**: lee el catálogo de componentes (con sus parámetros y pines), el circuito y sus Problemas; coloca piezas, las conecta por el nombre de sus pines (VSim revisa que el cable una solo esas dos redes y si no, no lo dibuja), cambia parámetros y etiquetas, mueve, borra, hace marcos, notas «Prueba: …» y guías, ordena cables, crea componentes desde un grupo de piezas (sin reemplazarlas o reemplazándolas por una instancia; quedan en «Componentes de este circuito», no en tu librería) y coloca instancias de ellos. Cada pedido se aplica entero o no se aplica: si una parte falla, el circuito queda como estaba.
+- **Simular y comprobar**: pausar, reanudar y reiniciar, poner valores en interruptores y pines de entrada, avanzar al próximo evento, al próximo flanco de reloj o un tiempo, leer señales y calcular tablas de verdad (en una copia, sin tocar tu simulación). Lo que pide la IA tiene un límite de eventos: si el circuito oscila sin fin, se detiene en el límite y la simulación queda en pausa, sin colgar el editor. Si tú tienes la simulación corriendo, la IA no la avanza por su cuenta. Lo que la IA informa como comprobado es lo que midió VSim.
+- **Mirar**: pide imágenes de una zona del circuito (como al exportar o como se ve en pantalla) o de la ventana completa de VSim con sus menús, paleta, paneles, inspector, barra de estado y diálogos abiertos, para revisar cómo quedó. Las imágenes se pintan desde las ventanas de VSim (nunca se captura el escritorio: no ve otros programas), no se te muestran y no se guardan.
+- **Circuitos nuevos**: puede abrir una ventana con un circuito nuevo sin guardar, como Archivo ▸ Nuevo.
+- **Exportar**: PDF, PNG o SVG (con las mismas opciones de los menús), solo en la carpeta de exportación que VSim recuerda y siempre con un nombre nuevo: nunca sobrescribe un archivo.
+- **Ajustes del editor mientras trabaja** («Ajustar» y «Ajustar a ▸», el estilo y la separación de la cuadrícula, «Mostrar guías», «Los cables siguen»): los cambia solo en la ventana de ese circuito y de forma temporal, encima de tus preferencias; tus otras ventanas y lo guardado no cambian. El panel los lista en «Ajustes que tocó la IA (n)», con «Conservarlos» (pasan a ser tus preferencias) y «Volver a los míos». Se descartan solos cuando la tarea termina o la detienes. Si tú cambias uno de ellos en esa ventana, manda el tuyo y se guarda.
+- **Tus preferencias** (por ahora el tema y el idioma) solo las puede **proponer**: el panel muestra «La IA propone» con el cambio («Cambiar el tema a «Oscuro»»), «Aceptar» y «No», y la barra de estado avisa «La IA propone un cambio: míralo en Herramientas ▸ IA (MCP)…». La IA recibe tu respuesta. El idioma se aplica al volver a abrir VSim.
+- **Nunca** guarda, abre ni borra archivos, ni toca otros archivos de tu computador: si hace falta, te lo pide en el chat y lo haces tú.
+
+### Mientras trabaja: Detener y deshacer
+
+- Mientras la IA trabaja en un circuito, la barra de estado de su ventana dice «IA trabajando: <tarea>…» con «Detener» y «Deshacer lo que hizo la IA». Al terminar dice «La IA terminó: <tarea>» y lo que cambió brilla un momento, como en el paso a paso; el aviso queda con «Deshacer lo que hizo la IA» hasta que lo cierras con «×».
+- Cada cambio de la IA es **un paso de deshacer** (Ctrl+Z, «Deshacer cambio de la IA») que nunca se junta con tus movimientos. La IA manda muchos cambios juntos, así una tarea son pocos pasos.
+- «Deshacer lo que hizo la IA» deshace, uno tras otro, los pasos de esa tarea que están arriba en la historia y dice cuántos: «Pasos de la IA deshechos: 3». Si después hiciste un cambio tuyo, se detiene ahí y lo dice («Me detuve en un cambio tuyo; …»): nunca deshace tu trabajo. Rehacer funciona paso a paso como siempre.
+- «Detener» para la tarea donde está: lo ya hecho queda (y se puede deshacer), la IA se entera («Detuviste a la IA: <tarea>») y su siguiente cambio de esa tarea se rechaza.
+- Puedes seguir editando mientras la IA trabaja: cada cambio suyo dice sobre qué versión del circuito lo preparó, y si tú lo cambiaste entretanto VSim lo rechaza sin aplicar nada; la IA vuelve a leer y lo intenta de nuevo, sin pisar lo tuyo.
+- Al cerrar un circuito (su última ventana) la IA deja de tener acceso a él; si lo vuelves a abrir, es otro circuito para ella.
+
 ## Ejemplos
 
 - Archivo ▸ Ejemplos (después de «Recientes») abre doce circuitos clásicos armados solo con compuertas, flip-flops, interruptores, LED, relojes, buses y displays: Sumador completo, Sumador de 4 bits, Multiplexor 4:1, Decodificador 2 a 4, Paridad de 3 bits, Multiplicador 2×2, Registro de 4 bits, Registro de desplazamiento, Contador de 4 bits, Contador Johnson, Bus de 8 bits y ALU de 4 bits. Al pasar el mouse sobre cada uno se ve qué enseña.
