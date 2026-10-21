@@ -79,7 +79,7 @@ class DragOutContactsTest {
 
         canvas.dragOutOver(new Point(176, 160)); // eight units below the press: the input pin onto the wire
         assertThat(canvas.dragOutContacts()).containsExactly(new NewContact(new GridPoint(20, 20),
-                Optional.of(gate.id()), Optional.of("in")));
+                Optional.of(gate.id()), Optional.of("in"), Optional.of("in"), Optional.empty()));
 
         canvas.dragOutLeft();
         assertThat(canvas.dragOutContacts()).isEmpty();

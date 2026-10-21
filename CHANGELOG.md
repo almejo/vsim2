@@ -30,9 +30,10 @@ sección es un conjunto de funciones, con las fechas en que se hizo. El detalle 
   las líneas de la cuadrícula) cercanas, salvo cuando ya están sobre un pin o un cable: la conexión manda. La guía a la
   que se ajustó lo que arrastras se ve más marcada mientras arrastras.
 - Mientras mueves, copias con Ctrl, pegas o colocas piezas, un punto rojo marca cada lugar donde un pin o la punta
-  de un cable quedaría tocando un cable o un pin de otra red, con imán o sin él y sigan o no los cables; con el
-  puntero cerca aparece el nombre del pin. Al soltar no pasa nada nuevo: es solo un aviso en la vista previa, y no
-  sale en las imágenes ni en el PDF.
+  de un cable quedaría tocando un cable o un pin de otra red, con imán o sin él y sigan o no los cables. Al lado
+  de los 4 puntos más cercanos al puntero se lee el nombre del pin que llega y el del pin que toca («Cin → S»),
+  sin tener que acercar el puntero. Al soltar no pasa nada nuevo: es solo un aviso en la vista previa, y no sale
+  en las imágenes ni en el PDF.
 
 ### Cambiado
 

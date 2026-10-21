@@ -3,11 +3,15 @@ package cl.almejo.vsim.ui.snap;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.wiring.NewContact;
+import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.ColorScheme;
+import cl.almejo.vsim.ui.paint.ColorSchemes;
 import cl.almejo.vsim.ui.tools.TestToolContext;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.geom.Point2D;
 import java.awt.image.BufferedImage;
@@ -17,15 +21,25 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * The contact dots (spec §3.7): a dot of radius 4.5 logical pixels ringed 1.5 px, the same size at any zoom; a named
- * pin's name only while the pointer is within the magnet's reach of it.
+ * The contact dots (spec §3.7): a dot of radius 4.5 logical pixels ringed 1.5 px, the same size at any zoom; next to
+ * the dot, with no pointer needed, the moving pin's name and «→ other» when it meets a named pin of another part, on
+ * at most the four dots nearest the pointer.
  */
 class ContactDotsTest {
 
     private static final NewContact NAMED = new NewContact(new GridPoint(10, 10), Optional.of(new ElementId("c1")),
-            Optional.of("in"));
-    private static final NewContact BETWEEN_WIRES = new NewContact(new GridPoint(20, 10), Optional.empty(),
-            Optional.empty());
+            Optional.of("in"), Optional.of("in"), Optional.empty());
+    private static final NewContact BETWEEN_WIRES = NewContact.betweenWires(new GridPoint(20, 10));
+
+    private static NewContact meeting(int x, String moving, String met) {
+        return new NewContact(new GridPoint(x, 10), Optional.of(new ElementId("c2")), Optional.of(met),
+                Optional.of(moving), Optional.of(met));
+    }
+
+    @BeforeEach
+    void language() {
+        Messages.initialize(Messages.SPANISH);
+    }
 
     private final TestToolContext context = TestToolContext.withNewDocument();
 
@@ -60,28 +74,49 @@ class ContactDotsTest {
     }
 
     @Test
-    void aPinsNameShowsOnlyWhileThePointerIsWithinReach() {
-        // at 100 % the reach is one grid unit
-        assertThat(ContactDots.nameShown(context, NAMED, Optional.of(new Point2D.Double(10.6, 9.2)))).isTrue();
-        assertThat(ContactDots.nameShown(context, NAMED, Optional.of(new Point2D.Double(12, 10)))).isFalse();
-        assertThat(ContactDots.nameShown(context, NAMED, Optional.empty())).isFalse();
-        assertThat(ContactDots.nameShown(context, BETWEEN_WIRES, Optional.of(new Point2D.Double(20, 10)))).isFalse();
-        // zoomed out to 25 % the reach grows to six units
-        context.viewport.zoomAt(0, 0, 0.25);
-        assertThat(ContactDots.nameShown(context, NAMED, Optional.of(new Point2D.Double(15, 10)))).isTrue();
+    void theLabelIsTheMovingPinsNameAndThePinItMeets() {
+        assertThat(ContactDots.label(NAMED)).contains("in");
+        assertThat(ContactDots.label(meeting(10, "Cin", "S"))).contains("Cin → S");
+        assertThat(ContactDots.label(new NewContact(new GridPoint(1, 3), Optional.of(new ElementId("c3")),
+                Optional.of("in"), Optional.empty(), Optional.of("in")))).contains("→ in");
+        assertThat(ContactDots.label(BETWEEN_WIRES)).isEmpty();
+        assertThat(ContactDots.label(new NewContact(new GridPoint(1, 3), Optional.of(new ElementId("c3")),
+                Optional.of(""), Optional.empty(), Optional.empty()))).isEmpty(); // an unnamed pin keeps the dot
     }
 
     @Test
-    void theNameIsWrittenNextToTheDotInTheSchemesText() {
-        BufferedImage without = paint(List.of(NAMED), Optional.empty());
-        BufferedImage with = paint(List.of(NAMED), Optional.of(new Point2D.Double(10, 10)));
+    void atMostTheFourLabelledDotsNearestThePointerGetALabelPointerOrNot() {
+        List<NewContact> contacts = List.of(meeting(0, "A", "X"), BETWEEN_WIRES, meeting(30, "B", "X"),
+                meeting(40, "C", "X"), meeting(50, "D", "X"), meeting(60, "E", "X"));
 
-        assertThat(textPixels(without)).isZero();
-        assertThat(textPixels(with)).isPositive();
+        assertThat(ContactDots.labelled(contacts, Optional.of(new Point2D.Double(55, 10))))
+                .extracting(contact -> contact.point().x()).containsExactly(50, 60, 40, 30);
+        assertThat(ContactDots.labelled(contacts, Optional.empty()))
+                .extracting(contact -> contact.point().x()).containsExactly(0, 30, 40, 50);
+    }
+
+    @Test
+    void theNameIsWrittenNextToTheDotInTheSchemesTextWithoutThePointerNearIt() {
+        BufferedImage unnamed = paint(List.of(BETWEEN_WIRES), Optional.of(new Point2D.Double(20, 10)));
+        BufferedImage named = paint(List.of(NAMED), Optional.of(new Point2D.Double(60, 40)));
+
+        assertThat(textPixels(unnamed)).isZero();
+        assertThat(textPixels(named)).isPositive();
+    }
+
+    @Test
+    void theLabelTakesTheCurrentSchemesColours() {
+        context.scheme = ColorSchemes.DARK;
+        BufferedImage image = paint(List.of(NAMED), Optional.empty());
+        assertThat(textPixels(image, ColorSchemes.DARK.text())).isPositive();
     }
 
     private static int textPixels(BufferedImage image) {
-        int text = ColorScheme.LIGHT.text().getRGB();
+        return textPixels(image, ColorScheme.LIGHT.text());
+    }
+
+    private static int textPixels(BufferedImage image, Color colour) {
+        int text = colour.getRGB();
         int count = 0;
         for (int x = 0; x < image.getWidth(); x++) {
             for (int y = 0; y < image.getHeight(); y++) {

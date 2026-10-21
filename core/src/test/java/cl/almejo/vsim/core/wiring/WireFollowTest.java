@@ -287,7 +287,8 @@ class WireFollowTest {
         assertThat(plan.replacedWires()).containsExactly(
                 new Wire(attached.id(), new GridPoint(10, 12), new GridPoint(20, 12)));
         assertThat(plan.newContacts()).containsExactly(
-                new NewContact(new GridPoint(12, 12), Optional.of(lamp.id()), Optional.of("in")));
+                new NewContact(new GridPoint(12, 12), Optional.of(lamp.id()), Optional.of("in"), Optional.empty(),
+                        Optional.of("in")));
     }
 
     @Test

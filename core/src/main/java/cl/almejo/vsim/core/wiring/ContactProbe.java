@@ -214,7 +214,18 @@ public final class ContactProbe {
                         .thenComparingInt(PinRef::pinIndex))
                 .findFirst();
         return new NewContact(point, named.map(pin -> layout.reportedComponentId(pin.componentId())),
-                named.map(layout::pinName));
+                named.map(layout::pinName), firstNamed(pins, true, layout), firstNamed(pins, false, layout));
+    }
+
+    /** The name of the first pin at the point that moves (or stays), in part order, skipping blank names. */
+    private static Optional<String> firstNamed(List<PinRef> pins, boolean moved, Layout layout) {
+        return pins.stream()
+                .filter(pin -> layout.isMoved(pin) == moved)
+                .sorted(Comparator.comparingLong((PinRef pin) -> layout.orderOf(pin.componentId()))
+                        .thenComparingInt(PinRef::pinIndex))
+                .map(layout::pinName)
+                .filter(name -> name != null && !name.isBlank())
+                .findFirst();
     }
 
     // --- the moved elements ---

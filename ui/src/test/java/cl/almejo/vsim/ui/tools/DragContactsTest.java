@@ -92,7 +92,7 @@ class DragContactsTest {
         List<NewContact> contacts = dragGateTo(12, 20, false);
 
         assertThat(contacts).containsExactly(new NewContact(ON_THE_CROSSING_WIRE, Optional.of(gate.id()),
-                Optional.of("in")));
+                Optional.of("in"), Optional.of("in"), Optional.empty()));
         assertThat(colourAt(paintOverlay(tool), ON_THE_CROSSING_WIRE)).isEqualTo(ColorScheme.LIGHT.wireConflict());
     }
 
@@ -181,7 +181,7 @@ class DragContactsTest {
 
         floating.mouseMoved(context, TestToolContext.at(10, 18));
         assertThat(floating.contacts(context)).containsExactly(new NewContact(ON_THE_CROSSING_WIRE,
-                Optional.of(new ElementId("c1")), Optional.of("in")));
+                Optional.of(new ElementId("c1")), Optional.of("in"), Optional.of("in"), Optional.empty()));
         assertThat(colourAt(paintOverlay(floating), ON_THE_CROSSING_WIRE))
                 .isEqualTo(ColorScheme.LIGHT.wireConflict());
     }

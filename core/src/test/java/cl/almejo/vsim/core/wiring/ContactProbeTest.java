@@ -65,7 +65,17 @@ class ContactProbeTest {
         Component gate = gate(0, 0);
         wire(10, 0, 10, 10);
         assertThat(moving(6, 0, gate)).containsExactly(
-                new NewContact(new GridPoint(10, 2), Optional.of(gate.id()), Optional.of(pinName(gate, 1))));
+                new NewContact(new GridPoint(10, 2), Optional.of(gate.id()), Optional.of(pinName(gate, 1)),
+                        Optional.of(pinName(gate, 1)), Optional.empty()));
+    }
+
+    @Test
+    void aPinDroppedOnAnotherPartsPinNamesBothTheMovingPinAndThePinItMeets() {
+        Component gate = gate(0, 0);
+        Component lamp = led(9, -1); // its pin at (10, 2)
+        assertThat(moving(6, 0, gate)).containsExactly(
+                new NewContact(new GridPoint(10, 2), Optional.of(lamp.id()), Optional.of(pinName(lamp, 0)),
+                        Optional.of(pinName(gate, 1)), Optional.of(pinName(lamp, 0))));
     }
 
     @Test
@@ -89,7 +99,8 @@ class ContactProbeTest {
         Component lamp = led(0, 0);
         Wire moved = wire(5, 3, 8, 3);
         assertThat(moving(-4, 0, moved)).containsExactly(
-                new NewContact(new GridPoint(1, 3), Optional.of(lamp.id()), Optional.of(pinName(lamp, 0))));
+                new NewContact(new GridPoint(1, 3), Optional.of(lamp.id()), Optional.of(pinName(lamp, 0)),
+                        Optional.empty(), Optional.of(pinName(lamp, 0))));
     }
 
     @Test
@@ -98,7 +109,7 @@ class ContactProbeTest {
         wire(5, 4, 9, 4);
         wire(3, 8, 8, 8);
         assertThat(moving(5, 0, moved)).containsExactly(
-                new NewContact(new GridPoint(5, 4), Optional.empty(), Optional.empty()));
+                NewContact.betweenWires(new GridPoint(5, 4)));
     }
 
     @Test
@@ -115,7 +126,8 @@ class ContactProbeTest {
         Component ghost = new Component(existing.id(), StandardComponentTypes.NOT, new GridPoint(0, 0), Rotation.R0,
                 Map.of(), "");
         assertThat(ContactProbe.newContacts(document, registry, List.of(ghost), 6, 0, Set.of())).containsExactly(
-                new NewContact(new GridPoint(10, 2), Optional.of(existing.id()), Optional.of(pinName(ghost, 1))));
+                new NewContact(new GridPoint(10, 2), Optional.of(existing.id()), Optional.of(pinName(ghost, 1)),
+                        Optional.of(pinName(ghost, 1)), Optional.empty()));
     }
 
     @Test
