@@ -1,13 +1,18 @@
 package cl.almejo.vsim.ui.guides;
 
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
+import cl.almejo.vsim.core.command.CreateFrameCommand;
 import cl.almejo.vsim.core.document.Component;
+import cl.almejo.vsim.core.document.Frame;
+import cl.almejo.vsim.core.document.FrameTint;
 import cl.almejo.vsim.core.document.Guide;
+import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.document.Guide.Orientation;
 import cl.almejo.vsim.core.library.ComponentLibrary;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
+import cl.almejo.vsim.ui.frames.FramesFeatures;
 import cl.almejo.vsim.ui.grid.GridFeatures;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.Appearance;
@@ -251,6 +256,38 @@ class GuidesFeaturesTest {
 
         assertThat(guides()).containsExactly(HORIZONTAL_10);
         assertThat(openDocument.document().element(gate.id()).orElseThrow()).isNotEqualTo(gate);
+    }
+
+    @Test
+    void aPressBesideAPinOnAGuideStartsAWireAndLeavesTheGuide() {
+        Component gate = place(openDocument, StandardComponentTypes.NOT, 20, 10, Map.of());
+        GridPoint input = openDocument.registry().typeOf(gate).pinLocation(gate, 0);
+        Guide onThePin = new Guide(Orientation.VERTICAL, input.x());
+        setGuides(onThePin);
+        int screenX = input.x() * 8 - 2; // outside the gate's box, within the pin's capture radius
+        int screenY = input.y() * 8;
+
+        pull(screenX, screenY, screenX - 40, screenY);
+
+        assertThat(guides()).containsExactly(onThePin);
+        assertThat(openDocument.document().wires()).hasSize(1);
+    }
+
+    @Test
+    void aFrameEdgeOnAGuideResizesTheFrameAndLeavesTheGuide() {
+        FramesFeatures frames = new FramesFeatures(view);
+        cleanUps.add(0, frames::dispose);
+        Frame frame = new Frame(openDocument.document().newFrameId(), new GridPoint(10, 10), 20, 20, "Bloque",
+                FrameTint.BLUE, false);
+        openDocument.execute(new CreateFrameCommand(frame));
+        Guide onTheEdge = new Guide(Orientation.VERTICAL, 10);
+        setGuides(onTheEdge);
+
+        pull(78, 160, 38, 160);
+
+        assertThat(guides()).containsExactly(onTheEdge);
+        assertThat(openDocument.document().frame(frame.id()).orElseThrow().topLeft())
+                .isEqualTo(new GridPoint(5, 10));
     }
 
     @Test

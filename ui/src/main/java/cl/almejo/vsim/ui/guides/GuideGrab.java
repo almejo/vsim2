@@ -1,8 +1,11 @@
 package cl.almejo.vsim.ui.guides;
 
+import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Guide;
 import cl.almejo.vsim.core.document.Guide.Orientation;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
+import cl.almejo.vsim.ui.canvas.ConnectionPoints;
+import cl.almejo.vsim.ui.frames.FrameHitTester;
 import cl.almejo.vsim.ui.canvas.edges.EdgeGesture;
 import cl.almejo.vsim.ui.canvas.edges.EdgeHandle;
 import cl.almejo.vsim.ui.tools.CanvasMouseEvent;
@@ -18,7 +21,8 @@ import java.util.Optional;
 
 /**
  * The guide lines themselves as a handle (spec §4.3): with the select tool, a primary press within 3 screen pixels of
- * a guide where no element is under the pointer (elements always win) grabs the guide; the pointer over such a place
+ * a guide where the select tool would not take the press itself (elements always win, and so do their pins and the
+ * parts of a frame, resize edges included) grabs the guide; the pointer over such a place
  * shows the up-down or left-right resize cursor. Lowest priority of the guide handles, so the rulers win at the edges.
  * Other buttons are never claimed: a right click on a guide reaches the tool and opens the context menu.
  */
@@ -51,7 +55,19 @@ final class GuideGrab implements EdgeHandle {
         return event.button() == CanvasMouseEvent.PRIMARY
                 && canvas.tool() instanceof SelectTool
                 && features.guideNear(event.screenPosition()).isPresent()
-                && canvas.hitTester().elementAt(features.document(), event.gridPosition()).isEmpty();
+                && !selectToolTakes(canvas, event);
+    }
+
+    /**
+     * The select tool would do something with a press here: an element under it, a pin within its capture radius
+     * (starts a wire) or any part of a frame, its resize edges sticking out of it included.
+     */
+    private boolean selectToolTakes(CircuitCanvas canvas, CanvasMouseEvent event) {
+        CircuitDocument document = features.document();
+        return canvas.hitTester().elementAt(document, event.gridPosition()).isPresent()
+                || new ConnectionPoints(canvas.openDocument().registry())
+                        .pinNear(document, event.gridPosition()).isPresent()
+                || FrameHitTester.hit(document, event.gridPosition(), canvas.viewport().pixelsPerUnit()).isPresent();
     }
 
     @Override
