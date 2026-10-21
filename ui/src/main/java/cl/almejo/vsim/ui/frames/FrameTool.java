@@ -124,18 +124,15 @@ public final class FrameTool implements Tool {
         if (!event.snapped().equals(rawCurrent)) {
             resolveCurrent(context, event.snapped());
         }
-        int left = Math.min(start.x(), current.x());
-        int top = Math.min(start.y(), current.y());
-        int width = Math.abs(current.x() - start.x());
-        int height = Math.abs(current.y() - start.y());
+        Rectangle2D rectangle = draggedRectangle();
         reset();
-        if (width == 0 && height == 0) {
+        if (rectangle == null) {
             context.repaint();
             return;
         }
-        Frame frame = new Frame(context.openDocument().document().newFrameId(), new GridPoint(left, top),
-                Math.max(Frame.MINIMUM_WIDTH, width), Math.max(Frame.MINIMUM_HEIGHT, height),
-                Messages.text("frames.defaultTitle"), FrameTint.NONE, false);
+        Frame frame = new Frame(context.openDocument().document().newFrameId(),
+                new GridPoint((int) rectangle.getX(), (int) rectangle.getY()), (int) rectangle.getWidth(),
+                (int) rectangle.getHeight(), Messages.text("frames.defaultTitle"), FrameTint.NONE, false);
         context.openDocument().execute(new CreateFrameCommand(frame));
         context.selection().select(frame.id());
         context.useDefaultTool();
@@ -161,14 +158,19 @@ public final class FrameTool implements Tool {
         reset();
     }
 
-    /** The rectangle being dragged, in grid units, as the frame would be created; null when nothing is dragged. */
+    /**
+     * The rectangle being dragged, in grid units, as the frame would be created; null when nothing is dragged. The
+     * start corner stays fixed: the minimum size pushes the opposite edge, away from it (spec §4.4).
+     */
     Rectangle2D draggedRectangle() {
         if (start == null || (start.equals(current))) {
             return null;
         }
-        return new Rectangle2D.Double(Math.min(start.x(), current.x()), Math.min(start.y(), current.y()),
-                Math.max(Frame.MINIMUM_WIDTH, Math.abs(current.x() - start.x())),
-                Math.max(Frame.MINIMUM_HEIGHT, Math.abs(current.y() - start.y())));
+        int width = Math.max(Frame.MINIMUM_WIDTH, Math.abs(current.x() - start.x()));
+        int height = Math.max(Frame.MINIMUM_HEIGHT, Math.abs(current.y() - start.y()));
+        int left = current.x() < start.x() ? start.x() - width : start.x();
+        int top = current.y() < start.y() ? start.y() - height : start.y();
+        return new Rectangle2D.Double(left, top, width, height);
     }
 
     @Override

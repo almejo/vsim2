@@ -139,6 +139,11 @@ public final class EdgeController {
         return changed;
     }
 
+    /** A handle is under the pointer: a press there would be the handle's, not the tool's. */
+    public boolean hovering() {
+        return hovered != null;
+    }
+
     /** The pointer left the canvas; true when a handle was hovered. */
     public boolean clearHover() {
         boolean changed = hovered != null;

@@ -26,9 +26,12 @@ import javax.swing.Action;
 import javax.swing.JCheckBoxMenuItem;
 import javax.swing.JMenu;
 import javax.swing.JMenuItem;
+import javax.swing.SwingUtilities;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
+import static cl.almejo.vsim.ui.UiTestSupport.place;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class SnapFeaturesTest {
@@ -190,6 +193,24 @@ class SnapFeaturesTest {
         assertThat(tool.refreshes).isEqualTo(5);
         preferences.setGridLineSpacing(10); // the grid lines now pull every 10 units
         assertThat(tool.refreshes).isEqualTo(6);
+    }
+
+    @Test
+    void aDocumentChangeRefreshesTheActiveToolOnceTheChangeIsOver() throws Exception {
+        CountingTool tool = new CountingTool();
+        view.canvas().setTool(tool);
+        SwingUtilities.invokeAndWait(() -> { });
+        int before = tool.refreshes;
+        int[] rightAfterTheChange = new int[1];
+
+        SwingUtilities.invokeAndWait(() -> {
+            place(openDocument, StandardComponentTypes.NOT, 10, 10, Map.of());
+            rightAfterTheChange[0] = tool.refreshes;
+        });
+        SwingUtilities.invokeAndWait(() -> { });
+
+        assertThat(rightAfterTheChange[0]).isEqualTo(before); // not inside the change
+        assertThat(tool.refreshes).isEqualTo(before + 1);
     }
 
     @Test

@@ -21,7 +21,10 @@ import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.shortcuts.Scope;
 import cl.almejo.vsim.ui.shortcuts.ShortcutCatalog;
 import cl.almejo.vsim.ui.shortcuts.ShortcutEntry;
+import cl.almejo.vsim.ui.tools.CanvasMouseEvent;
 import cl.almejo.vsim.ui.tools.PanTool;
+import cl.almejo.vsim.ui.tools.Tool;
+import cl.almejo.vsim.ui.tools.ToolContext;
 import cl.almejo.vsim.ui.window.EditorServices;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuId;
@@ -288,6 +291,53 @@ class GuidesFeaturesTest {
         assertThat(guides()).containsExactly(onTheEdge);
         assertThat(openDocument.document().frame(frame.id()).orElseThrow().topLeft())
                 .isEqualTo(new GridPoint(5, 10));
+    }
+
+    /** A tool that records the pointer moves and exits it hears. */
+    private static final class ListeningTool implements Tool {
+        final List<String> heard = new ArrayList<>();
+
+        @Override
+        public void mouseMoved(ToolContext context, CanvasMouseEvent event) {
+            heard.add("moved");
+        }
+
+        @Override
+        public void mouseExited(ToolContext context) {
+            heard.add("exited");
+        }
+    }
+
+    @Test
+    void overARulerTheToolHearsThePointerLeaveOnceAndBackOnTheCanvasItHearsItMove() {
+        ListeningTool tool = new ListeningTool();
+        view.canvas().setTool(tool);
+
+        move(view, 200, 200);
+        move(view, 100, 5);
+        move(view, 110, 5);
+        move(view, 200, 200);
+
+        assertThat(tool.heard).containsExactly("moved", "exited", "moved");
+    }
+
+    @Test
+    void aShiftOrCtrlPressOnAGuideStartsABandAndLeavesTheGuide() {
+        Component gate = place(openDocument, StandardComponentTypes.NOT, 30, 20, Map.of());
+        setGuides(HORIZONTAL_10);
+        for (int modifiers : new int[] {InputEvent.SHIFT_DOWN_MASK, InputEvent.CTRL_DOWN_MASK}) {
+            view.canvas().selection().clear();
+            view.canvas().getMouseListeners()[0].mousePressed(mouse(view.canvas(), MouseEvent.MOUSE_PRESSED, 200,
+                    80, InputEvent.BUTTON1_DOWN_MASK | modifiers, MouseEvent.BUTTON1));
+            view.canvas().getMouseMotionListeners()[0].mouseDragged(mouse(view.canvas(),
+                    MouseEvent.MOUSE_DRAGGED, 280, 220, InputEvent.BUTTON1_DOWN_MASK | modifiers,
+                    MouseEvent.NOBUTTON));
+            view.canvas().getMouseListeners()[0].mouseReleased(mouse(view.canvas(), MouseEvent.MOUSE_RELEASED, 280,
+                    220, modifiers, MouseEvent.BUTTON1));
+
+            assertThat(guides()).containsExactly(HORIZONTAL_10);
+            assertThat(view.canvas().selection().ids()).containsExactly(gate.id());
+        }
     }
 
     @Test

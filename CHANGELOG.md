@@ -17,10 +17,15 @@ sección es un conjunto de funciones, con las fechas en que se hizo. El detalle 
 - Ver ▸ «Cuadrícula ▸ Separación ▸» elige cada cuántas unidades va una línea de la cuadrícula: 2 (como antes), 4, 5
   o 10, con una más marcada cada cinco. «Ajustar a ▸ Líneas de la cuadrícula» usa la misma separación, así el ajuste
   se nota más. Es una preferencia del editor: el circuito y la cuadrícula de pines y cables no cambian.
+- Reglas arriba y a la izquierda del lienzo: arrastrando desde ellas salen guías horizontales y verticales (líneas
+  cian discontinuas) que se mueven arrastrándolas y se quitan devolviéndolas a su regla. También desde el menú
+  contextual («Agregar guía … aquí», «Quitar guía»), desde Ver («Mostrar guías», «Agregar guía horizontal/vertical»,
+  «Borrar guías») y desde la esquina de las reglas. Las guías se guardan con el circuito, se ven en todas sus vistas,
+  se deshacen en un paso y no salen en las imágenes ni en el PDF.
 - «Ajustar» (el imán de la barra, Ver ▸ «Ajustar», Ctrl+Mayús+M): al mover, pegar, colocar o soltar piezas, sus
   bordes y centros saltan a alinearse con los de las piezas vecinas y con las guías, y una línea magenta muestra cada
-  alineación mientras arrastras. Ver ▸ «Ajustar a ▸» elige piezas, guías y líneas de la cuadrícula (con la separación elegida, siempre a la línea más cercana).
-  Apagado, todo se mueve como antes.
+  alineación mientras arrastras. Ver ▸ «Ajustar a ▸» elige piezas, guías y líneas de la cuadrícula (con la
+  separación elegida, siempre a la línea más cercana). Apagado, todo se mueve como antes.
 - Con «Ajustar», el inicio y la punta de un cable que dibujas y las esquinas de un marco nuevo caen en las guías (o en
   las líneas de la cuadrícula) cercanas, salvo cuando ya están sobre un pin o un cable: la conexión manda. La guía a la
   que se ajustó lo que arrastras se ve más marcada mientras arrastras.
@@ -28,11 +33,11 @@ sección es un conjunto de funciones, con las fechas en que se hizo. El detalle 
   de un cable quedaría tocando un cable o un pin de otra red, con imán o sin él y sigan o no los cables; con el
   puntero cerca aparece el nombre del pin. Al soltar no pasa nada nuevo: es solo un aviso en la vista previa, y no
   sale en las imágenes ni en el PDF.
-- Reglas arriba y a la izquierda del lienzo: arrastrando desde ellas salen guías horizontales y verticales (líneas
-  cian discontinuas) que se mueven arrastrándolas y se quitan devolviéndolas a su regla. También desde el menú
-  contextual («Agregar guía … aquí», «Quitar guía»), desde Ver («Mostrar guías», «Agregar guía horizontal/vertical»,
-  «Borrar guías») y desde la esquina de las reglas. Las guías se guardan con el circuito, se ven en todas sus vistas,
-  se deshacen en un paso y no salen en las imágenes ni en el PDF.
+
+### Cambiado
+
+- Un marco nuevo dibujado hacia arriba o hacia la izquierda y más chico que el mínimo (6 × 4) crece desde la esquina
+  donde empezaste, hacia donde arrastraste, en vez de pasarse al otro lado de ella.
 
 ## 2026-10-21 — Tareas cortas
 

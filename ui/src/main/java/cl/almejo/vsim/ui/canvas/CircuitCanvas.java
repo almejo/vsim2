@@ -155,6 +155,8 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     private boolean spaceDown;
     private Point panAnchor;
     private GridPoint mousePoint;
+    /** The pointer is over an edge handle and the tool was already told it left. */
+    private boolean toolSeesPointerGone;
     private Cursor toolCursor = Cursor.getDefaultCursor();
     private BooleanSupplier animateViewMoves = () -> false;
     /** True while the view moves in a way that must not stop a travel (a travel frame, a layout compensation). */
@@ -1390,13 +1392,24 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
             if (edgeController.hover(converted)) {
                 repaint();
             }
-            tool.mouseMoved(CircuitCanvas.this, converted);
+            if (edgeController.hovering()) {
+                // over a ruler (or a guide the select tool would grab) a press is the handle's: for the tool the
+                // pointer is gone, so a placement ghost or a hover ring never shows there
+                if (!toolSeesPointerGone) {
+                    toolSeesPointerGone = true;
+                    tool.mouseExited(CircuitCanvas.this);
+                }
+            } else {
+                toolSeesPointerGone = false;
+                tool.mouseMoved(CircuitCanvas.this, converted);
+            }
             showCursor();
         }
 
         @Override
         public void mouseExited(MouseEvent event) {
             mousePoint = null;
+            toolSeesPointerGone = false;
             if (edgeController.clearHover()) {
                 showCursor();
                 repaint();

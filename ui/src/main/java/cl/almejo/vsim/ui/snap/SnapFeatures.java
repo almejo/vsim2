@@ -1,6 +1,7 @@
 package cl.almejo.vsim.ui.snap;
 
 import cl.almejo.vsim.core.document.CircuitDocument;
+import cl.almejo.vsim.core.document.DocumentListener;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.i18n.Messages;
@@ -14,6 +15,7 @@ import javax.swing.JCheckBoxMenuItem;
 import javax.swing.JMenu;
 import javax.swing.JMenuItem;
 import javax.swing.JToggleButton;
+import javax.swing.SwingUtilities;
 import java.awt.Component;
 import java.awt.event.ActionEvent;
 import java.util.ArrayList;
@@ -25,9 +27,9 @@ import java.util.function.Consumer;
  * «Ajustar» in one editor view (alignment-guides spec §2): the magnet toggle in the toolbar right after the tool
  * group and in Ver, and Ver ▸ «Ajustar a ▸» with Piezas / Guías / Líneas de la cuadrícula, all on the
  * {@link AppPreferences} snap booleans (so every view shows the same state). The view's canvas snaps with a
- * {@link DefaultSnapper}; when a snap preference, the viewport or the guides change, the canvas's tool redoes its
- * snapped preview ({@code refreshSnap}). {@link #dispose()} takes back the button, the items, the shortcut
- * registrations, the snapper and every listener.
+ * {@link DefaultSnapper}; when a snap preference, the viewport, the guides or the document (another view's edit)
+ * change, the canvas's tool redoes its snapped preview ({@code refreshSnap}). {@link #dispose()} takes back the
+ * button, the items, the shortcut registrations, the snapper and every listener.
  */
 public final class SnapFeatures {
 
@@ -92,6 +94,10 @@ public final class SnapFeatures {
         Runnable guideListener = this::refreshSnap;
         document.addGuideListener(guideListener);
         removals.add(() -> document.removeGuideListener(guideListener));
+        // later, not inside the change: a tool committing its own drag must finish its release first
+        DocumentListener documentListener = (changed, change) -> SwingUtilities.invokeLater(this::refreshSnap);
+        document.addListener(documentListener);
+        removals.add(() -> document.removeListener(documentListener));
     }
 
     /** «Ajustar»: the toolbar button, the Ver item and the shortcut {@code view.snap}. */

@@ -1,6 +1,7 @@
 package cl.almejo.vsim.ui.frames;
 
 import cl.almejo.vsim.core.document.Frame;
+import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.tools.TestToolContext;
 import org.junit.jupiter.api.AfterEach;
@@ -9,6 +10,7 @@ import org.junit.jupiter.api.Test;
 
 import java.awt.Graphics2D;
 import java.awt.event.KeyEvent;
+import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -61,6 +63,23 @@ class FrameToolTest {
         Frame frame = onlyFrame();
         assertThat(frame.width()).isEqualTo(Frame.MINIMUM_WIDTH);
         assertThat(frame.height()).isEqualTo(Frame.MINIMUM_HEIGHT);
+    }
+
+    @Test
+    void aSmallDragUpAndLeftKeepsTheStartCornerAndGrowsAwayFromIt() {
+        context.drag(tool, 20, 20, 18, 18);
+        Frame frame = onlyFrame();
+        assertThat(frame.topLeft()).isEqualTo(new GridPoint(20 - Frame.MINIMUM_WIDTH, 20 - Frame.MINIMUM_HEIGHT));
+        assertThat(frame.width()).isEqualTo(Frame.MINIMUM_WIDTH);
+        assertThat(frame.height()).isEqualTo(Frame.MINIMUM_HEIGHT);
+    }
+
+    @Test
+    void theOutlineWhileDraggingIsTheFrameTheReleaseCreates() {
+        tool.mousePressed(context, TestToolContext.at(20, 20));
+        tool.mouseDragged(context, TestToolContext.at(18, 18));
+        assertThat(tool.draggedRectangle()).isEqualTo(new Rectangle2D.Double(20 - Frame.MINIMUM_WIDTH,
+                20 - Frame.MINIMUM_HEIGHT, Frame.MINIMUM_WIDTH, Frame.MINIMUM_HEIGHT));
     }
 
     @Test
