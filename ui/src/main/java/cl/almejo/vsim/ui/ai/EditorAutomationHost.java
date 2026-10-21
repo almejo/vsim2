@@ -16,6 +16,9 @@ import cl.almejo.vsim.automation.simulate.SimulationReceipt;
 import cl.almejo.vsim.automation.simulate.SimulationRequest;
 import cl.almejo.vsim.automation.simulate.TruthTableRequest;
 import cl.almejo.vsim.automation.edit.EditableCircuit;
+import cl.almejo.vsim.automation.EditorSetting;
+import cl.almejo.vsim.automation.ProposalAnswer;
+import cl.almejo.vsim.automation.ProposedPreference;
 import cl.almejo.vsim.ui.app.OpenDocument;
 
 import javax.swing.SwingUtilities;
@@ -25,6 +28,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.WeakHashMap;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -37,6 +41,10 @@ public final class EditorAutomationHost implements AutomationHost {
     private static final String ID_PREFIX = "circuit-";
 
     private final Supplier<List<OpenDocument>> openDocuments;
+    private final EditorWindows windows;
+    private final Optional<PreferenceProposals> proposals;
+    /** Told of every request (any thread): the panel's «Claude Code conectado». */
+    private final List<Runnable> requestListeners = new CopyOnWriteArrayList<>();
     /** EDT only. Weak, so a closed circuit's entry goes with it; the counter never gives an id twice. */
     private final Map<OpenDocument, DocumentId> ids = new WeakHashMap<>();
     private long lastId;
@@ -52,7 +60,31 @@ public final class EditorAutomationHost implements AutomationHost {
     /** @param windowsOf the windows showing a circuit, the active one first (for the pictures); called on the EDT */
     public EditorAutomationHost(Supplier<List<OpenDocument>> openDocuments,
                                 Function<OpenDocument, List<ShownWindow>> windowsOf) {
+        this(openDocuments, windowsOf, EditorWindows.NONE, Optional.empty());
+    }
+
+    /**
+     * @param windows   opens new circuits and gives each circuit's settings override (spec §7)
+     * @param proposals the application's preference proposals
+     */
+    public EditorAutomationHost(Supplier<List<OpenDocument>> openDocuments, EditorWindows windows,
+                                PreferenceProposals proposals) {
+        this(openDocuments, document -> List.of(), windows, Optional.of(proposals));
+    }
+
+    /** Everything: the windows of each circuit (pictures), new circuits and settings, and the preference proposals. */
+    public EditorAutomationHost(Supplier<List<OpenDocument>> openDocuments,
+                                Function<OpenDocument, List<ShownWindow>> windowsOf, EditorWindows windows,
+                                PreferenceProposals proposals) {
+        this(openDocuments, windowsOf, windows, Optional.of(proposals));
+    }
+
+    private EditorAutomationHost(Supplier<List<OpenDocument>> openDocuments,
+                                 Function<OpenDocument, List<ShownWindow>> windowsOf, EditorWindows windows,
+                                 Optional<PreferenceProposals> proposals) {
         this.openDocuments = Objects.requireNonNull(openDocuments, "openDocuments");
+        this.windows = Objects.requireNonNull(windows, "windows");
+        this.proposals = proposals;
         this.reads = new ReadHostSupport(windowsOf);
         this.simulation = new SimulationHostSupport(this::openDocumentWithId, SwingUtilities::invokeLater);
     }
@@ -72,8 +104,52 @@ public final class EditorAutomationHost implements AutomationHost {
         return openDocuments.get().stream().filter(document -> idOf(document).equals(id)).findFirst();
     }
 
+    /** {@code listener} runs (on the caller's thread) at every request until the returned runnable takes it back. */
+    public Runnable addRequestListener(Runnable listener) {
+        requestListeners.add(Objects.requireNonNull(listener, "listener"));
+        return () -> requestListeners.remove(listener);
+    }
+
+    /** EDT only: the id the AI knows {@code document} by, given now if it has none yet. */
+    public DocumentId documentId(OpenDocument document) {
+        return idOf(document);
+    }
+
+    @Override
+    public DocumentId newCircuit(String name) {
+        Objects.requireNonNull(name, "name");
+        if (windows == EditorWindows.NONE) {
+            throw new AutomationException(AutomationError.NOT_ALLOWED, "This editor cannot open new circuits");
+        }
+        return idOf(windows.openNewCircuit(name));
+    }
+
+    @Override
+    public void setEditorSetting(DocumentId document, EditorSetting setting, String value) {
+        OpenDocument open = documentOf(document);
+        SettingsOverride override = windows.settingsOverride(open).orElseThrow(() ->
+                new AutomationException(AutomationError.NOT_ALLOWED, "This circuit has no window settings"));
+        override.set(setting, value);
+    }
+
+    @Override
+    public String proposePreference(ProposedPreference preference, String value, String reason) {
+        return proposalsOrRefuse().propose(preference, value, reason).id();
+    }
+
+    @Override
+    public CompletableFuture<ProposalAnswer> proposalAnswer(String proposalId) {
+        return proposalsOrRefuse().answerOf(proposalId);
+    }
+
+    private PreferenceProposals proposalsOrRefuse() {
+        return proposals.orElseThrow(() ->
+                new AutomationException(AutomationError.NOT_ALLOWED, "This editor takes no preference proposals"));
+    }
+
     @Override
     public <T> CompletableFuture<T> onEditorThread(Function<EditorAccess, T> work) {
+        requestListeners.forEach(Runnable::run);
         CompletableFuture<T> result = new CompletableFuture<>();
         SwingUtilities.invokeLater(() -> {
             try {

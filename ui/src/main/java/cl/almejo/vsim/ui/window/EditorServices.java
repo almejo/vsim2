@@ -30,4 +30,9 @@ public record EditorServices(PainterRegistry painters, Appearance appearance, Ap
     public EditorServices withExtensions(List<EditorExtension> newExtensions) {
         return new EditorServices(painters, appearance, preferences, library, newExtensions);
     }
+
+    /** The same services read through {@code windowPreferences} (one window's {@link AppPreferences#layered()}). */
+    public EditorServices withPreferences(AppPreferences windowPreferences) {
+        return new EditorServices(painters, appearance, windowPreferences, library, extensions);
+    }
 }

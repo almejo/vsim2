@@ -9,9 +9,13 @@ import cl.almejo.vsim.core.io.CircuitFormatException;
 import cl.almejo.vsim.core.io.CircuitReader;
 import cl.almejo.vsim.core.io.LibraryDirectory;
 import cl.almejo.vsim.core.library.ComponentLibrary;
+import cl.almejo.vsim.ui.ai.AiExtension;
 import cl.almejo.vsim.ui.ai.AiServerService;
 import cl.almejo.vsim.ui.ai.EditorAutomationHost;
 import cl.almejo.vsim.ui.ai.ShownWindow;
+import cl.almejo.vsim.ui.ai.EditorWindows;
+import cl.almejo.vsim.ui.ai.PreferenceProposals;
+import cl.almejo.vsim.ui.ai.SettingsOverride;
 import cl.almejo.vsim.ui.examples.ExamplesFeature;
 import cl.almejo.vsim.ui.export.ExportImageExtension;
 import cl.almejo.vsim.ui.print.ExportPdfExtension;
@@ -75,7 +79,9 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.WeakHashMap;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
@@ -102,13 +108,31 @@ public final class Application {
     private Path lastDirectory;
     // IA.1: one AI server per process, an application service (A§4.2); off until started.
     private final AiServerService aiServer;
+    private final EditorAutomationHost automationHost;
+    private final PreferenceProposals proposals;
+    /** Each window reads the preferences through its own layer: the AI's temporary settings (spec §7). */
+    private final Map<CircuitWindow, AppPreferences> windowPreferences = new WeakHashMap<>();
 
     public Application(AppPreferences preferences) {
         this.preferences = preferences;
         this.libraryService = new LibraryService(preferences, library, registry);
+        this.proposals = new PreferenceProposals(preferences);
+        this.automationHost = new EditorAutomationHost(windows::documents,
+                document -> ShownWindow.activeFirst(windows.windowsOf(document)), new ApplicationWindows(), proposals);
+        this.aiServer = new AiServerService(preferences, new AutomationApi(automationHost));
+        automationHost.addRequestListener(aiServer::requestServed);
+        aiServer.addListener(new AiServerService.Listener() {
+            @Override
+            public void stateChanged() {
+                if (!aiServer.isRunning()) {
+                    proposals.withdrawAll(); // turning it off revokes everything (spec §9.1)
+                }
+            }
+        });
         this.services = new EditorServices(PainterRegistry.standard(), appearance, preferences, library,
                 editorExtensions(libraryService, SwingLibraryDialogs.INSTANCE, this::initialDirectory,
-                        this::rememberDirectory));
+                        this::rememberDirectory,
+                        new AiExtension(aiServer, automationHost::documentId, proposals)));
         // Lives as long as the application: it follows the preferences and is never disposed.
         this.themeManager = ThemeManager.forCurrentPlatform(preferences, appearance);
         this.textFontManager = new TextFontManager(preferences);
@@ -116,9 +140,6 @@ public final class Application {
         this.sessionStore = new SessionStore(preferences);
         this.recoveryStore = new RecoveryStore(preferences.dataDirectory().resolve("recovery"));
         this.autosave = AutosaveService.create(recoveryStore);
-        this.aiServer = new AiServerService(preferences,
-                new AutomationApi(new EditorAutomationHost(windows::documents,
-                        document -> ShownWindow.activeFirst(windows.windowsOf(document)))));
     }
 
     /**
@@ -127,16 +148,17 @@ public final class Application {
      */
     public static List<EditorExtension> editorExtensions(LibraryService libraryService, LibraryDialogs libraryDialogs) {
         return editorExtensions(libraryService, libraryDialogs, () -> Path.of(System.getProperty("user.home")),
-                path -> { });
+                path -> { }, AiExtension.inactive());
     }
 
     /**
      * The extensions of every editor view, in install order. Package-private so a test can install them all.
      * {@code startDirectory} and {@code chosen} are the folder «Abrir» starts in and remembers, shared with the
-     * table import's file chooser.
+     * table import's file chooser. {@code ai} is the AI's panel and status line over the application's server.
      */
     static List<EditorExtension> editorExtensions(LibraryService libraryService, LibraryDialogs libraryDialogs,
-                                                  Supplier<Path> startDirectory, Consumer<Path> chosen) {
+                                                  Supplier<Path> startDirectory, Consumer<Path> chosen,
+                                                  AiExtension ai) {
         List<EditorExtension> editorExtensions = new ArrayList<>();
         // M6: waveforms before ActionIcons, recents after PreferencesFeature, shortcuts last. M6.1: the step mode and
         // the truth table before ActionIcons, the examples after RecentFilesFeature (its submenu goes after «Recientes»).
@@ -157,6 +179,7 @@ public final class Application {
         editorExtensions.add(new KarnaughExtension(libraryService, startDirectory, chosen));
         editorExtensions.add(new FindExtension());
         editorExtensions.add(new TunnelsExtension());
+        editorExtensions.add(ai); // IA.1: last in Herramientas, before the shortcuts see its item
         editorExtensions.add(new ActionIcons());
         editorExtensions.add(new PreferencesFeature());
         editorExtensions.add(new RecentFilesFeature());
@@ -388,6 +411,7 @@ public final class Application {
     public void windowClosed(CircuitWindow window) {
         sessionEnding.windowClosing(windows.all().equals(List.of(window)));
         rememberWindowState(window);
+        windowPreferences.remove(window);
         windows.remove(window).ifPresent(document -> {
             autosave.untrack(document);
             document.close();
@@ -548,7 +572,9 @@ public final class Application {
      * view state it opens with) and only then shows it. M6 contract C6: B adds its saved-state overload on top.
      */
     private CircuitWindow show(OpenDocument document, Consumer<CircuitWindow> beforeShowing) {
-        CircuitWindow window = new CircuitWindow(this, document, services);
+        AppPreferences layered = preferences.layered();
+        CircuitWindow window = new CircuitWindow(this, document, services.withPreferences(layered));
+        windowPreferences.put(window, layered);
         windows.add(document, window);
         autosave.track(document); // M6-B: every open document is copied while modified
         beforeShowing.accept(window);
@@ -579,6 +605,27 @@ public final class Application {
             }
         }
         return screens;
+    }
+
+    /** What the AI's host may do with the windows (spec §7): open a new unsaved circuit, reach an override. */
+    private final class ApplicationWindows implements EditorWindows {
+
+        @Override
+        public OpenDocument openNewCircuit(String name) {
+            OpenDocument created = OpenDocument.createEmpty(registry);
+            // Not a user edit: the name is what the window shows until the user saves it (the AI never does).
+            created.document().setName(name);
+            show(created);
+            return created;
+        }
+
+        /** The first window of the circuit is the one the AI works in. */
+        @Override
+        public Optional<SettingsOverride> settingsOverride(OpenDocument document) {
+            return windows.windowsOf(document).stream().findFirst()
+                    .map(windowPreferences::get)
+                    .flatMap(SettingsOverride::of);
+        }
     }
 
     private void focus(CircuitWindow window) {

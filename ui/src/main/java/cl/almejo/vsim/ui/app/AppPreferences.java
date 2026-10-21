@@ -35,7 +35,7 @@ public final class AppPreferences {
 
     /** «Ajustar»: the magnet as a whole; on unless the user turned it off. */
     public boolean snapToAlignments() {
-        return !"false".equals(node.get(SNAP_TO_ALIGNMENTS, "true"));
+        return !"false".equals(read(SNAP_TO_ALIGNMENTS, "true"));
     }
 
     public void setSnapToAlignments(boolean snap) {
@@ -44,7 +44,7 @@ public final class AppPreferences {
 
     /** «Ajustar a ▸ Piezas»: edges and centres of other parts; on by default. */
     public boolean snapToParts() {
-        return !"false".equals(node.get(SNAP_TO_PARTS, "true"));
+        return !"false".equals(read(SNAP_TO_PARTS, "true"));
     }
 
     public void setSnapToParts(boolean snap) {
@@ -53,7 +53,7 @@ public final class AppPreferences {
 
     /** «Ajustar a ▸ Guías»; on by default. */
     public boolean snapToGuides() {
-        return !"false".equals(node.get(SNAP_TO_GUIDES, "true"));
+        return !"false".equals(read(SNAP_TO_GUIDES, "true"));
     }
 
     public void setSnapToGuides(boolean snap) {
@@ -62,7 +62,7 @@ public final class AppPreferences {
 
     /** «Ajustar a ▸ Líneas de la cuadrícula»; off by default. */
     public boolean snapToGridLines() {
-        return "true".equals(node.get(SNAP_TO_GRID_LINES, "false"));
+        return "true".equals(read(SNAP_TO_GRID_LINES, "false"));
     }
 
     public void setSnapToGridLines(boolean snap) {
@@ -71,7 +71,7 @@ public final class AppPreferences {
 
     /** «Mostrar guías»: the rulers and the guides; on by default. */
     public boolean showGuides() {
-        return !"false".equals(node.get(SHOW_GUIDES, "true"));
+        return !"false".equals(read(SHOW_GUIDES, "true"));
     }
 
     public void setShowGuides(boolean show) {
@@ -91,7 +91,7 @@ public final class AppPreferences {
     /** «Cuadrícula ▸ Separación ▸»: the units between the grid lines, also where they attract; 2 by default. */
     public int gridLineSpacing() {
         try {
-            int stored = Integer.parseInt(node.get(GRID_LINE_SPACING, ""));
+            int stored = Integer.parseInt(read(GRID_LINE_SPACING, ""));
             return GRID_LINE_SPACINGS.contains(stored) ? stored : DEFAULT_GRID_LINE_SPACING;
         } catch (NumberFormatException exception) {
             return DEFAULT_GRID_LINE_SPACING;
@@ -181,7 +181,9 @@ public final class AppPreferences {
 
     private final Preferences node;
     private final BooleanSupplier systemReducesMotion;
-    private final List<Runnable> listeners = new CopyOnWriteArrayList<>();
+    private final List<Runnable> listeners;
+    /** Null but for the preferences of one window ({@link #layered()}). */
+    private final PreferenceLayer layer;
 
     public AppPreferences(Preferences node) {
         this(node, () -> false);
@@ -191,6 +193,31 @@ public final class AppPreferences {
     AppPreferences(Preferences node, BooleanSupplier systemReducesMotion) {
         this.node = node;
         this.systemReducesMotion = systemReducesMotion;
+        this.listeners = new CopyOnWriteArrayList<>();
+        this.layer = null;
+    }
+
+    /** The same saved preferences and listeners as {@code saved}, read through a new layer of one window. */
+    private AppPreferences(AppPreferences saved) {
+        this.node = saved.node;
+        this.systemReducesMotion = saved.systemReducesMotion;
+        this.listeners = saved.listeners;
+        this.layer = new PreferenceLayer(() -> notifyListeners("layer"));
+    }
+
+    /**
+     * The preferences of one window (spec §7): the same saved values and listeners, read through a new, empty
+     * {@link PreferenceLayer} that only this window sees. Writing through it saves as always (and replaces a layered
+     * value of the same setting); every listener hears a layer change and re-reads, the other windows reading the
+     * saved values.
+     */
+    public AppPreferences layered() {
+        return new AppPreferences(this);
+    }
+
+    /** The layer of a window's preferences ({@link #layered()}); empty for the saved preferences themselves. */
+    public Optional<PreferenceLayer> layer() {
+        return Optional.ofNullable(layer);
     }
 
     public static AppPreferences system() {
@@ -202,7 +229,7 @@ public final class AppPreferences {
     }
 
     public Theme theme() {
-        String stored = node.get(THEME, Theme.SYSTEM.name());
+        String stored = read(THEME, Theme.SYSTEM.name());
         try {
             return Theme.valueOf(stored);
         } catch (IllegalArgumentException exception) {
@@ -295,7 +322,7 @@ public final class AppPreferences {
     /** Time units of the fixed step «Avanzar N t» (M6.1-B); the default when nothing valid is stored. */
     public long stepUnits() {
         try {
-            long stored = Long.parseLong(node.get(STEP_UNITS, ""));
+            long stored = Long.parseLong(read(STEP_UNITS, ""));
             return stored >= 1 && stored <= MAXIMUM_STEP_UNITS ? stored : DEFAULT_STEP_UNITS;
         } catch (NumberFormatException exception) {
             return DEFAULT_STEP_UNITS;
@@ -332,7 +359,7 @@ public final class AppPreferences {
     /** The PNG scale (1, 2 or 4) the export dialog offers first; 2 until the user picks another. */
     public int exportScale() {
         try {
-            int stored = Integer.parseInt(node.get(EXPORT_SCALE, ""));
+            int stored = Integer.parseInt(read(EXPORT_SCALE, ""));
             return stored == 1 || stored == 2 || stored == 4 ? stored : 2;
         } catch (NumberFormatException exception) {
             return 2;
@@ -348,7 +375,7 @@ public final class AppPreferences {
 
     /** «Fondo blanco para imprimir»: on unless the user turned it off. */
     public boolean exportPrintBackground() {
-        return !"false".equals(node.get(EXPORT_PRINT_BACKGROUND, "true"));
+        return !"false".equals(read(EXPORT_PRINT_BACKGROUND, "true"));
     }
 
     public void setExportPrintBackground(boolean enabled) {
@@ -368,14 +395,14 @@ public final class AppPreferences {
                 enumValue(PRINT_PAPER, Paper.class, defaults.paper()),
                 enumValue(PRINT_ORIENTATION, PageOrientation.class, defaults.orientation()),
                 printScale(defaults.scaleMode()),
-                !"false".equals(node.get(PRINT_WITH_VALUES, "true")),
-                "true".equals(node.get(PRINT_BLACK_AND_WHITE, "false")),
-                "true".equals(node.get(PRINT_HEADER_FOOTER, "false")),
+                !"false".equals(read(PRINT_WITH_VALUES, "true")),
+                "true".equals(read(PRINT_BLACK_AND_WHITE, "false")),
+                "true".equals(read(PRINT_HEADER_FOOTER, "false")),
                 title);
     }
 
     private ScaleMode printScale(ScaleMode fallback) {
-        String stored = node.get(PRINT_SCALE, PRINT_FIT);
+        String stored = read(PRINT_SCALE, PRINT_FIT);
         if (PRINT_FIT.equals(stored)) {
             return new ScaleMode.FitToOnePage();
         }
@@ -390,7 +417,7 @@ public final class AppPreferences {
 
     private <E extends Enum<E>> E enumValue(String key, Class<E> type, E fallback) {
         try {
-            return Enum.valueOf(type, node.get(key, fallback.name()));
+            return Enum.valueOf(type, read(key, fallback.name()));
         } catch (IllegalArgumentException exception) {
             return fallback;
         }
@@ -431,9 +458,9 @@ public final class AppPreferences {
 
     /** The options of Editar ▸ Ordenar cables: stubs and merges on, detours off until the user turns them on. */
     public TidyOptions tidyOptions() {
-        return new TidyOptions(!"false".equals(node.get(TIDY_REMOVE_STUBS, "true")),
-                !"false".equals(node.get(TIDY_MERGE_SEGMENTS, "true")),
-                "true".equals(node.get(TIDY_FLATTEN_DETOURS, "false")));
+        return new TidyOptions(!"false".equals(read(TIDY_REMOVE_STUBS, "true")),
+                !"false".equals(read(TIDY_MERGE_SEGMENTS, "true")),
+                "true".equals(read(TIDY_FLATTEN_DETOURS, "false")));
     }
 
     public void setTidyOptions(TidyOptions options) {
@@ -447,7 +474,7 @@ public final class AppPreferences {
 
     /** «Los cables siguen al mover»: on unless the user turned it off. */
     public boolean wiresFollow() {
-        return !"false".equals(node.get(WIRES_FOLLOW, "true"));
+        return !"false".equals(read(WIRES_FOLLOW, "true"));
     }
 
     public void setWiresFollow(boolean follow) {
@@ -457,7 +484,7 @@ public final class AppPreferences {
     /** The key that inverts the follow mode while dragging; Shift when unset or unreadable. */
     public InvertModifier invertModifier() {
         try {
-            return InvertModifier.valueOf(node.get(INVERT_MODIFIER, InvertModifier.SHIFT.name()));
+            return InvertModifier.valueOf(read(INVERT_MODIFIER, InvertModifier.SHIFT.name()));
         } catch (IllegalArgumentException exception) {
             return InvertModifier.SHIFT;
         }
@@ -475,7 +502,7 @@ public final class AppPreferences {
      * app takes it somewhere. On by default, unless the desktop asks for reduced motion; a stored choice wins.
      */
     public boolean animateViewMoves() {
-        String stored = node.get(ANIMATE_VIEW_MOVES, "");
+        String stored = read(ANIMATE_VIEW_MOVES, "");
         if (stored.isEmpty()) {
             return !systemReducesMotion.getAsBoolean();
         }
@@ -539,7 +566,7 @@ public final class AppPreferences {
         String family = optional(TEXT_FONT_FAMILY).orElse(TextFont.DEFAULT.family());
         int size;
         try {
-            size = Integer.parseInt(node.get(TEXT_FONT_SIZE, ""));
+            size = Integer.parseInt(read(TEXT_FONT_SIZE, ""));
         } catch (NumberFormatException exception) {
             size = TextFont.DEFAULT.size();
         }
@@ -573,7 +600,7 @@ public final class AppPreferences {
 
     /** «Al iniciar, abrir los circuitos de la última sesión» (M6-B): on unless the user turned it off. */
     public boolean restoreSession() {
-        return !"false".equals(node.get(RESTORE_SESSION, "true"));
+        return !"false".equals(read(RESTORE_SESSION, "true"));
     }
 
     public void setRestoreSession(boolean enabled) {
@@ -639,7 +666,7 @@ public final class AppPreferences {
     /** The port the AI server listens on (spec §9.1): the default until the user changes it; VSim never does. */
     public int aiPort() {
         try {
-            int stored = Integer.parseInt(node.get(AI_PORT, ""));
+            int stored = Integer.parseInt(read(AI_PORT, ""));
             return isUserPort(stored) ? stored : DEFAULT_AI_PORT;
         } catch (NumberFormatException exception) {
             return DEFAULT_AI_PORT;
@@ -666,7 +693,7 @@ public final class AppPreferences {
 
     /** Whether the AI server starts with VSim; off by default (spec §9.1). */
     public boolean aiStartWithVsim() {
-        return "true".equals(node.get(AI_START_WITH_VSIM, "false"));
+        return "true".equals(read(AI_START_WITH_VSIM, "false"));
     }
 
     public void setAiStartWithVsim(boolean start) {
@@ -678,12 +705,25 @@ public final class AppPreferences {
     }
 
     private Optional<String> optional(String key) {
-        String value = node.get(key, "");
+        String value = read(key, "");
         return value.isBlank() ? Optional.empty() : Optional.of(value);
     }
 
+    /** The layered value of {@code key} when this window has one, else the saved one. */
+    private String read(String key, String fallback) {
+        if (layer != null) {
+            Optional<String> layered = layer.valueOf(key);
+            if (layered.isPresent()) {
+                return layered.get();
+            }
+        }
+        return node.get(key, fallback);
+    }
+
     private void put(String key, String value) {
-        if (store(key, value)) {
+        // the user's own choice in this window replaces what was layered there, and is saved
+        boolean wasLayered = layer != null && layer.forget(key);
+        if (store(key, value) || wasLayered) {
             notifyListeners(key);
         }
     }

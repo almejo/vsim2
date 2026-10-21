@@ -154,11 +154,13 @@ class ShortcutCatalogTest {
     }
 
     @Test
-    void theToolsMenuHasTheKarnaughWizardAndTheExpressionsWithoutADefaultStroke() {
+    void theToolsMenuHasTheKarnaughWizardTheExpressionsAndTheAiPanelWithoutADefaultStroke() {
         List<String> tools = ShortcutCatalog.entries().stream()
                 .filter(entry -> entry.group() == MenuId.TOOLS).map(ShortcutEntry::id).toList();
         assertThat(tools).containsExactly("tools.circuitFromTruthTable", "tools.karnaughPractice",
-                "tools.circuitFromExpressions");
+                "tools.circuitFromExpressions", "tools.aiPanel");
+        assertThat(ShortcutCatalog.find("tools.aiPanel")).contains(new ShortcutEntry("tools.aiPanel",
+                "action.aiPanel", MenuId.TOOLS, Scope.WINDOW, Optional.empty()));
         assertThat(ShortcutCatalog.find("tools.circuitFromTruthTable")).contains(new ShortcutEntry(
                 "tools.circuitFromTruthTable", "action.circuitFromTruthTable", MenuId.TOOLS, Scope.WINDOW,
                 Optional.empty()));

@@ -189,13 +189,13 @@ class ApplicationExtensionsTest {
     }
 
     @Test
-    void theToolsMenuOpensTheKarnaughWizardAndTheExpressions() {
+    void theToolsMenuOpensTheKarnaughWizardTheExpressionsAndTheAiPanel() {
         EditorView view = new EditorView(openDocument, services, NO_WINDOW);
         try {
             assertThat(texts(view.menu(MenuId.TOOLS))).containsExactly("Circuito desde tabla de verdad…",
-                    "Practicar Karnaugh…", "Circuito desde expresiones…");
+                    "Practicar Karnaugh…", "Circuito desde expresiones…", "---", "IA (MCP)…");
             assertThat(view.shortcutActions()).containsKeys("tools.circuitFromTruthTable",
-                    "tools.karnaughPractice", "tools.circuitFromExpressions");
+                    "tools.karnaughPractice", "tools.circuitFromExpressions", "tools.aiPanel");
         } finally {
             view.dispose();
         }
