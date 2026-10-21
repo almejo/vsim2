@@ -34,6 +34,12 @@ public final class WireTool implements Tool {
         }
     }
 
+    /** A wire being drawn goes on over the other panes of the window. */
+    @Override
+    public boolean crossesPanes() {
+        return drawing != null;
+    }
+
     @Override
     public void mouseDragged(ToolContext context, CanvasMouseEvent event) {
         if (drawing != null) {

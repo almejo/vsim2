@@ -19,6 +19,11 @@ sección es un conjunto de funciones, con las fechas en que se hizo. El detalle 
   F8 y Nueva vista actúan en el panel activo, y los brillos, problemas, guías y marcas se ven en todos.
 - La división se recuerda por archivo en las preferencias, nunca en el .vsim: al volver a abrir un circuito la
   ventana vuelve dividida como estaba, y dividir no lo deja «modificado» ni agrega un paso de deshacer.
+- Lo que empiezas a arrastrar en un panel sigue en otro panel de la misma ventana: un cable (con Cable o desde un
+  pin), un recuadro de selección, mover o copiar con Ctrl piezas, deslizar un tramo con Alt, mover una etiqueta,
+  dibujar, mover (con su bloque si está bloqueado) o agrandar un marco. La punta sigue al puntero en el otro panel,
+  con su zoom para «Ajustar»; la vista previa se ve en todos los paneles; al soltar es un solo paso de deshacer, y Esc
+  lo cancela en todos.
 
 ## 2026-10-21 — Ajustar, guías y cuadrícula
 

@@ -99,7 +99,7 @@ Una línea por función; el detalle está en [docs/funciones.md](docs/funciones.
 ### Interfaz, preferencias y sesión
 
 - [Ventanas y vistas](docs/funciones.md#ventanas-y-vistas): varias vistas del mismo circuito.
-- [Dividir la vista](docs/funciones.md#dividir-la-vista) en 2 o 4 paneles del mismo circuito, como en Excel: arrastrando las pestañitas de los bordes o desde Ventana ▸ «Dividir ▸», cada panel con su zoom y una sola selección; se recuerda por archivo, nunca en el .vsim.
+- [Dividir la vista](docs/funciones.md#dividir-la-vista) en 2 o 4 paneles del mismo circuito, como en Excel: arrastrando las pestañitas de los bordes o desde Ventana ▸ «Dividir ▸», cada panel con su zoom y una sola selección; lo que arrastras (un cable, un recuadro, piezas, un marco) sigue de un panel a otro; se recuerda por archivo, nunca en el .vsim.
 - [Zoom y desplazamiento](docs/funciones.md#zoom-y-desplazamiento) con rueda, teclado y botón del medio.
 - [Cuadrícula](docs/funciones.md#cuadrícula) de puntos, de líneas (cada 2 y más marcada cada 10, o con la separación que elijas: 2, 4, 5 o 10 unidades) o ninguna, con su propio color en cada esquema.
 - [Ajustar](docs/funciones.md#ajustar): al mover, las piezas se alinean por bordes y centros con las vecinas, las guías o las líneas de la cuadrícula, y los puntos de un cable o las esquinas de un marco nuevo caen en las guías sin soltarse de un pin o un cable (Ctrl+Mayús+M lo apaga); mientras arrastras, un punto rojo marca cada pin o cable que quedaría tocando algo de otra red, con el nombre de los pines al lado («Cin → S»).

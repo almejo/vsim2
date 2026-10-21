@@ -873,6 +873,15 @@ public final class SelectTool implements Tool {
         return wire == null && bandStart == null ? Optional.ofNullable(pressPoint) : Optional.empty();
     }
 
+    /**
+     * Every gesture under way goes on over the other panes of the window: a move or a Ctrl copy, a segment slide, a
+     * wire, a rubber band, a label drag and a delegate's gesture (a frame moved or resized).
+     */
+    @Override
+    public boolean crossesPanes() {
+        return !isIdle();
+    }
+
     /** True when no gesture is under way: no press, wire, rubber band or delegate (a frame resize, a label drag). */
     public boolean isIdle() {
         return pressPoint == null && wire == null && bandStart == null && activeDelegate == null

@@ -30,7 +30,7 @@ final class GuideOverlay implements CanvasOverlay {
         try {
             AffineTransform documentToScreen = features.canvas().viewport().documentTransform();
             screen.transform(documentToScreen.createInverse()); // back to logical pixels, the device transform kept
-            List<Guide> snapped = features.canvas().tool().snappedGuides();
+            List<Guide> snapped = features.canvas().snappedGuides();
             for (Guide guide : features.document().guides()) {
                 if (!features.isHiddenByTheDrag(guide)) {
                     features.paintGuideLine(screen, guide, snapped.contains(guide));

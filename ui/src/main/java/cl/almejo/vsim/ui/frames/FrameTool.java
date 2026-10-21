@@ -59,6 +59,12 @@ public final class FrameTool implements Tool {
         context.repaint();
     }
 
+    /** A frame being drawn goes on over the other panes of the window. */
+    @Override
+    public boolean crossesPanes() {
+        return start != null;
+    }
+
     @Override
     public void mouseDragged(ToolContext context, CanvasMouseEvent event) {
         if (start == null) {

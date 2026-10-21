@@ -203,7 +203,7 @@ public final class SnapFeatures {
 
     private void refreshSnap(CircuitCanvas pane) {
         if (!disposed) {
-            pane.tool().refreshSnap(pane);
+            pane.tool().refreshSnap(pane.toolContext());
         }
     }
 

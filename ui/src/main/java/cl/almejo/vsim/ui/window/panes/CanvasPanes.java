@@ -555,6 +555,8 @@ public final class CanvasPanes extends JComponent {
 
     private void attach(CircuitCanvas pane) {
         Runnable removePressObserver = pane.addPressObserver(() -> activate(pane));
+        Runnable removeOtherPanes = pane.useOtherPanes(
+                () -> panes().stream().filter(other -> other != pane).toList());
         FocusAdapter focusListener = new FocusAdapter() {
             @Override
             public void focusGained(FocusEvent event) {
@@ -564,6 +566,7 @@ public final class CanvasPanes extends JComponent {
         pane.addFocusListener(focusListener);
         paneListenerRemovals.put(pane, () -> {
             removePressObserver.run();
+            removeOtherPanes.run();
             pane.removeFocusListener(focusListener);
         });
     }

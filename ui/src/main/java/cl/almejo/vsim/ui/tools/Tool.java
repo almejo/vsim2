@@ -22,6 +22,16 @@ public interface Tool {
         return false;
     }
 
+    /**
+     * True while the tool holds a gesture (the button is down) that may go on over another pane of the window (split
+     * views): the pressed canvas then gives the tool the pointer's grid point as the pane under it sees it (with that
+     * pane's view and snapping), and every pane paints the tool's overlay. False by default: view gestures (panning)
+     * and tools that work on press or hover stay in their pane.
+     */
+    default boolean crossesPanes() {
+        return false;
+    }
+
     /** True when the tool places what the palette has highlighted, so the palette keeps its highlight. */
     default boolean placesFromPalette() {
         return false;

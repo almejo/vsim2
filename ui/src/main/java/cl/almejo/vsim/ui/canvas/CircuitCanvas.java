@@ -10,6 +10,7 @@ import cl.almejo.vsim.core.document.DocumentChange;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.DocumentListener;
 import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.core.document.Guide;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.geometry.Rotation;
@@ -73,10 +74,13 @@ import java.awt.event.WindowEvent;
 import java.awt.event.WindowStateListener;
 import java.awt.geom.Point2D;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.TooManyListenersException;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.BooleanSupplier;
@@ -84,6 +88,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.LongSupplier;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 
 /** The drawing surface of one window. Mouse input goes to the current {@link Tool}. */
 public final class CircuitCanvas extends JComponent implements ToolContext {
@@ -139,6 +144,12 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     private Function<Point2D, Optional<String>> toolTipProvider = gridPoint -> Optional.empty();
     private boolean toolTipProviderSet;
     private boolean pressIntercepted;
+    /** The other panes of this canvas's window (split views); none outside a split window. */
+    private Supplier<List<CircuitCanvas>> otherPanes = List::of;
+    /** A press reached the tool and its button is still down: the gesture is this canvas's, wherever the pointer is. */
+    private boolean gestureUnderWay;
+    /** The other pane the pointer is over during that gesture, and what the tool sees there; null over this one. */
+    private CrossPaneContext pointerPaneContext;
     private Tool tool = defaultTool;
     private GridStyle gridStyle = GridStyle.DOTS;
     private int gridLineSpacing = AppPreferences.DEFAULT_GRID_LINE_SPACING;
@@ -405,6 +416,95 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     /** The move being previewed, as a delta in grid units. */
     Optional<GridPoint> dragOutPreview() {
         return Optional.ofNullable(dragOutPreview);
+    }
+
+    /**
+     * Tells this canvas which other panes share its window (split views; the pane area sets it): a gesture pressed
+     * here goes on over them (the tool gets the pointer's grid point from the pane under it, the release commits once)
+     * and each of them paints the gesture's preview. The returned runnable puts back none.
+     */
+    public Runnable useOtherPanes(Supplier<List<CircuitCanvas>> panes) {
+        otherPanes = Objects.requireNonNull(panes, "panes");
+        return () -> {
+            if (otherPanes == panes) {
+                otherPanes = List::of;
+            }
+        };
+    }
+
+    /**
+     * What the tool's gesture works with now: this canvas, or while the pointer is over another pane of the window,
+     * that pane's view and snapping (with this canvas's cursor and dialogs). A snap refresh passes it to the tool.
+     */
+    public ToolContext toolContext() {
+        return pointerPaneContext != null ? pointerPaneContext : this;
+    }
+
+    /**
+     * The guides the gestures shown on this canvas lie on (see {@link Tool#snappedGuides}): this canvas's tool's and
+     * those of a gesture of another pane of the window that crosses over here.
+     */
+    public List<Guide> snappedGuides() {
+        List<Guide> own = tool.snappedGuides();
+        List<CircuitCanvas> sharing = panesSharingAGesture();
+        if (sharing.isEmpty()) {
+            return own;
+        }
+        List<Guide> guides = new ArrayList<>(own);
+        for (CircuitCanvas pane : sharing) {
+            pane.tool.snappedGuides().stream().filter(guide -> !guides.contains(guide)).forEach(guides::add);
+        }
+        return List.copyOf(guides);
+    }
+
+    /** True while this canvas's tool holds a gesture that the other panes of the window show. */
+    private boolean sharesGesture() {
+        return gestureUnderWay && tool.crossesPanes();
+    }
+
+    private List<CircuitCanvas> panesSharingAGesture() {
+        List<CircuitCanvas> panes = otherPanes.get();
+        if (panes.isEmpty()) {
+            return List.of();
+        }
+        return panes.stream().filter(pane -> pane != this && pane.sharesGesture()).toList();
+    }
+
+    /** The other pane of the window under {@code point} (this canvas's coordinates), when the tool's gesture crosses. */
+    private Optional<CircuitCanvas> otherPaneUnder(Point point) {
+        if (!gestureUnderWay || !tool.crossesPanes() || contains(point)) {
+            return Optional.empty();
+        }
+        for (CircuitCanvas pane : otherPanes.get()) {
+            if (pane != this && pane.contains(SwingUtilities.convertPoint(this, point, pane))) {
+                return Optional.of(pane);
+            }
+        }
+        return Optional.empty();
+    }
+
+    /** {@code event} (this canvas's coordinates) as {@code pane} sees it: its pixels, its grid point. */
+    private CanvasMouseEvent convertFor(CircuitCanvas pane, MouseEvent event) {
+        Point there = SwingUtilities.convertPoint(this, event.getPoint(), pane);
+        return pane.convert(event, there.x, there.y);
+    }
+
+    private void repaintOtherPanes() {
+        for (CircuitCanvas pane : otherPanes.get()) {
+            if (pane != this) {
+                pane.repaint();
+            }
+        }
+    }
+
+    /** The gesture under way ends (released, or the tool changed): the other panes stop showing it. */
+    private void endGesture() {
+        boolean shared = sharesGesture();
+        gestureUnderWay = false;
+        pointerPaneContext = null;
+        if (shared) {
+            repaintOtherPanes();
+        }
     }
 
     /** True while a move or a rubber band is held at the edge and the view scrolls under it. */
@@ -1166,6 +1266,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     @Override
     public void setTool(Tool next) {
         cancelEdgeGesture();
+        endGesture();
         tool.deactivated(this);
         tool = next;
         next.activated(this);
@@ -1189,9 +1290,18 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         if (keyCode == KeyEvent.VK_ESCAPE && cancelEdgeGesture()) {
             return true;
         }
-        boolean used = tool.keyPressed(this, keyCode, shiftDown);
+        boolean shared = sharesGesture();
+        boolean used = tool.keyPressed(toolContext(), keyCode, shiftDown);
+        repaintOtherPanesIfTheGestureEnded(shared);
         updateAnimation();
         return used;
+    }
+
+    /** A key (Escape) cancelled the gesture the other panes showed: they stop showing it. */
+    private void repaintOtherPanesIfTheGestureEnded(boolean sharedBefore) {
+        if (sharedBefore && !sharesGesture()) {
+            repaintOtherPanes();
+        }
     }
 
     @Override
@@ -1272,15 +1382,19 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         try {
             renderer.paintBackground(local, viewport, getWidth(), getHeight(), gridStyle, gridLineSpacing);
             local.transform(viewport.documentTransform());
+            List<CircuitCanvas> sharing = panesSharingAGesture();
             RenderState state = new RenderState(openDocument.document(), openDocument.netlist(),
                     openDocument.netlistToken(), displayedSnapshot, selection.ids(), marchingAnts.phase(),
-                    problemPulse.phase(), tool.hiddenWires(this));
+                    problemPulse.phase(), hiddenWires(sharing));
             renderer.paint(local, state);
             for (CanvasOverlay overlay : overlays) {
                 overlay.paint(local, state);
             }
             paintDragOutPreview(local);
             tool.paintOverlay(local, this);
+            for (CircuitCanvas owner : sharing) {
+                owner.tool.paintOverlay(local, new CrossPaneContext(owner, this));
+            }
         } finally {
             local.dispose();
         }
@@ -1290,6 +1404,19 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         } finally {
             screen.dispose();
         }
+    }
+
+    /** The wires the tools leave out of this frame: this canvas's tool's and those of the gestures crossing here. */
+    private Set<ElementId> hiddenWires(List<CircuitCanvas> sharing) {
+        Set<ElementId> own = tool.hiddenWires(this);
+        if (sharing.isEmpty()) {
+            return own;
+        }
+        Set<ElementId> hidden = new LinkedHashSet<>(own);
+        for (CircuitCanvas owner : sharing) {
+            hidden.addAll(owner.tool.hiddenWires(new CrossPaneContext(owner, this)));
+        }
+        return hidden;
     }
 
     SimulationSnapshot displayedSnapshot() {
@@ -1330,11 +1457,15 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     }
 
     private CanvasMouseEvent convert(MouseEvent event) {
+        return convert(event, event.getX(), event.getY());
+    }
+
+    /** {@code event}'s buttons and keys with the pointer at ({@code x}, {@code y}) of this canvas. */
+    private CanvasMouseEvent convert(MouseEvent event, int x, int y) {
         int button = SwingUtilities.isRightMouseButton(event) ? CanvasMouseEvent.SECONDARY
                 : SwingUtilities.isMiddleMouseButton(event) ? CanvasMouseEvent.MIDDLE
                 : CanvasMouseEvent.PRIMARY;
-        return new CanvasMouseEvent(viewport.screenToGrid(event.getX(), event.getY()),
-                viewport.snap(event.getX(), event.getY()), new Point2D.Double(event.getX(), event.getY()),
+        return new CanvasMouseEvent(viewport.screenToGrid(x, y), viewport.snap(x, y), new Point2D.Double(x, y),
                 button, event.isShiftDown(), event.isControlDown(), event.isAltDown(), event.getClickCount());
     }
 
@@ -1374,7 +1505,9 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
             if (pressIntercepted) {
                 return;
             }
+            endGesture();
             tool.mousePressed(CircuitCanvas.this, converted);
+            gestureUnderWay = true;
             updateAnimation();
         }
 
@@ -1394,6 +1527,12 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
             if (pressIntercepted) {
                 return;
             }
+            Optional<CircuitCanvas> otherPane = otherPaneUnder(event.getPoint());
+            if (otherPane.isPresent()) {
+                dragOver(otherPane.get(), event);
+                return;
+            }
+            pointerPaneContext = null;
             if (!CircuitCanvas.this.contains(event.getPoint()) && overAnotherWindow.test(event.getPoint())
                     && beginDragOut()) {
                 stopAutoscroll();
@@ -1402,6 +1541,24 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
             }
             tool.mouseDragged(CircuitCanvas.this, convert(event));
             followEdge(event);
+            if (sharesGesture()) {
+                repaintOtherPanes();
+            }
+            updateAnimation();
+        }
+
+        /**
+         * The gesture's pointer is over another pane of the window: this canvas stops scrolling, and the tool gets the
+         * point as that pane sees it, with that pane's view and snapping.
+         */
+        private void dragOver(CircuitCanvas pane, MouseEvent event) {
+            stopAutoscroll();
+            if (pointerPaneContext == null || pointerPaneContext.over() != pane) {
+                pointerPaneContext = new CrossPaneContext(CircuitCanvas.this, pane);
+            }
+            tool.mouseDragged(pointerPaneContext, convertFor(pane, event));
+            repaint();
+            repaintOtherPanes();
             updateAnimation();
         }
 
@@ -1427,7 +1584,18 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
                 pressIntercepted = false;
                 return;
             }
-            tool.mouseReleased(CircuitCanvas.this, converted);
+            Optional<CircuitCanvas> otherPane = otherPaneUnder(event.getPoint());
+            if (otherPane.isPresent()) {
+                CrossPaneContext context = new CrossPaneContext(CircuitCanvas.this, otherPane.get());
+                endGesture();
+                tool.mouseReleased(context, convertFor(otherPane.get(), event));
+                tool.mouseExited(CircuitCanvas.this); // the pointer is in the other pane: no hover left here
+                repaint();
+                otherPane.get().repaint();
+            } else {
+                endGesture();
+                tool.mouseReleased(CircuitCanvas.this, converted);
+            }
             updateAnimation();
         }
 
@@ -1514,9 +1682,11 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
                 return;
             }
             modifierChanged(event, true);
-            if (tool.keyPressed(CircuitCanvas.this, event.getKeyCode(), event.isShiftDown())) {
+            boolean shared = sharesGesture();
+            if (tool.keyPressed(toolContext(), event.getKeyCode(), event.isShiftDown())) {
                 event.consume();
             }
+            repaintOtherPanesIfTheGestureEnded(shared);
             updateAnimation();
         }
 
@@ -1546,7 +1716,10 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
                 return; // the key repeat of a held modifier
             }
             lastModifiers = modifiers;
-            if (tool.modifiersChanged(CircuitCanvas.this, shiftDown, controlDown, altDown)) {
+            if (tool.modifiersChanged(toolContext(), shiftDown, controlDown, altDown)) {
+                if (sharesGesture()) {
+                    repaintOtherPanes();
+                }
                 updateAnimation();
             }
         }
