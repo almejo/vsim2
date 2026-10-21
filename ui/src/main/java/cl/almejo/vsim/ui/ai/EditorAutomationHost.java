@@ -5,12 +5,17 @@ import cl.almejo.vsim.automation.DocumentId;
 import cl.almejo.vsim.automation.DocumentSummary;
 import cl.almejo.vsim.automation.DocumentVersion;
 import cl.almejo.vsim.automation.EditorAccess;
+import cl.almejo.vsim.automation.simulate.PreparedTruthTable;
+import cl.almejo.vsim.automation.simulate.SimulationReceipt;
+import cl.almejo.vsim.automation.simulate.SimulationRequest;
+import cl.almejo.vsim.automation.simulate.TruthTableRequest;
 import cl.almejo.vsim.ui.app.OpenDocument;
 
 import javax.swing.SwingUtilities;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.WeakHashMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
@@ -28,10 +33,27 @@ public final class EditorAutomationHost implements AutomationHost {
     /** EDT only. Weak, so a closed circuit's entry goes with it; the counter never gives an id twice. */
     private final Map<OpenDocument, DocumentId> ids = new WeakHashMap<>();
     private long lastId;
+    private final SimulationHostSupport simulation;
 
     /** @param openDocuments the open circuits, one per circuit however many views it has; called on the EDT */
     public EditorAutomationHost(Supplier<List<OpenDocument>> openDocuments) {
         this.openDocuments = Objects.requireNonNull(openDocuments, "openDocuments");
+        this.simulation = new SimulationHostSupport(this::openDocumentWithId, SwingUtilities::invokeLater);
+    }
+
+    @Override
+    public CompletableFuture<SimulationReceipt> simulate(SimulationRequest request) {
+        return simulation.simulate(request);
+    }
+
+    @Override
+    public CompletableFuture<PreparedTruthTable> prepareTruthTable(TruthTableRequest request) {
+        return simulation.prepareTruthTable(request);
+    }
+
+    /** The open circuit with {@code id}, empty when it was closed. EDT only. */
+    private Optional<OpenDocument> openDocumentWithId(DocumentId id) {
+        return openDocuments.get().stream().filter(document -> idOf(document).equals(id)).findFirst();
     }
 
     @Override

@@ -1,5 +1,6 @@
 package cl.almejo.vsim.core.truthtable;
 
+import cl.almejo.vsim.core.simulation.EventBudgetRun;
 import cl.almejo.vsim.core.simulation.FlatCircuit;
 import cl.almejo.vsim.core.simulation.SimulationEngine;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
@@ -59,11 +60,7 @@ public final class TruthTableEvaluator {
             if (outcome == Outcome.CANCELLED) {
                 return Optional.empty();
             }
-            SimulationSnapshot snapshot = engine.snapshot();
-            List<Value> outputs = ready.outputs().stream()
-                    .map(column -> snapshot.netValue(ready.outputNets().get(column.componentId())))
-                    .toList();
-            rows.add(new Row(inputs, outputs, outcome == Outcome.SETTLED));
+            rows.add(row(ready, engine, inputs, outcome == Outcome.SETTLED));
             int percent = (int) ((index + 1) * 100L / rowCount);
             if (percent > reported) {
                 reported = percent;
@@ -71,6 +68,58 @@ public final class TruthTableEvaluator {
             }
         }
         return Optional.of(new TruthTable(ready.inputs(), ready.outputs(), rows, ready.hasFeedback()));
+    }
+
+    /**
+     * The table for the AI (IA.1 Task 4): the rows of {@link #evaluate} in order, but at most {@code maximumRows} of
+     * them and at most {@code eventBudget} events in all rows together (each row's loading included), so an
+     * oscillating loop or a huge table returns in bounded time with the rows done so far. Runs on any thread.
+     *
+     * @throws IllegalArgumentException when a limit is not positive
+     */
+    public static BudgetedTruthTable evaluateWithin(Preparation.Ready ready, int maximumRows, long eventBudget) {
+        if (maximumRows <= 0 || eventBudget <= 0) {
+            throw new IllegalArgumentException("the limits must be positive: " + maximumRows + " rows, "
+                    + eventBudget + " events");
+        }
+        int rowCount = ready.rowCount();
+        int rowsToEvaluate = Math.min(rowCount, maximumRows);
+        long timeLimit = settleTimeLimit(ready.circuit());
+        List<Row> rows = new ArrayList<>(rowsToEvaluate);
+        long eventsProcessed = 0;
+        boolean budgetExceeded = false;
+        for (int index = 0; index < rowsToEvaluate; index++) {
+            SimulationEngine engine = new SimulationEngine();
+            List<Value> inputs = inputValues(ready.inputs(), index);
+            Outcome[] outcome = new Outcome[1];
+            EventBudgetRun run = engine.runWithEventBudget(eventBudget - eventsProcessed, () -> {
+                engine.update(ready.circuit());
+                for (int column = 0; column < inputs.size(); column++) {
+                    engine.setInput(ready.inputs().get(column).componentId(), inputs.get(column));
+                }
+                outcome[0] = settle(engine, () -> false, timeLimit);
+            });
+            eventsProcessed += run.eventsProcessed();
+            if (run.exceeded()) {
+                budgetExceeded = true;
+                break;
+            }
+            rows.add(row(ready, engine, inputs, outcome[0] == Outcome.SETTLED));
+            if (eventsProcessed >= eventBudget && index + 1 < rowsToEvaluate) {
+                budgetExceeded = true;
+                break;
+            }
+        }
+        TruthTable table = new TruthTable(ready.inputs(), ready.outputs(), rows, ready.hasFeedback());
+        return new BudgetedTruthTable(table, rowCount, eventsProcessed, rowsToEvaluate < rowCount, budgetExceeded);
+    }
+
+    private static Row row(Preparation.Ready ready, SimulationEngine engine, List<Value> inputs, boolean settled) {
+        SimulationSnapshot snapshot = engine.snapshot();
+        List<Value> outputs = ready.outputs().stream()
+                .map(column -> snapshot.netValue(ready.outputNets().get(column.componentId())))
+                .toList();
+        return new Row(inputs, outputs, settled);
     }
 
     /** Row {@code index} counts in binary over all input bits, the first column holding the most significant ones. */
