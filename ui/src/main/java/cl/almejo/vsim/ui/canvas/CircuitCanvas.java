@@ -28,6 +28,9 @@ import cl.almejo.vsim.ui.panels.PaletteTransfer;
 import cl.almejo.vsim.ui.tools.CanvasCursor;
 import cl.almejo.vsim.ui.tools.CanvasMouseEvent;
 import cl.almejo.vsim.ui.tools.ComponentPlacement;
+import cl.almejo.vsim.ui.snap.SnappedMove;
+import cl.almejo.vsim.ui.snap.SnappedPlacement;
+import cl.almejo.vsim.ui.snap.Snapper;
 import cl.almejo.vsim.ui.tools.FloatingSelectionTool;
 import cl.almejo.vsim.ui.tools.SelectTool;
 import cl.almejo.vsim.ui.tools.Tool;
@@ -126,6 +129,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     private boolean pressIntercepted;
     private Tool tool = defaultTool;
     private GridStyle gridStyle = GridStyle.DOTS;
+    private Snapper snapper = Snapper.none();
     private SimulationSnapshot displayedSnapshot = SimulationSnapshot.EMPTY;
     private boolean animationSuspended;
     private BooleanSupplier onScreen = this::isOnScreen;
@@ -217,7 +221,9 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         if (type.isEmpty()) {
             return false;
         }
-        ComponentPlacement.place(this, type.get(), viewport.snap(screenPoint.x, screenPoint.y), Rotation.R0);
+        GridPoint raw = viewport.snap(screenPoint.x, screenPoint.y);
+        ComponentPlacement.place(this, type.get(),
+                ComponentPlacement.snapped(this, type.get(), raw, Rotation.R0).position(), Rotation.R0);
         useDefaultTool();
         requestFocusInWindow();
         return true;
@@ -260,7 +266,10 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         if (copyRequested) {
             GridPoint offset = source.map(DragOrigin::grabOffset).orElse(GridPoint.ORIGIN);
             useDefaultTool();
-            PasteCommand paste = new PasteCommand(fragment.get(), at.translate(-offset.x(), -offset.y()));
+            GridPoint landing = SnappedPlacement.ofFragment(this, fragment.get(),
+                    fragment.get().registryFor(openDocument.registry()), at.translate(-offset.x(), -offset.y()))
+                    .position();
+            PasteCommand paste = new PasteCommand(fragment.get(), landing);
             openDocument.execute(paste);
             selection.set(paste.pastedIds());
         } else {
@@ -339,7 +348,9 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
             return;
         }
         GridPoint at = viewport.snap(point.x, point.y);
-        GridPoint delta = new GridPoint(at.x() - dragOut.pressPoint().x(), at.y() - dragOut.pressPoint().y());
+        SnappedMove snapped = SnappedMove.of(this, dragOut.ids(), false, at.x() - dragOut.pressPoint().x(),
+                at.y() - dragOut.pressPoint().y());
+        GridPoint delta = new GridPoint(snapped.deltaX(), snapped.deltaY());
         if (!delta.equals(dragOutPreview)) {
             dragOutPreview = delta;
             repaint();
@@ -454,11 +465,14 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
 
     /** A drag out of {@code origin}'s canvas ends here: a move by the distance from its press to {@code at}. */
     private void moveHere(DragOrigin origin, GridPoint at) {
-        int deltaX = at.x() - origin.pressPoint().x();
-        int deltaY = at.y() - origin.pressPoint().y();
         List<ElementId> existing = origin.ids().stream()
                 .filter(id -> openDocument.document().element(id).isPresent())
                 .toList();
+        // the magnet as in the preview of dragOutOver: the moved elements are not targets
+        SnappedMove snapped = SnappedMove.of(this, existing, false, at.x() - origin.pressPoint().x(),
+                at.y() - origin.pressPoint().y());
+        int deltaX = snapped.deltaX();
+        int deltaY = snapped.deltaY();
         origin.canvas().endDragOut();
         if (!existing.isEmpty()) {
             // selected before the move, so a wire the clean-up merges is replaced by its survivor, not put back
@@ -1003,6 +1017,22 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     @Override
     public Viewport viewport() {
         return viewport;
+    }
+
+    /** How the tools and the drops of this canvas snap (Ajustar); nothing snaps until the snap extension says so. */
+    @Override
+    public Snapper snapper() {
+        return snapper;
+    }
+
+    /** Makes the tools and drops of this canvas snap with {@code next}; the returned runnable puts back none. */
+    public Runnable useSnapper(Snapper next) {
+        snapper = Objects.requireNonNull(next, "next");
+        return () -> {
+            if (snapper == next) {
+                snapper = Snapper.none();
+            }
+        };
     }
 
     @Override

@@ -152,15 +152,18 @@ class ApplicationExtensionsTest {
     }
 
     @Test
-    void theViewMenuHasTheGridSubmenuAndTheGuideItemsAfterTheZoomGroup() {
+    void theViewMenuHasTheGridSubmenuTheSnapItemsAndTheGuideItemsAfterTheZoomGroup() {
         EditorView view = new EditorView(openDocument, services, NO_WINDOW);
         try {
             assertThat(texts(view.menu(MenuId.VIEW))).containsExactly("Selección", "Cable", "Marco",
                     "Mover vista", "---", "Acercar", "Alejar", "Zoom 100 %", "Centrar circuito", "---", "Cuadrícula",
-                    "Mostrar guías", "Agregar guía horizontal", "Agregar guía vertical", "Borrar guías",
-                    "---", "Siguiente problema", "Problema anterior", "---", "Formas de onda");
-            assertThat(view.shortcutActions()).containsKeys("view.cycleGrid", "view.showGuides",
-                    "view.addHorizontalGuide", "view.addVerticalGuide", "view.clearGuides");
+                    "Ajustar", "Ajustar a", "Mostrar guías", "Agregar guía horizontal", "Agregar guía vertical",
+                    "Borrar guías", "---", "Siguiente problema", "Problema anterior", "---", "Formas de onda");
+            assertThat(view.shortcutActions()).containsKeys("view.cycleGrid", "view.snap", "view.snapToParts",
+                    "view.snapToGuides", "view.snapToGridLines", "view.showGuides", "view.addHorizontalGuide",
+                    "view.addVerticalGuide", "view.clearGuides");
+            assertThat(view.shortcutActions().get("view.snap").getValue(Action.ACCELERATOR_KEY)).isEqualTo(
+                    KeyStroke.getKeyStroke(KeyEvent.VK_M, ShortcutCatalog.menuMask() | InputEvent.SHIFT_DOWN_MASK));
             assertThat(view.canvas().edgeHandles()).hasSize(4);
         } finally {
             view.dispose();

@@ -14,6 +14,7 @@ import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.geometry.GridPoint;
+import cl.almejo.vsim.core.geometry.SnapMatch;
 import cl.almejo.vsim.core.io.CircuitFragment;
 import cl.almejo.vsim.core.library.InterfacePins;
 import cl.almejo.vsim.core.tunnel.Tunnels;
@@ -26,6 +27,8 @@ import cl.almejo.vsim.ui.paint.PainterSupport;
 import cl.almejo.vsim.ui.paint.TextFonts;
 import cl.almejo.vsim.ui.canvas.MarchingAnts;
 import cl.almejo.vsim.ui.canvas.SelectionBounds;
+import cl.almejo.vsim.ui.snap.AlignmentLinesPainter;
+import cl.almejo.vsim.ui.snap.SnappedMove;
 import cl.almejo.vsim.ui.wiring.MovePreview;
 import cl.almejo.vsim.ui.wiring.SelectionMoves;
 
@@ -74,6 +77,11 @@ import java.util.concurrent.CopyOnWriteArrayList;
  * <p>M6.8: with Shift or Ctrl held and no press under way, the cursor tells what a press would do to the selection
  * (add or take out the element, or, on empty canvas, add with a band); Ctrl+Shift on empty canvas drags a band that
  * takes what it encloses out of the selection. The cursor follows the keys without moving the pointer.
+ *
+ * <p>Ajustar (alignment-guides spec §3): a move, a Ctrl copy and a segment drag go through the canvas's
+ * {@link cl.almejo.vsim.ui.snap.Snapper} before the locked-frame walls and the segment axis lock, which still win;
+ * the alignment lines that hold at the final delta are drawn after the move preview. {@link #refreshSnap} redoes the
+ * drag at the last pointer position, so a release right after a toggle or a zoom commits what is shown.
  *
  * <p>{@link SelectToolDelegate}s (M6.3: frames) are asked first: a press one of them takes, with its drag and
  * release, is theirs alone.
@@ -128,6 +136,8 @@ public final class SelectTool implements Tool {
     /** The last drag event of a move, so a modifier key pressed or released without moving can redo it. */
     private CanvasMouseEvent lastDrag;
     private final MovePreview movePreview = new MovePreview();
+    /** The magnet's answer for the current move (its lines are drawn after the move preview). */
+    private SnappedMove snappedMove = SnappedMove.unsnapped(0, 0);
     /** M6.8: the component whose label the press grabbed; the label moves once the drag passes the threshold. */
     private Component labelComponent;
     private Point2D labelPressPosition;
@@ -424,23 +434,22 @@ public final class SelectTool implements Tool {
      * segment drag keeps only the part of the delta perpendicular to the wire.
      */
     private void dragTo(ToolContext context, CanvasMouseEvent event) {
-        deltaX = event.snapped().x() - pressPoint.x();
-        deltaY = event.snapped().y() - pressPoint.y();
+        int rawDeltaX = event.snapped().x() - pressPoint.x();
+        int rawDeltaY = event.snapped().y() - pressPoint.y();
         Optional<Wire> segment = segmentWire(context)
                 .filter(wire -> context.selectionMoves().segmentKeyHeld(event.shiftDown(), event.altDown()));
         segmentDrag = segment.isPresent();
-        if (segmentDrag) {
-            if (segment.get().start().y() == segment.get().end().y()) {
-                deltaX = 0;
-            } else {
-                deltaY = 0;
-            }
-        }
+        Set<ElementId> moved = context.selection().effectiveIds();
+        boolean copy = event.controlDown();
+        snappedMove = segmentDrag ? SnappedMove.segment(context, segment.get(), rawDeltaX, rawDeltaY)
+                : SnappedMove.of(context, moved, copy, rawDeltaX, rawDeltaY);
+        deltaX = snappedMove.deltaX();
+        deltaY = snappedMove.deltaY();
         copyDeltaX = deltaX;
         copyDeltaY = deltaY;
-        if (!event.controlDown() && !context.selection().isEmpty()) {
-            GridPoint limited = SelectionMoves.limited(context.openDocument(), context.selection().effectiveIds(),
-                    deltaX, deltaY);
+        if (!copy && !context.selection().isEmpty()) {
+            GridPoint limited = SelectionMoves.limited(context.openDocument(), moved, deltaX, deltaY);
+            snappedMove = snappedMove.clampedTo(context, moved, false, limited.x(), limited.y());
             deltaX = limited.x();
             deltaY = limited.y();
         }
@@ -617,6 +626,27 @@ public final class SelectTool implements Tool {
         return true;
     }
 
+    /**
+     * A snap preference, the zoom or the guides changed: a move (or a delegate's drag) is redone at the last pointer
+     * position, so its preview, its lines and what a release commits follow at once.
+     */
+    @Override
+    public boolean refreshSnap(ToolContext context) {
+        if (activeDelegate != null) {
+            return activeDelegate.refreshSnap(context);
+        }
+        if (lastDrag == null || pressPoint == null || wire != null || bandStart != null || labelComponent != null) {
+            return false;
+        }
+        mouseDragged(context, lastDrag);
+        return true;
+    }
+
+    /** For tests: the alignment lines the current move draws. */
+    List<SnapMatch> alignmentMatches() {
+        return snappedMove.matches();
+    }
+
     @Override
     public boolean keyPressed(ToolContext context, int keyCode, boolean shiftDown) {
         if (keyCode != KeyEvent.VK_ESCAPE) {
@@ -661,6 +691,9 @@ public final class SelectTool implements Tool {
             return;
         }
         movePreview.paint(graphics, context, context.selection().effectiveIds(), deltaX, deltaY, followWires);
+        if (lastDrag != null) {
+            AlignmentLinesPainter.paint(graphics, context, snappedMove.movedBox(), snappedMove.matches());
+        }
     }
 
     @Override
@@ -1018,6 +1051,7 @@ public final class SelectTool implements Tool {
         followWires = false;
         segmentDrag = false;
         lastDrag = null;
+        snappedMove = SnappedMove.unsnapped(0, 0);
         movePreview.clear();
         labelComponent = null;
         labelPressPosition = null;

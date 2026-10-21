@@ -14,6 +14,7 @@ import cl.almejo.vsim.ui.print.ExportPdfExtension;
 import cl.almejo.vsim.ui.frames.FramesExtension;
 import cl.almejo.vsim.ui.grid.GridExtension;
 import cl.almejo.vsim.ui.guides.GuidesExtension;
+import cl.almejo.vsim.ui.snap.SnapExtension;
 import cl.almejo.vsim.ui.karnaugh.KarnaughExtension;
 import cl.almejo.vsim.ui.wiring.TidyWiresExtension;
 import cl.almejo.vsim.ui.wiring.WiresFollowExtension;
@@ -137,6 +138,7 @@ public final class Application {
         editorExtensions.add(new FramesExtension());
         editorExtensions.add(new WiresFollowExtension());
         editorExtensions.add(new GridExtension());
+        editorExtensions.add(new SnapExtension());
         editorExtensions.add(new GuidesExtension());
         editorExtensions.add(new KarnaughExtension(libraryService, startDirectory, chosen));
         editorExtensions.add(new FindExtension());

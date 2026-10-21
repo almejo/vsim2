@@ -187,6 +187,19 @@ class ColorSchemesTest {
     }
 
     @Test
+    void theAlignmentLinesStandOutFromTheBoardTheGridTheSelectionAndTheWires() {
+        for (ColorScheme scheme : ALL) {
+            Color guide = scheme.alignmentGuide();
+            assertThat(contrast(guide, scheme.background())).as("%s", scheme).isGreaterThanOrEqualTo(3);
+            assertThat(guide).as("%s", scheme).isNotEqualTo(scheme.selection()).isNotEqualTo(scheme.grid())
+                    .isNotEqualTo(scheme.gridLine());
+            for (Function<ColorScheme, Color> state : WIRE_STATES) {
+                assertThat(guide).as("%s", scheme).isNotEqualTo(state.apply(scheme));
+            }
+        }
+    }
+
+    @Test
     void textAndOutlinesAreReadable() {
         for (ColorScheme scheme : STRICT) {
             assertThat(contrast(scheme.text(), scheme.background())).isGreaterThanOrEqualTo(READABLE);

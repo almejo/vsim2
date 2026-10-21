@@ -47,6 +47,8 @@ public record ColorScheme(Color background, Color grid, Color gridLine, Color wi
     /** The ten-unit line is the grid line at about twice its alpha. */
     private static final int MAJOR_GRID_LINE_FACTOR = 2;
     private static final int GUIDE_ALPHA = 220;
+    private static final int LIGHT_ALIGNMENT_GUIDE = 0xB4008C;
+    private static final int DARK_ALIGNMENT_GUIDE = 0xFF66E0;
 
     /**
      * The grid line of a scheme that has none of its own (a custom scheme stored before the grid of lines): the
@@ -144,5 +146,14 @@ public record ColorScheme(Color background, Color grid, Color gridLine, Color wi
      */
     public Color frameVeil() {
         return new Color(0, 0, 0, isDark() ? DARK_VEIL_ALPHA : LIGHT_VEIL_ALPHA);
+    }
+
+    /**
+     * The alignment lines drawn while a part is dragged (spec §3.3, §6): a magenta, like the smart guides of drawing
+     * programs, apart from the blue selection and the wire colours; deep on a light board, light on a dark one, so it
+     * reaches 3:1 against the background of every built-in scheme. Derived, not an editable role.
+     */
+    public Color alignmentGuide() {
+        return new Color(isDark() ? DARK_ALIGNMENT_GUIDE : LIGHT_ALIGNMENT_GUIDE);
     }
 }

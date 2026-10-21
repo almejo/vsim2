@@ -4,13 +4,20 @@ import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
+import cl.almejo.vsim.ui.snap.AlignmentLinesPainter;
+import cl.almejo.vsim.ui.snap.SnappedPlacement;
 import cl.almejo.vsim.ui.tunnel.NewTunnels;
 
 import java.awt.Cursor;
 import java.awt.Graphics2D;
 import java.awt.event.KeyEvent;
 
-/** Places a component where the user clicks, then returns to the default tool (Shift keeps placing). */
+/**
+ * Places a component where the user clicks, then returns to the default tool (Shift keeps placing). Ajustar
+ * (alignment-guides spec §3.4): the ghost is snapped to the circuit's parts, guides and grid lines and shows its
+ * alignment lines; a press places it where the magnet takes the press point (the ghost's place when the pointer has
+ * not moved), and R or {@link #refreshSnap} redo the ghost from the last raw point.
+ */
 public final class PlaceComponentTool implements Tool {
 
     private static final ElementId PREVIEW_ID = new ElementId("preview");
@@ -18,6 +25,9 @@ public final class PlaceComponentTool implements Tool {
     private final ComponentType type;
     private Rotation rotation = Rotation.R0;
     private GridPoint hover;
+    /** The grid point under the pointer before the magnet. */
+    private GridPoint rawHover;
+    private SnappedPlacement snapped;
 
     public PlaceComponentTool(ComponentType type) {
         this.type = type;
@@ -38,8 +48,29 @@ public final class PlaceComponentTool implements Tool {
 
     @Override
     public void mouseMoved(ToolContext context, CanvasMouseEvent event) {
-        hover = event.snapped();
+        rawHover = event.snapped();
+        snapHover(context);
         context.repaint();
+    }
+
+    @Override
+    public boolean refreshSnap(ToolContext context) {
+        if (rawHover == null) {
+            return false;
+        }
+        snapHover(context);
+        context.repaint();
+        return true;
+    }
+
+    /** For tests: where the ghost is (after the magnet), or null before the pointer came over the canvas. */
+    GridPoint hover() {
+        return hover;
+    }
+
+    private void snapHover(ToolContext context) {
+        snapped = ComponentPlacement.snapped(context, type, rawHover, rotation);
+        hover = snapped.position();
     }
 
     @Override
@@ -56,7 +87,11 @@ public final class PlaceComponentTool implements Tool {
         if (event.button() != CanvasMouseEvent.PRIMARY) {
             return;
         }
-        ComponentPlacement.place(context, type, event.snapped(), rotation);
+        if (!event.snapped().equals(rawHover)) {
+            rawHover = event.snapped();
+            snapHover(context);
+        }
+        ComponentPlacement.place(context, type, hover, rotation);
         if (!event.shiftDown()) {
             context.useDefaultTool();
         }
@@ -66,6 +101,9 @@ public final class PlaceComponentTool implements Tool {
     public boolean keyPressed(ToolContext context, int keyCode, boolean shiftDown) {
         if (keyCode == KeyEvent.VK_R) {
             rotation = shiftDown ? rotation.counterClockwise() : rotation.clockwise();
+            if (rawHover != null) {
+                snapHover(context);
+            }
             context.repaint();
             return true;
         }
@@ -81,6 +119,7 @@ public final class PlaceComponentTool implements Tool {
         if (hover != null) {
             context.paintGhost(graphics, type.newComponent(PREVIEW_ID, hover, rotation,
                     NewTunnels.parameters(context.openDocument(), type), ""));
+            AlignmentLinesPainter.paint(graphics, context, snapped.box(), snapped.matches());
         }
     }
 

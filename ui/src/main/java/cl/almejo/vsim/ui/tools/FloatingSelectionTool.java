@@ -5,14 +5,18 @@ import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.geometry.GridPoint;
+import cl.almejo.vsim.core.geometry.SnapMatch;
 import cl.almejo.vsim.core.io.CircuitFragment;
 import cl.almejo.vsim.core.tunnel.TunnelKind;
 import cl.almejo.vsim.core.tunnel.Tunnels;
+import cl.almejo.vsim.ui.snap.AlignmentLinesPainter;
+import cl.almejo.vsim.ui.snap.SnappedPlacement;
 
 import java.awt.Cursor;
 import java.awt.Graphics2D;
 import java.awt.event.KeyEvent;
 import java.awt.geom.Point2D;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -22,6 +26,10 @@ import java.util.Map;
  * dragged, the fragment moves with the drag and stays floating; afterwards a press outside it commits and a press on
  * it grabs and drags it. Enter commits; Esc, Delete and Backspace cancel; R is consumed (no rotation while floating). Leaving the tool any other way (pasting again, choosing another
  * tool) commits it.
+ *
+ * <p>Ajustar (alignment-guides spec §3.4): where the pointer puts the fragment is snapped to the circuit's parts,
+ * guides and grid lines (with the fragment's own types for its bounds) when the tool starts and on every move, and its
+ * alignment lines are drawn; {@link #refreshSnap} redoes it from the last raw place, so Enter commits what is shown.
  */
 public final class FloatingSelectionTool implements Tool {
 
@@ -32,6 +40,9 @@ public final class FloatingSelectionTool implements Tool {
 
     private final CircuitFragment fragment;
     private GridPoint position;
+    /** Where the pointer puts the fragment's (0,0) before the magnet. */
+    private GridPoint rawPosition;
+    private SnappedPlacement snapped;
     private GridPoint grabOffset = GridPoint.ORIGIN;
     private boolean following = true;
     private boolean dragging;
@@ -45,6 +56,7 @@ public final class FloatingSelectionTool implements Tool {
     public FloatingSelectionTool(CircuitFragment fragment, GridPoint position) {
         this.fragment = fragment;
         this.position = position;
+        this.rawPosition = position;
     }
 
     public CircuitFragment fragment() {
@@ -60,6 +72,18 @@ public final class FloatingSelectionTool implements Tool {
     @Override
     public void activated(ToolContext context) {
         context.selection().clear();
+        place(context);
+    }
+
+    /** A snap preference, the zoom or the guides changed: the fragment lands again from its last raw place. */
+    @Override
+    public boolean refreshSnap(ToolContext context) {
+        if (finished) {
+            return false;
+        }
+        place(context);
+        context.repaint();
+        return true;
     }
 
     @Override
@@ -161,6 +185,9 @@ public final class FloatingSelectionTool implements Tool {
         for (DocumentElement element : fragment.elements()) {
             context.paintGhost(graphics, element.translate(position.x(), position.y()), types(context), tunnelColors);
         }
+        if (snapped != null) {
+            AlignmentLinesPainter.paint(graphics, context, snapped.box(), snapped.matches());
+        }
     }
 
     /** True when the fragment holds a salida: only its ghost needs the circuit's tunnel colours. */
@@ -174,12 +201,20 @@ public final class FloatingSelectionTool implements Tool {
         return Cursor.getPredefinedCursor(Cursor.MOVE_CURSOR);
     }
 
-    private void moveTo(ToolContext context, GridPoint snapped) {
-        GridPoint next = new GridPoint(snapped.x() - grabOffset.x(), snapped.y() - grabOffset.y());
-        if (!next.equals(position)) {
-            position = next;
+    private void moveTo(ToolContext context, GridPoint pointer) {
+        rawPosition = new GridPoint(pointer.x() - grabOffset.x(), pointer.y() - grabOffset.y());
+        GridPoint before = position;
+        List<SnapMatch> linesBefore = snapped == null ? List.of() : snapped.matches();
+        place(context);
+        if (!position.equals(before) || !linesBefore.equals(snapped.matches())) {
             context.repaint();
         }
+    }
+
+    /** Puts the fragment where the magnet takes {@link #rawPosition}. */
+    private void place(ToolContext context) {
+        snapped = SnappedPlacement.ofFragment(context, fragment, types(context), rawPosition);
+        position = snapped.position();
     }
 
     private boolean covers(ToolContext context, Point2D gridPoint) {

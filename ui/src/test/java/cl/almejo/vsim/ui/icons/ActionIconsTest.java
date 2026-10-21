@@ -81,6 +81,7 @@ class ActionIconsTest {
         used.addAll(TidyIcons.names());
         used.addAll(cl.almejo.vsim.ui.frames.FrameIcons.names());
         used.addAll(cl.almejo.vsim.ui.wiring.WiresFollowIcons.names());
+        used.addAll(cl.almejo.vsim.ui.snap.SnapIcons.names());
         used.addAll(cl.almejo.vsim.ui.inline.InlineIcons.names());
         used.addAll(cl.almejo.vsim.ui.search.FindIcons.names());
         used.add(cl.almejo.vsim.ui.karnaugh.TableImportPanel.HINT_ICON);

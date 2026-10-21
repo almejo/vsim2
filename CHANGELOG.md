@@ -14,6 +14,10 @@ sección es un conjunto de funciones, con las fechas en que se hizo. El detalle 
   de la cuadrícula» pasa de uno a otro y acepta un atajo propio. Las líneas no salen en las imágenes ni en el PDF.
 - Cada esquema de colores tiene un color nuevo, «Líneas de la cuadrícula», que se puede cambiar en el editor de
   esquemas; los esquemas propios ya guardados lo toman de sus puntos.
+- «Ajustar» (el imán de la barra, Ver ▸ «Ajustar», Ctrl+Mayús+M): al mover, pegar, colocar o soltar piezas, sus
+  bordes y centros saltan a alinearse con los de las piezas vecinas y con las guías, y una línea magenta muestra cada
+  alineación mientras arrastras. Ver ▸ «Ajustar a ▸» elige piezas, guías y líneas de la cuadrícula (cada 2 unidades).
+  Apagado, todo se mueve como antes.
 - Reglas arriba y a la izquierda del lienzo: arrastrando desde ellas salen guías horizontales y verticales (líneas
   cian discontinuas) que se mueven arrastrándolas y se quitan devolviéndolas a su regla. También desde el menú
   contextual («Agregar guía … aquí», «Quitar guía»), desde Ver («Mostrar guías», «Agregar guía horizontal/vertical»,

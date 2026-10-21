@@ -42,6 +42,14 @@ public interface SelectToolDelegate {
         return false;
     }
 
+    /**
+     * A snap preference, the zoom or the guides changed while the press this delegate grabbed is held (see
+     * {@link Tool#refreshSnap}); true when the delegate redid its preview.
+     */
+    default boolean refreshSnap(ToolContext context) {
+        return false;
+    }
+
     /** Escape, or the tool going away, while a press of this delegate is held: forget it, change nothing. */
     default void cancelled(ToolContext context) {
     }

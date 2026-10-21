@@ -35,11 +35,24 @@ class ShortcutCatalogTest {
     }
 
     @Test
-    void noTwoEntriesShareADefaultStrokeAndFortyOneHaveOne() {
+    void noTwoEntriesShareADefaultStrokeAndFortyTwoHaveOne() {
         List<KeyStroke> defaults = ShortcutCatalog.entries().stream()
                 .map(ShortcutEntry::defaultStroke).flatMap(Optional::stream).toList();
-        assertThat(defaults).doesNotHaveDuplicates().hasSize(41);
+        assertThat(defaults).doesNotHaveDuplicates().hasSize(42);
         assertThat(defaults).noneMatch(KeyBindings::isReserved);
+    }
+
+    @Test
+    void snapIsMenuMayusMUnderVerAndWhatItSnapsToHasNoDefault() {
+        assertThat(ShortcutCatalog.find("view.snap")).contains(new ShortcutEntry("view.snap", "action.snap",
+                MenuId.VIEW, Scope.WINDOW,
+                Optional.of(KeyStroke.getKeyStroke(KeyEvent.VK_M, ShortcutCatalog.menuMask() | InputEvent.SHIFT_DOWN_MASK))));
+        for (String id : List.of("view.snapToParts", "view.snapToGuides", "view.snapToGridLines")) {
+            assertThat(ShortcutCatalog.find(id).orElseThrow().defaultStroke()).as(id).isEmpty();
+            assertThat(ShortcutCatalog.find(id).orElseThrow().scope()).as(id).isEqualTo(Scope.WINDOW);
+        }
+        assertThat(ids()).containsSubsequence("view.cycleGrid", "view.snap", "view.snapToParts",
+                "view.snapToGuides", "view.snapToGridLines", "waveforms.toggle");
     }
 
     @Test

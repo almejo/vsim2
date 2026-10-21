@@ -6,6 +6,8 @@ import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.Frame;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.ui.canvas.Selection;
+import cl.almejo.vsim.ui.snap.AlignmentLinesPainter;
+import cl.almejo.vsim.ui.snap.SnappedMove;
 import cl.almejo.vsim.ui.tools.CanvasCursor;
 import cl.almejo.vsim.ui.tools.CanvasMouseEvent;
 import cl.almejo.vsim.ui.tools.SelectToolDelegate;
@@ -27,7 +29,8 @@ import java.util.Set;
  * {@link FramesFeatures#lockedBlocks}); dragging an edge or corner of an unlocked frame resizes it. Each gesture is one
  * undo step. While a gesture drags, everything outside the frame is veiled and ghosts show what moves. Unlocked frames
  * show eight handles while hovered or selected. A move drags the attached wires like the select tool's (M6.7: the
- * follow mode, inverted by the configured key held while dragging).
+ * follow mode, inverted by the configured key held while dragging). A move snaps like the select tool's (Ajustar,
+ * before the walls of a locked frame, which still win) and draws its alignment lines; a resize does not snap (v1).
  */
 public final class FrameGestures implements SelectToolDelegate {
 
@@ -48,6 +51,7 @@ public final class FrameGestures implements SelectToolDelegate {
     /** The last drag event, so a modifier key pressed or released without moving can redo it. */
     private CanvasMouseEvent lastDrag;
     private final MovePreview movePreview = new MovePreview();
+    private SnappedMove snappedMove = SnappedMove.unsnapped(0, 0);
     private ElementId hovered;
 
     @Override
@@ -128,9 +132,12 @@ public final class FrameGestures implements SelectToolDelegate {
         deltaY = event.snapped().y() - pressPoint.y();
         pointerMoved |= deltaX != 0 || deltaY != 0;
         if (!part.resizes()) {
+            Set<ElementId> moved = context.selection().effectiveIds();
+            snappedMove = SnappedMove.of(context, moved, false, deltaX, deltaY);
             // a frame inside a locked frame stops at its border, like any content
-            GridPoint limited = SelectionMoves.limited(context.openDocument(), context.selection().effectiveIds(),
-                    deltaX, deltaY);
+            GridPoint limited = SelectionMoves.limited(context.openDocument(), moved, snappedMove.deltaX(),
+                    snappedMove.deltaY());
+            snappedMove = snappedMove.clampedTo(context, moved, false, limited.x(), limited.y());
             deltaX = limited.x();
             deltaY = limited.y();
         }
@@ -145,6 +152,16 @@ public final class FrameGestures implements SelectToolDelegate {
             return false;
         }
         dragged(context, lastDrag.withModifiers(shiftDown, controlDown, altDown));
+        return true;
+    }
+
+    /** Redoes a move at the last pointer position after a snap preference, the zoom or the guides changed. */
+    @Override
+    public boolean refreshSnap(ToolContext context) {
+        if (grabbed == null || lastDrag == null || part.resizes()) {
+            return false;
+        }
+        dragged(context, lastDrag);
         return true;
     }
 
@@ -253,6 +270,7 @@ public final class FrameGestures implements SelectToolDelegate {
             } else {
                 movePreview.paint(graphics, context, context.selection().effectiveIds(), deltaX, deltaY,
                         followWires);
+                AlignmentLinesPainter.paint(graphics, context, snappedMove.movedBox(), snappedMove.matches());
             }
         }
         double pixelsPerGrid = context.viewport().pixelsPerUnit();
@@ -337,6 +355,7 @@ public final class FrameGestures implements SelectToolDelegate {
         deltaY = 0;
         followWires = false;
         lastDrag = null;
+        snappedMove = SnappedMove.unsnapped(0, 0);
         movePreview.clear();
     }
 }
