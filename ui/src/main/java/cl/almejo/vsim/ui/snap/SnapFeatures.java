@@ -206,11 +206,12 @@ public final class SnapFeatures {
 
     /** The preferences the magnet reads; a change of any of them redoes the snapped preview. */
     private record SnapState(boolean enabled, boolean toParts, boolean toGuides, boolean toGridLines,
-                             boolean showGuides) {
+                             boolean showGuides, int gridLineSpacing) {
 
         static SnapState of(AppPreferences preferences) {
             return new SnapState(preferences.snapToAlignments(), preferences.snapToParts(),
-                    preferences.snapToGuides(), preferences.snapToGridLines(), preferences.showGuides());
+                    preferences.snapToGuides(), preferences.snapToGridLines(), preferences.showGuides(),
+                    preferences.gridLineSpacing());
         }
     }
 }

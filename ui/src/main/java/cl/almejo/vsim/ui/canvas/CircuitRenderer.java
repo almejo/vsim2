@@ -14,6 +14,7 @@ import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.netlist.Net;
 import cl.almejo.vsim.core.netlist.PinRef;
 import cl.almejo.vsim.core.tunnel.Tunnels;
+import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.AppPreferences.GridStyle;
 import cl.almejo.vsim.ui.frames.FramePainter;
 import cl.almejo.vsim.ui.paint.Appearance;
@@ -80,9 +81,8 @@ public final class CircuitRenderer {
     private static final double BUS_LABEL_GAP = 4;
     private static final double OUTLINE_GAP = 3;
     private static final double MINIMUM_DOT_SPACING = 6;
-    /** The grid of lines: the old VSim's 2-unit grid, and a stronger line every 10 units (engineering paper). */
-    private static final int MINOR_LINE_STEP = 2;
-    private static final int MAJOR_LINE_STEP = 10;
+    /** The grid of lines: a stronger line every fifth minor line (engineering paper: every 10 units at 2). */
+    private static final int MINOR_LINES_PER_MAJOR = 5;
 
     private final JunctionCache junctionCache = new JunctionCache();
     private final CrossingCache crossingCache = new CrossingCache();
@@ -114,17 +114,23 @@ public final class CircuitRenderer {
         return highlights;
     }
 
-    /**
-     * Background and grid in {@code style} (dots, lines or nothing), in screen coordinates. Editor chrome only: image
-     * export and the PDF paint their own background and never call this.
-     */
+    /** {@link #paintBackground(Graphics2D, Viewport, int, int, GridStyle, int)} with the default 2-unit lines. */
     public void paintBackground(Graphics2D graphics, Viewport viewport, int width, int height, GridStyle style) {
+        paintBackground(graphics, viewport, width, height, style, AppPreferences.DEFAULT_GRID_LINE_SPACING);
+    }
+
+    /**
+     * Background and grid in {@code style} (dots, lines every {@code lineSpacing} units or nothing), in screen
+     * coordinates. Editor chrome only: image export and the PDF paint their own background and never call this.
+     */
+    public void paintBackground(Graphics2D graphics, Viewport viewport, int width, int height, GridStyle style,
+                                int lineSpacing) {
         ColorScheme scheme = scheme();
         graphics.setColor(scheme.background());
         graphics.fillRect(0, 0, width, height);
         switch (style) {
             case DOTS -> paintGridDots(graphics, viewport, width, height);
-            case LINES -> paintGridLines(graphics, viewport, width, height);
+            case LINES -> paintGridLines(graphics, viewport, width, height, lineSpacing);
             case NONE -> {
             }
         }
@@ -148,11 +154,12 @@ public final class CircuitRenderer {
     }
 
     /**
-     * Engineering paper (spec §4.6): a 1 px line every {@value #MINOR_LINE_STEP} units and a stronger one every
-     * {@value #MAJOR_LINE_STEP}; the lines closer than the dots' minimum spacing are left out.
+     * Engineering paper (spec §4.6): a 1 px line every {@code lineSpacing} units and a stronger one every
+     * {@value #MINOR_LINES_PER_MAJOR} of them; the lines closer than the dots' minimum spacing are left out.
      */
-    private void paintGridLines(Graphics2D graphics, Viewport viewport, int width, int height) {
-        OptionalInt finest = finestLineStep(viewport.pixelsPerUnit());
+    private void paintGridLines(Graphics2D graphics, Viewport viewport, int width, int height, int lineSpacing) {
+        OptionalInt finest = finestLineStep(viewport.pixelsPerUnit(), lineSpacing);
+        int majorStep = lineSpacing * MINOR_LINES_PER_MAJOR;
         if (finest.isEmpty()) {
             return;
         }
@@ -161,17 +168,17 @@ public final class CircuitRenderer {
         Point2D topLeft = viewport.screenToGrid(0, 0);
         Point2D bottomRight = viewport.screenToGrid(width, height);
         for (int gridX = firstMultiple(topLeft.getX(), step); gridX <= bottomRight.getX(); gridX += step) {
-            graphics.setColor(lineColor(scheme, gridX));
+            graphics.setColor(lineColor(scheme, gridX, majorStep));
             graphics.fillRect((int) Math.round(viewport.gridToScreen(gridX, 0).getX()), 0, 1, height);
         }
         for (int gridY = firstMultiple(topLeft.getY(), step); gridY <= bottomRight.getY(); gridY += step) {
-            graphics.setColor(lineColor(scheme, gridY));
+            graphics.setColor(lineColor(scheme, gridY, majorStep));
             graphics.fillRect(0, (int) Math.round(viewport.gridToScreen(0, gridY).getY()), width, 1);
         }
     }
 
-    private static Color lineColor(ColorScheme scheme, int gridCoordinate) {
-        return Math.floorMod(gridCoordinate, MAJOR_LINE_STEP) == 0 ? scheme.gridLineMajor() : scheme.gridLine();
+    private static Color lineColor(ColorScheme scheme, int gridCoordinate, int majorStep) {
+        return Math.floorMod(gridCoordinate, majorStep) == 0 ? scheme.gridLineMajor() : scheme.gridLine();
     }
 
     private static int firstMultiple(double gridCoordinate, int step) {
@@ -179,15 +186,17 @@ public final class CircuitRenderer {
     }
 
     /**
-     * The step in grid units of the finest lines worth drawing at {@code pixelsPerUnit}: the minor lines, only the
-     * major ones when the minor would be under {@code MINIMUM_DOT_SPACING} pixels apart, none when even those are.
+     * The step in grid units of the finest lines worth drawing at {@code pixelsPerUnit} with minor lines every
+     * {@code lineSpacing} units: the minor lines, only the major ones when the minor would be under
+     * {@code MINIMUM_DOT_SPACING} pixels apart, none when even those are.
      */
-    static OptionalInt finestLineStep(double pixelsPerUnit) {
-        if (MINOR_LINE_STEP * pixelsPerUnit >= MINIMUM_DOT_SPACING) {
-            return OptionalInt.of(MINOR_LINE_STEP);
+    static OptionalInt finestLineStep(double pixelsPerUnit, int lineSpacing) {
+        if (lineSpacing * pixelsPerUnit >= MINIMUM_DOT_SPACING) {
+            return OptionalInt.of(lineSpacing);
         }
-        if (MAJOR_LINE_STEP * pixelsPerUnit >= MINIMUM_DOT_SPACING) {
-            return OptionalInt.of(MAJOR_LINE_STEP);
+        int majorStep = lineSpacing * MINOR_LINES_PER_MAJOR;
+        if (majorStep * pixelsPerUnit >= MINIMUM_DOT_SPACING) {
+            return OptionalInt.of(majorStep);
         }
         return OptionalInt.empty();
     }

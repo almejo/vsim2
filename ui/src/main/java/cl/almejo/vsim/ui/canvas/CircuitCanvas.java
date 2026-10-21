@@ -20,6 +20,7 @@ import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.core.tunnel.TunnelKind;
 import cl.almejo.vsim.core.tunnel.Tunnels;
 import cl.almejo.vsim.core.wiring.NewContact;
+import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.AppPreferences.GridStyle;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.edges.EdgeController;
@@ -135,6 +136,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     private boolean pressIntercepted;
     private Tool tool = defaultTool;
     private GridStyle gridStyle = GridStyle.DOTS;
+    private int gridLineSpacing = AppPreferences.DEFAULT_GRID_LINE_SPACING;
     private Snapper snapper = Snapper.none();
     private SimulationSnapshot displayedSnapshot = SimulationSnapshot.EMPTY;
     private boolean animationSuspended;
@@ -1036,6 +1038,21 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         }
     }
 
+    /** The units between the grid lines (Ver ▸ Cuadrícula ▸ Separación); 2 until the grid extension says otherwise. */
+    public int gridLineSpacing() {
+        return gridLineSpacing;
+    }
+
+    public void setGridLineSpacing(int spacing) {
+        if (spacing < 1) {
+            throw new IllegalArgumentException("grid line spacing " + spacing);
+        }
+        if (spacing != gridLineSpacing) {
+            gridLineSpacing = spacing;
+            repaint();
+        }
+    }
+
     @Override
     public Viewport viewport() {
         return viewport;
@@ -1206,7 +1223,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     protected void paintComponent(Graphics graphics) {
         Graphics2D local = (Graphics2D) graphics.create();
         try {
-            renderer.paintBackground(local, viewport, getWidth(), getHeight(), gridStyle);
+            renderer.paintBackground(local, viewport, getWidth(), getHeight(), gridStyle, gridLineSpacing);
             local.transform(viewport.documentTransform());
             RenderState state = new RenderState(openDocument.document(), openDocument.netlist(),
                     openDocument.netlistToken(), displayedSnapshot, selection.ids(), marchingAnts.phase(),

@@ -38,14 +38,12 @@ import java.util.function.Supplier;
  * The snapper of one canvas (alignment-guides spec §3): reads «Ajustar» and «Ajustar a ▸» from the preferences on
  * every call, turns the zoom into the magnet's reach and asks {@link Snapping#solve}. A moving box aligns with the
  * components and frames on screen (not the excluded ones), with the guides when they are shown and attract, and with
- * the grid lines every {@value #GRID_LINE_SPACING} units when asked; moved wires only with guides and grid lines.
+ * the grid lines (every {@link AppPreferences#gridLineSpacing()} units) when asked; moved wires only with guides and grid lines.
  * The part lines are worked out once and kept until the document's revision, the exclusions or the visible area
  * change, so a drag does not measure every part on every mouse move.
  */
 public final class DefaultSnapper implements Snapper {
 
-    /** Grid lines attract every two units whatever the grid shows and whatever the zoom (spec §3.5). */
-    static final int GRID_LINE_SPACING = 2;
     /** Parts this close outside the visible area still pull, in grid units (spec §3.1, «a small margin»). */
     static final int VISIBLE_MARGIN_UNITS = 4;
 
@@ -186,7 +184,7 @@ public final class DefaultSnapper implements Snapper {
     }
 
     private OptionalInt gridLineSpacing() {
-        return preferences.snapToGridLines() ? OptionalInt.of(GRID_LINE_SPACING) : OptionalInt.empty();
+        return preferences.snapToGridLines() ? OptionalInt.of(preferences.gridLineSpacing()) : OptionalInt.empty();
     }
 
     private static int thresholdUnits(ToolContext context) {

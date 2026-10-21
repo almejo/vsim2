@@ -351,6 +351,27 @@ class AppPreferencesTest {
     }
 
     @Test
+    void theGridLineSpacingIsTwoByDefaultRoundTripsNotifiesAndFallsBackToTwo() {
+        preferences.addListener(changes::incrementAndGet);
+        assertThat(preferences.gridLineSpacing()).isEqualTo(2);
+        assertThat(AppPreferences.GRID_LINE_SPACINGS).containsExactly(2, 4, 5, 10);
+
+        preferences.setGridLineSpacing(5);
+        preferences.setGridLineSpacing(5);
+        assertThat(changes).hasValue(1);
+        assertThat(new AppPreferences(node).gridLineSpacing()).isEqualTo(5);
+
+        assertThatThrownBy(() -> preferences.setGridLineSpacing(3))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThat(preferences.gridLineSpacing()).isEqualTo(5);
+
+        node.put("grid.lineSpacing", "3");
+        assertThat(preferences.gridLineSpacing()).isEqualTo(2);
+        node.put("grid.lineSpacing", "ten");
+        assertThat(preferences.gridLineSpacing()).isEqualTo(2);
+    }
+
+    @Test
     void wiresFollowIsOnAndTheInvertKeyIsShiftByDefaultAndBothRoundTripAndNotify() {
         preferences.addListener(changes::incrementAndGet);
         assertThat(preferences.wiresFollow()).isTrue();

@@ -130,5 +130,9 @@ class DefaultSnapperTest {
         assertThat(onGrid.winnerX()).map(SnapTarget::kind).contains(SnapKind.GRID_LINE);
         assertThat(onGrid.deltaX() % 2).isNotZero(); // 21 → an even line
         assertThat(onGrid.matches()).isEmpty();
+        context.preferences.setGridLineSpacing(5);
+        SnapResult onFives = snapper.snapWires(context, Set.of(wire.id()), 0, 0);
+        assertThat(onFives.deltaX()).as("21 and 31 one unit past 20 and 30").isEqualTo(-1);
+        assertThat(onFives.deltaY()).as("5 already on a line").isZero();
     }
 }

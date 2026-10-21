@@ -102,9 +102,45 @@ class GridFeaturesTest {
         assertThat(viewTexts.get(viewTexts.indexOf("Centrar circuito") + 1)).isEqualTo("---");
         assertThat(viewTexts.get(viewTexts.indexOf("Centrar circuito") + 2)).isEqualTo("Cuadrícula");
         assertThat(texts(gridMenu(view).orElseThrow())).containsExactly("Puntos", "Líneas", "Nada", "---",
-                "Cambiar el estilo de la cuadrícula");
+                "Separación", "---", "Cambiar el estilo de la cuadrícula");
         assertThat(selected(view)).containsExactly(true, false, false);
         assertThat(view.canvas().gridStyle()).isEqualTo(GridStyle.DOTS);
+    }
+
+    private static JMenu spacingMenu(EditorView target) {
+        return (JMenu) gridMenu(target).orElseThrow().getMenuComponent(4);
+    }
+
+    private static List<Boolean> spacingSelected(EditorView target) {
+        List<Boolean> selected = new ArrayList<>();
+        for (java.awt.Component child : spacingMenu(target).getMenuComponents()) {
+            selected.add(((JRadioButtonMenuItem) child).isSelected());
+        }
+        return selected;
+    }
+
+    @Test
+    void theSpacingSubmenuOffersTwoFourFiveAndTenUnitsWithTwoChosen() {
+        assertThat(texts(spacingMenu(view))).containsExactly("2 unidades", "4 unidades", "5 unidades",
+                "10 unidades");
+        assertThat(spacingSelected(view)).containsExactly(true, false, false, false);
+        assertThat(view.canvas().gridLineSpacing()).isEqualTo(2);
+    }
+
+    @Test
+    void choosingASpacingChangesThePreferenceAndEveryViewAndItsCanvas() {
+        ((JRadioButtonMenuItem) spacingMenu(view).getMenuComponent(3)).doClick();
+
+        assertThat(preferences.gridLineSpacing()).isEqualTo(10);
+        assertThat(spacingSelected(view)).containsExactly(false, false, false, true);
+        assertThat(spacingSelected(otherView)).containsExactly(false, false, false, true);
+        assertThat(view.canvas().gridLineSpacing()).isEqualTo(10);
+        assertThat(otherView.canvas().gridLineSpacing()).isEqualTo(10);
+        assertThat(preferences.gridStyle()).as("the style is not touched").isEqualTo(GridStyle.DOTS);
+
+        preferences.setGridLineSpacing(5);
+        assertThat(spacingSelected(otherView)).containsExactly(false, false, true, false);
+        assertThat(otherView.canvas().gridLineSpacing()).isEqualTo(5);
     }
 
     @Test
@@ -159,6 +195,7 @@ class GridFeaturesTest {
     void disposingTakesBackTheSubmenuTheShortcutTheListenerAndTheStyle() {
         int listeners = preferences.listenerCount();
         preferences.setGridStyle(GridStyle.LINES);
+        preferences.setGridLineSpacing(4);
         List<String> before = texts(view.menu(MenuId.VIEW));
 
         features.dispose();
@@ -169,6 +206,8 @@ class GridFeaturesTest {
         assertThat(view.shortcutActions()).doesNotContainKey("view.cycleGrid");
         assertThat(preferences.listenerCount()).isEqualTo(listeners - 1);
         assertThat(view.canvas().gridStyle()).isEqualTo(GridStyle.DOTS);
+        assertThat(view.canvas().gridLineSpacing()).isEqualTo(2);
         assertThat(otherView.canvas().gridStyle()).isEqualTo(GridStyle.LINES);
+        assertThat(otherView.canvas().gridLineSpacing()).isEqualTo(4);
     }
 }
