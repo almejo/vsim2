@@ -9,6 +9,7 @@ import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.Frame;
 import cl.almejo.vsim.core.document.FrameTint;
+import cl.almejo.vsim.core.document.Guide;
 import cl.almejo.vsim.core.document.LabelOffset;
 import cl.almejo.vsim.core.document.Probe;
 import cl.almejo.vsim.core.document.ProbeTarget;
@@ -134,7 +135,8 @@ public final class CircuitFormat {
                        List<ComponentEntry> components, List<WireEntry> wires, List<LabelEntry> labels,
                        @JsonInclude(JsonInclude.Include.NON_EMPTY) List<DefinitionEntries.DefinitionEntry> definitions,
                        @JsonInclude(JsonInclude.Include.NON_EMPTY) List<ProbeEntry> probes,
-                       @JsonInclude(JsonInclude.Include.NON_EMPTY) List<FrameEntry> frames) {
+                       @JsonInclude(JsonInclude.Include.NON_EMPTY) List<FrameEntry> frames,
+                       @JsonInclude(JsonInclude.Include.NON_EMPTY) List<GuideEntries.GuideEntry> guides) {
     }
 
     private final ComponentTypeRegistry registry;
@@ -164,7 +166,8 @@ public final class CircuitFormat {
                 document.labels().stream().map(CircuitFormat::labelEntry).toList(),
                 used.stream().map(DefinitionEntries::entry).toList(),
                 document.probes().stream().map(CircuitFormat::probeEntry).toList(),
-                document.frames().stream().map(CircuitFormat::frameEntry).toList());
+                document.frames().stream().map(CircuitFormat::frameEntry).toList(),
+                document.guides().stream().map(GuideEntries::entry).toList());
         try {
             return mapper.writeValueAsString(file);
         } catch (JsonProcessingException exception) {
@@ -182,7 +185,9 @@ public final class CircuitFormat {
     }
 
     public CircuitDocument read(JsonNode root) throws CircuitFormatException {
-        CircuitFile file = readFile(mapper, root, CircuitFile.class, KIND_CIRCUIT, CircuitFile::kind);
+        CircuitFile file = readFile(mapper, GuideEntries.withoutGuides(root), CircuitFile.class, KIND_CIRCUIT,
+                CircuitFile::kind);
+        List<Guide> guides = GuideEntries.read(root);
         CircuitDocument document = new CircuitDocument();
         document.setName(file.name());
         // The file's own definitions resolve its subcircuit:<id> types; the caller's resolvers are not consulted.
@@ -209,6 +214,7 @@ public final class CircuitFormat {
             add(document, () -> frame(entry));
         }
         document.setProbes(probes(entries(file.probes())));
+        document.setGuides(guides);
         return document;
     }
 
