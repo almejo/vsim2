@@ -15,6 +15,7 @@ import cl.almejo.vsim.automation.simulate.PreparedTruthTable;
 import cl.almejo.vsim.automation.simulate.SimulationReceipt;
 import cl.almejo.vsim.automation.simulate.SimulationRequest;
 import cl.almejo.vsim.automation.simulate.TruthTableRequest;
+import cl.almejo.vsim.automation.edit.EditableCircuit;
 import cl.almejo.vsim.ui.app.OpenDocument;
 
 import javax.swing.SwingUtilities;
@@ -41,6 +42,7 @@ public final class EditorAutomationHost implements AutomationHost {
     private long lastId;
     private final ReadHostSupport reads;
     private final SimulationHostSupport simulation;
+    private final EditHostSupport edits = new EditHostSupport(this::circuitWithId);
 
     /** @param openDocuments the open circuits, one per circuit however many views it has; called on the EDT */
     public EditorAutomationHost(Supplier<List<OpenDocument>> openDocuments) {
@@ -81,6 +83,16 @@ public final class EditorAutomationHost implements AutomationHost {
             }
         });
         return result;
+    }
+
+    @Override
+    public <T> CompletableFuture<T> onCircuit(DocumentId document, Function<EditableCircuit, T> work) {
+        return edits.onCircuit(document, work);
+    }
+
+    /** The open circuit with {@code id}; EDT only. */
+    private Optional<OpenDocument> circuitWithId(DocumentId id) {
+        return openDocuments.get().stream().filter(document -> idOf(document).equals(id)).findFirst();
     }
 
     // --- Reading (IA.1 Task 2): ReadHostSupport does the work; pictures are encoded off the EDT ---

@@ -15,6 +15,11 @@ import cl.almejo.vsim.automation.simulate.SimulationOperations;
 import cl.almejo.vsim.automation.simulate.SimulationReceipt;
 import cl.almejo.vsim.automation.simulate.StepKind;
 import cl.almejo.vsim.automation.simulate.TruthTableView;
+import cl.almejo.vsim.automation.edit.EditReceipt;
+import cl.almejo.vsim.automation.edit.EditRequest;
+import cl.almejo.vsim.automation.edit.EditService;
+import cl.almejo.vsim.automation.edit.OrderedExecutor;
+import cl.almejo.vsim.automation.edit.TaskStage;
 
 import java.time.Duration;
 import java.util.List;
@@ -44,6 +49,7 @@ public final class AutomationApi {
     private final List<AutomationListener> listeners = new CopyOnWriteArrayList<>();
     private final Reads reads;
     private final SimulationOperations simulation;
+    private final EditService edits;
 
     public AutomationApi(AutomationHost host) {
         this(host, EDITOR_TIMEOUT);
@@ -52,6 +58,7 @@ public final class AutomationApi {
     AutomationApi(AutomationHost host, Duration editorTimeout) {
         this.host = Objects.requireNonNull(host, "host");
         this.editorTimeout = Objects.requireNonNull(editorTimeout, "editorTimeout");
+        this.edits = new EditService(host, listeners, editorTimeout, new OrderedExecutor());
         this.reads = new Reads(host, editorTimeout);
         this.simulation = new SimulationOperations(host);
     }
@@ -144,15 +151,34 @@ public final class AutomationApi {
         return listeners.size();
     }
 
-    /** «Detener»: stops the task; its applied edits stay. Until the tasks exist (IA.1 Task 3) there is none to stop. */
-    public void stopTask(String taskId) {
-        Objects.requireNonNull(taskId, "taskId");
+    /** One edit call, all or nothing, as one undo step (spec §10; see {@link EditService#edit}). */
+    public EditReceipt edit(EditRequest request) {
+        return edits.edit(request);
     }
 
-    /** «Deshacer lo que hizo la IA»: undoes the task's steps from the top. Until Task 3 there is nothing to undo. */
+    /** Begins an AI task on an open circuit (spec §3); listeners hear it start. */
+    public TaskInfo beginTask(DocumentId document, String title, List<TaskStage> stages) {
+        return edits.beginTask(document, title, stages);
+    }
+
+    /** Replaces a task's plan of stages and steps. */
+    public void updatePlan(String taskId, List<TaskStage> stages) {
+        edits.updatePlan(taskId, stages);
+    }
+
+    /** Ends a task; listeners hear it end with the elements it changed. */
+    public TaskInfo endTask(String taskId) {
+        return edits.endTask(taskId);
+    }
+
+    /** «Detener»: stops the task; its applied edits stay and its next ones are refused. */
+    public void stopTask(String taskId) {
+        edits.stopTask(taskId);
+    }
+
+    /** «Deshacer lo que hizo la IA»: undoes the task's steps from the top, never past the user's own edit. */
     public UndoOutcome undoTask(String taskId) {
-        Objects.requireNonNull(taskId, "taskId");
-        return new UndoOutcome(0, false);
+        return edits.undoTask(taskId);
     }
 
     /** Runs {@code work} on the editor thread and waits for it here, off that thread, at most the editor timeout. */
