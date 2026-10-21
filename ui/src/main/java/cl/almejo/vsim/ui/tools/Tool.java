@@ -1,9 +1,11 @@
 package cl.almejo.vsim.ui.tools;
 
 import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.core.document.Guide;
 
 import java.awt.Cursor;
 import java.awt.Graphics2D;
+import java.util.List;
 import java.util.Set;
 
 /** What the canvas does with the mouse: select, place a component, draw a wire, pan. */
@@ -60,6 +62,15 @@ public interface Tool {
      */
     default boolean refreshSnap(ToolContext context) {
         return false;
+    }
+
+    /**
+     * The guides the gesture under way lies on because Ajustar put it there or it matches them exactly (a moved box's
+     * edge or centre, a wire or frame point): the guide overlay draws them highlighted (alignment-guides spec §4.4).
+     * Empty when no gesture is under way; the default has none.
+     */
+    default List<Guide> snappedGuides() {
+        return List.of();
     }
 
     /** Paints previews on top of the circuit, in document coordinates (8 px per grid unit). */

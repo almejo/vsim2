@@ -1,13 +1,20 @@
 package cl.almejo.vsim.ui.tools;
 
+import cl.almejo.vsim.core.document.Guide;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.ConnectionPoints;
+import cl.almejo.vsim.ui.snap.PointResolution;
 
 import java.awt.Cursor;
 import java.awt.Graphics2D;
 import java.awt.event.KeyEvent;
+import java.util.List;
 
-/** Optional mode: every drag draws a wire, wherever it starts. */
+/**
+ * Optional mode: every drag draws a wire, wherever it starts. With Ajustar (alignment-guides spec §4.4) the start and
+ * the end go to a guide or a grid line within reach unless they already are a connection; the start is resolved once
+ * at the press, the end while dragging, and {@link #refreshSnap} redoes the end.
+ */
 public final class WireTool implements Tool {
 
     private WireDrawing drawing;
@@ -20,16 +27,17 @@ public final class WireTool implements Tool {
         }
         if (event.button() == CanvasMouseEvent.PRIMARY) {
             OpenDocument openDocument = context.openDocument();
-            drawing = new WireDrawing(event.snapped(), event.gridPosition(),
+            PointResolution start = context.snapper().snapPoint(context, event.snapped());
+            drawing = new WireDrawing(start, event.gridPosition(),
                     new ConnectionPoints(openDocument.registry())
-                            .widthAt(openDocument.document(), openDocument.netlist(), event.snapped()));
+                            .widthAt(openDocument.document(), openDocument.netlist(), start.point()));
         }
     }
 
     @Override
     public void mouseDragged(ToolContext context, CanvasMouseEvent event) {
         if (drawing != null) {
-            drawing.dragTo(event);
+            drawing.dragTo(context, event);
             context.repaint();
         }
     }
@@ -42,6 +50,20 @@ public final class WireTool implements Tool {
         drawing.commit(context, event.snapped());
         drawing = null;
         context.repaint();
+    }
+
+    @Override
+    public boolean refreshSnap(ToolContext context) {
+        if (drawing == null || !drawing.refreshSnap(context)) {
+            return false;
+        }
+        context.repaint();
+        return true;
+    }
+
+    @Override
+    public List<Guide> snappedGuides() {
+        return drawing == null ? List.of() : drawing.snappedGuides();
     }
 
     @Override

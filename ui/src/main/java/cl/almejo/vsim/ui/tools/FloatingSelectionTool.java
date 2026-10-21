@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.tools;
 import cl.almejo.vsim.core.command.PasteCommand;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.document.DocumentElement;
+import cl.almejo.vsim.core.document.Guide;
 import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.SnapMatch;
@@ -10,6 +11,7 @@ import cl.almejo.vsim.core.io.CircuitFragment;
 import cl.almejo.vsim.core.tunnel.TunnelKind;
 import cl.almejo.vsim.core.tunnel.Tunnels;
 import cl.almejo.vsim.ui.snap.AlignmentLinesPainter;
+import cl.almejo.vsim.ui.snap.MatchedGuides;
 import cl.almejo.vsim.ui.snap.SnappedPlacement;
 
 import java.awt.Cursor;
@@ -84,6 +86,11 @@ public final class FloatingSelectionTool implements Tool {
         place(context);
         context.repaint();
         return true;
+    }
+
+    @Override
+    public List<Guide> snappedGuides() {
+        return snapped == null ? List.of() : MatchedGuides.of(snapped.matches());
     }
 
     @Override

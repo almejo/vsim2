@@ -4,9 +4,11 @@ import cl.almejo.vsim.core.command.ChangeFrameCommand;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.Frame;
+import cl.almejo.vsim.core.document.Guide;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.ui.canvas.Selection;
 import cl.almejo.vsim.ui.snap.AlignmentLinesPainter;
+import cl.almejo.vsim.ui.snap.MatchedGuides;
 import cl.almejo.vsim.ui.snap.SnappedMove;
 import cl.almejo.vsim.ui.tools.CanvasCursor;
 import cl.almejo.vsim.ui.tools.CanvasMouseEvent;
@@ -163,6 +165,11 @@ public final class FrameGestures implements SelectToolDelegate {
         }
         dragged(context, lastDrag);
         return true;
+    }
+
+    @Override
+    public List<Guide> snappedGuides() {
+        return grabbed == null || part.resizes() ? List.of() : MatchedGuides.of(snappedMove.matches());
     }
 
     @Override

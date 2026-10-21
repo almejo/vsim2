@@ -2,15 +2,18 @@ package cl.almejo.vsim.ui.tools;
 
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.core.document.Guide;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
 import cl.almejo.vsim.ui.snap.AlignmentLinesPainter;
+import cl.almejo.vsim.ui.snap.MatchedGuides;
 import cl.almejo.vsim.ui.snap.SnappedPlacement;
 import cl.almejo.vsim.ui.tunnel.NewTunnels;
 
 import java.awt.Cursor;
 import java.awt.Graphics2D;
 import java.awt.event.KeyEvent;
+import java.util.List;
 
 /**
  * Places a component where the user clicks, then returns to the default tool (Shift keeps placing). Ajustar
@@ -61,6 +64,11 @@ public final class PlaceComponentTool implements Tool {
         snapHover(context);
         context.repaint();
         return true;
+    }
+
+    @Override
+    public List<Guide> snappedGuides() {
+        return snapped == null ? List.of() : MatchedGuides.of(snapped.matches());
     }
 
     /** For tests: where the ghost is (after the magnet), or null before the pointer came over the canvas. */

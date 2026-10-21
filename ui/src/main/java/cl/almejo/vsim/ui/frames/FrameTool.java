@@ -3,8 +3,10 @@ package cl.almejo.vsim.ui.frames;
 import cl.almejo.vsim.core.command.CreateFrameCommand;
 import cl.almejo.vsim.core.document.Frame;
 import cl.almejo.vsim.core.document.FrameTint;
+import cl.almejo.vsim.core.document.Guide;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.snap.PointResolution;
 import cl.almejo.vsim.ui.tools.CanvasMouseEvent;
 import cl.almejo.vsim.ui.tools.Tool;
 import cl.almejo.vsim.ui.tools.ToolContext;
@@ -14,11 +16,18 @@ import java.awt.Cursor;
 import java.awt.Graphics2D;
 import java.awt.event.KeyEvent;
 import java.awt.geom.Rectangle2D;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * The «Marco» tool (spec §4): dragging draws a rectangle snapped to the grid; releasing creates an unlocked frame
  * titled «Bloque» (at least the minimum size) as one undo step, then the tool returns to Seleccionar with the new frame
  * selected and its title editor open. A click without dragging creates nothing.
+ *
+ * <p>Ajustar (alignment-guides spec §4.4): both corners go to a guide or a grid line within reach (never to parts in
+ * v1). The start corner is resolved at the press, the other one while dragging, and the release reuses what the
+ * preview showed; {@link #refreshSnap} redoes the dragged corner. A guide counts as reached only when an edge of the
+ * frame as it would be created (after the minimum size) lies on it.
  */
 public final class FrameTool implements Tool {
 
@@ -26,7 +35,10 @@ public final class FrameTool implements Tool {
     private static final float[] DASH = {4f, 3f};
 
     private GridPoint start;
+    private List<Guide> startGuides = List.of();
+    private GridPoint rawCurrent;
     private GridPoint current;
+    private List<Guide> currentGuides = List.of();
 
     @Override
     public boolean animatesOutline() {
@@ -38,8 +50,12 @@ public final class FrameTool implements Tool {
         if (event.button() != CanvasMouseEvent.PRIMARY) {
             return;
         }
-        start = event.snapped();
+        PointResolution resolution = context.snapper().snapPoint(context, event.snapped());
+        start = resolution.point();
+        startGuides = resolution.guides();
+        rawCurrent = event.snapped();
         current = start;
+        currentGuides = List.of();
         context.repaint();
     }
 
@@ -48,8 +64,56 @@ public final class FrameTool implements Tool {
         if (start == null) {
             return;
         }
-        current = event.snapped();
+        resolveCurrent(context, event.snapped());
         context.repaint();
+    }
+
+    @Override
+    public boolean refreshSnap(ToolContext context) {
+        if (start == null) {
+            return false;
+        }
+        GridPoint before = current;
+        List<Guide> guidesBefore = currentGuides;
+        resolveCurrent(context, rawCurrent);
+        if (current.equals(before) && currentGuides.equals(guidesBefore)) {
+            return false;
+        }
+        context.repaint();
+        return true;
+    }
+
+    /** The guides an edge of the frame being drawn lies on, from the frame as it would be created. */
+    @Override
+    public List<Guide> snappedGuides() {
+        Rectangle2D rectangle = draggedRectangle();
+        if (rectangle == null) {
+            return List.of();
+        }
+        List<Guide> guides = new ArrayList<>();
+        for (Guide guide : startGuides) {
+            addIfOnAnEdge(guides, guide, rectangle);
+        }
+        for (Guide guide : currentGuides) {
+            addIfOnAnEdge(guides, guide, rectangle);
+        }
+        return List.copyOf(guides);
+    }
+
+    private static void addIfOnAnEdge(List<Guide> guides, Guide guide, Rectangle2D rectangle) {
+        boolean onAnEdge = guide.orientation() == Guide.Orientation.VERTICAL
+                ? guide.position() == rectangle.getMinX() || guide.position() == rectangle.getMaxX()
+                : guide.position() == rectangle.getMinY() || guide.position() == rectangle.getMaxY();
+        if (onAnEdge && !guides.contains(guide)) {
+            guides.add(guide);
+        }
+    }
+
+    private void resolveCurrent(ToolContext context, GridPoint raw) {
+        PointResolution resolution = context.snapper().snapPoint(context, raw);
+        rawCurrent = raw;
+        current = resolution.point();
+        currentGuides = resolution.guides();
     }
 
     @Override
@@ -57,7 +121,9 @@ public final class FrameTool implements Tool {
         if (start == null) {
             return;
         }
-        current = event.snapped();
+        if (!event.snapped().equals(rawCurrent)) {
+            resolveCurrent(context, event.snapped());
+        }
         int left = Math.min(start.x(), current.x());
         int top = Math.min(start.y(), current.y());
         int width = Math.abs(current.x() - start.x());
@@ -127,5 +193,8 @@ public final class FrameTool implements Tool {
     private void reset() {
         start = null;
         current = null;
+        rawCurrent = null;
+        startGuides = List.of();
+        currentGuides = List.of();
     }
 }

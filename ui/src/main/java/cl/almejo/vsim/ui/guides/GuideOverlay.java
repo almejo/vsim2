@@ -7,11 +7,14 @@ import cl.almejo.vsim.ui.canvas.RenderState;
 import java.awt.Graphics2D;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.NoninvertibleTransformException;
+import java.util.List;
 
 /**
  * Draws the circuit's guides (spec §4.5) as full-length dashed lines, 1 logical pixel wide whatever the zoom, over the
  * circuit and under the tool overlay (so a move preview stays on top). It is a canvas overlay, which image export and
  * the PDF never run, so guides never reach paper or a file. The guide being moved is drawn where the drag shows it.
+ * The guides the active tool's gesture snapped to ({@link cl.almejo.vsim.ui.tools.Tool#snappedGuides}) are drawn
+ * highlighted, asked on every paint.
  */
 final class GuideOverlay implements CanvasOverlay {
 
@@ -27,9 +30,10 @@ final class GuideOverlay implements CanvasOverlay {
         try {
             AffineTransform documentToScreen = features.canvas().viewport().documentTransform();
             screen.transform(documentToScreen.createInverse()); // back to logical pixels, the device transform kept
+            List<Guide> snapped = features.canvas().tool().snappedGuides();
             for (Guide guide : features.document().guides()) {
                 if (!features.isHiddenByTheDrag(guide)) {
-                    features.paintGuideLine(screen, guide);
+                    features.paintGuideLine(screen, guide, snapped.contains(guide));
                 }
             }
         } catch (NoninvertibleTransformException exception) {
