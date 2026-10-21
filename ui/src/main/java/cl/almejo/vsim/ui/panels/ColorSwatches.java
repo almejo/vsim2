@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.panels;
 
+import cl.almejo.vsim.ui.theme.ReadableColors;
 import net.miginfocom.swing.MigLayout;
 
 import javax.swing.AbstractAction;
@@ -53,9 +54,12 @@ public final class ColorSwatches<T> extends JPanel {
     private static final int ICON_SIZE = SWATCH_SIZE + 2 * RING_MARGIN;
     /** WCAG's minimum contrast for graphical objects that carry meaning (1.4.11): the ring must reach it. */
     static final double MINIMUM_RING_CONTRAST = 3.0;
-    /** The theme colours tried for the ring, in order of preference: the theme's accent first. */
-    private static final List<String> RING_COLOR_KEYS = List.of("Component.accentColor", "Component.linkColor",
-            "Label.foreground");
+    /**
+     * The ring's blue on a light and on a dark theme. The themes' own accent and link blues miss 3:1 against the
+     * pressed swatch on FlatLaf Dark and on macOS light, so the ring has its own pair (checked on all four themes).
+     */
+    private static final Color LIGHT_RING = new Color(0x1F5FAD);
+    private static final Color DARK_RING = new Color(0x9EC2FF);
     private static final String CHOOSE_ACTION = "colorSwatches.choose";
     private static final String PREVIOUS_ACTION = "colorSwatches.previous";
     private static final String NEXT_ACTION = "colorSwatches.next";
@@ -169,43 +173,12 @@ public final class ColorSwatches<T> extends JPanel {
     }
 
     /**
-     * The colour of the ring around the chosen swatch, read when painting: the first of the theme's accent, link and
-     * text colours that stands out at least {@link #MINIMUM_RING_CONTRAST}:1 against both the panel and the pressed
-     * swatch's background (FlatLaf's dark accent is too dim on the dark panel, so there the brighter link blue wins).
+     * The colour of the ring around the chosen swatch, read when painting: a blue that stands out at least
+     * {@link #MINIMUM_RING_CONTRAST}:1 against both the panel and the pressed swatch's background, dark on a light
+     * theme and bright on a dark one.
      */
     static Color selectionRingColor() {
-        List<Color> backgrounds = new ArrayList<>();
-        Optional.ofNullable(UIManager.getColor("Panel.background")).ifPresent(backgrounds::add);
-        Optional.ofNullable(UIManager.getColor("ToggleButton.toolbar.selectedBackground")).ifPresent(backgrounds::add);
-        Color fallback = null;
-        for (String key : RING_COLOR_KEYS) {
-            Color candidate = UIManager.getColor(key);
-            if (candidate == null) {
-                continue;
-            }
-            fallback = candidate;
-            if (backgrounds.stream().allMatch(background -> contrast(candidate, background)
-                    >= MINIMUM_RING_CONTRAST)) {
-                return candidate;
-            }
-        }
-        return fallback != null ? fallback : Color.BLACK;
-    }
-
-    /** The WCAG contrast ratio between two colours (1 to 21). */
-    static double contrast(Color first, Color second) {
-        double lighter = Math.max(luminance(first), luminance(second));
-        double darker = Math.min(luminance(first), luminance(second));
-        return (lighter + 0.05) / (darker + 0.05);
-    }
-
-    private static double luminance(Color color) {
-        return 0.2126 * linear(color.getRed()) + 0.7152 * linear(color.getGreen()) + 0.0722 * linear(color.getBlue());
-    }
-
-    private static double linear(int channel) {
-        double value = channel / 255.0;
-        return value <= 0.03928 ? value / 12.92 : Math.pow((value + 0.055) / 1.055, 2.4);
+        return ReadableColors.dark() ? DARK_RING : LIGHT_RING;
     }
 
     /** The theme's border colour, which outlines every swatch so a white or «no colour» one still shows its edge. */

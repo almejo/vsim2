@@ -1,7 +1,7 @@
 package cl.almejo.vsim.ui.panels;
 
-import com.formdev.flatlaf.FlatDarkLaf;
-import com.formdev.flatlaf.FlatLightLaf;
+import cl.almejo.vsim.ui.theme.AppThemes;
+import cl.almejo.vsim.ui.theme.ReadableColors;
 import org.junit.jupiter.api.Test;
 
 import javax.swing.Action;
@@ -140,17 +140,23 @@ class ColorSwatchesTest {
     }
 
     @Test
-    void theRingStandsOutOnTheLightAndTheDarkTheme() throws Exception {
+    void theRingIsABlueThatStandsOutOnEveryThemeTheAppInstalls() throws Exception {
         LookAndFeel previous = UIManager.getLookAndFeel();
         try {
-            for (LookAndFeel theme : List.of(new FlatLightLaf(), new FlatDarkLaf())) {
+            for (LookAndFeel theme : AppThemes.all()) {
                 UIManager.setLookAndFeel(theme);
                 Color ring = ColorSwatches.selectionRingColor();
-                for (String backgroundKey : List.of("Panel.background", "ToggleButton.toolbar.selectedBackground")) {
-                    assertThat(ColorSwatches.contrast(ring, UIManager.getColor(backgroundKey)))
-                            .as(theme.getName() + " " + backgroundKey)
-                            .isGreaterThanOrEqualTo(ColorSwatches.MINIMUM_RING_CONTRAST);
-                }
+                assertThat(ring.getBlue()).as(theme.getName() + " ring " + ring)
+                        .isGreaterThan(ring.getRed() + 40)
+                        .isGreaterThan(ring.getGreen());
+                Color panel = ReadableColors.panelBackground();
+                // macOS Dark's pressed background is a translucent white: measure it as it shows over the panel.
+                Color pressed = ReadableColors.over(UIManager.getColor("ToggleButton.toolbar.selectedBackground"),
+                        panel);
+                assertThat(ReadableColors.contrast(ring, panel)).as(theme.getName() + " panel")
+                        .isGreaterThanOrEqualTo(ColorSwatches.MINIMUM_RING_CONTRAST);
+                assertThat(ReadableColors.contrast(ring, pressed)).as(theme.getName() + " pressed")
+                        .isGreaterThanOrEqualTo(ColorSwatches.MINIMUM_RING_CONTRAST);
             }
         } finally {
             UIManager.setLookAndFeel(previous);
