@@ -27,6 +27,9 @@ sección es un conjunto de funciones, con las fechas en que se hizo. El detalle 
 - Los mensajes de error del asistente de Karnaugh, de la importación de tablas y de las expresiones contrastaban
   poco con el fondo (3,7:1 en el tema claro, 4,2:1 en el oscuro): ahora van en un rojo con contraste de al menos
   4,5:1 en los dos temas.
+- Los demás textos de error (el valor no válido de «Configurar…» y de Propiedades, los cortocircuitos y la falla de
+  la simulación en la barra de estado) usan ese mismo rojo legible: en el tema oscuro se leían apenas (1,4:1), y al
+  cambiar de tema con la ventana abierta conservaban el rojo del tema anterior.
 - La vista previa de un túnel de salida que estás poniendo o pegando muestra el color de la entrada de su nombre,
   como se verá al soltarlo, y no siempre el primer color.
 

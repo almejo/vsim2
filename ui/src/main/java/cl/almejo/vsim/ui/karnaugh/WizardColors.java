@@ -1,5 +1,7 @@
 package cl.almejo.vsim.ui.karnaugh;
 
+import cl.almejo.vsim.ui.theme.ReadableColors;
+
 import javax.swing.UIManager;
 import java.awt.Color;
 
@@ -42,8 +44,8 @@ final class WizardColors {
 
     /**
      * The error colour for text (a line that does not parse, a table that cannot be imported, why «Siguiente» or
-     * «Crear» is off): the readable red of {@link #failure()}, at least 4.5:1 on the dialog's background on both
-     * themes. The theme's {@link #error()} is a border colour and stays under that as text (3.7:1 on FlatLaf Light).
+     * «Crear» is off): the readable red of {@link #failure()}, the same {@link ReadableColors#errorText()} as the
+     * rest of the editor. The theme's {@link #error()} is a border colour and stays under 4.5:1 as text.
      */
     static Color errorText() {
         return failure();
@@ -64,7 +66,7 @@ final class WizardColors {
      * under that). {@link #errorText()} is this same red.
      */
     static Color failure() {
-        return dark() ? new Color(0xFF8F8F) : new Color(0xC62828);
+        return ReadableColors.errorText();
     }
 
     /**
@@ -178,26 +180,12 @@ final class WizardColors {
 
     /** The WCAG contrast ratio between two colours (1 to 21). */
     static double contrast(Color first, Color second) {
-        double lighter = Math.max(luminance(first), luminance(second));
-        double darker = Math.min(luminance(first), luminance(second));
-        return (lighter + 0.05) / (darker + 0.05);
-    }
-
-    private static double luminance(Color color) {
-        return 0.2126 * linear(color.getRed()) + 0.7152 * linear(color.getGreen()) + 0.0722 * linear(color.getBlue());
-    }
-
-    private static double linear(int channel) {
-        double value = channel / 255.0;
-        return value <= 0.03928 ? value / 12.92 : Math.pow((value + 0.055) / 1.055, 2.4);
+        return ReadableColors.contrast(first, second);
     }
 
     /** True on a dark theme: picks the bright variant of the group colours. */
     static boolean dark() {
-        Color background = background();
-        double luminance = (0.2126 * background.getRed() + 0.7152 * background.getGreen()
-                + 0.0722 * background.getBlue()) / 255;
-        return luminance < 0.5;
+        return ReadableColors.dark();
     }
 
     /** {@code color} with {@code alpha}. */

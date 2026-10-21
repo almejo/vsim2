@@ -1,13 +1,11 @@
 package cl.almejo.vsim.ui.karnaugh;
 
-import com.formdev.flatlaf.FlatDarkLaf;
-import com.formdev.flatlaf.FlatLightLaf;
+import cl.almejo.vsim.ui.theme.AppThemes;
 import org.junit.jupiter.api.Test;
 
 import javax.swing.LookAndFeel;
 import javax.swing.UIManager;
 import java.awt.Color;
-import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -18,7 +16,7 @@ class WizardColorsTest {
     void theColouredTextsAreReadableOnTheDialogBackgroundOfBothThemes() throws Exception {
         LookAndFeel previous = UIManager.getLookAndFeel();
         try {
-            for (LookAndFeel theme : List.of(new FlatLightLaf(), new FlatDarkLaf())) {
+            for (LookAndFeel theme : AppThemes.all()) {
                 UIManager.setLookAndFeel(theme);
                 Map<String, Color> texts = Map.of("errorText", WizardColors.errorText(),
                         "warning", WizardColors.warning(), "failure", WizardColors.failure(),
@@ -38,7 +36,7 @@ class WizardColorsTest {
     void theErrorTextIsARedOnBothThemes() throws Exception {
         LookAndFeel previous = UIManager.getLookAndFeel();
         try {
-            for (LookAndFeel theme : List.of(new FlatLightLaf(), new FlatDarkLaf())) {
+            for (LookAndFeel theme : AppThemes.all()) {
                 UIManager.setLookAndFeel(theme);
                 Color errorText = WizardColors.errorText();
                 assertThat(errorText.getRed()).as(theme.getName())

@@ -2,13 +2,13 @@ package cl.almejo.vsim.ui.panels;
 
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.theme.ErrorTextLabel;
 import net.miginfocom.swing.MigLayout;
 
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
 import javax.swing.Timer;
-import java.awt.Color;
 import java.awt.Cursor;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
@@ -19,7 +19,6 @@ import java.util.stream.Collectors;
 public final class StatusBar extends JPanel {
 
     private static final String CLICK_TOOLTIP = "tooltip.shortCircuits";
-    private static final Color WARNING = new Color(0xE53935);
 
     private final JLabel simulation = new JLabel();
     private final JLabel time = new JLabel();
@@ -27,8 +26,8 @@ public final class StatusBar extends JPanel {
     private final JLabel selection = new JLabel();
     private final JLabel hint = new JLabel();
     private final JLabel notice = new JLabel();
-    private final JLabel shortCircuits = new JLabel();
-    private final JLabel failure = new JLabel();
+    private final JLabel shortCircuits = new ErrorTextLabel();
+    private final JLabel failure = new ErrorTextLabel();
     private boolean clickable;
     private boolean running;
     private boolean runStateClickable;
@@ -42,8 +41,6 @@ public final class StatusBar extends JPanel {
     public StatusBar(Function<Runnable, Timer> noticeTimerFactory) {
         super(new MigLayout("insets 2 8 2 8", "[][][][][][]push[][]"));
         noticeTimer = noticeTimerFactory.apply(this::hideNotice);
-        shortCircuits.setForeground(WARNING);
-        failure.setForeground(WARNING);
         add(simulation);
         time.setToolTipText(Messages.text("status.timeTip"));
         add(time);
@@ -130,6 +127,10 @@ public final class StatusBar extends JPanel {
 
     JLabel shortCircuitsLabel() {
         return shortCircuits;
+    }
+
+    JLabel failureLabel() {
+        return failure;
     }
 
     /**

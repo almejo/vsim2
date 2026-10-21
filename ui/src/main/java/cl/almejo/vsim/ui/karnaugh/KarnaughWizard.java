@@ -2,6 +2,7 @@ package cl.almejo.vsim.ui.karnaugh;
 
 import cl.almejo.vsim.core.logic.Minimization;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.theme.ErrorTextLabel;
 import net.miginfocom.swing.MigLayout;
 
 import javax.swing.AbstractAction;
@@ -17,7 +18,6 @@ import javax.swing.JRootPane;
 import javax.swing.JToggleButton;
 import java.awt.BorderLayout;
 import java.awt.CardLayout;
-import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.event.ActionEvent;
@@ -132,7 +132,7 @@ public final class KarnaughWizard extends JPanel {
     private final Map<Step, JToggleButton> stepButtons = new EnumMap<>(Step.class);
     private final CardLayout cards = new CardLayout();
     private final JPanel content = new JPanel(cards);
-    private final JLabel reason = new ErrorLabel();
+    private final JLabel reason = new ErrorTextLabel(); // why «Siguiente» is off
     private final Action backAction;
     private final Action nextAction;
     private final Action closeAction;
@@ -499,13 +499,5 @@ public final class KarnaughWizard extends JPanel {
         dialog.setSize(DIALOG_SIZE);
         dialog.setLocationRelativeTo(parent);
         dialog.setVisible(true);
-    }
-
-    /** The reason «Siguiente» is off, in the readable error red (read at paint time). */
-    private static final class ErrorLabel extends JLabel {
-        @Override
-        public Color getForeground() {
-            return WizardColors.errorText();
-        }
     }
 }

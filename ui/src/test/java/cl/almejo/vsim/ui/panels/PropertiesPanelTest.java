@@ -21,6 +21,8 @@ import cl.almejo.vsim.ui.canvas.Selection;
 import cl.almejo.vsim.ui.clipboard.FragmentTransferable;
 import cl.almejo.vsim.ui.i18n.FrameTintNames;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.theme.FlatLafInstaller;
+import cl.almejo.vsim.ui.theme.ReadableColors;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -28,7 +30,9 @@ import org.junit.jupiter.api.Test;
 import javax.swing.JFormattedTextField;
 import javax.swing.JSpinner;
 import javax.swing.JTextField;
+import javax.swing.LookAndFeel;
 import javax.swing.TransferHandler;
+import javax.swing.UIManager;
 import javax.swing.text.JTextComponent;
 import java.awt.datatransfer.StringSelection;
 import java.util.Arrays;
@@ -649,6 +653,18 @@ class PropertiesPanelTest {
             List<java.awt.Rectangle[]> rows = laidOutRows();
             assertOneGrid(rows, 1 + parameterCount);
             assertThat(captionColumnLeft(rows)).as(component.typeId()).isEqualTo(captionLeft);
+        }
+    }
+
+    @Test
+    void theErrorLineFollowsALiveThemeChangeInTheReadableErrorRed() throws Exception {
+        LookAndFeel previous = UIManager.getLookAndFeel();
+        try {
+            UIManager.setLookAndFeel(FlatLafInstaller.lookAndFeel("linux", true));
+
+            assertThat(panel.errorLabel().getForeground()).isEqualTo(ReadableColors.errorText());
+        } finally {
+            UIManager.setLookAndFeel(previous);
         }
     }
 }

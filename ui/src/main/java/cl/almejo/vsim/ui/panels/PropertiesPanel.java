@@ -22,6 +22,7 @@ import cl.almejo.vsim.ui.clipboard.FragmentRefusingTransferHandler;
 import cl.almejo.vsim.ui.i18n.FrameTintNames;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.ColorSchemes;
+import cl.almejo.vsim.ui.theme.ErrorTextLabel;
 import cl.almejo.vsim.ui.tunnel.TunnelNames;
 import cl.almejo.vsim.ui.wiring.SelectionMoves;
 import com.formdev.flatlaf.FlatLaf;
@@ -32,7 +33,6 @@ import javax.swing.JSpinner;
 import javax.swing.SpinnerNumberModel;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
-import javax.swing.UIManager;
 import java.awt.Color;
 import java.awt.event.FocusAdapter;
 import java.awt.event.FocusEvent;
@@ -54,7 +54,7 @@ public final class PropertiesPanel extends JPanel {
     private final SelectionMoves selectionMoves;
     private final DocumentListener documentListener = this::documentChanged;
     private final JLabel heading = new JLabel();
-    private final JLabel error = new JLabel(" ");
+    private final JLabel error = new ErrorTextLabel(" ");
     private Set<ElementId> shown = Set.of();
     private JTextField textField;
     private ParameterForm parameterForm;
@@ -76,8 +76,6 @@ public final class PropertiesPanel extends JPanel {
         this.selection = selection;
         this.selectionMoves = selectionMoves;
         heading.putClientProperty("FlatLaf.styleClass", "h4");
-        Color errorColor = UIManager.getColor("Component.error.focusedBorderColor");
-        error.setForeground(errorColor != null ? errorColor : Color.RED);
         selection.addListener(this::selectionChanged);
         openDocument.document().addListener(documentListener);
         rebuild();
@@ -103,6 +101,10 @@ public final class PropertiesPanel extends JPanel {
 
     String error() {
         return error.getText();
+    }
+
+    JLabel errorLabel() {
+        return error;
     }
 
     /** Applies what the editors hold now, as Enter or focus loss would. */

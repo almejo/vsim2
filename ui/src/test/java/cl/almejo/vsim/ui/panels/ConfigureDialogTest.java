@@ -3,12 +3,16 @@ package cl.almejo.vsim.ui.panels;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.theme.FlatLafInstaller;
+import cl.almejo.vsim.ui.theme.ReadableColors;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JSpinner;
+import javax.swing.LookAndFeel;
+import javax.swing.UIManager;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -70,5 +74,16 @@ class ConfigureDialogTest {
         assertThat(ConfigureDialog.acceptChoice(JOptionPane.CANCEL_OPTION, form, error)).isTrue();
         assertThat(ConfigureDialog.acceptChoice(JOptionPane.CLOSED_OPTION, form, error)).isTrue();
         assertThat(error.getText()).isEqualTo(" ");
+    }
+
+    @Test
+    void theErrorLineIsInTheReadableErrorRedOfTheThemeShownNow() throws Exception {
+        LookAndFeel previous = UIManager.getLookAndFeel();
+        try {
+            UIManager.setLookAndFeel(FlatLafInstaller.lookAndFeel("linux", true));
+            assertThat(ConfigureDialog.newErrorLabel().getForeground()).isEqualTo(ReadableColors.errorText());
+        } finally {
+            UIManager.setLookAndFeel(previous);
+        }
     }
 }

@@ -5,10 +5,14 @@ import cl.almejo.vsim.core.simulation.ShortCircuit;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.core.value.Value;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.theme.FlatLafInstaller;
+import cl.almejo.vsim.ui.theme.ReadableColors;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import javax.swing.JLabel;
+import javax.swing.LookAndFeel;
+import javax.swing.UIManager;
 import java.awt.Cursor;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
@@ -195,5 +199,18 @@ class StatusBarTest {
     @Test
     void theRealNoticeTimerLastsFourSeconds() {
         assertThat(StatusBar.NOTICE_MILLISECONDS).isEqualTo(4000);
+    }
+
+    @Test
+    void theWarningsAreInTheReadableErrorRedOfTheThemeShownNow() throws Exception {
+        LookAndFeel previous = UIManager.getLookAndFeel();
+        try {
+            UIManager.setLookAndFeel(FlatLafInstaller.lookAndFeel("linux", true));
+            statusBar.showShortCircuits(2);
+            assertThat(statusBar.shortCircuitsLabel().getForeground()).isEqualTo(ReadableColors.errorText());
+            assertThat(statusBar.failureLabel().getForeground()).isEqualTo(ReadableColors.errorText());
+        } finally {
+            UIManager.setLookAndFeel(previous);
+        }
     }
 }
