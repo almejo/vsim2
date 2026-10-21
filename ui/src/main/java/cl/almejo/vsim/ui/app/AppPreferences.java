@@ -161,6 +161,13 @@ public final class AppPreferences {
     static final String PRINT_HEADER_FOOTER = "print.headerFooter";
     static final String PRINT_DIRECTORY = "print.directory";
     private static final String PRINT_FIT = "fit";
+    static final String AI_PORT = "ai.port";
+    static final String AI_SECRET = "ai.secret";
+    static final String AI_START_WITH_VSIM = "ai.startWithVsim";
+    /** Spec §9.1: high, uncommon, inside IANA's unassigned 47002-47099 (checked 2026-10-21). */
+    public static final int DEFAULT_AI_PORT = 47017;
+    private static final int MINIMUM_AI_PORT = 1024;
+    private static final int MAXIMUM_PORT = 65_535;
 
     /** «Avanzar 10 t» (M6.1-B): the fixed step until the user picks another size. */
     /** The spacings «Cuadrícula ▸ Separación ▸» offers, in grid units. */
@@ -625,6 +632,49 @@ public final class AppPreferences {
             LOGGER.warn("Could not save the colour schemes", exception);
         }
         notifyListeners(COLOR_SCHEMES);
+    }
+
+    // --- IA (MCP) ---
+
+    /** The port the AI server listens on (spec §9.1): the default until the user changes it; VSim never does. */
+    public int aiPort() {
+        try {
+            int stored = Integer.parseInt(node.get(AI_PORT, ""));
+            return isUserPort(stored) ? stored : DEFAULT_AI_PORT;
+        } catch (NumberFormatException exception) {
+            return DEFAULT_AI_PORT;
+        }
+    }
+
+    /** 1024 to 65535 (IllegalArgumentException otherwise): below are the system's ports. */
+    public void setAiPort(int port) {
+        if (!isUserPort(port)) {
+            throw new IllegalArgumentException("port " + port + " is not between 1024 and 65535");
+        }
+        put(AI_PORT, Integer.toString(port));
+    }
+
+    /** The remembered secret Claude Code sends; empty until the first start makes one (spec §9). */
+    public Optional<String> aiSecret() {
+        return optional(AI_SECRET);
+    }
+
+    public void setAiSecret(String secret) {
+        Objects.requireNonNull(secret, "secret");
+        put(AI_SECRET, secret);
+    }
+
+    /** Whether the AI server starts with VSim; off by default (spec §9.1). */
+    public boolean aiStartWithVsim() {
+        return "true".equals(node.get(AI_START_WITH_VSIM, "false"));
+    }
+
+    public void setAiStartWithVsim(boolean start) {
+        put(AI_START_WITH_VSIM, Boolean.toString(start));
+    }
+
+    private static boolean isUserPort(int port) {
+        return port >= MINIMUM_AI_PORT && port <= MAXIMUM_PORT;
     }
 
     private Optional<String> optional(String key) {

@@ -1,0 +1,105 @@
+package cl.almejo.vsim.ui.ai;
+
+import cl.almejo.vsim.automation.DocumentSummary;
+import cl.almejo.vsim.automation.EditorAccess;
+import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
+import cl.almejo.vsim.core.document.CircuitDocument;
+import cl.almejo.vsim.ui.app.OpenDocument;
+import cl.almejo.vsim.ui.i18n.Messages;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import javax.swing.SwingUtilities;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+
+import static cl.almejo.vsim.ui.UiTestSupport.place;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+class EditorAutomationHostTest {
+
+    private final List<OpenDocument> open = new ArrayList<>();
+    private final EditorAutomationHost host = new EditorAutomationHost(() -> List.copyOf(open));
+
+    @BeforeEach
+    void spanish() {
+        Messages.initialize(Messages.SPANISH);
+    }
+
+    @AfterEach
+    void closeDocuments() {
+        open.forEach(OpenDocument::close);
+    }
+
+    @Test
+    void theWorkRunsOnTheEditorThread() throws Exception {
+        assertThat(host.onEditorThread(access -> SwingUtilities.isEventDispatchThread()).get(5, TimeUnit.SECONDS))
+                .isTrue();
+    }
+
+    @Test
+    void whatTheWorkThrowsFailsTheFuture() {
+        IllegalStateException failure = new IllegalStateException("boom");
+
+        assertThatThrownBy(() -> host.onEditorThread(access -> {
+            throw failure;
+        }).get(5, TimeUnit.SECONDS)).isInstanceOf(ExecutionException.class).hasCause(failure);
+    }
+
+    @Test
+    void eachOpenCircuitHasItsNameVersionAndAnIdThatStaysTheSame() throws Exception {
+        OpenDocument adder = document("Sumador");
+        OpenDocument counter = document("Contador");
+
+        List<DocumentSummary> first = list();
+        List<DocumentSummary> second = list();
+
+        assertThat(first).extracting(DocumentSummary::name).containsExactly("Sumador", "Contador");
+        assertThat(first).extracting(DocumentSummary::id).doesNotHaveDuplicates();
+        assertThat(second).extracting(DocumentSummary::id).isEqualTo(first.stream().map(DocumentSummary::id).toList());
+        assertThat(first.get(0).version().value()).isEqualTo(adder.changeCount());
+        assertThat(first.get(1).modified()).isEqualTo(counter.isModified());
+    }
+
+    @Test
+    void anEditMovesTheVersionAndMarksTheCircuitModified() throws Exception {
+        OpenDocument adder = document("Sumador");
+        DocumentSummary before = list().get(0);
+
+        SwingUtilities.invokeAndWait(() -> place(adder, StandardComponentTypes.NOT, 0, 0, Map.of()));
+        DocumentSummary after = list().get(0);
+
+        assertThat(after.id()).isEqualTo(before.id());
+        assertThat(after.version().value()).isGreaterThan(before.version().value());
+        assertThat(after.modified()).isTrue();
+    }
+
+    @Test
+    void aCircuitOpenedLaterNeverGetsTheIdOfAClosedOne() throws Exception {
+        OpenDocument adder = document("Sumador");
+        DocumentSummary closed = list().get(0);
+        open.remove(adder);
+        adder.close();
+
+        document("Contador");
+
+        assertThat(list()).extracting(DocumentSummary::id).doesNotContain(closed.id());
+    }
+
+    private OpenDocument document(String name) {
+        CircuitDocument circuit = new CircuitDocument();
+        circuit.setName(name);
+        OpenDocument document = new OpenDocument(circuit, StandardComponentTypes.registry(), null, false);
+        open.add(document);
+        return document;
+    }
+
+    private List<DocumentSummary> list() throws Exception {
+        return host.onEditorThread(EditorAccess::openDocuments).get(5, TimeUnit.SECONDS);
+    }
+}

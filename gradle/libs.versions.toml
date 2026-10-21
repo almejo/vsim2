@@ -1,6 +1,7 @@
 [versions]
-jackson = "2.18.2"
-slf4j = "2.0.16"
+# 2.21.1 since IA.1: the MCP SDK's Jackson 2 adapter (mcp-json-jackson2 2.1.0) is built against it; one version for all.
+jackson = "2.21.1"
+slf4j = "2.0.17"
 logback = "1.5.16"
 junit = "5.11.4"
 assertj = "3.27.3"
@@ -9,6 +10,10 @@ miglayout = "11.4.2"
 jfreesvg = "5.0.7"
 jfreepdf = "2.0.1"
 pdfbox = "3.0.8"
+# IA.1: the official MCP Java SDK, latest stable release (2026-10-16) with a Streamable HTTP server transport.
+mcp = "2.1.0"
+# IA.1: the servlet container the SDK's HTTP server transport needs (Jakarta Servlet 6.1 = Jetty 12.1 EE11).
+jetty = "12.1.14"
 
 [libraries]
 jackson-databind = { module = "com.fasterxml.jackson.core:jackson-databind", version.ref = "jackson" }
@@ -24,3 +29,6 @@ miglayout-swing = { module = "com.miglayout:miglayout-swing", version.ref = "mig
 jfreesvg = { module = "org.jfree:org.jfree.svg", version.ref = "jfreesvg" }
 jfreepdf = { module = "org.jfree:org.jfree.pdf", version.ref = "jfreepdf" }
 pdfbox = { module = "org.apache.pdfbox:pdfbox", version.ref = "pdfbox" }
+mcp-core = { module = "io.modelcontextprotocol.sdk:mcp-core", version.ref = "mcp" }
+mcp-json-jackson2 = { module = "io.modelcontextprotocol.sdk:mcp-json-jackson2", version.ref = "mcp" }
+jetty-servlet = { module = "org.eclipse.jetty.ee11:jetty-ee11-servlet", version.ref = "jetty" }

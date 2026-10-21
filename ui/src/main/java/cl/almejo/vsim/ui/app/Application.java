@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.app;
 
+import cl.almejo.vsim.automation.AutomationApi;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.command.Command;
@@ -8,6 +9,8 @@ import cl.almejo.vsim.core.io.CircuitFormatException;
 import cl.almejo.vsim.core.io.CircuitReader;
 import cl.almejo.vsim.core.io.LibraryDirectory;
 import cl.almejo.vsim.core.library.ComponentLibrary;
+import cl.almejo.vsim.ui.ai.AiServerService;
+import cl.almejo.vsim.ui.ai.EditorAutomationHost;
 import cl.almejo.vsim.ui.examples.ExamplesFeature;
 import cl.almejo.vsim.ui.export.ExportImageExtension;
 import cl.almejo.vsim.ui.print.ExportPdfExtension;
@@ -96,6 +99,8 @@ public final class Application {
     // Autosave shutdown stops the timer, drains the pending writes, then deletes this run's recovery folder.
     private final SessionEnding sessionEnding = new SessionEnding(this::saveSession, this::shutdownAutosave);
     private Path lastDirectory;
+    // IA.1: one AI server per process, an application service (A§4.2); off until started.
+    private final AiServerService aiServer;
 
     public Application(AppPreferences preferences) {
         this.preferences = preferences;
@@ -110,6 +115,8 @@ public final class Application {
         this.sessionStore = new SessionStore(preferences);
         this.recoveryStore = new RecoveryStore(preferences.dataDirectory().resolve("recovery"));
         this.autosave = AutosaveService.create(recoveryStore);
+        this.aiServer = new AiServerService(preferences,
+                new AutomationApi(new EditorAutomationHost(windows::documents)));
     }
 
     /**
@@ -176,6 +183,10 @@ public final class Application {
         return libraryService;
     }
 
+    public AiServerService aiServer() {
+        return aiServer;
+    }
+
     public ComponentTypeRegistry registry() {
         return registry;
     }
@@ -188,6 +199,7 @@ public final class Application {
         themeManager.start();
         textFontManager.start();
         libraryService.start(); // spec §5.6: read the library before the first palette is shown
+        aiServer.startAtLaunch(System.err);
         // Not a daemon: it keeps the JVM alive until the EDT has the rest of the start queued.
         Thread scan = new Thread(() -> {
             Optional<RecoveryChoices<RecoveryCopy>> choices = Optional.empty();
@@ -381,6 +393,7 @@ public final class Application {
         sessionEnding.windowClosed(windows.isEmpty());
         if (windows.isEmpty()) {
             libraryService.close();
+            aiServer.stop();
             System.exit(0);
         }
     }

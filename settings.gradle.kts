@@ -1,2 +1,2 @@
 rootProject.name = "vsim2"
-include("core", "ui")
+include("core", "automation", "mcp", "ui")

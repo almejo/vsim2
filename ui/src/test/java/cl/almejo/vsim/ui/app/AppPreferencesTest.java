@@ -448,4 +448,29 @@ class AppPreferencesTest {
         node.put("print.scale", "many");
         assertThat(preferences.printOptions("C").scaleMode()).isEqualTo(new ScaleMode.FitToOnePage());
     }
+
+    @Test
+    void theAiServerIsOffOnTheDefaultPortWithNoSecretUntilOneIsRemembered() {
+        assertThat(preferences.aiStartWithVsim()).isFalse();
+        assertThat(preferences.aiPort()).isEqualTo(47017);
+        assertThat(preferences.aiSecret()).isEmpty();
+
+        preferences.setAiPort(48000);
+        preferences.setAiSecret("a-remembered-secret-value");
+        preferences.setAiStartWithVsim(true);
+
+        AppPreferences again = new AppPreferences(node);
+        assertThat(again.aiPort()).isEqualTo(48000);
+        assertThat(again.aiSecret()).contains("a-remembered-secret-value");
+        assertThat(again.aiStartWithVsim()).isTrue();
+    }
+
+    @Test
+    void anUnreadableOrOutOfRangeAiPortFallsBackToTheDefault() {
+        node.put("ai.port", "many");
+        assertThat(preferences.aiPort()).isEqualTo(47017);
+        node.put("ai.port", "70000");
+        assertThat(preferences.aiPort()).isEqualTo(47017);
+        assertThatThrownBy(() -> preferences.setAiPort(0)).isInstanceOf(IllegalArgumentException.class);
+    }
 }
