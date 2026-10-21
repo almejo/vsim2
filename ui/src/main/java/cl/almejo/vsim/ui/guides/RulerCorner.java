@@ -20,9 +20,9 @@ final class RulerCorner implements EdgeHandle {
     static final int PRIORITY = 30;
     private static final int MARK_INSET = 3;
 
-    private final GuidesFeatures features;
+    private final PaneGuides features;
 
-    RulerCorner(GuidesFeatures features) {
+    RulerCorner(PaneGuides features) {
         this.features = features;
     }
 

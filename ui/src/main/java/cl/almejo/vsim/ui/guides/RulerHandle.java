@@ -40,10 +40,10 @@ final class RulerHandle implements EdgeHandle {
     static final int MARKER_HALF_WIDTH = 4;
     private static final int[] MANTISSAS = {1, 2, 5};
 
-    private final GuidesFeatures features;
+    private final PaneGuides features;
     private final Side side;
 
-    RulerHandle(GuidesFeatures features, Side side) {
+    RulerHandle(PaneGuides features, Side side) {
         this.features = features;
         this.side = side;
     }

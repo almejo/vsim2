@@ -158,6 +158,11 @@ public final class SelectTool implements Tool {
     private LabelOffset labelOffset;
     private CanvasCursor cursor = CanvasCursor.DEFAULT;
 
+    /** For tests: the delegates installed now, in the order they are asked. */
+    public List<SelectToolDelegate> delegates() {
+        return List.copyOf(delegates);
+    }
+
     /** Adds a delegate asked before the tool's own behaviour; the returned runnable removes it. */
     public Runnable addDelegate(SelectToolDelegate delegate) {
         delegates.add(delegate);

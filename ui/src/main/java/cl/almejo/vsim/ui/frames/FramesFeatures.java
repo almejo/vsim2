@@ -11,6 +11,7 @@ import cl.almejo.vsim.core.document.FrameTint;
 import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.ui.app.OpenDocument;
+import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.canvas.DrawnBounds;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.icons.Icons;
@@ -23,7 +24,9 @@ import javax.swing.Action;
 import javax.swing.JMenu;
 import javax.swing.JMenuItem;
 import java.awt.event.ActionEvent;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Consumer;
@@ -56,12 +59,12 @@ public final class FramesFeatures {
     private final Runnable toolShortcutRemover;
     private final FrameMenu frameMenu;
     private Consumer<Frame> titleEditor;
-    private final FrameGestures gestures = new FrameGestures();
-    private final Runnable gesturesRemover;
+    /** Each pane's select tool has its own frame gestures (a hover or a drag belongs to one pane). */
+    private final Map<CircuitCanvas, FrameGestures> gesturesByPane = new HashMap<>();
+    private final Runnable paneInstallation;
     private final Runnable deleteListenerRemover;
     private final Runnable selectionListener;
     private final Runnable contributorRemover;
-    private final FrameLockOverlay lockOverlay;
     private final Runnable expansionRemover;
     private boolean disposed;
 
@@ -73,9 +76,9 @@ public final class FramesFeatures {
                 frameSelectionNow();
             }
         };
-        frameSelection.setEnabled(!view.canvas().selection().isEmpty());
-        this.selectionListener = () -> frameSelection.setEnabled(!view.canvas().selection().isEmpty());
-        view.canvas().selection().addListener(selectionListener);
+        frameSelection.setEnabled(!view.selection().isEmpty());
+        this.selectionListener = () -> frameSelection.setEnabled(!view.selection().isEmpty());
+        view.selection().addListener(selectionListener);
         this.editMenu = view.menu(MenuId.EDIT);
         this.menuItem = new JMenuItem(frameSelection);
         editMenu.insert(menuItem, indexAfterSelectAll());
@@ -84,7 +87,7 @@ public final class FramesFeatures {
         this.frameTool = new AbstractAction(Messages.text("action.toolFrame")) {
             @Override
             public void actionPerformed(ActionEvent event) {
-                view.canvas().setTool(new FrameTool());
+                view.setToolOnEveryPane(FrameTool::new);
             }
         };
         Icons.install(frameTool, FrameIcons.FRAME_TOOL);
@@ -93,16 +96,11 @@ public final class FramesFeatures {
         this.toolMenuItem = new JMenuItem(frameTool);
         viewMenu.insert(toolMenuItem, indexAfterWireTool());
         this.toolShortcutRemover = view.registerShortcutAction("view.frameTool", frameTool);
-        this.gesturesRemover = view.canvas().defaultTool() instanceof SelectTool selectTool
-                ? selectTool.addDelegate(gestures)
-                : () -> {
-                };
         this.deleteListenerRemover = view.actions().addDeleteListener(ids -> blockDeletedNotice(
                 view.openDocument().document(), view.openDocument().registry(), ids)
                 .ifPresent(view.statusBar()::showNotice));
-        this.expansionRemover = view.canvas().selection().addExpansion(lockedBlocks(view.openDocument()));
-        this.lockOverlay = new FrameLockOverlay(() -> view.canvas().viewport().pixelsPerUnit());
-        view.canvas().addOverlay(lockOverlay);
+        this.expansionRemover = view.selection().addExpansion(lockedBlocks(view.openDocument()));
+        this.paneInstallation = view.forEachPane(this::installOn);
         this.frameMenu = new FrameMenu(view.openDocument(), frame -> titleEditor.accept(frame),
                 frame -> view.templateActions().ifPresent(actions -> actions.createFromFrame(frame)));
         this.contributorRemover = view.addContextMenuContributor((menu, target, selection, gridPosition) -> {
@@ -155,9 +153,26 @@ public final class FramesFeatures {
         return frameMenu;
     }
 
-    /** The select tool's frame gestures in this view. */
+    /** The frame gestures of the active pane's select tool. */
     public FrameGestures gestures() {
-        return gestures;
+        return gesturesByPane.get(view.canvas());
+    }
+
+    /** On one pane: the select tool's frame gestures and the padlock overlay. */
+    private Runnable installOn(CircuitCanvas pane) {
+        FrameGestures gestures = new FrameGestures();
+        gesturesByPane.put(pane, gestures);
+        Runnable gesturesRemover = pane.defaultTool() instanceof SelectTool selectTool
+                ? selectTool.addDelegate(gestures)
+                : () -> {
+                };
+        FrameLockOverlay lockOverlay = new FrameLockOverlay(() -> pane.viewport().pixelsPerUnit());
+        pane.addOverlay(lockOverlay);
+        return () -> {
+            pane.removeOverlay(lockOverlay);
+            gesturesRemover.run();
+            gesturesByPane.remove(pane);
+        };
     }
 
     /**
@@ -204,7 +219,7 @@ public final class FramesFeatures {
         if (disposed) {
             return;
         }
-        List<DocumentElement> elements = view.canvas().selection().ids().stream()
+        List<DocumentElement> elements = view.selection().ids().stream()
                 .map(view.openDocument().document()::element)
                 .flatMap(Optional::stream)
                 .toList();
@@ -219,7 +234,7 @@ public final class FramesFeatures {
                 Math.max(Frame.MINIMUM_HEIGHT, bounds.get().height() + MARGIN + topMargin),
                 Messages.text("frames.defaultTitle"), FrameTint.NONE, false);
         view.openDocument().execute(new CreateFrameCommand(frame));
-        view.canvas().selection().select(frame.id());
+        view.selection().select(frame.id());
         titleEditor.accept(frame);
     }
 
@@ -232,12 +247,11 @@ public final class FramesFeatures {
         toolShortcutRemover.run();
         toolButtonRemover.run();
         viewMenu.remove(toolMenuItem);
-        gesturesRemover.run();
+        paneInstallation.run();
         deleteListenerRemover.run();
-        view.canvas().selection().removeListener(selectionListener);
+        view.selection().removeListener(selectionListener);
         expansionRemover.run();
         contributorRemover.run();
-        view.canvas().removeOverlay(lockOverlay);
         editMenu.remove(menuItem);
     }
 }

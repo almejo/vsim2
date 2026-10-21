@@ -12,6 +12,7 @@ import cl.almejo.vsim.core.io.CircuitFragment;
 import cl.almejo.vsim.core.io.FragmentFormat;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
+import cl.almejo.vsim.ui.canvas.Selection;
 import cl.almejo.vsim.ui.clipboard.FragmentClipboard;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.shortcuts.ShortcutCatalog;
@@ -30,9 +31,11 @@ import java.awt.event.KeyEvent;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Supplier;
 
 /**
- * Cut, copy, paste, duplicate and select all for one canvas. The clipboard carries {@link FragmentFormat} JSON;
+ * Cut, copy, paste, duplicate and select all for one window (its selection; a paste floats in the active pane).
+ * The clipboard carries {@link FragmentFormat} JSON;
  * pasting and duplicating float the fragment with {@link FloatingSelectionTool} until it is fixed or cancelled.
  */
 public final class SelectionActions {
@@ -43,7 +46,9 @@ public final class SelectionActions {
     private static final Logger LOGGER = LoggerFactory.getLogger(SelectionActions.class);
 
     private final OpenDocument openDocument;
-    private final CircuitCanvas canvas;
+    /** The active pane, resolved whenever an action runs. */
+    private final Supplier<CircuitCanvas> activePane;
+    private final Selection selection;
     private final EditorActions editorActions;
     private final FragmentClipboard clipboard;
     private final FragmentFormat format;
@@ -53,10 +58,21 @@ public final class SelectionActions {
     private final Action duplicate;
     private final Action selectAll;
 
+    /** The actions of a window whose only pane is {@code canvas}. */
     public SelectionActions(OpenDocument openDocument, CircuitCanvas canvas, EditorActions editorActions,
                             FragmentClipboard clipboard) {
+        this(openDocument, () -> canvas, canvas.selection(), editorActions, clipboard);
+    }
+
+    /**
+     * The actions of a window: {@code selection} is its one selection, {@code activePane} (where a paste or a
+     * duplicate floats) is resolved each time an action runs.
+     */
+    public SelectionActions(OpenDocument openDocument, Supplier<CircuitCanvas> activePane, Selection selection,
+                            EditorActions editorActions, FragmentClipboard clipboard) {
         this.openDocument = openDocument;
-        this.canvas = canvas;
+        this.activePane = activePane;
+        this.selection = selection;
         this.editorActions = editorActions;
         this.clipboard = clipboard;
         this.format = new FragmentFormat(openDocument.registry());
@@ -64,12 +80,12 @@ public final class SelectionActions {
         cut = action(Messages.text("action.cut"), KeyStroke.getKeyStroke(KeyEvent.VK_X, menuMask), this::cutSelection);
         copy = action(Messages.text("action.copy"), KeyStroke.getKeyStroke(KeyEvent.VK_C, menuMask), this::copySelection);
         paste = action(Messages.text("action.paste"), KeyStroke.getKeyStroke(KeyEvent.VK_V, menuMask),
-                () -> pasteAt(canvas.mouseGridPoint()));
+                () -> pasteAt(activePane.get().mouseGridPoint()));
         duplicate = action(Messages.text("action.duplicate"), KeyStroke.getKeyStroke(KeyEvent.VK_D, menuMask),
                 this::duplicateSelection);
         selectAll = action(Messages.text("action.selectAll"), KeyStroke.getKeyStroke(KeyEvent.VK_A, menuMask),
-                () -> canvas.selection().selectAll(openDocument.document()));
-        canvas.selection().addListener(this::refresh);
+                () -> selection.selectAll(openDocument.document()));
+        selection.addListener(this::refresh);
         refresh();
     }
 
@@ -100,7 +116,7 @@ public final class SelectionActions {
         if (fragment.isEmpty()) {
             return;
         }
-        canvas.announceIncomingFragment(fragment);
+        activePane.get().announceIncomingFragment(fragment);
         startFloating(fragment, mousePoint.orElseGet(() -> positionWithoutMouse(json.get())));
     }
 
@@ -109,10 +125,14 @@ public final class SelectionActions {
         return clipboard.originOf(json, openDocument.document())
                 .map(origin -> origin.translate(PASTE_OFFSET, PASTE_OFFSET))
                 .filter(this::inView)
-                .orElseGet(() -> canvas.viewport().snap(canvas.getWidth() / 2.0, canvas.getHeight() / 2.0));
+                .orElseGet(() -> {
+                    CircuitCanvas canvas = activePane.get();
+                    return canvas.viewport().snap(canvas.getWidth() / 2.0, canvas.getHeight() / 2.0);
+                });
     }
 
     private boolean inView(GridPoint point) {
+        CircuitCanvas canvas = activePane.get();
         Point2D screen = canvas.viewport().gridToScreen(point.x(), point.y());
         return screen.getX() >= 0 && screen.getY() >= 0 && screen.getX() <= canvas.getWidth()
                 && screen.getY() <= canvas.getHeight();
@@ -154,7 +174,7 @@ public final class SelectionActions {
     }
 
     private void refresh() {
-        boolean anySelected = !canvas.selection().isEmpty();
+        boolean anySelected = !selection.isEmpty();
         cut.setEnabled(anySelected);
         copy.setEnabled(anySelected);
         duplicate.setEnabled(anySelected);
@@ -162,7 +182,7 @@ public final class SelectionActions {
 
     /** @return false when nothing is selected (the clipboard is left alone) */
     private boolean copySelection() {
-        Set<ElementId> ids = canvas.selection().effectiveIds();
+        Set<ElementId> ids = selection.effectiveIds();
         Optional<Bounds> bounds = boundsOf(ids);
         if (bounds.isEmpty()) {
             return false;
@@ -174,14 +194,14 @@ public final class SelectionActions {
     }
 
     private void cutSelection() {
-        Set<ElementId> ids = canvas.selection().effectiveIds();
+        Set<ElementId> ids = selection.effectiveIds();
         if (copySelection()) {
             openDocument.execute(new RemoveElementsCommand(ids));
         }
     }
 
     private void duplicateSelection() {
-        Set<ElementId> ids = canvas.selection().effectiveIds();
+        Set<ElementId> ids = selection.effectiveIds();
         Optional<Bounds> bounds = boundsOf(ids);
         if (bounds.isEmpty()) {
             return;
@@ -198,6 +218,7 @@ public final class SelectionActions {
     }
 
     private void startFloating(CircuitFragment fragment, GridPoint position) {
+        CircuitCanvas canvas = activePane.get();
         canvas.setTool(new FloatingSelectionTool(fragment, position));
         canvas.requestFocusInWindow();
     }

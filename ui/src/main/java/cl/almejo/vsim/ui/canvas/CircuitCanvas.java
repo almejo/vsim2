@@ -894,6 +894,11 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         return overlays.size();
     }
 
+    /** For tests: the overlays installed now, in paint order. */
+    public List<CanvasOverlay> overlays() {
+        return List.copyOf(overlays);
+    }
+
     @Override
     public String getToolTipText(MouseEvent event) {
         Optional<String> edge = edgeController.tooltip(convert(event));

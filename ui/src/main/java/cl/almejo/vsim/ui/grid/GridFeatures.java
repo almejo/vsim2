@@ -2,6 +2,7 @@ package cl.almejo.vsim.ui.grid;
 
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.AppPreferences.GridStyle;
+import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuId;
@@ -40,6 +41,7 @@ public final class GridFeatures {
     private final Action cycle;
     private final Runnable shortcutRemover;
     private final Runnable preferencesListener;
+    private final Runnable paneInstallation;
     private boolean disposed;
 
     public GridFeatures(EditorView view) {
@@ -71,7 +73,18 @@ public final class GridFeatures {
         this.shortcutRemover = view.registerShortcutAction(CYCLE_SHORTCUT, cycle);
         this.preferencesListener = this::refresh;
         preferences.addListener(preferencesListener);
+        this.paneInstallation = view.forEachPane(this::installOn);
         refresh();
+    }
+
+    /** A pane shows the stored style and spacing until it goes, then the canvas's defaults again. */
+    private Runnable installOn(CircuitCanvas pane) {
+        pane.setGridStyle(preferences.gridStyle());
+        pane.setGridLineSpacing(preferences.gridLineSpacing());
+        return () -> {
+            pane.setGridStyle(GridStyle.DOTS);
+            pane.setGridLineSpacing(AppPreferences.DEFAULT_GRID_LINE_SPACING);
+        };
     }
 
     /** «Cambiar el estilo de la cuadrícula»: Puntos, then Líneas, then Nada, then Puntos again. */
@@ -123,14 +136,16 @@ public final class GridFeatures {
         };
     }
 
-    /** Shows the stored style and spacing in the items and on the canvas (also when another view changes them). */
+    /** Shows the stored style and spacing in the items and on every pane (also when another view changes them). */
     private void refresh() {
         GridStyle style = preferences.gridStyle();
         items.get(style).setSelected(true);
-        view.canvas().setGridStyle(style);
         int spacing = preferences.gridLineSpacing();
         spacingItems.get(spacing).setSelected(true);
-        view.canvas().setGridLineSpacing(spacing);
+        for (CircuitCanvas pane : view.panes()) {
+            pane.setGridStyle(style);
+            pane.setGridLineSpacing(spacing);
+        }
     }
 
     private int indexAfterCenterView() {
@@ -152,7 +167,6 @@ public final class GridFeatures {
         preferences.removeListener(preferencesListener);
         viewMenu.remove(gridMenu);
         viewMenu.remove(separator);
-        view.canvas().setGridStyle(GridStyle.DOTS);
-        view.canvas().setGridLineSpacing(AppPreferences.DEFAULT_GRID_LINE_SPACING);
+        paneInstallation.run();
     }
 }

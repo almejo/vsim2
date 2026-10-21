@@ -10,6 +10,7 @@ import cl.almejo.vsim.ui.actions.ContextMenuContributor;
 import cl.almejo.vsim.ui.actions.ContextMenuFactory;
 import cl.almejo.vsim.ui.actions.EditorActions;
 import cl.almejo.vsim.ui.actions.SelectionActions;
+import cl.almejo.vsim.ui.actions.ToolChoice;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.CanvasHost;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
@@ -131,8 +132,19 @@ public final class EditorView extends JPanel implements CanvasHost {
         this.selectionMoves = new SelectionMoves(services.preferences(), statusBar::showNotice);
         CircuitCanvas canvas = newPane();
         this.canvasPanes = new CanvasPanes(this::newPane, canvas);
-        this.actions = new EditorActions(openDocument, canvas, window);
-        this.selectionActions = new SelectionActions(openDocument, canvas, actions, FragmentClipboard.system());
+        this.actions = new EditorActions(openDocument, this::canvas, selection, new ToolChoice() {
+            @Override
+            public void choose(Supplier<? extends Tool> newTool) {
+                setToolOnEveryPane(newTool);
+            }
+
+            @Override
+            public void useDefault() {
+                useDefaultToolOnEveryPane();
+            }
+        }, window);
+        this.selectionActions = new SelectionActions(openDocument, this::canvas, selection, actions,
+                FragmentClipboard.system());
         this.palette = new PalettePanel(openDocument.registry(), services.painters(), services.appearance(), type -> {
             setToolOnEveryPane(() -> new PlaceComponentTool(type));
             canvas().requestFocusInWindow();
@@ -163,6 +175,7 @@ public final class EditorView extends JPanel implements CanvasHost {
         statusBar.onZoomClicked(() -> canvas().resetZoom());
         statusBar.onRunStateClicked(() -> performIfEnabled(actions.pause()),
                 () -> performIfEnabled(actions.start()));
+        inlineEditor = new InlineTextEditor(this::canvas);
         forEachPane(this::configurePane);
         bindZoomKeys();
         bindEscapeToTheTool();
@@ -170,7 +183,6 @@ public final class EditorView extends JPanel implements CanvasHost {
         toolChanged(canvas.tool());
         palette.setFileDropHandler(this::dropFiles);
         installSelectionActions();
-        inlineEditor = new InlineTextEditor(canvas);
         labelFeatures = LabelFeatures.install(this);
         problems = new ProblemsController(this);
         appearanceListener = this::repaintPanes;
@@ -668,13 +680,14 @@ public final class EditorView extends JPanel implements CanvasHost {
     private Runnable configurePane(CircuitCanvas pane) {
         pane.setAnimateViewMoves(services.preferences()::animateViewMoves);
         pane.setFileDropHandler(this::dropFiles);
-        pane.bindKey(KeyStroke.getKeyStroke(KeyEvent.VK_DELETE, 0), "delete", actions.delete());
-        pane.bindKey(KeyStroke.getKeyStroke(KeyEvent.VK_BACK_SPACE, 0), "delete", actions.delete());
-        pane.bindKey(KeyStroke.getKeyStroke(KeyEvent.VK_R, 0), "rotateClockwise", actions.rotateClockwise());
-        pane.bindKey(KeyStroke.getKeyStroke(KeyEvent.VK_R, InputEvent.SHIFT_DOWN_MASK), "rotateCounterClockwise",
-                actions.rotateCounterClockwise());
-        actions.moveActions().forEach((id, action) -> ShortcutCatalog.find(id)
-                .flatMap(entry -> entry.defaultStroke()).ifPresent(stroke -> pane.bindKey(stroke, id, action)));
+        Map<KeyStroke, String> bound = new LinkedHashMap<>();
+        bindKey(pane, bound, KeyStroke.getKeyStroke(KeyEvent.VK_DELETE, 0), "delete", actions.delete());
+        bindKey(pane, bound, KeyStroke.getKeyStroke(KeyEvent.VK_BACK_SPACE, 0), "delete", actions.delete());
+        bindKey(pane, bound, KeyStroke.getKeyStroke(KeyEvent.VK_R, 0), "rotateClockwise", actions.rotateClockwise());
+        bindKey(pane, bound, KeyStroke.getKeyStroke(KeyEvent.VK_R, InputEvent.SHIFT_DOWN_MASK),
+                "rotateCounterClockwise", actions.rotateCounterClockwise());
+        actions.moveActions().forEach((id, action) -> ShortcutCatalog.find(id).flatMap(entry -> entry.defaultStroke())
+                .ifPresent(stroke -> bindKey(pane, bound, stroke, id, action)));
         if (toolChoice != null) {
             pane.setTool(toolChoice.get());
         }
@@ -687,14 +700,23 @@ public final class EditorView extends JPanel implements CanvasHost {
         Consumer<SimulationSnapshot> snapshotListener = snapshot -> {
             if (pane == canvas()) {
                 statusBar.showSnapshot(snapshot);
+                actions.refreshSimulationButtons(snapshot.running());
             }
         };
         pane.addSnapshotListener(snapshotListener);
         return () -> {
+            inlineEditor.cancelIfOpenIn(pane); // the edit's field lives on the pane that goes away
             removeToolListener.run();
             removeViewListener.run();
             pane.removeSnapshotListener(snapshotListener);
+            bound.forEach(pane::unbindKey);
         };
+    }
+
+    private static void bindKey(CircuitCanvas pane, Map<KeyStroke, String> bound, KeyStroke stroke, String name,
+                                Action action) {
+        pane.bindKey(stroke, name, action);
+        bound.put(stroke, name);
     }
 
     /**

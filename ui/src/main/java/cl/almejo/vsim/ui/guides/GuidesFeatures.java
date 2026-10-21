@@ -12,9 +12,7 @@ import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.canvas.Selection;
 import cl.almejo.vsim.ui.canvas.Viewport;
-import cl.almejo.vsim.ui.canvas.edges.EdgeHandle;
 import cl.almejo.vsim.ui.i18n.Messages;
-import cl.almejo.vsim.ui.tools.CanvasMouseEvent;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuId;
 
@@ -25,24 +23,25 @@ import javax.swing.JMenu;
 import javax.swing.JMenuItem;
 import javax.swing.JPopupMenu;
 import javax.swing.JSeparator;
-import java.awt.Color;
 import java.awt.Component;
 import java.awt.Cursor;
-import java.awt.Graphics2D;
 import java.awt.event.ActionEvent;
 import java.awt.geom.Point2D;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
- * The guides of one editor view (spec §4.2–§4.5, canvas-edges spec §1–§4): the rulers along the top and left edges
- * of its canvas with their corner, the guide lines and their grabbing, Ver ▸ «Mostrar guías» / «Agregar guía
- * horizontal» / «Agregar guía vertical» / «Borrar guías» (shortcut ids {@code view.showGuides},
- * {@code view.addHorizontalGuide}, {@code view.addVerticalGuide}, {@code view.clearGuides}, no default keys) and the
- * canvas context menu items. Guides are document data, shared by every view of the circuit; «Mostrar guías» is an app
- * preference. Every edit is one {@link SetGuidesCommand}. {@link #dispose()} takes back the edge handles, the overlay,
- * the menu items, the shortcuts, the context-menu contributor and the listeners.
+ * The guides of one editor view (spec §4.2–§4.5, canvas-edges spec §1–§4): on every pane ({@link PaneGuides}) the
+ * rulers along the top and left edges with their corner, the guide lines and their grabbing; once for the view Ver ▸
+ * «Mostrar guías» / «Agregar guía horizontal» / «Agregar guía vertical» / «Borrar guías» (shortcut ids
+ * {@code view.showGuides}, {@code view.addHorizontalGuide}, {@code view.addVerticalGuide}, {@code view.clearGuides},
+ * no default keys) and the canvas context menu items. Guides are document data, shared by every view of the circuit;
+ * «Mostrar guías» is an app preference. Every edit is one {@link SetGuidesCommand}. {@link #dispose()} takes back the
+ * edge handles and the overlay of every pane, the menu items, the shortcuts, the context-menu contributor and the
+ * listeners.
  */
 public final class GuidesFeatures {
 
@@ -50,8 +49,6 @@ public final class GuidesFeatures {
     static final int RULER_SIZE = 10;
     /** How close to a guide line a press grabs it, in screen pixels. */
     static final int GRAB_TOLERANCE = 3;
-    /** Length of a dash and of the gap after it, in logical pixels. */
-    private static final int DASH = 4;
     private static final String SHOW_SHORTCUT = "view.showGuides";
     private static final String ADD_HORIZONTAL_SHORTCUT = "view.addHorizontalGuide";
     private static final String ADD_VERTICAL_SHORTCUT = "view.addVerticalGuide";
@@ -65,7 +62,6 @@ public final class GuidesFeatures {
 
     private final EditorView view;
     private final OpenDocument openDocument;
-    private final CircuitCanvas canvas;
     private final AppPreferences preferences;
     private final MenuShower menuShower;
     private final Action showGuides;
@@ -75,12 +71,10 @@ public final class GuidesFeatures {
     private final JMenu viewMenu;
     private final List<Component> menuComponents = new ArrayList<>();
     private final List<Runnable> removers = new ArrayList<>();
-    private final List<EdgeHandle> handles;
-    private final GuideOverlay overlay;
-    private final List<Runnable> chromeRemovers = new ArrayList<>();
+    /** The rulers, lines and drags of each pane of the view. */
+    private final Map<CircuitCanvas, PaneGuides> panes = new LinkedHashMap<>();
     private final Runnable preferencesListener = this::refresh;
     private final Runnable guideListener = this::guidesChanged;
-    private GuideDrag currentDrag;
     private boolean disposed;
 
     public GuidesFeatures(EditorView view) {
@@ -90,7 +84,6 @@ public final class GuidesFeatures {
     GuidesFeatures(EditorView view, MenuShower menuShower) {
         this.view = view;
         this.openDocument = view.openDocument();
-        this.canvas = view.canvas();
         this.preferences = view.services().preferences();
         this.menuShower = menuShower;
         this.showGuides = action("action.showGuides", () -> preferences.setShowGuides(!preferences.showGuides()));
@@ -100,9 +93,6 @@ public final class GuidesFeatures {
                 () -> addAtPoint(Orientation.VERTICAL, pointerOrMiddle()));
         this.clear = action("action.clearGuides",
                 () -> SetGuidesCommand.clearing(document()).ifPresent(openDocument::execute));
-        this.handles = List.of(new RulerCorner(this), new RulerHandle(this, RulerHandle.Side.TOP),
-                new RulerHandle(this, RulerHandle.Side.LEFT), new GuideGrab(this));
-        this.overlay = new GuideOverlay(this);
         this.viewMenu = view.menu(MenuId.VIEW);
         insertMenuItems();
         removers.add(view.registerShortcutAction(SHOW_SHORTCUT, showGuides));
@@ -112,8 +102,20 @@ public final class GuidesFeatures {
         removers.add(view.addContextMenuContributor(new GuideMenuContributor()));
         preferences.addListener(preferencesListener);
         document().addGuideListener(guideListener);
+        removers.add(view.forEachPane(this::installOn));
         refresh();
         guidesChanged();
+    }
+
+    /** On one pane: its rulers and lines, shown while «Mostrar guías» is on. */
+    private Runnable installOn(CircuitCanvas pane) {
+        PaneGuides guides = new PaneGuides(this, pane);
+        panes.put(pane, guides);
+        guides.show(preferences.showGuides());
+        return () -> {
+            panes.remove(pane);
+            guides.dispose();
+        };
     }
 
     private static Action action(String nameKey, Runnable run) {
@@ -191,20 +193,23 @@ public final class GuidesFeatures {
         return viewMenu.getMenuComponentCount();
     }
 
-    /** The menu of the rulers' corner: the guide items of Ver, the new guides in the middle of the pane. */
-    void showCornerMenu() {
+    /** The menu of the rulers' corner of {@code pane}: the guide items of Ver, the new guides in its middle. */
+    void showCornerMenu(CircuitCanvas pane) {
         JPopupMenu menu = new JPopupMenu();
         menu.add(new JMenuItem(action("action.addHorizontalGuide",
-                () -> addAtPoint(Orientation.HORIZONTAL, middleOfThePane()))));
+                () -> addAtPoint(Orientation.HORIZONTAL, middleOf(pane)))));
         menu.add(new JMenuItem(action("action.addVerticalGuide",
-                () -> addAtPoint(Orientation.VERTICAL, middleOfThePane()))));
+                () -> addAtPoint(Orientation.VERTICAL, middleOf(pane)))));
         menu.addSeparator();
         menu.add(new JCheckBoxMenuItem(showGuides));
         menu.add(new JMenuItem(clear));
-        menuShower.show(menu, canvas, 0, RULER_SIZE);
+        menuShower.show(menu, pane, 0, RULER_SIZE);
     }
 
-    /** Empty canvas: «Agregar guía … aquí»; on a guide line: «Quitar guía». Nothing while the guides are hidden. */
+    /**
+     * Empty canvas: «Agregar guía … aquí»; on a guide line: «Quitar guía». Nothing while the guides are hidden. The menu
+     * opens on the pane that was right-clicked, which the press made the active one.
+     */
     private final class GuideMenuContributor implements ContextMenuContributor {
         @Override
         public void contribute(JPopupMenu menu, Optional<DocumentElement> target, Selection selection,
@@ -212,8 +217,9 @@ public final class GuidesFeatures {
             if (target.isPresent() || !preferences.showGuides()) {
                 return;
             }
-            Point2D screen = canvas.viewport().gridToScreen(gridPosition.getX(), gridPosition.getY());
-            Optional<Guide> near = guideNear(screen);
+            Viewport viewport = view.canvas().viewport();
+            Point2D screen = viewport.gridToScreen(gridPosition.getX(), gridPosition.getY());
+            Optional<Guide> near = guideNear(document(), viewport, screen);
             if (near.isPresent()) {
                 menu.add(new JMenuItem(action("action.removeGuide", () -> removeGuide(near.get()))));
                 return;
@@ -229,12 +235,14 @@ public final class GuidesFeatures {
 
     // --- edits ---------------------------------------------------------------------------------------------------
 
+    /** Where Ver ▸ «Agregar guía …» puts it: at the pointer over the active pane, else in that pane's middle. */
     private GridPoint pointerOrMiddle() {
-        return canvas.mouseGridPoint().orElseGet(this::middleOfThePane);
+        CircuitCanvas pane = view.canvas();
+        return pane.mouseGridPoint().orElseGet(() -> middleOf(pane));
     }
 
-    private GridPoint middleOfThePane() {
-        return canvas.viewport().snap(canvas.getWidth() / 2.0, canvas.getHeight() / 2.0);
+    private static GridPoint middleOf(CircuitCanvas pane) {
+        return pane.viewport().snap(pane.getWidth() / 2.0, pane.getHeight() / 2.0);
     }
 
     /** Adds the guide of {@code orientation} through {@code point}; a hidden set of guides is shown first. */
@@ -265,32 +273,10 @@ public final class GuidesFeatures {
 
     // --- gestures ------------------------------------------------------------------------------------------------
 
-    GuideDrag startDrag(Orientation orientation, Optional<Guide> moving, CanvasMouseEvent press) {
-        currentDrag = new GuideDrag(this, orientation, moving, press);
-        canvas.repaint();
-        return currentDrag;
-    }
-
-    /** The drag released or was cancelled: guide changes from now on are its own, or nobody's. */
-    void dragEnded(GuideDrag drag) {
-        if (currentDrag == drag) {
-            currentDrag = null;
-        }
-        canvas.repaint();
-    }
-
-    boolean isHiddenByTheDrag(Guide guide) {
-        return currentDrag != null && currentDrag.moving().filter(guide::equals).isPresent()
-                && currentDrag.hidesTheMovedGuide();
-    }
-
     /** The list changed (this view, another one, undo): a drag in progress was identified by value, so it ends. */
     private void guidesChanged() {
         clear.setEnabled(!document().guides().isEmpty());
-        if (currentDrag != null) {
-            canvas.cancelEdgeGesture();
-        }
-        canvas.repaint();
+        List.copyOf(panes.values()).forEach(PaneGuides::guidesChanged);
     }
 
     // --- showing -------------------------------------------------------------------------------------------------
@@ -299,48 +285,29 @@ public final class GuidesFeatures {
     private void refresh() {
         boolean shown = preferences.showGuides();
         showGuides.putValue(Action.SELECTED_KEY, shown);
-        if (shown && chromeRemovers.isEmpty()) {
-            for (EdgeHandle handle : handles) {
-                chromeRemovers.add(canvas.addEdgeHandle(handle));
-            }
-            canvas.addOverlay(overlay);
-            chromeRemovers.add(() -> canvas.removeOverlay(overlay));
-        } else if (!shown && !chromeRemovers.isEmpty()) {
-            removeChrome();
-        }
-    }
-
-    /** Takes the handles away (cancelling a drag in progress) and the overlay. */
-    private void removeChrome() {
-        chromeRemovers.forEach(Runnable::run);
-        chromeRemovers.clear();
+        List.copyOf(panes.values()).forEach(guides -> guides.show(shown));
     }
 
     // --- geometry and painting -----------------------------------------------------------------------------------
-
-    CircuitCanvas canvas() {
-        return canvas;
-    }
 
     CircuitDocument document() {
         return openDocument.document();
     }
 
-    /** Where {@code guide} crosses the screen: its y for a horizontal guide, its x for a vertical one. */
-    double screenCoordinate(Guide guide) {
-        Viewport viewport = canvas.viewport();
+    /** Where {@code guide} crosses a pane shown by {@code viewport}: its y when horizontal, its x when vertical. */
+    static double screenCoordinate(Viewport viewport, Guide guide) {
         return guide.orientation() == Orientation.HORIZONTAL
                 ? viewport.gridToScreen(0, guide.position()).getY()
                 : viewport.gridToScreen(guide.position(), 0).getX();
     }
 
     /** The guide within {@link #GRAB_TOLERANCE} screen pixels of {@code screenPoint}, the nearest if several are. */
-    Optional<Guide> guideNear(Point2D screenPoint) {
+    static Optional<Guide> guideNear(CircuitDocument document, Viewport viewport, Point2D screenPoint) {
         Guide nearest = null;
         double nearestDistance = Double.MAX_VALUE;
-        for (Guide guide : document().guides()) {
+        for (Guide guide : document.guides()) {
             double along = guide.orientation() == Orientation.HORIZONTAL ? screenPoint.getY() : screenPoint.getX();
-            double distance = Math.abs(screenCoordinate(guide) - along);
+            double distance = Math.abs(screenCoordinate(viewport, guide) - along);
             if (distance <= GRAB_TOLERANCE && distance < nearestDistance) {
                 nearest = guide;
                 nearestDistance = distance;
@@ -355,42 +322,11 @@ public final class GuidesFeatures {
                 ? Cursor.N_RESIZE_CURSOR : Cursor.E_RESIZE_CURSOR);
     }
 
-    /**
-     * Paints {@code guide} across the whole pane, dashed, 1 logical pixel wide, in the scheme's guide colour read now;
-     * {@code screenGraphics} is in logical pixels.
-     */
-    void paintGuideLine(Graphics2D screenGraphics, Guide guide) {
-        paintGuideLine(screenGraphics, guide, false);
-    }
-
-    /**
-     * Like {@link #paintGuideLine(Graphics2D, Guide)}; a {@code highlighted} guide (the one the gesture under way
-     * snapped to, spec §4.4) is drawn slightly stronger: solid and opaque instead of dashed.
-     */
-    void paintGuideLine(Graphics2D screenGraphics, Guide guide, boolean highlighted) {
-        Color color = canvas.scheme().guide();
-        screenGraphics.setColor(highlighted ? new Color(color.getRGB() | 0xFF000000) : color);
-        int at = (int) Math.round(screenCoordinate(guide));
-        boolean horizontal = guide.orientation() == Orientation.HORIZONTAL;
-        int length = horizontal ? canvas.getWidth() : canvas.getHeight();
-        int step = highlighted ? length : 2 * DASH;
-        for (int start = 0; start < length; start += step) {
-            int piece = highlighted ? length : Math.min(DASH, length - start);
-            if (horizontal) {
-                screenGraphics.fillRect(start, at, piece, 1);
-            } else {
-                screenGraphics.fillRect(at, start, 1, piece);
-            }
-        }
-    }
-
     public void dispose() {
         if (disposed) {
             return;
         }
         disposed = true;
-        removeChrome();
-        currentDrag = null;
         preferences.removeListener(preferencesListener);
         document().removeGuideListener(guideListener);
         removers.forEach(Runnable::run);

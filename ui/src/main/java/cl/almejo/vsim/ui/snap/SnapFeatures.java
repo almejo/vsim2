@@ -19,14 +19,16 @@ import javax.swing.SwingUtilities;
 import java.awt.Component;
 import java.awt.event.ActionEvent;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 
 /**
  * «Ajustar» in one editor view (alignment-guides spec §2): the magnet toggle in the toolbar right after the tool
  * group and in Ver, and Ver ▸ «Ajustar a ▸» with Piezas / Guías / Líneas de la cuadrícula, all on the
- * {@link AppPreferences} snap booleans (so every view shows the same state). The view's canvas snaps with a
+ * {@link AppPreferences} snap booleans (so every view shows the same state). Each pane of the view snaps with a
  * {@link DefaultSnapper}; when a snap preference, the viewport, the guides or the document (another view's edit)
  * change, the canvas's tool redoes its snapped preview ({@code refreshSnap}). {@link #dispose()} takes back the
  * button, the items, the shortcut registrations, the snapper and every listener.
@@ -40,7 +42,8 @@ public final class SnapFeatures {
 
     private final EditorView view;
     private final AppPreferences preferences;
-    private final DefaultSnapper snapper;
+    /** Each pane snaps with its own snapper (it measures that pane). */
+    private final Map<CircuitCanvas, DefaultSnapper> snappers = new LinkedHashMap<>();
     private final Action toggle;
     private final Action parts;
     private final Action guides;
@@ -55,9 +58,6 @@ public final class SnapFeatures {
     public SnapFeatures(EditorView view) {
         this.view = view;
         this.preferences = view.services().preferences();
-        CircuitCanvas canvas = view.canvas();
-        this.snapper = new DefaultSnapper(preferences, canvas::getSize);
-        removals.add(canvas.useSnapper(snapper));
         this.toggle = choice("action.snap", preferences::snapToAlignments, preferences::setSnapToAlignments);
         Icons.install(toggle, SnapIcons.SNAP);
         this.parts = choice("action.snapToParts", preferences::snapToParts, preferences::setSnapToParts);
@@ -89,7 +89,7 @@ public final class SnapFeatures {
         Runnable preferencesListener = this::preferencesChanged;
         preferences.addListener(preferencesListener);
         removals.add(() -> preferences.removeListener(preferencesListener));
-        removals.add(canvas.addViewportListener(this::refreshSnap));
+        removals.add(view.forEachPane(this::installOn));
         CircuitDocument document = view.openDocument().document();
         Runnable guideListener = this::refreshSnap;
         document.addGuideListener(guideListener);
@@ -120,9 +120,22 @@ public final class SnapFeatures {
         return gridLines;
     }
 
-    /** The snapper the view's canvas uses. */
+    /** The snapper the active pane uses. */
     public DefaultSnapper snapper() {
-        return snapper;
+        return snappers.get(view.canvas());
+    }
+
+    /** On one pane: its snapper, and a pan or zoom there redoes its tool's snapped preview. */
+    private Runnable installOn(CircuitCanvas pane) {
+        DefaultSnapper snapper = new DefaultSnapper(preferences, pane::getSize);
+        snappers.put(pane, snapper);
+        Runnable snapperRemover = pane.useSnapper(snapper);
+        Runnable viewportRemover = pane.addViewportListener(() -> refreshSnap(pane));
+        return () -> {
+            viewportRemover.run();
+            snapperRemover.run();
+            snappers.remove(pane);
+        };
     }
 
     /** What the toggle's tooltip says for these choices: what is snapped to, or that nothing is chosen. */
@@ -181,9 +194,16 @@ public final class SnapFeatures {
         }
     }
 
+    /** Every pane's tool redoes its snapped preview (a gesture can be under way in any of them). */
     private void refreshSnap() {
         if (!disposed) {
-            view.canvas().tool().refreshSnap(view.canvas());
+            List.copyOf(snappers.keySet()).forEach(this::refreshSnap);
+        }
+    }
+
+    private void refreshSnap(CircuitCanvas pane) {
+        if (!disposed) {
+            pane.tool().refreshSnap(pane);
         }
     }
 
