@@ -102,10 +102,19 @@ public sealed interface EditOperation {
         }
     }
 
-    /** An alignment guide across the canvas. */
-    record AddGuide(Guide.Orientation orientation, int position) implements EditOperation {
+    /**
+     * An alignment guide across the canvas. {@code layoutOnly}: the AI adds it only to align while it works, so it
+     * goes away when the task ends unless the task's end asks to keep it (spec §7); a guide that was there already is
+     * never taken away.
+     */
+    record AddGuide(Guide.Orientation orientation, int position, boolean layoutOnly) implements EditOperation {
         public AddGuide {
             Objects.requireNonNull(orientation, "orientation");
+        }
+
+        /** A guide that stays (not only to align). */
+        public AddGuide(Guide.Orientation orientation, int position) {
+            this(orientation, position, false);
         }
     }
 

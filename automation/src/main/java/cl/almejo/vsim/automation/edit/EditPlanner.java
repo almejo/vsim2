@@ -101,8 +101,9 @@ final class EditPlanner {
     private static final int FRAME_TITLE_ROOM = 2;
 
     /** What the call leaves: the candidate circuit and what the receipt reports. */
+    /** {@code layoutGuides}: the guides this edit added only to align ({@link AddGuide#layoutOnly}). */
     record PlannedEdit(CircuitDocument candidate, Map<String, String> aliases, List<ConnectionReport> connections,
-                       List<CreatedComponent> components, List<String> warnings) {
+                       List<CreatedComponent> components, List<String> warnings, List<Guide> layoutGuides) {
     }
 
     private final CircuitDocument original;
@@ -118,6 +119,7 @@ final class EditPlanner {
     private final List<ConnectionReport> connections = new ArrayList<>();
     private final List<CreatedComponent> components = new ArrayList<>();
     private final List<String> warnings = new ArrayList<>();
+    private final List<Guide> layoutGuides = new ArrayList<>();
     private int operationIndex;
 
     private EditPlanner(CircuitDocument original, ComponentTypeRegistry liveRegistry,
@@ -161,7 +163,7 @@ final class EditPlanner {
         }
         planner.warnAboutNewWidthMismatches();
         return new PlannedEdit(planner.candidate, planner.aliases, planner.connections, planner.components,
-                planner.warnings);
+                planner.warnings, List.copyOf(planner.layoutGuides));
     }
 
     private void carryOut(EditOperation operation) {
@@ -384,8 +386,13 @@ final class EditPlanner {
 
     private void addGuide(AddGuide operation) {
         Guide guide = new Guide(operation.orientation(), operation.position());
-        SetGuidesCommand.adding(candidate, guide).ifPresentOrElse(command -> command.apply(candidate),
-                () -> warnings.add(at() + "that guide was there already"));
+        SetGuidesCommand.adding(candidate, guide).ifPresentOrElse(command -> {
+            command.apply(candidate);
+            if (operation.layoutOnly()) {
+                layoutGuides.add(guide);
+            }
+        }, () -> warnings.add(at() + "that guide was there already" + (operation.layoutOnly()
+                ? " (it is not yours, so it stays when the task ends)" : "")));
     }
 
     private void removeGuide(RemoveGuide operation) {

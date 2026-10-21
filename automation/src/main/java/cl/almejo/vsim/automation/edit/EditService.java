@@ -11,7 +11,10 @@ import cl.almejo.vsim.automation.UndoOutcome;
 import cl.almejo.vsim.core.command.Command;
 import cl.almejo.vsim.core.command.History;
 import cl.almejo.vsim.core.command.ReplaceContentCommand;
+import cl.almejo.vsim.core.command.SetGuidesCommand;
+import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.core.document.Guide;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -101,7 +104,7 @@ public final class EditService {
         circuit.history().execute(command);
         EditReceipt receipt = receipt(true, circuit.version(), planned, changes, List.of());
         log.record(request, receipt);
-        task.ifPresent(found -> found.recordEdit(command, changes));
+        task.ifPresent(found -> found.recordEdit(command, changes, planned.layoutGuides()));
         return receipt;
     }
 
@@ -149,7 +152,7 @@ public final class EditService {
         Objects.requireNonNull(title, "title");
         Objects.requireNonNull(stages, "stages");
         editorWait.await(host.onCircuit(document, circuit -> Boolean.TRUE));
-        runningTaskOf(document).ifPresent(running -> endTask(running.info().taskId()));
+        runningTaskOf(document).ifPresent(running -> endTask(running.info().taskId(), false));
         TaskInfo info = new TaskInfo("task-" + lastTaskNumber.incrementAndGet(), document, title);
         AiTask task = new AiTask(info, stages);
         synchronized (tasks) {
@@ -166,13 +169,60 @@ public final class EditService {
         requireTask(taskId).replacePlan(stages);
     }
 
-    /** Ends a task and announces what it changed; a task that ended or was stopped already stays as it is. */
-    public TaskInfo endTask(String taskId) {
+    /**
+     * Ends a task and announces what it changed; a task that ended or was stopped already stays as it is. The guides
+     * it added only to align ({@link EditOperation.AddGuide#layoutOnly}) and that are still there go away first, as
+     * one more step of the task (so «Deshacer lo que hizo la IA» brings them back with the rest), unless
+     * {@code keepLayoutGuides} (the AI or the user wants them). Not on the editor thread: it waits for it.
+     */
+    public TaskEnding endTask(String taskId, boolean keepLayoutGuides) {
         AiTask task = requireTask(taskId);
-        if (task.end()) {
-            announce(listener -> listener.taskEnded(task.info(), task.changedElementIds()));
+        if (!task.end()) {
+            return new TaskEnding(task.info(), 0);
         }
-        return task.info();
+        int removed = keepLayoutGuides || task.layoutGuides().isEmpty() ? 0 : removeLayoutGuides(task);
+        announce(listener -> listener.taskEnded(task.info(), task.changedElementIds()));
+        return new TaskEnding(task.info(), removed);
+    }
+
+    /** {@link #endTask(String, boolean)} taking the layout-only guides away. */
+    public TaskInfo endTask(String taskId) {
+        return endTask(taskId, false).task();
+    }
+
+    /** How many of the task's layout-only guides were still there and went away; 0 once the circuit is closed. */
+    private int removeLayoutGuides(AiTask task) {
+        try {
+            return editorWait.await(host.onCircuit(task.info().document(),
+                    circuit -> removeLayoutGuides(circuit, task)));
+        } catch (AutomationException closed) {
+            if (closed.error() == AutomationError.DOCUMENT_CLOSED) {
+                return 0;
+            }
+            throw closed;
+        }
+    }
+
+    /** Editor thread: one step of the task that takes away its layout-only guides still in the circuit. */
+    private static int removeLayoutGuides(EditableCircuit circuit, AiTask task) {
+        CircuitDocument candidate = circuit.document().copy();
+        int removed = 0;
+        for (Guide guide : task.layoutGuides()) {
+            Optional<SetGuidesCommand> removal = SetGuidesCommand.removing(candidate, guide);
+            if (removal.isPresent()) {
+                removal.get().apply(candidate);
+                removed++;
+            }
+        }
+        if (removed == 0) {
+            return 0;
+        }
+        ReplaceContentCommand content = ReplaceContentCommand.between(circuit.document(), candidate,
+                AiEditCommand.DESCRIPTION);
+        AiEditCommand command = new AiEditCommand(content, Optional.of(task.info().taskId()));
+        circuit.history().execute(command);
+        task.recordEdit(command, EditReceipt.ElementChanges.NONE, List.of());
+        return removed;
     }
 
     /** «Detener»: the task's applied edits stay (undoable), its next edits are refused, and listeners hear it. */

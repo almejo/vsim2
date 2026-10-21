@@ -3,8 +3,10 @@ package cl.almejo.vsim.mcp.tools;
 import cl.almejo.vsim.automation.AutomationApi;
 import cl.almejo.vsim.automation.TaskInfo;
 import cl.almejo.vsim.automation.UndoOutcome;
+import cl.almejo.vsim.automation.edit.TaskEnding;
 import cl.almejo.vsim.automation.edit.TaskStage;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -90,12 +92,31 @@ final class TaskTools {
 
     private static Tool endTask(AutomationApi api) {
         return new Tool(END_TASK, "End the task",
-                "Ends the task: the user sees «La IA terminó: <title>», what it changed glows briefly and the "
-                        + "editor settings it changed go back to the user's. Say what VSim measured, not more.",
+                "Ends the task: the user sees «La IA terminó: <title>», what it changed glows briefly, the view "
+                        + "goes there if it is off screen and the editor settings it changed go back to the user's. "
+                        + "The guides it added with layoutOnly go away as one more step of the task, unless "
+                        + "keepLayoutGuides is true (when you or the user want them). Say what VSim measured, not "
+                        + "more.",
                 Schema.object("").property("taskId", Schema.nonEmptyString("From vsim_begin_task"))
+                        .property("keepLayoutGuides", Schema.bool("Keep the guides added with layoutOnly "
+                                + "(default false: they go away)"))
                         .required("taskId").build(),
-                taskSchema(), Tool.Hints.CHANGES_IDEMPOTENT, List.of(Map.of("taskId", "task-1")),
-                arguments -> Tool.Output.of(task(api.endTask(arguments.string("taskId")))));
+                Schema.result("The task")
+                        .property("taskId", Schema.string("The task"))
+                        .property("document", Schema.string("The circuit it works on"))
+                        .property("title", Schema.string("What the user saw"))
+                        .property("layoutGuidesRemoved", Schema.integer("Guides added with layoutOnly that went "
+                                + "away now"))
+                        .required("taskId", "document", "title", "layoutGuidesRemoved").build(),
+                Tool.Hints.CHANGES_IDEMPOTENT, List.of(Map.of("taskId", "task-1"),
+                        Map.of("taskId", "task-1", "keepLayoutGuides", true)),
+                arguments -> {
+                    TaskEnding ending = api.endTask(arguments.string("taskId"),
+                            arguments.bool("keepLayoutGuides", false));
+                    Map<String, Object> result = new LinkedHashMap<>(task(ending.task()));
+                    result.put("layoutGuidesRemoved", ending.layoutGuidesRemoved());
+                    return Tool.Output.of(result);
+                });
     }
 
     private static Tool undoTask(AutomationApi api) {

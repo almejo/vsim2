@@ -23,6 +23,7 @@ import cl.almejo.vsim.automation.edit.EditReceipt;
 import cl.almejo.vsim.automation.edit.EditRequest;
 import cl.almejo.vsim.automation.edit.EditService;
 import cl.almejo.vsim.automation.edit.OrderedExecutor;
+import cl.almejo.vsim.automation.edit.TaskEnding;
 import cl.almejo.vsim.automation.edit.TaskStage;
 
 import java.time.Duration;
@@ -273,9 +274,17 @@ public final class AutomationApi {
         edits.updatePlan(taskId, stages);
     }
 
-    /** Ends a task; listeners hear it end with the elements it changed. */
+    /** Ends a task; listeners hear it end with the elements it changed. Its layout-only guides go away. */
     public TaskInfo endTask(String taskId) {
         return edits.endTask(taskId);
+    }
+
+    /**
+     * Ends a task; its guides added only to align go away first, as one more step of it, unless
+     * {@code keepLayoutGuides} (spec §7). Listeners hear it end with the elements it changed.
+     */
+    public TaskEnding endTask(String taskId, boolean keepLayoutGuides) {
+        return edits.endTask(taskId, keepLayoutGuides);
     }
 
     /** «Detener»: stops the task; its applied edits stay and its next ones are refused. */

@@ -520,6 +520,64 @@ class EditServiceTest {
         assertThat(events).containsExactly("started Sumador", "stopped Sumador");
     }
 
+    // --- guides used only to align (spec §7) ---
+
+    @Test
+    void guidesAddedOnlyToAlignGoAwayWhenTheTaskEndsAsOneMoreStepOfTheTask() {
+        TaskInfo task = service.beginTask(new DocumentId(DOCUMENT), "Alinear", List.of());
+        service.edit(taskRequest(task, new AddGuide(Guide.Orientation.VERTICAL, 12, true),
+                new AddGuide(Guide.Orientation.HORIZONTAL, 4, false), place("gate", "nand2", 12, 4)));
+
+        TaskEnding ending = service.endTask(task.taskId(), false);
+
+        assertThat(ending.layoutGuidesRemoved()).isEqualTo(1);
+        assertThat(circuit.document().guides()).containsExactly(new Guide(Guide.Orientation.HORIZONTAL, 4));
+        assertThat(circuit.document().components()).hasSize(1);
+        assertThat(service.undoTask(task.taskId())).isEqualTo(new UndoOutcome(2, false));
+        assertThat(circuit.document().isEmpty()).isTrue();
+        assertThat(circuit.document().guides()).isEmpty();
+    }
+
+    @Test
+    void guidesAddedOnlyToAlignStayWhenTheAiOrTheUserAskedToKeepThem() {
+        TaskInfo task = service.beginTask(new DocumentId(DOCUMENT), "Alinear", List.of());
+        service.edit(taskRequest(task, new AddGuide(Guide.Orientation.VERTICAL, 12, true)));
+        long versionBefore = circuit.version().value();
+
+        TaskEnding ending = service.endTask(task.taskId(), true);
+
+        assertThat(ending.layoutGuidesRemoved()).isZero();
+        assertThat(circuit.document().guides()).containsExactly(new Guide(Guide.Orientation.VERTICAL, 12));
+        assertThat(circuit.version().value()).isEqualTo(versionBefore);
+    }
+
+    @Test
+    void aGuideThatWasThereAlreadyOrThatIsGoneIsNeverTouchedAtTheEnd() {
+        service.edit(request(new AddGuide(Guide.Orientation.VERTICAL, 12)));
+        TaskInfo task = service.beginTask(new DocumentId(DOCUMENT), "Alinear", List.of());
+        service.edit(taskRequest(task, new AddGuide(Guide.Orientation.VERTICAL, 12, true),
+                new AddGuide(Guide.Orientation.HORIZONTAL, 6, true)));
+        service.edit(taskRequest(task, new RemoveGuide(Guide.Orientation.HORIZONTAL, 6)));
+        long versionBefore = circuit.version().value();
+
+        TaskEnding ending = service.endTask(task.taskId(), false);
+
+        assertThat(ending.layoutGuidesRemoved()).isZero();
+        assertThat(circuit.document().guides()).containsExactly(new Guide(Guide.Orientation.VERTICAL, 12));
+        assertThat(circuit.version().value()).isEqualTo(versionBefore);
+    }
+
+    @Test
+    void aStoppedTaskLeavesItsAlignmentGuidesAsItLeavesEverythingElse() {
+        TaskInfo task = service.beginTask(new DocumentId(DOCUMENT), "Alinear", List.of());
+        service.edit(taskRequest(task, new AddGuide(Guide.Orientation.VERTICAL, 12, true)));
+
+        service.stopTask(task.taskId());
+        service.endTask(task.taskId(), false);
+
+        assertThat(circuit.document().guides()).containsExactly(new Guide(Guide.Orientation.VERTICAL, 12));
+    }
+
     @Test
     void anEditForAClosedCircuitSaysSo() {
         EditRequest request = request(place("gate", "nand2", 0, 0));

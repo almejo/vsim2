@@ -28,7 +28,9 @@ public final class VsimServerInstructions {
             - Build left to right: inputs on the left, outputs on the right, the signal flowing rightwards; leave \
             room between parts (a few grid units) and for their labels; label every input, output and block.
             - Keep wires orthogonal and tidy (TidyWires), never through a part's body. You may use alignment guides, \
-            the magnet and grid lines while working (vsim_set_editor_setting); remove guides you only used to align.
+            the magnet and grid lines while working (vsim_set_editor_setting); add a guide you only use to align with \
+            AddGuide layoutOnly true and VSim takes it away when the task ends (vsim_end_task keepLayoutGuides true \
+            keeps them, when the user wants them).
             - A «Prueba: …» note saying how to try the circuit is welcome, as in VSim's bundled examples.
             - When a stage produces a component that later stages use, create it without replacing the selection \
             (CreateComponent with replaceSelection false) so the stage stays as «cómo se hizo», and build the next \

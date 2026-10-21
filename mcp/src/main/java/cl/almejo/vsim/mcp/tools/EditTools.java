@@ -120,11 +120,14 @@ final class EditTools {
                         .property("x", Schema.integer("Top-left corner"))
                         .property("y", Schema.integer("Top-left corner"))
                         .required("text", "x", "y").build(),
-                operation("AddGuide", "An alignment guide across the canvas (remove the guides you only used to "
-                        + "align before the task ends)")
+                operation("AddGuide", "An alignment guide across the canvas. layoutOnly true for a guide you add "
+                        + "only to align while you work: VSim takes it away when the task ends (unless "
+                        + "vsim_end_task keepLayoutGuides)")
                         .property("orientation", Schema.enumeration("HORIZONTAL (y = position) or VERTICAL "
                                 + "(x = position)", ORIENTATIONS))
                         .property("position", Schema.integer("Grid units"))
+                        .property("layoutOnly", Schema.bool("Only to align: removed when the task ends (default "
+                                + "false: the guide stays)"))
                         .required("orientation", "position").build(),
                 operation("RemoveGuide", "Takes an alignment guide away")
                         .property("orientation", Schema.enumeration("HORIZONTAL or VERTICAL", ORIENTATIONS))
@@ -183,7 +186,8 @@ final class EditTools {
             case "AddNote" -> new EditOperation.AddNote(operation.optionalString("alias"), operation.string("text"),
                     operation.integer("x"), operation.integer("y"));
             case "AddGuide" -> new EditOperation.AddGuide(
-                    operation.enumeration("orientation", Guide.Orientation.class), operation.integer("position"));
+                    operation.enumeration("orientation", Guide.Orientation.class), operation.integer("position"),
+                    operation.bool("layoutOnly", false));
             case "RemoveGuide" -> new EditOperation.RemoveGuide(
                     operation.enumeration("orientation", Guide.Orientation.class), operation.integer("position"));
             case "CreateComponent" -> new EditOperation.CreateComponent(operation.optionalString("alias"),
@@ -218,7 +222,8 @@ final class EditTools {
                         + "nothing. Parts made in this call are named new:<alias>; the receipt maps aliases to real "
                         + "ids, says what each Connect joined (as pins) and lists warnings. validateOnly checks "
                         + "everything and changes nothing. Positions are grid units; lay parts out left to right "
-                        + "(inputs left, outputs right) with room between them and for their labels.",
+                        + "(inputs left, outputs right) with room between them and for their labels. A guide you "
+                        + "add only to align is AddGuide with layoutOnly true: it goes away when the task ends.",
                 Schema.object("")
                         .property("document", Common.document())
                         .property("version", Common.version())

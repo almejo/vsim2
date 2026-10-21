@@ -1,6 +1,7 @@
 package cl.almejo.vsim.automation.edit;
 
 import cl.almejo.vsim.automation.TaskInfo;
+import cl.almejo.vsim.core.document.Guide;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -24,6 +25,7 @@ public final class AiTask {
     private State state = State.RUNNING;
     private final List<AiEditCommand> edits = new ArrayList<>();
     private final Set<String> changedElementIds = new LinkedHashSet<>();
+    private final Set<Guide> layoutGuides = new LinkedHashSet<>();
 
     AiTask(TaskInfo info, List<TaskStage> stages) {
         this.info = Objects.requireNonNull(info, "info");
@@ -64,9 +66,14 @@ public final class AiTask {
         return true;
     }
 
-    /** Records an applied edit and the elements it added, changed and removed. */
-    synchronized void recordEdit(AiEditCommand edit, EditReceipt.ElementChanges changes) {
+    /**
+     * Records an applied edit, the elements it added, changed and removed, and the guides it added only to align
+     * (taken away when the task ends, spec §7).
+     */
+    synchronized void recordEdit(AiEditCommand edit, EditReceipt.ElementChanges changes,
+                                 List<Guide> addedLayoutGuides) {
         edits.add(edit);
+        layoutGuides.addAll(addedLayoutGuides);
         changedElementIds.addAll(changes.added());
         changedElementIds.addAll(changes.changed());
         changes.removed().forEach(changedElementIds::remove);
@@ -75,6 +82,11 @@ public final class AiTask {
     /** True while some edit of this task is still in the document (not undone). Editor thread only. */
     synchronized boolean hasAppliedEdits() {
         return edits.stream().anyMatch(AiEditCommand::isApplied);
+    }
+
+    /** The guides the task added only to align, in order (some may be gone since). */
+    synchronized List<Guide> layoutGuides() {
+        return List.copyOf(layoutGuides);
     }
 
     /** The elements the task added or changed and that it did not remove afterwards. */

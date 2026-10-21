@@ -186,6 +186,30 @@ class ToolCallsTest {
         assertThat(call("vsim_end_task", Map.of("taskId", task))).containsEntry("taskId", task);
     }
 
+    @Test
+    void guidesAddedOnlyToAlignGoAwayAtTheEndUnlessTheTaskKeepsThem() {
+        assertThat(tool("vsim_edit").description()).contains("layoutOnly");
+        assertThat(tool("vsim_end_task").description()).contains("keepLayoutGuides");
+        String task = beginTask();
+        call("vsim_edit", edit(task, 0, List.of(
+                Map.of("op", "AddGuide", "orientation", "VERTICAL", "position", 12, "layoutOnly", true),
+                Map.of("op", "AddGuide", "orientation", "HORIZONTAL", "position", 4))));
+
+        Map<String, Object> ended = call("vsim_end_task", Map.of("taskId", task));
+
+        assertThat(ended).containsEntry("taskId", task).containsEntry("layoutGuidesRemoved", 1);
+        assertThat(list(call("vsim_read_circuit", Map.of("document", "circuit-1", "detail", "FULL")), "guides"))
+                .singleElement().satisfies(guide -> assertThat(guide).containsEntry("orientation", "HORIZONTAL"));
+
+        String kept = beginTask();
+        call("vsim_edit", edit(kept, 2, List.of(
+                Map.of("op", "AddGuide", "orientation", "VERTICAL", "position", 20, "layoutOnly", true))));
+        assertThat(call("vsim_end_task", Map.of("taskId", kept, "keepLayoutGuides", true)))
+                .containsEntry("layoutGuidesRemoved", 0);
+        assertThat(list(call("vsim_read_circuit", Map.of("document", "circuit-1", "detail", "FULL")), "guides"))
+                .hasSize(2);
+    }
+
     // --- simulation ---
 
     @Test
