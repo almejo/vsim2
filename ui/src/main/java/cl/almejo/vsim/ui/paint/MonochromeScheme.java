@@ -34,6 +34,7 @@ public final class MonochromeScheme {
     private static final ColorScheme SCHEME = new ColorScheme(
             Color.WHITE,
             new Color(0xC8C8C8),
+            new Color(0, 0, 0, 24),
             MID_GREY,
             BLACK,
             LIGHT_GREY,

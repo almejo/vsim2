@@ -9,7 +9,7 @@ final class SchemeVariants {
     }
 
     static ColorScheme withDisplay(ColorScheme base, Color displayBackground, Color segmentOn, Color segmentOff) {
-        return new ColorScheme(base.background(), base.grid(), base.wireZero(), base.wireOne(),
+        return new ColorScheme(base.background(), base.grid(), base.gridLine(), base.wireZero(), base.wireOne(),
                 base.wireHighImpedance(), base.wireConflict(), base.wireUnknown(), base.componentStroke(),
                 base.componentFill(), base.componentShade(), base.shadow(), base.text(), base.selection(),
                 base.preview(), displayBackground, segmentOn, segmentOff, base.diagramBackground(),
@@ -17,7 +17,7 @@ final class SchemeVariants {
     }
 
     static ColorScheme withDiagram(ColorScheme base, Color diagramBackground, Color diagramGrid, Color diagramTrace) {
-        return new ColorScheme(base.background(), base.grid(), base.wireZero(), base.wireOne(),
+        return new ColorScheme(base.background(), base.grid(), base.gridLine(), base.wireZero(), base.wireOne(),
                 base.wireHighImpedance(), base.wireConflict(), base.wireUnknown(), base.componentStroke(),
                 base.componentFill(), base.componentShade(), base.shadow(), base.text(), base.selection(),
                 base.preview(), base.displayBackground(), base.segmentOn(), base.segmentOff(), diagramBackground,

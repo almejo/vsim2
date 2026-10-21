@@ -22,7 +22,7 @@ class CustomColorSchemesTest {
     }
 
     @Test
-    void aSavedSchemeComesBackWithAllTwentyRolesAndTheirAlpha() {
+    void aSavedSchemeComesBackWithAllTwentyOneRolesAndTheirAlpha() {
         NamedColorScheme saved = schemes.save("Mío", distinctColors());
         assertThat(saved.id()).isEqualTo("custom-1");
         assertThat(saved.name()).isEqualTo("Mío");
@@ -53,6 +53,27 @@ class CustomColorSchemesTest {
         assertThat(found.name()).isEqualTo("custom-1");
         assertThat(found.scheme().grid()).isEqualTo(ColorScheme.LIGHT.grid());
         assertThat(found.scheme().background()).isEqualTo(ColorSchemes.DARK.background());
+    }
+
+    @Test
+    void aSchemeStoredBeforeTheGridLinesDerivesThemFromItsOwnDots() {
+        NamedColorScheme saved = schemes.save("Antiguo", ColorSchemes.DARK.with(ColorRole.GRID, new Color(0x405060)));
+        preferences.colorSchemesNode().node(saved.id()).remove("gridLine");
+
+        ColorScheme found = schemes.byId(saved.id()).orElseThrow().scheme();
+
+        assertThat(found.gridLine()).isEqualTo(ColorScheme.derivedGridLine(new Color(0x405060)));
+        assertThat(found.grid()).isEqualTo(new Color(0x405060));
+        assertThat(found.background()).isEqualTo(ColorSchemes.DARK.background());
+    }
+
+    @Test
+    void anUnreadableGridLineIsDerivedFromTheDotsToo() {
+        NamedColorScheme saved = schemes.save("Roto", ColorSchemes.DARK);
+        preferences.colorSchemesNode().node(saved.id()).put("gridLine", "gris");
+
+        assertThat(schemes.byId(saved.id()).orElseThrow().scheme().gridLine())
+                .isEqualTo(ColorScheme.derivedGridLine(ColorSchemes.DARK.grid()));
     }
 
     @Test

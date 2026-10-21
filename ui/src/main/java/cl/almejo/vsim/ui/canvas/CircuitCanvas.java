@@ -19,6 +19,7 @@ import cl.almejo.vsim.core.io.FragmentFormat;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.core.tunnel.TunnelKind;
 import cl.almejo.vsim.core.tunnel.Tunnels;
+import cl.almejo.vsim.ui.app.AppPreferences.GridStyle;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.edges.EdgeHandle;
 import cl.almejo.vsim.ui.paint.ColorScheme;
@@ -66,6 +67,7 @@ import java.awt.geom.Point2D;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.TooManyListenersException;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -122,6 +124,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     private boolean toolTipProviderSet;
     private boolean pressIntercepted;
     private Tool tool = defaultTool;
+    private GridStyle gridStyle = GridStyle.DOTS;
     private SimulationSnapshot displayedSnapshot = SimulationSnapshot.EMPTY;
     private boolean animationSuspended;
     private BooleanSupplier onScreen = this::isOnScreen;
@@ -952,6 +955,19 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         return hitTester;
     }
 
+    /** How the background grid is drawn (Ver ▸ Cuadrícula); dots until the grid extension says otherwise. */
+    public GridStyle gridStyle() {
+        return gridStyle;
+    }
+
+    public void setGridStyle(GridStyle style) {
+        GridStyle chosen = Objects.requireNonNull(style, "style");
+        if (chosen != gridStyle) {
+            gridStyle = chosen;
+            repaint();
+        }
+    }
+
     @Override
     public Viewport viewport() {
         return viewport;
@@ -1098,7 +1114,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     protected void paintComponent(Graphics graphics) {
         Graphics2D local = (Graphics2D) graphics.create();
         try {
-            renderer.paintBackground(local, viewport, getWidth(), getHeight());
+            renderer.paintBackground(local, viewport, getWidth(), getHeight(), gridStyle);
             local.transform(viewport.documentTransform());
             RenderState state = new RenderState(openDocument.document(), openDocument.netlist(),
                     openDocument.netlistToken(), displayedSnapshot, selection.ids(), marchingAnts.phase(),

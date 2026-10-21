@@ -6,6 +6,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.awt.Color;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
 
@@ -59,9 +60,10 @@ class ColorSchemesTest {
     }
 
     @Test
-    void theTwentyRolesReadAndReplaceEachColorOfAScheme() {
-        assertThat(ColorRole.values()).hasSize(20);
-        assertThat(ColorRole.values()).extracting(ColorRole::key).containsExactly("background", "grid", "wireZero",
+    void theTwentyOneRolesReadAndReplaceEachColorOfAScheme() {
+        assertThat(ColorRole.values()).hasSize(21);
+        assertThat(ColorRole.values()).extracting(ColorRole::key).containsExactly("background", "grid", "gridLine",
+                "wireZero",
                 "wireOne", "wireHighImpedance", "wireConflict", "wireUnknown", "componentStroke", "componentFill",
                 "componentShade", "shadow", "text", "selection", "preview", "displayBackground", "segmentOn",
                 "segmentOff", "diagramBackground", "diagramGrid", "diagramTrace");
@@ -73,6 +75,35 @@ class ColorSchemesTest {
                 assertThat(other.get(changed)).isEqualTo(other == role ? marker : other.get(ColorSchemes.DARK));
             }
         }
+    }
+
+    @Test
+    void everySchemeHasAFaintGridLineAndAStrongerTenUnitLine() {
+        List<ColorScheme> schemes = new ArrayList<>(ALL);
+        schemes.add(MonochromeScheme.of(ColorScheme.LIGHT));
+        for (ColorScheme scheme : schemes) {
+            Color minor = over(scheme.gridLine(), scheme.background());
+            Color major = over(scheme.gridLineMajor(), scheme.background());
+            assertThat(minor).as("minor line on its board").isNotEqualTo(scheme.background());
+            assertThat(contrast(minor, scheme.background())).as("minor line is faint").isLessThan(1.5);
+            assertThat(contrast(major, scheme.background())).as("major line is stronger")
+                    .isGreaterThan(contrast(minor, scheme.background()));
+            assertThat(scheme.gridLineMajor().getRGB() & 0xFFFFFF).isEqualTo(scheme.gridLine().getRGB() & 0xFFFFFF);
+        }
+    }
+
+    @Test
+    void theDerivedGridLineIsTheDotsColourAtFortyPercent() {
+        assertThat(ColorScheme.derivedGridLine(new Color(0x102030))).isEqualTo(new Color(0x10, 0x20, 0x30, 102));
+        assertThat(ColorScheme.derivedGridLine(new Color(10, 20, 30, 100))).isEqualTo(new Color(10, 20, 30, 40));
+    }
+
+    /** {@code color} composited over the opaque {@code below}. */
+    private static Color over(Color color, Color below) {
+        double alpha = color.getAlpha() / 255.0;
+        return new Color((int) Math.round(color.getRed() * alpha + below.getRed() * (1 - alpha)),
+                (int) Math.round(color.getGreen() * alpha + below.getGreen() * (1 - alpha)),
+                (int) Math.round(color.getBlue() * alpha + below.getBlue() * (1 - alpha)));
     }
 
     @Test

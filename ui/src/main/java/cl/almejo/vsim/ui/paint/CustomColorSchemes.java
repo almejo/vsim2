@@ -20,7 +20,8 @@ import java.util.regex.Pattern;
  * The colour schemes the user made (M6.8), kept in the preferences: child node {@code colorSchemes/<id>} with the key
  * {@code name} and one key per {@link ColorRole} holding {@code #RRGGBBAA}. Ids are {@code custom-<n>}, one more than
  * the highest stored, so an id is never reused while it is stored. Every change tells the preference listeners, so
- * the theme manager repaints with an edited active scheme at once.
+ * the theme manager repaints with an edited active scheme at once. A scheme stored before a role existed gets that
+ * role from {@link ColorScheme#LIGHT}, except the grid line, which is derived from the scheme's own dots.
  */
 public final class CustomColorSchemes {
 
@@ -59,8 +60,10 @@ public final class CustomColorSchemes {
         }
         Preferences node = root().node(id);
         String name = node.get(NAME, "");
-        ColorScheme scheme = ColorRole.scheme(role -> parse(node.get(role.key(), ""))
+        ColorScheme stored = ColorRole.scheme(role -> parse(node.get(role.key(), ""))
                 .orElseGet(() -> role.get(ColorScheme.LIGHT)));
+        ColorScheme scheme = parse(node.get(ColorRole.GRID_LINE.key(), "")).isPresent() ? stored
+                : stored.with(ColorRole.GRID_LINE, ColorScheme.derivedGridLine(stored.grid()));
         return Optional.of(new NamedColorScheme(id, name.isBlank() ? id : name, scheme));
     }
 

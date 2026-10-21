@@ -8,7 +8,7 @@ import java.awt.Color;
  * Colors of the circuit drawing, independent of the Swing theme. M4-D adds the other schemes; painters read the
  * scheme they are given on every paint and never cache colors.
  */
-public record ColorScheme(Color background, Color grid, Color wireZero, Color wireOne, Color wireHighImpedance,
+public record ColorScheme(Color background, Color grid, Color gridLine, Color wireZero, Color wireOne, Color wireHighImpedance,
                           Color wireConflict, Color wireUnknown, Color componentStroke, Color componentFill,
                           Color componentShade, Color shadow, Color text, Color selection, Color preview,
                           Color displayBackground, Color segmentOn, Color segmentOff,
@@ -17,6 +17,7 @@ public record ColorScheme(Color background, Color grid, Color wireZero, Color wi
     public static final ColorScheme LIGHT = new ColorScheme(
             new Color(0xF7F8FA),
             new Color(0xC9CED6),
+            derivedGridLine(new Color(0xC9CED6)),
             new Color(0x1B5E20),
             new Color(0x3CC23C),
             new Color(0x2962FF),
@@ -41,6 +42,25 @@ public record ColorScheme(Color background, Color grid, Color wireZero, Color wi
     private static final int BORDER_ALPHA = 170;
     private static final int LIGHT_VEIL_ALPHA = 115;
     private static final int DARK_VEIL_ALPHA = 140;
+    /** How much of the dots' colour a derived grid line keeps (spec §4.6: very faint, 35–45 %). */
+    private static final double GRID_LINE_OPACITY = 0.4;
+    /** The ten-unit line is the grid line at about twice its alpha. */
+    private static final int MAJOR_GRID_LINE_FACTOR = 2;
+
+    /**
+     * The grid line of a scheme that has none of its own (a custom scheme stored before the grid of lines): the
+     * dots' colour {@code grid} at 40 % of its alpha, so it is drawn over the board as a faint line.
+     */
+    public static Color derivedGridLine(Color grid) {
+        int alpha = (int) Math.round(grid.getAlpha() * GRID_LINE_OPACITY);
+        return new Color((grid.getRGB() & 0xFFFFFF) | (alpha << 24), true);
+    }
+
+    /** The stronger line drawn every ten units: {@link #gridLine()} at twice its alpha (derived, not a role). */
+    public Color gridLineMajor() {
+        int alpha = Math.min(255, gridLine.getAlpha() * MAJOR_GRID_LINE_FACTOR);
+        return new Color((gridLine.getRGB() & 0xFFFFFF) | (alpha << 24), true);
+    }
 
     /** This scheme with {@code role} painted in {@code color} (M6.8 scheme editor). */
     public ColorScheme with(ColorRole role, Color color) {

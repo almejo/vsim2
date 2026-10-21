@@ -52,7 +52,7 @@ class SchemeEditorPanelTest {
         assertThat(panel.name()).isEqualTo("Oscuro (copia)");
         assertThat(panel.scheme()).isEqualTo(ColorSchemes.DARK);
         assertThat(panel.preview().scheme()).isEqualTo(ColorSchemes.DARK);
-        assertThat(panel.roleButtons()).hasSize(20);
+        assertThat(panel.roleButtons()).hasSize(21);
         assertThat(panel.roleButton(ColorRole.BACKGROUND).getText()).isEqualTo("#1E1F22");
         assertThat(panel.roleButton(ColorRole.SHADOW).getText()).isEqualTo("#0000005A");
         assertThat(panel.roleLabel(ColorRole.WIRE_ONE).getText()).isEqualTo("Cable en 1");

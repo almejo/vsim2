@@ -4,12 +4,13 @@ import java.awt.Color;
 import java.util.function.Function;
 
 /**
- * The twenty colours of a {@link ColorScheme}, in the record's order (M6.8 custom schemes): {@link #key()} names the
+ * The twenty-one colours of a {@link ColorScheme}, in the record's order (M6.8 custom schemes): {@link #key()} names the
  * colour in the stored scheme and in the message {@code scheme.role.<key>}.
  */
 public enum ColorRole {
     BACKGROUND("background", ColorScheme::background),
     GRID("grid", ColorScheme::grid),
+    GRID_LINE("gridLine", ColorScheme::gridLine),
     WIRE_ZERO("wireZero", ColorScheme::wireZero),
     WIRE_ONE("wireOne", ColorScheme::wireOne),
     WIRE_HIGH_IMPEDANCE("wireHighImpedance", ColorScheme::wireHighImpedance),
@@ -48,8 +49,8 @@ public enum ColorRole {
 
     /** A scheme with each role's colour given by {@code colors}. */
     public static ColorScheme scheme(Function<ColorRole, Color> colors) {
-        return new ColorScheme(colors.apply(BACKGROUND), colors.apply(GRID), colors.apply(WIRE_ZERO),
-                colors.apply(WIRE_ONE), colors.apply(WIRE_HIGH_IMPEDANCE), colors.apply(WIRE_CONFLICT),
+        return new ColorScheme(colors.apply(BACKGROUND), colors.apply(GRID), colors.apply(GRID_LINE),
+                colors.apply(WIRE_ZERO), colors.apply(WIRE_ONE), colors.apply(WIRE_HIGH_IMPEDANCE), colors.apply(WIRE_CONFLICT),
                 colors.apply(WIRE_UNKNOWN), colors.apply(COMPONENT_STROKE), colors.apply(COMPONENT_FILL),
                 colors.apply(COMPONENT_SHADE), colors.apply(SHADOW), colors.apply(TEXT), colors.apply(SELECTION),
                 colors.apply(PREVIEW), colors.apply(DISPLAY_BACKGROUND), colors.apply(SEGMENT_ON),

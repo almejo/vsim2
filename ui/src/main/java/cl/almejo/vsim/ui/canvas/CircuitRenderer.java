@@ -14,6 +14,7 @@ import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.netlist.Net;
 import cl.almejo.vsim.core.netlist.PinRef;
 import cl.almejo.vsim.core.tunnel.Tunnels;
+import cl.almejo.vsim.ui.app.AppPreferences.GridStyle;
 import cl.almejo.vsim.ui.frames.FramePainter;
 import cl.almejo.vsim.ui.paint.Appearance;
 import cl.almejo.vsim.ui.paint.ColorScheme;
@@ -46,6 +47,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -78,6 +80,9 @@ public final class CircuitRenderer {
     private static final double BUS_LABEL_GAP = 4;
     private static final double OUTLINE_GAP = 3;
     private static final double MINIMUM_DOT_SPACING = 6;
+    /** The grid of lines: the old VSim's 2-unit grid, and a stronger line every 10 units (engineering paper). */
+    private static final int MINOR_LINE_STEP = 2;
+    private static final int MAJOR_LINE_STEP = 10;
 
     private final JunctionCache junctionCache = new JunctionCache();
     private final CrossingCache crossingCache = new CrossingCache();
@@ -109,24 +114,82 @@ public final class CircuitRenderer {
         return highlights;
     }
 
-    /** Background and grid dots, in screen coordinates. */
-    public void paintBackground(Graphics2D graphics, Viewport viewport, int width, int height) {
+    /**
+     * Background and grid in {@code style} (dots, lines or nothing), in screen coordinates. Editor chrome only: image
+     * export and the PDF paint their own background and never call this.
+     */
+    public void paintBackground(Graphics2D graphics, Viewport viewport, int width, int height, GridStyle style) {
         ColorScheme scheme = scheme();
         graphics.setColor(scheme.background());
         graphics.fillRect(0, 0, width, height);
+        switch (style) {
+            case DOTS -> paintGridDots(graphics, viewport, width, height);
+            case LINES -> paintGridLines(graphics, viewport, width, height);
+            case NONE -> {
+            }
+        }
+    }
+
+    /** Today's grid: a dot on every unit (every fourth one when they would be too close). */
+    public void paintGridDots(Graphics2D graphics, Viewport viewport, int width, int height) {
         int step = viewport.pixelsPerUnit() < MINIMUM_DOT_SPACING ? 4 : 1;
         Point2D topLeft = viewport.screenToGrid(0, 0);
         Point2D bottomRight = viewport.screenToGrid(width, height);
         int firstX = Math.floorDiv((int) Math.floor(topLeft.getX()), step) * step;
         int firstY = Math.floorDiv((int) Math.floor(topLeft.getY()), step) * step;
         int dotSize = viewport.zoom() >= 2 ? 2 : 1;
-        graphics.setColor(scheme.grid());
+        graphics.setColor(scheme().grid());
         for (int gridX = firstX; gridX <= bottomRight.getX(); gridX += step) {
             for (int gridY = firstY; gridY <= bottomRight.getY(); gridY += step) {
                 Point2D screen = viewport.gridToScreen(gridX, gridY);
                 graphics.fillRect((int) Math.round(screen.getX()), (int) Math.round(screen.getY()), dotSize, dotSize);
             }
         }
+    }
+
+    /**
+     * Engineering paper (spec §4.6): a 1 px line every {@value #MINOR_LINE_STEP} units and a stronger one every
+     * {@value #MAJOR_LINE_STEP}; the lines closer than the dots' minimum spacing are left out.
+     */
+    private void paintGridLines(Graphics2D graphics, Viewport viewport, int width, int height) {
+        OptionalInt finest = finestLineStep(viewport.pixelsPerUnit());
+        if (finest.isEmpty()) {
+            return;
+        }
+        int step = finest.getAsInt();
+        ColorScheme scheme = scheme();
+        Point2D topLeft = viewport.screenToGrid(0, 0);
+        Point2D bottomRight = viewport.screenToGrid(width, height);
+        for (int gridX = firstMultiple(topLeft.getX(), step); gridX <= bottomRight.getX(); gridX += step) {
+            graphics.setColor(lineColor(scheme, gridX));
+            graphics.fillRect((int) Math.round(viewport.gridToScreen(gridX, 0).getX()), 0, 1, height);
+        }
+        for (int gridY = firstMultiple(topLeft.getY(), step); gridY <= bottomRight.getY(); gridY += step) {
+            graphics.setColor(lineColor(scheme, gridY));
+            graphics.fillRect(0, (int) Math.round(viewport.gridToScreen(0, gridY).getY()), width, 1);
+        }
+    }
+
+    private static Color lineColor(ColorScheme scheme, int gridCoordinate) {
+        return Math.floorMod(gridCoordinate, MAJOR_LINE_STEP) == 0 ? scheme.gridLineMajor() : scheme.gridLine();
+    }
+
+    private static int firstMultiple(double gridCoordinate, int step) {
+        return Math.floorDiv((int) Math.floor(gridCoordinate), step) * step;
+    }
+
+    /**
+     * The step in grid units of the finest lines worth drawing at {@code pixelsPerUnit}: the minor lines, only the
+     * major ones when the minor would be under {@code MINIMUM_DOT_SPACING} pixels apart, none when even those are.
+     */
+    static OptionalInt finestLineStep(double pixelsPerUnit) {
+        if (MINOR_LINE_STEP * pixelsPerUnit >= MINIMUM_DOT_SPACING) {
+            return OptionalInt.of(MINOR_LINE_STEP);
+        }
+        if (MAJOR_LINE_STEP * pixelsPerUnit >= MINIMUM_DOT_SPACING) {
+            return OptionalInt.of(MAJOR_LINE_STEP);
+        }
+        return OptionalInt.empty();
     }
 
     /**

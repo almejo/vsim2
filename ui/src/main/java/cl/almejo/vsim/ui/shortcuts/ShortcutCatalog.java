@@ -94,6 +94,7 @@ public final class ShortcutCatalog {
         window(entries, "view.zoomOut", "action.zoomOut", MenuId.VIEW, stroke(KeyEvent.VK_MINUS, menu));
         window(entries, "view.zoomReset", "action.zoomReset", MenuId.VIEW, stroke(KeyEvent.VK_0, menu));
         window(entries, "view.centerView", "action.centerView", MenuId.VIEW, null);
+        window(entries, "view.cycleGrid", "action.cycleGrid", MenuId.VIEW, null);
         entries.add(new ShortcutEntry("view.nextProblem", "action.nextProblem", MenuId.VIEW, Scope.CANVAS,
                 Optional.of(stroke(KeyEvent.VK_F8, 0))));
         entries.add(new ShortcutEntry("view.previousProblem", "action.previousProblem", MenuId.VIEW, Scope.CANVAS,
