@@ -14,6 +14,11 @@ sección es un conjunto de funciones, con las fechas en que se hizo. El detalle 
   de la cuadrícula» pasa de uno a otro y acepta un atajo propio. Las líneas no salen en las imágenes ni en el PDF.
 - Cada esquema de colores tiene un color nuevo, «Líneas de la cuadrícula», que se puede cambiar en el editor de
   esquemas; los esquemas propios ya guardados lo toman de sus puntos.
+- Reglas arriba y a la izquierda del lienzo: arrastrando desde ellas salen guías horizontales y verticales (líneas
+  cian discontinuas) que se mueven arrastrándolas y se quitan devolviéndolas a su regla. También desde el menú
+  contextual («Agregar guía … aquí», «Quitar guía»), desde Ver («Mostrar guías», «Agregar guía horizontal/vertical»,
+  «Borrar guías») y desde la esquina de las reglas. Las guías se guardan con el circuito, se ven en todas sus vistas,
+  se deshacen en un paso y no salen en las imágenes ni en el PDF.
 
 ## 2026-10-21 — Tareas cortas
 

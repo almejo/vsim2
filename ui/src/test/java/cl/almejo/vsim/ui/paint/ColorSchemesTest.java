@@ -92,6 +92,21 @@ class ColorSchemesTest {
         }
     }
 
+    /** Spec §6: the guides are cyan, readable on the board and on the grid, and never a wire's or the selection's. */
+    @Test
+    void theGuideColourShowsOnEveryBoardAndOverTheGrid() {
+        for (ColorScheme scheme : ALL) {
+            Color guide = over(scheme.guide(), scheme.background());
+            assertThat(contrast(guide, scheme.background())).as("guide on %s", scheme).isGreaterThanOrEqualTo(2);
+            assertThat(contrast(guide, over(scheme.gridLineMajor(), scheme.background()))).as("guide over grid")
+                    .isGreaterThanOrEqualTo(1.8);
+            assertThat(guide).isNotEqualTo(scheme.selection()).isNotEqualTo(scheme.wireHighImpedance());
+            assertThat(scheme.guide().getAlpha()).as("slightly translucent").isBetween(160, 254);
+            assertThat(scheme.guide().getBlue()).as("cyan").isGreaterThan(scheme.guide().getRed());
+            assertThat(scheme.guide().getGreen()).as("cyan").isGreaterThan(scheme.guide().getRed());
+        }
+    }
+
     @Test
     void theDerivedGridLineIsTheDotsColourAtFortyPercent() {
         assertThat(ColorScheme.derivedGridLine(new Color(0x102030))).isEqualTo(new Color(0x10, 0x20, 0x30, 102));

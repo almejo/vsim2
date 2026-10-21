@@ -95,6 +95,10 @@ public final class ShortcutCatalog {
         window(entries, "view.zoomReset", "action.zoomReset", MenuId.VIEW, stroke(KeyEvent.VK_0, menu));
         window(entries, "view.centerView", "action.centerView", MenuId.VIEW, null);
         window(entries, "view.cycleGrid", "action.cycleGrid", MenuId.VIEW, null);
+        window(entries, "view.showGuides", "action.showGuides", MenuId.VIEW, null);
+        window(entries, "view.addHorizontalGuide", "action.addHorizontalGuide", MenuId.VIEW, null);
+        window(entries, "view.addVerticalGuide", "action.addVerticalGuide", MenuId.VIEW, null);
+        window(entries, "view.clearGuides", "action.clearGuides", MenuId.VIEW, null);
         entries.add(new ShortcutEntry("view.nextProblem", "action.nextProblem", MenuId.VIEW, Scope.CANVAS,
                 Optional.of(stroke(KeyEvent.VK_F8, 0))));
         entries.add(new ShortcutEntry("view.previousProblem", "action.previousProblem", MenuId.VIEW, Scope.CANVAS,

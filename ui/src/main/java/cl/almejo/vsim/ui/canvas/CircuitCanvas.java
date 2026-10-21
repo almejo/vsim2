@@ -21,6 +21,7 @@ import cl.almejo.vsim.core.tunnel.TunnelKind;
 import cl.almejo.vsim.core.tunnel.Tunnels;
 import cl.almejo.vsim.ui.app.AppPreferences.GridStyle;
 import cl.almejo.vsim.ui.app.OpenDocument;
+import cl.almejo.vsim.ui.canvas.edges.EdgeController;
 import cl.almejo.vsim.ui.canvas.edges.EdgeHandle;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.panels.PaletteTransfer;
@@ -112,7 +113,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     private final List<CanvasOverlay> overlays = new CopyOnWriteArrayList<>();
     private final List<Function<Point2D, Optional<String>>> toolTipOverrides = new CopyOnWriteArrayList<>();
     private final List<Predicate<CanvasMouseEvent>> pressInterceptors = new CopyOnWriteArrayList<>();
-    private final List<EdgeHandle> edgeHandles = new CopyOnWriteArrayList<>();
+    private final EdgeController edgeController = new EdgeController(this::getSize);
     private final DocumentListener documentListener;
     private final SelectionMoves selectionMoves;
     private Consumer<List<Path>> fileDropHandler = files -> {
@@ -525,6 +526,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
 
     public void dispose() {
         disposed = true;
+        edgeController.cancel(); // the pane closes: a guide being pulled goes with it
         viewAnimator.stop();
         stopAutoscroll();
         frameTimer.stop();
@@ -787,21 +789,51 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
      * and the tool. The returned runnable removes it.
      */
     public Runnable addEdgeHandle(EdgeHandle handle) {
-        edgeHandles.add(handle);
+        Runnable remover = edgeController.add(handle);
+        updateToolTipRegistration();
         repaint();
         return () -> {
-            edgeHandles.remove(handle);
+            remover.run();
+            updateToolTipRegistration();
+            showCursor();
             repaint();
         };
     }
 
     /** For tests: the edge handles installed now. */
     public List<EdgeHandle> edgeHandles() {
-        return List.copyOf(edgeHandles);
+        return edgeController.handles();
+    }
+
+    /** True while a gesture started on an edge handle (pulling or moving a guide) is running. */
+    public boolean isEdgeGestureActive() {
+        return edgeController.isActive();
+    }
+
+    /**
+     * Cancels the edge gesture in progress, if any (Escape, a guide list changed elsewhere, the guides hidden); its
+     * release then reaches nobody. False when none was running.
+     */
+    public boolean cancelEdgeGesture() {
+        boolean cancelled = edgeController.cancel();
+        if (cancelled) {
+            showCursor();
+            repaint();
+        }
+        return cancelled;
+    }
+
+    /** For tests: features must remove the overlays they add. */
+    public int overlayCount() {
+        return overlays.size();
     }
 
     @Override
     public String getToolTipText(MouseEvent event) {
+        Optional<String> edge = edgeController.tooltip(convert(event));
+        if (edge.isPresent()) {
+            return edge.get();
+        }
         Point2D gridPoint = viewport.screenToGrid(event.getX(), event.getY());
         for (Function<Point2D, Optional<String>> override : toolTipOverrides) {
             Optional<String> text = override.apply(gridPoint);
@@ -813,7 +845,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     }
 
     private void updateToolTipRegistration() {
-        if (toolTipProviderSet || !toolTipOverrides.isEmpty()) {
+        if (toolTipProviderSet || !toolTipOverrides.isEmpty() || !edgeController.handles().isEmpty()) {
             ToolTipManager.sharedInstance().registerComponent(this);
         } else {
             ToolTipManager.sharedInstance().unregisterComponent(this);
@@ -1017,6 +1049,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
 
     @Override
     public void setTool(Tool next) {
+        cancelEdgeGesture();
         tool.deactivated(this);
         tool = next;
         next.activated(this);
@@ -1037,6 +1070,9 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
      * placement from the palette); true when the tool used it.
      */
     public boolean pressKeyOnTool(int keyCode, boolean shiftDown) {
+        if (keyCode == KeyEvent.VK_ESCAPE && cancelEdgeGesture()) {
+            return true;
+        }
         boolean used = tool.keyPressed(this, keyCode, shiftDown);
         updateAnimation();
         return used;
@@ -1048,9 +1084,13 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         showCursor();
     }
 
-    /** The tool's cursor, or MOVE while Espacio is held or the middle button pans. */
+    /** The tool's cursor, or MOVE while Espacio is held or the middle button pans, or an edge handle's over it. */
     private void showCursor() {
-        setCursor(spaceDown || panAnchor != null ? awtCursor(CanvasCursor.MOVE) : toolCursor);
+        if (spaceDown || panAnchor != null) {
+            setCursor(awtCursor(CanvasCursor.MOVE));
+            return;
+        }
+        setCursor(edgeController.cursor().orElse(toolCursor));
     }
 
     /**
@@ -1128,6 +1168,12 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         } finally {
             local.dispose();
         }
+        Graphics2D screen = (Graphics2D) graphics.create(); // logical pixels: the device transform only
+        try {
+            edgeController.paint(screen);
+        } finally {
+            screen.dispose();
+        }
     }
 
     SimulationSnapshot displayedSnapshot() {
@@ -1202,6 +1248,11 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
                 return;
             }
             CanvasMouseEvent converted = convert(event);
+            if (edgeController.press(converted)) {
+                showCursor();
+                repaint();
+                return;
+            }
             pressIntercepted = interceptsPress(converted);
             if (pressIntercepted) {
                 return;
@@ -1216,6 +1267,10 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
             if (panAnchor != null) {
                 viewport.panBy(event.getX() - panAnchor.x, event.getY() - panAnchor.y);
                 panAnchor = event.getPoint();
+                repaint();
+                return;
+            }
+            if (edgeController.drag(convert(event))) {
                 repaint();
                 return;
             }
@@ -1244,23 +1299,39 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
                 showCursor();
                 return;
             }
+            CanvasMouseEvent converted = convert(event);
+            if (edgeController.release(converted)) {
+                edgeController.hover(converted);
+                showCursor();
+                repaint();
+                return;
+            }
             if (pressIntercepted) {
                 pressIntercepted = false;
                 return;
             }
-            tool.mouseReleased(CircuitCanvas.this, convert(event));
+            tool.mouseReleased(CircuitCanvas.this, converted);
             updateAnimation();
         }
 
         @Override
         public void mouseMoved(MouseEvent event) {
             track(event);
-            tool.mouseMoved(CircuitCanvas.this, convert(event));
+            CanvasMouseEvent converted = convert(event);
+            if (edgeController.hover(converted)) {
+                repaint();
+            }
+            tool.mouseMoved(CircuitCanvas.this, converted);
+            showCursor();
         }
 
         @Override
         public void mouseExited(MouseEvent event) {
             mousePoint = null;
+            if (edgeController.clearHover()) {
+                showCursor();
+                repaint();
+            }
             tool.mouseExited(CircuitCanvas.this);
         }
 
@@ -1308,6 +1379,10 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
                 spaceDown = true;
                 showCursor();
                 event.consume();
+                return;
+            }
+            if (event.getKeyCode() == KeyEvent.VK_ESCAPE && cancelEdgeGesture()) {
+                event.consume(); // Escape goes to the edge gesture first
                 return;
             }
             modifierChanged(event, true);

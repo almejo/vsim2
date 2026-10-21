@@ -21,7 +21,24 @@ public interface EdgeHandle {
 
     Cursor cursor();
 
+    /**
+     * The cursor over {@code event}'s point, inside the hit area; {@link #cursor()} unless the handle shows different
+     * ones in different places (a guide line: up-down for a horizontal guide, left-right for a vertical one).
+     */
+    default Cursor cursorAt(CanvasMouseEvent event) {
+        return cursor();
+    }
+
+    /** The tooltip over the handle; empty for none. */
     String tooltip();
+
+    /**
+     * Whether a press (or the pointer) at {@code event}, already inside the hit area, is this handle's: a guide line
+     * under an element is not, nor one while another tool than the select tool is active. True by default.
+     */
+    default boolean claims(CanvasMouseEvent event) {
+        return true;
+    }
 
     void paint(Graphics2D screenGraphics, Dimension canvasSize, boolean hovered);
 

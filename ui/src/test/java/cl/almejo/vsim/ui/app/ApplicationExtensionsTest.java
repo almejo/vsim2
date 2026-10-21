@@ -152,13 +152,16 @@ class ApplicationExtensionsTest {
     }
 
     @Test
-    void theViewMenuHasTheGridSubmenuAfterTheZoomGroup() {
+    void theViewMenuHasTheGridSubmenuAndTheGuideItemsAfterTheZoomGroup() {
         EditorView view = new EditorView(openDocument, services, NO_WINDOW);
         try {
             assertThat(texts(view.menu(MenuId.VIEW))).containsExactly("Selección", "Cable", "Marco",
                     "Mover vista", "---", "Acercar", "Alejar", "Zoom 100 %", "Centrar circuito", "---", "Cuadrícula",
+                    "Mostrar guías", "Agregar guía horizontal", "Agregar guía vertical", "Borrar guías",
                     "---", "Siguiente problema", "Problema anterior", "---", "Formas de onda");
-            assertThat(view.shortcutActions()).containsKey("view.cycleGrid");
+            assertThat(view.shortcutActions()).containsKeys("view.cycleGrid", "view.showGuides",
+                    "view.addHorizontalGuide", "view.addVerticalGuide", "view.clearGuides");
+            assertThat(view.canvas().edgeHandles()).hasSize(4);
         } finally {
             view.dispose();
         }

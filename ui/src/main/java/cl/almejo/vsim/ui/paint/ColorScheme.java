@@ -46,6 +46,7 @@ public record ColorScheme(Color background, Color grid, Color gridLine, Color wi
     private static final double GRID_LINE_OPACITY = 0.4;
     /** The ten-unit line is the grid line at about twice its alpha. */
     private static final int MAJOR_GRID_LINE_FACTOR = 2;
+    private static final int GUIDE_ALPHA = 220;
 
     /**
      * The grid line of a scheme that has none of its own (a custom scheme stored before the grid of lines): the
@@ -116,6 +117,15 @@ public record ColorScheme(Color background, Color grid, Color gridLine, Color wi
     /** The thin light rim around a tunnel's hole. */
     public Color tunnelHoleRim() {
         return new Color(TunnelPalette.holeRim(isDark()));
+    }
+
+    /**
+     * The colour of the alignment guides (spec §6, derived, not a role): cyan as in Photoshop, slightly translucent so
+     * it does not compete with the wires, a deep cyan on a light board and a light one on a dark board. Guides are
+     * drawn dashed, so even next to a blue «Z» wire they read as an aid, not a wire.
+     */
+    public Color guide() {
+        return isDark() ? new Color(0x4D, 0xD0, 0xE1, GUIDE_ALPHA) : new Color(0x00, 0x86, 0xA8, GUIDE_ALPHA);
     }
 
     /** The border of a frame. */
