@@ -237,6 +237,21 @@ class SnappingTest {
     }
 
     @Test
+    void gridLinesReachHalfTheirSpacingSoABoxAlwaysLandsOnTheNearestLine() {
+        for (int rawDelta = 0; rawDelta <= 20; rawDelta++) {
+            SnapResult result = Snapping.solve(boxInput(new Bounds(0, 0, 4, 4), rawDelta, rawDelta, List.of(),
+                    ONE_UNIT, OptionalInt.of(10)));
+
+            assertThat(result.deltaX() % 10).as("raw delta %d", rawDelta).isZero();
+            assertThat(Math.abs(result.deltaX() - rawDelta)).as("raw delta %d", rawDelta).isLessThanOrEqualTo(5);
+        }
+        SnapResult odd = Snapping.solve(boxInput(new Bounds(0, 0, 4, 4), 7, 3, List.of(), ONE_UNIT,
+                OptionalInt.of(5)));
+        assertThat(odd.deltaX()).isEqualTo(5);
+        assertThat(odd.deltaY()).isEqualTo(5);
+    }
+
+    @Test
     void withoutGridLinesNothingPullsAnEmptyAxis() {
         SnapResult result = Snapping.solve(boxInput(new Bounds(0, 0, 4, 4), 5, 5, List.of(), ONE_UNIT));
 

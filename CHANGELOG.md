@@ -19,7 +19,7 @@ sección es un conjunto de funciones, con las fechas en que se hizo. El detalle 
   se nota más. Es una preferencia del editor: el circuito y la cuadrícula de pines y cables no cambian.
 - «Ajustar» (el imán de la barra, Ver ▸ «Ajustar», Ctrl+Mayús+M): al mover, pegar, colocar o soltar piezas, sus
   bordes y centros saltan a alinearse con los de las piezas vecinas y con las guías, y una línea magenta muestra cada
-  alineación mientras arrastras. Ver ▸ «Ajustar a ▸» elige piezas, guías y líneas de la cuadrícula (cada 2 unidades).
+  alineación mientras arrastras. Ver ▸ «Ajustar a ▸» elige piezas, guías y líneas de la cuadrícula (con la separación elegida, siempre a la línea más cercana).
   Apagado, todo se mueve como antes.
 - Con «Ajustar», el inicio y la punta de un cable que dibujas y las esquinas de un marco nuevo caen en las guías (o en
   las líneas de la cuadrícula) cercanas, salvo cuando ya están sobre un pin o un cable: la conexión manda. La guía a la

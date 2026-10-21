@@ -127,8 +127,8 @@ class PointSnapTest {
         context.preferences.setSnapToGridLines(true);
         context.preferences.setGridLineSpacing(10);
         assertThat(resolve(31, 49)).isEqualTo(new PointResolution(new GridPoint(30, 50), Reason.GRID_LINE));
-        assertThat(resolve(35, 35)).as("five units from every line: out of reach")
-                .isEqualTo(new PointResolution(new GridPoint(35, 35), Reason.GRID));
+        assertThat(resolve(35, 36)).as("grid lines reach half their spacing: halfway goes to the lower line")
+                .isEqualTo(new PointResolution(new GridPoint(30, 40), Reason.GRID_LINE));
         context.preferences.setGridLineSpacing(5);
         assertThat(resolve(36, 34)).isEqualTo(new PointResolution(new GridPoint(35, 35), Reason.GRID_LINE));
     }
