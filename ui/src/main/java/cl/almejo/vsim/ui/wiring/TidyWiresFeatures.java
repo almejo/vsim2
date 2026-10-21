@@ -134,7 +134,7 @@ public final class TidyWiresFeatures {
     /** The wires of the selection, or none (then the whole circuit is tidied). */
     private Set<ElementId> selectedWires() {
         Set<ElementId> wires = new LinkedHashSet<>();
-        for (ElementId id : view.canvas().selection().ids()) {
+        for (ElementId id : view.selection().ids()) {
             if (view.openDocument().document().wire(id).isPresent()) {
                 wires.add(id);
             }

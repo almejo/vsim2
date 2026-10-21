@@ -14,6 +14,7 @@ import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.geom.Line2D;
 import java.util.function.LongSupplier;
+import java.util.function.Supplier;
 
 /**
  * Slowly pulses the conflict color of shorted wires (spec §6.12) with a white veil of varying alpha.
@@ -28,12 +29,20 @@ public final class ShortCircuitPulse implements CanvasOverlay {
     private static final double UNIT = GridPoint.PIXELS_PER_UNIT;
     private static final BasicStroke STROKE = new BasicStroke(5f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
 
-    private final HighlightCache highlights;
+    private final Supplier<HighlightCache> highlights;
     private final LongSupplier nanoClock;
     private final Timer timer;
 
     /** {@code highlights} is the canvas's ({@link cl.almejo.vsim.ui.canvas.CircuitCanvas#highlights()}). */
     public ShortCircuitPulse(HighlightCache highlights, Runnable repaint, LongSupplier nanoClock) {
+        this(() -> highlights, repaint, nanoClock);
+    }
+
+    /**
+     * {@code highlights} is asked on every paint: the active pane's cache when one pulse is painted in every pane of a
+     * window (they all show the same document and snapshot).
+     */
+    public ShortCircuitPulse(Supplier<HighlightCache> highlights, Runnable repaint, LongSupplier nanoClock) {
         this.highlights = highlights;
         this.nanoClock = nanoClock;
         this.timer = new Timer(REPAINT_MILLISECONDS, event -> repaint.run());
@@ -53,7 +62,7 @@ public final class ShortCircuitPulse implements CanvasOverlay {
     }
 
     HighlightCache highlights() {
-        return highlights;
+        return highlights.get();
     }
 
     public void dispose() {
@@ -72,7 +81,7 @@ public final class ShortCircuitPulse implements CanvasOverlay {
         if (alpha == 0) {
             return;
         }
-        ShortCircuitHighlight highlight = highlights.shortCircuits(state);
+        ShortCircuitHighlight highlight = highlights.get().shortCircuits(state);
         if (highlight.wires().isEmpty()) {
             return;
         }

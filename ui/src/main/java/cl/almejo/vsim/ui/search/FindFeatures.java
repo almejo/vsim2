@@ -10,12 +10,12 @@ import cl.almejo.vsim.core.search.SearchProblem;
 import cl.almejo.vsim.core.search.SearchQuery;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.OpenDocument;
-import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.canvas.DrawnBounds;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.icons.Icons;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuId;
+import cl.almejo.vsim.ui.window.panes.EveryPane;
 
 import javax.swing.AbstractAction;
 import javax.swing.Action;
@@ -75,7 +75,6 @@ public final class FindFeatures {
 
     private final EditorView view;
     private final OpenDocument openDocument;
-    private final CircuitCanvas canvas;
     private final AppPreferences preferences;
     private final Supplier<java.awt.Component> focusOwner;
     private final Consumer<JComponent> focuser;
@@ -89,6 +88,7 @@ public final class FindFeatures {
     private final List<Runnable> shortcutRemovers;
     private final Runnable documentListener = () -> search(Reason.EDIT);
     private final Runnable preferenceListener = this::preferencesChanged;
+    private final Runnable removeOverlays;
     private Runnable removeBar;
     private List<SearchHit> hits = List.of();
     private int currentIndex = -1;
@@ -106,13 +106,13 @@ public final class FindFeatures {
     FindFeatures(EditorView view, Supplier<java.awt.Component> focusOwner, Consumer<JComponent> focuser) {
         this.view = view;
         this.openDocument = view.openDocument();
-        this.canvas = view.canvas();
         this.preferences = view.services().preferences();
         this.focusOwner = focusOwner;
         this.focuser = focuser;
         this.matchCase = preferences.findMatchCase();
         this.regex = preferences.findRegex();
-        this.overlay = new FindHighlightOverlay(canvas::scheme, openDocument.registry(), canvas::repaint);
+        this.overlay = new FindHighlightOverlay(() -> view.canvas().scheme(), openDocument.registry(),
+                EveryPane.repaint(view));
         this.findAction = action("action.find", this::find);
         this.findNextAction = action("action.findNext", this::next);
         this.findPreviousAction = action("action.findPrevious", this::previous);
@@ -123,7 +123,7 @@ public final class FindFeatures {
                 view.registerShortcutAction("edit.findNext", findNextAction),
                 view.registerShortcutAction("edit.findPrevious", findPreviousAction));
         wireBar();
-        canvas.addOverlay(overlay);
+        this.removeOverlays = EveryPane.addOverlay(view, overlay);
         preferences.addListener(preferenceListener);
         syncToggles();
     }
@@ -165,7 +165,7 @@ public final class FindFeatures {
     /** Takes back the bar, the overlay, the menu items, the shortcut actions and every listener. */
     public void dispose() {
         closeBar();
-        canvas.removeOverlay(overlay);
+        removeOverlays.run();
         preferences.removeListener(preferenceListener);
         shortcutRemovers.forEach(Runnable::run);
         menuEntries.forEach(editMenu::remove);
@@ -225,7 +225,7 @@ public final class FindFeatures {
     private void close() {
         if (isOpen()) {
             closeBar();
-            focuser.accept(canvas);
+            focuser.accept(view.canvas());
         }
     }
 
@@ -327,11 +327,11 @@ public final class FindFeatures {
                 : Messages.format("find.insideLabeled", path, typeName, label);
     }
 
-    /** Selects the current match's element and takes the view there. */
+    /** Selects the current match's element and takes the active pane there (the other panes stay where they are). */
     private void goToCurrent() {
         current().flatMap(hit -> openDocument.document().element(hit.elementId())).ifPresent(element -> {
-            canvas.selection().select(element.id());
-            canvas.travelTo(DrawnBounds.of(element, openDocument.registry()));
+            view.selection().select(element.id());
+            view.canvas().travelTo(DrawnBounds.of(element, openDocument.registry()));
         });
     }
 

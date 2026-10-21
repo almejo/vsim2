@@ -17,6 +17,7 @@ import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.karnaugh.KarnaughHandoff;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuId;
+import cl.almejo.vsim.ui.window.panes.EveryPane;
 
 import javax.swing.AbstractAction;
 import javax.swing.Action;
@@ -98,7 +99,8 @@ public final class TruthTableFeatures {
     private final List<Session> sessions = new ArrayList<>();
     /** On the canvas while a window is open: moves each window's highlight to the row of the live inputs. */
     private final Consumer<SimulationSnapshot> snapshotListener = this::followSnapshot;
-    private boolean following;
+    /** Undoes the listening to the active pane's snapshots; empty while not following. */
+    private Optional<Runnable> stopFollowing = Optional.empty();
     private boolean disposed;
 
     public TruthTableFeatures(EditorView view, TruthTableDisplay.Factory windows,
@@ -123,7 +125,7 @@ public final class TruthTableFeatures {
         this.action = new AbstractAction(Messages.text("action.truthTable")) {
             @Override
             public void actionPerformed(ActionEvent event) {
-                open(view.canvas().selection().ids());
+                open(view.selection().ids());
             }
         };
         this.simulationMenu = view.menu(MenuId.SIMULATION);
@@ -178,15 +180,15 @@ public final class TruthTableFeatures {
         }
     }
 
-    /** Listens to the canvas snapshots exactly while a window is open. */
+    /** Listens to the active pane's snapshots exactly while a window is open. */
     private void updateFollowing() {
         boolean wanted = !sessions.isEmpty() && !disposed;
-        if (wanted && !following) {
-            view.canvas().addSnapshotListener(snapshotListener);
-        } else if (!wanted && following) {
-            view.canvas().removeSnapshotListener(snapshotListener);
+        if (wanted && stopFollowing.isEmpty()) {
+            stopFollowing = Optional.of(EveryPane.addActivePaneSnapshotListener(view, snapshotListener));
+        } else if (!wanted && stopFollowing.isPresent()) {
+            stopFollowing.get().run();
+            stopFollowing = Optional.empty();
         }
-        following = wanted;
     }
 
     /**

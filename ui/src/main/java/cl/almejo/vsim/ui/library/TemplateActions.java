@@ -52,10 +52,11 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 /**
- * Template editing for one canvas (spec §5.6, §6.6): create from the selection, update a definition from the
+ * Template editing for one window (spec §5.6, §6.6): create from the selection, update a definition from the
  * selection, disassemble an instance and take the library's version. Each is one undo step.
  */
 public final class TemplateActions {
@@ -63,14 +64,15 @@ public final class TemplateActions {
     private static final Logger LOGGER = LoggerFactory.getLogger(TemplateActions.class);
 
     private final OpenDocument openDocument;
-    private final CircuitCanvas canvas;
+    /** The window's active pane, resolved when an action runs (dialog owner, the view the result is shown in). */
+    private final Supplier<CircuitCanvas> canvas;
     private final LibraryService service;
     private final LibraryDialogs dialogs;
     private final Action createComponent;
     private final Action updateComponent;
     private final Runnable refresher = this::refresh;
 
-    public TemplateActions(OpenDocument openDocument, CircuitCanvas canvas, LibraryService service,
+    public TemplateActions(OpenDocument openDocument, Supplier<CircuitCanvas> canvas, LibraryService service,
                            LibraryDialogs dialogs) {
         this.openDocument = openDocument;
         this.canvas = canvas;
@@ -80,7 +82,7 @@ public final class TemplateActions {
         this.updateComponent = action(Messages.text("action.updateComponent"), this::updateFromSelection);
         Icons.install(createComponent, TemplateIcons.CREATE_COMPONENT);
         Icons.install(updateComponent, TemplateIcons.UPDATE_COMPONENT);
-        canvas.selection().addListener(refresher);
+        canvas.get().selection().addListener(refresher); // one selection for every pane of the window
         openDocument.addChangeListener(refresher);
         refresh();
     }
@@ -111,7 +113,7 @@ public final class TemplateActions {
      */
     public void createFromSelection() {
         CircuitDocument document = openDocument.document();
-        Set<ElementId> ids = canvas.selection().ids();
+        Set<ElementId> ids = canvas.get().selection().ids();
         if (ids.isEmpty()) {
             return;
         }
@@ -141,7 +143,7 @@ public final class TemplateActions {
         ComponentTypeRegistry registry = openDocument.registry();
         List<TestParts.TestPart> testParts = TestParts.of(document, ids, registry);
         if (testParts.isEmpty() && !DefinitionBuilder.hasInterfacePins(document, ids)) {
-            dialogs.showMessage(canvas, Messages.text("template.noInterfacePins"));
+            dialogs.showMessage(canvas.get(), Messages.text("template.noInterfacePins"));
             return;
         }
         Map<ElementId, Value> currentValues = switchValues(testParts);
@@ -155,12 +157,12 @@ public final class TemplateActions {
             form.setName(proposedName);
         }
         while (true) {
-            Optional<ComponentForm.Result> result = dialogs.editComponent(canvas, form);
+            Optional<ComponentForm.Result> result = dialogs.editComponent(canvas.get(), form);
             if (result.isEmpty()) {
                 return;
             }
             Optional<String> missing = missingPins(result.get().pinOrder());
-            if (missing.isEmpty() || dialogs.confirmMissingPins(canvas, missing.get())) {
+            if (missing.isEmpty() || dialogs.confirmMissingPins(canvas.get(), missing.get())) {
                 create(converter.apply(result.get().convertedParts()), result.get(), frameToRemove);
                 return;
             }
@@ -197,18 +199,18 @@ public final class TemplateActions {
      */
     public void updateFromSelection() {
         CircuitDocument document = openDocument.document();
-        Set<ElementId> ids = canvas.selection().ids();
+        Set<ElementId> ids = canvas.get().selection().ids();
         if (document.definitions().isEmpty() || ids.isEmpty()) {
             return;
         }
         if (!DefinitionBuilder.hasInterfacePins(document, ids)) {
-            dialogs.showMessage(canvas, Messages.text("template.noInterfacePins"));
+            dialogs.showMessage(canvas.get(), Messages.text("template.noInterfacePins"));
             return;
         }
         PinOrder order = DefinitionBuilder.defaultPinOrder(document, ids);
         ComponentForm form = ComponentForm.update(order, DefinitionBuilder.pinNames(document, order), takenNames(),
                 document.definitions());
-        dialogs.editComponent(canvas, form).ifPresent(result -> update(ids, result));
+        dialogs.editComponent(canvas.get(), form).ifPresent(result -> update(ids, result));
     }
 
     /**
@@ -226,7 +228,7 @@ public final class TemplateActions {
         CircuitDocument document = openDocument.document();
         Disassembly.Plan plan = Disassembly.plan(document, instance, definition.get(), registry);
         if (plan.blocked()) {
-            dialogs.showMessage(canvas, Messages.format("template.notDisassembled",
+            dialogs.showMessage(canvas.get(), Messages.format("template.notDisassembled",
                     Messages.format("library.place.componentName", definition.get().name())));
             return;
         }
@@ -236,13 +238,13 @@ public final class TemplateActions {
             steps.add(new AddElementsCommand(List.copyOf(plan.bridges())));
         }
         openDocument.execute(new CompositeCommand("command.disassemble", steps));
-        canvas.selection().set(paste.pastedIds());
+        canvas.get().selection().set(paste.pastedIds());
         if (!plan.unconnectedPins().isEmpty()) {
-            dialogs.showMessage(canvas, Messages.format("template.pinsUnconnected",
+            dialogs.showMessage(canvas.get(), Messages.format("template.pinsUnconnected",
                     String.join(", ", plan.unconnectedPins())));
         }
         if (!plan.renamedTunnels().isEmpty()) {
-            dialogs.showMessage(canvas, Messages.format("template.tunnelsRenamed",
+            dialogs.showMessage(canvas.get(), Messages.format("template.tunnelsRenamed",
                     renamesText(plan.renamedTunnels())));
         }
     }
@@ -267,10 +269,10 @@ public final class TemplateActions {
         DefinitionBundle bundle = found.get();
         CircuitDocument document = openDocument.document();
         if (wouldNestItself(document, bundle)) {
-            dialogs.showError(canvas, Messages.text("template.updateFromLibrary.recursive"));
+            dialogs.showError(canvas.get(), Messages.text("template.updateFromLibrary.recursive"));
             return;
         }
-        KeptVersions.warn(document, bundle, dialogs, canvas);
+        KeptVersions.warn(document, bundle, dialogs, canvas.get());
         openDocument.execute(new ReplaceDefinitionCommand(bundle));
     }
 
@@ -324,7 +326,7 @@ public final class TemplateActions {
     }
 
     void refresh() {
-        Set<ElementId> ids = canvas.selection().ids();
+        Set<ElementId> ids = canvas.get().selection().ids();
         CircuitDocument document = openDocument.document();
         createComponent.setEnabled(!ids.isEmpty());
         updateComponent.setEnabled(!document.definitions().isEmpty()
@@ -370,10 +372,10 @@ public final class TemplateActions {
         }
         openDocument.execute(new CompositeCommand("command.createComponent", steps));
         if (instance != null) {
-            canvas.selection().select(instance.id());
+            canvas.get().selection().select(instance.id());
         }
         if (message != null) {
-            dialogs.showMessage(canvas, message);
+            dialogs.showMessage(canvas.get(), message);
         }
         saveToLibrary(bundle);
     }
@@ -393,7 +395,7 @@ public final class TemplateActions {
     private void update(Set<ElementId> ids, ComponentForm.Result result) {
         CircuitDocument document = openDocument.document();
         if (nests(document, ids, result.definitionId())) {
-            dialogs.showError(canvas, Messages.text("template.update.recursive"));
+            dialogs.showError(canvas.get(), Messages.text("template.update.recursive"));
             return;
         }
         DefinitionBundle bundle = DefinitionBuilder.fromSelection(document, ids, result.definitionId(), result.name(),
@@ -449,7 +451,7 @@ public final class TemplateActions {
             service.save(bundle);
         } catch (IOException exception) {
             LOGGER.warn("Could not write {} to the component library", bundle.root().id(), exception);
-            dialogs.showError(canvas, service.writeError(bundle.root().id(), exception));
+            dialogs.showError(canvas.get(), service.writeError(bundle.root().id(), exception));
         }
     }
 

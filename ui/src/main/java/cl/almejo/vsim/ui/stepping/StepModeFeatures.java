@@ -4,12 +4,12 @@ import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.core.simulation.StepReport;
 import cl.almejo.vsim.core.simulation.StepResult;
 import cl.almejo.vsim.ui.app.OpenDocument;
-import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.icons.Icons;
 import cl.almejo.vsim.ui.waveform.WaveformFeatures;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuId;
+import cl.almejo.vsim.ui.window.panes.EveryPane;
 
 import javax.swing.AbstractAction;
 import javax.swing.AbstractButton;
@@ -59,6 +59,8 @@ public final class StepModeFeatures {
     private final Runnable stepModeListener = this::refresh;
     private final Consumer<SimulationSnapshot> snapshotListener = this::snapshotPublished;
     private final List<Runnable> shortcutRemovers;
+    private final List<Runnable> removeOverlays;
+    private final Runnable removeSnapshotListener;
     private long shownSequence;
     /** The time of the last snapshot shown; a smaller one means «Reiniciar» (M6.1-B). */
     private long shownTime;
@@ -68,7 +70,6 @@ public final class StepModeFeatures {
         this.view = view;
         this.openDocument = view.openDocument();
         this.nanoClock = nanoClock;
-        CircuitCanvas canvas = view.canvas();
         this.stepModeAction = new AbstractAction(Messages.text("action.stepMode")) {
             @Override
             public void actionPerformed(ActionEvent event) {
@@ -114,14 +115,15 @@ public final class StepModeFeatures {
         this.shortcutRemovers = List.of(view.registerShortcutAction("simulation.stepMode", stepModeAction),
                 view.registerShortcutAction("simulation.advance", advanceAction),
                 view.registerShortcutAction("simulation.advanceToClockEdge", clockEdgeAction));
-        this.overlay = new StepHighlightOverlay(canvas::scheme, canvas::repaint, nanoClock);
-        canvas.addOverlay(overlay);
-        this.pendingOverlay = new PendingOutlineOverlay(canvas::scheme, openDocument.registry(), canvas::repaint);
-        canvas.addOverlay(pendingOverlay);
+        Runnable repaintPanes = EveryPane.repaint(view);
+        this.overlay = new StepHighlightOverlay(() -> view.canvas().scheme(), repaintPanes, nanoClock);
+        this.pendingOverlay = new PendingOutlineOverlay(() -> view.canvas().scheme(), openDocument.registry(),
+                repaintPanes);
+        this.removeOverlays = List.of(EveryPane.addOverlay(view, overlay), EveryPane.addOverlay(view, pendingOverlay));
         // A step made before this view existed is not this view's to show.
         this.shownSequence = openDocument.latestStep().map(StepReport::sequence).orElse(0L);
         openDocument.addStepModeListener(stepModeListener);
-        canvas.addSnapshotListener(snapshotListener);
+        this.removeSnapshotListener = EveryPane.addActivePaneSnapshotListener(view, snapshotListener);
         refresh();
     }
 
@@ -244,11 +246,9 @@ public final class StepModeFeatures {
         disposed = true;
         shortcutRemovers.forEach(Runnable::run);
         openDocument.removeStepModeListener(stepModeListener);
-        CircuitCanvas canvas = view.canvas();
-        canvas.removeSnapshotListener(snapshotListener);
-        canvas.removeOverlay(overlay);
+        removeSnapshotListener.run();
+        removeOverlays.forEach(Runnable::run);
         overlay.dispose();
-        canvas.removeOverlay(pendingOverlay);
         pendingOverlay.dispose();
         simulationMenu.remove(clockEdgeItem);
         simulationMenu.remove(advanceItem);
