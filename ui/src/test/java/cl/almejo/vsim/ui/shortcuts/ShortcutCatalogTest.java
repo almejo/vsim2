@@ -98,6 +98,23 @@ class ShortcutCatalogTest {
     }
 
     @Test
+    void theSplitViewItemsFollowNewViewUnderVentanaWithoutDefaults() {
+        List<String> splitIds = List.of("window.splitHorizontal", "window.splitVertical", "window.removeSplit",
+                "window.nextPane");
+        assertThat(ids()).containsSubsequence("window.newView", "window.splitHorizontal", "window.splitVertical",
+                "window.removeSplit", "window.nextPane");
+        for (String id : splitIds) {
+            ShortcutEntry entry = ShortcutCatalog.find(id).orElseThrow();
+            assertThat(entry.group()).as(id).isEqualTo(MenuId.WINDOW);
+            assertThat(entry.scope()).as(id).isEqualTo(Scope.WINDOW);
+            assertThat(entry.defaultStroke()).as(id).isEmpty();
+        }
+        assertThat(Messages.bundle(Messages.SPANISH)
+                .getString(ShortcutCatalog.find("window.splitHorizontal").orElseThrow().nameKey()))
+                .isEqualTo("Dividir arriba y abajo");
+    }
+
+    @Test
     void everyNameKeyIsInBothBundles() {
         for (ShortcutEntry entry : ShortcutCatalog.entries()) {
             assertThat(Messages.bundle(Messages.SPANISH).containsKey(entry.nameKey())).as(entry.id()).isTrue();

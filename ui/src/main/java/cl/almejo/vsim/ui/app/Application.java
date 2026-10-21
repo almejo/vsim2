@@ -54,6 +54,7 @@ import cl.almejo.vsim.ui.window.EditorExtension;
 import cl.almejo.vsim.ui.window.EditorServices;
 import cl.almejo.vsim.ui.window.NewViewPlacement;
 import cl.almejo.vsim.ui.window.WindowMenu;
+import cl.almejo.vsim.ui.window.panes.SplitViewsExtension;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -143,6 +144,7 @@ public final class Application {
         editorExtensions.add(new GridExtension());
         editorExtensions.add(new SnapExtension());
         editorExtensions.add(new GuidesExtension());
+        editorExtensions.add(new SplitViewsExtension());
         editorExtensions.add(new KarnaughExtension(libraryService, startDirectory, chosen));
         editorExtensions.add(new FindExtension());
         editorExtensions.add(new TunnelsExtension());

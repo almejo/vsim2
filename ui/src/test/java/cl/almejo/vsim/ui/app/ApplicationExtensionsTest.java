@@ -164,7 +164,7 @@ class ApplicationExtensionsTest {
                     "view.addVerticalGuide", "view.clearGuides");
             assertThat(view.shortcutActions().get("view.snap").getValue(Action.ACCELERATOR_KEY)).isEqualTo(
                     KeyStroke.getKeyStroke(KeyEvent.VK_M, ShortcutCatalog.menuMask() | InputEvent.SHIFT_DOWN_MASK));
-            assertThat(view.canvas().edgeHandles()).hasSize(4);
+            assertThat(view.canvas().edgeHandles()).hasSize(6); // the rulers, corner and grab; the two split grips
         } finally {
             view.dispose();
         }
@@ -258,7 +258,7 @@ class ApplicationExtensionsTest {
     void theShortcutsExtensionBindsTheWindowMenuAcceleratorsAndCanvasKeys() {
         EditorView view = new EditorView(openDocument, services, NO_WINDOW);
         try {
-            assertThat(texts(view.menu(MenuId.WINDOW))).containsExactly("Nueva vista");
+            assertThat(texts(view.menu(MenuId.WINDOW))).containsExactly("Nueva vista", "Dividir", "Siguiente panel");
             assertThat(view.actions().save().getValue(Action.ACCELERATOR_KEY))
                     .isEqualTo(KeyStroke.getKeyStroke(KeyEvent.VK_S, ShortcutCatalog.menuMask()));
             assertThat(view.canvas().getInputMap(JComponent.WHEN_FOCUSED)

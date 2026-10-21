@@ -4,14 +4,21 @@ import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.canvas.ViewState;
 
 import javax.swing.JComponent;
+import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 import javax.swing.border.Border;
 import java.awt.Color;
+import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.Graphics;
+import java.awt.Graphics2D;
 import java.awt.Insets;
+import java.awt.Point;
+import java.awt.Rectangle;
 import java.awt.event.FocusAdapter;
 import java.awt.event.FocusEvent;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.IdentityHashMap;
@@ -38,6 +45,15 @@ public final class CanvasPanes extends JComponent {
     /** The side of a divider: {@link #BEFORE} is the top (or left) one, {@link #AFTER} the bottom (or right) one. */
     public enum Side { BEFORE, AFTER }
 
+    /** A divider (or a grip's preview) released this close to an edge of the area goes away (does nothing). */
+    static final int EDGE_MARGIN = 24;
+    /** A dragged divider stays this far inside the area (as a fraction), so it is never quite at an edge. */
+    private static final double MINIMUM_FRACTION = 0.001;
+
+    /** The divider a grip is pulling, its middle at {@code position} (area pixels across the divider). */
+    record SplitPreview(Orientation orientation, int position) {
+    }
+
     private static final Border ACTIVE_BORDER = new ActivePaneBorder();
 
     private final Supplier<CircuitCanvas> newPane;
@@ -53,6 +69,7 @@ public final class CanvasPanes extends JComponent {
     private OptionalDouble horizontalFraction = OptionalDouble.empty();
     private OptionalDouble verticalFraction = OptionalDouble.empty();
     private CircuitCanvas active;
+    private SplitPreview splitPreview;
     private boolean disposed;
 
     /**
@@ -66,6 +83,11 @@ public final class CanvasPanes extends JComponent {
         active = first;
         add(first);
         attach(first);
+        for (PaneDivider divider : List.of(horizontalDivider, verticalDivider)) {
+            DividerDrag drag = new DividerDrag(divider);
+            divider.addMouseListener(drag);
+            divider.addMouseMotionListener(drag);
+        }
     }
 
     /** Every pane in reading order (left to right, then top to bottom). */
@@ -261,6 +283,160 @@ public final class CanvasPanes extends JComponent {
             pane.dispose();
         }
         pendingViews.clear();
+    }
+
+    // --- dragging: the grips' preview, the dividers --------------------------------------------------------------
+
+    /** The divider a grip is pulling, while it is pulled. */
+    Optional<SplitPreview> splitPreview() {
+        return Optional.ofNullable(splitPreview);
+    }
+
+    /** Shows the bar a grip pulls, its middle at {@code position} of the area across it; it spans the whole area. */
+    void showSplitPreview(Orientation orientation, int position) {
+        splitPreview = new SplitPreview(orientation, position);
+        repaint();
+    }
+
+    void hideSplitPreview() {
+        if (splitPreview != null) {
+            splitPreview = null;
+            repaint();
+        }
+    }
+
+    /** The area's length across a divider of {@code orientation}: its height for a horizontal one, else its width. */
+    int lengthAcross(Orientation orientation) {
+        return orientation == Orientation.HORIZONTAL ? getHeight() : getWidth();
+    }
+
+    /** True when {@code position} (across {@code orientation}) is within {@link #EDGE_MARGIN} of an edge. */
+    boolean isNearAnEdge(Orientation orientation, int position) {
+        return position < EDGE_MARGIN || position > lengthAcross(orientation) - EDGE_MARGIN;
+    }
+
+    /** The fraction that puts the middle of a divider of {@code orientation} at {@code position}, inside (0, 1). */
+    double fractionFor(Orientation orientation, int position) {
+        int thickness = PaneDivider.thickness();
+        int available = Math.max(1, lengthAcross(orientation) - thickness);
+        double fraction = (position - thickness / 2.0) / available;
+        return Math.max(MINIMUM_FRACTION, Math.min(1 - MINIMUM_FRACTION, fraction));
+    }
+
+    /** While a grip pulls a preview the children are painted under it, so a pane repainting alone must not skip it. */
+    @Override
+    public boolean isOptimizedDrawingEnabled() {
+        return splitPreview == null && super.isOptimizedDrawingEnabled();
+    }
+
+    @Override
+    public void paint(Graphics graphics) {
+        super.paint(graphics);
+        SplitPreview preview = splitPreview;
+        if (preview == null) {
+            return;
+        }
+        int thickness = PaneDivider.thickness();
+        int start = preview.position() - thickness / 2;
+        Rectangle bar = preview.orientation() == Orientation.HORIZONTAL
+                ? new Rectangle(0, start, getWidth(), thickness)
+                : new Rectangle(start, 0, thickness, getHeight());
+        Graphics2D canvas = (Graphics2D) graphics.create();
+        try {
+            PaneDivider.paintBar(canvas, preview.orientation(), bar, getBackground());
+        } finally {
+            canvas.dispose();
+        }
+    }
+
+    /**
+     * Drags a divider (canvas-edges §1, spec §2): continuously, the panes follow; at the crossing point both dividers
+     * move; released within {@link #EDGE_MARGIN} of an edge the divider goes, closing the panes on that side; a
+     * double-click removes it (both at the crossing point), closing the panes after it.
+     */
+    private final class DividerDrag extends MouseAdapter {
+
+        private final PaneDivider divider;
+        /** The dividers being dragged, and how far from each one's middle the pointer took it. */
+        private final Map<Orientation, Integer> grabOffsets = new EnumMap<>(Orientation.class);
+
+        DividerDrag(PaneDivider divider) {
+            this.divider = divider;
+        }
+
+        /** {@code event}'s point in the area. */
+        private Point inArea(MouseEvent event) {
+            return new Point(divider.getX() + event.getX(), divider.getY() + event.getY());
+        }
+
+        private int along(Orientation orientation, Point point) {
+            return orientation == Orientation.HORIZONTAL ? point.y : point.x;
+        }
+
+        /** The dividers under {@code point}: this one, and the other one too at the crossing point. */
+        private List<Orientation> dividersAt(Point point) {
+            Orientation other = divider.orientation() == Orientation.HORIZONTAL
+                    ? Orientation.VERTICAL : Orientation.HORIZONTAL;
+            boolean crossing = divider(other).filter(found -> found.getBounds().contains(point)).isPresent();
+            return crossing ? List.of(divider.orientation(), other) : List.of(divider.orientation());
+        }
+
+        private int middleOf(Orientation orientation) {
+            Rectangle bounds = dividerOf(orientation).getBounds();
+            return orientation == Orientation.HORIZONTAL ? bounds.y + bounds.height / 2 : bounds.x + bounds.width / 2;
+        }
+
+        @Override
+        public void mouseMoved(MouseEvent event) {
+            divider.setCursor(dividersAt(inArea(event)).size() > 1
+                    ? Cursor.getPredefinedCursor(Cursor.MOVE_CURSOR) : PaneDivider.resizeCursor(divider.orientation()));
+        }
+
+        @Override
+        public void mousePressed(MouseEvent event) {
+            grabOffsets.clear();
+            if (!SwingUtilities.isLeftMouseButton(event) || divider.getParent() != CanvasPanes.this) {
+                return;
+            }
+            Point point = inArea(event);
+            for (Orientation orientation : dividersAt(point)) {
+                grabOffsets.put(orientation, along(orientation, point) - middleOf(orientation));
+            }
+        }
+
+        @Override
+        public void mouseDragged(MouseEvent event) {
+            Point point = inArea(event);
+            grabOffsets.forEach((orientation, offset) -> {
+                if (dividerFraction(orientation).isPresent()) {
+                    moveDivider(orientation, fractionFor(orientation, along(orientation, point) - offset));
+                }
+            });
+        }
+
+        @Override
+        public void mouseReleased(MouseEvent event) {
+            if (grabOffsets.isEmpty()) {
+                return;
+            }
+            Point point = inArea(event);
+            List<Orientation> dragged = List.copyOf(grabOffsets.keySet());
+            grabOffsets.clear();
+            for (Orientation orientation : dragged) {
+                int position = along(orientation, point);
+                if (dividerFraction(orientation).isPresent() && isNearAnEdge(orientation, position)) {
+                    removeDivider(orientation, position < EDGE_MARGIN ? Side.BEFORE : Side.AFTER);
+                }
+            }
+        }
+
+        @Override
+        public void mouseClicked(MouseEvent event) {
+            if (event.getClickCount() == 2 && event.getButton() == MouseEvent.BUTTON1
+                    && divider.getParent() == CanvasPanes.this) {
+                dividersAt(inArea(event)).forEach(CanvasPanes.this::removeDivider);
+            }
+        }
     }
 
     @Override

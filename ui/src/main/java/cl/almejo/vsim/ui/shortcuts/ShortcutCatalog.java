@@ -124,6 +124,11 @@ public final class ShortcutCatalog {
         window(entries, "tools.karnaughPractice", "action.karnaughPractice", MenuId.TOOLS, null);
         window(entries, "tools.circuitFromExpressions", "action.circuitFromExpressions", MenuId.TOOLS, null);
         window(entries, "window.newView", "action.newWindow", MenuId.WINDOW, null);
+        // no defaults: F6 belongs to «Avanzar N t» (and to Swing's split-pane focus)
+        window(entries, "window.splitHorizontal", "shortcut.splitHorizontal", MenuId.WINDOW, null);
+        window(entries, "window.splitVertical", "shortcut.splitVertical", MenuId.WINDOW, null);
+        window(entries, "window.removeSplit", "action.removeSplit", MenuId.WINDOW, null);
+        window(entries, "window.nextPane", "action.nextPane", MenuId.WINDOW, null);
         return List.copyOf(entries);
     }
 

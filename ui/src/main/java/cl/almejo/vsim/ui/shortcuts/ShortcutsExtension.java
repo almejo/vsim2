@@ -118,23 +118,25 @@ public final class ShortcutsExtension implements EditorExtension {
 
         /** Gives {@code pane} the canvas keys; the returned runnable takes them back. */
         Runnable bindOn(CircuitCanvas pane) {
-            releaseDefaultCanvasStrokes(pane);
+            Map<KeyStroke, Object> released = releaseDefaultCanvasStrokes(pane);
             Map<String, KeyStroke> bound = new HashMap<>();
             boundByPane.put(pane, bound);
             bindCanvasKeys(pane, bound);
             return () -> {
                 unbindCanvasKeys(pane, bound);
                 boundByPane.remove(pane);
+                restoreDefaultCanvasStrokes(pane, released);
             };
         }
 
         /**
          * The editor bound the default strokes under its own names; those strokes now follow the user's choice. Only
          * a stroke still bound to the editor's own name is removed. The editor's action-map entries stay, so its
-         * fixed aliases (Retroceso = Borrar) keep working.
+         * fixed aliases (Retroceso = Borrar) keep working. Returns what was removed, to give it back on dispose.
          */
-        private void releaseDefaultCanvasStrokes(CircuitCanvas pane) {
+        private Map<KeyStroke, Object> releaseDefaultCanvasStrokes(CircuitCanvas pane) {
             InputMap keys = pane.getInputMap(JComponent.WHEN_FOCUSED);
+            Map<KeyStroke, Object> released = new HashMap<>();
             for (ShortcutEntry entry : ShortcutCatalog.entries()) {
                 if (entry.scope() != Scope.CANVAS || !actions.containsKey(entry.id())) {
                     continue;
@@ -143,9 +145,21 @@ public final class ShortcutsExtension implements EditorExtension {
                     Object name = keys.get(stroke);
                     if (name != null && !name.toString().startsWith(BINDING_PREFIX)) {
                         keys.remove(stroke);
+                        released.put(stroke, name);
                     }
                 });
             }
+            return released;
+        }
+
+        /** The extension goes: the editor's own default strokes come back where nothing else took them. */
+        private static void restoreDefaultCanvasStrokes(CircuitCanvas pane, Map<KeyStroke, Object> released) {
+            InputMap keys = pane.getInputMap(JComponent.WHEN_FOCUSED);
+            released.forEach((stroke, name) -> {
+                if (keys.get(stroke) == null) {
+                    keys.put(stroke, name);
+                }
+            });
         }
 
         /**
