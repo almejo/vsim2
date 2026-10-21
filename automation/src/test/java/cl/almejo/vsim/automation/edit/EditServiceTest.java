@@ -579,6 +579,27 @@ class EditServiceTest {
     }
 
     @Test
+    void aTextSwingWouldRenderAsHtmlIsRefusedWhereverTheAiGivesOne() {
+        String html = "<HTML><img src=\"http://example.invalid/x\">";
+        Map<String, String> ids = inverterParts();
+        long version = circuit.version().value();
+
+        for (EditOperation operation : List.of(
+                new PlacePart(Optional.empty(), "nand2", 40, 0, Rotation.R0, Map.of(), html),
+                new SetLabel(ids.get("not"), html),
+                new MakeFrame(Optional.empty(), html, List.of(ids.get("not")), Optional.empty(), false),
+                new AddNote(Optional.empty(), html, 0, 30),
+                new CreateComponent(Optional.empty(), html, List.copyOf(ids.values()), Map.of(), false),
+                new CreateComponent(Optional.empty(), "Inversor", List.copyOf(ids.values()),
+                        Map.of("A", "<html>A"), false))) {
+            AutomationException refusal = assertRefused(request(operation), AutomationError.INVALID_PARAMETER);
+            assertThat(refusal.getMessage()).contains("<html");
+        }
+        assertThat(circuit.version().value()).isEqualTo(version);
+        service.edit(request(new SetLabel(ids.get("not"), "a <html> in the middle is plain text")));
+    }
+
+    @Test
     void anUnexpectedFailureBeforeTheWriteSaysNothingWasChanged() {
         EditableCircuit broken = new EditableCircuit() {
             @Override

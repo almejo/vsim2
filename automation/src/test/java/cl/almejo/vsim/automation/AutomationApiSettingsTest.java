@@ -45,6 +45,14 @@ class AutomationApiSettingsTest {
     }
 
     @Test
+    void aCircuitNameSwingWouldRenderAsHtmlIsRefused() {
+        assertThatThrownBy(() -> api.newCircuit("<html><img src='http://example.invalid/x'>"))
+                .isInstanceOfSatisfying(AutomationException.class,
+                        refusal -> assertThat(refusal.error()).isEqualTo(AutomationError.INVALID_PARAMETER));
+        assertThat(host.calls).isEmpty();
+    }
+
+    @Test
     void aProposalOfAValueThePreferenceDoesNotTakeIsRefusedBeforeTheUserSeesIt() {
         assertThatThrownBy(() -> api.proposePreference(ProposedPreference.LANGUAGE, "fr", "Pour la vidéo"))
                 .isInstanceOfSatisfying(AutomationException.class,

@@ -70,6 +70,21 @@ class PreferenceProposalsTest {
     }
 
     @Test
+    void atMostFiveProposalsWaitAtOnce() {
+        for (int index = 0; index < PreferenceProposals.MAXIMUM_PENDING; index++) {
+            proposals.propose(ProposedPreference.THEME, "DARK", "");
+        }
+
+        assertThatThrownBy(() -> proposals.propose(ProposedPreference.THEME, "LIGHT", ""))
+                .isInstanceOfSatisfying(AutomationException.class,
+                        refusal -> assertThat(refusal.error()).isEqualTo(AutomationError.NOT_ALLOWED));
+        assertThat(proposals.pending()).hasSize(5);
+        proposals.answer(proposals.pending().getFirst().id(), false);
+        proposals.propose(ProposedPreference.THEME, "LIGHT", "");
+        assertThat(proposals.pending()).hasSize(5);
+    }
+
+    @Test
     void aValueNotOfferedIsRejected() {
         assertThatThrownBy(() -> proposals.propose(ProposedPreference.THEME, "PINK", ""))
                 .isInstanceOfSatisfying(AutomationException.class, exception ->

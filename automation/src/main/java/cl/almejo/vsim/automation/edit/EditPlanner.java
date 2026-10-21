@@ -2,6 +2,7 @@ package cl.almejo.vsim.automation.edit;
 
 import cl.almejo.vsim.automation.AutomationError;
 import cl.almejo.vsim.automation.AutomationException;
+import cl.almejo.vsim.automation.PlainText;
 import cl.almejo.vsim.automation.PinReference;
 import cl.almejo.vsim.automation.edit.EditOperation.AddGuide;
 import cl.almejo.vsim.automation.edit.EditOperation.AddNote;
@@ -168,6 +169,7 @@ final class EditPlanner {
 
     private void carryOut(EditOperation operation) {
         try {
+            requirePlainTexts(operation);
             switch (operation) {
                 case PlacePart placePart -> placePart(placePart);
                 case SetParameters setParameters -> setParameters(setParameters);
@@ -188,6 +190,22 @@ final class EditPlanner {
             throw located(operation, refusal.error(), refusal.getMessage(), refusal.recovery());
         } catch (IllegalArgumentException invalid) {
             throw located(operation, AutomationError.INVALID_PARAMETER, invalid.getMessage(), Map.of());
+        }
+    }
+
+    /** The texts of {@code operation} that Swing shows: never HTML (review M4). */
+    private static void requirePlainTexts(EditOperation operation) {
+        switch (operation) {
+            case PlacePart placePart -> PlainText.require(placePart.label(), "label");
+            case SetLabel setLabel -> PlainText.require(setLabel.text(), "label");
+            case MakeFrame makeFrame -> PlainText.require(makeFrame.title(), "frame title");
+            case AddNote addNote -> PlainText.require(addNote.text(), "note");
+            case CreateComponent createComponent -> {
+                PlainText.require(createComponent.name(), "component name");
+                createComponent.pinNames().values().forEach(name -> PlainText.require(name, "pin name"));
+            }
+            default -> {
+            }
         }
     }
 

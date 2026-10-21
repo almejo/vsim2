@@ -100,6 +100,7 @@ public final class AutomationApi {
     /** Opens a new, unsaved circuit window named {@code name}; the AI never saves it. */
     public DocumentId newCircuit(String name) {
         Objects.requireNonNull(name, "name");
+        PlainText.require(name, "circuit name");
         return onEditorThread(access -> host.newCircuit(name));
     }
 

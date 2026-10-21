@@ -24,6 +24,8 @@ import java.util.concurrent.CopyOnWriteArrayList;
 public final class PreferenceProposals {
 
     private static final String ID_PREFIX = "proposal-";
+    /** At most this many proposals wait for the user at once (review M11: a looping AI cannot fill the panel). */
+    static final int MAXIMUM_PENDING = 5;
     /** How many answered proposals are remembered for a late {@link #answerOf}. */
     private static final int REMEMBERED_ANSWERS = 50;
 
@@ -45,6 +47,11 @@ public final class PreferenceProposals {
             throw new AutomationException(AutomationError.INVALID_PARAMETER,
                     "«" + value + "» is not a value of " + preference + "; use one of " + preference.allowedValues(),
                     Map.of("allowedValues", preference.allowedValues()));
+        }
+        if (pending.size() >= MAXIMUM_PENDING) {
+            throw new AutomationException(AutomationError.NOT_ALLOWED, "The user has " + pending.size()
+                    + " proposals waiting already; wait for their answers (vsim_await_proposal) before proposing "
+                    + "more", Map.of("maximum", MAXIMUM_PENDING));
         }
         PreferenceProposal proposal = new PreferenceProposal(ID_PREFIX + ++lastId, preference, value,
                 reason == null ? "" : reason);
