@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.preferences;
 
+import cl.almejo.vsim.ui.ai.AiPreferencesPanel;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.shortcuts.ShortcutsPanel;
@@ -13,14 +14,16 @@ import static org.assertj.core.api.Assertions.assertThat;
 class PreferencesDialogTest {
 
     @Test
-    void thePreferencesHaveAGeneralTabAndAShortcutsTab() {
+    void thePreferencesHaveAGeneralTabAShortcutsTabAndAnAiTab() {
         Messages.initialize(Messages.SPANISH);
         JTabbedPane tabs = PreferencesDialog.tabs(AppPreferences.inMemory(), (parent, current) -> Optional.empty());
-        assertThat(tabs.getTabCount()).isEqualTo(2);
+        assertThat(tabs.getTabCount()).isEqualTo(3);
         assertThat(tabs.getTitleAt(0)).isEqualTo("General");
         assertThat(tabs.getTitleAt(1)).isEqualTo("Atajos de teclado");
+        assertThat(tabs.getTitleAt(2)).isEqualTo("IA");
         assertThat(tabs.getComponentAt(0)).isInstanceOf(PreferencesForm.class);
         assertThat(tabs.getComponentAt(1)).isInstanceOf(ShortcutsPanel.class);
+        assertThat(tabs.getComponentAt(2)).isInstanceOf(AiPreferencesPanel.class);
     }
 
     @Test

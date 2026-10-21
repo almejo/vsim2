@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.preferences;
 
+import cl.almejo.vsim.ui.ai.AiPreferencesPanel;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.shortcuts.KeyBindings;
@@ -13,7 +14,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Optional;
 
-/** The modal preferences dialog: tabs «General» and «Atajos de teclado». Changes are live, so its only button closes it. */
+/**
+ * The modal preferences dialog: tabs «General», «Atajos de teclado» and «IA». Changes are live, so its only button
+ * closes it.
+ */
 public final class PreferencesDialog {
 
     private PreferencesDialog() {
@@ -32,15 +36,22 @@ public final class PreferencesDialog {
         for (int index = 0; index < tabs.getTabCount(); index++) {
             if (tabs.getComponentAt(index) instanceof PreferencesForm form) {
                 form.dispose();
+            } else if (tabs.getComponentAt(index) instanceof AiPreferencesPanel ai) {
+                ai.dispose();
             }
         }
     }
 
-    /** «General» (the unchanged form) and «Atajos de teclado» (M6-C); package-private so a headless test sees them. */
+    /**
+     * «General» (the unchanged form), «Atajos de teclado» (M6-C) and «IA» (IA.1); package-private so a headless test
+     * sees them.
+     */
     static JTabbedPane tabs(AppPreferences preferences, PreferencesForm.DirectoryChooser directoryChooser) {
         JTabbedPane tabs = new JTabbedPane();
         tabs.addTab(Messages.text("preferences.tab.general"), new PreferencesForm(preferences, directoryChooser));
         tabs.addTab(Messages.text("preferences.tab.shortcuts"), new ShortcutsPanel(new KeyBindings(preferences)));
+        tabs.addTab(Messages.text("preferences.tab.ai"),
+                new AiPreferencesPanel(preferences, AiPreferencesPanel.systemClipboard()));
         return tabs;
     }
 
