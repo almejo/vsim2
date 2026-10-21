@@ -501,11 +501,11 @@ public final class KarnaughWizard extends JPanel {
         dialog.setVisible(true);
     }
 
-    /** The reason «Siguiente» is off, in the theme's error colour (read at paint time). */
+    /** The reason «Siguiente» is off, in the readable error red (read at paint time). */
     private static final class ErrorLabel extends JLabel {
         @Override
         public Color getForeground() {
-            return WizardColors.error();
+            return WizardColors.errorText();
         }
     }
 }

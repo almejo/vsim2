@@ -185,6 +185,8 @@ El detalle de cada función de VSim 2, ordenado por área. La lista corta está 
 
 ## Tabla de verdad, Karnaugh y expresiones
 
+Los mensajes de error del asistente de Karnaugh, de la importación de tablas y de las expresiones (una línea que no se entiende, una tabla que no se puede leer, por qué «Siguiente» o «Crear» están apagados) van en un rojo que se lee bien en el tema claro y en el oscuro (contraste de al menos 4,5:1 con el fondo); los avisos que no bloquean van en ámbar, igual de legibles.
+
 ### Tabla de verdad
 
 - Simulación ▸ «Tabla de verdad…» (o clic derecho en el lienzo) prueba todas las combinaciones de entrada sobre una copia del circuito, sin tocar la simulación en curso, y muestra la tabla en una ventana aparte. Toma lo seleccionado o, si no hay nada seleccionado, todo el circuito; con una sola instancia de un componente propio seleccionada, el menú dice «Tabla de verdad de «Sumador completo»…» y la tabla es la de ese componente (sus pines). Desde Archivo ▸ Preferencias… ▸ Atajos de teclado se le puede asignar una tecla.

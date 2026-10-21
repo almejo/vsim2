@@ -57,7 +57,7 @@ final class CreationControls extends JPanel {
     private final JLabel reason = new JLabel(" ") {
         @Override
         public Color getForeground() {
-            return WizardColors.error();
+            return WizardColors.errorText();
         }
     };
     private final JButton create = new JButton(Messages.text("karnaugh.create.create"));

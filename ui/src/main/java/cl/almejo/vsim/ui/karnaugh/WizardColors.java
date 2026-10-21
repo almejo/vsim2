@@ -41,11 +41,12 @@ final class WizardColors {
     }
 
     /**
-     * The error colour for text: {@link #error()} on a light theme; on a dark theme the theme's error colour is a dim
-     * border red, too dark to read as text, so a brighter red is used.
+     * The error colour for text (a line that does not parse, a table that cannot be imported, why «Siguiente» or
+     * «Crear» is off): the readable red of {@link #failure()}, at least 4.5:1 on the dialog's background on both
+     * themes. The theme's {@link #error()} is a border colour and stays under that as text (3.7:1 on FlatLaf Light).
      */
     static Color errorText() {
-        return dark() ? new Color(0xFF7A7A) : error();
+        return failure();
     }
 
     /**
@@ -59,8 +60,8 @@ final class WizardColors {
 
     /**
      * Red for something wrong in the practice (a group that is no group, «No es equivalente»): a dark red on a light
-     * theme and a bright one on a dark theme, both readable as text at 4.5:1 (the theme's error colour and
-     * {@link #errorText()} stay a little under that).
+     * theme and a bright one on a dark theme, both readable as text at 4.5:1 (the theme's error colour stays a little
+     * under that). {@link #errorText()} is this same red.
      */
     static Color failure() {
         return dark() ? new Color(0xFF8F8F) : new Color(0xC62828);

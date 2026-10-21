@@ -5,6 +5,14 @@ Los cambios de VSim 2 que se notan al usarlo, del más nuevo al más antiguo. El
 sección es un conjunto de funciones, con las fechas en que se hizo. El detalle de cada función está en
 [docs/funciones.md](docs/funciones.md).
 
+## 2026-10-21 — Tareas cortas
+
+### Arreglado
+
+- Los mensajes de error del asistente de Karnaugh, de la importación de tablas y de las expresiones contrastaban
+  poco con el fondo (3,7:1 en el tema claro, 4,2:1 en el oscuro): ahora van en un rojo con contraste de al menos
+  4,5:1 en los dos temas.
+
 ## 2026-10-19 — 2026-10-20 — Exportar a PDF
 
 ### Agregado
