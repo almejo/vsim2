@@ -25,7 +25,7 @@ sección es un conjunto de funciones, con las fechas en que se hizo. El detalle 
   dice «IA trabajando: …» con «Detener» y «Deshacer lo que hizo la IA», que se detiene en tu primer cambio. Un cambio
   preparado antes de que tú editaras se rechaza sin aplicar nada.
 - La IA cambia los ajustes del editor (ajustar, cuadrícula, guías, cables que siguen) solo en esa ventana y de forma
-  temporal; tus preferencias solo las propone; exporta solo a la carpeta de exportación sin sobrescribir; nunca
+  temporal; tus preferencias solo las propone; exporta solo a las carpetas de exportar que VSim recuerda, sin sobrescribir; nunca
   guarda, abre ni borra archivos.
 
 ### Agregado
