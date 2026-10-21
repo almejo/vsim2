@@ -5,12 +5,17 @@ import org.jfree.svg.SVGGraphics2D;
 import org.jfree.svg.SVGHints;
 
 import javax.imageio.ImageIO;
+import javax.imageio.ImageWriter;
+import javax.imageio.stream.ImageOutputStream;
+import javax.imageio.stream.MemoryCacheImageOutputStream;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Iterator;
 
 /** Writes a {@link CircuitImage} as a PNG (any scale) or an SVG (always 1x, text as vector shapes). */
 public final class ImageExport {
@@ -61,6 +66,27 @@ public final class ImageExport {
         if (!ImageIO.write(pixels, "png", target.toFile())) {
             throw new IOException("no PNG writer available");
         }
+    }
+
+    /**
+     * The PNG bytes of {@code pixels}, encoded in memory only: {@code ImageIO.write} to a stream goes through a
+     * temporary cache file in {@code java.io.tmpdir} when ImageIO's disk cache is on (the default), and the AI's
+     * pictures are never saved (spec §6). ImageIO's global cache setting is left alone.
+     */
+    public static byte[] pngBytes(BufferedImage pixels) throws IOException {
+        Iterator<ImageWriter> writers = ImageIO.getImageWritersByFormatName("png");
+        if (!writers.hasNext()) {
+            throw new IOException("no PNG writer available");
+        }
+        ImageWriter writer = writers.next();
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        try (ImageOutputStream output = new MemoryCacheImageOutputStream(bytes)) {
+            writer.setOutput(output);
+            writer.write(pixels);
+        } finally {
+            writer.dispose();
+        }
+        return bytes.toByteArray();
     }
 
     private static IOException tooLarge(int width, int height, Throwable cause) {

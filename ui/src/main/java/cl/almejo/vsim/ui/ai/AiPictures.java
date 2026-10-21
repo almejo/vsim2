@@ -10,10 +10,10 @@ import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.CircuitBounds;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.export.CircuitImage;
+import cl.almejo.vsim.ui.export.ImageExport;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
 
-import javax.imageio.ImageIO;
 import javax.swing.JComponent;
 import javax.swing.RootPaneContainer;
 import java.awt.Dialog;
@@ -24,7 +24,6 @@ import java.awt.RenderingHints;
 import java.awt.Window;
 import java.awt.geom.Point2D;
 import java.awt.image.BufferedImage;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.ArrayList;
@@ -170,15 +169,13 @@ final class AiPictures {
         }
     }
 
-    /** The PNG bytes of {@code image}; called off the EDT. */
+    /** The PNG bytes of {@code image}, encoded in memory (never through a disk file); called off the EDT. */
     static byte[] png(BufferedImage image) {
-        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
         try {
-            ImageIO.write(image, "png", bytes);
+            return ImageExport.pngBytes(image);
         } catch (IOException exception) {
             throw new UncheckedIOException(exception);
         }
-        return bytes.toByteArray();
     }
 
     private static int fit(double pixels, int maximum) {
