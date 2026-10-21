@@ -77,7 +77,10 @@ final class SimulationTools {
                 .required("elementId", "value").build();
         return new Tool(SET_INPUTS, "Set the inputs",
                 "Sets switches and input pins to explicit values, one after the other in the order given (each with "
-                        + "its immediate effects before the next), if the circuit is still at version. All are "
+                        + "its zero-delay effects before the next), if the circuit is still at version. All the "
+                        + "values of one call change at the same simulation time: the gates react after the call. To "
+                        + "give the circuit time between values (a latch, a counter driven by hand), pause, set, "
+                        + "vsim_step by a DURATION, then set the next values in another call. All are "
                         + "checked first: one that cannot be set refuses the whole call (INPUT_REJECTED, nothing "
                         + "set). The receipt says what each one did. Idempotent by operationId.",
                 Schema.object("")
@@ -152,7 +155,8 @@ final class SimulationTools {
                         + "expected rows, use vsim_check_stage.",
                 Schema.object("")
                         .property("document", Common.document())
-                        .property("elementIds", Schema.array("The part of the circuit (empty: all of it)",
+                        .property("elementIds", Schema.array("The parts to tabulate; the wires that join only these "
+                                + "parts come along (empty: the whole circuit)",
                                 Schema.string("")))
                         .property("maximumRows", Schema.integer("Rows to evaluate (default "
                                 + SimulationOperations.DEFAULT_MAXIMUM_ROWS + ", at most "

@@ -70,6 +70,19 @@ class StageChecksTest {
 
         assertThat(result.status()).isEqualTo(Status.NOT_FINISHED);
         assertThat(result.details()).containsEntry("rowsNotEvaluated", 2);
+        assertThat(result.summary()).as("says how to go on").contains("100000 events", "after 2 rows",
+                "larger eventBudget (at most 1000000)", "signals");
+    }
+
+    @Test
+    void aTableCutByTheRowLimitSaysWhichLimitToRaise() {
+        measurements.table = new TruthTableView(DOCUMENT, VERSION, AND_INPUTS, AND_OUTPUTS, andTable(false, 2, false)
+                .rows(), 4, true, false, 20, 100_000, false);
+
+        CheckResult result = runOne(truthTable(andRows()));
+
+        assertThat(result.status()).isEqualTo(Status.NOT_FINISHED);
+        assertThat(result.summary()).contains("row limit", "maximumRows");
     }
 
     @Test

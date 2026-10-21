@@ -194,7 +194,8 @@ final class EditPlanner {
         Map<String, Object> located = new LinkedHashMap<>(recovery);
         located.put("operation", operationIndex);
         located.put("kind", operation.kind());
-        return new AutomationException(error, "Operation " + operationIndex + " (" + operation.kind() + "): "
+        return new AutomationException(error, "Operation " + operationIndex + " (" + operation.kind()
+                + ", counting from 0): "
                 + message + ". Nothing was changed", located);
     }
 
@@ -402,7 +403,15 @@ final class EditPlanner {
     private void createComponent(CreateComponent operation) {
         String name = requireFreeName(operation.name());
         String alias = newAlias(operation.alias());
-        Set<ElementId> ids = requireTargets(operation.targets());
+        // The AI names parts; the wires between them come along, as with the user's rectangle (Task 7).
+        InnerWires.Scope scope = InnerWires.of(candidate, registry, requireTargets(operation.targets()));
+        Set<ElementId> ids = new LinkedHashSet<>(scope.elements());
+        if (!scope.mixedNetPins().isEmpty()) {
+            warnings.add(at() + "these pins share a net with parts outside the targets and no wire of it was "
+                    + "targeted, so they stay unconnected inside the component (target those wires to keep them): "
+                    + scope.mixedNetPins().stream().map(this::reference)
+                    .map(pin -> pin.elementId() + "." + pin.pinName()).toList());
+        }
         List<TestParts.TestPart> testParts = TestParts.of(candidate, ids, registry);
         if (testParts.isEmpty() && !DefinitionBuilder.hasInterfacePins(candidate, ids)) {
             throw new AutomationException(AutomationError.INVALID_REFERENCE, "The targets have no interface pins "

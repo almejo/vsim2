@@ -15,6 +15,7 @@ import cl.almejo.vsim.automation.read.ProblemView;
 import cl.almejo.vsim.automation.read.ProblemsView;
 import cl.almejo.vsim.automation.simulate.SignalValue;
 import cl.almejo.vsim.automation.simulate.SignalsView;
+import cl.almejo.vsim.automation.simulate.SimulationOperations;
 import cl.almejo.vsim.automation.simulate.TruthTableView;
 import cl.almejo.vsim.automation.simulate.TruthTableView.ColumnView;
 import cl.almejo.vsim.automation.simulate.TruthTableView.RowView;
@@ -152,12 +153,28 @@ public final class StageChecks {
                     + " expected rows differ from what VSim measured", details);
         }
         if (missing > 0 || table.budgetExceeded()) {
-            String why = table.budgetExceeded() ? "the event budget ran out" : "the row limit was reached";
             return new CheckResult(check.kind(), Status.NOT_FINISHED, missing + " expected rows were not evaluated ("
-                    + why + "); the rows evaluated match", details);
+                    + notFinishedBecause(table) + "); the rows evaluated match", details);
         }
         return new CheckResult(check.kind(), Status.PASSED, "All " + check.expected().size()
                 + " expected rows match what VSim measured", details);
+    }
+
+    /**
+     * Why a table stopped short, and how to go on: a row that never settles (an oscillation, or a latch whose rows
+     * hold their state, which a fresh copy cannot know) runs until the budget is gone, so the AI needs to hear that
+     * it may raise the budget or check that behaviour with pin values instead.
+     */
+    private static String notFinishedBecause(TruthTableView table) {
+        if (table.budgetExceeded()) {
+            return "the event budget of " + table.eventBudget() + " events ran out after " + table.rows().size()
+                    + " rows; a row that never settles, such as an oscillation or a latch left to hold its state, "
+                    + "can use it all: give a larger eventBudget (at most "
+                    + SimulationOperations.MAXIMUM_EVENT_BUDGET
+                    + "), or leave such rows out and check them with signals after vsim_set_inputs";
+        }
+        return "the row limit was reached: give a larger maximumRows (at most "
+                + SimulationOperations.MAXIMUM_ROWS + ")";
     }
 
     /** The cells of the row {@code expected} names, in the table's input order. */

@@ -34,7 +34,8 @@ final class CheckTools {
         List<Map<String, Object>> kinds = List.of(
                 Schema.object("The truth table on a copy, compared row by row")
                         .property("kind", Schema.constant("truthTable"))
-                        .property("elementIds", Schema.array("The part of the circuit (empty: all of it)",
+                        .property("elementIds", Schema.array("The parts to tabulate, such as one stage; the "
+                                + "wires that join only these parts come along (empty: the whole circuit)",
                                 Schema.string("")))
                         .property("expected", Schema.array("The rows it must have", row, 1,
                                 SimulationOperations.MAXIMUM_ROWS))

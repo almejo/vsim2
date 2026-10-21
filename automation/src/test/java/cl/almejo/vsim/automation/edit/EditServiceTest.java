@@ -359,6 +359,31 @@ class EditServiceTest {
     }
 
     @Test
+    void aComponentMadeFromItsPartsAloneTakesTheWiresBetweenThem() {
+        Map<String, String> ids = inverterParts();
+
+        EditReceipt receipt = service.edit(request(new CreateComponent(Optional.empty(), "Inversor",
+                List.of(ids.get("a"), ids.get("not"), ids.get("y")), Map.of(), false)));
+
+        assertThat(circuit.document().definitions()).singleElement()
+                .satisfies(definition -> assertThat(definition.body().wires()).hasSize(2));
+        assertThat(receipt.warnings()).isEmpty();
+    }
+
+    @Test
+    void aComponentWhosePartsShareANetWithAPartOutsideSaysWhichPinsStayUnconnectedInside() {
+        Map<String, String> ids = inverterParts();
+        EditReceipt lamp = service.edit(request(place("lamp", "led", 30, -2),
+                connect(ids.get("not"), "out", "new:lamp", "in")));
+
+        EditReceipt receipt = service.edit(request(new CreateComponent(Optional.empty(), "Inversor",
+                List.of(ids.get("a"), ids.get("not"), ids.get("y")), Map.of(), false)));
+
+        assertThat(lamp.applied()).isTrue();
+        assertThat(String.join(" ", receipt.warnings())).contains(ids.get("not") + ".out", "wires");
+    }
+
+    @Test
     void creatingAComponentReplacingTheSelectionLeavesOneInstance() {
         Map<String, String> ids = inverterParts();
 

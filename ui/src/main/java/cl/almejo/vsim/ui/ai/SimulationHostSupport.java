@@ -5,6 +5,7 @@ import cl.almejo.vsim.automation.AutomationException;
 import cl.almejo.vsim.automation.DocumentId;
 import cl.almejo.vsim.automation.DocumentVersion;
 import cl.almejo.vsim.automation.PinReference;
+import cl.almejo.vsim.automation.edit.InnerWires;
 import cl.almejo.vsim.automation.simulate.InputValue;
 import cl.almejo.vsim.automation.simulate.PreparedTruthTable;
 import cl.almejo.vsim.automation.simulate.SimulationReceipt;
@@ -101,8 +102,11 @@ final class SimulationHostSupport {
                     }
                     scope.add(id);
                 }
+                // Parts named by the AI take the wires between them along (InnerWires, Task 7).
+                Set<ElementId> withWires = scope.isEmpty() ? scope
+                        : InnerWires.of(document.document(), document.registry(), scope).elements();
                 result.complete(new PreparedTruthTable(versionOf(document),
-                        TruthTableScope.prepare(document.document(), scope, document.registry())));
+                        TruthTableScope.prepare(document.document(), withWires, document.registry())));
             } catch (RuntimeException | Error failure) {
                 result.completeExceptionally(failure);
             }

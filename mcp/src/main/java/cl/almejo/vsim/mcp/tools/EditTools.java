@@ -138,7 +138,8 @@ final class EditTools {
                         .property("alias", Schema.nonEmptyString("A name for the new component in this call: "
                                 + "PlaceInstance takes it as new:<alias>"))
                         .property("name", Schema.nonEmptyString("Its name, new in the circuit"))
-                        .property("targets", targets("The elements that make it"))
+                        .property("targets", targets("The parts that make it; the wires that join only "
+                                + "these parts come along (a wire to a part outside does not)"))
                         .property("pinNames", Schema.mapOf("Renamed pins: key an interface pin or a test part "
                                 + "that gives one pin", Schema.nonEmptyString("The pin's name")))
                         .property("replaceSelection", Schema.bool("Replace the targets by one instance"))
