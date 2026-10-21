@@ -77,6 +77,16 @@ public final class CircuitImage {
     }
 
     /**
+     * The image of exactly {@code region} (grid units, no margin added) of the whole circuit, empty or not: what lies
+     * outside the region is cut off (the AI's region pictures, spec §6).
+     */
+    public static CircuitImage ofRegion(CircuitDocument document, Netlist netlist, long netlistToken,
+                                        SimulationSnapshot snapshot, ComponentTypeRegistry registry,
+                                        PainterRegistry painters, ColorScheme scheme, Bounds region) {
+        return new CircuitImage(document, netlist, netlistToken, snapshot, registry, painters, scheme, region);
+    }
+
+    /**
      * This image with only {@code ids} of its elements, painted at the same place (the same {@link #gridBounds()},
      * values and colours): one printed sheet's share of a big circuit, so a sheet does not carry the whole circuit.
      */

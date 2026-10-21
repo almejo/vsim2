@@ -1,0 +1,247 @@
+package cl.almejo.vsim.automation.read;
+
+import cl.almejo.vsim.automation.AutomationError;
+import cl.almejo.vsim.automation.AutomationException;
+import cl.almejo.vsim.automation.PinReference;
+import cl.almejo.vsim.automation.read.CircuitView.NetView;
+import cl.almejo.vsim.automation.read.CircuitView.PartView;
+import cl.almejo.vsim.automation.read.CircuitView.PinView;
+import cl.almejo.vsim.automation.read.ReadFilter.ElementKind;
+import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
+import cl.almejo.vsim.core.document.Component;
+import cl.almejo.vsim.core.document.Frame;
+import cl.almejo.vsim.core.document.FrameTint;
+import cl.almejo.vsim.core.document.Guide;
+import cl.almejo.vsim.core.document.TextLabel;
+import cl.almejo.vsim.core.document.Wire;
+import cl.almejo.vsim.core.geometry.Bounds;
+import cl.almejo.vsim.core.geometry.GridPoint;
+import cl.almejo.vsim.core.geometry.Rotation;
+import cl.almejo.vsim.core.library.ExampleDefinitions;
+import cl.almejo.vsim.core.library.SubcircuitTypes;
+import org.junit.jupiter.api.Test;
+
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+class CircuitReaderTest {
+
+    private final ReadFixture fixture = new ReadFixture();
+
+    @Test
+    void aFlipFlopCircuitComesBackWithEveryPinsNameWidthAndPlace() {
+        Component input = fixture.place(StandardComponentTypes.SWITCH, 4, 11);
+        Component flipFlop = fixture.place(StandardComponentTypes.FLIP_FLOP_DATA, 10, 10, Rotation.R0, Map.of(),
+                "FF1");
+        Component clock = fixture.place(StandardComponentTypes.CLOCK, 10, 16);
+        Wire data = fixture.wire(fixture.pin(input, 0), fixture.pin(flipFlop, 0));
+
+        CircuitView view = CircuitReader.read(fixture.source(), ReadFilter.FULL, Optional.empty());
+
+        PartView part = part(view, flipFlop.id().value());
+        assertThat(part.typeId()).isEqualTo(StandardComponentTypes.FLIP_FLOP_DATA);
+        assertThat(part.label()).isEqualTo("FF1");
+        assertThat(part.position()).isEqualTo(new GridPoint(10, 10));
+        assertThat(part.rotation()).isEqualTo("R0");
+        assertThat(part.parameters()).containsKey("delay");
+        assertThat(part.bounds()).isEqualTo(fixture.registry.typeOf(flipFlop).bounds(flipFlop));
+        assertThat(part.pins()).extracting(PinView::pin).containsExactly(
+                new PinReference(flipFlop.id().value(), "d", 0),
+                new PinReference(flipFlop.id().value(), "q", 1),
+                new PinReference(flipFlop.id().value(), "clock", 2));
+        assertThat(part.pins()).extracting(PinView::position)
+                .containsExactly(new GridPoint(10, 12), new GridPoint(14, 12), new GridPoint(12, 14));
+        assertThat(part.pins()).extracting(PinView::direction).containsExactly("INPUT", "OUTPUT", "INPUT");
+        assertThat(part.pins()).extracting(PinView::width).containsOnly(1);
+        assertThat(part.pins()).extracting(PinView::connected).containsExactly(true, false, false);
+        assertThat(view.wires()).singleElement().satisfies(wire -> {
+            assertThat(wire.id()).isEqualTo(data.id().value());
+            assertThat(wire.netId()).isEqualTo(part.pins().get(0).netId());
+        });
+        assertThat(part(view, clock.id().value()).pins()).singleElement()
+                .satisfies(pin -> assertThat(pin.position()).isEqualTo(new GridPoint(12, 18)));
+    }
+
+    @Test
+    void theNetsAreListsOfPinReferences() {
+        Component input = fixture.place(StandardComponentTypes.SWITCH, 4, 11);
+        Component flipFlop = fixture.place(StandardComponentTypes.FLIP_FLOP_DATA, 10, 10);
+        Component led = fixture.place(StandardComponentTypes.LED, 20, 9);
+        Wire data = fixture.wire(fixture.pin(input, 0), fixture.pin(flipFlop, 0));
+        fixture.wire(fixture.pin(flipFlop, 1), new GridPoint(21, 12));
+
+        CircuitView view = CircuitReader.read(fixture.source(), ReadFilter.FULL, Optional.empty());
+
+        NetView dataNet = net(view, new PinReference(flipFlop.id().value(), "d", 0));
+        assertThat(dataNet.pins()).containsExactlyInAnyOrder(new PinReference(input.id().value(), "out", 0),
+                new PinReference(flipFlop.id().value(), "d", 0));
+        assertThat(dataNet.wires()).containsExactly(data.id().value());
+        assertThat(dataNet.width()).isEqualTo(1);
+        assertThat(net(view, new PinReference(led.id().value(), "in", 0)).pins())
+                .contains(new PinReference(flipFlop.id().value(), "q", 1));
+    }
+
+    @Test
+    void aRotatedPartsPinsAreWhereTheyAreDrawn() {
+        Component flipFlop = fixture.place(StandardComponentTypes.FLIP_FLOP_DATA, 10, 10, Rotation.R90, Map.of(),
+                "");
+
+        PartView part = part(CircuitReader.read(fixture.source(), ReadFilter.FULL, Optional.empty()),
+                flipFlop.id().value());
+
+        assertThat(part.rotation()).isEqualTo("R90");
+        assertThat(part.pins()).extracting(PinView::position)
+                .containsExactly(new GridPoint(8, 10), new GridPoint(8, 14), new GridPoint(6, 12));
+    }
+
+    @Test
+    void anEightBitPartHasItsEightBitPins() {
+        Component splitter = fixture.place(StandardComponentTypes.BUS_SPLITTER, 0, 0, Rotation.R0,
+                Map.of("width", 4), "");
+
+        PartView part = part(CircuitReader.read(fixture.source(), ReadFilter.FULL, Optional.empty()),
+                splitter.id().value());
+
+        assertThat(part.parameters()).containsEntry("width", 4);
+        assertThat(part.pins()).hasSize(5);
+        assertThat(part.pins().get(0).width()).isEqualTo(4);
+        assertThat(part.pins()).extracting(pin -> pin.pin().pinName()).containsExactly("bus", "b0", "b1", "b2", "b3");
+    }
+
+    @Test
+    void aUserComponentsInstanceHasThePinsOfItsDefinition() {
+        fixture.document.putDefinition(ExampleDefinitions.byteBuffer());
+        Component buffer = fixture.place(SubcircuitTypes.typeIdOf(ExampleDefinitions.BYTE_BUFFER), 10, 10);
+
+        CircuitView view = CircuitReader.read(fixture.source(), ReadFilter.FULL, Optional.empty());
+
+        assertThat(part(view, buffer.id().value()).pins())
+                .extracting(PinView::pin, PinView::width, PinView::position)
+                .containsExactly(org.assertj.core.groups.Tuple.tuple(new PinReference(buffer.id().value(), "a", 0),
+                                8, new GridPoint(10, 12)),
+                        org.assertj.core.groups.Tuple.tuple(new PinReference(buffer.id().value(), "y", 1),
+                                8, new GridPoint(14, 12)));
+        assertThat(view.summary().userComponents()).containsExactly("Búfer de 8 bits");
+    }
+
+    @Test
+    void theSummaryListsPartsFramesNotesAndGuidesAndOnlyCountsWiresAndNets() {
+        Component input = fixture.place(StandardComponentTypes.SWITCH, 4, 11);
+        Component flipFlop = fixture.place(StandardComponentTypes.FLIP_FLOP_DATA, 10, 10);
+        fixture.wire(fixture.pin(input, 0), fixture.pin(flipFlop, 0));
+        fixture.document.add(new Frame(fixture.document.newFrameId(), new GridPoint(0, 0), 30, 20, "Etapa 1",
+                FrameTint.BLUE, false));
+        fixture.document.add(new TextLabel(fixture.document.newLabelId(), new GridPoint(2, 22), "Prueba: d=1"));
+        fixture.document.setGuides(List.of(new Guide(Guide.Orientation.VERTICAL, 10)));
+
+        CircuitView view = CircuitReader.read(fixture.source(), ReadFilter.SUMMARY, Optional.empty());
+
+        assertThat(view.name()).isEqualTo("Prueba");
+        assertThat(view.parts()).hasSize(2).allSatisfy(part -> assertThat(part.pins()).isEmpty());
+        assertThat(view.wires()).isEmpty();
+        assertThat(view.nets()).isEmpty();
+        assertThat(view.frames()).singleElement().satisfies(frame -> {
+            assertThat(frame.title()).isEqualTo("Etapa 1");
+            assertThat(frame.bounds()).isEqualTo(new Bounds(0, 0, 30, 20));
+            assertThat(frame.tint()).isEqualTo("BLUE");
+        });
+        assertThat(view.notes()).singleElement().satisfies(note -> assertThat(note.text()).isEqualTo("Prueba: d=1"));
+        assertThat(view.guides()).singleElement()
+                .satisfies(guide -> assertThat(guide).isEqualTo(new CircuitView.GuideView("VERTICAL", 10)));
+        assertThat(view.summary().parts()).isEqualTo(2);
+        assertThat(view.summary().wires()).isEqualTo(1);
+        assertThat(view.summary().frames()).isEqualTo(1);
+        assertThat(view.summary().notes()).isEqualTo(1);
+        assertThat(view.summary().guides()).isEqualTo(1);
+        assertThat(view.summary().nets()).isPositive();
+        assertThat(view.summary().partsByType()).containsEntry(StandardComponentTypes.SWITCH, 1)
+                .containsEntry(StandardComponentTypes.FLIP_FLOP_DATA, 1);
+        assertThat(view.summary().bounds()).contains(new Bounds(0, 0, 30, 22));
+        assertThat(view.matchingElements()).isEqualTo(4);
+        assertThat(view.nextCursor()).isEmpty();
+    }
+
+    @Test
+    void aBigCircuitComesInPagesOfAtMostTwoHundred() {
+        for (int index = 0; index < 250; index++) {
+            fixture.place(StandardComponentTypes.NOT, (index % 25) * 6, (index / 25) * 6);
+        }
+
+        CircuitView first = CircuitReader.read(fixture.source(), ReadFilter.SUMMARY, Optional.empty());
+        CircuitView second = CircuitReader.read(fixture.source(), ReadFilter.SUMMARY, first.nextCursor());
+
+        assertThat(first.parts()).hasSize(ReadFilter.MAXIMUM_PAGE_SIZE);
+        assertThat(first.matchingElements()).isEqualTo(250);
+        assertThat(first.nextCursor()).isPresent();
+        assertThat(second.parts()).hasSize(50);
+        assertThat(second.nextCursor()).isEmpty();
+        assertThat(second.guides()).isEmpty();
+        assertThat(first.parts().stream().map(PartView::id).toList())
+                .doesNotContainAnyElementsOf(second.parts().stream().map(PartView::id).toList());
+        assertThat(ReadFilter.SUMMARY.withPageSize(1000).pageSize()).isEqualTo(ReadFilter.MAXIMUM_PAGE_SIZE);
+    }
+
+    @Test
+    void aCursorOfAnOlderVersionIsStaleAndABrokenOneIsRefused() {
+        for (int index = 0; index < 5; index++) {
+            fixture.place(StandardComponentTypes.NOT, index * 6, 0);
+        }
+        CircuitView first = CircuitReader.read(fixture.source(), ReadFilter.SUMMARY.withPageSize(2), Optional.empty());
+        fixture.useVersion(8);
+
+        assertThatThrownBy(() -> CircuitReader.read(fixture.source(), ReadFilter.SUMMARY.withPageSize(2),
+                first.nextCursor()))
+                .isInstanceOfSatisfying(AutomationException.class, exception -> {
+                    assertThat(exception.error()).isEqualTo(AutomationError.STALE_DOCUMENT);
+                    assertThat(exception.recovery()).containsEntry("currentVersion", 8L);
+                });
+        assertThatThrownBy(() -> CircuitReader.read(fixture.source(), ReadFilter.SUMMARY, Optional.of("nonsense")))
+                .isInstanceOfSatisfying(AutomationException.class,
+                        exception -> assertThat(exception.error()).isEqualTo(AutomationError.INVALID_REFERENCE));
+    }
+
+    @Test
+    void theFilterKeepsTheAskedKindsIdsAndRegion() {
+        Component left = fixture.place(StandardComponentTypes.NOT, 0, 0);
+        Component right = fixture.place(StandardComponentTypes.NOT, 40, 0);
+        fixture.wire(fixture.pin(left, 1), new GridPoint(10, 2));
+
+        assertThat(CircuitReader.read(fixture.source(), ReadFilter.FULL.withKinds(Set.of(ElementKind.WIRE)),
+                Optional.empty()).parts()).isEmpty();
+        assertThat(CircuitReader.read(fixture.source(), ReadFilter.FULL.withElementIds(Set.of(right.id().value())),
+                Optional.empty()).parts()).extracting(PartView::id).containsExactly(right.id().value());
+        CircuitView region = CircuitReader.read(fixture.source(), ReadFilter.FULL.withRegion(new Bounds(-1, -1, 20, 10)),
+                Optional.empty());
+        assertThat(region.parts()).extracting(PartView::id).containsExactly(left.id().value());
+        assertThat(region.wires()).hasSize(1);
+        assertThat(region.matchingElements()).isEqualTo(2);
+    }
+
+    @Test
+    void readingChangesNothing() {
+        Component input = fixture.place(StandardComponentTypes.SWITCH, 4, 11);
+        Component flipFlop = fixture.place(StandardComponentTypes.FLIP_FLOP_DATA, 10, 10);
+        fixture.wire(fixture.pin(input, 0), fixture.pin(flipFlop, 0));
+        long revision = fixture.document.revision();
+        String serializedBefore = fixture.document.elements().toString();
+
+        CircuitReader.read(fixture.source(), ReadFilter.FULL, Optional.empty());
+        CircuitReader.read(fixture.source(), ReadFilter.SUMMARY, Optional.empty());
+
+        assertThat(fixture.document.revision()).isEqualTo(revision);
+        assertThat(fixture.document.elements().toString()).isEqualTo(serializedBefore);
+    }
+
+    private static PartView part(CircuitView view, String id) {
+        return view.parts().stream().filter(part -> part.id().equals(id)).findFirst().orElseThrow();
+    }
+
+    private static NetView net(CircuitView view, PinReference pin) {
+        return view.nets().stream().filter(net -> net.pins().contains(pin)).findFirst().orElseThrow();
+    }
+}

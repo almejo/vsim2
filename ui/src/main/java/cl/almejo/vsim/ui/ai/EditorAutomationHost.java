@@ -1,16 +1,23 @@
 package cl.almejo.vsim.ui.ai;
 
+import cl.almejo.vsim.automation.AutomationError;
+import cl.almejo.vsim.automation.AutomationException;
 import cl.almejo.vsim.automation.AutomationHost;
 import cl.almejo.vsim.automation.DocumentId;
 import cl.almejo.vsim.automation.DocumentSummary;
 import cl.almejo.vsim.automation.DocumentVersion;
 import cl.almejo.vsim.automation.EditorAccess;
+import cl.almejo.vsim.automation.read.ReadSource;
+import cl.almejo.vsim.automation.read.RegionPicture;
+import cl.almejo.vsim.automation.read.WindowPicture;
+import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.ui.app.OpenDocument;
 
 import javax.swing.SwingUtilities;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.WeakHashMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
@@ -28,10 +35,18 @@ public final class EditorAutomationHost implements AutomationHost {
     /** EDT only. Weak, so a closed circuit's entry goes with it; the counter never gives an id twice. */
     private final Map<OpenDocument, DocumentId> ids = new WeakHashMap<>();
     private long lastId;
+    private final ReadHostSupport reads;
 
     /** @param openDocuments the open circuits, one per circuit however many views it has; called on the EDT */
     public EditorAutomationHost(Supplier<List<OpenDocument>> openDocuments) {
+        this(openDocuments, document -> List.of());
+    }
+
+    /** @param windowsOf the windows showing a circuit, the active one first (for the pictures); called on the EDT */
+    public EditorAutomationHost(Supplier<List<OpenDocument>> openDocuments,
+                                Function<OpenDocument, List<ShownWindow>> windowsOf) {
         this.openDocuments = Objects.requireNonNull(openDocuments, "openDocuments");
+        this.reads = new ReadHostSupport(windowsOf);
     }
 
     @Override
@@ -45,6 +60,57 @@ public final class EditorAutomationHost implements AutomationHost {
             }
         });
         return result;
+    }
+
+    // --- Reading (IA.1 Task 2): ReadHostSupport does the work; pictures are encoded off the EDT ---
+
+    @Override
+    public <T> CompletableFuture<T> reading(DocumentId id, Function<ReadSource, T> work) {
+        return onEditorThread(access -> work.apply(reads.source(id, documentOf(id))));
+    }
+
+    @Override
+    public CompletableFuture<RegionPicture> pictureOf(DocumentId id, Optional<Bounds> region, boolean asOnScreen) {
+        return onEditorThread(access -> {
+            OpenDocument document = documentOf(id);
+            return Map.entry(ReadHostSupport.version(document), reads.paintRegion(document, region, asOnScreen));
+        }).thenApplyAsync(painted -> ReadHostSupport.regionPicture(id, painted.getKey(), asOnScreen,
+                painted.getValue()));
+    }
+
+    @Override
+    public CompletableFuture<WindowPicture> pictureOfWindow(DocumentId id) {
+        return onEditorThread(access -> {
+            OpenDocument document = documentOf(id);
+            return Map.entry(ReadHostSupport.version(document), reads.paintWindow(document));
+        }).thenApplyAsync(painted -> ReadHostSupport.windowPicture(id, painted.getKey(), painted.getValue()));
+    }
+
+    /** EDT only: the open circuit {@code id} names, or the refusal that says whether it was closed or never given. */
+    private OpenDocument documentOf(DocumentId id) {
+        for (OpenDocument document : openDocuments.get()) {
+            if (idOf(document).equals(id)) {
+                return document;
+            }
+        }
+        if (wasGiven(id)) {
+            throw new AutomationException(AutomationError.DOCUMENT_CLOSED,
+                    "Circuit " + id.value() + " was closed; list the documents again");
+        }
+        throw new AutomationException(AutomationError.INVALID_REFERENCE,
+                "No circuit " + id.value() + "; list the documents to get their ids");
+    }
+
+    private boolean wasGiven(DocumentId id) {
+        if (!id.value().startsWith(ID_PREFIX)) {
+            return false;
+        }
+        try {
+            long number = Long.parseLong(id.value().substring(ID_PREFIX.length()));
+            return number >= 1 && number <= lastId;
+        } catch (NumberFormatException exception) {
+            return false;
+        }
     }
 
     private DocumentId idOf(OpenDocument document) {

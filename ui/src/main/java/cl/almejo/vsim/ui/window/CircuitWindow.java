@@ -118,6 +118,11 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
     }
 
     /** Shows {@code state} instead of centering the circuit when the window opens; call it before {@code setVisible}. */
+    /** The editor inside this window (the AI's pictures paint its panes). */
+    public EditorView view() {
+        return view;
+    }
+
     public void setInitialViewState(ViewState state) {
         this.initialViewState = state;
     }

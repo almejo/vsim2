@@ -1,8 +1,20 @@
 package cl.almejo.vsim.automation;
 
+import cl.almejo.vsim.automation.read.CatalogView;
+import cl.almejo.vsim.automation.read.CircuitView;
+import cl.almejo.vsim.automation.read.ComponentTypeView;
+import cl.almejo.vsim.automation.read.ProblemsView;
+import cl.almejo.vsim.automation.read.ReadFilter;
+import cl.almejo.vsim.automation.read.Reads;
+import cl.almejo.vsim.automation.read.RegionPicture;
+import cl.almejo.vsim.automation.read.WindowPicture;
+import cl.almejo.vsim.core.geometry.Bounds;
+
 import java.time.Duration;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
@@ -23,6 +35,7 @@ public final class AutomationApi {
     private final AutomationHost host;
     private final Duration editorTimeout;
     private final List<AutomationListener> listeners = new CopyOnWriteArrayList<>();
+    private final Reads reads;
 
     public AutomationApi(AutomationHost host) {
         this(host, EDITOR_TIMEOUT);
@@ -31,11 +44,49 @@ public final class AutomationApi {
     AutomationApi(AutomationHost host, Duration editorTimeout) {
         this.host = Objects.requireNonNull(host, "host");
         this.editorTimeout = Objects.requireNonNull(editorTimeout, "editorTimeout");
+        this.reads = new Reads(host, editorTimeout);
     }
 
     /** The open circuits, one per circuit however many windows show it. */
     public List<DocumentSummary> listDocuments() {
         return onEditorThread(EditorAccess::openDocuments);
+    }
+
+    // --- Reading (IA.1 Task 2): the logic lives in the read package ---
+
+    /** The types the AI can place in circuit {@code id}, filtered by id, name or category. */
+    public CatalogView describeComponents(DocumentId id, Optional<String> typeFilter) {
+        return reads.describeComponents(id, typeFilter);
+    }
+
+    /** Type {@code typeId} with the pins a part placed with {@code parameters} would have. */
+    public ComponentTypeView describeComponent(DocumentId id, String typeId, Map<String, Object> parameters) {
+        return reads.describeComponent(id, typeId, parameters);
+    }
+
+    /** One page of circuit {@code id}: summary by default, pages of at most 200 elements. */
+    public CircuitView readCircuit(DocumentId id, ReadFilter filter, Optional<String> cursor) {
+        return reads.readCircuit(id, filter, cursor);
+    }
+
+    /** The problems of circuit {@code id}'s latest simulation. */
+    public ProblemsView readProblems(DocumentId id) {
+        return reads.readProblems(id);
+    }
+
+    /** A PNG of {@code region} of circuit {@code id} as the export paints it; never shown, never saved. */
+    public RegionPicture pictureOf(DocumentId id, Optional<Bounds> region) {
+        return reads.pictureOf(id, region, false);
+    }
+
+    /** Like {@link #pictureOf(DocumentId, Optional)}; {@code asOnScreen} paints the active pane as the user sees it. */
+    public RegionPicture pictureOf(DocumentId id, Optional<Bounds> region, boolean asOnScreen) {
+        return reads.pictureOf(id, region, asOnScreen);
+    }
+
+    /** A PNG of the whole window showing circuit {@code id}, painted from its components; never saved. */
+    public WindowPicture pictureOfWindow(DocumentId id) {
+        return reads.pictureOfWindow(id);
     }
 
     /** {@code listener} hears every AI task begin and end until the returned runnable takes it back. */

@@ -11,6 +11,7 @@ import cl.almejo.vsim.core.io.LibraryDirectory;
 import cl.almejo.vsim.core.library.ComponentLibrary;
 import cl.almejo.vsim.ui.ai.AiServerService;
 import cl.almejo.vsim.ui.ai.EditorAutomationHost;
+import cl.almejo.vsim.ui.ai.ShownWindow;
 import cl.almejo.vsim.ui.examples.ExamplesFeature;
 import cl.almejo.vsim.ui.export.ExportImageExtension;
 import cl.almejo.vsim.ui.print.ExportPdfExtension;
@@ -116,7 +117,8 @@ public final class Application {
         this.recoveryStore = new RecoveryStore(preferences.dataDirectory().resolve("recovery"));
         this.autosave = AutosaveService.create(recoveryStore);
         this.aiServer = new AiServerService(preferences,
-                new AutomationApi(new EditorAutomationHost(windows::documents)));
+                new AutomationApi(new EditorAutomationHost(windows::documents,
+                        document -> ShownWindow.activeFirst(windows.windowsOf(document)))));
     }
 
     /**
