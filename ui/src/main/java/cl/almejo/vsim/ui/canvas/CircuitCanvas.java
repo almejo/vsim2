@@ -104,7 +104,12 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     private final CircuitRenderer renderer;
     private final CanvasHost host;
     private final HitTester hitTester;
-    private final Selection selection = new Selection();
+    private final Selection selection;
+    private final Runnable selectionListener = () -> {
+        updateAnimation();
+        repaint();
+    };
+    private final List<Runnable> pressObservers = new CopyOnWriteArrayList<>();
     private final Viewport viewport = new Viewport();
     private final Tool defaultTool = new SelectTool();
     private final Timer frameTimer;
@@ -174,8 +179,18 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     private final ViewAnimator viewAnimator = new ViewAnimator(FrameTicker.swing(FRAME_MILLISECONDS),
             () -> System.nanoTime() / 1_000_000, this::showTravelFrame, () -> animateViewMoves.getAsBoolean());
 
+    /** A canvas with a selection of its own (a window that is not split, a canvas outside a window). */
     public CircuitCanvas(OpenDocument openDocument, CircuitRenderer renderer, CanvasHost host) {
+        this(openDocument, renderer, host, new Selection());
+    }
+
+    /**
+     * A canvas showing {@code selection}, which other canvases may show too (the panes of one window share it). The
+     * canvas prunes it when elements are deleted and stops listening to it when disposed.
+     */
+    public CircuitCanvas(OpenDocument openDocument, CircuitRenderer renderer, CanvasHost host, Selection selection) {
         this.openDocument = openDocument;
+        this.selection = Objects.requireNonNull(selection, "selection");
         this.renderer = renderer;
         this.host = host;
         this.selectionMoves = host.selectionMoves();
@@ -185,10 +200,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         setOpaque(true);
         setPreferredSize(new Dimension(900, 650));
         openDocument.document().addListener(documentListener);
-        selection.addListener(() -> {
-            updateAnimation();
-            repaint();
-        });
+        selection.addListener(selectionListener);
         MouseHandler mouseHandler = new MouseHandler();
         addMouseListener(mouseHandler);
         addMouseMotionListener(mouseHandler);
@@ -575,6 +587,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         problemPulseTimer.stop();
         watchWindow(null);
         openDocument.document().removeListener(documentListener);
+        selection.removeListener(selectionListener);
     }
 
     public Tool tool() {
@@ -615,8 +628,10 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         incomingFragmentListeners.forEach(listener -> listener.accept(fragment));
     }
 
-    public void addToolListener(Consumer<Tool> listener) {
+    /** Runs {@code listener} with every tool this canvas switches to. Returns its removal. */
+    public Runnable addToolListener(Consumer<Tool> listener) {
         toolListeners.add(listener);
+        return () -> toolListeners.remove(listener);
     }
 
     public void addSnapshotListener(Consumer<SimulationSnapshot> listener) {
@@ -632,8 +647,19 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         return snapshotListeners.size();
     }
 
-    public void addViewListener(Runnable listener) {
+    /** Runs {@code listener} whenever the view (zoom, centre) changes through the canvas. Returns its removal. */
+    public Runnable addViewListener(Runnable listener) {
         viewListeners.add(listener);
+        return () -> viewListeners.remove(listener);
+    }
+
+    /**
+     * Runs {@code observer} at every mouse press on this canvas, before anything else handles it (the window makes
+     * this pane the active one before the tool sees the press). Returns its removal.
+     */
+    public Runnable addPressObserver(Runnable observer) {
+        pressObservers.add(observer);
+        return () -> pressObservers.remove(observer);
     }
 
     public void zoomIn() {
@@ -1306,6 +1332,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
 
         @Override
         public void mousePressed(MouseEvent event) {
+            pressObservers.forEach(Runnable::run);
             if (isExtraButton(event)) {
                 scrollSideways(event.getButton());
                 return;

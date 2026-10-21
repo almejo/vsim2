@@ -115,7 +115,7 @@ class FindFeaturesTest {
         perform(features.findAction());
 
         assertThat(features.isOpen()).isTrue();
-        Container area = view.canvas().getParent();
+        Container area = view.canvasPanes().getParent();
         assertThat(features.bar().getParent()).isSameAs(area);
         assertThat(focused).last().isSameAs(features.bar().field());
         assertThat(texts(view.menu(MenuId.EDIT))).contains("Buscar…", "Buscar siguiente", "Buscar anterior");
@@ -509,12 +509,12 @@ class FindFeaturesTest {
         perform(features.findAction());
         layoutTree(window);
 
-        assertThat(view.canvas().getY()).isPositive();
+        assertThat(view.canvasPanes().getY()).isPositive();
         assertThat(onScreen(view, 10, 10)).isEqualTo(before);
         assertThat(viewChanges).isNotEmpty(); // the compensation pan is a view change (the saved view state follows)
         press(KeyEvent.VK_ESCAPE, 0);
         layoutTree(window);
-        assertThat(view.canvas().getY()).isZero();
+        assertThat(view.canvasPanes().getY()).isZero();
         assertThat(onScreen(view, 10, 10)).isEqualTo(before);
     }
 

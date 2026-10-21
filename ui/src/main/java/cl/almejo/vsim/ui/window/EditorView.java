@@ -14,6 +14,7 @@ import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.CanvasHost;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.canvas.CircuitRenderer;
+import cl.almejo.vsim.ui.canvas.Selection;
 import cl.almejo.vsim.ui.clipboard.FragmentClipboard;
 import cl.almejo.vsim.ui.icons.Icons;
 import cl.almejo.vsim.ui.inline.InlineTextEditor;
@@ -30,6 +31,7 @@ import cl.almejo.vsim.ui.tools.PlaceComponentTool;
 import cl.almejo.vsim.ui.tools.SelectTool;
 import cl.almejo.vsim.ui.tools.Tool;
 import cl.almejo.vsim.ui.tools.WireTool;
+import cl.almejo.vsim.ui.window.panes.CanvasPanes;
 import cl.almejo.vsim.ui.wiring.SelectionMoves;
 
 import javax.swing.AbstractAction;
@@ -56,6 +58,7 @@ import java.awt.geom.Point2D;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.EnumMap;
 import java.util.List;
@@ -65,6 +68,7 @@ import java.util.Optional;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 /**
  * Content of an editor window: toolbar, palette, canvas, inspector and status bar, wired to one {@link OpenDocument}.
@@ -76,7 +80,13 @@ public final class EditorView extends JPanel implements CanvasHost {
     private static final int PALETTE_WIDTH = 230;
 
     private final OpenDocument openDocument;
-    private final CircuitCanvas canvas;
+    /** The one selection of this window, shown and changed by every pane. */
+    private final Selection selection = new Selection();
+    private final CanvasPanes canvasPanes;
+    private final List<PaneInstallation> paneInstallations = new ArrayList<>();
+    /** What the window's tool choice makes for each pane; null while the panes use their default tool. */
+    private Supplier<? extends Tool> toolChoice;
+    private boolean spreadingDefaultTool;
     private final EditorActions actions;
     private final SelectionActions selectionActions;
     private final PalettePanel palette;
@@ -118,16 +128,14 @@ public final class EditorView extends JPanel implements CanvasHost {
         this.openDocument = openDocument;
         this.services = services;
         this.windowCommands = window;
-        CircuitRenderer renderer = new CircuitRenderer(openDocument.registry(), services.painters(),
-                services.appearance());
         this.selectionMoves = new SelectionMoves(services.preferences(), statusBar::showNotice);
-        this.canvas = new CircuitCanvas(openDocument, renderer, this);
-        canvas.setAnimateViewMoves(services.preferences()::animateViewMoves);
+        CircuitCanvas canvas = newPane();
+        this.canvasPanes = new CanvasPanes(this::newPane, canvas);
         this.actions = new EditorActions(openDocument, canvas, window);
         this.selectionActions = new SelectionActions(openDocument, canvas, actions, FragmentClipboard.system());
         this.palette = new PalettePanel(openDocument.registry(), services.painters(), services.appearance(), type -> {
-            canvas.setTool(new PlaceComponentTool(type));
-            canvas.requestFocusInWindow();
+            setToolOnEveryPane(() -> new PlaceComponentTool(type));
+            canvas().requestFocusInWindow();
         });
         this.menuBar = actions.createMenuBar();
         indexMenus();
@@ -136,7 +144,7 @@ public final class EditorView extends JPanel implements CanvasHost {
         panButton = new JToggleButton(actions.panTool());
         buildToolBar();
 
-        this.canvasArea = new CanvasArea(canvas);
+        this.canvasArea = new CanvasArea(canvasPanes);
         this.bottomDock = new BottomDock(canvasArea);
         JSplitPane inspectorSplit = new InspectorSplit(bottomDock, inspector);
         JSplitPane split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, palette, inspectorSplit);
@@ -147,35 +155,27 @@ public final class EditorView extends JPanel implements CanvasHost {
         add(split, BorderLayout.CENTER);
         add(statusBar, BorderLayout.SOUTH);
 
-        canvas.addToolListener(this::toolChanged);
-        canvas.addSnapshotListener(statusBar::showSnapshot);
-        canvas.addViewListener(() -> statusBar.showZoom(canvas.viewport().zoom()));
-        canvas.selection().addListener(() -> statusBar.showSelection(canvas.selection().ids().size()));
+        canvasPanes.addPanesListener(this::panesChanged);
+        canvasPanes.addActiveListener(this::activePaneChanged);
+        selection.addListener(() -> statusBar.showSelection(selection.ids().size()));
         statusBar.showSnapshot(SimulationSnapshot.EMPTY);
         statusBar.showZoom(canvas.viewport().zoom());
-        statusBar.onZoomClicked(canvas::resetZoom);
+        statusBar.onZoomClicked(() -> canvas().resetZoom());
         statusBar.onRunStateClicked(() -> performIfEnabled(actions.pause()),
                 () -> performIfEnabled(actions.start()));
-        canvas.bindKey(KeyStroke.getKeyStroke(KeyEvent.VK_DELETE, 0), "delete", actions.delete());
-        canvas.bindKey(KeyStroke.getKeyStroke(KeyEvent.VK_BACK_SPACE, 0), "delete", actions.delete());
-        canvas.bindKey(KeyStroke.getKeyStroke(KeyEvent.VK_R, 0), "rotateClockwise", actions.rotateClockwise());
-        canvas.bindKey(KeyStroke.getKeyStroke(KeyEvent.VK_R, InputEvent.SHIFT_DOWN_MASK), "rotateCounterClockwise",
-                actions.rotateCounterClockwise());
-        actions.moveActions().forEach((id, action) -> ShortcutCatalog.find(id)
-                .flatMap(entry -> entry.defaultStroke()).ifPresent(stroke -> canvas.bindKey(stroke, id, action)));
+        forEachPane(this::configurePane);
         bindZoomKeys();
         bindEscapeToTheTool();
-        palette.setFocusAfterMouseChoice(canvas::requestFocusInWindow);
+        palette.setFocusAfterMouseChoice(() -> canvas().requestFocusInWindow());
         toolChanged(canvas.tool());
-        canvas.setFileDropHandler(this::dropFiles);
         palette.setFileDropHandler(this::dropFiles);
         installSelectionActions();
         inlineEditor = new InlineTextEditor(canvas);
         labelFeatures = LabelFeatures.install(this);
         problems = new ProblemsController(this);
-        appearanceListener = canvas::repaint;
+        appearanceListener = this::repaintPanes;
         services.appearance().addListener(appearanceListener);
-        textFontListener = canvas::repaint;
+        textFontListener = this::repaintPanes;
         TextFonts.addListener(textFontListener);
         try {
             for (EditorExtension extension : services.extensions()) {
@@ -206,28 +206,70 @@ public final class EditorView extends JPanel implements CanvasHost {
 
     public OpenDocument openDocument() { return openDocument; }
     public EditorServices services() { return services; }
-    /** The active pane: the one the user last pressed or focused (the only one while the window is not split). */
-    public CircuitCanvas canvas() { return canvas; }
+    /**
+     * The active pane: the one the user last pressed or focused (the only one while the window is not split).
+     * Actions that read or move the view resolve it when they run, never once at install.
+     */
+    public CircuitCanvas canvas() { return canvasPanes.active(); }
 
     /** Every pane of this window, in reading order. */
     public List<CircuitCanvas> panes() {
-        return List.of(canvas);
+        return canvasPanes.panes();
+    }
+
+    /** The panes of this window and their dividers (splitting, removing, the layout to remember). */
+    public CanvasPanes canvasPanes() {
+        return canvasPanes;
+    }
+
+    /** The one selection of this window: every pane shows and changes it (separate windows have their own). */
+    public Selection selection() {
+        return selection;
     }
 
     /** Runs {@code listener} whenever another pane becomes the active one. Returns its removal. */
     public Runnable addActivePaneListener(Runnable listener) {
         Objects.requireNonNull(listener, "listener");
-        return () -> {
-        };
+        return canvasPanes.addActiveListener(pane -> listener.run());
     }
 
     /**
      * Runs {@code install} on every pane now and on every pane created later; when a pane is removed, the runnable
-     * {@code install} returned for it runs. The returned runnable undoes the installation on every pane still there.
+     * {@code install} returned for it runs (before the pane is disposed). The returned runnable undoes the
+     * installation on every pane still there; calling it again does nothing.
      */
     public Runnable forEachPane(Function<CircuitCanvas, Runnable> install) {
-        Runnable disposer = install.apply(canvas);
-        return disposer;
+        PaneInstallation installation = new PaneInstallation(Objects.requireNonNull(install, "install"));
+        paneInstallations.add(installation);
+        panes().forEach(installation::installOn);
+        return () -> {
+            if (paneInstallations.remove(installation)) {
+                installation.undoAll();
+            }
+        };
+    }
+
+    /**
+     * The window's tool choice: every pane gets its own tool from {@code newTool} (a gesture in one pane never touches
+     * another), and so do the panes created later, until the active pane goes back to its default tool.
+     */
+    public void setToolOnEveryPane(Supplier<? extends Tool> newTool) {
+        Objects.requireNonNull(newTool, "newTool");
+        toolChoice = newTool;
+        for (CircuitCanvas pane : panes()) {
+            pane.setTool(newTool.get());
+        }
+    }
+
+    /** Puts every pane back on its default tool (Elegir) and ends the window's tool choice. */
+    public void useDefaultToolOnEveryPane() {
+        toolChoice = null;
+        spreadingDefaultTool = true;
+        try {
+            panes().forEach(CircuitCanvas::useDefaultTool);
+        } finally {
+            spreadingDefaultTool = false;
+        }
     }
     public EditorActions actions() { return actions; }
     public SelectionActions selectionActions() { return selectionActions; }
@@ -320,7 +362,7 @@ public final class EditorView extends JPanel implements CanvasHost {
      * (grid units) without showing it.
      */
     public JPopupMenu contextMenu(Optional<DocumentElement> target, Point2D gridPosition) {
-        return ContextMenuFactory.create(target, actions, canvas.selection(), gridPosition, contextMenuContributors);
+        return ContextMenuFactory.create(target, actions, selection, gridPosition, contextMenuContributors);
     }
 
     /** Where dropped component files ({@code .vsimcomponent.json}) go; null (the default) when nothing imports them. */
@@ -384,7 +426,8 @@ public final class EditorView extends JPanel implements CanvasHost {
         steps.add(labelFeatures::dispose);
         steps.add(inlineEditor::dispose);
         steps.add(actions::dispose);
-        steps.add(canvas::dispose);
+        steps.add(this::undoPaneInstallations);
+        steps.add(canvasPanes::dispose);
         RuntimeException failure = null;
         for (Runnable step : steps) {
             try {
@@ -404,7 +447,7 @@ public final class EditorView extends JPanel implements CanvasHost {
 
     @Override
     public void showContextMenu(CircuitCanvas source, Optional<DocumentElement> target, Point2D screenPosition) {
-        Point2D gridPosition = canvas.viewport().screenToGrid(screenPosition.getX(), screenPosition.getY());
+        Point2D gridPosition = source.viewport().screenToGrid(screenPosition.getX(), screenPosition.getY());
         contextMenu(target, gridPosition).show(source, (int) screenPosition.getX(), (int) screenPosition.getY());
     }
 
@@ -468,6 +511,7 @@ public final class EditorView extends JPanel implements CanvasHost {
             @Override
             public boolean isEnabled() {
                 // the canvas's own key handler already gave the key to the tool
+                CircuitCanvas canvas = canvas();
                 return canvas.tool() != canvas.defaultTool() && !canvas.isFocusOwner()
                         && MenuSelectionManager.defaultManager().getSelectedPath().length == 0;
             }
@@ -475,7 +519,7 @@ public final class EditorView extends JPanel implements CanvasHost {
             @Override
             public void actionPerformed(ActionEvent event) {
                 if (isEnabled()) {
-                    canvas.pressKeyOnTool(KeyEvent.VK_ESCAPE, false);
+                    canvas().pressKeyOnTool(KeyEvent.VK_ESCAPE, false);
                 }
             }
         });
@@ -564,23 +608,33 @@ public final class EditorView extends JPanel implements CanvasHost {
      */
     private static final class CanvasArea extends JPanel {
 
-        private final CircuitCanvas canvas;
+        private final CanvasPanes panes;
 
-        CanvasArea(CircuitCanvas canvas) {
+        CanvasArea(CanvasPanes panes) {
             super(new BorderLayout());
-            this.canvas = canvas;
-            add(canvas, BorderLayout.CENTER);
+            this.panes = panes;
+            add(panes, BorderLayout.CENTER);
         }
 
+        /** Every pane that was laid out keeps its circuit in place on screen when its top edge moves. */
         @Override
         public void doLayout() {
-            int topBefore = canvas.getY();
-            boolean laidOut = canvas.getWidth() > 0 && canvas.getHeight() > 0;
-            super.doLayout();
-            int shift = canvas.getY() - topBefore;
-            if (laidOut && shift != 0) {
-                canvas.compensateCanvasMove(0, -shift);
+            Map<CircuitCanvas, Integer> topsBefore = new IdentityHashMap<>();
+            for (CircuitCanvas pane : panes.panes()) {
+                if (pane.getWidth() > 0 && pane.getHeight() > 0) {
+                    topsBefore.put(pane, panes.getY() + pane.getY());
+                }
             }
+            super.doLayout();
+            if (panes.getWidth() > 0 && panes.getHeight() > 0) {
+                panes.doLayout(); // in the same pass, so each pane is where the compensation measures it
+            }
+            topsBefore.forEach((pane, topBefore) -> {
+                int shift = panes.getY() + pane.getY() - topBefore;
+                if (shift != 0) {
+                    pane.compensateCanvasMove(0, -shift);
+                }
+            });
         }
 
         /**
@@ -600,6 +654,124 @@ public final class EditorView extends JPanel implements CanvasHost {
     private void performIfEnabled(Action action) {
         if (action.isEnabled()) {
             action.actionPerformed(new ActionEvent(statusBar, ActionEvent.ACTION_PERFORMED, ""));
+        }
+    }
+
+    /** A new pane's canvas: same document, a renderer of its own, the window's selection. */
+    private CircuitCanvas newPane() {
+        CircuitRenderer renderer = new CircuitRenderer(openDocument.registry(), services.painters(),
+                services.appearance());
+        return new CircuitCanvas(openDocument, renderer, this, selection);
+    }
+
+    /** What this view sets on every pane: view moves, file drops, its key bindings, the status bar, the tool. */
+    private Runnable configurePane(CircuitCanvas pane) {
+        pane.setAnimateViewMoves(services.preferences()::animateViewMoves);
+        pane.setFileDropHandler(this::dropFiles);
+        pane.bindKey(KeyStroke.getKeyStroke(KeyEvent.VK_DELETE, 0), "delete", actions.delete());
+        pane.bindKey(KeyStroke.getKeyStroke(KeyEvent.VK_BACK_SPACE, 0), "delete", actions.delete());
+        pane.bindKey(KeyStroke.getKeyStroke(KeyEvent.VK_R, 0), "rotateClockwise", actions.rotateClockwise());
+        pane.bindKey(KeyStroke.getKeyStroke(KeyEvent.VK_R, InputEvent.SHIFT_DOWN_MASK), "rotateCounterClockwise",
+                actions.rotateCounterClockwise());
+        actions.moveActions().forEach((id, action) -> ShortcutCatalog.find(id)
+                .flatMap(entry -> entry.defaultStroke()).ifPresent(stroke -> pane.bindKey(stroke, id, action)));
+        if (toolChoice != null) {
+            pane.setTool(toolChoice.get());
+        }
+        Runnable removeToolListener = pane.addToolListener(tool -> paneToolChanged(pane, tool));
+        Runnable removeViewListener = pane.addViewListener(() -> {
+            if (pane == canvas()) {
+                statusBar.showZoom(pane.viewport().zoom());
+            }
+        });
+        Consumer<SimulationSnapshot> snapshotListener = snapshot -> {
+            if (pane == canvas()) {
+                statusBar.showSnapshot(snapshot);
+            }
+        };
+        pane.addSnapshotListener(snapshotListener);
+        return () -> {
+            removeToolListener.run();
+            removeViewListener.run();
+            pane.removeSnapshotListener(snapshotListener);
+        };
+    }
+
+    /**
+     * A pane switched tools. Only the active pane speaks for the window: the toolbar shows its tool, and when it goes
+     * back to its default tool (Escape, a placement done) the window's tool choice ends on every pane.
+     */
+    private void paneToolChanged(CircuitCanvas pane, Tool tool) {
+        if (pane != canvas()) {
+            return;
+        }
+        if (tool == pane.defaultTool() && !spreadingDefaultTool) {
+            toolChoice = null;
+            spreadingDefaultTool = true;
+            try {
+                for (CircuitCanvas other : panes()) {
+                    if (other != pane && other.tool() != other.defaultTool()) {
+                        other.useDefaultTool();
+                    }
+                }
+            } finally {
+                spreadingDefaultTool = false;
+            }
+        }
+        toolChanged(tool);
+    }
+
+    private void activePaneChanged(CircuitCanvas pane) {
+        statusBar.showZoom(pane.viewport().zoom());
+        toolChanged(pane.tool());
+    }
+
+    /** Panes came or went: the {@link #forEachPane} installations follow (the undoing in reverse order first). */
+    private void panesChanged(List<CircuitCanvas> panes) {
+        for (int index = paneInstallations.size() - 1; index >= 0; index--) {
+            paneInstallations.get(index).undoExcept(panes);
+        }
+        for (PaneInstallation installation : List.copyOf(paneInstallations)) {
+            panes.forEach(installation::installOn);
+        }
+    }
+
+    private void undoPaneInstallations() {
+        while (!paneInstallations.isEmpty()) {
+            paneInstallations.removeLast().undoAll();
+        }
+    }
+
+    private void repaintPanes() {
+        panes().forEach(CircuitCanvas::repaint);
+    }
+
+    /** One {@link #forEachPane} registration and what undoes it on each pane it was installed on. */
+    private static final class PaneInstallation {
+
+        private final Function<CircuitCanvas, Runnable> install;
+        private final Map<CircuitCanvas, Runnable> undoByPane = new LinkedHashMap<>();
+
+        PaneInstallation(Function<CircuitCanvas, Runnable> install) {
+            this.install = install;
+        }
+
+        void installOn(CircuitCanvas pane) {
+            if (!undoByPane.containsKey(pane)) {
+                undoByPane.put(pane, Objects.requireNonNull(install.apply(pane), "what undoes the installation"));
+            }
+        }
+
+        void undoExcept(List<CircuitCanvas> kept) {
+            for (CircuitCanvas pane : List.copyOf(undoByPane.keySet())) {
+                if (!kept.contains(pane)) {
+                    undoByPane.remove(pane).run();
+                }
+            }
+        }
+
+        void undoAll() {
+            undoExcept(List.of());
         }
     }
 

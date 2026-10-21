@@ -14,8 +14,8 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.UnaryOperator;
 
 /**
- * Selected element ids of one canvas. Listeners run only when the set of ids really changes. Operations on the
- * selection act on {@link #effectiveIds()}, which expansions may widen.
+ * Selected element ids of one canvas, or of the panes of one window (they share it). Listeners run only when the set
+ * of ids really changes. Operations on the selection act on {@link #effectiveIds()}, which expansions may widen.
  */
 public final class Selection {
 
