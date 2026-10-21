@@ -230,6 +230,17 @@ class PdfExportDialogTest {
     }
 
     @Test
+    void theWarningCountsABlocksPinNamesNotOnlyTheLabels() {
+        UiTestSupport.place(openDocument, StandardComponentTypes.ADDER, 0, 0, Map.of());
+        place(85, 0);
+        open();
+        PageLayout layout = dialog.pageLayout().orElseThrow();
+        assertThat(layout.smallestTextPoints(TextFont.DEFAULT.size())).as("the labels alone read fine")
+                .isGreaterThanOrEqualTo(PdfExportDialog.MINIMUM_LEGIBLE_POINTS);
+        assertThat(dialog.warningVisible()).as("the pin names do not").isTrue();
+    }
+
+    @Test
     void aSmallCircuitDoesNotWarn() {
         place(10, 10);
         open();

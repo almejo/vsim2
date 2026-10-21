@@ -36,6 +36,7 @@ import java.awt.image.RenderedImage;
 import java.awt.image.renderable.RenderableImage;
 import java.text.AttributedCharacterIterator;
 import java.util.Map;
+import java.util.function.DoubleConsumer;
 
 /**
  * The {@link Graphics2D} the painters get for one PDF page: what {@link PdfPages} hands out. Each one (the page's and
@@ -68,14 +69,26 @@ final class SharedStreamGraphics extends Graphics2D {
     private Font font;
     private Color background;
     private RenderingHints hints;
+    /** Told the size of every text painted, in device units; does nothing for a PDF page. */
+    private final DoubleConsumer textSizes;
 
     /** The graphics the painters get for {@code page}, the page's own JFreePDF graphics, with its current state. */
     static SharedStreamGraphics forPage(Graphics2D page) {
-        return new SharedStreamGraphics(page);
+        return new SharedStreamGraphics(page, size -> { });
     }
 
-    private SharedStreamGraphics(Graphics2D page) {
+    /**
+     * A graphics over {@code page} (any graphics, such as a tiny image's) that tells {@code textSizes} the size of each
+     * text painted through it or its children, in {@code page}'s units: how «Exportar a PDF» finds the smallest text
+     * of a circuit, whatever painter draws it.
+     */
+    static SharedStreamGraphics measuring(Graphics2D page, DoubleConsumer textSizes) {
+        return new SharedStreamGraphics(page, textSizes);
+    }
+
+    private SharedStreamGraphics(Graphics2D page, DoubleConsumer textSizes) {
         this.page = page;
+        this.textSizes = textSizes;
         this.transform = page.getTransform();
         this.clip = null;
         this.paint = page.getPaint();
@@ -89,6 +102,7 @@ final class SharedStreamGraphics extends Graphics2D {
 
     private SharedStreamGraphics(SharedStreamGraphics parent) {
         this.page = parent.page;
+        this.textSizes = parent.textSizes;
         this.transform = new AffineTransform(parent.transform);
         this.clip = parent.clip;
         this.paint = parent.paint;
@@ -391,6 +405,7 @@ final class SharedStreamGraphics extends Graphics2D {
         if (text.isEmpty()) {
             return;
         }
+        textSizes.accept(deviceSize(font));
         fill(new TextLayout(text, font, getFontRenderContext()).getOutline(AffineTransform.getTranslateInstance(x,
                 y)));
     }
@@ -405,12 +420,19 @@ final class SharedStreamGraphics extends Graphics2D {
         if (iterator.getBeginIndex() == iterator.getEndIndex()) {
             return;
         }
+        textSizes.accept(deviceSize(font));
         fill(new TextLayout(iterator, getFontRenderContext()).getOutline(AffineTransform.getTranslateInstance(x, y)));
     }
 
     @Override
     public void drawGlyphVector(GlyphVector glyphs, float x, float y) {
+        textSizes.accept(deviceSize(glyphs.getFont()));
         fill(glyphs.getOutline(x, y));
+    }
+
+    /** {@code textFont}'s size once this graphics' transform scales it. */
+    private double deviceSize(Font textFont) {
+        return textFont.getSize2D() * Math.sqrt(Math.abs(transform.getDeterminant()));
     }
 
     @Override

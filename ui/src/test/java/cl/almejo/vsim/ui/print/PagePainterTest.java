@@ -503,6 +503,25 @@ class PagePainterTest {
     }
 
     @Test
+    void theSmallestTextIsWhatThePaintersReallyDraw() {
+        Component input = registry.require(StandardComponentTypes.SWITCH).newComponent(document.newComponentId(),
+                new GridPoint(0, 0), Rotation.R0, Map.of(), "Entrada");
+        document.add(input);
+        PrintInput labelsOnly = input();
+        PrintArea labelsArea = PrintScopes.area(labelsOnly, new PrintScope.WholeCircuit()).orElseThrow();
+        double labels = PagePainter.smallestTextPixels(labelsOnly, labelsArea, fit()).orElseThrow();
+        add(StandardComponentTypes.ADDER, 10, 0, Map.of());
+        PrintInput withBlock = input();
+        PrintArea blockArea = PrintScopes.area(withBlock, new PrintScope.WholeCircuit()).orElseThrow();
+        double pinNames = PagePainter.smallestTextPixels(withBlock, blockArea, fit()).orElseThrow();
+
+        assertThat(pinNames).as("a block's pin names are smaller than the labels").isLessThan(labels);
+        assertThat(pinNames).isGreaterThanOrEqualTo(PagePainter.SMALLEST_COUNTED_TEXT_PIXELS);
+        assertThat(PagePainter.smallestTextPixels(input(), PrintScopes.area(input(),
+                new PrintScope.WholeCircuit()).orElseThrow(), fit())).isPresent();
+    }
+
+    @Test
     void theLegendSaysThatOneAndZeroDifferOnlyByGrey() {
         // both are solid lines (spec §3.3); the title says so, and still fits between the date and the sheet number
         assertThat(Messages.text("print.legend.title")).contains("1", "0");

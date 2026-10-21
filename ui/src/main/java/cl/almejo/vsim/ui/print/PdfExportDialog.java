@@ -183,6 +183,8 @@ public final class PdfExportDialog extends JPanel {
     private final Map<PrintScope, Optional<PrintArea>> areas = new HashMap<>();
     private PrintInput input;
     private Optional<Plan> plan = Optional.empty();
+    private TextSizeKey textSizeKey;
+    private double smallestText;
     private Runnable close = () -> { };
     private boolean updating;
     private boolean exporting;
@@ -473,13 +475,29 @@ public final class PdfExportDialog extends JPanel {
                 ? Messages.format("print.status.one", layout.scale() * 100)
                 : Messages.format("print.status.many", layout.columns(), layout.rows(), layout.pageCountExact(),
                 layout.scale() * 100);
-        double smallest = layout.smallestTextPoints(input.textFont().size());
-        String warningText = options.scaleMode() instanceof ScaleMode.FitToOnePage
+        double smallest = layout.smallestTextPoints(smallestTextPixels(area.get(), options));
+        String warningText = options.scaleMode() instanceof ScaleMode.FitToOnePage && layout.scale() < 1
                 && smallest < MINIMUM_LEGIBLE_POINTS ? Messages.format("print.warning.smallText", smallest) : "";
         boolean tooMany = layout.pageCountExact() > REFUSE_ABOVE_PAGES;
         show(statusText, warningText, tooMany ? Messages.format("print.tooManyPages", REFUSE_ABOVE_PAGES) : "");
         save.setEnabled(idle && !tooMany);
         previewTimer.restart();
+    }
+
+    /**
+     * The smallest text the circuit paints, in canvas pixels ({@link PagePainter#smallestTextPixels}), or the label
+     * font's size when it paints none; remembered for the last copy, area and look, since only those change it.
+     */
+    private double smallestTextPixels(PrintArea area, PrintOptions options) {
+        TextSizeKey key = new TextSizeKey(input, area, options.withValues(), options.blackAndWhite());
+        if (!key.equals(textSizeKey)) {
+            textSizeKey = key;
+            smallestText = PagePainter.smallestTextPixels(input, area, options).orElse(input.textFont().size());
+        }
+        return smallestText;
+    }
+
+    private record TextSizeKey(PrintInput input, PrintArea area, boolean withValues, boolean blackAndWhite) {
     }
 
     private static String escape(String text) {

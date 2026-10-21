@@ -17,6 +17,7 @@ import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.geom.Rectangle2D;
+import java.awt.image.BufferedImage;
 import java.time.format.DateTimeFormatter;
 import java.time.format.FormatStyle;
 import java.util.AbstractList;
@@ -26,6 +27,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.OptionalDouble;
 import java.util.Set;
 
 /**
@@ -57,6 +59,11 @@ public final class PagePainter {
      * strokes, junction and open-pin dots, value tags.
      */
     static final int SHEET_REACH = 4;
+    /**
+     * Text smaller than this many canvas pixels (a long value squeezed into a block) is already unreadable at 100 %,
+     * and dividing into sheets does not help it, so the small-text warning does not count it.
+     */
+    static final double SMALLEST_COUNTED_TEXT_PIXELS = 4;
 
     private final PrintInput input;
     private final PrintArea area;
@@ -125,6 +132,36 @@ public final class PagePainter {
         SimulationSnapshot snapshot = showsValues ? input.snapshot() : withoutValues(input.netlistToken());
         return CircuitImage.of(input.document(), input.netlist(), input.netlistToken(), snapshot, input.registry(),
                 PainterRegistry.standard(), paperScheme(input.scheme()), only);
+    }
+
+    /**
+     * The size of the smallest text VSim paints for {@code area} with {@code options} (labels, pin names, values,
+     * frame titles; not the sheet's own decorations), in canvas pixels at 100 %, under the frozen font; empty when it
+     * paints no text of at least {@link #SMALLEST_COUNTED_TEXT_PIXELS}. Found by painting the circuit once into a
+     * one-pixel image through a graphics that notes every text's size.
+     */
+    static OptionalDouble smallestTextPixels(PrintInput input, PrintArea area, PrintOptions options) {
+        boolean showsValues = options.withValues() && input.hasValues();
+        PaintPolicy policy = PaintPolicy.print(options.blackAndWhite());
+        return TextFonts.withFont(input.textFont(), () -> {
+            Optional<CircuitImage> circuit = circuitImage(input, area, showsValues);
+            if (circuit.isEmpty()) {
+                return OptionalDouble.empty();
+            }
+            double[] smallest = {Double.POSITIVE_INFINITY};
+            BufferedImage scratch = new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB);
+            Graphics2D target = scratch.createGraphics();
+            try {
+                circuit.get().paint(SharedStreamGraphics.measuring(target, size -> {
+                    if (size >= SMALLEST_COUNTED_TEXT_PIXELS) {
+                        smallest[0] = Math.min(smallest[0], size);
+                    }
+                }), 1, policy);
+            } finally {
+                target.dispose();
+            }
+            return Double.isInfinite(smallest[0]) ? OptionalDouble.empty() : OptionalDouble.of(smallest[0]);
+        });
     }
 
     private static Set<ElementId> busWires(PrintInput input) {
