@@ -13,6 +13,9 @@ import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.OpenDocument;
+import cl.almejo.vsim.ui.canvas.DrawnBounds;
+import cl.almejo.vsim.ui.canvas.ManualFrameTicker;
+import cl.almejo.vsim.ui.canvas.ViewState;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.Appearance;
 import cl.almejo.vsim.ui.paint.ColorScheme;
@@ -139,6 +142,83 @@ class AiStatusFeaturesTest {
 
         features.closeButton().doClick();
         assertThat(features.strip().isVisible()).isFalse();
+    }
+
+    @Test
+    void whenTheTaskEndsOffScreenTheViewTravelsToWhatItChangedAndVerLoQueHizoIsOffered() {
+        windowPreferences.setAnimateViewMoves(true);
+        Component far = place(document, StandardComponentTypes.NOT, 300, 200, Map.of());
+        view.canvas().setSize(400, 300);
+        ManualFrameTicker ticker = new ManualFrameTicker().drive(view.canvas());
+        TaskInfo task = FakeAiTasks.task("task-1", thisCircuit, "Latch");
+        tasks.start(task);
+        assertThat(view.canvas().isTravelling()).isFalse();
+
+        tasks.end(task, Set.of(far.id().value()));
+
+        assertThat(view.canvas().isTravelling()).isTrue();
+        ticker.finish();
+        assertThat(view.canvas().shows(DrawnBounds.of(far, document.registry()))).isTrue();
+        assertThat(features.showButton().isVisible()).isTrue();
+        assertThat(features.showButton().getText()).isEqualTo("Ver lo que hizo");
+    }
+
+    @Test
+    void whenWhatTheTaskChangedIsAlreadyOnScreenTheViewStaysStill() {
+        windowPreferences.setAnimateViewMoves(true);
+        Component near = place(document, StandardComponentTypes.NOT, 4, 4, Map.of());
+        view.canvas().setSize(400, 300);
+        new ManualFrameTicker().drive(view.canvas());
+        ViewState before = view.canvas().viewState();
+        TaskInfo task = FakeAiTasks.task("task-1", thisCircuit, "Latch");
+        tasks.start(task);
+
+        tasks.end(task, Set.of(near.id().value()));
+
+        assertThat(view.canvas().isTravelling()).isFalse();
+        assertThat(view.canvas().viewState()).isEqualTo(before);
+        assertThat(features.showButton().isVisible()).isTrue();
+    }
+
+    @Test
+    void withReducedMotionTheViewJumpsToWhatTheTaskChanged() {
+        windowPreferences.setAnimateViewMoves(false);
+        Component far = place(document, StandardComponentTypes.NOT, 300, 200, Map.of());
+        view.canvas().setSize(400, 300);
+        TaskInfo task = FakeAiTasks.task("task-1", thisCircuit, "Latch");
+        tasks.start(task);
+
+        tasks.end(task, Set.of(far.id().value()));
+
+        assertThat(view.canvas().isTravelling()).isFalse();
+        assertThat(view.canvas().shows(DrawnBounds.of(far, document.registry()))).isTrue();
+    }
+
+    @Test
+    void verLoQueHizoTravelsThereAgainAfterTheUserLookedElsewhere() {
+        windowPreferences.setAnimateViewMoves(false);
+        Component far = place(document, StandardComponentTypes.NOT, 300, 200, Map.of());
+        view.canvas().setSize(400, 300);
+        TaskInfo task = FakeAiTasks.task("task-1", thisCircuit, "Latch");
+        tasks.start(task);
+        tasks.end(task, Set.of(far.id().value()));
+        view.canvas().applyViewState(new ViewState(1, 0, 0));
+        assertThat(view.canvas().shows(DrawnBounds.of(far, document.registry()))).isFalse();
+
+        features.showButton().doClick();
+
+        assertThat(view.canvas().shows(DrawnBounds.of(far, document.registry()))).isTrue();
+    }
+
+    @Test
+    void verLoQueHizoIsNotOfferedWhileTheTaskRunsNorWhenItChangedNothingStillThere() {
+        TaskInfo task = FakeAiTasks.task("task-1", thisCircuit, "Latch");
+        tasks.start(task);
+        assertThat(features.showButton().isVisible()).isFalse();
+
+        tasks.end(task, Set.of("gone"));
+
+        assertThat(features.showButton().isVisible()).isFalse();
     }
 
     @Test

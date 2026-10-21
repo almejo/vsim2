@@ -831,6 +831,17 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         viewAnimator.travel(viewState(), target, width, height);
     }
 
+    /** True when the whole of {@code bounds} (grid units) is on screen now; false before the canvas has a size. */
+    public boolean shows(Bounds bounds) {
+        if (getWidth() <= 0 || getHeight() <= 0) {
+            return false;
+        }
+        Point2D corner = viewport.screenToGrid(0, 0);
+        Point2D end = viewport.screenToGrid(getWidth(), getHeight());
+        return bounds.x() >= corner.getX() && bounds.y() >= corner.getY()
+                && bounds.maximumX() <= end.getX() && bounds.maximumY() <= end.getY();
+    }
+
     /** The largest zoom at which {@code bounds} fill at most nine tenths of the canvas each way. */
     private static double fittingZoom(Bounds bounds, int width, int height) {
         double fitting = Double.MAX_VALUE;
