@@ -2,9 +2,11 @@ package cl.almejo.vsim.ui.snap;
 
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.geometry.GridPoint;
+import cl.almejo.vsim.core.geometry.SnapMatch;
 import cl.almejo.vsim.core.geometry.SnapResult;
 import cl.almejo.vsim.ui.tools.ToolContext;
 
+import java.util.List;
 import java.util.Set;
 
 /** Snaps the gestures of the tools to parts, guides and grid lines; one call per tool hook. */
@@ -18,6 +20,19 @@ public interface Snapper {
 
     /** The snapped delta for dragging the wires {@code wireIds} (their end points are the moving lines). */
     SnapResult snapWires(ToolContext context, Set<ElementId> wireIds, int rawDeltaX, int rawDeltaY);
+
+    /**
+     * The alignment lines that really hold when {@code moving} is moved by {@code deltaX, deltaY}: for a delta a clamp
+     * changed after {@link #snapBox} (locked frame walls), so only true alignments are drawn. None by default.
+     */
+    default List<SnapMatch> boxMatchesAt(ToolContext context, MovingSet moving, int deltaX, int deltaY) {
+        return List.of();
+    }
+
+    /** Like {@link #boxMatchesAt} for the wires {@code wireIds} (the segment-drag axis lock, a clamped wire move). */
+    default List<SnapMatch> wiresMatchesAt(ToolContext context, Set<ElementId> wireIds, int deltaX, int deltaY) {
+        return List.of();
+    }
 
     /** A snapper that never snaps: raw deltas, plain grid points. */
     static Snapper none() {

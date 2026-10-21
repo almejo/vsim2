@@ -152,13 +152,17 @@ class ApplicationExtensionsTest {
     }
 
     @Test
-    void theViewMenuHasTheGridSubmenuAfterTheZoomGroup() {
+    void theViewMenuHasTheGridSubmenuAndTheSnapItemsAfterTheZoomGroup() {
         EditorView view = new EditorView(openDocument, services, NO_WINDOW);
         try {
             assertThat(texts(view.menu(MenuId.VIEW))).containsExactly("Selección", "Cable", "Marco",
                     "Mover vista", "---", "Acercar", "Alejar", "Zoom 100 %", "Centrar circuito", "---", "Cuadrícula",
-                    "---", "Siguiente problema", "Problema anterior", "---", "Formas de onda");
-            assertThat(view.shortcutActions()).containsKey("view.cycleGrid");
+                    "Ajustar", "Ajustar a", "---", "Siguiente problema", "Problema anterior", "---",
+                    "Formas de onda");
+            assertThat(view.shortcutActions()).containsKeys("view.cycleGrid", "view.snap", "view.snapToParts",
+                    "view.snapToGuides", "view.snapToGridLines");
+            assertThat(view.shortcutActions().get("view.snap").getValue(Action.ACCELERATOR_KEY)).isEqualTo(
+                    KeyStroke.getKeyStroke(KeyEvent.VK_M, ShortcutCatalog.menuMask() | InputEvent.SHIFT_DOWN_MASK));
         } finally {
             view.dispose();
         }

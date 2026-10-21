@@ -11,6 +11,7 @@ import cl.almejo.vsim.ui.canvas.HitTester;
 import cl.almejo.vsim.ui.canvas.Selection;
 import cl.almejo.vsim.ui.canvas.Viewport;
 import cl.almejo.vsim.ui.paint.ColorScheme;
+import cl.almejo.vsim.ui.snap.Snapper;
 import cl.almejo.vsim.ui.wiring.SelectionMoves;
 
 import java.awt.Graphics2D;
@@ -42,6 +43,8 @@ public final class TestToolContext implements ToolContext, AutoCloseable {
     public final List<String> notices = new ArrayList<>();
     public final AppPreferences preferences = AppPreferences.inMemory();
     public final SelectionMoves selectionMoves = new SelectionMoves(preferences, notices::add);
+    /** What the tools snap with; none unless a test sets one (every gesture as before the magnet). */
+    public Snapper snapper = Snapper.none();
     private final OpenDocument openDocument;
     private final HitTester hitTester;
 
@@ -139,6 +142,11 @@ public final class TestToolContext implements ToolContext, AutoCloseable {
     @Override
     public ColorScheme scheme() {
         return ColorScheme.LIGHT;
+    }
+
+    @Override
+    public Snapper snapper() {
+        return snapper;
     }
 
     @Override
