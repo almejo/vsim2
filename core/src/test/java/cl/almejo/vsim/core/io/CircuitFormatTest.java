@@ -76,10 +76,10 @@ class CircuitFormatTest {
     static Stream<org.junit.jupiter.params.provider.Arguments> brokenFiles() {
         return Stream.of(
                 arguments("{", CircuitFormatException.Reason.INVALID_JSON),
-                arguments("{\"formatVersion\":3,\"kind\":\"circuit\"}", CircuitFormatException.Reason.UNSUPPORTED_VERSION),
+                arguments("{\"formatVersion\":3,\"kind\":\"circuit\"}", CircuitFormatException.Reason.NEWER_FORMAT),
                 arguments("{\"formatVersion\":\"2\",\"kind\":\"circuit\"}", CircuitFormatException.Reason.UNSUPPORTED_VERSION),
                 arguments("{\"formatVersion\":2.5,\"kind\":\"circuit\"}", CircuitFormatException.Reason.UNSUPPORTED_VERSION),
-                arguments("{\"kind\":\"circuit\"}", CircuitFormatException.Reason.UNSUPPORTED_VERSION),
+                arguments("{\"kind\":\"circuit\"}", CircuitFormatException.Reason.NOT_VSIM_FILE),
                 arguments("{\"formatVersion\":2,\"kind\":\"circuit\",\"components\":[{\"id\":\"c1\",\"type\":\"and2\",\"x\":0,\"y\":0,\"rotation\":4}]}",
                         CircuitFormatException.Reason.INVALID_ELEMENT),
                 arguments("{\"formatVersion\":2,\"kind\":\"circuit\",\"components\":[{\"id\":\"c1\",\"type\":\"and2\",\"x\":0,\"y\":0,\"rotation\":-1}]}",

@@ -5,6 +5,19 @@ Los cambios de VSim 2 que se notan al usarlo, del más nuevo al más antiguo. El
 sección es un conjunto de funciones, con las fechas en que se hizo. El detalle de cada función está en
 [docs/funciones.md](docs/funciones.md).
 
+## 2026-10-21 — Tareas cortas
+
+### Agregado
+
+- Los archivos de VSim 2 (circuitos, componentes de la librería y el portapapeles) dicen qué son y con qué versión se
+  guardaron (`"format" : "vsim2"`, `"savedWith"`). Los archivos anteriores se siguen abriendo.
+
+### Cambiado
+
+- Abrir un archivo de una versión más nueva de VSim 2 dice «Este archivo es de una versión más nueva de VSim 2
+  (formato N). Actualiza VSim para abrirlo.», y abrir un JSON que no es de VSim dice «Este archivo no es un circuito
+  de VSim.», en vez de un error técnico.
+
 ## 2026-10-19 — 2026-10-20 — Exportar a PDF
 
 ### Agregado

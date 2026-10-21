@@ -41,11 +41,13 @@ class PinFormatInFilesTest {
     }
 
     @Test
-    void anAutomaticFormatIsLeftOutOfTheFileAndAnyOtherIsWritten() throws CircuitFormatException {
+    void anAutomaticFormatIsLeftOutOfTheFileAndAnyOtherIsWritten() throws Exception {
         CircuitDocument document = new CircuitDocument();
         document.add(pin(StandardComponentTypes.INPUT_PIN, "c1", Map.of("width", 8)));
         document.add(pin(StandardComponentTypes.OUTPUT_PIN, "c2", Map.of("width", 8)));
-        assertThat(format.write(document)).doesNotContain("format\"");
+        // the file's own "format": "vsim2" header is not a pin's format
+        assertThat(new com.fasterxml.jackson.databind.ObjectMapper().readTree(format.write(document))
+                .path("components").findValues("format")).isEmpty();
 
         CircuitDocument signed = new CircuitDocument();
         signed.add(pin(StandardComponentTypes.INPUT_PIN, "c1", Map.of("width", 8, "format", "signed")));
@@ -97,6 +99,7 @@ class PinFormatInFilesTest {
         }
         assertThat(committed).contains("input-pin");
         // the bundled resources are written with a final newline (BundledCircuits)
-        assertThat(format.write(format.read(committed)) + "\n").isEqualTo(committed);
+        assertThat(SavedFiles.withoutSavedWith(format.write(format.read(committed)) + "\n"))
+                .isEqualTo(SavedFiles.withoutSavedWith(committed));
     }
 }

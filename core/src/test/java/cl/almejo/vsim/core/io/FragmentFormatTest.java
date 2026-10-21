@@ -63,9 +63,9 @@ class FragmentFormatTest {
         return Stream.of(
                 arguments(null, CircuitFormatException.Reason.INVALID_JSON),
                 arguments("not json", CircuitFormatException.Reason.INVALID_JSON),
-                arguments("[1,2]", CircuitFormatException.Reason.INVALID_ELEMENT),
+                arguments("[1,2]", CircuitFormatException.Reason.NOT_VSIM_FILE),
                 arguments("{\"formatVersion\":2,\"kind\":\"circuit\"}", CircuitFormatException.Reason.INVALID_ELEMENT),
-                arguments("{\"formatVersion\":3,\"kind\":\"fragment\"}", CircuitFormatException.Reason.UNSUPPORTED_VERSION),
+                arguments("{\"formatVersion\":3,\"kind\":\"fragment\"}", CircuitFormatException.Reason.NEWER_FORMAT),
                 arguments("{\"formatVersion\":2,\"kind\":\"fragment\",\"components\":"
                         + "[{\"id\":\"c1\",\"type\":\"lamp\",\"x\":0,\"y\":0}]}",
                         CircuitFormatException.Reason.UNKNOWN_COMPONENT_TYPE),

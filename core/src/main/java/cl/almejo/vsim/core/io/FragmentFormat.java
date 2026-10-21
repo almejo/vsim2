@@ -13,7 +13,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.util.List;
 
 /**
- * Clipboard form of a {@link CircuitFragment}: compact JSON {@code {"formatVersion":2,"kind":"fragment",...}} with the
+ * Clipboard form of a {@link CircuitFragment}: compact JSON {@code {"format":"vsim2","savedWith":...,"formatVersion":2,"kind":"fragment",...}} with the
  * same component, wire and label entries as the circuit file format. A fragment also carries the definitions its
  * instances use, so it can be pasted into a document that does not hold them.
  */
@@ -21,7 +21,7 @@ public final class FragmentFormat {
 
     static final String KIND_FRAGMENT = "fragment";
 
-    record FragmentFile(int formatVersion, String kind, List<CircuitFormat.ComponentEntry> components,
+    record FragmentFile(String format, String savedWith, int formatVersion, String kind, List<CircuitFormat.ComponentEntry> components,
                         List<CircuitFormat.WireEntry> wires, List<CircuitFormat.LabelEntry> labels,
                         @JsonInclude(JsonInclude.Include.NON_EMPTY) List<DefinitionEntries.DefinitionEntry> definitions,
                         @JsonInclude(JsonInclude.Include.NON_EMPTY) List<CircuitFormat.FrameEntry> frames) {
@@ -38,7 +38,7 @@ public final class FragmentFormat {
     }
 
     public String write(CircuitFragment fragment) {
-        FragmentFile file = new FragmentFile(CircuitFormat.FORMAT_VERSION, KIND_FRAGMENT,
+        FragmentFile file = new FragmentFile(FileHeader.FORMAT, FileHeader.savedWith(), CircuitFormat.FORMAT_VERSION, KIND_FRAGMENT,
                 fragment.components().stream().map(CircuitFormat::componentEntry).toList(),
                 fragment.wires().stream().map(CircuitFormat::wireEntry).toList(),
                 fragment.labels().stream().map(CircuitFormat::labelEntry).toList(),

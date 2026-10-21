@@ -7,6 +7,7 @@ import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.io.CircuitFormat;
+import cl.almejo.vsim.core.io.SavedFiles;
 import cl.almejo.vsim.core.io.CircuitReader;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
@@ -84,8 +85,8 @@ class DisplayBusPinClearanceTest {
             }
             withDisplays++;
             String written = format.write(format.read(content));
-            assertThat(written.stripTrailing()).as(file + " (the file ends with a newline)")
-                    .isEqualTo(content.stripTrailing());
+            assertThat(SavedFiles.withoutSavedWith(written.stripTrailing())).as(file + " (the file ends with a newline)")
+                    .isEqualTo(SavedFiles.withoutSavedWith(content.stripTrailing()));
             assertThat(written).as(file).doesNotContain("\"" + StandardComponentTypes.DISPLAY_BUS_PIN + "\"");
         }
         assertThat(withDisplays).isGreaterThanOrEqualTo(6);
