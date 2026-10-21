@@ -22,6 +22,7 @@ import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.panels.StatusBar;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuId;
+import cl.almejo.vsim.ui.window.panes.EveryPane;
 
 import javax.swing.AbstractAction;
 import javax.swing.AbstractButton;
@@ -53,7 +54,7 @@ public final class ProblemsController {
     private static final KeyStroke PREVIOUS_KEY = KeyStroke.getKeyStroke(KeyEvent.VK_F8, InputEvent.SHIFT_DOWN_MASK);
 
     private final OpenDocument openDocument;
-    private final CircuitCanvas canvas;
+    private final EditorView view;
     private final StatusBar statusBar;
     private final JMenu viewMenu;
     private final JMenu simulationMenu;
@@ -69,18 +70,20 @@ public final class ProblemsController {
     private final JCheckBoxMenuItem pauseItem;
     private final MenuListener pauseListener;
     private final Consumer<SimulationSnapshot> snapshotListener = this::showSnapshot;
+    private final Runnable removeFromPanes;
     private SimulationSnapshot snapshot = SimulationSnapshot.EMPTY;
     private boolean disposed;
     private final ConnectionPoints connectionPoints;
 
     public ProblemsController(EditorView view) {
         this.openDocument = view.openDocument();
-        this.canvas = view.canvas();
+        this.view = view;
         this.connectionPoints = new ConnectionPoints(openDocument.registry());
         this.statusBar = view.statusBar();
-        this.blink = new NetBlink(canvas::scheme, canvas::repaint);
-        this.pulse = new ShortCircuitPulse(canvas.highlights(), canvas::repaint, System::nanoTime);
-        this.navigator = new ProblemNavigator(canvas, blink);
+        Runnable repaintPanes = EveryPane.repaint(view);
+        this.blink = new NetBlink(() -> view.canvas().scheme(), repaintPanes);
+        this.pulse = new ShortCircuitPulse(() -> view.canvas().highlights(), repaintPanes, System::nanoTime);
+        this.navigator = new ProblemNavigator(view::canvas, blink);
         this.panel = new ProblemsPanel(openDocument, navigator::navigateTo);
 
         nextProblem = action(Messages.text("action.nextProblem"), navigator::next);
@@ -98,12 +101,7 @@ public final class ProblemsController {
         };
         pauseOnShortCircuit.putValue(Action.SELECTED_KEY, openDocument.pauseOnShortCircuit());
 
-        canvas.addOverlay(pulse);
-        canvas.addOverlay(blink);
-        canvas.setToolTipProvider(this::tooltipAt);
-        canvas.addSnapshotListener(snapshotListener);
-        canvas.bindKey(NEXT_KEY, "nextProblem", nextProblem);
-        canvas.bindKey(PREVIOUS_KEY, "previousProblem", previousProblem);
+        removeFromPanes = view.forEachPane(this::installOn);
         statusBar.onShortCircuitsClicked(() -> {
             if (!disposed) {
                 navigator.next();
@@ -136,6 +134,32 @@ public final class ProblemsController {
         };
         simulationMenu.addMenuListener(pauseListener);
         showSnapshot(SimulationSnapshot.EMPTY);
+    }
+
+    /**
+     * The glow, the blink, the tooltips and F8 / Shift+F8 in {@code pane}; the snapshots of the active pane only are
+     * shown (every pane shows the same document and simulation). Returns what undoes it.
+     */
+    private Runnable installOn(CircuitCanvas pane) {
+        Consumer<SimulationSnapshot> paneSnapshots = latest -> {
+            if (pane == view.canvas()) {
+                snapshotListener.accept(latest);
+            }
+        };
+        pane.addOverlay(pulse);
+        pane.addOverlay(blink);
+        pane.setToolTipProvider(gridPoint -> tooltipAt(pane, gridPoint));
+        pane.addSnapshotListener(paneSnapshots);
+        pane.bindKey(NEXT_KEY, "nextProblem", nextProblem);
+        pane.bindKey(PREVIOUS_KEY, "previousProblem", previousProblem);
+        return () -> {
+            pane.removeSnapshotListener(paneSnapshots);
+            pane.removeOverlay(pulse);
+            pane.removeOverlay(blink);
+            pane.clearToolTipProvider();
+            pane.unbindKey(NEXT_KEY, "nextProblem");
+            pane.unbindKey(PREVIOUS_KEY, "previousProblem");
+        };
     }
 
     /** Called with every new displayed snapshot; the parts only rebuild when their problems change. */
@@ -220,12 +244,7 @@ public final class ProblemsController {
         disposed = true;
         blink.dispose();
         pulse.dispose();
-        canvas.removeSnapshotListener(snapshotListener);
-        canvas.removeOverlay(pulse);
-        canvas.removeOverlay(blink);
-        canvas.clearToolTipProvider();
-        canvas.unbindKey(NEXT_KEY, "nextProblem");
-        canvas.unbindKey(PREVIOUS_KEY, "previousProblem");
+        removeFromPanes.run();
         viewMenu.remove(nextItem);
         viewMenu.remove(previousItem);
         simulationMenu.remove(pauseItem);
@@ -241,18 +260,22 @@ public final class ProblemsController {
      * id ({@link TopLevelNets}); a net whose own pins disagree falls back to the netlist's mismatch flag and its pins.
      */
     Optional<String> tooltipAt(Point2D gridPoint) {
+        return tooltipAt(view.canvas(), gridPoint);
+    }
+
+    private Optional<String> tooltipAt(CircuitCanvas canvas, Point2D gridPoint) {
         CircuitDocument document = openDocument.document();
         boolean current = snapshot.token() == openDocument.netlistToken();
         Optional<ConnectionPoints.PinHit> pin = connectionPoints.pinNear(document, gridPoint);
         if (pin.isPresent()) {
-            return Optional.of(pinTooltip(document, pin.get(), current));
+            return Optional.of(pinTooltip(canvas, document, pin.get(), current));
         }
         if (!current) {
             return Optional.empty();
         }
         Optional<DocumentElement> hit = canvas.hitTester().elementAt(document, gridPoint);
         if (hit.isPresent() && hit.get() instanceof Wire wire) {
-            return openDocument.netlist().netForWire(wire.id()).flatMap(net -> wireTooltip(document, net));
+            return openDocument.netlist().netForWire(wire.id()).flatMap(net -> wireTooltip(canvas, document, net));
         }
         if (hit.isPresent() && hit.get() instanceof Component component) {
             return displayTooltip(component);
@@ -265,7 +288,8 @@ public final class ProblemsController {
      * a short circuit or width mismatch of that net follows after « · ». Shown even with a stale snapshot, without
      * the value.
      */
-    private String pinTooltip(CircuitDocument document, ConnectionPoints.PinHit pin, boolean current) {
+    private String pinTooltip(CircuitCanvas canvas, CircuitDocument document, ConnectionPoints.PinHit pin,
+                              boolean current) {
         Component component = pin.component();
         Optional<Net> net = openDocument.netlist().netForPin(new PinRef(component.id(), pin.pinIndex()));
         boolean withValues = current && !snapshot.equals(SimulationSnapshot.EMPTY);
@@ -275,7 +299,8 @@ public final class ProblemsController {
         boolean unconnected = connectionPoints.isOpen(document, component, pin.pinIndex(), net);
         String text = PinText.describe(component, openDocument.registry().typeOf(component),
                 pin.pinIndex(), unconnected, value);
-        Optional<String> problem = current ? net.flatMap(found -> problemText(document, found)) : Optional.empty();
+        Optional<String> problem = current ? net.flatMap(found -> problemText(canvas, document, found))
+                : Optional.empty();
         return problem.map(found -> text + PinText.SEPARATOR + found).orElse(text);
     }
 
@@ -287,8 +312,8 @@ public final class ProblemsController {
                 : Optional.empty();
     }
 
-    private Optional<String> wireTooltip(CircuitDocument document, Net net) {
-        Optional<String> problem = problemText(document, net);
+    private Optional<String> wireTooltip(CircuitCanvas canvas, CircuitDocument document, Net net) {
+        Optional<String> problem = problemText(canvas, document, net);
         if (problem.isPresent()) {
             return problem;
         }
@@ -302,8 +327,8 @@ public final class ProblemsController {
     }
 
     /** The drivers of the short circuit on {@code net}, else its width-mismatch text, if it has either. */
-    private Optional<String> problemText(CircuitDocument document, Net net) {
-        String reportedId = reportedId(document, net);
+    private Optional<String> problemText(CircuitCanvas canvas, CircuitDocument document, Net net) {
+        String reportedId = reportedId(canvas, document, net);
         Optional<String> drivers = snapshot.shortCircuits().stream()
                 .filter(shortCircuit -> shortCircuit.netId().equals(reportedId))
                 .findFirst()
@@ -315,7 +340,7 @@ public final class ProblemsController {
     }
 
     /** The id the engine reports the problems of {@code net} under (the merged net's root through a template). */
-    private String reportedId(CircuitDocument document, Net net) {
+    private String reportedId(CircuitCanvas canvas, CircuitDocument document, Net net) {
         String netId = net.id().value();
         // Tooltips are asked on every mouse move: the canvas's cache flattens once per revision and netlist.
         return snapshot.problems().isEmpty() ? netId

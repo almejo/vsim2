@@ -13,6 +13,7 @@ import cl.almejo.vsim.ui.tools.SelectTool;
 import cl.almejo.vsim.ui.window.BottomDock;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuId;
+import cl.almejo.vsim.ui.window.panes.EveryPane;
 
 import javax.swing.AbstractAction;
 import javax.swing.Action;
@@ -45,20 +46,18 @@ public final class WaveformFeatures {
     private final Runnable shortcutRemover;
     private final Runnable probeListener;
     private final ProbeMarkerOverlay markers;
-    private final Runnable markerToolTipRemover;
-    private final Runnable markerPressRemover;
+    private final Runnable removeFromPanes;
     private boolean disposed;
 
     public WaveformFeatures(EditorView view, TextPrompt prompt, BiConsumer<Component, String> messages) {
         this.view = view;
         this.messages = messages;
         OpenDocument openDocument = view.openDocument();
-        CircuitCanvas canvas = view.canvas();
         BottomDock dock = view.bottomDock();
         this.actions = new ProbeActions(openDocument);
-        this.blink = new NetBlink(canvas::scheme, canvas::repaint);
-        canvas.addOverlay(blink);
-        this.panel = new WaveformPanel(openDocument, actions, canvas::scheme, prompt, this::showInCircuit,
+        Runnable repaintPanes = EveryPane.repaint(view);
+        this.blink = new NetBlink(() -> view.canvas().scheme(), repaintPanes);
+        this.panel = new WaveformPanel(openDocument, actions, () -> view.canvas().scheme(), prompt, this::showInCircuit,
                 dock::hideDock);
         dock.setContent(panel);
         this.toggle = new AbstractAction(Messages.text("menu.view.waveforms")) {
@@ -81,18 +80,30 @@ public final class WaveformFeatures {
         viewMenu.add(toggleItem);
         this.shortcutRemover = view.registerShortcutAction("waveforms.toggle", toggle);
         view.addContextMenuContributor(new WaveformMenuContributor(actions, this::afterAdd));
-        this.markers = new ProbeMarkerOverlay(openDocument, canvas::scheme);
-        canvas.addOverlay(markers);
-        this.markerToolTipRemover = canvas.addToolTipOverride(this::markerToolTip);
-        this.markerPressRemover = canvas.addPressInterceptor(this::markerPressed);
+        this.markers = new ProbeMarkerOverlay(openDocument, () -> view.canvas().scheme());
+        this.removeFromPanes = view.forEachPane(this::installOn);
         this.probeListener = () -> {
             panel.probesChanged();
-            canvas.repaint(); // probe edits do not notify document listeners: the markers must repaint
+            repaintPanes.run(); // probe edits do not notify document listeners: the markers must repaint
         };
         openDocument.document().addProbeListener(probeListener);
         if (!openDocument.document().probes().isEmpty()) {
             dock.showDock();
         }
+    }
+
+    /** The blink, the markers, their tooltip and their click in {@code pane}. Returns what undoes it. */
+    private Runnable installOn(CircuitCanvas pane) {
+        pane.addOverlay(blink);
+        pane.addOverlay(markers);
+        Runnable toolTipRemover = pane.addToolTipOverride(this::markerToolTip);
+        Runnable pressRemover = pane.addPressInterceptor(event -> markerPressed(pane, event));
+        return () -> {
+            pressRemover.run();
+            toolTipRemover.run();
+            pane.removeOverlay(markers);
+            pane.removeOverlay(blink);
+        };
     }
 
     public WaveformPanel panel() {
@@ -114,11 +125,11 @@ public final class WaveformFeatures {
     }
 
     /**
-     * A primary press on a marker with the select tool: opens the panel if hidden, selects the first channel of the
-     * marker and blinks its row. True consumes the press (the select tool never sees it).
+     * A primary press on a marker in {@code pane} with its select tool: opens the panel if hidden, selects the first
+     * channel of the marker and blinks its row. True consumes the press (the select tool never sees it).
      */
-    boolean markerPressed(CanvasMouseEvent event) {
-        if (disposed || !(view.canvas().tool() instanceof SelectTool)) {
+    boolean markerPressed(CircuitCanvas pane, CanvasMouseEvent event) {
+        if (disposed || !(pane.tool() instanceof SelectTool)) {
             return false;
         }
         Optional<ProbeMarker> marker = markers.markerAt(event.gridPosition());
@@ -153,7 +164,10 @@ public final class WaveformFeatures {
         }
     }
 
-    /** «Mostrar en el circuito»: centers the probe's net, selects its wires (or its components) and blinks them. */
+    /**
+     * «Mostrar en el circuito»: centers the active pane on the probe's net, selects its wires (or its components) and
+     * blinks them.
+     */
     void showInCircuit(String probeId) {
         if (disposed) {
             return;
@@ -186,13 +200,10 @@ public final class WaveformFeatures {
             return;
         }
         disposed = true;
-        markerPressRemover.run();
-        markerToolTipRemover.run();
-        view.canvas().removeOverlay(markers);
+        removeFromPanes.run();
         shortcutRemover.run();
         view.openDocument().document().removeProbeListener(probeListener);
         view.bottomDock().removeDockListener(dockListener);
-        view.canvas().removeOverlay(blink);
         blink.dispose();
         panel.dispose();
         viewMenu.remove(toggleItem);

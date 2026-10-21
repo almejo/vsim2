@@ -91,7 +91,7 @@ public final class ExportPdfFeatures {
 
     /** The circuit as it is now, with this view's selection, scheme and font; nothing in the document changes. */
     private PrintInput capture() {
-        return PrintInput.capture(view.openDocument(), view.canvas().selection().ids(),
+        return PrintInput.capture(view.openDocument(), view.selection().ids(),
                 view.services().appearance().scheme(), TextFonts.current(), clock);
     }
 

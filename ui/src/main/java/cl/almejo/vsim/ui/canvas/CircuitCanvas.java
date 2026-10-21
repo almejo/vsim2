@@ -851,6 +851,20 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     }
 
     /**
+     * For tests (every extension in every pane): how many press interceptors, tooltip overrides and incoming-fragment
+     * listeners this canvas holds, and whether a tooltip provider is set.
+     */
+    public PaneHooks paneHooks() {
+        return new PaneHooks(pressInterceptors.size(), toolTipOverrides.size(), incomingFragmentListeners.size(),
+                toolTipProviderSet);
+    }
+
+    /** What {@link #paneHooks()} counts. */
+    public record PaneHooks(int pressInterceptors, int toolTipOverrides, int incomingFragmentListeners,
+                            boolean toolTipProvider) {
+    }
+
+    /**
      * Adds a handle at the canvas edges (a ruler; later a split grip) that takes presses before the press interceptors
      * and the tool. The returned runnable removes it.
      */

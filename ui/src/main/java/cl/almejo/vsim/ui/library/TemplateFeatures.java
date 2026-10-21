@@ -6,6 +6,7 @@ import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.ImportMenu;
 import cl.almejo.vsim.ui.window.MenuId;
+import cl.almejo.vsim.ui.window.panes.EveryPane;
 
 import javax.swing.Action;
 import javax.swing.JMenu;
@@ -25,11 +26,12 @@ public final class TemplateFeatures {
     private final Runnable importItemRemover;
     private final LibraryVersionBadge badge;
     private final Runnable problemsListener;
-    private final Consumer<CircuitFragment> keptVersionsWarning;
+    /** Takes the badge overlay and the kept-versions warning back from every pane. */
+    private final Runnable removeFromPanes;
 
     private TemplateFeatures(EditorView view, LibraryService service, TemplateActions actions, LibraryPalette palette,
                              Action importComponent, Runnable importItemRemover, LibraryVersionBadge badge,
-                             Runnable problemsListener, Consumer<CircuitFragment> keptVersionsWarning) {
+                             Runnable problemsListener, Runnable removeFromPanes) {
         this.view = view;
         this.service = service;
         this.actions = actions;
@@ -38,11 +40,11 @@ public final class TemplateFeatures {
         this.importItemRemover = importItemRemover;
         this.badge = badge;
         this.problemsListener = problemsListener;
-        this.keptVersionsWarning = keptVersionsWarning;
+        this.removeFromPanes = removeFromPanes;
     }
 
     public static TemplateFeatures install(EditorView view, LibraryService service, LibraryDialogs dialogs) {
-        TemplateActions actions = new TemplateActions(view.openDocument(), view.canvas(), service, dialogs);
+        TemplateActions actions = new TemplateActions(view.openDocument(), view::canvas, service, dialogs);
         JMenu edit = view.menu(MenuId.EDIT);
         edit.addSeparator();
         edit.add(actions.createComponent());
@@ -63,9 +65,9 @@ public final class TemplateFeatures {
         view.setComponentFileImporter(files -> importer.importFiles(view, files));
 
         LibraryVersionBadge badge = new LibraryVersionBadge(view.openDocument(), service.library(),
-                view.canvas()::scheme, view.canvas()::repaint);
+                () -> view.canvas().scheme(), EveryPane.repaint(view));
         badge.install();
-        view.canvas().addOverlay(badge);
+        Runnable removeBadges = EveryPane.addOverlay(view, badge);
 
         // Also on library changes: whether a broken file "can be deleted" depends on what the library holds.
         Runnable problemsListener = () -> {
@@ -86,9 +88,15 @@ public final class TemplateFeatures {
         Consumer<CircuitFragment> keptVersionsWarning = fragment -> KeptVersions
                 .message(view.openDocument().document(), fragment)
                 .ifPresent(message -> SwingUtilities.invokeLater(() -> dialogs.showMessage(view.canvas(), message)));
-        view.canvas().addIncomingFragmentListener(keptVersionsWarning);
+        Runnable removeWarnings = view.forEachPane(pane -> {
+            pane.addIncomingFragmentListener(keptVersionsWarning);
+            return () -> pane.removeIncomingFragmentListener(keptVersionsWarning);
+        });
         return new TemplateFeatures(view, service, actions, palette, importComponent, importItemRemover, badge,
-                problemsListener, keptVersionsWarning);
+                problemsListener, () -> {
+                    removeWarnings.run();
+                    removeBadges.run();
+                });
     }
 
     public TemplateActions actions() {
@@ -116,10 +124,9 @@ public final class TemplateFeatures {
         importItemRemover.run();
         view.setComponentFileImporter(null);
         view.setTemplateActions(null);
-        view.canvas().removeIncomingFragmentListener(keptVersionsWarning);
+        removeFromPanes.run();
         service.removeProblemsListener(problemsListener);
         service.library().removeListener(problemsListener);
-        view.canvas().removeOverlay(badge);
         badge.dispose();
         palette.dispose();
         actions.dispose();

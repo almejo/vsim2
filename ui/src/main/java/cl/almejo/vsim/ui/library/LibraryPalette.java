@@ -111,7 +111,7 @@ public final class LibraryPalette {
 
     private void place(PalettePanel.UserComponent component) {
         KeptVersions.warn(view.openDocument().document(), component.bundle(), dialogs, view.canvas());
-        view.canvas().setTool(new PlaceDefinitionTool(component.bundle()));
+        view.setToolOnEveryPane(() -> new PlaceDefinitionTool(component.bundle()));
         view.canvas().requestFocusInWindow();
     }
 

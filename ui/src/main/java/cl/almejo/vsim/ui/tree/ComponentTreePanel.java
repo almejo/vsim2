@@ -49,6 +49,8 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.function.Supplier;
 
 /**
  * The "Componentes" inspector tab (spec §6.9): the document, its frames and components (nested by the innermost
@@ -65,7 +67,10 @@ public final class ComponentTreePanel extends JPanel {
     private static final int ICON_SIZE = 16;
 
     private final OpenDocument openDocument;
-    private final CircuitCanvas canvas;
+    /** The window's active pane, resolved when a row is chosen. */
+    private final Supplier<CircuitCanvas> canvas;
+    /** Undoes the following of the snapshots. */
+    private final Runnable stopFollowingSnapshots;
     private final PainterRegistry painters;
     private final Appearance appearance;
     /** Component icons by type id, drawn with the current scheme; cleared when the scheme changes. */
@@ -93,8 +98,22 @@ public final class ComponentTreePanel extends JPanel {
     private ComponentTreeNode root;
     private boolean rebuilding;
 
+    /** A panel that travels in {@code canvas} and shows its snapshots. */
     public ComponentTreePanel(OpenDocument openDocument, CircuitCanvas canvas, PainterRegistry painters,
                               Appearance appearance, AppPreferences preferences) {
+        this(openDocument, () -> canvas, listener -> {
+            canvas.addSnapshotListener(listener);
+            return () -> canvas.removeSnapshotListener(listener);
+        }, painters, appearance, preferences);
+    }
+
+    /**
+     * {@code canvas} is resolved when a row is chosen (the window's active pane); {@code followSnapshots} registers
+     * the listener of the displayed snapshots and returns its removal.
+     */
+    public ComponentTreePanel(OpenDocument openDocument, Supplier<CircuitCanvas> canvas,
+                              Function<Consumer<SimulationSnapshot>, Runnable> followSnapshots,
+                              PainterRegistry painters, Appearance appearance, AppPreferences preferences) {
         super(new BorderLayout());
         this.openDocument = openDocument;
         this.canvas = canvas;
@@ -119,7 +138,7 @@ public final class ComponentTreePanel extends JPanel {
         putClientProperty(FindFeatures.FILTER_FOCUS_PROPERTY, (Runnable) this::focusFilter);
         add(new JScrollPane(tree), BorderLayout.CENTER);
         openDocument.addChangeListener(documentListener);
-        canvas.addSnapshotListener(snapshotListener);
+        this.stopFollowingSnapshots = followSnapshots.apply(snapshotListener);
         appearance.addListener(appearanceListener);
         preferences.addListener(preferenceListener);
         rebuild();
@@ -128,7 +147,7 @@ public final class ComponentTreePanel extends JPanel {
     /** Stops following the shared document, the canvas and the appearance: the view closed. */
     public void dispose() {
         openDocument.removeChangeListener(documentListener);
-        canvas.removeSnapshotListener(snapshotListener);
+        stopFollowingSnapshots.run();
         appearance.removeListener(appearanceListener);
         preferences.removeListener(preferenceListener);
     }
@@ -333,8 +352,9 @@ public final class ComponentTreePanel extends JPanel {
             return;
         }
         chosenNode().flatMap(this::elementOf).ifPresent(element -> {
-            canvas.selection().select(element.id());
-            canvas.travelTo(DrawnBounds.of(element, openDocument.registry())); // like the find bar
+            CircuitCanvas target = canvas.get();
+            target.selection().select(element.id());
+            target.travelTo(DrawnBounds.of(element, openDocument.registry())); // like the find bar
         });
     }
 

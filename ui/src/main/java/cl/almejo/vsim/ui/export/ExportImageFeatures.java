@@ -86,7 +86,7 @@ public final class ExportImageFeatures {
         if (folder != null) {
             preferences.setExportDirectory(folder);
         }
-        Set<ElementId> selection = view.canvas().selection().ids();
+        Set<ElementId> selection = view.selection().ids();
         ColorScheme scheme = chosen.printBackground() ? CircuitImage.printScheme(ColorScheme.LIGHT)
                 : view.services().appearance().scheme();
         Optional<CircuitImage> image = CircuitImage.of(openDocument.document(), openDocument.netlist(),

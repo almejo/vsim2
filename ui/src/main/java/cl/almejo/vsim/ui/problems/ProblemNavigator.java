@@ -23,16 +23,22 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Supplier;
 
 /** Walks the problems of the displayed snapshot (F8 / Shift+F8) and shows each one on the canvas (spec §6.12). */
 public final class ProblemNavigator {
 
-    private final CircuitCanvas canvas;
+    private final Supplier<CircuitCanvas> canvas;
     private final NetBlink blink;
     private List<Problem> problems = List.of();
     private int current = -1;
 
     public ProblemNavigator(CircuitCanvas canvas, NetBlink blink) {
+        this(() -> canvas, blink);
+    }
+
+    /** {@code canvas} is resolved at every travel: the window's active pane. */
+    public ProblemNavigator(Supplier<CircuitCanvas> canvas, NetBlink blink) {
         this.canvas = canvas;
         this.blink = blink;
     }
@@ -96,11 +102,11 @@ public final class ProblemNavigator {
         if (problem instanceof TunnelProblem tunnel && navigateToTunnels(tunnel)) {
             return true;
         }
-        Optional<Net> net = canvas.openDocument().netlist().net(new NetId(problem.netId()));
+        Optional<Net> net = canvas.get().openDocument().netlist().net(new NetId(problem.netId()));
         if (net.isEmpty()) {
             return navigateToInstances(problem);
         }
-        focusNet(canvas, blink, net.get());
+        focusNet(canvas.get(), blink, net.get());
         return true;
     }
 
@@ -129,8 +135,8 @@ public final class ProblemNavigator {
      * problem inside a component goes to its instance instead).
      */
     private boolean navigateToTunnels(TunnelProblem problem) {
-        CircuitDocument document = canvas.openDocument().document();
-        ComponentTypeRegistry registry = canvas.openDocument().registry();
+        CircuitDocument document = canvas.get().openDocument().document();
+        ComponentTypeRegistry registry = canvas.get().openDocument().registry();
         List<Component> tunnels = problem.tunnels().stream()
                 .filter(id -> !InstancePath.isNested(id))
                 .map(id -> document.component(new ElementId(id)))
@@ -144,10 +150,10 @@ public final class ProblemNavigator {
             Bounds bounds = registry.typeOf(tunnel).bounds(tunnel);
             result = result == null ? bounds : result.union(bounds);
         }
-        canvas.travelTo(result);
-        canvas.selection().set(tunnels.stream().map(Component::id).toList());
+        canvas.get().travelTo(result);
+        canvas.get().selection().set(tunnels.stream().map(Component::id).toList());
         blink.stop();
-        canvas.requestFocusInWindow();
+        canvas.get().requestFocusInWindow();
         return true;
     }
 
@@ -160,8 +166,8 @@ public final class ProblemNavigator {
             case DisplayBusOverride display -> ids.add(display.componentId());
             case TunnelProblem tunnel -> ids.addAll(tunnel.tunnels());
         }
-        CircuitDocument document = canvas.openDocument().document();
-        ComponentTypeRegistry registry = canvas.openDocument().registry();
+        CircuitDocument document = canvas.get().openDocument().document();
+        ComponentTypeRegistry registry = canvas.get().openDocument().registry();
         List<Component> instances = ids.stream()
                 .filter(InstancePath::isNested)
                 .map(InstancePath::topLevel)
@@ -180,10 +186,10 @@ public final class ProblemNavigator {
         if (result == null) {
             return false;
         }
-        canvas.travelTo(result);
-        canvas.selection().set(instances.stream().map(Component::id).toList());
+        canvas.get().travelTo(result);
+        canvas.get().selection().set(instances.stream().map(Component::id).toList());
         blink.stop();
-        canvas.requestFocusInWindow();
+        canvas.get().requestFocusInWindow();
         return true;
     }
 

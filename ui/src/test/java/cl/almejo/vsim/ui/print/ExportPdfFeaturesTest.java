@@ -6,6 +6,7 @@ import cl.almejo.vsim.core.library.ComponentLibrary;
 import cl.almejo.vsim.ui.UiTestSupport;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.OpenDocument;
+import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.export.ExportIcons;
 import cl.almejo.vsim.ui.export.ExportImageFeatures;
 import cl.almejo.vsim.ui.i18n.Messages;
@@ -17,6 +18,7 @@ import cl.almejo.vsim.ui.window.EditorServices;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuId;
 import cl.almejo.vsim.ui.window.WindowCommands;
+import cl.almejo.vsim.ui.window.panes.CanvasPanes.Orientation;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -56,6 +58,7 @@ class ExportPdfFeaturesTest {
 
     private final AppPreferences preferences = AppPreferences.inMemory();
     private final List<PdfExportDialog> presented = new ArrayList<>();
+    private final List<java.awt.Component> parents = new ArrayList<>();
     private OpenDocument openDocument;
     private EditorView view;
     private ExportImageFeatures imageFeatures;
@@ -74,7 +77,10 @@ class ExportPdfFeaturesTest {
                 new PdfExportDialogTest.FakeExporter(), (parent, start, name) -> Optional.empty(),
                 (parent, message) -> true, (parent, message) -> { },
                 action -> new Timer(Integer.MAX_VALUE, null), Runnable::run);
-        features = new ExportPdfFeatures(view, collaborators, (parent, dialog) -> presented.add(dialog), CLOCK);
+        features = new ExportPdfFeatures(view, collaborators, (parent, dialog) -> {
+            parents.add(parent);
+            presented.add(dialog);
+        }, CLOCK);
     }
 
     @AfterEach
@@ -140,6 +146,20 @@ class ExportPdfFeaturesTest {
         assertThat(openDocument.document().revision()).isEqualTo(revision);
         assertThat(openDocument.isModified()).isEqualTo(modified);
         assertThat(view.canvas().selection().ids()).isEqualTo(Set.of(component.id()));
+    }
+
+    @Test
+    void fromAnotherPaneOfASplitWindowTheDialogGetsTheWindowsSelection() {
+        Component component = UiTestSupport.place(openDocument, StandardComponentTypes.SWITCH, 10, 10, Map.of());
+        view.canvasPanes().split(Orientation.HORIZONTAL, 0.5);
+        view.canvasPanes().split(Orientation.VERTICAL, 0.5);
+        CircuitCanvas bottomRight = view.panes().get(3);
+        view.canvasPanes().activate(bottomRight);
+        bottomRight.selection().select(component.id());
+        perform(features.action());
+        assertThat(presented).hasSize(1);
+        assertThat(presented.get(0).scopeSelection().isEnabled()).isTrue();
+        assertThat(parents).containsExactly(view);
     }
 
     @Test
