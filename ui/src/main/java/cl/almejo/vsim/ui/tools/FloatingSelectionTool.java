@@ -10,7 +10,10 @@ import cl.almejo.vsim.core.geometry.SnapMatch;
 import cl.almejo.vsim.core.io.CircuitFragment;
 import cl.almejo.vsim.core.tunnel.TunnelKind;
 import cl.almejo.vsim.core.tunnel.Tunnels;
+import cl.almejo.vsim.core.wiring.NewContact;
 import cl.almejo.vsim.ui.snap.AlignmentLinesPainter;
+import cl.almejo.vsim.ui.snap.ContactCache;
+import cl.almejo.vsim.ui.snap.ContactDots;
 import cl.almejo.vsim.ui.snap.MatchedGuides;
 import cl.almejo.vsim.ui.snap.SnappedPlacement;
 
@@ -20,6 +23,8 @@ import java.awt.event.KeyEvent;
 import java.awt.geom.Point2D;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 
 /**
  * A pasted or dropped fragment that floats over the canvas. It is not part of the document until it is committed as
@@ -32,6 +37,8 @@ import java.util.Map;
  * <p>Ajustar (alignment-guides spec §3.4): where the pointer puts the fragment is snapped to the circuit's parts,
  * guides and grid lines (with the fragment's own types for its bounds) when the tool starts and on every move, and its
  * alignment lines are drawn; {@link #refreshSnap} redoes it from the last raw place, so Enter commits what is shown.
+ * Before the lines, a dot marks each point where the fragment would touch a net of the circuit it is not on
+ * ({@link ContactDots}); committing adds nothing to that.
  */
 public final class FloatingSelectionTool implements Tool {
 
@@ -45,6 +52,9 @@ public final class FloatingSelectionTool implements Tool {
     /** Where the pointer puts the fragment's (0,0) before the magnet. */
     private GridPoint rawPosition;
     private SnappedPlacement snapped;
+    private final ContactCache contactCache = new ContactCache();
+    /** Where the pointer last was, in grid units, for the pin names of the contacts; empty before it came. */
+    private Optional<Point2D> pointer = Optional.empty();
     private GridPoint grabOffset = GridPoint.ORIGIN;
     private boolean following = true;
     private boolean dragging;
@@ -105,6 +115,7 @@ public final class FloatingSelectionTool implements Tool {
         if (finished) {
             return;
         }
+        pointer = Optional.of(event.gridPosition());
         if (following) {
             moveTo(context, event.snapped());
         }
@@ -122,6 +133,7 @@ public final class FloatingSelectionTool implements Tool {
         if (finished) {
             return;
         }
+        pointer = Optional.of(event.gridPosition());
         if (dragging && pressPoint != null && pressPoint.distance(event.gridPosition()) >= CLICK_TOLERANCE) {
             draggedSincePress = true;
         }
@@ -192,9 +204,22 @@ public final class FloatingSelectionTool implements Tool {
         for (DocumentElement element : fragment.elements()) {
             context.paintGhost(graphics, element.translate(position.x(), position.y()), types(context), tunnelColors);
         }
+        ContactDots.paint(graphics, context, contacts(context), pointer);
         if (snapped != null) {
             AlignmentLinesPainter.paint(graphics, context, snapped.box(), snapped.matches());
         }
+    }
+
+    /**
+     * The points where the fragment, put down where it is, would join two nets of the circuit that are not joined
+     * today, or itself to the circuit (spec §3.7); none once it is committed or cancelled.
+     */
+    List<NewContact> contacts(ToolContext context) {
+        if (finished) {
+            return List.of();
+        }
+        return contactCache.contacts(context.openDocument().document(), types(context), fragment.elements(),
+                position.x(), position.y(), Set.of());
     }
 
     /** True when the fragment holds a salida: only its ghost needs the circuit's tunnel colours. */

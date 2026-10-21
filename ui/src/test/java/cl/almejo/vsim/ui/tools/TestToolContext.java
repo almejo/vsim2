@@ -45,6 +45,8 @@ public final class TestToolContext implements ToolContext, AutoCloseable {
     public final SelectionMoves selectionMoves = new SelectionMoves(preferences, notices::add);
     /** What the tools snap with; none unless a test sets one (every gesture as before the magnet). */
     public Snapper snapper = Snapper.none();
+    /** The board colours the tools read at paint time; a test may switch it mid-gesture. */
+    public ColorScheme scheme = ColorScheme.LIGHT;
     private final OpenDocument openDocument;
     private final HitTester hitTester;
 
@@ -141,7 +143,7 @@ public final class TestToolContext implements ToolContext, AutoCloseable {
 
     @Override
     public ColorScheme scheme() {
-        return ColorScheme.LIGHT;
+        return scheme;
     }
 
     @Override

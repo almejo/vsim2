@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.snap;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.Guide;
+import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
 import cl.almejo.vsim.core.library.ComponentLibrary;
@@ -49,9 +50,9 @@ import java.util.Set;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * The alignment lines are editor chrome (plan, «Editor chrome, never on paper»): with a snapped drag in progress on
- * the canvas, guides and grid-line snapping on, PNG, SVG and a PDF sheet (colour and black and white) are the same
- * as with no drag and snapping off.
+ * The alignment lines and the contact dots are editor chrome (plan, «Editor chrome, never on paper»): with a snapped
+ * drag in progress on the canvas, guides and grid-line snapping on, or a drag showing a new contact, PNG, SVG and a
+ * PDF sheet (colour and black and white) are the same as with no drag.
  */
 class AlignmentLinesNeverOnPaperTest {
 
@@ -82,6 +83,9 @@ class AlignmentLinesNeverOnPaperTest {
                     .newComponent(openDocument.document().newComponentId(), position, Rotation.R0, Map.of(), "");
             openDocument.document().add(gate);
         }
+        // under where the second gate's input lands when it is dragged eight units down
+        openDocument.document().add(new Wire(openDocument.document().newWireId(), new GridPoint(20, 15),
+                new GridPoint(20, 25)));
         EditorServices services = new EditorServices(PainterRegistry.standard(), new Appearance(ColorScheme.LIGHT),
                 preferences, new ComponentLibrary(), List.of());
         view = new EditorView(openDocument, services, NO_WINDOW);
@@ -158,8 +162,34 @@ class AlignmentLinesNeverOnPaperTest {
         assertThat(hasAlignmentColour(screen)).isTrue();
     }
 
+    @Test
+    void aDragShowingANewContactExportsTheSamePngSvgAndPdfSheets() throws IOException {
+        preferences.setSnapToAlignments(false);
+        byte[] plainPng = png("plain");
+        String plainSvg = svg("plain");
+        int[] plainSheet = pdfSheet(false);
+        int[] plainMonochromeSheet = pdfSheet(true);
+
+        Tool tool = view.canvas().tool();
+        tool.mousePressed(view.canvas(), TestToolContext.at(22, 12));
+        tool.mouseDragged(view.canvas(), TestToolContext.at(22, 20)); // the input pin onto the wire
+        BufferedImage screen = new BufferedImage(400, 300, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D graphics = screen.createGraphics();
+        view.canvas().paint(graphics); // the contact dot is on screen…
+        graphics.dispose();
+
+        assertThat(png("dragging")).isEqualTo(plainPng); // …and never on paper
+        assertThat(svg("dragging")).isEqualTo(plainSvg);
+        assertThat(pdfSheet(false)).isEqualTo(plainSheet);
+        assertThat(pdfSheet(true)).isEqualTo(plainMonochromeSheet);
+        assertThat(hasColour(screen, ColorScheme.LIGHT.wireConflict().getRGB())).isTrue();
+    }
+
     private static boolean hasAlignmentColour(BufferedImage image) {
-        int colour = ColorScheme.LIGHT.alignmentGuide().getRGB();
+        return hasColour(image, ColorScheme.LIGHT.alignmentGuide().getRGB());
+    }
+
+    private static boolean hasColour(BufferedImage image, int colour) {
         for (int x = 0; x < image.getWidth(); x++) {
             for (int y = 0; y < image.getHeight(); y++) {
                 if (image.getRGB(x, y) == colour) {
