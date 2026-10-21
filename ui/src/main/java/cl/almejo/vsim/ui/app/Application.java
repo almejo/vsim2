@@ -538,8 +538,10 @@ public final class Application {
 
     /** A new window on {@code document}, placed, sized and zoomed as {@code state} says, clamped to the screens. */
     private CircuitWindow show(OpenDocument document, Optional<WindowState> state) {
-        return show(document,
-                window -> state.ifPresent(saved -> window.restoreWindowState(saved.clampedTo(screens()))));
+        return show(document, window -> {
+            state.ifPresent(saved -> window.restoreWindowState(saved.clampedTo(screens())));
+            window.restoreRememberedSplit(); // a file being opened comes back split as it was (Dividir la vista)
+        });
     }
 
     /** The bounds of every screen, the primary first (clampedTo falls back to the first); none when headless. */

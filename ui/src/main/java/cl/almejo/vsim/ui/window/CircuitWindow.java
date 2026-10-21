@@ -13,6 +13,8 @@ import cl.almejo.vsim.ui.icons.AppIcons;
 import cl.almejo.vsim.ui.inline.InlineTextEditor;
 import cl.almejo.vsim.ui.session.RecentFiles;
 import cl.almejo.vsim.ui.session.WindowState;
+import cl.almejo.vsim.ui.window.panes.RememberedSplit;
+import cl.almejo.vsim.ui.window.panes.SplitLayoutStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,6 +30,7 @@ import java.awt.event.WindowEvent;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Optional;
 
 /** A top-level window showing one {@link OpenDocument}. */
 public final class CircuitWindow extends JFrame implements WindowCommands {
@@ -47,12 +50,16 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
     private final RecentFiles recentFiles;
     /** The bounds while not maximized: what Recientes and the session store for a maximized window. */
     private Rectangle normalBounds;
+    /** Dividir la vista: this window's split, remembered per file in the preferences (spec §7). */
+    private final RememberedSplit rememberedSplit;
 
     public CircuitWindow(Application application, OpenDocument openDocument, EditorServices services) {
         this.application = application;
         this.openDocument = openDocument;
         this.recentFiles = new RecentFiles(services.preferences());
         this.view = new EditorView(openDocument, services, this);
+        this.rememberedSplit = new RememberedSplit(new SplitLayoutStore(services.preferences()), view.canvasPanes(),
+                openDocument::path, RememberedSplit.Delay.swing());
         setJMenuBar(view.menuBar());
         setContentPane(view);
         setIconImages(AppIcons.images());
@@ -151,12 +158,21 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
         }
     }
 
+    /**
+     * This window shows a file being opened, not another view of an open one: it opens split as that file's window
+     * was last time (when it fits). Call it before {@code setVisible}.
+     */
+    public void restoreRememberedSplit() {
+        rememberedSplit.restoreWhenShown();
+    }
+
     private void showInitialView() {
         if (initialViewState != null) {
             view.canvas().applyViewState(initialViewState);
         } else {
             view.canvas().centerCircuit();
         }
+        rememberedSplit.showRemembered();
     }
 
     private boolean isMaximized() {
@@ -263,6 +279,7 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
         try {
             openDocument.removeChangeListener(titleUpdater);
             application.removeWindowsListener(titleUpdater);
+            rememberedSplit.close();
             view.dispose();
         } catch (RuntimeException exception) {
             // a broken extension disposer must not keep the window open or stop the application from exiting
@@ -289,9 +306,11 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
 
     private boolean writeTo(Path target) {
         try {
+            Optional<Path> previous = openDocument.path();
             openDocument.save(target);
             application.rememberDirectory(target);
             rememberRecent(target);
+            rememberedSplit.saved(previous, target);
             return true;
         } catch (IOException exception) {
             LOGGER.warn("Could not save {}", target, exception);
