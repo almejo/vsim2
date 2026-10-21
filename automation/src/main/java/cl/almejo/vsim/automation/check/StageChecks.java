@@ -117,11 +117,16 @@ public final class StageChecks {
         List<Map<String, Object>> mismatches = new ArrayList<>();
         int failed = 0;
         int missing = 0;
+        int cutShort = 0;
         for (ExpectedRow expected : check.expected()) {
             List<String> inputs = inputCells(table, expected);
             RowView row = rows.get(inputs);
             if (row == null) {
                 missing++;
+                continue;
+            }
+            if (row.cutShort()) {
+                cutShort++;
                 continue;
             }
             Map<String, String> differences = differences(table, expected, row);
@@ -146,13 +151,20 @@ public final class StageChecks {
         details.put("expectedRows", check.expected().size());
         details.put("failedRows", failed);
         details.put("rowsNotEvaluated", missing);
+        details.put("rowsCutShort", cutShort);
         details.put("eventsProcessed", table.eventsProcessed());
         details.put("mismatches", mismatches);
         if (failed > 0) {
             return new CheckResult(check.kind(), Status.FAILED, failed + " of " + check.expected().size()
                     + " expected rows differ from what VSim measured", details);
         }
-        if (missing > 0 || table.budgetExceeded()) {
+        if (cutShort > 0) {
+            return new CheckResult(check.kind(), Status.NOT_FINISHED, cutShort + " expected rows ran out of their "
+                    + "share of the event budget of " + table.eventBudget() + " events before settling and "
+                    + missing + " were not evaluated; " + budgetAdvice() + "; the other rows evaluated match",
+                    details);
+        }
+        if (missing > 0) {
             return new CheckResult(check.kind(), Status.NOT_FINISHED, missing + " expected rows were not evaluated ("
                     + notFinishedBecause(table) + "); the rows evaluated match", details);
         }
@@ -166,15 +178,19 @@ public final class StageChecks {
      * it may raise the budget or check that behaviour with pin values instead.
      */
     private static String notFinishedBecause(TruthTableView table) {
-        if (table.budgetExceeded()) {
+        if (table.rowsLeftOut()) {
             return "the event budget of " + table.eventBudget() + " events ran out after " + table.rows().size()
-                    + " rows; a row that never settles, such as an oscillation or a latch left to hold its state, "
-                    + "can use it all: give a larger eventBudget (at most "
-                    + SimulationOperations.MAXIMUM_EVENT_BUDGET
-                    + "), or leave such rows out and check them with signals after vsim_set_inputs";
+                    + " rows; " + budgetAdvice();
         }
         return "the row limit was reached: give a larger maximumRows (at most "
                 + SimulationOperations.MAXIMUM_ROWS + ")";
+    }
+
+    /** What to do when rows ran out of events: rows that never settle use up their share. */
+    private static String budgetAdvice() {
+        return "a row that never settles, such as an oscillation or a latch left to hold its state, uses up its "
+                + "share: give a larger eventBudget (at most " + SimulationOperations.MAXIMUM_EVENT_BUDGET
+                + "), or leave such rows out and check them with signals after vsim_set_inputs";
     }
 
     /** The cells of the row {@code expected} names, in the table's input order. */

@@ -28,6 +28,10 @@ public final class TruthTableEvaluator {
     public static final long DELAY_FACTOR = 1_000;
     private static final String DELAY_PARAMETER = "delay";
     public static final int SETTLE_STEP_LIMIT = 1_000_000;
+    /**
+     * The fewest events a row of {@link #evaluateWithin} gets in its first pass, however many rows share the budget.
+     */
+    public static final long MINIMUM_ROW_SHARE = 1_000;
     /** How often (in event times) a long settle checks for cancellation. */
     private static final int CANCEL_CHECK_INTERVAL = 4096;
 
@@ -73,11 +77,23 @@ public final class TruthTableEvaluator {
     /**
      * The table for the AI (IA.1 Task 4): the rows of {@link #evaluate} in order, but at most {@code maximumRows} of
      * them and at most {@code eventBudget} events in all rows together (each row's loading included), so an
-     * oscillating loop or a huge table returns in bounded time with the rows done so far. Runs on any thread.
+     * oscillating loop or a huge table returns in bounded time. The budget is shared so that one row that never
+     * settles (an oscillation, or a latch's hold row on the fresh copy) cannot use it all and hide the rows after it:
+     * a first pass gives each row its share of what is left ({@code left / rows to go}, at least
+     * {@value #MINIMUM_ROW_SHARE} events), and a second pass gives each row that ran out of its share, in order, all
+     * that is left then. A row that still runs out is kept, as unsettled, and named in
+     * {@link BudgetedTruthTable#cutShortRows()}; rows never reached are left out. Every row that settles is the row of
+     * {@link #evaluate}. Runs on any thread.
      *
      * @throws IllegalArgumentException when a limit is not positive
      */
     public static BudgetedTruthTable evaluateWithin(Preparation.Ready ready, int maximumRows, long eventBudget) {
+        return evaluateWithin(ready, maximumRows, eventBudget, MINIMUM_ROW_SHARE);
+    }
+
+    /** {@link #evaluateWithin(Preparation.Ready, int, long)} with another smallest first-pass share (for tests). */
+    static BudgetedTruthTable evaluateWithin(Preparation.Ready ready, int maximumRows, long eventBudget,
+                                             long minimumRowShare) {
         if (maximumRows <= 0 || eventBudget <= 0) {
             throw new IllegalArgumentException("the limits must be positive: " + maximumRows + " rows, "
                     + eventBudget + " events");
@@ -86,32 +102,61 @@ public final class TruthTableEvaluator {
         int rowsToEvaluate = Math.min(rowCount, maximumRows);
         long timeLimit = settleTimeLimit(ready.circuit());
         List<Row> rows = new ArrayList<>(rowsToEvaluate);
+        List<Integer> cutShort = new ArrayList<>();
         long eventsProcessed = 0;
-        boolean budgetExceeded = false;
+        boolean rowsLeftOut = false;
         for (int index = 0; index < rowsToEvaluate; index++) {
-            SimulationEngine engine = new SimulationEngine();
-            List<Value> inputs = inputValues(ready.inputs(), index);
-            Outcome[] outcome = new Outcome[1];
-            EventBudgetRun run = engine.runWithEventBudget(eventBudget - eventsProcessed, () -> {
-                engine.update(ready.circuit());
-                for (int column = 0; column < inputs.size(); column++) {
-                    engine.setInput(ready.inputs().get(column).componentId(), inputs.get(column));
-                }
-                outcome[0] = settle(engine, () -> false, timeLimit);
-            });
-            eventsProcessed += run.eventsProcessed();
-            if (run.exceeded()) {
-                budgetExceeded = true;
+            long left = eventBudget - eventsProcessed;
+            if (left <= 0) {
+                rowsLeftOut = true;
                 break;
             }
-            rows.add(row(ready, engine, inputs, outcome[0] == Outcome.SETTLED));
-            if (eventsProcessed >= eventBudget && index + 1 < rowsToEvaluate) {
-                budgetExceeded = true;
-                break;
+            long share = Math.min(left, Math.max(minimumRowShare, left / (rowsToEvaluate - index)));
+            BudgetedRow evaluated = evaluateRow(ready, index, share, timeLimit);
+            eventsProcessed += evaluated.events();
+            rows.add(evaluated.row());
+            if (evaluated.ranOut()) {
+                cutShort.add(index);
+            }
+        }
+        List<Integer> stillCutShort = new ArrayList<>();
+        for (int index : cutShort) {
+            long left = eventBudget - eventsProcessed;
+            if (left <= 0) {
+                stillCutShort.add(index);
+                continue;
+            }
+            BudgetedRow evaluated = evaluateRow(ready, index, left, timeLimit);
+            eventsProcessed += evaluated.events();
+            if (evaluated.ranOut()) {
+                stillCutShort.add(index);
+            } else {
+                rows.set(index, evaluated.row());
             }
         }
         TruthTable table = new TruthTable(ready.inputs(), ready.outputs(), rows, ready.hasFeedback());
-        return new BudgetedTruthTable(table, rowCount, eventsProcessed, rowsToEvaluate < rowCount, budgetExceeded);
+        return new BudgetedTruthTable(table, rowCount, eventsProcessed, rowsToEvaluate < rowCount,
+                rowsLeftOut || !stillCutShort.isEmpty(), stillCutShort);
+    }
+
+    /** One row of {@link #evaluateWithin} on a fresh engine, with at most {@code budget} events. */
+    private record BudgetedRow(Row row, long events, boolean ranOut) {
+    }
+
+    private static BudgetedRow evaluateRow(Preparation.Ready ready, int index, long budget, long timeLimit) {
+        SimulationEngine engine = new SimulationEngine();
+        List<Value> inputs = inputValues(ready.inputs(), index);
+        Outcome[] outcome = new Outcome[1];
+        EventBudgetRun run = engine.runWithEventBudget(budget, () -> {
+            engine.update(ready.circuit());
+            for (int column = 0; column < inputs.size(); column++) {
+                engine.setInput(ready.inputs().get(column).componentId(), inputs.get(column));
+            }
+            outcome[0] = settle(engine, () -> false, timeLimit);
+        });
+        boolean ranOut = run.exceeded();
+        return new BudgetedRow(row(ready, engine, inputs, !ranOut && outcome[0] == Outcome.SETTLED),
+                run.eventsProcessed(), ranOut);
     }
 
     private static Row row(Preparation.Ready ready, SimulationEngine engine, List<Value> inputs, boolean settled) {

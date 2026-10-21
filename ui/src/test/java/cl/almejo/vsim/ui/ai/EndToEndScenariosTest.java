@@ -154,22 +154,25 @@ class EndToEndScenariosTest {
             assertThat(list(receipt, "warnings")).as("%s", receipt).isEmpty();
         }
 
-        // With E at 0 a latch holds whatever it had: on the fresh copy each such row never settles and uses up the
-        // default budget, so the check says so and the AI gives it more.
+        // With E at 0 a latch holds whatever it had: on the fresh copy each such row never settles. It only uses up
+        // its share of the default budget (cutShort), so the transparent rows the check expects are still measured.
         List<Map<String, Object>> transparentRows = List.of(
                 row(Map.of("D", "0", "E", "1"), Map.of("Q", "0", "Q'", "1")),
                 row(Map.of("D", "1", "E", "1"), Map.of("Q", "1", "Q'", "0")));
-        Map<String, Object> cut = call("vsim_check_stage", Map.of("document", document, "taskId", task,
-                "stage", stage, "checks", List.of(Map.of("kind", "truthTable", "expected", transparentRows))));
-        assertThat(cut).containsEntry("passed", false);
-        assertThat(list(cut, "checks").getFirst()).containsEntry("status", "NOT_FINISHED");
-        assertThat((String) list(cut, "checks").getFirst().get("summary")).contains("eventBudget");
+        Map<String, Object> table = call("vsim_truth_table", Map.of("document", document));
+        assertThat(list(table, "rows")).filteredOn(tableRow -> Boolean.TRUE.equals(tableRow.get("cutShort")))
+                .hasSize(2);
 
         Map<String, Object> checked = call("vsim_check_stage", Map.of("document", document, "taskId", task,
                 "stage", stage, "checks", List.of(
-                        Map.of("kind", "truthTable", "expected", transparentRows, "eventBudget", 1_000_000),
+                        Map.of("kind", "truthTable", "expected", transparentRows),
                         Map.of("kind", "layout"))));
         assertThat(checked).as("%s", checked).containsEntry("passed", true);
+        Map<String, Object> holding = call("vsim_check_stage", Map.of("document", document, "taskId", task,
+                "stage", stage, "checks", List.of(Map.of("kind", "truthTable", "expected", List.of(
+                        row(Map.of("D", "0", "E", "0"), Map.of("Q", "0")))))));
+        assertThat(list(holding, "checks").getFirst()).containsEntry("status", "NOT_FINISHED");
+        assertThat((String) list(holding, "checks").getFirst().get("summary")).contains("eventBudget", "signals");
 
         // The memory, on the live circuit. One vsim_set_inputs call sets its values at one instant (the gates react
         // after it), so the AI pauses and gives the latch time between values, as the tool's description says.
@@ -540,10 +543,9 @@ class EndToEndScenariosTest {
         assertThat(receipt).containsEntry("outcome", "BUDGET_EXCEEDED");
         assertThat(Long.parseLong((String) receipt.get("time"))).isPositive().isLessThan(1_000_000_000L);
 
-        Map<String, Object> table = refusal("vsim_truth_table", Map.of("document", document,
-                "eventBudget", 5_000));
-        assertThat(table).containsEntry("error", "BUDGET_EXCEEDED");
-        assertThat(map(map(table, "recovery"), "table")).containsEntry("budgetExceeded", true);
+        Map<String, Object> table = call("vsim_truth_table", Map.of("document", document, "eventBudget", 5_000));
+        assertThat(table).containsEntry("budgetExceeded", true);
+        assertThat(list(table, "rows").getLast()).containsEntry("cutShort", true).containsEntry("settled", false);
 
         Map<String, Object> signals = call("vsim_read_signals", Map.of("document", document, "pins",
                 List.of(pin(ids.get("y"), "pin"))));

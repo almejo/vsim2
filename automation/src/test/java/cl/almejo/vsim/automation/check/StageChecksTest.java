@@ -75,9 +75,30 @@ class StageChecksTest {
     }
 
     @Test
+    void aRowCutShortByTheBudgetThatTheCheckDoesNotExpectLetsTheOthersPass() {
+        measurements.table = andTableWithFirstRowCutShort();
+
+        CheckResult result = runOne(truthTable(andRows().subList(1, 4)));
+
+        assertThat(result.status()).isEqualTo(Status.PASSED);
+        assertThat(result.details()).containsEntry("rowsCutShort", 0);
+    }
+
+    @Test
+    void anExpectedRowCutShortByTheBudgetIsNotFinishedNeverFailed() {
+        measurements.table = andTableWithFirstRowCutShort();
+
+        CheckResult result = runOne(truthTable(andRows()));
+
+        assertThat(result.status()).isEqualTo(Status.NOT_FINISHED);
+        assertThat(result.details()).containsEntry("rowsCutShort", 1).containsEntry("failedRows", 0);
+        assertThat(result.summary()).contains("ran out of", "larger eventBudget", "signals");
+    }
+
+    @Test
     void aTableCutByTheRowLimitSaysWhichLimitToRaise() {
         measurements.table = new TruthTableView(DOCUMENT, VERSION, AND_INPUTS, AND_OUTPUTS, andTable(false, 2, false)
-                .rows(), 4, true, false, 20, 100_000, false);
+                .rows(), 4, true, false, false, 20, 100_000, false);
 
         CheckResult result = runOne(truthTable(andRows()));
 
@@ -198,7 +219,17 @@ class StageChecksTest {
                 new RowView(List.of("1", "0"), List.of("0"), true),
                 new RowView(List.of("1", "1"), List.of("1"), !lastUnsettled));
         return new TruthTableView(DOCUMENT, VERSION, AND_INPUTS, AND_OUTPUTS, all.subList(0, rows), 4, false,
-                budgetExceeded, 40, 100_000, false);
+                budgetExceeded, budgetExceeded, 40, 100_000, false);
+    }
+
+    /** An AND gate's whole table whose first row ran out of its share of the events (as a latch's hold row). */
+    private static TruthTableView andTableWithFirstRowCutShort() {
+        List<RowView> all = List.of(new RowView(List.of("0", "0"), List.of("X"), false, true),
+                new RowView(List.of("0", "1"), List.of("0"), true),
+                new RowView(List.of("1", "0"), List.of("0"), true),
+                new RowView(List.of("1", "1"), List.of("1"), true));
+        return new TruthTableView(DOCUMENT, VERSION, AND_INPUTS, AND_OUTPUTS, all, 4, false, true, false, 100_000,
+                100_000, false);
     }
 
     private static final class FakeMeasurements implements StageChecks.Measurements {

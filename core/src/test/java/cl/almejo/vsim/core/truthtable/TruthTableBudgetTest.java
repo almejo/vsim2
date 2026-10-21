@@ -41,14 +41,55 @@ class TruthTableBudgetTest {
     }
 
     @Test
-    void anOscillatingLoopStopsAtTheBudgetWithTheRowsDoneSoFar() {
+    void anOscillatingLoopStopsAtTheBudgetWithItsRowCutShort() {
         Preparation.Ready ready = ready(TruthTableCircuits.gatedRing());
 
         BudgetedTruthTable result = TruthTableEvaluator.evaluateWithin(ready, 64, 5_000);
 
         assertThat(result.budgetExceeded()).isTrue();
         assertThat(result.eventsProcessed()).isLessThanOrEqualTo(5_000);
+        assertThat(result.cutShortRows()).containsExactly(1);
+        assertThat(result.table().rows().get(1).settled()).isFalse();
+        assertThat(result.table().rows().getFirst().settled()).isTrue();
+    }
+
+    @Test
+    void rowsTheBudgetNeverReachesAreLeftOut() {
+        Preparation.Ready ready = ready(TruthTableCircuits.fullAdder());
+
+        BudgetedTruthTable result = TruthTableEvaluator.evaluateWithin(ready, 64, 10, 10);
+
+        assertThat(result.budgetExceeded()).isTrue();
         assertThat(result.table().rows().size()).isLessThan(result.totalRows());
+        assertThat(result.eventsProcessed()).isLessThanOrEqualTo(10);
+    }
+
+    @Test
+    void aLatchRowThatHoldsItsStateIsCutShortAndTheRowsAfterItAreStillEvaluated() {
+        Preparation.Ready ready = ready(TruthTableCircuits.norLatch());
+        TruthTable users = TruthTableEvaluator.evaluate(ready, percent -> { }, () -> false).orElseThrow();
+
+        BudgetedTruthTable result = TruthTableEvaluator.evaluateWithin(ready, 64, 100_000);
+
+        assertThat(result.table().rows()).hasSize(4);
+        assertThat(result.cutShortRows()).containsExactly(0);
+        assertThat(result.table().rows().getFirst().settled()).isFalse();
+        assertThat(result.table().rows().subList(1, 4)).isEqualTo(users.rows().subList(1, 4));
+        assertThat(result.budgetExceeded()).isTrue();
+        assertThat(result.eventsProcessed()).isLessThanOrEqualTo(100_000);
+    }
+
+    @Test
+    void aRowThatNeedsMoreThanItsShareGetsWhatIsLeftAfterTheOthers() {
+        Preparation.Ready ready = ready(TruthTableCircuits.fullAdder());
+        long allTheTable = TruthTableEvaluator.evaluateWithin(ready, 64, 100_000).eventsProcessed();
+
+        BudgetedTruthTable result = TruthTableEvaluator.evaluateWithin(ready, 64, 3 * allTheTable, 1);
+
+        assertThat(result.cutShortRows()).isEmpty();
+        assertThat(result.budgetExceeded()).isFalse();
+        assertThat(result.table()).isEqualTo(TruthTableEvaluator.evaluate(ready, percent -> { }, () -> false)
+                .orElseThrow());
     }
 
     @Test

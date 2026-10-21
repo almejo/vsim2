@@ -177,7 +177,7 @@ public final class SimulationOperations {
         }
         Preparation.Ready ready = (Preparation.Ready) prepared.preparation();
         BudgetedTruthTable evaluated = TruthTableEvaluator.evaluateWithin(ready, rows, budget);
-        return TruthTableView.of(document, prepared.version(), evaluated, budget);
+        return TruthTableView.of(document, prepared.version(), evaluated, rows, budget);
     }
 
     private static String refusalMessage(Preparation.Refused refused) {

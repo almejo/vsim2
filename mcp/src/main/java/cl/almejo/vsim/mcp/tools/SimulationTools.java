@@ -151,8 +151,10 @@ final class SimulationTools {
                         + "instance, as Herramientas ▸ Tabla de verdad makes it: on a copy, never touching the live "
                         + "simulation; combinational circuits only, at most 16 input bits. Rows in binary counting "
                         + "order; each cell is the bits (X! in front for a conflict). truncated: the row limit cut "
-                        + "it. A budget that ran out is BUDGET_EXCEEDED with the rows done. To check a stage against "
-                        + "expected rows, use vsim_check_stage.",
+                        + "it. The event budget is shared among the rows: a row that never settles (an oscillation, "
+                        + "a latch's hold row on the fresh copy) gets cutShort when its share runs out and the rows "
+                        + "after it are still made; rows the budget never reached are BUDGET_EXCEEDED with the rows "
+                        + "done. To check a stage against expected rows, use vsim_check_stage.",
                 Schema.object("")
                         .property("document", Common.document())
                         .property("elementIds", Schema.array("The parts to tabulate; the wires that join only these "
@@ -168,10 +170,13 @@ final class SimulationTools {
                         .property("inputs", Schema.array("Columns: name, elementId, width", Schema.result("").build()))
                         .property("outputs", Schema.array("Columns: name, elementId, width",
                                 Schema.result("").build()))
-                        .property("rows", Schema.array("inputs, outputs, settled", Schema.result("").build()))
+                        .property("rows", Schema.array("inputs, outputs, settled, cutShort (the row ran out of "
+                                + "its share of the events before settling: its outputs are not known)",
+                                Schema.result("").build()))
                         .property("totalRows", Schema.integer("Rows the full table has"))
                         .property("truncated", Schema.bool("The row limit cut it"))
-                        .property("budgetExceeded", Schema.bool("Always false here (see BUDGET_EXCEEDED)"))
+                        .property("budgetExceeded", Schema.bool("Some rows are cutShort (rows never reached are a "
+                                + "BUDGET_EXCEEDED error instead)"))
                         .property("eventsProcessed", Schema.integer("Events run"))
                         .property("hasFeedback", Schema.bool("A loop without flip-flops"))
                         .required("inputs", "outputs", "rows", "totalRows", "truncated").build(),
@@ -181,7 +186,7 @@ final class SimulationTools {
                 arguments -> {
                     TruthTableView table = api.truthTable(arguments.document(), arguments.stringSet("elementIds"),
                             arguments.integer("maximumRows", 0), arguments.integer("eventBudget", 0));
-                    if (table.budgetExceeded()) {
+                    if (table.rowsLeftOut()) {
                         throw new AutomationException(AutomationError.BUDGET_EXCEEDED, "The event budget of "
                                 + table.eventBudget() + " events ran out after " + table.rows().size() + " of "
                                 + table.totalRows() + " rows; the rows done are in recovery.table",
