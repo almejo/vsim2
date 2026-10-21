@@ -20,8 +20,8 @@ import java.util.Set;
 
 /**
  * Applies the keyboard shortcuts of {@link KeyBindings} to one editor view (spec §5.2): menu accelerators for WINDOW
- * entries, canvas bindings named {@code shortcut.<id>} for CANVAS entries. Installed last, so the actions earlier
- * extensions registered ({@link EditorView#registerShortcutAction}) are there. It re-applies on every preference
+ * entries, canvas bindings named {@code shortcut.<id>} for CANVAS entries on every pane of the view. Installed last,
+ * so the actions earlier extensions registered ({@link EditorView#registerShortcutAction}) are there. It re-applies on every preference
  * change, so a change made in any window shows at once in all of them. A catalog id without an action in this view
  * is skipped. If stored overrides give two actions the same stroke, the first in catalog order keeps it. Toolbar
  * tooltips end with the current shortcut ({@link ToolbarTooltips}, M6.1-E).
@@ -34,19 +34,20 @@ public final class ShortcutsExtension implements EditorExtension {
     public Runnable install(EditorView view) {
         AppPreferences preferences = view.services().preferences();
         Map<String, Action> actions = actionsOf(view);
-        Applier applier = new Applier(view.canvas(), actions, new KeyBindings(preferences));
+        Applier applier = new Applier(actions, new KeyBindings(preferences));
         ToolbarTooltips tooltips = new ToolbarTooltips(view.toolBar(), actions, applier::strokeOf);
-        applier.releaseDefaultCanvasStrokes();
         applier.apply();
+        // every pane gets the canvas keys, the panes created later too, and a removed pane gives them back
+        Runnable paneBindings = view.forEachPane(applier::bindOn);
         tooltips.refresh();
         Runnable listener = () -> {
             applier.apply();
             tooltips.refresh();
         };
         preferences.addListener(listener);
-        // Accelerators and canvas bindings belong to this view's own actions and canvas and go away with them.
         return () -> {
             preferences.removeListener(listener);
+            paneBindings.run();
             tooltips.dispose();
         };
     }
@@ -99,19 +100,32 @@ public final class ShortcutsExtension implements EditorExtension {
         return map;
     }
 
-    /** The bindings of one view; remembers what it bound on the canvas so the next apply can take it back. */
+    /**
+     * The bindings of one view: the menu accelerators, and on each of its panes the canvas keys (remembered per pane,
+     * so the next apply, or the pane going away, can take them back).
+     */
     private static final class Applier {
 
-        private final CircuitCanvas canvas;
         private final Map<String, Action> actions;
         private final KeyBindings bindings;
-        private final Map<String, KeyStroke> bound = new HashMap<>();
         private final Map<String, KeyStroke> applied = new HashMap<>();
+        private final Map<CircuitCanvas, Map<String, KeyStroke>> boundByPane = new LinkedHashMap<>();
 
-        Applier(CircuitCanvas canvas, Map<String, Action> actions, KeyBindings bindings) {
-            this.canvas = canvas;
+        Applier(Map<String, Action> actions, KeyBindings bindings) {
             this.actions = actions;
             this.bindings = bindings;
+        }
+
+        /** Gives {@code pane} the canvas keys; the returned runnable takes them back. */
+        Runnable bindOn(CircuitCanvas pane) {
+            releaseDefaultCanvasStrokes(pane);
+            Map<String, KeyStroke> bound = new HashMap<>();
+            boundByPane.put(pane, bound);
+            bindCanvasKeys(pane, bound);
+            return () -> {
+                unbindCanvasKeys(pane, bound);
+                boundByPane.remove(pane);
+            };
         }
 
         /**
@@ -119,8 +133,8 @@ public final class ShortcutsExtension implements EditorExtension {
          * a stroke still bound to the editor's own name is removed. The editor's action-map entries stay, so its
          * fixed aliases (Retroceso = Borrar) keep working.
          */
-        void releaseDefaultCanvasStrokes() {
-            InputMap keys = canvas.getInputMap(JComponent.WHEN_FOCUSED);
+        private void releaseDefaultCanvasStrokes(CircuitCanvas pane) {
+            InputMap keys = pane.getInputMap(JComponent.WHEN_FOCUSED);
             for (ShortcutEntry entry : ShortcutCatalog.entries()) {
                 if (entry.scope() != Scope.CANVAS || !actions.containsKey(entry.id())) {
                     continue;
@@ -134,10 +148,11 @@ public final class ShortcutsExtension implements EditorExtension {
             }
         }
 
-        /** Unbinds everything first, so a stroke that moved between two canvas actions is never lost. */
+        /**
+         * Works out every stroke again, sets the menu accelerators and rebinds the canvas keys of every pane;
+         * unbinding everything first, so a stroke that moved between two canvas actions is never lost.
+         */
         void apply() {
-            bound.forEach((id, stroke) -> canvas.unbindKey(stroke, BINDING_PREFIX + id));
-            bound.clear();
             applied.clear();
             Set<KeyStroke> taken = new HashSet<>();
             for (ShortcutEntry entry : ShortcutCatalog.entries()) {
@@ -149,11 +164,28 @@ public final class ShortcutsExtension implements EditorExtension {
                 stroke.ifPresent(found -> applied.put(entry.id(), found));
                 if (entry.scope() == Scope.WINDOW) {
                     action.putValue(Action.ACCELERATOR_KEY, stroke.orElse(null));
-                } else if (stroke.isPresent()) {
-                    canvas.bindKey(stroke.get(), BINDING_PREFIX + entry.id(), action);
-                    bound.put(entry.id(), stroke.get());
                 }
             }
+            boundByPane.forEach((pane, bound) -> {
+                unbindCanvasKeys(pane, bound);
+                bindCanvasKeys(pane, bound);
+            });
+        }
+
+        private void bindCanvasKeys(CircuitCanvas pane, Map<String, KeyStroke> bound) {
+            for (ShortcutEntry entry : ShortcutCatalog.entries()) {
+                Action action = actions.get(entry.id());
+                KeyStroke stroke = applied.get(entry.id());
+                if (entry.scope() == Scope.CANVAS && action != null && stroke != null) {
+                    pane.bindKey(stroke, BINDING_PREFIX + entry.id(), action);
+                    bound.put(entry.id(), stroke);
+                }
+            }
+        }
+
+        private static void unbindCanvasKeys(CircuitCanvas pane, Map<String, KeyStroke> bound) {
+            bound.forEach((id, stroke) -> pane.unbindKey(stroke, BINDING_PREFIX + id));
+            bound.clear();
         }
 
         /** The shortcut the last {@link #apply()} gave {@code id} (menu accelerator or canvas key), if any. */

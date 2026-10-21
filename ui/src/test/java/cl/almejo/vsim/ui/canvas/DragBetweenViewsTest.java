@@ -23,6 +23,7 @@ import cl.almejo.vsim.ui.window.EditorServices;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.NewViewPlacement;
 import cl.almejo.vsim.ui.window.WindowCommands;
+import cl.almejo.vsim.ui.window.panes.CanvasPanes;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -115,6 +116,25 @@ class DragBetweenViewsTest {
         first.history().redo();
         assertThat(positionOf(first, gate)).isEqualTo(new GridPoint(18, 18));
         assertThat(second.document().isEmpty()).isTrue();
+    }
+
+    @Test
+    void aDragBetweenTwoPanesOfOneWindowIsAMove() {
+        firstView.canvasPanes().split(CanvasPanes.Orientation.VERTICAL, 0.5);
+        CircuitCanvas left = firstView.panes().get(0);
+        CircuitCanvas right = firstView.panes().get(1);
+        left.setSize(400, 300);
+        right.setSize(400, 300);
+        Transferable transferable = dragOut(left, 56, 56);
+
+        assertThat(handlerOf(right).importFragment(transferable, new Point(160, 160), false)).isTrue();
+
+        assertThat(first.document().components()).hasSize(1);
+        assertThat(positionOf(first, gate)).isEqualTo(new GridPoint(18, 18));
+        assertThat(firstView.selection().ids()).containsExactly(gate.id());
+        assertThat(left.isDraggingOut()).isFalse();
+        first.history().undo();
+        assertThat(positionOf(first, gate)).isEqualTo(new GridPoint(5, 5));
     }
 
     @Test

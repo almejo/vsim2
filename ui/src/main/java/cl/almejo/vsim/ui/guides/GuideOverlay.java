@@ -18,9 +18,9 @@ import java.util.List;
  */
 final class GuideOverlay implements CanvasOverlay {
 
-    private final GuidesFeatures features;
+    private final PaneGuides features;
 
-    GuideOverlay(GuidesFeatures features) {
+    GuideOverlay(PaneGuides features) {
         this.features = features;
     }
 

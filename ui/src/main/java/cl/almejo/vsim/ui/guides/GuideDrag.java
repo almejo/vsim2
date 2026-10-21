@@ -23,13 +23,13 @@ final class GuideDrag implements EdgeGesture {
     /** Where the pointer is, for this drag. */
     enum Zone { CANVAS, OWN_RULER, OTHER_RULER, OUTSIDE }
 
-    private final GuidesFeatures features;
+    private final PaneGuides features;
     private final Orientation orientation;
     private final Optional<Guide> moving;
     private Point2D lastScreen;
     private boolean enteredCanvas;
 
-    GuideDrag(GuidesFeatures features, Orientation orientation, Optional<Guide> moving, CanvasMouseEvent press) {
+    GuideDrag(PaneGuides features, Orientation orientation, Optional<Guide> moving, CanvasMouseEvent press) {
         this.features = features;
         this.orientation = orientation;
         this.moving = moving;

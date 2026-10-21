@@ -6,6 +6,7 @@ import cl.almejo.vsim.ui.app.Application;
 import cl.almejo.vsim.ui.app.DocumentWindows;
 import cl.almejo.vsim.ui.app.FileDialogs;
 import cl.almejo.vsim.ui.app.OpenDocument;
+import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.canvas.ViewState;
 import cl.almejo.vsim.ui.clipboard.FileDropHandler;
 import cl.almejo.vsim.ui.i18n.Messages;
@@ -25,6 +26,7 @@ import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.awt.event.MouseWheelListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.IOException;
@@ -81,21 +83,7 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
                 view.canvas().requestFocusInWindow();
             }
         });
-        view.canvas().addViewListener(initialView::viewChanged);
-        // Pans by drag, wheel or autoscroll do not reach the view listeners; any press or wheel turn counts as one.
-        view.canvas().addMouseListener(new MouseAdapter() {
-            @Override
-            public void mousePressed(MouseEvent event) {
-                initialView.userInteracted();
-            }
-        });
-        view.canvas().addMouseWheelListener(event -> initialView.userInteracted());
-        view.canvas().addComponentListener(new ComponentAdapter() {
-            @Override
-            public void componentResized(ComponentEvent event) {
-                initialView.canvasResized(isMaximized());
-            }
-        });
+        view.forEachPane(this::watchForTheInitialView);
         addComponentListener(new ComponentAdapter() {
             @Override
             public void componentMoved(ComponentEvent event) {
@@ -133,7 +121,7 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
         this.initialViewState = state;
     }
 
-    /** The zoom and center this window's canvas shows now. */
+    /** The zoom and center the window's active pane shows now (Nueva vista opens there). */
     public ViewState viewState() {
         return view.canvas().viewState();
     }
@@ -164,6 +152,37 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
      */
     public void restoreRememberedSplit() {
         rememberedSplit.restoreWhenShown();
+    }
+
+    /**
+     * The user's own moves on any pane keep the view they chose; a pane's resize can be the maximized layout arriving
+     * (InitialView only acts on the first one after opening). Returns what stops watching the pane.
+     */
+    private Runnable watchForTheInitialView(CircuitCanvas pane) {
+        Runnable viewListenerRemover = pane.addViewListener(initialView::viewChanged);
+        // Pans by drag, wheel or autoscroll do not reach the view listeners; any press or wheel turn counts as one.
+        MouseAdapter pressListener = new MouseAdapter() {
+            @Override
+            public void mousePressed(MouseEvent event) {
+                initialView.userInteracted();
+            }
+        };
+        MouseWheelListener wheelListener = event -> initialView.userInteracted();
+        ComponentAdapter resizeListener = new ComponentAdapter() {
+            @Override
+            public void componentResized(ComponentEvent event) {
+                initialView.canvasResized(isMaximized());
+            }
+        };
+        pane.addMouseListener(pressListener);
+        pane.addMouseWheelListener(wheelListener);
+        pane.addComponentListener(resizeListener);
+        return () -> {
+            viewListenerRemover.run();
+            pane.removeMouseListener(pressListener);
+            pane.removeMouseWheelListener(wheelListener);
+            pane.removeComponentListener(resizeListener);
+        };
     }
 
     private void showInitialView() {

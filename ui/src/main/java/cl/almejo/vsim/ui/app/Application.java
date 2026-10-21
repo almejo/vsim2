@@ -111,8 +111,11 @@ public final class Application {
         this.autosave = AutosaveService.create(recoveryStore);
     }
 
-    /** The extensions with the import's file chooser starting in the user's home and remembering nothing (tests). */
-    static List<EditorExtension> editorExtensions(LibraryService libraryService, LibraryDialogs libraryDialogs) {
+    /**
+     * The extensions with the import's file chooser starting in the user's home and remembering nothing (tests, also
+     * outside this package: every extension in every pane).
+     */
+    public static List<EditorExtension> editorExtensions(LibraryService libraryService, LibraryDialogs libraryDialogs) {
         return editorExtensions(libraryService, libraryDialogs, () -> Path.of(System.getProperty("user.home")),
                 path -> { });
     }

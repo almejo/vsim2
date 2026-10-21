@@ -10,6 +10,7 @@ import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
+import cl.almejo.vsim.ui.canvas.Selection;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.panels.ConfigureDialog;
 import cl.almejo.vsim.ui.shortcuts.ShortcutCatalog;
@@ -40,6 +41,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 /** Every user command of an editor window, as Swing actions whose enabled state follows the editor. */
 public final class EditorActions {
@@ -50,7 +52,9 @@ public final class EditorActions {
     public static final String SPEED_ICON = "speed";
 
     private final OpenDocument openDocument;
-    private final CircuitCanvas canvas;
+    /** The active pane, resolved whenever an action runs (the window may be split). */
+    private final Supplier<CircuitCanvas> activePane;
+    private final Selection selection;
     private final int menuMask = ShortcutCatalog.menuMask();
     private final HistoryListener historyListener = history -> refresh();
     /** How far «Avanzar N t» goes (M6.1-B: the preference, followed by {@code FixedStepFeatures}). */
@@ -88,9 +92,16 @@ public final class EditorActions {
     private final Action newView;
     private final Action about;
 
-    public EditorActions(OpenDocument openDocument, CircuitCanvas canvas, WindowCommands window) {
+    /**
+     * The actions of one window: {@code activePane} (its active pane) is resolved each time an action runs (zoom, centre,
+     * the Configure dialog's owner, the nudges' tool check), {@code selection} is the window's one selection and the
+     * tool actions go through {@code toolChoice} to every pane. The window feeds {@link #refreshSimulationButtons}.
+     */
+    public EditorActions(OpenDocument openDocument, Supplier<CircuitCanvas> activePane, Selection selection,
+                         ToolChoice toolChoice, WindowCommands window) {
         this.openDocument = openDocument;
-        this.canvas = canvas;
+        this.activePane = activePane;
+        this.selection = selection;
         newDocument = action(Messages.text("action.new"), shortcut(KeyEvent.VK_N, 0), window::newDocument);
         open = action(Messages.text("action.open"), shortcut(KeyEvent.VK_O, 0), window::open);
         save = action(Messages.text("action.save"), shortcut(KeyEvent.VK_S, 0), window::save);
@@ -115,13 +126,16 @@ public final class EditorActions {
         addFarMoveActions();
         configure = action(Messages.text("action.configure"), null,
                 () -> singleConfigurable().ifPresent(this::configure));
-        selectTool = action(Messages.text("action.toolSelect"), null, canvas::useDefaultTool);
-        wireTool = action(Messages.text("action.toolWire"), null, () -> canvas.setTool(new WireTool()));
-        panTool = action(Messages.text("action.toolPan"), null, () -> canvas.setTool(new PanTool()));
-        zoomIn = action(Messages.text("action.zoomIn"), shortcut(KeyEvent.VK_EQUALS, 0), canvas::zoomIn);
-        zoomOut = action(Messages.text("action.zoomOut"), shortcut(KeyEvent.VK_MINUS, 0), canvas::zoomOut);
-        zoomReset = action(Messages.text("action.zoomReset"), shortcut(KeyEvent.VK_0, 0), canvas::resetZoom);
-        centerView = action(Messages.text("action.centerView"), null, canvas::centerCircuit);
+        selectTool = action(Messages.text("action.toolSelect"), null, toolChoice::useDefault);
+        wireTool = action(Messages.text("action.toolWire"), null, () -> toolChoice.choose(WireTool::new));
+        panTool = action(Messages.text("action.toolPan"), null, () -> toolChoice.choose(PanTool::new));
+        zoomIn = action(Messages.text("action.zoomIn"), shortcut(KeyEvent.VK_EQUALS, 0), 
+                () -> activePane.get().zoomIn());
+        zoomOut = action(Messages.text("action.zoomOut"), shortcut(KeyEvent.VK_MINUS, 0),
+                () -> activePane.get().zoomOut());
+        zoomReset = action(Messages.text("action.zoomReset"), shortcut(KeyEvent.VK_0, 0),
+                () -> activePane.get().resetZoom());
+        centerView = action(Messages.text("action.centerView"), null, () -> activePane.get().centerCircuit());
         start = action(Messages.text("action.start"), null, openDocument::resume);
         pause = action(Messages.text("action.pause"), null, openDocument::pause);
         startOrPause = action(Messages.text("action.startOrPause"), KeyStroke.getKeyStroke(KeyEvent.VK_F5, 0),
@@ -137,12 +151,11 @@ public final class EditorActions {
                 () -> openDocument.step(stepUnits));
         setStepUnits(stepUnits);
         newView = action(Messages.text("action.newWindow"), null, window::newView);
-        about = action(Messages.text("action.about"), null, () -> JOptionPane.showMessageDialog(canvas,
+        about = action(Messages.text("action.about"), null, () -> JOptionPane.showMessageDialog(activePane.get(),
                 Messages.text("dialog.about.message"), Messages.text("action.about"), JOptionPane.INFORMATION_MESSAGE));
 
         openDocument.history().addListener(historyListener);
-        canvas.selection().addListener(this::refresh);
-        canvas.addSnapshotListener(snapshot -> refreshSimulationButtons(snapshot.running()));
+        selection.addListener(this::refresh);
         refresh();
         refreshSimulationButtons(true);
     }
@@ -214,7 +227,7 @@ public final class EditorActions {
         if (type.parameters().isEmpty()) {
             return;
         }
-        ConfigureDialog.show(canvas, type, component, canvas::scheme)
+        ConfigureDialog.show(activePane.get(), type, component, activePane.get()::scheme)
                 .ifPresent(values -> TunnelNames.applyParameters(openDocument, component.id(), type, values));
     }
 
@@ -310,7 +323,7 @@ public final class EditorActions {
         redo.putValue(Action.NAME, history.redoDescription()
                 .map(key -> Messages.format("action.redoNamed", Messages.commandName(key)))
                 .orElse(Messages.text("action.redo")));
-        Set<ElementId> selected = canvas.selection().ids();
+        Set<ElementId> selected = selection.ids();
         delete.setEnabled(!selected.isEmpty());
         rotateClockwise.setEnabled(!selected.isEmpty());
         rotateCounterClockwise.setEnabled(!selected.isEmpty());
@@ -325,7 +338,7 @@ public final class EditorActions {
     }
 
     private void deleteSelection() {
-        Set<ElementId> selected = canvas.selection().effectiveIds();
+        Set<ElementId> selected = selection.effectiveIds();
         if (!selected.isEmpty()) {
             deleteListeners.forEach(listener -> listener.accept(selected));
             openDocument.execute(new RemoveElementsCommand(selected));
@@ -349,15 +362,15 @@ public final class EditorActions {
      * of a gesture (a drag, a wire, a rubber band).
      */
     private void nudgeSelection(int deltaX, int deltaY) {
-        if (canvas.selection().isEmpty() || !(canvas.tool() instanceof SelectTool select) || !select.isIdle()) {
+        CircuitCanvas pane = activePane.get();
+        if (selection.isEmpty() || !(pane.tool() instanceof SelectTool select) || !select.isIdle()) {
             return;
         }
-        canvas.selectionMoves().nudge(openDocument, canvas.selection(), canvas.selection().effectiveIds(), deltaX,
-                deltaY);
+        pane.selectionMoves().nudge(openDocument, selection, selection.effectiveIds(), deltaX, deltaY);
     }
 
     private void rotateSelection(boolean clockwise) {
-        Set<ElementId> selected = canvas.selection().effectiveIds();
+        Set<ElementId> selected = selection.effectiveIds();
         RotateElementsCommand rotate = new RotateElementsCommand(selected, clockwise, openDocument.registry());
         if (rotate.changes(openDocument.document())) {
             openDocument.execute(rotate);
@@ -365,7 +378,7 @@ public final class EditorActions {
     }
 
     private List<Component> selectedComponents() {
-        return canvas.selection().ids().stream()
+        return selection.ids().stream()
                 .map(id -> openDocument.document().component(id))
                 .flatMap(Optional::stream)
                 .toList();
@@ -373,7 +386,7 @@ public final class EditorActions {
 
     private Optional<Component> singleConfigurable() {
         List<Component> components = selectedComponents();
-        if (components.size() != 1 || canvas.selection().ids().size() != 1) {
+        if (components.size() != 1 || selection.ids().size() != 1) {
             return Optional.empty();
         }
         Component component = components.get(0);

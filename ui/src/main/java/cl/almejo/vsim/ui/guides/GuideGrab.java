@@ -30,9 +30,9 @@ final class GuideGrab implements EdgeHandle {
 
     static final int PRIORITY = 10;
 
-    private final GuidesFeatures features;
+    private final PaneGuides features;
 
-    GuideGrab(GuidesFeatures features) {
+    GuideGrab(PaneGuides features) {
         this.features = features;
     }
 

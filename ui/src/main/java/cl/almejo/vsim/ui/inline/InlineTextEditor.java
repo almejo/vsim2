@@ -46,6 +46,7 @@ import java.util.Locale;
 import java.util.Optional;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 /**
  * Edits a text right where the canvas draws it (M6.5): a one-line field over the text, scaled with the zoom, with ✓
@@ -81,7 +82,10 @@ public final class InlineTextEditor {
     private static final String OUTLINE_ERROR = "error";
     /** WCAG AA contrast for normal text. */
 
-    private final CircuitCanvas canvas;
+    /** Where a new edit opens: the window's active pane. */
+    private final Supplier<CircuitCanvas> paneForNewEdits;
+    /** The pane the open (or the last) edit is shown in. */
+    private CircuitCanvas canvas;
     private final JPanel panel = new JPanel(null);
     private final Field field = new Field();
     private final JButton confirmButton;
@@ -98,8 +102,18 @@ public final class InlineTextEditor {
     /** False until the user changes the text: the suggestions are not filtered by the initial text. */
     private boolean edited;
 
+    /** An editor that always opens over {@code canvas}. */
     public InlineTextEditor(CircuitCanvas canvas) {
-        this.canvas = canvas;
+        this(() -> canvas);
+    }
+
+    /**
+     * An editor for a window with several panes: each edit opens over the pane {@code paneForNewEdits} gives when it
+     * opens (the active one) and stays there until it closes.
+     */
+    public InlineTextEditor(Supplier<CircuitCanvas> paneForNewEdits) {
+        this.paneForNewEdits = paneForNewEdits;
+        this.canvas = paneForNewEdits.get();
         panel.setOpaque(false);
         // a press on the empty parts of the editor stops here instead of reaching the canvas tool, and the
         // canvas tool's cursor (a resize arrow on a frame's edge) never shows through
@@ -170,6 +184,7 @@ public final class InlineTextEditor {
         if (isOpen()) {
             confirmOrCancel();
         }
+        canvas = paneForNewEdits.get();
         request = newRequest;
         stillValid = newStillValid;
         // the components live detached while closed, so a theme change did not reach them
@@ -199,6 +214,18 @@ public final class InlineTextEditor {
 
     public boolean isOpen() {
         return request != null;
+    }
+
+    /** The pane the open edit is shown in; empty while closed. */
+    public Optional<CircuitCanvas> openIn() {
+        return isOpen() ? Optional.of(canvas) : Optional.empty();
+    }
+
+    /** Closes without applying when the open edit is shown in {@code pane} (the pane is going away). */
+    public void cancelIfOpenIn(CircuitCanvas pane) {
+        if (isOpen() && canvas == pane) {
+            cancel();
+        }
     }
 
     /** Hands the text to the request and closes; does nothing while the text has a problem. */

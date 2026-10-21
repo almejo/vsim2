@@ -52,50 +52,52 @@ public final class TunnelFeatures {
     private static final BasicStroke OUTLINE = new BasicStroke(2f);
 
     private final EditorView view;
-    private final CircuitCanvas canvas;
     private final OpenDocument openDocument;
     private final StatusBar statusBar;
-    private final MouseAdapter pointer = new MouseAdapter() {
-        @Override
-        public void mouseMoved(MouseEvent event) {
-            hoverAt(canvas.viewport().screenToGrid(event.getX(), event.getY()));
-        }
-
-        @Override
-        public void mouseExited(MouseEvent event) {
-            hover(Optional.empty());
-        }
-    };
     private final DocumentListener documentListener = this::documentChanged;
-    private final CanvasOverlay overlay = this::paintHighlight;
     private final ContextMenuContributor contributor = this::contribute;
     private final Runnable contributorRemover;
+    private final Runnable paneInstallation;
     private Optional<ElementId> hovered = Optional.empty();
 
     public TunnelFeatures(EditorView view) {
         this.view = view;
-        this.canvas = view.canvas();
         this.openDocument = view.openDocument();
         this.statusBar = view.statusBar();
-        canvas.addMouseMotionListener(pointer);
-        canvas.addMouseListener(pointer);
-        canvas.addOverlay(overlay);
         openDocument.document().addListener(documentListener);
         contributorRemover = view.addContextMenuContributor(contributor);
+        paneInstallation = view.forEachPane(this::installOn);
+    }
+
+    /** On one pane: the pointer that hovers there and the outline, painted in every pane whichever one is hovered. */
+    private Runnable installOn(CircuitCanvas pane) {
+        PanePointer pointer = new PanePointer(pane);
+        CanvasOverlay overlay = (graphics, state) -> paintHighlight(pane, graphics, state);
+        pane.addMouseMotionListener(pointer);
+        pane.addMouseListener(pointer);
+        pane.addOverlay(overlay);
+        return () -> {
+            pane.removeMouseMotionListener(pointer);
+            pane.removeMouseListener(pointer);
+            pane.removeOverlay(overlay);
+        };
     }
 
     public void dispose() {
-        canvas.removeMouseMotionListener(pointer);
-        canvas.removeMouseListener(pointer);
-        canvas.removeOverlay(overlay);
+        paneInstallation.run();
         openDocument.document().removeListener(documentListener);
         contributorRemover.run();
         hover(Optional.empty());
     }
 
-    /** The pointer is at {@code gridPoint}: lights the tunnel there and its name, or nothing. */
+    /** The pointer is at {@code gridPoint} over the active pane: lights the tunnel there and its name, or nothing. */
     void hoverAt(Point2D gridPoint) {
-        hover(canvas.hitTester().elementAt(openDocument.document(), gridPoint)
+        hoverAt(view.canvas(), gridPoint);
+    }
+
+    /** The pointer is at {@code gridPoint} over {@code pane}: lights the tunnel there and its name, or nothing. */
+    private void hoverAt(CircuitCanvas pane, Point2D gridPoint) {
+        hover(pane.hitTester().elementAt(openDocument.document(), gridPoint)
                 .filter(element -> element instanceof Component component && Tunnels.isTunnel(component.typeId()))
                 .map(DocumentElement::id));
     }
@@ -124,7 +126,7 @@ public final class TunnelFeatures {
         hovered = tunnel;
         showHint();
         if (changed) {
-            canvas.repaint();
+            view.panes().forEach(CircuitCanvas::repaint);
         }
     }
 
@@ -156,12 +158,12 @@ public final class TunnelFeatures {
     }
 
     /** An outline in the name's colour (grey without entrada) around every tunnel of the hovered name. */
-    private void paintHighlight(Graphics2D graphics, RenderState state) {
+    private void paintHighlight(CircuitCanvas pane, Graphics2D graphics, RenderState state) {
         Set<ElementId> lit = highlighted();
         if (lit.isEmpty()) {
             return;
         }
-        ColorScheme scheme = canvas.scheme();
+        ColorScheme scheme = pane.scheme();
         Map<String, Integer> colors = Tunnels.colorsByName(state.document());
         graphics.setStroke(OUTLINE);
         for (ElementId id : lit) {
@@ -203,12 +205,32 @@ public final class TunnelFeatures {
         return exits.size() < 2 ? Optional.empty() : Optional.of(exits.get((index + 1) % exits.size()));
     }
 
-    /** Selects tunnel {@code id} and takes the view there with the smooth travel. */
+    /** Selects tunnel {@code id} and takes the active pane there with the smooth travel. */
     private void travelTo(ElementId id) {
         openDocument.document().component(id).ifPresent(tunnel -> {
-            canvas.selection().select(id);
-            canvas.travelTo(openDocument.registry().typeOf(tunnel).bounds(tunnel));
+            view.selection().select(id);
+            view.canvas().travelTo(openDocument.registry().typeOf(tunnel).bounds(tunnel));
         });
+    }
+
+    /** Hovering over one pane. */
+    private final class PanePointer extends MouseAdapter {
+
+        private final CircuitCanvas pane;
+
+        PanePointer(CircuitCanvas pane) {
+            this.pane = pane;
+        }
+
+        @Override
+        public void mouseMoved(MouseEvent event) {
+            hoverAt(pane, pane.viewport().screenToGrid(event.getX(), event.getY()));
+        }
+
+        @Override
+        public void mouseExited(MouseEvent event) {
+            hover(Optional.empty());
+        }
     }
 
     private static JMenuItem item(String key, Runnable behavior) {
