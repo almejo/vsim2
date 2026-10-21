@@ -143,6 +143,7 @@ public final class AppPreferences {
     static final String SNAP_TO_GRID_LINES = "snap.gridLines";
     static final String SHOW_GUIDES = "guides.show";
     static final String GRID_STYLE = "grid.style";
+    static final String SPLIT_LAYOUTS = "splitLayouts";
     static final String GRID_LINE_SPACING = "grid.lineSpacing";
     static final String INVERT_MODIFIER = "invertModifier";
     static final String TEXT_FONT_FAMILY = "textFontFamily";
@@ -556,6 +557,11 @@ public final class AppPreferences {
     /** Archivo ▸ Recientes (M6-B): child node {@code recent} with entries {@code recent/0} … {@code recent/9}. */
     public Preferences recentNode() {
         return node.node(RECENT);
+    }
+
+    /** How each recent file's window was split (Dividir la vista): child node {@code splitLayouts}. */
+    public Preferences splitLayoutsNode() {
+        return node.node(SPLIT_LAYOUTS);
     }
 
     /** «Al iniciar, abrir los circuitos de la última sesión» (M6-B): on unless the user turned it off. */

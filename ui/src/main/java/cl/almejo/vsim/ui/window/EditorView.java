@@ -64,6 +64,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 /**
  * Content of an editor window: toolbar, palette, canvas, inspector and status bar, wired to one {@link OpenDocument}.
@@ -205,7 +206,29 @@ public final class EditorView extends JPanel implements CanvasHost {
 
     public OpenDocument openDocument() { return openDocument; }
     public EditorServices services() { return services; }
+    /** The active pane: the one the user last pressed or focused (the only one while the window is not split). */
     public CircuitCanvas canvas() { return canvas; }
+
+    /** Every pane of this window, in reading order. */
+    public List<CircuitCanvas> panes() {
+        return List.of(canvas);
+    }
+
+    /** Runs {@code listener} whenever another pane becomes the active one. Returns its removal. */
+    public Runnable addActivePaneListener(Runnable listener) {
+        Objects.requireNonNull(listener, "listener");
+        return () -> {
+        };
+    }
+
+    /**
+     * Runs {@code install} on every pane now and on every pane created later; when a pane is removed, the runnable
+     * {@code install} returned for it runs. The returned runnable undoes the installation on every pane still there.
+     */
+    public Runnable forEachPane(Function<CircuitCanvas, Runnable> install) {
+        Runnable disposer = install.apply(canvas);
+        return disposer;
+    }
     public EditorActions actions() { return actions; }
     public SelectionActions selectionActions() { return selectionActions; }
     public PalettePanel palette() { return palette; }
