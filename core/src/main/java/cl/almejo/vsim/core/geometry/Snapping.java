@@ -103,7 +103,11 @@ public final class Snapping {
         return candidates;
     }
 
-    /** Multiples of the spacing on both sides of each moving line, generated arithmetically (spec §3.4). */
+    /**
+     * Multiples of the spacing on both sides of each moving line, generated arithmetically (spec §3.5). A box only
+     * offers its left/top edge (its first line), so its top-left corner always lands on a grid line whatever its size;
+     * wire end points all count.
+     */
     private static List<Candidate> gridLineCandidates(SnapInput input, Axis axis) {
         if (input.gridLineSpacing().isEmpty()) {
             return List.of();
@@ -115,7 +119,8 @@ public final class Snapping {
         List<Double> movingLines = movingLines(input, axis);
         int rawDelta = rawDelta(input, axis);
         List<Candidate> candidates = new ArrayList<>();
-        for (int lineIndex = 0; lineIndex < movingLines.size(); lineIndex++) {
+        int lineCount = input.movingBox().isPresent() ? Math.min(1, movingLines.size()) : movingLines.size();
+        for (int lineIndex = 0; lineIndex < lineCount; lineIndex++) {
             double movedLine = movingLines.get(lineIndex) + rawDelta;
             double lowerLine = Math.floor(movedLine / spacing) * spacing;
             for (double gridLine : List.of(lowerLine, lowerLine + spacing)) {

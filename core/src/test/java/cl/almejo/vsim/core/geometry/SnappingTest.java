@@ -225,6 +225,18 @@ class SnappingTest {
     }
 
     @Test
+    void gridLinesPullOnlyTheTopAndLeftEdgesOfABox() {
+        SnapResult result = Snapping.solve(boxInput(new Bounds(0, 0, 3, 3), 1, 1, List.of(),
+                ONE_UNIT, GRID_LINES_EVERY_TWO));
+
+        assertThat(result.deltaX()).as("the left edge 1 goes to 0 or 2, never the right edge 4 to 4")
+                .isIn(0, 2);
+        assertThat(result.deltaY()).as("the top edge 1 goes to 0 or 2, never the bottom edge 4 to 4")
+                .isIn(0, 2);
+        assertThat(result.winnerY()).hasValueSatisfying(winner -> assertThat(winner.position()).isIn(0.0, 2.0));
+    }
+
+    @Test
     void withoutGridLinesNothingPullsAnEmptyAxis() {
         SnapResult result = Snapping.solve(boxInput(new Bounds(0, 0, 4, 4), 5, 5, List.of(), ONE_UNIT));
 
