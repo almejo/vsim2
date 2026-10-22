@@ -1,4 +1,4 @@
-# Guía para la IA que escribe el manual de VSim 2
+# Guía de generación del manual de VSim 2
 
 Esta guía es para un asistente de IA (ChatGPT, Codex u otro) que va a escribir el **manual de usuario de VSim 2** en
 este repositorio, de a poco, página por página. Léela entera antes de escribir la primera página.
