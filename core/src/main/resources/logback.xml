@@ -5,6 +5,8 @@
             <pattern>%d{HH:mm:ss.SSS} %-5level %logger{20} - %msg%n</pattern>
         </encoder>
     </appender>
+    <!-- -Dvsim.ai.timing=INFO logs how long each AI tool call takes in VSim (tool names only) -->
+    <logger name="cl.almejo.vsim.mcp.timing" level="${vsim.ai.timing:-WARN}"/>
     <root level="WARN">
         <appender-ref ref="STDERR"/>
     </root>

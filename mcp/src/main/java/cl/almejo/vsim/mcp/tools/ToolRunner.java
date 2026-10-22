@@ -23,6 +23,8 @@ import java.util.Map;
 final class ToolRunner {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ToolRunner.class);
+    /** How long each tool call took in VSim, by name only (never arguments): off unless {@code -Dvsim.ai.timing=INFO}. */
+    private static final Logger TIMING = LoggerFactory.getLogger("cl.almejo.vsim.mcp.timing");
 
     private final McpJsonMapper jsonMapper;
     private final JsonSchemaValidator validator;
@@ -48,6 +50,16 @@ final class ToolRunner {
 
     /** Runs {@code tool} on {@code arguments} as a call from a client would. */
     McpSchema.CallToolResult call(Tool tool, Map<String, Object> arguments) {
+        long start = System.nanoTime();
+        McpSchema.CallToolResult result = callTimed(tool, arguments);
+        if (TIMING.isInfoEnabled()) {
+            TIMING.info("{} {} ms{}", tool.name(), (System.nanoTime() - start) / 1_000_000,
+                    Boolean.TRUE.equals(result.isError()) ? " (error)" : "");
+        }
+        return result;
+    }
+
+    private McpSchema.CallToolResult callTimed(Tool tool, Map<String, Object> arguments) {
         Map<String, Object> given = arguments == null ? Map.of() : arguments;
         JsonSchemaValidator.ValidationResponse validation = validator.validate(tool.inputSchema(), given);
         if (!validation.valid()) {
