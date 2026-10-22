@@ -8,6 +8,7 @@ import cl.almejo.vsim.automation.EditorSetting;
 import cl.almejo.vsim.automation.ProposedPreference;
 import cl.almejo.vsim.automation.TaskInfo;
 import cl.almejo.vsim.automation.UndoOutcome;
+import cl.almejo.vsim.automation.present.Narration;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
@@ -80,6 +81,39 @@ class AiStatusFeaturesTest {
         features.dispose();
         view.dispose();
         document.close();
+    }
+
+    /** IA.3 Task 7: in working mode the AI's lines go only to the strip's tooltip, the last few, as plain text. */
+    @Test
+    void inWorkingModeWhatTheAiSaysGoesToTheStripsTooltipOnly() {
+        tasks.start(FakeAiTasks.task("task-1", thisCircuit, "Flip-flop D"));
+        assertThat(features.text().getToolTipText()).isNull();
+
+        tasks.narrate(new Narration("task-1", 0, "Pongo <b>dos</b> NAND & las cruzo", false));
+        for (int line = 2; line <= AiStatusFeatures.NARRATIONS_KEPT + 1; line++) {
+            tasks.narrate(new Narration("task-1", 0, "Línea " + line, false));
+        }
+        tasks.narrate(new Narration("task-9", 0, "De otra tarea", false));
+
+        String tooltip = features.text().getToolTipText();
+        assertThat(features.text().getText()).isEqualTo("IA trabajando: Flip-flop D…");
+        assertThat(tooltip).startsWith("<html>").contains("Lo que dijo la IA:")
+                .contains("Línea " + (AiStatusFeatures.NARRATIONS_KEPT + 1))
+                .doesNotContain("dos", "De otra tarea", "<b>");
+        assertThat(features.narrations()).hasSize(AiStatusFeatures.NARRATIONS_KEPT);
+
+        tasks.start(FakeAiTasks.task("task-2", thisCircuit, "Otra"));
+        assertThat(features.text().getToolTipText()).isNull();
+    }
+
+    @Test
+    void theTooltipEscapesWhatTheAiSays() {
+        tasks.start(FakeAiTasks.task("task-1", thisCircuit, "Flip-flop D"));
+
+        tasks.narrate(new Narration("task-1", 0, "Pongo <b>dos</b> NAND & las cruzo", false));
+
+        assertThat(features.text().getToolTipText()).contains("Pongo &lt;b&gt;dos&lt;/b&gt; NAND &amp; las cruzo")
+                .doesNotContain("<b>");
     }
 
     @Test

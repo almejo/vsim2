@@ -3,6 +3,7 @@ package cl.almejo.vsim.mcp.tools;
 import cl.almejo.vsim.automation.AutomationApi;
 import cl.almejo.vsim.automation.TaskInfo;
 import cl.almejo.vsim.automation.edit.TaskStage;
+import cl.almejo.vsim.automation.present.Narration;
 import cl.almejo.vsim.automation.present.PresentationListener;
 import cl.almejo.vsim.automation.present.PresentationPace;
 import cl.almejo.vsim.automation.present.StepPreview;
@@ -41,6 +42,7 @@ class PresentationToolsTest {
     // The API tells its listeners on its own thread, in order.
     private final BlockingQueue<StepPreview> proposed = new LinkedBlockingQueue<>();
     private final BlockingQueue<String> checked = new LinkedBlockingQueue<>();
+    private final BlockingQueue<Narration> narrated = new LinkedBlockingQueue<>();
     private int nextOperation = 1;
 
     @BeforeEach
@@ -67,6 +69,11 @@ class PresentationToolsTest {
             @Override
             public void stageChecked(String taskId, int stageIndex, boolean passed, String summary) {
                 checked.add(taskId + " " + stageIndex + " " + passed);
+            }
+
+            @Override
+            public void narrated(Narration narration) {
+                narrated.add(narration);
             }
         });
     }
@@ -243,6 +250,69 @@ class PresentationToolsTest {
                 "checks", List.of(Map.of("kind", "problems"))));
 
         assertThat(checked.poll(5, TimeUnit.SECONDS)).isEqualTo(task + " 0 true");
+    }
+
+    // --- the AI's narration (IA.3 Task 7) ---
+
+    @Test
+    void theAiSaysWhatComesAndThePanelHearsIt() throws InterruptedException {
+        host.present("circuit-1", PresentationPace.STEP_BY_STEP);
+        String task = beginTask();
+
+        Map<String, Object> answer = call("vsim_say", Map.of("taskId", task,
+                "text", "Ahora copio el circuito para hacer un componente"));
+
+        assertThat(answer).containsEntry("taskId", task).containsEntry("shown", true)
+                .containsEntry("presenting", true).containsEntry("stageNumber", 1L);
+        Narration narration = narrated.poll(5, TimeUnit.SECONDS);
+        assertThat(narration).isNotNull();
+        assertThat(narration.text()).isEqualTo("Ahora copio el circuito para hacer un componente");
+    }
+
+    @Test
+    void aStageAndAStepMayCarryTheirNarration() throws InterruptedException {
+        host.present("circuit-1", PresentationPace.STEP_BY_STEP);
+        String task = beginTask();
+        call("vsim_edit", edit(task, 0, List.of(place("one", 0, 0))));
+        api.nextStep(task);
+        call("vsim_await_step", Map.of("taskId", task));
+
+        call("vsim_begin_stage", Map.of("taskId", task, "stageNumber", 2, "narration", "Ahora la segunda etapa"));
+        Narration stage = narrated.poll(5, TimeUnit.SECONDS);
+        assertThat(stage).isNotNull();
+        assertThat(stage.stageIndex()).isEqualTo(1);
+        assertThat(stage.text()).isEqualTo("Ahora la segunda etapa");
+
+        Map<String, Object> arguments = edit(task, 1, List.of(place("two", 0, 20)));
+        arguments.put("stage", "Segunda");
+        arguments.put("narration", "Pongo otra NAND");
+        call("vsim_edit", arguments);
+        Narration step = narrated.poll(5, TimeUnit.SECONDS);
+        assertThat(step).isNotNull();
+        assertThat(step.text()).isEqualTo("Pongo otra NAND");
+    }
+
+    @Test
+    void aLineThatIsTooLongIsRefusedByTheSchemaAndAnHtmlOneByVsim() {
+        String task = beginTask();
+
+        assertThat(refusal("vsim_say", Map.of("taskId", task, "text", "x".repeat(201))))
+                .containsEntry("error", "INVALID_PARAMETER");
+        assertThat(refusal("vsim_say", Map.of("taskId", task, "text", "<html><img src=x>")))
+                .containsEntry("error", "INVALID_PARAMETER");
+        assertThat(refusal("vsim_say", Map.of("taskId", "task-99", "text", "Hola")))
+                .containsEntry("error", "INVALID_REFERENCE");
+        assertThat(narrated).isEmpty();
+    }
+
+    @Test
+    void theSayToolsSchemaAsksForOneShortPlainLine() {
+        Tool say = tool("vsim_say");
+
+        assertThat(say.inputSchema().toString()).contains("maxLength=200");
+        assertThat(say.description()).contains("subtitle", "«Presentar»", "do not repeat");
+        assertThat(tool("vsim_edit").inputSchema().toString()).contains("narration");
+        assertThat(tool("vsim_begin_stage").inputSchema().toString()).contains("narration");
     }
 
     // --- helpers ---

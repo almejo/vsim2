@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.ai.present;
 import cl.almejo.vsim.automation.DocumentId;
 import cl.almejo.vsim.automation.TaskInfo;
 import cl.almejo.vsim.automation.edit.TaskStage;
+import cl.almejo.vsim.automation.present.Narration;
 import cl.almejo.vsim.automation.present.PresentationListener;
 import cl.almejo.vsim.automation.present.StepPreview;
 import cl.almejo.vsim.automation.present.StepStatus;
@@ -34,7 +35,8 @@ import java.util.stream.Collectors;
 /**
  * What «Presentar» paints over one window's panes (spec §5): the callout pointing at each step ({@link StepCallout}),
  * the ghost of the step waiting for «Siguiente» ({@link StepGhostOverlay}), the glow of each applied step
- * ({@link AiChangeGlowOverlay}), and the view travel to each step and stage ({@link PresentationTravel}). It follows
+ * ({@link AiChangeGlowOverlay}), what the AI says as a subtitle ({@link NarrationCaption}, IA.3), and the view
+ * travel to each step and stage ({@link PresentationTravel}). It follows
  * the presentation events of the tasks on this window's circuit, which arrive on any thread and are shown on the
  * editor thread; {@link #dispose} takes back every overlay and listener. EDT only (but the listeners).
  *
@@ -48,6 +50,8 @@ public final class PresentationOverlays {
     private final Function<OpenDocument, DocumentId> ids;
     private final Executor editorThread;
     private final StepCallout callout;
+    /** What the AI says, as a subtitle (IA.3). */
+    private final NarrationCaption caption;
     private final StepGhostOverlay ghosts;
     private final AiChangeGlowOverlay glow;
     private final PresentationTravel travel;
@@ -61,6 +65,10 @@ public final class PresentationOverlays {
     private String shownTask;
     /** The stage of each task's last step shown, by task id. */
     private final Map<String, Integer> stageOfLastStep = new HashMap<>();
+    /** The task whose line the subtitle shows; null when none. */
+    private String narratedTask;
+    /** The step the shown line introduces (the first step after it); null until that step comes. */
+    private StepKey introducedStep;
     private boolean disposed;
 
     private PresentationOverlays(EditorView view, Function<PresentationListener, Runnable> presentationListeners,
@@ -73,6 +81,9 @@ public final class PresentationOverlays {
         Runnable repaint = EveryPane.repaint(view);
         this.callout = new StepCallout(() -> view.canvas().scheme(), view::canvas, covered,
                 () -> view.services().preferences().animateViewMoves(), repaint, nanoClock);
+        this.caption = new NarrationCaption(view::canvas, covered,
+                () -> view.services().preferences().animateViewMoves(),
+                () -> view.services().preferences().aiPresenting(), repaint, nanoClock);
         this.ghosts = new StepGhostOverlay(() -> view.canvas().scheme(), view.openDocument().registry(), repaint);
         this.glow = new AiChangeGlowOverlay(() -> view.canvas().scheme(), view.openDocument().registry(), repaint,
                 nanoClock);
@@ -82,6 +93,7 @@ public final class PresentationOverlays {
             CanvasOverlay overlay = (graphics, state) -> {
                 ghosts.paint(graphics, state, pane);
                 callout.paint(graphics, pane);
+                caption.paint(graphics, pane);
             };
             pane.addOverlay(overlay);
             return () -> pane.removeOverlay(overlay);
@@ -160,6 +172,8 @@ public final class PresentationOverlays {
         removeGlow.run();
         travel.dispose();
         callout.dispose();
+        caption.dispose();
+        narratedTask = null;
         ghosts.clear();
         glow.dispose();
         plans.clear();
@@ -192,6 +206,7 @@ public final class PresentationOverlays {
         if (!plans.containsKey(preview.taskId())) {
             return;
         }
+        stepCame(preview);
         ghosts.show(preview);
         point(preview, true);
     }
@@ -200,6 +215,7 @@ public final class PresentationOverlays {
         if (!plans.containsKey(preview.taskId())) {
             return;
         }
+        stepCame(preview);
         ghosts.clear();
         point(preview, false);
         glow.show(preview.ghostElements().stream().map(DocumentElement::id).collect(Collectors.toSet()));
@@ -213,11 +229,44 @@ public final class PresentationOverlays {
         }
     }
 
-    /** The task ended or stopped: its callout and ghost go. */
+    /** The task ended or stopped: its callout, ghost and subtitle go. */
     private void forget(String taskId) {
         plans.remove(taskId);
         stageOfLastStep.remove(taskId);
         discarded(taskId, StepStatus.STOPPED);
+        if (taskId.equals(narratedTask)) {
+            caption.clear();
+            narratedTask = null;
+        }
+    }
+
+    /** The AI said a line: in «Presentar» it shows as the subtitle, replacing the one there was. */
+    private void narrated(Narration narration) {
+        if (!narration.presenting() || !plans.containsKey(narration.taskId())) {
+            return;
+        }
+        narratedTask = narration.taskId();
+        introducedStep = null;
+        caption.show(narration.text());
+    }
+
+    /** A step came: the line stays for the first step after it (the one it introduces) and goes at the next one. */
+    private void stepCame(StepPreview preview) {
+        if (!preview.taskId().equals(narratedTask)) {
+            return;
+        }
+        StepKey key = new StepKey(preview.stageIndex(), preview.stepIndex());
+        if (introducedStep == null) {
+            introducedStep = key;
+        } else if (!introducedStep.equals(key)) {
+            caption.clear();
+            narratedTask = null;
+            introducedStep = null;
+        }
+    }
+
+    /** A step by its place in the plan (a proposed step and the same step applied are one). */
+    private record StepKey(int stageIndex, int stepIndex) {
     }
 
     /** The callout points at {@code preview}'s change and the view follows it (see {@link PresentationTravel}). */
@@ -252,6 +301,10 @@ public final class PresentationOverlays {
 
     StepGhostOverlay ghosts() {
         return ghosts;
+    }
+
+    NarrationCaption caption() {
+        return caption;
     }
 
     AiChangeGlowOverlay glow() {
@@ -289,6 +342,11 @@ public final class PresentationOverlays {
         @Override
         public void stageChecked(String taskId, int stageIndex, boolean passed, String summary) {
             // the panel says it (Task 3); nothing to point at
+        }
+
+        @Override
+        public void narrated(Narration narration) {
+            onEditorThread(() -> PresentationOverlays.this.narrated(narration));
         }
     }
 }

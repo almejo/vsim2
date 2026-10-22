@@ -28,7 +28,7 @@ import java.util.function.Supplier;
 /**
  * One stage of the presented task in the panel (spec §5, mockup «ai-step-panel-v2»): a done stage folded to its title
  * and its check («✓ cumple la tabla»), the current one open with its steps (done struck through, current in bold and
- * marked, next in grey), a future one as its title with «se detalla al llegar». Colours and fonts are read at paint
+ * marked, next in grey, after what the AI said about it in grey italics), a future one as its title with «se detalla al llegar». Colours and fonts are read at paint
  * time; the AI's words are never HTML. EDT only.
  */
 final class StageCard extends JPanel {
@@ -52,7 +52,7 @@ final class StageCard extends JPanel {
         }
     }
 
-    enum Style { PLAIN, BOLD, STRUCK }
+    enum Style { PLAIN, BOLD, STRUCK, ITALIC }
 
     private static final String DONE_MARK = "✓ ";
     private static final String CURRENT_MARK = "▸ ";
@@ -79,6 +79,8 @@ final class StageCard extends JPanel {
                 task.heldAfterCheck().ifPresent(failed -> task.check(failed).ifPresent(check -> add(
                         Messages.format("ai.present.heldCheck", task.stages().get(failed).title(), check.summary()),
                         Tone.ERROR, Style.PLAIN)));
+                // what the AI said about the stage (IA.3), in grey italics
+                task.narration(stageIndex).ifPresent(line -> add(line, Tone.MUTED, Style.ITALIC));
                 addSteps(task, stageIndex, stage.steps());
             }
             case FUTURE -> {
@@ -193,6 +195,7 @@ final class StageCard extends JPanel {
             return switch (style) {
                 case PLAIN -> base;
                 case BOLD -> base.deriveFont(Font.BOLD);
+                case ITALIC -> base.deriveFont(Font.ITALIC);
                 case STRUCK -> base.deriveFont(Map.of(TextAttribute.STRIKETHROUGH, TextAttribute.STRIKETHROUGH_ON));
             };
         }

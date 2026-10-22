@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.ai.present;
 import cl.almejo.vsim.automation.AutomationListener;
 import cl.almejo.vsim.automation.TaskInfo;
 import cl.almejo.vsim.automation.edit.TaskStage;
+import cl.almejo.vsim.automation.present.Narration;
 import cl.almejo.vsim.automation.present.PresentationListener;
 import cl.almejo.vsim.automation.present.StepPreview;
 import cl.almejo.vsim.automation.present.StepStatus;
@@ -52,6 +53,10 @@ final class FakePresentationEvents implements PresentationEvents {
 
     void check(String taskId, int stageIndex, boolean passed, String summary) {
         presentationListeners.forEach(listener -> listener.stageChecked(taskId, stageIndex, passed, summary));
+    }
+
+    void narrate(Narration narration) {
+        presentationListeners.forEach(listener -> listener.narrated(narration));
     }
 
     void end(TaskInfo task) {

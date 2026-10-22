@@ -29,6 +29,13 @@ final class Schema {
         return schema;
     }
 
+    /** A string of 1 to {@code maximumLength} characters. */
+    static Map<String, Object> text(String description, int maximumLength) {
+        Map<String, Object> schema = new LinkedHashMap<>(nonEmptyString(description));
+        schema.put("maxLength", maximumLength);
+        return schema;
+    }
+
     static Map<String, Object> enumeration(String description, List<String> values) {
         Map<String, Object> schema = new LinkedHashMap<>(string(description));
         schema.put("enum", List.copyOf(values));

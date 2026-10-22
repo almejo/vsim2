@@ -5,6 +5,11 @@ import cl.almejo.vsim.automation.AutomationListener;
 import cl.almejo.vsim.automation.TaskInfo;
 import cl.almejo.vsim.automation.TaskStopReason;
 import cl.almejo.vsim.automation.UndoOutcome;
+import cl.almejo.vsim.automation.edit.TaskStage;
+import cl.almejo.vsim.automation.present.Narration;
+import cl.almejo.vsim.automation.present.PresentationListener;
+import cl.almejo.vsim.automation.present.StepPreview;
+import cl.almejo.vsim.automation.present.StepStatus;
 import cl.almejo.vsim.mcp.McpServerSettings;
 import cl.almejo.vsim.mcp.PortInUseException;
 import cl.almejo.vsim.mcp.RunningServer;
@@ -101,6 +106,10 @@ public final class AiServerService {
         /** The task stopped, and why (IA.3: VSim stops it when the AI stopped answering); by default the above. */
         default void taskStopped(TaskInfo task, TaskStopReason reason) {
             taskStopped(task);
+        }
+
+        /** The AI said a line about what comes (IA.3, {@code vsim_say}), in any mode. */
+        default void narrated(Narration narration) {
         }
     }
 
@@ -200,6 +209,7 @@ public final class AiServerService {
         // Both live as long as the application, like this service.
         preferences.addListener(this::followPreferences);
         tasks.addListener(new TaskEvents());
+        tasks.addPresentationListener(new WhatTheAiSays());
     }
 
     private static Executor daemonThread(String name) {
@@ -649,6 +659,35 @@ public final class AiServerService {
                 listeners.forEach(listener -> listener.taskStopped(task, reason));
                 notifyStateChanged();
             });
+        }
+    }
+
+    /** What the AI says (IA.3), moved to the EDT for the status lines; the rest of «Presentar» is the panel's. */
+    private final class WhatTheAiSays implements PresentationListener {
+
+        @Override
+        public void planChanged(TaskInfo task, List<TaskStage> stages, int currentStage, int currentStep) {
+        }
+
+        @Override
+        public void stepProposed(StepPreview preview) {
+        }
+
+        @Override
+        public void stepApplied(StepPreview preview) {
+        }
+
+        @Override
+        public void stepDiscarded(String taskId, StepStatus why) {
+        }
+
+        @Override
+        public void stageChecked(String taskId, int stageIndex, boolean passed, String summary) {
+        }
+
+        @Override
+        public void narrated(Narration narration) {
+            editorThread.execute(() -> listeners.forEach(listener -> listener.narrated(narration)));
         }
     }
 

@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.ai;
 import cl.almejo.vsim.automation.AutomationApi;
 import cl.almejo.vsim.automation.AutomationListener;
 import cl.almejo.vsim.automation.UndoOutcome;
+import cl.almejo.vsim.automation.present.PresentationListener;
 
 import java.util.Objects;
 
@@ -16,6 +17,15 @@ public interface AiTasks {
     /** {@code listener} hears every task begin and end (off the EDT) until the returned runnable takes it back. */
     Runnable addListener(AutomationListener listener);
 
+    /**
+     * {@code listener} hears every task as «Presentar» follows it (off the EDT), here for what the AI says (IA.3),
+     * until the returned runnable takes it back. Nothing by default.
+     */
+    default Runnable addPresentationListener(PresentationListener listener) {
+        return () -> {
+        };
+    }
+
     void stopTask(String taskId);
 
     UndoOutcome undoTask(String taskId);
@@ -26,6 +36,11 @@ public interface AiTasks {
             @Override
             public Runnable addListener(AutomationListener listener) {
                 return api.addListener(listener);
+            }
+
+            @Override
+            public Runnable addPresentationListener(PresentationListener listener) {
+                return api.addPresentationListener(listener);
             }
 
             @Override

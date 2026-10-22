@@ -4,6 +4,7 @@ import cl.almejo.vsim.automation.DocumentId;
 import cl.almejo.vsim.automation.TaskInfo;
 import cl.almejo.vsim.automation.TaskStopReason;
 import cl.almejo.vsim.automation.UndoOutcome;
+import cl.almejo.vsim.automation.present.Narration;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.geometry.Bounds;
@@ -19,6 +20,8 @@ import net.miginfocom.swing.MigLayout;
 import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -36,6 +39,9 @@ import java.util.stream.Collectors;
  * Also says when the AI proposes a preference. EDT only.
  */
 final class AiStatusFeatures {
+
+    /** How many of the AI's last lines the text's tooltip keeps (IA.3). */
+    static final int NARRATIONS_KEPT = 5;
 
     /** SILENT: VSim stopped the task because the AI stopped answering while a step waited (IA.3). */
     private enum Phase { RUNNING, ENDED, STOPPED, SILENT }
@@ -59,6 +65,8 @@ final class AiStatusFeatures {
     /** What the last ended task changed, for «Ver lo que hizo»; empty while a task runs or after a stop. */
     private Set<ElementId> lastChanged = Set.of();
     private int pendingProposals;
+    /** What the AI said during the shown task, the last {@link #NARRATIONS_KEPT} (IA.3). */
+    private final Deque<String> narrations = new ArrayDeque<>();
     private boolean disposed;
 
     /**
@@ -120,6 +128,13 @@ final class AiStatusFeatures {
                     finished(task, reason == TaskStopReason.AI_SILENT ? Phase.SILENT : Phase.STOPPED);
                 }
             }
+
+            @Override
+            public void narrated(Narration narration) {
+                if (shown != null && shown.taskId().equals(narration.taskId())) {
+                    said(narration.text());
+                }
+            }
         });
         this.pendingProposals = proposals.pending().size();
         this.removeProposalsListener = proposals.addListener(this::followProposals);
@@ -150,10 +165,14 @@ final class AiStatusFeatures {
     }
 
     private void show(TaskInfo task, Phase phase) {
+        if (shown == null || !shown.taskId().equals(task.taskId())) {
+            narrations.clear();
+        }
         shown = task;
         if (phase == Phase.RUNNING) {
             lastChanged = Set.of();
         }
+        showNarrations();
         text.setText(Messages.format(switch (phase) {
             case RUNNING -> "ai.status.working";
             case ENDED -> "ai.status.ended";
@@ -168,7 +187,38 @@ final class AiStatusFeatures {
         relayout();
     }
 
+    /**
+     * The AI said {@code line} (IA.3): in working mode it gets no chrome, only the text's tooltip, with the last
+     * few lines («Presentar» shows them as subtitles too).
+     */
+    private void said(String line) {
+        narrations.addLast(line);
+        while (narrations.size() > NARRATIONS_KEPT) {
+            narrations.removeFirst();
+        }
+        showNarrations();
+    }
+
+    /** The tooltip: the AI's lines as plain text, one per row (escaped: the AI's words are never HTML). */
+    private void showNarrations() {
+        if (narrations.isEmpty()) {
+            text.setToolTipText(null);
+            return;
+        }
+        StringBuilder tooltip = new StringBuilder("<html>").append(escaped(Messages.text("ai.status.narrations")));
+        for (String line : narrations) {
+            tooltip.append("<br>• ").append(escaped(line));
+        }
+        text.setToolTipText(tooltip.append("</html>").toString());
+    }
+
+    private static String escaped(String plain) {
+        return plain.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;");
+    }
+
     private void hide() {
+        narrations.clear();
+        text.setToolTipText(null);
         shown = null;
         lastChanged = Set.of();
         strip.setVisible(false);
@@ -225,6 +275,10 @@ final class AiStatusFeatures {
 
     JLabel text() {
         return text;
+    }
+
+    List<String> narrations() {
+        return List.copyOf(narrations);
     }
 
     JButton stopButton() {

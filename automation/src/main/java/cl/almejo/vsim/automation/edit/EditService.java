@@ -521,7 +521,8 @@ public final class EditService {
         }
     }
 
-    private static void requireRunning(AiTask task) {
+    /** {@code NOT_ALLOWED} unless {@code task} runs: the user stopped it, or it ended. */
+    public static void requireRunning(AiTask task) {
         switch (task.state()) {
             case RUNNING -> {
             }

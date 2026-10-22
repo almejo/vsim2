@@ -2,8 +2,8 @@ package cl.almejo.vsim.mcp;
 
 import cl.almejo.vsim.automation.AutomationApi;
 import cl.almejo.vsim.mcp.prompts.HelpResource;
+import cl.almejo.vsim.mcp.prompts.VsimPrompts;
 import io.modelcontextprotocol.client.McpSyncClient;
-import io.modelcontextprotocol.spec.McpError;
 import io.modelcontextprotocol.spec.McpSchema;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -17,7 +17,6 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** The commands that teach the AI (IA.3 Task 1): prompts and the help resource, seen through the SDK's client. */
 class McpPromptsTest {
@@ -27,6 +26,9 @@ class McpPromptsTest {
             "probar", "componente", "exportar");
     /** Prompts whose request changes a circuit: each must end its stages with VSim's check. */
     private static final List<String> BUILDING_PROMPTS = List.of("armar", "exponer", "componente");
+    /** Prompts that take the user's request as free text. */
+    private static final List<String> REQUEST_PROMPTS = List.of("armar", "exponer", "probar", "componente",
+            "exportar");
     /** Words that would tell the AI to break a rule (Review Focus 1): save, skip checks, leave «Presentar». */
     private static final List<String> FORBIDDEN = List.of("guard", "save", "ctrl+s", "sin comprobar",
             "no compruebes", "salta", "skip", "omite", "comprobado", "presenting false", "apaga", "desactiva",
@@ -68,21 +70,22 @@ class McpPromptsTest {
             assertThat(prompt.title()).isNotBlank();
             assertThat(prompt.description()).isNotBlank();
         });
+        // at most one free text (pedido) plus one-word options, all optional (a client may split the text)
         assertThat(arguments(prompts.get("guia"))).isEmpty();
-        assertThat(arguments(prompts.get("armar"))).containsExactly(Map.entry("circuito", true));
-        assertThat(arguments(prompts.get("exponer"))).containsExactly(Map.entry("circuito", true),
+        assertThat(arguments(prompts.get("armar"))).containsExactly(Map.entry("pedido", false));
+        assertThat(arguments(prompts.get("exponer"))).containsExactly(Map.entry("pedido", false),
                 Map.entry("ritmo", false));
         assertThat(arguments(prompts.get("explicar"))).isEmpty();
         assertThat(arguments(prompts.get("revisar"))).isEmpty();
-        assertThat(arguments(prompts.get("probar"))).containsExactly(Map.entry("que", false));
-        assertThat(arguments(prompts.get("componente"))).containsExactly(Map.entry("nombre", false),
-                Map.entry("partes", false));
-        assertThat(arguments(prompts.get("exportar"))).containsExactly(Map.entry("formato", false));
+        assertThat(arguments(prompts.get("probar"))).containsExactly(Map.entry("pedido", false));
+        assertThat(arguments(prompts.get("componente"))).containsExactly(Map.entry("pedido", false));
+        assertThat(arguments(prompts.get("exportar"))).containsExactly(Map.entry("formato", false),
+                Map.entry("pedido", false));
     }
 
     @Test
     void aPromptIsOneUserMessageInSpanishThatNamesWhatWasAsked() {
-        McpSchema.GetPromptResult result = prompt("armar", Map.of("circuito", "un sumador de 4 bits"));
+        McpSchema.GetPromptResult result = prompt("armar", Map.of("pedido", "un sumador de 4 bits"));
 
         assertThat(result.messages()).hasSize(1);
         assertThat(result.messages().getFirst().role()).isEqualTo(McpSchema.Role.USER);
@@ -90,17 +93,43 @@ class McpPromptsTest {
     }
 
     @Test
-    void aMissingRequiredArgumentIsAnInvalidParameter() {
-        assertThatThrownBy(() -> prompt("armar", Map.of()))
-                .isInstanceOfSatisfying(McpError.class, error -> assertThat(error.getJsonRpcError().code())
-                        .isEqualTo(McpSchema.ErrorCodes.INVALID_PARAMS));
-        assertThatThrownBy(() -> prompt("exponer", Map.of("circuito", "  ")))
-                .isInstanceOf(McpError.class);
+    void aMissingOrCutRequestNeverFailsAndTellsTheAiToAsk() {
+        for (String name : REQUEST_PROMPTS) {
+            assertThat(text(prompt(name, Map.of()))).as(name).contains("llegó cortado", "pregúntame");
+            assertThat(text(prompt(name, Map.of("pedido", "un")))).as(name).contains("llegó cortado");
+        }
+        for (String name : BUILDING_PROMPTS) {
+            assertThat(text(prompt(name, Map.of("pedido", "  ")))).as(name).contains("llegó cortado o vacío");
+        }
+        assertThat(text(prompt("armar", Map.of()))).contains("todavía no te dije qué");
+    }
+
+    /** Claude Code splits the text after the command on spaces, one word per argument, in order. */
+    @Test
+    void wordsSplitOverTheArgumentsAreJoinedAgainAndTheOptionsFoundByValue() {
+        String exponer = text(prompt("exponer", ordered("pedido", "sumador", "ritmo", "de 4 bits de corrido")));
+        assertThat(exponer).contains("sumador de 4 bits de corrido", "pace CONTINUOUS");
+
+        String paceFirst = text(prompt("exponer", ordered("pedido", "corrido", "ritmo", "un latch SR")));
+        assertThat(paceFirst).contains("un latch SR", "pace CONTINUOUS").doesNotContain("corrido un latch");
+
+        String exportar = text(prompt("exportar", ordered("formato", "para", "pedido", "la guía en png")));
+        assertThat(exportar).contains("format PNG", "para la guía en");
+
+        String unknownKey = text(prompt("armar", ordered("pedido", "un", "extra", "sumador de 4 bits")));
+        assertThat(unknownKey).contains("un sumador de 4 bits");
+    }
+
+    @Test
+    void theReceivedArgumentsAreLoggedForTheUsersCheck() {
+        assertThat(VsimPrompts.received("armar", ordered("pedido", "un", "otro", "sumador")))
+                .isEqualTo("prompt armar received pedido=«un», otro=«sumador»");
+        assertThat(VsimPrompts.received("guia", Map.of())).isEqualTo("prompt guia received nothing");
     }
 
     @Test
     void exponerDeCorridoGivesThePaceParametersOfSetPresentation() {
-        String continuous = text(prompt("exponer", Map.of("circuito", "un latch SR", "ritmo", "de corrido")));
+        String continuous = text(prompt("exponer", Map.of("pedido", "un latch SR", "ritmo", "de corrido")));
 
         assertThat(continuous).contains("vsim_set_presentation", "presenting true", "pace CONTINUOUS",
                 "pauseMillis", "vsim_begin_stage", "vsim_await_step");
@@ -108,8 +137,8 @@ class McpPromptsTest {
 
     @Test
     void exponerPasoAPasoAsksForStepByStepAndWithoutAPaceLeavesItToTheUser() {
-        String stepByStep = text(prompt("exponer", Map.of("circuito", "un latch SR", "ritmo", "Paso a paso")));
-        String unchosen = text(prompt("exponer", Map.of("circuito", "un latch SR")));
+        String stepByStep = text(prompt("exponer", Map.of("pedido", "un latch SR", "ritmo", "Paso a paso")));
+        String unchosen = text(prompt("exponer", Map.of("pedido", "un latch SR")));
 
         assertThat(stepByStep).contains("pace STEP_BY_STEP").doesNotContain("pace CONTINUOUS");
         assertThat(unchosen).doesNotContain("pace CONTINUOUS", "pace STEP_BY_STEP").contains("presenting true");
@@ -117,15 +146,16 @@ class McpPromptsTest {
 
     @Test
     void anUnknownPaceStaysPartOfTheRequestAndAPaceInsideTheCircuitTextCounts() {
-        String spilled = text(prompt("exponer", Map.of("circuito", "sumador", "ritmo", "de 4 bits de corrido")));
+        String spilled = text(prompt("exponer", ordered("pedido", "sumador", "ritmo", "de 4 bits")));
 
-        assertThat(spilled).contains("sumador de 4 bits de corrido", "pace CONTINUOUS");
+        assertThat(spilled).contains("sumador de 4 bits").doesNotContain("pace CONTINUOUS", "pace STEP_BY_STEP");
     }
 
     @Test
     void exportarNamesTheFormatAndDefaultsToPdf() {
         assertThat(text(prompt("exportar", Map.of("formato", "png")))).contains("format PNG");
         assertThat(text(prompt("exportar", Map.of("formato", "SVG")))).contains("format SVG");
+        assertThat(text(prompt("exportar", Map.of("pedido", "en svg para la guía")))).contains("format SVG");
         assertThat(text(prompt("exportar", Map.of()))).contains("format PDF");
     }
 
@@ -184,6 +214,14 @@ class McpPromptsTest {
                 "failed check");
     }
 
+    @Test
+    void theInstructionsTellTheAiToSayWhatComesInVsim() {
+        assertThat(VsimServerInstructions.TEXT).contains("vsim_say", "never reaches VSim", "subtitle",
+                "Do not repeat the step's own text");
+        // no line runs on with the next one's indentation inside it
+        assertThat(VsimServerInstructions.TEXT).doesNotContain("     ");
+    }
+
     private McpSchema.GetPromptResult prompt(String name, Map<String, Object> arguments) {
         return client.getPrompt(McpSchema.GetPromptRequest.builder(name).arguments(arguments).build());
     }
@@ -192,6 +230,15 @@ class McpPromptsTest {
         return result.messages().stream()
                 .map(message -> ((McpSchema.TextContent) message.content()).text())
                 .collect(Collectors.joining("\n"));
+    }
+
+    /** Arguments in the order given, as a client that splits the text would send them. */
+    private static Map<String, Object> ordered(String... namesAndValues) {
+        Map<String, Object> arguments = new LinkedHashMap<>();
+        for (int index = 0; index < namesAndValues.length; index += 2) {
+            arguments.put(namesAndValues[index], namesAndValues[index + 1]);
+        }
+        return arguments;
     }
 
     private static List<Map.Entry<String, Boolean>> arguments(McpSchema.Prompt prompt) {
@@ -207,16 +254,18 @@ class McpPromptsTest {
     private static Map<String, Map<String, Object>> everyVariant() {
         Map<String, Map<String, Object>> variants = new LinkedHashMap<>();
         variants.put("guia", Map.of());
-        variants.put("armar", Map.of("circuito", "un contador de 3 bits"));
-        variants.put("exponer", Map.of("circuito", "un latch SR"));
-        variants.put("exponer paso", Map.of("circuito", "un latch SR", "ritmo", "paso a paso"));
-        variants.put("exponer corrido", Map.of("circuito", "un latch SR", "ritmo", "de corrido"));
+        variants.put("armar", Map.of("pedido", "un contador de 3 bits"));
+        variants.put("armar vacío", Map.of());
+        variants.put("exponer", Map.of("pedido", "un latch SR"));
+        variants.put("exponer vacío", Map.of());
+        variants.put("exponer paso", Map.of("pedido", "un latch SR", "ritmo", "paso a paso"));
+        variants.put("exponer corrido", Map.of("pedido", "un latch SR", "ritmo", "de corrido"));
         variants.put("explicar", Map.of());
         variants.put("revisar", Map.of());
         variants.put("probar", Map.of());
-        variants.put("probar que", Map.of("que", "la salida S con todas las entradas"));
+        variants.put("probar que", Map.of("pedido", "la salida S con todas las entradas"));
         variants.put("componente", Map.of());
-        variants.put("componente nombrado", Map.of("nombre", "Medio sumador", "partes", "las dos compuertas"));
+        variants.put("componente nombrado", Map.of("pedido", "Medio sumador con las dos compuertas"));
         variants.put("exportar", Map.of());
         variants.put("exportar png", Map.of("formato", "png"));
         variants.put("exportar svg", Map.of("formato", "svg"));

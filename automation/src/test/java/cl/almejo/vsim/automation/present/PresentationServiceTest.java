@@ -535,6 +535,98 @@ class PresentationServiceTest {
         assertThat(applied.getFirst().stepIndex()).isEqualTo(1);
     }
 
+    // --- the AI's narration (IA.3 Task 7) ---
+
+    @Test
+    void inWorkingModeANarrationIsHeardAtOnceAndNotPresented() {
+        Narration narration = service.say(task.taskId(), "  Ahora copio\nel circuito  ");
+
+        assertThat(narration.text()).isEqualTo("Ahora copio el circuito");
+        assertThat(narration.presenting()).isFalse();
+        assertThat(heard).contains("narrated 0 Ahora copio el circuito false");
+        assertThat(host.pacer().requestedDelays()).isEmpty();
+    }
+
+    @Test
+    void inPasoAPasoANarrationShowsAtOnceInTheCurrentStage() {
+        stepByStep();
+        service.stageBegun(task.taskId(), 1);
+
+        service.say(task.taskId(), "Ahora la salida");
+
+        assertThat(heard).contains("narrated 1 Ahora la salida true");
+        assertThat(host.pacer().requestedDelays()).isEmpty();
+    }
+
+    @Test
+    void inDeCorridoANarrationIsPacedLikeAShortStep() throws Exception {
+        continuous();
+        service.edit(step(0, 0, place("first", 0, 0)));
+
+        CompletableFuture<Narration> said = CompletableFuture.supplyAsync(
+                () -> service.say(task.taskId(), "Ahora la segunda"));
+        assertThat(host.pacer().nextRequestedDelay()).isEqualTo(PAUSE);
+        assertThat(said).isNotDone();
+        assertThat(heard).noneMatch(event -> event.startsWith("narrated"));
+        host.pacer().advance(PAUSE);
+        assertThat(said.get(5, TimeUnit.SECONDS).text()).isEqualTo("Ahora la segunda");
+        assertThat(heard).contains("narrated 0 Ahora la segunda true");
+
+        // the next step waits the pause after the line, so a recording can read it
+        CompletableFuture<PresentedEdit> second = CompletableFuture.supplyAsync(
+                () -> service.edit(step(0, 1, place("second", 10, 0))));
+        assertThat(host.pacer().nextRequestedDelay()).isEqualTo(PAUSE);
+        host.pacer().advance(PAUSE);
+        assertThat(second.get(5, TimeUnit.SECONDS).status()).contains(StepStatus.APPLIED);
+    }
+
+    @Test
+    void detenerDuringANarrationsPauseRefusesIt() throws Exception {
+        continuous();
+        service.edit(step(0, 0, place("first", 0, 0)));
+        CompletableFuture<Narration> said = CompletableFuture.supplyAsync(
+                () -> service.say(task.taskId(), "Ahora la segunda"));
+        host.pacer().nextRequestedDelay();
+
+        service.stop(task.taskId());
+
+        assertThatThrownBy(() -> said.get(5, TimeUnit.SECONDS)).hasCauseInstanceOf(AutomationException.class);
+        assertThat(heard).noneMatch(event -> event.startsWith("narrated"));
+    }
+
+    @Test
+    void theSameLineSaidAgainBeforeAStepIsShownOnce() {
+        service.say(task.taskId(), "Ahora la salida");
+        service.say(task.taskId(), "Ahora la salida");
+        assertThat(heard.stream().filter(event -> event.startsWith("narrated"))).hasSize(1);
+
+        service.edit(step(0, 0, place("gate", 0, 0)));
+        service.say(task.taskId(), "Ahora la salida");
+        assertThat(heard.stream().filter(event -> event.startsWith("narrated"))).hasSize(2);
+    }
+
+    @Test
+    void anEmptyALongAnHtmlLineAndAStoppedTaskAreRefused() {
+        assertThatThrownBy(() -> service.say(task.taskId(), "   "))
+                .isInstanceOfSatisfying(AutomationException.class,
+                        refusal -> assertThat(refusal.error()).isEqualTo(AutomationError.INVALID_PARAMETER));
+        assertThatThrownBy(() -> service.say(task.taskId(),
+                "x".repeat(PresentationService.MAXIMUM_NARRATION_LENGTH + 1)))
+                .isInstanceOfSatisfying(AutomationException.class,
+                        refusal -> assertThat(refusal.error()).isEqualTo(AutomationError.INVALID_PARAMETER));
+        assertThatThrownBy(() -> service.say(task.taskId(), "<html><img src=x>"))
+                .isInstanceOfSatisfying(AutomationException.class,
+                        refusal -> assertThat(refusal.error()).isEqualTo(AutomationError.INVALID_PARAMETER));
+        assertThatThrownBy(() -> service.say("task-404", "Hola"))
+                .isInstanceOfSatisfying(AutomationException.class,
+                        refusal -> assertThat(refusal.error()).isEqualTo(AutomationError.INVALID_REFERENCE));
+        service.stop(task.taskId());
+        assertThatThrownBy(() -> service.say(task.taskId(), "Hola"))
+                .isInstanceOfSatisfying(AutomationException.class,
+                        refusal -> assertThat(refusal.error()).isEqualTo(AutomationError.NOT_ALLOWED));
+        assertThat(heard).noneMatch(event -> event.startsWith("narrated"));
+    }
+
     // --- helpers ---
 
     private void stepByStep() {
@@ -595,6 +687,11 @@ class PresentationServiceTest {
         @Override
         public void stepPaced(String taskId, Duration delay) {
             heard.add("paced " + delay.toMillis());
+        }
+
+        @Override
+        public void narrated(Narration narration) {
+            heard.add("narrated " + narration.stageIndex() + " " + narration.text() + " " + narration.presenting());
         }
     }
 }

@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.ai.present;
 import cl.almejo.vsim.automation.StageUndoOutcome;
 import cl.almejo.vsim.automation.TaskInfo;
 import cl.almejo.vsim.automation.edit.TaskStage;
+import cl.almejo.vsim.automation.present.Narration;
 import cl.almejo.vsim.automation.present.StepPreview;
 import cl.almejo.vsim.automation.present.StepStatus;
 import cl.almejo.vsim.automation.present.StoryboardState;
@@ -36,6 +37,8 @@ final class PresentedTask {
 
     private final TaskInfo task;
     private final Map<Integer, StageCheck> checks = new HashMap<>();
+    /** The last line the AI said in each stage (IA.3), by stage index. */
+    private final Map<Integer, String> narrations = new HashMap<>();
     private List<TaskStage> stages = List.of();
     private int currentStage;
     private int currentStep;
@@ -102,6 +105,16 @@ final class PresentedTask {
         storyboardAsked = false;
         currentStage = preview.stageIndex();
         currentStep = preview.stepIndex() + 1;
+    }
+
+    /** The AI said {@code narration}: its stage's card shows it, replacing the line said before in that stage. */
+    void narrated(Narration narration) {
+        narrations.put(narration.stageIndex(), narration.text());
+    }
+
+    /** The last line the AI said in stage {@code stageIndex}. */
+    Optional<String> narration(int stageIndex) {
+        return Optional.ofNullable(narrations.get(stageIndex));
     }
 
     /** «De corrido»: the next step is applied once {@code delay} has passed. */

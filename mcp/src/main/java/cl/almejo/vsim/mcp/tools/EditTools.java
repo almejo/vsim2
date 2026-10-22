@@ -256,6 +256,7 @@ final class EditTools {
                                 + "realimentación»)"))
                         .property("reason", Schema.string("Optional, short: why («La salida de cada NAND entra a "
                                 + "la otra: así el latch recuerda»); «Presentar» shows it under the text"))
+                        .property("narration", PresentationTools.narration("before the step"))
                         .property("operations", operations())
                         .property("validateOnly", Schema.bool("Check everything, change nothing"))
                         .required("document", "version", "operationId", "taskId", "operations").build(),
@@ -302,7 +303,8 @@ final class EditTools {
                             arguments.optionalString("reason").filter(reason -> !reason.isBlank())));
                     PresentedEdit presented = api.editStep(new EditRequest(arguments.document(),
                             arguments.version("version"), arguments.string("operationId"), step, operations,
-                            arguments.bool("validateOnly", false)));
+                            arguments.bool("validateOnly", false)),
+                            arguments.optionalString("narration").filter(line -> !line.isBlank()));
                     Map<String, Object> structured = new LinkedHashMap<>();
                     structured.put("document", arguments.document().value());
                     statusOf(presented).ifPresent(status -> structured.put("status", status.name()));

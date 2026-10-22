@@ -222,6 +222,11 @@ public final class FakePresentingHost implements AutomationHost {
             due.forEach(done -> done.complete(null));
         }
 
+        /** The pauses asked for and not taken by {@link #nextRequestedDelay} yet. */
+        public List<Duration> requestedDelays() {
+            return List.copyOf(requested);
+        }
+
         /** The delay of the next wait asked for, waiting for a call on another thread to ask for it. */
         public Duration nextRequestedDelay() throws InterruptedException {
             Duration delay = requested.poll(10, TimeUnit.SECONDS);

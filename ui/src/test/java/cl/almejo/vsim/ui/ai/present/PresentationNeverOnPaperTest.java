@@ -2,6 +2,7 @@ package cl.almejo.vsim.ui.ai.present;
 
 import cl.almejo.vsim.automation.TaskInfo;
 import cl.almejo.vsim.automation.edit.TaskStage;
+import cl.almejo.vsim.automation.present.Narration;
 import cl.almejo.vsim.automation.present.PresentationListener;
 import cl.almejo.vsim.automation.present.StepPreview;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
@@ -55,7 +56,7 @@ import static cl.almejo.vsim.ui.UiTestSupport.place;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * The callout, the ghosts and the glow of «Presentar» are editor chrome (spec §5): with a step proposed (a ghost, a
+ * The callout, the ghosts, the glow and the AI's subtitle of «Presentar» are editor chrome (spec §5): with a step proposed (a ghost, a
  * part dimmed, the callout) and one applied (the glow), PNG, SVG and a PDF sheet (colour and black and white) are the
  * same as with nothing shown.
  */
@@ -161,9 +162,12 @@ class PresentationNeverOnPaperTest {
                         "");
         presentation.stepProposed(new StepPreview("task-1", 0, 1, "Pongo la AND", Optional.of("para sumar"),
                 List.of(ghost), Set.of(doomed.id()), Optional.empty()));
+        preferences.setAiPresenting(true);
+        presentation.narrated(new Narration("task-1", 0, "Ahora pongo la AND para sumar", true));
         assertThat(overlays.callout().content()).isPresent();
         assertThat(overlays.ghosts().shown()).isPresent();
         assertThat(overlays.glow().current()).isPresent();
+        assertThat(overlays.caption().text()).isPresent(); // the subtitle (IA.3) is chrome too
         BufferedImage screen = new BufferedImage(400, 300, BufferedImage.TYPE_INT_ARGB);
         Graphics2D graphics = screen.createGraphics();
         view.canvas().paint(graphics); // on screen…

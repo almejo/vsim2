@@ -2,6 +2,7 @@ package cl.almejo.vsim.mcp.tools;
 
 import cl.almejo.vsim.automation.AutomationApi;
 import cl.almejo.vsim.automation.DocumentId;
+import cl.almejo.vsim.automation.present.Narration;
 import cl.almejo.vsim.automation.present.PresentationPace;
 import cl.almejo.vsim.automation.present.PresentationService;
 import cl.almejo.vsim.automation.present.PresentationSettings;
@@ -28,6 +29,7 @@ final class PresentationTools {
     static final String SET_PRESENTATION = "vsim_set_presentation";
     static final String BEGIN_STAGE = "vsim_begin_stage";
     static final String AWAIT_STEP = "vsim_await_step";
+    static final String SAY = "vsim_say";
     /** At most this many stages in a plan (as {@code vsim_begin_task} allows). */
     private static final int MAXIMUM_STAGES = 50;
 
@@ -41,7 +43,15 @@ final class PresentationTools {
     /** The tools with {@code vsim_await_step} waiting at most {@code stepWait} per call (tests make it short). */
     static List<Tool> tools(AutomationApi api, Duration stepWait) {
         Objects.requireNonNull(stepWait, "stepWait");
-        return List.of(getPresentation(api), setPresentation(api), beginStage(api), awaitStep(api, stepWait));
+        return List.of(getPresentation(api), setPresentation(api), beginStage(api), awaitStep(api, stepWait),
+                say(api));
+    }
+
+    /** The optional {@code narration} of {@code vsim_begin_stage} and {@code vsim_edit}: a line said first. */
+    static Map<String, Object> narration(String what) {
+        return Schema.text("Optional: one short sentence in the user's language saying what comes and why (as you "
+                + "would write it in the chat), shown first as a subtitle in «Presentar» " + what
+                + "; do not repeat the step's own text", PresentationService.MAXIMUM_NARRATION_LENGTH);
     }
 
     // --- the mode ---
@@ -126,6 +136,7 @@ final class PresentationTools {
                         .property("taskId", Schema.nonEmptyString("From vsim_begin_task"))
                         .property("stageNumber", Schema.integer("The stage's number in the plan, from 1", 1,
                                 MAXIMUM_STAGES))
+                        .property("narration", narration("about the stage"))
                         .required("taskId", "stageNumber").build(),
                 Schema.result("Where to build the stage")
                         .property("taskId", Schema.string("The task"))
@@ -139,11 +150,51 @@ final class PresentationTools {
                 arguments -> {
                     String taskId = arguments.string("taskId");
                     int stageNumber = arguments.integer("stageNumber");
-                    StageOrigin origin = api.beginStage(taskId, stageNumber - 1);
+                    StageOrigin origin = api.beginStage(taskId, stageNumber - 1,
+                            arguments.optionalString("narration").filter(line -> !line.isBlank()));
                     Map<String, Object> result = new LinkedHashMap<>();
                     result.put("taskId", taskId);
                     result.put("stageNumber", (long) stageNumber);
                     result.put("origin", Map.of("x", (long) origin.x(), "y", (long) origin.y()));
+                    return Tool.Output.of(result);
+                });
+    }
+
+    // --- what the AI says (IA.3) ---
+
+    private static Tool say(AutomationApi api) {
+        return new Tool(SAY, "Say what comes",
+                "Say in one short sentence, in the user's language, what comes next and why («Ahora copio el "
+                        + "circuito para hacer un componente nuevo»): the sentence you would write in the chat, which "
+                        + "the user watching VSim never sees. In «Presentar» VSim shows it as a subtitle over the "
+                        + "circuit and in the stage's card, until the next line or the step after the one it "
+                        + "introduces; in «De corrido» it is paced like a short step (shown, then the pause), in «Paso "
+                        + "a paso» it shows at once. In working mode only VSim's status line keeps it. Use it before "
+                        + "each stage and before a step that is not obvious; do not repeat the step's own text (the "
+                        + "step's text and reason show anyway). Plain text, at most "
+                        + PresentationService.MAXIMUM_NARRATION_LENGTH + " characters. You may also give it as "
+                        + "narration of vsim_begin_stage or vsim_edit.",
+                Schema.object("")
+                        .property("taskId", Schema.nonEmptyString("From vsim_begin_task"))
+                        .property("text", Schema.text("One short sentence: what comes and why",
+                                PresentationService.MAXIMUM_NARRATION_LENGTH))
+                        .required("taskId", "text").build(),
+                Schema.result("What VSim showed")
+                        .property("taskId", Schema.string("The task"))
+                        .property("shown", Schema.bool("True: VSim showed it (or kept the same line showing)"))
+                        .property("presenting", Schema.bool("True when it shows as a subtitle in «Presentar»; "
+                                + "false in working mode (only the status line keeps it)"))
+                        .property("stageNumber", Schema.integer("The stage it belongs to, from 1"))
+                        .required("taskId", "shown", "presenting", "stageNumber").build(),
+                Tool.Hints.CHANGES_IDEMPOTENT,
+                List.of(Map.of("taskId", "task-1", "text", "Ahora copio el circuito para hacer un componente")),
+                arguments -> {
+                    Narration narration = api.say(arguments.string("taskId"), arguments.string("text"));
+                    Map<String, Object> result = new LinkedHashMap<>();
+                    result.put("taskId", narration.taskId());
+                    result.put("shown", true);
+                    result.put("presenting", narration.presenting());
+                    result.put("stageNumber", (long) narration.stageIndex() + 1);
                     return Tool.Output.of(result);
                 });
     }

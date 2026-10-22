@@ -3,6 +3,7 @@ package cl.almejo.vsim.automation.present;
 import cl.almejo.vsim.automation.AutomationError;
 import cl.almejo.vsim.automation.AutomationException;
 import cl.almejo.vsim.automation.DocumentId;
+import cl.almejo.vsim.automation.PlainText;
 import cl.almejo.vsim.automation.PresentationHost;
 import cl.almejo.vsim.automation.TaskInfo;
 import cl.almejo.vsim.automation.TaskStopReason;
@@ -64,6 +65,9 @@ public final class PresentationService {
      */
     public static final Duration SILENCE_LIMIT = Duration.ofMinutes(2);
 
+    /** The longest line {@link #say} takes: one short sentence. */
+    public static final int MAXIMUM_NARRATION_LENGTH = 200;
+
     /** Presentations of tasks that no longer run kept for a late {@code await_step}. */
     static final int MAXIMUM_REMEMBERED_TASKS = 100;
 
@@ -116,6 +120,9 @@ public final class PresentationService {
             // A guide is written at once: under a waiting ghost it would make the AI's own step stale.
             requireNoPendingStep(checked.get());
         }
+        if (checked.isPresent() && !request.validateOnly()) {
+            stepCame(checked.get());
+        }
         if (checked.isEmpty() || request.validateOnly() || onlyLayoutGuides(request.operations())) {
             return new PresentedEdit(edits.edit(request), Optional.empty());
         }
@@ -129,6 +136,14 @@ public final class PresentationService {
         return edits.onCircuit(request.document(),
                 circuit -> applyPaced(circuit, request, decision.presentation(), decision.stageIndex(),
                         decision.stepIndex()));
+    }
+
+    /** A step of {@code task} came: the AI may say the same line again before the next one. */
+    private synchronized void stepCame(AiTask task) {
+        TaskPresentation presentation = presentations.get(task.info().taskId());
+        if (presentation != null) {
+            presentation.lastNarration = null;
+        }
     }
 
     /** What the editor thread decided for one step: answered already, or applied after {@code delay}. */
@@ -223,6 +238,68 @@ public final class PresentationService {
         announce(listener -> listener.stepProposed(preview));
         watchSilence(presentation, pending, SILENCE_LIMIT);
         return pending.answer();
+    }
+
+    // --- the AI's narration (IA.3) ---
+
+    /**
+     * {@code vsim_say}: the AI says in one short line what comes and why. «Presentar» shows it as a subtitle and in
+     * the current stage's card; in «De corrido» it counts as a short step: it waits for the pause since the last step
+     * (or line), is shown, and the next step waits the pause after it, so a recording can read it. In «Paso a paso»
+     * and in working mode it is shown at once. The same line said again before any step is not shown twice (a retry).
+     * {@code INVALID_PARAMETER} for an empty line, a longer one than {@link #MAXIMUM_NARRATION_LENGTH} or one that
+     * starts with {@code <html}; {@code NOT_ALLOWED} when the task does not run.
+     */
+    public Narration say(String taskId, String text) {
+        String line = narrationLine(text);
+        AiTask task = edits.requireTask(taskId);
+        heardFrom(task);
+        EditService.requireRunning(task);
+        DocumentId document = task.info().document();
+        PresentationSettings settings = edits.onCircuit(document, circuit -> host.presentationSettings(document));
+        TaskPresentation presentation;
+        int stageIndex;
+        boolean paced;
+        Duration delay;
+        synchronized (this) {
+            presentation = presentationOf(task);
+            stageIndex = presentation.currentStage;
+            if (line.equals(presentation.lastNarration)) {
+                return new Narration(taskId, stageIndex, line, settings.presenting());
+            }
+            paced = settings.presenting()
+                    && presentation.paceFor(settings.pace(), stageIndex) == PresentationPace.CONTINUOUS;
+            delay = paced ? presentation.delayBefore(settings.pause(), pacer.now()) : Duration.ZERO;
+        }
+        if (!delay.isZero()) {
+            waitForThePause(presentation, delay);
+            EditService.requireRunning(task); // «Detener» during the pause: the line is not said
+        }
+        Narration narration = new Narration(taskId, stageIndex, line, settings.presenting());
+        synchronized (this) {
+            presentation.lastNarration = line;
+            if (paced) {
+                presentation.lastAppliedAt = pacer.now();
+            }
+        }
+        announce(listener -> listener.narrated(narration));
+        return narration;
+    }
+
+    /** {@code text} as one plain line (its spaces and line breaks made single spaces), or refused. */
+    static String narrationLine(String text) {
+        Objects.requireNonNull(text, "text");
+        String line = text.strip().replaceAll("\\s+", " ");
+        if (line.isEmpty()) {
+            throw new AutomationException(AutomationError.INVALID_PARAMETER, "Say something: the line is empty",
+                    Map.of("text", ""));
+        }
+        if (line.length() > MAXIMUM_NARRATION_LENGTH) {
+            throw new AutomationException(AutomationError.INVALID_PARAMETER, "Say it in at most "
+                    + MAXIMUM_NARRATION_LENGTH + " characters: one short sentence",
+                    Map.of("length", line.length(), "maximum", MAXIMUM_NARRATION_LENGTH));
+        }
+        return PlainText.require(line, "narration");
     }
 
     // --- a gone client (IA.3) ---
@@ -725,6 +802,8 @@ public final class PresentationService {
         /** «De corrido» waits for «Siguiente» at the stages after this one, whose check failed; -1 for none. */
         private int heldAfterStage = -1;
         private Instant lastAppliedAt;
+        /** The last line the AI said since the last step, so a retry is not shown twice; null for none. */
+        private String lastNarration;
         private final Set<CompletableFuture<Void>> pauses = new HashSet<>();
 
         TaskPresentation(AiTask task) {

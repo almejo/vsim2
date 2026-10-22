@@ -25,6 +25,7 @@ import cl.almejo.vsim.automation.edit.EditService;
 import cl.almejo.vsim.automation.edit.OrderedExecutor;
 import cl.almejo.vsim.automation.edit.TaskEnding;
 import cl.almejo.vsim.automation.edit.TaskStage;
+import cl.almejo.vsim.automation.present.Narration;
 import cl.almejo.vsim.automation.present.PresentationListener;
 import cl.almejo.vsim.automation.present.PresentationPace;
 import cl.almejo.vsim.automation.present.PresentationService;
@@ -321,6 +322,27 @@ public final class AutomationApi {
     }
 
     /**
+     * As {@link #editStep(EditRequest)}, with a line the AI says first about what comes and why ({@link #say}):
+     * shown before the step, paced like a short step in «De corrido». A call that only validates says nothing.
+     */
+    public PresentedEdit editStep(EditRequest request, Optional<String> narration) {
+        Objects.requireNonNull(narration, "narration");
+        if (narration.isPresent() && !request.validateOnly() && request.step().isPresent()) {
+            presentation.say(request.step().get().taskId(), narration.get());
+        }
+        return presentation.edit(request);
+    }
+
+    /**
+     * {@code vsim_say} (IA.3): the AI says in one short line what comes and why. «Presentar» shows it as a subtitle
+     * and in the stage's card, paced like a short step in «De corrido»; in working mode only the status line keeps
+     * it. See {@link PresentationService#say}.
+     */
+    public Narration say(String taskId, String text) {
+        return presentation.say(taskId, text);
+    }
+
+    /**
      * {@code await_step}: what became of the task's proposed step, waiting at most
      * {@link PresentationService#MAXIMUM_STEP_WAIT}: {@code APPLIED} with the receipt, {@code STALE} (read again and
      * propose it again), {@code STOPPED}, or {@code STILL_WAITING} (ask again).
@@ -353,9 +375,16 @@ public final class AutomationApi {
      * ({@code INVALID_PARAMETER}).
      */
     public StageOrigin beginStage(String taskId, int stageIndex) {
+        return beginStage(taskId, stageIndex, Optional.empty());
+    }
+
+    /** As {@link #beginStage(String, int)}, then the AI says {@code narration} about the stage ({@link #say}). */
+    public StageOrigin beginStage(String taskId, int stageIndex, Optional<String> narration) {
+        Objects.requireNonNull(narration, "narration");
         presentation.heardFrom(taskId);
         StageOrigin origin = storyboard.beginStage(taskId, stageIndex);
         presentation.stageBegun(taskId, stageIndex);
+        narration.ifPresent(line -> presentation.say(taskId, line));
         return origin;
     }
 

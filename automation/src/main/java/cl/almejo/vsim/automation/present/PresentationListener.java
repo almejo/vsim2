@@ -31,4 +31,11 @@ public interface PresentationListener {
      */
     default void stepPaced(String taskId, Duration delay) {
     }
+
+    /**
+     * The AI said {@code narration} (IA.3): what comes and why. In «De corrido» it arrives paced like a short step.
+     * Nothing by default.
+     */
+    default void narrated(Narration narration) {
+    }
 }

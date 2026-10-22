@@ -4,6 +4,8 @@ import cl.almejo.vsim.automation.AutomationListener;
 import cl.almejo.vsim.automation.DocumentId;
 import cl.almejo.vsim.automation.TaskInfo;
 import cl.almejo.vsim.automation.UndoOutcome;
+import cl.almejo.vsim.automation.present.Narration;
+import cl.almejo.vsim.automation.present.PresentationListener;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -14,6 +16,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 final class FakeAiTasks implements AiTasks {
 
     final List<AutomationListener> listeners = new CopyOnWriteArrayList<>();
+    final List<PresentationListener> presentationListeners = new CopyOnWriteArrayList<>();
     final List<String> stopped = new ArrayList<>();
     final List<String> undone = new ArrayList<>();
     UndoOutcome nextOutcome = new UndoOutcome(0, false);
@@ -22,6 +25,12 @@ final class FakeAiTasks implements AiTasks {
     public Runnable addListener(AutomationListener listener) {
         listeners.add(listener);
         return () -> listeners.remove(listener);
+    }
+
+    @Override
+    public Runnable addPresentationListener(PresentationListener listener) {
+        presentationListeners.add(listener);
+        return () -> presentationListeners.remove(listener);
     }
 
     @Override
@@ -37,6 +46,10 @@ final class FakeAiTasks implements AiTasks {
 
     static TaskInfo task(String taskId, DocumentId document, String title) {
         return new TaskInfo(taskId, document, title);
+    }
+
+    void narrate(Narration narration) {
+        presentationListeners.forEach(listener -> listener.narrated(narration));
     }
 
     void start(TaskInfo task) {

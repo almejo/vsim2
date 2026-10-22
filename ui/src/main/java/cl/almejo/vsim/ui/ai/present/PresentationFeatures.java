@@ -5,6 +5,7 @@ import cl.almejo.vsim.automation.DocumentId;
 import cl.almejo.vsim.automation.TaskInfo;
 import cl.almejo.vsim.automation.TaskStopReason;
 import cl.almejo.vsim.automation.edit.TaskStage;
+import cl.almejo.vsim.automation.present.Narration;
 import cl.almejo.vsim.automation.present.PresentationListener;
 import cl.almejo.vsim.automation.present.PresentationPace;
 import cl.almejo.vsim.automation.present.StepPreview;
@@ -279,6 +280,11 @@ final class PresentationFeatures {
         @Override
         public void stageChecked(String taskId, int stageIndex, boolean passed, String summary) {
             later(() -> onTask(taskId, shown -> shown.stageChecked(stageIndex, passed, summary)));
+        }
+
+        @Override
+        public void narrated(Narration narration) {
+            later(() -> onTask(narration.taskId(), shown -> shown.narrated(narration)));
         }
     }
 

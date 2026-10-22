@@ -84,7 +84,7 @@ public final class HelpResource {
                 ## Comandos
 
                 En Claude Code escribe `/mcp__vsim__` y elige uno; otros clientes los muestran por su nombre. Los \
-                comandos solo redactan el pedido: valen las mismas reglas.
+                comandos solo redactan el pedido: valen las mismas reglas. Escribe tu pedido después del                 comando (`/mcp__vsim__armar un sumador de 4 bits`, `/mcp__vsim__exponer un latch SR de corrido`);                 si llega cortado o vacío, la IA te pregunta qué quieres.
 
                 """ + commands() + "\n";
     }
