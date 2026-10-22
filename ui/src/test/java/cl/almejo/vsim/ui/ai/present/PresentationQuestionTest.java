@@ -152,6 +152,24 @@ class PresentationQuestionTest {
         assertThat(controls.calls).contains("answer question-1 text 5 bits");
     }
 
+    /** IA.3 review I2: the panel's card says to answer in Claude Code once the AI stopped asking. */
+    @Test
+    void theCardSaysToAnswerInClaudeCodeWhenTheAiStoppedAsking() {
+        presentATask();
+        events.ask(QUESTION);
+        runEditorThread();
+        QuestionCard card = panel().questionCard().orElseThrow();
+
+        events.unattended(TASK.taskId(), QUESTION.questionId(), Duration.ofMinutes(2));
+        runEditorThread();
+
+        assertThat(panel().questionCard()).containsSame(card);
+        assertThat(card.attentionText().isVisible()).isTrue();
+        assertThat(card.attentionText().getText())
+                .isEqualTo("Respóndele en Claude Code; la IA no ha preguntado por tu respuesta en 2 min");
+        assertThat(controls.calls).noneMatch(call -> call.startsWith("stop"));
+    }
+
     @Test
     void stoppingTheTaskTakesTheQuestionAway() {
         presentATask();

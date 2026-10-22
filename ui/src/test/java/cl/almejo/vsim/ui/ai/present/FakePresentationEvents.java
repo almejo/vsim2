@@ -53,6 +53,10 @@ final class FakePresentationEvents implements PresentationEvents {
         presentationListeners.forEach(listener -> listener.questionClosed(taskId, questionId, answered));
     }
 
+    void unattended(String taskId, String questionId, Duration silentFor) {
+        presentationListeners.forEach(listener -> listener.questionUnattended(taskId, questionId, silentFor));
+    }
+
     void pace(String taskId, Duration delay) {
         presentationListeners.forEach(listener -> listener.stepPaced(taskId, delay));
     }

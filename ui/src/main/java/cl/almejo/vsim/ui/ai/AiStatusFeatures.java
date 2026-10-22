@@ -23,6 +23,7 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
 import java.awt.Color;
+import java.time.Duration;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.List;
@@ -70,9 +71,12 @@ final class AiStatusFeatures {
     private final Runnable preferencesListener = this::refreshQuestion;
     /** The AI's question to the user, waiting; null when none. */
     private Question openQuestion;
+    /** How long the AI has not asked about the open question; zero while it asks (IA.3 review I2). */
+    private Duration questionSilence = Duration.ZERO;
     private QuestionCard questionCard;
     /** Whether the shown task runs. */
     private boolean running;
+    private Phase phase = Phase.RUNNING;
     private final AiChangeGlowOverlay glow;
     private final Runnable removeOverlay;
     private final Runnable removeServiceListener;
@@ -185,6 +189,17 @@ final class AiStatusFeatures {
                     asked(null);
                 }
             }
+
+            @Override
+            public void questionUnattended(String taskId, String questionId, Duration silentFor) {
+                if (openQuestion != null && openQuestion.questionId().equals(questionId)) {
+                    questionSilence = silentFor;
+                    if (questionCard != null) {
+                        questionCard.unattendedFor(silentFor);
+                    }
+                    showStatusText();
+                }
+            }
         });
         this.pendingProposals = proposals.pending().size();
         this.removeProposalsListener = proposals.addListener(this::followProposals);
@@ -231,12 +246,8 @@ final class AiStatusFeatures {
             lastChanged = Set.of();
         }
         showNarrations();
-        text.setText(Messages.format(switch (phase) {
-            case RUNNING -> "ai.status.working";
-            case ENDED -> "ai.status.ended";
-            case STOPPED -> "ai.status.stopped";
-            case SILENT -> "ai.status.silent";
-        }, task.title()));
+        this.phase = phase;
+        showStatusText();
         stopButton.setVisible(phase == Phase.RUNNING);
         showButton.setVisible(phase == Phase.ENDED && changedBounds().isPresent());
         undoButton.setVisible(true);
@@ -274,9 +285,28 @@ final class AiStatusFeatures {
         return plain.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;");
     }
 
+    /**
+     * «IA trabajando: …», or, while its question waits and the AI stopped asking for the answer, that it waits for the
+     * answer in Claude Code (IA.3 review I2: not «working» as if it were active).
+     */
+    private void showStatusText() {
+        if (shown == null) {
+            return;
+        }
+        boolean waitingInChat = phase == Phase.RUNNING && openQuestion != null && !questionSilence.isZero();
+        text.setText(Messages.format(waitingInChat ? "ai.status.waitingInChat" : switch (phase) {
+            case RUNNING -> "ai.status.working";
+            case ENDED -> "ai.status.ended";
+            case STOPPED -> "ai.status.stopped";
+            case SILENT -> "ai.status.silent";
+        }, shown.title()));
+    }
+
     /** The AI asked {@code question} (null: it is gone); shown in working mode only, «Presentar» has its panel. */
     private void asked(Question question) {
         openQuestion = question;
+        questionSilence = Duration.ZERO;
+        showStatusText();
         answerPopup.setVisible(false);
         answerPopup.removeAll();
         questionCard = null;

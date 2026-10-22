@@ -52,4 +52,12 @@ public interface PresentationListener {
      */
     default void questionClosed(String taskId, String questionId, boolean answered) {
     }
+
+    /**
+     * The AI asked nothing about its task for {@code silentFor} while question {@code questionId} waits (IA.3 review
+     * I2): it may be waiting for the answer in the chat, or gone. The task goes on (only the user stops it); VSim says
+     * so, and says it again each minute. {@link Duration#ZERO}: the AI asked again. Nothing by default.
+     */
+    default void questionUnattended(String taskId, String questionId, Duration silentFor) {
+    }
 }

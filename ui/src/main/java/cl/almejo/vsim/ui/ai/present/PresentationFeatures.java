@@ -336,6 +336,17 @@ final class PresentationFeatures {
         public void questionClosed(String taskId, String questionId, boolean answered) {
             later(() -> onTask(taskId, shown -> shown.questionClosed(questionId)));
         }
+
+        /** Not a call from the AI: the «Claude está pensando…» watch is left as it is. */
+        @Override
+        public void questionUnattended(String taskId, String questionId, Duration silentFor) {
+            later(() -> {
+                if (task != null && task.task().taskId().equals(taskId)) {
+                    task.questionUnattended(questionId, silentFor);
+                    refreshPanel();
+                }
+            });
+        }
     }
 
     private final class TaskEvents implements AutomationListener {

@@ -145,6 +145,27 @@ class AiStatusFeaturesTest {
         assertThat(features.questionCard()).isEmpty();
     }
 
+    /** IA.3 review I2: the AI stopped asking for the answer; the task is not stopped, the strip says what to do. */
+    @Test
+    void aQuestionTheAiStoppedAskingAboutSaysToAnswerInClaudeCodeAndTheStripStopsSayingWorking() {
+        tasks.start(FakeAiTasks.task("task-1", thisCircuit, "Contador"));
+        tasks.ask(question());
+        QuestionCard card = features.questionCard().orElseThrow();
+        assertThat(card.attentionText().isVisible()).isFalse();
+
+        tasks.unattended("task-1", "question-1", java.time.Duration.ofMinutes(3));
+
+        assertThat(features.text().getText()).isEqualTo("La IA espera tu respuesta en Claude Code: Contador");
+        assertThat(card.attentionText().isVisible()).isTrue();
+        assertThat(card.attentionText().getText())
+                .isEqualTo("Respóndele en Claude Code; la IA no ha preguntado por tu respuesta en 3 min");
+        assertThat(tasks.stopped).isEmpty();
+
+        tasks.unattended("task-1", "question-1", java.time.Duration.ZERO); // the AI asked again
+        assertThat(features.text().getText()).isEqualTo("IA trabajando: Contador…");
+        assertThat(card.attentionText().isVisible()).isFalse();
+    }
+
     @Test
     void whilePresentingTheStripLeavesTheQuestionToThePanel() {
         windowPreferences.setAiPresenting(true);

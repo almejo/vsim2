@@ -20,6 +20,7 @@ import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.Insets;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -44,6 +45,8 @@ public final class QuestionCard extends JPanel {
     private final JTextField field = new JTextField(FIELD_COLUMNS);
     private final JButton sendButton = new JButton(Messages.text("ai.question.send"));
     private final JLabel sentText = AiPanel.plainText(" ");
+    /** «Respóndele en Claude Code…» once the AI stopped asking for the answer (IA.3 review I2). */
+    private final JLabel attentionText = AiPanel.plainText(" ");
     private boolean sent;
 
     /** @param answered hears the user's answer, once */
@@ -82,6 +85,24 @@ public final class QuestionCard extends JPanel {
         add(written, "wmin 0");
         sentText.setVisible(false);
         add(sentText, "wmin 0");
+        attentionText.setVisible(false);
+        add(attentionText, "wmin 0");
+    }
+
+    /**
+     * The AI has asked nothing about its task for {@code silentFor} while this question waits: the card says to answer
+     * in Claude Code, with the minutes; {@link Duration#ZERO} (the AI asked again) takes the line away.
+     */
+    public void unattendedFor(Duration silentFor) {
+        boolean unattended = !silentFor.isZero() && !silentFor.isNegative();
+        attentionText.setText(unattended ? Messages.format("ai.question.unattended",
+                Long.toString(Math.max(1, silentFor.toMinutes()))) : " ");
+        attentionText.setToolTipText(unattended ? attentionText.getText() : null);
+        if (attentionText.isVisible() != unattended) {
+            attentionText.setVisible(unattended);
+            revalidate();
+            repaint();
+        }
     }
 
     private void sendWritten() {
@@ -138,6 +159,10 @@ public final class QuestionCard extends JPanel {
 
     JLabel sentText() {
         return sentText;
+    }
+
+    public JLabel attentionText() {
+        return attentionText;
     }
 
     /** The question: wrapped plain text in the theme's label font and colour, read when painted. */

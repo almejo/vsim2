@@ -205,6 +205,52 @@ class QuestionsTest {
         assertThat(edits.requireTask(task.taskId()).state()).isEqualTo(AiTask.State.STOPPED);
     }
 
+    // --- a question nobody asks about (IA.3 review I2) ---
+
+    @Test
+    void aQuestionTheAiStoppedAskingAboutSaysSoButTheTaskGoesOn() {
+        Question question = questions.ask(task.taskId(), "¿Cuántos bits?", List.of("2", "3"), true);
+
+        host.pacer().advance(PresentationService.SILENCE_LIMIT.minusSeconds(1));
+        assertThat(heard).noneMatch(event -> event.startsWith("unattended"));
+
+        host.pacer().advance(Duration.ofSeconds(1));
+        assertThat(heard).contains("unattended " + question.questionId() + " 2");
+        assertThat(edits.requireTask(task.taskId()).state()).isEqualTo(AiTask.State.RUNNING);
+        assertThat(questions.hasOpenQuestion(task.taskId())).isTrue();
+
+        // the minutes go on counting while nobody asks
+        host.pacer().advance(Duration.ofMinutes(1));
+        assertThat(heard).contains("unattended " + question.questionId() + " 3");
+
+        // the AI asks again: the question is attended again
+        questions.await(question.questionId(), Duration.ZERO);
+        assertThat(heard).contains("unattended " + question.questionId() + " 0");
+        assertThat(edits.requireTask(task.taskId()).state()).isEqualTo(AiTask.State.RUNNING);
+    }
+
+    @Test
+    void anAiThatKeepsAskingForTheAnswerIsNeverUnattended() {
+        Question question = questions.ask(task.taskId(), "¿Cuántos bits?", List.of(), true);
+
+        for (int poll = 0; poll < 10; poll++) {
+            host.pacer().advance(Questions.MAXIMUM_ANSWER_WAIT);
+            questions.await(question.questionId(), Duration.ZERO);
+        }
+
+        assertThat(heard).noneMatch(event -> event.startsWith("unattended"));
+    }
+
+    @Test
+    void anAnsweredQuestionIsNoLongerWatched() {
+        Question question = questions.ask(task.taskId(), "¿Cuántos bits?", List.of(), true);
+        questions.answer(question.questionId(), QuestionAnswer.text("4"));
+
+        host.pacer().advance(PresentationService.SILENCE_LIMIT.multipliedBy(2));
+
+        assertThat(heard).noneMatch(event -> event.startsWith("unattended"));
+    }
+
     private static void assertRefused(Runnable call, AutomationError error) {
         assertThatThrownBy(call::run).isInstanceOfSatisfying(AutomationException.class,
                 refusal -> assertThat(refusal.error()).isEqualTo(error));
@@ -251,6 +297,11 @@ class QuestionsTest {
         @Override
         public void questionClosed(String taskId, String questionId, boolean answered) {
             heard.add("closed " + questionId + " " + answered);
+        }
+
+        @Override
+        public void questionUnattended(String taskId, String questionId, Duration silentFor) {
+            heard.add("unattended " + questionId + " " + silentFor.toMinutes());
         }
     }
 }

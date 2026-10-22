@@ -343,6 +343,7 @@ final class PresentationPanel extends JPanel {
         Optional<Question> question = task.question();
         if (question.isPresent() && questionCard != null
                 && questionCard.question().questionId().equals(question.get().questionId())) {
+            questionCard.unattendedFor(task.questionSilence());
             return;
         }
         if (questionCard != null) {
@@ -351,6 +352,7 @@ final class PresentationPanel extends JPanel {
         }
         question.ifPresent(asked -> {
             questionCard = new QuestionCard(asked, answer -> controls.answer(asked.questionId(), answer));
+            questionCard.unattendedFor(task.questionSilence());
             add(questionCard, getComponentZOrder(heldNotice) + 1);
         });
     }

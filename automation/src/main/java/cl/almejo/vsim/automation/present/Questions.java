@@ -8,6 +8,7 @@ import cl.almejo.vsim.automation.edit.AiTask;
 import cl.almejo.vsim.automation.edit.EditService;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -43,6 +44,8 @@ public final class Questions {
     public static final int MAXIMUM_ANSWER_LENGTH = 500;
     /** Questions closed already kept for a late {@code await_answer}. */
     static final int MAXIMUM_REMEMBERED_QUESTIONS = 100;
+    /** How often VSim says again how long the AI has not asked about an unattended question. */
+    static final Duration UNATTENDED_REMINDER = Duration.ofMinutes(1);
 
     private final EditService edits;
     private final StepPacer pacer;
@@ -99,6 +102,11 @@ public final class Questions {
             forgetOldOnes();
         }
         announce(listener -> listener.questionAsked(asked));
+        Entry entry;
+        synchronized (this) {
+            entry = questions.get(asked.questionId());
+        }
+        watch(entry, PresentationService.SILENCE_LIMIT);
         return asked;
     }
 
@@ -111,6 +119,7 @@ public final class Questions {
         Objects.requireNonNull(wait, "wait");
         Entry entry = requireEntry(questionId);
         heardFrom(entry.question.taskId());
+        attended(entry);
         Duration capped = wait.isNegative() ? Duration.ZERO : wait.compareTo(maximumWait) > 0 ? maximumWait : wait;
         try {
             return entry.outcome.get(capped.toMillis(), TimeUnit.MILLISECONDS);
@@ -281,6 +290,52 @@ public final class Questions {
         return PlainText.require(line, what);
     }
 
+    // --- a question nobody asks about (IA.3 review I2) ---
+
+    /** After {@code delay}, looks whether the AI still asks about {@code entry}'s task. */
+    private void watch(Entry entry, Duration delay) {
+        pacer.silenceCheckAfter(delay).whenComplete((ignored, failure) -> checkAttention(entry));
+    }
+
+    /**
+     * Any thread: while the question waits and the AI asked nothing about its task for
+     * {@link PresentationService#SILENCE_LIMIT}, VSim says so (and again each minute). The task is never stopped here:
+     * an AI that asked in the chat too may be waiting there for the answer; only the user stops it.
+     */
+    private void checkAttention(Entry entry) {
+        if (entry.outcome.isDone()) {
+            return;
+        }
+        Optional<AiTask> task = edits.task(entry.question.taskId());
+        if (task.isEmpty()) {
+            return;
+        }
+        Instant now = pacer.now();
+        Duration silent = Duration.between(task.get().lastHeard().orElse(now), now);
+        if (silent.compareTo(PresentationService.SILENCE_LIMIT) < 0) {
+            watch(entry, PresentationService.SILENCE_LIMIT.minus(silent));
+            return;
+        }
+        synchronized (this) {
+            entry.unattended = true;
+        }
+        Question question = entry.question;
+        announce(listener -> listener.questionUnattended(question.taskId(), question.questionId(), silent));
+        watch(entry, UNATTENDED_REMINDER);
+    }
+
+    /** The AI asked about {@code entry} again: if VSim had said it stopped asking, it takes that back. */
+    private void attended(Entry entry) {
+        synchronized (this) {
+            if (!entry.unattended || entry.outcome.isDone()) {
+                return;
+            }
+            entry.unattended = false;
+        }
+        Question question = entry.question;
+        announce(listener -> listener.questionUnattended(question.taskId(), question.questionId(), Duration.ZERO));
+    }
+
     private void announce(Consumer<PresentationListener> event) {
         events.execute(() -> listeners.forEach(event));
     }
@@ -290,6 +345,8 @@ public final class Questions {
 
         private final Question question;
         private final CompletableFuture<AnswerOutcome> outcome = new CompletableFuture<>();
+        /** Guarded by the {@link Questions}: VSim said the AI stopped asking about it. */
+        private boolean unattended;
 
         Entry(Question question) {
             this.question = question;

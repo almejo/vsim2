@@ -52,6 +52,10 @@ final class FakeAiTasks implements AiTasks {
         presentationListeners.forEach(listener -> listener.questionAsked(question));
     }
 
+    void unattended(String taskId, String questionId, java.time.Duration silentFor) {
+        presentationListeners.forEach(listener -> listener.questionUnattended(taskId, questionId, silentFor));
+    }
+
     void closeQuestion(String taskId, String questionId, boolean answer) {
         presentationListeners.forEach(listener -> listener.questionClosed(taskId, questionId, answer));
     }

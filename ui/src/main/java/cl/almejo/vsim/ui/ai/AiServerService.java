@@ -29,6 +29,7 @@ import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.security.SecureRandom;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Base64;
@@ -120,6 +121,13 @@ public final class AiServerService {
 
         /** The question is gone: answered in VSim or withdrawn (IA.3). */
         default void questionClosed(String taskId, String questionId, boolean answered) {
+        }
+
+        /**
+         * The AI asked nothing about its task for {@code silentFor} while the question waits; {@code ZERO}: it asked
+         * again (IA.3 review I2). The task goes on.
+         */
+        default void questionUnattended(String taskId, String questionId, Duration silentFor) {
         }
     }
 
@@ -727,6 +735,12 @@ public final class AiServerService {
         public void questionClosed(String taskId, String questionId, boolean answered) {
             editorThread.execute(() -> listeners.forEach(listener -> listener.questionClosed(taskId, questionId,
                     answered)));
+        }
+
+        @Override
+        public void questionUnattended(String taskId, String questionId, Duration silentFor) {
+            editorThread.execute(() -> listeners.forEach(listener -> listener.questionUnattended(taskId, questionId,
+                    silentFor)));
         }
     }
 

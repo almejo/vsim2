@@ -65,6 +65,7 @@ final class PresentedTask {
     private int dismissedStage = -1;
     /** The AI's question waiting for the user (IA.3); null when none. */
     private Question question;
+    private Duration questionSilence = Duration.ZERO;
     /** «Claude está pensando…»: VSim heard nothing from the AI for a while and nothing waits for the user. */
     private boolean thinking;
 
@@ -120,6 +121,19 @@ final class PresentedTask {
     /** The AI asked {@code asked} in VSim: the panel shows it until it is answered or withdrawn. */
     void questionAsked(Question asked) {
         question = Objects.requireNonNull(asked, "asked");
+        questionSilence = Duration.ZERO;
+    }
+
+    /** The AI asked nothing about its task for {@code silentFor} while question {@code questionId} waits (I2). */
+    void questionUnattended(String questionId, Duration silentFor) {
+        if (question != null && question.questionId().equals(questionId)) {
+            questionSilence = Objects.requireNonNull(silentFor, "silentFor");
+        }
+    }
+
+    /** How long the AI has not asked about its question; zero while it asks. */
+    Duration questionSilence() {
+        return questionSilence;
     }
 
     /** Question {@code questionId} is gone (answered or withdrawn). */
