@@ -176,7 +176,8 @@ formato y actualiza el conteo de arriba.
 
 **Capturas de la interfaz que hará la persona a mano.** Mientras VSim no pueda guardar capturas de su ventana, la
 persona las toma con la herramienta de capturas del sistema. Para que el manual se vea parejo, en cada aviso 📷
-escribe también el nombre del archivo que espera la página y enlázalo ya (la imagen faltará hasta que exista):
+escribe también el nombre del archivo que espera la página, **sin enlazar la imagen** (un `![…](…)` a un archivo
+que no existe se ve como imagen rota); se enlaza cuando la captura exista:
 
 ```markdown
 > 📷 **Falta captura:** la tabla de verdad de la AND con una fila resaltada y los botones «Copiar»,
