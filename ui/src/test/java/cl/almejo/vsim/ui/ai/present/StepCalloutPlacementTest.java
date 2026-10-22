@@ -98,4 +98,26 @@ class StepCalloutPlacementTest {
         assertThat(placement.dot().getY()).isBetween(0.0, (double) PANE_HEIGHT);
         assertInsideThePane(placement);
     }
+
+    @Test
+    void aBoxThatWouldFallUnderTheFloatingPanelFlipsToTheSideAwayFromIt() {
+        Rectangle panel = new Rectangle(440, 12, 348, 400);
+
+        StepCallout.Placement placement = StepCallout.place(new Rectangle2D.Double(300, 150, 20, 20), SIZE, 800,
+                600, java.util.Optional.of(panel));
+
+        assertThat(placement.side()).isEqualTo(StepCallout.Side.LEFT);
+        assertThat(placement.box().intersects(panel)).isFalse();
+    }
+
+    @Test
+    void withNoSideFreeTheBoxGoesToTheCornerOfTheFreePartNotUnderThePanel() {
+        Rectangle panel = new Rectangle(150, 0, 250, 300); // only a 150 px strip on the left is free
+
+        StepCallout.Placement placement = StepCallout.place(new Rectangle2D.Double(60, 140, 20, 20), SIZE,
+                PANE_WIDTH, PANE_HEIGHT, java.util.Optional.of(panel));
+
+        assertThat(placement.side()).isEqualTo(StepCallout.Side.CORNER);
+        assertThat(placement.box().x).isEqualTo(StepCallout.PANE_PADDING);
+    }
 }

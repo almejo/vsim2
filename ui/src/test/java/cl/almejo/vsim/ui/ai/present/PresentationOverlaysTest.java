@@ -78,6 +78,8 @@ class PresentationOverlaysTest {
     private final List<AiServerService.Listener> taskListeners = new ArrayList<>();
     private final List<Runnable> editorQueue = new ArrayList<>();
     private boolean queueEditorJobs;
+    /** The floating panel's rectangle over each pane, in its pixels (none: no panel). */
+    private final Map<CircuitCanvas, Rectangle> covered = new java.util.IdentityHashMap<>();
     private OpenDocument document;
     private EditorView view;
     private PresentationOverlays overlays;
@@ -112,7 +114,8 @@ class PresentationOverlaysTest {
                         job.run();
                     }
                 },
-                clock::get);
+                clock::get,
+                pane -> Optional.ofNullable(covered.get(pane)));
         task = new TaskInfo("task-1", host.documentId(document), "Sumador de 2 bits");
     }
 
@@ -482,6 +485,99 @@ class PresentationOverlaysTest {
         } finally {
             UIManager.setLookAndFeel(previous);
         }
+    }
+
+    // --- following the action (the user: the changes happened under the panel, not centred) ---
+
+    private Point2D centreOnScreen(Bounds bounds) {
+        Point2D corner = view.canvas().viewport().gridToScreen(bounds.x(), bounds.y());
+        Point2D end = view.canvas().viewport().gridToScreen(bounds.maximumX(), bounds.maximumY());
+        return new Point2D.Double((corner.getX() + end.getX()) / 2, (corner.getY() + end.getY()) / 2);
+    }
+
+    @Test
+    void eachStepIsCentredInThePartOfThePaneThePanelLeavesFreeAndTheCalloutAvoidsThePanel() {
+        Rectangle panel = new Rectangle(200, 0, 200, 300); // the right half
+        covered.put(view.canvas(), panel);
+
+        StepPreview step = proposeGateAt(5, 5); // on screen, but under the panel
+
+        Point2D centre = centreOnScreen(step.changedBounds().orElseThrow());
+        assertThat(centre.getX()).isCloseTo(100, org.assertj.core.data.Offset.offset(1.0));
+        assertThat(centre.getY()).isCloseTo(150, org.assertj.core.data.Offset.offset(1.0));
+        assertThat(view.canvas().viewState().zoom()).isEqualTo(1);
+        StepCallout.Placement placement = placementIn(view.canvas()).orElseThrow();
+        assertThat(placement.box().intersects(panel)).isFalse();
+        assertThat(placement.side()).isNotEqualTo(StepCallout.Side.RIGHT); // away from the panel
+    }
+
+    @Test
+    void aStepAlreadyNearTheMiddleOfTheFreePartDoesNotMoveTheView() {
+        covered.put(view.canvas(), new Rectangle(200, 0, 200, 300));
+        view.canvas().applyViewState(new ViewState(1, 12, 0)); // the middle of the free half is grid x 0
+        ViewState before = view.canvas().viewState();
+
+        proposeGateAt(-1, -2);
+
+        assertThat(view.canvas().viewState()).isEqualTo(before);
+    }
+
+    @Test
+    void aChangeTooBigForTheFreePartZoomsOutJustEnoughToFitThere() {
+        covered.put(view.canvas(), new Rectangle(200, 0, 200, 300));
+        Bounds wide = new Bounds(0, 0, 40, 4); // 320 px at zoom 1, the free half is 200 px wide
+        plan(task);
+
+        presentation().stepProposed(preview(List.of(), Set.of(), Optional.of(wide)));
+
+        double zoom = view.canvas().viewState().zoom();
+        assertThat(zoom).isLessThan(1);
+        Point2D corner = view.canvas().viewport().gridToScreen(wide.x(), wide.y());
+        Point2D end = view.canvas().viewport().gridToScreen(wide.maximumX(), wide.maximumY());
+        assertThat(corner.getX()).isGreaterThanOrEqualTo(0);
+        assertThat(end.getX()).isLessThanOrEqualTo(200);
+    }
+
+    @Test
+    void withMotionANewStepDuringAGlideRetargetsItSmoothly() {
+        preferences.setAnimateViewMoves(true);
+        proposeGateAt(200, 100);
+        assertThat(view.canvas().isTravelling()).isTrue();
+        ticker.advance(100);
+
+        StepPreview second = proposeGateAt(-200, 50);
+
+        assertThat(view.canvas().isTravelling()).isTrue();
+        ticker.finish();
+        Point2D centre = centreOnScreen(second.changedBounds().orElseThrow());
+        assertThat(centre.getX()).isCloseTo(200, org.assertj.core.data.Offset.offset(1.0));
+        assertThat(centre.getY()).isCloseTo(150, org.assertj.core.data.Offset.offset(1.0));
+    }
+
+    @Test
+    void whenTheUserPansDuringTheTaskTheViewStopsFollowingUntilTheNextStage() {
+        proposeGateAt(200, 100);
+        view.canvas().applyViewState(new ViewState(1, 40, 40)); // the user takes the view
+        assertThat(overlays.travel().isFollowing()).isFalse();
+
+        proposeGateAt(-200, 50);
+        assertThat(view.canvas().viewState()).isEqualTo(new ViewState(1, 40, 40));
+
+        overlays.travelToStageOrigin(new GridPoint(120, 0));
+        assertThat(overlays.travel().isFollowing()).isTrue();
+        assertThat(view.canvas().shows(PresentationTravel.stageArea(new GridPoint(120, 0)))).isTrue();
+    }
+
+    @Test
+    void aStepOfALaterStageFollowsAgainAfterTheUserTookTheView() {
+        proposeGateAt(200, 100);
+        view.canvas().applyViewState(new ViewState(1, 40, 40));
+
+        Component gate = newGate(-200, 50, Rotation.R0);
+        presentation().stepProposed(new StepPreview("task-1", 1, 0, "Pongo el sumador", Optional.empty(),
+                List.of(gate), Set.of(), Optional.of(DrawnBounds.of(gate, document.registry()))));
+
+        assertThat(view.canvas().shows(DrawnBounds.of(gate, document.registry()))).isTrue();
     }
 
     @Test

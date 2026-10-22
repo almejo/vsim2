@@ -30,6 +30,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BooleanSupplier;
+import java.util.function.Function;
 import java.util.function.LongSupplier;
 import java.util.function.Supplier;
 
@@ -79,6 +80,7 @@ final class StepCallout {
 
     private final Supplier<ColorScheme> scheme;
     private final Supplier<CircuitCanvas> activePane;
+    private final Function<CircuitCanvas, Optional<Rectangle>> covered;
     private final BooleanSupplier animate;
     private final Runnable repaint;
     private final LongSupplier nanoClock;
@@ -97,8 +99,16 @@ final class StepCallout {
      */
     StepCallout(Supplier<ColorScheme> scheme, Supplier<CircuitCanvas> activePane, BooleanSupplier animate,
                 Runnable repaint, LongSupplier nanoClock) {
+        this(scheme, activePane, pane -> Optional.empty(), animate, repaint, nanoClock);
+    }
+
+    /** @param covered the part of a pane the floating panel covers (pane pixels): the box never goes under it */
+    StepCallout(Supplier<ColorScheme> scheme, Supplier<CircuitCanvas> activePane,
+                Function<CircuitCanvas, Optional<Rectangle>> covered, BooleanSupplier animate, Runnable repaint,
+                LongSupplier nanoClock) {
         this.scheme = Objects.requireNonNull(scheme, "scheme");
         this.activePane = Objects.requireNonNull(activePane, "activePane");
+        this.covered = Objects.requireNonNull(covered, "covered");
         this.animate = Objects.requireNonNull(animate, "animate");
         this.repaint = Objects.requireNonNull(repaint, "repaint");
         this.nanoClock = Objects.requireNonNull(nanoClock, "nanoClock");
@@ -232,17 +242,18 @@ final class StepCallout {
             return Optional.empty();
         }
         Dimension size = layout(measuring, content).size();
+        Optional<Rectangle> obstacle = covered.apply(pane);
         if (target == null) {
             if (pane != activePane.get()) {
                 return Optional.empty();
             }
-            return Optional.of(corner(size, pane.getWidth(), pane.getHeight(), Optional.empty()));
+            return Optional.of(corner(size, pane.getWidth(), pane.getHeight(), Optional.empty(), obstacle));
         }
         Rectangle2D onScreen = onScreen(pane, target);
         if (!onScreen.intersects(0, 0, pane.getWidth(), pane.getHeight())) {
             return Optional.empty();
         }
-        return Optional.of(place(onScreen, size, pane.getWidth(), pane.getHeight()));
+        return Optional.of(place(onScreen, size, pane.getWidth(), pane.getHeight(), obstacle));
     }
 
     private static Rectangle2D onScreen(CircuitCanvas pane, Bounds bounds) {
@@ -257,6 +268,16 @@ final class StepCallout {
      * above, else in the pane's top-right corner; always inside the pane, {@link #PANE_PADDING} from its edges.
      */
     static Placement place(Rectangle2D target, Dimension size, int paneWidth, int paneHeight) {
+        return place(target, size, paneWidth, paneHeight, Optional.empty());
+    }
+
+    /**
+     * As {@link #place(Rectangle2D, Dimension, int, int)}, never under {@code obstacle} (the floating panel, pane
+     * pixels): a side whose box would fall under it is skipped (so the box flips away from the panel), and the
+     * corner is the top-right one of the largest part of the pane the panel leaves free.
+     */
+    static Placement place(Rectangle2D target, Dimension size, int paneWidth, int paneHeight,
+                           Optional<Rectangle> obstacle) {
         int width = size.width;
         int height = size.height;
         int besideY = clamp((int) Math.round(target.getCenterY() - height / 2.0), PANE_PADDING,
@@ -264,24 +285,26 @@ final class StepCallout {
         int aboveOrBelowX = clamp((int) Math.round(target.getCenterX() - width / 2.0), PANE_PADDING,
                 paneWidth - PANE_PADDING - width);
         int rightX = (int) Math.ceil(target.getMaxX()) + GAP;
-        if (rightX + width <= paneWidth - PANE_PADDING) {
-            return beside(new Rectangle(rightX, besideY, width, height), Side.RIGHT, target, paneWidth, paneHeight);
+        Rectangle right = new Rectangle(rightX, besideY, width, height);
+        if (rightX + width <= paneWidth - PANE_PADDING && clear(right, obstacle)) {
+            return beside(right, Side.RIGHT, target, paneWidth, paneHeight);
         }
         int leftX = (int) Math.floor(target.getMinX()) - GAP - width;
-        if (leftX >= PANE_PADDING) {
-            return beside(new Rectangle(leftX, besideY, width, height), Side.LEFT, target, paneWidth, paneHeight);
+        Rectangle left = new Rectangle(leftX, besideY, width, height);
+        if (leftX >= PANE_PADDING && clear(left, obstacle)) {
+            return beside(left, Side.LEFT, target, paneWidth, paneHeight);
         }
         int belowY = (int) Math.ceil(target.getMaxY()) + GAP;
-        if (belowY + height <= paneHeight - PANE_PADDING) {
-            return beside(new Rectangle(aboveOrBelowX, belowY, width, height), Side.BELOW, target, paneWidth,
-                    paneHeight);
+        Rectangle below = new Rectangle(aboveOrBelowX, belowY, width, height);
+        if (belowY + height <= paneHeight - PANE_PADDING && clear(below, obstacle)) {
+            return beside(below, Side.BELOW, target, paneWidth, paneHeight);
         }
         int aboveY = (int) Math.floor(target.getMinY()) - GAP - height;
-        if (aboveY >= PANE_PADDING) {
-            return beside(new Rectangle(aboveOrBelowX, aboveY, width, height), Side.ABOVE, target, paneWidth,
-                    paneHeight);
+        Rectangle above = new Rectangle(aboveOrBelowX, aboveY, width, height);
+        if (aboveY >= PANE_PADDING && clear(above, obstacle)) {
+            return beside(above, Side.ABOVE, target, paneWidth, paneHeight);
         }
-        return corner(size, paneWidth, paneHeight, Optional.of(target));
+        return corner(size, paneWidth, paneHeight, Optional.of(target), obstacle);
     }
 
     private static Placement beside(Rectangle box, Side side, Rectangle2D target, int paneWidth, int paneHeight) {
@@ -305,10 +328,20 @@ final class StepCallout {
         return new Placement(box, side, dot, lineStart);
     }
 
-    /** In the pane's top-right corner, the dot on the visible middle of {@code target} when there is one. */
-    private static Placement corner(Dimension size, int paneWidth, int paneHeight, Optional<Rectangle2D> target) {
-        Rectangle box = new Rectangle(Math.max(PANE_PADDING, paneWidth - PANE_PADDING - size.width), PANE_PADDING,
-                size.width, size.height);
+    private static boolean clear(Rectangle box, Optional<Rectangle> obstacle) {
+        return obstacle.map(panel -> !panel.intersects(box)).orElse(true);
+    }
+
+    /**
+     * In the top-right corner of the pane (or of its largest part the floating panel leaves free), the dot on the
+     * visible middle of {@code target} when there is one.
+     */
+    private static Placement corner(Dimension size, int paneWidth, int paneHeight, Optional<Rectangle2D> target,
+                                    Optional<Rectangle> obstacle) {
+        Rectangle free = obstacle.map(panel -> freePart(panel, paneWidth, paneHeight))
+                .orElse(new Rectangle(0, 0, paneWidth, paneHeight));
+        Rectangle box = new Rectangle(Math.max(free.x + PANE_PADDING, free.x + free.width - PANE_PADDING - size.width),
+                free.y + PANE_PADDING, size.width, size.height);
         Optional<Rectangle2D> visible = target.map(area -> area.createIntersection(
                 new Rectangle2D.Double(0, 0, paneWidth, paneHeight))).filter(area -> !area.isEmpty());
         Point2D dot = visible.<Point2D>map(area -> new Point2D.Double(area.getCenterX(), area.getCenterY()))
@@ -316,6 +349,26 @@ final class StepCallout {
         Point2D lineStart = new Point2D.Double(clamp(dot.getX(), box.getMinX(), box.getMaxX()),
                 clamp(dot.getY(), box.getMinY(), box.getMaxY()));
         return new Placement(box, Side.CORNER, visible.isPresent() ? dot : lineStart, lineStart);
+    }
+
+    /** The largest part of the pane left, right, above or below {@code panel}. */
+    static Rectangle freePart(Rectangle panel, int paneWidth, int paneHeight) {
+        Rectangle under = panel.intersection(new Rectangle(0, 0, paneWidth, paneHeight));
+        if (under.isEmpty()) {
+            return new Rectangle(0, 0, paneWidth, paneHeight);
+        }
+        List<Rectangle> candidates = List.of(
+                new Rectangle(0, 0, under.x, paneHeight),
+                new Rectangle(under.x + under.width, 0, paneWidth - under.x - under.width, paneHeight),
+                new Rectangle(0, 0, paneWidth, under.y),
+                new Rectangle(0, under.y + under.height, paneWidth, paneHeight - under.y - under.height));
+        Rectangle best = candidates.getFirst();
+        for (Rectangle candidate : candidates) {
+            if ((long) candidate.width * candidate.height > (long) best.width * best.height) {
+                best = candidate;
+            }
+        }
+        return best.isEmpty() ? new Rectangle(0, 0, paneWidth, paneHeight) : best;
     }
 
     private static int clamp(int value, int minimum, int maximum) {
