@@ -166,9 +166,56 @@ class AiServerRestartScenarioTest {
         assertThat(onEditor(service::state)).isEqualTo(new AiServerState.Off());
         assertThat(onEditor(service::runningTasks)).isEmpty();
         assertThat(onEditor(() -> circuit.document().components())).isEmpty();
+        // the server stops on its own thread (IA.3 review I1): the port is free once it did
+        serverThread.submit(() -> null).get(10, TimeUnit.SECONDS);
         try (ServerSocket free = new ServerSocket(port, 50, InetAddress.getLoopbackAddress())) {
             assertThat(free.getLocalPort()).as("the port is free again").isEqualTo(port);
         }
+    }
+
+    /**
+     * IA.3 review I1: «Apagar» while the AI long-polls for «Siguiente»: the wait answers STOPPED (not a broken
+     * connection) and the editor thread never waits for the server to stop (it took 2.5 s before).
+     */
+    @Test
+    void apagarWhileTheAiWaitsForSiguienteAnswersStoppedAndNeverHoldsTheEditor() throws Exception {
+        turnOnOnTheRememberedPort();
+        String task = aStepWaitsForSiguiente();
+        java.util.concurrent.CompletableFuture<Map<String, Object>> waiting = java.util.concurrent.CompletableFuture
+                .supplyAsync(() -> call("vsim_await_step", Map.of("taskId", task)));
+        assertThat(waiting).as("the AI waits for «Siguiente»").failsWithin(Duration.ofMillis(300))
+                .withThrowableThat().isInstanceOf(java.util.concurrent.TimeoutException.class);
+
+        long tookMillis = onEditor(() -> {
+            long before = System.nanoTime();
+            service.deactivate();
+            return TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - before);
+        });
+
+        assertThat(tookMillis).as("«Apagar» on the editor thread").isLessThan(500);
+        assertThat(waiting.get(10, TimeUnit.SECONDS)).containsEntry("status", "STOPPED");
+        assertThat(onEditor(service::state)).isEqualTo(new AiServerState.Off());
+    }
+
+    @Test
+    void reiniciarNeverHoldsTheEditorAndListensAgainOnceTheOldServerFreedThePort() throws Exception {
+        turnOnOnTheRememberedPort();
+        String task = aStepWaitsForSiguiente();
+        java.util.concurrent.CompletableFuture<Map<String, Object>> waiting = java.util.concurrent.CompletableFuture
+                .supplyAsync(() -> call("vsim_await_step", Map.of("taskId", task)));
+        assertThat(waiting).failsWithin(Duration.ofMillis(300))
+                .withThrowableThat().isInstanceOf(java.util.concurrent.TimeoutException.class);
+
+        long tookMillis = onEditor(() -> {
+            long before = System.nanoTime();
+            service.restart();
+            return TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - before);
+        });
+
+        assertThat(tookMillis).as("«Reiniciar» on the editor thread").isLessThan(500);
+        assertThat(waiting.get(10, TimeUnit.SECONDS)).containsEntry("status", "STOPPED");
+        awaitState(AiServerState.Listening.class);
+        assertThat(onEditor(service::port)).hasValue(port);
     }
 
     // --- IA.3: the port for one session, from the command line ---

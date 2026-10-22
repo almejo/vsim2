@@ -219,12 +219,12 @@ public final class EditorAutomationHost implements AutomationHost {
                 new AutomationException(AutomationError.NOT_ALLOWED, "This editor takes no preference proposals"));
     }
 
-    /** «Desactivar» or quitting: the AI's jobs still waiting for the EDT are refused at once and never run. */
+    /** «Apagar» or quitting: the AI's jobs still waiting for the EDT are refused at once and never run. */
     public void refuseQueuedWork() {
         queue.refuse();
     }
 
-    /** «Activar»: the AI's jobs run again. */
+    /** «Encender»: the AI's jobs run again. */
     public void acceptQueuedWork() {
         queue.accept();
     }

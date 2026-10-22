@@ -46,18 +46,18 @@ import java.util.concurrent.Executors;
 import java.util.function.Consumer;
 
 /**
- * The AI server of this VSim (spec §9, §9.1): one per process, an application service, off until «Activar». It listens
+ * The AI server of this VSim (spec §9, §9.1): one per process, an application service, off until «Encender». It listens
  * on the remembered port with the remembered secret, made the first time, and never changes the port by itself: a
  * taken port is a state the panel shows, and only «Usar el siguiente libre» moves it. A new secret or a port changed
  * in Preferencias restarts a running server at once, so the old configuration stops working. A port given on the
  * command line ({@link SessionPort}) takes the remembered port's place for this run only and is never written to the
- * preferences. «Activar» never blocks the EDT: the port is bound (and a taken one probed) on a thread of its own while
+ * preferences. «Encender» never blocks the EDT: the port is bound (and a taken one probed) on a thread of its own while
  * the state says «Encendiendo…». It also follows the AI's tasks for the panels and the status lines. EDT only, but for
  * {@link #requestServed()}.
  */
 public final class AiServerService {
 
-    /** The hand-test switch: {@code -Dvsim.ai=on} or {@code VSIM_AI=on} turns «Activar» on at launch. */
+    /** The hand-test switch: {@code -Dvsim.ai=on} or {@code VSIM_AI=on} turns «Encender» on at launch. */
     public static final String LAUNCH_PROPERTY = "vsim.ai";
     public static final String LAUNCH_ENVIRONMENT = "VSIM_AI";
     private static final String ON = "on";
@@ -263,17 +263,42 @@ public final class AiServerService {
     }
 
     /**
-     * Stops serving and frees the port; a no-op when not running. The AI's work still waiting for the EDT is refused
-     * first, so the requests in flight answer at once and stopping never waits for the EDT it runs on.
+     * Stops serving and frees the port on the calling thread (VSim quitting; tests); a no-op when not running. The
+     * AI's waits end first (its long polls answer STOPPED or WITHDRAWN) and its work still waiting for the EDT is
+     * refused, so the requests in flight answer at once and stopping never waits for the EDT it runs on. The panels
+     * use {@link #deactivate()}, which never blocks the EDT.
      */
     public void stop() {
-        if (running != null) {
-            queuedWork.refuse();
-            running.stop();
-            running = null;
-            runningSecret = null;
-            connected = false;
+        RunningServer stopping = letGo();
+        if (stopping != null) {
+            stopping.stop();
         }
+    }
+
+    /**
+     * As {@link #stop()}, but the server stops on the server thread (IA.3 review I1): Jetty gives the requests in
+     * flight up to two seconds, which the EDT must not wait. A start that follows binds after it, on the same thread,
+     * so the port is free by then.
+     */
+    private void stopOffTheEditor() {
+        RunningServer stopping = letGo();
+        if (stopping != null) {
+            serverThread.execute(stopping::stop);
+        }
+    }
+
+    /** Forgets the running server after ending the AI's waits and refusing its queued work; null when none ran. */
+    private RunningServer letGo() {
+        if (running == null) {
+            return null;
+        }
+        queuedWork.refuse();
+        tasks.endEveryWait();
+        RunningServer stopping = running;
+        running = null;
+        runningSecret = null;
+        connected = false;
+        return stopping;
     }
 
     /**
@@ -346,7 +371,8 @@ public final class AiServerService {
 
     /**
      * «Apagar»: stops listening, which revokes everything; the running tasks are stopped (as «Detener») and a start
-     * in progress is dropped.
+     * in progress is dropped. The tasks stop and the AI's waits end first, so its long polls answer STOPPED; then the
+     * server stops off the EDT (IA.3 review I1).
      */
     public void deactivate() {
         startGeneration++;
@@ -354,12 +380,12 @@ public final class AiServerService {
             startingPort = OptionalInt.empty();
             queuedWork.refuse();
         }
-        stop();
-        failure = null;
-        portChanged = false;
         List<String> stopping = List.copyOf(runningTasks.keySet());
         runningTasks.clear();
         stopping.forEach(this::stopTask);
+        stopOffTheEditor();
+        failure = null;
+        portChanged = false;
         notifyStateChanged();
     }
 
@@ -469,7 +495,7 @@ public final class AiServerService {
         if (free.isEmpty()) {
             return false;
         }
-        stop();
+        stopOffTheEditor();
         failure = null;
         portChanged = true;
         if (isSessionPort()) {
@@ -522,7 +548,7 @@ public final class AiServerService {
         if (running != null) {
             boolean secretChanged = !preferences.aiSecret().map(secret -> secret.equals(runningSecret)).orElse(false);
             if (effectivePort() != running.port() || secretChanged) {
-                stop();
+                stopOffTheEditor();
                 activate();
             }
         } else if (failedPort().isPresent() && failedPort().getAsInt() != effectivePort()) {
@@ -747,7 +773,7 @@ public final class AiServerService {
     // --- Launch ---
 
     /**
-     * At VSim's start, on the EDT: turns «Activar» on when «Iniciar con VSim» is on or when VSim was launched with
+     * At VSim's start, on the EDT: turns «Encender» on when «Iniciar con VSim» is on or when VSim was launched with
      * the hand-test switch. With the switch it also writes one line to {@code terminal}, once the server listens or
      * could not start, with the command to register it in Claude Code (the only place the secret is printed), or why
      * it could not start. It never waits for the port.

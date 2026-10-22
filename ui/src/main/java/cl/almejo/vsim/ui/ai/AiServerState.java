@@ -9,7 +9,7 @@ public sealed interface AiServerState {
     record Off() implements AiServerState {
     }
 
-    /** «Encendiendo…»: the server is binding its port off the editor thread (IA.3: «Activar» never freezes). */
+    /** «Encendiendo…»: the server is binding its port off the editor thread (IA.3: «Encender» never freezes). */
     record Starting(int port) implements AiServerState {
     }
 

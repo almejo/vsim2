@@ -212,6 +212,33 @@ class AiServerLifecycleTest {
         assertThat(new AiServerState.Starting(1).isListening()).isFalse();
     }
 
+    /** IA.3 review I1: the tasks stop and the waits end on the EDT; the server stops on its own thread. */
+    @Test
+    void apagarEndsTheWaitsFirstAndLeavesTheServersStopToItsThread() throws Exception {
+        service.activate();
+        runServerWork();
+        tasks.start(FakeAiTasks.task("task-1", new cl.almejo.vsim.automation.DocumentId("circuit-1"), "Luces"));
+
+        service.deactivate();
+
+        assertThat(tasks.stopped).containsExactly("task-1");
+        assertThat(tasks.waitsEnded).containsExactly("after [task-1]");
+        assertThat(service.state()).isEqualTo(new AiServerState.Off());
+        assertThat(serverWork).as("the server's stop waits for the server thread").hasSize(1);
+        assertThat(portIsFree()).isFalse();
+
+        runServerWork();
+        assertThat(portIsFree()).isTrue();
+    }
+
+    private boolean portIsFree() {
+        try (ServerSocket probe = new ServerSocket(port, 50, InetAddress.getLoopbackAddress())) {
+            return probe.getLocalPort() == port;
+        } catch (IOException exception) {
+            return false;
+        }
+    }
+
     private static int freePort() throws IOException {
         try (ServerSocket probe = new ServerSocket(0, 50, InetAddress.getLoopbackAddress())) {
             return probe.getLocalPort();

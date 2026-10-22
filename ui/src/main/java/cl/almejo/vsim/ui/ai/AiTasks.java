@@ -29,6 +29,13 @@ public interface AiTasks {
 
     void stopTask(String taskId);
 
+    /**
+     * The server is about to stop (IA.3 review I1): every wait for «Siguiente» and every question ends, so the AI's
+     * long polls answer STOPPED or WITHDRAWN before the connection goes. Nothing by default.
+     */
+    default void endEveryWait() {
+    }
+
     UndoOutcome undoTask(String taskId);
 
     /** The user answered the AI's question (IA.3): false when it is closed or does not take it. False by default. */
@@ -52,6 +59,11 @@ public interface AiTasks {
             @Override
             public void stopTask(String taskId) {
                 api.stopTask(taskId);
+            }
+
+            @Override
+            public void endEveryWait() {
+                api.stopPresenting();
             }
 
             @Override

@@ -10,7 +10,7 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * The AI's work waiting for the EDT (review M1). Once the AI is turned off, every job still queued is refused at once
  * — the server's threads waiting for them return, so stopping the server never waits for the EDT — and the jobs skip
- * their work when they finally run: no file is written, no window opens, no edit lands after «Desactivar». Any thread.
+ * their work when they finally run: no file is written, no window opens, no edit lands after «Apagar». Any thread.
  */
 final class EditorQueue {
 

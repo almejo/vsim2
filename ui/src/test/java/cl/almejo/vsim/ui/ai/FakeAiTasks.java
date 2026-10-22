@@ -20,6 +20,13 @@ final class FakeAiTasks implements AiTasks {
     final List<AutomationListener> listeners = new CopyOnWriteArrayList<>();
     final List<PresentationListener> presentationListeners = new CopyOnWriteArrayList<>();
     final List<String> stopped = new ArrayList<>();
+    /** Each time the service ended every wait before the server stopped, after the tasks it stopped then. */
+    final List<String> waitsEnded = new ArrayList<>();
+
+    @Override
+    public void endEveryWait() {
+        waitsEnded.add("after " + stopped);
+    }
     final List<String> undone = new ArrayList<>();
     final List<String> answered = new ArrayList<>();
     UndoOutcome nextOutcome = new UndoOutcome(0, false);
