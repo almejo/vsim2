@@ -56,6 +56,15 @@ class ShortcutCatalogTest {
     }
 
     @Test
+    void presentarIsTheLastOfVerAndHasNoDefaultStroke() {
+        List<String> view = ShortcutCatalog.entries().stream()
+                .filter(entry -> entry.group() == MenuId.VIEW).map(ShortcutEntry::id).toList();
+        assertThat(view).endsWith("waveforms.toggle", "view.aiPresent");
+        assertThat(ShortcutCatalog.find("view.aiPresent")).contains(new ShortcutEntry("view.aiPresent",
+                "action.aiPresent", MenuId.VIEW, Scope.WINDOW, Optional.empty()));
+    }
+
+    @Test
     void theArrowsMoveTheSelectionAndMayusMakesItFiveUnits() {
         int[] keys = {KeyEvent.VK_LEFT, KeyEvent.VK_RIGHT, KeyEvent.VK_UP, KeyEvent.VK_DOWN};
         String[] directions = {"Left", "Right", "Up", "Down"};

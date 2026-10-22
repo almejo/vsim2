@@ -141,10 +141,12 @@ class ApplicationExtensionsTest {
     }
 
     @Test
-    void theViewMenuEndsWithTheWaveformsToggle() {
+    void theViewMenuEndsWithTheWaveformsToggleAndPresentar() {
         EditorView view = new EditorView(openDocument, services, NO_WINDOW);
         try {
-            assertThat(texts(view.menu(MenuId.VIEW))).endsWith("---", "Formas de onda");
+            assertThat(texts(view.menu(MenuId.VIEW))).endsWith("---", "Formas de onda", "---",
+                    "Presentar lo que hace la IA");
+            assertThat(view.shortcutActions()).containsKey("view.aiPresent");
             assertThat(view.bottomDock().content()).isPresent();
         } finally {
             view.dispose();
@@ -158,7 +160,8 @@ class ApplicationExtensionsTest {
             assertThat(texts(view.menu(MenuId.VIEW))).containsExactly("Selección", "Cable", "Marco",
                     "Mover vista", "---", "Acercar", "Alejar", "Zoom 100 %", "Centrar circuito", "---", "Cuadrícula",
                     "Ajustar", "Ajustar a", "Mostrar guías", "Agregar guía horizontal", "Agregar guía vertical",
-                    "Borrar guías", "---", "Siguiente problema", "Problema anterior", "---", "Formas de onda");
+                    "Borrar guías", "---", "Siguiente problema", "Problema anterior", "---", "Formas de onda", "---",
+                    "Presentar lo que hace la IA");
             assertThat(view.shortcutActions()).containsKeys("view.cycleGrid", "view.snap", "view.snapToParts",
                     "view.snapToGuides", "view.snapToGridLines", "view.showGuides", "view.addHorizontalGuide",
                     "view.addVerticalGuide", "view.clearGuides");

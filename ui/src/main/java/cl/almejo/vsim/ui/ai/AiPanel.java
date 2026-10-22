@@ -150,7 +150,7 @@ public final class AiPanel extends JPanel {
         repaint();
     }
 
-    static String settingName(EditorSetting setting) {
+    public static String settingName(EditorSetting setting) {
         return Messages.text(switch (setting) {
             case SNAP -> "ai.setting.SNAP";
             case SNAP_TO_PARTS -> "ai.setting.SNAP_TO_PARTS";
@@ -164,7 +164,7 @@ public final class AiPanel extends JPanel {
     }
 
     /** Yes / no, the grid style's name, or the spacing as it is. */
-    static String valueText(String value) {
+    public static String valueText(String value) {
         return switch (value) {
             case "true" -> Messages.text("ai.setting.value.true");
             case "false" -> Messages.text("ai.setting.value.false");
@@ -209,7 +209,7 @@ public final class AiPanel extends JPanel {
     }
 
     /** A label that never renders its text as HTML: the AI's words are data. */
-    static JLabel plainText(String text) {
+    public static JLabel plainText(String text) {
         JLabel label = new JLabel();
         label.putClientProperty("html.disable", Boolean.TRUE);
         label.setText(text);

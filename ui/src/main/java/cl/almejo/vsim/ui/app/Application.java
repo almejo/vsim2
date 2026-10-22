@@ -17,6 +17,9 @@ import cl.almejo.vsim.ui.ai.ShownWindow;
 import cl.almejo.vsim.ui.ai.EditorWindows;
 import cl.almejo.vsim.ui.ai.PreferenceProposals;
 import cl.almejo.vsim.ui.ai.SettingsOverride;
+import cl.almejo.vsim.ui.ai.present.PresentationControls;
+import cl.almejo.vsim.ui.ai.present.PresentationEvents;
+import cl.almejo.vsim.ui.ai.present.PresentationExtension;
 import cl.almejo.vsim.ui.examples.ExamplesFeature;
 import cl.almejo.vsim.ui.export.ExportImageExtension;
 import cl.almejo.vsim.ui.print.ExportPdfExtension;
@@ -111,6 +114,8 @@ public final class Application {
     private final AiServerService aiServer;
     private final EditorAutomationHost automationHost;
     private final PreferenceProposals proposals;
+    /** IA.2: «Presentar» in every window; the AI asks for it through {@link PresentationExtension#aiAskedForPresenting}. */
+    private final PresentationExtension presentation;
     /** Each window reads the preferences through its own layer: the AI's temporary settings (spec §7). */
     private final Map<CircuitWindow, AppPreferences> windowPreferences = new WeakHashMap<>();
 
@@ -120,7 +125,8 @@ public final class Application {
         this.proposals = new PreferenceProposals(preferences);
         this.automationHost = new EditorAutomationHost(windows::documents,
                 document -> ShownWindow.activeFirst(windows.windowsOf(document)), new ApplicationWindows(), proposals);
-        this.aiServer = new AiServerService(preferences, new AutomationApi(automationHost),
+        AutomationApi automationApi = new AutomationApi(automationHost);
+        this.aiServer = new AiServerService(preferences, automationApi,
                 new AiServerService.QueuedWork() {
                     @Override
                     public void refuse() {
@@ -141,10 +147,12 @@ public final class Application {
                 }
             }
         });
+        this.presentation = new PresentationExtension(PresentationEvents.of(automationApi),
+                stopOnlyControls(aiServer), automationHost::documentId);
         this.services = new EditorServices(PainterRegistry.standard(), appearance, preferences, library,
                 editorExtensions(libraryService, SwingLibraryDialogs.INSTANCE, this::initialDirectory,
                         this::rememberDirectory,
-                        new AiExtension(aiServer, automationHost::documentId, proposals)));
+                        new AiExtension(aiServer, automationHost::documentId, proposals), presentation));
         // Lives as long as the application: it follows the preferences and is never disposed.
         this.themeManager = ThemeManager.forCurrentPlatform(preferences, appearance);
         this.textFontManager = new TextFontManager(preferences);
@@ -160,17 +168,47 @@ public final class Application {
      */
     public static List<EditorExtension> editorExtensions(LibraryService libraryService, LibraryDialogs libraryDialogs) {
         return editorExtensions(libraryService, libraryDialogs, () -> Path.of(System.getProperty("user.home")),
-                path -> { }, AiExtension.inactive());
+                path -> { }, AiExtension.inactive(), PresentationExtension.inactive());
+    }
+
+    /**
+     * IA.2: until the pacing layer's {@link PresentationControls} is wired in, the panel's «Detener» stops the task
+     * like the status line's and its other buttons do nothing.
+     */
+    private static PresentationControls stopOnlyControls(AiServerService server) {
+        return new PresentationControls() {
+            @Override
+            public void next(String taskId) {
+            }
+
+            @Override
+            public void toStageEnd(String taskId) {
+            }
+
+            @Override
+            public void stop(String taskId) {
+                server.stopTask(taskId);
+            }
+
+            @Override
+            public void undoStage(String taskId, int stageIndex) {
+            }
+
+            @Override
+            public void keepOnlyResult(String taskId) {
+            }
+        };
     }
 
     /**
      * The extensions of every editor view, in install order. Package-private so a test can install them all.
      * {@code startDirectory} and {@code chosen} are the folder «Abrir» starts in and remembers, shared with the
-     * table import's file chooser. {@code ai} is the AI's panel and status line over the application's server.
+     * table import's file chooser. {@code ai} is the AI's panel and status line over the application's server,
+     * {@code presentation} its «Presentar» toggle and floating panel.
      */
     static List<EditorExtension> editorExtensions(LibraryService libraryService, LibraryDialogs libraryDialogs,
                                                   Supplier<Path> startDirectory, Consumer<Path> chosen,
-                                                  AiExtension ai) {
+                                                  AiExtension ai, PresentationExtension presentation) {
         List<EditorExtension> editorExtensions = new ArrayList<>();
         // M6: waveforms before ActionIcons, recents after PreferencesFeature, shortcuts last. M6.1: the step mode and
         // the truth table before ActionIcons, the examples after RecentFilesFeature (its submenu goes after «Recientes»).
@@ -192,6 +230,7 @@ public final class Application {
         editorExtensions.add(new FindExtension());
         editorExtensions.add(new TunnelsExtension());
         editorExtensions.add(ai); // IA.1: last in Herramientas, before the shortcuts see its item
+        editorExtensions.add(presentation); // IA.2: last in Ver and the toolbar, before the icons and shortcuts
         editorExtensions.add(new ActionIcons());
         editorExtensions.add(new PreferencesFeature());
         editorExtensions.add(new RecentFilesFeature());
@@ -222,6 +261,10 @@ public final class Application {
 
     public AiServerService aiServer() {
         return aiServer;
+    }
+
+    public PresentationExtension presentation() {
+        return presentation;
     }
 
     public ComponentTypeRegistry registry() {
