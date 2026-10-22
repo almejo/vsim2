@@ -600,6 +600,22 @@ class EditServiceTest {
     }
 
     @Test
+    void oneCallCarriesAtMost200OperationsSoTheEditorNeverFreezesLong() {
+        List<EditOperation> operations = new ArrayList<>();
+        for (int index = 0; index <= 200; index++) {
+            operations.add(new AddNote(Optional.empty(), "nota " + index, 0, index * 2));
+        }
+
+        AutomationException refusal = assertRefused(request(operations.toArray(EditOperation[]::new)),
+                AutomationError.INVALID_PARAMETER);
+
+        assertThat(refusal.recovery()).containsEntry("maximum", 200);
+        assertNothingChanged();
+        service.edit(request(operations.subList(0, 200).toArray(EditOperation[]::new)));
+        assertThat(circuit.document().labels()).hasSize(200);
+    }
+
+    @Test
     void anUnexpectedFailureBeforeTheWriteSaysNothingWasChanged() {
         EditableCircuit broken = new EditableCircuit() {
             @Override

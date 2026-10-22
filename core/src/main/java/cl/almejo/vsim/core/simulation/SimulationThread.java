@@ -14,6 +14,7 @@ import java.util.OptionalLong;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.LockSupport;
@@ -38,6 +39,8 @@ public final class SimulationThread implements AutoCloseable {
     private final LongSupplier nanoClock;
     private final long closeTimeoutMillis;
     private final Queue<Runnable> requests = new ConcurrentLinkedQueue<>();
+    /** The receipts of the budgeted requests not answered yet: failed with {@link ClosedException} on close. */
+    private final Set<CompletableFuture<RequestReport>> waitingReports = ConcurrentHashMap.newKeySet();
     private volatile SimulationSnapshot latestSnapshot = SimulationSnapshot.EMPTY;
     private volatile WaveformSnapshot latestWaveforms = WaveformSnapshot.EMPTY;
     /** The last «Avanzar» or paused interaction (M6.1-B); null until the first one. */
@@ -368,7 +371,7 @@ public final class SimulationThread implements AutoCloseable {
             throw new IllegalArgumentException("the duration must be positive: " + duration);
         }
         requirePositiveBudget(eventBudget);
-        CompletableFuture<RequestReport> future = new CompletableFuture<>();
+        CompletableFuture<RequestReport> future = waitingReport();
         requests.add(() -> {
             if (duration > Long.MAX_VALUE - engine.now()) {
                 future.complete(reportOf(RequestReport.Status.REFUSED_TIME_OVERFLOW, engine.now(), 0, List.of()));
@@ -394,7 +397,7 @@ public final class SimulationThread implements AutoCloseable {
 
     /** A receipt of the state once every earlier request ran: nothing runs (a reading of one instant). */
     public CompletableFuture<RequestReport> report() {
-        CompletableFuture<RequestReport> future = new CompletableFuture<>();
+        CompletableFuture<RequestReport> future = waitingReport();
         requests.add(() -> future.complete(reportOf(RequestReport.Status.COMPLETED, engine.now(), 0, List.of())));
         return future;
     }
@@ -409,8 +412,39 @@ public final class SimulationThread implements AutoCloseable {
      * Queues {@code work} to run within the budget, running or paused; {@code outcomes} is what the work reports per
      * input (it fills it as it goes). A budget that runs out pauses the simulation.
      */
-    private CompletableFuture<RequestReport> budgeted(long eventBudget, List<InputOutcome> outcomes, Runnable work) {
+    /**
+     * Thrown into the receipt of a budgeted request that will never run: the thread was closed, or it died, before
+     * its turn came.
+     */
+    public static final class ClosedException extends IllegalStateException {
+        public ClosedException() {
+            super("The simulation was closed before the request ran");
+        }
+    }
+
+    /** A receipt future answered when its request runs, or failed with {@link ClosedException} if it never will. */
+    private CompletableFuture<RequestReport> waitingReport() {
         CompletableFuture<RequestReport> future = new CompletableFuture<>();
+        if (stopRequested) {
+            future.completeExceptionally(new ClosedException());
+            return future;
+        }
+        waitingReports.add(future);
+        future.whenComplete((report, failure) -> waitingReports.remove(future));
+        if (stopRequested) {
+            future.completeExceptionally(new ClosedException());
+        }
+        return future;
+    }
+
+    private void failWaitingReports() {
+        for (CompletableFuture<RequestReport> future : Set.copyOf(waitingReports)) {
+            future.completeExceptionally(new ClosedException());
+        }
+    }
+
+    private CompletableFuture<RequestReport> budgeted(long eventBudget, List<InputOutcome> outcomes, Runnable work) {
+        CompletableFuture<RequestReport> future = waitingReport();
         requests.add(() -> {
             long fromTime = engine.now();
             EventBudgetRun run;
@@ -432,7 +466,7 @@ public final class SimulationThread implements AutoCloseable {
     }
 
     private CompletableFuture<RequestReport> budgetedStep(long eventBudget, Supplier<StepResult> step) {
-        CompletableFuture<RequestReport> future = new CompletableFuture<>();
+        CompletableFuture<RequestReport> future = waitingReport();
         requests.add(() -> runStep(future, eventBudget, step));
         return future;
     }
@@ -567,6 +601,7 @@ public final class SimulationThread implements AutoCloseable {
                 LOGGER.error("Simulation thread failed", throwable);
                 publishFailure(throwable);
                 if (throwable instanceof Error) {
+                    failWaitingReports();
                     return;
                 }
             }
@@ -600,5 +635,6 @@ public final class SimulationThread implements AutoCloseable {
                 current.interrupt();
             }
         }
+        failWaitingReports();
     }
 }

@@ -90,8 +90,12 @@ import java.util.stream.IntStream;
  */
 final class EditPlanner {
 
-    /** The most operations one call may carry: a whole stage is a few dozen; more is a mistake or a runaway. */
-    static final int MAXIMUM_OPERATIONS = 500;
+    /**
+     * The most operations one call may carry: a whole stage is a few dozen; more is a mistake or a runaway. Every
+     * placement and connect compiles the netlist on the editor thread (review M8: 199 of them on a circuit of 500
+     * parts take about half a second), so the limit also bounds how long the editor waits.
+     */
+    static final int MAXIMUM_OPERATIONS = 200;
 
     /** Targets that name what an earlier operation of the call made start with this. */
     static final String ALIAS_PREFIX = "new:";
@@ -112,7 +116,7 @@ final class EditPlanner {
     private final List<DefinitionBundle> library;
     private final CircuitDocument candidate;
     private final ComponentTypeRegistry registry;
-    private final NetlistCompiler compiler;
+    private final CandidateNetlist netlists;
     private final ConnectRouting routing;
     private final Map<String, ElementId> elementAliases = new LinkedHashMap<>();
     private final Map<String, String> definitionAliases = new LinkedHashMap<>();
@@ -132,8 +136,8 @@ final class EditPlanner {
         // The live registry resolves the live circuit's components; the candidate needs its own (it may add one).
         this.registry = liveRegistry.copy();
         this.registry.addResolver(SubcircuitTypes.resolverFor(candidate));
-        this.compiler = new NetlistCompiler(registry);
-        this.routing = new ConnectRouting(candidate, registry, this::reference);
+        this.netlists = new CandidateNetlist(registry);
+        this.routing = new ConnectRouting(candidate, registry, netlists, this::reference);
     }
 
     /**
@@ -250,7 +254,7 @@ final class EditPlanner {
 
     /** A part set down on a wire or on another pin joins it at once; the AI should know. */
     private void warnAboutTouchingPins(Component component) {
-        Netlist netlist = compiler.compile(candidate);
+        Netlist netlist = netlists.of(candidate);
         ComponentType type = registry.typeOf(component);
         for (int pinIndex = 0; pinIndex < type.pinCount(); pinIndex++) {
             PinRef pin = new PinRef(component.id(), pinIndex);
@@ -696,7 +700,7 @@ final class EditPlanner {
         new NetlistCompiler(liveRegistry).compile(original).nets().stream()
                 .filter(Net::widthMismatch)
                 .forEach(net -> before.add(net.pins()));
-        for (Net net : compiler.compile(candidate).nets()) {
+        for (Net net : netlists.of(candidate).nets()) {
             if (net.widthMismatch() && !before.contains(net.pins())) {
                 warnings.add("a net now joins pins of different widths: " + routing.references(net));
             }

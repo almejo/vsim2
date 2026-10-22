@@ -215,17 +215,21 @@ class SimulationHostSupportTest {
     }
 
     @Test
-    void theEditorThreadNeverWaitsForTheSimulation() throws Exception {
+    void theEditorThreadNeverWaitsForTheSimulationAndAClosedOneAnswersDocumentClosed() throws Exception {
         OpenDocument document = example("adder-4-bits");
         DocumentId adder = summary().id();
-        document.close(); // its simulation thread will never answer
+        document.close(); // its simulation thread will never run the request
 
         CompletableFuture<SimulationReceipt> receipt = host.simulate(new SimulationRequest.Pause(adder));
         long start = System.nanoTime();
         SwingUtilities.invokeAndWait(() -> { });
 
         assertThat(TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start)).isLessThan(2_000);
-        assertThat(receipt).isNotDone();
+        assertThat(receipt).failsWithin(5, TimeUnit.SECONDS)
+                .withThrowableOfType(java.util.concurrent.ExecutionException.class)
+                .havingCause().isInstanceOfSatisfying(cl.almejo.vsim.automation.AutomationException.class,
+                        refusal -> assertThat(refusal.error())
+                                .isEqualTo(cl.almejo.vsim.automation.AutomationError.DOCUMENT_CLOSED));
     }
 
     @Test

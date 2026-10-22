@@ -70,6 +70,18 @@ final class SimulationHostSupport {
         this.queue = Objects.requireNonNull(queue, "queue");
     }
 
+    /** A request the closed circuit's simulation will never run is DOCUMENT_CLOSED (review M5). */
+    private static Throwable closedOr(Throwable failure, DocumentId document) {
+        Throwable cause = failure instanceof java.util.concurrent.CompletionException && failure.getCause() != null
+                ? failure.getCause() : failure;
+        if (cause instanceof cl.almejo.vsim.core.simulation.SimulationThread.ClosedException) {
+            return new AutomationException(AutomationError.DOCUMENT_CLOSED, "The circuit " + document.value()
+                    + " was closed before its simulation ran the request; list the documents again",
+                    java.util.Map.of("document", document.value()));
+        }
+        return failure;
+    }
+
     CompletableFuture<SimulationReceipt> simulate(SimulationRequest request) {
         CompletableFuture<SimulationReceipt> result = queue.track(new CompletableFuture<>());
         editorThread.execute(() -> {
@@ -83,7 +95,7 @@ final class SimulationHostSupport {
                 Started started = start(document, version, request);
                 started.report().whenComplete((report, failure) -> editorThread.execute(() -> {
                     if (failure != null) {
-                        result.completeExceptionally(failure);
+                        result.completeExceptionally(closedOr(failure, request.document()));
                         return;
                     }
                     try {

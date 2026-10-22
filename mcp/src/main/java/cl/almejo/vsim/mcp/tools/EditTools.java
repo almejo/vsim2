@@ -20,7 +20,7 @@ final class EditTools {
 
     static final String EDIT = "vsim_edit";
     /** At most this many operations per call (as the planner allows). */
-    static final int MAXIMUM_OPERATIONS = 500;
+    static final int MAXIMUM_OPERATIONS = 200;
 
     private static final List<String> ROTATIONS = List.of("R0", "R90", "R180", "R270");
     private static final List<String> ORIENTATIONS = List.of("HORIZONTAL", "VERTICAL");
@@ -223,7 +223,9 @@ final class EditTools {
                         + "ids, says what each Connect joined (as pins) and lists warnings. validateOnly checks "
                         + "everything and changes nothing. Positions are grid units; lay parts out left to right "
                         + "(inputs left, outputs right) with room between them and for their labels. A guide you "
-                        + "add only to align is AddGuide with layoutOnly true: it goes away when the task ends.",
+                        + "add only to align is AddGuide with layoutOnly true: it goes away when the task ends. At "
+                        + "most " + MAXIMUM_OPERATIONS + " operations per call: every placement and Connect re-reads "
+                        + "the circuit's connections while the editor waits, so in a big circuit send fewer.",
                 Schema.object("")
                         .property("document", Common.document())
                         .property("version", Common.version())

@@ -15,7 +15,6 @@ import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.netlist.Net;
 import cl.almejo.vsim.core.netlist.Netlist;
-import cl.almejo.vsim.core.netlist.NetlistCompiler;
 import cl.almejo.vsim.core.netlist.PinRef;
 
 import java.util.ArrayList;
@@ -54,19 +53,20 @@ final class ConnectRouting {
 
     private final CircuitDocument candidate;
     private final ComponentTypeRegistry registry;
-    private final NetlistCompiler compiler;
+    private final CandidateNetlist netlists;
     private final Function<PinRef, PinReference> naming;
 
-    ConnectRouting(CircuitDocument candidate, ComponentTypeRegistry registry, Function<PinRef, PinReference> naming) {
+    ConnectRouting(CircuitDocument candidate, ComponentTypeRegistry registry, CandidateNetlist netlists,
+                   Function<PinRef, PinReference> naming) {
         this.candidate = candidate;
         this.registry = registry;
-        this.compiler = new NetlistCompiler(registry);
+        this.netlists = netlists;
         this.naming = naming;
     }
 
     /** Joins {@code from} and {@code to} on the candidate, or throws and leaves the candidate as it was. */
     Outcome connect(PinRef from, PinRef to, List<GridPoint> via) {
-        Netlist before = compiler.compile(candidate);
+        Netlist before = netlists.of(candidate);
         Net fromNet = before.netForPin(from).orElseThrow();
         Net toNet = before.netForPin(to).orElseThrow();
         if (fromNet.id().equals(toNet.id())) {
@@ -122,7 +122,7 @@ final class ConnectRouting {
             command.apply(candidate);
             commands.add(command);
         }
-        Netlist after = compiler.compile(candidate);
+        Netlist after = netlists.of(candidate);
         Net joined = after.netForPin(from).orElseThrow();
         Set<PinRef> expected = new HashSet<>(fromNet.pins());
         expected.addAll(toNet.pins());
