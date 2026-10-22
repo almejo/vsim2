@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.ai.present;
 
+import cl.almejo.vsim.automation.StageUndoOutcome;
 import cl.almejo.vsim.automation.present.PresentationPace;
 import cl.almejo.vsim.automation.present.PresentationSettings;
 import cl.almejo.vsim.automation.present.StepStatus;
@@ -176,10 +177,10 @@ final class PresentationPanel extends JPanel {
         nextButton.addActionListener(event -> ifShown(task -> controls.next(task.task().taskId())));
         toStageEndButton.addActionListener(event -> ifShown(task -> controls.toStageEnd(task.task().taskId())));
         stopButton.addActionListener(event -> ifShown(task -> controls.stop(task.task().taskId())));
-        undoStageButton.addActionListener(event -> ifShown(task -> task.stageToUndo()
-                .ifPresent(stage -> controls.undoStage(task.task().taskId(), stage))));
+        undoStageButton.addActionListener(event -> ifShown(task -> controls.undoStage(task.task().taskId(),
+                outcome -> answered(task, () -> task.stageUndone(outcome)))));
         keepOnlyResultButton.addActionListener(event -> ifShown(task -> controls.keepOnlyResult(
-                task.task().taskId())));
+                task.task().taskId(), done -> answered(task, () -> task.keptOnlyResult(done)))));
         settingsHeader.addActionListener(event -> {
             settingsList.setVisible(settingsHeader.isSelected());
             relayout();
@@ -244,12 +245,26 @@ final class PresentationPanel extends JPanel {
     void show(PresentedTask task, boolean aiSwitchedToPresenting) {
         this.shown = Objects.requireNonNull(task, "task");
         this.aiSwitched = aiSwitchedToPresenting;
+        if (task.isEnded() && !task.storyboardAsked()) {
+            // what the end may offer: «Deshacer etapa» while a stage is left, «Dejar solo el resultado» when separate
+            task.storyboardAskedNow();
+            controls.storyboardState(task.task().taskId(),
+                    state -> answered(task, () -> task.storyboardChanged(state)));
+        }
         header.setText(Messages.format("ai.present.header", task.task().title()));
         stageLabel.setText(stageText(task));
         showNotice(task);
         showCards(task);
         refreshButtons();
         relayout();
+    }
+
+    /** An answer of the controls about {@code task} (on the editor thread): shown again while it still is shown. */
+    private void answered(PresentedTask task, Runnable change) {
+        change.run();
+        if (shown == task) {
+            show(task, aiSwitched);
+        }
     }
 
     private static String stageText(PresentedTask task) {
@@ -264,14 +279,32 @@ final class PresentationPanel extends JPanel {
     private void showNotice(PresentedTask task) {
         Optional<String> text = task.lastDiscard().map(why -> Messages.text(why == StepStatus.STALE
                 ? "ai.present.stale" : "ai.present.discarded"));
+        if (text.isEmpty()) {
+            text = task.lastUndo().map(PresentationPanel::undoNotice);
+        }
+        if (text.isEmpty() && task.keepRefused()) {
+            text = Optional.of(Messages.text("ai.present.notSeparate"));
+        }
         if (text.isEmpty() && aiSwitched) {
             text = Optional.of(Messages.text("ai.present.aiSwitched"));
         }
         if (text.isEmpty() && task.isEnded()) {
-            text = Optional.of(Messages.text("ai.present.ended"));
+            text = Optional.of(Messages.text(task.isStopped() ? "ai.present.stopped" : "ai.present.ended"));
         }
         notice.setText(text.orElse(" "));
         notice.setVisible(text.isPresent());
+    }
+
+    /** What «Deshacer etapa» did, in the IA.1 words where they fit. */
+    static String undoNotice(StageUndoOutcome outcome) {
+        String undone = Integer.toString(outcome.undone());
+        return switch (outcome.stoppedAt()) {
+            case USER_EDIT -> Messages.format("ai.status.undoStoppedAtUser", undone);
+            case ANOTHER_STAGE -> Messages.format("ai.present.undoStoppedAtStage", undone);
+            case NOTHING -> outcome.undone() == 0 ? Messages.text("ai.present.nothingToUndo")
+                    : Messages.format("ai.present.stageUndone", Integer.toString(outcome.stageIndex() + 1),
+                    outcome.undone());
+        };
     }
 
     private void showCards(PresentedTask task) {
@@ -290,7 +323,7 @@ final class PresentationPanel extends JPanel {
         nextButton.setEnabled(running && shown.pending().isPresent());
         toStageEndButton.setEnabled(running && stepByStep);
         stopButton.setEnabled(running);
-        undoStageButton.setEnabled(shown != null && shown.stageToUndo().isPresent());
+        undoStageButton.setEnabled(shown != null && shown.canUndoStage());
         boolean ended = shown != null && shown.isEnded();
         // at the end only what makes sense then: undo the stage, keep only the result, close
         nextButton.setVisible(!ended);
@@ -298,7 +331,7 @@ final class PresentationPanel extends JPanel {
         stopButton.setVisible(!ended);
         paceSwitch.setVisible(!ended);
         paceHint.setVisible(!ended);
-        keepOnlyResultButton.setVisible(ended && shown.stages().size() > 1);
+        keepOnlyResultButton.setVisible(ended && shown.canKeepOnlyResult());
         closeButton.setVisible(ended);
         stepRow.setVisible(stepRow.hasVisibleButton());
         stageRow.setVisible(stageRow.hasVisibleButton());

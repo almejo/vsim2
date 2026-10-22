@@ -271,6 +271,7 @@ class PresentationPanelLayoutTest {
 
         events.stop(TASK);
         runEditorThread();
+        panel().closeButton().doClick(); // a stopped task's panel stays until closed (review M5)
         assertThat(features().placement().coveredIn(view.canvas())).isEmpty();
     }
 

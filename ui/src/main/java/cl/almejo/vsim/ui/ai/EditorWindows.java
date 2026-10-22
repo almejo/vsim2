@@ -28,6 +28,14 @@ public interface EditorWindows {
     Optional<SettingsOverride> settingsOverride(OpenDocument document);
 
     /**
+     * The overrides of every window of {@code document}, its first one first: the AI's «Presentar» pace shows in all
+     * of them (Ver ▸ «Ritmo de Presentar» and the panel's switch). The first window's only by default.
+     */
+    default List<SettingsOverride> settingsOverridesOfEveryWindow(OpenDocument document) {
+        return settingsOverride(document).stream().toList();
+    }
+
+    /**
      * The presentation mode of the window the AI works in for {@code document} (its first window), read from that
      * window's preferences ({@link PresentationPreferences}); the working mode by default (IA.2, spec §4).
      */

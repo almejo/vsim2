@@ -19,6 +19,11 @@ final class AiEditCommand implements Command {
     static final String DESCRIPTION = "command.aiEdit";
     /** The stage of a step that belongs to no stage of its task («Dejar solo el resultado», a step with no task). */
     static final int NO_STAGE = -1;
+    /**
+     * The step that takes a task's layout-only guides away at its end: no stage's own, and «Deshacer etapa» passes
+     * over it (undoing it too) to reach the stage under it.
+     */
+    static final int CLEANUP_STAGE = -2;
 
     private final ReplaceContentCommand content;
     private final Optional<String> taskId;
@@ -26,10 +31,6 @@ final class AiEditCommand implements Command {
     private final String description;
     /** Whether the document has this step now: true after apply (and redo), false after undo. EDT only. */
     private boolean applied;
-
-    AiEditCommand(ReplaceContentCommand content, Optional<String> taskId) {
-        this(content, taskId, NO_STAGE, DESCRIPTION);
-    }
 
     AiEditCommand(ReplaceContentCommand content, Optional<String> taskId, int stageIndex, String description) {
         this.content = Objects.requireNonNull(content, "content");

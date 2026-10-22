@@ -31,6 +31,21 @@ sección es un conjunto de funciones, con las fechas en que se hizo. El detalle 
   etapa) y `vsim_await_step` (espera «Siguiente»: aplicado, descartado o detenido); `vsim_edit` acepta el porqué de
   cada paso.
 
+### Arreglado
+
+- «Dejar solo el resultado» ya no rompe el circuito: solo se ofrece cuando cada etapa intermedia está en su propio
+  marco y nada de ellas está conectado con lo que queda (antes, si la última etapa cableaba las piezas de la primera,
+  las borraba); si no, VSim lo rechaza sin tocar nada.
+- «Deshacer etapa» va etapa por etapa: cada vez deshace la última etapa que todavía tiene pasos (se salta una etapa
+  que solo comprobó), dice en la ventanita qué hizo o dónde se detuvo y se apaga cuando no queda nada.
+- Bloquear el marco de una etapa cuando la siguiente hizo un componente de ella es un paso de esa etapa siguiente:
+  «Deshacer etapa» ya no se detiene ahí ni dice que fue un cambio tuyo.
+- «Detener» deja la ventanita con «Deshacer etapa» y «×» («Detuviste a la IA») en vez de cerrarla.
+- El ritmo que eliges en una segunda ventana del circuito gana sobre el que pidió la IA, y «Mantener» / «Volver a
+  los míos» del panel de la IA ya no le quitan a la tarea el ritmo que pidió.
+- «Siguiente paso en …» desaparece cuando ese paso no se aplicó porque cambiaste el circuito durante la pausa, y una
+  guía de alineación de la IA ya no descarta el paso que espera «Siguiente».
+
 ## 2026-10-21 — La IA trabaja (MCP)
 
 ### Agregado

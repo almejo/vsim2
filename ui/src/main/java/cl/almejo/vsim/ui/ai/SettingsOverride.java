@@ -9,10 +9,12 @@ import cl.almejo.vsim.ui.app.PreferenceLayer;
 
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * The AI's temporary editor settings in one window (spec §7): «Ajustar» and «Ajustar a ▸», the grid style and
@@ -69,7 +71,7 @@ public final class SettingsOverride {
 
     /**
      * Shows the AI's «Presentar» pace and pause for its task in this window ({@code vsim_set_presentation}); the
-     * caller checks the pause's range. Given back by {@link #drop()} and {@link #keep()} (never saved).
+     * caller checks the pause's range. Given back by {@link #drop()} at the task's end (never saved).
      */
     public void layerPresentation(Optional<PresentationPace> pace, Optional<Duration> pause) {
         Objects.requireNonNull(pace, "pace");
@@ -79,17 +81,35 @@ public final class SettingsOverride {
                 Long.toString(chosen.toMillis())));
     }
 
-    /** The window shows the saved preferences again. */
+    /** The task ended: the window shows the saved preferences again, its editor settings and its pace. */
     public void drop() {
         layer.clear();
     }
 
-    /** Saves the AI's values as the user's preferences, for every window; the layer is then empty. */
+    /**
+     * «Volver a los míos» while the task runs: the window shows the saved editor settings again; the AI's pace stays
+     * until the task ends (it is not among «Ajustes que tocó la IA»).
+     */
+    public void dropEditorSettings() {
+        layer.remove(editorSettingsLayered());
+    }
+
+    /**
+     * «Mantener»: saves the AI's editor settings as the user's preferences, for every window, and forgets them here;
+     * the AI's pace stays layered until the task ends (never saved).
+     */
     public void keep() {
         for (Change change : changes()) {
             save(change.setting(), change.value());
         }
-        layer.clear();
+        dropEditorSettings();
+    }
+
+    private Set<PreferenceLayer.Setting> editorSettingsLayered() {
+        Set<PreferenceLayer.Setting> layered = EnumSet.noneOf(PreferenceLayer.Setting.class);
+        layer.values().keySet().stream().filter(setting -> editorSetting(setting).isPresent())
+                .forEach(layered::add);
+        return layered;
     }
 
     /** Through the window's preferences: saving a setting also drops its layered value. */

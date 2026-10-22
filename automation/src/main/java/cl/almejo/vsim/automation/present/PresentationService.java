@@ -102,6 +102,10 @@ public final class PresentationService {
     /** One edit call as «Presentar» takes it (see the class comment); throws as {@link EditService#edit} does. */
     public PresentedEdit edit(EditRequest request) {
         Optional<AiTask> checked = edits.checkRequest(request);
+        if (checked.isPresent() && !request.validateOnly() && onlyLayoutGuides(request.operations())) {
+            // A guide is written at once: under a waiting ghost it would make the AI's own step stale.
+            requireNoPendingStep(checked.get());
+        }
         if (checked.isEmpty() || request.validateOnly() || onlyLayoutGuides(request.operations())) {
             return new PresentedEdit(edits.edit(request), Optional.empty());
         }
@@ -136,10 +140,7 @@ public final class PresentationService {
                 if (pending.prepared().request().equals(request)) {
                     return Decision.answered(pending.answer());
                 }
-                throw new AutomationException(AutomationError.NOT_ALLOWED, "The step «" + pending.preview().text()
-                        + "» of task " + task.info().taskId() + " still waits for «Siguiente»: call vsim_await_step "
-                        + "until it is applied, stale or stopped, then send the next step. Nothing was changed",
-                        Map.of("taskId", task.info().taskId()));
+                throw stillWaiting(task, pending);
             }
         }
         PresentationSettings settings = host.presentationSettings(request.document());
@@ -180,6 +181,21 @@ public final class PresentationService {
         Duration paced = delay;
         announce(listener -> listener.stepPaced(taskId, paced));
         return new Decision(Optional.empty(), presentation, delay, stageIndex, stepIndex);
+    }
+
+    /** Refused ({@code NOT_ALLOWED}) while a step of {@code task} waits for «Siguiente». */
+    private synchronized void requireNoPendingStep(AiTask task) {
+        TaskPresentation presentation = presentations.get(task.info().taskId());
+        if (presentation != null && presentation.pending != null) {
+            throw stillWaiting(task, presentation.pending);
+        }
+    }
+
+    private static AutomationException stillWaiting(AiTask task, PendingStep pending) {
+        return new AutomationException(AutomationError.NOT_ALLOWED, "The step «" + pending.preview().text()
+                + "» of task " + task.info().taskId() + " still waits for «Siguiente»: call vsim_await_step "
+                + "until it is applied, stale or stopped, then send the next step. Nothing was changed",
+                Map.of("taskId", task.info().taskId()));
     }
 
     /** Editor thread: keeps the step as the task's pending one and shows it; nothing is written. */
@@ -230,8 +246,19 @@ public final class PresentationService {
         if (earlier.isPresent()) {
             return new PresentedEdit(earlier.get(), Optional.of(StepStatus.APPLIED));
         }
-        PreparedEdit prepared = edits.prepare(circuit, request);
-        EditReceipt receipt = edits.commit(circuit, prepared);
+        PreparedEdit prepared;
+        EditReceipt receipt;
+        try {
+            prepared = edits.prepare(circuit, request);
+            receipt = edits.commit(circuit, prepared);
+        } catch (AutomationException refusal) {
+            // The panel said «Siguiente paso en …»: it hears that this step will not come.
+            StepStatus why = refusal.error() == AutomationError.STALE_DOCUMENT ? StepStatus.STALE
+                    : StepStatus.STOPPED;
+            String taskId = presentation.task.info().taskId();
+            announce(listener -> listener.stepDiscarded(taskId, why));
+            throw refusal;
+        }
         applied(presentation, previewOf(presentation.task, stageIndex, stepIndex, request.step().orElseThrow(),
                 prepared), receipt);
         return new PresentedEdit(receipt, Optional.of(StepStatus.APPLIED));

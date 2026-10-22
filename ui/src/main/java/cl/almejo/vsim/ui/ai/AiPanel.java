@@ -88,7 +88,7 @@ public final class AiPanel extends JPanel {
         });
         settingsHeader.addActionListener(event -> settingsList.setVisible(settingsHeader.isSelected()));
         keepSettingsButton.addActionListener(event -> override.ifPresent(SettingsOverride::keep));
-        dropSettingsButton.addActionListener(event -> override.ifPresent(SettingsOverride::drop));
+        dropSettingsButton.addActionListener(event -> override.ifPresent(SettingsOverride::dropEditorSettings));
 
         add(stateLabel, "split 2, growx");
         add(toggleButton, "growx 0");

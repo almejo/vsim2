@@ -89,11 +89,13 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.WeakHashMap;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
-import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
 
 /** Open windows and documents of the running application (EDT only). A document closes with its last window. */
 public final class Application {
@@ -140,7 +142,7 @@ public final class Application {
         this.presentationControls = new AutomationPresentationControls(automationApi);
         this.presentationWatcher = new PresentationModeWatcher(windows::documents,
                 document -> new ApplicationWindows().presentationSettings(document), automationHost::documentId,
-                PresentationModeWatcher.Target.of(automationApi), ForkJoinPool.commonPool());
+                PresentationModeWatcher.Target.of(automationApi), presentationModeThread());
         preferences.addListener(presentationWatcher::refresh); // lives as long as the application
         this.aiServer = new AiServerService(preferences, automationApi,
                 new AiServerService.QueuedWork() {
@@ -280,6 +282,18 @@ public final class Application {
             }
         }, "vsim-recovery-scan");
         scan.start();
+    }
+
+    /**
+     * Where the «Presentar» mode watcher tells the API of a mode change: one daemon thread of its own, so the changes
+     * arrive in order and never hold a shared pool while they wait for the editor (review M6).
+     */
+    private static Executor presentationModeThread() {
+        return Executors.newSingleThreadExecutor(runnable -> {
+            Thread thread = new Thread(runnable, "vsim-ai-presentation-mode");
+            thread.setDaemon(true);
+            return thread;
+        });
     }
 
     /**
@@ -703,6 +717,16 @@ public final class Application {
             return windows.windowsOf(document).stream().findFirst()
                     .map(windowPreferences::get)
                     .flatMap(SettingsOverride::of);
+        }
+
+        /** Every window of the circuit shows the AI's «Presentar» pace (review M4). */
+        @Override
+        public List<SettingsOverride> settingsOverridesOfEveryWindow(OpenDocument document) {
+            return windows.windowsOf(document).stream()
+                    .map(windowPreferences::get)
+                    .filter(Objects::nonNull)
+                    .flatMap(found -> SettingsOverride.of(found).stream())
+                    .toList();
         }
     }
 

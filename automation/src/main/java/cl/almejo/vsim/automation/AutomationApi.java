@@ -33,6 +33,7 @@ import cl.almejo.vsim.automation.present.PresentedEdit;
 import cl.almejo.vsim.automation.present.StageOrigin;
 import cl.almejo.vsim.automation.present.Storyboard;
 import cl.almejo.vsim.automation.present.StepOutcome;
+import cl.almejo.vsim.automation.present.StoryboardState;
 
 import java.time.Duration;
 import java.util.List;
@@ -360,8 +361,22 @@ public final class AutomationApi {
      * included, while they are on top of the history; stops at the user's own edit (or another stage's step) and says
      * so. Off the editor thread.
      */
-    public UndoOutcome undoStage(String taskId, int stageIndex) {
+    public StageUndoOutcome undoStage(String taskId, int stageIndex) {
         return edits.undoStage(taskId, stageIndex);
+    }
+
+    /**
+     * The panel's «Deshacer etapa»: undoes the latest stage that still has steps in the circuit (a stage that only
+     * checked has none), so pressing it again goes back one more stage; says what it stopped at. Off the editor
+     * thread.
+     */
+    public StageUndoOutcome undoLatestStage(String taskId) {
+        return edits.undoLatestStage(taskId);
+    }
+
+    /** What the «Presentar» panel may offer for the task's storyboard now. Off the editor thread. */
+    public StoryboardState storyboardState(String taskId) {
+        return storyboard.state(taskId);
     }
 
     /**

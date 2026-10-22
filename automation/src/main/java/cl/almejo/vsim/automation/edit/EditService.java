@@ -7,6 +7,7 @@ import cl.almejo.vsim.automation.DocumentId;
 import cl.almejo.vsim.automation.DocumentVersion;
 import cl.almejo.vsim.automation.EditHost;
 import cl.almejo.vsim.automation.TaskInfo;
+import cl.almejo.vsim.automation.StageUndoOutcome;
 import cl.almejo.vsim.automation.UndoOutcome;
 import cl.almejo.vsim.core.command.Command;
 import cl.almejo.vsim.core.command.History;
@@ -23,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
@@ -203,7 +205,7 @@ public final class EditService {
         log.record(request, receipt);
         prepared.task().ifPresent(found -> {
             found.recordEdit(command, prepared.changes(), prepared.planned().layoutGuides());
-            found.recordHowItWasMade(howItWasMade(request, prepared.planned().aliases()));
+            found.recordHowItWasMade(howItWasMade(request, prepared.planned().aliases()), stageIndex);
         });
         return receipt;
     }
@@ -380,7 +382,8 @@ public final class EditService {
         }
         ReplaceContentCommand content = ReplaceContentCommand.between(circuit.document(), candidate,
                 AiEditCommand.DESCRIPTION);
-        AiEditCommand command = new AiEditCommand(content, Optional.of(task.info().taskId()));
+        AiEditCommand command = new AiEditCommand(content, Optional.of(task.info().taskId()),
+                AiEditCommand.CLEANUP_STAGE, AiEditCommand.DESCRIPTION);
         circuit.history().execute(command);
         task.recordEdit(command, EditReceipt.ElementChanges.NONE, List.of());
         return removed;
@@ -406,23 +409,57 @@ public final class EditService {
 
     /**
      * «Deshacer etapa» (spec §4.1): undoes the steps of stage {@code stageIndex} of the task one after the other while
-     * one of them is on top of the history; stops at anything else — the user's own edit, another stage — and says
-     * so when steps of the stage remain under it. Safe to call from the editor thread.
+     * one of them is on top of the history (passing over the task's step that took its layout-only guides away);
+     * stops at anything else — the user's own edit, another stage's step — and says which when steps of the stage
+     * remain under it. Safe to call from the editor thread.
      */
-    public UndoOutcome undoStage(String taskId, int stageIndex) {
+    public StageUndoOutcome undoStage(String taskId, int stageIndex) {
         AiTask task = requireTask(taskId);
         return editorWait.await(host.onCircuit(task.info().document(),
                 circuit -> undoStage(circuit.history(), task, stageIndex)));
     }
 
-    private static UndoOutcome undoStage(History history, AiTask task, int stageIndex) {
+    /**
+     * «Deshacer etapa» in the panel: undoes the stage of the task's step on top of the history, else the latest stage
+     * that still has a step in the circuit (a stage that only checked has none, so the one before it is undone);
+     * {@link StageUndoOutcome#NOTHING_TO_UNDO} when no stage has any. Pressed again, it goes back one more stage.
+     * Safe to call from the editor thread.
+     */
+    public StageUndoOutcome undoLatestStage(String taskId) {
+        AiTask task = requireTask(taskId);
+        return editorWait.await(host.onCircuit(task.info().document(), circuit -> {
+            OptionalInt stage = topStepOf(circuit.history(), task)
+                    .filter(edit -> edit.stageIndex() >= 0)
+                    .map(edit -> OptionalInt.of(edit.stageIndex()))
+                    .orElseGet(task::latestStageWithAppliedEdits);
+            return stage.isPresent() ? undoStage(circuit.history(), task, stage.getAsInt())
+                    : StageUndoOutcome.NOTHING_TO_UNDO;
+        }));
+    }
+
+    private static StageUndoOutcome undoStage(History history, AiTask task, int stageIndex) {
         int undone = 0;
-        while (history.undoCommand().filter(AiEditCommand.class::isInstance).map(AiEditCommand.class::cast)
-                .filter(edit -> edit.belongsTo(task.info().taskId(), stageIndex)).isPresent()) {
+        while (true) {
+            Optional<AiEditCommand> top = topStepOf(history, task);
+            boolean ofTheStage = top.filter(edit -> edit.stageIndex() == stageIndex).isPresent();
+            boolean cleanupOverIt = top.filter(edit -> edit.stageIndex() == AiEditCommand.CLEANUP_STAGE).isPresent()
+                    && task.hasAppliedEdits(stageIndex);
+            if (!ofTheStage && !cleanupOverIt) {
+                break;
+            }
             history.undo();
             undone++;
         }
-        return new UndoOutcome(undone, task.hasAppliedEdits(stageIndex));
+        StageUndoOutcome.StoppedAt stoppedAt = !task.hasAppliedEdits(stageIndex) ? StageUndoOutcome.StoppedAt.NOTHING
+                : topStepOf(history, task).isPresent() ? StageUndoOutcome.StoppedAt.ANOTHER_STAGE
+                : StageUndoOutcome.StoppedAt.USER_EDIT;
+        return new StageUndoOutcome(stageIndex, undone, stoppedAt, task.latestStageWithAppliedEdits().isPresent());
+    }
+
+    /** The step on top of the history when it is one of {@code task}'s. */
+    private static Optional<AiEditCommand> topStepOf(History history, AiTask task) {
+        return history.undoCommand().filter(AiEditCommand.class::isInstance).map(AiEditCommand.class::cast)
+                .filter(edit -> edit.belongsTo(task.info().taskId()));
     }
 
     /** The AI says it works on stage {@code stageIndex} of the task now («begin stage», IA.2). */

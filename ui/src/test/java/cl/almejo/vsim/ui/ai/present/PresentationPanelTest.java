@@ -2,10 +2,13 @@ package cl.almejo.vsim.ui.ai.present;
 
 import cl.almejo.vsim.automation.DocumentId;
 import cl.almejo.vsim.automation.EditorSetting;
+import cl.almejo.vsim.automation.StageUndoOutcome;
+import cl.almejo.vsim.automation.StageUndoOutcome.StoppedAt;
 import cl.almejo.vsim.automation.TaskInfo;
 import cl.almejo.vsim.automation.edit.TaskStage;
 import cl.almejo.vsim.automation.present.PresentationPace;
 import cl.almejo.vsim.automation.present.StepStatus;
+import cl.almejo.vsim.automation.present.StoryboardState;
 import cl.almejo.vsim.ui.ai.SettingsOverride;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.i18n.Messages;
@@ -130,7 +133,74 @@ class PresentationPanelTest {
         panel.stopButton().doClick();
         panel.undoStageButton().doClick();
 
-        assertThat(controls.calls).containsExactly("toStageEnd t1", "stop t1", "undoStage t1 1");
+        assertThat(controls.calls).containsExactly("toStageEnd t1", "stop t1", "undoStage t1");
+    }
+
+    /** Review I2: it says what it did, and turns off once no stage has steps left. */
+    @Test
+    void deshacerEtapaSaysWhatItDidAndTurnsOffWhenNothingIsLeft() {
+        controls.nextUndo = new StageUndoOutcome(1, 2, StoppedAt.ANOTHER_STAGE, true);
+        panel.undoStageButton().doClick();
+        assertThat(panel.notice().getText()).isEqualTo("Me detuve en un paso de otra etapa; pasos deshechos: 2");
+        assertThat(panel.undoStageButton().isEnabled()).isTrue();
+
+        controls.nextUndo = new StageUndoOutcome(0, 0, StoppedAt.USER_EDIT, true);
+        panel.undoStageButton().doClick();
+        assertThat(panel.notice().getText()).isEqualTo("Me detuve en un cambio tuyo; pasos de la IA deshechos: 0");
+
+        controls.nextUndo = new StageUndoOutcome(0, 3, StoppedAt.NOTHING, false);
+        panel.undoStageButton().doClick();
+        assertThat(panel.notice().getText()).isEqualTo("Deshice la etapa 1: 3 pasos");
+        assertThat(panel.undoStageButton().isEnabled()).isFalse();
+    }
+
+    @Test
+    void deshacerEtapaWithNothingLeftSaysSo() {
+        controls.nextUndo = StageUndoOutcome.NOTHING_TO_UNDO;
+
+        panel.undoStageButton().doClick();
+
+        assertThat(panel.notice().getText()).isEqualTo("Nada que deshacer");
+        assertThat(panel.undoStageButton().isEnabled()).isFalse();
+    }
+
+    /** Review I1: the stages are not a storyboard (a later one is wired to an earlier one's parts). */
+    @Test
+    void atTheEndKeepOnlyTheResultIsOfferedOnlyWhenTheStagesAreSeparate() {
+        controls.state = new StoryboardState(true, false);
+
+        task.ended();
+        panel.show(task, false);
+
+        assertThat(controls.stateQuestions).containsExactly("t1");
+        assertThat(panel.keepOnlyResultButton().isVisible()).isFalse();
+        assertThat(panel.undoStageButton().isEnabled()).isTrue();
+    }
+
+    @Test
+    void aRefusedKeepOnlyTheResultSaysWhyAndGoesAway() {
+        task.ended();
+        panel.show(task, false);
+        controls.keepSucceeds = false;
+        controls.state = new StoryboardState(true, false);
+
+        panel.keepOnlyResultButton().doClick();
+
+        assertThat(panel.notice().getText())
+                .isEqualTo("Las etapas no están separadas: dejar solo el resultado rompería el circuito");
+        assertThat(panel.keepOnlyResultButton().isVisible()).isFalse();
+    }
+
+    /** Review M5: «Detener» keeps the panel with «Deshacer etapa» and ×. */
+    @Test
+    void aStoppedTaskKeepsDeshacerEtapaAndClose() {
+        task.stopped();
+        panel.show(task, false);
+
+        assertThat(panel.notice().getText()).isEqualTo("Detuviste a la IA");
+        assertThat(panel.undoStageButton().isVisible()).isTrue();
+        assertThat(panel.closeButton().isVisible()).isTrue();
+        assertThat(panel.stopButton().isVisible()).isFalse();
     }
 
     @Test

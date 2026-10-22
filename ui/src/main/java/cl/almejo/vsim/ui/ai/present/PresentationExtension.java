@@ -2,7 +2,9 @@ package cl.almejo.vsim.ui.ai.present;
 
 import cl.almejo.vsim.automation.AutomationListener;
 import cl.almejo.vsim.automation.DocumentId;
+import cl.almejo.vsim.automation.StageUndoOutcome;
 import cl.almejo.vsim.automation.TaskInfo;
+import cl.almejo.vsim.automation.present.StoryboardState;
 import cl.almejo.vsim.ui.ai.AiServerService;
 import cl.almejo.vsim.ui.ai.EditorAutomationHost;
 import cl.almejo.vsim.ui.app.OpenDocument;
@@ -17,6 +19,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.Executor;
+import java.util.function.Consumer;
 import java.util.function.Function;
 
 /**
@@ -68,11 +71,15 @@ public final class PresentationExtension implements EditorExtension {
             }
 
             @Override
-            public void undoStage(String taskId, int stageIndex) {
+            public void undoStage(String taskId, Consumer<StageUndoOutcome> done) {
             }
 
             @Override
-            public void keepOnlyResult(String taskId) {
+            public void keepOnlyResult(String taskId, Consumer<Boolean> done) {
+            }
+
+            @Override
+            public void storyboardState(String taskId, Consumer<StoryboardState> done) {
             }
         }, host::documentId);
     }

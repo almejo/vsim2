@@ -1,9 +1,11 @@
 package cl.almejo.vsim.ui.ai.present;
 
+import cl.almejo.vsim.automation.StageUndoOutcome;
 import cl.almejo.vsim.automation.TaskInfo;
 import cl.almejo.vsim.automation.edit.TaskStage;
 import cl.almejo.vsim.automation.present.StepPreview;
 import cl.almejo.vsim.automation.present.StepStatus;
+import cl.almejo.vsim.automation.present.StoryboardState;
 
 import java.time.Duration;
 import java.util.HashMap;
@@ -11,12 +13,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.OptionalInt;
 
 /**
  * One AI task as the «Presentar» panel follows it (spec §5): its plan, the stage and the step it is on (the first
- * step of the current stage not applied yet), the step waiting for «Siguiente», each stage's check, the last discard
- * and whether it ended. The panel only reads it. EDT only.
+ * step of the current stage not applied yet), the step waiting for «Siguiente», each stage's check, the last discard,
+ * whether it ended or was stopped, and what VSim said about its storyboard (whether a stage is left to undo, whether
+ * only the result can be kept) and the last «Deshacer etapa». The panel only reads it. EDT only.
  */
 final class PresentedTask {
 
@@ -42,6 +44,14 @@ final class PresentedTask {
     /** «De corrido»: how long the step on its way waits for its pause; null when none waits. */
     private Duration pacedFor;
     private boolean ended;
+    private boolean stopped;
+    /** Whether a step of the task went in (until VSim says otherwise). */
+    private boolean anyStepIn;
+    /** What VSim said about the storyboard since the last step; null until it said. */
+    private StoryboardState storyboard;
+    private boolean storyboardAsked;
+    private StageUndoOutcome lastUndo;
+    private boolean keepRefused;
 
     PresentedTask(TaskInfo task) {
         this.task = Objects.requireNonNull(task, "task");
@@ -55,12 +65,17 @@ final class PresentedTask {
         stages = List.copyOf(newStages);
         currentStage = stage;
         currentStep = step;
+        if (stage > 0 || step > 0) {
+            anyStepIn = true;
+        }
     }
 
     void stepProposed(StepPreview preview) {
         pacedFor = null;
         pending = preview;
         lastDiscard = null;
+        lastUndo = null;
+        keepRefused = false;
         currentStage = preview.stageIndex();
         currentStep = preview.stepIndex();
     }
@@ -69,11 +84,15 @@ final class PresentedTask {
         pacedFor = null;
         pending = null;
         lastDiscard = null;
+        lastUndo = null;
+        keepRefused = false;
+        anyStepIn = true;
+        storyboard = null;
+        storyboardAsked = false;
         currentStage = preview.stageIndex();
         currentStep = preview.stepIndex() + 1;
     }
 
-    /** The pending step was dropped: {@code why} is {@link StepStatus#STALE} or {@link StepStatus#STOPPED}. */
     /** «De corrido»: the next step is applied once {@code delay} has passed. */
     void stepPaced(Duration delay) {
         pacedFor = Objects.requireNonNull(delay, "delay");
@@ -84,6 +103,7 @@ final class PresentedTask {
         return Optional.ofNullable(pacedFor);
     }
 
+    /** The pending step was dropped: {@code why} is {@link StepStatus#STALE} or {@link StepStatus#STOPPED}. */
     void stepDiscarded(StepStatus why) {
         pacedFor = null;
         pending = null;
@@ -100,8 +120,78 @@ final class PresentedTask {
         pending = null;
     }
 
+    /** «Detener»: like the end, the panel stays with «Deshacer etapa» and ×. */
+    void stopped() {
+        ended();
+        stopped = true;
+    }
+
+    /** True once the task ended or was stopped. */
     boolean isEnded() {
         return ended;
+    }
+
+    boolean isStopped() {
+        return stopped;
+    }
+
+    // --- the storyboard, as VSim says it is ---
+
+    /** VSim said what the panel may offer now. */
+    void storyboardChanged(StoryboardState state) {
+        storyboard = Objects.requireNonNull(state, "state");
+        storyboardAsked = true;
+    }
+
+    /** True once VSim said what the panel may offer (or the panel asked it already). */
+    boolean storyboardKnown() {
+        return storyboard != null;
+    }
+
+    /** True once the panel asked VSim, so it asks only once until something changes. */
+    boolean storyboardAsked() {
+        return storyboardAsked;
+    }
+
+    void storyboardAskedNow() {
+        storyboardAsked = true;
+    }
+
+    /** «Deshacer etapa» did {@code outcome}; VSim is asked again what is left. */
+    void stageUndone(StageUndoOutcome outcome) {
+        lastUndo = Objects.requireNonNull(outcome, "outcome");
+        keepRefused = false;
+        storyboard = new StoryboardState(outcome.moreToUndo(), storyboard != null && storyboard.canKeepOnlyResult());
+        storyboardAsked = false;
+    }
+
+    /** «Dejar solo el resultado» was done ({@code true}) or refused; VSim is asked again what is left. */
+    void keptOnlyResult(boolean done) {
+        lastUndo = null;
+        keepRefused = !done;
+        boolean canUndo = storyboard == null || storyboard.canUndoStage();
+        storyboard = new StoryboardState(canUndo, false);
+        storyboardAsked = false;
+    }
+
+    /** What the last «Deshacer etapa» did, until the next step or button. */
+    Optional<StageUndoOutcome> lastUndo() {
+        return Optional.ofNullable(lastUndo);
+    }
+
+    /** True when the last «Dejar solo el resultado» was refused. */
+    boolean keepRefused() {
+        return keepRefused;
+    }
+
+    /** «Deshacer etapa» is on once a step went in, until VSim says no stage has steps left. */
+    boolean canUndoStage() {
+        return storyboard != null ? storyboard.canUndoStage() : anyStepIn;
+    }
+
+    /** «Dejar solo el resultado» is offered only when VSim says the stages are a storyboard. */
+    boolean canKeepOnlyResult() {
+        return storyboard != null && storyboard.canKeepOnlyResult();
     }
 
     List<TaskStage> stages() {
@@ -140,19 +230,5 @@ final class PresentedTask {
     /** Why the last pending step was dropped, until the next step comes. */
     Optional<StepStatus> lastDiscard() {
         return Optional.ofNullable(lastDiscard);
-    }
-
-    /**
-     * The stage «Deshacer etapa» undoes: the current one once one of its steps is in, else the one before; the last
-     * one when the task ended.
-     */
-    OptionalInt stageToUndo() {
-        if (ended) {
-            return stages.isEmpty() ? OptionalInt.empty() : OptionalInt.of(stages.size() - 1);
-        }
-        if (currentStep > 0) {
-            return OptionalInt.of(currentStage);
-        }
-        return currentStage > 0 ? OptionalInt.of(currentStage - 1) : OptionalInt.empty();
     }
 }

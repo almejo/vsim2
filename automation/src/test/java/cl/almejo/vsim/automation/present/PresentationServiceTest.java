@@ -190,6 +190,23 @@ class PresentationServiceTest {
         assertThat(proposed).isEmpty();
     }
 
+    /** Review M1: a layout-only guide would be a history change under the ghost, staling the AI's own step. */
+    @Test
+    void aLayoutOnlyGuideWhileAGhostWaitsIsRefusedAndTheGhostStays() {
+        stepByStep();
+        service.edit(step(0, 0, place("gate", 0, 0)));
+
+        assertThatThrownBy(() -> service.edit(step(0, 1, new AddGuide(Guide.Orientation.VERTICAL, 4, true))))
+                .isInstanceOfSatisfying(AutomationException.class, refusal -> {
+                    assertThat(refusal.error()).isEqualTo(AutomationError.NOT_ALLOWED);
+                    assertThat(refusal.getMessage()).contains("still waits for «Siguiente»");
+                });
+        assertThat(heard).doesNotContain("discarded STALE");
+        service.next(task.taskId());
+        assertThat(service.awaitStep(task.taskId(), Duration.ZERO).status()).isEqualTo(StepStatus.APPLIED);
+        assertThat(circuit.document().guides()).isEmpty();
+    }
+
     // --- waits that always end (Review Focus 2) ---
 
     @Test
@@ -295,6 +312,23 @@ class PresentationServiceTest {
         assertThatThrownBy(() -> second.get(5, TimeUnit.SECONDS))
                 .hasCauseInstanceOf(AutomationException.class);
         assertThat(circuit.document().elements()).hasSize(1);
+    }
+
+    /** Review M2: «Siguiente paso en …» goes away when the paced step is refused (the user edited meanwhile). */
+    @Test
+    void aPacedStepRefusedBecauseTheUserEditedIsAnnouncedAsStale() throws Exception {
+        continuous();
+        service.edit(step(0, 0, place("first", 0, 0)));
+        CompletableFuture<PresentedEdit> second = CompletableFuture.supplyAsync(
+                () -> service.edit(step(0, 1, place("second", 10, 0))));
+        host.pacer().nextRequestedDelay();
+        userAddsALabel();
+
+        host.pacer().advance(PAUSE);
+
+        assertThatThrownBy(() -> second.get(5, TimeUnit.SECONDS))
+                .hasCauseInstanceOf(AutomationException.class);
+        assertThat(heard).contains("discarded STALE");
     }
 
     // --- mode changes mid-task (Review Focus 5) ---

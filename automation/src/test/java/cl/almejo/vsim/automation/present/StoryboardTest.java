@@ -6,7 +6,8 @@ import cl.almejo.vsim.automation.AutomationException;
 import cl.almejo.vsim.automation.DocumentId;
 import cl.almejo.vsim.automation.DocumentVersion;
 import cl.almejo.vsim.automation.TaskInfo;
-import cl.almejo.vsim.automation.UndoOutcome;
+import cl.almejo.vsim.automation.StageUndoOutcome;
+import cl.almejo.vsim.automation.StageUndoOutcome.StoppedAt;
 import cl.almejo.vsim.automation.check.TextMeasure;
 import cl.almejo.vsim.automation.edit.EditOperation;
 import cl.almejo.vsim.automation.edit.EditOperation.Connect;
@@ -24,6 +25,7 @@ import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.Frame;
+import cl.almejo.vsim.core.document.Guide;
 import cl.almejo.vsim.core.document.FrameContents;
 import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.geometry.Bounds;
@@ -330,9 +332,9 @@ class StoryboardTest {
         apply(task, 0, place("second", "led", 12, 4));
         api.beginStage(task.taskId(), 1);
 
-        UndoOutcome outcome = api.undoStage(task.taskId(), 0);
+        StageUndoOutcome outcome = api.undoStage(task.taskId(), 0);
 
-        assertThat(outcome).isEqualTo(new UndoOutcome(3, false));
+        assertThat(outcome).isEqualTo(new StageUndoOutcome(0, 3, StoppedAt.NOTHING, false));
         assertThat(circuit.document().elements()).isEmpty();
     }
 
@@ -344,9 +346,9 @@ class StoryboardTest {
         apply(task, 0, place("first", "led", 2, 4));
         String users = userPlaces("switch", 100, 100);
 
-        UndoOutcome outcome = api.undoStage(task.taskId(), 0);
+        StageUndoOutcome outcome = api.undoStage(task.taskId(), 0);
 
-        assertThat(outcome).isEqualTo(new UndoOutcome(0, true));
+        assertThat(outcome).isEqualTo(new StageUndoOutcome(0, 0, StoppedAt.USER_EDIT, true));
         assertThat(elementIds()).contains(users).hasSize(2);
     }
 
@@ -359,11 +361,141 @@ class StoryboardTest {
         StageOrigin second = api.beginStage(task.taskId(), 1);
         apply(task, 1, place("second", "led", second.x(), second.y()));
 
-        UndoOutcome outcome = api.undoStage(task.taskId(), 0);
+        StageUndoOutcome outcome = api.undoStage(task.taskId(), 0);
 
-        assertThat(outcome).isEqualTo(new UndoOutcome(0, true));
-        assertThat(api.undoStage(task.taskId(), 1)).isEqualTo(new UndoOutcome(1, false));
-        assertThat(api.undoStage(task.taskId(), 0)).isEqualTo(new UndoOutcome(2, false));
+        // Another stage's step is on top: said so, never blamed on the user.
+        assertThat(outcome).isEqualTo(new StageUndoOutcome(0, 0, StoppedAt.ANOTHER_STAGE, true));
+        assertThat(api.undoStage(task.taskId(), 1)).isEqualTo(new StageUndoOutcome(1, 1, StoppedAt.NOTHING, true));
+        assertThat(api.undoStage(task.taskId(), 0)).isEqualTo(new StageUndoOutcome(0, 2, StoppedAt.NOTHING, false));
+        assertThat(circuit.document().elements()).isEmpty();
+    }
+
+    // --- the review's findings (IA.2 fix round) ---
+
+    /** I1: a later stage that wires an earlier stage's parts is not a storyboard: nothing is removed. */
+    @Test
+    void keepOnlyTheResultIsRefusedWhenTheLastStageWiresTheFirstStagesParts() {
+        presenting();
+        List<TaskStage> plan = List.of(new TaskStage("Coloco las piezas", List.of("Coloco")),
+                new TaskStage("Conecto", List.of("Conecto")));
+        TaskInfo task = api.beginTask(DOCUMENT, "Dos etapas", plan);
+        api.beginStage(task.taskId(), 0);
+        EditReceipt parts = applyIn(task, "Coloco las piezas",
+                new PlacePart(Optional.of("a"), "input-pin", 2, 4, Rotation.R0, Map.of(), "A"),
+                new PlacePart(Optional.of("s"), "output-pin", 20, 4, Rotation.R0, Map.of(), "S"));
+        applyIn(task, "Conecto", connect(parts.aliases().get("a"), "pin", parts.aliases().get("s"), "pin"));
+        api.endTask(task.taskId());
+        Set<String> before = elementIds();
+
+        assertThat(api.storyboardState(task.taskId()).canKeepOnlyResult()).isFalse();
+        assertRefused(() -> api.keepOnlyResult(task.taskId()), "not separate");
+        assertThat(elementIds()).isEqualTo(before);
+        assertThat(circuit.document().components()).hasSize(2);
+    }
+
+    /** I1: a stage that got no frame (the user's part lies among its parts) is not a storyboard either. */
+    @Test
+    void keepOnlyTheResultIsRefusedWhenAnEarlierStageHasNoFrame() {
+        presenting();
+        TaskInfo task = api.beginTask(DOCUMENT, "Dos etapas", STORY);
+        api.beginStage(task.taskId(), 0);
+        apply(task, 0, place("left", "led", 0, 10), place("right", "led", 40, 10));
+        userPlaces("switch", 20, 10);
+        known = host.onEditor(circuit::version);
+        StageOrigin second = api.beginStage(task.taskId(), 1);
+        apply(task, 1, place("second", "led", second.x(), second.y()));
+        api.endTask(task.taskId());
+        assertThat(circuit.document().frames()).singleElement()
+                .satisfies(frame -> assertThat(frame.title()).isEqualTo("Componente de 2 bits"));
+
+        assertThat(api.storyboardState(task.taskId()).canKeepOnlyResult()).isFalse();
+        assertRefused(() -> api.keepOnlyResult(task.taskId()), "not separate");
+        assertThat(circuit.document().components()).hasSize(4);
+    }
+
+    @Test
+    void theStoryCanKeepOnlyTheResultOnceItEnded() {
+        presenting();
+        TaskInfo task = api.beginTask(DOCUMENT, "Sumador de 4 bits", STORY);
+        tellTheStory(task);
+
+        assertThat(api.storyboardState(task.taskId()).canKeepOnlyResult()).as("not while it runs").isFalse();
+        api.endTask(task.taskId());
+
+        assertThat(api.storyboardState(task.taskId())).isEqualTo(new StoryboardState(true, true));
+    }
+
+    /** I3: VSim's lock of the first stage's frame belongs to the stage that made the component of it. */
+    @Test
+    void undoStageUndoesTheLockItsComponentCausedAndNeverBlamesTheUser() {
+        presenting();
+        List<TaskStage> plan = List.of(new TaskStage("Sumador", List.of("Coloco")),
+                new TaskStage("Componente", List.of("Creo", "Coloco")),
+                new TaskStage("Prueba", List.of("Coloco")));
+        TaskInfo task = api.beginTask(DOCUMENT, "Tres etapas", plan);
+        StageOrigin first = api.beginStage(task.taskId(), 0);
+        EditReceipt gates = applyIn(task, "Sumador",
+                new PlacePart(Optional.of("a"), "input-pin", first.x(), first.y() + 1, Rotation.R0, Map.of(), "A"),
+                new PlacePart(Optional.of("s"), "output-pin", first.x() + 10, first.y() + 1, Rotation.R0, Map.of(),
+                        "S"));
+        StageOrigin second = api.beginStage(task.taskId(), 1);
+        applyIn(task, "Componente", new CreateComponent(Optional.empty(), "Comp", addedBy(gates), Map.of(), false));
+        applyIn(task, "Componente", new PlaceInstance(Optional.empty(), "Comp", second.x(), second.y(),
+                Rotation.R0));
+        api.beginStage(task.taskId(), 2);
+        assertThat(frameTitled("Sumador").locked()).isTrue();
+
+        StageUndoOutcome outcome = api.undoStage(task.taskId(), 1);
+
+        // the stage's frame, the lock, the instance and the component
+        assertThat(outcome).isEqualTo(new StageUndoOutcome(1, 4, StoppedAt.NOTHING, true));
+        assertThat(circuit.document().definitions()).isEmpty();
+        assertThat(frameTitled("Sumador").locked()).isFalse();
+        assertThat(circuit.document().components()).hasSize(2);
+    }
+
+    /** I2: «Deshacer etapa» goes back stage by stage, passing over a stage that only checked. */
+    @Test
+    void undoTheLatestStageGoesBackStageByStageAndSkipsAStageWithoutSteps() {
+        presenting();
+        List<TaskStage> plan = List.of(new TaskStage("Uno", List.of("Coloco")),
+                new TaskStage("Dos", List.of("Coloco")),
+                new TaskStage("Comprobar", List.of("Compruebo la tabla")));
+        TaskInfo task = api.beginTask(DOCUMENT, "Tres etapas", plan);
+        api.beginStage(task.taskId(), 0);
+        applyIn(task, "Uno", place("first", "led", 2, 4));
+        StageOrigin second = api.beginStage(task.taskId(), 1);
+        applyIn(task, "Dos", place("second", "led", second.x(), second.y()));
+        api.beginStage(task.taskId(), 2);
+        api.endTask(task.taskId());
+        assertThat(api.storyboardState(task.taskId()).canUndoStage()).isTrue();
+
+        assertThat(api.undoLatestStage(task.taskId()))
+                .isEqualTo(new StageUndoOutcome(1, 2, StoppedAt.NOTHING, true));
+        assertThat(circuit.document().components()).hasSize(1);
+        assertThat(api.undoLatestStage(task.taskId()))
+                .isEqualTo(new StageUndoOutcome(0, 2, StoppedAt.NOTHING, false));
+        assertThat(circuit.document().elements()).isEmpty();
+        assertThat(api.storyboardState(task.taskId()).canUndoStage()).isFalse();
+        assertThat(api.undoLatestStage(task.taskId())).isEqualTo(StageUndoOutcome.NOTHING_TO_UNDO);
+    }
+
+    /** I2: the step that takes the layout-only guides away at the end never stops «Deshacer etapa». */
+    @Test
+    void undoTheLatestStageTakesBackTheLayoutGuidesCleanupWithIt() {
+        presenting();
+        TaskInfo task = api.beginTask(DOCUMENT, "Una etapa", STORY);
+        api.beginStage(task.taskId(), 0);
+        known = api.edit(request(task, 0, new EditOperation.AddGuide(Guide.Orientation.VERTICAL, 2, true)))
+                .version();
+        apply(task, 0, place("first", "led", 2, 4));
+        api.endTask(task.taskId());
+        assertThat(circuit.document().guides()).isEmpty();
+
+        StageUndoOutcome outcome = api.undoLatestStage(task.taskId());
+
+        assertThat(outcome.stoppedAt()).isEqualTo(StoppedAt.NOTHING);
+        assertThat(outcome.moreToUndo()).isFalse();
         assertThat(circuit.document().elements()).isEmpty();
     }
 
@@ -431,6 +563,27 @@ class StoryboardTest {
         }
         known = receipt.version();
         return receipt;
+    }
+
+    /** One step of the stage titled {@code stage} (a plan other than {@link #STORY}), as {@link #apply} does. */
+    private EditReceipt applyIn(TaskInfo task, String stage, EditOperation... operations) {
+        String text = "Paso " + nextOperation;
+        PresentedEdit edit = api.editStep(new EditRequest(DOCUMENT, known, "op-" + nextOperation++,
+                Optional.of(new TaskStep(task.taskId(), stage, text, text)), List.of(operations), false));
+        EditReceipt receipt = edit.receipt();
+        if (edit.proposed()) {
+            api.nextStep(task.taskId());
+            StepOutcome outcome = api.awaitStep(task.taskId(), Duration.ZERO);
+            assertThat(outcome.status()).isEqualTo(StepStatus.APPLIED);
+            receipt = outcome.receipt().orElseThrow();
+        }
+        known = receipt.version();
+        return receipt;
+    }
+
+    private Frame frameTitled(String title) {
+        return circuit.document().frames().stream().filter(frame -> frame.title().equals(title)).findFirst()
+                .orElseThrow();
     }
 
     private EditRequest request(TaskInfo task, int stage, EditOperation... operations) {

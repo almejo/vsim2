@@ -22,6 +22,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -65,6 +66,45 @@ class SettingsOverrideTest {
 
         assertThat(aiWindow.aiPace()).isEqualTo(cl.almejo.vsim.automation.present.PresentationPace.STEP_BY_STEP);
         assertThat(aiWindow.aiPauseMillis()).isEqualTo(1000);
+    }
+
+    /** Review M3: «Mantener» / «Volver a los míos» are about the editor settings; the AI's pace stays for the task. */
+    @Test
+    void keepingOrGivingBackTheEditorSettingsLeavesTheAisPaceForTheTask() {
+        override.layerPresentation(Optional.of(cl.almejo.vsim.automation.present.PresentationPace.CONTINUOUS),
+                Optional.of(java.time.Duration.ofMillis(2000)));
+        override.set(EditorSetting.SHOW_GUIDES, "false");
+
+        override.dropEditorSettings();
+
+        assertThat(aiWindow.showGuides()).isTrue();
+        assertThat(aiWindow.aiPace()).isEqualTo(cl.almejo.vsim.automation.present.PresentationPace.CONTINUOUS);
+        override.set(EditorSetting.SHOW_GUIDES, "false");
+
+        override.keep();
+
+        assertThat(saved.showGuides()).isFalse();
+        assertThat(aiWindow.aiPace()).isEqualTo(cl.almejo.vsim.automation.present.PresentationPace.CONTINUOUS);
+        assertThat(aiWindow.aiPauseMillis()).isEqualTo(2000);
+        assertThat(saved.aiPace()).isEqualTo(cl.almejo.vsim.automation.present.PresentationPace.STEP_BY_STEP);
+        override.drop();
+        assertThat(aiWindow.aiPace()).isEqualTo(cl.almejo.vsim.automation.present.PresentationPace.STEP_BY_STEP);
+    }
+
+    /** Review M4: the pace the user picks in a second window of the circuit wins over the AI's in the first. */
+    @Test
+    void thePaceTheUserPicksInAnyWindowReplacesTheAisInEveryWindow() {
+        override.layerPresentation(Optional.of(cl.almejo.vsim.automation.present.PresentationPace.CONTINUOUS),
+                Optional.of(java.time.Duration.ofMillis(2000)));
+        List<String> heard = new ArrayList<>();
+        saved.addListener(() -> heard.add("changed"));
+
+        otherWindow.setAiPace(cl.almejo.vsim.automation.present.PresentationPace.STEP_BY_STEP);
+        otherWindow.setAiPauseMillis(500);
+
+        assertThat(aiWindow.aiPace()).isEqualTo(cl.almejo.vsim.automation.present.PresentationPace.STEP_BY_STEP);
+        assertThat(aiWindow.aiPauseMillis()).isEqualTo(500);
+        assertThat(heard).isNotEmpty();
     }
 
     @Test

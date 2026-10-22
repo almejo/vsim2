@@ -20,6 +20,9 @@ import cl.almejo.vsim.core.document.FrameTint;
 import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.geometry.GridPoint;
+import cl.almejo.vsim.core.netlist.Net;
+import cl.almejo.vsim.core.netlist.Netlist;
+import cl.almejo.vsim.core.netlist.NetlistCompiler;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -44,7 +47,8 @@ import java.util.function.Predicate;
  *     rectangle around it would take in anything else (the user's own parts, another stage's), it is drawn tighter,
  *     and when no rectangle can avoid them the stage stays without a frame;</li>
  *     <li>{@link #keepOnlyResult}: removes the other stages' frames and what they added, keeping the last stage and
- *     every component definition, as one undo step.</li>
+ *     every component definition, as one undo step — only when the stages really are a storyboard: every earlier
+ *     stage in its own frame and nothing of them joined to what stays (else it is refused and nothing changes).</li>
  * </ul>
  * Frames are made only in «Presentar»; in working mode the AI frames what it wants itself.
  */
@@ -147,22 +151,18 @@ public final class Storyboard implements PresentationService.StageBoundary {
 
     private int keepOnlyResult(EditableCircuit circuit, AiTask task) {
         CircuitDocument candidate = circuit.document().copy();
-        List<Integer> stages = task.stagesThatCreated().stream()
-                .filter(stage -> !live(candidate, task.createdIn(stage)).isEmpty())
-                .toList();
-        if (stages.size() < 2) {
-            return 0;
+        Optional<Set<ElementId>> removable = removable(candidate, circuit.registry(), task);
+        if (removable.isEmpty()) {
+            String taskId = task.info().taskId();
+            throw new AutomationException(AutomationError.NOT_ALLOWED, "The stages of task " + taskId + " are not "
+                    + "separate (a later stage is joined to an earlier stage's parts, or an earlier stage has no frame "
+                    + "of its own): «Dejar solo el resultado» would break the circuit. Nothing was changed",
+                    Map.of("taskId", taskId));
         }
-        int result = stages.getLast();
-        Set<ElementId> kept = new HashSet<>(ids(live(candidate, task.createdIn(result))));
-        liveFrame(candidate, task, result).ifPresent(frame ->
-                kept.addAll(FrameContents.of(candidate, circuit.registry(), frame)));
         int removed = 0;
-        for (int stage : stages.subList(0, stages.size() - 1)) {
-            for (DocumentElement element : live(candidate, task.createdIn(stage))) {
-                if (!kept.contains(element.id()) && candidate.remove(element.id()).isPresent()) {
-                    removed++;
-                }
+        for (ElementId id : removable.get()) {
+            if (candidate.remove(id).isPresent()) {
+                removed++;
             }
         }
         edits.writeTaskStep(circuit, task, EditService.NO_STAGE, candidate,
@@ -170,11 +170,92 @@ public final class Storyboard implements PresentationService.StageBoundary {
         return removed;
     }
 
+    /**
+     * What the «Presentar» panel may offer for the task now: «Deshacer etapa» while a stage has a step in the circuit,
+     * «Dejar solo el resultado» once the task no longer runs, no step waits and its stages are a storyboard with
+     * something to remove. Off the editor thread.
+     */
+    public StoryboardState state(String taskId) {
+        Optional<AiTask> found = edits.task(taskId);
+        if (found.isEmpty()) {
+            return StoryboardState.NONE;
+        }
+        AiTask task = found.get();
+        try {
+            return edits.onCircuit(task.info().document(), circuit -> {
+                boolean canUndo = task.latestStageWithAppliedEdits().isPresent();
+                boolean canKeep = task.state() != AiTask.State.RUNNING && !stepPending.test(taskId)
+                        && removable(circuit.document(), circuit.registry(), task)
+                        .filter(removed -> !removed.isEmpty()).isPresent();
+                return new StoryboardState(canUndo, canKeep);
+            });
+        } catch (AutomationException closed) {
+            if (closed.error() != AutomationError.DOCUMENT_CLOSED) {
+                throw closed;
+            }
+            return StoryboardState.NONE;
+        }
+    }
+
+    /**
+     * What «Dejar solo el resultado» removes from {@code document}: what the stages before the last one added (their
+     * frames included) and that does not lie in the last stage's frame; nothing with fewer than two stages left.
+     * Empty when the stages are not a storyboard: an earlier stage without its own frame, or anything removed sharing
+     * a net with anything that stays (a later stage wired to its parts, the user's own parts).
+     */
+    private static Optional<Set<ElementId>> removable(CircuitDocument document, ComponentTypeRegistry registry,
+                                                      AiTask task) {
+        List<Integer> stages = task.stagesThatCreated().stream()
+                .filter(stage -> !live(document, task.createdIn(stage)).isEmpty())
+                .toList();
+        if (stages.size() < 2) {
+            return Optional.of(Set.of());
+        }
+        int result = stages.getLast();
+        Set<ElementId> kept = new HashSet<>(ids(live(document, task.createdIn(result))));
+        liveFrame(document, task, result).ifPresent(frame ->
+                kept.addAll(FrameContents.of(document, registry, frame)));
+        Set<ElementId> removed = new LinkedHashSet<>();
+        for (int stage : stages.subList(0, stages.size() - 1)) {
+            if (liveFrame(document, task, stage).isEmpty()) {
+                return Optional.empty();
+            }
+            for (DocumentElement element : live(document, task.createdIn(stage))) {
+                if (!kept.contains(element.id())) {
+                    removed.add(element.id());
+                }
+            }
+        }
+        return joinsWhatStays(document, registry, removed) ? Optional.empty() : Optional.of(removed);
+    }
+
+    /** True when some net joins an element of {@code removed} with one that stays (or the nets cannot be known). */
+    private static boolean joinsWhatStays(CircuitDocument document, ComponentTypeRegistry registry,
+                                          Set<ElementId> removed) {
+        Netlist netlist;
+        try {
+            netlist = new NetlistCompiler(registry).compile(document);
+        } catch (RuntimeException unknownType) {
+            return true;
+        }
+        for (Net net : netlist.nets()) {
+            List<ElementId> members = new ArrayList<>(net.wires());
+            net.pins().forEach(pin -> members.add(pin.componentId()));
+            boolean goes = members.stream().anyMatch(removed::contains);
+            boolean stays = members.stream().anyMatch(member -> !removed.contains(member));
+            if (goes && stays) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     // --- frames ---
 
     /**
      * Editor thread: each stage before {@code limit} that added something gets its frame, one undo step of that
-     * stage each; a frame made earlier is locked once a component was made of its stage's parts.
+     * stage each; a frame is locked once a component was made of its stage's parts, and the lock is a step of the
+     * stage that made the component (so «Deshacer etapa» of that stage takes the lock back with it).
      */
     private void frameStagesBefore(EditableCircuit circuit, AiTask task, int limit) {
         for (int stage : task.stagesThatCreated()) {
@@ -183,19 +264,23 @@ public final class Storyboard implements PresentationService.StageBoundary {
             }
             CircuitDocument candidate = circuit.document().copy();
             Optional<Frame> existing = liveFrame(candidate, task, stage);
-            boolean locked = task.madeAComponentOf(task.createdIn(stage));
-            if (existing.isPresent()) {
-                if (locked && !existing.get().locked()) {
-                    candidate.replace(existing.get().withLocked(true));
-                    edits.writeTaskStep(circuit, task, stage, candidate, EditService.STAGE_FRAME_DESCRIPTION, true);
+            OptionalInt maker = task.stageThatMadeAComponentOf(task.createdIn(stage));
+            if (existing.isEmpty()) {
+                Optional<Frame> frame = frameFor(candidate, circuit.registry(), host.textMeasure(), task, stage,
+                        maker.isPresent() && maker.getAsInt() == stage);
+                if (frame.isEmpty()) {
+                    continue;
                 }
-                continue;
-            }
-            Optional<Frame> frame = frameFor(candidate, circuit.registry(), host.textMeasure(), task, stage, locked);
-            if (frame.isPresent()) {
                 candidate.add(frame.get());
                 edits.writeTaskStep(circuit, task, stage, candidate, EditService.STAGE_FRAME_DESCRIPTION, true);
                 task.recordStageFrame(stage, frame.get().id().value());
+                candidate = circuit.document().copy();
+                existing = liveFrame(candidate, task, stage);
+            }
+            if (maker.isPresent() && existing.isPresent() && !existing.get().locked()) {
+                candidate.replace(existing.get().withLocked(true));
+                edits.writeTaskStep(circuit, task, maker.getAsInt(), candidate, EditService.STAGE_FRAME_DESCRIPTION,
+                        true);
             }
         }
     }

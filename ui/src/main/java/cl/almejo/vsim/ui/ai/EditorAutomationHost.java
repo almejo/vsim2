@@ -174,13 +174,18 @@ public final class EditorAutomationHost implements AutomationHost {
         windows.setPresenting(documentOf(document), presenting);
     }
 
-    /** The AI's pace and pause for its task, in the temporary layer of the circuit's first window (spec §7). */
+    /**
+     * The AI's pace and pause for its task, in the temporary layer of every window of the circuit (spec §7): the
+     * first one is read, the others show it; the user's pick in any of them replaces it in all.
+     */
     @Override
     public void layerPresentation(DocumentId document, Optional<PresentationPace> pace, Optional<Duration> pause) {
         OpenDocument open = documentOf(document);
-        SettingsOverride override = windows.settingsOverride(open).orElseThrow(() ->
-                new AutomationException(AutomationError.NOT_ALLOWED, "This circuit has no window settings"));
-        override.layerPresentation(pace, pause);
+        List<SettingsOverride> overrides = windows.settingsOverridesOfEveryWindow(open);
+        if (overrides.isEmpty()) {
+            throw new AutomationException(AutomationError.NOT_ALLOWED, "This circuit has no window settings");
+        }
+        overrides.forEach(override -> override.layerPresentation(pace, pause));
     }
 
     @Override

@@ -6,11 +6,13 @@ import cl.almejo.vsim.core.document.Guide;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.Set;
 import java.util.TreeMap;
 
@@ -34,8 +36,11 @@ public final class AiTask {
     private int currentStage;
     /** The elements each stage added and no later step removed (the storyboard frames them, spec §6). */
     private final Map<Integer, Set<String>> createdPerStage = new TreeMap<>();
-    /** The parts a component was made of without replacing them: kept as «cómo se hizo», so their frame is locked. */
-    private final Set<String> howItWasMade = new LinkedHashSet<>();
+    /**
+     * The parts a component was made of without replacing them, kept as «cómo se hizo» so their frame is locked, with
+     * the stage that made the component (the lock is a step of that stage).
+     */
+    private final Map<String, Integer> howItWasMade = new LinkedHashMap<>();
     /** The frame the storyboard put around each stage. */
     private final Map<Integer, String> stageFrames = new TreeMap<>();
 
@@ -90,7 +95,7 @@ public final class AiTask {
         changedElementIds.addAll(changes.changed());
         changes.removed().forEach(changedElementIds::remove);
         changes.removed().forEach(removed -> createdPerStage.values().forEach(created -> created.remove(removed)));
-        if (edit.stageIndex() != AiEditCommand.NO_STAGE) {
+        if (edit.stageIndex() >= 0) {
             createdPerStage.computeIfAbsent(edit.stageIndex(), stage -> new LinkedHashSet<>())
                     .addAll(changes.added());
         }
@@ -121,13 +126,18 @@ public final class AiTask {
                 .toList();
     }
 
-    synchronized void recordHowItWasMade(Collection<String> elementIds) {
-        howItWasMade.addAll(elementIds);
+    synchronized void recordHowItWasMade(Collection<String> elementIds, int stageIndex) {
+        elementIds.forEach(elementId -> howItWasMade.merge(elementId, stageIndex, Math::max));
     }
 
     /** True when a component was made of some of {@code elementIds} without replacing them («cómo se hizo»). */
     public synchronized boolean madeAComponentOf(Collection<String> elementIds) {
-        return elementIds.stream().anyMatch(howItWasMade::contains);
+        return stageThatMadeAComponentOf(elementIds).isPresent();
+    }
+
+    /** The latest stage that made a component of some of {@code elementIds} without replacing them. */
+    public synchronized OptionalInt stageThatMadeAComponentOf(Collection<String> elementIds) {
+        return elementIds.stream().filter(howItWasMade::containsKey).mapToInt(howItWasMade::get).max();
     }
 
     /** The frame the storyboard put around stage {@code stageIndex}, if it did (it may be gone since). */
@@ -147,6 +157,20 @@ public final class AiTask {
     /** True while some edit of stage {@code stageIndex} is still in the document. Editor thread only. */
     synchronized boolean hasAppliedEdits(int stageIndex) {
         return edits.stream().anyMatch(edit -> edit.isApplied() && edit.stageIndex() == stageIndex);
+    }
+
+    /**
+     * The stage whose step «Deshacer etapa» takes back next: the latest stage with a step still in the document (its
+     * frame counts; a stage that only checked has none). Editor thread only.
+     */
+    public synchronized OptionalInt latestStageWithAppliedEdits() {
+        for (int index = edits.size() - 1; index >= 0; index--) {
+            AiEditCommand edit = edits.get(index);
+            if (edit.isApplied() && edit.stageIndex() >= 0) {
+                return OptionalInt.of(edit.stageIndex());
+            }
+        }
+        return OptionalInt.empty();
     }
 
     /** The guides the task added only to align, in order (some may be gone since). */

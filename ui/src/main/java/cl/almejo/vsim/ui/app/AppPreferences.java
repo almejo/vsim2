@@ -15,11 +15,14 @@ import org.slf4j.LoggerFactory;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
+import java.util.WeakHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.BooleanSupplier;
 import java.util.prefs.BackingStoreException;
@@ -189,6 +192,8 @@ public final class AppPreferences {
     private final List<Runnable> listeners;
     /** Null but for the preferences of one window ({@link #layered()}). */
     private final PreferenceLayer layer;
+    /** The layers of every window over the same saved preferences (shared; a closed window's layer goes away). */
+    private final Set<PreferenceLayer> windowLayers;
 
     public AppPreferences(Preferences node) {
         this(node, () -> false);
@@ -200,6 +205,7 @@ public final class AppPreferences {
         this.systemReducesMotion = systemReducesMotion;
         this.listeners = new CopyOnWriteArrayList<>();
         this.layer = null;
+        this.windowLayers = Collections.newSetFromMap(new WeakHashMap<>());
     }
 
     /** The same saved preferences and listeners as {@code saved}, read through a new layer of one window. */
@@ -208,6 +214,8 @@ public final class AppPreferences {
         this.systemReducesMotion = saved.systemReducesMotion;
         this.listeners = saved.listeners;
         this.layer = new PreferenceLayer(() -> notifyListeners("layer"));
+        this.windowLayers = saved.windowLayers;
+        windowLayers.add(layer);
     }
 
     /**
@@ -719,9 +727,13 @@ public final class AppPreferences {
         return enumValue(AI_PACE, PresentationPace.class, PresentationPace.STEP_BY_STEP);
     }
 
+    /**
+     * The user's pace, saved; it also replaces the pace the AI asked for its task in every window (the AI works in
+     * the circuit's first window, the user may pick it in another one: the user's choice wins).
+     */
     public void setAiPace(PresentationPace pace) {
         Objects.requireNonNull(pace, "pace");
-        put(AI_PACE, pace.name());
+        putEverywhere(AI_PACE, pace.name());
     }
 
     /** The pause between steps in «De corrido», 300 to 5000 ms (clamped); 1000 by default. */
@@ -733,8 +745,9 @@ public final class AppPreferences {
         }
     }
 
+    /** The user's pause, saved; like {@link #setAiPace}, it replaces the AI's in every window. */
     public void setAiPauseMillis(int millis) {
-        put(AI_PAUSE_MILLIS, Integer.toString(clampPause(millis)));
+        putEverywhere(AI_PAUSE_MILLIS, Integer.toString(clampPause(millis)));
     }
 
     private static int clampPause(int millis) {
@@ -766,6 +779,17 @@ public final class AppPreferences {
     private void put(String key, String value) {
         // the user's own choice in this window replaces what was layered there, and is saved
         boolean wasLayered = layer != null && layer.forget(key);
+        if (store(key, value) || wasLayered) {
+            notifyListeners(key);
+        }
+    }
+
+    /** Like {@link #put}, replacing what was layered for {@code key} in every window, not only this one. */
+    private void putEverywhere(String key, String value) {
+        boolean wasLayered = false;
+        for (PreferenceLayer windowLayer : List.copyOf(windowLayers)) {
+            wasLayered |= windowLayer.forget(key);
+        }
         if (store(key, value) || wasLayered) {
             notifyListeners(key);
         }

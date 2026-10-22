@@ -4,6 +4,7 @@ import cl.almejo.vsim.automation.AutomationApi;
 import cl.almejo.vsim.automation.DocumentId;
 import cl.almejo.vsim.automation.DocumentVersion;
 import cl.almejo.vsim.automation.EditorAccess;
+import cl.almejo.vsim.automation.StageUndoOutcome;
 import cl.almejo.vsim.automation.TaskInfo;
 import cl.almejo.vsim.automation.edit.EditOperation;
 import cl.almejo.vsim.automation.edit.EditRequest;
@@ -14,6 +15,7 @@ import cl.almejo.vsim.automation.present.PresentationSettings;
 import cl.almejo.vsim.automation.present.PresentedEdit;
 import cl.almejo.vsim.automation.present.StageOrigin;
 import cl.almejo.vsim.automation.present.StepStatus;
+import cl.almejo.vsim.automation.present.StoryboardState;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.geometry.GridPoint;
@@ -50,7 +52,8 @@ class AutomationPresentationControlsTest {
     private final EditorAutomationHost host = new EditorAutomationHost(() -> List.copyOf(open),
             document -> List.of(), new Windows(), new PreferenceProposals(preferences));
     private final AutomationApi api = new AutomationApi(host);
-    private final PresentationControls controls = new AutomationPresentationControls(api, Runnable::run);
+    private final PresentationControls controls = new AutomationPresentationControls(api, Runnable::run,
+            Runnable::run);
     private final List<GridPoint> travels = new CopyOnWriteArrayList<>();
     private OpenDocument circuit;
     private DocumentId id;
@@ -121,10 +124,35 @@ class AutomationPresentationControlsTest {
         api.beginStage(story.taskId(), 1); // the first stage gets its frame
         assertThat(frameCount()).isEqualTo(1);
 
-        controls.undoStage(story.taskId(), 0);
+        List<StageUndoOutcome> outcomes = new ArrayList<>();
 
+        controls.undoStage(story.taskId(), outcomes::add);
+
+        assertThat(outcomes).containsExactly(new StageUndoOutcome(0, 2, StageUndoOutcome.StoppedAt.NOTHING, false));
         assertThat(componentCount()).isZero();
         assertThat(frameCount()).isZero();
+    }
+
+    /** Review I2: pressed again, it goes back one more stage. */
+    @Test
+    void deshacerEtapaGoesBackStageByStage() throws Exception {
+        TaskInfo story = twoStages();
+        api.beginStage(story.taskId(), 0);
+        placeAndApply(story, "Compuertas", "op-1", 0);
+        StageOrigin second = api.beginStage(story.taskId(), 1);
+        placeAndApply(story, "Salida", "op-2", second.x());
+        api.endTask(story.taskId());
+        List<StageUndoOutcome> outcomes = new ArrayList<>();
+        List<StoryboardState> states = new ArrayList<>();
+
+        controls.undoStage(story.taskId(), outcomes::add);
+        controls.storyboardState(story.taskId(), states::add);
+        controls.undoStage(story.taskId(), outcomes::add);
+        controls.storyboardState(story.taskId(), states::add);
+
+        assertThat(outcomes).extracting(StageUndoOutcome::stageIndex).containsExactly(1, 0);
+        assertThat(states).containsExactly(new StoryboardState(true, false), new StoryboardState(false, false));
+        assertThat(componentCount()).isZero();
     }
 
     @Test
@@ -137,7 +165,10 @@ class AutomationPresentationControlsTest {
         api.endTask(story.taskId());
         assertThat(frameCount()).isEqualTo(2);
 
-        controls.keepOnlyResult(story.taskId());
+        List<Boolean> kept = new ArrayList<>();
+        controls.keepOnlyResult(story.taskId(), kept::add);
+
+        assertThat(kept).containsExactly(true);
 
         assertThat(frameCount()).isEqualTo(1);
         assertThat(componentCount()).isEqualTo(1);
@@ -179,7 +210,8 @@ class AutomationPresentationControlsTest {
     @Test
     void theCallsNeverRunOnTheCallersThread() {
         AtomicInteger queued = new AtomicInteger();
-        PresentationControls deferred = new AutomationPresentationControls(api, work -> queued.incrementAndGet());
+        PresentationControls deferred = new AutomationPresentationControls(api, work -> queued.incrementAndGet(),
+                Runnable::run);
 
         deferred.next(task.taskId());
         deferred.stop(task.taskId());

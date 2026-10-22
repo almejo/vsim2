@@ -1,13 +1,15 @@
 package cl.almejo.vsim.ui.ai.present;
 
 import cl.almejo.vsim.automation.DocumentId;
+import cl.almejo.vsim.automation.StageUndoOutcome;
+import cl.almejo.vsim.automation.StageUndoOutcome.StoppedAt;
 import cl.almejo.vsim.automation.TaskInfo;
 import cl.almejo.vsim.automation.edit.TaskStage;
 import cl.almejo.vsim.automation.present.StepStatus;
+import cl.almejo.vsim.automation.present.StoryboardState;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
-import java.util.OptionalInt;
 
 import static cl.almejo.vsim.ui.ai.present.FakePresentationEvents.step;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -28,7 +30,7 @@ class PresentedTaskTest {
         assertThat(task.task()).isEqualTo(TASK);
         assertThat(task.stages()).isEmpty();
         assertThat(task.pending()).isEmpty();
-        assertThat(task.stageToUndo()).isEmpty();
+        assertThat(task.canUndoStage()).isFalse();
         assertThat(task.isEnded()).isFalse();
     }
 
@@ -86,24 +88,25 @@ class PresentedTaskTest {
         assertThat(task.check(1)).contains(new PresentedTask.StageCheck(false, "la fila 3 da 0"));
         assertThat(task.check(2)).isEmpty();
     }
-
     @Test
-    void undoingAStageMeansTheCurrentOneOnceItHasStepsElseThePreviousOne() {
+    void deshacerEtapaIsOfferedOnceAStepIsInAndUntilVsimSaysNothingIsLeft() {
         task.planChanged(STAGES, 0, 0);
-        assertThat(task.stageToUndo()).isEmpty();
+        assertThat(task.canUndoStage()).isFalse();
 
         task.stepApplied(step("t1", 0, 0, "Pongo las XOR"));
-        assertThat(task.stageToUndo()).isEqualTo(OptionalInt.of(0));
+        assertThat(task.canUndoStage()).isTrue();
 
-        task.planChanged(STAGES, 1, 0);
-        assertThat(task.stageToUndo()).isEqualTo(OptionalInt.of(0));
+        task.stageUndone(new StageUndoOutcome(0, 1, StoppedAt.NOTHING, false));
+        assertThat(task.canUndoStage()).isFalse();
+        assertThat(task.lastUndo()).contains(new StageUndoOutcome(0, 1, StoppedAt.NOTHING, false));
 
-        task.stepApplied(step("t1", 1, 0, "Pongo cuatro sumadores"));
-        assertThat(task.stageToUndo()).isEqualTo(OptionalInt.of(1));
+        task.stepApplied(step("t1", 0, 0, "Pongo las XOR"));
+        assertThat(task.canUndoStage()).isTrue();
+        assertThat(task.lastUndo()).isEmpty();
     }
 
     @Test
-    void anEndedTaskHasEveryStageDoneNothingPendingAndItsLastStageToUndo() {
+    void anEndedTaskHasEveryStageDoneNothingPendingAndAsksVsimWhatItMayOffer() {
         task.planChanged(STAGES, 2, 0);
         task.stepProposed(step("t1", 2, 0, "Creo el componente"));
 
@@ -113,6 +116,25 @@ class PresentedTaskTest {
         assertThat(task.pending()).isEmpty();
         assertThat(List.of(task.stageState(0), task.stageState(1), task.stageState(2)))
                 .containsOnly(PresentedTask.StageState.DONE);
-        assertThat(task.stageToUndo()).isEqualTo(OptionalInt.of(2));
+        assertThat(task.canUndoStage()).isTrue();
+        assertThat(task.canKeepOnlyResult()).as("until VSim says the stages are separate").isFalse();
+        assertThat(task.storyboardKnown()).isFalse();
+
+        task.storyboardChanged(new StoryboardState(false, true));
+
+        assertThat(task.storyboardKnown()).isTrue();
+        assertThat(task.canUndoStage()).isFalse();
+        assertThat(task.canKeepOnlyResult()).isTrue();
+    }
+
+    @Test
+    void aStoppedTaskStaysLikeAnEndedOneAndSaysItWasStopped() {
+        task.planChanged(STAGES, 1, 1);
+
+        task.stopped();
+
+        assertThat(task.isEnded()).isTrue();
+        assertThat(task.isStopped()).isTrue();
+        assertThat(task.canUndoStage()).isTrue();
     }
 }

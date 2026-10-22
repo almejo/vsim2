@@ -221,12 +221,12 @@ final class PresentationFeatures {
         onTask(info.taskId(), PresentedTask::ended);
     }
 
+    /** «Detener»: the panel stays, like at the end, with «Deshacer etapa» and × (review M5). */
     private void stopped(TaskInfo info) {
         if (task != null && task.task().taskId().equals(info.taskId())) {
-            task = null;
             aiSwitched = false;
-            refreshPanel();
         }
+        onTask(info.taskId(), PresentedTask::stopped);
     }
 
     /** Moves an event to the editor thread; a view disposed meanwhile ignores it. */

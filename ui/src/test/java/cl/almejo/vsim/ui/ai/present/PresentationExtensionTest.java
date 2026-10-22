@@ -212,7 +212,7 @@ class PresentationExtensionTest {
     }
 
     @Test
-    void aStoppedTaskClosesThePanelAndAnEndedOneKeepsItUntilClosed() {
+    void anEndedOrStoppedTaskKeepsThePanelUntilClosed() {
         presentATask();
         events.check("t1", 0, true, "cumple la tabla");
         events.end(TASK);
@@ -231,6 +231,11 @@ class PresentationExtensionTest {
         assertThat(features().isPanelShown()).isTrue();
         events.stop(next);
         runEditorThread();
+        // Review M5: «Detener» leaves «Deshacer etapa» and × in the panel.
+        assertThat(features().isPanelShown()).isTrue();
+        assertThat(features().panel().notice().getText()).isEqualTo("Detuviste a la IA");
+        assertThat(features().panel().undoStageButton().isVisible()).isTrue();
+        features().panel().closeButton().doClick();
         assertThat(features().isPanelShown()).isFalse();
     }
 

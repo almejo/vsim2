@@ -5,6 +5,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Values that one window reads instead of the saved preferences (spec §7: the AI's temporary editor settings). The
@@ -76,6 +77,14 @@ public final class PreferenceLayer {
     public void clear() {
         if (!values.isEmpty()) {
             values.clear();
+            changed.run();
+        }
+    }
+
+    /** Drops the layered values of {@code settings} (the others stay): the window reads their saved values again. */
+    public void remove(Set<Setting> settings) {
+        Objects.requireNonNull(settings, "settings");
+        if (values.keySet().removeAll(settings)) {
             changed.run();
         }
     }
