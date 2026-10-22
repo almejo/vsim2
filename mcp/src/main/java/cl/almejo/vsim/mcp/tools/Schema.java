@@ -50,11 +50,19 @@ final class Schema {
         return with(Map.of("type", "integer"), description);
     }
 
+    /** An integer from {@code minimum} to {@code maximum}; the type's largest value is no bound worth its tokens. */
     static Map<String, Object> integer(String description, long minimum, long maximum) {
         Map<String, Object> schema = new LinkedHashMap<>(integer(description));
         schema.put("minimum", minimum);
-        schema.put("maximum", maximum);
+        if (maximum != Integer.MAX_VALUE && maximum != Long.MAX_VALUE) {
+            schema.put("maximum", maximum);
+        }
         return schema;
+    }
+
+    /** An integer of at least {@code minimum}. */
+    static Map<String, Object> integerFrom(String description, long minimum) {
+        return integer(description, minimum, Long.MAX_VALUE);
     }
 
     static Map<String, Object> bool(String description) {
@@ -95,22 +103,22 @@ final class Schema {
         return with(schema, description);
     }
 
-    /** A grid point {@code {x, y}}. */
+    /** A grid point {@code {x, y}} (x grows to the right, y down: the names say enough). */
     static Map<String, Object> point(String description) {
         return object(description)
-                .property("x", integer("Grid units to the right"))
-                .property("y", integer("Grid units down"))
+                .property("x", integer(""))
+                .property("y", integer(""))
                 .required("x", "y")
                 .build();
     }
 
-    /** A box {@code {x, y, width, height}} in grid units. */
+    /** A box {@code {x, y, width, height}} in grid units, from its top-left corner. */
     static Map<String, Object> bounds(String description) {
         return object(description)
-                .property("x", integer("Left edge"))
-                .property("y", integer("Top edge"))
-                .property("width", integer("Width", 0, Integer.MAX_VALUE))
-                .property("height", integer("Height", 0, Integer.MAX_VALUE))
+                .property("x", integer(""))
+                .property("y", integer(""))
+                .property("width", integerFrom("", 0))
+                .property("height", integerFrom("", 0))
                 .required("x", "y", "width", "height")
                 .build();
     }

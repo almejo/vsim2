@@ -329,7 +329,7 @@ class PresentationScenariosTest {
         List<Map<String, Object>> wiring = wireEveryPin(adder);
         Map<String, Object> wired = step(task, table, "Le pongo entradas y salidas", "Una por patita", wiring);
         steps++;
-        assertThat(list(wired, "warnings")).as("%s", wired).isEmpty();
+        assertThat(wired).as("%s", wired).doesNotContainKey("warnings");
         List<String> tableElements = new ArrayList<>();
         tableElements.add(adder);
         tableElements.addAll(addedBy(wired));
@@ -435,7 +435,7 @@ class PresentationScenariosTest {
 
         Map<String, Object> firstLamp = call("vsim_edit", stepArguments(task, "Luces", "Pongo la primera",
                 List.of(part("one", "led", 0, 0, ""))));
-        assertThat(firstLamp).containsEntry("status", "APPLIED").containsEntry("applied", true);
+        assertThat(firstLamp).containsEntry("status", "APPLIED");
         assertThat(pacer.requested).as("the first step waits for nothing").isEmpty();
         known = versionIn(firstLamp);
 
@@ -447,7 +447,7 @@ class PresentationScenariosTest {
                 .hasSize(1);
         pacer.advance(PAUSE);
         Map<String, Object> second = secondLamp.get(30, TimeUnit.SECONDS);
-        assertThat(second).containsEntry("status", "APPLIED").containsEntry("applied", true);
+        assertThat(second).containsEntry("status", "APPLIED");
         known = versionIn(second);
 
         // An AI slower than the pause waits for nothing more.
@@ -473,7 +473,7 @@ class PresentationScenariosTest {
         known = versionOf();
         Map<String, Object> proposed = call("vsim_edit", stepArguments(task, "Luz", "Pongo la luz",
                 List.of(part("lamp", "led", 0, 0, ""))));
-        assertThat(proposed).containsEntry("status", "PROPOSED").containsEntry("applied", false);
+        assertThat(proposed).containsEntry("status", "PROPOSED");
         assertThat(versionOf()).as("a proposed step changes nothing").isEqualTo(known);
         assertThat(onEditor(() -> circuit.history().canUndo())).isFalse();
 
@@ -490,7 +490,7 @@ class PresentationScenariosTest {
                 List.of(part("lamp", "led", 0, 0, ""))));
         assertThat(again).containsEntry("status", "PROPOSED");
         Map<String, Object> receipt = awaitApplied(task);
-        assertThat(receipt).containsEntry("applied", true);
+        assertThat(receipt).containsKeys("version", "aliases");
         call("vsim_end_task", Map.of("taskId", task));
 
         assertThat(onEditor(() -> circuit.document().components())).hasSize(2);
@@ -696,7 +696,7 @@ class PresentationScenariosTest {
         Map<String, Object> arguments = stepArguments(task, stage, text, operations);
         arguments.put("reason", reason);
         Map<String, Object> answer = call("vsim_edit", arguments);
-        assertThat(answer).as("%s", text).containsEntry("status", "PROPOSED").containsEntry("applied", false);
+        assertThat(answer).as("%s", text).containsEntry("status", "PROPOSED");
         Map<String, Object> receipt = awaitApplied(task);
         known = versionIn(receipt);
         StepPreview ghost = proposedSteps.getLast();

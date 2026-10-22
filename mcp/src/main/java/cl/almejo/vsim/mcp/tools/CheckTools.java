@@ -51,7 +51,8 @@ final class CheckTools {
                                 SimulationOperations.MAXIMUM_ROWS))
                         .property("maximumRows", Schema.integer("Rows to evaluate (0: the default)", 0,
                                 SimulationOperations.MAXIMUM_ROWS))
-                        .property("eventBudget", Schema.integer("Events in all (0: the default)", 0,
+                        .property("eventBudget", Schema.integer("Events in all (0: the default; the tables of one "
+                                + "call share at most " + SimulationOperations.MAXIMUM_EVENT_BUDGET + ")", 0,
                                 SimulationOperations.MAXIMUM_EVENT_BUDGET))
                         .required("kind", "expected").build(),
                 Schema.object("No problems in the latest simulation (short circuits, width mismatches…)")
@@ -91,18 +92,13 @@ final class CheckTools {
 
     private static Tool checkStage(AutomationApi api) {
         return new Tool(CHECK_STAGE, "Check a stage",
-                "End every stage with this: VSim runs the checks asked (a truth table against expected rows, "
-                        + "Problems, the layout, pin values) and reports what it measured. Each check is PASSED "
-                        + "only when VSim finished it and every expectation held, FAILED with what differed, or "
-                        + "NOT_FINISHED when VSim could not finish it (a budget, a row limit, a simulation that has "
-                        + "not caught up, a circuit with no table): never say a stage is checked unless passed is "
-                        + "true (it is false too when the circuit changed while the checks ran: version differs from "
-                        + "currentVersion). The truth tables of one call share at most 1000000 events. Report "
-                        + "VSim's results, not your own expectations. continuousStops says whether «De corrido» "
-                        + "(Presentar) stops at this stage's end: only a truth table, signals or problems check that "
-                        + "did not pass stops it (layout faults are reported but let it go on); when true, fix the "
-                        + "stage and check it again before the next stage's first step, which would otherwise wait "
-                        + "for the user's «Siguiente».",
+                "End every stage with this: VSim runs the checks and reports what it measured. A check is "
+                        + "PASSED only when VSim finished it and every expectation held, FAILED with what differed, "
+                        + "or NOT_FINISHED (a budget, a row limit, no table…). Never say a stage is checked unless "
+                        + "passed is true (false too when the circuit changed meanwhile). Report VSim's results, not "
+                        + "your expectations. continuousStops true: «De corrido» stops at this stage's end (a "
+                        + "failed truth table, signals or problems check; layout faults do not stop it): fix the "
+                        + "stage and check again before the next stage.",
                 Schema.object("")
                         .property("document", Common.document())
                         .property("taskId", Schema.string("The task, to label the result"))

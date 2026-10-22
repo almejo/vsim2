@@ -13,6 +13,7 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Turns a {@link Tool} into the SDK's tool specification. Every call is first checked against the tool's input
@@ -25,6 +26,10 @@ final class ToolRunner {
     private static final Logger LOGGER = LoggerFactory.getLogger(ToolRunner.class);
     /** How long each tool call took in VSim, by name only (never arguments): off unless {@code -Dvsim.ai.timing=INFO}. */
     private static final Logger TIMING = LoggerFactory.getLogger("cl.almejo.vsim.mcp.timing");
+
+    /** The tools whose description shows its first example (fewer tokens: the others are plain enough). */
+    static final Set<String> EXAMPLE_SHOWN_FOR = Set.of("vsim_edit", "vsim_begin_task",
+            "vsim_check_stage", "vsim_export");
 
     private final McpJsonMapper jsonMapper;
     private final JsonSchemaValidator validator;
@@ -104,15 +109,15 @@ final class ToolRunner {
                 .build();
     }
 
+    /**
+     * The description, with the first example for the tools of {@link #EXAMPLE_SHOWN_FOR}; the other examples stay
+     * as test data (every one is checked against the schema and run by the tests).
+     */
     private String descriptionWithExamples(Tool tool) {
-        if (tool.examples().isEmpty()) {
+        if (tool.examples().isEmpty() || !EXAMPLE_SHOWN_FOR.contains(tool.name())) {
             return tool.description();
         }
-        StringBuilder description = new StringBuilder(tool.description());
-        for (Map<String, Object> example : tool.examples()) {
-            description.append("\n\nExample arguments: ").append(json(example));
-        }
-        return description.toString();
+        return tool.description() + "\n\nExample arguments: " + json(tool.examples().getFirst());
     }
 
     private String json(Object content) {

@@ -1,7 +1,9 @@
 package cl.almejo.vsim.mcp.tools;
 
 import cl.almejo.vsim.automation.AutomationApi;
+import cl.almejo.vsim.automation.PinReference;
 import cl.almejo.vsim.automation.edit.EditOperation;
+import cl.almejo.vsim.automation.edit.EditReceipt;
 import cl.almejo.vsim.automation.edit.EditRequest;
 import cl.almejo.vsim.automation.edit.PinTarget;
 import cl.almejo.vsim.automation.edit.TaskStep;
@@ -36,31 +38,40 @@ final class EditTools {
 
     // --- schema ---
 
+    /** What every target and alias means, said once for all the operations (fewer tokens). */
+    private static final String OPERATIONS_DESCRIPTION = "The operations, carried out in order on a copy and applied "
+            + "together or not at all. Positions are grid units. A target is a real id (c12, w3, f1, t2) or "
+            + "new:<alias> for something an earlier operation of this call made; an alias names what an operation "
+            + "makes: later operations refer to it as new:<alias> and the receipt maps it to the real id";
+
     private static Map<String, Object> target(String description) {
-        return Schema.nonEmptyString(description + ": a real id (c12, w3, f1, t2) or new:<alias> for something an "
-                + "earlier operation of this call made");
+        return Schema.nonEmptyString(description);
     }
 
     private static Map<String, Object> targets(String description) {
-        return Schema.array(description, target("An element"));
+        return Schema.array(description, Schema.nonEmptyString(""));
     }
 
     private static Map<String, Object> alias() {
-        return Schema.nonEmptyString("A name for it in this call; later operations refer to it as new:<alias> and "
-                + "the receipt maps it to the real id");
+        return Schema.nonEmptyString("");
     }
 
     private static Map<String, Object> rotation() {
-        return Schema.enumeration("R0 (default), R90, R180 or R270, clockwise on screen", ROTATIONS);
+        return Schema.enumeration("Clockwise on screen (default R0)", ROTATIONS);
     }
 
-    private static Map<String, Object> pinTarget(String description) {
+    private static Map<String, Object> coordinate() {
+        return Schema.integer("");
+    }
+
+    /** A pin of a part; {@code described} false for a second copy whose properties need no words again. */
+    private static Map<String, Object> pinTarget(String description, boolean described) {
         return Schema.object(description)
-                .property("target", target("The part"))
-                .property("pinName", Schema.nonEmptyString("The pin's name as vsim_describe_component lists it"))
-                .property("index", Schema.integer("With pinName: which pin of that name (0 for the first; only "
-                        + "names that repeat need it). Without pinName: the pin's place among the part's pins",
-                        0, Integer.MAX_VALUE))
+                .property("target", target(described ? "The part" : ""))
+                .property("pinName", Schema.nonEmptyString(described ? "As vsim_describe_component lists it" : ""))
+                .property("index", Schema.integerFrom(described ? "With pinName: which pin of that name (0, the "
+                        + "default; only names that repeat need it). Without pinName: the pin's place on the part"
+                        : "", 0))
                 .required("target").build();
     }
 
@@ -69,102 +80,95 @@ final class EditTools {
     }
 
     private static Map<String, Object> operations() {
+        Map<String, Object> parameters = Schema.mapOf("Parameter values by name (a number or a text)",
+                Schema.anyValue(""));
         List<Map<String, Object>> kinds = List.of(
                 operation("PlacePart", "Places a part of typeId with its origin at (x, y)")
                         .property("alias", alias())
                         .property("typeId", Schema.nonEmptyString("From vsim_describe_components"))
-                        .property("x", Schema.integer("Grid units"))
-                        .property("y", Schema.integer("Grid units"))
+                        .property("x", coordinate())
+                        .property("y", coordinate())
                         .property("rotation", rotation())
-                        .property("parameters", Schema.mapOf("Parameter values by name",
-                                Schema.anyValue("A number or a text")))
-                        .property("label", Schema.string("Its label (inputs, outputs and blocks should have one)"))
+                        .property("parameters", parameters)
+                        .property("label", Schema.string("Inputs, outputs and blocks should have one"))
                         .required("typeId", "x", "y").build(),
                 operation("SetParameters", "Changes some parameters of a part; the others keep their value")
                         .property("target", target("The part"))
-                        .property("parameters", Schema.mapOf("Parameter values by name",
-                                Schema.anyValue("A number or a text")))
+                        .property("parameters", parameters)
                         .required("target", "parameters").build(),
                 operation("SetLabel", "The label of a part, the text of a note or the title of a frame")
-                        .property("target", target("The part, note or frame"))
-                        .property("text", Schema.string("The new text; a note may have several lines: use \\n "
-                                + "for a new line (a part's label and a frame's title stay one line)"))
+                        .property("target", target(""))
+                        .property("text", Schema.string("A note may have several lines: use \\n for a new line "
+                                + "(a label or a title stays one line)"))
                         .required("target", "text").build(),
-                operation("Connect", "Joins two pins with an orthogonal route through the via points, if any; "
-                        + "VSim checks what the route joins and refuses (ROUTE_REJECTED) one that would touch "
-                        + "another net — then retry with via points around it")
-                        .property("from", pinTarget("One pin"))
-                        .property("to", pinTarget("The other pin"))
-                        .property("via", Schema.array("Points the route passes through, in order (each leg goes "
-                                + "across first, then down)", Schema.point("")))
+                operation("Connect", "Joins two pins with an orthogonal route through the via points, if any; a "
+                        + "route that would touch another net is refused (ROUTE_REJECTED): retry with via points "
+                        + "around it")
+                        .property("from", pinTarget("One pin", true))
+                        .property("to", pinTarget("The other pin", false))
+                        .property("via", Schema.array("In order; each leg goes across first, then down",
+                                Schema.point("")))
                         .required("from", "to").build(),
                 operation("AddWire", "A wire through points, each straight across or down from the one before")
-                        .property("points", Schema.array("At least two", Schema.point(""), 2, 1000))
+                        .property("points", Schema.array("", Schema.point(""), 2, 1000))
                         .required("points").build(),
                 operation("Move", "Moves the targets; their wires follow as when the user drags them")
-                        .property("targets", targets("What to move"))
-                        .property("deltaX", Schema.integer("Grid units right"))
-                        .property("deltaY", Schema.integer("Grid units down"))
+                        .property("targets", targets(""))
+                        .property("deltaX", coordinate())
+                        .property("deltaY", coordinate())
                         .required("targets", "deltaX", "deltaY").build(),
-                operation("Delete", "Deletes the targets (a locked frame with what it holds). Never delete a "
-                        + "frame or a stage's parts the user did not ask to remove")
-                        .property("targets", targets("What to delete"))
+                operation("Delete", "Deletes the targets (a locked frame with what it holds)")
+                        .property("targets", targets(""))
                         .required("targets").build(),
                 operation("MakeFrame", "A titled frame around the targets, or exactly at bounds")
                         .property("alias", alias())
-                        .property("title", Schema.string("Its title"))
-                        .property("targets", targets("What it wraps"))
-                        .property("bounds", Schema.bounds("Its rectangle instead of wrapping targets"))
-                        .property("locked", Schema.bool("Locked frames move and copy with their contents"))
+                        .property("title", Schema.string(""))
+                        .property("targets", targets(""))
+                        .property("bounds", Schema.bounds("Instead of wrapping targets"))
+                        .property("locked", Schema.bool("Moves and copies with its contents"))
                         .required("title").build(),
-                operation("AddNote", "A free text, such as the «Prueba: …» line of the bundled examples")
+                operation("AddNote", "A free text, such as a «Prueba: …» line")
                         .property("alias", alias())
-                        .property("text", Schema.nonEmptyString("The text; use \\n for a new line, one note "
-                                + "of several lines instead of several notes"))
+                        .property("text", Schema.nonEmptyString("One note of several lines, not several notes: "
+                                + "use \\n for a new line"))
                         .property("x", Schema.integer("Top-left corner"))
-                        .property("y", Schema.integer("Top-left corner"))
+                        .property("y", coordinate())
                         .required("text", "x", "y").build(),
-                operation("AddGuide", "An alignment guide across the canvas. layoutOnly true for a guide you add "
-                        + "only to align while you work: VSim takes it away when the task ends (unless "
-                        + "vsim_end_task keepLayoutGuides)")
+                operation("AddGuide", "An alignment guide; layoutOnly true: VSim removes it when the task ends")
                         .property("orientation", Schema.enumeration("HORIZONTAL (y = position) or VERTICAL "
                                 + "(x = position)", ORIENTATIONS))
-                        .property("position", Schema.integer("Grid units"))
-                        .property("layoutOnly", Schema.bool("Only to align: removed when the task ends (default "
-                                + "false: the guide stays)"))
+                        .property("position", coordinate())
+                        .property("layoutOnly", Schema.bool(""))
                         .required("orientation", "position").build(),
                 operation("RemoveGuide", "Takes an alignment guide away")
-                        .property("orientation", Schema.enumeration("HORIZONTAL or VERTICAL", ORIENTATIONS))
-                        .property("position", Schema.integer("Grid units"))
+                        .property("orientation", Schema.enumeration("", ORIENTATIONS))
+                        .property("position", coordinate())
                         .required("orientation", "position").build(),
                 operation("CreateComponent", "«Crear componente desde selección» on the targets: their "
-                        + "input-pin/output-pin parts and test parts (switches, LEDs…) become the component's pins. "
-                        + "replaceSelection false keeps the parts as «cómo se hizo» (what a stage that keeps its "
-                        + "steps wants); true replaces them by one instance. The component stays in the circuit; "
-                        + "VSim never writes it to the user's library")
-                        .property("alias", Schema.nonEmptyString("A name for the new component in this call: "
-                                + "PlaceInstance takes it as new:<alias>"))
-                        .property("name", Schema.nonEmptyString("Its name, new in the circuit"))
-                        .property("targets", targets("The parts that make it; the wires that join only "
-                                + "these parts come along (a wire to a part outside does not)"))
-                        .property("pinNames", Schema.mapOf("Renamed pins: key an interface pin or a test part "
-                                + "that gives one pin", Schema.nonEmptyString("The pin's name")))
-                        .property("replaceSelection", Schema.bool("Replace the targets by one instance"))
+                        + "input-pin/output-pin and test parts (switches, LEDs…) become its pins. replaceSelection "
+                        + "false keeps the parts («cómo se hizo»); true replaces them by one instance. It stays in "
+                        + "the circuit, never in the user's library")
+                        .property("alias", Schema.nonEmptyString("PlaceInstance takes it as new:<alias>"))
+                        .property("name", Schema.nonEmptyString("New in the circuit"))
+                        .property("targets", targets("The wires that join only these parts come along"))
+                        .property("pinNames", Schema.mapOf("Renamed pins, keyed by interface pin or test part",
+                                Schema.nonEmptyString("")))
+                        .property("replaceSelection", Schema.bool(""))
                         .required("name", "targets", "replaceSelection").build(),
                 operation("PlaceInstance", "Places an instance of a user component: the circuit's own or one of "
-                        + "the user's library (its definition comes into the circuit, as from the palette)")
+                        + "the user's library")
                         .property("alias", alias())
                         .property("definition", Schema.nonEmptyString("Its name, its id or new:<alias> of a "
                                 + "CreateComponent of this call"))
-                        .property("x", Schema.integer("Grid units"))
-                        .property("y", Schema.integer("Grid units"))
+                        .property("x", coordinate())
+                        .property("y", coordinate())
                         .property("rotation", rotation())
                         .required("definition", "x", "y").build(),
                 operation("TidyWires", "«Ordenar cables» on the targets' wires (all wires when no targets)")
-                        .property("targets", targets("Whose wires to tidy"))
+                        .property("targets", targets(""))
                         .build());
-        return Schema.array("The operations, carried out in order on a copy and applied together or not at all",
-                Schema.oneOf("One operation, chosen by op", kinds), 1, MAXIMUM_OPERATIONS);
+        return Schema.array(OPERATIONS_DESCRIPTION, Schema.oneOf("One operation, chosen by op", kinds), 1,
+                MAXIMUM_OPERATIONS);
     }
 
     // --- parsing ---
@@ -226,55 +230,32 @@ final class EditTools {
 
     private static Tool edit(AutomationApi api) {
         return new Tool(EDIT, "Edit the circuit",
-                "One edit call: a list of typed operations carried out in order on a copy of the circuit and "
-                        + "applied all together as one undo step, or not at all (the first failure names its "
-                        + "operation and nothing changes). Send the version you read: if the user changed the "
-                        + "circuit since, it is refused as STALE_DOCUMENT with the current version — read again and "
-                        + "adapt. A retry with the same operationId and arguments returns the first receipt and adds "
-                        + "nothing. Parts made in this call are named new:<alias>; the receipt maps aliases to real "
-                        + "ids, says what each Connect joined (as pins) and lists warnings. validateOnly checks "
-                        + "everything and changes nothing. Positions are grid units; lay parts out left to right "
-                        + "(inputs left, outputs right) with room between them and for their labels. A guide you "
-                        + "add only to align is AddGuide with layoutOnly true: it goes away when the task ends. At "
-                        + "most " + MAXIMUM_OPERATIONS + " operations per call: every placement and Connect re-reads "
-                        + "the circuit's connections while the editor waits, so in a big circuit send fewer. In "
-                        + "«Presentar» (vsim_get_presentation) send one step per call with its stage, step, a short "
-                        + "text and reason in the user's language: status APPLIED means it is in the circuit («De "
-                        + "corrido» applies it after a short pause); PROPOSED means the user sees it as a ghost and "
-                        + "nothing changed yet (applied false; the aliases already name the ids it will have): call "
-                        + "vsim_await_step until it is APPLIED before the next step. Without a status the call was "
-                        + "only validated.",
+                "Typed operations carried out in order on a copy of the circuit and applied together as one undo "
+                        + "step, or not at all (the first failure names its operation). STALE_DOCUMENT: the user "
+                        + "changed the circuit since your version; read again and adapt. A retry with the same "
+                        + "operationId and arguments returns the first receipt. The receipt gives the new version, "
+                        + "the real ids of the aliases, each Connect's wires (joinedNets only when it joined more "
+                        + "than its two pins) and warnings; empty and default fields are left out. validateOnly "
+                        + "changes nothing. A guide only to align: AddGuide layoutOnly true. At most "
+                        + MAXIMUM_OPERATIONS + " operations; in a big circuit send fewer. In «Presentar» send one "
+                        + "step per call with stage, step, text and reason: status APPLIED is in the circuit; "
+                        + "PROPOSED is a ghost, nothing changed yet (the aliases already name the ids it will "
+                        + "have): call vsim_await_step until APPLIED before the next step. No status: only "
+                        + "validated.",
                 Schema.object("")
                         .property("document", Common.document())
                         .property("version", Common.version())
-                        .property("operationId", Schema.nonEmptyString("Your own key for this call: a retry with "
-                                + "the same key and arguments is answered with the first receipt"))
-                        .property("taskId", Schema.nonEmptyString("The task this edit belongs to (vsim_begin_task)"))
+                        .property("operationId", Schema.nonEmptyString("Your own key for this call"))
+                        .property("taskId", Schema.nonEmptyString("From vsim_begin_task"))
                         .property("stage", Schema.string("The stage's title"))
                         .property("step", Schema.string("The step it carries out"))
-                        .property("text", Schema.string("One line saying what it does («Conecto la "
-                                + "realimentación»)"))
-                        .property("reason", Schema.string("Optional, short: why («La salida de cada NAND entra a "
-                                + "la otra: así el latch recuerda»); «Presentar» shows it under the text"))
+                        .property("text", Schema.string("One line: what it does («Conecto la realimentación»)"))
+                        .property("reason", Schema.string("Optional, short: why («así el latch recuerda»)"))
                         .property("narration", PresentationTools.narration("before the step"))
                         .property("operations", operations())
                         .property("validateOnly", Schema.bool("Check everything, change nothing"))
                         .required("document", "version", "operationId", "taskId", "operations").build(),
-                Common.versionedResult("The receipt")
-                        .property("status", Schema.enumeration("APPLIED: in the circuit; PROPOSED: shown as a "
-                                + "ghost in «Presentar», call vsim_await_step; absent for validateOnly",
-                                List.of(StepStatus.APPLIED.name(), StepStatus.PROPOSED.name())))
-                        .property("applied", Schema.bool("False for validateOnly and while PROPOSED"))
-                        .property("aliases", Schema.result("alias → real id").build())
-                        .property("connections", Schema.array("Per Connect: from, to, the wires added and the nets "
-                                + "joined (as pins)", Schema.result("").build()))
-                        .property("components", Schema.array("Components created: their id, name and pins",
-                                Schema.result("").build()))
-                        .property("changes", Schema.result("Element ids added, changed and removed (wires merge: "
-                                + "an id may give way to another)").build())
-                        .property("warnings", Schema.array("Things to look at", Schema.string("")))
-                        .property("undoDescription", Schema.string("The i18n key of its undo step"))
-                        .required("applied", "aliases", "changes", "warnings").build(),
+                receiptSchema(),
                 Tool.Hints.MAY_REMOVE_IDEMPOTENT,
                 List.of(Map.of("document", "circuit-1", "version", 3, "operationId", "latch-1", "taskId", "task-1",
                         "stage", "Latch SR", "step", "Coloco las compuertas", "text", "Coloco dos NAND",
@@ -308,8 +289,84 @@ final class EditTools {
                     Map<String, Object> structured = new LinkedHashMap<>();
                     structured.put("document", arguments.document().value());
                     statusOf(presented).ifPresent(status -> structured.put("status", status.name()));
-                    structured.putAll(Json.object(presented.receipt()));
+                    structured.putAll(receipt(presented.receipt()));
                     return Tool.Output.of(structured);
                 });
+    }
+
+    // --- the receipt ---
+
+    private static Map<String, Object> receiptSchema() {
+        return Common.versionedResult("The receipt")
+                .property("status", Schema.enumeration("APPLIED: in the circuit; PROPOSED: a ghost in «Presentar», "
+                        + "call vsim_await_step; absent for validateOnly",
+                        List.of(StepStatus.APPLIED.name(), StepStatus.PROPOSED.name())))
+                .property("aliases", Schema.result("alias → real id").build())
+                .property("connections", Schema.array("Per Connect: its operation, from, to, wireIds; joinedNets "
+                        + "when it joined more than its two pins; alreadyConnected when it added nothing",
+                        Schema.result("").build()))
+                .property("components", Schema.array("Components created: id, name and pins",
+                        Schema.result("").build()))
+                .property("changes", Schema.result("Element ids added, changed and removed (wires merge: an id "
+                        + "may give way to another)").build())
+                .property("warnings", Schema.array("Things to look at", Schema.string("")))
+                .required("aliases", "changes").build();
+    }
+
+    /**
+     * What the AI goes on with after an edit (fewer tokens, 2026-10-22): the version, the aliases, each Connect's
+     * wires, the components, the changed ids and the warnings; empty lists, default values ({@code index} 0,
+     * {@code alreadyConnected} false), {@code applied} (the status says it) and the undo step's i18n key are left
+     * out, and a Connect's {@code joinedNets} only when a net held more than the pin it was joined by.
+     */
+    static Map<String, Object> receipt(EditReceipt receipt) {
+        Map<String, Object> answer = new LinkedHashMap<>();
+        answer.put("version", receipt.version().value());
+        answer.put("aliases", Json.toJson(receipt.aliases()));
+        if (!receipt.connections().isEmpty()) {
+            answer.put("connections", receipt.connections().stream().map(EditTools::connection).toList());
+        }
+        if (!receipt.components().isEmpty()) {
+            answer.put("components", Json.toJson(receipt.components()));
+        }
+        Map<String, Object> changes = new LinkedHashMap<>();
+        putUnlessEmpty(changes, "added", receipt.changes().added());
+        putUnlessEmpty(changes, "changed", receipt.changes().changed());
+        putUnlessEmpty(changes, "removed", receipt.changes().removed());
+        answer.put("changes", changes);
+        putUnlessEmpty(answer, "warnings", receipt.warnings());
+        return answer;
+    }
+
+    private static Map<String, Object> connection(EditReceipt.ConnectionReport report) {
+        Map<String, Object> connection = new LinkedHashMap<>();
+        connection.put("operation", report.operation());
+        connection.put("from", pin(report.from()));
+        connection.put("to", pin(report.to()));
+        putUnlessEmpty(connection, "wireIds", report.wireIds());
+        if (!report.alreadyConnected() && report.joinedNets().stream().anyMatch(net -> net.size() > 1)) {
+            connection.put("joinedNets", report.joinedNets().stream()
+                    .map(net -> net.stream().map(EditTools::pin).toList()).toList());
+        }
+        if (report.alreadyConnected()) {
+            connection.put("alreadyConnected", true);
+        }
+        return connection;
+    }
+
+    private static Map<String, Object> pin(PinReference pin) {
+        Map<String, Object> answer = new LinkedHashMap<>();
+        answer.put("elementId", pin.elementId());
+        answer.put("pinName", pin.pinName());
+        if (pin.index() != 0) {
+            answer.put("index", pin.index());
+        }
+        return answer;
+    }
+
+    private static void putUnlessEmpty(Map<String, Object> object, String key, List<?> values) {
+        if (!values.isEmpty()) {
+            object.put(key, Json.toJson(values));
+        }
     }
 }

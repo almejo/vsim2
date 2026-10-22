@@ -151,7 +151,7 @@ class EndToEndScenariosTest {
                         "x", 0, "y", 22)));
         version = versionIn(noted);
         for (Map<String, Object> receipt : List.of(placed, front, latch, noted)) {
-            assertThat(list(receipt, "warnings")).as("%s", receipt).isEmpty();
+            assertThat(receipt).as("%s", receipt).doesNotContainKey("warnings");
         }
 
         // With E at 0 a latch holds whatever it had: on the fresh copy each such row never settles. It only uses up
@@ -270,7 +270,7 @@ class EndToEndScenariosTest {
                 "Lo convierto en componente", List.of(Map.of("op", "CreateComponent", "alias", "fullAdder",
                         "name", "Sumador completo", "targets", stageElements(document, region),
                         "replaceSelection", false)));
-        assertThat(list(fullAdder, "warnings")).isEmpty();
+        assertThat(fullAdder).doesNotContainKey("warnings");
         Map<String, Object> fullAdderType = describe(document, "Sumador completo");
         assertThat(list(fullAdderType, "pins")).extracting(pin -> pin.get("name"))
                 .containsExactly("A", "B", "Cin", "S", "Cout");
@@ -302,7 +302,7 @@ class EndToEndScenariosTest {
                         connect(ids.get("low"), "S", ids.get("s0"), "pin"),
                         connect(ids.get("high"), "S", ids.get("s1"), "pin"),
                         connect(ids.get("high"), "Cout", ids.get("cout"), "pin")));
-        assertThat(list(twoBitWires, "warnings")).as("%s", twoBitWires).isEmpty();
+        assertThat(twoBitWires).as("%s", twoBitWires).doesNotContainKey("warnings");
         Map<String, Object> twoBitRegion = Map.of("x", -2, "y", 34, "width", 38, "height", 34);
         Map<String, Object> twoBitCheck = call("vsim_check_stage", Map.of("document", document, "taskId", task,
                 "stage", twoBitStage, "checks", List.of(
@@ -313,7 +313,7 @@ class EndToEndScenariosTest {
         Map<String, Object> twoBit = edit(document, versionIn(twoBitCheck), task, twoBitStage,
                 "Lo convierto en componente", List.of(Map.of("op", "CreateComponent", "name", "Sumador de 2 bits",
                         "targets", stageElements(document, twoBitRegion), "replaceSelection", false)));
-        assertThat(list(twoBit, "warnings")).isEmpty();
+        assertThat(twoBit).doesNotContainKey("warnings");
         assertThat(list(describe(document, "Sumador de 2 bits"), "pins")).extracting(pin -> pin.get("name"))
                 .containsExactly("A0", "B0", "Cin", "A1", "B1", "S0", "S1", "Cout");
 
@@ -363,7 +363,7 @@ class EndToEndScenariosTest {
                                 List.of(point(32, 116), point(32, 118))),
                         connect(ids.get("high"), "Cout", ids.get("cout"), "pin",
                                 List.of(point(30, 118), point(30, 124)))));
-        assertThat(list(fourBitWires, "warnings")).as("%s", fourBitWires).isEmpty();
+        assertThat(fourBitWires).as("%s", fourBitWires).doesNotContainKey("warnings");
         Map<String, Object> fourBitRegion = Map.of("x", -2, "y", 74, "width", 42, "height", 58);
         List<Map<String, Object>> fourBitRows = adderRows(4);
         assertThat(fourBitRows).hasSize(512);
@@ -469,7 +469,7 @@ class EndToEndScenariosTest {
                 part("r", "input-pin", 0, 19, "R'"),
                 connect("new:r", "pin", ids.get("bottom"), "in1")));
         Map<String, Object> applied = call("vsim_edit", retried);
-        assertThat(applied).containsEntry("applied", true);
+        assertThat(applied).containsEntry("status", "APPLIED");
         assertThat(onEditor(() -> circuit.document().component(new ElementId(ids.get("bottom"))).orElseThrow()
                 .position())).isEqualTo(new GridPoint(10, 16));
 
@@ -504,7 +504,7 @@ class EndToEndScenariosTest {
                         Map.of("op", "AddGuide", "orientation", "VERTICAL", "position", 30),
                         Map.of("op", "MakeFrame", "title", "Inversor", "targets",
                                 List.of(ids.get("a"), ids.get("not"), ids.get("y")))));
-        assertThat(component).containsEntry("applied", true);
+        assertThat(component).containsEntry("status", "APPLIED");
 
         Map<String, Object> undone = call("vsim_undo_task", Map.of("taskId", task));
 

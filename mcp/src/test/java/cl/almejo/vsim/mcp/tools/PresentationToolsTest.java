@@ -152,7 +152,7 @@ class PresentationToolsTest {
     void inWorkingModeAnEditIsAppliedAtOnce() {
         Map<String, Object> receipt = call("vsim_edit", edit(beginTask(), 0, List.of(place("one", 0, 0))));
 
-        assertThat(receipt).containsEntry("status", "APPLIED").containsEntry("applied", true);
+        assertThat(receipt).containsEntry("status", "APPLIED").doesNotContainKey("applied");
     }
 
     @Test
@@ -162,7 +162,7 @@ class PresentationToolsTest {
 
         Map<String, Object> receipt = call("vsim_edit", edit(task, 0, List.of(place("one", 0, 0))));
 
-        assertThat(receipt).containsEntry("status", "PROPOSED").containsEntry("applied", false);
+        assertThat(receipt).containsEntry("status", "PROPOSED").containsEntry("version", 0L);
         assertThat(call("vsim_await_step", Map.of("taskId", task))).containsEntry("status", "STILL_WAITING")
                 .doesNotContainKey("receipt");
 
@@ -170,7 +170,7 @@ class PresentationToolsTest {
 
         Map<String, Object> outcome = call("vsim_await_step", Map.of("taskId", task));
         assertThat(outcome).containsEntry("taskId", task).containsEntry("status", "APPLIED");
-        assertThat(map(outcome, "receipt")).containsEntry("applied", true).containsEntry("version", 1L);
+        assertThat(map(outcome, "receipt")).containsEntry("version", 1L).containsKey("aliases");
     }
 
     @Test

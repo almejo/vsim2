@@ -79,9 +79,10 @@ final class PresentationTools {
 
     private static Tool getPresentation(AutomationApi api) {
         return new Tool(GET_PRESENTATION, "Read the presentation mode",
-                "Whether the user wants to see how you build in «Presentar» on this circuit, and at which pace. "
-                        + "The user chooses it in VSim (Ver ▸ «Presentar lo que hace la IA»); read it before a task "
-                        + "to know whether to send one step per vsim_edit.",
+                "Whether the user wants to see how you build in «Presentar», and at which pace. It is the user's "
+                        + "choice for every window (Ver ▸ «Presentar lo que hace la IA»), so a new circuit may "
+                        + "already be in «Presentar»: read it before each task to know whether to send one step per "
+                        + "vsim_edit.",
                 Schema.object("").property("document", Common.document()).required("document").build(),
                 settingsSchema("The mode"), Tool.Hints.READS, List.of(Map.of("document", "circuit-1")),
                 arguments -> Tool.Output.of(settings(arguments.document(),
@@ -130,8 +131,9 @@ final class PresentationTools {
         return new Tool(BEGIN_STAGE, "Begin a stage",
                 "In «Presentar», call it when a stage of the task begins: VSim answers the free origin, to the right "
                         + "of the previous stage, where the stage's top-left corner goes (build it there, left to "
-                        + "right), and the view travels there. At the stage's end VSim wraps what the stage built in "
-                        + "a frame titled with the stage, so the circuit reads like a storyboard.",
+                        + "right), and the view travels there. When the next stage begins or the task ends, VSim "
+                        + "wraps what the stage built in a frame titled with the stage, so the circuit reads like a "
+                        + "storyboard (a read in mid-task shows no frame yet around the current stage).",
                 Schema.object("")
                         .property("taskId", Schema.nonEmptyString("From vsim_begin_task"))
                         .property("stageNumber", Schema.integer("The stage's number in the plan, from 1", 1,
@@ -218,9 +220,8 @@ final class PresentationTools {
                                 List.of(StepStatus.APPLIED.name(), StepStatus.STILL_WAITING.name(),
                                         StepStatus.STALE.name(), StepStatus.STOPPED.name())))
                         .property("receipt", Schema.result("With APPLIED: the step's receipt, as vsim_edit gives it")
-                                .property("applied", Schema.bool(""))
                                 .property("version", Schema.integer("The circuit version after the step"))
-                                .required("applied", "version").build())
+                                .required("version").build())
                         .required("taskId", "status").build(),
                 Tool.Hints.READS, List.of(Map.of("taskId", "task-1")),
                 arguments -> {
@@ -229,7 +230,7 @@ final class PresentationTools {
                     Map<String, Object> result = new LinkedHashMap<>();
                     result.put("taskId", taskId);
                     result.put("status", outcome.status().name());
-                    outcome.receipt().ifPresent(receipt -> result.put("receipt", Json.object(receipt)));
+                    outcome.receipt().ifPresent(receipt -> result.put("receipt", EditTools.receipt(receipt)));
                     return Tool.Output.of(result);
                 });
     }

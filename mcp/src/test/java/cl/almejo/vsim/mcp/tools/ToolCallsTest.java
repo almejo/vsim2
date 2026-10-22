@@ -126,10 +126,55 @@ class ToolCallsTest {
                 Map.of("op", "Connect", "from", Map.of("target", "new:s", "pinName", "out"),
                         "to", Map.of("target", "new:lamp", "index", 0)))));
 
-        assertThat(receipt).containsEntry("applied", true).containsEntry("version", 1L);
+        assertThat(receipt).containsEntry("status", "APPLIED").containsEntry("version", 1L);
         assertThat(map(receipt, "aliases")).containsOnlyKeys("s", "lamp");
         assertThat(list(receipt, "connections")).singleElement()
                 .satisfies(connection -> assertThat(connection).containsKey("wireIds"));
+    }
+
+    /**
+     * Fewer tokens (2026-10-22): a receipt leaves out what the AI never needs (defaults, empty lists, the undo key,
+     * the two pins a plain Connect joined) and keeps what it goes on with: version, status, aliases and wire ids.
+     */
+    @Test
+    void anEditReceiptCarriesOnlyWhatTheAiGoesOnWith() {
+        String task = beginTask();
+
+        Map<String, Object> receipt = call("vsim_edit", edit(task, 0, List.of(
+                Map.of("op", "PlacePart", "alias", "s", "typeId", "switch", "x", 0, "y", 0, "label", "A"),
+                Map.of("op", "PlacePart", "alias", "lamp", "typeId", "led", "x", 12, "y", 0, "label", "Y"),
+                Map.of("op", "Connect", "from", Map.of("target", "new:s", "pinName", "out"),
+                        "to", Map.of("target", "new:lamp", "index", 0)))));
+
+        assertThat(receipt).containsEntry("status", "APPLIED").containsEntry("version", 1L)
+                .containsKeys("document", "aliases", "connections", "changes")
+                .doesNotContainKeys("applied", "undoDescription", "warnings", "components");
+        assertThat(map(receipt, "changes")).containsKey("added").doesNotContainKeys("changed", "removed");
+        Map<String, Object> connection = list(receipt, "connections").getFirst();
+        assertThat(connection).containsKeys("operation", "from", "to", "wireIds")
+                .doesNotContainKeys("joinedNets", "alreadyConnected");
+        assertThat(map(connection, "from")).containsOnlyKeys("elementId", "pinName");
+    }
+
+    @Test
+    void aReceiptStillSaysWhenAConnectJoinedBiggerNetsOrNothingNew() {
+        String task = beginTask();
+        call("vsim_edit", edit(task, 0, List.of(
+                Map.of("op", "PlacePart", "alias", "s", "typeId", "switch", "x", 0, "y", 0, "label", "A"),
+                Map.of("op", "PlacePart", "alias", "one", "typeId", "led", "x", 12, "y", 0, "label", "Y"),
+                Map.of("op", "PlacePart", "alias", "two", "typeId", "led", "x", 12, "y", 8, "label", "Z"),
+                Map.of("op", "Connect", "from", Map.of("target", "new:s", "pinName", "out"),
+                        "to", Map.of("target", "new:one", "index", 0)))));
+
+        Map<String, Object> receipt = call("vsim_edit", edit(task, 1, List.of(
+                Map.of("op", "Connect", "from", Map.of("target", "c1", "pinName", "out"),
+                        "to", Map.of("target", "c3", "index", 0)),
+                Map.of("op", "Connect", "from", Map.of("target", "c1", "pinName", "out"),
+                        "to", Map.of("target", "c2", "index", 0)))));
+
+        List<Map<String, Object>> connections = list(receipt, "connections");
+        assertThat(connections.get(0)).containsKey("joinedNets");
+        assertThat(connections.get(1)).containsEntry("alreadyConnected", true);
     }
 
     @Test

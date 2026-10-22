@@ -84,6 +84,31 @@ class VsimToolsTest {
         assertThat(read.annotations().openWorldHint()).isFalse();
     }
 
+    /** Fewer tokens (2026-10-22): one example, and only on the tools whose arguments it explains. */
+    @Test
+    void aDescriptionShowsAtMostOneExampleAndOnlyWhereItExplainsTheArguments() {
+        for (McpServerFeatures.SyncToolSpecification specification : VsimTools.specifications(api,
+                new JacksonMcpJsonMapper(new ObjectMapper()))) {
+            McpSchema.Tool tool = specification.tool();
+            int shown = tool.description().split("Example arguments:", -1).length - 1;
+            assertThat(shown).as(tool.name()).isEqualTo(ToolRunner.EXAMPLE_SHOWN_FOR.contains(tool.name()) ? 1 : 0);
+        }
+        assertThat(ToolRunner.EXAMPLE_SHOWN_FOR).containsExactlyInAnyOrder("vsim_edit", "vsim_begin_task",
+                "vsim_check_stage", "vsim_export");
+    }
+
+    @Test
+    void noIntegerIsBoundedByTheLargestIntegerAndTheEditTargetsAreExplainedOnce() {
+        for (Tool tool : VsimTools.tools(api)) {
+            assertThat(tool.inputSchema().toString()).as(tool.name())
+                    .doesNotContain("maximum=" + Integer.MAX_VALUE, "maximum=" + Long.MAX_VALUE);
+        }
+        String edit = VsimTools.tools(api).stream().filter(tool -> tool.name().equals("vsim_edit")).findFirst()
+                .orElseThrow().inputSchema().toString();
+        assertThat(edit.split("earlier operation of this call", -1)).hasSize(2);
+        assertThat(edit.split("the receipt maps it to the real id", -1)).hasSize(2);
+    }
+
     @Test
     void theToolIdsAndSchemasAreEnglishAndNeverMentionAPixel() {
         for (Tool tool : VsimTools.tools(api)) {

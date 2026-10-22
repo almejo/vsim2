@@ -47,7 +47,8 @@ final class DocumentTools {
         return new Tool(NEW_CIRCUIT, "Open a new circuit",
                 "Opens a new, empty, unsaved circuit in its own VSim window, as Archivo ▸ Nuevo, and returns its id. "
                         + "VSim never saves it: the user does. For examples like a stage of a bigger build, one "
-                        + "circuit is usually better; open a new one only for something that stands on its own.",
+                        + "circuit is usually better; open a new one only for something that stands on its own. It "
+                        + "takes the user's «Presentar» choice: read vsim_get_presentation before its task.",
                 Schema.object("")
                         .property("name", Schema.nonEmptyString("What its window shows until the user saves it"))
                         .required("name").build(),
