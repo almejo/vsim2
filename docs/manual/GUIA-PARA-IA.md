@@ -122,6 +122,16 @@ clave.
 - **Codex CLI** (el agente de terminal de OpenAI) corre en tu computador y puede usar servidores MCP locales por HTTP
   con un encabezado `Authorization: Bearer <clave>` en su configuración. Hay que verificarlo con la versión que
   tengas.
+- Configuración de Codex CLI (en `~/.codex/config.toml`, la clave en una variable de entorno, nunca en el archivo):
+
+  ```toml
+  [mcp_servers.vsim]
+  url = "http://127.0.0.1:47017/mcp"
+  bearer_token_env_var = "VSIM_MCP_TOKEN"
+  ```
+
+  y antes de abrir Codex: `export VSIM_MCP_TOKEN='<la clave que muestra VSim>'`. Si tu versión no acepta `url`,
+  revisa `codex mcp --help` (algunas versiones lo agregan con `codex mcp add`).
 - Sin conexión, escribe igual el texto desde `docs/funciones.md` y deja todas las figuras como «📷 Falta captura».
 
 Si estás conectado, sigue las instrucciones que VSim te entrega al conectarte. Lo esencial:
