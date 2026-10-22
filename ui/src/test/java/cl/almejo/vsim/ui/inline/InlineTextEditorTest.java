@@ -481,4 +481,76 @@ class InlineTextEditorTest {
             TextFonts.set(TextFont.DEFAULT);
         }
     }
+
+    // --- IA.3: notes of several lines ---
+
+    private InlineEditRequest noteRequest(String text) {
+        return InlineEditRequest.multiLine(AREA, FONT, text, InlineValidators.anyText(), confirmed::add);
+    }
+
+    private void typeInTheNote(int keyCode, int modifiers) {
+        ((InlineTextEditor.Area) editor.area()).deliver(key(editor.area(), keyCode, modifiers));
+    }
+
+    private Rectangle noteBounds() {
+        return SwingUtilities.convertRectangle(editor.area().getParent(), editor.area().getBounds(), canvas);
+    }
+
+    @Test
+    void aNoteOpensWithItsLinesAndShiftEnterAddsALineWhileEnterConfirms() {
+        editor.open(noteRequest("Prueba:\ncambia A"));
+
+        assertThat(editor.textComponent()).isSameAs(editor.area());
+        assertThat(editor.area().isVisible()).isTrue();
+        assertThat(editor.field().isVisible()).isFalse();
+        assertThat(editor.area().getText()).isEqualTo("Prueba:\ncambia A");
+        assertThat(editor.area().getSelectedText()).isEqualTo("Prueba:\ncambia A");
+
+        editor.area().setCaretPosition(editor.area().getDocument().getLength());
+        typeInTheNote(KeyEvent.VK_ENTER, InputEvent.SHIFT_DOWN_MASK);
+        assertThat(editor.area().getText()).isEqualTo("Prueba:\ncambia A\n");
+        editor.area().append("mira la salida"); // off the EDT the caret does not follow the edit
+        assertThat(editor.isOpen()).isTrue();
+        assertThat(confirmed).isEmpty();
+
+        typeInTheNote(KeyEvent.VK_ENTER, 0);
+        assertThat(editor.isOpen()).isFalse();
+        assertThat(confirmed).containsExactly("Prueba:\ncambia A\nmira la salida");
+    }
+
+    @Test
+    void escapeCancelsANoteAndTabTypesNothing() {
+        editor.open(noteRequest("nota"));
+        editor.area().setCaretPosition(editor.area().getDocument().getLength());
+        typeInTheNote(KeyEvent.VK_TAB, 0);
+        assertThat(editor.area().getText()).isEqualTo("nota");
+        typeInTheNote(KeyEvent.VK_ESCAPE, 0);
+        assertThat(editor.isOpen()).isFalse();
+        assertThat(confirmed).isEmpty();
+    }
+
+    @Test
+    void aNoteEditorKeepsItsTopAndGrowsDownWithEveryLine() {
+        editor.open(noteRequest("uno"));
+        Rectangle oneLine = noteBounds();
+        editor.area().setText("uno\ndos\ntres larga");
+        Rectangle threeLines = noteBounds();
+        assertThat(threeLines.y).isEqualTo(oneLine.y);
+        assertThat(threeLines.x).isEqualTo(oneLine.x);
+        assertThat(threeLines.height).isGreaterThan(2 * oneLine.height - 4);
+        assertThat(threeLines.width).isGreaterThanOrEqualTo(oneLine.width);
+        assertThat(editor.confirmButton().getY()).isLessThan(threeLines.height / 2);
+    }
+
+    @Test
+    void aOneLineRequestAfterANoteUsesTheFieldAgain() {
+        editor.open(noteRequest("nota"));
+        editor.open(request("U1"));
+        assertThat(confirmed).containsExactly("nota");
+        assertThat(editor.textComponent()).isSameAs(editor.field());
+        assertThat(editor.field().isVisible()).isTrue();
+        assertThat(editor.area().isVisible()).isFalse();
+        type(KeyEvent.VK_ENTER);
+        assertThat(confirmed).containsExactly("nota", "U1");
+    }
 }

@@ -169,6 +169,31 @@ class EditorAutomationHostToolsTest {
         assertThat(result.checks().getFirst().details().get("faults").toString()).contains("TEXT_OVER_PART");
     }
 
+    /** IA.3: the AI's layout check measures a note of several lines whole, as the canvas draws it. */
+    @Test
+    void theLayoutCheckSeesEveryLineOfANote() throws Exception {
+        ComponentTypeRegistry registry = StandardComponentTypes.registry();
+        CircuitDocument document = new CircuitDocument();
+        TextLabel note = new TextLabel(document.newLabelId(), new GridPoint(0, 0), "WWWWWWWWWW");
+        document.add(note);
+        double oneLine = onEditor(() -> LabelTextMeasure.INSTANCE.freeText(note).height());
+        cl.almejo.vsim.core.component.ComponentType and = registry.require(StandardComponentTypes.AND2);
+        int bodyOffset = and.bounds(and.newComponent(document.newComponentId(), new GridPoint(0, 0), Rotation.R0,
+                Map.of(), "")).y();
+        // the gate's body starts just under the first line
+        document.add(and.newComponent(document.newComponentId(),
+                new GridPoint(0, (int) Math.ceil(oneLine) - bodyOffset), Rotation.R0, Map.of(), ""));
+        assertThat(onEditor(() -> LayoutCheck.faults(document, registry, LabelTextMeasure.INSTANCE, Set.of())))
+                .isEmpty();
+
+        document.replace(note.withText("WWWWWWWWWW\nWWWWWWWWWW\nWWWWWWWWWW"));
+        double threeLines = onEditor(() -> LabelTextMeasure.INSTANCE.freeText(
+                document.label(note.id()).orElseThrow()).height());
+        assertThat(threeLines).isGreaterThan(2.5 * oneLine);
+        assertThat(onEditor(() -> LayoutCheck.faults(document, registry, LabelTextMeasure.INSTANCE, Set.of())))
+                .extracting(LayoutCheck.Fault::kind).containsExactly(LayoutCheck.FaultKind.TEXT_OVER_PART);
+    }
+
     @Test
     void noBundledExampleHasALayoutFault() throws Exception {
         ComponentTypeRegistry base = StandardComponentTypes.registry();

@@ -163,7 +163,7 @@ class LabelMenuContributorTest {
         JPopupMenu menu = menuFor(Optional.empty());
         assertThat(texts(menu)).containsExactly("Agregar texto aquí");
         choose(menu, 0);
-        view.inlineEditor().field().setText("nota");
+        view.inlineEditor().textComponent().setText("nota");
         view.inlineEditor().confirm();
         assertThat(openDocument.document().labels()).singleElement()
                 .satisfies(label -> assertThat(label.position()).isEqualTo(new GridPoint(4, 7)));

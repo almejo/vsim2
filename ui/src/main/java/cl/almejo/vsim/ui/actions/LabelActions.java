@@ -111,7 +111,8 @@ public final class LabelActions {
                         text -> setLabelIfChanged(id, text.strip(), false),
                         anchor), stillThere);
             }
-            case TextLabel label -> editor.open(new InlineEditRequest(LabelLayout.freeText(label).bounds(),
+            // a note may hold several lines (IA.3): Shift+Enter adds one, Enter confirms
+            case TextLabel label -> editor.open(InlineEditRequest.multiLine(LabelLayout.freeText(label).bounds(),
                     LabelLayout.font(), label.text(), InlineValidators.anyText(),
                     text -> setLabelIfChanged(id, text.strip(), true)), stillThere);
             case Wire wire -> {
@@ -224,7 +225,7 @@ public final class LabelActions {
     /** Opens an empty editor at {@code point}; confirming adds the text there, selected. Blank adds nothing. */
     public void addTextAt(GridPoint point) {
         TextLabel probe = new TextLabel(new ElementId("probe"), point, "");
-        editor.open(new InlineEditRequest(LabelLayout.freeText(probe).bounds(), LabelLayout.font(), "",
+        editor.open(InlineEditRequest.multiLine(LabelLayout.freeText(probe).bounds(), LabelLayout.font(), "",
                 InlineValidators.anyText(), raw -> {
             String text = raw.strip();
             if (text.isEmpty()) {

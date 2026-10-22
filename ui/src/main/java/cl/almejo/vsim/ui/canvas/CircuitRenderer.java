@@ -572,7 +572,11 @@ public final class CircuitRenderer {
         graphics.setFont(LabelLayout.font());
         graphics.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
         graphics.setColor(color);
-        graphics.drawString(placed.text(), placed.baselineX(), placed.baselineY());
+        for (LabelLayout.Line line : placed.lines()) {
+            if (!line.text().isEmpty()) {
+                graphics.drawString(line.text(), line.baselineX(), line.baselineY());
+            }
+        }
     }
 
     private Rectangle2D outline(ComponentType type, Component component) {

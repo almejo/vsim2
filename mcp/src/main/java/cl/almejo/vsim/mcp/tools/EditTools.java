@@ -87,7 +87,8 @@ final class EditTools {
                         .required("target", "parameters").build(),
                 operation("SetLabel", "The label of a part, the text of a note or the title of a frame")
                         .property("target", target("The part, note or frame"))
-                        .property("text", Schema.string("The new text"))
+                        .property("text", Schema.string("The new text; a note may have several lines: use \\n "
+                                + "for a new line (a part's label and a frame's title stay one line)"))
                         .required("target", "text").build(),
                 operation("Connect", "Joins two pins with an orthogonal route through the via points, if any; "
                         + "VSim checks what the route joins and refuses (ROUTE_REJECTED) one that would touch "
@@ -118,7 +119,8 @@ final class EditTools {
                         .required("title").build(),
                 operation("AddNote", "A free text, such as the «Prueba: …» line of the bundled examples")
                         .property("alias", alias())
-                        .property("text", Schema.nonEmptyString("The text"))
+                        .property("text", Schema.nonEmptyString("The text; use \\n for a new line, one note "
+                                + "of several lines instead of several notes"))
                         .property("x", Schema.integer("Top-left corner"))
                         .property("y", Schema.integer("Top-left corner"))
                         .required("text", "x", "y").build(),

@@ -4,6 +4,7 @@ import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.DocumentChange;
 import cl.almejo.vsim.core.document.DocumentListener;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
+import cl.almejo.vsim.ui.canvas.LabelLayout;
 import cl.almejo.vsim.ui.canvas.Viewport;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.icons.Icons;
@@ -17,17 +18,22 @@ import javax.swing.JLabel;
 import javax.swing.JList;
 import javax.swing.JPanel;
 import javax.swing.ListSelectionModel;
+import javax.swing.JTextArea;
 import javax.swing.JTextField;
 import javax.swing.KeyStroke;
 import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
+import javax.swing.UIManager;
 import javax.swing.event.DocumentEvent;
+import javax.swing.text.DefaultEditorKit;
+import javax.swing.text.JTextComponent;
 import java.awt.AWTEvent;
 import java.awt.Color;
 import java.awt.Cursor;
 import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.Font;
+import java.awt.FontMetrics;
 import java.awt.Insets;
 import java.awt.Point;
 import java.awt.Rectangle;
@@ -60,6 +66,9 @@ import java.util.function.Supplier;
  * A request with suggestions shows the ones that fit what is typed in a list under the field (all of them until the
  * user types): a click on one, or Down/Up to pick one and Enter, puts it in the field and confirms.
  * <p>
+ * A request for several lines (a note, IA.3) is edited in a text area instead: Shift+Enter adds a line break, Enter
+ * still confirms, and the area keeps its top-left corner while it grows down and right with the text.
+ * <p>
  * One editor per canvas, reused: opening a new request confirms (or, when invalid, cancels) the current one. EDT only.
  */
 public final class InlineTextEditor {
@@ -76,6 +85,7 @@ public final class InlineTextEditor {
     private static final String CANCEL = "inline-cancel";
     private static final String NEXT_SUGGESTION = "inline-next-suggestion";
     private static final String PREVIOUS_SUGGESTION = "inline-previous-suggestion";
+    private static final String NOTHING = "inline-nothing";
     /** The suggestion list shows at most this many rows; the user narrows longer lists by typing. */
     private static final int MAXIMUM_SUGGESTIONS = 6;
     private static final String OUTLINE = "JComponent.outline";
@@ -88,6 +98,7 @@ public final class InlineTextEditor {
     private CircuitCanvas canvas;
     private final JPanel panel = new JPanel(null);
     private final Field field = new Field();
+    private final Area area = new Area();
     private final JButton confirmButton;
     private final JButton cancelButton;
     private final JLabel problemText = new ProblemBadge();
@@ -117,6 +128,9 @@ public final class InlineTextEditor {
         problemText.setCursor(Cursor.getPredefinedCursor(Cursor.DEFAULT_CURSOR));
         field.setCursor(Cursor.getPredefinedCursor(Cursor.TEXT_CURSOR));
         field.setFocusTraversalKeysEnabled(false); // Tab does nothing: the focus stays in the field
+        area.setCursor(Cursor.getPredefinedCursor(Cursor.TEXT_CURSOR));
+        area.setFocusTraversalKeysEnabled(false);
+        area.setVisible(false);
         confirmButton = iconButton(InlineIcons.CONFIRM, "inline.confirm", this::confirm);
         cancelButton = iconButton(InlineIcons.CANCEL, "inline.cancel", this::cancel);
         problemText.setVisible(false);
@@ -134,6 +148,7 @@ public final class InlineTextEditor {
             }
         });
         panel.add(field);
+        panel.add(area);
         panel.add(confirmButton);
         panel.add(cancelButton);
         panel.add(suggestionList);
@@ -147,7 +162,15 @@ public final class InlineTextEditor {
         field.getActionMap().put(CANCEL, action(this::cancel));
         field.getActionMap().put(NEXT_SUGGESTION, action(() -> moveSuggestion(1)));
         field.getActionMap().put(PREVIOUS_SUGGESTION, action(() -> moveSuggestion(-1)));
-        field.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
+        area.getInputMap(JComponent.WHEN_FOCUSED).put(KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, 0), CONFIRM);
+        area.getInputMap(JComponent.WHEN_FOCUSED).put(
+                KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, InputEvent.SHIFT_DOWN_MASK), DefaultEditorKit.insertBreakAction);
+        area.getInputMap(JComponent.WHEN_FOCUSED).put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), CANCEL);
+        area.getInputMap(JComponent.WHEN_FOCUSED).put(KeyStroke.getKeyStroke(KeyEvent.VK_TAB, 0), NOTHING);
+        area.getActionMap().put(CONFIRM, action(this::confirm));
+        area.getActionMap().put(CANCEL, action(this::cancel));
+        area.getActionMap().put(NOTHING, action(() -> { }));
+        javax.swing.event.DocumentListener typing = new javax.swing.event.DocumentListener() {
             @Override
             public void insertUpdate(DocumentEvent event) {
                 textChanged();
@@ -162,7 +185,9 @@ public final class InlineTextEditor {
             public void changedUpdate(DocumentEvent event) {
                 textChanged();
             }
-        });
+        };
+        field.getDocument().addDocumentListener(typing);
+        area.getDocument().addDocumentListener(typing);
     }
 
     /** Opens {@code newRequest}; the editor stays open whatever happens to the document. */
@@ -189,8 +214,13 @@ public final class InlineTextEditor {
             case CENTER -> SwingConstants.CENTER;
             case RIGHT -> SwingConstants.RIGHT;
         });
-        field.setText(newRequest.initialText());
-        field.selectAll();
+        // a text area has no field border: lend it the field's, so both look alike
+        area.setBorder(UIManager.getBorder("TextField.border"));
+        field.setVisible(!newRequest.multiLine());
+        area.setVisible(newRequest.multiLine());
+        JTextComponent text = textComponent();
+        text.setText(newRequest.initialText());
+        text.selectAll();
         edited = false;
         whileOpen.add(canvas.addFloatingComponent(panel));
         whileOpen.add(canvas.addViewportListener(this::layOut));
@@ -204,7 +234,7 @@ public final class InlineTextEditor {
         TextFonts.addListener(fontChanged);
         whileOpen.add(() -> TextFonts.removeListener(fontChanged));
         check();
-        field.requestFocusInWindow();
+        text.requestFocusInWindow();
     }
 
     public boolean isOpen() {
@@ -228,7 +258,7 @@ public final class InlineTextEditor {
         if (!isOpen()) {
             return;
         }
-        String text = field.getText();
+        String text = textComponent().getText();
         if (request.validator().apply(text).isPresent()) {
             return;
         }
@@ -249,8 +279,19 @@ public final class InlineTextEditor {
         cancel();
     }
 
+    /** The one-line field (component labels, names, values). */
     public JTextField field() {
         return field;
+    }
+
+    /** The text area of a request of several lines (a note). */
+    public JTextArea area() {
+        return area;
+    }
+
+    /** What the open (or the last) request is typed in: {@link #area} for several lines, else {@link #field}. */
+    public JTextComponent textComponent() {
+        return request != null && request.multiLine() ? area : field;
     }
 
     public JButton confirmButton() {
@@ -308,7 +349,7 @@ public final class InlineTextEditor {
         if (!isOpen()) {
             return;
         }
-        if (request.validator().apply(field.getText()).isPresent()) {
+        if (request.validator().apply(textComponent().getText()).isPresent()) {
             cancel();
         } else {
             confirm();
@@ -316,7 +357,7 @@ public final class InlineTextEditor {
     }
 
     private void close() {
-        boolean hadFocus = field.isFocusOwner();
+        boolean hadFocus = field.isFocusOwner() || area.isFocusOwner();
         request = null;
         stillValid = () -> true;
         List<Runnable> removals = new ArrayList<>(whileOpen);
@@ -364,12 +405,13 @@ public final class InlineTextEditor {
 
     /** Runs the validator on the current text and shows what it says. */
     private void check() {
-        problem = request.validator().apply(field.getText());
-        field.putClientProperty(OUTLINE, problem.isPresent() ? OUTLINE_ERROR : null);
+        JTextComponent text = textComponent();
+        problem = request.validator().apply(text.getText());
+        text.putClientProperty(OUTLINE, problem.isPresent() ? OUTLINE_ERROR : null);
         problemText.setText(problem.orElse(""));
         problemText.setVisible(problem.isPresent());
         confirmButton.setEnabled(problem.isEmpty());
-        showSuggestions(field.getText());
+        showSuggestions(text.getText());
         layOut();
     }
 
@@ -439,32 +481,42 @@ public final class InlineTextEditor {
         Rectangle2D area = viewport.documentTransform().createTransformedShape(request.documentArea()).getBounds2D();
         float size = (float) Math.max(MINIMUM_FONT_SIZE, request.font().getSize2D() * viewport.zoom());
         Font font = request.font().deriveFont(size);
-        if (!font.equals(field.getFont())) {
-            field.setFont(font);
+        JTextComponent text = textComponent();
+        if (!font.equals(text.getFont())) {
+            text.setFont(font);
         }
-        Insets insets = field.getInsets();
+        Insets insets = text.getInsets();
         int horizontalInsets = insets.left + insets.right;
         int verticalInsets = insets.top + insets.bottom;
         int areaX = (int) Math.round(area.getX());
         int areaY = (int) Math.round(area.getY());
         int areaWidth = (int) Math.round(area.getWidth());
         int areaHeight = (int) Math.round(area.getHeight());
-        int textWidth = field.getFontMetrics(font).stringWidth(field.getText()) + CARET_ROOM;
+        FontMetrics metrics = text.getFontMetrics(font);
+        int textWidth = 0;
+        for (String line : request.multiLine() ? LabelLayout.noteLines(text.getText()) : List.of(text.getText())) {
+            textWidth = Math.max(textWidth, metrics.stringWidth(line));
+        }
+        textWidth += CARET_ROOM;
         int fieldWidth = Math.min(MAXIMUM_WIDTH,
                 Math.max(Math.max(areaWidth, MINIMUM_TEXT_WIDTH), textWidth) + horizontalInsets);
         int fittedHeight = areaHeight + verticalInsets;
-        int fieldHeight = Math.max(fittedHeight, field.getPreferredSize().height);
+        int fieldHeight = Math.max(fittedHeight, text.getPreferredSize().height);
         int fieldX = switch (request.anchor()) {
             case LEFT -> areaX - insets.left;
             case CENTER -> (int) Math.round(area.getCenterX() - fieldWidth / 2.0);
             case RIGHT -> areaX + areaWidth + insets.right - fieldWidth;
         };
-        Rectangle fieldBounds = new Rectangle(fieldX, areaY - insets.top - (fieldHeight - fittedHeight) / 2,
-                fieldWidth, fieldHeight);
+        // a note keeps its top as it grows down with every line; a one-line field is centred on the painted text
+        int fieldY = request.multiLine() ? areaY - insets.top
+                : areaY - insets.top - (fieldHeight - fittedHeight) / 2;
+        Rectangle fieldBounds = new Rectangle(fieldX, fieldY, fieldWidth, fieldHeight);
 
         Dimension buttonSize = confirmButton.getPreferredSize();
         int side = Math.max(buttonSize.width, buttonSize.height);
-        int buttonY = fieldBounds.y + (fieldHeight - side) / 2;
+        // beside the first line of a note, beside the middle of a field
+        int besideHeight = request.multiLine() ? metrics.getHeight() + verticalInsets : fieldHeight;
+        int buttonY = fieldBounds.y + (besideHeight - side) / 2;
         Rectangle confirmBounds = new Rectangle(fieldBounds.x + fieldWidth + GAP, buttonY, side, side);
         Rectangle cancelBounds = new Rectangle(confirmBounds.x + side, buttonY, side, side);
         Rectangle all = fieldBounds.union(confirmBounds).union(cancelBounds);
@@ -481,7 +533,7 @@ public final class InlineTextEditor {
             all = all.union(problemBounds);
         }
         panel.setBounds(all);
-        field.setBounds(relative(fieldBounds, all));
+        text.setBounds(relative(fieldBounds, all));
         confirmButton.setBounds(relative(confirmBounds, all));
         cancelButton.setBounds(relative(cancelBounds, all));
         suggestionList.setBounds(relative(suggestionBounds, all));
@@ -547,11 +599,30 @@ public final class InlineTextEditor {
             return condition == WHEN_FOCUSED && stroke.getKeyCode() == event.getKeyCode() && keepsToItself(event);
         }
 
-        private static boolean keepsToItself(KeyEvent event) {
-            int modifiers = event.getModifiersEx();
-            boolean alt = (modifiers & InputEvent.ALT_DOWN_MASK) != 0;
-            boolean controlOrMeta = (modifiers & (InputEvent.CTRL_DOWN_MASK | InputEvent.META_DOWN_MASK)) != 0;
-            return !alt || controlOrMeta;
+    }
+
+    /** A key the editor keeps from the canvas, the window and the menu accelerators: all but Alt combinations. */
+    private static boolean keepsToItself(KeyEvent event) {
+        int modifiers = event.getModifiersEx();
+        boolean alt = (modifiers & InputEvent.ALT_DOWN_MASK) != 0;
+        boolean controlOrMeta = (modifiers & (InputEvent.CTRL_DOWN_MASK | InputEvent.META_DOWN_MASK)) != 0;
+        return !alt || controlOrMeta;
+    }
+
+    /** The text area of a note (IA.3): like {@link Field}, it keeps every key but Alt combinations to itself. */
+    static final class Area extends JTextArea {
+
+        /** For tests: see {@link Field#deliver}. */
+        void deliver(KeyEvent event) {
+            processKeyEvent(event);
+        }
+
+        @Override
+        protected boolean processKeyBinding(KeyStroke stroke, KeyEvent event, int condition, boolean pressed) {
+            if (super.processKeyBinding(stroke, event, condition, pressed)) {
+                return true;
+            }
+            return condition == WHEN_FOCUSED && stroke.getKeyCode() == event.getKeyCode() && keepsToItself(event);
         }
     }
 }

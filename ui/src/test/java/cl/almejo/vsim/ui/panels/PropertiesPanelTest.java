@@ -286,12 +286,12 @@ class PropertiesPanelTest {
         openDocument.execute(new AddElementsCommand(List.of(label)));
         selection.select(label.id());
         assertThat(panel.heading()).isEqualTo("Texto libre");
-        panel.textField().setText("   ");
-        panel.textField().postActionEvent();
+        panel.noteArea().setText("   ");
+        panel.noteArea().confirm();
         assertThat(panel.error()).isEqualTo("El texto no puede quedar vacío");
         assertThat(openDocument.document().label(label.id()).orElseThrow().text()).isEqualTo("nota");
-        panel.textField().setText("otra");
-        panel.textField().postActionEvent();
+        panel.noteArea().setText("otra");
+        panel.noteArea().confirm();
         assertThat(openDocument.document().label(label.id()).orElseThrow().text()).isEqualTo("otra");
         assertThat(panel.error()).isEqualTo(" ");
     }
@@ -680,5 +680,31 @@ class PropertiesPanelTest {
         } finally {
             UIManager.setLookAndFeel(previous);
         }
+    }
+
+    /** IA.3: a note of several lines keeps them in Propiedades, and Shift+Enter adds one there too. */
+    @Test
+    void aNoteOfSeveralLinesKeepsThemAndShiftEnterAddsOne() {
+        TextLabel label = new TextLabel(openDocument.document().newLabelId(), new GridPoint(3, 3), "uno\ndos");
+        openDocument.execute(new AddElementsCommand(List.of(label)));
+        String before = openDocument.history().undoDescription().toString();
+        selection.select(label.id());
+        assertThat(panel.noteArea().getText()).isEqualTo("uno\ndos");
+        panel.commitEdits();
+        selection.clear();
+        assertThat(openDocument.document().label(label.id()).orElseThrow().text()).isEqualTo("uno\ndos");
+        assertThat(openDocument.history().undoDescription().toString()).isEqualTo(before);
+
+        selection.select(label.id());
+        NoteTextArea area = panel.noteArea();
+        area.setCaretPosition(area.getDocument().getLength());
+        area.deliver(new java.awt.event.KeyEvent(area, java.awt.event.KeyEvent.KEY_PRESSED, 0,
+                java.awt.event.InputEvent.SHIFT_DOWN_MASK, java.awt.event.KeyEvent.VK_ENTER,
+                java.awt.event.KeyEvent.CHAR_UNDEFINED));
+        area.append("tres");
+        assertThat(openDocument.document().label(label.id()).orElseThrow().text()).isEqualTo("uno\ndos");
+        area.deliver(new java.awt.event.KeyEvent(area, java.awt.event.KeyEvent.KEY_PRESSED, 0, 0,
+                java.awt.event.KeyEvent.VK_ENTER, java.awt.event.KeyEvent.CHAR_UNDEFINED));
+        assertThat(openDocument.document().label(label.id()).orElseThrow().text()).isEqualTo("uno\ndos\ntres");
     }
 }
