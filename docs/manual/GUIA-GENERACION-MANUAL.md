@@ -157,8 +157,8 @@ circuitos se ven limpias. Sigue así, con estos ajustes:
 **Respuesta al ❓ de «Primeros pasos» (descargar e instalar).** VSim 2 todavía no tiene una versión publicada para
 descargar. Escribe, en vez del aviso:
 - «Por ahora VSim 2 se entrega como un archivo `vsim2-<versión>.jar`: pídeselo a tu profesor.»
-- Java 21: «Instala Java 21, por ejemplo Eclipse Temurin 21 desde adoptium.net (elige tu sistema: Windows, macOS o
-  Linux) y sigue el instalador.»
+- Java 21: «Instala OpenJDK 21: en Linux, el paquete `openjdk-21-jre` de tu distribución; en Windows y macOS, desde
+  jdk.java.net/21 o el instalador de OpenJDK 21 que prefieras.»
 - Abrirlo: «En Windows y macOS, normalmente basta con un doble clic en el archivo. Si no se abre, abre una terminal
   en la carpeta del archivo y escribe `java -jar vsim2-<versión>.jar`.» En Linux, la terminal.
 - Agrega: «Más adelante VSim 2 tendrá instaladores para cada sistema de escritorio (Windows, macOS y Linux) que
