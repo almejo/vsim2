@@ -5,6 +5,7 @@ import cl.almejo.vsim.automation.edit.TaskStage;
 import cl.almejo.vsim.automation.present.StepPreview;
 import cl.almejo.vsim.automation.present.StepStatus;
 
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -38,6 +39,8 @@ final class PresentedTask {
     private int currentStep;
     private StepPreview pending;
     private StepStatus lastDiscard;
+    /** «De corrido»: how long the step on its way waits for its pause; null when none waits. */
+    private Duration pacedFor;
     private boolean ended;
 
     PresentedTask(TaskInfo task) {
@@ -55,6 +58,7 @@ final class PresentedTask {
     }
 
     void stepProposed(StepPreview preview) {
+        pacedFor = null;
         pending = preview;
         lastDiscard = null;
         currentStage = preview.stageIndex();
@@ -62,6 +66,7 @@ final class PresentedTask {
     }
 
     void stepApplied(StepPreview preview) {
+        pacedFor = null;
         pending = null;
         lastDiscard = null;
         currentStage = preview.stageIndex();
@@ -69,7 +74,18 @@ final class PresentedTask {
     }
 
     /** The pending step was dropped: {@code why} is {@link StepStatus#STALE} or {@link StepStatus#STOPPED}. */
+    /** «De corrido»: the next step is applied once {@code delay} has passed. */
+    void stepPaced(Duration delay) {
+        pacedFor = Objects.requireNonNull(delay, "delay");
+    }
+
+    /** How long the step on its way waits for its pause, until it is applied. */
+    Optional<Duration> pacedFor() {
+        return Optional.ofNullable(pacedFor);
+    }
+
     void stepDiscarded(StepStatus why) {
+        pacedFor = null;
         pending = null;
         lastDiscard = why;
     }
@@ -80,6 +96,7 @@ final class PresentedTask {
 
     void ended() {
         ended = true;
+        pacedFor = null;
         pending = null;
     }
 

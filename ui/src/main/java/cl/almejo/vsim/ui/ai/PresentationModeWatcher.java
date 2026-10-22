@@ -19,7 +19,8 @@ import java.util.function.Supplier;
  * Tells the automation layer when a circuit's window changes its «Presentar» mode or the circuit closes (IA.2 Task 1):
  * a step waiting for «Siguiente» is then written (the user switched to «De corrido» or left «Presentar») or dropped
  * (the window closed). {@link #refresh()} runs on the EDT after every preference change and window close; what it
- * finds is told off the EDT, since the automation layer waits for the editor thread.
+ * finds is told off the EDT, since the automation layer waits for the editor thread. A circuit seen for the first
+ * time is told its mode as well (telling a mode that did not change does nothing).
  */
 public final class PresentationModeWatcher {
 
@@ -77,7 +78,9 @@ public final class PresentationModeWatcher {
             open.add(id);
             PresentationSettings settings = settingsOf.apply(document);
             PresentationSettings before = known.put(id, settings);
-            if (before != null && !before.equals(settings)) {
+            // A circuit first seen now is told too: its window may have opened without any preference change, and
+            // the change that brought this refresh (the user's «De corrido») must reach its waiting step.
+            if (!settings.equals(before)) {
                 background.execute(() -> target.presentationChanged(id, settings));
             }
         }

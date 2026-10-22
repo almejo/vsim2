@@ -24,6 +24,7 @@ import javax.swing.JToolBar;
 import java.awt.event.ActionEvent;
 import java.awt.event.HierarchyEvent;
 import java.awt.event.HierarchyListener;
+import java.time.Duration;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -92,8 +93,9 @@ final class PresentationFeatures {
         this.removeShortcut = view.registerShortcutAction(PresentationExtension.SHORTCUT_ID, toggle);
 
         this.panel = new PresentationPanel(preferences, controls, this::closePanel);
-        this.placement = new FloatingPlacement(view, panel, panel.header());
+        this.placement = new FloatingPlacement(view, panel, panel.dragHandles());
         panel.whenSizeChanges(placement::place);
+        panel.whenMovedTo(placement::moveTo);
         view.addHierarchyListener(hierarchyListener);
         preferences.addListener(preferencesListener);
         this.removePresentationListener = events.addPresentationListener(new OnEditorThread());
@@ -215,6 +217,11 @@ final class PresentationFeatures {
         @Override
         public void stepDiscarded(String taskId, StepStatus why) {
             later(() -> onTask(taskId, shown -> shown.stepDiscarded(why)));
+        }
+
+        @Override
+        public void stepPaced(String taskId, Duration delay) {
+            later(() -> onTask(taskId, shown -> shown.stepPaced(delay)));
         }
 
         @Override

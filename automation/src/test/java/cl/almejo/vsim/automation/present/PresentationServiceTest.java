@@ -263,6 +263,7 @@ class PresentationServiceTest {
         assertThat(host.pacer().nextRequestedDelay()).isEqualTo(PAUSE);
         assertThat(second).isNotDone();
         assertThat(host.onEditor(() -> circuit.document().elements())).hasSize(1);
+        assertThat(heard).contains("paced " + PAUSE.toMillis()); // the panel says «Siguiente paso en …»
 
         host.pacer().advance(PAUSE);
 
@@ -443,6 +444,11 @@ class PresentationServiceTest {
         @Override
         public void stageChecked(String taskId, int stageIndex, boolean passed, String summary) {
             heard.add("checked " + stageIndex + " " + passed + " " + summary);
+        }
+
+        @Override
+        public void stepPaced(String taskId, Duration delay) {
+            heard.add("paced " + delay.toMillis());
         }
     }
 }

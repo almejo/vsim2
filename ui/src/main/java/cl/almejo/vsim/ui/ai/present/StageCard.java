@@ -13,9 +13,11 @@ import javax.swing.UIManager;
 import javax.swing.border.AbstractBorder;
 import java.awt.Color;
 import java.awt.Component;
+import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.Insets;
+import java.awt.event.MouseEvent;
 import java.awt.font.TextAttribute;
 import java.util.ArrayList;
 import java.util.List;
@@ -132,6 +134,24 @@ final class StageCard extends JPanel {
 
         Tone tone() {
             return tone;
+        }
+
+        /** Narrower than its text when the panel is: the text ends in «…» and the tooltip shows all of it. */
+        @Override
+        public Dimension getMinimumSize() {
+            return new Dimension(0, super.getMinimumSize().height);
+        }
+
+        @Override
+        public void setText(String text) {
+            super.setText(text);
+            setToolTipText(text == null || text.isBlank() ? null : text);
+        }
+
+        /** The whole text, only while it does not fit. */
+        @Override
+        public String getToolTipText(MouseEvent event) {
+            return getWidth() < getPreferredSize().width ? getText() : null;
         }
 
         @Override

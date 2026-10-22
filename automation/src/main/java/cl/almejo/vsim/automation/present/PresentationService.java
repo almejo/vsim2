@@ -176,6 +176,9 @@ public final class PresentationService {
             applied(presentation, preview, receipt);
             return Decision.answered(new PresentedEdit(receipt, Optional.of(StepStatus.APPLIED)));
         }
+        String taskId = task.info().taskId();
+        Duration paced = delay;
+        announce(listener -> listener.stepPaced(taskId, paced));
         return new Decision(Optional.empty(), presentation, delay, stageIndex, stepIndex);
     }
 
