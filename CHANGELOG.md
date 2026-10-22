@@ -5,6 +5,29 @@ Los cambios de VSim 2 que se notan al usarlo, del más nuevo al más antiguo. El
 sección es un conjunto de funciones, con las fechas en que se hizo. El detalle de cada función está en
 [docs/funciones.md](docs/funciones.md).
 
+## 2026-10-21 — Presentar lo que hace la IA (MCP)
+
+### Agregado
+
+- Ver ▸ «Presentar lo que hace la IA» (y su botón en la barra de herramientas): la IA arma el circuito paso a paso y
+  a la vista. También se lo puedes pedir en el chat; la ventanita dice «La IA pasó a Presentar» y la IA no lo apaga
+  por su cuenta durante una tarea.
+- Una ventanita flotante con la tarea, «Etapa n / m», las etapas (las terminadas con «✓ …» o «✗ …» de su
+  comprobación) y sus pasos, y los botones «Siguiente ▸» (Enter), «Hasta fin de etapa», «Detener», «Deshacer etapa»
+  y, al final, «Dejar solo el resultado».
+- «Paso a paso»: cada paso se ve en transparente con un globo que lo señala («Paso 4 de 6 · propuesto», el texto y
+  el porqué) y no se aplica hasta «Siguiente»; si tocas el circuito mientras espera, se descarta y la IA lo vuelve a
+  proponer. «De corrido»: los pasos van solos con una pausa (1 s por defecto, de 0,3 a 5 s). El ritmo se elige en la
+  ventanita o en Ver ▸ «Ritmo de Presentar», y la IA puede pedir uno para su tarea (se devuelve al terminar).
+- La vista viaja a cada paso y a cada etapa nueva (de un salto con menos movimiento); el globo sigue al zoom y se ve
+  en cada panel de una vista dividida que muestra el cambio. Nada de esto sale al exportar.
+- Cada etapa se arma a la derecha de la anterior y al terminar queda en su propio marco con su título (bloqueado
+  cuando se volvió componente: «cómo se hizo»); un marco nunca toma piezas tuyas. Cada paso y cada marco es un
+  Ctrl+Z; «Dejar solo el resultado» deja solo la última etapa, con los componentes creados, en un solo Ctrl+Z.
+- Para la IA: `vsim_get_presentation`, `vsim_set_presentation`, `vsim_begin_stage` (el lugar libre donde armar la
+  etapa) y `vsim_await_step` (espera «Siguiente»: aplicado, descartado o detenido); `vsim_edit` acepta el porqué de
+  cada paso.
+
 ## 2026-10-21 — La IA trabaja (MCP)
 
 ### Agregado
