@@ -1,6 +1,13 @@
 # VSim 2
 
-Simulador de circuitos digitales para enseñar: se dibuja el circuito, se simula y se ve cómo avanza cada señal.
+Simulador de circuitos digitales: se dibuja el circuito, se simula y se ve cómo avanza cada señal.
+
+Sus focos son **aprender y enseñar** y la **facilidad de uso**. Toma las buenas ideas que ya existen en otros
+simuladores y agrega cosas que ningún otro editor de circuitos tiene: un asistente de Karnaugh que explica cada
+grupo y un modo práctica que corrige, un paso a paso que muestra qué va a cambiar, cables que siguen al mover y se
+ordenan solos, y una IA que arma, prueba y presenta circuitos paso a paso (ver la
+[comparación con Logisim, Digital y CircuitSim](docs/superpowers/research/2026-10-19-vsim-vs-logisim-digital.md)).
+
 Está hecho en Java 21 con Swing. Es la tercera versión, después de
 [JCSim](https://github.com/almejo/jcsim) y [VSim](https://github.com/almejo/vsim) (ver [Historia](#historia)).
 
