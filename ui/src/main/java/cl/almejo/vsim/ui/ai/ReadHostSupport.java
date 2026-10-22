@@ -91,7 +91,7 @@ final class ReadHostSupport {
     }
 
     static DocumentVersion version(OpenDocument document) {
-        return new DocumentVersion(document.changeCount());
+        return new DocumentVersion(document.contentVersion());
     }
 
     private static String nameIn(ComponentType type, ResourceBundle bundle) {

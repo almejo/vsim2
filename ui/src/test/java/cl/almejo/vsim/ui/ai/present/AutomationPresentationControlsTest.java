@@ -192,7 +192,7 @@ class AutomationPresentationControlsTest {
     }
 
     private void placeAndApply(TaskInfo story, String stage, String operationId, int x) throws Exception {
-        long version = host.onEditorThread(access -> circuit.changeCount()).get(5, TimeUnit.SECONDS);
+        long version = host.onEditorThread(access -> circuit.contentVersion()).get(5, TimeUnit.SECONDS);
         api.editStep(new EditRequest(id, new DocumentVersion(version), operationId,
                 Optional.of(new TaskStep(story.taskId(), stage, "Coloco la NAND", "Coloco la NAND")),
                 List.of(new EditOperation.PlacePart(Optional.empty(), "nand2", x, 4, Rotation.R0, Map.of(), "")),
@@ -226,7 +226,7 @@ class AutomationPresentationControlsTest {
     }
 
     private EditRequest request(String operationId) throws Exception {
-        long version = host.onEditorThread(access -> circuit.changeCount()).get(5, TimeUnit.SECONDS);
+        long version = host.onEditorThread(access -> circuit.contentVersion()).get(5, TimeUnit.SECONDS);
         return new EditRequest(id, new DocumentVersion(version), operationId,
                 Optional.of(new TaskStep(task.taskId(), "Compuertas", "Coloco la NAND", "Coloco la NAND")),
                 List.of(new EditOperation.PlacePart(Optional.of("gate"), "nand2", 0, 0, Rotation.R0, Map.of(), "")),

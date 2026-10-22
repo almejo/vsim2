@@ -5,6 +5,8 @@ import cl.almejo.vsim.automation.AutomationException;
 import cl.almejo.vsim.automation.AutomationListener;
 import cl.almejo.vsim.automation.DocumentId;
 import cl.almejo.vsim.automation.TaskInfo;
+import cl.almejo.vsim.automation.TaskStopReason;
+import cl.almejo.vsim.automation.edit.AiTask;
 import cl.almejo.vsim.automation.edit.EditOperation;
 import cl.almejo.vsim.automation.edit.EditOperation.AddGuide;
 import cl.almejo.vsim.automation.edit.EditOperation.Delete;
@@ -409,6 +411,116 @@ class PresentationServiceTest {
         service.stageChecked(task.taskId(), Optional.of("Compuertas"), true, "ok");
 
         assertThat(service.edit(step(1, 0, place("output", 30, 0))).status()).contains(StepStatus.APPLIED);
+    }
+
+    /** IA.3 Speed: a layout-only fault is reported, but «De corrido» goes on to the next stage. */
+    @Test
+    void aLayoutOnlyFailureLetsDeCorridoGoOn() {
+        continuous();
+        service.edit(step(0, 0, place("first", 0, 0)));
+        host.pacer().advance(PAUSE);
+
+        boolean stops = service.stageChecked(task.taskId(), Optional.of("Compuertas"), false, false,
+                "1 layout faults");
+
+        assertThat(stops).isFalse();
+        assertThat(heard).contains("checked 0 false 1 layout faults");
+        assertThat(service.edit(step(1, 0, place("output", 30, 0))).status()).contains(StepStatus.APPLIED);
+    }
+
+    @Test
+    void aFunctionalFailureStopsDeCorridoAndAFunctionalPassLetsItGoAgain() {
+        continuous();
+        service.edit(step(0, 0, place("first", 0, 0)));
+        host.pacer().advance(PAUSE);
+
+        assertThat(service.stageChecked(task.taskId(), Optional.of("Compuertas"), false, true, "table")).isTrue();
+        assertThat(service.stageChecked(task.taskId(), Optional.of("Compuertas"), false, false, "layout only"))
+                .as("fixed: only the layout is left").isFalse();
+
+        assertThat(service.edit(step(1, 0, place("output", 30, 0))).status()).contains(StepStatus.APPLIED);
+    }
+
+    // --- a gone client (IA.3, Review Focus 4) ---
+
+    @Test
+    void aGhostTheAiStopsAskingAboutIsStoppedAfterTwoMinutes() {
+        List<String> stopped = new CopyOnWriteArrayList<>();
+        taskListeners.add(new AutomationListener() {
+            @Override
+            public void taskStarted(TaskInfo started) {
+            }
+
+            @Override
+            public void taskEnded(TaskInfo ended, java.util.Set<String> changedElementIds) {
+            }
+
+            @Override
+            public void taskStopped(TaskInfo stoppedTask) {
+                stopped.add("plain");
+            }
+
+            @Override
+            public void taskStopped(TaskInfo stoppedTask, TaskStopReason reason) {
+                stopped.add(reason.name());
+            }
+        });
+        stepByStep();
+        service.edit(step(0, 0, place("gate", 0, 0)));
+
+        host.pacer().advance(PresentationService.SILENCE_LIMIT.minusSeconds(1));
+        assertThat(edits.requireTask(task.taskId()).state()).isEqualTo(AiTask.State.RUNNING);
+        host.pacer().advance(Duration.ofSeconds(1));
+
+        assertThat(edits.requireTask(task.taskId()).state()).isEqualTo(AiTask.State.STOPPED);
+        assertThat(stopped).containsExactly(TaskStopReason.AI_SILENT.name());
+        assertThat(heard).contains("discarded STOPPED");
+        assertThat(service.hasPendingStep(task.taskId())).isFalse();
+        assertThat(circuit.document().elements()).isEmpty();
+    }
+
+    @Test
+    void anAiThatKeepsPollingIsNeverStoppedHoweverLongTheUserTakes() {
+        stepByStep();
+        service.edit(step(0, 0, place("gate", 0, 0)));
+
+        for (int poll = 0; poll < 20; poll++) {
+            host.pacer().advance(PresentationService.MAXIMUM_STEP_WAIT);
+            assertThat(service.awaitStep(task.taskId(), Duration.ZERO).status()).isEqualTo(StepStatus.STILL_WAITING);
+        }
+
+        assertThat(edits.requireTask(task.taskId()).state()).isEqualTo(AiTask.State.RUNNING);
+        service.next(task.taskId());
+        assertThat(service.awaitStep(task.taskId(), Duration.ZERO).status()).isEqualTo(StepStatus.APPLIED);
+    }
+
+    @Test
+    void aStepAppliedInTimeIsNeverStoppedLater() {
+        stepByStep();
+        service.edit(step(0, 0, place("gate", 0, 0)));
+        service.next(task.taskId());
+
+        host.pacer().advance(PresentationService.SILENCE_LIMIT.multipliedBy(2));
+
+        assertThat(edits.requireTask(task.taskId()).state()).isEqualTo(AiTask.State.RUNNING);
+    }
+
+    // --- saving keeps a waiting step (IA.3) ---
+
+    @Test
+    void savingWhileAGhostWaitsKeepsItAndSiguienteAppliesIt() {
+        stepByStep();
+        service.edit(step(0, 0, place("gate", 0, 0)));
+
+        host.onEditor(() -> {
+            circuit.history().markSaved();
+            return null;
+        });
+
+        assertThat(heard).doesNotContain("discarded STALE");
+        service.next(task.taskId());
+        assertThat(service.awaitStep(task.taskId(), Duration.ZERO).status()).isEqualTo(StepStatus.APPLIED);
+        assertThat(circuit.document().elements()).hasSize(1);
     }
 
     @Test

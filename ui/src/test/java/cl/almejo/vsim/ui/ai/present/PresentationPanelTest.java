@@ -203,6 +203,17 @@ class PresentationPanelTest {
         assertThat(panel.stopButton().isVisible()).isFalse();
     }
 
+    /** IA.3: a ghost left by a gone client: VSim stopped the task and the panel says why. */
+    @Test
+    void aTaskStoppedBecauseTheAiWentSilentSaysSo() {
+        task.stoppedBecauseTheAiWentSilent();
+        panel.show(task, false);
+
+        assertThat(panel.notice().getText()).isEqualTo("La IA dejó de responder: se detuvo la tarea");
+        assertThat(panel.undoStageButton().isVisible()).isTrue();
+        assertThat(panel.stopButton().isVisible()).isFalse();
+    }
+
     @Test
     void atTheEndItOffersToKeepOnlyTheResultAndToClose() {
         assertThat(panel.keepOnlyResultButton().isVisible()).isFalse();

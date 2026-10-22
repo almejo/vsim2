@@ -289,7 +289,8 @@ final class PresentationPanel extends JPanel {
             text = Optional.of(Messages.text("ai.present.aiSwitched"));
         }
         if (text.isEmpty() && task.isEnded()) {
-            text = Optional.of(Messages.text(task.isStopped() ? "ai.present.stopped" : "ai.present.ended"));
+            text = Optional.of(Messages.text(task.stoppedBecauseSilent() ? "ai.present.silent"
+                    : task.isStopped() ? "ai.present.stopped" : "ai.present.ended"));
         }
         notice.setText(text.orElse(" "));
         notice.setVisible(text.isPresent());

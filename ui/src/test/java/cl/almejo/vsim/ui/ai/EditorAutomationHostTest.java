@@ -96,7 +96,7 @@ class EditorAutomationHostTest {
         assertThat(first).extracting(DocumentSummary::name).containsExactly("Sumador", "Contador");
         assertThat(first).extracting(DocumentSummary::id).doesNotHaveDuplicates();
         assertThat(second).extracting(DocumentSummary::id).isEqualTo(first.stream().map(DocumentSummary::id).toList());
-        assertThat(first.get(0).version().value()).isEqualTo(adder.changeCount());
+        assertThat(first.get(0).version().value()).isEqualTo(adder.contentVersion());
         assertThat(first.get(1).modified()).isEqualTo(counter.isModified());
     }
 

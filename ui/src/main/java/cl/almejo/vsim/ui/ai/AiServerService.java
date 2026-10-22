@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.ai;
 import cl.almejo.vsim.automation.AutomationApi;
 import cl.almejo.vsim.automation.AutomationListener;
 import cl.almejo.vsim.automation.TaskInfo;
+import cl.almejo.vsim.automation.TaskStopReason;
 import cl.almejo.vsim.automation.UndoOutcome;
 import cl.almejo.vsim.mcp.McpServerSettings;
 import cl.almejo.vsim.mcp.PortInUseException;
@@ -86,6 +87,11 @@ public final class AiServerService {
         }
 
         default void taskStopped(TaskInfo task) {
+        }
+
+        /** The task stopped, and why (IA.3: VSim stops it when the AI stopped answering); by default the above. */
+        default void taskStopped(TaskInfo task, TaskStopReason reason) {
+            taskStopped(task);
         }
     }
 
@@ -419,9 +425,14 @@ public final class AiServerService {
 
         @Override
         public void taskStopped(TaskInfo task) {
+            taskStopped(task, TaskStopReason.USER);
+        }
+
+        @Override
+        public void taskStopped(TaskInfo task, TaskStopReason reason) {
             editorThread.execute(() -> {
                 runningTasks.remove(task.taskId());
-                listeners.forEach(listener -> listener.taskStopped(task));
+                listeners.forEach(listener -> listener.taskStopped(task, reason));
                 notifyStateChanged();
             });
         }

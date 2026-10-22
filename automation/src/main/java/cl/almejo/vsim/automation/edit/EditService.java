@@ -7,6 +7,7 @@ import cl.almejo.vsim.automation.DocumentId;
 import cl.almejo.vsim.automation.DocumentVersion;
 import cl.almejo.vsim.automation.EditHost;
 import cl.almejo.vsim.automation.TaskInfo;
+import cl.almejo.vsim.automation.TaskStopReason;
 import cl.almejo.vsim.automation.StageUndoOutcome;
 import cl.almejo.vsim.automation.UndoOutcome;
 import cl.almejo.vsim.core.command.Command;
@@ -54,8 +55,8 @@ public final class EditService {
     /** The undo step of «Dejar solo el resultado». */
     public static final String KEEP_ONLY_RESULT_DESCRIPTION = "command.aiKeepResult";
 
-    /** The undo step of a stage's frame: like any other change of the AI. */
-    public static final String STAGE_FRAME_DESCRIPTION = AiEditCommand.DESCRIPTION;
+    /** The undo step of a stage's frame and of its lock: «Deshacer marco de etapa» (IA.3). */
+    public static final String STAGE_FRAME_DESCRIPTION = "command.aiStageFrame";
 
     private final EditHost host;
     private final List<AutomationListener> listeners;
@@ -391,9 +392,18 @@ public final class EditService {
 
     /** «Detener»: the task's applied edits stay (undoable), its next edits are refused, and listeners hear it. */
     public void stopTask(String taskId) {
+        stopTask(taskId, TaskStopReason.USER);
+    }
+
+    /**
+     * Stops the task as «Detener» does, and listeners hear why: the user, or VSim because the AI stopped answering
+     * (IA.3). A task that ended or was stopped already stays as it is.
+     */
+    public void stopTask(String taskId, TaskStopReason reason) {
+        Objects.requireNonNull(reason, "reason");
         AiTask task = requireTask(taskId);
         if (task.stop()) {
-            announce(listener -> listener.taskStopped(task.info()));
+            announce(listener -> listener.taskStopped(task.info(), reason));
         }
     }
 

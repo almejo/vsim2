@@ -194,12 +194,14 @@ public final class AutomationApi {
 
     /**
      * Runs a stage's checks and reports what VSim measured; a check VSim did not finish never passes. When the request
-     * names a task, «Presentar» shows the result in the stage's card (and «De corrido» waits after a failed one).
+     * names a task, «Presentar» shows the result in the stage's card, and «De corrido» waits at the next stage after
+     * a functional failure ({@link StageCheck.Result#functionalFailure}); a layout-only failure lets it go on.
      */
     public StageCheck.Result checkStage(StageCheck.Request request) {
+        request.taskId().ifPresent(presentation::heardFrom);
         StageCheck.Result result = checks.run(request);
         result.taskId().ifPresent(taskId -> presentation.stageChecked(taskId, result.stage(), result.passed(),
-                summaryOf(result)));
+                result.functionalFailure(), summaryOf(result)));
         return result;
     }
 
@@ -351,6 +353,7 @@ public final class AutomationApi {
      * ({@code INVALID_PARAMETER}).
      */
     public StageOrigin beginStage(String taskId, int stageIndex) {
+        presentation.heardFrom(taskId);
         StageOrigin origin = storyboard.beginStage(taskId, stageIndex);
         presentation.stageBegun(taskId, stageIndex);
         return origin;
@@ -483,6 +486,7 @@ public final class AutomationApi {
 
     /** Replaces a task's plan of stages and steps. */
     public void updatePlan(String taskId, List<TaskStage> stages) {
+        presentation.heardFrom(taskId);
         edits.updatePlan(taskId, stages);
         presentation.planUpdated(taskId);
     }

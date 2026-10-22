@@ -72,6 +72,9 @@ public final class OpenDocument implements AutoCloseable {
     private boolean pauseOnShortCircuit;
     private Map<String, String> probeNets = Map.of();
     private long changeCount;
+    private long contentVersion;
+    /** The command on top of the undo stack at the last history notification (for {@link #contentVersion()}). */
+    private Command topOfHistory;
     private boolean stepMode;
     private String lastTunnelEntranceName;
     /** Whether the simulated circuit has a clock, also inside a user component (M6.1-B); set with each recompile. */
@@ -93,6 +96,11 @@ public final class OpenDocument implements AutoCloseable {
         document.addListener((changed, change) -> synchronize());
         history.addListener(changed -> {
             changeCount++;
+            Command top = changed.undoCommand().orElse(null);
+            if (top != topOfHistory) {
+                topOfHistory = top;
+                contentVersion++;
+            }
             fireChanged();
         });
         document.addProbeListener(() -> simulation.setProbes(updateProbeNets()));
@@ -211,6 +219,15 @@ public final class OpenDocument implements AutoCloseable {
      */
     public long changeCount() {
         return changeCount;
+    }
+
+    /**
+     * The version of the circuit the AI's edits are prepared against (IA.3): grows on every undo-history notification
+     * that changes the command on top of the undo stack (execute, undo, redo, clear), not when the file is saved or
+     * marked unsaved, so the user's Ctrl+S never makes the AI's next edit or a step waiting for «Siguiente» stale.
+     */
+    public long contentVersion() {
+        return contentVersion;
     }
 
     public Netlist netlist() {

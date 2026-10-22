@@ -12,6 +12,7 @@ import cl.almejo.vsim.automation.edit.TaskStage;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.ElementBounds;
 import cl.almejo.vsim.core.document.CircuitDocument;
+import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.Frame;
@@ -60,6 +61,11 @@ public final class Storyboard implements PresentationService.StageBoundary {
     static final int FRAME_MARGIN = 2;
     /** The extra room above the parts for the frame's title. */
     static final int TITLE_ROOM = 2;
+    /**
+     * The extra row between the title and a stage begun at its origin, for the labels drawn above its topmost parts
+     * (IA.3): with it, a frame measuring those labels still has its top on the reference row.
+     */
+    static final int LABEL_ROOM = 1;
     /** The area a new stage is expected to take: the origin is chosen so that nothing lies there. */
     static final int STAGE_WIDTH = 30;
     static final int STAGE_HEIGHT = 20;
@@ -92,6 +98,7 @@ public final class Storyboard implements PresentationService.StageBoundary {
                 frameStagesBefore(circuit, task, stageIndex);
             }
             GridPoint free = originOf(circuit.document(), circuit.registry(), host.textMeasure(), task, stageIndex);
+            task.recordStageOrigin(stageIndex, free);
             if (presenting) {
                 host.travelToStageOrigin(document, free);
             }
@@ -286,8 +293,12 @@ public final class Storyboard implements PresentationService.StageBoundary {
     }
 
     /**
-     * A frame titled with the stage around what it added, as roomy as possible without taking in anything else;
-     * empty when even the tightest one would, or when the stage has nothing left.
+     * A frame titled with the stage around what it added (part labels and every line of its notes included), as roomy
+     * as possible without taking in anything else. Its top is the stage origin's reference top when «begin stage»
+     * gave one (so frames line up left to right whatever row the AI started on), else, or when that taller frame
+     * would take in something else, the top of what the stage added. Empty when even the tightest one would take in
+     * something else, when the stage has nothing left, and when everything it added lies inside a frame already
+     * (another task's stage frame or the user's own): no frame inside a frame.
      */
     static Optional<Frame> frameFor(CircuitDocument candidate, ComponentTypeRegistry registry, TextMeasure measure,
                                     AiTask task, int stage, boolean locked) {
@@ -296,26 +307,60 @@ public final class Storyboard implements PresentationService.StageBoundary {
         if (around.isEmpty()) {
             return Optional.empty();
         }
+        Bounds bodies = boundsOf(elements, registry, measure, false).orElse(around.get());
         Set<ElementId> own = ids(elements);
+        if (insideAFrameAlready(candidate, registry, own)) {
+            return Optional.empty();
+        }
         String title = titleOf(task.stages(), stage);
         ElementId id = candidate.newFrameId();
-        for (int margin = FRAME_MARGIN; margin >= 0; margin--) {
-            for (int titleRoom = TITLE_ROOM; titleRoom >= 0; titleRoom--) {
-                Frame frame = around(id, around.get(), margin, titleRoom, title, locked);
-                if (own.containsAll(FrameContents.of(candidate, registry, frame))) {
-                    return Optional.of(frame);
+        List<OptionalInt> tops = new ArrayList<>();
+        task.stageOrigin(stage).ifPresent(origin -> tops.add(OptionalInt.of(referenceTopOf(origin))));
+        tops.add(OptionalInt.empty());
+        for (OptionalInt referenceTop : tops) {
+            for (int margin = FRAME_MARGIN; margin >= 0; margin--) {
+                for (int titleRoom = TITLE_ROOM; titleRoom >= 0; titleRoom--) {
+                    Frame frame = around(id, around.get(), bodies, margin, titleRoom, referenceTop, title, locked);
+                    if (own.containsAll(FrameContents.of(candidate, registry, frame))) {
+                        return Optional.of(frame);
+                    }
                 }
             }
         }
         return Optional.empty();
     }
 
-    private static Frame around(ElementId id, Bounds bounds, int margin, int titleRoom, String title,
-                                boolean locked) {
-        int top = margin + titleRoom;
-        return new Frame(id, new GridPoint(bounds.x() - margin, bounds.y() - top),
+    /** True when some frame already in the circuit holds every one of {@code own}. */
+    private static boolean insideAFrameAlready(CircuitDocument document, ComponentTypeRegistry registry,
+                                               Set<ElementId> own) {
+        for (Frame existing : document.frames()) {
+            if (!own.contains(existing.id()) && FrameContents.of(document, registry, existing).containsAll(own)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** The top of the frame of a stage built at {@code origin} (the origin is that corner plus margin and title). */
+    private static int referenceTopOf(GridPoint origin) {
+        return origin.y() - FRAME_MARGIN - TITLE_ROOM - LABEL_ROOM;
+    }
+
+    /**
+     * The frame around {@code bounds} (with the part labels) with {@code margin} on every side and {@code titleRoom}
+     * more above the {@code bodies} (the parts and notes without their labels: a label may sit beside the title); its
+     * top at {@code referenceTop} when given and not below what the contents need.
+     */
+    private static Frame around(ElementId id, Bounds bounds, Bounds bodies, int margin, int titleRoom,
+                                OptionalInt referenceTop, String title, boolean locked) {
+        int top = Math.min(bodies.y() - margin - titleRoom, bounds.y() - margin);
+        if (referenceTop.isPresent()) {
+            top = Math.min(top, referenceTop.getAsInt());
+        }
+        int bottom = bounds.maximumY() + margin;
+        return new Frame(id, new GridPoint(bounds.x() - margin, top),
                 Math.max(Frame.MINIMUM_WIDTH, bounds.width() + 2 * margin),
-                Math.max(Frame.MINIMUM_HEIGHT, bounds.height() + margin + top), title, FrameTint.NONE, locked);
+                Math.max(Frame.MINIMUM_HEIGHT, bottom - top), title, FrameTint.NONE, locked);
     }
 
     /** The frame the storyboard put around {@code stage}, while it is in the circuit. */
@@ -347,7 +392,8 @@ public final class Storyboard implements PresentationService.StageBoundary {
         Optional<Bounds> previous = previousStageArea(document, registry, measure, task, stageIndex)
                 .or(() -> obstacles.stream().reduce(Bounds::union));
         int left = previous.map(area -> area.maximumX() + GAP).orElse(0);
-        int top = previous.map(Bounds::y).orElse(0);
+        // The row the earlier stages were begun on, so the tops stay on one line even when a frame grew upwards.
+        int top = earlierReferenceTop(task, stageIndex).orElseGet(() -> previous.map(Bounds::y).orElse(0));
         for (int attempt = 0; attempt <= obstacles.size(); attempt++) {
             Bounds wanted = new Bounds(left, top, STAGE_WIDTH, STAGE_HEIGHT);
             OptionalInt blocking = obstacles.stream().filter(wanted::intersects).mapToInt(Bounds::maximumX).max();
@@ -356,7 +402,18 @@ public final class Storyboard implements PresentationService.StageBoundary {
             }
             left = blocking.getAsInt() + GAP;
         }
-        return new GridPoint(left + FRAME_MARGIN, top + FRAME_MARGIN + TITLE_ROOM);
+        return new GridPoint(left + FRAME_MARGIN, top + FRAME_MARGIN + TITLE_ROOM + LABEL_ROOM);
+    }
+
+    /** The reference top of the closest earlier stage «begin stage» gave an origin to. */
+    private static OptionalInt earlierReferenceTop(AiTask task, int stageIndex) {
+        for (int stage = stageIndex - 1; stage >= 0; stage--) {
+            Optional<GridPoint> origin = task.stageOrigin(stage);
+            if (origin.isPresent()) {
+                return OptionalInt.of(referenceTopOf(origin.get()));
+            }
+        }
+        return OptionalInt.empty();
     }
 
     /** The frame of the closest earlier stage that has one, or the frame its parts would get. */
@@ -400,16 +457,30 @@ public final class Storyboard implements PresentationService.StageBoundary {
     }
 
     /**
-     * The union of the elements' bounds; a note with every line of its text as {@code measure} draws it (the
-     * editor's font), not just its corner; a part whose type is unknown has none.
+     * The union of the elements' bounds; a note with every line of its text and a part with its label as
+     * {@code measure} draws them (the editor's font), not just the note's corner or the part's body; a part whose type
+     * is unknown has none.
      */
     private static Optional<Bounds> boundsOf(List<DocumentElement> elements, ComponentTypeRegistry registry,
                                              TextMeasure measure) {
+        return boundsOf(elements, registry, measure, true);
+    }
+
+    /** As above; without the part labels unless {@code withLabels}. */
+    private static Optional<Bounds> boundsOf(List<DocumentElement> elements, ComponentTypeRegistry registry,
+                                             TextMeasure measure, boolean withLabels) {
         Bounds result = null;
         for (DocumentElement element : elements) {
             try {
                 Bounds bounds = element instanceof TextLabel label ? inGrid(measure.freeText(label))
                         : ElementBounds.of(element, registry);
+                if (withLabels && element instanceof Component part) {
+                    Optional<TextMeasure.TextBox> label = registry.findTypeOf(part)
+                            .flatMap(type -> measure.componentLabel(type, part));
+                    if (label.isPresent()) {
+                        bounds = bounds.union(inGrid(label.get()));
+                    }
+                }
                 result = result == null ? bounds : result.union(bounds);
             } catch (RuntimeException unknownType) {
                 // No size to frame or to keep clear of.

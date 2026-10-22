@@ -17,6 +17,9 @@ import java.util.Set;
  */
 public final class StageCheck {
 
+    /** The kind of the layout check: the only check that is not about what the circuit does. */
+    private static final String LAYOUT = "layout";
+
     private StageCheck() {
     }
 
@@ -135,6 +138,15 @@ public final class StageCheck {
             Objects.requireNonNull(taskId, "taskId");
             Objects.requireNonNull(stage, "stage");
             checks = List.copyOf(checks);
+        }
+
+        /**
+         * True when a check of what the circuit does (truth table, signals, problems) did not pass (FAILED or
+         * NOT_FINISHED): «De corrido» stops at the stage's end. Layout faults and a circuit that changed while the
+         * checks ran are reported, but never a functional failure (IA.3 Speed).
+         */
+        public boolean functionalFailure() {
+            return checks.stream().anyMatch(check -> !LAYOUT.equals(check.kind()) && check.status() != Status.PASSED);
         }
     }
 

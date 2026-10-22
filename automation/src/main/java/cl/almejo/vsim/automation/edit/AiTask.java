@@ -2,7 +2,9 @@ package cl.almejo.vsim.automation.edit;
 
 import cl.almejo.vsim.automation.TaskInfo;
 import cl.almejo.vsim.core.document.Guide;
+import cl.almejo.vsim.core.geometry.GridPoint;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -43,6 +45,10 @@ public final class AiTask {
     private final Map<String, Integer> howItWasMade = new LinkedHashMap<>();
     /** The frame the storyboard put around each stage. */
     private final Map<Integer, String> stageFrames = new TreeMap<>();
+    /** The origin «begin stage» gave each stage: its frame's top lines up with it (IA.3). */
+    private final Map<Integer, GridPoint> stageOrigins = new TreeMap<>();
+    /** When the AI last made a call that names this task (IA.3: a gone client's ghost is stopped). */
+    private Instant lastHeard;
 
     AiTask(TaskInfo info, List<TaskStage> stages) {
         this.info = Objects.requireNonNull(info, "info");
@@ -147,6 +153,25 @@ public final class AiTask {
 
     public synchronized void recordStageFrame(int stageIndex, String frameId) {
         stageFrames.put(stageIndex, frameId);
+    }
+
+    /** The origin «begin stage» gave stage {@code stageIndex}, if it gave one. */
+    public synchronized Optional<GridPoint> stageOrigin(int stageIndex) {
+        return Optional.ofNullable(stageOrigins.get(stageIndex));
+    }
+
+    public synchronized void recordStageOrigin(int stageIndex, GridPoint origin) {
+        stageOrigins.put(stageIndex, Objects.requireNonNull(origin, "origin"));
+    }
+
+    /** The AI made a call that names this task at {@code when}. */
+    public synchronized void heard(Instant when) {
+        lastHeard = Objects.requireNonNull(when, "when");
+    }
+
+    /** When the AI last made a call that names this task; empty before the first one. */
+    public synchronized Optional<Instant> lastHeard() {
+        return Optional.ofNullable(lastHeard);
     }
 
     /** True while some edit of this task is still in the document (not undone). Editor thread only. */

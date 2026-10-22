@@ -202,6 +202,113 @@ class StoryboardTest {
         assertThat(circuit.document().frames()).isEmpty();
     }
 
+    // --- frames that line up, fit their labels and never nest (IA.3, Review Focus 5) ---
+
+    @Test
+    void framesLineUpOnTopWhateverRowTheAiStartsOn() {
+        presenting();
+        TaskInfo task = api.beginTask(DOCUMENT, "Cuatro etapas", STORY);
+        int[] rowsBelowTheOrigin = {0, 3, 1, 5};
+        for (int stage = 0; stage < rowsBelowTheOrigin.length; stage++) {
+            StageOrigin origin = api.beginStage(task.taskId(), stage);
+            apply(task, stage, place("lamp" + stage, "led", origin.x(), origin.y() + rowsBelowTheOrigin[stage]));
+        }
+
+        api.endTask(task.taskId());
+
+        List<Frame> frames = framesLeftToRight();
+        assertThat(frames).hasSize(4);
+        assertThat(frames).extracting(frame -> frame.topLeft().y()).containsOnly(frames.getFirst().topLeft().y());
+    }
+
+    @Test
+    void aLongPartLabelStaysInsideItsFrame() {
+        presenting();
+        TaskInfo task = api.beginTask(DOCUMENT, "Una etapa", STORY);
+        StageOrigin origin = api.beginStage(task.taskId(), 0);
+        EditReceipt receipt = apply(task, 0, new PlacePart(Optional.of("carry"), "input-pin", origin.x(),
+                origin.y() + 2, Rotation.R0, Map.of(), "Acarreo que llega de la etapa anterior"));
+
+        api.endTask(task.taskId());
+
+        Component part = (Component) circuit.document().element(new ElementId(receipt.aliases().get("carry")))
+                .orElseThrow();
+        TextMeasure.TextBox label = host.textMeasure().componentLabel(
+                circuit.registry().findTypeOf(part).orElseThrow(), part).orElseThrow();
+        Frame frame = circuit.document().frames().getFirst();
+        assertThat(frame.topLeft().x()).isLessThanOrEqualTo((int) Math.floor(label.left()));
+        assertThat(frame.topLeft().x() + frame.width()).isGreaterThanOrEqualTo(
+                (int) Math.ceil(label.left() + label.width()));
+        assertThat(frame.topLeft().y()).isLessThanOrEqualTo((int) Math.floor(label.top()));
+    }
+
+    @Test
+    void aUserPartBetweenTheOriginAndTheStagesPartsIsNeverFramed() {
+        presenting();
+        TaskInfo task = api.beginTask(DOCUMENT, "Una etapa", STORY);
+        StageOrigin origin = api.beginStage(task.taskId(), 0);
+        EditReceipt stage = apply(task, 0, place("lamp", "led", origin.x(), origin.y() + 10));
+        String users = userPlaces("led", origin.x(), origin.y());
+
+        api.endTask(task.taskId());
+
+        Frame frame = circuit.document().frames().getFirst();
+        assertThat(values(FrameContents.of(circuit.document(), circuit.registry(), frame)))
+                .containsExactly(stage.aliases().get("lamp"))
+                .doesNotContain(users);
+    }
+
+    /** The user's second run (2026-10-22): a second task's fix inside the first task's frame got a frame of its own. */
+    @Test
+    void aSecondTasksStageInsideAnEarlierFrameIsNotFramedAgain() {
+        presenting();
+        TaskInfo first = api.beginTask(DOCUMENT, "Nota de prueba", STORY);
+        StageOrigin origin = api.beginStage(first.taskId(), 0);
+        apply(first, 0, place("left", "led", origin.x(), origin.y()), place("right", "led", origin.x() + 20,
+                origin.y() + 8));
+        api.endTask(first.taskId());
+        Frame outer = circuit.document().frames().getFirst();
+
+        TaskInfo second = api.beginTask(DOCUMENT, "Ordeno la nota de prueba", STORY);
+        apply(second, 0, new EditOperation.AddNote(Optional.of("note"), "Prueba: enciende A", origin.x() + 4,
+                origin.y() + 4));
+        api.endTask(second.taskId());
+
+        assertThat(circuit.document().frames()).containsExactly(outer);
+    }
+
+    @Test
+    void aStageInsideTheUsersOwnFrameIsNotFramedAgain() {
+        presenting();
+        Frame users = host.onEditor(() -> {
+            Frame frame = new Frame(circuit.document().newFrameId(), new GridPoint(100, 0), 60, 40, "Mío",
+                    cl.almejo.vsim.core.document.FrameTint.NONE, false);
+            circuit.history().execute(new AddElementsCommand(List.of(frame)));
+            return frame;
+        });
+        known = host.onEditor(circuit::version);
+        TaskInfo task = api.beginTask(DOCUMENT, "Dentro", STORY);
+        apply(task, 0, place("lamp", "led", 110, 10));
+
+        api.endTask(task.taskId());
+
+        assertThat(circuit.document().frames()).containsExactly(users);
+    }
+
+    @Test
+    void aStagesFrameUndoesAsMarcoDeEtapa() {
+        presenting();
+        TaskInfo task = api.beginTask(DOCUMENT, "Una etapa", STORY);
+        StageOrigin origin = api.beginStage(task.taskId(), 0);
+        apply(task, 0, place("lamp", "led", origin.x(), origin.y()));
+
+        api.endTask(task.taskId());
+
+        assertThat(circuit.history().undoDescription()).contains("command.aiStageFrame");
+        assertThat(cl.almejo.vsim.automation.edit.EditService.STAGE_FRAME_DESCRIPTION)
+                .isEqualTo("command.aiStageFrame");
+    }
+
     // --- origins ---
 
     @Test

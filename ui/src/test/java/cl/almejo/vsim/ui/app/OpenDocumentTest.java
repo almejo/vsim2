@@ -230,6 +230,23 @@ class OpenDocumentTest {
         assertThat(document.latestSnapshot().running()).isFalse();
     }
 
+    /** IA.3: the AI's version moves with every edit, undo and redo, but not when the file is saved. */
+    @Test
+    void theContentVersionMovesWithEveryChangeButNotWithASave(@TempDir Path directory) throws IOException {
+        OpenDocument document = track(OpenDocument.createEmpty(registry));
+        assertThat(document.contentVersion()).isZero();
+
+        place(document, StandardComponentTypes.LED, 0, 0, Map.of());
+        assertThat(document.contentVersion()).isEqualTo(1);
+        document.history().undo();
+        document.history().redo();
+        assertThat(document.contentVersion()).isEqualTo(3);
+        document.save(directory.resolve("led.vsim"));
+        document.history().markUnsaved();
+        assertThat(document.contentVersion()).isEqualTo(3);
+        assertThat(document.changeCount()).isEqualTo(5);
+    }
+
     @Test
     void everyHistoryNotificationMovesTheChangeCountAndTheRecoveryIdStays(@TempDir Path directory) throws IOException {
         OpenDocument document = track(OpenDocument.createEmpty(registry));

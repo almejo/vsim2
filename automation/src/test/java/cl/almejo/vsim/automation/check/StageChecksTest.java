@@ -213,6 +213,29 @@ class StageChecksTest {
         assertThat(result.version()).isEqualTo(VERSION);
     }
 
+    /** IA.3 Speed: only what the circuit does stops «De corrido»; layout faults are reported and let it go on. */
+    @Test
+    void onlyAFunctionalCheckThatDidNotPassIsAFunctionalFailure() {
+        measurements.table = andTable(false, 4, false);
+        measurements.faults = List.of(new LayoutCheck.Fault(LayoutCheck.FaultKind.PART_OVERLAP, List.of("c1", "c2"),
+                "c1 overlaps c2"));
+        StageCheck.Result layoutOnly = checks.run(new StageCheck.Request(DOCUMENT, Optional.of("task-1"),
+                Optional.empty(), List.of(truthTable(andRows()), new Check.Layout(Set.of()))));
+        assertThat(layoutOnly.passed()).isFalse();
+        assertThat(layoutOnly.functionalFailure()).isFalse();
+
+        List<ExpectedRow> wrong = new ArrayList<>(andRows());
+        wrong.set(3, row("1", "1", "0"));
+        StageCheck.Result tableFailed = checks.run(new StageCheck.Request(DOCUMENT, Optional.of("task-1"),
+                Optional.empty(), List.of(truthTable(wrong), new Check.Layout(Set.of()))));
+        assertThat(tableFailed.functionalFailure()).isTrue();
+
+        measurements.problems = new ProblemsView(DOCUMENT, VERSION, "0", false, List.of());
+        StageCheck.Result problemsNotFinished = checks.run(new StageCheck.Request(DOCUMENT, Optional.empty(),
+                Optional.empty(), List.of(new Check.Problems())));
+        assertThat(problemsNotFinished.functionalFailure()).as("never a pass, so it stops").isTrue();
+    }
+
     @Test
     void aClosedCircuitFailsTheWholeCall() {
         measurements.closed = true;

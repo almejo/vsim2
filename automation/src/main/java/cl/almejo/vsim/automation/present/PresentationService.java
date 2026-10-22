@@ -5,6 +5,7 @@ import cl.almejo.vsim.automation.AutomationException;
 import cl.almejo.vsim.automation.DocumentId;
 import cl.almejo.vsim.automation.PresentationHost;
 import cl.almejo.vsim.automation.TaskInfo;
+import cl.almejo.vsim.automation.TaskStopReason;
 import cl.almejo.vsim.automation.edit.AiTask;
 import cl.almejo.vsim.automation.edit.EditOperation;
 import cl.almejo.vsim.automation.edit.EditReceipt;
@@ -46,7 +47,8 @@ import java.util.function.Consumer;
  *     ({@link StepStatus#STALE}).</li>
  * </ul>
  * «Hasta fin de etapa» paces the rest of the current stage like «De corrido»; «De corrido» waits at the next stage
- * only when the stage's check failed. {@link #awaitStep} answers within {@link #MAXIMUM_STEP_WAIT}; every wait ends
+ * only when the stage's check found a functional failure. A step that waits for «Siguiente» while the AI asks nothing
+ * about its task for {@link #SILENCE_LIMIT} stops the task (the client is gone, IA.3). {@link #awaitStep} answers within {@link #MAXIMUM_STEP_WAIT}; every wait ends
  * when the user stops the task, the task ends, the window closes, the AI is turned off or «Presentar» is left.
  * Listeners hear the plan and each step through {@code events}, never on the caller's stack.
  */
@@ -54,6 +56,13 @@ public final class PresentationService {
 
     /** The longest {@code await_step} waits in one call: well under the client's tool timeout (spec §5.1). */
     public static final Duration MAXIMUM_STEP_WAIT = Duration.ofSeconds(30);
+
+    /**
+     * How long a step may wait for «Siguiente» without the AI asking anything about its task before VSim takes the
+     * client for gone and stops the task (IA.3): {@code await_step} answers within {@link #MAXIMUM_STEP_WAIT}, so a
+     * live AI asks again well within it.
+     */
+    public static final Duration SILENCE_LIMIT = Duration.ofMinutes(2);
 
     /** Presentations of tasks that no longer run kept for a late {@code await_step}. */
     static final int MAXIMUM_REMEMBERED_TASKS = 100;
@@ -102,6 +111,7 @@ public final class PresentationService {
     /** One edit call as «Presentar» takes it (see the class comment); throws as {@link EditService#edit} does. */
     public PresentedEdit edit(EditRequest request) {
         Optional<AiTask> checked = edits.checkRequest(request);
+        checked.ifPresent(this::heardFrom);
         if (checked.isPresent() && !request.validateOnly() && onlyLayoutGuides(request.operations())) {
             // A guide is written at once: under a waiting ghost it would make the AI's own step stale.
             requireNoPendingStep(checked.get());
@@ -211,7 +221,46 @@ public final class PresentationService {
         }
         announcePlan(presentation);
         announce(listener -> listener.stepProposed(preview));
+        watchSilence(presentation, pending, SILENCE_LIMIT);
         return pending.answer();
+    }
+
+    // --- a gone client (IA.3) ---
+
+    /** The AI made a call that names task {@code taskId}: it is still there. Unknown tasks are ignored. */
+    public void heardFrom(String taskId) {
+        edits.task(taskId).ifPresent(this::heardFrom);
+    }
+
+    private void heardFrom(AiTask task) {
+        task.heard(pacer.now());
+    }
+
+    /** After {@code delay}, checks whether the AI still asks about {@code pending} while it waits for «Siguiente». */
+    private void watchSilence(TaskPresentation presentation, PendingStep pending, Duration delay) {
+        pacer.silenceCheckAfter(delay).whenComplete((ignored, failure) -> checkSilence(presentation, pending));
+    }
+
+    /**
+     * Any thread: when {@code pending} still waits and the AI asked nothing about its task for {@link #SILENCE_LIMIT}
+     * (a live AI polls {@code await_step} at least every {@link #MAXIMUM_STEP_WAIT}), the client is gone: the task
+     * stops as with «Detener» and its ghost goes. Otherwise the check comes again when the limit would be reached.
+     */
+    private void checkSilence(TaskPresentation presentation, PendingStep pending) {
+        synchronized (this) {
+            if (presentation.pending != pending) {
+                return;
+            }
+        }
+        AiTask task = presentation.task;
+        Instant now = pacer.now();
+        Duration silent = Duration.between(task.lastHeard().orElse(now), now);
+        if (silent.compareTo(SILENCE_LIMIT) < 0) {
+            watchSilence(presentation, pending, SILENCE_LIMIT.minus(silent));
+            return;
+        }
+        edits.stopTask(task.info().taskId(), TaskStopReason.AI_SILENT);
+        dropEverything(presentation, StepStatus.STOPPED);
     }
 
     /**
@@ -291,6 +340,7 @@ public final class PresentationService {
     public StepOutcome awaitStep(String taskId, Duration wait) {
         Objects.requireNonNull(wait, "wait");
         AiTask task = edits.requireTask(taskId);
+        heardFrom(task);
         CompletableFuture<StepOutcome> outcome;
         synchronized (this) {
             TaskPresentation presentation = presentations.get(taskId);
@@ -468,24 +518,37 @@ public final class PresentationService {
      * «Siguiente» at the next stage. {@code stage} is the stage's title (or number); the current stage when empty.
      */
     public void stageChecked(String taskId, Optional<String> stage, boolean passed, String summary) {
+        stageChecked(taskId, stage, passed, !passed, summary);
+    }
+
+    /**
+     * VSim checked a stage of the task (IA.3 Speed): listeners hear whether it {@code passed}, and only a check that
+     * {@code stops} (a functional failure: truth table, signals or problems) makes «De corrido» wait for «Siguiente»
+     * at the next stage; a layout-only failure is reported and lets it go on. A later check of that stage that does
+     * not stop lets it go on again. Returns whether «De corrido» waits now ({@code stops} for a task VSim knows).
+     */
+    public boolean stageChecked(String taskId, Optional<String> stage, boolean passed, boolean stops,
+                                String summary) {
         Objects.requireNonNull(stage, "stage");
         Objects.requireNonNull(summary, "summary");
         Optional<AiTask> task = edits.task(taskId);
         if (task.isEmpty()) {
-            return;
+            return false;
         }
+        heardFrom(task.get());
         int stageIndex;
         synchronized (this) {
             TaskPresentation presentation = presentationOf(task.get());
             int current = presentation.currentStage;
             stageIndex = stage.map(title -> stageIndexOf(task.get().stages(), title, current)).orElse(current);
-            if (!passed) {
+            if (stops) {
                 presentation.heldAfterStage = Math.max(presentation.heldAfterStage, stageIndex);
             } else if (presentation.heldAfterStage == stageIndex) {
                 presentation.heldAfterStage = -1;
             }
         }
         announce(listener -> listener.stageChecked(taskId, stageIndex, passed, summary));
+        return stops;
     }
 
     // --- the editor's side ---
