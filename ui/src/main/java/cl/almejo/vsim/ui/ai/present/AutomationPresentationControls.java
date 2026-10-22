@@ -10,8 +10,8 @@ import java.util.concurrent.Executors;
 
 /**
  * The «Presentar» panel's buttons over the automation API (IA.2 Task 1): each call goes to a background thread, since
- * the API waits for the editor thread and the panel calls from it. «Siguiente», «Hasta fin de etapa» and «Detener»
- * are real; «Deshacer etapa» and «Dejar solo el resultado» reach the API's storyboard calls (Task 2).
+ * the API waits for the editor thread and the panel calls from it. «Deshacer etapa» and «Dejar solo el resultado» are
+ * the API's storyboard calls (IA.2 Task 2); a refusal (a step still waits, the task still runs) is logged.
  */
 public final class AutomationPresentationControls implements PresentationControls {
 
@@ -50,13 +50,13 @@ public final class AutomationPresentationControls implements PresentationControl
         run("stop", () -> api.stopTask(taskId));
     }
 
-    /** Task 2 (storyboard) fills {@link AutomationApi#undoStage}; until then the API refuses it (logged). */
+    /** {@link AutomationApi#undoStage}: the stage's steps and frame while they are on top of the history. */
     @Override
     public void undoStage(String taskId, int stageIndex) {
         run("undoStage", () -> api.undoStage(taskId, stageIndex));
     }
 
-    /** Task 2 (storyboard) fills {@link AutomationApi#keepOnlyResult}; until then the API refuses it (logged). */
+    /** {@link AutomationApi#keepOnlyResult}: only the last stage's frame and the components stay, as one undo step. */
     @Override
     public void keepOnlyResult(String taskId) {
         run("keepOnlyResult", () -> api.keepOnlyResult(taskId));

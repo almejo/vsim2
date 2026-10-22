@@ -67,6 +67,7 @@ public final class PresentationService {
     private final Executor events;
     private final StepPacer pacer;
     private final Duration maximumWait;
+    private final StageBoundary stageBoundary;
     /** Guarded by {@code this}; never held while waiting for the editor thread. */
     private final Map<String, TaskPresentation> presentations = new LinkedHashMap<>();
 
@@ -77,6 +78,16 @@ public final class PresentationService {
      */
     public PresentationService(PresentationHost host, EditService edits, List<PresentationListener> listeners,
                                Executor events, Duration maximumWait) {
+        this(host, edits, listeners, events, maximumWait, StageBoundary.NONE);
+    }
+
+    /**
+     * @param stageBoundary what happens, on the editor thread, when a step of a later stage arrives in «Presentar»
+     *                      (the storyboard frames the stages before it)
+     */
+    public PresentationService(PresentationHost host, EditService edits, List<PresentationListener> listeners,
+                               Executor events, Duration maximumWait, StageBoundary stageBoundary) {
+        this.stageBoundary = Objects.requireNonNull(stageBoundary, "stageBoundary");
         this.host = Objects.requireNonNull(host, "host");
         this.edits = Objects.requireNonNull(edits, "edits");
         this.listeners = Objects.requireNonNull(listeners, "listeners");
@@ -140,13 +151,17 @@ public final class PresentationService {
         if (!settings.presenting()) {
             return Decision.answered(new PresentedEdit(edits.editOn(circuit, request), Optional.empty()));
         }
+        int reached;
+        synchronized (this) {
+            reached = stageIndexOf(task.stages(), step.stage(), presentation.currentStage);
+        }
+        stageBoundary.reached(circuit, task, reached);
         PreparedEdit prepared = edits.prepare(circuit, request);
-        int stageIndex;
+        int stageIndex = reached;
         int stepIndex;
         PresentationPace pace;
         Duration delay;
         synchronized (this) {
-            stageIndex = stageIndexOf(task.stages(), step.stage(), presentation.currentStage);
             stepIndex = stepIndexOf(task.stages(), stageIndex, step,
                     presentation.appliedPerStage.getOrDefault(stageIndex, 0));
             pace = presentation.paceFor(settings.pace(), stageIndex);
@@ -353,6 +368,26 @@ public final class PresentationService {
         next(taskId);
     }
 
+    /** True while a step of the task waits for «Siguiente» (nothing may change the circuit under it on purpose). */
+    public synchronized boolean hasPendingStep(String taskId) {
+        TaskPresentation presentation = presentations.get(taskId);
+        return presentation != null && presentation.pending != null;
+    }
+
+    /** The AI begins stage {@code stageIndex} of the task («begin stage»): the panel shows it as the current one. */
+    public void stageBegun(String taskId, int stageIndex) {
+        AiTask task = edits.requireTask(taskId);
+        TaskPresentation presentation;
+        synchronized (this) {
+            presentation = presentationOf(task);
+            if (presentation.currentStage != stageIndex) {
+                presentation.currentStage = stageIndex;
+                presentation.currentStep = presentation.appliedPerStage.getOrDefault(stageIndex, 0);
+            }
+        }
+        announcePlan(presentation);
+    }
+
     /** «Detener»: stops the task as IA.1 does and drops its pending step and paced step. */
     public void stop(String taskId) {
         edits.stopTask(taskId);
@@ -536,17 +571,7 @@ public final class PresentationService {
 
     /** The stage by its title (any case), else by its number from 1, else {@code fallback}. */
     static int stageIndexOf(List<TaskStage> stages, String stage, int fallback) {
-        String wanted = stage.strip();
-        for (int index = 0; index < stages.size(); index++) {
-            if (stages.get(index).title().strip().equalsIgnoreCase(wanted)) {
-                return index;
-            }
-        }
-        Optional<Integer> number = numberOf(wanted);
-        if (number.isPresent() && number.get() >= 1 && number.get() <= stages.size()) {
-            return number.get() - 1;
-        }
-        return fallback;
+        return TaskStage.indexIn(stages, stage, fallback);
     }
 
     /** The step by its text in the stage's plan (any case), else by its number from 1, else {@code fallback}. */
@@ -561,19 +586,11 @@ public final class PresentationService {
                 return index;
             }
         }
-        Optional<Integer> number = numberOf(step.step().strip());
+        Optional<Integer> number = TaskStage.numberOf(step.step().strip());
         if (number.isPresent() && number.get() >= 1 && number.get() <= steps.size()) {
             return number.get() - 1;
         }
         return fallback;
-    }
-
-    private static Optional<Integer> numberOf(String text) {
-        try {
-            return Optional.of(Integer.parseInt(text));
-        } catch (NumberFormatException notANumber) {
-            return Optional.empty();
-        }
     }
 
     /** Guides added only to align are never a step (spec §7). */
@@ -641,5 +658,18 @@ public final class PresentationService {
             Duration left = Duration.between(now, lastAppliedAt.plus(pause));
             return left.isNegative() ? Duration.ZERO : left;
         }
+    }
+
+    /**
+     * What happens on the editor thread when a step of stage {@code stageIndex} arrives in «Presentar», before it is
+     * planned: the storyboard frames the stages before it (spec §6). Nothing by default.
+     */
+    @FunctionalInterface
+    public interface StageBoundary {
+
+        StageBoundary NONE = (circuit, task, stageIndex) -> {
+        };
+
+        void reached(EditableCircuit circuit, AiTask task, int stageIndex);
     }
 }

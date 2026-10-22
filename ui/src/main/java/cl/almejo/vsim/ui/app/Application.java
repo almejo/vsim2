@@ -10,6 +10,7 @@ import cl.almejo.vsim.core.io.CircuitFormatException;
 import cl.almejo.vsim.core.io.CircuitReader;
 import cl.almejo.vsim.core.io.LibraryDirectory;
 import cl.almejo.vsim.core.library.ComponentLibrary;
+import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.library.DefinitionBundle;
 import cl.almejo.vsim.ui.ai.AiExtension;
 import cl.almejo.vsim.ui.ai.AiServerService;
@@ -681,6 +682,13 @@ public final class Application {
             }
             // Also when no window shows the circuit, which the panel's hook leaves alone.
             preferencesOf(document).setAiPresenting(presenting);
+        }
+
+        /** Every window of the circuit goes to where the AI's next stage is built (IA.2 storyboard). */
+        @Override
+        public void travelToStageOrigin(OpenDocument document, GridPoint origin) {
+            windows.windowsOf(document).forEach(window -> presentation.overlaysOf(window.view())
+                    .ifPresent(overlays -> overlays.travelToStageOrigin(origin)));
         }
 
         private AppPreferences preferencesOf(OpenDocument document) {

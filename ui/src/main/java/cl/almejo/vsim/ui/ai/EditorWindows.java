@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.ai;
 import cl.almejo.vsim.automation.AutomationError;
 import cl.almejo.vsim.automation.AutomationException;
 import cl.almejo.vsim.automation.present.PresentationSettings;
+import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.library.DefinitionBundle;
 import cl.almejo.vsim.ui.app.OpenDocument;
 
@@ -37,6 +38,13 @@ public interface EditorWindows {
     /** Switches «Presentar» on or off in the preferences of {@code document}'s window, as the user's toggle does. */
     default void setPresenting(OpenDocument document, boolean presenting) {
         throw new AutomationException(AutomationError.NOT_ALLOWED, "This editor cannot present the AI's work");
+    }
+
+    /**
+     * The windows of {@code document} travel smoothly to {@code origin}, where the AI builds the stage that begins
+     * (IA.2 storyboard, spec §6); reduced motion respected. Nothing by default.
+     */
+    default void travelToStageOrigin(OpenDocument document, GridPoint origin) {
     }
 
     /** No windows: new circuits are refused and no document has an override. */
