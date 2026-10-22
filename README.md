@@ -2,10 +2,22 @@
 
 Simulador de circuitos digitales para enseñar: se dibuja el circuito, se simula y se ve cómo avanza cada señal.
 Está hecho en Java 21 con Swing. Es la tercera versión, después de
-[JCSim](https://github.com/almejo/jcsim) (memoria de título, `memoria.doc`) y VSim.
+[JCSim](https://github.com/almejo/jcsim) y [VSim](https://github.com/almejo/vsim) (ver [Historia](#historia)).
 
 - [Funciones en detalle](docs/funciones.md): cómo funciona cada cosa, por área.
 - [Cambios](CHANGELOG.md): qué se agregó y arregló, por fecha.
+
+## Historia
+
+VSim 2 tiene una historia larga:
+
+1. **CSim**, de [Luis Mateu](https://users.dcc.uchile.cl/~lmateu/), un simulador de circuitos digitales.
+2. **[JCSim](https://github.com/almejo/jcsim)**: mi reimplementación de CSim en Java, que fue mi memoria de título
+   ([el documento de la memoria](memoria.doc)).
+3. **[VSim](https://github.com/almejo/vsim)**: comencé a escribirlo como una reimplementación moderna en Java 8,
+   sin las limitaciones del JCSim original, pero lo abandoné por falta de tiempo.
+4. **VSim 2** (este repositorio): ahora encontré el tiempo para hacer esta nueva versión, con Java 21, pensada para
+   enseñar y con una IA que arma y explica circuitos.
 
 ## Requisitos
 
