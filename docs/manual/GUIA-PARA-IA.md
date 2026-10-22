@@ -161,7 +161,10 @@ descargar. Escribe, en vez del aviso:
   Linux) y sigue el instalador.»
 - Abrirlo: «En Windows y macOS, normalmente basta con un doble clic en el archivo. Si no se abre, abre una terminal
   en la carpeta del archivo y escribe `java -jar vsim2-<versión>.jar`.» En Linux, la terminal.
-- Deja una nota corta: `> ❓ **Verificar:** enlace de descarga cuando VSim 2 tenga una versión publicada.`
+- Agrega: «Más adelante VSim 2 tendrá instaladores para cada sistema de escritorio (Windows, macOS y Linux) que
+  traen Java incluido: bastará con instalarlo y abrirlo como cualquier programa, sin instalar Java aparte.»
+- Deja una nota corta: `> ❓ **Verificar:** enlace de descarga y nombres de los instaladores cuando VSim 2 tenga una
+  versión publicada.`
 
 **El primer ejercicio de «Primeros pasos».** Un solo interruptor que alimenta las dos entradas de la AND solo muestra
 2 de las 4 filas y puede confundir (parece que la AND «copia» la entrada). Cámbialo a **dos interruptores, A y B**,
