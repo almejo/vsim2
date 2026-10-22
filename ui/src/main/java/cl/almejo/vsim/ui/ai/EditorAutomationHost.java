@@ -11,6 +11,7 @@ import cl.almejo.vsim.automation.read.ReadSource;
 import cl.almejo.vsim.automation.read.RegionPicture;
 import cl.almejo.vsim.automation.read.WindowPicture;
 import cl.almejo.vsim.core.geometry.Bounds;
+import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.automation.simulate.PreparedTruthTable;
 import cl.almejo.vsim.automation.simulate.SimulationReceipt;
 import cl.almejo.vsim.automation.simulate.SimulationRequest;
@@ -168,6 +169,11 @@ public final class EditorAutomationHost implements AutomationHost {
     @Override
     public void setPresenting(DocumentId document, boolean presenting) {
         windows.setPresenting(documentOf(document), presenting);
+    }
+
+    @Override
+    public void travelToStageOrigin(DocumentId document, GridPoint origin) {
+        windows.travelToStageOrigin(documentOf(document), origin);
     }
 
     @Override

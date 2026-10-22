@@ -12,6 +12,7 @@ import cl.almejo.vsim.core.command.History;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.CircuitDocument;
+import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
 
 import java.time.Duration;
@@ -22,6 +23,7 @@ import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
@@ -40,6 +42,7 @@ public final class FakePresentingHost implements AutomationHost {
     private final Map<DocumentId, PresentationSettings> settings = new ConcurrentHashMap<>();
     private final FakePacer pacer = new FakePacer();
     private final Object editorThread = new Object();
+    private final List<GridPoint> travels = new CopyOnWriteArrayList<>();
 
     public Circuit open(String id) {
         Circuit circuit = new Circuit(new CircuitDocument());
@@ -75,6 +78,16 @@ public final class FakePresentingHost implements AutomationHost {
     public void setPresenting(DocumentId document, boolean presenting) {
         PresentationSettings current = presentationSettings(document);
         settings.put(document, new PresentationSettings(presenting, current.pace(), current.pause()));
+    }
+
+    @Override
+    public void travelToStageOrigin(DocumentId document, GridPoint origin) {
+        travels.add(origin);
+    }
+
+    /** The stage origins the windows were asked to travel to, in order. */
+    public List<GridPoint> travels() {
+        return travels;
     }
 
     @Override

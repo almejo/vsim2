@@ -12,9 +12,11 @@ import cl.almejo.vsim.automation.edit.TaskStep;
 import cl.almejo.vsim.automation.present.PresentationPace;
 import cl.almejo.vsim.automation.present.PresentationSettings;
 import cl.almejo.vsim.automation.present.PresentedEdit;
+import cl.almejo.vsim.automation.present.StageOrigin;
 import cl.almejo.vsim.automation.present.StepStatus;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.CircuitDocument;
+import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
 import cl.almejo.vsim.ui.ai.EditorAutomationHost;
 import cl.almejo.vsim.ui.ai.EditorWindows;
@@ -34,6 +36,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -48,6 +51,7 @@ class AutomationPresentationControlsTest {
             document -> List.of(), new Windows(), new PreferenceProposals(preferences));
     private final AutomationApi api = new AutomationApi(host);
     private final PresentationControls controls = new AutomationPresentationControls(api, Runnable::run);
+    private final List<GridPoint> travels = new CopyOnWriteArrayList<>();
     private OpenDocument circuit;
     private DocumentId id;
     private TaskInfo task;
@@ -98,15 +102,78 @@ class AutomationPresentationControlsTest {
     }
 
     @Test
-    void detenerDropsTheStepAndTheStoryboardButtonsAreRefusedQuietlyForNow() throws Exception {
+    void detenerDropsTheStep() throws Exception {
         api.editStep(request("op-1"));
 
         controls.stop(task.taskId());
-        controls.undoStage(task.taskId(), 0);
-        controls.keepOnlyResult(task.taskId());
 
         assertThat(api.awaitStep(task.taskId(), Duration.ofSeconds(5)).status()).isEqualTo(StepStatus.STOPPED);
         assertThat(componentCount()).isZero();
+    }
+
+    // --- the storyboard's buttons (IA.2 Task 2) ---
+
+    @Test
+    void deshacerEtapaUndoesTheStagesStepsAndItsFrame() throws Exception {
+        TaskInfo story = twoStages();
+        api.beginStage(story.taskId(), 0);
+        placeAndApply(story, "Compuertas", "op-1", 0);
+        api.beginStage(story.taskId(), 1); // the first stage gets its frame
+        assertThat(frameCount()).isEqualTo(1);
+
+        controls.undoStage(story.taskId(), 0);
+
+        assertThat(componentCount()).isZero();
+        assertThat(frameCount()).isZero();
+    }
+
+    @Test
+    void dejarSoloElResultadoKeepsTheLastStageAsOneUndoStep() throws Exception {
+        TaskInfo story = twoStages();
+        api.beginStage(story.taskId(), 0);
+        placeAndApply(story, "Compuertas", "op-1", 0);
+        StageOrigin second = api.beginStage(story.taskId(), 1);
+        placeAndApply(story, "Salida", "op-2", second.x());
+        api.endTask(story.taskId());
+        assertThat(frameCount()).isEqualTo(2);
+
+        controls.keepOnlyResult(story.taskId());
+
+        assertThat(frameCount()).isEqualTo(1);
+        assertThat(componentCount()).isEqualTo(1);
+        SwingUtilities.invokeAndWait(() -> circuit.history().undo());
+        assertThat(frameCount()).isEqualTo(2);
+        assertThat(componentCount()).isEqualTo(2);
+    }
+
+    @Test
+    void aStageThatBeginsInPresentarTakesTheWindowsToItsOrigin() {
+        TaskInfo story = twoStages();
+
+        StageOrigin origin = api.beginStage(story.taskId(), 0);
+
+        assertThat(travels).containsExactly(new GridPoint(origin.x(), origin.y()));
+    }
+
+    private TaskInfo twoStages() {
+        return api.beginTask(id, "Latch", List.of(new TaskStage("Compuertas", List.of("Coloco la NAND")),
+                new TaskStage("Salida", List.of("Coloco la NAND"))));
+    }
+
+    private void placeAndApply(TaskInfo story, String stage, String operationId, int x) throws Exception {
+        long version = host.onEditorThread(access -> circuit.changeCount()).get(5, TimeUnit.SECONDS);
+        api.editStep(new EditRequest(id, new DocumentVersion(version), operationId,
+                Optional.of(new TaskStep(story.taskId(), stage, "Coloco la NAND", "Coloco la NAND")),
+                List.of(new EditOperation.PlacePart(Optional.empty(), "nand2", x, 4, Rotation.R0, Map.of(), "")),
+                false));
+        controls.next(story.taskId());
+        assertThat(api.awaitStep(story.taskId(), Duration.ofSeconds(5)).status()).isEqualTo(StepStatus.APPLIED);
+    }
+
+    private int frameCount() throws Exception {
+        AtomicInteger count = new AtomicInteger();
+        SwingUtilities.invokeAndWait(() -> count.set(circuit.document().frames().size()));
+        return count.get();
     }
 
     @Test
@@ -155,6 +222,11 @@ class AutomationPresentationControlsTest {
         @Override
         public void setPresenting(OpenDocument document, boolean presenting) {
             preferences.setAiPresenting(presenting);
+        }
+
+        @Override
+        public void travelToStageOrigin(OpenDocument document, GridPoint origin) {
+            travels.add(origin);
         }
     }
 }

@@ -2,6 +2,7 @@ package cl.almejo.vsim.automation;
 
 import cl.almejo.vsim.automation.present.PresentationSettings;
 import cl.almejo.vsim.automation.present.StepPacer;
+import cl.almejo.vsim.core.geometry.GridPoint;
 
 /**
  * The editor-side services for «Presentar» (IA.2, spec §4, §5): the presentation mode of the window that shows a
@@ -24,6 +25,13 @@ public interface PresentationHost {
      */
     default void setPresenting(DocumentId document, boolean presenting) {
         throw new AutomationException(AutomationError.NOT_ALLOWED, "This editor cannot present the AI's work");
+    }
+
+    /**
+     * Editor thread: the windows of {@code document} travel smoothly to {@code origin}, where the AI builds the stage
+     * that begins (spec §6; reduced motion respected). Nothing by default.
+     */
+    default void travelToStageOrigin(DocumentId document, GridPoint origin) {
     }
 
     /** Any thread: the clock and timer of «De corrido». */

@@ -44,6 +44,16 @@ public final class EditService {
     static final int MAXIMUM_FINISHED_TASKS = 100;
 
     private static final int MAXIMUM_OPERATION_ID_LENGTH = 200;
+    private static final String ALIAS_PREFIX = EditPlanner.ALIAS_PREFIX;
+
+    /** The stage of a step VSim writes that belongs to no stage. */
+    public static final int NO_STAGE = AiEditCommand.NO_STAGE;
+
+    /** The undo step of «Dejar solo el resultado». */
+    public static final String KEEP_ONLY_RESULT_DESCRIPTION = "command.aiKeepResult";
+
+    /** The undo step of a stage's frame: like any other change of the AI. */
+    public static final String STAGE_FRAME_DESCRIPTION = AiEditCommand.DESCRIPTION;
 
     private final EditHost host;
     private final List<AutomationListener> listeners;
@@ -52,6 +62,16 @@ public final class EditService {
     private final Map<DocumentId, OperationLog> logs = new ConcurrentHashMap<>();
     private final Map<String, AiTask> tasks = new LinkedHashMap<>();
     private final AtomicLong lastTaskNumber = new AtomicLong();
+    /**
+     * Per circuit, the last step VSim wrote by itself for the storyboard (a stage's frame, IA.2): an edit prepared
+     * against the version just before it is still current right after it, so the frame never makes the AI's next
+     * step stale. Any other change of the circuit makes it stale as always.
+     */
+    private final Map<DocumentId, VersionStep> transparentSteps = new ConcurrentHashMap<>();
+
+    /** The version before and after a step VSim wrote by itself. */
+    private record VersionStep(DocumentVersion before, DocumentVersion after) {
+    }
 
     /**
      * @param listeners the live list of listeners (the API's own)
@@ -139,7 +159,7 @@ public final class EditService {
 
     private PreparedEdit prepare(EditableCircuit circuit, EditRequest request, Optional<AiTask> task) {
         task.ifPresent(EditService::requireRunning);
-        requireVersion(circuit, request.expected());
+        requireVersion(request.document(), circuit, request.expected());
         EditPlanner.PlannedEdit planned;
         ReplaceContentCommand content;
         try {
@@ -166,7 +186,7 @@ public final class EditService {
      */
     public EditReceipt commit(EditableCircuit circuit, PreparedEdit prepared) {
         prepared.task().ifPresent(EditService::requireRunning);
-        requireVersion(circuit, prepared.version());
+        requireVersion(prepared.request().document(), circuit, prepared.version());
         EditRequest request = prepared.request();
         OperationLog log = logOf(request.document());
         if (prepared.changesNothing()) {
@@ -175,14 +195,71 @@ public final class EditService {
             log.record(request, receipt);
             return receipt;
         }
+        int stageIndex = prepared.task().map(found -> stageOf(found, request)).orElse(AiEditCommand.NO_STAGE);
         AiEditCommand command = new AiEditCommand(prepared.content(),
-                prepared.task().map(found -> found.info().taskId()));
+                prepared.task().map(found -> found.info().taskId()), stageIndex, AiEditCommand.DESCRIPTION);
         circuit.history().execute(command);
         EditReceipt receipt = receipt(true, circuit.version(), prepared.planned(), prepared.changes(), List.of());
         log.record(request, receipt);
-        prepared.task().ifPresent(found -> found.recordEdit(command, prepared.changes(),
-                prepared.planned().layoutGuides()));
+        prepared.task().ifPresent(found -> {
+            found.recordEdit(command, prepared.changes(), prepared.planned().layoutGuides());
+            found.recordHowItWasMade(howItWasMade(request, prepared.planned().aliases()));
+        });
         return receipt;
+    }
+
+    /** The stage of its task a step belongs to: the one it names, else the one the AI said it works on. */
+    private static int stageOf(AiTask task, EditRequest request) {
+        return request.step()
+                .map(step -> TaskStage.indexIn(task.stages(), step.stage(), task.currentStage()))
+                .orElse(task.currentStage());
+    }
+
+    /** The parts a {@code CreateComponent} without replacing kept as «cómo se hizo» (spec §6), by their real ids. */
+    private static List<String> howItWasMade(EditRequest request, Map<String, String> aliases) {
+        List<String> kept = new ArrayList<>();
+        for (EditOperation operation : request.operations()) {
+            if (operation instanceof EditOperation.CreateComponent created && !created.replaceSelection()) {
+                for (String target : created.targets()) {
+                    kept.add(target.startsWith(ALIAS_PREFIX)
+                            ? aliases.getOrDefault(target.substring(ALIAS_PREFIX.length()), target) : target);
+                }
+            }
+        }
+        return kept;
+    }
+
+    // --- steps VSim writes for a task by itself (the storyboard, IA.2) ---
+
+    /**
+     * Editor thread: writes {@code candidate} (a changed copy of the circuit) as one undo step of {@code task}, in
+     * stage {@code stageIndex} ({@link #NO_STAGE} for none), described by the i18n key {@code description}; the
+     * elements it adds count as the stage's. It is written even when the task no longer runs («Dejar solo el
+     * resultado» comes at its end). {@code transparent}: an edit prepared against the version just before it stays
+     * current (a stage's frame never makes the AI's next step stale). Returns what it changed; nothing when the copy
+     * is the same as the circuit (no undo step).
+     */
+    public EditReceipt.ElementChanges writeTaskStep(EditableCircuit circuit, AiTask task, int stageIndex,
+                                                    CircuitDocument candidate, String description,
+                                                    boolean transparent) {
+        ReplaceContentCommand content = ReplaceContentCommand.between(circuit.document(), candidate, description);
+        if (content.changesNothing()) {
+            return EditReceipt.ElementChanges.NONE;
+        }
+        EditReceipt.ElementChanges changes = changesOf(content);
+        DocumentVersion before = circuit.version();
+        AiEditCommand command = new AiEditCommand(content, Optional.of(task.info().taskId()), stageIndex,
+                description);
+        circuit.history().execute(command);
+        task.recordEdit(command, changes, List.of());
+        if (transparent) {
+            DocumentVersion after = circuit.version();
+            // Several frames in a row (stages that got theirs together) are still one step for the AI.
+            transparentSteps.compute(task.info().document(), (document, earlier) ->
+                    earlier != null && earlier.after().equals(before) ? new VersionStep(earlier.before(), after)
+                            : new VersionStep(before, after));
+        }
+        return changes;
     }
 
     private OperationLog logOf(DocumentId document) {
@@ -206,9 +283,12 @@ public final class EditService {
         return ids.stream().map(ElementId::value).toList();
     }
 
-    private static void requireVersion(EditableCircuit circuit, DocumentVersion expected) {
+    private void requireVersion(DocumentId document, EditableCircuit circuit, DocumentVersion expected) {
         DocumentVersion current = circuit.version();
-        if (!current.equals(expected)) {
+        VersionStep transparent = transparentSteps.get(document);
+        boolean onlyVsimsOwnStep = transparent != null && transparent.before().equals(expected)
+                && transparent.after().equals(current);
+        if (!current.equals(expected) && !onlyVsimsOwnStep) {
             throw new AutomationException(AutomationError.STALE_DOCUMENT, "The circuit changed since version "
                     + expected.value() + " (it is at " + current.value() + "): read it again and adapt the edit. "
                     + "Nothing was changed", Map.of("currentVersion", current.value()));
@@ -322,6 +402,39 @@ public final class EditService {
     public UndoOutcome undoTask(String taskId) {
         AiTask task = requireTask(taskId);
         return editorWait.await(host.onCircuit(task.info().document(), circuit -> undo(circuit.history(), task)));
+    }
+
+    /**
+     * «Deshacer etapa» (spec §4.1): undoes the steps of stage {@code stageIndex} of the task one after the other while
+     * one of them is on top of the history; stops at anything else — the user's own edit, another stage — and says
+     * so when steps of the stage remain under it. Safe to call from the editor thread.
+     */
+    public UndoOutcome undoStage(String taskId, int stageIndex) {
+        AiTask task = requireTask(taskId);
+        return editorWait.await(host.onCircuit(task.info().document(),
+                circuit -> undoStage(circuit.history(), task, stageIndex)));
+    }
+
+    private static UndoOutcome undoStage(History history, AiTask task, int stageIndex) {
+        int undone = 0;
+        while (history.undoCommand().filter(AiEditCommand.class::isInstance).map(AiEditCommand.class::cast)
+                .filter(edit -> edit.belongsTo(task.info().taskId(), stageIndex)).isPresent()) {
+            history.undo();
+            undone++;
+        }
+        return new UndoOutcome(undone, task.hasAppliedEdits(stageIndex));
+    }
+
+    /** The AI says it works on stage {@code stageIndex} of the task now («begin stage», IA.2). */
+    public void enterStage(String taskId, int stageIndex) {
+        AiTask task = requireTask(taskId);
+        requireRunning(task);
+        if (stageIndex < 0 || stageIndex >= Math.max(1, task.stages().size())) {
+            throw new AutomationException(AutomationError.INVALID_PARAMETER, "The task " + taskId + " has "
+                    + task.stages().size() + " stages: give a stage index from 0 to "
+                    + (task.stages().size() - 1), Map.of("taskId", taskId, "stageIndex", stageIndex));
+        }
+        task.enterStage(stageIndex);
     }
 
     private static UndoOutcome undo(History history, AiTask task) {

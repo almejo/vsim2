@@ -29,6 +29,8 @@ import cl.almejo.vsim.automation.present.PresentationListener;
 import cl.almejo.vsim.automation.present.PresentationService;
 import cl.almejo.vsim.automation.present.PresentationSettings;
 import cl.almejo.vsim.automation.present.PresentedEdit;
+import cl.almejo.vsim.automation.present.StageOrigin;
+import cl.almejo.vsim.automation.present.Storyboard;
 import cl.almejo.vsim.automation.present.StepOutcome;
 
 import java.time.Duration;
@@ -66,6 +68,7 @@ public final class AutomationApi {
     private final SimulationOperations simulation;
     private final EditService edits;
     private final PresentationService presentation;
+    private final Storyboard storyboard;
     private final StageChecks checks;
 
     public AutomationApi(AutomationHost host) {
@@ -78,8 +81,9 @@ public final class AutomationApi {
         // One ordered stream of events: a task's start reaches the listeners before its plan.
         OrderedExecutor events = new OrderedExecutor();
         this.edits = new EditService(host, listeners, editorTimeout, events);
+        this.storyboard = new Storyboard(host, edits, this::hasPendingStep);
         this.presentation = new PresentationService(host, edits, presentationListeners, events,
-                PresentationService.MAXIMUM_STEP_WAIT);
+                PresentationService.MAXIMUM_STEP_WAIT, storyboard);
         this.reads = new Reads(host, editorTimeout);
         this.simulation = new SimulationOperations(host);
         this.checks = new StageChecks(new StageChecks.Measurements() {
@@ -337,21 +341,35 @@ public final class AutomationApi {
     }
 
     /**
-     * «Deshacer etapa» (spec §4.1): undoes the stage's steps while they are on top of the history.
-     * TODO(IA.2 Task 2, Storyboard): not built yet; refused until the storyboard fills it.
+     * {@code begin_stage} (spec §6): the AI begins stage {@code stageIndex} (from 0, as the plan lists it) of the
+     * task. Returns the free origin, in grid units, where it builds the stage: to the right of the previous stage's
+     * frame, {@link Storyboard#GAP} units away and aligned on its top. In «Presentar» the stages before it get their
+     * frames first (VSim's own undo steps, which never make the AI's version stale) and the view travels to the
+     * origin. Refused while a step waits for «Siguiente» ({@code NOT_ALLOWED}) or for a stage the plan does not have
+     * ({@code INVALID_PARAMETER}).
      */
-    public UndoOutcome undoStage(String taskId, int stageIndex) {
-        edits.requireTask(taskId);
-        throw new AutomationException(AutomationError.NOT_ALLOWED, "«Deshacer etapa» is not available yet");
+    public StageOrigin beginStage(String taskId, int stageIndex) {
+        StageOrigin origin = storyboard.beginStage(taskId, stageIndex);
+        presentation.stageBegun(taskId, stageIndex);
+        return origin;
     }
 
     /**
-     * «Dejar solo el resultado» (spec §6): keeps the last stage's frame and the components created, as one undo step.
-     * TODO(IA.2 Task 2, Storyboard): not built yet; refused until the storyboard fills it.
+     * «Deshacer etapa» (spec §4.1): undoes the steps of stage {@code stageIndex} (from 0) of the task, its frame
+     * included, while they are on top of the history; stops at the user's own edit (or another stage's step) and says
+     * so. Off the editor thread.
+     */
+    public UndoOutcome undoStage(String taskId, int stageIndex) {
+        return edits.undoStage(taskId, stageIndex);
+    }
+
+    /**
+     * «Dejar solo el resultado» (spec §6): removes the frames of the task's stages but the last one and what those
+     * stages added, as one undo step; the last stage and every component definition stay. Refused while a step waits
+     * for «Siguiente» or the task still runs ({@code NOT_ALLOWED}). Off the editor thread.
      */
     public void keepOnlyResult(String taskId) {
-        edits.requireTask(taskId);
-        throw new AutomationException(AutomationError.NOT_ALLOWED, "«Dejar solo el resultado» is not available yet");
+        storyboard.keepOnlyResult(taskId);
     }
 
     /** The presentation mode of the window the AI works in for {@code document} (spec §4). */
@@ -406,6 +424,7 @@ public final class AutomationApi {
     /** Ends a task; listeners hear it end with the elements it changed. Its layout-only guides go away. */
     public TaskInfo endTask(String taskId) {
         presentation.taskEnding(taskId);
+        storyboard.taskEnding(taskId);
         return edits.endTask(taskId);
     }
 
@@ -415,6 +434,7 @@ public final class AutomationApi {
      */
     public TaskEnding endTask(String taskId, boolean keepLayoutGuides) {
         presentation.taskEnding(taskId);
+        storyboard.taskEnding(taskId);
         return edits.endTask(taskId, keepLayoutGuides);
     }
 
@@ -426,6 +446,11 @@ public final class AutomationApi {
     /** «Deshacer lo que hizo la IA»: undoes the task's steps from the top, never past the user's own edit. */
     public UndoOutcome undoTask(String taskId) {
         return edits.undoTask(taskId);
+    }
+
+    /** Whether a step of the task waits for «Siguiente» (the storyboard asks it on the editor thread). */
+    private boolean hasPendingStep(String taskId) {
+        return presentation.hasPendingStep(taskId);
     }
 
     /** Runs {@code work} on the editor thread and waits for it here, off that thread, at most the editor timeout. */
