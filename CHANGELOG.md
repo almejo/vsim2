@@ -24,9 +24,15 @@ sección es un conjunto de funciones, con las fechas en que se hizo. El detalle 
 - Cada cambio de la IA es un Ctrl+Z («Deshacer cambio de la IA») que no se junta con los tuyos; la barra de estado
   dice «IA trabajando: …» con «Detener» y «Deshacer lo que hizo la IA», que se detiene en tu primer cambio. Un cambio
   preparado antes de que tú editaras se rechaza sin aplicar nada.
-- La IA cambia los ajustes del editor (ajustar, cuadrícula, guías, cables que siguen) solo en esa ventana y de forma
-  temporal; tus preferencias solo las propone; exporta solo a las carpetas de exportar que VSim recuerda, sin sobrescribir; nunca
-  guarda, abre ni borra archivos.
+- Al terminar una tarea, si lo que cambió no estaba a la vista, la vista viaja hasta ahí (de un salto con menos
+  movimiento) y el aviso «La IA terminó: …» ofrece «Ver lo que hizo»; las guías que la IA puso solo para alinear se
+  quitan solas, salvo que pidas conservarlas.
+- La IA cambia los ajustes del editor (ajustar, cuadrícula, guías, cables que siguen) solo dentro de una tarea, en esa
+  ventana y de forma temporal; tus preferencias solo las propone; exporta solo a las carpetas de exportar que VSim
+  recuerda (o a `VSim` en tu carpeta personal), sin sobrescribir, y el aviso «La IA guardó …» tiene «Abrir carpeta»;
+  nunca guarda, abre ni borra archivos.
+- En las tablas de verdad de la IA el límite de eventos se reparte entre las filas: la fila de un latch que mantiene
+  su estado ya no se come el límite de las demás.
 
 ### Agregado
 

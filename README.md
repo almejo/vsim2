@@ -112,7 +112,7 @@ Una línea por función; el detalle está en [docs/funciones.md](docs/funciones.
 
 ### IA (MCP)
 
-- [IA (MCP)](docs/funciones.md#ia-mcp): Claude Code se conecta al VSim abierto y arma, conecta, simula y revisa circuitos en tus ventanas («arma un flip-flop D», «conviértelo en componente», «prueba su tabla de verdad»); cada cambio es un Ctrl+Z, «Deshacer lo que hizo la IA» quita su tarea y «Detener» la para. Se activa en Herramientas ▸ «IA (MCP)…» y se configura una vez en Preferencias ▸ «IA».
+- [IA (MCP)](docs/funciones.md#ia-mcp): Claude Code se conecta al VSim abierto y arma, conecta, simula y revisa circuitos en tus ventanas («arma un flip-flop D», «conviértelo en componente», «prueba su tabla de verdad»); cada cambio es un Ctrl+Z, «Deshacer lo que hizo la IA» quita su tarea, «Detener» la para y al terminar «Ver lo que hizo» te lleva a lo que cambió. Se activa en Herramientas ▸ «IA (MCP)…» y se configura una vez en Preferencias ▸ «IA».
 
 ### Ejemplos
 
