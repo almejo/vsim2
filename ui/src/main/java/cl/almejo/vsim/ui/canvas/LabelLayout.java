@@ -13,7 +13,10 @@ import java.awt.Font;
 import java.awt.font.FontRenderContext;
 import java.awt.font.LineMetrics;
 import java.awt.geom.Rectangle2D;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
+import java.util.regex.Pattern;
 
 /**
  * Where label text goes, in document coordinates (8 px per grid unit at zoom 1). Painting, hit testing and
@@ -26,6 +29,7 @@ public final class LabelLayout {
 
     private static final double UNIT = GridPoint.PIXELS_PER_UNIT;
     private static final FontRenderContext RENDER_CONTEXT = new FontRenderContext(null, true, true);
+    private static final Pattern LINE_BREAK = Pattern.compile("\\R");
 
     private LabelLayout() {
     }
@@ -35,8 +39,17 @@ public final class LabelLayout {
         return TextFonts.labelFont();
     }
 
-    /** One line of text whose box starts at {@code left}/{@code top}; draw it at the baseline. */
-    public record PlacedText(String text, double left, double top, double width, double height, double ascent) {
+    /**
+     * A text whose box starts at {@code left}/{@code top}: one line for a component's label, one per line break for a
+     * note. Each line is drawn at its own baseline ({@link #lines}), {@code lineHeight} below the one before; the box
+     * is as wide as the longest line.
+     */
+    public record PlacedText(String text, List<String> textLines, double left, double top, double width,
+                             double height, double ascent, double lineHeight) {
+
+        public PlacedText {
+            textLines = List.copyOf(textLines);
+        }
 
         public Rectangle2D bounds() {
             return new Rectangle2D.Double(left, top, width, height);
@@ -46,16 +59,42 @@ public final class LabelLayout {
             return (float) left;
         }
 
+        /** The baseline of the first line. */
         public float baselineY() {
             return (float) (top + ascent);
         }
+
+        /** Every line with where to draw it, top to bottom. */
+        public List<Line> lines() {
+            List<Line> lines = new ArrayList<>(textLines.size());
+            for (int index = 0; index < textLines.size(); index++) {
+                lines.add(new Line(textLines.get(index), baselineX(), (float) (top + ascent + index * lineHeight)));
+            }
+            return lines;
+        }
+
+        private PlacedText movedTo(double newLeft, double newTop, double newWidth) {
+            return new PlacedText(text, textLines, newLeft, newTop, newWidth, height, ascent, lineHeight);
+        }
     }
 
-    /** A free text label: its position is the top-left corner; at least one grid unit wide. */
+    /** One line of a {@link PlacedText}, drawn at ({@code baselineX}, {@code baselineY}). */
+    public record Line(String text, float baselineX, float baselineY) {
+    }
+
+    /** The lines of a note: split at every line break (\n, \r\n or \r), blank lines included. */
+    public static List<String> noteLines(String text) {
+        return List.of(LINE_BREAK.split(text, -1));
+    }
+
+    /**
+     * A free text label (a note): its position is the top-left corner; at least one grid unit wide. Each line break
+     * starts a new line, left-aligned under the one before.
+     */
     public static PlacedText freeText(TextLabel label) {
-        PlacedText measured = measure(label.text(), label.position().x() * UNIT, label.position().y() * UNIT);
-        return new PlacedText(measured.text(), measured.left(), measured.top(), Math.max(UNIT, measured.width()),
-                measured.height(), measured.ascent());
+        PlacedText measured = measureLines(label.text(), noteLines(label.text()));
+        return measured.movedTo(label.position().x() * UNIT, label.position().y() * UNIT,
+                Math.max(UNIT, measured.width()));
     }
 
     /** A component's label: above the body for R0/R180, left of it for R90/R270; empty for a blank label. */
@@ -76,13 +115,13 @@ public final class LabelLayout {
             return movedLabelPlace(component, component.labelOffset().get(), text);
         }
         Rectangle2D body = ComponentDrawing.documentBounds(type, component);
-        PlacedText measured = measure(text, 0, 0);
+        PlacedText measured = measure(text);
         boolean sideways = component.rotation() == Rotation.R90 || component.rotation() == Rotation.R270;
         double left = sideways ? body.getMinX() - GAP - measured.width()
                 : body.getCenterX() - measured.width() / 2;
         double top = sideways ? body.getCenterY() - measured.height() / 2
                 : body.getMinY() - GAP - measured.height();
-        return new PlacedText(measured.text(), left, top, measured.width(), measured.height(), measured.ascent());
+        return measured.movedTo(left, top, measured.width());
     }
 
     /** The centre of a label moved to {@code offset}: the position plus the offset turned with the component. */
@@ -104,9 +143,9 @@ public final class LabelLayout {
 
     private static PlacedText movedLabelPlace(Component component, LabelOffset offset, String text) {
         GridPoint centre = movedLabelCentre(component, offset);
-        PlacedText measured = measure(text, 0, 0);
-        return new PlacedText(measured.text(), centre.x() * UNIT - measured.width() / 2,
-                centre.y() * UNIT - measured.height() / 2, measured.width(), measured.height(), measured.ascent());
+        PlacedText measured = measure(text);
+        return measured.movedTo(centre.x() * UNIT - measured.width() / 2, centre.y() * UNIT - measured.height() / 2,
+                measured.width());
     }
 
     /** Bounds of a free text label in grid units. */
@@ -116,10 +155,29 @@ public final class LabelLayout {
                 bounds.getWidth() / UNIT, bounds.getHeight() / UNIT);
     }
 
-    private static PlacedText measure(String text, double left, double top) {
+    /** A part's label: always one line, whatever it holds (part labels are names, not notes). */
+    private static PlacedText measure(String text) {
+        return measureLines(text, List.of(text));
+    }
+
+    /**
+     * {@code lines} of {@code text} at the origin: the first line's ascent plus one line height (ascent, descent and
+     * leading) per further line, and the descent of the last; as wide as the longest line. A single line is as tall
+     * as its ascent and descent, as ever.
+     */
+    private static PlacedText measureLines(String text, List<String> lines) {
         Font font = font();
-        LineMetrics metrics = font.getLineMetrics(text.isEmpty() ? " " : text, RENDER_CONTEXT);
-        double width = text.isEmpty() ? 0 : font.getStringBounds(text, RENDER_CONTEXT).getWidth();
-        return new PlacedText(text, left, top, width, metrics.getAscent() + metrics.getDescent(), metrics.getAscent());
+        double width = 0;
+        for (String line : lines) {
+            if (!line.isEmpty()) {
+                width = Math.max(width, font.getStringBounds(line, RENDER_CONTEXT).getWidth());
+            }
+        }
+        String sample = lines.getFirst().isEmpty() ? " " : lines.getFirst();
+        LineMetrics metrics = font.getLineMetrics(sample, RENDER_CONTEXT);
+        double singleHeight = metrics.getAscent() + metrics.getDescent();
+        double lineHeight = singleHeight + metrics.getLeading();
+        return new PlacedText(text, lines, 0, 0, width, singleHeight + (lines.size() - 1) * lineHeight,
+                metrics.getAscent(), lineHeight);
     }
 }

@@ -71,7 +71,7 @@ class LabelActionsTest {
     /** Types {@code text} into the open inline editor and confirms it with Enter. */
     private void answer(String text) {
         assertThat(editor.isOpen()).isTrue();
-        editor.field().setText(text);
+        editor.textComponent().setText(text);
         editor.confirm();
     }
 
@@ -155,7 +155,7 @@ class LabelActionsTest {
     @Test
     void addTextAtCreatesASelectedFreeText() {
         actions.addTextAt(new GridPoint(3, 4));
-        assertThat(editor.field().getText()).isEmpty();
+        assertThat(editor.textComponent().getText()).isEmpty();
         answer("hola");
         assertThat(openDocument.document().labels()).singleElement().satisfies(label -> {
             assertThat(label.text()).isEqualTo("hola");
@@ -362,21 +362,21 @@ class LabelActionsTest {
         cl.almejo.vsim.ui.paint.TextFonts.set(new cl.almejo.vsim.ui.paint.TextFont(java.awt.Font.SERIF, 14));
         try {
             actions.editLabel(note("nota"));
-            assertThat(editor.field().getFont().getFamily()).isEqualTo(java.awt.Font.SERIF);
+            assertThat(editor.textComponent().getFont().getFamily()).isEqualTo(java.awt.Font.SERIF);
             cancel();
             Component gate = gate();
             actions.editLabel(gate);
-            assertThat(editor.field().getFont().getFamily()).isEqualTo(java.awt.Font.SERIF);
+            assertThat(editor.textComponent().getFont().getFamily()).isEqualTo(java.awt.Font.SERIF);
             cancel();
             Frame frame = new Frame(openDocument.document().newFrameId(), new GridPoint(2, 2), 20, 10, "Bloque",
                     FrameTint.NONE, false);
             openDocument.execute(new CreateFrameCommand(frame));
             actions.editLabel(frame);
-            assertThat(editor.field().getFont().getFamily()).isEqualTo(java.awt.Font.SERIF);
-            assertThat(editor.field().getFont().isBold()).isTrue();
+            assertThat(editor.textComponent().getFont().getFamily()).isEqualTo(java.awt.Font.SERIF);
+            assertThat(editor.textComponent().getFont().isBold()).isTrue();
             cancel();
             actions.addTextAt(new GridPoint(30, 30));
-            assertThat(editor.field().getFont().getFamily()).isEqualTo(java.awt.Font.SERIF);
+            assertThat(editor.textComponent().getFont().getFamily()).isEqualTo(java.awt.Font.SERIF);
             cancel();
         } finally {
             cl.almejo.vsim.ui.paint.TextFonts.set(cl.almejo.vsim.ui.paint.TextFont.DEFAULT);
@@ -487,10 +487,42 @@ class LabelActionsTest {
 
     /** The field's text area in canvas pixels. */
     private java.awt.Rectangle textArea() {
-        java.awt.Rectangle bounds = javax.swing.SwingUtilities.convertRectangle(editor.field().getParent(),
-                editor.field().getBounds(), view.canvas());
-        java.awt.Insets insets = editor.field().getInsets();
+        javax.swing.text.JTextComponent text = editor.textComponent();
+        java.awt.Rectangle bounds = javax.swing.SwingUtilities.convertRectangle(text.getParent(),
+                text.getBounds(), view.canvas());
+        java.awt.Insets insets = text.getInsets();
         return new java.awt.Rectangle(bounds.x + insets.left, bounds.y + insets.top,
                 bounds.width - insets.left - insets.right, bounds.height - insets.top - insets.bottom);
+    }
+
+    @Test
+    void aNoteIsEditedOverItsLinesAndKeepsThem() {
+        TextLabel label = note("Prueba:\ncambia A");
+        actions.editLabel(label);
+        assertThat(editor.textComponent()).isSameAs(editor.area());
+        assertThat(editor.area().getText()).isEqualTo("Prueba:\ncambia A");
+        java.awt.Rectangle area = textArea();
+        java.awt.geom.Rectangle2D painted = view.canvas().viewport().documentTransform()
+                .createTransformedShape(cl.almejo.vsim.ui.canvas.LabelLayout.freeText(label).bounds()).getBounds2D();
+        assertThat((double) area.y).isBetween(painted.getY() - 1, painted.getY() + 1);
+        assertThat((double) area.height).isGreaterThanOrEqualTo(painted.getHeight() - 1);
+        answer("Prueba:\ncambia A\nmira la salida\n");
+        assertThat(openDocument.document().label(label.id()).orElseThrow().text())
+                .isEqualTo("Prueba:\ncambia A\nmira la salida");
+        openDocument.history().undo();
+        assertThat(openDocument.document().label(label.id()).orElseThrow().text()).isEqualTo("Prueba:\ncambia A");
+    }
+
+    @Test
+    void aNewNoteMayHaveSeveralLinesButAPartLabelStaysOneLine() {
+        actions.addTextAt(new GridPoint(3, 4));
+        assertThat(editor.textComponent()).isSameAs(editor.area());
+        answer("uno\ndos");
+        assertThat(openDocument.document().labels()).singleElement()
+                .satisfies(label -> assertThat(label.text()).isEqualTo("uno\ndos"));
+
+        actions.editLabel(gate());
+        assertThat(editor.textComponent()).isSameAs(editor.field());
+        cancel();
     }
 }

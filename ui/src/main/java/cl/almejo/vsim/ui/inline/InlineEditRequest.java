@@ -18,10 +18,12 @@ import java.util.function.Function;
  * @param onConfirm    what to do with the confirmed text
  * @param anchor       which edge of the area the field keeps as its text grows, and how it aligns the text
  * @param suggestions  texts offered in a list under the field (a tunnel salida offers the entrada names); usually none
+ * @param multiLine    true for a text of several lines (a note, IA.3): Shift+Enter adds a line break, Enter still
+ *                     confirms; left-anchored and without suggestions
  */
 public record InlineEditRequest(Rectangle2D documentArea, Font font, String initialText,
                                 Function<String, Optional<String>> validator, Consumer<String> onConfirm,
-                                Anchor anchor, List<String> suggestions) {
+                                Anchor anchor, List<String> suggestions, boolean multiLine) {
 
     /** Where the field stays put while it grows with the text, like the painted text it covers. */
     public enum Anchor {
@@ -34,6 +36,21 @@ public record InlineEditRequest(Rectangle2D documentArea, Font font, String init
          * labels (M6.8: a sideways component label grows away from the body).
          */
         RIGHT
+    }
+
+    /** A one-line request. */
+    public InlineEditRequest(Rectangle2D documentArea, Font font, String initialText,
+                             Function<String, Optional<String>> validator, Consumer<String> onConfirm,
+                             Anchor anchor, List<String> suggestions) {
+        this(documentArea, font, initialText, validator, onConfirm, anchor, suggestions, false);
+    }
+
+    /** A left-anchored request for a text of several lines (a note): Shift+Enter adds a line, Enter confirms. */
+    public static InlineEditRequest multiLine(Rectangle2D documentArea, Font font, String initialText,
+                                              Function<String, Optional<String>> validator,
+                                              Consumer<String> onConfirm) {
+        return new InlineEditRequest(documentArea, font, initialText, validator, onConfirm, Anchor.LEFT, List.of(),
+                true);
     }
 
     /** A left-anchored request. */

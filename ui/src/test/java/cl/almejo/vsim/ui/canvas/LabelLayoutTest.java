@@ -154,4 +154,66 @@ class LabelLayoutTest {
         assertThat(LabelLayout.componentLabel(type, turned).orElseThrow().bounds().getMaxX())
                 .isLessThan(turnedBody.getMinX());
     }
+
+    @Test
+    void aNoteOfThreeLinesIsAsWideAsItsLongestLineAndOneLineStepTallerPerBreak() {
+        TextLabel first = new TextLabel(new ElementId("l1"), new GridPoint(2, 3), "Prueba:");
+        TextLabel longest = first.withText("cambia A y B con un clic");
+        TextLabel three = first.withText("Prueba:\ncambia A y B con un clic\nmira la salida");
+        LabelLayout.PlacedText single = LabelLayout.freeText(first);
+        LabelLayout.PlacedText placed = LabelLayout.freeText(three);
+
+        assertThat(placed.bounds().getX()).isEqualTo(single.bounds().getX());
+        assertThat(placed.bounds().getY()).isEqualTo(single.bounds().getY());
+        assertThat(placed.width()).isCloseTo(LabelLayout.freeText(longest).width(), within(0.01));
+        assertThat(placed.lineHeight()).isGreaterThanOrEqualTo(single.height());
+        assertThat(placed.height()).isCloseTo(single.height() + 2 * placed.lineHeight(), within(0.01));
+
+        List<LabelLayout.Line> lines = placed.lines();
+        assertThat(lines).extracting(LabelLayout.Line::text)
+                .containsExactly("Prueba:", "cambia A y B con un clic", "mira la salida");
+        for (int index = 0; index < lines.size(); index++) {
+            assertThat(lines.get(index).baselineX()).isEqualTo(single.baselineX());
+            assertThat((double) lines.get(index).baselineY())
+                    .isCloseTo(single.baselineY() + index * placed.lineHeight(), within(0.01));
+        }
+    }
+
+    @Test
+    void aOneLineNoteIsPlacedAsBefore() {
+        TextLabel note = new TextLabel(new ElementId("l1"), new GridPoint(2, 3), "una nota");
+        LabelLayout.PlacedText placed = LabelLayout.freeText(note);
+        Font font = LabelLayout.font();
+        java.awt.font.FontRenderContext context = new java.awt.font.FontRenderContext(null, true, true);
+        java.awt.font.LineMetrics metrics = font.getLineMetrics("una nota", context);
+        assertThat(placed.height()).isEqualTo(metrics.getAscent() + metrics.getDescent());
+        assertThat(placed.width()).isEqualTo(font.getStringBounds("una nota", context).getWidth());
+        assertThat(placed.lines()).containsExactly(new LabelLayout.Line("una nota", placed.baselineX(),
+                placed.baselineY()));
+    }
+
+    @Test
+    void aWindowsLineBreakAndABlankLineCountAsLines() {
+        TextLabel note = new TextLabel(new ElementId("l1"), new GridPoint(0, 0), "a\r\n\nb");
+        assertThat(LabelLayout.freeText(note).lines()).extracting(LabelLayout.Line::text)
+                .containsExactly("a", "", "b");
+    }
+
+    @Test
+    void aPartLabelStaysOneLine() {
+        Component gate = not(Rotation.R0, "U1");
+        LabelLayout.PlacedText placed = LabelLayout.componentLabel(type, gate.withLabel("U1\nU2")).orElseThrow();
+        assertThat(placed.lines()).hasSize(1);
+        assertThat(placed.height()).isEqualTo(LabelLayout.componentLabel(type, gate).orElseThrow().height());
+    }
+
+    @Test
+    void theDrawnBoundsOfANoteCoverEveryLine() {
+        TextLabel note = new TextLabel(new ElementId("l1"), new GridPoint(2, 3), "uno\ndos\ntres");
+        Rectangle2D grid = LabelLayout.gridBounds(note);
+        cl.almejo.vsim.core.geometry.Bounds drawn = DrawnBounds.of(note, StandardComponentTypes.registry());
+        assertThat(drawn.y()).isEqualTo(3);
+        assertThat((double) drawn.y() + drawn.height()).isGreaterThanOrEqualTo(grid.getMaxY());
+        assertThat(grid.getHeight()).isGreaterThan(2.5 * LabelLayout.gridBounds(note.withText("uno")).getHeight());
+    }
 }

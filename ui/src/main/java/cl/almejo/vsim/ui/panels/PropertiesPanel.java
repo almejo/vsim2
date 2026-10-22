@@ -33,6 +33,7 @@ import javax.swing.JSpinner;
 import javax.swing.SpinnerNumberModel;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
+import javax.swing.text.JTextComponent;
 import java.awt.Color;
 import java.awt.event.FocusAdapter;
 import java.awt.event.FocusEvent;
@@ -58,6 +59,7 @@ public final class PropertiesPanel extends JPanel {
     private final JLabel error = new ErrorTextLabel(" ");
     private Set<ElementId> shown = Set.of();
     private JTextField textField;
+    private NoteTextArea noteArea;
     private ParameterForm parameterForm;
     private final Supplier<ColorScheme> scheme;
     private ColorSwatches<FrameTint> frameColor;
@@ -104,6 +106,11 @@ public final class PropertiesPanel extends JPanel {
         return textField;
     }
 
+    /** The text of the note shown, of one or more lines; null when no note is shown. */
+    NoteTextArea noteArea() {
+        return noteArea;
+    }
+
     ParameterForm parameterForm() {
         return parameterForm;
     }
@@ -144,6 +151,7 @@ public final class PropertiesPanel extends JPanel {
         generation++;
         removeAll();
         textField = null;
+        noteArea = null;
         parameterForm = null;
         frameColor = null;
         frameSpinners = null;
@@ -202,12 +210,23 @@ public final class PropertiesPanel extends JPanel {
 
     private void showText(TextLabel label) {
         heading.setText(Messages.text("properties.textLabel"));
-        JTextField field = addTextRow(Messages.text("properties.text"), label.text());
+        // a note may hold several lines (IA.3): a one-line field would flatten them
+        JLabel caption = new JLabel(Messages.text("properties.text"));
+        NoteTextArea area = new NoteTextArea(label.text());
+        caption.setLabelFor(area);
+        add(caption);
+        add(area);
         ElementId id = label.id();
         int built = generation;
-        Runnable apply = () -> applyIfCurrent(built, () -> labelCommand(id, field).ifPresent(openDocument::execute));
-        listenForCommit(field, apply);
-        textField = field;
+        Runnable apply = () -> applyIfCurrent(built, () -> labelCommand(id, area).ifPresent(openDocument::execute));
+        area.addConfirmListener(apply);
+        area.addFocusListener(new FocusAdapter() {
+            @Override
+            public void focusLost(FocusEvent event) {
+                apply.run();
+            }
+        });
+        noteArea = area;
         pendingEdits = apply;
     }
 
@@ -361,7 +380,7 @@ public final class PropertiesPanel extends JPanel {
     }
 
     /** The edit the text field asks for, if any; an empty free text only shows the error. */
-    private Optional<Command> labelCommand(ElementId id, JTextField field) {
+    private Optional<Command> labelCommand(ElementId id, JTextComponent field) {
         Optional<DocumentElement> element = openDocument.document().element(id);
         if (element.isEmpty()) {
             return Optional.empty();

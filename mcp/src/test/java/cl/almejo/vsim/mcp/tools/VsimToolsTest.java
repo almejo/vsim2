@@ -90,4 +90,13 @@ class VsimToolsTest {
             assertThat(tool.inputSchema().toString()).doesNotContainIgnoringCase("pixel");
         }
     }
+
+    /** IA.3: a note may hold several lines; the edit tool says how to write them. */
+    @Test
+    void addNoteAndSetLabelSayHowToWriteANoteOfSeveralLines() {
+        Tool edit = VsimTools.tools(api).stream().filter(tool -> tool.name().equals("vsim_edit")).findFirst()
+                .orElseThrow();
+        String schema = edit.inputSchema().toString();
+        assertThat(schema.split(java.util.regex.Pattern.quote("use \\n for a new line"), -1)).hasSize(3);
+    }
 }

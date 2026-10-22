@@ -284,6 +284,29 @@ class CircuitRendererTest {
     }
 
     @Test
+    void everyLineOfANoteIsPaintedOnItsOwnRowAlsoInTheGhost() {
+        TextLabel label = new TextLabel(document.newLabelId(), new GridPoint(1, 1), "WW\nWW\nWW");
+        LabelLayout.PlacedText placed = LabelLayout.freeText(label);
+        document.add(label);
+        BufferedImage plain = renderPlain(Set.of());
+        BufferedImage ghost = new BufferedImage(120, 120, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D graphics = ghost.createGraphics();
+        graphics.setColor(SCHEME.background());
+        graphics.fillRect(0, 0, 120, 120);
+        renderer.paintGhost(graphics, label);
+        graphics.dispose();
+        for (LabelLayout.Line line : placed.lines()) {
+            Rectangle2D row = new Rectangle2D.Double(placed.left(), line.baselineY() - placed.ascent() + 1,
+                    placed.width(), placed.ascent() - 1);
+            assertThat(inkInside(plain, row)).as("line at %s", line.baselineY()).isPositive();
+            assertThat(inkInside(ghost, row)).as("ghost line at %s", line.baselineY()).isPositive();
+        }
+        Rectangle2D belowTheText = new Rectangle2D.Double(placed.left(), placed.top() + placed.height() + 1,
+                placed.width(), 10);
+        assertThat(inkInside(plain, belowTheText)).isZero();
+    }
+
+    @Test
     void freeTextGhostIsPainted() {
         TextLabel label = new TextLabel(new ElementId("l1"), new GridPoint(2, 2), "nota");
         BufferedImage image = new BufferedImage(120, 120, BufferedImage.TYPE_INT_ARGB);

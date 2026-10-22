@@ -99,4 +99,15 @@ class HitTesterTest {
         TextLabel label = text(11, 11, "x");
         assertThat(at(11.3, 11.5)).isEqualTo(label);
     }
+
+    @Test
+    void aNoteIsHitOnItsThirdLine() {
+        TextLabel label = text(10, 10, "Prueba:\ncambia A\nmira la salida larga");
+        TextLabel firstLine = new TextLabel(label.id(), label.position(), "Prueba:");
+        Rectangle2D one = LabelLayout.gridBounds(firstLine);
+        Rectangle2D all = LabelLayout.gridBounds(label);
+        assertThat(all.getHeight()).isGreaterThan(2.5 * one.getHeight());
+        assertThat(at(all.getMaxX() - 0.1, all.getMaxY() - 0.1)).isEqualTo(label);
+        assertThat(at(all.getCenterX(), all.getMaxY() + 0.5)).isNull();
+    }
 }
