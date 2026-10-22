@@ -13,12 +13,14 @@ import javax.swing.SpinnerNumberModel;
 import java.awt.Toolkit;
 import java.awt.datatransfer.StringSelection;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.function.Consumer;
 
 /**
  * Preferencias ▸ «IA» (spec §2, §9.1): «Iniciar con VSim», the port with «Usar el por defecto», «Generar un secreto
  * nuevo», «Copiar configuración para Claude Code» and the data note. Every change is stored at once; a running server
- * follows a new port or secret by itself ({@link AiServerService}).
+ * follows a new port or secret by itself ({@link AiServerService}). With a port given on the command line for this
+ * session it says so and the remembered port waits, disabled, until the next run.
  */
 public final class AiPreferencesPanel extends JPanel {
 
@@ -34,13 +36,34 @@ public final class AiPreferencesPanel extends JPanel {
     private final JButton copyButton = new JButton(Messages.text("ai.copyConfiguration"));
     private final JLabel feedback = new JLabel(" ");
     private final JLabel dataNote = new JLabel(Messages.text("ai.dataNote"));
+    private final JLabel sessionPortNote = new JLabel(" ");
     private final Runnable preferenceListener = this::followPreferences;
+    private final Optional<AiServerService> service;
+    private final Runnable removeServiceListener;
     private boolean following;
 
-    /** @param clipboard where «Copiar configuración» puts the line ({@link #systemClipboard()} in the editor) */
+    /**
+     * Without the application's server (tests, the remembered port only).
+     *
+     * @param clipboard where «Copiar configuración» puts the line ({@link #systemClipboard()} in the editor)
+     */
     public AiPreferencesPanel(AppPreferences preferences, Consumer<String> clipboard) {
+        this(preferences, Optional.empty(), clipboard);
+    }
+
+    /**
+     * @param service   the application's server: its session port is shown and copied
+     * @param clipboard where «Copiar configuración» puts the line ({@link #systemClipboard()} in the editor)
+     */
+    public AiPreferencesPanel(AppPreferences preferences, AiServerService service, Consumer<String> clipboard) {
+        this(preferences, Optional.of(service), clipboard);
+    }
+
+    private AiPreferencesPanel(AppPreferences preferences, Optional<AiServerService> service,
+                               Consumer<String> clipboard) {
         super(new MigLayout("insets dialog, wrap 2", "[right][grow, fill]"));
         this.preferences = Objects.requireNonNull(preferences, "preferences");
+        this.service = Objects.requireNonNull(service, "service");
         this.clipboard = Objects.requireNonNull(clipboard, "clipboard");
 
         portSpinner.setModel(new SpinnerNumberModel(preferences.aiPort(), MINIMUM_PORT, MAXIMUM_PORT, 1));
@@ -61,15 +84,24 @@ public final class AiPreferencesPanel extends JPanel {
             feedback.setText(Messages.text("ai.preferences.newSecret.done"));
         });
         copyButton.addActionListener(event -> {
-            clipboard.accept(AiServerService.claudeCodeCommand(preferences));
+            clipboard.accept(service.map(AiServerService::claudeCodeCommand)
+                    .orElseGet(() -> AiServerService.claudeCodeCommand(preferences)));
             feedback.setText(Messages.text("ai.copyConfiguration.done"));
         });
         preferences.addListener(preferenceListener);
+        this.removeServiceListener = service.map(server -> server.addListener(new AiServerService.Listener() {
+            @Override
+            public void stateChanged() {
+                refreshSessionPort();
+            }
+        })).orElse(() -> { });
+        refreshSessionPort();
 
         add(startWithVsimBox, "skip 1");
         add(new JLabel(Messages.text("ai.preferences.port")), "gaptop 12");
         add(portSpinner, "gaptop 12, split 2, growx 0, wmin 90");
         add(defaultPortButton, "growx 0");
+        add(sessionPortNote, "skip 1, hidemode 3");
         add(new JLabel(Messages.text("ai.preferences.portNote")), "skip 1");
         add(newSecretButton, "skip 1, gaptop 12, growx 0");
         add(copyButton, "skip 1, growx 0");
@@ -85,6 +117,7 @@ public final class AiPreferencesPanel extends JPanel {
     /** Stops following the preferences: the dialog closed. */
     public void dispose() {
         preferences.removeListener(preferenceListener);
+        removeServiceListener.run();
     }
 
     /** The port can change elsewhere while the dialog is open («Usar el siguiente libre»). */
@@ -102,7 +135,20 @@ public final class AiPreferencesPanel extends JPanel {
     }
 
     private void refreshDefaultPortButton() {
-        defaultPortButton.setEnabled(preferences.aiPort() != AppPreferences.DEFAULT_AI_PORT);
+        defaultPortButton.setEnabled(!sessionPortGiven() && preferences.aiPort() != AppPreferences.DEFAULT_AI_PORT);
+    }
+
+    /** The session port's note, and the remembered port disabled while one is given. */
+    private void refreshSessionPort() {
+        Optional<String> note = service.flatMap(AiServerService::sessionPortNote);
+        sessionPortNote.setText(note.orElse(" "));
+        sessionPortNote.setVisible(note.isPresent());
+        portSpinner.setEnabled(!sessionPortGiven());
+        refreshDefaultPortButton();
+    }
+
+    private boolean sessionPortGiven() {
+        return service.map(AiServerService::isSessionPort).orElse(false);
     }
 
     JCheckBox startWithVsimBox() {
@@ -127,6 +173,10 @@ public final class AiPreferencesPanel extends JPanel {
 
     JLabel feedback() {
         return feedback;
+    }
+
+    JLabel sessionPortNote() {
+        return sessionPortNote;
     }
 
     JLabel dataNote() {

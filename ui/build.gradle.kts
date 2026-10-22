@@ -38,6 +38,10 @@ tasks.named<JavaExec>("run") {
     // IA.1 (temporary until the «IA» panel): ./gradlew :ui:run -Dvsim.ai=on (or -PvsimAi=on, or VSIM_AI=on)
     (providers.systemProperty("vsim.ai").orNull ?: providers.gradleProperty("vsimAi").orNull)
         ?.let { systemProperty("vsim.ai", it) }
+    // IA.3: the AI's port for this session only, never remembered: -Dvsim.ai.port=47100 (or -PvsimAiPort=47100,
+    // or VSIM_AI_PORT=47100, which the run inherits)
+    (providers.systemProperty("vsim.ai.port").orNull ?: providers.gradleProperty("vsimAiPort").orNull)
+        ?.let { systemProperty("vsim.ai.port", it) }
 }
 
 // --- M4-D executable jar ---

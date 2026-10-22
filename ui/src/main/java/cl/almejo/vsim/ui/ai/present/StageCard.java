@@ -38,7 +38,8 @@ final class StageCard extends JPanel {
         NORMAL(AiColors::foreground),
         MUTED(AiColors::muted),
         SUCCESS(AiColors::success),
-        ERROR(ReadableColors::errorText);
+        ERROR(ReadableColors::errorText),
+        ACCENT(StageCard::accentText);
 
         private final Supplier<Color> color;
 
@@ -74,6 +75,10 @@ final class StageCard extends JPanel {
             }
             case CURRENT -> {
                 add(title, Tone.NORMAL, Style.BOLD);
+                // VSim held this stage's step after a failed check: the card says which (IA.3 «Speed»)
+                task.heldAfterCheck().ifPresent(failed -> task.check(failed).ifPresent(check -> add(
+                        Messages.format("ai.present.heldCheck", task.stages().get(failed).title(), check.summary()),
+                        Tone.ERROR, Style.PLAIN)));
                 addSteps(task, stageIndex, stage.steps());
             }
             case FUTURE -> {
@@ -99,6 +104,26 @@ final class StageCard extends JPanel {
         pending.filter(preview -> preview.stepIndex() >= steps.size())
                 .ifPresent(preview -> add(CURRENT_MARK + proposedOrNot(preview.text(), true), Tone.NORMAL,
                         Style.BOLD));
+    }
+
+    /**
+     * The theme's accent as text: the accent itself when it reads on the panel background, else moved towards white
+     * (dark theme) or black (light theme) until it does. Worked out each time (the theme changes live).
+     */
+    static Color accentText() {
+        Color background = ReadableColors.panelBackground();
+        Color accent = PaceSwitch.accent();
+        Color towards = ReadableColors.dark() ? Color.WHITE : Color.BLACK;
+        for (int step = 0; step < 10 && ReadableColors.contrast(accent, background)
+                < ReadableColors.MINIMUM_TEXT_CONTRAST; step++) {
+            accent = new Color(mix(accent.getRed(), towards.getRed()), mix(accent.getGreen(), towards.getGreen()),
+                    mix(accent.getBlue(), towards.getBlue()));
+        }
+        return accent;
+    }
+
+    private static int mix(int from, int to) {
+        return from + Math.round((to - from) * 0.2f);
     }
 
     private static String proposedOrNot(String text, boolean proposed) {

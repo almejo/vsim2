@@ -20,6 +20,8 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.security.SecureRandom;
+import java.time.Clock;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.LinkedHashMap;
@@ -38,8 +40,11 @@ import java.util.function.Consumer;
  * The AI server of this VSim (spec §9, §9.1): one per process, an application service, off until «Activar». It listens
  * on the remembered port with the remembered secret, made the first time, and never changes the port by itself: a
  * taken port is a state the panel shows, and only «Usar el siguiente libre» moves it. A new secret or a port changed
- * in Preferencias restarts a running server at once, so the old configuration stops working. It also follows the AI's
- * tasks for the panels and the status lines. EDT only, but for {@link #requestServed()}.
+ * in Preferencias restarts a running server at once, so the old configuration stops working. A port given on the
+ * command line ({@link SessionPort}) takes the remembered port's place for this run only and is never written to the
+ * preferences. «Activar» never blocks the EDT: the port is bound (and a taken one probed) on a thread of its own while
+ * the state says «Encendiendo…». It also follows the AI's tasks for the panels and the status lines. EDT only, but for
+ * {@link #requestServed()}.
  */
 public final class AiServerService {
 
@@ -79,6 +84,10 @@ public final class AiServerService {
         default void stateChanged() {
         }
 
+        /** One more request served while the state stays the same (the panel's count). */
+        default void requestServed() {
+        }
+
         default void taskStarted(TaskInfo task) {
         }
 
@@ -94,6 +103,9 @@ public final class AiServerService {
     private final AiTasks tasks;
     private final Executor editorThread;
     private final Executor background;
+    /** Binds the port (and probes a taken one) off the EDT; stops a server whose start was cancelled meanwhile. */
+    private final Executor serverThread;
+    private final Clock clock;
     private final QueuedWork queuedWork;
     private final List<Listener> listeners = new CopyOnWriteArrayList<>();
     /** The running tasks, in the order they started. */
@@ -103,6 +115,16 @@ public final class AiServerService {
     private AiServerState failure;
     private boolean connected;
     private boolean portChanged;
+    /** The port being bound while «Encendiendo…»; empty otherwise. */
+    private OptionalInt startingPort = OptionalInt.empty();
+    /** Counts the starts, so a start that «Apagar» or another start overtook is dropped when it finishes. */
+    private int startGeneration;
+    /** When the running server started and how many requests it served since. */
+    private Instant startedAt;
+    private long requestsServed;
+    /** The port given on the command line for this run, moved by «Usar el siguiente libre»; never remembered. */
+    private OptionalInt sessionPort;
+    private final Optional<String> invalidSessionPort;
 
     public AiServerService(AppPreferences preferences, AutomationApi api) {
         this(preferences, api, QueuedWork.NONE);
@@ -110,7 +132,17 @@ public final class AiServerService {
 
     /** @param queuedWork the editor's queue of the AI's work, refused while the server is off */
     public AiServerService(AppPreferences preferences, AutomationApi api, QueuedWork queuedWork) {
-        this(preferences, api, AiTasks.of(api), SwingUtilities::invokeLater, backgroundExecutor(), queuedWork);
+        this(preferences, api, queuedWork, SessionPort.none());
+    }
+
+    /**
+     * @param queuedWork  the editor's queue of the AI's work, refused while the server is off
+     * @param sessionPort the port given on the command line for this run ({@link SessionPort#fromLaunch})
+     */
+    public AiServerService(AppPreferences preferences, AutomationApi api, QueuedWork queuedWork,
+                           SessionPort sessionPort) {
+        this(preferences, api, AiTasks.of(api), SwingUtilities::invokeLater, daemonThread("vsim-ai-tasks"),
+                queuedWork, sessionPort, daemonThread("vsim-ai-server"), Clock.systemDefaultZone());
     }
 
     AiServerService(AppPreferences preferences, AutomationApi api, AiTasks tasks, Executor editorThread,
@@ -125,6 +157,34 @@ public final class AiServerService {
      */
     AiServerService(AppPreferences preferences, AutomationApi api, AiTasks tasks, Executor editorThread,
                     Executor background, QueuedWork queuedWork) {
+        this(preferences, api, tasks, editorThread, background, queuedWork, SessionPort.none());
+    }
+
+    /**
+     * The server is started on {@code background} (the same thread as the undo in tests that run it at once).
+     *
+     * @param sessionPort the port given on the command line for this run, never remembered
+     */
+    AiServerService(AppPreferences preferences, AutomationApi api, AiTasks tasks, Executor editorThread,
+                    Executor background, QueuedWork queuedWork, SessionPort sessionPort) {
+        this(preferences, api, tasks, editorThread, background, queuedWork, sessionPort, background,
+                Clock.systemDefaultZone());
+    }
+
+    /**
+     * @param serverThread binds the port (and probes a taken one) off the EDT
+     * @param clock        says since when the server runs
+     */
+    AiServerService(AppPreferences preferences, AutomationApi api, AiTasks tasks, Executor editorThread,
+                    Executor background, QueuedWork queuedWork, SessionPort sessionPort, Executor serverThread,
+                    Clock clock) {
+        Objects.requireNonNull(sessionPort, "sessionPort");
+        this.serverThread = Objects.requireNonNull(serverThread, "serverThread");
+        this.clock = Objects.requireNonNull(clock, "clock");
+        this.sessionPort = sessionPort.port();
+        this.invalidSessionPort = sessionPort.invalidValue();
+        invalidSessionPort.ifPresent(value -> LOGGER.warn(
+                "Ignoring the AI port {} given on the command line: it is not a port from 1024 to 65535", value));
         this.preferences = Objects.requireNonNull(preferences, "preferences");
         this.api = Objects.requireNonNull(api, "api");
         this.tasks = Objects.requireNonNull(tasks, "tasks");
@@ -136,9 +196,9 @@ public final class AiServerService {
         tasks.addListener(new TaskEvents());
     }
 
-    private static Executor backgroundExecutor() {
+    private static Executor daemonThread(String name) {
         return Executors.newSingleThreadExecutor(runnable -> {
-            Thread thread = new Thread(runnable, "vsim-ai-tasks");
+            Thread thread = new Thread(runnable, name);
             thread.setDaemon(true);
             return thread;
         });
@@ -146,17 +206,26 @@ public final class AiServerService {
 
     // --- The server ---
 
-    /** Starts listening; a no-op when already running. A taken port is reported, never replaced by another. */
+    /**
+     * Starts listening on the calling thread; a no-op when already running or starting. A taken port is reported,
+     * never replaced by another. The panels use {@link #activate()}, which never blocks the EDT.
+     */
     public void start() throws PortInUseException {
-        if (running != null) {
+        if (running != null || startingPort.isPresent()) {
             return;
         }
         String secret = ensureSecret();
         queuedWork.accept();
-        running = VsimMcpServer.start(api, new McpServerSettings(preferences.aiPort(), secret));
+        listening(VsimMcpServer.start(api, new McpServerSettings(effectivePort(), secret)), secret);
+    }
+
+    private void listening(RunningServer server, String secret) {
+        running = server;
         runningSecret = secret;
         failure = null;
         connected = false;
+        startedAt = clock.instant();
+        requestsServed = 0;
     }
 
     /**
@@ -173,19 +242,84 @@ public final class AiServerService {
         }
     }
 
-    /** «Activar»: listens, or shows why not ({@link AiServerState.PortInUse}, {@link AiServerState.OtherVsim}). */
+    /**
+     * «Encender»: listens, or shows why not ({@link AiServerState.PortInUse}, {@link AiServerState.OtherVsim}). The
+     * port is bound off the EDT (a taken one is probed there too, up to a second) while the state says
+     * «Encendiendo…»; a no-op while running or starting.
+     */
     public void activate() {
-        try {
-            start();
-        } catch (PortInUseException exception) {
-            failure = exception.otherVsim() ? new AiServerState.OtherVsim(exception.port())
-                    : new AiServerState.PortInUse(exception.port());
-        }
-        notifyStateChanged();
+        activate(() -> {
+        });
     }
 
-    /** «Desactivar»: stops listening, which revokes everything; the running tasks are stopped. */
+    /** {@link #activate()}; {@code settled} runs on the EDT once the server listens or could not start. */
+    private void activate(Runnable settled) {
+        if (running != null || startingPort.isPresent()) {
+            settled.run();
+            return;
+        }
+        int port = effectivePort();
+        String secret = ensureSecret();
+        int generation = ++startGeneration;
+        startingPort = OptionalInt.of(port);
+        failure = null;
+        queuedWork.accept();
+        notifyStateChanged();
+        serverThread.execute(() -> {
+            RunningServer started = null;
+            AiServerState refused = null;
+            try {
+                started = VsimMcpServer.start(api, new McpServerSettings(port, secret));
+            } catch (PortInUseException exception) {
+                refused = exception.otherVsim() ? new AiServerState.OtherVsim(exception.port())
+                        : new AiServerState.PortInUse(exception.port());
+            } catch (RuntimeException exception) {
+                LOGGER.warn("Could not start the AI server on port {}", port, exception);
+                refused = new AiServerState.Failed(port);
+            }
+            RunningServer server = started;
+            AiServerState failed = refused;
+            editorThread.execute(() -> finishStart(generation, server, failed, secret, settled));
+        });
+    }
+
+    /** On the EDT: the start of {@code generation} ended; a start overtaken meanwhile frees its port at once. */
+    private void finishStart(int generation, RunningServer server, AiServerState failed, String secret,
+                             Runnable settled) {
+        if (generation != startGeneration) {
+            if (server != null) {
+                serverThread.execute(server::stop);
+            }
+            return;
+        }
+        startingPort = OptionalInt.empty();
+        if (server != null) {
+            listening(server, secret);
+        } else {
+            failure = failed;
+        }
+        notifyStateChanged();
+        settled.run();
+        if (server != null) {
+            followPreferences(); // the port or the secret may have changed while it started
+        }
+    }
+
+    /** True while the port is being bound («Encendiendo…»). */
+    public boolean isStarting() {
+        return startingPort.isPresent();
+    }
+
+    /**
+     * «Apagar»: stops listening, which revokes everything; the running tasks are stopped (as «Detener») and a start
+     * in progress is dropped.
+     */
     public void deactivate() {
+        startGeneration++;
+        if (startingPort.isPresent()) {
+            startingPort = OptionalInt.empty();
+            queuedWork.refuse();
+        }
         stop();
         failure = null;
         portChanged = false;
@@ -195,8 +329,59 @@ public final class AiServerService {
         notifyStateChanged();
     }
 
+    /**
+     * «Reiniciar»: «Apagar» then «Encender» on the same effective port (after a port or secret change, or when
+     * something got stuck); the running tasks are stopped as by «Detener». Refused (false, nothing changes) while the
+     * server is starting.
+     */
+    public boolean restart() {
+        if (startingPort.isPresent()) {
+            return false;
+        }
+        deactivate();
+        activate();
+        return true;
+    }
+
     public boolean isRunning() {
         return running != null;
+    }
+
+    /** When the running server started; empty while it does not run. */
+    public Optional<Instant> startedAt() {
+        return running == null ? Optional.empty() : Optional.ofNullable(startedAt);
+    }
+
+    /** The requests the running server served since it started. */
+    public long requestsServed() {
+        return running == null ? 0 : requestsServed;
+    }
+
+    /** The port the server listens on (or would): the session port when one was given, else the remembered one. */
+    public int effectivePort() {
+        return sessionPort.orElseGet(preferences::aiPort);
+    }
+
+    /** True when this run listens on a port given on the command line, not the remembered one. */
+    public boolean isSessionPort() {
+        return sessionPort.isPresent();
+    }
+
+    /** The value given on the command line that is not a usable port (the remembered one is used then). */
+    public Optional<String> invalidSessionPort() {
+        return invalidSessionPort;
+    }
+
+    /**
+     * What the panels say about the session port: «Puerto <n> (solo esta sesión…)», or that the value given is not a
+     * port and the remembered one is used; empty without a session port.
+     */
+    public Optional<String> sessionPortNote() {
+        if (isSessionPort()) {
+            return Optional.of(Messages.format("ai.sessionPort", Integer.toString(sessionPort.getAsInt())));
+        }
+        return invalidSessionPort.map(value -> Messages.format("ai.sessionPort.invalid", value,
+                Integer.toString(preferences.aiPort())));
     }
 
     public OptionalInt port() {
@@ -206,6 +391,9 @@ public final class AiServerService {
     public AiServerState state() {
         if (failure != null) {
             return failure;
+        }
+        if (startingPort.isPresent()) {
+            return new AiServerState.Starting(startingPort.getAsInt());
         }
         if (running == null) {
             return new AiServerState.Off();
@@ -220,27 +408,41 @@ public final class AiServerService {
     /** Any thread: the server answered a request, so Claude Code is connected («Claude Code conectado»). */
     public void requestServed() {
         editorThread.execute(() -> {
-            if (running != null && !connected) {
+            if (running != null) {
+                requestsServed++;
+                boolean firstRequest = !connected;
                 connected = true;
-                notifyStateChanged();
+                if (firstRequest) {
+                    notifyStateChanged();
+                } else {
+                    listeners.forEach(Listener::requestServed);
+                }
             }
         });
     }
 
     /**
      * «Usar el siguiente libre» after {@link AiServerState.PortInUse}: remembers the first free port above the taken
-     * one and listens there; the panel then says the configuration must be copied again. False (and nothing changes)
-     * when there is no free port in the next {@value #NEXT_FREE_PORT_RANGE}.
+     * one and listens there; the panel then says the configuration must be copied again. On a session port only the
+     * session port moves: the remembered one stays. False (and nothing changes) when there is no free port in the
+     * next {@value #NEXT_FREE_PORT_RANGE}.
      */
     public boolean useNextFreePort() {
-        OptionalInt free = nextFreePort(preferences.aiPort());
+        if (startingPort.isPresent()) {
+            return false;
+        }
+        OptionalInt free = nextFreePort(effectivePort());
         if (free.isEmpty()) {
             return false;
         }
         stop();
         failure = null;
         portChanged = true;
-        preferences.setAiPort(free.getAsInt());
+        if (isSessionPort()) {
+            sessionPort = free;
+        } else {
+            preferences.setAiPort(free.getAsInt());
+        }
         activate();
         return true;
     }
@@ -280,13 +482,16 @@ public final class AiServerService {
 
     /** A new secret or another port while running: listen again, so the old configuration stops working. */
     private void followPreferences() {
+        if (startingPort.isPresent()) {
+            return; // checked again when the start ends
+        }
         if (running != null) {
             boolean secretChanged = !preferences.aiSecret().map(secret -> secret.equals(runningSecret)).orElse(false);
-            if (preferences.aiPort() != running.port() || secretChanged) {
+            if (effectivePort() != running.port() || secretChanged) {
                 stop();
                 activate();
             }
-        } else if (failedPort().isPresent() && failedPort().getAsInt() != preferences.aiPort()) {
+        } else if (failedPort().isPresent() && failedPort().getAsInt() != effectivePort()) {
             // the user chose another port: the error was about the old one
             failure = null;
             notifyStateChanged();
@@ -333,16 +538,25 @@ public final class AiServerService {
 
     /**
      * The line that registers this VSim in Claude Code once, for every project ({@code --scope user}), with the
-     * remembered port and secret (made now if there is none yet).
+     * remembered port and secret (made now if there is none yet). On a session port it names that port and a server
+     * of its own, {@code vsim-<port>}, so it never replaces the usual {@code vsim} in Claude Code.
      */
     public String claudeCodeCommand() {
+        if (isSessionPort()) {
+            int port = sessionPort.getAsInt();
+            return claudeCodeCommand(CLIENT_SERVER_NAME + "-" + port, port, ensureSecret());
+        }
         return claudeCodeCommand(preferences);
     }
 
-    /** {@link #claudeCodeCommand()} from {@code preferences} alone (Preferencias ▸ «IA»). */
+    /** {@link #claudeCodeCommand()} from {@code preferences} alone, without a session port. */
     public static String claudeCodeCommand(AppPreferences preferences) {
-        return "claude mcp add --transport http --scope user " + CLIENT_SERVER_NAME + " http://127.0.0.1:"
-                + preferences.aiPort() + "/mcp --header \"Authorization: Bearer " + ensureSecret(preferences) + "\"";
+        return claudeCodeCommand(CLIENT_SERVER_NAME, preferences.aiPort(), ensureSecret(preferences));
+    }
+
+    private static String claudeCodeCommand(String serverName, int port, String secret) {
+        return "claude mcp add --transport http --scope user " + serverName + " http://127.0.0.1:" + port
+                + "/mcp --header \"Authorization: Bearer " + secret + "\"";
     }
 
     // --- Tasks ---
@@ -431,8 +645,9 @@ public final class AiServerService {
 
     /**
      * At VSim's start, on the EDT: turns «Activar» on when «Iniciar con VSim» is on or when VSim was launched with
-     * the hand-test switch. With the switch it also writes one line to {@code terminal} with the command to register
-     * it in Claude Code (the only place the secret is printed), or why it could not start.
+     * the hand-test switch. With the switch it also writes one line to {@code terminal}, once the server listens or
+     * could not start, with the command to register it in Claude Code (the only place the secret is printed), or why
+     * it could not start. It never waits for the port.
      */
     public void startAtLaunch(PrintStream terminal) {
         boolean launchSwitch = requestedAtLaunch(System.getProperty(LAUNCH_PROPERTY),
@@ -440,17 +655,21 @@ public final class AiServerService {
         if (!launchSwitch && !preferences.aiStartWithVsim()) {
             return;
         }
-        activate();
         if (!launchSwitch) {
+            activate();
             return;
         }
-        switch (state()) {
-            case AiServerState.PortInUse taken ->
-                    terminal.println(Messages.format("ai.launch.portInUse", Integer.toString(taken.port())));
-            case AiServerState.OtherVsim other ->
-                    terminal.println(Messages.format("ai.launch.otherVsim", Integer.toString(other.port())));
-            default -> terminal.println(Messages.format("ai.launch.command", claudeCodeCommand()));
-        }
+        activate(() -> {
+            switch (state()) {
+                case AiServerState.PortInUse taken ->
+                        terminal.println(Messages.format("ai.launch.portInUse", Integer.toString(taken.port())));
+                case AiServerState.OtherVsim other ->
+                        terminal.println(Messages.format("ai.launch.otherVsim", Integer.toString(other.port())));
+                case AiServerState.Failed failed ->
+                        terminal.println(Messages.format("ai.launch.failed", Integer.toString(failed.port())));
+                default -> terminal.println(Messages.format("ai.launch.command", claudeCodeCommand()));
+            }
+        });
     }
 
     /** The property wins over the environment when both are given. */

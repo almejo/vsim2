@@ -105,6 +105,15 @@ class AiStatusFeaturesTest {
     }
 
     @Test
+    void theStripsButtonsCarryTheAiIconsAndCloseIsTheCross() {
+        assertThat(features.stopButton().getIcon()).isSameAs(AiIcons.icon(AiIcons.STOP));
+        assertThat(features.showButton().getIcon()).isSameAs(AiIcons.icon(AiIcons.SHOW));
+        assertThat(features.undoButton().getIcon()).isSameAs(AiIcons.icon(AiIcons.UNDO));
+        assertThat(features.closeButton().getIcon()).isSameAs(AiIcons.icon(AiIcons.CLOSE));
+        assertThat(features.closeButton().getToolTipText()).isEqualTo("Cerrar");
+    }
+
+    @Test
     void detenerStopsTheTaskAndLeavesTheAppliedEditsAlone() {
         place(document, StandardComponentTypes.NOT, 0, 0, Map.of());
         long changes = document.changeCount();

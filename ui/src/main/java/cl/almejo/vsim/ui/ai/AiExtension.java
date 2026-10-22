@@ -23,7 +23,9 @@ import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 /**
  * The AI in every editor view (IA.1): Herramientas ▸ «IA (MCP)…» opens this window's panel ({@link AiPanel}) and the
@@ -38,13 +40,31 @@ public final class AiExtension implements EditorExtension {
     private final AiServerService service;
     private final Function<OpenDocument, DocumentId> ids;
     private final PreferenceProposals proposals;
+    /** The override of the window the AI works in for a circuit (its first window); empty for none. */
+    private final Function<OpenDocument, Optional<SettingsOverride>> circuitOverrides;
 
-    /** @param ids the id the AI knows a circuit by ({@link EditorAutomationHost#documentId}) */
+    /**
+     * Each window's panel shows its own «Ajustes que tocó la IA».
+     *
+     * @param ids the id the AI knows a circuit by ({@link EditorAutomationHost#documentId})
+     */
     public AiExtension(AiServerService service, Function<OpenDocument, DocumentId> ids,
                        PreferenceProposals proposals) {
+        this(service, ids, proposals, null);
+    }
+
+    /**
+     * @param ids              the id the AI knows a circuit by ({@link EditorAutomationHost#documentId})
+     * @param circuitOverrides the override of the window the AI works in for a circuit
+     *                         ({@link EditorWindows#settingsOverride}): a second window of the circuit shows it too
+     */
+    public AiExtension(AiServerService service, Function<OpenDocument, DocumentId> ids,
+                       PreferenceProposals proposals,
+                       Function<OpenDocument, Optional<SettingsOverride>> circuitOverrides) {
         this.service = Objects.requireNonNull(service, "service");
         this.ids = Objects.requireNonNull(ids, "ids");
         this.proposals = Objects.requireNonNull(proposals, "proposals");
+        this.circuitOverrides = circuitOverrides;
     }
 
     /** An extension over a server of its own that nobody turns on (tests that install every extension). */
@@ -53,6 +73,11 @@ public final class AiExtension implements EditorExtension {
         EditorAutomationHost host = new EditorAutomationHost(List::of);
         return new AiExtension(new AiServerService(preferences, new AutomationApi(host)), host::documentId,
                 new PreferenceProposals(preferences));
+    }
+
+    /** The application's server this extension shows (Preferencias ▸ «IA» shows its session port too). */
+    public AiServerService server() {
+        return service;
     }
 
     @Override
@@ -95,7 +120,11 @@ public final class AiExtension implements EditorExtension {
             if (dialog == null) {
                 Window owner = SwingUtilities.getWindowAncestor(view);
                 dialog = new JDialog(owner, Messages.text("ai.panel.title"));
-                panel = new AiPanel(service, view.services().preferences(), proposals,
+                AppPreferences windowPreferences = view.services().preferences();
+                Supplier<Optional<SettingsOverride>> override = circuitOverrides == null
+                        ? () -> SettingsOverride.of(windowPreferences)
+                        : () -> circuitOverrides.apply(view.openDocument());
+                panel = new AiPanel(service, windowPreferences, override, proposals,
                         AiPreferencesPanel.systemClipboard());
                 dialog.setContentPane(panel);
                 dialog.setDefaultCloseOperation(JDialog.HIDE_ON_CLOSE);
@@ -107,6 +136,8 @@ public final class AiExtension implements EditorExtension {
                 });
                 dialog.pack();
                 dialog.setLocationRelativeTo(owner);
+            } else {
+                panel.refresh();
             }
             dialog.setVisible(true);
             dialog.toFront();

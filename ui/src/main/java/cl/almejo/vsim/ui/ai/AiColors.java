@@ -17,11 +17,13 @@ public final class AiColors {
     static Color of(AiServerState state) {
         return switch (state) {
             case AiServerState.Off off -> muted();
+            case AiServerState.Starting starting -> muted();
             case AiServerState.Listening listening -> foreground();
             case AiServerState.Connected connected -> success();
             case AiServerState.Working working -> success();
             case AiServerState.PortInUse portInUse -> ReadableColors.errorText();
             case AiServerState.OtherVsim otherVsim -> ReadableColors.errorText();
+            case AiServerState.Failed failed -> ReadableColors.errorText();
         };
     }
 

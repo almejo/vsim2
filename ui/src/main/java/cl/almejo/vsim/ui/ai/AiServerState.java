@@ -9,6 +9,10 @@ public sealed interface AiServerState {
     record Off() implements AiServerState {
     }
 
+    /** «Encendiendo…»: the server is binding its port off the editor thread (IA.3: «Activar» never freezes). */
+    record Starting(int port) implements AiServerState {
+    }
+
     /** «Escuchando en 127.0.0.1:<port>»: waiting for Claude Code. */
     record Listening(int port) implements AiServerState {
     }
@@ -29,21 +33,41 @@ public sealed interface AiServerState {
     record OtherVsim(int port) implements AiServerState {
     }
 
+    /** The server could not start for another reason (the log says which). */
+    record Failed(int port) implements AiServerState {
+    }
+
     /** The words the panel shows. Ports go as text, so they never get a thousands separator. */
     default String text() {
         return switch (this) {
             case Off off -> Messages.text("ai.state.off");
+            case Starting starting -> Messages.format("ai.state.starting", Integer.toString(starting.port()));
             case Listening listening -> Messages.format("ai.state.listening", Integer.toString(listening.port()));
             case Connected connected -> Messages.text("ai.state.connected");
             case Working working -> Messages.format("ai.state.working", working.taskTitle());
             case PortInUse portInUse -> Messages.format("ai.state.portInUse", Integer.toString(portInUse.port()));
             case OtherVsim otherVsim -> Messages.text("ai.state.otherVsim");
+            case Failed failed -> Messages.format("ai.state.failed", Integer.toString(failed.port()));
         };
     }
 
-    /** True for the two errors: the server could not start. */
+    /** The one word of the panel's header: Apagada, Encendiendo…, Escuchando, Conectado, Trabajando or Error. */
+    default String title() {
+        return Messages.text(switch (this) {
+            case Off off -> "ai.state.title.off";
+            case Starting starting -> "ai.state.title.starting";
+            case Listening listening -> "ai.state.title.listening";
+            case Connected connected -> "ai.state.title.connected";
+            case Working working -> "ai.state.title.working";
+            case PortInUse portInUse -> "ai.state.title.error";
+            case OtherVsim otherVsim -> "ai.state.title.error";
+            case Failed failed -> "ai.state.title.error";
+        });
+    }
+
+    /** True for the errors: the server could not start. */
     default boolean isError() {
-        return this instanceof PortInUse || this instanceof OtherVsim;
+        return this instanceof PortInUse || this instanceof OtherVsim || this instanceof Failed;
     }
 
     /** True while the server listens (with or without Claude Code, working or not). */

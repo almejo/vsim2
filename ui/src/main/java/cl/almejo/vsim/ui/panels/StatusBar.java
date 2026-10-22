@@ -5,6 +5,7 @@ import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.theme.ErrorTextLabel;
 import net.miginfocom.swing.MigLayout;
 
+import javax.swing.Icon;
 import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
@@ -233,8 +234,14 @@ public final class StatusBar extends JPanel {
      * notice goes), for {@value #ACTION_NOTICE_MILLISECONDS} ms; a new notice replaces both.
      */
     public void showNotice(String text, String actionText, Runnable action) {
+        showNotice(text, actionText, null, action);
+    }
+
+    /** {@link #showNotice(String, String, Runnable)} with {@code actionIcon} next to the button's text (or none). */
+    public void showNotice(String text, String actionText, Icon actionIcon, Runnable action) {
         showNotice(text, ACTION_NOTICE_MILLISECONDS);
         noticeAction.setText(actionText);
+        noticeAction.setIcon(actionIcon);
         noticeAction.setVisible(true);
         noticeActionRun = () -> {
             hideNotice();

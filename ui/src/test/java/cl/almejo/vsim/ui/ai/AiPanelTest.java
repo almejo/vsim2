@@ -58,7 +58,7 @@ class AiPanelTest {
     @Test
     void offByDefaultWithActivarAndTheDataNote() {
         assertThat(panel.stateLabel().getText()).isEqualTo("Apagada");
-        assertThat(panel.toggleButton().getText()).isEqualTo("Activar");
+        assertThat(panel.toggleButton().getText()).isEqualTo("Encender");
         assertThat(panel.nextFreePortButton().isVisible()).isFalse();
         assertThat(panel.dataNote().getText()).isEqualTo("Lo que la IA lee del circuito se envía a su proveedor");
         assertThat(panel.settingsSection().isVisible()).isFalse();
@@ -71,7 +71,7 @@ class AiPanelTest {
 
         panel.toggleButton().doClick();
         assertThat(panel.stateLabel().getText()).isEqualTo("Escuchando en 127.0.0.1:" + port);
-        assertThat(panel.toggleButton().getText()).isEqualTo("Desactivar");
+        assertThat(panel.toggleButton().getText()).isEqualTo("Apagar");
 
         service.requestServed();
         assertThat(panel.stateLabel().getText()).isEqualTo("Claude Code conectado");
@@ -95,7 +95,7 @@ class AiPanelTest {
                     .isEqualTo("El puerto " + other.getLocalPort() + " está ocupado por otro programa");
             assertThat(panel.nextFreePortButton().isVisible()).isTrue();
             assertThat(panel.nextFreePortButton().getText()).isEqualTo("Usar el siguiente libre");
-            assertThat(panel.toggleButton().getText()).isEqualTo("Activar");
+            assertThat(panel.toggleButton().getText()).isEqualTo("Encender");
 
             panel.nextFreePortButton().doClick();
 
@@ -214,6 +214,30 @@ class AiPanelTest {
         assertThat(service.listenerCount()).isEqualTo(serviceListeners);
         assertThat(saved.listenerCount()).isEqualTo(preferenceListeners);
         assertThat(proposals.listenerCount()).isEqualTo(proposalListeners);
+    }
+
+    @Test
+    void aSessionPortIsSaidInThePanelAndCopyingRegistersAServerOfItsOwn() throws Exception {
+        int sessionPort = freePort();
+        saved.setAiSecret("s3cret-s3cret-s3cret-s3cret");
+        AiServerService session = new AiServerService(saved, new AutomationApi(new NoDocuments()), tasks,
+                Runnable::run, Runnable::run, AiServerService.QueuedWork.NONE, SessionPort.of(sessionPort));
+        AiPanel sessionPanel = new AiPanel(session, windowPreferences, proposals, copied::add);
+        try {
+            assertThat(sessionPanel.portNote().isVisible()).isTrue();
+            assertThat(sessionPanel.portNote().getText())
+                    .isEqualTo("Puerto " + sessionPort + " (solo esta sesión, desde la línea de comandos)");
+            assertThat(panel.portNote().isVisible()).as("no session port, no note").isFalse();
+
+            sessionPanel.copyButton().doClick();
+
+            assertThat(copied).containsExactly("claude mcp add --transport http --scope user vsim-" + sessionPort
+                    + " http://127.0.0.1:" + sessionPort
+                    + "/mcp --header \"Authorization: Bearer s3cret-s3cret-s3cret-s3cret\"");
+        } finally {
+            sessionPanel.dispose();
+            session.stop();
+        }
     }
 
     private static int freePort() throws IOException {

@@ -52,6 +52,12 @@ final class PresentedTask {
     private boolean storyboardAsked;
     private StageUndoOutcome lastUndo;
     private boolean keepRefused;
+    /** The last stage whose check failed and was not passed since; -1 for none. */
+    private int failedStage = -1;
+    /** VSim held a step after {@link #failedStage}'s failed check (IA.3 «Speed»); -1 for none. */
+    private int heldAfterStage = -1;
+    /** The failed stage whose hold the user already passed with «Siguiente»: not said again. */
+    private int dismissedStage = -1;
 
     PresentedTask(TaskInfo task) {
         this.task = Objects.requireNonNull(task, "task");
@@ -78,11 +84,15 @@ final class PresentedTask {
         keepRefused = false;
         currentStage = preview.stageIndex();
         currentStep = preview.stepIndex();
+        if (failedStage >= 0 && preview.stageIndex() > failedStage && dismissedStage != failedStage) {
+            heldAfterStage = failedStage;
+        }
     }
 
     void stepApplied(StepPreview preview) {
         pacedFor = null;
         pending = null;
+        heldAfterStage = -1;
         lastDiscard = null;
         lastUndo = null;
         keepRefused = false;
@@ -112,12 +122,36 @@ final class PresentedTask {
 
     void stageChecked(int stageIndex, boolean passed, String summary) {
         checks.put(stageIndex, new StageCheck(passed, summary));
+        if (!passed) {
+            failedStage = Math.max(failedStage, stageIndex);
+        } else if (stageIndex == failedStage) {
+            failedStage = -1;
+            heldAfterStage = -1;
+            dismissedStage = -1;
+        }
+    }
+
+    /**
+     * The stage whose failed check made VSim hold the waiting step (in «De corrido» it stopped there instead of going
+     * on), until the AI checks it again and it passes, a step goes in or the user presses «Siguiente».
+     */
+    Optional<Integer> heldAfterCheck() {
+        return heldAfterStage >= 0 ? Optional.of(heldAfterStage) : Optional.empty();
+    }
+
+    /** The user pressed «Siguiente»: the hold is not said again for that failed check. */
+    void continued() {
+        if (heldAfterStage >= 0) {
+            dismissedStage = heldAfterStage;
+            heldAfterStage = -1;
+        }
     }
 
     void ended() {
         ended = true;
         pacedFor = null;
         pending = null;
+        heldAfterStage = -1;
     }
 
     /** «Detener»: like the end, the panel stays with «Deshacer etapa» and ×. */

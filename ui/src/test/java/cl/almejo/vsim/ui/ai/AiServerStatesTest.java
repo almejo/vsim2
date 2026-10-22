@@ -83,7 +83,8 @@ class AiServerStatesTest {
         service.deactivate();
         assertThat(service.state().text()).isEqualTo("Apagada");
         assertThat(service.isRunning()).isFalse();
-        assertThat(heard).containsExactly("Escuchando en 127.0.0.1:" + port, "Claude Code conectado",
+        assertThat(heard).containsExactly("Encendiendo en 127.0.0.1:" + port + "…",
+                "Escuchando en 127.0.0.1:" + port, "Claude Code conectado",
                 "IA trabajando: Flip-flop D", "Claude Code conectado", "Apagada");
     }
 

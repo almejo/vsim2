@@ -127,14 +127,20 @@ class AiServerServiceTest {
     void atLaunchItStaysOffUnlessStartingWithVsimIsOnAndThenPrintsNoSecret() throws Exception {
         preferences.setAiPort(freePort());
         ByteArrayOutputStream terminal = new ByteArrayOutputStream();
+        // the port is bound off the EDT (IA.3); here that thread and the EDT run at once
+        AiServerService atOnce = new AiServerService(preferences, new AutomationApi(new NoDocuments()),
+                new FakeAiTasks(), Runnable::run, Runnable::run);
+        try {
+            atOnce.startAtLaunch(new PrintStream(terminal, true, StandardCharsets.UTF_8));
+            assertThat(atOnce.isRunning()).isFalse();
+            preferences.setAiStartWithVsim(true);
+            atOnce.startAtLaunch(new PrintStream(terminal, true, StandardCharsets.UTF_8));
 
-        service.startAtLaunch(new PrintStream(terminal, true, StandardCharsets.UTF_8));
-        assertThat(service.isRunning()).isFalse();
-        preferences.setAiStartWithVsim(true);
-        service.startAtLaunch(new PrintStream(terminal, true, StandardCharsets.UTF_8));
-
-        assertThat(service.isRunning()).isTrue();
-        assertThat(terminal.toString(StandardCharsets.UTF_8)).isEmpty();
+            assertThat(atOnce.isRunning()).isTrue();
+            assertThat(terminal.toString(StandardCharsets.UTF_8)).isEmpty();
+        } finally {
+            atOnce.stop();
+        }
     }
 
     private static int freePort() throws IOException {

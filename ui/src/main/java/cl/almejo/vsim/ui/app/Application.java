@@ -14,6 +14,7 @@ import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.library.DefinitionBundle;
 import cl.almejo.vsim.ui.ai.AiExtension;
 import cl.almejo.vsim.ui.ai.AiServerService;
+import cl.almejo.vsim.ui.ai.SessionPort;
 import cl.almejo.vsim.ui.ai.EditorAutomationHost;
 import cl.almejo.vsim.ui.ai.ShownWindow;
 import cl.almejo.vsim.ui.ai.EditorWindows;
@@ -155,7 +156,7 @@ public final class Application {
                     public void accept() {
                         automationHost.acceptQueuedWork();
                     }
-                });
+                }, SessionPort.fromLaunch(System::getProperty, System::getenv));
         automationHost.addRequestListener(aiServer::requestServed);
         aiServer.addListener(new AiServerService.Listener() {
             @Override
@@ -171,7 +172,8 @@ public final class Application {
         this.services = new EditorServices(PainterRegistry.standard(), appearance, preferences, library,
                 editorExtensions(libraryService, SwingLibraryDialogs.INSTANCE, this::initialDirectory,
                         this::rememberDirectory,
-                        new AiExtension(aiServer, automationHost::documentId, proposals), presentation));
+                        new AiExtension(aiServer, automationHost::documentId, proposals,
+                                new ApplicationWindows()::settingsOverride), presentation));
         // Lives as long as the application: it follows the preferences and is never disposed.
         this.themeManager = ThemeManager.forCurrentPlatform(preferences, appearance);
         this.textFontManager = new TextFontManager(preferences);
@@ -222,7 +224,7 @@ public final class Application {
         editorExtensions.add(ai); // IA.1: last in Herramientas, before the shortcuts see its item
         editorExtensions.add(presentation); // IA.2: last in Ver and the toolbar, before the icons and shortcuts
         editorExtensions.add(new ActionIcons());
-        editorExtensions.add(new PreferencesFeature());
+        editorExtensions.add(new PreferencesFeature(ai.server()));
         editorExtensions.add(new RecentFilesFeature());
         editorExtensions.add(new ExamplesFeature());
         editorExtensions.add(new ShortcutsExtension());
