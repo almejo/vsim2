@@ -214,6 +214,16 @@ class PresentationPanelTest {
         assertThat(panel.stopButton().isVisible()).isFalse();
     }
 
+    /** IA.3 Task 5: the heartbeat only stops a task whose ghost waits, so the ghost is always dropped with it. */
+    @Test
+    void aSilentAiStoppedWithItsGhostWaitingSaysWhyRatherThanThatTheGhostWent() {
+        task.stepDiscarded(StepStatus.STOPPED);
+        task.stoppedBecauseTheAiWentSilent();
+        panel.show(task, false);
+
+        assertThat(panel.notice().getText()).isEqualTo("La IA dejó de responder: se detuvo la tarea");
+    }
+
     @Test
     void atTheEndItOffersToKeepOnlyTheResultAndToClose() {
         assertThat(panel.keepOnlyResultButton().isVisible()).isFalse();

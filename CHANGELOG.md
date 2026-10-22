@@ -5,6 +5,56 @@ Los cambios de VSim 2 que se notan al usarlo, del más nuevo al más antiguo. El
 sección es un conjunto de funciones, con las fechas en que se hizo. El detalle de cada función está en
 [docs/funciones.md](docs/funciones.md).
 
+## 2026-10-22 — Cierre de la IA (MCP)
+
+### Agregado
+
+- Comandos para aprender a usar la IA en Claude Code: `/mcp__vsim__guia`, `armar`, `exponer`, `explicar`,
+  `revisar`, `probar`, `componente` y `exportar` redactan el pedido por ti (el texto después del comando es el
+  pedido; el ritmo y el formato se reconocen en cualquier parte), y el recurso `vsim://ayuda` explica qué hace y qué
+  no hace la IA, sus dos modos y los comandos.
+- Un puerto solo para esta sesión: `-Dvsim.ai.port=<n>` o `VSIM_AI_PORT=<n>`. El panel y Preferencias ▸ «IA» dicen
+  «Puerto <n> (solo esta sesión, desde la línea de comandos)», «Copiar configuración» lo registra como `vsim-<n>` y
+  el puerto recordado no cambia.
+- El panel de la IA, rehecho: el estado con un punto de color y una palabra (Apagada, Encendiendo…, Escuchando,
+  Conectado, Trabajando, Error), la dirección, desde cuándo y cuántos pedidos; «Encender» / «Apagar» y «Reiniciar»;
+  ante un error, qué hacer; las tareas con «Detener» y «Deshacer lo que hizo la IA»; la configuración plegada.
+  Iconos (detener, deshacer de la IA, encender, reiniciar, portapapeles, carpeta, cerrar) en el panel, la barra de
+  estado y la ventanita de «Presentar», en tema claro y oscuro.
+- Subtítulos en «Presentar»: lo que la IA cuenta antes de una etapa o de un paso (`vsim_say`, o `narration` en
+  `vsim_begin_stage` y `vsim_edit`) aparece abajo al centro del panel, nunca bajo la ventanita, y en gris cursiva en
+  la tarjeta de la etapa; en «De corrido» va con su pausa. En modo trabajo queda en el globo de ayuda de «IA
+  trabajando…».
+- Preguntas de la IA en VSim (`vsim_ask_user`, `vsim_await_answer`, `vsim_withdraw_question`): en la ventanita de
+  «Presentar», o en la barra de estado con «Responder…», con un botón por opción y una respuesta corta.
+- Aviso «Claude está pensando o te preguntó algo en Claude Code» cuando la IA lleva 20 s sin hablar y nada espera por
+  ti.
+- Si Claude Code deja de responder con un paso esperando «Siguiente», VSim detiene la tarea a los 2 minutos y lo dice
+  («La IA dejó de responder: se detuvo la tarea»); el paso en transparente se va.
+- Notas de varias líneas: Mayús+Enter agrega una línea al editar una nota (en el lienzo y en Propiedades); se ven,
+  seleccionan, buscan y exportan línea por línea, y la IA escribe una nota de varias líneas con `\n`.
+
+### Cambiado
+
+- «Activar» / «Desactivar» del panel de la IA ahora son «Encender» / «Apagar», y encender ya no congela la ventana
+  (el puerto se abre en segundo plano mientras dice «Encendiendo…»).
+- «De corrido» se detiene al final de una etapa solo si falló una comprobación de funcionamiento (tabla de verdad,
+  señales o Problemas), no por un defecto de orden; cuando se detiene, la ventanita lo dice claro («Me detuve: falló
+  la comprobación de «<etapa>» · Siguiente para seguir») y la tarjeta muestra la comprobación que falló.
+- Los marcos de las etapas quedan alineados arriba aunque la IA empiece en otra fila, miden las etiquetas de las
+  piezas y no se ponen dentro de otro marco; el primer lugar donde se arma una etapa queda una fila más abajo, para
+  que quepan las etiquetas.
+- Los marcos que pone VSim se deshacen como «Deshacer marco de etapa».
+- Los comandos `/mcp__vsim__…` nunca fallan si el pedido llega cortado o vacío: la IA pregunta qué quieres.
+- «Ajustes que tocó la IA» en una segunda ventana del circuito muestra los de su primera ventana.
+
+### Arreglado
+
+- Guardar mientras un paso de la IA espera «Siguiente» ya no lo descarta.
+- Una nota con saltos de línea (como la «Prueba: …» de la IA) se dibujaba como una sola línea gigante.
+- Seleccionar una nota de varias líneas con Propiedades abierto la dejaba en una sola línea.
+- Las instrucciones para la IA tenían líneas pegadas y un salto de línea donde debía ir `\n`.
+
 ## 2026-10-21 — Presentar lo que hace la IA (MCP)
 
 ### Agregado

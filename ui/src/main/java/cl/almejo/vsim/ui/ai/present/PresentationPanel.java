@@ -298,8 +298,13 @@ final class PresentationPanel extends JPanel {
     }
 
     private void showNotice(PresentedTask task) {
-        Optional<String> text = task.lastDiscard().map(why -> Messages.text(why == StepStatus.STALE
-                ? "ai.present.stale" : "ai.present.discarded"));
+        // a silent AI is only ever stopped with a ghost waiting: why it stopped matters more than the dropped ghost
+        Optional<String> text = task.isEnded() && task.stoppedBecauseSilent()
+                ? Optional.of(Messages.text("ai.present.silent")) : Optional.empty();
+        if (text.isEmpty()) {
+            text = task.lastDiscard().map(why -> Messages.text(why == StepStatus.STALE
+                    ? "ai.present.stale" : "ai.present.discarded"));
+        }
         if (text.isEmpty()) {
             text = task.lastUndo().map(PresentationPanel::undoNotice);
         }
