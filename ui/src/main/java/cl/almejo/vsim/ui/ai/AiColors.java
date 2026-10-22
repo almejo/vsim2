@@ -36,7 +36,7 @@ public final class AiColors {
     }
 
     /** Green for «conectado» and «trabajando»: dark on a light theme, bright on a dark one. */
-    static Color success() {
+    public static Color success() {
         return ReadableColors.dark() ? new Color(0x7FD083) : new Color(0x2E7D32);
     }
 }

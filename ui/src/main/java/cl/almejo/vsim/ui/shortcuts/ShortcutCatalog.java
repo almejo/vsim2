@@ -108,6 +108,7 @@ public final class ShortcutCatalog {
         entries.add(new ShortcutEntry("view.previousProblem", "action.previousProblem", MenuId.VIEW, Scope.CANVAS,
                 Optional.of(stroke(KeyEvent.VK_F8, shift))));
         window(entries, "waveforms.toggle", "menu.view.waveforms", MenuId.VIEW, null);
+        window(entries, "view.aiPresent", "action.aiPresent", MenuId.VIEW, null);
         window(entries, "simulation.start", "action.start", MenuId.SIMULATION, null);
         window(entries, "simulation.pause", "action.pause", MenuId.SIMULATION, null);
         window(entries, "simulation.startOrPause", "action.startOrPause", MenuId.SIMULATION,
