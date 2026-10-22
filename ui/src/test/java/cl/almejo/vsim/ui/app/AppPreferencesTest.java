@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.app;
 
+import cl.almejo.vsim.automation.present.PresentationPace;
 import cl.almejo.vsim.ui.paint.TextFont;
 import cl.almejo.vsim.ui.print.PageOrientation;
 import cl.almejo.vsim.ui.print.Paper;
@@ -472,5 +473,25 @@ class AppPreferencesTest {
         node.put("ai.port", "70000");
         assertThat(preferences.aiPort()).isEqualTo(47017);
         assertThatThrownBy(() -> preferences.setAiPort(0)).isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void presentingIsOffStepByStepWithASecondsPauseClampedAndRemembered() {
+        assertThat(preferences.aiPresenting()).isFalse();
+        assertThat(preferences.aiPace()).isEqualTo(PresentationPace.STEP_BY_STEP);
+        assertThat(preferences.aiPauseMillis()).isEqualTo(1000);
+
+        preferences.setAiPresenting(true);
+        preferences.setAiPace(PresentationPace.CONTINUOUS);
+        preferences.setAiPauseMillis(10);
+
+        AppPreferences again = new AppPreferences(node);
+        assertThat(again.aiPresenting()).isTrue();
+        assertThat(again.aiPace()).isEqualTo(PresentationPace.CONTINUOUS);
+        assertThat(again.aiPauseMillis()).isEqualTo(300);
+        node.put("ai.pauseMillis", "60000");
+        assertThat(again.aiPauseMillis()).isEqualTo(5000);
+        node.put("ai.pace", "SIDEWAYS");
+        assertThat(again.aiPace()).isEqualTo(PresentationPace.STEP_BY_STEP);
     }
 }

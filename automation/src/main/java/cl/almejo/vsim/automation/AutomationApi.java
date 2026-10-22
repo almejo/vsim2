@@ -25,6 +25,7 @@ import cl.almejo.vsim.automation.edit.EditService;
 import cl.almejo.vsim.automation.edit.OrderedExecutor;
 import cl.almejo.vsim.automation.edit.TaskEnding;
 import cl.almejo.vsim.automation.edit.TaskStage;
+import cl.almejo.vsim.automation.present.PresentationListener;
 
 import java.time.Duration;
 import java.util.List;
@@ -56,6 +57,7 @@ public final class AutomationApi {
     private final AutomationHost host;
     private final Duration editorTimeout;
     private final List<AutomationListener> listeners = new CopyOnWriteArrayList<>();
+    private final List<PresentationListener> presentationListeners = new CopyOnWriteArrayList<>();
     private final Reads reads;
     private final SimulationOperations simulation;
     private final EditService edits;
@@ -262,6 +264,13 @@ public final class AutomationApi {
         Objects.requireNonNull(listener, "listener");
         listeners.add(listener);
         return () -> listeners.remove(listener);
+    }
+
+    /** {@code listener} hears every task as «Presentar» shows it (spec §5) until the returned runnable takes it back. */
+    public Runnable addPresentationListener(PresentationListener listener) {
+        Objects.requireNonNull(listener, "listener");
+        presentationListeners.add(listener);
+        return () -> presentationListeners.remove(listener);
     }
 
     int listenerCount() {

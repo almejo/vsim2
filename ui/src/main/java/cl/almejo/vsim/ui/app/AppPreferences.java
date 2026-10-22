@@ -1,5 +1,7 @@
 package cl.almejo.vsim.ui.app;
 
+import cl.almejo.vsim.automation.present.PresentationPace;
+import cl.almejo.vsim.automation.present.PresentationSettings;
 import cl.almejo.vsim.core.wiring.TidyOptions;
 import cl.almejo.vsim.ui.paint.TextFont;
 import cl.almejo.vsim.ui.print.PageOrientation;
@@ -164,6 +166,9 @@ public final class AppPreferences {
     static final String AI_PORT = "ai.port";
     static final String AI_SECRET = "ai.secret";
     static final String AI_START_WITH_VSIM = "ai.startWithVsim";
+    static final String AI_PRESENTING = "ai.presenting";
+    static final String AI_PACE = "ai.pace";
+    static final String AI_PAUSE_MILLIS = "ai.pauseMillis";
     /** Spec §9.1: high, uncommon, inside IANA's unassigned 47002-47099 (checked 2026-10-21). */
     public static final int DEFAULT_AI_PORT = 47017;
     private static final int MINIMUM_AI_PORT = 1024;
@@ -698,6 +703,44 @@ public final class AppPreferences {
 
     public void setAiStartWithVsim(boolean start) {
         put(AI_START_WITH_VSIM, Boolean.toString(start));
+    }
+
+    /** Whether the AI presents its work («Presentar», spec §4); off by default. */
+    public boolean aiPresenting() {
+        return "true".equals(read(AI_PRESENTING, "false"));
+    }
+
+    public void setAiPresenting(boolean presenting) {
+        put(AI_PRESENTING, Boolean.toString(presenting));
+    }
+
+    /** «Paso a paso» by default (spec §5). */
+    public PresentationPace aiPace() {
+        return enumValue(AI_PACE, PresentationPace.class, PresentationPace.STEP_BY_STEP);
+    }
+
+    public void setAiPace(PresentationPace pace) {
+        Objects.requireNonNull(pace, "pace");
+        put(AI_PACE, pace.name());
+    }
+
+    /** The pause between steps in «De corrido», 300 to 5000 ms (clamped); 1000 by default. */
+    public int aiPauseMillis() {
+        try {
+            return clampPause(Integer.parseInt(read(AI_PAUSE_MILLIS, "")));
+        } catch (NumberFormatException exception) {
+            return (int) PresentationSettings.DEFAULT_PAUSE.toMillis();
+        }
+    }
+
+    public void setAiPauseMillis(int millis) {
+        put(AI_PAUSE_MILLIS, Integer.toString(clampPause(millis)));
+    }
+
+    private static int clampPause(int millis) {
+        int minimum = (int) PresentationSettings.MINIMUM_PAUSE.toMillis();
+        int maximum = (int) PresentationSettings.MAXIMUM_PAUSE.toMillis();
+        return Math.max(minimum, Math.min(maximum, millis));
     }
 
     private static boolean isUserPort(int port) {
