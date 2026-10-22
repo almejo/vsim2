@@ -28,6 +28,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 /**
  * The AI's edits and tasks (spec §3, §4.1, §8; plan IA.1 Task 3). An edit call is carried out on a copy of the circuit
@@ -70,20 +71,73 @@ public final class EditService {
      * — always with the circuit as it was.
      */
     public EditReceipt edit(EditRequest request) {
+        Optional<AiTask> task = checkRequest(request);
+        return editorWait.await(host.onCircuit(request.document(), circuit -> edit(circuit, request, task)));
+    }
+
+    /**
+     * The checks of {@link #edit(EditRequest)} done before reaching the editor thread: the operation id, and the task
+     * the step names (it exists and works on the request's circuit). Returns that task.
+     */
+    public Optional<AiTask> checkRequest(EditRequest request) {
         Objects.requireNonNull(request, "request");
         requireOperationId(request.operationId());
         Optional<AiTask> task = request.step().map(step -> requireTask(step.taskId()));
         task.ifPresent(found -> requireSameDocument(found, request.document()));
-        return editorWait.await(host.onCircuit(request.document(), circuit -> edit(circuit, request, task)));
+        return task;
     }
 
     /** Editor thread: everything from the version check to the write, with nothing in between. */
     private EditReceipt edit(EditableCircuit circuit, EditRequest request, Optional<AiTask> task) {
-        OperationLog log = logs.computeIfAbsent(request.document(), document -> new OperationLog());
-        Optional<EditReceipt> earlier = request.validateOnly() ? Optional.empty() : log.replay(request);
+        Optional<EditReceipt> earlier = replay(circuit, request);
         if (earlier.isPresent()) {
             return earlier.get();
         }
+        PreparedEdit prepared = prepare(circuit, request, task);
+        if (request.validateOnly()) {
+            return prepared.proposal();
+        }
+        return commit(circuit, prepared);
+    }
+
+    // --- the steps of an edit, for the presenting layer (IA.2): all on the editor thread ---
+
+    /**
+     * Runs {@code work} on the editor thread with circuit {@code document} and waits for it here, off that thread, at
+     * most the editor timeout; what {@code work} threw reaches the caller as it is.
+     */
+    public <T> T onCircuit(DocumentId document, Function<EditableCircuit, T> work) {
+        return editorWait.await(host.onCircuit(document, work));
+    }
+
+    /**
+     * Editor thread: the whole edit call of {@link #edit(EditRequest)} (its checks done there already: operation id,
+     * task, document): replay, version check, plan and write.
+     */
+    public EditReceipt editOn(EditableCircuit circuit, EditRequest request) {
+        return edit(circuit, request, request.step().map(step -> requireTask(step.taskId())));
+    }
+
+    /**
+     * Editor thread: the receipt of an earlier call with the same operation id and arguments (a retry); empty for a
+     * new id, {@code OPERATION_CONFLICT} for the same id with other arguments. Validate-only calls are never replayed.
+     */
+    public Optional<EditReceipt> replay(EditableCircuit circuit, EditRequest request) {
+        if (request.validateOnly()) {
+            return Optional.empty();
+        }
+        return logOf(request.document()).replay(request);
+    }
+
+    /**
+     * Editor thread: checks the task runs and the version, and plans the call on a copy; nothing is written. Throws as
+     * {@link #edit(EditRequest)} does.
+     */
+    public PreparedEdit prepare(EditableCircuit circuit, EditRequest request) {
+        return prepare(circuit, request, request.step().map(step -> requireTask(step.taskId())));
+    }
+
+    private PreparedEdit prepare(EditableCircuit circuit, EditRequest request, Optional<AiTask> task) {
         task.ifPresent(EditService::requireRunning);
         requireVersion(circuit, request.expected());
         EditPlanner.PlannedEdit planned;
@@ -101,25 +155,41 @@ public final class EditService {
                     + unexpected.getClass().getSimpleName() + "). Nothing was changed; read the circuit and try "
                     + "another way");
         }
-        EditReceipt.ElementChanges changes = changesOf(content);
-        if (request.validateOnly()) {
-            return receipt(false, circuit.version(), planned, changes, List.of());
-        }
-        if (content.changesNothing()) {
-            EditReceipt receipt = receipt(true, circuit.version(), planned, changes,
+        return new PreparedEdit(request, task, circuit.version(), planned, content, changesOf(content),
+                circuit.document(), circuit.registry());
+    }
+
+    /**
+     * Editor thread: writes {@code prepared} exactly as it was planned, as one undo step of its task. Refused, writing
+     * nothing, when its task no longer runs or the circuit moved from the version it was planned against
+     * ({@code STALE_DOCUMENT}).
+     */
+    public EditReceipt commit(EditableCircuit circuit, PreparedEdit prepared) {
+        prepared.task().ifPresent(EditService::requireRunning);
+        requireVersion(circuit, prepared.version());
+        EditRequest request = prepared.request();
+        OperationLog log = logOf(request.document());
+        if (prepared.changesNothing()) {
+            EditReceipt receipt = receipt(true, circuit.version(), prepared.planned(), prepared.changes(),
                     List.of("nothing changed: no undo step was added"));
             log.record(request, receipt);
             return receipt;
         }
-        AiEditCommand command = new AiEditCommand(content, task.map(found -> found.info().taskId()));
+        AiEditCommand command = new AiEditCommand(prepared.content(),
+                prepared.task().map(found -> found.info().taskId()));
         circuit.history().execute(command);
-        EditReceipt receipt = receipt(true, circuit.version(), planned, changes, List.of());
+        EditReceipt receipt = receipt(true, circuit.version(), prepared.planned(), prepared.changes(), List.of());
         log.record(request, receipt);
-        task.ifPresent(found -> found.recordEdit(command, changes, planned.layoutGuides()));
+        prepared.task().ifPresent(found -> found.recordEdit(command, prepared.changes(),
+                prepared.planned().layoutGuides()));
         return receipt;
     }
 
-    private static EditReceipt receipt(boolean applied, DocumentVersion version, EditPlanner.PlannedEdit planned,
+    private OperationLog logOf(DocumentId document) {
+        return logs.computeIfAbsent(document, newDocument -> new OperationLog());
+    }
+
+    static EditReceipt receipt(boolean applied, DocumentVersion version, EditPlanner.PlannedEdit planned,
                                        EditReceipt.ElementChanges changes, List<String> extraWarnings) {
         List<String> warnings = new ArrayList<>(planned.warnings());
         warnings.addAll(extraWarnings);
@@ -277,7 +347,8 @@ public final class EditService {
         }
     }
 
-    private AiTask requireTask(String taskId) {
+    /** The task {@code taskId}; {@code INVALID_REFERENCE} when there is none. */
+    public AiTask requireTask(String taskId) {
         Objects.requireNonNull(taskId, "taskId");
         return task(taskId).orElseThrow(() -> new AutomationException(AutomationError.INVALID_REFERENCE,
                 "There is no task " + taskId + "; begin one first", Map.of("taskId", taskId)));

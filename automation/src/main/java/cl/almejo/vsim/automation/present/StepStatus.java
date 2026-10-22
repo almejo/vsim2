@@ -10,6 +10,9 @@ public enum StepStatus {
     STILL_WAITING,
     /** The circuit changed while the ghost waited: the step was discarded; read again and propose it again. */
     STALE,
-    /** The user pressed «Detener», closed the window, left «Presentar» or the task ended: the step was dropped. */
+    /**
+     * The user pressed «Detener», closed the window, turned the AI off or the task ended: the step was dropped. (Leaving
+     * «Presentar» or switching to «De corrido» applies a waiting step instead: a mode change never loses a step.)
+     */
     STOPPED
 }
