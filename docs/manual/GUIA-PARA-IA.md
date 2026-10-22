@@ -188,3 +188,20 @@ escribe también el nombre del archivo que espera la página y enlázalo ya (la 
 **Orden de los capítulos que faltan:** 03 Cables, buses y túneles · 04 Componentes · 08 Importar y exportar ·
 06 Formas de onda · 09 Buscar y navegar · 10 Interfaz y preferencias · 12 Ejemplos · 11 IA (al final: cambia
 seguido). Uno o dos por entrega.
+
+**Figuras de circuitos: hazlas todas las que se puedan hoy.** Cada capítulo debe tener al menos una figura de
+circuito exportada con `vsim_export` cuando muestra algo del circuito. Muchas «📷 Falta captura» se pueden cambiar
+por una exportación: un cortocircuito (cable rojo), un par de túneles con su color, un bus con su valor en hexa, un
+marco con su título, un componente propio y su interior, un circuito del menú Archivo ▸ Ejemplos rearmado o abierto
+por la persona, el resultado de «Circuito desde expresiones» o de Karnaugh, los marcos de etapas de «Presentar». Deja
+como captura manual solo lo que es interfaz: menús, diálogos, paneles, barras, la ventana, y vistas previas de un
+gesto (pegar, arrastrar).
+
+**Formato de `pendientes.md`.** Una línea por pendiente, para leerla de un vistazo, con el detalle solo en el
+capítulo:
+
+```markdown
+- [ ] 📷 `img/07-tabla-de-verdad-karnaugh-expresiones/tabla-and.png` — la tabla de la AND con una fila resaltada.
+- [ ] ❓ 01 Primeros pasos — enlace de descarga e instaladores cuando haya versión publicada.
+```
+
