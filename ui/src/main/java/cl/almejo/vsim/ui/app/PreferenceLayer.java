@@ -14,7 +14,7 @@ import java.util.Optional;
  */
 public final class PreferenceLayer {
 
-    /** The settings a layer may hold: the editor settings the AI may change while it works. */
+    /** The settings a layer may hold: the editor settings the AI may change while it works, and its pace. */
     public enum Setting {
         SNAP_TO_ALIGNMENTS(AppPreferences.SNAP_TO_ALIGNMENTS),
         SNAP_TO_PARTS(AppPreferences.SNAP_TO_PARTS),
@@ -23,7 +23,10 @@ public final class PreferenceLayer {
         SHOW_GUIDES(AppPreferences.SHOW_GUIDES),
         GRID_STYLE(AppPreferences.GRID_STYLE),
         GRID_LINE_SPACING(AppPreferences.GRID_LINE_SPACING),
-        WIRES_FOLLOW(AppPreferences.WIRES_FOLLOW);
+        WIRES_FOLLOW(AppPreferences.WIRES_FOLLOW),
+        /** «Presentar»'s pace and pause for the AI's task ({@code vsim_set_presentation}): not editor settings. */
+        AI_PACE(AppPreferences.AI_PACE),
+        AI_PAUSE_MILLIS(AppPreferences.AI_PAUSE_MILLIS);
 
         private final String key;
 

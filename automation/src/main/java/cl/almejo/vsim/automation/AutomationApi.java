@@ -26,6 +26,7 @@ import cl.almejo.vsim.automation.edit.OrderedExecutor;
 import cl.almejo.vsim.automation.edit.TaskEnding;
 import cl.almejo.vsim.automation.edit.TaskStage;
 import cl.almejo.vsim.automation.present.PresentationListener;
+import cl.almejo.vsim.automation.present.PresentationPace;
 import cl.almejo.vsim.automation.present.PresentationService;
 import cl.almejo.vsim.automation.present.PresentationSettings;
 import cl.almejo.vsim.automation.present.PresentedEdit;
@@ -394,6 +395,49 @@ public final class AutomationApi {
         }
         PresentationSettings settings = onEditorThread(access -> {
             host.setPresenting(document, presenting);
+            return host.presentationSettings(document);
+        });
+        presentation.settingsChanged(document, settings);
+        return settings;
+    }
+
+    /**
+     * As {@link #setPresenting}, and while a task runs on {@code document}, the pace and the pause between steps
+     * for that task (spec §7, agreed with the user: «De corrido» for a recording without the user's clicks): layered
+     * in that window only and given back when the task ends. NOT_ALLOWED with a pace or pause outside a task,
+     * INVALID_PARAMETER for a pause outside {@link PresentationSettings#MINIMUM_PAUSE} … {@code MAXIMUM_PAUSE}. A
+     * step waiting for «Siguiente» is written when the pace becomes «De corrido».
+     */
+    public PresentationSettings setPresentation(DocumentId document, boolean presenting,
+                                                Optional<PresentationPace> pace, Optional<Duration> pause) {
+        Objects.requireNonNull(document, "document");
+        Objects.requireNonNull(pace, "pace");
+        Objects.requireNonNull(pause, "pause");
+        if (pace.isEmpty() && pause.isEmpty()) {
+            return setPresenting(document, presenting);
+        }
+        if (!edits.hasRunningTask(document)) {
+            throw new AutomationException(AutomationError.NOT_ALLOWED, "The pace and the pause change only for a "
+                    + "task on that circuit (call vsim_set_presentation after vsim_begin_task, before the first "
+                    + "step): they go back to the user's when it ends", Map.of("document", document.value()));
+        }
+        pause.ifPresent(wanted -> {
+            if (wanted.compareTo(PresentationSettings.MINIMUM_PAUSE) < 0
+                    || wanted.compareTo(PresentationSettings.MAXIMUM_PAUSE) > 0) {
+                throw new AutomationException(AutomationError.INVALID_PARAMETER, "The pause is "
+                        + PresentationSettings.MINIMUM_PAUSE.toMillis() + " to "
+                        + PresentationSettings.MAXIMUM_PAUSE.toMillis() + " ms",
+                        Map.of("pauseMillis", wanted.toMillis()));
+            }
+        });
+        if (!presenting) {
+            throw new AutomationException(AutomationError.NOT_ALLOWED, "A task runs on " + document.value()
+                    + ": «Presentar» stays on until it ends; a pace or pause goes with presenting true",
+                    Map.of("document", document.value()));
+        }
+        PresentationSettings settings = onEditorThread(access -> {
+            host.setPresenting(document, true);
+            host.layerPresentation(document, pace, pause);
             return host.presentationSettings(document);
         });
         presentation.settingsChanged(document, settings);

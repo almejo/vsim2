@@ -22,6 +22,7 @@ import cl.almejo.vsim.automation.export.ExportRequest;
 import cl.almejo.vsim.automation.EditorSetting;
 import cl.almejo.vsim.automation.ProposalAnswer;
 import cl.almejo.vsim.automation.ProposedPreference;
+import cl.almejo.vsim.automation.present.PresentationPace;
 import cl.almejo.vsim.automation.present.PresentationSettings;
 import cl.almejo.vsim.automation.present.StepPacer;
 import cl.almejo.vsim.ui.app.OpenDocument;
@@ -29,6 +30,7 @@ import cl.almejo.vsim.ui.app.OpenDocument;
 import javax.swing.SwingUtilities;
 import java.nio.file.Path;
 import java.time.Clock;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -169,6 +171,15 @@ public final class EditorAutomationHost implements AutomationHost {
     @Override
     public void setPresenting(DocumentId document, boolean presenting) {
         windows.setPresenting(documentOf(document), presenting);
+    }
+
+    /** The AI's pace and pause for its task, in the temporary layer of the circuit's first window (spec §7). */
+    @Override
+    public void layerPresentation(DocumentId document, Optional<PresentationPace> pace, Optional<Duration> pause) {
+        OpenDocument open = documentOf(document);
+        SettingsOverride override = windows.settingsOverride(open).orElseThrow(() ->
+                new AutomationException(AutomationError.NOT_ALLOWED, "This circuit has no window settings"));
+        override.layerPresentation(pace, pause);
     }
 
     @Override

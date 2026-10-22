@@ -49,6 +49,36 @@ class SettingsOverrideTest {
         assertThat(SettingsOverride.of(saved)).isEmpty();
     }
 
+    /** The AI's pace and pause for its task (vsim_set_presentation): this window only, given back at the end. */
+    @Test
+    void thePaceAndPauseOfTheAiAreLayeredForTheTaskAndGivenBack() {
+        override.layerPresentation(Optional.of(cl.almejo.vsim.automation.present.PresentationPace.CONTINUOUS),
+                Optional.of(java.time.Duration.ofMillis(2000)));
+
+        assertThat(aiWindow.aiPace()).isEqualTo(cl.almejo.vsim.automation.present.PresentationPace.CONTINUOUS);
+        assertThat(aiWindow.aiPauseMillis()).isEqualTo(2000);
+        assertThat(saved.aiPace()).isEqualTo(cl.almejo.vsim.automation.present.PresentationPace.STEP_BY_STEP);
+        assertThat(otherWindow.aiPauseMillis()).isEqualTo(1000);
+        assertThat(override.changes()).isEmpty(); // not an editor setting in «Ajustes que tocó la IA»
+
+        override.drop();
+
+        assertThat(aiWindow.aiPace()).isEqualTo(cl.almejo.vsim.automation.present.PresentationPace.STEP_BY_STEP);
+        assertThat(aiWindow.aiPauseMillis()).isEqualTo(1000);
+    }
+
+    @Test
+    void theUsersOwnPaceInThatWindowReplacesTheAisAndIsSaved() {
+        override.layerPresentation(Optional.of(cl.almejo.vsim.automation.present.PresentationPace.CONTINUOUS),
+                Optional.empty());
+
+        aiWindow.setAiPace(cl.almejo.vsim.automation.present.PresentationPace.STEP_BY_STEP);
+        override.drop();
+
+        assertThat(saved.aiPace()).isEqualTo(cl.almejo.vsim.automation.present.PresentationPace.STEP_BY_STEP);
+        assertThat(aiWindow.aiPace()).isEqualTo(cl.almejo.vsim.automation.present.PresentationPace.STEP_BY_STEP);
+    }
+
     @Test
     void anOverrideChangesOneWindowOnlyAndNeverWritesThePreferences() {
         AtomicInteger heard = new AtomicInteger();

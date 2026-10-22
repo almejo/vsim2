@@ -72,6 +72,28 @@ class AutomationApiPresentationTest {
     }
 
     @Test
+    void theAisPaceForItsTaskAppliesTheWaitingStepAndNeedsATask() {
+        host.present(DOCUMENT.value(), new PresentationSettings(true, PresentationPace.STEP_BY_STEP,
+                Duration.ofSeconds(1)));
+        assertThat(org.assertj.core.api.Assertions.catchThrowableOfType(AutomationException.class,
+                () -> api.setPresentation(DOCUMENT, true, Optional.of(PresentationPace.CONTINUOUS),
+                        Optional.empty())).error()).isEqualTo(AutomationError.NOT_ALLOWED);
+        TaskInfo task = api.beginTask(DOCUMENT, "Latch", List.of(new TaskStage("Compuertas", List.of("Coloco"))));
+        assertThat(api.editStep(request(task, "op-1")).status()).contains(StepStatus.PROPOSED);
+        assertThat(org.assertj.core.api.Assertions.catchThrowableOfType(AutomationException.class,
+                () -> api.setPresentation(DOCUMENT, true, Optional.empty(), Optional.of(Duration.ofMillis(100))))
+                .error()).isEqualTo(AutomationError.INVALID_PARAMETER);
+
+        PresentationSettings settings = api.setPresentation(DOCUMENT, true, Optional.of(PresentationPace.CONTINUOUS),
+                Optional.of(Duration.ofMillis(1500)));
+
+        assertThat(settings).isEqualTo(new PresentationSettings(true, PresentationPace.CONTINUOUS,
+                Duration.ofMillis(1500)));
+        assertThat(api.awaitStep(task.taskId()).status()).isEqualTo(StepStatus.APPLIED);
+        assertThat(circuit.document().components()).hasSize(1);
+    }
+
+    @Test
     void theAiCanAskForPresentarAndReadTheMode() {
         assertThat(api.presentationSettings(DOCUMENT).presenting()).isFalse();
 

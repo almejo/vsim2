@@ -5,6 +5,7 @@ import cl.almejo.vsim.automation.DocumentId;
 import cl.almejo.vsim.automation.TaskInfo;
 import cl.almejo.vsim.automation.edit.TaskStage;
 import cl.almejo.vsim.automation.present.PresentationListener;
+import cl.almejo.vsim.automation.present.PresentationPace;
 import cl.almejo.vsim.automation.present.StepPreview;
 import cl.almejo.vsim.automation.present.StepStatus;
 import cl.almejo.vsim.ui.app.AppPreferences;
@@ -17,14 +18,17 @@ import cl.almejo.vsim.ui.window.MenuId;
 import javax.swing.AbstractAction;
 import javax.swing.Action;
 import javax.swing.JCheckBoxMenuItem;
+import javax.swing.ButtonGroup;
 import javax.swing.JMenu;
 import javax.swing.JPopupMenu;
+import javax.swing.JRadioButtonMenuItem;
 import javax.swing.JToggleButton;
 import javax.swing.JToolBar;
 import java.awt.event.ActionEvent;
 import java.awt.event.HierarchyEvent;
 import java.awt.event.HierarchyListener;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -35,7 +39,8 @@ import java.util.function.Function;
 /**
  * «Presentar» in one editor view (spec §4, §5): the toggle (a toolbar button at the end and a checkbox item at the
  * end of Ver, both on one action whose selected state is {@link AppPreferences#aiPresenting()}, remembered and shared
- * by every window) and the floating {@link PresentationPanel}, shown while a task of this window's circuit runs (or
+ * by every window), Ver ▸ «Ritmo de Presentar» (the pace and the pause, usable before a task) and the floating
+ * {@link PresentationPanel}, shown while a task of this window's circuit runs (or
  * ended and is not closed yet) and «Presentar» is on. The events come off the editor thread and are moved to it;
  * {@link #dispose()} takes back every registration. EDT only.
  */
@@ -49,6 +54,13 @@ final class PresentationFeatures {
     private final JMenu viewMenu;
     private final JPopupMenu.Separator menuSeparator = new JPopupMenu.Separator();
     private final JCheckBoxMenuItem menuItem;
+    /** Ver ▸ «Ritmo de Presentar»: the pace and the pause, also before a task (agreed with the user). */
+    private final JMenu paceMenu = new JMenu(Messages.text("action.aiPresentPace"));
+    private final JRadioButtonMenuItem continuousItem = new JRadioButtonMenuItem(
+            Messages.text("ai.present.continuous"));
+    private final JRadioButtonMenuItem stepByStepItem = new JRadioButtonMenuItem(
+            Messages.text("ai.present.stepByStep"));
+    private final List<JRadioButtonMenuItem> pauseItems = new ArrayList<>();
     private final JToolBar.Separator toolbarSeparator = new JToolBar.Separator();
     private final JToggleButton toolbarButton;
     private final Runnable removeShortcut;
@@ -86,6 +98,8 @@ final class PresentationFeatures {
         this.menuItem = new JCheckBoxMenuItem(toggle);
         viewMenu.add(menuSeparator);
         viewMenu.add(menuItem);
+        buildPaceMenu();
+        viewMenu.add(paceMenu);
         this.toolbarButton = new JToggleButton(toggle);
         view.toolBar().add(toolbarSeparator);
         view.toolBar().add(toolbarButton);
@@ -101,6 +115,38 @@ final class PresentationFeatures {
         this.removePresentationListener = events.addPresentationListener(new OnEditorThread());
         this.removeTaskListener = events.addTaskListener(new TaskEvents());
         followPreferences();
+    }
+
+    private void buildPaceMenu() {
+        ButtonGroup paces = new ButtonGroup();
+        paces.add(continuousItem);
+        paces.add(stepByStepItem);
+        continuousItem.addActionListener(event -> preferences.setAiPace(PresentationPace.CONTINUOUS));
+        stepByStepItem.addActionListener(event -> preferences.setAiPace(PresentationPace.STEP_BY_STEP));
+        paceMenu.add(continuousItem);
+        paceMenu.add(stepByStepItem);
+        paceMenu.addSeparator();
+        JMenu pause = new JMenu(Messages.text("ai.present.pause"));
+        ButtonGroup pauses = new ButtonGroup();
+        for (int millis : PresentationPanel.PAUSE_CHOICES_MILLIS) {
+            JRadioButtonMenuItem item = new JRadioButtonMenuItem(
+                    Messages.format("ai.present.pause.seconds", millis / 1000.0));
+            item.addActionListener(event -> preferences.setAiPauseMillis(millis));
+            pauses.add(item);
+            pauseItems.add(item);
+            pause.add(item);
+        }
+        paceMenu.add(pause);
+    }
+
+    private void followPace() {
+        PresentationPace pace = preferences.aiPace();
+        continuousItem.setSelected(pace == PresentationPace.CONTINUOUS);
+        stepByStepItem.setSelected(pace == PresentationPace.STEP_BY_STEP);
+        int pause = preferences.aiPauseMillis();
+        for (int index = 0; index < pauseItems.size(); index++) {
+            pauseItems.get(index).setSelected(PresentationPanel.PAUSE_CHOICES_MILLIS.get(index) == pause);
+        }
     }
 
     private boolean isThisCircuit(TaskInfo info) {
@@ -121,6 +167,7 @@ final class PresentationFeatures {
 
     private void followPreferences() {
         toggle.putValue(Action.SELECTED_KEY, preferences.aiPresenting());
+        followPace();
         refreshPanel();
     }
 
@@ -260,6 +307,7 @@ final class PresentationFeatures {
         placement.dispose();
         panel.dispose();
         removeShortcut.run();
+        viewMenu.remove(paceMenu);
         viewMenu.remove(menuItem);
         viewMenu.remove(menuSeparator);
         view.toolBar().remove(toolbarButton);

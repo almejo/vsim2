@@ -15,6 +15,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 
 /**
  * «Presentar» (spec §4, §5.1, §6): the AI asks for the mode when the user wants to see how it builds, begins each
@@ -83,15 +84,34 @@ final class PresentationTools {
                         + "«Presentar» with presenting true: VSim switches, says «La IA pasó a Presentar» in its panel "
                         + "and answers the mode, with the pace the user chose. Switch it off only when the user asks "
                         + "and no task runs: during a task it is refused (NOT_ALLOWED), since you never leave "
-                        + "«Presentar» by yourself; the user can switch it off in VSim.",
+                        + "«Presentar» by yourself; the user can switch it off in VSim. Inside a task (after "
+                        + "vsim_begin_task, before its first step) you may also give pace and pauseMillis, for "
+                        + "example CONTINUOUS for a recording the user will not click through: they last only for "
+                        + "that task, in that window, and go back to the user's when it ends; the user's own choice "
+                        + "in VSim wins. Without a task a pace or pause is refused (NOT_ALLOWED).",
                 Schema.object("")
                         .property("document", Common.document())
                         .property("presenting", Schema.bool("True for «Presentar», false for working mode"))
+                        .property("pace", Schema.enumeration("Optional, inside a task: STEP_BY_STEP («Paso a "
+                                + "paso») or CONTINUOUS («De corrido») for this task only",
+                                Arrays.stream(PresentationPace.values()).map(Enum::name).toList()))
+                        .property("pauseMillis", Schema.integer("Optional, inside a task: the pause between steps "
+                                + "in «De corrido», for this task only",
+                                PresentationSettings.MINIMUM_PAUSE.toMillis(),
+                                PresentationSettings.MAXIMUM_PAUSE.toMillis()))
                         .required("document", "presenting").build(),
                 settingsSchema("The mode VSim switched to"), Tool.Hints.CHANGES_IDEMPOTENT,
-                List.of(Map.of("document", "circuit-1", "presenting", true)),
-                arguments -> Tool.Output.of(settings(arguments.document(),
-                        api.setPresenting(arguments.document(), arguments.bool("presenting", false)))));
+                List.of(Map.of("document", "circuit-1", "presenting", true),
+                        Map.of("document", "circuit-1", "presenting", true, "pace", "CONTINUOUS",
+                                "pauseMillis", 1500)),
+                arguments -> {
+                    Optional<PresentationPace> pace = arguments.has("pace")
+                            ? Optional.of(arguments.enumeration("pace", PresentationPace.class)) : Optional.empty();
+                    Optional<Duration> pause = arguments.has("pauseMillis")
+                            ? Optional.of(Duration.ofMillis(arguments.longValue("pauseMillis"))) : Optional.empty();
+                    return Tool.Output.of(settings(arguments.document(), api.setPresentation(arguments.document(),
+                            arguments.bool("presenting", false), pace, pause)));
+                });
     }
 
     // --- stages ---

@@ -1,8 +1,12 @@
 package cl.almejo.vsim.automation;
 
+import cl.almejo.vsim.automation.present.PresentationPace;
 import cl.almejo.vsim.automation.present.PresentationSettings;
 import cl.almejo.vsim.automation.present.StepPacer;
 import cl.almejo.vsim.core.geometry.GridPoint;
+
+import java.time.Duration;
+import java.util.Optional;
 
 /**
  * The editor-side services for «Presentar» (IA.2, spec §4, §5): the presentation mode of the window that shows a
@@ -25,6 +29,15 @@ public interface PresentationHost {
      */
     default void setPresenting(DocumentId document, boolean presenting) {
         throw new AutomationException(AutomationError.NOT_ALLOWED, "This editor cannot present the AI's work");
+    }
+
+    /**
+     * Editor thread: shows {@code pace} and {@code pause} (when given) in the temporary layer of the window of
+     * {@code document}, as the AI's editor settings (spec §7): never saved, never seen by the other windows, given
+     * back when the task ends; the user's own choice in that window replaces them.
+     */
+    default void layerPresentation(DocumentId document, Optional<PresentationPace> pace, Optional<Duration> pause) {
+        throw new AutomationException(AutomationError.NOT_ALLOWED, "This editor has no presentation pace to change");
     }
 
     /**
