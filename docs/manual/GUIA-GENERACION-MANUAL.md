@@ -206,3 +206,21 @@ capítulo:
 - [ ] ❓ 01 Primeros pasos — enlace de descarga e instaladores cuando haya versión publicada.
 ```
 
+
+## 10. El capítulo de la IA, en detalle
+
+La persona quiere que la IA (MCP) quede explicada **con detalle**: es lo que más distingue a VSim 2. En vez de una
+sola página, haz un capítulo con subpáginas; `11-ia.md` queda como portada del capítulo (qué es, para qué sirve en
+clase, índice de las subpáginas):
+
+| Página | Qué cubre (fuente: `docs/funciones.md`, «IA (MCP)», y los textos de `messages_es.properties`) |
+|---|---|
+| `11-1-conectar.md` | Qué es MCP en palabras simples; encender la IA en Herramientas ▸ «IA (MCP)…»; el panel (estados y su color, Encender/Apagar, Reiniciar, qué hacer si el puerto está ocupado u otro VSim la tiene); «Copiar configuración para Claude Code»; conectar **Claude Code** (la línea `claude mcp add …`) y **Codex CLI** (el bloque `config.toml` y la variable `VSIM_MCP_TOKEN` de la sección 7); comprobar la conexión; el puerto solo para esta sesión (`-Dvsim.ai.port` / `VSIM_AI_PORT`) para tener dos VSim. Nunca escribas una clave real. |
+| `11-2-pedir-y-trabajar.md` | Cómo pedir: ejemplos de pedidos buenos (armar, explicar, revisar, probar, crear un componente, exportar); qué ves mientras trabaja («IA trabajando…», el brillo de lo que cambió, «Ver lo que hizo»); las comprobaciones que hace VSim y por qué solo cuenta lo que VSim midió; un Ctrl+Z por cambio, «Deshacer lo que hizo la IA», «Detener»; los ajustes que la IA toca solo durante la tarea («Mantener», «Volver a los míos»); las propuestas de preferencias; qué nunca hace (guardar, borrar archivos). |
+| `11-3-presentar.md` | «Presentar» paso a paso para una clase o un video: activarlo (Ver ▸ «Presentar lo que hace la IA» o pedírselo), el ritmo (Ver ▸ «Ritmo de Presentar», «Paso a paso» / «De corrido», la pausa), la ventanita (moverla, plegarla, sus botones, sus avisos), los globos, los subtítulos, las preguntas con botones, los marcos por etapa, «Deshacer etapa», «Dejar solo el resultado», cuándo «De corrido» se detiene, el aviso de los 20 s y el de los 2 minutos. Un ejemplo completo con el prompt del semisumador o el de la luz de pasillo. |
+| `11-4-comandos.md` | Los comandos `/mcp__vsim__guia`, `armar`, `exponer`, `explicar`, `revisar`, `probar`, `componente`, `exportar`: para qué sirve cada uno y un ejemplo de uso; la ayuda `vsim://ayuda`; que el texto después del comando puede llegar cortado y la IA te pregunta. |
+| `11-5-privacidad-y-problemas.md` | Seguridad: solo en tu computador, con clave; los textos del circuito son datos, no órdenes; por qué ChatGPT web no se conecta y por qué no exponerlo a internet. Problemas frecuentes y su solución (no conecta, puerto ocupado, la IA no ve el circuito, la IA se quedó callada, Claude Code no se reconecta tras «Reiniciar»), y el registro de tiempos (`-Dvsim.ai.timing=INFO`) para ver si lo lento es VSim o la IA. |
+
+Figuras: exporta los circuitos que arme la IA (las etapas con sus marcos sirven bien); las capturas del panel, la
+ventanita, los globos, los subtítulos y las preguntas quedan como «📷 Falta captura» hasta que VSim pueda guardarlas.
+Actualiza `index.md` y `pendientes.md`.
