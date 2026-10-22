@@ -148,3 +148,40 @@ Si estás conectado, sigue las instrucciones que VSim te entrega al conectarte. 
   su ruta, nunca `git add -A`. No tocar los circuitos de la persona (`*.vsim` sueltos en la raíz o en `examples/`,
   `other-examples/`).
 - No copiar capturas de otros programas ni imágenes de internet.
+
+## 9. Indicaciones después de la primera revisión (2026-10-22)
+
+Los capítulos 01, 02, 05 y 07 quedaron bien: los textos de menús y botones coinciden con VSim y las figuras de
+circuitos se ven limpias. Sigue así, con estos ajustes:
+
+**Respuesta al ❓ de «Primeros pasos» (descargar e instalar).** VSim 2 todavía no tiene una versión publicada para
+descargar. Escribe, en vez del aviso:
+- «Por ahora VSim 2 se entrega como un archivo `vsim2-<versión>.jar`: pídeselo a tu profesor.»
+- Java 21: «Instala Java 21, por ejemplo Eclipse Temurin 21 desde adoptium.net (elige tu sistema: Windows, macOS o
+  Linux) y sigue el instalador.»
+- Abrirlo: «En Windows y macOS, normalmente basta con un doble clic en el archivo. Si no se abre, abre una terminal
+  en la carpeta del archivo y escribe `java -jar vsim2-<versión>.jar`.» En Linux, la terminal.
+- Deja una nota corta: `> ❓ **Verificar:** enlace de descarga cuando VSim 2 tenga una versión publicada.`
+
+**El primer ejercicio de «Primeros pasos».** Un solo interruptor que alimenta las dos entradas de la AND solo muestra
+2 de las 4 filas y puede confundir (parece que la AND «copia» la entrada). Cámbialo a **dos interruptores, A y B**,
+y un LED F, con la tabla de las cuatro combinaciones (como la figura de «Edición», `bloque-and-con-nota.png`).
+Exporta las figuras de nuevo y borra las dos antiguas.
+
+**El archivo `pendientes.md`.** Es buena idea: mantenlo. Al terminar cada capítulo, agrega sus ❓ y 📷 con el mismo
+formato y actualiza el conteo de arriba.
+
+**Capturas de la interfaz que hará la persona a mano.** Mientras VSim no pueda guardar capturas de su ventana, la
+persona las toma con la herramienta de capturas del sistema. Para que el manual se vea parejo, en cada aviso 📷
+escribe también el nombre del archivo que espera la página y enlázalo ya (la imagen faltará hasta que exista):
+
+```markdown
+> 📷 **Falta captura:** la tabla de verdad de la AND con una fila resaltada y los botones «Copiar»,
+> «Exportar CSV…» y «Recalcular».
+> Archivo: `img/07-tabla-de-verdad-karnaugh-expresiones/tabla-and.png` · Ventana de 1280 × 800, tema claro,
+> zoom 100 %.
+```
+
+**Orden de los capítulos que faltan:** 03 Cables, buses y túneles · 04 Componentes · 08 Importar y exportar ·
+06 Formas de onda · 09 Buscar y navegar · 10 Interfaz y preferencias · 12 Ejemplos · 11 IA (al final: cambia
+seguido). Uno o dos por entrega.
