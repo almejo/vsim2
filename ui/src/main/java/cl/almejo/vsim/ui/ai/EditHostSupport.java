@@ -102,7 +102,7 @@ final class EditHostSupport {
 
         @Override
         public DocumentVersion version() {
-            return new DocumentVersion(openDocument.changeCount());
+            return new DocumentVersion(openDocument.contentVersion());
         }
     }
 }

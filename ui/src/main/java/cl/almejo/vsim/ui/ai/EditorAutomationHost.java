@@ -318,7 +318,7 @@ public final class EditorAutomationHost implements AutomationHost {
 
     private DocumentSummary summaryOf(OpenDocument document) {
         return new DocumentSummary(idOf(document), document.displayName(),
-                new DocumentVersion(document.changeCount()), document.isModified());
+                new DocumentVersion(document.contentVersion()), document.isModified());
     }
 
     /** Valid only during one {@link #onEditorThread} call, on the EDT. */

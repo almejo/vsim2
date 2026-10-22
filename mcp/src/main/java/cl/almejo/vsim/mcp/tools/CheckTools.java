@@ -5,6 +5,7 @@ import cl.almejo.vsim.automation.check.StageCheck;
 import cl.almejo.vsim.automation.check.StageChecks;
 import cl.almejo.vsim.automation.simulate.SimulationOperations;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -12,6 +13,15 @@ import java.util.Map;
 final class CheckTools {
 
     static final String CHECK_STAGE = "vsim_check_stage";
+
+    static final String CONTINUOUS_STOPS = "«De corrido» stops here: a truth table, signals or problems check did "
+            + "not pass, so the next stage's first step would wait for the user's «Siguiente». Fix this stage and "
+            + "check it again first.";
+    static final String CONTINUOUS_GOES_ON_WITH_FAULTS = "«De corrido» goes on: only what does not change how the "
+            + "circuit works failed (layout faults, or the circuit changed while checking); fix it when you can.";
+    static final String CONTINUOUS_GOES_ON = "«De corrido» goes on to the next stage.";
+    static final String NO_TASK = "This check names no task, so it never stops «De corrido» (name the taskId to "
+            + "show it in Presentar).";
 
     private CheckTools() {
     }
@@ -88,7 +98,11 @@ final class CheckTools {
                         + "not caught up, a circuit with no table): never say a stage is checked unless passed is "
                         + "true (it is false too when the circuit changed while the checks ran: version differs from "
                         + "currentVersion). The truth tables of one call share at most 1000000 events. Report "
-                        + "VSim's results, not your own expectations.",
+                        + "VSim's results, not your own expectations. continuousStops says whether «De corrido» "
+                        + "(Presentar) stops at this stage's end: only a truth table, signals or problems check that "
+                        + "did not pass stops it (layout faults are reported but let it go on); when true, fix the "
+                        + "stage and check it again before the next stage's first step, which would otherwise wait "
+                        + "for the user's «Siguiente».",
                 Schema.object("")
                         .property("document", Common.document())
                         .property("taskId", Schema.string("The task, to label the result"))
@@ -108,7 +122,10 @@ final class CheckTools {
                                         .property("details", Schema.result("").build())
                                         .required("kind", "status", "summary").build()))
                         .property("passed", Schema.bool("True only when every check PASSED on one version"))
-                        .required("checks", "passed").build(),
+                        .property("continuousStops", Schema.bool("True when «De corrido» stops at this stage's end "
+                                + "(a functional check of a task did not pass)"))
+                        .property("continuousNote", Schema.string("What continuousStops means for the next step"))
+                        .required("checks", "passed", "continuousStops", "continuousNote").build(),
                 Tool.Hints.READS,
                 List.of(Map.of("document", "circuit-1", "taskId", "task-1", "stage", "Semisumador", "checks",
                         List.of(Map.of("kind", "truthTable", "expected", List.of(
@@ -122,8 +139,18 @@ final class CheckTools {
                                                 "outputs", Map.of("S", "0", "C", "1")))),
                                 Map.of("kind", "problems"),
                                 Map.of("kind", "layout")))),
-                arguments -> Tool.Output.of(api.checkStage(new StageCheck.Request(arguments.document(),
+                arguments -> Tool.Output.of(answer(api.checkStage(new StageCheck.Request(arguments.document(),
                         arguments.optionalString("taskId"), arguments.optionalString("stage"),
-                        arguments.objects("checks").stream().map(CheckTools::checkOf).toList()))));
+                        arguments.objects("checks").stream().map(CheckTools::checkOf).toList())))));
+    }
+
+    /** What VSim measured, and whether «De corrido» stops at the stage's end with one line on what that means. */
+    private static Map<String, Object> answer(StageCheck.Result result) {
+        boolean stops = result.taskId().isPresent() && result.functionalFailure();
+        Map<String, Object> answer = new LinkedHashMap<>(Json.object(result));
+        answer.put("continuousStops", stops);
+        answer.put("continuousNote", result.taskId().isEmpty() ? NO_TASK : stops ? CONTINUOUS_STOPS
+                : result.passed() ? CONTINUOUS_GOES_ON : CONTINUOUS_GOES_ON_WITH_FAULTS);
+        return answer;
     }
 }

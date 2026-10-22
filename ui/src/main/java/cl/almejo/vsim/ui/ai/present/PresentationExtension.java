@@ -4,6 +4,7 @@ import cl.almejo.vsim.automation.AutomationListener;
 import cl.almejo.vsim.automation.DocumentId;
 import cl.almejo.vsim.automation.StageUndoOutcome;
 import cl.almejo.vsim.automation.TaskInfo;
+import cl.almejo.vsim.automation.TaskStopReason;
 import cl.almejo.vsim.automation.present.StoryboardState;
 import cl.almejo.vsim.ui.ai.AiServerService;
 import cl.almejo.vsim.ui.ai.EditorAutomationHost;
@@ -131,6 +132,11 @@ public final class PresentationExtension implements EditorExtension {
             @Override
             public void taskStopped(TaskInfo task) {
                 listener.taskStopped(task);
+            }
+
+            @Override
+            public void taskStopped(TaskInfo task, TaskStopReason reason) {
+                listener.taskStopped(task, reason);
             }
         });
     }

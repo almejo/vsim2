@@ -66,7 +66,7 @@ class EditHostSupportTest {
         onEditorThread(() -> {
             assertThat(circuit.document().components()).hasSize(2);
             assertThat(circuit.document().wires()).isNotEmpty();
-            assertThat(receipt.version().value()).isEqualTo(circuit.changeCount());
+            assertThat(receipt.version().value()).isEqualTo(circuit.contentVersion());
             assertThat(circuit.history().undoDescription()).contains("command.aiEdit");
             assertThat(Messages.commandName("command.aiEdit")).isEqualTo("cambio de la IA");
             circuit.history().undo();
@@ -103,6 +103,16 @@ class EditHostSupportTest {
         onEditorThread(() -> assertThat(circuit.document().components()).hasSize(1));
     }
 
+    /** IA.3: saving changes no content, so an edit prepared before the user's Ctrl+S is still current. */
+    @Test
+    void anEditPreparedBeforeTheUserSavesIsStillCurrent() throws Exception {
+        EditRequest prepared = request("op-1", Optional.empty(), placePart("gate", "nand2", 0, 0));
+        SwingUtilities.invokeAndWait(() -> circuit.history().markSaved());
+
+        assertThat(api.edit(prepared).applied()).isTrue();
+        onEditorThread(() -> assertThat(circuit.document().components()).hasSize(1));
+    }
+
     @Test
     void aClosedCircuitCannotBeEdited() throws Exception {
         EditRequest request = request("op-1", Optional.empty(), placePart("gate", "nand2", 0, 0));
@@ -125,7 +135,7 @@ class EditHostSupportTest {
 
     private EditRequest request(String operationId, Optional<TaskStep> step, EditOperation... operations)
             throws Exception {
-        long version = host.onEditorThread(access -> circuit.changeCount()).get(5, TimeUnit.SECONDS);
+        long version = host.onEditorThread(access -> circuit.contentVersion()).get(5, TimeUnit.SECONDS);
         return new EditRequest(id, new cl.almejo.vsim.automation.DocumentVersion(version), operationId, step,
                 List.of(operations), false);
     }

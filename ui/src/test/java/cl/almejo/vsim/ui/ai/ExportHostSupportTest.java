@@ -263,7 +263,7 @@ class ExportHostSupportTest {
 
     private ExportReceipt export(ExportRequest request) throws Exception {
         ExportHostSupport.Prepared prepared = onEditor(() -> exports.prepare(ID, new DocumentVersion(
-                document.changeCount()), document, request));
+                document.contentVersion()), document, request));
         return exports.write(prepared);
     }
 

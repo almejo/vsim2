@@ -7,6 +7,7 @@ import cl.almejo.vsim.automation.DocumentId;
 import cl.almejo.vsim.automation.DocumentSummary;
 import cl.almejo.vsim.automation.DocumentVersion;
 import cl.almejo.vsim.automation.EditorAccess;
+import cl.almejo.vsim.core.command.Command;
 import cl.almejo.vsim.core.command.History;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
@@ -66,13 +67,14 @@ final class FakeCircuitHost implements AutomationHost {
         }
     }
 
-    /** One open circuit: its version grows with every change of its history, like {@code OpenDocument}. */
+    /** One open circuit: its version grows with every change of its history's content, like {@code OpenDocument}. */
     static final class Circuit implements EditableCircuit {
 
         private final CircuitDocument document;
         private final ComponentTypeRegistry registry;
         private final History history;
         private long changeCount;
+        private Command lastTop;
         private List<DefinitionBundle> library = List.of();
 
         Circuit(CircuitDocument document) {
@@ -80,7 +82,14 @@ final class FakeCircuitHost implements AutomationHost {
             this.registry = BASE_REGISTRY.copy();
             this.registry.addResolver(SubcircuitTypes.resolverFor(document));
             this.history = new History(document);
-            history.addListener(changed -> changeCount++);
+            // Like OpenDocument.contentVersion(): every edit, undo and redo moves it, a save does not.
+            history.addListener(changed -> {
+                Command top = changed.undoCommand().orElse(null);
+                if (top != lastTop) {
+                    lastTop = top;
+                    changeCount++;
+                }
+            });
         }
 
         @Override

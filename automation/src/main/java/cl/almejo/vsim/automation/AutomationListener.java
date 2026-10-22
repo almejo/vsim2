@@ -12,4 +12,12 @@ public interface AutomationListener {
 
     /** The user stopped the task («Detener»): what it applied stays, the rest is dropped. */
     void taskStopped(TaskInfo task);
+
+    /**
+     * The task stopped, by the user or by VSim when the AI stopped answering (IA.3); what it applied stays. VSim calls
+     * this one; by default it is {@link #taskStopped(TaskInfo)}, so listeners that do not care why need nothing new.
+     */
+    default void taskStopped(TaskInfo task, TaskStopReason reason) {
+        taskStopped(task);
+    }
 }

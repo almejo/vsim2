@@ -374,7 +374,10 @@ class PresentationScenariosTest {
             }
             return descriptions;
         });
-        assertThat(undone).hasSize(steps + frames.size() + 1).containsOnly("command.aiEdit");
+        assertThat(undone).hasSize(steps + frames.size() + 1);
+        // IA.3: VSim's frames and their lock undo as «Deshacer marco de etapa», the AI's steps as its changes.
+        assertThat(undone).filteredOn("command.aiEdit"::equals).hasSize(steps);
+        assertThat(undone).filteredOn("command.aiStageFrame"::equals).hasSize(frames.size() + 1);
         assertThat(onEditor(() -> circuit.document().elements())).isEmpty();
     }
 
@@ -756,6 +759,14 @@ class PresentationScenariosTest {
             CompletableFuture<Void> done = new CompletableFuture<>();
             waits.add(new Wait(now.plus(delay), done));
             requested.add(delay);
+            return done;
+        }
+
+        /** The watch over a gone client (IA.3): due like a pause, never one of the pauses the scenarios ask about. */
+        @Override
+        public synchronized CompletableFuture<Void> silenceCheckAfter(Duration delay) {
+            CompletableFuture<Void> done = new CompletableFuture<>();
+            waits.add(new Wait(now.plus(delay), done));
             return done;
         }
 

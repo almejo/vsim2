@@ -103,7 +103,7 @@ class EditorAutomationHostReadTest {
         CircuitView view = api.readCircuit(idOf(document), ReadFilter.FULL, Optional.empty());
 
         assertThat(view.name()).isEqualTo("Contador");
-        assertThat(view.version().value()).isEqualTo(document.changeCount());
+        assertThat(view.version().value()).isEqualTo(document.contentVersion());
         assertThat(view.parts()).singleElement().satisfies(part -> assertThat(part.pins())
                 .extracting(pin -> pin.pin()).contains(new PinReference(flipFlop.id().value(), "q", 0)));
     }

@@ -50,4 +50,8 @@ final class FakeAiTasks implements AiTasks {
     void stop(TaskInfo task) {
         listeners.forEach(listener -> listener.taskStopped(task));
     }
+
+    void stop(TaskInfo task, cl.almejo.vsim.automation.TaskStopReason reason) {
+        listeners.forEach(listener -> listener.taskStopped(task, reason));
+    }
 }

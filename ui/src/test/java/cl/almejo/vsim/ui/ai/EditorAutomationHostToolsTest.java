@@ -113,7 +113,7 @@ class EditorAutomationHostToolsTest {
 
         assertThat(api.describeComponents(id, Optional.of("Doble inversor")).types()).singleElement()
                 .satisfies(type -> assertThat(type.origin()).isEqualTo(ComponentTypeView.Origin.LIBRARY));
-        EditReceipt receipt = api.edit(new EditRequest(id, new DocumentVersion(document.changeCount()), "place-1",
+        EditReceipt receipt = api.edit(new EditRequest(id, new DocumentVersion(document.contentVersion()), "place-1",
                 Optional.empty(), List.of(new EditOperation.PlaceInstance(Optional.of("twice"), "Doble inversor", 0,
                 0, Rotation.R0)), false));
 
@@ -219,7 +219,7 @@ class EditorAutomationHostToolsTest {
 
         assertThat(Path.of(receipt.path())).exists().hasParent(exportFolder.toAbsolutePath());
         assertThat(Files.size(Path.of(receipt.path()))).isPositive();
-        assertThat(receipt.version().value()).isEqualTo(document.changeCount());
+        assertThat(receipt.version().value()).isEqualTo(document.contentVersion());
     }
 
     private OpenDocument document(String name) {

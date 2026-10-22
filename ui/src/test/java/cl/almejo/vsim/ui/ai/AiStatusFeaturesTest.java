@@ -133,6 +133,19 @@ class AiStatusFeaturesTest {
         assertThat(features.undoButton().isVisible()).isTrue();
     }
 
+    /** IA.3: a task VSim stopped because the AI went silent says so, not «Detuviste a la IA». */
+    @Test
+    void aTaskStoppedBecauseTheAiWentSilentSaysSo() {
+        TaskInfo task = FakeAiTasks.task("task-1", thisCircuit, "Sumador");
+        tasks.start(task);
+
+        tasks.stop(task, cl.almejo.vsim.automation.TaskStopReason.AI_SILENT);
+
+        assertThat(features.text().getText()).isEqualTo("La IA dejó de responder: se detuvo la tarea «Sumador»");
+        assertThat(features.stopButton().isVisible()).isFalse();
+        assertThat(features.undoButton().isVisible()).isTrue();
+    }
+
     @Test
     void whenTheTaskEndsWhatItChangedGlowsAndTheOverrideIsDropped() {
         Component part = place(document, StandardComponentTypes.NOT, 0, 0, Map.of());

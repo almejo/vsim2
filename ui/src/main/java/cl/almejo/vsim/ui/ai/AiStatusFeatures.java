@@ -2,6 +2,7 @@ package cl.almejo.vsim.ui.ai;
 
 import cl.almejo.vsim.automation.DocumentId;
 import cl.almejo.vsim.automation.TaskInfo;
+import cl.almejo.vsim.automation.TaskStopReason;
 import cl.almejo.vsim.automation.UndoOutcome;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.ElementId;
@@ -36,7 +37,8 @@ import java.util.stream.Collectors;
  */
 final class AiStatusFeatures {
 
-    private enum Phase { RUNNING, ENDED, STOPPED }
+    /** SILENT: VSim stopped the task because the AI stopped answering while a step waited (IA.3). */
+    private enum Phase { RUNNING, ENDED, STOPPED, SILENT }
 
     private final EditorView view;
     private final AiServerService service;
@@ -112,10 +114,10 @@ final class AiStatusFeatures {
             }
 
             @Override
-            public void taskStopped(TaskInfo task) {
+            public void taskStopped(TaskInfo task, TaskStopReason reason) {
                 if (isThisCircuit(task)) {
                     lastChanged = Set.of();
-                    finished(task, Phase.STOPPED);
+                    finished(task, reason == TaskStopReason.AI_SILENT ? Phase.SILENT : Phase.STOPPED);
                 }
             }
         });
@@ -156,6 +158,7 @@ final class AiStatusFeatures {
             case RUNNING -> "ai.status.working";
             case ENDED -> "ai.status.ended";
             case STOPPED -> "ai.status.stopped";
+            case SILENT -> "ai.status.silent";
         }, task.title()));
         stopButton.setVisible(phase == Phase.RUNNING);
         showButton.setVisible(phase == Phase.ENDED && changedBounds().isPresent());

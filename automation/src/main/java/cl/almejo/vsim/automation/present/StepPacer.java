@@ -19,6 +19,14 @@ public interface StepPacer {
     /** Completes after {@code delay}, off the editor thread. */
     CompletableFuture<Void> after(Duration delay);
 
+    /**
+     * Completes after {@code delay}, off the editor thread, for the watch over a gone client (IA.3), which is not a
+     * pause between steps; {@link #after} by default.
+     */
+    default CompletableFuture<Void> silenceCheckAfter(Duration delay) {
+        return after(delay);
+    }
+
     /** The system clock and the JDK's delayed executor (its own daemon thread, then the common pool). */
     static StepPacer system() {
         return of(Clock.systemUTC());

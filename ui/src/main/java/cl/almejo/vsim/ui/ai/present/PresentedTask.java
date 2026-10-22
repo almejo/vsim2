@@ -45,6 +45,7 @@ final class PresentedTask {
     private Duration pacedFor;
     private boolean ended;
     private boolean stopped;
+    private boolean silent;
     /** Whether a step of the task went in (until VSim says otherwise). */
     private boolean anyStepIn;
     /** What VSim said about the storyboard since the last step; null until it said. */
@@ -160,6 +161,12 @@ final class PresentedTask {
         stopped = true;
     }
 
+    /** VSim stopped the task because the AI stopped answering while a step waited (IA.3): like «Detener». */
+    void stoppedBecauseTheAiWentSilent() {
+        stopped();
+        silent = true;
+    }
+
     /** True once the task ended or was stopped. */
     boolean isEnded() {
         return ended;
@@ -167,6 +174,11 @@ final class PresentedTask {
 
     boolean isStopped() {
         return stopped;
+    }
+
+    /** True when VSim, not the user, stopped the task: the AI stopped answering. */
+    boolean stoppedBecauseSilent() {
+        return silent;
     }
 
     // --- the storyboard, as VSim says it is ---

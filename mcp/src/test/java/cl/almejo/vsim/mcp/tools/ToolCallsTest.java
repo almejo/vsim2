@@ -265,6 +265,25 @@ class ToolCallsTest {
                 .containsEntry("status", "FAILED"));
     }
 
+    /** IA.3 Speed: the answer says whether «De corrido» stops at this stage's end, so the AI fixes it first. */
+    @Test
+    void aStageCheckSaysWhetherDeCorridoStopsAtItsEnd() {
+        buildAndGate();
+        String task = beginTask();
+
+        Map<String, Object> failed = call("vsim_check_stage", Map.of("document", "circuit-1", "taskId", task,
+                "checks", List.of(Map.of("kind", "truthTable", "expected", andRows("0")))));
+        Map<String, Object> passed = call("vsim_check_stage", Map.of("document", "circuit-1", "taskId", task,
+                "checks", List.of(Map.of("kind", "truthTable", "expected", andRows("1")))));
+
+        assertThat(failed).containsEntry("continuousStops", true);
+        assertThat((String) failed.get("continuousNote")).contains("«De corrido»", "«Siguiente»");
+        assertThat(passed).containsEntry("continuousStops", false);
+        assertThat((String) passed.get("continuousNote")).contains("«De corrido»");
+        Map<String, Object> schema = tool("vsim_check_stage").outputSchema();
+        assertThat(schema.toString()).contains("continuousStops", "continuousNote");
+    }
+
     @Test
     void aCheckVsimCouldNotFinishIsNeverPassed() {
         String task = beginTask();

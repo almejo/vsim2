@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.ai.present;
 import cl.almejo.vsim.automation.AutomationListener;
 import cl.almejo.vsim.automation.DocumentId;
 import cl.almejo.vsim.automation.TaskInfo;
+import cl.almejo.vsim.automation.TaskStopReason;
 import cl.almejo.vsim.automation.edit.TaskStage;
 import cl.almejo.vsim.automation.present.PresentationListener;
 import cl.almejo.vsim.automation.present.PresentationPace;
@@ -221,12 +222,16 @@ final class PresentationFeatures {
         onTask(info.taskId(), PresentedTask::ended);
     }
 
-    /** «Detener»: the panel stays, like at the end, with «Deshacer etapa» and × (review M5). */
-    private void stopped(TaskInfo info) {
+    /**
+     * «Detener», or VSim stopping a task whose AI stopped answering (IA.3): the panel stays, like at the end, with
+     * «Deshacer etapa» and × (review M5), and says which.
+     */
+    private void stopped(TaskInfo info, TaskStopReason reason) {
         if (task != null && task.task().taskId().equals(info.taskId())) {
             aiSwitched = false;
         }
-        onTask(info.taskId(), PresentedTask::stopped);
+        onTask(info.taskId(), reason == TaskStopReason.AI_SILENT ? PresentedTask::stoppedBecauseTheAiWentSilent
+                : PresentedTask::stopped);
     }
 
     /** Moves an event to the editor thread; a view disposed meanwhile ignores it. */
@@ -291,7 +296,12 @@ final class PresentationFeatures {
 
         @Override
         public void taskStopped(TaskInfo info) {
-            later(() -> stopped(info));
+            taskStopped(info, TaskStopReason.USER);
+        }
+
+        @Override
+        public void taskStopped(TaskInfo info, TaskStopReason reason) {
+            later(() -> stopped(info, reason));
         }
     }
 

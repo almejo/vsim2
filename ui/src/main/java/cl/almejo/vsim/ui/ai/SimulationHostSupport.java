@@ -269,6 +269,6 @@ final class SimulationHostSupport {
     }
 
     private static DocumentVersion versionOf(OpenDocument document) {
-        return new DocumentVersion(document.changeCount());
+        return new DocumentVersion(document.contentVersion());
     }
 }
