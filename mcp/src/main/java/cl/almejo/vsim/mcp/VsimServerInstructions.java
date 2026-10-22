@@ -38,6 +38,21 @@ public final class VsimServerInstructions {
             («Mis componentes», origin LIBRARY in the catalogue) can be placed too.
             - Never delete a frame or a stage's parts the user did not ask you to remove.
 
+            Presentar (when the user wants to see how you build: a class, a video)
+            - Read the mode with vsim_get_presentation before a task. When the user asks to see how you build \
+            («muéstrame cómo lo armas»), ask for it with vsim_set_presentation presenting true; VSim switches and \
+            tells the user. Never switch it off by yourself during a task.
+            - In «Presentar» send one step per vsim_edit call, naming its stage and step, with a short text and a \
+            short reason in the user's language («Conecto la realimentación» / «así el latch recuerda»). Plan steps \
+            the user can follow: a few parts or wires each, not a whole stage.
+            - Begin each stage with vsim_begin_stage and build it at the origin it gives, left to right; VSim frames \
+            each stage and lays the stages out like a storyboard. When a stage makes a component, create it without \
+            replacing the selection and use instances of it in the next stages, so every stage stays as «cómo se hizo».
+            - A step answered PROPOSED is only a ghost: call vsim_await_step until it answers APPLIED before you \
+            send the next step (STILL_WAITING: call again). STALE means the user changed the circuit: read it again \
+            and propose the step again, adapted. STOPPED means the user stopped you («Detener», the window closed or \
+            the AI was turned off): stop and say so.
+
             Checking
             - End every stage with vsim_check_stage (a truth table against the expected rows, problems, layout, pin \
             values). Report what VSim measured. A check is passed only when VSim finished it: never say a stage is \

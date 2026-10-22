@@ -675,6 +675,11 @@ public final class Application {
 
         @Override
         public void setPresenting(OpenDocument document, boolean presenting) {
+            if (presenting) {
+                // The toggle turns on and the panel says «La IA pasó a Presentar» (vsim_set_presentation).
+                presentation.aiAskedForPresenting(automationHost.documentId(document));
+            }
+            // Also when no window shows the circuit, which the panel's hook leaves alone.
             preferencesOf(document).setAiPresenting(presenting);
         }
 

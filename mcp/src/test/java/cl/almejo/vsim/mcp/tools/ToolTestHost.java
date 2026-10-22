@@ -17,6 +17,8 @@ import cl.almejo.vsim.automation.export.ExportRequest;
 import cl.almejo.vsim.automation.read.ComponentNames;
 import cl.almejo.vsim.automation.read.ReadSource;
 import cl.almejo.vsim.automation.read.RegionPicture;
+import cl.almejo.vsim.automation.present.PresentationPace;
+import cl.almejo.vsim.automation.present.PresentationSettings;
 import cl.almejo.vsim.automation.read.WindowPicture;
 import cl.almejo.vsim.automation.simulate.PreparedTruthTable;
 import cl.almejo.vsim.automation.simulate.SimulationReceipt;
@@ -73,6 +75,8 @@ final class ToolTestHost implements AutomationHost {
     final List<String> settings = new ArrayList<>();
     final CompletableFuture<ProposalAnswer> answer = new CompletableFuture<>();
     List<DefinitionBundle> library = List.of();
+    /** «Presentar» per circuit as the user chose it; a circuit not listed is in working mode. */
+    final Map<DocumentId, PresentationSettings> presentations = new LinkedHashMap<>();
     Function<SimulationRequest, SimulationReceipt> simulation = request -> receipt(request.document(),
             SimulationReceipt.Outcome.COMPLETED);
 
@@ -138,6 +142,24 @@ final class ToolTestHost implements AutomationHost {
             return new PreparedTruthTable(circuit.version(),
                     TruthTableScope.prepare(circuit.document, scope, circuit.registry));
         });
+    }
+
+    @Override
+    public PresentationSettings presentationSettings(DocumentId document) {
+        circuit(document);
+        return presentations.getOrDefault(document, PresentationSettings.WORKING);
+    }
+
+    @Override
+    public void setPresenting(DocumentId document, boolean presenting) {
+        PresentationSettings current = presentationSettings(document);
+        presentations.put(document, new PresentationSettings(presenting, current.pace(), current.pause()));
+    }
+
+    /** Puts {@code document} in «Presentar» at {@code pace}, as the user's toggle would. */
+    void present(String document, PresentationPace pace) {
+        presentations.put(new DocumentId(document),
+                new PresentationSettings(true, pace, PresentationSettings.DEFAULT_PAUSE));
     }
 
     @Override

@@ -2,14 +2,16 @@ package cl.almejo.vsim.mcp.tools;
 
 import cl.almejo.vsim.automation.AutomationApi;
 import cl.almejo.vsim.automation.edit.EditOperation;
-import cl.almejo.vsim.automation.edit.EditReceipt;
 import cl.almejo.vsim.automation.edit.EditRequest;
 import cl.almejo.vsim.automation.edit.PinTarget;
 import cl.almejo.vsim.automation.edit.TaskStep;
+import cl.almejo.vsim.automation.present.PresentedEdit;
+import cl.almejo.vsim.automation.present.StepStatus;
 import cl.almejo.vsim.core.document.Guide;
 import cl.almejo.vsim.core.geometry.Rotation;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -201,6 +203,14 @@ final class EditTools {
         };
     }
 
+    /** How «Presentar» took the call; a call that was not paced is APPLIED when it changed the circuit. */
+    private static Optional<StepStatus> statusOf(PresentedEdit presented) {
+        if (presented.status().isPresent()) {
+            return presented.status();
+        }
+        return presented.receipt().applied() ? Optional.of(StepStatus.APPLIED) : Optional.empty();
+    }
+
     private static Rotation rotationOf(Arguments operation) {
         return operation.enumeration("rotation", Rotation.class, Rotation.R0);
     }
@@ -225,7 +235,13 @@ final class EditTools {
                         + "(inputs left, outputs right) with room between them and for their labels. A guide you "
                         + "add only to align is AddGuide with layoutOnly true: it goes away when the task ends. At "
                         + "most " + MAXIMUM_OPERATIONS + " operations per call: every placement and Connect re-reads "
-                        + "the circuit's connections while the editor waits, so in a big circuit send fewer.",
+                        + "the circuit's connections while the editor waits, so in a big circuit send fewer. In "
+                        + "«Presentar» (vsim_get_presentation) send one step per call with its stage, step, a short "
+                        + "text and reason in the user's language: status APPLIED means it is in the circuit («De "
+                        + "corrido» applies it after a short pause); PROPOSED means the user sees it as a ghost and "
+                        + "nothing changed yet (applied false; the aliases already name the ids it will have): call "
+                        + "vsim_await_step until it is APPLIED before the next step. Without a status the call was "
+                        + "only validated.",
                 Schema.object("")
                         .property("document", Common.document())
                         .property("version", Common.version())
@@ -236,11 +252,16 @@ final class EditTools {
                         .property("step", Schema.string("The step it carries out"))
                         .property("text", Schema.string("One line saying what it does («Conecto la "
                                 + "realimentación»)"))
+                        .property("reason", Schema.string("Optional, short: why («La salida de cada NAND entra a "
+                                + "la otra: así el latch recuerda»); «Presentar» shows it under the text"))
                         .property("operations", operations())
                         .property("validateOnly", Schema.bool("Check everything, change nothing"))
                         .required("document", "version", "operationId", "taskId", "operations").build(),
                 Common.versionedResult("The receipt")
-                        .property("applied", Schema.bool("False for validateOnly"))
+                        .property("status", Schema.enumeration("APPLIED: in the circuit; PROPOSED: shown as a "
+                                + "ghost in «Presentar», call vsim_await_step; absent for validateOnly",
+                                List.of(StepStatus.APPLIED.name(), StepStatus.PROPOSED.name())))
+                        .property("applied", Schema.bool("False for validateOnly and while PROPOSED"))
                         .property("aliases", Schema.result("alias → real id").build())
                         .property("connections", Schema.array("Per Connect: from, to, the wires added and the nets "
                                 + "joined (as pins)", Schema.result("").build()))
@@ -254,6 +275,7 @@ final class EditTools {
                 Tool.Hints.MAY_REMOVE_IDEMPOTENT,
                 List.of(Map.of("document", "circuit-1", "version", 3, "operationId", "latch-1", "taskId", "task-1",
                         "stage", "Latch SR", "step", "Coloco las compuertas", "text", "Coloco dos NAND",
+                        "reason", "Dos NAND cruzadas forman el latch",
                         "operations", List.of(
                                 Map.of("op", "PlacePart", "alias", "top", "typeId", "nand2", "x", 10, "y", 0),
                                 Map.of("op", "PlacePart", "alias", "bottom", "typeId", "nand2", "x", 10, "y", 10),
@@ -274,13 +296,15 @@ final class EditTools {
                     }
                     Optional<TaskStep> step = Optional.of(new TaskStep(arguments.string("taskId"),
                             arguments.string("stage", ""), arguments.string("step", ""),
-                            arguments.string("text", "")));
-                    EditReceipt receipt = api.edit(new EditRequest(arguments.document(),
+                            arguments.string("text", ""),
+                            arguments.optionalString("reason").filter(reason -> !reason.isBlank())));
+                    PresentedEdit presented = api.editStep(new EditRequest(arguments.document(),
                             arguments.version("version"), arguments.string("operationId"), step, operations,
                             arguments.bool("validateOnly", false)));
-                    Map<String, Object> structured = new java.util.LinkedHashMap<>();
+                    Map<String, Object> structured = new LinkedHashMap<>();
                     structured.put("document", arguments.document().value());
-                    structured.putAll(Json.object(receipt));
+                    statusOf(presented).ifPresent(status -> structured.put("status", status.name()));
+                    structured.putAll(Json.object(presented.receipt()));
                     return Tool.Output.of(structured);
                 });
     }

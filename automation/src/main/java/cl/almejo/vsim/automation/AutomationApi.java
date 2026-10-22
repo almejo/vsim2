@@ -12,6 +12,8 @@ import cl.almejo.vsim.automation.read.ReadFilter;
 import cl.almejo.vsim.automation.read.Reads;
 import cl.almejo.vsim.automation.read.RegionPicture;
 import cl.almejo.vsim.automation.read.WindowPicture;
+import cl.almejo.vsim.core.component.ElementBounds;
+import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.automation.simulate.InputValue;
 import cl.almejo.vsim.automation.simulate.SignalsView;
@@ -19,6 +21,7 @@ import cl.almejo.vsim.automation.simulate.SimulationOperations;
 import cl.almejo.vsim.automation.simulate.SimulationReceipt;
 import cl.almejo.vsim.automation.simulate.StepKind;
 import cl.almejo.vsim.automation.simulate.TruthTableView;
+import cl.almejo.vsim.automation.edit.AiTask;
 import cl.almejo.vsim.automation.edit.EditReceipt;
 import cl.almejo.vsim.automation.edit.EditRequest;
 import cl.almejo.vsim.automation.edit.EditService;
@@ -29,6 +32,7 @@ import cl.almejo.vsim.automation.present.PresentationListener;
 import cl.almejo.vsim.automation.present.PresentationService;
 import cl.almejo.vsim.automation.present.PresentationSettings;
 import cl.almejo.vsim.automation.present.PresentedEdit;
+import cl.almejo.vsim.automation.present.StageOrigin;
 import cl.almejo.vsim.automation.present.StepOutcome;
 
 import java.time.Duration;
@@ -57,6 +61,8 @@ public final class AutomationApi {
     private static final Duration EXPORT_TIMEOUT = Duration.ofSeconds(60);
     /** The longest wait for the user's answer to a proposal in one call: well under the client's tool timeout. */
     public static final Duration MAXIMUM_PROPOSAL_WAIT = Duration.ofSeconds(30);
+    /** Grid units between a stage and what is left of it (spec §6). */
+    static final int STAGE_GAP = 6;
 
     private final AutomationHost host;
     private final Duration editorTimeout;
@@ -354,6 +360,39 @@ public final class AutomationApi {
         throw new AutomationException(AutomationError.NOT_ALLOWED, "«Dejar solo el resultado» is not available yet");
     }
 
+    /**
+     * «Begin stage» (spec §6): where the AI builds stage {@code stageIndex} (from 0) of the task, and the view travels
+     * there in «Presentar».
+     * TODO(IA.2 Task 2, Storyboard): a minimal stand-in until the storyboard fills it: the origin is
+     * {@link #STAGE_GAP} units right of everything in the circuit, aligned on its top, and nothing travels yet.
+     */
+    public StageOrigin beginStage(String taskId, int stageIndex) {
+        AiTask task = edits.requireTask(taskId);
+        if (task.state() != AiTask.State.RUNNING) {
+            throw new AutomationException(AutomationError.NOT_ALLOWED, "The task " + taskId + " does not run any "
+                    + "more; begin a new one", Map.of("taskId", taskId));
+        }
+        int stageCount = task.stages().size();
+        if (stageIndex < 0 || stageIndex >= stageCount) {
+            throw new AutomationException(AutomationError.INVALID_PARAMETER, "The task " + taskId + " has "
+                    + stageCount + " stages; add the stage with vsim_update_plan first",
+                    Map.of("taskId", taskId, "stages", stageCount));
+        }
+        return awaited(host.onCircuit(task.info().document(), circuit -> {
+            Bounds occupied = null;
+            for (DocumentElement element : circuit.document().elements()) {
+                try {
+                    Bounds bounds = ElementBounds.of(element, circuit.registry());
+                    occupied = occupied == null ? bounds : occupied.union(bounds);
+                } catch (RuntimeException unknownType) {
+                    // A part whose type cannot be resolved takes no room VSim can measure.
+                }
+            }
+            return occupied == null ? new StageOrigin(0, 0)
+                    : new StageOrigin(occupied.maximumX() + STAGE_GAP, occupied.y());
+        }));
+    }
+
     /** The presentation mode of the window the AI works in for {@code document} (spec §4). */
     public PresentationSettings presentationSettings(DocumentId document) {
         Objects.requireNonNull(document, "document");
@@ -363,10 +402,17 @@ public final class AutomationApi {
     /**
      * Switches «Presentar» on or off for {@code document}'s window, as the AI asks when the user wants to see how it
      * builds (spec §4), and returns the window's settings then. A step waiting for «Siguiente» is written when it is
-     * switched off.
+     * switched off. Switching it off while a task runs on {@code document} is refused ({@code NOT_ALLOWED}): the AI
+     * never leaves «Presentar» by itself during a task.
      */
     public PresentationSettings setPresenting(DocumentId document, boolean presenting) {
         Objects.requireNonNull(document, "document");
+        if (!presenting && edits.hasRunningTask(document)) {
+            // Spec §4: the AI never goes back to working mode by itself during a task; the user's toggle can.
+            throw new AutomationException(AutomationError.NOT_ALLOWED, "A task runs on " + document.value()
+                    + ": «Presentar» stays on until it ends (end the task first; the user can switch it off in VSim)",
+                    Map.of("document", document.value()));
+        }
         PresentationSettings settings = onEditorThread(access -> {
             host.setPresenting(document, presenting);
             return host.presentationSettings(document);
@@ -430,7 +476,11 @@ public final class AutomationApi {
 
     /** Runs {@code work} on the editor thread and waits for it here, off that thread, at most the editor timeout. */
     private <T> T onEditorThread(Function<EditorAccess, T> work) {
-        CompletableFuture<T> result = host.onEditorThread(work);
+        return awaited(host.onEditorThread(work));
+    }
+
+    /** Waits here, off the editor thread, at most the editor timeout, for work queued on the editor thread. */
+    private <T> T awaited(CompletableFuture<T> result) {
         try {
             return result.get(editorTimeout.toMillis(), TimeUnit.MILLISECONDS);
         } catch (TimeoutException exception) {

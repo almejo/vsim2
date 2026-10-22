@@ -251,6 +251,8 @@ public final class PresentationService {
             TaskPresentation presentation = presentations.get(taskId);
             if (presentation != null && presentation.pending != null) {
                 outcome = presentation.pending.outcome();
+            } else if (presentation != null && presentation.applying != null) {
+                outcome = presentation.applying.outcome();
             } else if (presentation != null && presentation.lastOutcome != null) {
                 return presentation.lastOutcome;
             } else if (task.state() != AiTask.State.RUNNING) {
@@ -311,18 +313,28 @@ public final class PresentationService {
                 return;
             }
             presentation.pending = null;
+            // An await_step arriving while the step is written waits for it rather than finding nothing pending.
+            presentation.applying = pending;
         }
-        pending.stopWatching();
-        EditReceipt receipt;
         try {
-            receipt = edits.commit(circuit, pending.prepared());
-        } catch (AutomationException refusal) {
-            dropped(presentation, pending, refusal.error() == AutomationError.STALE_DOCUMENT ? StepStatus.STALE
-                    : StepStatus.STOPPED);
-            return;
+            pending.stopWatching();
+            EditReceipt receipt;
+            try {
+                receipt = edits.commit(circuit, pending.prepared());
+            } catch (AutomationException refusal) {
+                dropped(presentation, pending, refusal.error() == AutomationError.STALE_DOCUMENT ? StepStatus.STALE
+                        : StepStatus.STOPPED);
+                return;
+            }
+            applied(presentation, pending.preview(), receipt);
+            pending.resolve(StepOutcome.applied(receipt));
+        } finally {
+            synchronized (this) {
+                if (presentation.applying == pending) {
+                    presentation.applying = null;
+                }
+            }
         }
-        applied(presentation, pending.preview(), receipt);
-        pending.resolve(StepOutcome.applied(receipt));
     }
 
     /**
@@ -592,6 +604,8 @@ public final class PresentationService {
 
         private final AiTask task;
         private PendingStep pending;
+        /** The step «Siguiente» is writing right now, until its outcome is known. */
+        private PendingStep applying;
         private StepOutcome lastOutcome;
         private int currentStage;
         private int currentStep;
