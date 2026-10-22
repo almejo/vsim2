@@ -30,7 +30,7 @@ class VsimToolsTest {
                 "vsim_begin_task", "vsim_update_plan", "vsim_end_task", "vsim_undo_task",
                 "vsim_edit",
                 "vsim_get_presentation", "vsim_set_presentation", "vsim_begin_stage", "vsim_await_step",
-                "vsim_say",
+                "vsim_say", "vsim_ask_user", "vsim_await_answer", "vsim_withdraw_question",
                 "vsim_simulation", "vsim_set_inputs", "vsim_step", "vsim_read_signals", "vsim_truth_table",
                 "vsim_check_stage",
                 "vsim_export",

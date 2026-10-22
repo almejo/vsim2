@@ -4,6 +4,7 @@ import cl.almejo.vsim.automation.AutomationApi;
 import cl.almejo.vsim.automation.AutomationListener;
 import cl.almejo.vsim.automation.UndoOutcome;
 import cl.almejo.vsim.automation.present.PresentationListener;
+import cl.almejo.vsim.automation.present.QuestionAnswer;
 
 import java.util.Objects;
 
@@ -30,6 +31,11 @@ public interface AiTasks {
 
     UndoOutcome undoTask(String taskId);
 
+    /** The user answered the AI's question (IA.3): false when it is closed or does not take it. False by default. */
+    default boolean answerQuestion(String questionId, QuestionAnswer answer) {
+        return false;
+    }
+
     static AiTasks of(AutomationApi api) {
         Objects.requireNonNull(api, "api");
         return new AiTasks() {
@@ -51,6 +57,11 @@ public interface AiTasks {
             @Override
             public UndoOutcome undoTask(String taskId) {
                 return api.undoTask(taskId);
+            }
+
+            @Override
+            public boolean answerQuestion(String questionId, QuestionAnswer answer) {
+                return api.answerQuestion(questionId, answer);
             }
         };
     }

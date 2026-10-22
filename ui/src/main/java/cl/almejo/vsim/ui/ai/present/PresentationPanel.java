@@ -3,9 +3,11 @@ package cl.almejo.vsim.ui.ai.present;
 import cl.almejo.vsim.automation.StageUndoOutcome;
 import cl.almejo.vsim.automation.present.PresentationPace;
 import cl.almejo.vsim.automation.present.PresentationSettings;
+import cl.almejo.vsim.automation.present.Question;
 import cl.almejo.vsim.automation.present.StepStatus;
 import cl.almejo.vsim.ui.ai.AiIcons;
 import cl.almejo.vsim.ui.ai.AiPanel;
+import cl.almejo.vsim.ui.ai.QuestionCard;
 import cl.almejo.vsim.ui.ai.SettingsOverride;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.i18n.Messages;
@@ -79,6 +81,10 @@ final class PresentationPanel extends JPanel {
     private final JButton closeButton = headerButton("×");
     /** «Me detuve: falló la comprobación de …», under the header so it shows folded too (IA.3 «Speed»). */
     private final StageCard.Line heldNotice = new StageCard.Line(" ", StageCard.Tone.ACCENT, StageCard.Style.BOLD);
+    /** «Claude está pensando…» (IA.3), muted, under the header so it shows folded too. */
+    private final StageCard.Line thinkingHint = new StageCard.Line(" ", StageCard.Tone.MUTED, StageCard.Style.PLAIN);
+    /** The AI's question (IA.3), under the header so it shows folded too; kept while it is the same question. */
+    private QuestionCard questionCard;
     private final StackLayout bodyLayout = new StackLayout(6);
     private final JPanel body = new JPanel(bodyLayout);
     private final StageCard.Line notice = new StageCard.Line(" ", StageCard.Tone.NORMAL, StageCard.Style.PLAIN);
@@ -166,6 +172,9 @@ final class PresentationPanel extends JPanel {
         add(headerBar);
         heldNotice.setVisible(false);
         add(heldNotice);
+        thinkingHint.setText(Messages.text("ai.thinking"));
+        thinkingHint.setVisible(false);
+        add(thinkingHint);
     }
 
     private void buildBody() {
@@ -264,6 +273,8 @@ final class PresentationPanel extends JPanel {
         stageLabel.setText(stageText(task));
         showNotice(task);
         showHeld(task);
+        showQuestion(task);
+        thinkingHint.setVisible(task.thinking());
         showCards(task);
         refreshButtons();
         relayout();
@@ -317,6 +328,26 @@ final class PresentationPanel extends JPanel {
                 .map(stage -> Messages.format("ai.present.heldAfterCheck", task.stages().get(stage).title()));
         heldNotice.setText(text.orElse(" "));
         heldNotice.setVisible(text.isPresent());
+    }
+
+    /**
+     * The AI's question as a card right under the header, with its buttons and field; the same card while it is the
+     * same question (what the user is typing stays), another one for a new question, none once it is gone.
+     */
+    private void showQuestion(PresentedTask task) {
+        Optional<Question> question = task.question();
+        if (question.isPresent() && questionCard != null
+                && questionCard.question().questionId().equals(question.get().questionId())) {
+            return;
+        }
+        if (questionCard != null) {
+            remove(questionCard);
+            questionCard = null;
+        }
+        question.ifPresent(asked -> {
+            questionCard = new QuestionCard(asked, answer -> controls.answer(asked.questionId(), answer));
+            add(questionCard, getComponentZOrder(heldNotice) + 1);
+        });
     }
 
     /** What «Deshacer etapa» did, in the IA.1 words where they fit. */
@@ -489,6 +520,14 @@ final class PresentationPanel extends JPanel {
 
     StageCard.Line heldNotice() {
         return heldNotice;
+    }
+
+    StageCard.Line thinkingHint() {
+        return thinkingHint;
+    }
+
+    Optional<QuestionCard> questionCard() {
+        return Optional.ofNullable(questionCard);
     }
 
     JLabel paceHint() {

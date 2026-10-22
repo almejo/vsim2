@@ -34,6 +34,7 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 
 /**
  * «Presentar»'s pacing layer in front of the {@link EditService} (IA.2, spec §5, §5.1). In working mode, or for a
@@ -81,6 +82,8 @@ public final class PresentationService {
     private final StepPacer pacer;
     private final Duration maximumWait;
     private final StageBoundary stageBoundary;
+    /** Whether a question of the task waits for the user (IA.3): «De corrido» proposes instead, no silence counts. */
+    private final Predicate<String> questionWaits;
     /** Guarded by {@code this}; never held while waiting for the editor thread. */
     private final Map<String, TaskPresentation> presentations = new LinkedHashMap<>();
 
@@ -100,6 +103,18 @@ public final class PresentationService {
      */
     public PresentationService(PresentationHost host, EditService edits, List<PresentationListener> listeners,
                                Executor events, Duration maximumWait, StageBoundary stageBoundary) {
+        this(host, edits, listeners, events, maximumWait, stageBoundary, taskId -> false);
+    }
+
+    /**
+     * @param questionWaits whether a question of a task waits for the user ({@link Questions#hasOpenQuestion}):
+     *                      meanwhile «De corrido» proposes the task's next step instead of applying it, and the
+     *                      time is not the AI's silence
+     */
+    public PresentationService(PresentationHost host, EditService edits, List<PresentationListener> listeners,
+                               Executor events, Duration maximumWait, StageBoundary stageBoundary,
+                               Predicate<String> questionWaits) {
+        this.questionWaits = Objects.requireNonNull(questionWaits, "questionWaits");
         this.stageBoundary = Objects.requireNonNull(stageBoundary, "stageBoundary");
         this.host = Objects.requireNonNull(host, "host");
         this.edits = Objects.requireNonNull(edits, "edits");
@@ -187,10 +202,12 @@ public final class PresentationService {
         int stepIndex;
         PresentationPace pace;
         Duration delay;
+        // a question waiting for the user holds «De corrido»: the step waits for «Siguiente» meanwhile (IA.3)
+        boolean asking = questionWaits.test(task.info().taskId());
         synchronized (this) {
             stepIndex = stepIndexOf(task.stages(), stageIndex, step,
                     presentation.appliedPerStage.getOrDefault(stageIndex, 0));
-            pace = presentation.paceFor(settings.pace(), stageIndex);
+            pace = asking ? PresentationPace.STEP_BY_STEP : presentation.paceFor(settings.pace(), stageIndex);
             delay = presentation.delayBefore(settings.pause(), pacer.now());
         }
         StepPreview preview = previewOf(task, stageIndex, stepIndex, step, prepared);
@@ -257,6 +274,7 @@ public final class PresentationService {
         EditService.requireRunning(task);
         DocumentId document = task.info().document();
         PresentationSettings settings = edits.onCircuit(document, circuit -> host.presentationSettings(document));
+        boolean asking = questionWaits.test(taskId);
         TaskPresentation presentation;
         int stageIndex;
         boolean paced;
@@ -267,7 +285,7 @@ public final class PresentationService {
             if (line.equals(presentation.lastNarration)) {
                 return new Narration(taskId, stageIndex, line, settings.presenting());
             }
-            paced = settings.presenting()
+            paced = settings.presenting() && !asking
                     && presentation.paceFor(settings.pace(), stageIndex) == PresentationPace.CONTINUOUS;
             delay = paced ? presentation.delayBefore(settings.pause(), pacer.now()) : Duration.ZERO;
         }
@@ -330,6 +348,11 @@ public final class PresentationService {
             }
         }
         AiTask task = presentation.task;
+        if (questionWaits.test(task.info().taskId())) {
+            // the user has to answer: waiting for them is not the AI's silence (IA.3); look again later
+            watchSilence(presentation, pending, SILENCE_LIMIT);
+            return;
+        }
         Instant now = pacer.now();
         Duration silent = Duration.between(task.lastHeard().orElse(now), now);
         if (silent.compareTo(SILENCE_LIMIT) < 0) {

@@ -9,6 +9,7 @@ import cl.almejo.vsim.automation.ProposedPreference;
 import cl.almejo.vsim.automation.TaskInfo;
 import cl.almejo.vsim.automation.UndoOutcome;
 import cl.almejo.vsim.automation.present.Narration;
+import cl.almejo.vsim.automation.present.Question;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
@@ -114,6 +115,80 @@ class AiStatusFeaturesTest {
 
         assertThat(features.text().getToolTipText()).contains("Pongo &lt;b&gt;dos&lt;/b&gt; NAND &amp; las cruzo")
                 .doesNotContain("<b>");
+    }
+
+    // --- the AI's questions and «Claude está pensando…» in working mode (IA.3 Task 8) ---
+
+    private static final long SECOND = 1_000_000_000L;
+
+    private Question question() {
+        return new Question("question-1", "task-1", thisCircuit, "¿De cuántos bits?", List.of("2", "4"), true);
+    }
+
+    @Test
+    void inWorkingModeTheQuestionShowsInTheStripAndResponderHoldsItsCard() {
+        tasks.start(FakeAiTasks.task("task-1", thisCircuit, "Contador"));
+
+        tasks.ask(question());
+
+        assertThat(features.questionLabel().isVisible()).isTrue();
+        assertThat(features.questionLabel().getText()).isEqualTo("La IA te pregunta: ¿De cuántos bits?");
+        assertThat(features.answerButton().isVisible()).isTrue();
+        assertThat(features.answerButton().getText()).isEqualTo("Responder…");
+        QuestionCard card = features.questionCard().orElseThrow();
+        card.choiceButtons().get(1).doClick();
+        assertThat(tasks.answered).containsExactly("question-1 choice 4");
+
+        tasks.closeQuestion("task-1", "question-1", true);
+        assertThat(features.questionLabel().isVisible()).isFalse();
+        assertThat(features.answerButton().isVisible()).isFalse();
+        assertThat(features.questionCard()).isEmpty();
+    }
+
+    @Test
+    void whilePresentingTheStripLeavesTheQuestionToThePanel() {
+        windowPreferences.setAiPresenting(true);
+        tasks.start(FakeAiTasks.task("task-1", thisCircuit, "Contador"));
+
+        tasks.ask(question());
+        assertThat(features.questionLabel().isVisible()).isFalse();
+        assertThat(features.answerButton().isVisible()).isFalse();
+
+        windowPreferences.setAiPresenting(false); // back to working mode: the strip shows it
+        assertThat(features.questionLabel().isVisible()).isTrue();
+    }
+
+    @Test
+    void aQuestionOfAnotherTaskIsNotShown() {
+        tasks.start(FakeAiTasks.task("task-1", thisCircuit, "Contador"));
+
+        tasks.ask(new Question("question-7", "task-7", new DocumentId("other"), "¿Otra?", List.of(), true));
+
+        assertThat(features.questionLabel().isVisible()).isFalse();
+    }
+
+    @Test
+    void afterTwentySilentSecondsTheStripSaysClaudeIsThinkingUntilTheNextCall() {
+        tasks.start(FakeAiTasks.task("task-1", thisCircuit, "Contador"));
+
+        clock.addAndGet(20 * SECOND);
+        features.thinking().tick();
+        assertThat(features.thinkingLabel().isVisible()).isTrue();
+        assertThat(features.thinkingLabel().getText())
+                .isEqualTo("Claude está pensando o te preguntó algo en Claude Code");
+
+        tasks.narrate(new Narration("task-1", 0, "Ahora el reloj", false));
+        assertThat(features.thinkingLabel().isVisible()).isFalse();
+
+        tasks.ask(question()); // a question waits for the user: no hint however long
+        clock.addAndGet(60 * SECOND);
+        features.thinking().tick();
+        assertThat(features.thinkingLabel().isVisible()).isFalse();
+
+        tasks.end(FakeAiTasks.task("task-1", thisCircuit, "Contador"), Set.of());
+        clock.addAndGet(60 * SECOND);
+        features.thinking().tick();
+        assertThat(features.thinkingLabel().isVisible()).isFalse();
     }
 
     @Test

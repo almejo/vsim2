@@ -1,6 +1,7 @@
 package cl.almejo.vsim.ui.ai.present;
 
 import cl.almejo.vsim.automation.StageUndoOutcome;
+import cl.almejo.vsim.automation.present.QuestionAnswer;
 import cl.almejo.vsim.automation.present.StoryboardState;
 
 import java.util.function.Consumer;
@@ -34,4 +35,8 @@ public interface PresentationControls {
 
     /** What the panel may offer for the task's storyboard now («Deshacer etapa», «Dejar solo el resultado»). */
     void storyboardState(String taskId, Consumer<StoryboardState> done);
+
+    /** The user answered the AI's question in the panel (IA.3); VSim closes it. Nothing by default. */
+    default void answer(String questionId, QuestionAnswer answer) {
+    }
 }

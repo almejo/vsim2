@@ -167,7 +167,8 @@ public final class Application {
                 }
             }
         });
-        this.presentation = new PresentationExtension(PresentationEvents.of(automationApi),
+        this.presentation = new PresentationExtension(
+                PresentationEvents.of(automationApi, automationHost::addRequestListener),
                 presentationControls, automationHost::documentId);
         this.services = new EditorServices(PainterRegistry.standard(), appearance, preferences, library,
                 editorExtensions(libraryService, SwingLibraryDialogs.INSTANCE, this::initialDirectory,

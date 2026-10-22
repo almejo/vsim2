@@ -5,6 +5,7 @@ import cl.almejo.vsim.automation.TaskInfo;
 import cl.almejo.vsim.automation.TaskStopReason;
 import cl.almejo.vsim.automation.UndoOutcome;
 import cl.almejo.vsim.automation.present.Narration;
+import cl.almejo.vsim.automation.present.Question;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.geometry.Bounds;
@@ -20,6 +21,8 @@ import net.miginfocom.swing.MigLayout;
 import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
+import javax.swing.JPopupMenu;
+import java.awt.Color;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.List;
@@ -57,6 +60,19 @@ final class AiStatusFeatures {
     private final JButton showButton = AiIcons.on(new JButton(Messages.text("ai.status.show")), AiIcons.SHOW);
     private final JButton undoButton = AiIcons.on(new JButton(Messages.text("ai.status.undo")), AiIcons.UNDO);
     private final JButton closeButton = AiIcons.on(new JButton(), AiIcons.CLOSE);
+    /** «Claude está pensando…» (IA.3), muted. */
+    private final JLabel thinkingLabel = new MutedLabel(Messages.text("ai.thinking"));
+    /** «La IA te pregunta: …» and «Responder…» in working mode (IA.3). */
+    private final JLabel questionLabel = AiPanel.plainText("");
+    private final JButton answerButton = new JButton(Messages.text("ai.status.answer"));
+    private final JPopupMenu answerPopup = new JPopupMenu();
+    private final ThinkingWatch thinking;
+    private final Runnable preferencesListener = this::refreshQuestion;
+    /** The AI's question to the user, waiting; null when none. */
+    private Question openQuestion;
+    private QuestionCard questionCard;
+    /** Whether the shown task runs. */
+    private boolean running;
     private final AiChangeGlowOverlay glow;
     private final Runnable removeOverlay;
     private final Runnable removeServiceListener;
@@ -92,7 +108,19 @@ final class AiStatusFeatures {
         undoButton.addActionListener(event -> undo());
         showButton.addActionListener(event -> changedBounds().ifPresent(bounds -> view.canvas().travelTo(bounds)));
         closeButton.addActionListener(event -> hide());
+        this.thinking = new ThinkingWatch(nanoClock, this::quiet, this::refreshThinking);
+        answerButton.addActionListener(event -> {
+            if (answerButton.isShowing()) {
+                answerPopup.show(answerButton, 0, -answerPopup.getPreferredSize().height);
+            }
+        });
+        thinkingLabel.setVisible(false);
+        questionLabel.setVisible(false);
+        answerButton.setVisible(false);
         strip.add(text);
+        strip.add(thinkingLabel, "hidemode 3");
+        strip.add(questionLabel, "hidemode 3, wmax 360");
+        strip.add(answerButton, "hidemode 3");
         strip.add(stopButton, "hidemode 3");
         strip.add(showButton, "hidemode 3");
         strip.add(undoButton, "hidemode 3");
@@ -132,12 +160,35 @@ final class AiStatusFeatures {
             @Override
             public void narrated(Narration narration) {
                 if (shown != null && shown.taskId().equals(narration.taskId())) {
+                    thinking.heard();
                     said(narration.text());
+                }
+            }
+
+            @Override
+            public void requestServed() {
+                thinking.heard();
+            }
+
+            @Override
+            public void questionAsked(Question question) {
+                if (shown != null && shown.taskId().equals(question.taskId()) && running) {
+                    thinking.heard();
+                    asked(question);
+                }
+            }
+
+            @Override
+            public void questionClosed(String taskId, String questionId, boolean answered) {
+                if (openQuestion != null && openQuestion.questionId().equals(questionId)) {
+                    thinking.heard();
+                    asked(null);
                 }
             }
         });
         this.pendingProposals = proposals.pending().size();
         this.removeProposalsListener = proposals.addListener(this::followProposals);
+        view.services().preferences().addListener(preferencesListener);
     }
 
     private boolean isThisCircuit(TaskInfo task) {
@@ -169,6 +220,13 @@ final class AiStatusFeatures {
             narrations.clear();
         }
         shown = task;
+        running = phase == Phase.RUNNING;
+        if (running) {
+            thinking.start();
+        } else {
+            thinking.stop();
+            asked(null);
+        }
         if (phase == Phase.RUNNING) {
             lastChanged = Set.of();
         }
@@ -216,9 +274,52 @@ final class AiStatusFeatures {
         return plain.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;");
     }
 
+    /** The AI asked {@code question} (null: it is gone); shown in working mode only, «Presentar» has its panel. */
+    private void asked(Question question) {
+        openQuestion = question;
+        answerPopup.setVisible(false);
+        answerPopup.removeAll();
+        questionCard = null;
+        if (question != null) {
+            questionCard = new QuestionCard(question, answer -> {
+                answerPopup.setVisible(false);
+                service.answerQuestion(question.questionId(), answer);
+            });
+            answerPopup.add(questionCard);
+        }
+        refreshQuestion();
+        thinking.tick();
+    }
+
+    private boolean presenting() {
+        return view.services().preferences().aiPresenting();
+    }
+
+    private void refreshQuestion() {
+        boolean shownHere = openQuestion != null && !presenting();
+        questionLabel.setText(openQuestion == null ? "" : Messages.format("ai.status.question", openQuestion.text()));
+        questionLabel.setToolTipText(openQuestion == null ? null : openQuestion.text());
+        questionLabel.setVisible(shownHere);
+        answerButton.setVisible(shownHere);
+        refreshThinking();
+    }
+
+    /** «Claude está pensando…» may show: the task runs and no question waits for the user. */
+    private boolean quiet() {
+        return running && openQuestion == null;
+    }
+
+    private void refreshThinking() {
+        thinkingLabel.setVisible(thinking.showing() && !presenting());
+        relayout();
+    }
+
     private void hide() {
         narrations.clear();
         text.setToolTipText(null);
+        thinking.stop();
+        asked(null);
+        running = false;
         shown = null;
         lastChanged = Set.of();
         strip.setVisible(false);
@@ -261,6 +362,9 @@ final class AiStatusFeatures {
 
     void dispose() {
         disposed = true;
+        thinking.dispose();
+        answerPopup.setVisible(false);
+        view.services().preferences().removeListener(preferencesListener);
         removeServiceListener.run();
         removeProposalsListener.run();
         removeOverlay.run();
@@ -279,6 +383,40 @@ final class AiStatusFeatures {
 
     List<String> narrations() {
         return List.copyOf(narrations);
+    }
+
+    JLabel thinkingLabel() {
+        return thinkingLabel;
+    }
+
+    JLabel questionLabel() {
+        return questionLabel;
+    }
+
+    JButton answerButton() {
+        return answerButton;
+    }
+
+    Optional<QuestionCard> questionCard() {
+        return Optional.ofNullable(questionCard);
+    }
+
+    ThinkingWatch thinking() {
+        return thinking;
+    }
+
+    /** A plain-text label in the theme's muted colour, read when painted. */
+    private static final class MutedLabel extends JLabel {
+
+        MutedLabel(String text) {
+            super(text);
+            putClientProperty("html.disable", Boolean.TRUE);
+        }
+
+        @Override
+        public Color getForeground() {
+            return AiColors.muted();
+        }
     }
 
     JButton stopButton() {

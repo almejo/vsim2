@@ -204,7 +204,8 @@ class McpPromptsTest {
             assertThat(contents.text()).contains("/mcp__vsim__" + name);
         }
         assertThat(contents.text()).contains("«Presentar»", "Paso a paso", "De corrido", "Qué no hace",
-                "vsim_check_stage");
+                "vsim_check_stage", "llega cortado o vacío");
+        assertThat(contents.text()).doesNotContain("     "); // no line runs on with the next one's indentation
     }
 
     @Test
@@ -218,6 +219,8 @@ class McpPromptsTest {
     void theInstructionsTellTheAiToSayWhatComesInVsim() {
         assertThat(VsimServerInstructions.TEXT).contains("vsim_say", "never reaches VSim", "subtitle",
                 "Do not repeat the step's own text");
+        assertThat(VsimServerInstructions.TEXT).contains("vsim_ask_user", "one question at a time",
+                "ask in the chat too", "vsim_await_answer", "vsim_withdraw_question");
         // no line runs on with the next one's indentation inside it
         assertThat(VsimServerInstructions.TEXT).doesNotContain("     ");
     }

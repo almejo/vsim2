@@ -1,6 +1,7 @@
 package cl.almejo.vsim.ui.ai.present;
 
 import cl.almejo.vsim.automation.StageUndoOutcome;
+import cl.almejo.vsim.automation.present.QuestionAnswer;
 import cl.almejo.vsim.automation.present.StoryboardState;
 
 import java.util.ArrayList;
@@ -45,6 +46,12 @@ final class RecordingControls implements PresentationControls {
     public void keepOnlyResult(String taskId, Consumer<Boolean> done) {
         calls.add("keepOnlyResult " + taskId);
         done.accept(keepSucceeds);
+    }
+
+    @Override
+    public void answer(String questionId, QuestionAnswer answer) {
+        calls.add("answer " + questionId + answer.choice().map(choice -> " choice " + choice).orElse("")
+                + answer.text().map(text -> " text " + text).orElse(""));
     }
 
     @Override

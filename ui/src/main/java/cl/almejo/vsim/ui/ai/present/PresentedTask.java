@@ -4,6 +4,7 @@ import cl.almejo.vsim.automation.StageUndoOutcome;
 import cl.almejo.vsim.automation.TaskInfo;
 import cl.almejo.vsim.automation.edit.TaskStage;
 import cl.almejo.vsim.automation.present.Narration;
+import cl.almejo.vsim.automation.present.Question;
 import cl.almejo.vsim.automation.present.StepPreview;
 import cl.almejo.vsim.automation.present.StepStatus;
 import cl.almejo.vsim.automation.present.StoryboardState;
@@ -62,6 +63,10 @@ final class PresentedTask {
     private int heldAfterStage = -1;
     /** The failed stage whose hold the user already passed with «Siguiente»: not said again. */
     private int dismissedStage = -1;
+    /** The AI's question waiting for the user (IA.3); null when none. */
+    private Question question;
+    /** «Claude está pensando…»: VSim heard nothing from the AI for a while and nothing waits for the user. */
+    private boolean thinking;
 
     PresentedTask(TaskInfo task) {
         this.task = Objects.requireNonNull(task, "task");
@@ -110,6 +115,32 @@ final class PresentedTask {
     /** The AI said {@code narration}: its stage's card shows it, replacing the line said before in that stage. */
     void narrated(Narration narration) {
         narrations.put(narration.stageIndex(), narration.text());
+    }
+
+    /** The AI asked {@code asked} in VSim: the panel shows it until it is answered or withdrawn. */
+    void questionAsked(Question asked) {
+        question = Objects.requireNonNull(asked, "asked");
+    }
+
+    /** Question {@code questionId} is gone (answered or withdrawn). */
+    void questionClosed(String questionId) {
+        if (question != null && question.questionId().equals(questionId)) {
+            question = null;
+        }
+    }
+
+    /** The AI's question waiting for the user, while the task runs. */
+    Optional<Question> question() {
+        return ended ? Optional.empty() : Optional.ofNullable(question);
+    }
+
+    void thinking(boolean shown) {
+        thinking = shown;
+    }
+
+    /** Whether the panel says «Claude está pensando o te preguntó algo en Claude Code». */
+    boolean thinking() {
+        return thinking && !ended;
     }
 
     /** The last line the AI said in stage {@code stageIndex}. */
@@ -166,6 +197,8 @@ final class PresentedTask {
         pacedFor = null;
         pending = null;
         heldAfterStage = -1;
+        question = null;
+        thinking = false;
     }
 
     /** «Detener»: like the end, the panel stays with «Deshacer etapa» and ×. */

@@ -8,6 +8,8 @@ import cl.almejo.vsim.automation.UndoOutcome;
 import cl.almejo.vsim.automation.edit.TaskStage;
 import cl.almejo.vsim.automation.present.Narration;
 import cl.almejo.vsim.automation.present.PresentationListener;
+import cl.almejo.vsim.automation.present.Question;
+import cl.almejo.vsim.automation.present.QuestionAnswer;
 import cl.almejo.vsim.automation.present.StepPreview;
 import cl.almejo.vsim.automation.present.StepStatus;
 import cl.almejo.vsim.mcp.McpServerSettings;
@@ -110,6 +112,14 @@ public final class AiServerService {
 
         /** The AI said a line about what comes (IA.3, {@code vsim_say}), in any mode. */
         default void narrated(Narration narration) {
+        }
+
+        /** The AI asked the user {@code question} in VSim (IA.3). */
+        default void questionAsked(Question question) {
+        }
+
+        /** The question is gone: answered in VSim or withdrawn (IA.3). */
+        default void questionClosed(String taskId, String questionId, boolean answered) {
         }
     }
 
@@ -595,6 +605,21 @@ public final class AiServerService {
         }
     }
 
+    /** The user answered the AI's question in the status line (IA.3): sent off the EDT; a refusal is logged. */
+    public void answerQuestion(String questionId, QuestionAnswer answer) {
+        Objects.requireNonNull(questionId, "questionId");
+        Objects.requireNonNull(answer, "answer");
+        background.execute(() -> {
+            try {
+                if (!tasks.answerQuestion(questionId, answer)) {
+                    LOGGER.info("The AI's question {} was closed already or does not take that answer", questionId);
+                }
+            } catch (RuntimeException exception) {
+                LOGGER.warn("Could not answer the AI's question {}", questionId, exception);
+            }
+        });
+    }
+
     /** «Deshacer lo que hizo la IA»: undone off the EDT; {@code done} hears the outcome on the EDT. */
     public void undoTask(String taskId, Consumer<UndoOutcome> done) {
         Objects.requireNonNull(taskId, "taskId");
@@ -662,7 +687,10 @@ public final class AiServerService {
         }
     }
 
-    /** What the AI says (IA.3), moved to the EDT for the status lines; the rest of «Presentar» is the panel's. */
+    /**
+     * What the AI says and asks (IA.3), moved to the EDT for the status lines; the rest of «Presentar» is the
+     * panel's.
+     */
     private final class WhatTheAiSays implements PresentationListener {
 
         @Override
@@ -688,6 +716,17 @@ public final class AiServerService {
         @Override
         public void narrated(Narration narration) {
             editorThread.execute(() -> listeners.forEach(listener -> listener.narrated(narration)));
+        }
+
+        @Override
+        public void questionAsked(Question question) {
+            editorThread.execute(() -> listeners.forEach(listener -> listener.questionAsked(question)));
+        }
+
+        @Override
+        public void questionClosed(String taskId, String questionId, boolean answered) {
+            editorThread.execute(() -> listeners.forEach(listener -> listener.questionClosed(taskId, questionId,
+                    answered)));
         }
     }
 

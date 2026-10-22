@@ -22,6 +22,7 @@ import java.util.Set;
 import java.util.concurrent.Executor;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.LongSupplier;
 
 /**
  * «Presentar» in every editor view (IA.2, spec §4, §5): Ver ▸ «Presentar lo que hace la IA» and its toolbar toggle,
@@ -37,6 +38,7 @@ public final class PresentationExtension implements EditorExtension {
     private final PresentationControls controls;
     private final Function<OpenDocument, DocumentId> ids;
     private final Executor editorThread;
+    private final LongSupplier nanoClock;
     private final Map<EditorView, PresentationFeatures> installed = new IdentityHashMap<>();
     private final Map<EditorView, PresentationOverlays> overlays = new IdentityHashMap<>();
 
@@ -49,6 +51,13 @@ public final class PresentationExtension implements EditorExtension {
     /** @param editorThread moves the events, heard off the EDT, to it ({@code SwingUtilities::invokeLater}) */
     PresentationExtension(PresentationEvents events, PresentationControls controls,
                           Function<OpenDocument, DocumentId> ids, Executor editorThread) {
+        this(events, controls, ids, editorThread, System::nanoTime);
+    }
+
+    /** @param nanoClock the clock of «Claude está pensando…» in the panel (tests give a fake one) */
+    PresentationExtension(PresentationEvents events, PresentationControls controls,
+                          Function<OpenDocument, DocumentId> ids, Executor editorThread, LongSupplier nanoClock) {
+        this.nanoClock = Objects.requireNonNull(nanoClock, "nanoClock");
         this.events = Objects.requireNonNull(events, "events");
         this.controls = Objects.requireNonNull(controls, "controls");
         this.ids = Objects.requireNonNull(ids, "ids");
@@ -87,7 +96,8 @@ public final class PresentationExtension implements EditorExtension {
 
     @Override
     public Runnable install(EditorView view) {
-        PresentationFeatures features = new PresentationFeatures(view, events, controls, ids, editorThread);
+        PresentationFeatures features = new PresentationFeatures(view, events, controls, ids, editorThread,
+                nanoClock);
         installed.put(view, features);
         PresentationOverlays viewOverlays = PresentationOverlays.install(view, events::addPresentationListener,
                 this::addTaskListener, ids, editorThread, System::nanoTime, features.placement()::coveredIn);

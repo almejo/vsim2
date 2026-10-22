@@ -2,6 +2,7 @@ package cl.almejo.vsim.ui.ai.present;
 
 import cl.almejo.vsim.automation.AutomationApi;
 import cl.almejo.vsim.automation.StageUndoOutcome;
+import cl.almejo.vsim.automation.present.QuestionAnswer;
 import cl.almejo.vsim.automation.present.StoryboardState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -84,6 +85,12 @@ public final class AutomationPresentationControls implements PresentationControl
     @Override
     public void storyboardState(String taskId, Consumer<StoryboardState> done) {
         ask("storyboardState", () -> api.storyboardState(taskId), StoryboardState.NONE, done);
+    }
+
+    /** {@link AutomationApi#answerQuestion}: the user's answer closes the AI's question (IA.3). */
+    @Override
+    public void answer(String questionId, QuestionAnswer answer) {
+        run("answer", () -> api.answerQuestion(questionId, answer));
     }
 
     private void run(String control, Runnable call) {

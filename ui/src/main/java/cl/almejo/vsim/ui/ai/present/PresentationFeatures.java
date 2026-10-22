@@ -6,10 +6,12 @@ import cl.almejo.vsim.automation.TaskInfo;
 import cl.almejo.vsim.automation.TaskStopReason;
 import cl.almejo.vsim.automation.edit.TaskStage;
 import cl.almejo.vsim.automation.present.Narration;
+import cl.almejo.vsim.automation.present.Question;
 import cl.almejo.vsim.automation.present.PresentationListener;
 import cl.almejo.vsim.automation.present.PresentationPace;
 import cl.almejo.vsim.automation.present.StepPreview;
 import cl.almejo.vsim.automation.present.StepStatus;
+import cl.almejo.vsim.ui.ai.ThinkingWatch;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.i18n.Messages;
@@ -37,6 +39,7 @@ import java.util.Set;
 import java.util.concurrent.Executor;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.LongSupplier;
 
 /**
  * «Presentar» in one editor view (spec §4, §5): the toggle (a toolbar button at the end and a checkbox item at the
@@ -70,6 +73,9 @@ final class PresentationFeatures {
     private final FloatingPlacement placement;
     private final Runnable removePresentationListener;
     private final Runnable removeTaskListener;
+    private final Runnable removeActivityListener;
+    /** «Claude está pensando…» (IA.3): after a silence of the AI while nothing waits for the user. */
+    private final ThinkingWatch thinking;
     private final Runnable preferencesListener = this::followPreferences;
     private final HierarchyListener hierarchyListener = event -> {
         if ((event.getChangeFlags() & HierarchyEvent.PARENT_CHANGED) != 0) {
@@ -84,7 +90,14 @@ final class PresentationFeatures {
 
     PresentationFeatures(EditorView view, PresentationEvents events, PresentationControls controls,
                          Function<OpenDocument, DocumentId> ids, Executor editorThread) {
+        this(view, events, controls, ids, editorThread, System::nanoTime);
+    }
+
+    /** @param nanoClock the clock of «Claude está pensando…» */
+    PresentationFeatures(EditorView view, PresentationEvents events, PresentationControls controls,
+                         Function<OpenDocument, DocumentId> ids, Executor editorThread, LongSupplier nanoClock) {
         this.view = Objects.requireNonNull(view, "view");
+        this.thinking = new ThinkingWatch(nanoClock, this::quiet, this::thinkingChanged);
         this.preferences = view.services().preferences();
         this.ids = Objects.requireNonNull(ids, "ids");
         this.editorThread = Objects.requireNonNull(editorThread, "editorThread");
@@ -116,7 +129,21 @@ final class PresentationFeatures {
         preferences.addListener(preferencesListener);
         this.removePresentationListener = events.addPresentationListener(new OnEditorThread());
         this.removeTaskListener = events.addTaskListener(new TaskEvents());
+        this.removeActivityListener = events.addActivityListener(() -> later(thinking::heard));
         followPreferences();
+    }
+
+    /** «Claude está pensando…» may show: the task runs and no step, pause or question waits for the user. */
+    private boolean quiet() {
+        return task != null && !task.isEnded() && task.pending().isEmpty() && task.pacedFor().isEmpty()
+                && task.question().isEmpty();
+    }
+
+    private void thinkingChanged() {
+        if (task != null) {
+            task.thinking(thinking.showing());
+            refreshPanel();
+        }
     }
 
     private void buildPaceMenu() {
@@ -188,6 +215,7 @@ final class PresentationFeatures {
     /** «×» once the task ended. */
     private void closePanel() {
         task = null;
+        thinking.stop();
         refreshPanel();
     }
 
@@ -196,6 +224,7 @@ final class PresentationFeatures {
     private void started(TaskInfo info) {
         if (isThisCircuit(info)) {
             task = new PresentedTask(info);
+            thinking.start();
             refreshPanel();
         }
     }
@@ -206,21 +235,31 @@ final class PresentationFeatures {
         }
         if (task == null || !task.task().taskId().equals(info.taskId())) {
             task = new PresentedTask(info);
+            thinking.start();
         }
         task.planChanged(stages, currentStage, currentStep);
+        thinking.heard();
         refreshPanel();
     }
 
-    /** Runs {@code change} on the shown task when the event is about it. */
+    /** Runs {@code change} on the shown task when the event is about it: VSim heard from the AI. */
     private void onTask(String taskId, Consumer<PresentedTask> change) {
         if (task != null && task.task().taskId().equals(taskId)) {
             change.accept(task);
+            thinking.heard();
             refreshPanel();
         }
     }
 
     private void ended(TaskInfo info) {
         onTask(info.taskId(), PresentedTask::ended);
+        stopThinkingIfEnded();
+    }
+
+    private void stopThinkingIfEnded() {
+        if (task == null || task.isEnded()) {
+            thinking.stop();
+        }
     }
 
     /**
@@ -233,6 +272,7 @@ final class PresentationFeatures {
         }
         onTask(info.taskId(), reason == TaskStopReason.AI_SILENT ? PresentedTask::stoppedBecauseTheAiWentSilent
                 : PresentedTask::stopped);
+        stopThinkingIfEnded();
     }
 
     /** Moves an event to the editor thread; a view disposed meanwhile ignores it. */
@@ -286,6 +326,16 @@ final class PresentationFeatures {
         public void narrated(Narration narration) {
             later(() -> onTask(narration.taskId(), shown -> shown.narrated(narration)));
         }
+
+        @Override
+        public void questionAsked(Question question) {
+            later(() -> onTask(question.taskId(), shown -> shown.questionAsked(question)));
+        }
+
+        @Override
+        public void questionClosed(String taskId, String questionId, boolean answered) {
+            later(() -> onTask(taskId, shown -> shown.questionClosed(questionId)));
+        }
     }
 
     private final class TaskEvents implements AutomationListener {
@@ -318,6 +368,8 @@ final class PresentationFeatures {
         disposed = true;
         removePresentationListener.run();
         removeTaskListener.run();
+        removeActivityListener.run();
+        thinking.dispose();
         preferences.removeListener(preferencesListener);
         view.removeHierarchyListener(hierarchyListener);
         placement.dispose();
@@ -341,6 +393,10 @@ final class PresentationFeatures {
 
     FloatingPlacement placement() {
         return placement;
+    }
+
+    ThinkingWatch thinking() {
+        return thinking;
     }
 
     boolean isPanelShown() {

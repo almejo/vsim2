@@ -38,4 +38,18 @@ public interface PresentationListener {
      */
     default void narrated(Narration narration) {
     }
+
+    /**
+     * The AI asked the user {@code question} in VSim (IA.3): the panel or the status strip shows it. Nothing by
+     * default.
+     */
+    default void questionAsked(Question question) {
+    }
+
+    /**
+     * Question {@code questionId} of task {@code taskId} is gone: the user {@code answered} it in VSim, or it was
+     * withdrawn. Nothing by default.
+     */
+    default void questionClosed(String taskId, String questionId, boolean answered) {
+    }
 }

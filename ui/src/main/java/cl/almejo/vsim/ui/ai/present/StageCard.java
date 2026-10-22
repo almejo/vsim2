@@ -28,8 +28,8 @@ import java.util.function.Supplier;
 /**
  * One stage of the presented task in the panel (spec §5, mockup «ai-step-panel-v2»): a done stage folded to its title
  * and its check («✓ cumple la tabla»), the current one open with its steps (done struck through, current in bold and
- * marked, next in grey, after what the AI said about it in grey italics), a future one as its title with «se detalla al llegar». Colours and fonts are read at paint
- * time; the AI's words are never HTML. EDT only.
+ * marked, next in grey, after what the AI said about it in grey italics), a future one as its title with «se
+ * detalla al llegar». Colours and fonts are read at paint time; the AI's words are never HTML. EDT only.
  */
 final class StageCard extends JPanel {
 

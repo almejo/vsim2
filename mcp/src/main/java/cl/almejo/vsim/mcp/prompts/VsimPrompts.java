@@ -236,7 +236,8 @@ public final class VsimPrompts {
         };
         return "Exporta el circuito que tengo abierto en VSim para una guía o apunte: vsim_export con format "
                 + format + " y " + options + "." + wanted + " " + ASK_IF_CUT_ONLY + " Antes míralo con "
-                + "vsim_picture; si algo se ve mal (etiquetas tapadas, cables cruzando partes), dímelo antes de exportar. VSim lo deja en su carpeta de "
+                + "vsim_picture; si algo se ve mal (etiquetas tapadas, cables cruzando partes), dímelo antes de "
+                + "exportar. VSim lo deja en su carpeta de "
                 + "exportación con un nombre nuevo: dime cuál.";
     }
 

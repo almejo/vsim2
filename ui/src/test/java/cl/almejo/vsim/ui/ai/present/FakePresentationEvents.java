@@ -5,9 +5,11 @@ import cl.almejo.vsim.automation.TaskInfo;
 import cl.almejo.vsim.automation.edit.TaskStage;
 import cl.almejo.vsim.automation.present.Narration;
 import cl.almejo.vsim.automation.present.PresentationListener;
+import cl.almejo.vsim.automation.present.Question;
 import cl.almejo.vsim.automation.present.StepPreview;
 import cl.almejo.vsim.automation.present.StepStatus;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -18,6 +20,7 @@ final class FakePresentationEvents implements PresentationEvents {
 
     final List<PresentationListener> presentationListeners = new CopyOnWriteArrayList<>();
     final List<AutomationListener> taskListeners = new CopyOnWriteArrayList<>();
+    final List<Runnable> activityListeners = new CopyOnWriteArrayList<>();
 
     @Override
     public Runnable addPresentationListener(PresentationListener listener) {
@@ -29,6 +32,29 @@ final class FakePresentationEvents implements PresentationEvents {
     public Runnable addTaskListener(AutomationListener listener) {
         taskListeners.add(listener);
         return () -> taskListeners.remove(listener);
+    }
+
+    @Override
+    public Runnable addActivityListener(Runnable listener) {
+        activityListeners.add(listener);
+        return () -> activityListeners.remove(listener);
+    }
+
+    /** The AI made a call VSim served (reading the circuit, an edit…). */
+    void activity() {
+        activityListeners.forEach(Runnable::run);
+    }
+
+    void ask(Question question) {
+        presentationListeners.forEach(listener -> listener.questionAsked(question));
+    }
+
+    void closeQuestion(String taskId, String questionId, boolean answered) {
+        presentationListeners.forEach(listener -> listener.questionClosed(taskId, questionId, answered));
+    }
+
+    void pace(String taskId, Duration delay) {
+        presentationListeners.forEach(listener -> listener.stepPaced(taskId, delay));
     }
 
     void start(TaskInfo task) {

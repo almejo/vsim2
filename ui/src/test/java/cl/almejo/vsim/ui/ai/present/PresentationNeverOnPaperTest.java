@@ -56,9 +56,9 @@ import static cl.almejo.vsim.ui.UiTestSupport.place;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * The callout, the ghosts, the glow and the AI's subtitle of «Presentar» are editor chrome (spec §5): with a step proposed (a ghost, a
- * part dimmed, the callout) and one applied (the glow), PNG, SVG and a PDF sheet (colour and black and white) are the
- * same as with nothing shown.
+ * The callout, the ghosts, the glow and the AI's subtitle of «Presentar» are editor chrome (spec §5): with a step
+ * proposed (a ghost, a part dimmed, the callout), one applied (the glow) and a line said, PNG, SVG and a PDF sheet
+ * (colour and black and white) are the same as with nothing shown.
  */
 class PresentationNeverOnPaperTest {
 

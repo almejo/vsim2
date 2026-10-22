@@ -25,12 +25,16 @@ import cl.almejo.vsim.automation.edit.EditService;
 import cl.almejo.vsim.automation.edit.OrderedExecutor;
 import cl.almejo.vsim.automation.edit.TaskEnding;
 import cl.almejo.vsim.automation.edit.TaskStage;
+import cl.almejo.vsim.automation.present.AnswerOutcome;
 import cl.almejo.vsim.automation.present.Narration;
 import cl.almejo.vsim.automation.present.PresentationListener;
 import cl.almejo.vsim.automation.present.PresentationPace;
 import cl.almejo.vsim.automation.present.PresentationService;
 import cl.almejo.vsim.automation.present.PresentationSettings;
 import cl.almejo.vsim.automation.present.PresentedEdit;
+import cl.almejo.vsim.automation.present.Question;
+import cl.almejo.vsim.automation.present.QuestionAnswer;
+import cl.almejo.vsim.automation.present.Questions;
 import cl.almejo.vsim.automation.present.StageOrigin;
 import cl.almejo.vsim.automation.present.Storyboard;
 import cl.almejo.vsim.automation.present.StepOutcome;
@@ -71,6 +75,8 @@ public final class AutomationApi {
     private final SimulationOperations simulation;
     private final EditService edits;
     private final PresentationService presentation;
+    /** The AI's questions to the user (IA.3). */
+    private final Questions questions;
     private final Storyboard storyboard;
     private final StageChecks checks;
 
@@ -85,8 +91,10 @@ public final class AutomationApi {
         OrderedExecutor events = new OrderedExecutor();
         this.edits = new EditService(host, listeners, editorTimeout, events);
         this.storyboard = new Storyboard(host, edits, this::hasPendingStep);
+        this.questions = new Questions(edits, host.stepPacer(), presentationListeners, events,
+                Questions.MAXIMUM_ANSWER_WAIT);
         this.presentation = new PresentationService(host, edits, presentationListeners, events,
-                PresentationService.MAXIMUM_STEP_WAIT, storyboard);
+                PresentationService.MAXIMUM_STEP_WAIT, storyboard, questions::hasOpenQuestion);
         this.reads = new Reads(host, editorTimeout);
         this.simulation = new SimulationOperations(host);
         this.checks = new StageChecks(new StageChecks.Measurements() {
@@ -342,6 +350,31 @@ public final class AutomationApi {
         return presentation.say(taskId, text);
     }
 
+    // --- The AI's questions in VSim (IA.3): see Questions ---
+
+    /**
+     * {@code vsim_ask_user}: the «Presentar» panel (or the status strip in working mode) shows {@code text} with a
+     * button per choice and, when {@code allowText}, a field to write the answer. One question per task at a time.
+     */
+    public Question askUser(String taskId, String text, List<String> choices, boolean allowText) {
+        return questions.ask(taskId, text, choices, allowText);
+    }
+
+    /** {@code vsim_await_answer}: the user's answer, waiting at most {@code wait} (capped at 30 s). */
+    public AnswerOutcome awaitAnswer(String questionId, Duration wait) {
+        return questions.await(questionId, wait);
+    }
+
+    /** {@code vsim_withdraw_question}: the user answered in the chat; VSim takes the question away. */
+    public void withdrawQuestion(String questionId) {
+        questions.withdraw(questionId);
+    }
+
+    /** The editor: the user answered in VSim; false when the question is closed or does not take that answer. */
+    public boolean answerQuestion(String questionId, QuestionAnswer answer) {
+        return questions.answer(questionId, answer);
+    }
+
     /**
      * {@code await_step}: what became of the task's proposed step, waiting at most
      * {@link PresentationService#MAXIMUM_STEP_WAIT}: {@code APPLIED} with the receipt, {@code STALE} (read again and
@@ -499,11 +532,13 @@ public final class AutomationApi {
     /** The editor: {@code document}'s last window closed; its proposed step is dropped. */
     public void documentClosed(DocumentId document) {
         presentation.documentClosed(document);
+        questions.withdrawDocument(document);
     }
 
     /** The editor: the AI was turned off or VSim quits; every proposed step is dropped and every wait ends. */
     public void stopPresenting() {
         presentation.stopAll();
+        questions.withdrawAll();
     }
 
     /** Begins an AI task on an open circuit (spec §3); listeners hear it start and its plan. */
@@ -523,6 +558,7 @@ public final class AutomationApi {
     /** Ends a task; listeners hear it end with the elements it changed. Its layout-only guides go away. */
     public TaskInfo endTask(String taskId) {
         presentation.taskEnding(taskId);
+        questions.withdrawTask(taskId);
         storyboard.taskEnding(taskId);
         return edits.endTask(taskId);
     }
@@ -533,6 +569,7 @@ public final class AutomationApi {
      */
     public TaskEnding endTask(String taskId, boolean keepLayoutGuides) {
         presentation.taskEnding(taskId);
+        questions.withdrawTask(taskId);
         storyboard.taskEnding(taskId);
         return edits.endTask(taskId, keepLayoutGuides);
     }
@@ -540,6 +577,7 @@ public final class AutomationApi {
     /** «Detener»: stops the task; its applied edits stay, its proposed step is dropped and its next ones are refused. */
     public void stopTask(String taskId) {
         presentation.stop(taskId);
+        questions.withdrawTask(taskId);
     }
 
     /** «Deshacer lo que hizo la IA»: undoes the task's steps from the top, never past the user's own edit. */
