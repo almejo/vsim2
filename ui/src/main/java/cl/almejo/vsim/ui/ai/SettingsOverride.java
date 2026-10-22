@@ -42,6 +42,11 @@ public final class SettingsOverride {
         return windowPreferences.layer().map(layer -> new SettingsOverride(windowPreferences, layer));
     }
 
+    /** The preferences of this override's window (a panel of another window of the circuit hears them, IA.1 M10). */
+    AppPreferences windowPreferences() {
+        return windowPreferences;
+    }
+
     /**
      * Shows {@code value} for {@code setting} in this window; {@link AutomationError#INVALID_PARAMETER} (and nothing
      * changes) when it is not one of the setting's allowed values.

@@ -45,10 +45,10 @@ final class AiStatusFeatures {
     private final Optional<SettingsOverride> override;
     private final JPanel strip = new JPanel(new MigLayout("insets 0, gap 6", "[][][][][]"));
     private final JLabel text = AiPanel.plainText("");
-    private final JButton stopButton = new JButton(Messages.text("ai.status.stop"));
-    private final JButton showButton = new JButton(Messages.text("ai.status.show"));
-    private final JButton undoButton = new JButton(Messages.text("ai.status.undo"));
-    private final JButton closeButton = new JButton("×");
+    private final JButton stopButton = AiIcons.on(new JButton(Messages.text("ai.status.stop")), AiIcons.STOP);
+    private final JButton showButton = AiIcons.on(new JButton(Messages.text("ai.status.show")), AiIcons.SHOW);
+    private final JButton undoButton = AiIcons.on(new JButton(Messages.text("ai.status.undo")), AiIcons.UNDO);
+    private final JButton closeButton = AiIcons.on(new JButton(), AiIcons.CLOSE);
     private final AiChangeGlowOverlay glow;
     private final Runnable removeOverlay;
     private final Runnable removeServiceListener;

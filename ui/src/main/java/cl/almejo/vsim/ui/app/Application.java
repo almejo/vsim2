@@ -172,7 +172,8 @@ public final class Application {
         this.services = new EditorServices(PainterRegistry.standard(), appearance, preferences, library,
                 editorExtensions(libraryService, SwingLibraryDialogs.INSTANCE, this::initialDirectory,
                         this::rememberDirectory,
-                        new AiExtension(aiServer, automationHost::documentId, proposals), presentation));
+                        new AiExtension(aiServer, automationHost::documentId, proposals,
+                                new ApplicationWindows()::settingsOverride), presentation));
         // Lives as long as the application: it follows the preferences and is never disposed.
         this.themeManager = ThemeManager.forCurrentPlatform(preferences, appearance);
         this.textFontManager = new TextFontManager(preferences);

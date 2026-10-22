@@ -58,7 +58,7 @@ class AiPanelTest {
     @Test
     void offByDefaultWithActivarAndTheDataNote() {
         assertThat(panel.stateLabel().getText()).isEqualTo("Apagada");
-        assertThat(panel.toggleButton().getText()).isEqualTo("Activar");
+        assertThat(panel.toggleButton().getText()).isEqualTo("Encender");
         assertThat(panel.nextFreePortButton().isVisible()).isFalse();
         assertThat(panel.dataNote().getText()).isEqualTo("Lo que la IA lee del circuito se envía a su proveedor");
         assertThat(panel.settingsSection().isVisible()).isFalse();
@@ -71,7 +71,7 @@ class AiPanelTest {
 
         panel.toggleButton().doClick();
         assertThat(panel.stateLabel().getText()).isEqualTo("Escuchando en 127.0.0.1:" + port);
-        assertThat(panel.toggleButton().getText()).isEqualTo("Desactivar");
+        assertThat(panel.toggleButton().getText()).isEqualTo("Apagar");
 
         service.requestServed();
         assertThat(panel.stateLabel().getText()).isEqualTo("Claude Code conectado");
@@ -95,7 +95,7 @@ class AiPanelTest {
                     .isEqualTo("El puerto " + other.getLocalPort() + " está ocupado por otro programa");
             assertThat(panel.nextFreePortButton().isVisible()).isTrue();
             assertThat(panel.nextFreePortButton().getText()).isEqualTo("Usar el siguiente libre");
-            assertThat(panel.toggleButton().getText()).isEqualTo("Activar");
+            assertThat(panel.toggleButton().getText()).isEqualTo("Encender");
 
             panel.nextFreePortButton().doClick();
 

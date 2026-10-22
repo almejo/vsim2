@@ -4,6 +4,7 @@ import cl.almejo.vsim.automation.StageUndoOutcome;
 import cl.almejo.vsim.automation.present.PresentationPace;
 import cl.almejo.vsim.automation.present.PresentationSettings;
 import cl.almejo.vsim.automation.present.StepStatus;
+import cl.almejo.vsim.ui.ai.AiIcons;
 import cl.almejo.vsim.ui.ai.AiPanel;
 import cl.almejo.vsim.ui.ai.SettingsOverride;
 import cl.almejo.vsim.ui.app.AppPreferences;
@@ -76,6 +77,8 @@ final class PresentationPanel extends JPanel {
     private final JButton menuButton = headerButton("⋯");
     private final JButton foldButton = headerButton(FOLD_MARK);
     private final JButton closeButton = headerButton("×");
+    /** «Me detuve: falló la comprobación de …», under the header so it shows folded too (IA.3 «Speed»). */
+    private final StageCard.Line heldNotice = new StageCard.Line(" ", StageCard.Tone.ACCENT, StageCard.Style.BOLD);
     private final StackLayout bodyLayout = new StackLayout(6);
     private final JPanel body = new JPanel(bodyLayout);
     private final StageCard.Line notice = new StageCard.Line(" ", StageCard.Tone.NORMAL, StageCard.Style.PLAIN);
@@ -88,7 +91,7 @@ final class PresentationPanel extends JPanel {
             JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
     private final JButton nextButton = new JButton(Messages.text("ai.present.next"));
     private final JButton toStageEndButton = new JButton(Messages.text("ai.present.toStageEnd"));
-    private final JButton stopButton = new JButton(Messages.text("ai.present.stop"));
+    private final JButton stopButton = AiIcons.on(new JButton(Messages.text("ai.present.stop")), AiIcons.STOP);
     private final JButton undoStageButton = new JButton(Messages.text("ai.present.undoStage"));
     private final JButton keepOnlyResultButton = new JButton(Messages.text("ai.present.keepOnlyResult"));
     private final ButtonRow stepRow = new ButtonRow(nextButton, toStageEndButton);
@@ -161,6 +164,8 @@ final class PresentationPanel extends JPanel {
             handle.setCursor(move);
         }
         add(headerBar);
+        heldNotice.setVisible(false);
+        add(heldNotice);
     }
 
     private void buildBody() {
@@ -174,7 +179,11 @@ final class PresentationPanel extends JPanel {
         settingsList.setOpaque(false);
         continuousButton.addActionListener(event -> windowPreferences.setAiPace(PresentationPace.CONTINUOUS));
         stepByStepButton.addActionListener(event -> windowPreferences.setAiPace(PresentationPace.STEP_BY_STEP));
-        nextButton.addActionListener(event -> ifShown(task -> controls.next(task.task().taskId())));
+        nextButton.addActionListener(event -> ifShown(task -> {
+            task.continued();
+            controls.next(task.task().taskId());
+            show(task, aiSwitched);
+        }));
         toStageEndButton.addActionListener(event -> ifShown(task -> controls.toStageEnd(task.task().taskId())));
         stopButton.addActionListener(event -> ifShown(task -> controls.stop(task.task().taskId())));
         undoStageButton.addActionListener(event -> ifShown(task -> controls.undoStage(task.task().taskId(),
@@ -254,6 +263,7 @@ final class PresentationPanel extends JPanel {
         header.setText(Messages.format("ai.present.header", task.task().title()));
         stageLabel.setText(stageText(task));
         showNotice(task);
+        showHeld(task);
         showCards(task);
         refreshButtons();
         relayout();
@@ -293,6 +303,19 @@ final class PresentationPanel extends JPanel {
         }
         notice.setText(text.orElse(" "));
         notice.setVisible(text.isPresent());
+    }
+
+    /**
+     * «De corrido» stopped after a failed check: said plainly under the header, in the accent, until the AI checks
+     * again and passes or the user presses «Siguiente». «Paso a paso» waits at every step anyway: nothing to say.
+     */
+    private void showHeld(PresentedTask task) {
+        Optional<String> text = task.heldAfterCheck()
+                .filter(stage -> windowPreferences.aiPace() == PresentationPace.CONTINUOUS && !task.isEnded())
+                .filter(stage -> stage < task.stages().size())
+                .map(stage -> Messages.format("ai.present.heldAfterCheck", task.stages().get(stage).title()));
+        heldNotice.setText(text.orElse(" "));
+        heldNotice.setVisible(text.isPresent());
     }
 
     /** What «Deshacer etapa» did, in the IA.1 words where they fit. */
@@ -336,6 +359,9 @@ final class PresentationPanel extends JPanel {
         stepRow.setVisible(stepRow.hasVisibleButton());
         stageRow.setVisible(stageRow.hasVisibleButton());
         paceHint.setText(paceHintText());
+        if (shown != null) {
+            showHeld(shown); // the pace may have changed
+        }
     }
 
     private String paceHintText() {
@@ -458,6 +484,10 @@ final class PresentationPanel extends JPanel {
 
     JLabel notice() {
         return notice;
+    }
+
+    StageCard.Line heldNotice() {
+        return heldNotice;
     }
 
     JLabel paceHint() {

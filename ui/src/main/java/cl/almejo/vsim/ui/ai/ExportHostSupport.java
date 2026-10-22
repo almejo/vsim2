@@ -359,11 +359,13 @@ final class ExportHostSupport {
         for (ShownWindow window : windowsOf.apply(document)) {
             StatusBar statusBar = window.view().statusBar();
             if (canOpen) {
-                statusBar.showNotice(notice, Messages.text("ai.export.openFolder"), () -> {
+                Runnable openFolder = () -> {
                     if (!folderOpener.open(file)) {
                         statusBar.showNotice(Messages.format("ai.export.cannotOpen", folder.toString()));
                     }
-                });
+                };
+                statusBar.showNotice(notice, Messages.text("ai.export.openFolder"), AiIcons.icon(AiIcons.FOLDER),
+                        openFolder);
             } else {
                 statusBar.showNotice(notice);
             }
