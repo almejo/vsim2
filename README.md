@@ -20,7 +20,7 @@ Está hecho en Java 21 con Swing. Es la tercera versión, después de
 Jar ejecutable, con todas las dependencias adentro:
 
     ./gradlew :ui:executableJar          # deja ui/build/libs/vsim2-<versión>.jar
-    java -jar ui/build/libs/vsim2-2.0.0-SNAPSHOT.jar
+    java -jar ui/build/libs/vsim2-0.1.jar
 
 `./gradlew check` construye el jar y verifica su manifiesto y contenido (`:ui:executableJarTest`).
 

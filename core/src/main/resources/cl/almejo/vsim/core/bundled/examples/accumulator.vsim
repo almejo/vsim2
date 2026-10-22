@@ -1,6 +1,6 @@
 {
   "format" : "vsim2",
-  "savedWith" : "2.0.0-SNAPSHOT",
+  "savedWith" : "0.1",
   "formatVersion" : 2,
   "kind" : "circuit",
   "name" : "Acumulador",

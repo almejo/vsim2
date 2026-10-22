@@ -5,6 +5,11 @@ Los cambios de VSim 2 que se notan al usarlo, del más nuevo al más antiguo. El
 sección es un conjunto de funciones, con las fechas en que se hizo. El detalle de cada función está en
 [docs/funciones.md](docs/funciones.md).
 
+## Versión 0.1 — 2026-10-22
+
+Primera versión publicada (jar en GitHub Releases). Incluye todo lo de abajo, hasta «IA.3: cierre de la IA».
+Desde ahora cada versión sube de a 0.1, normalmente al terminar un hito.
+
 ## 2026-10-22 — Cierre de la IA (MCP)
 
 ### Agregado

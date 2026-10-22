@@ -2,7 +2,7 @@ subprojects {
     apply(plugin = "java")
 
     group = "cl.almejo.vsim"
-    version = "2.0.0-SNAPSHOT"
+    version = "0.1"
 
     repositories { mavenCentral() }
 

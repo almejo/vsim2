@@ -15,7 +15,7 @@ public final class VsimVersion {
     private VsimVersion() {
     }
 
-    /** The app version, e.g. {@code 2.0.0-SNAPSHOT}. */
+    /** The app version, e.g. {@code 0.1}. */
     public static String current() {
         return CURRENT;
     }

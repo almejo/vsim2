@@ -35,7 +35,7 @@ class FileHeaderTest {
 
     @Test
     void theAppVersionComesFromTheBuild() {
-        assertThat(VsimVersion.current()).matches("\\d+\\.\\d+\\.\\d+.*");
+        assertThat(VsimVersion.current()).matches("\\d+\\.\\d+(\\.\\d+)?.*");
     }
 
     @Test
