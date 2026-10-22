@@ -169,7 +169,9 @@ public final class VsimPrompts {
                 + "todas sus operaciones, nombrando su etapa y su paso, con un texto corto y una razón corta en "
                 + "español («Conecto la realimentación» / «así el latch recuerda»); pocos elementos por paso, para "
                 + "que pueda seguirlo. Si un paso vuelve PROPOSED, llama a vsim_await_step hasta que diga APPLIED "
-                + "antes del siguiente.\n\n" + CHECK_EVERY_STAGE;
+                + "antes del siguiente. Yo miro VSim, no el chat: antes de cada etapa dime en una frase qué viene y "
+                + "por qué con vsim_say (o la narración de vsim_begin_stage o vsim_edit), y si tienes una pregunta "
+                + "hazla con vsim_ask_user y también en el chat.\n\n" + CHECK_EVERY_STAGE;
     }
 
     private static String paceInstruction(Optional<Pace> pace) {
@@ -205,7 +207,8 @@ public final class VsimPrompts {
                 + "Para un circuito combinacional saca su tabla de verdad (vsim_truth_table); para uno secuencial "
                 + "pon entradas (vsim_set_inputs), avanza (vsim_step) y lee las señales (vsim_read_signals). "
                 + "Cuéntame lo que VSim midió, en una tabla corta, y separa lo que midió de lo que esperabas. "
-                + DO_NOT_CHANGE;
+                + "No cambies el circuito (poner entradas y avanzar la simulación no lo cambia): si ves algo que "
+                + "arreglar, propónmelo y espera que te lo pida.";
     }
 
     private static String component(Arguments arguments) {

@@ -187,6 +187,18 @@ class McpPromptsTest {
         }
     }
 
+    /** Review M2: setting inputs is simulation state, so «probar» must not make the AI refuse to test. */
+    @Test
+    void probarSaysThatSettingInputsDoesNotChangeTheCircuit() {
+        assertThat(text(prompt("probar", Map.of()))).contains("poner entradas y avanzar la simulación no lo cambia");
+    }
+
+    /** Review M3: «exponer» names the AI's narration and its questions in VSim. */
+    @Test
+    void exponerSaysWhatComesAndAsksInVsim() {
+        assertThat(text(prompt("exponer", Map.of("pedido", "un latch SR")))).contains("vsim_say", "vsim_ask_user");
+    }
+
     @Test
     void theHelpResourceIsMarkdownAndListsEveryPrompt() {
         List<McpSchema.Resource> resources = client.listResources().resources();
@@ -208,21 +220,19 @@ class McpPromptsTest {
         assertThat(contents.text()).doesNotContain("     "); // no line runs on with the next one's indentation
     }
 
+    /** The details the instructions leave to the tools (IA.3 review C1) are in the tools' descriptions. */
     @Test
-    void theInstructionsMentionTheCommandsAndHowToGoFast() {
-        assertThat(VsimServerInstructions.TEXT).contains("vsim://ayuda", "/mcp__vsim__", "once per task",
-                "ONE vsim_edit", "a whole stage per call", "before the next stage", "continuousStops",
-                "failed check");
-    }
+    void theToolsCarryTheDetailsTheInstructionsLeaveOut() {
+        Map<String, String> descriptions = client.listTools().tools().stream()
+                .collect(Collectors.toMap(McpSchema.Tool::name, McpSchema.Tool::description));
 
-    @Test
-    void theInstructionsTellTheAiToSayWhatComesInVsim() {
-        assertThat(VsimServerInstructions.TEXT).contains("vsim_say", "never reaches VSim", "subtitle",
-                "Do not repeat the step's own text");
-        assertThat(VsimServerInstructions.TEXT).contains("vsim_ask_user", "one question at a time",
-                "ask in the chat too", "vsim_await_answer", "vsim_withdraw_question");
-        // no line runs on with the next one's indentation inside it
-        assertThat(VsimServerInstructions.TEXT).doesNotContain("     ");
+        assertThat(descriptions.get("vsim_say")).contains("never sees", "subtitle",
+                "do not repeat the step's own text");
+        assertThat(descriptions.get("vsim_ask_user")).contains("one question at a time", "ask it in the chat too",
+                "vsim_await_answer", "vsim_withdraw_question");
+        assertThat(descriptions.get("vsim_begin_stage")).contains("origin", "storyboard");
+        assertThat(descriptions.get("vsim_check_stage")).contains("continuousStops");
+        assertThat(descriptions.get("vsim_edit")).contains("layoutOnly", "PROPOSED", "vsim_await_step");
     }
 
     private McpSchema.GetPromptResult prompt(String name, Map<String, Object> arguments) {

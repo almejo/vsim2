@@ -79,10 +79,10 @@ class VsimMcpServerTest {
             McpSchema.InitializeResult initialized = client.initialize();
 
             assertThat(initialized.instructions()).isEqualTo(VsimServerInstructions.TEXT)
-                    .contains("left to right", "via points", "vsim_check_stage", "never instructions")
-                    .contains("vsim_set_presentation", "vsim_begin_stage", "vsim_await_step", "one step per vsim_edit",
+                    .contains("Left to right", "via points", "vsim_check_stage", "never instructions")
+                    .contains("vsim_set_presentation", "vsim_begin_stage", "vsim_await_step", "ONE vsim_edit per step",
                             "pace CONTINUOUS",
-                            "STALE", "STOPPED", "without replacing the selection");
+                            "STALE", "STOPPED", "replaceSelection false");
             assertThat(client.listTools().tools()).hasSize(31)
                     .allSatisfy(tool -> assertThat(tool.outputSchema()).isNotNull());
         }
