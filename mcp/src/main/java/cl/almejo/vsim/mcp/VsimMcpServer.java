@@ -2,6 +2,8 @@ package cl.almejo.vsim.mcp;
 
 import cl.almejo.vsim.automation.AutomationApi;
 import cl.almejo.vsim.core.VsimVersion;
+import cl.almejo.vsim.mcp.prompts.HelpResource;
+import cl.almejo.vsim.mcp.prompts.VsimPrompts;
 import cl.almejo.vsim.mcp.tools.VsimTools;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.modelcontextprotocol.json.McpJsonMapper;
@@ -67,11 +69,15 @@ public final class VsimMcpServer {
         McpSyncServer mcpServer = McpServer.sync(transport)
                 .serverInfo(SERVER_NAME, VsimVersion.current())
                 .jsonMapper(jsonMapper)
-                .capabilities(McpSchema.ServerCapabilities.builder().tools(false).build())
+                .capabilities(McpSchema.ServerCapabilities.builder().tools(false).prompts(false)
+                        .resources(false, false).build())
                 .instructions(VsimServerInstructions.TEXT)
                 // Each tool checks its own input, so a bad one is answered with {error, message, recovery}.
                 .validateToolInputs(false)
                 .tools(VsimTools.specifications(api, jsonMapper))
+                // IA.3: the commands that teach the AI (read-only texts; the tools and their rules stay the same).
+                .prompts(VsimPrompts.specifications())
+                .resources(HelpResource.specification())
                 .build();
         Server jetty = new Server(threadPool());
         jetty.setStopTimeout(STOP_GRACE.toMillis());
