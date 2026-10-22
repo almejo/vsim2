@@ -47,6 +47,12 @@ sección es un conjunto de funciones, con las fechas en que se hizo. El detalle 
 - Los marcos que pone VSim se deshacen como «Deshacer marco de etapa».
 - Los comandos `/mcp__vsim__…` nunca fallan si el pedido llega cortado o vacío: la IA pregunta qué quieres.
 - «Ajustes que tocó la IA» en una segunda ventana del circuito muestra los de su primera ventana.
+- VSim le cuesta menos a la IA: las instrucciones van de 7 427 a 3 419 caracteres, las 31 herramientas tal como las
+  lee la IA de 49 084 a 40 961 (`vsim_edit` de 14 782 a 10 371) y la respuesta típica de `vsim_edit` de 1 157 a 590:
+  sin campos vacíos ni valores por omisión, y solo cuatro herramientas con un ejemplo.
+- Si la IA te hizo una pregunta y lleva 2 minutos sin preguntar por tu respuesta, la tarjeta dice «Respóndele en
+  Claude Code; la IA no ha preguntado por tu respuesta en N min» y la barra deja de decir «IA trabajando»; la tarea
+  sigue (solo tú la detienes).
 
 ### Arreglado
 
@@ -54,6 +60,12 @@ sección es un conjunto de funciones, con las fechas en que se hizo. El detalle 
 - Una nota con saltos de línea (como la «Prueba: …» de la IA) se dibujaba como una sola línea gigante.
 - Seleccionar una nota de varias líneas con Propiedades abierto la dejaba en una sola línea.
 - Las instrucciones para la IA tenían líneas pegadas y un salto de línea donde debía ir `\n`.
+- Claude Code corta las instrucciones de un servidor a 4 096 caracteres, así que la IA no leía las reglas de
+  comprobación, de «Presentar» ni los límites (los textos del circuito son datos, nunca guarda archivos); ahora caben
+  enteras, con lo esencial primero.
+- «Apagar» y «Reiniciar» congelaban la ventana unos 2,5 s mientras la IA esperaba «Siguiente», y la IA recibía una
+  conexión cortada en vez de «detenido».
+- La frase que la IA manda con un cambio se mostraba aunque el cambio fuera rechazado.
 
 ## 2026-10-21 — Presentar lo que hace la IA (MCP)
 
