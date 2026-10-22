@@ -9,7 +9,7 @@ import java.awt.Color;
  * The colour of the AI's state text (spec §2: in words and colour; red with text, never colour alone), worked out
  * from the current theme each time: never cache it, the theme changes live.
  */
-final class AiColors {
+public final class AiColors {
 
     private AiColors() {
     }
@@ -25,13 +25,13 @@ final class AiColors {
         };
     }
 
-    static Color foreground() {
+    public static Color foreground() {
         Color color = UIManager.getColor("Label.foreground");
         return color != null ? color : Color.BLACK;
     }
 
     /** Grey that still reads as text on both themes. */
-    static Color muted() {
+    public static Color muted() {
         return ReadableColors.dark() ? new Color(0xB0B4BA) : new Color(0x5F6368);
     }
 

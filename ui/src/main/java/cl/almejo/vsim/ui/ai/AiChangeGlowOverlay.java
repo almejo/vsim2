@@ -27,9 +27,9 @@ import java.util.function.Supplier;
  * The brief glow over what an AI task changed when it ends (spec §4: «changed parts glow briefly»): the step mode's
  * glow ({@link StepHighlight}: fully lit, then fading out within 800 ms) in the scheme's selection colour, a band over
  * each changed wire and a rounded outline around each changed part. Elements no longer in the document are skipped.
- * Its timer runs only while the glow is on. EDT only.
+ * Its timer runs only while the glow is on. Also lights each step «Presentar» applies (IA.2). EDT only.
  */
-final class AiChangeGlowOverlay implements CanvasOverlay {
+public final class AiChangeGlowOverlay implements CanvasOverlay {
 
     static final int TIMER_MILLISECONDS = 33;
     /** Opacity of a fully lit glow (0–255), as the step mode's. */
@@ -51,7 +51,7 @@ final class AiChangeGlowOverlay implements CanvasOverlay {
     private boolean disposed;
 
     /** {@code scheme} is read on every paint; {@code repaint} runs on every change and fade step. */
-    AiChangeGlowOverlay(Supplier<ColorScheme> scheme, ComponentTypeRegistry registry, Runnable repaint,
+    public AiChangeGlowOverlay(Supplier<ColorScheme> scheme, ComponentTypeRegistry registry, Runnable repaint,
                         LongSupplier nanoClock) {
         this.scheme = scheme;
         this.registry = registry;
@@ -61,7 +61,7 @@ final class AiChangeGlowOverlay implements CanvasOverlay {
     }
 
     /** Lights {@code changed} from now; nothing when it is empty or after dispose. */
-    void show(Set<ElementId> changed) {
+    public void show(Set<ElementId> changed) {
         if (disposed || changed.isEmpty()) {
             return;
         }
@@ -72,7 +72,7 @@ final class AiChangeGlowOverlay implements CanvasOverlay {
         repaint.run();
     }
 
-    Optional<StepHighlight> current() {
+    public Optional<StepHighlight> current() {
         return Optional.ofNullable(glow);
     }
 
@@ -89,7 +89,7 @@ final class AiChangeGlowOverlay implements CanvasOverlay {
         repaint.run();
     }
 
-    void dispose() {
+    public void dispose() {
         disposed = true;
         glow = null;
         timer.stop();
