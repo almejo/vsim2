@@ -1,8 +1,13 @@
 package cl.almejo.vsim.automation;
 
+import cl.almejo.vsim.automation.check.TextMeasure;
+import cl.almejo.vsim.automation.present.PresentationPace;
 import cl.almejo.vsim.automation.present.PresentationSettings;
 import cl.almejo.vsim.automation.present.StepPacer;
 import cl.almejo.vsim.core.geometry.GridPoint;
+
+import java.time.Duration;
+import java.util.Optional;
 
 /**
  * The editor-side services for «Presentar» (IA.2, spec §4, §5): the presentation mode of the window that shows a
@@ -28,10 +33,27 @@ public interface PresentationHost {
     }
 
     /**
+     * Editor thread: shows {@code pace} and {@code pause} (when given) in the temporary layer of the window of
+     * {@code document}, as the AI's editor settings (spec §7): never saved, never seen by the other windows, given
+     * back when the task ends; the user's own choice in that window replaces them.
+     */
+    default void layerPresentation(DocumentId document, Optional<PresentationPace> pace, Optional<Duration> pause) {
+        throw new AutomationException(AutomationError.NOT_ALLOWED, "This editor has no presentation pace to change");
+    }
+
+    /**
      * Editor thread: the windows of {@code document} travel smoothly to {@code origin}, where the AI builds the stage
      * that begins (spec §6; reduced motion respected). Nothing by default.
      */
     default void travelToStageOrigin(DocumentId document, GridPoint origin) {
+    }
+
+    /**
+     * Editor thread: where texts are drawn, so a stage's frame encloses every line of its notes and labels (the
+     * editor's real font); {@link TextMeasure#APPROXIMATE} by default.
+     */
+    default TextMeasure textMeasure() {
+        return TextMeasure.APPROXIMATE;
     }
 
     /** Any thread: the clock and timer of «De corrido». */

@@ -73,6 +73,7 @@ import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.awt.event.WindowStateListener;
 import java.awt.geom.Point2D;
+import java.awt.geom.Rectangle2D;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -126,6 +127,8 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     private final List<Consumer<Tool>> toolListeners = new CopyOnWriteArrayList<>();
     private final List<Consumer<SimulationSnapshot>> snapshotListeners = new CopyOnWriteArrayList<>();
     private final List<Runnable> viewListeners = new CopyOnWriteArrayList<>();
+    /** Told when the view moves by anything but a travel (the user's pan or zoom, a centring). */
+    private final List<Runnable> viewTakenListeners = new CopyOnWriteArrayList<>();
     private final List<Consumer<CircuitFragment>> incomingFragmentListeners = new CopyOnWriteArrayList<>();
     private final List<CanvasOverlay> overlays = new CopyOnWriteArrayList<>();
     private final List<Function<Point2D, Optional<String>>> toolTipOverrides = new CopyOnWriteArrayList<>();
@@ -243,6 +246,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
             if (!movingWithTheTravel) {
                 viewAnimator.stop(); // the user (or another move) took the view: it stays where it is
                 userZoom = viewport.zoom();
+                viewTakenListeners.forEach(Runnable::run);
             }
         });
     }
@@ -812,11 +816,22 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
      * the last one the user chose, so after a zoom-out to fit, the next target comes back to it.
      */
     public void travelTo(Bounds bounds) {
+        travelTo(bounds, new Rectangle2D.Double(0, 0, getWidth(), getHeight()));
+    }
+
+    /**
+     * As {@link #travelTo(Bounds)}, but centring {@code bounds} in {@code within} (pane pixels: the part of the pane
+     * left free by something floating over it) and zooming out only as far as needed for them to fit there.
+     */
+    public void travelTo(Bounds bounds, Rectangle2D within) {
         int width = getWidth();
         int height = getHeight();
-        ViewState target = new ViewState(
-                Math.max(Viewport.MINIMUM_ZOOM, Math.min(userZoom, fittingZoom(bounds, width, height))),
-                bounds.x() + bounds.width() / 2.0, bounds.y() + bounds.height() / 2.0);
+        double zoom = Math.max(Viewport.MINIMUM_ZOOM, Math.min(userZoom,
+                fittingZoom(bounds, (int) Math.round(within.getWidth()), (int) Math.round(within.getHeight()))));
+        double pixels = GridPoint.PIXELS_PER_UNIT * zoom;
+        ViewState target = new ViewState(zoom,
+                bounds.x() + bounds.width() / 2.0 - (within.getCenterX() - width / 2.0) / pixels,
+                bounds.y() + bounds.height() / 2.0 - (within.getCenterY() - height / 2.0) / pixels);
         if (disposed || width <= 0 || height <= 0 || !animateViewMoves.getAsBoolean()) {
             viewAnimator.stop();
             movingWithTheTravel = true; // a jump to a target is not the user's zoom either
@@ -917,6 +932,15 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
             remove(component);
             repaint(last);
         };
+    }
+
+    /**
+     * Runs {@code listener} when the view moves by anything but a travel ({@link #travelTo}) or a layout
+     * compensation: the user panned or zoomed, or a command centred it. Returns its removal.
+     */
+    public Runnable addViewTakenListener(Runnable listener) {
+        viewTakenListeners.add(Objects.requireNonNull(listener, "listener"));
+        return () -> viewTakenListeners.remove(listener);
     }
 
     /** Runs {@code listener} after every pan or zoom, whoever made it. Returns its removal. */

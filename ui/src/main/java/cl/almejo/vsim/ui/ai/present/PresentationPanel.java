@@ -10,20 +10,32 @@ import cl.almejo.vsim.ui.i18n.Messages;
 import net.miginfocom.swing.MigLayout;
 
 import javax.swing.AbstractAction;
+import javax.swing.BorderFactory;
 import javax.swing.ButtonGroup;
 import javax.swing.JButton;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
+import javax.swing.JMenu;
 import javax.swing.JMenuItem;
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
 import javax.swing.JRadioButtonMenuItem;
+import javax.swing.JScrollPane;
 import javax.swing.JToggleButton;
 import javax.swing.KeyStroke;
+import javax.swing.Scrollable;
+import javax.swing.SwingConstants;
 import javax.swing.UIManager;
+import java.awt.BorderLayout;
 import java.awt.Color;
+import java.awt.Cursor;
+import java.awt.Dimension;
+import java.awt.FlowLayout;
+import java.awt.Insets;
+import java.awt.Rectangle;
 import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -31,48 +43,68 @@ import java.util.Optional;
 import java.util.function.Consumer;
 
 /**
- * The floating «Presentar» panel of one window (spec §5, mockups B + C, «ai-step-panel-v2»): the header «IA · <task>»
- * with «Etapa n / m», the «De corrido» | «Paso a paso» switch, the stages as {@link StageCard}s, «Siguiente ▸»,
- * «Hasta fin de etapa», «Detener», «Deshacer etapa» and, at the end, «Dejar solo el resultado»; the folded «Ajustes
- * que tocó la IA (n)» and the pause between steps in its menu. It shows a {@link PresentedTask} and asks the
- * {@link PresentationControls}; the pace and the pause are the window's preferences. Enter is «Siguiente» while it
- * has the focus. EDT only.
+ * The floating «Presentar» panel of one window (spec §5, mockups B + C, «ai-step-panel-v2»): a compact card with the
+ * header on one row («⋮⋮» grip, «IA · <task>», «Etapa n / m», ⋯, fold and, at the end, ×), the «De corrido» | «Paso a
+ * paso» segmented switch with a line saying what the pace does (and «Siguiente paso en …» while a step waits for its
+ * pause), the stages as {@link StageCard}s (scrolling when the pane is short), «Siguiente ▸», «Hasta fin de etapa»,
+ * «Detener», «Deshacer etapa» and, at the end, only «Deshacer etapa», «Dejar solo el resultado» and ×; the folded
+ * «Ajustes que tocó la IA (n)»; the pause and «Mover a ▸» in its menu. Long texts end in «…» with the whole text in
+ * the tooltip, never cut by the edge. It shows a {@link PresentedTask} and asks the {@link PresentationControls}; the
+ * pace and the pause are the window's preferences. Enter is «Siguiente» while it has the focus. EDT only.
  */
 final class PresentationPanel extends JPanel {
 
+    /** The card's width when the pane has room for it. */
+    static final int PREFERRED_WIDTH = 340;
+    /** The stage cards keep at least this height, scrolling, when the pane is short. */
+    static final int MINIMUM_CARDS_HEIGHT = 48;
     /** The pauses the menu offers, within {@link PresentationSettings#MINIMUM_PAUSE} … {@code MAXIMUM_PAUSE}. */
     static final List<Integer> PAUSE_CHOICES_MILLIS = List.of(300, 500, 1000, 2000, 3000, 5000);
     private static final String NEXT_KEY = "ai.present.next";
     private static final String FOLD_MARK = "▾";
     private static final String UNFOLD_MARK = "▸";
+    private static final String GRIP_MARK = "⋮⋮";
 
     private final AppPreferences windowPreferences;
     private final PresentationControls controls;
     private final Optional<SettingsOverride> override;
+    private final JPanel headerBar = new JPanel(new BorderLayout(6, 0));
+    private final JLabel grip = new JLabel(GRIP_MARK);
     private final StageCard.Line header = new StageCard.Line(" ", StageCard.Tone.NORMAL, StageCard.Style.BOLD);
     private final JLabel stageLabel = new JLabel(" ");
-    private final JButton menuButton = new JButton("⋯");
-    private final JButton foldButton = new JButton(FOLD_MARK);
-    private final JButton closeButton = new JButton("×");
-    private final JPanel body = new JPanel(new MigLayout("insets 0, wrap 1, gap 0 6", "[grow, fill]"));
-    private final JLabel notice = AiPanel.plainText(" ");
-    private final JToggleButton continuousButton = new JToggleButton(Messages.text("ai.present.continuous"));
-    private final JToggleButton stepByStepButton = new JToggleButton(Messages.text("ai.present.stepByStep"));
-    private final JPanel cardsPanel = new JPanel(new MigLayout("insets 0, wrap 1, gap 0 4", "[grow, fill]"));
+    private final JButton menuButton = headerButton("⋯");
+    private final JButton foldButton = headerButton(FOLD_MARK);
+    private final JButton closeButton = headerButton("×");
+    private final StackLayout bodyLayout = new StackLayout(6);
+    private final JPanel body = new JPanel(bodyLayout);
+    private final StageCard.Line notice = new StageCard.Line(" ", StageCard.Tone.NORMAL, StageCard.Style.PLAIN);
+    private final JToggleButton continuousButton = new PaceSwitch.Segment(Messages.text("ai.present.continuous"));
+    private final JToggleButton stepByStepButton = new PaceSwitch.Segment(Messages.text("ai.present.stepByStep"));
+    private final PaceSwitch paceSwitch = new PaceSwitch(continuousButton, stepByStepButton);
+    private final StageCard.Line paceHint = new StageCard.Line(" ", StageCard.Tone.MUTED, StageCard.Style.PLAIN);
+    private final CardsPanel cardsPanel = new CardsPanel();
+    private final JScrollPane cardsScroll = new JScrollPane(cardsPanel, JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,
+            JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
     private final JButton nextButton = new JButton(Messages.text("ai.present.next"));
     private final JButton toStageEndButton = new JButton(Messages.text("ai.present.toStageEnd"));
     private final JButton stopButton = new JButton(Messages.text("ai.present.stop"));
     private final JButton undoStageButton = new JButton(Messages.text("ai.present.undoStage"));
     private final JButton keepOnlyResultButton = new JButton(Messages.text("ai.present.keepOnlyResult"));
-    private final JPanel settingsSection = new JPanel(new MigLayout("insets 0, wrap 1, gap 0 2", "[grow, fill]"));
+    private final ButtonRow stepRow = new ButtonRow(nextButton, toStageEndButton);
+    private final ButtonRow stageRow = new ButtonRow(stopButton, undoStageButton, keepOnlyResultButton);
+    private final JPanel settingsSection = new JPanel(new MigLayout("insets 0, wrap 1, gap 0 2, hidemode 3",
+            "[grow, fill]"));
     private final JToggleButton settingsHeader = new JToggleButton();
     private final JPanel settingsList = new JPanel(new MigLayout("insets 0 12 0 0, wrap 1, gap 0 2"));
     private final JPopupMenu menu = new JPopupMenu();
     private final List<JMenuItem> pauseItems = new ArrayList<>();
+    private final List<JMenuItem> moveItems = new ArrayList<>();
     private final List<StageCard> cards = new ArrayList<>();
     private final List<JLabel> settingLabels = new ArrayList<>();
     private final Runnable preferencesListener = this::followPreferences;
     private Runnable sizeChanged = () -> {
+    };
+    private Consumer<FloatingPlacement.Corner> moveTo = corner -> {
     };
     private PresentedTask shown;
     private boolean aiSwitched;
@@ -80,12 +112,13 @@ final class PresentationPanel extends JPanel {
 
     /** @param close what «×» does once the task ended (the window hides the panel) */
     PresentationPanel(AppPreferences windowPreferences, PresentationControls controls, Runnable close) {
-        super(new MigLayout("insets 8, wrap 1, gap 0 6, width 320:340:420", "[grow, fill]"));
+        super(new StackLayout(6));
         this.windowPreferences = Objects.requireNonNull(windowPreferences, "windowPreferences");
         this.controls = Objects.requireNonNull(controls, "controls");
         this.override = SettingsOverride.of(windowPreferences);
         Objects.requireNonNull(close, "close");
-        setBorder(new StageCard.Outline(1));
+        setBorder(BorderFactory.createCompoundBorder(new StageCard.Outline(1),
+                BorderFactory.createEmptyBorder(5, 7, 7, 7)));
 
         buildHeader(close);
         buildBody();
@@ -95,6 +128,14 @@ final class PresentationPanel extends JPanel {
         followPreferences();
     }
 
+    private static JButton headerButton(String text) {
+        JButton button = new JButton(text);
+        button.putClientProperty("JButton.buttonType", "toolBarButton");
+        button.setMargin(new Insets(0, 4, 0, 4));
+        button.setFocusable(true);
+        return button;
+    }
+
     private void buildHeader(Runnable close) {
         menuButton.setToolTipText(Messages.text("ai.present.menu"));
         foldButton.setToolTipText(Messages.text("ai.present.fold"));
@@ -102,21 +143,34 @@ final class PresentationPanel extends JPanel {
         menuButton.addActionListener(event -> menu.show(menuButton, 0, menuButton.getHeight()));
         foldButton.addActionListener(event -> setFolded(!folded));
         closeButton.addActionListener(event -> close.run());
-        add(header, "split 5, growx, wmin 0");
-        add(stageLabel, "growx 0");
-        add(menuButton, "growx 0");
-        add(foldButton, "growx 0");
-        add(closeButton, "growx 0, hidemode 3");
+        grip.setToolTipText(Messages.text("ai.present.grip"));
+        headerBar.setOpaque(false);
+        stageLabel.setHorizontalAlignment(SwingConstants.RIGHT);
+        JPanel right = new JPanel(new FlowLayout(FlowLayout.RIGHT, 2, 0));
+        right.setOpaque(false);
+        right.add(stageLabel);
+        right.add(menuButton);
+        right.add(foldButton);
+        right.add(closeButton);
+        headerBar.add(grip, BorderLayout.WEST);
+        headerBar.add(header, BorderLayout.CENTER);
+        headerBar.add(right, BorderLayout.EAST);
+        Cursor move = Cursor.getPredefinedCursor(Cursor.MOVE_CURSOR);
+        for (JComponent handle : dragHandles()) {
+            handle.setCursor(move);
+        }
+        add(headerBar);
     }
 
     private void buildBody() {
         body.setOpaque(false);
         cardsPanel.setOpaque(false);
+        cardsScroll.setOpaque(false);
+        cardsScroll.getViewport().setOpaque(false);
+        cardsScroll.setBorder(BorderFactory.createEmptyBorder());
+        cardsScroll.getVerticalScrollBar().setUnitIncrement(16);
         settingsSection.setOpaque(false);
         settingsList.setOpaque(false);
-        ButtonGroup pace = new ButtonGroup();
-        pace.add(continuousButton);
-        pace.add(stepByStepButton);
         continuousButton.addActionListener(event -> windowPreferences.setAiPace(PresentationPace.CONTINUOUS));
         stepByStepButton.addActionListener(event -> windowPreferences.setAiPace(PresentationPace.STEP_BY_STEP));
         nextButton.addActionListener(event -> ifShown(task -> controls.next(task.task().taskId())));
@@ -131,26 +185,24 @@ final class PresentationPanel extends JPanel {
             relayout();
         });
 
-        body.add(notice, "hidemode 3");
-        body.add(continuousButton, "split 2, sizegroup pace, growx");
-        body.add(stepByStepButton, "sizegroup pace, growx");
-        body.add(cardsPanel);
-        body.add(nextButton, "split 2, sizegroup actions, growx");
-        body.add(toStageEndButton, "sizegroup actions, growx");
-        body.add(stopButton, "split 2, sizegroup actions, growx");
-        body.add(undoStageButton, "sizegroup actions, growx");
-        body.add(keepOnlyResultButton, "hidemode 3");
+        cardsScroll.setMinimumSize(new Dimension(0, MINIMUM_CARDS_HEIGHT));
+        bodyLayout.setFlexible(cardsScroll);
+        body.add(notice);
+        body.add(paceSwitch);
+        body.add(paceHint);
+        body.add(cardsScroll);
+        body.add(stepRow);
+        body.add(stageRow);
         settingsList.setVisible(false);
-        settingsSection.add(settingsHeader, "growx 0");
-        settingsSection.add(settingsList, "hidemode 3");
-        body.add(settingsSection, "hidemode 3");
-        add(body, "hidemode 3");
+        settingsSection.add(settingsHeader, "growx 0, wmin 0");
+        settingsSection.add(settingsList, "wmin 0");
+        body.add(settingsSection);
+        add(body);
+        ((StackLayout) getLayout()).setFlexible(body);
     }
 
     private void buildMenu() {
-        JMenuItem title = new JMenuItem(Messages.text("ai.present.pause"));
-        title.setEnabled(false);
-        menu.add(title);
+        JMenu pause = new JMenu(Messages.text("ai.present.pause"));
         ButtonGroup pauses = new ButtonGroup();
         for (int millis : PAUSE_CHOICES_MILLIS) {
             JRadioButtonMenuItem item = new JRadioButtonMenuItem(
@@ -158,8 +210,17 @@ final class PresentationPanel extends JPanel {
             item.addActionListener(event -> windowPreferences.setAiPauseMillis(millis));
             pauses.add(item);
             pauseItems.add(item);
-            menu.add(item);
+            pause.add(item);
         }
+        menu.add(pause);
+        JMenu move = new JMenu(Messages.text("ai.present.moveTo"));
+        for (FloatingPlacement.Corner corner : FloatingPlacement.Corner.values()) {
+            JMenuItem item = new JMenuItem(Messages.text(corner.messageKey()));
+            item.addActionListener(event -> moveTo.accept(corner));
+            moveItems.add(item);
+            move.add(item);
+        }
+        menu.add(move);
     }
 
     private void bindEnterToNext() {
@@ -219,7 +280,7 @@ final class PresentationPanel extends JPanel {
         for (int stageIndex = 0; stageIndex < task.stages().size(); stageIndex++) {
             StageCard card = new StageCard(task, stageIndex);
             cards.add(card);
-            cardsPanel.add(card);
+            cardsPanel.add(card, "wmin 0");
         }
     }
 
@@ -231,8 +292,27 @@ final class PresentationPanel extends JPanel {
         stopButton.setEnabled(running);
         undoStageButton.setEnabled(shown != null && shown.stageToUndo().isPresent());
         boolean ended = shown != null && shown.isEnded();
+        // at the end only what makes sense then: undo the stage, keep only the result, close
+        nextButton.setVisible(!ended);
+        toStageEndButton.setVisible(!ended);
+        stopButton.setVisible(!ended);
+        paceSwitch.setVisible(!ended);
+        paceHint.setVisible(!ended);
         keepOnlyResultButton.setVisible(ended && shown.stages().size() > 1);
         closeButton.setVisible(ended);
+        stepRow.setVisible(stepRow.hasVisibleButton());
+        stageRow.setVisible(stageRow.hasVisibleButton());
+        paceHint.setText(paceHintText());
+    }
+
+    private String paceHintText() {
+        if (windowPreferences.aiPace() == PresentationPace.STEP_BY_STEP) {
+            return Messages.text("ai.present.paceHint.stepByStep");
+        }
+        double seconds = windowPreferences.aiPauseMillis() / 1000.0;
+        Optional<Duration> paced = shown == null ? Optional.empty() : shown.pacedFor();
+        return paced.map(delay -> Messages.format("ai.present.paceHint.nextIn", delay.toMillis() / 1000.0))
+                .orElse(Messages.format("ai.present.paceHint.continuous", seconds));
     }
 
     private void followPreferences() {
@@ -255,10 +335,10 @@ final class PresentationPanel extends JPanel {
         settingsList.removeAll();
         settingLabels.clear();
         for (SettingsOverride.Change change : changes) {
-            JLabel label = new JLabel(Messages.format("ai.setting.change", AiPanel.settingName(change.setting()),
-                    AiPanel.valueText(change.value())));
+            JLabel label = new StageCard.Line(Messages.format("ai.setting.change",
+                    AiPanel.settingName(change.setting()), AiPanel.valueText(change.value())), null, null);
             settingLabels.add(label);
-            settingsList.add(label);
+            settingsList.add(label, "wmin 0");
         }
     }
 
@@ -287,6 +367,17 @@ final class PresentationPanel extends JPanel {
         sizeChanged = Objects.requireNonNull(listener, "listener");
     }
 
+    /** What «Mover a ▸» does (its window moves the panel to that corner of the pane). */
+    void whenMovedTo(Consumer<FloatingPlacement.Corner> listener) {
+        moveTo = Objects.requireNonNull(listener, "listener");
+    }
+
+    /** {@link #PREFERRED_WIDTH} wide; as tall as its contents (its window gives it less when the pane is short). */
+    @Override
+    public Dimension getPreferredSize() {
+        return new Dimension(PREFERRED_WIDTH, super.getPreferredSize().height);
+    }
+
     /** The theme's panel background, read when painted (the theme changes live). */
     @Override
     public Color getBackground() {
@@ -299,6 +390,11 @@ final class PresentationPanel extends JPanel {
         windowPreferences.removeListener(preferencesListener);
     }
 
+    /** Where the user grabs the panel to move it: the header but its buttons. */
+    List<JComponent> dragHandles() {
+        return List.of(headerBar, grip, header, stageLabel);
+    }
+
     String headerText() {
         return header.getText();
     }
@@ -307,12 +403,32 @@ final class PresentationPanel extends JPanel {
         return stageLabel.getText();
     }
 
-    JLabel header() {
+    JPanel headerBar() {
+        return headerBar;
+    }
+
+    JLabel grip() {
+        return grip;
+    }
+
+    StageCard.Line header() {
         return header;
+    }
+
+    JLabel stageLabel() {
+        return stageLabel;
+    }
+
+    JButton menuButton() {
+        return menuButton;
     }
 
     JLabel notice() {
         return notice;
+    }
+
+    JLabel paceHint() {
+        return paceHint;
     }
 
     JPanel body() {
@@ -363,6 +479,10 @@ final class PresentationPanel extends JPanel {
         return List.copyOf(pauseItems);
     }
 
+    List<JMenuItem> moveItems() {
+        return List.copyOf(moveItems);
+    }
+
     JPanel settingsSection() {
         return settingsSection;
     }
@@ -377,5 +497,38 @@ final class PresentationPanel extends JPanel {
 
     List<String> settingTexts() {
         return settingLabels.stream().map(JLabel::getText).toList();
+    }
+
+    /** The stage cards, as wide as the scroll pane that holds them (never wider: their texts end in «…»). */
+    private static final class CardsPanel extends JPanel implements Scrollable {
+
+        CardsPanel() {
+            super(new MigLayout("insets 0, wrap 1, gap 0 4", "[grow, fill]"));
+        }
+
+        @Override
+        public Dimension getPreferredScrollableViewportSize() {
+            return getPreferredSize();
+        }
+
+        @Override
+        public int getScrollableUnitIncrement(Rectangle visible, int orientation, int direction) {
+            return 16;
+        }
+
+        @Override
+        public int getScrollableBlockIncrement(Rectangle visible, int orientation, int direction) {
+            return Math.max(16, visible.height - 16);
+        }
+
+        @Override
+        public boolean getScrollableTracksViewportWidth() {
+            return true;
+        }
+
+        @Override
+        public boolean getScrollableTracksViewportHeight() {
+            return false;
+        }
     }
 }

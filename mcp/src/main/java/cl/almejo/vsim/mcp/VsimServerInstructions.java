@@ -41,7 +41,10 @@ public final class VsimServerInstructions {
             Presentar (when the user wants to see how you build: a class, a video)
             - Read the mode with vsim_get_presentation before a task. When the user asks to see how you build \
             («muéstrame cómo lo armas»), ask for it with vsim_set_presentation presenting true; VSim switches and \
-            tells the user. Never switch it off by yourself during a task.
+            tells the user. Never switch it off by yourself during a task. The user chooses the pace («Paso a paso» \
+            or «De corrido») and the pause; only when the user asks for it (a recording to watch without clicks), \
+            give pace CONTINUOUS (and pauseMillis) to vsim_set_presentation right after vsim_begin_task: it lasts \
+            for that task only.
             - In «Presentar» send one step per vsim_edit call, naming its stage and step, with a short text and a \
             short reason in the user's language («Conecto la realimentación» / «así el latch recuerda»). Plan steps \
             the user can follow: a few parts or wires each, not a whole stage.

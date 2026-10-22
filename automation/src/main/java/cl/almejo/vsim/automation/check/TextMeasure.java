@@ -38,8 +38,8 @@ public interface TextMeasure {
 
     /**
      * The editor's placement rules (a label above an upright body, left of a sideways one, centred on its place when
-     * the user moved it; a note from its top-left corner, at least one unit wide) with a 10 px font guessed at 5.5 px
-     * per character and 12 px per line, 8 px per grid unit.
+     * the user moved it; a note from its top-left corner, as wide as its longest line and at least one unit wide)
+     * with a 10 px font guessed at 5.5 px per character and 12 px per line, 8 px per grid unit.
      */
     TextMeasure APPROXIMATE = new TextMeasure() {
         private static final double CHARACTER_WIDTH = 5.5 / GridPoint.PIXELS_PER_UNIT;
@@ -69,8 +69,13 @@ public interface TextMeasure {
 
         @Override
         public TextBox freeText(TextLabel label) {
-            return new TextBox(label.position().x(), label.position().y(),
-                    Math.max(1, label.text().length() * CHARACTER_WIDTH), LINE_HEIGHT);
+            String[] lines = label.text().split("\\R", -1);
+            int longest = 0;
+            for (String line : lines) {
+                longest = Math.max(longest, line.length());
+            }
+            return new TextBox(label.position().x(), label.position().y(), Math.max(1, longest * CHARACTER_WIDTH),
+                    lines.length * LINE_HEIGHT);
         }
     };
 }

@@ -133,8 +133,8 @@ class PresentationExtensionTest {
 
         Runnable again = extension.install(view);
 
-        assertThat(texts(viewMenu)).endsWith("---", "Presentar lo que hace la IA");
-        assertThat(viewMenu.getItem(viewMenu.getItemCount() - 1)).isInstanceOf(JCheckBoxMenuItem.class);
+        assertThat(texts(viewMenu)).endsWith("---", "Presentar lo que hace la IA", "Ritmo de Presentar");
+        assertThat(viewMenu.getItem(viewMenu.getItemCount() - 2)).isInstanceOf(JCheckBoxMenuItem.class);
         assertThat(view.toolBar().getComponentCount()).isEqualTo(toolbarBefore + 2);
         assertThat(view.shortcutActions()).containsKey(PresentationExtension.SHORTCUT_ID);
         // the panel and the callouts/ghosts each hear the task
@@ -232,6 +232,35 @@ class PresentationExtensionTest {
         events.stop(next);
         runEditorThread();
         assertThat(features().isPanelShown()).isFalse();
+    }
+
+    /** Agreed with the user: the pace and the pause are chosen before a task too, under Ver. */
+    @Test
+    void verOffersThePaceAndThePauseBeforeAnyTask() {
+        JMenu viewMenu = view.menu(MenuId.VIEW);
+        JMenu pace = (JMenu) viewMenu.getItem(viewMenu.getItemCount() - 1);
+        assertThat(texts(pace)).containsExactly("De corrido", "Paso a paso", "---",
+                "Pausa entre pasos (De corrido)");
+        JMenuItem continuous = pace.getItem(0);
+        JMenuItem stepByStep = pace.getItem(1);
+        assertThat(stepByStep.isSelected()).isTrue();
+        assertThat(features().isPanelShown()).isFalse();
+
+        continuous.doClick();
+        assertThat(saved.aiPace()).isEqualTo(cl.almejo.vsim.automation.present.PresentationPace.CONTINUOUS);
+        assertThat(continuous.isSelected()).isTrue();
+        assertThat(stepByStep.isSelected()).isFalse();
+
+        JMenu pause = (JMenu) pace.getItem(3);
+        assertThat(texts(pause)).containsExactly("0,3 s", "0,5 s", "1 s", "2 s", "3 s", "5 s");
+        assertThat(pause.getItem(2).isSelected()).isTrue();
+        pause.getItem(4).doClick();
+        assertThat(saved.aiPauseMillis()).isEqualTo(3000);
+
+        saved.setAiPace(cl.almejo.vsim.automation.present.PresentationPace.STEP_BY_STEP); // from the panel
+        assertThat(stepByStep.isSelected()).isTrue();
+        saved.setAiPauseMillis(500);
+        assertThat(pause.getItem(1).isSelected()).isTrue();
     }
 
     @Test

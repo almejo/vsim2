@@ -20,6 +20,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -78,6 +79,13 @@ public final class FakePresentingHost implements AutomationHost {
     public void setPresenting(DocumentId document, boolean presenting) {
         PresentationSettings current = presentationSettings(document);
         settings.put(document, new PresentationSettings(presenting, current.pace(), current.pause()));
+    }
+
+    @Override
+    public void layerPresentation(DocumentId document, Optional<PresentationPace> pace, Optional<Duration> pause) {
+        PresentationSettings current = presentationSettings(document);
+        settings.put(document, new PresentationSettings(current.presenting(), pace.orElse(current.pace()),
+                pause.orElse(current.pause())));
     }
 
     @Override

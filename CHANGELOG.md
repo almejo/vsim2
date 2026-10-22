@@ -14,17 +14,20 @@ sección es un conjunto de funciones, con las fechas en que se hizo. El detalle 
   por su cuenta durante una tarea.
 - Una ventanita flotante con la tarea, «Etapa n / m», las etapas (las terminadas con «✓ …» o «✗ …» de su
   comprobación) y sus pasos, y los botones «Siguiente ▸» (Enter), «Hasta fin de etapa», «Detener», «Deshacer etapa»
-  y, al final, «Dejar solo el resultado».
+  y, al final, solo «Deshacer etapa», «Dejar solo el resultado» y «×». Se arrastra por su agarradera «⋮⋮» (doble clic
+  la vuelve arriba a la derecha; ⋯ ▸ «Mover a» cada esquina) y nunca sale del panel.
 - «Paso a paso»: cada paso se ve en transparente con un globo que lo señala («Paso 4 de 6 · propuesto», el texto y
   el porqué) y no se aplica hasta «Siguiente»; si tocas el circuito mientras espera, se descarta y la IA lo vuelve a
   proponer. «De corrido»: los pasos van solos con una pausa (1 s por defecto, de 0,3 a 5 s). El ritmo se elige en la
   ventanita o en Ver ▸ «Ritmo de Presentar», y la IA puede pedir uno para su tarea (se devuelve al terminar).
-- La vista viaja a cada paso y a cada etapa nueva (de un salto con menos movimiento); el globo sigue al zoom y se ve
-  en cada panel de una vista dividida que muestra el cambio. Nada de esto sale al exportar.
+- La vista sigue a la IA como una cámara: cada paso y cada etapa nueva quedan centrados en la parte del panel que deja
+  libre la ventanita (de un salto con menos movimiento); si mueves la vista a mano, deja de seguir hasta la etapa
+  siguiente. El globo nunca queda bajo la ventanita, sigue al zoom y se ve en cada panel de una vista dividida que
+  muestra el cambio. En «De corrido» la ventanita dice «Siguiente paso en …». Nada de esto sale al exportar.
 - Cada etapa se arma a la derecha de la anterior y al terminar queda en su propio marco con su título (bloqueado
   cuando se volvió componente: «cómo se hizo»); un marco nunca toma piezas tuyas. Cada paso y cada marco es un
   Ctrl+Z; «Dejar solo el resultado» deja solo la última etapa, con los componentes creados, en un solo Ctrl+Z.
-- Para la IA: `vsim_get_presentation`, `vsim_set_presentation`, `vsim_begin_stage` (el lugar libre donde armar la
+- Para la IA: `vsim_get_presentation`, `vsim_set_presentation` (con ritmo y pausa opcionales para su tarea), `vsim_begin_stage` (el lugar libre donde armar la
   etapa) y `vsim_await_step` (espera «Siguiente»: aplicado, descartado o detenido); `vsim_edit` acepta el porqué de
   cada paso.
 

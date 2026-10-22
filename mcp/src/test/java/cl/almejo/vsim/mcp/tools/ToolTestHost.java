@@ -37,6 +37,7 @@ import cl.almejo.vsim.core.netlist.NetlistCompiler;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.core.truthtable.TruthTableScope;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -77,6 +78,7 @@ final class ToolTestHost implements AutomationHost {
     List<DefinitionBundle> library = List.of();
     /** «Presentar» per circuit as the user chose it; a circuit not listed is in working mode. */
     final Map<DocumentId, PresentationSettings> presentations = new LinkedHashMap<>();
+    private final List<String> layeredPresentations = new ArrayList<>();
     Function<SimulationRequest, SimulationReceipt> simulation = request -> receipt(request.document(),
             SimulationReceipt.Outcome.COMPLETED);
 
@@ -154,6 +156,20 @@ final class ToolTestHost implements AutomationHost {
     public void setPresenting(DocumentId document, boolean presenting) {
         PresentationSettings current = presentationSettings(document);
         presentations.put(document, new PresentationSettings(presenting, current.pace(), current.pause()));
+    }
+
+    @Override
+    public void layerPresentation(DocumentId document, Optional<PresentationPace> pace, Optional<Duration> pause) {
+        PresentationSettings current = presentationSettings(document);
+        PresentationSettings layered = new PresentationSettings(current.presenting(), pace.orElse(current.pace()),
+                pause.orElse(current.pause()));
+        presentations.put(document, layered);
+        layeredPresentations.add(document.value() + " " + layered.pace() + " " + layered.pause().toMillis());
+    }
+
+    /** What the AI layered for its task, as «circuit-1 CONTINUOUS 2000». */
+    List<String> layeredPresentations() {
+        return layeredPresentations;
     }
 
     /** Puts {@code document} in «Presentar» at {@code pace}, as the user's toggle would. */

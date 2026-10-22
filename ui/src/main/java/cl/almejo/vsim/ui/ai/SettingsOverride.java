@@ -3,9 +3,11 @@ package cl.almejo.vsim.ui.ai;
 import cl.almejo.vsim.automation.AutomationError;
 import cl.almejo.vsim.automation.AutomationException;
 import cl.almejo.vsim.automation.EditorSetting;
+import cl.almejo.vsim.automation.present.PresentationPace;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.PreferenceLayer;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -52,15 +54,29 @@ public final class SettingsOverride {
         layer.put(layered(setting), value);
     }
 
-    /** What the AI changed in this window, in the order it changed it. */
+    /** The editor settings the AI changed in this window, in the order it changed them (not its pace). */
     public List<Change> changes() {
         List<Change> changes = new ArrayList<>();
-        layer.values().forEach((setting, value) -> changes.add(new Change(editorSetting(setting), value)));
+        layer.values().forEach((setting, value) -> editorSetting(setting)
+                .ifPresent(editor -> changes.add(new Change(editor, value))));
         return List.copyOf(changes);
     }
 
+    /** True when the AI changed no editor setting here (its pace may still be layered). */
     public boolean isEmpty() {
-        return layer.isEmpty();
+        return changes().isEmpty();
+    }
+
+    /**
+     * Shows the AI's «Presentar» pace and pause for its task in this window ({@code vsim_set_presentation}); the
+     * caller checks the pause's range. Given back by {@link #drop()} and {@link #keep()} (never saved).
+     */
+    public void layerPresentation(Optional<PresentationPace> pace, Optional<Duration> pause) {
+        Objects.requireNonNull(pace, "pace");
+        Objects.requireNonNull(pause, "pause");
+        pace.ifPresent(chosen -> layer.put(PreferenceLayer.Setting.AI_PACE, chosen.name()));
+        pause.ifPresent(chosen -> layer.put(PreferenceLayer.Setting.AI_PAUSE_MILLIS,
+                Long.toString(chosen.toMillis())));
     }
 
     /** The window shows the saved preferences again. */
@@ -103,8 +119,8 @@ public final class SettingsOverride {
         };
     }
 
-    private static EditorSetting editorSetting(PreferenceLayer.Setting setting) {
-        return switch (setting) {
+    private static Optional<EditorSetting> editorSetting(PreferenceLayer.Setting setting) {
+        return Optional.ofNullable(switch (setting) {
             case SNAP_TO_ALIGNMENTS -> EditorSetting.SNAP;
             case SNAP_TO_PARTS -> EditorSetting.SNAP_TO_PARTS;
             case SNAP_TO_GUIDES -> EditorSetting.SNAP_TO_GUIDES;
@@ -113,6 +129,7 @@ public final class SettingsOverride {
             case GRID_STYLE -> EditorSetting.GRID_STYLE;
             case GRID_LINE_SPACING -> EditorSetting.GRID_SPACING;
             case WIRES_FOLLOW -> EditorSetting.WIRES_FOLLOW;
-        };
+            case AI_PACE, AI_PAUSE_MILLIS -> null;
+        });
     }
 }

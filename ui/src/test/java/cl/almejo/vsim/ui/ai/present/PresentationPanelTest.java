@@ -177,6 +177,44 @@ class PresentationPanelTest {
     }
 
     @Test
+    void theChosenPaceIsFilledWithTheAccentOnEveryThemeAndTheOtherIsPlain() throws Exception {
+        LookAndFeel previous = UIManager.getLookAndFeel();
+        try {
+            for (LookAndFeel theme : AppThemes.all()) {
+                UIManager.setLookAndFeel(theme);
+                saved.setAiPace(PresentationPace.CONTINUOUS);
+                assertThat(panel.continuousButton().getForeground()).isEqualTo(PaceSwitch.onAccent());
+                assertThat(ReadableColors.contrast(PaceSwitch.onAccent(), PaceSwitch.accent()))
+                        .as(theme.getName()).isGreaterThanOrEqualTo(3.0);
+                assertThat(panel.stepByStepButton().getForeground())
+                        .isEqualTo(UIManager.getColor("Label.foreground"));
+                assertThat(ReadableColors.contrast(panel.stepByStepButton().getForeground(),
+                        ReadableColors.panelBackground())).as(theme.getName())
+                        .isGreaterThanOrEqualTo(ReadableColors.MINIMUM_TEXT_CONTRAST);
+            }
+        } finally {
+            UIManager.setLookAndFeel(previous);
+        }
+    }
+
+    @Test
+    void underTheSwitchALineSaysWhatThePaceDoesAndWhenTheNextStepComes() {
+        assertThat(panel.paceHint().getText()).isEqualTo("Cada paso espera «Siguiente»");
+
+        saved.setAiPace(PresentationPace.CONTINUOUS);
+        saved.setAiPauseMillis(2000);
+        assertThat(panel.paceHint().getText()).isEqualTo("Los pasos se aplican solos, cada 2 s");
+
+        task.stepPaced(java.time.Duration.ofMillis(1500));
+        panel.show(task, false);
+        assertThat(panel.paceHint().getText()).isEqualTo("Siguiente paso en 1,5 s…");
+
+        task.stepApplied(step("t1", 1, 1, "Encadeno los acarreos"));
+        panel.show(task, false);
+        assertThat(panel.paceHint().getText()).isEqualTo("Los pasos se aplican solos, cada 2 s");
+    }
+
+    @Test
     void hastaFinDeEtapaIsForPasoAPaso() {
         assertThat(panel.toStageEndButton().isEnabled()).isTrue();
 

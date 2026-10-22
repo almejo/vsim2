@@ -3,6 +3,7 @@ package cl.almejo.vsim.automation.present;
 import cl.almejo.vsim.automation.TaskInfo;
 import cl.almejo.vsim.automation.edit.TaskStage;
 
+import java.time.Duration;
 import java.util.List;
 
 /**
@@ -23,4 +24,11 @@ public interface PresentationListener {
     void stepDiscarded(String taskId, StepStatus why);
 
     void stageChecked(String taskId, int stageIndex, boolean passed, String summary);
+
+    /**
+     * «De corrido»: the AI's next step of {@code taskId} arrived and is applied once {@code delay} has passed (the
+     * pause between steps), so the panel can say «Siguiente paso en …». Nothing by default.
+     */
+    default void stepPaced(String taskId, Duration delay) {
+    }
 }

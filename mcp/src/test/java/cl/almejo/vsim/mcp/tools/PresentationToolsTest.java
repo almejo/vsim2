@@ -110,6 +110,29 @@ class PresentationToolsTest {
                 .containsEntry("presenting", true);
     }
 
+    /** Agreed with the user: the AI may present «De corrido» for a recording, for its task only. */
+    @Test
+    void theAiMayAskForThePaceAndThePauseForItsTask() {
+        beginTask();
+
+        Map<String, Object> answer = call("vsim_set_presentation", Map.of("document", "circuit-1",
+                "presenting", true, "pace", "CONTINUOUS", "pauseMillis", 2000));
+
+        assertThat(answer).containsEntry("presenting", true).containsEntry("pace", "CONTINUOUS")
+                .containsEntry("pauseMillis", 2000L);
+        assertThat(host.layeredPresentations()).containsExactly("circuit-1 CONTINUOUS 2000");
+    }
+
+    @Test
+    void thePaceFromTheAiNeedsARunningTaskAndAPauseWithinTheRange() {
+        assertThat(refusal("vsim_set_presentation", Map.of("document", "circuit-1", "presenting", true,
+                "pace", "CONTINUOUS"))).containsEntry("error", "NOT_ALLOWED");
+        beginTask();
+        assertThat(refusal("vsim_set_presentation", Map.of("document", "circuit-1", "presenting", true,
+                "pauseMillis", 100))).containsKey("error");
+        assertThat(host.layeredPresentations()).isEmpty();
+    }
+
     @Test
     void anUnknownCircuitIsAnInvalidReference() {
         assertThat(refusal("vsim_get_presentation", Map.of("document", "circuit-9")))

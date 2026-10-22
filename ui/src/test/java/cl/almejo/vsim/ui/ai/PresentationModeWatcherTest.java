@@ -49,7 +49,8 @@ class PresentationModeWatcherTest {
     void aModeChangeIsToldOffTheCallersThreadAndOnlyOnce() {
         open("circuit-1");
         watcher.refresh();
-        assertThat(queued).isEmpty();
+        runQueued();
+        told.clear();
 
         preferences.setAiPresenting(true);
         preferences.setAiPace(PresentationPace.CONTINUOUS);
@@ -61,10 +62,29 @@ class PresentationModeWatcherTest {
         assertThat(told).containsExactly("circuit-1 true CONTINUOUS");
     }
 
+    /**
+     * The user's first look: «De corrido» «did not work». A circuit opened with «Presentar» already on, where the AI
+     * then asked for «Presentar» (no change, so no refresh), was first seen by the watcher at the user's click on
+     * «De corrido»; that first sighting was only recorded, so the step waiting for «Siguiente» stayed waiting.
+     */
+    @Test
+    void theFirstChangeSeenOnACircuitIsToldToo() {
+        preferences.setAiPresenting(true);
+        open("circuit-1"); // no refresh yet: nothing changed since the window opened
+
+        preferences.setAiPace(PresentationPace.CONTINUOUS);
+        watcher.refresh();
+        runQueued();
+
+        assertThat(told).containsExactly("circuit-1 true CONTINUOUS");
+    }
+
     @Test
     void aClosedCircuitIsToldOnce() {
         OpenDocument circuit = open("circuit-1");
         watcher.refresh();
+        runQueued();
+        told.clear();
 
         open.remove(circuit);
         circuit.close();

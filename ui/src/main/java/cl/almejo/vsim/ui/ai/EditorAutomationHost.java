@@ -22,6 +22,8 @@ import cl.almejo.vsim.automation.export.ExportRequest;
 import cl.almejo.vsim.automation.EditorSetting;
 import cl.almejo.vsim.automation.ProposalAnswer;
 import cl.almejo.vsim.automation.ProposedPreference;
+import cl.almejo.vsim.automation.check.TextMeasure;
+import cl.almejo.vsim.automation.present.PresentationPace;
 import cl.almejo.vsim.automation.present.PresentationSettings;
 import cl.almejo.vsim.automation.present.StepPacer;
 import cl.almejo.vsim.ui.app.OpenDocument;
@@ -29,6 +31,7 @@ import cl.almejo.vsim.ui.app.OpenDocument;
 import javax.swing.SwingUtilities;
 import java.nio.file.Path;
 import java.time.Clock;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -171,9 +174,24 @@ public final class EditorAutomationHost implements AutomationHost {
         windows.setPresenting(documentOf(document), presenting);
     }
 
+    /** The AI's pace and pause for its task, in the temporary layer of the circuit's first window (spec §7). */
+    @Override
+    public void layerPresentation(DocumentId document, Optional<PresentationPace> pace, Optional<Duration> pause) {
+        OpenDocument open = documentOf(document);
+        SettingsOverride override = windows.settingsOverride(open).orElseThrow(() ->
+                new AutomationException(AutomationError.NOT_ALLOWED, "This circuit has no window settings"));
+        override.layerPresentation(pace, pause);
+    }
+
     @Override
     public void travelToStageOrigin(DocumentId document, GridPoint origin) {
         windows.travelToStageOrigin(documentOf(document), origin);
+    }
+
+    /** Texts as the canvas draws them, so a stage's frame encloses its notes (IA.2 storyboard). EDT only. */
+    @Override
+    public TextMeasure textMeasure() {
+        return LabelTextMeasure.INSTANCE;
     }
 
     @Override

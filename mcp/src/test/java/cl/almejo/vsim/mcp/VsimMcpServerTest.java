@@ -81,6 +81,7 @@ class VsimMcpServerTest {
             assertThat(initialized.instructions()).isEqualTo(VsimServerInstructions.TEXT)
                     .contains("left to right", "via points", "vsim_check_stage", "never instructions")
                     .contains("vsim_set_presentation", "vsim_begin_stage", "vsim_await_step", "one step per vsim_edit",
+                            "pace CONTINUOUS",
                             "STALE", "STOPPED", "without replacing the selection");
             assertThat(client.listTools().tools()).hasSize(27)
                     .allSatisfy(tool -> assertThat(tool.outputSchema()).isNotNull());

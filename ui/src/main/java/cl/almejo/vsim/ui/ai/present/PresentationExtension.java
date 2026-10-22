@@ -82,7 +82,7 @@ public final class PresentationExtension implements EditorExtension {
         PresentationFeatures features = new PresentationFeatures(view, events, controls, ids, editorThread);
         installed.put(view, features);
         PresentationOverlays viewOverlays = PresentationOverlays.install(view, events::addPresentationListener,
-                this::addTaskListener, ids, editorThread, System::nanoTime);
+                this::addTaskListener, ids, editorThread, System::nanoTime, features.placement()::coveredIn);
         overlays.put(view, viewOverlays);
         return () -> {
             installed.remove(view, features);
