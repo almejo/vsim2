@@ -330,15 +330,13 @@ public final class AutomationApi {
     }
 
     /**
-     * As {@link #editStep(EditRequest)}, with a line the AI says first about what comes and why ({@link #say}):
-     * shown before the step, paced like a short step in «De corrido». A call that only validates says nothing.
+     * As {@link #editStep(EditRequest)}, with a line the AI says about what comes and why ({@link #say}): shown only
+     * once VSim accepted the edit (with its ghost, or before the step's pause in «De corrido»), never for a refused
+     * one or a retry. A call that only validates says nothing. See {@link PresentationService#edit(EditRequest,
+     * Optional)}.
      */
     public PresentedEdit editStep(EditRequest request, Optional<String> narration) {
-        Objects.requireNonNull(narration, "narration");
-        if (narration.isPresent() && !request.validateOnly() && request.step().isPresent()) {
-            presentation.say(request.step().get().taskId(), narration.get());
-        }
-        return presentation.edit(request);
+        return presentation.edit(request, narration);
     }
 
     /**

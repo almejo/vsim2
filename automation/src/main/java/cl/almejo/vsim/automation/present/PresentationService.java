@@ -129,7 +129,22 @@ public final class PresentationService {
 
     /** One edit call as «Presentar» takes it (see the class comment); throws as {@link EditService#edit} does. */
     public PresentedEdit edit(EditRequest request) {
+        return edit(request, Optional.empty());
+    }
+
+    /**
+     * As {@link #edit(EditRequest)}, with a line the AI says about what comes and why ({@link #say}). The line shows
+     * only for an edit VSim accepted (IA.3 review I3): with the ghost of a proposed step, after a step applied at once
+     * or in working mode, and in «De corrido» before the pause that precedes the step (paced like {@code vsim_say}).
+     * A refused edit (stale, a route that would join nets, a stopped task…) and a retry say nothing; a line VSim
+     * refuses (empty, too long, HTML) refuses the edit before anything changes. A call that only validates or has no
+     * task says nothing.
+     */
+    public PresentedEdit edit(EditRequest request, Optional<String> narration) {
+        Objects.requireNonNull(narration, "narration");
         Optional<AiTask> checked = edits.checkRequest(request);
+        Optional<String> line = narration.filter(text -> checked.isPresent() && !request.validateOnly())
+                .map(PresentationService::narrationLine);
         checked.ifPresent(this::heardFrom);
         if (checked.isPresent() && !request.validateOnly() && onlyLayoutGuides(request.operations())) {
             // A guide is written at once: under a waiting ghost it would make the AI's own step stale.
@@ -139,15 +154,33 @@ public final class PresentationService {
             stepCame(checked.get());
         }
         if (checked.isEmpty() || request.validateOnly() || onlyLayoutGuides(request.operations())) {
-            return new PresentedEdit(edits.edit(request), Optional.empty());
+            EditReceipt receipt = edits.edit(request);
+            line.ifPresent(text -> say(checked.get().info().taskId(), text));
+            return new PresentedEdit(receipt, Optional.empty());
         }
         AiTask task = checked.get();
         TaskStep step = request.step().orElseThrow();
-        Decision decision = edits.onCircuit(request.document(), circuit -> decide(circuit, request, task, step));
+        Decision decision = edits.onCircuit(request.document(),
+                circuit -> decide(circuit, request, task, step, line.isPresent()));
         if (decision.answer().isPresent()) {
+            if (decision.fresh()) {
+                line.ifPresent(text -> say(task.info().taskId(), text));
+            }
             return decision.answer().get();
         }
-        waitForThePause(decision.presentation(), decision.delay());
+        Duration delay = decision.delay();
+        if (line.isPresent()) {
+            // the line first, paced like a short step; then the whole pause after it, so a recording can read it
+            say(task.info().taskId(), line.get());
+            synchronized (this) {
+                delay = decision.presentation().delayBefore(decision.pause(), pacer.now());
+            }
+            if (!delay.isZero()) {
+                Duration paced = delay;
+                announce(listener -> listener.stepPaced(task.info().taskId(), paced));
+            }
+        }
+        waitForThePause(decision.presentation(), delay);
         return edits.onCircuit(request.document(),
                 circuit -> applyPaced(circuit, request, decision.presentation(), decision.stageIndex(),
                         decision.stepIndex()));
@@ -161,24 +194,35 @@ public final class PresentationService {
         }
     }
 
-    /** What the editor thread decided for one step: answered already, or applied after {@code delay}. */
-    private record Decision(Optional<PresentedEdit> answer, TaskPresentation presentation, Duration delay,
-                            int stageIndex, int stepIndex) {
+    /**
+     * What the editor thread decided for one step: answered already ({@code fresh} unless it was a retry), or applied
+     * after {@code delay} ({@code pause} is the user's, to pace the step again after a line said first).
+     */
+    private record Decision(Optional<PresentedEdit> answer, boolean fresh, TaskPresentation presentation,
+                            Duration delay, Duration pause, int stageIndex, int stepIndex) {
 
         static Decision answered(PresentedEdit answer) {
-            return new Decision(Optional.of(answer), null, Duration.ZERO, 0, 0);
+            return new Decision(Optional.of(answer), true, null, Duration.ZERO, Duration.ZERO, 0, 0);
+        }
+
+        static Decision retried(PresentedEdit answer) {
+            return new Decision(Optional.of(answer), false, null, Duration.ZERO, Duration.ZERO, 0, 0);
         }
     }
 
-    /** Editor thread: working mode, a retry, a proposal, or a paced step (applied at once when no pause is due). */
-    private Decision decide(EditableCircuit circuit, EditRequest request, AiTask task, TaskStep step) {
+    /**
+     * Editor thread: working mode, a retry, a proposal, or a paced step (applied at once when no pause is due, unless
+     * a line is to be said first: then it is paced, so the line shows before the step).
+     */
+    private Decision decide(EditableCircuit circuit, EditRequest request, AiTask task, TaskStep step,
+                            boolean narrated) {
         TaskPresentation presentation;
         synchronized (this) {
             presentation = presentationOf(task);
             PendingStep pending = presentation.pending;
             if (pending != null) {
                 if (pending.prepared().request().equals(request)) {
-                    return Decision.answered(pending.answer());
+                    return Decision.retried(pending.answer());
                 }
                 throw stillWaiting(task, pending);
             }
@@ -186,7 +230,7 @@ public final class PresentationService {
         PresentationSettings settings = host.presentationSettings(request.document());
         Optional<EditReceipt> earlier = edits.replay(circuit, request);
         if (earlier.isPresent()) {
-            return Decision.answered(new PresentedEdit(earlier.get(),
+            return Decision.retried(new PresentedEdit(earlier.get(),
                     settings.presenting() ? Optional.of(StepStatus.APPLIED) : Optional.empty()));
         }
         if (!settings.presenting()) {
@@ -214,6 +258,11 @@ public final class PresentationService {
         if (pace == PresentationPace.STEP_BY_STEP) {
             return Decision.answered(propose(circuit, presentation, prepared, preview));
         }
+        if (narrated) {
+            // the line is said first and the pause counted again after it (see edit)
+            return new Decision(Optional.empty(), true, presentation, delay, settings.pause(), stageIndex,
+                    stepIndex);
+        }
         if (delay.isZero()) {
             EditReceipt receipt = edits.commit(circuit, prepared);
             applied(presentation, preview, receipt);
@@ -222,7 +271,7 @@ public final class PresentationService {
         String taskId = task.info().taskId();
         Duration paced = delay;
         announce(listener -> listener.stepPaced(taskId, paced));
-        return new Decision(Optional.empty(), presentation, delay, stageIndex, stepIndex);
+        return new Decision(Optional.empty(), true, presentation, delay, settings.pause(), stageIndex, stepIndex);
     }
 
     /** Refused ({@code NOT_ALLOWED}) while a step of {@code task} waits for «Siguiente». */

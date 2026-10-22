@@ -605,6 +605,78 @@ class PresentationServiceTest {
         assertThat(heard.stream().filter(event -> event.startsWith("narrated"))).hasSize(2);
     }
 
+    // --- a narration given with the edit shows only for an edit VSim accepted (IA.3 review I3) ---
+
+    @Test
+    void aRefusedEditSaysNothingInAnyMode() {
+        for (Runnable mode : List.<Runnable>of(() -> { }, this::stepByStep, this::continuous)) {
+            mode.run();
+            EditRequest refused = step(0, 0, new Delete(List.of("c404")));
+
+            assertThatThrownBy(() -> service.edit(refused, Optional.of("Ahora borro la compuerta")))
+                    .isInstanceOf(AutomationException.class);
+        }
+        assertThat(heard).noneMatch(event -> event.startsWith("narrated"));
+    }
+
+    @Test
+    void aStaleEditSaysNothing() {
+        service.edit(step(0, 0, place("first", 0, 0)));
+        EditRequest current = step(0, 1, place("second", 10, 0));
+        EditRequest stale = new EditRequest(current.document(), new cl.almejo.vsim.automation.DocumentVersion(0),
+                current.operationId(), current.step(), current.operations(), false);
+
+        assertThatThrownBy(() -> service.edit(stale, Optional.of("Ahora la segunda")))
+                .isInstanceOfSatisfying(AutomationException.class,
+                        refusal -> assertThat(refusal.error()).isEqualTo(AutomationError.STALE_DOCUMENT));
+        assertThat(heard).noneMatch(event -> event.startsWith("narrated"));
+    }
+
+    @Test
+    void anAcceptedEditsNarrationIsShownWithItsGhostOrBeforeItsStep() {
+        service.edit(step(0, 0, place("first", 0, 0)), Optional.of("Primero una compuerta"));
+        assertThat(heard).contains("narrated 0 Primero una compuerta false");
+
+        stepByStep();
+        PresentedEdit proposedEdit = service.edit(step(0, 1, place("second", 10, 0)),
+                Optional.of("Ahora la segunda"));
+        assertThat(proposedEdit.proposed()).isTrue();
+        assertThat(heard).contains("narrated 0 Ahora la segunda true");
+    }
+
+    @Test
+    void inDeCorridoAnEditsNarrationComesFirstThenThePauseThenTheStep() throws Exception {
+        continuous();
+
+        CompletableFuture<PresentedEdit> first = CompletableFuture.supplyAsync(
+                () -> service.edit(step(0, 0, place("first", 0, 0)), Optional.of("Primero una compuerta")));
+        assertThat(host.pacer().nextRequestedDelay()).isEqualTo(PAUSE);
+        assertThat(heard).contains("narrated 0 Primero una compuerta true").noneMatch(
+                event -> event.startsWith("applied"));
+        host.pacer().advance(PAUSE);
+        assertThat(first.get(5, TimeUnit.SECONDS).status()).contains(StepStatus.APPLIED);
+        assertThat(heard.indexOf("narrated 0 Primero una compuerta true"))
+                .isLessThan(heard.indexOf("applied Coloco la primera"));
+    }
+
+    @Test
+    void aRetriedEditDoesNotSayItsLineAgain() {
+        EditRequest request = step(0, 0, place("first", 0, 0));
+        service.edit(request, Optional.of("Primero una compuerta"));
+
+        service.edit(request, Optional.of("Primero una compuerta"));
+
+        assertThat(heard.stream().filter(event -> event.startsWith("narrated"))).hasSize(1);
+    }
+
+    @Test
+    void anEditWithALineVsimRefusesChangesNothing() {
+        assertThatThrownBy(() -> service.edit(step(0, 0, place("first", 0, 0)), Optional.of("<html>hola")))
+                .isInstanceOfSatisfying(AutomationException.class,
+                        refusal -> assertThat(refusal.error()).isEqualTo(AutomationError.INVALID_PARAMETER));
+        assertThat(circuit.document().elements()).isEmpty();
+    }
+
     @Test
     void anEmptyALongAnHtmlLineAndAStoppedTaskAreRefused() {
         assertThatThrownBy(() -> service.say(task.taskId(), "   "))
@@ -672,6 +744,7 @@ class PresentationServiceTest {
         @Override
         public void stepApplied(StepPreview preview) {
             applied.add(preview);
+            heard.add("applied " + preview.text());
         }
 
         @Override
