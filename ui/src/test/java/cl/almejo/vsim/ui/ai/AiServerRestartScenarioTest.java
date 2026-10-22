@@ -46,8 +46,11 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Review focus 3: «Reiniciar» and «Apagar» while the AI's task runs and its step waits for «Siguiente» as a ghost.
  * The real server of the panel ({@link AiServerService}) over the automation API and the editor's host; an MCP client
  * over HTTP plays the AI. The task ends as by «Detener», the ghost goes, and the server is off or listening again.
+ * Also the port for one session (IA.3, review focus 2): the same story on a port from the command line.
  */
 class AiServerRestartScenarioTest {
+
+    private static final String REMEMBERED_SECRET = "the-remembered-secret-for-this-test";
 
     private final List<OpenDocument> open = new CopyOnWriteArrayList<>();
     private final AppPreferences preferences = AppPreferences.inMemory();
@@ -65,14 +68,17 @@ class AiServerRestartScenarioTest {
     private int port;
 
     @BeforeEach
-    void connect() throws Exception {
+    void open() {
         Messages.initialize(Messages.SPANISH);
-        port = freePort();
-        preferences.setAiPort(port);
         CircuitDocument empty = new CircuitDocument();
         empty.setName("Luces");
         circuit = new OpenDocument(empty, StandardComponentTypes.registry(), null, false);
         open.add(circuit);
+        stopListening = api.addPresentationListener(new Heard());
+    }
+
+    /** The panel's server on {@code sessionPort}, or on the remembered port when none was given, switched on. */
+    private void turnOn(SessionPort sessionPort) throws Exception {
         service = new AiServerService(preferences, api, AiTasks.of(api), SwingUtilities::invokeLater, serverThread,
                 new AiServerService.QueuedWork() {
                     @Override
@@ -84,7 +90,7 @@ class AiServerRestartScenarioTest {
                     public void accept() {
                         host.acceptQueuedWork();
                     }
-                }, SessionPort.none());
+                }, sessionPort);
         // what Application does when the server is not running: every wait for «Siguiente» ends
         service.addListener(new AiServerService.Listener() {
             @Override
@@ -95,7 +101,6 @@ class AiServerRestartScenarioTest {
                 }
             }
         });
-        stopListening = api.addPresentationListener(new Heard());
         onEditor(() -> {
             service.activate();
             return null;
@@ -105,15 +110,24 @@ class AiServerRestartScenarioTest {
         document = (String) list(call("vsim_list_documents", Map.of()), "documents").getFirst().get("id");
     }
 
+    /** The remembered port: free, as when VSim starts as usual. */
+    private void turnOnOnTheRememberedPort() throws Exception {
+        port = freePort();
+        preferences.setAiPort(port);
+        turnOn(SessionPort.none());
+    }
+
     @AfterEach
     void disconnect() throws Exception {
         if (client != null) {
             client.close();
         }
-        onEditor(() -> {
-            service.stop();
-            return null;
-        });
+        if (service != null) {
+            onEditor(() -> {
+                service.stop();
+                return null;
+            });
+        }
         stopListening.run();
         serverThread.shutdownNow();
         open.forEach(OpenDocument::close);
@@ -121,6 +135,7 @@ class AiServerRestartScenarioTest {
 
     @Test
     void reiniciarWithAGhostWaitingStopsTheTaskDropsTheGhostAndListensAgainOnTheSamePort() throws Exception {
+        turnOnOnTheRememberedPort();
         String task = aStepWaitsForSiguiente();
 
         boolean restarted = onEditor(service::restart);
@@ -139,6 +154,7 @@ class AiServerRestartScenarioTest {
 
     @Test
     void apagarWithAGhostWaitingStopsTheTaskAndDropsTheGhost() throws Exception {
+        turnOnOnTheRememberedPort();
         aStepWaitsForSiguiente();
 
         onEditor(() -> {
@@ -153,6 +169,50 @@ class AiServerRestartScenarioTest {
         try (ServerSocket free = new ServerSocket(port, 50, InetAddress.getLoopbackAddress())) {
             assertThat(free.getLocalPort()).as("the port is free again").isEqualTo(port);
         }
+    }
+
+    // --- IA.3: the port for one session, from the command line ---
+
+    @Test
+    void aSessionPortServesTheAiThroughReiniciarAndApagarAndThePreferencesNeverChange() throws Exception {
+        int remembered = freePort();
+        preferences.setAiPort(remembered);
+        preferences.setAiSecret(REMEMBERED_SECRET);
+        port = freePort();
+        assertThat(port).isNotEqualTo(remembered);
+        // what VSim reads at launch: -Dvsim.ai.port=<n> (it wins over VSIM_AI_PORT)
+        SessionPort fromTheCommandLine = SessionPort.fromLaunch(
+                name -> "vsim.ai.port".equals(name) ? Integer.toString(port) : null,
+                name -> "VSIM_AI_PORT".equals(name) ? Integer.toString(remembered) : null);
+        List<String> rememberedWhileRunning = new CopyOnWriteArrayList<>();
+        preferences.addListener(() -> rememberedWhileRunning.add(preferences.aiPort() + " "
+                + preferences.aiSecret().orElse("")));
+
+        turnOn(fromTheCommandLine);
+
+        assertThat(onEditor(service::isSessionPort)).isTrue();
+        assertThat(onEditor(service::port)).hasValue(port);
+        String command = onEditor(service::claudeCodeCommand);
+        assertThat(command).contains(" vsim-" + port + " ",
+                "http://127.0.0.1:" + port + "/mcp", "Bearer " + REMEMBERED_SECRET);
+        String task = aStepWaitsForSiguiente();
+        assertThat(onEditor(service::restart)).isTrue();
+        awaitHeard("stepDiscarded STOPPED");
+        awaitState(AiServerState.Listening.class);
+        assertThat(onEditor(service::port)).as("Reiniciar keeps the session port").hasValue(port);
+        client.close();
+        client = newClient();
+        assertThat(call("vsim_await_step", Map.of("taskId", task))).containsEntry("status", "STOPPED");
+        onEditor(() -> {
+            service.deactivate();
+            return null;
+        });
+        assertThat(onEditor(service::state)).isEqualTo(new AiServerState.Off());
+
+        assertThat(preferences.aiPort()).as("the remembered port").isEqualTo(remembered);
+        assertThat(preferences.aiSecret()).contains(REMEMBERED_SECRET);
+        assertThat(rememberedWhileRunning).as("whatever else changed («Presentar»), never the port or the secret")
+                .allMatch(seen -> seen.equals(remembered + " " + REMEMBERED_SECRET));
     }
 
     /** «Presentar», «Paso a paso»: the AI's first step is a ghost waiting for «Siguiente». */

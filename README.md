@@ -44,7 +44,7 @@ Una línea por función; el detalle está en [docs/funciones.md](docs/funciones.
 - [Mover con el teclado](docs/funciones.md#mover-con-el-teclado): las flechas mueven la selección en un solo paso de deshacer.
 - [Portapapeles](docs/funciones.md#portapapeles): cortar, copiar, pegar flotando y duplicar.
 - [Arrastrar entre ventanas](docs/funciones.md#arrastrar-entre-ventanas) para mover o copiar entre vistas y circuitos.
-- [Etiquetas, textos y Propiedades](docs/funciones.md#etiquetas-textos-y-propiedades): etiquetas que se mueven, textos libres y un panel para editar lo seleccionado.
+- [Etiquetas, textos y Propiedades](docs/funciones.md#etiquetas-textos-y-propiedades): etiquetas que se mueven, textos libres (notas de varias líneas: Mayús+Enter agrega una línea al editarlas, también en Propiedades) y un panel para editar lo seleccionado.
 - [Elegir un color](docs/funciones.md#elegir-un-color) con una fila de muestras, igual para LED, marcos y túneles.
 - [Edición de texto en el lugar](docs/funciones.md#edición-de-texto-en-el-lugar) para etiquetas, textos, títulos y valores.
 - [Marcos](docs/funciones.md#marcos) con título, color y candado, que mueven su bloque completo.
@@ -112,8 +112,9 @@ Una línea por función; el detalle está en [docs/funciones.md](docs/funciones.
 
 ### IA (MCP)
 
-- [IA (MCP)](docs/funciones.md#ia-mcp): Claude Code se conecta al VSim abierto y arma, conecta, simula y revisa circuitos en tus ventanas («arma un flip-flop D», «conviértelo en componente», «prueba su tabla de verdad»); cada cambio es un Ctrl+Z, «Deshacer lo que hizo la IA» quita su tarea, «Detener» la para y al terminar «Ver lo que hizo» te lleva a lo que cambió. Se activa en Herramientas ▸ «IA (MCP)…» y se configura una vez en Preferencias ▸ «IA».
-- [Presentar](docs/funciones.md#presentar): con Ver ▸ «Presentar lo que hace la IA» (o pidiéndoselo a la IA) la ves armar el circuito paso a paso: una ventanita con las etapas y sus pasos, un globo que señala cada cambio, «Paso a paso» (cada paso en transparente hasta «Siguiente») o «De corrido» (con una pausa, elegida en la ventanita o en Ver ▸ «Ritmo de Presentar»), la vista que viaja a cada paso y cada etapa en su propio marco, de izquierda a derecha; «Deshacer etapa» etapa por etapa y, al final, «Dejar solo el resultado» cuando las etapas están separadas.
+- [IA (MCP)](docs/funciones.md#ia-mcp): Claude Code se conecta al VSim abierto y arma, conecta, simula y revisa circuitos en tus ventanas («arma un flip-flop D», «conviértelo en componente», «prueba su tabla de verdad»); cada cambio es un Ctrl+Z, «Deshacer lo que hizo la IA» quita su tarea, «Detener» la para y al terminar «Ver lo que hizo» te lleva a lo que cambió. Se enciende en Herramientas ▸ «IA (MCP)…», un panel con su estado en color, Encender / Apagar / Reiniciar y qué hacer ante un error, y se configura una vez en Preferencias ▸ «IA» (o con un puerto solo para esta sesión: `-Dvsim.ai.port=<n>`); si Claude Code deja de responder con un paso esperando, VSim detiene la tarea a los 2 minutos.
+- [Comandos de la IA](docs/funciones.md#comandos-y-ayuda): en Claude Code, `/mcp__vsim__guia`, `armar`, `exponer`, `explicar`, `revisar`, `probar`, `componente` y `exportar` piden lo más común sin escribirlo entero, y `vsim://ayuda` explica qué puede y qué no hace la IA.
+- [Presentar](docs/funciones.md#presentar): con Ver ▸ «Presentar lo que hace la IA» (o pidiéndoselo a la IA) la ves armar el circuito paso a paso: una ventanita con las etapas y sus pasos, un globo que señala cada cambio, «Paso a paso» (cada paso en transparente hasta «Siguiente») o «De corrido» (con una pausa, elegida en la ventanita o en Ver ▸ «Ritmo de Presentar»), la vista que viaja a cada paso y cada etapa en su propio marco, de izquierda a derecha; «Deshacer etapa» etapa por etapa y, al final, «Dejar solo el resultado» cuando las etapas están separadas. La IA cuenta lo que viene como subtítulo, te pregunta en la ventanita (con botones o una respuesta corta) y, si se queda callada 20 s, VSim avisa «Claude está pensando o te preguntó algo en Claude Code».
 
 ### Ejemplos
 

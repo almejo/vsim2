@@ -14,6 +14,7 @@ import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.Frame;
 import cl.almejo.vsim.core.document.FrameContents;
+import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.library.ComponentLibrary;
@@ -24,8 +25,10 @@ import cl.almejo.vsim.ui.UiTestSupport;
 import cl.almejo.vsim.ui.ai.present.AutomationPresentationControls;
 import cl.almejo.vsim.ui.ai.present.PresentationEvents;
 import cl.almejo.vsim.ui.ai.present.PresentationExtension;
+import cl.almejo.vsim.ui.ai.present.PresentationProbe;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.OpenDocument;
+import cl.almejo.vsim.ui.canvas.DrawnBounds;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.Appearance;
 import cl.almejo.vsim.ui.paint.ColorScheme;
@@ -92,8 +95,11 @@ class PresentationScenariosTest {
     };
 
     private final List<OpenDocument> open = new CopyOnWriteArrayList<>();
-    /** The window's preferences: «Presentar», its pace and pause, as the toggle and the panel write them. */
-    private final AppPreferences preferences = AppPreferences.inMemory();
+    /**
+     * The window's preferences: «Presentar», its pace and pause, as the toggle and the panel write them; layered over
+     * the saved ones as a real window's, so the AI may give its task a pace of its own (IA.3 «exponer»).
+     */
+    private final AppPreferences preferences = AppPreferences.inMemory().layered();
     private final ManualPacer pacer = new ManualPacer();
     /** The panel's buttons ask the API on this thread; the test waits for it to finish what a press started. */
     private final ExecutorService buttonsThread = Executors.newSingleThreadExecutor();
@@ -517,6 +523,149 @@ class PresentationScenariosTest {
         assertThat(heard).contains("stepDiscarded STOPPED");
     }
 
+    // --- IA.3: the commands, followed ---
+
+    @Test
+    void theExponerCommandIsListedAndFollowedStepByStepUpToAPassedCheckInsideOneFrame() throws Exception {
+        // The user types /mcp__vsim__ in Claude Code: the client lists VSim's commands and its help.
+        List<String> names = client.listPrompts().prompts().stream().map(McpSchema.Prompt::name).toList();
+        assertThat(names).containsExactlyInAnyOrder("guia", "armar", "exponer", "explicar", "revisar", "probar",
+                "componente", "exportar");
+        for (String name : names) {
+            McpSchema.GetPromptResult empty = client.getPrompt(McpSchema.GetPromptRequest.builder(name).arguments(Map.of()).build());
+            assertThat(empty.messages()).as("%s with nothing typed after it", name).singleElement()
+                    .satisfies(message -> assertThat(message.role()).isEqualTo(McpSchema.Role.USER));
+        }
+        McpSchema.ReadResourceResult help = client.readResource(McpSchema.ReadResourceRequest.builder("vsim://ayuda").build());
+        String helpText = ((McpSchema.TextResourceContents) help.contents().getFirst()).text();
+        names.forEach(name -> assertThat(helpText).contains("/mcp__vsim__" + name));
+
+        // «/mcp__vsim__exponer un inversor paso a paso», as a client that hands the whole line to the first argument.
+        McpSchema.GetPromptResult exponer = client.getPrompt(McpSchema.GetPromptRequest.builder("exponer")
+                .arguments(Map.of("pedido", "un inversor paso a paso")).build());
+        String asked = ((McpSchema.TextContent) exponer.messages().getFirst().content()).text();
+        assertThat(asked).contains("un inversor", "presenting true", "pace STEP_BY_STEP", "vsim_begin_stage",
+                "vsim_await_step", "vsim_check_stage", "passed true");
+
+        // The scripted AI does what the command says: «Presentar», the pace for this task, a stage, its check.
+        assertThat(call("vsim_get_presentation", Map.of("document", document))).containsEntry("presenting", false);
+        call("vsim_set_presentation", Map.of("document", document, "presenting", true));
+        String task = beginTask("Un inversor", "Inversor");
+        assertThat(call("vsim_set_presentation", Map.of("document", document, "presenting", true,
+                "pace", "STEP_BY_STEP"))).containsEntry("pace", "STEP_BY_STEP");
+        known = versionOf();
+        pressesSiguiente = true;
+        GridPoint origin = beginStage(task, 1);
+        Map<String, Object> parts = step(task, "Inversor", "Coloco la entrada, el inversor y la salida",
+                "La señal va de izquierda a derecha", List.of(
+                        part("a", "input-pin", origin.x(), origin.y() + 1, "A"),
+                        part("not", "not", origin.x() + 8, origin.y(), ""),
+                        part("y", "output-pin", origin.x() + 18, origin.y() + 1, "Y")));
+        Map<String, String> ids = aliases(parts);
+        step(task, "Inversor", "Conecto la entrada y la salida", "Así el inversor recibe A y entrega Y", List.of(
+                connect(ids.get("a"), "pin", ids.get("not"), "in"),
+                connect(ids.get("not"), "out", ids.get("y"), "pin")));
+        // The «Prueba» note in one note of three lines (IA.3: \n starts a new line), under the inverter.
+        String test = "Prueba:\nA en 0: Y en 1\nA en 1: Y en 0";
+        step(task, "Inversor", "Explico cómo probarlo", "Una nota de tres líneas", List.of(Map.of("op", "AddNote",
+                "text", test, "x", origin.x(), "y", origin.y() + 6)));
+        checkTruthTable(task, "Inversor", elementsIn(Map.of("x", origin.x() - 2, "y", origin.y() - 2,
+                "width", 30, "height", 6)), List.of(
+                Map.of("inputs", Map.of("A", "0"), "outputs", Map.of("Y", "1")),
+                Map.of("inputs", Map.of("A", "1"), "outputs", Map.of("Y", "0"))));
+        call("vsim_end_task", Map.of("taskId", task));
+        assertThat(pressFailures).isEmpty();
+
+        // One frame around the stage: it takes in every line of the note, and the stage began two columns right and
+        // five rows down from its corner (IA.3: one more row than before, so the labels fit under the title).
+        Frame frame = onEditor(this::framesLeftToRight).getFirst();
+        assertThat(onEditor(() -> circuit.document().frames())).hasSize(1);
+        assertThat(frame.title()).isEqualTo("Inversor");
+        assertThat(origin).isEqualTo(new GridPoint(frame.topLeft().x() + 2, frame.topLeft().y() + 5));
+        TextLabel note = onEditor(() -> circuit.document().elements().stream()
+                .filter(TextLabel.class::isInstance)
+                .map(TextLabel.class::cast).findFirst().orElseThrow());
+        assertThat(note.text()).isEqualTo(test);
+        Bounds drawn = DrawnBounds.of(note, circuit.registry());
+        assertThat(drawn.height()).as("three lines are taller than one").isGreaterThan(2);
+        assertThat(drawn.x()).isGreaterThanOrEqualTo(frame.topLeft().x());
+        assertThat(drawn.y()).isGreaterThanOrEqualTo(frame.topLeft().y());
+        assertThat(drawn.x() + drawn.width()).isLessThanOrEqualTo(frame.topLeft().x() + frame.width());
+        assertThat(drawn.y() + drawn.height()).as("the third line is inside the frame")
+                .isLessThanOrEqualTo(frame.topLeft().y() + frame.height());
+    }
+
+    // --- IA.3: what the AI says and asks, in VSim ---
+
+    @Test
+    void whatTheAiSaysIsASubtitleAndInTheStagesCardAndItsQuestionIsAnsweredInThePanel() throws Exception {
+        call("vsim_set_presentation", Map.of("document", document, "presenting", true));
+        String task = beginTask("Un contador", "Contador");
+        String before = "Primero te pregunto de cuántos bits lo quieres";
+        Map<String, Object> begun = call("vsim_begin_stage", Map.of("taskId", task, "stageNumber", 1,
+                "narration", before));
+        assertThat(begun).containsEntry("stageNumber", 1);
+        assertThat(onEditor(() -> PresentationProbe.subtitle(presentation, view))).contains(before);
+        assertThat(onEditor(() -> PresentationProbe.cardLines(presentation, view))).contains(before);
+
+        String said = "Con tu respuesta elijo cuántos flip-flops pongo";
+        Map<String, Object> saying = call("vsim_say", Map.of("taskId", task, "text", said));
+        assertThat(saying).containsEntry("shown", true).containsEntry("presenting", true)
+                .containsEntry("stageNumber", 1);
+        assertThat(onEditor(() -> PresentationProbe.subtitle(presentation, view))).as("the new line replaces it")
+                .contains(said);
+        assertThat(onEditor(() -> PresentationProbe.cardLines(presentation, view))).contains(said)
+                .doesNotContain(before);
+
+        // The question shows in the floating panel, with a button per choice; the user presses one there.
+        Map<String, Object> asked = call("vsim_ask_user", Map.of("taskId", task,
+                "question", "¿De cuántos bits hago el contador?", "choices", List.of("2 bits", "3 bits", "4 bits")));
+        assertThat(asked).containsEntry("status", "ASKED");
+        String questionId = (String) asked.get("questionId");
+        onEditor(() -> {
+            QuestionCard card = PresentationProbe.questionCard(presentation, view).orElseThrow();
+            assertThat(card.question().text()).isEqualTo("¿De cuántos bits hago el contador?");
+            card.choiceButtons().stream().filter(button -> "3 bits".equals(button.getText())).findFirst()
+                    .orElseThrow().doClick();
+            return null;
+        });
+        buttonsThread.submit(() -> { }).get(30, TimeUnit.SECONDS);
+        Map<String, Object> answer = call("vsim_await_answer", Map.of("questionId", questionId));
+        assertThat(answer).containsEntry("status", "ANSWERED").containsEntry("choice", "3 bits");
+
+        call("vsim_end_task", Map.of("taskId", task));
+        assertThat(onEditor(() -> PresentationProbe.subtitle(presentation, view))).as("gone with the task")
+                .isEmpty();
+        assertThat(onEditor(() -> PresentationProbe.questionCard(presentation, view))).isEmpty();
+    }
+
+    // --- IA.3: a client that went away ---
+
+    @Test
+    void aGhostLeftByAClientThatStoppedCallingIsStoppedAfterTwoMinutesAndThePanelSaysWhy() throws Exception {
+        call("vsim_set_presentation", Map.of("document", document, "presenting", true));
+        String task = beginTask("Una luz", "Luz");
+        known = versionOf();
+        assertThat(call("vsim_edit", stepArguments(task, "Luz", "Pongo la luz",
+                List.of(part("lamp", "led", 0, 0, ""))))).containsEntry("status", "PROPOSED");
+        awaitHeard(event -> event.equals("stepProposed Pongo la luz"));
+
+        // Nobody presses «Siguiente» and the AI never calls again (Claude Code was closed).
+        pacer.advance(Duration.ofSeconds(119));
+        assertThat(onEditor(() -> PresentationProbe.notice(presentation, view))).as("a minute and 59: still alive")
+                .isNotEqualTo(Messages.text("ai.present.silent"));
+        pacer.advance(Duration.ofSeconds(2));
+
+        awaitHeard(event -> event.equals("stepDiscarded STOPPED"));
+        assertThat(onEditor(() -> PresentationProbe.notice(presentation, view)))
+                .isEqualTo(Messages.text("ai.present.silent"));
+        assertThat(onEditor(() -> circuit.document().components())).as("the ghost was never applied").isEmpty();
+        // A client that comes back hears that its task stopped.
+        assertThat(call("vsim_await_step", Map.of("taskId", task))).containsEntry("status", "STOPPED");
+        assertThat(refusal("vsim_edit", stepArguments(task, "Luz", "Pongo la luz",
+                List.of(part("lamp", "led", 0, 0, ""))))).containsEntry("error", "NOT_ALLOWED");
+    }
+
     // --- the AI's calls ---
 
     private String beginTask(String title, String... stages) {
@@ -716,7 +865,7 @@ class PresentationScenariosTest {
 
         @Override
         public Optional<SettingsOverride> settingsOverride(OpenDocument openDocument) {
-            return Optional.empty();
+            return SettingsOverride.of(preferences);
         }
 
         @Override
