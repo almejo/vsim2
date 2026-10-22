@@ -5,8 +5,12 @@ Simulador de circuitos digitales: se dibuja el circuito, se simula y se ve cómo
 Sus focos son **aprender y enseñar** y la **facilidad de uso**. Toma las buenas ideas que ya existen en otros
 simuladores y agrega cosas que ningún otro editor de circuitos tiene: un asistente de Karnaugh que explica cada
 grupo y un modo práctica que corrige, un paso a paso que muestra qué va a cambiar, cables que siguen al mover y se
-ordenan solos, y una IA que arma, prueba y presenta circuitos paso a paso (ver la
+ordenan solos, y un servidor MCP para que tu propio asistente de IA (Claude Code, Codex u otro compatible) pueda
+armar, probar y presentar circuitos paso a paso en el VSim que tienes abierto (ver la
 [comparación con Logisim, Digital y CircuitSim](docs/superpowers/research/2026-10-19-vsim-vs-logisim-digital.md)).
+
+VSim 2 **no trae una IA adentro** ni se conecta a internet: el servidor MCP viene apagado, escucha solo en tu
+computador y lo enciendes cuando quieres (Herramientas ▸ «IA (MCP)…»). La IA la pones tú, con tu propia cuenta.
 
 Está hecho en Java 21 con Swing. Es la tercera versión, después de
 [JCSim](https://github.com/almejo/jcsim) y [VSim](https://github.com/almejo/vsim) (ver [Historia](#historia)).
