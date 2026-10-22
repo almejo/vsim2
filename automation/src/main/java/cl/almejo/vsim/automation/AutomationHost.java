@@ -8,7 +8,8 @@ import java.util.function.Function;
  * from the server's threads. Each later task adds its methods to its own part ({@link ReadHost}, {@link EditHost},
  * {@link SimulationHost}, {@link SettingsHost}, {@link ExportHost}) so they can be written side by side.
  */
-public interface AutomationHost extends ReadHost, EditHost, SimulationHost, SettingsHost, ExportHost {
+public interface AutomationHost extends ReadHost, EditHost, SimulationHost, SettingsHost, ExportHost,
+        PresentationHost {
 
     /**
      * Runs {@code work} on the editor thread and completes the future off it with what {@code work} returned, or

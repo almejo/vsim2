@@ -107,8 +107,10 @@ final class EditPlanner {
 
     /** What the call leaves: the candidate circuit and what the receipt reports. */
     /** {@code layoutGuides}: the guides this edit added only to align ({@link AddGuide#layoutOnly}). */
+    /** {@code registry}: the candidate's own registry (it knows the components the call created). */
     record PlannedEdit(CircuitDocument candidate, Map<String, String> aliases, List<ConnectionReport> connections,
-                       List<CreatedComponent> components, List<String> warnings, List<Guide> layoutGuides) {
+                       List<CreatedComponent> components, List<String> warnings, List<Guide> layoutGuides,
+                       ComponentTypeRegistry registry) {
     }
 
     private final CircuitDocument original;
@@ -168,7 +170,7 @@ final class EditPlanner {
         }
         planner.warnAboutNewWidthMismatches();
         return new PlannedEdit(planner.candidate, planner.aliases, planner.connections, planner.components,
-                planner.warnings, List.copyOf(planner.layoutGuides));
+                planner.warnings, List.copyOf(planner.layoutGuides), planner.registry);
     }
 
     private void carryOut(EditOperation operation) {

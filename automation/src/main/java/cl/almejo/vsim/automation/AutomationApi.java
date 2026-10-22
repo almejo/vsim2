@@ -26,6 +26,10 @@ import cl.almejo.vsim.automation.edit.OrderedExecutor;
 import cl.almejo.vsim.automation.edit.TaskEnding;
 import cl.almejo.vsim.automation.edit.TaskStage;
 import cl.almejo.vsim.automation.present.PresentationListener;
+import cl.almejo.vsim.automation.present.PresentationService;
+import cl.almejo.vsim.automation.present.PresentationSettings;
+import cl.almejo.vsim.automation.present.PresentedEdit;
+import cl.almejo.vsim.automation.present.StepOutcome;
 
 import java.time.Duration;
 import java.util.List;
@@ -61,6 +65,7 @@ public final class AutomationApi {
     private final Reads reads;
     private final SimulationOperations simulation;
     private final EditService edits;
+    private final PresentationService presentation;
     private final StageChecks checks;
 
     public AutomationApi(AutomationHost host) {
@@ -70,7 +75,11 @@ public final class AutomationApi {
     AutomationApi(AutomationHost host, Duration editorTimeout) {
         this.host = Objects.requireNonNull(host, "host");
         this.editorTimeout = Objects.requireNonNull(editorTimeout, "editorTimeout");
-        this.edits = new EditService(host, listeners, editorTimeout, new OrderedExecutor());
+        // One ordered stream of events: a task's start reaches the listeners before its plan.
+        OrderedExecutor events = new OrderedExecutor();
+        this.edits = new EditService(host, listeners, editorTimeout, events);
+        this.presentation = new PresentationService(host, edits, presentationListeners, events,
+                PresentationService.MAXIMUM_STEP_WAIT);
         this.reads = new Reads(host, editorTimeout);
         this.simulation = new SimulationOperations(host);
         this.checks = new StageChecks(new StageChecks.Measurements() {
@@ -177,9 +186,19 @@ public final class AutomationApi {
         }
     }
 
-    /** Runs a stage's checks and reports what VSim measured; a check VSim did not finish never passes. */
+    /**
+     * Runs a stage's checks and reports what VSim measured; a check VSim did not finish never passes. When the request
+     * names a task, «Presentar» shows the result in the stage's card (and «De corrido» waits after a failed one).
+     */
     public StageCheck.Result checkStage(StageCheck.Request request) {
-        return checks.run(request);
+        StageCheck.Result result = checks.run(request);
+        result.taskId().ifPresent(taskId -> presentation.stageChecked(taskId, result.stage(), result.passed(),
+                summaryOf(result)));
+        return result;
+    }
+
+    private static String summaryOf(StageCheck.Result result) {
+        return String.join("; ", result.checks().stream().map(StageCheck.CheckResult::summary).toList());
     }
 
     // --- Simulation with budgets and receipts (IA.1 Task 4): see SimulationOperations ---
@@ -277,23 +296,116 @@ public final class AutomationApi {
         return listeners.size();
     }
 
-    /** One edit call, all or nothing, as one undo step (spec §10; see {@link EditService#edit}). */
+    /**
+     * One edit call, all or nothing, as one undo step (spec §10; see {@link EditService#edit}). In «Presentar» it is
+     * one step, paced or proposed ({@link #editStep}); a proposed step's receipt says {@code applied} false.
+     */
     public EditReceipt edit(EditRequest request) {
-        return edits.edit(request);
+        return presentation.edit(request).receipt();
     }
 
-    /** Begins an AI task on an open circuit (spec §3); listeners hear it start. */
+    /**
+     * One edit call with how «Presentar» took it (spec §5.1): not paced (working mode), {@code APPLIED} («De corrido»,
+     * after the pause) or {@code PROPOSED} («Paso a paso»: shown as a ghost, then {@link #awaitStep}).
+     */
+    public PresentedEdit editStep(EditRequest request) {
+        return presentation.edit(request);
+    }
+
+    /**
+     * {@code await_step}: what became of the task's proposed step, waiting at most
+     * {@link PresentationService#MAXIMUM_STEP_WAIT}: {@code APPLIED} with the receipt, {@code STALE} (read again and
+     * propose it again), {@code STOPPED}, or {@code STILL_WAITING} (ask again).
+     */
+    public StepOutcome awaitStep(String taskId) {
+        return presentation.awaitStep(taskId, PresentationService.MAXIMUM_STEP_WAIT);
+    }
+
+    /** {@link #awaitStep(String)} waiting at most {@code wait} (capped at the maximum). */
+    public StepOutcome awaitStep(String taskId, Duration wait) {
+        return presentation.awaitStep(taskId, wait);
+    }
+
+    /** «Siguiente ▸»: writes the task's proposed step as it was shown, or discards it as stale. Off the editor thread. */
+    public void nextStep(String taskId) {
+        presentation.next(taskId);
+    }
+
+    /** «Hasta fin de etapa»: the rest of the current stage at the «De corrido» pace. Off the editor thread. */
+    public void toStageEnd(String taskId) {
+        presentation.toStageEnd(taskId);
+    }
+
+    /**
+     * «Deshacer etapa» (spec §4.1): undoes the stage's steps while they are on top of the history.
+     * TODO(IA.2 Task 2, Storyboard): not built yet; refused until the storyboard fills it.
+     */
+    public UndoOutcome undoStage(String taskId, int stageIndex) {
+        edits.requireTask(taskId);
+        throw new AutomationException(AutomationError.NOT_ALLOWED, "«Deshacer etapa» is not available yet");
+    }
+
+    /**
+     * «Dejar solo el resultado» (spec §6): keeps the last stage's frame and the components created, as one undo step.
+     * TODO(IA.2 Task 2, Storyboard): not built yet; refused until the storyboard fills it.
+     */
+    public void keepOnlyResult(String taskId) {
+        edits.requireTask(taskId);
+        throw new AutomationException(AutomationError.NOT_ALLOWED, "«Dejar solo el resultado» is not available yet");
+    }
+
+    /** The presentation mode of the window the AI works in for {@code document} (spec §4). */
+    public PresentationSettings presentationSettings(DocumentId document) {
+        Objects.requireNonNull(document, "document");
+        return onEditorThread(access -> host.presentationSettings(document));
+    }
+
+    /**
+     * Switches «Presentar» on or off for {@code document}'s window, as the AI asks when the user wants to see how it
+     * builds (spec §4), and returns the window's settings then. A step waiting for «Siguiente» is written when it is
+     * switched off.
+     */
+    public PresentationSettings setPresenting(DocumentId document, boolean presenting) {
+        Objects.requireNonNull(document, "document");
+        PresentationSettings settings = onEditorThread(access -> {
+            host.setPresenting(document, presenting);
+            return host.presentationSettings(document);
+        });
+        presentation.settingsChanged(document, settings);
+        return settings;
+    }
+
+    /** The editor: the user changed the presentation mode of {@code document}'s window. Off the editor thread. */
+    public void presentationChanged(DocumentId document, PresentationSettings settings) {
+        presentation.settingsChanged(document, settings);
+    }
+
+    /** The editor: {@code document}'s last window closed; its proposed step is dropped. */
+    public void documentClosed(DocumentId document) {
+        presentation.documentClosed(document);
+    }
+
+    /** The editor: the AI was turned off or VSim quits; every proposed step is dropped and every wait ends. */
+    public void stopPresenting() {
+        presentation.stopAll();
+    }
+
+    /** Begins an AI task on an open circuit (spec §3); listeners hear it start and its plan. */
     public TaskInfo beginTask(DocumentId document, String title, List<TaskStage> stages) {
-        return edits.beginTask(document, title, stages);
+        TaskInfo info = edits.beginTask(document, title, stages);
+        presentation.taskBegun(info);
+        return info;
     }
 
     /** Replaces a task's plan of stages and steps. */
     public void updatePlan(String taskId, List<TaskStage> stages) {
         edits.updatePlan(taskId, stages);
+        presentation.planUpdated(taskId);
     }
 
     /** Ends a task; listeners hear it end with the elements it changed. Its layout-only guides go away. */
     public TaskInfo endTask(String taskId) {
+        presentation.taskEnding(taskId);
         return edits.endTask(taskId);
     }
 
@@ -302,12 +414,13 @@ public final class AutomationApi {
      * {@code keepLayoutGuides} (spec §7). Listeners hear it end with the elements it changed.
      */
     public TaskEnding endTask(String taskId, boolean keepLayoutGuides) {
+        presentation.taskEnding(taskId);
         return edits.endTask(taskId, keepLayoutGuides);
     }
 
-    /** «Detener»: stops the task; its applied edits stay and its next ones are refused. */
+    /** «Detener»: stops the task; its applied edits stay, its proposed step is dropped and its next ones are refused. */
     public void stopTask(String taskId) {
-        edits.stopTask(taskId);
+        presentation.stop(taskId);
     }
 
     /** «Deshacer lo que hizo la IA»: undoes the task's steps from the top, never past the user's own edit. */

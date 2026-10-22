@@ -21,6 +21,8 @@ import cl.almejo.vsim.automation.export.ExportRequest;
 import cl.almejo.vsim.automation.EditorSetting;
 import cl.almejo.vsim.automation.ProposalAnswer;
 import cl.almejo.vsim.automation.ProposedPreference;
+import cl.almejo.vsim.automation.present.PresentationSettings;
+import cl.almejo.vsim.automation.present.StepPacer;
 import cl.almejo.vsim.ui.app.OpenDocument;
 
 import javax.swing.SwingUtilities;
@@ -58,6 +60,8 @@ public final class EditorAutomationHost implements AutomationHost {
     private final EditHostSupport edits;
     private final ExportHostSupport exports;
     private final EditorQueue queue = new EditorQueue();
+    /** «De corrido»'s clock and timer: the JDK's delayed executor, never the EDT. */
+    private final StepPacer stepPacer;
 
     /** @param openDocuments the open circuits, one per circuit however many views it has; called on the EDT */
     public EditorAutomationHost(Supplier<List<OpenDocument>> openDocuments) {
@@ -83,12 +87,26 @@ public final class EditorAutomationHost implements AutomationHost {
     public EditorAutomationHost(Supplier<List<OpenDocument>> openDocuments,
                                 Function<OpenDocument, List<ShownWindow>> windowsOf, EditorWindows windows,
                                 PreferenceProposals proposals) {
-        this(openDocuments, windowsOf, windows, Optional.of(proposals));
+        this(openDocuments, windowsOf, windows, Optional.of(proposals), StepPacer.system());
+    }
+
+    /** Everything, with «De corrido»'s clock and timer given (tests move them by hand). */
+    public EditorAutomationHost(Supplier<List<OpenDocument>> openDocuments,
+                                Function<OpenDocument, List<ShownWindow>> windowsOf, EditorWindows windows,
+                                PreferenceProposals proposals, StepPacer stepPacer) {
+        this(openDocuments, windowsOf, windows, Optional.of(proposals), stepPacer);
     }
 
     private EditorAutomationHost(Supplier<List<OpenDocument>> openDocuments,
                                  Function<OpenDocument, List<ShownWindow>> windowsOf, EditorWindows windows,
                                  Optional<PreferenceProposals> proposals) {
+        this(openDocuments, windowsOf, windows, proposals, StepPacer.system());
+    }
+
+    private EditorAutomationHost(Supplier<List<OpenDocument>> openDocuments,
+                                 Function<OpenDocument, List<ShownWindow>> windowsOf, EditorWindows windows,
+                                 Optional<PreferenceProposals> proposals, StepPacer stepPacer) {
+        this.stepPacer = Objects.requireNonNull(stepPacer, "stepPacer");
         this.openDocuments = Objects.requireNonNull(openDocuments, "openDocuments");
         this.windows = Objects.requireNonNull(windows, "windows");
         this.proposals = proposals;
@@ -138,6 +156,23 @@ public final class EditorAutomationHost implements AutomationHost {
         SettingsOverride override = windows.settingsOverride(open).orElseThrow(() ->
                 new AutomationException(AutomationError.NOT_ALLOWED, "This circuit has no window settings"));
         override.set(setting, value);
+    }
+
+    // --- «Presentar» (IA.2): the mode of the circuit's first window, from its preferences ---
+
+    @Override
+    public PresentationSettings presentationSettings(DocumentId document) {
+        return windows.presentationSettings(documentOf(document));
+    }
+
+    @Override
+    public void setPresenting(DocumentId document, boolean presenting) {
+        windows.setPresenting(documentOf(document), presenting);
+    }
+
+    @Override
+    public StepPacer stepPacer() {
+        return stepPacer;
     }
 
     @Override

@@ -1,6 +1,7 @@
 package cl.almejo.vsim.ui.app;
 
 import cl.almejo.vsim.automation.AutomationApi;
+import cl.almejo.vsim.automation.present.PresentationSettings;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.command.Command;
@@ -17,6 +18,9 @@ import cl.almejo.vsim.ui.ai.ShownWindow;
 import cl.almejo.vsim.ui.ai.EditorWindows;
 import cl.almejo.vsim.ui.ai.PreferenceProposals;
 import cl.almejo.vsim.ui.ai.SettingsOverride;
+import cl.almejo.vsim.ui.ai.PresentationModeWatcher;
+import cl.almejo.vsim.ui.ai.PresentationPreferences;
+import cl.almejo.vsim.ui.ai.present.AutomationPresentationControls;
 import cl.almejo.vsim.ui.ai.present.PresentationControls;
 import cl.almejo.vsim.ui.ai.present.PresentationEvents;
 import cl.almejo.vsim.ui.ai.present.PresentationExtension;
@@ -88,6 +92,7 @@ import java.util.Optional;
 import java.util.WeakHashMap;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+import java.util.concurrent.ForkJoinPool;
 
 /** Open windows and documents of the running application (EDT only). A document closes with its last window. */
 public final class Application {
@@ -114,6 +119,11 @@ public final class Application {
     private final AiServerService aiServer;
     private final EditorAutomationHost automationHost;
     private final PreferenceProposals proposals;
+    // IA.2: the API the server and «Presentar» share, the panel's buttons over it, and the watcher that tells the
+    // API when a window's mode changes or a circuit closes.
+    private final AutomationApi automationApi;
+    private final PresentationControls presentationControls;
+    private final PresentationModeWatcher presentationWatcher;
     /** IA.2: «Presentar» in every window; the AI asks for it through {@link PresentationExtension#aiAskedForPresenting}. */
     private final PresentationExtension presentation;
     /** Each window reads the preferences through its own layer: the AI's temporary settings (spec §7). */
@@ -125,7 +135,12 @@ public final class Application {
         this.proposals = new PreferenceProposals(preferences);
         this.automationHost = new EditorAutomationHost(windows::documents,
                 document -> ShownWindow.activeFirst(windows.windowsOf(document)), new ApplicationWindows(), proposals);
-        AutomationApi automationApi = new AutomationApi(automationHost);
+        this.automationApi = new AutomationApi(automationHost);
+        this.presentationControls = new AutomationPresentationControls(automationApi);
+        this.presentationWatcher = new PresentationModeWatcher(windows::documents,
+                document -> new ApplicationWindows().presentationSettings(document), automationHost::documentId,
+                PresentationModeWatcher.Target.of(automationApi), ForkJoinPool.commonPool());
+        preferences.addListener(presentationWatcher::refresh); // lives as long as the application
         this.aiServer = new AiServerService(preferences, automationApi,
                 new AiServerService.QueuedWork() {
                     @Override
@@ -144,11 +159,12 @@ public final class Application {
             public void stateChanged() {
                 if (!aiServer.isRunning()) {
                     proposals.withdrawAll(); // turning it off revokes everything (spec §9.1)
+                    automationApi.stopPresenting(); // and ends every wait for «Siguiente» (IA.2)
                 }
             }
         });
         this.presentation = new PresentationExtension(PresentationEvents.of(automationApi),
-                stopOnlyControls(aiServer), automationHost::documentId);
+                presentationControls, automationHost::documentId);
         this.services = new EditorServices(PainterRegistry.standard(), appearance, preferences, library,
                 editorExtensions(libraryService, SwingLibraryDialogs.INSTANCE, this::initialDirectory,
                         this::rememberDirectory,
@@ -169,35 +185,6 @@ public final class Application {
     public static List<EditorExtension> editorExtensions(LibraryService libraryService, LibraryDialogs libraryDialogs) {
         return editorExtensions(libraryService, libraryDialogs, () -> Path.of(System.getProperty("user.home")),
                 path -> { }, AiExtension.inactive(), PresentationExtension.inactive());
-    }
-
-    /**
-     * IA.2: until the pacing layer's {@link PresentationControls} is wired in, the panel's «Detener» stops the task
-     * like the status line's and its other buttons do nothing.
-     */
-    private static PresentationControls stopOnlyControls(AiServerService server) {
-        return new PresentationControls() {
-            @Override
-            public void next(String taskId) {
-            }
-
-            @Override
-            public void toStageEnd(String taskId) {
-            }
-
-            @Override
-            public void stop(String taskId) {
-                server.stopTask(taskId);
-            }
-
-            @Override
-            public void undoStage(String taskId, int stageIndex) {
-            }
-
-            @Override
-            public void keepOnlyResult(String taskId) {
-            }
-        };
     }
 
     /**
@@ -471,6 +458,7 @@ public final class Application {
             autosave.untrack(document);
             document.close();
         });
+        presentationWatcher.refresh(); // a closed circuit's step waiting for «Siguiente» is dropped
         sessionEnding.windowClosed(windows.isEmpty());
         if (windows.isEmpty()) {
             libraryService.close();
@@ -677,6 +665,23 @@ public final class Application {
         @Override
         public List<DefinitionBundle> libraryComponents() {
             return library.entries();
+        }
+
+        /** «Presentar» as the circuit's first window's preferences hold it (IA.2). */
+        @Override
+        public PresentationSettings presentationSettings(OpenDocument document) {
+            return PresentationPreferences.read(preferencesOf(document));
+        }
+
+        @Override
+        public void setPresenting(OpenDocument document, boolean presenting) {
+            preferencesOf(document).setAiPresenting(presenting);
+        }
+
+        private AppPreferences preferencesOf(OpenDocument document) {
+            return windows.windowsOf(document).stream().findFirst()
+                    .map(windowPreferences::get)
+                    .orElse(preferences);
         }
 
         /** The first window of the circuit is the one the AI works in. */
