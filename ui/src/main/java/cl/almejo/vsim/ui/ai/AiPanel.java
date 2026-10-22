@@ -35,6 +35,7 @@ public final class AiPanel extends JPanel {
     private final JButton toggleButton = new JButton();
     private final JButton nextFreePortButton = new JButton(Messages.text("ai.panel.useNextFreePort"));
     private final JLabel notice = new JLabel(" ");
+    private final JLabel portNote = new JLabel(" ");
     private final JButton copyButton = new JButton(Messages.text("ai.copyConfiguration"));
     private final JLabel dataNote = new JLabel(Messages.text("ai.dataNote"));
     private final JPanel settingsSection = new JPanel(new MigLayout("insets 0, wrap 1", "[grow, fill]"));
@@ -74,7 +75,7 @@ public final class AiPanel extends JPanel {
             }
         });
         nextFreePortButton.addActionListener(event -> {
-            int taken = windowPreferences.aiPort();
+            int taken = service.effectivePort();
             if (!service.useNextFreePort()) {
                 noticeText = Messages.format("ai.panel.noFreePort", Integer.toString(taken));
                 refreshState();
@@ -93,6 +94,7 @@ public final class AiPanel extends JPanel {
         add(stateLabel, "split 2, growx");
         add(toggleButton, "growx 0");
         add(nextFreePortButton, "growx 0, hidemode 3");
+        add(portNote, "hidemode 3");
         add(notice);
         add(copyButton, "growx 0, gaptop 8");
         add(dataNote, "gaptop 4");
@@ -130,6 +132,9 @@ public final class AiPanel extends JPanel {
         toggleButton.setText(Messages.text(state.isListening() ? "ai.panel.deactivate" : "ai.panel.activate"));
         nextFreePortButton.setVisible(state instanceof AiServerState.PortInUse);
         notice.setText(service.portChanged() ? Messages.text("ai.panel.portChanged") : noticeText);
+        Optional<String> sessionNote = service.sessionPortNote();
+        portNote.setText(sessionNote.orElse(" "));
+        portNote.setVisible(sessionNote.isPresent());
         revalidate();
         repaint();
     }
@@ -238,6 +243,10 @@ public final class AiPanel extends JPanel {
 
     JLabel notice() {
         return notice;
+    }
+
+    JLabel portNote() {
+        return portNote;
     }
 
     JButton copyButton() {

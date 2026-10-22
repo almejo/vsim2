@@ -38,8 +38,10 @@ import java.util.function.Consumer;
  * The AI server of this VSim (spec §9, §9.1): one per process, an application service, off until «Activar». It listens
  * on the remembered port with the remembered secret, made the first time, and never changes the port by itself: a
  * taken port is a state the panel shows, and only «Usar el siguiente libre» moves it. A new secret or a port changed
- * in Preferencias restarts a running server at once, so the old configuration stops working. It also follows the AI's
- * tasks for the panels and the status lines. EDT only, but for {@link #requestServed()}.
+ * in Preferencias restarts a running server at once, so the old configuration stops working. A port given on the
+ * command line ({@link SessionPort}) takes the remembered port's place for this run only and is never written to the
+ * preferences. It also follows the AI's tasks for the panels and the status lines. EDT only, but for
+ * {@link #requestServed()}.
  */
 public final class AiServerService {
 
@@ -103,6 +105,9 @@ public final class AiServerService {
     private AiServerState failure;
     private boolean connected;
     private boolean portChanged;
+    /** The port given on the command line for this run, moved by «Usar el siguiente libre»; never remembered. */
+    private OptionalInt sessionPort;
+    private final Optional<String> invalidSessionPort;
 
     public AiServerService(AppPreferences preferences, AutomationApi api) {
         this(preferences, api, QueuedWork.NONE);
@@ -110,7 +115,17 @@ public final class AiServerService {
 
     /** @param queuedWork the editor's queue of the AI's work, refused while the server is off */
     public AiServerService(AppPreferences preferences, AutomationApi api, QueuedWork queuedWork) {
-        this(preferences, api, AiTasks.of(api), SwingUtilities::invokeLater, backgroundExecutor(), queuedWork);
+        this(preferences, api, queuedWork, SessionPort.none());
+    }
+
+    /**
+     * @param queuedWork  the editor's queue of the AI's work, refused while the server is off
+     * @param sessionPort the port given on the command line for this run ({@link SessionPort#fromLaunch})
+     */
+    public AiServerService(AppPreferences preferences, AutomationApi api, QueuedWork queuedWork,
+                           SessionPort sessionPort) {
+        this(preferences, api, AiTasks.of(api), SwingUtilities::invokeLater, backgroundExecutor(), queuedWork,
+                sessionPort);
     }
 
     AiServerService(AppPreferences preferences, AutomationApi api, AiTasks tasks, Executor editorThread,
@@ -125,6 +140,17 @@ public final class AiServerService {
      */
     AiServerService(AppPreferences preferences, AutomationApi api, AiTasks tasks, Executor editorThread,
                     Executor background, QueuedWork queuedWork) {
+        this(preferences, api, tasks, editorThread, background, queuedWork, SessionPort.none());
+    }
+
+    /** @param sessionPort the port given on the command line for this run, never remembered */
+    AiServerService(AppPreferences preferences, AutomationApi api, AiTasks tasks, Executor editorThread,
+                    Executor background, QueuedWork queuedWork, SessionPort sessionPort) {
+        Objects.requireNonNull(sessionPort, "sessionPort");
+        this.sessionPort = sessionPort.port();
+        this.invalidSessionPort = sessionPort.invalidValue();
+        invalidSessionPort.ifPresent(value -> LOGGER.warn(
+                "Ignoring the AI port {} given on the command line: it is not a port from 1024 to 65535", value));
         this.preferences = Objects.requireNonNull(preferences, "preferences");
         this.api = Objects.requireNonNull(api, "api");
         this.tasks = Objects.requireNonNull(tasks, "tasks");
@@ -153,7 +179,7 @@ public final class AiServerService {
         }
         String secret = ensureSecret();
         queuedWork.accept();
-        running = VsimMcpServer.start(api, new McpServerSettings(preferences.aiPort(), secret));
+        running = VsimMcpServer.start(api, new McpServerSettings(effectivePort(), secret));
         runningSecret = secret;
         failure = null;
         connected = false;
@@ -199,6 +225,33 @@ public final class AiServerService {
         return running != null;
     }
 
+    /** The port the server listens on (or would): the session port when one was given, else the remembered one. */
+    public int effectivePort() {
+        return sessionPort.orElseGet(preferences::aiPort);
+    }
+
+    /** True when this run listens on a port given on the command line, not the remembered one. */
+    public boolean isSessionPort() {
+        return sessionPort.isPresent();
+    }
+
+    /** The value given on the command line that is not a usable port (the remembered one is used then). */
+    public Optional<String> invalidSessionPort() {
+        return invalidSessionPort;
+    }
+
+    /**
+     * What the panels say about the session port: «Puerto <n> (solo esta sesión…)», or that the value given is not a
+     * port and the remembered one is used; empty without a session port.
+     */
+    public Optional<String> sessionPortNote() {
+        if (isSessionPort()) {
+            return Optional.of(Messages.format("ai.sessionPort", Integer.toString(sessionPort.getAsInt())));
+        }
+        return invalidSessionPort.map(value -> Messages.format("ai.sessionPort.invalid", value,
+                Integer.toString(preferences.aiPort())));
+    }
+
     public OptionalInt port() {
         return running == null ? OptionalInt.empty() : OptionalInt.of(running.port());
     }
@@ -229,18 +282,23 @@ public final class AiServerService {
 
     /**
      * «Usar el siguiente libre» after {@link AiServerState.PortInUse}: remembers the first free port above the taken
-     * one and listens there; the panel then says the configuration must be copied again. False (and nothing changes)
-     * when there is no free port in the next {@value #NEXT_FREE_PORT_RANGE}.
+     * one and listens there; the panel then says the configuration must be copied again. On a session port only the
+     * session port moves: the remembered one stays. False (and nothing changes) when there is no free port in the
+     * next {@value #NEXT_FREE_PORT_RANGE}.
      */
     public boolean useNextFreePort() {
-        OptionalInt free = nextFreePort(preferences.aiPort());
+        OptionalInt free = nextFreePort(effectivePort());
         if (free.isEmpty()) {
             return false;
         }
         stop();
         failure = null;
         portChanged = true;
-        preferences.setAiPort(free.getAsInt());
+        if (isSessionPort()) {
+            sessionPort = free;
+        } else {
+            preferences.setAiPort(free.getAsInt());
+        }
         activate();
         return true;
     }
@@ -282,11 +340,11 @@ public final class AiServerService {
     private void followPreferences() {
         if (running != null) {
             boolean secretChanged = !preferences.aiSecret().map(secret -> secret.equals(runningSecret)).orElse(false);
-            if (preferences.aiPort() != running.port() || secretChanged) {
+            if (effectivePort() != running.port() || secretChanged) {
                 stop();
                 activate();
             }
-        } else if (failedPort().isPresent() && failedPort().getAsInt() != preferences.aiPort()) {
+        } else if (failedPort().isPresent() && failedPort().getAsInt() != effectivePort()) {
             // the user chose another port: the error was about the old one
             failure = null;
             notifyStateChanged();
@@ -333,16 +391,25 @@ public final class AiServerService {
 
     /**
      * The line that registers this VSim in Claude Code once, for every project ({@code --scope user}), with the
-     * remembered port and secret (made now if there is none yet).
+     * remembered port and secret (made now if there is none yet). On a session port it names that port and a server
+     * of its own, {@code vsim-<port>}, so it never replaces the usual {@code vsim} in Claude Code.
      */
     public String claudeCodeCommand() {
+        if (isSessionPort()) {
+            int port = sessionPort.getAsInt();
+            return claudeCodeCommand(CLIENT_SERVER_NAME + "-" + port, port, ensureSecret());
+        }
         return claudeCodeCommand(preferences);
     }
 
-    /** {@link #claudeCodeCommand()} from {@code preferences} alone (Preferencias ▸ «IA»). */
+    /** {@link #claudeCodeCommand()} from {@code preferences} alone, without a session port. */
     public static String claudeCodeCommand(AppPreferences preferences) {
-        return "claude mcp add --transport http --scope user " + CLIENT_SERVER_NAME + " http://127.0.0.1:"
-                + preferences.aiPort() + "/mcp --header \"Authorization: Bearer " + ensureSecret(preferences) + "\"";
+        return claudeCodeCommand(CLIENT_SERVER_NAME, preferences.aiPort(), ensureSecret(preferences));
+    }
+
+    private static String claudeCodeCommand(String serverName, int port, String secret) {
+        return "claude mcp add --transport http --scope user " + serverName + " http://127.0.0.1:" + port
+                + "/mcp --header \"Authorization: Bearer " + secret + "\"";
     }
 
     // --- Tasks ---

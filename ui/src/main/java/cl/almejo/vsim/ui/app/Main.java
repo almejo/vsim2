@@ -68,7 +68,8 @@ public final class Main {
             return;
         }
         Desktop.getDesktop().setPreferencesHandler(event -> SwingUtilities.invokeLater(() -> PreferencesDialog.show(
-                KeyboardFocusManager.getCurrentKeyboardFocusManager().getActiveWindow(), application.preferences())));
+                KeyboardFocusManager.getCurrentKeyboardFocusManager().getActiveWindow(), application.preferences(),
+                application.aiServer())));
     }
 
     /** macOS Dock (and any taskbar that takes one): the largest application icon. Cosmetic, never fails startup. */

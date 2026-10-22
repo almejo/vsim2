@@ -55,6 +55,11 @@ public final class AiExtension implements EditorExtension {
                 new PreferenceProposals(preferences));
     }
 
+    /** The application's server this extension shows (Preferencias ▸ «IA» shows its session port too). */
+    public AiServerService server() {
+        return service;
+    }
+
     @Override
     public Runnable install(EditorView view) {
         AiStatusFeatures status = new AiStatusFeatures(view, service, ids, proposals, System::nanoTime);

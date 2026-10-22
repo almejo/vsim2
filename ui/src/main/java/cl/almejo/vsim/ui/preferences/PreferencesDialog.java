@@ -1,6 +1,7 @@
 package cl.almejo.vsim.ui.preferences;
 
 import cl.almejo.vsim.ui.ai.AiPreferencesPanel;
+import cl.almejo.vsim.ui.ai.AiServerService;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.shortcuts.KeyBindings;
@@ -13,6 +14,7 @@ import java.awt.Component;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Optional;
+import java.util.function.Consumer;
 
 /**
  * The modal preferences dialog: tabs «General», «Atajos de teclado» and «IA». Changes are live, so its only button
@@ -24,7 +26,15 @@ public final class PreferencesDialog {
     }
 
     public static void show(Component parent, AppPreferences preferences) {
-        JTabbedPane tabs = tabs(preferences, PreferencesDialog::chooseDirectory);
+        show(parent, tabs(preferences, PreferencesDialog::chooseDirectory, Optional.empty()));
+    }
+
+    /** With the application's AI server: «IA» shows and copies a port given on the command line for this session. */
+    public static void show(Component parent, AppPreferences preferences, AiServerService aiServer) {
+        show(parent, tabs(preferences, PreferencesDialog::chooseDirectory, Optional.of(aiServer)));
+    }
+
+    private static void show(Component parent, JTabbedPane tabs) {
         Object[] options = {Messages.text("preferences.close")};
         JOptionPane.showOptionDialog(parent, tabs, Messages.text("preferences.title"), JOptionPane.DEFAULT_OPTION,
                 JOptionPane.PLAIN_MESSAGE, null, options, options[0]);
@@ -47,11 +57,18 @@ public final class PreferencesDialog {
      * sees them.
      */
     static JTabbedPane tabs(AppPreferences preferences, PreferencesForm.DirectoryChooser directoryChooser) {
+        return tabs(preferences, directoryChooser, Optional.empty());
+    }
+
+    static JTabbedPane tabs(AppPreferences preferences, PreferencesForm.DirectoryChooser directoryChooser,
+                            Optional<AiServerService> aiServer) {
         JTabbedPane tabs = new JTabbedPane();
         tabs.addTab(Messages.text("preferences.tab.general"), new PreferencesForm(preferences, directoryChooser));
         tabs.addTab(Messages.text("preferences.tab.shortcuts"), new ShortcutsPanel(new KeyBindings(preferences)));
+        Consumer<String> clipboard = AiPreferencesPanel.systemClipboard();
         tabs.addTab(Messages.text("preferences.tab.ai"),
-                new AiPreferencesPanel(preferences, AiPreferencesPanel.systemClipboard()));
+                aiServer.map(server -> new AiPreferencesPanel(preferences, server, clipboard))
+                        .orElseGet(() -> new AiPreferencesPanel(preferences, clipboard)));
         return tabs;
     }
 

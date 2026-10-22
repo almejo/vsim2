@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.preferences;
 
+import cl.almejo.vsim.ui.ai.AiServerService;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.window.EditorExtension;
@@ -24,6 +25,11 @@ public final class PreferencesFeature implements EditorExtension {
 
     public PreferencesFeature() {
         this(PreferencesDialog::show);
+    }
+
+    /** With the application's AI server, so «IA» shows a port given on the command line for this session. */
+    public PreferencesFeature(AiServerService aiServer) {
+        this((parent, preferences) -> PreferencesDialog.show(parent, preferences, aiServer));
     }
 
     PreferencesFeature(BiConsumer<Component, AppPreferences> opener) {
