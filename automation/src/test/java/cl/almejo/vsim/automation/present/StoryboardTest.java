@@ -7,6 +7,7 @@ import cl.almejo.vsim.automation.DocumentId;
 import cl.almejo.vsim.automation.DocumentVersion;
 import cl.almejo.vsim.automation.TaskInfo;
 import cl.almejo.vsim.automation.UndoOutcome;
+import cl.almejo.vsim.automation.check.TextMeasure;
 import cl.almejo.vsim.automation.edit.EditOperation;
 import cl.almejo.vsim.automation.edit.EditOperation.Connect;
 import cl.almejo.vsim.automation.edit.EditOperation.CreateComponent;
@@ -24,6 +25,7 @@ import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.Frame;
 import cl.almejo.vsim.core.document.FrameContents;
+import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
@@ -141,6 +143,32 @@ class StoryboardTest {
     }
 
     // --- frames never take in what the stage did not add (Review Focus 3) ---
+
+    /** The user's first look: a «Prueba: …» note's frame was a tiny box at the note's top-left corner. */
+    @Test
+    void aStageWithAMultiLineNoteGetsAFrameAroundEveryLineOfIt() {
+        presenting();
+        TaskInfo task = api.beginTask(DOCUMENT, "Una nota", STORY);
+        StageOrigin origin = api.beginStage(task.taskId(), 0);
+        String text = "Prueba: haz clic en A0–A3, B0–B3 y Cin\npara elegir los números (A0 y B0 son las unidades).\n"
+                + "Lee la suma en S3 S2 S1 S0 y el acarreo en Cout.";
+        EditReceipt note = apply(task, 0, new EditOperation.AddNote(Optional.of("note"), text, origin.x(),
+                origin.y()));
+
+        api.endTask(task.taskId());
+
+        TextLabel label = (TextLabel) circuit.document().element(new ElementId(note.aliases().get("note")))
+                .orElseThrow();
+        TextMeasure.TextBox box = host.textMeasure().freeText(label);
+        assertThat(box.height()).isGreaterThan(3); // three lines, not one
+        Frame frame = circuit.document().frames().getFirst();
+        assertThat(frame.topLeft().x()).isLessThanOrEqualTo((int) Math.floor(box.left()));
+        assertThat(frame.topLeft().y() + Storyboard.TITLE_ROOM).isLessThanOrEqualTo((int) Math.floor(box.top()));
+        assertThat(frame.topLeft().x() + frame.width()).isGreaterThanOrEqualTo(
+                (int) Math.ceil(box.left() + box.width()));
+        assertThat(frame.topLeft().y() + frame.height()).isGreaterThanOrEqualTo(
+                (int) Math.ceil(box.top() + box.height()));
+    }
 
     @Test
     void aUserPartNextToAStageIsNeverFramed() {

@@ -22,6 +22,7 @@ import cl.almejo.vsim.automation.export.ExportRequest;
 import cl.almejo.vsim.automation.EditorSetting;
 import cl.almejo.vsim.automation.ProposalAnswer;
 import cl.almejo.vsim.automation.ProposedPreference;
+import cl.almejo.vsim.automation.check.TextMeasure;
 import cl.almejo.vsim.automation.present.PresentationPace;
 import cl.almejo.vsim.automation.present.PresentationSettings;
 import cl.almejo.vsim.automation.present.StepPacer;
@@ -185,6 +186,12 @@ public final class EditorAutomationHost implements AutomationHost {
     @Override
     public void travelToStageOrigin(DocumentId document, GridPoint origin) {
         windows.travelToStageOrigin(documentOf(document), origin);
+    }
+
+    /** Texts as the canvas draws them, so a stage's frame encloses its notes (IA.2 storyboard). EDT only. */
+    @Override
+    public TextMeasure textMeasure() {
+        return LabelTextMeasure.INSTANCE;
     }
 
     @Override

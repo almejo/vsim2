@@ -4,6 +4,7 @@ import cl.almejo.vsim.automation.AutomationError;
 import cl.almejo.vsim.automation.AutomationException;
 import cl.almejo.vsim.automation.DocumentId;
 import cl.almejo.vsim.automation.PresentationHost;
+import cl.almejo.vsim.automation.check.TextMeasure;
 import cl.almejo.vsim.automation.edit.AiTask;
 import cl.almejo.vsim.automation.edit.EditService;
 import cl.almejo.vsim.automation.edit.EditableCircuit;
@@ -16,6 +17,7 @@ import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.Frame;
 import cl.almejo.vsim.core.document.FrameContents;
 import cl.almejo.vsim.core.document.FrameTint;
+import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.geometry.GridPoint;
 
@@ -85,7 +87,7 @@ public final class Storyboard implements PresentationService.StageBoundary {
             if (presenting) {
                 frameStagesBefore(circuit, task, stageIndex);
             }
-            GridPoint free = originOf(circuit.document(), circuit.registry(), task, stageIndex);
+            GridPoint free = originOf(circuit.document(), circuit.registry(), host.textMeasure(), task, stageIndex);
             if (presenting) {
                 host.travelToStageOrigin(document, free);
             }
@@ -189,7 +191,7 @@ public final class Storyboard implements PresentationService.StageBoundary {
                 }
                 continue;
             }
-            Optional<Frame> frame = frameFor(candidate, circuit.registry(), task, stage, locked);
+            Optional<Frame> frame = frameFor(candidate, circuit.registry(), host.textMeasure(), task, stage, locked);
             if (frame.isPresent()) {
                 candidate.add(frame.get());
                 edits.writeTaskStep(circuit, task, stage, candidate, EditService.STAGE_FRAME_DESCRIPTION, true);
@@ -202,10 +204,10 @@ public final class Storyboard implements PresentationService.StageBoundary {
      * A frame titled with the stage around what it added, as roomy as possible without taking in anything else;
      * empty when even the tightest one would, or when the stage has nothing left.
      */
-    static Optional<Frame> frameFor(CircuitDocument candidate, ComponentTypeRegistry registry, AiTask task,
-                                    int stage, boolean locked) {
+    static Optional<Frame> frameFor(CircuitDocument candidate, ComponentTypeRegistry registry, TextMeasure measure,
+                                    AiTask task, int stage, boolean locked) {
         List<DocumentElement> elements = live(candidate, task.createdIn(stage));
-        Optional<Bounds> around = boundsOf(elements, registry);
+        Optional<Bounds> around = boundsOf(elements, registry, measure);
         if (around.isEmpty()) {
             return Optional.empty();
         }
@@ -243,8 +245,8 @@ public final class Storyboard implements PresentationService.StageBoundary {
      * whole circuit for the first stage), {@link #GAP} units away and aligned on its top, moved further right until
      * nothing but the stage's own work lies in a {@link #STAGE_WIDTH} by {@link #STAGE_HEIGHT} area there.
      */
-    static GridPoint originOf(CircuitDocument document, ComponentTypeRegistry registry, AiTask task,
-                              int stageIndex) {
+    static GridPoint originOf(CircuitDocument document, ComponentTypeRegistry registry, TextMeasure measure,
+                              AiTask task, int stageIndex) {
         Set<ElementId> ownWork = new HashSet<>();
         for (int stage : task.stagesThatCreated()) {
             if (stage >= stageIndex) {
@@ -254,10 +256,10 @@ public final class Storyboard implements PresentationService.StageBoundary {
         List<Bounds> obstacles = new ArrayList<>();
         for (DocumentElement element : document.elements()) {
             if (!ownWork.contains(element.id())) {
-                boundsOf(List.of(element), registry).ifPresent(obstacles::add);
+                boundsOf(List.of(element), registry, measure).ifPresent(obstacles::add);
             }
         }
-        Optional<Bounds> previous = previousStageArea(document, registry, task, stageIndex)
+        Optional<Bounds> previous = previousStageArea(document, registry, measure, task, stageIndex)
                 .or(() -> obstacles.stream().reduce(Bounds::union));
         int left = previous.map(area -> area.maximumX() + GAP).orElse(0);
         int top = previous.map(Bounds::y).orElse(0);
@@ -274,13 +276,13 @@ public final class Storyboard implements PresentationService.StageBoundary {
 
     /** The frame of the closest earlier stage that has one, or the frame its parts would get. */
     private static Optional<Bounds> previousStageArea(CircuitDocument document, ComponentTypeRegistry registry,
-                                                     AiTask task, int stageIndex) {
+                                                     TextMeasure measure, AiTask task, int stageIndex) {
         for (int stage = stageIndex - 1; stage >= 0; stage--) {
             Optional<Frame> frame = liveFrame(document, task, stage);
             if (frame.isPresent()) {
-                return frame.flatMap(found -> boundsOf(List.of(found), registry));
+                return frame.flatMap(found -> boundsOf(List.of(found), registry, measure));
             }
-            Optional<Bounds> parts = boundsOf(live(document, task.createdIn(stage)), registry);
+            Optional<Bounds> parts = boundsOf(live(document, task.createdIn(stage)), registry, measure);
             if (parts.isPresent()) {
                 Bounds bounds = parts.get();
                 int top = FRAME_MARGIN + TITLE_ROOM;
@@ -312,18 +314,32 @@ public final class Storyboard implements PresentationService.StageBoundary {
         return ids;
     }
 
-    /** The union of the elements' bounds; a part whose type is unknown has none. */
-    private static Optional<Bounds> boundsOf(List<DocumentElement> elements, ComponentTypeRegistry registry) {
+    /**
+     * The union of the elements' bounds; a note with every line of its text as {@code measure} draws it (the
+     * editor's font), not just its corner; a part whose type is unknown has none.
+     */
+    private static Optional<Bounds> boundsOf(List<DocumentElement> elements, ComponentTypeRegistry registry,
+                                             TextMeasure measure) {
         Bounds result = null;
         for (DocumentElement element : elements) {
             try {
-                Bounds bounds = ElementBounds.of(element, registry);
+                Bounds bounds = element instanceof TextLabel label ? inGrid(measure.freeText(label))
+                        : ElementBounds.of(element, registry);
                 result = result == null ? bounds : result.union(bounds);
             } catch (RuntimeException unknownType) {
                 // No size to frame or to keep clear of.
             }
         }
         return Optional.ofNullable(result);
+    }
+
+    /** The whole grid units a text's box lies in. */
+    private static Bounds inGrid(TextMeasure.TextBox box) {
+        int left = (int) Math.floor(box.left());
+        int top = (int) Math.floor(box.top());
+        int right = (int) Math.ceil(box.left() + box.width());
+        int bottom = (int) Math.ceil(box.top() + box.height());
+        return new Bounds(left, top, Math.max(1, right - left), Math.max(1, bottom - top));
     }
 
     /** The stage's title for its frame; none for a stage the plan does not list. */

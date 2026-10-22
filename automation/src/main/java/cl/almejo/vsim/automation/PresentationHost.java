@@ -1,5 +1,6 @@
 package cl.almejo.vsim.automation;
 
+import cl.almejo.vsim.automation.check.TextMeasure;
 import cl.almejo.vsim.automation.present.PresentationPace;
 import cl.almejo.vsim.automation.present.PresentationSettings;
 import cl.almejo.vsim.automation.present.StepPacer;
@@ -45,6 +46,14 @@ public interface PresentationHost {
      * that begins (spec §6; reduced motion respected). Nothing by default.
      */
     default void travelToStageOrigin(DocumentId document, GridPoint origin) {
+    }
+
+    /**
+     * Editor thread: where texts are drawn, so a stage's frame encloses every line of its notes and labels (the
+     * editor's real font); {@link TextMeasure#APPROXIMATE} by default.
+     */
+    default TextMeasure textMeasure() {
+        return TextMeasure.APPROXIMATE;
     }
 
     /** Any thread: the clock and timer of «De corrido». */
