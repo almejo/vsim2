@@ -42,7 +42,10 @@ public final class VsimMcpServer {
     static final String MCP_PATH = "/mcp";
     private static final Logger LOGGER = LoggerFactory.getLogger(VsimMcpServer.class);
     private static final String SERVER_NAME = "vsim";
-    /** Requests in flight get this long to finish when the server stops (VSim quitting, the user turning it off). */
+    /**
+     * Requests in flight get this long to write their answers when the server stops (VSim quitting, the user turning
+     * it off), before the sessions close under them.
+     */
     private static final Duration STOP_GRACE = Duration.ofSeconds(2);
     /** Jetty's own threads plus the requests: a handful is plenty for one client on this machine. */
     private static final int MAXIMUM_THREADS = 16;
@@ -85,9 +88,10 @@ public final class VsimMcpServer {
         connector.setHost(InetAddress.getLoopbackAddress().getHostAddress());
         connector.setPort(settings.port());
         jetty.addConnector(connector);
-        jetty.setHandler(context(transport, new AccessFilter(settings.secret(), connector::getLocalPort)));
+        AccessFilter accessFilter = new AccessFilter(settings.secret(), connector::getLocalPort);
+        jetty.setHandler(context(transport, accessFilter));
         startOrExplain(jetty, mcpServer, settings.port());
-        return new Running(jetty, mcpServer, connector);
+        return new Running(jetty, mcpServer, connector, accessFilter);
     }
 
     private static QueuedThreadPool threadPool() {
@@ -147,12 +151,14 @@ public final class VsimMcpServer {
         private final Server jetty;
         private final McpSyncServer mcpServer;
         private final InetSocketAddress boundAddress;
+        private final AccessFilter accessFilter;
         private final AtomicBoolean stopped = new AtomicBoolean();
 
-        Running(Server jetty, McpSyncServer mcpServer, ServerConnector connector) {
+        Running(Server jetty, McpSyncServer mcpServer, ServerConnector connector, AccessFilter accessFilter) {
             this.jetty = jetty;
             this.mcpServer = mcpServer;
             this.boundAddress = boundAddress(connector);
+            this.accessFilter = accessFilter;
         }
 
         private static InetSocketAddress boundAddress(ServerConnector connector) {
@@ -176,6 +182,9 @@ public final class VsimMcpServer {
         @Override
         public void stop() {
             if (stopped.compareAndSet(false, true)) {
+                if (!accessFilter.drain(STOP_GRACE)) {
+                    LOGGER.warn("Requests still in flight after {}: their sessions close anyway", STOP_GRACE);
+                }
                 stopQuietly(jetty, mcpServer);
             }
         }

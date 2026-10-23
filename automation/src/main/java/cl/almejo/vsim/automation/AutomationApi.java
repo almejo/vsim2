@@ -533,10 +533,23 @@ public final class AutomationApi {
         questions.withdrawDocument(document);
     }
 
-    /** The editor: the AI was turned off or VSim quits; every proposed step is dropped and every wait ends. */
+    /**
+     * The editor: the AI was turned off or VSim quits; every proposed step is dropped and every wait ends, and no new
+     * wait for «Siguiente» starts until {@link #resumePresenting}.
+     */
     public void stopPresenting() {
         presentation.stopAll();
         questions.withdrawAll();
+    }
+
+    /** The AI is on again (its server listens): {@link #awaitStep} waits for «Siguiente» again. */
+    public void resumePresenting() {
+        presentation.resume();
+    }
+
+    /** How many {@link #awaitStep} calls wait for «Siguiente» right now. */
+    public int stepWaits() {
+        return presentation.stepWaits();
     }
 
     /** Begins an AI task on an open circuit (spec §3); listeners hear it start and its plan. */

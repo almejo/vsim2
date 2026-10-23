@@ -183,8 +183,8 @@ class AiServerRestartScenarioTest {
         String task = aStepWaitsForSiguiente();
         java.util.concurrent.CompletableFuture<Map<String, Object>> waiting = java.util.concurrent.CompletableFuture
                 .supplyAsync(() -> call("vsim_await_step", Map.of("taskId", task)));
-        assertThat(waiting).as("the AI waits for «Siguiente»").failsWithin(Duration.ofMillis(300))
-                .withThrowableThat().isInstanceOf(java.util.concurrent.TimeoutException.class);
+        awaitStepWaits(1);
+        assertThat(waiting).as("the AI waits for «Siguiente»").isNotDone();
 
         long tookMillis = onEditor(() -> {
             long before = System.nanoTime();
@@ -203,8 +203,8 @@ class AiServerRestartScenarioTest {
         String task = aStepWaitsForSiguiente();
         java.util.concurrent.CompletableFuture<Map<String, Object>> waiting = java.util.concurrent.CompletableFuture
                 .supplyAsync(() -> call("vsim_await_step", Map.of("taskId", task)));
-        assertThat(waiting).failsWithin(Duration.ofMillis(300))
-                .withThrowableThat().isInstanceOf(java.util.concurrent.TimeoutException.class);
+        awaitStepWaits(1);
+        assertThat(waiting).isNotDone();
 
         long tookMillis = onEditor(() -> {
             long before = System.nanoTime();
@@ -312,6 +312,17 @@ class AiServerRestartScenarioTest {
         while (onEditor(service::runningTasks).size() != count) {
             if (System.nanoTime() > deadline) {
                 throw new AssertionError("never " + count + " running tasks");
+            }
+            Thread.onSpinWait();
+        }
+    }
+
+    /** Until VSim has {@code count} {@code vsim_await_step} calls waiting (the request reached it, Pulido T1). */
+    private void awaitStepWaits(int count) {
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(20);
+        while (api.stepWaits() != count) {
+            if (System.nanoTime() > deadline) {
+                throw new AssertionError("never " + count + " waits for «Siguiente»");
             }
             Thread.onSpinWait();
         }

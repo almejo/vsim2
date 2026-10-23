@@ -6,6 +6,13 @@ Los cambios de VSim 2 que se notan al usarlo, del más nuevo al más antiguo. El
 funciones, con las fechas en que se hizo. El detalle de cada función está en
 [docs/funciones.md](docs/funciones.md).
 
+## 2026-10-22 — Pulido
+
+### Arreglado
+
+- «Apagar» o «Reiniciar» la IA mientras espera «Siguiente» le responde de inmediato que se detuvo: antes, a veces la
+  respuesta se perdía al cerrar la conexión y Claude Code se quedaba esperando hasta agotar su tiempo.
+
 ## Versión 0.2 — 2026-10-22
 
 ### Cambiado

@@ -27,6 +27,14 @@ final class FakeAiTasks implements AiTasks {
     public void endEveryWait() {
         waitsEnded.add("after " + stopped);
     }
+
+    /** How many times the service let the waits for «Siguiente» wait again (the server listened). */
+    int waitsAccepted;
+
+    @Override
+    public void acceptWaits() {
+        waitsAccepted++;
+    }
     final List<String> undone = new ArrayList<>();
     final List<String> answered = new ArrayList<>();
     UndoOutcome nextOutcome = new UndoOutcome(0, false);
