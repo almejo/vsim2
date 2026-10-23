@@ -1,4 +1,4 @@
-<p align="center"><img src="docs/logo/vsim2.svg" alt="Logo de VSim 2: un chip con una señal verde que dibuja una V" width="128"></p>
+<p align="center"><img src="docs/logo/vsim2-512.png" alt="Logo de VSim 2: un chip con una señal verde que dibuja una V" width="200"></p>
 
 # VSim 2
 
