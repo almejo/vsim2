@@ -19,6 +19,15 @@ Está hecho en Java 21 con Swing. Es la tercera versión, después de
 - [Funciones en detalle](docs/funciones.md): cómo funciona cada cosa, por área.
 - [Cambios](CHANGELOG.md): qué se agregó y arregló, por fecha.
 
+## Descargar y usar
+
+1. Instala **OpenJDK 21** (en Linux, el paquete `openjdk-21-jre` de tu distribución; en Windows y macOS, el
+   instalador de OpenJDK 21 que prefieras).
+2. Descarga `vsim2-<versión>.jar` de la versión más nueva en [Releases](https://github.com/almejo/vsim2/releases).
+3. Ábrelo con doble clic, o en una terminal con `java -jar vsim2-<versión>.jar`.
+
+Para empezar, mira Archivo ▸ Ejemplos o abre los circuitos de [examples/](examples/).
+
 ## Historia
 
 VSim 2 tiene una historia larga:
@@ -31,32 +40,6 @@ VSim 2 tiene una historia larga:
    sin las limitaciones del JCSim original, pero lo abandoné por falta de tiempo.
 4. **VSim 2** (2026, este repositorio): ahora encontré el tiempo para hacer esta nueva versión, con Java 21, pensada para
    aprender y enseñar, y con un servidor MCP para conectar asistentes de IA.
-
-## Requisitos
-
-- Java 21 (JDK). Gradle no hace falta instalarlo: se usa `./gradlew`, que lo descarga.
-
-## Construir y ejecutar
-
-    ./gradlew :ui:run                                              # el editor
-    ./gradlew :ui:run --args="../examples/sumador-y-semisumador.vsim"  # abrir un archivo (rutas relativas a ui/)
-    ./gradlew :ui:run -PvsimLanguage=en                            # la interfaz en inglés
-
-Jar ejecutable, con todas las dependencias adentro:
-
-    ./gradlew :ui:executableJar          # deja ui/build/libs/vsim2-<versión>.jar
-    java -jar ui/build/libs/vsim2-0.2.jar
-
-`./gradlew check` construye el jar y verifica su manifiesto y contenido (`:ui:executableJarTest`).
-
-Demo de consola (simula un circuito sin interfaz):
-
-    ./gradlew :core:run --args="../examples/vsim1-sumador-4-bits.json"
-
-## Pruebas
-
-    ./gradlew test                            # todas las pruebas (core y ui)
-    ./gradlew test :ui:executableJarTest      # lo que se corre antes de cada commit (también revisa el jar)
 
 ## Funciones
 
@@ -145,7 +128,35 @@ Una línea por función; el detalle está en [docs/funciones.md](docs/funciones.
 
 - [Ejemplos](docs/funciones.md#ejemplos) clásicos en Archivo ▸ Ejemplos, que se explican solos.
 
-Para desarrolladores: cómo se regeneran los ejemplos y dónde está el diseño, en
-[Para desarrolladores](docs/funciones.md#para-desarrolladores).
+## Para desarrolladores
+
+### Requisitos para compilar
+
+- JDK 21. Gradle no hace falta instalarlo: se usa `./gradlew`, que lo descarga.
+
+### Construir y ejecutar
+
+    ./gradlew :ui:run                                              # el editor
+    ./gradlew :ui:run --args="../examples/sumador-y-semisumador.vsim"  # abrir un archivo (rutas relativas a ui/)
+    ./gradlew :ui:run -PvsimLanguage=en                            # la interfaz en inglés
+
+Jar ejecutable, con todas las dependencias adentro:
+
+    ./gradlew :ui:executableJar          # deja ui/build/libs/vsim2-<versión>.jar
+    java -jar ui/build/libs/vsim2-<versión>.jar
+
+`./gradlew check` construye el jar y verifica su manifiesto y contenido (`:ui:executableJarTest`).
+
+Demo de consola (simula un circuito sin interfaz):
+
+    ./gradlew :core:run --args="../examples/vsim1-sumador-4-bits.json"
+
+### Pruebas
+
+    ./gradlew test                            # todas las pruebas (core, automation, mcp y ui)
+    ./gradlew test :ui:executableJarTest      # lo que se corre antes de cada commit (también revisa el jar)
+
+Cómo se regeneran los ejemplos y las reglas del código: [Para desarrolladores](docs/funciones.md#para-desarrolladores)
+y [conventions.md](conventions.md).
 
 Licencia: GPL (ver `license.txt`).
