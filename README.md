@@ -11,6 +11,8 @@ ordenan solos, y un servidor MCP para conectar asistentes de IA (Claude Code, Co
 prueban y presentan circuitos paso a paso en el VSim abierto (ver la
 [comparación con Logisim, Digital y CircuitSim](docs/superpowers/research/2026-10-19-vsim-vs-logisim-digital.md)).
 
+![VSim 2 con un sumador de 4 bits (bloque «Sumador», display de 7 segmentos y LED de acarreo) y un semisumador hecho con XOR y AND, cada uno en su marco](docs/screenshots/editor-sumador-y-semisumador.png)
+
 Está hecho en Java 21 con Swing. Es la tercera versión, después de
 [JCSim](https://github.com/almejo/jcsim) y [VSim](https://github.com/almejo/vsim) (ver [Historia](#historia)).
 
