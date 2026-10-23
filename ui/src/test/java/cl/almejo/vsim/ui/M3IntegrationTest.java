@@ -43,9 +43,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 /** M3 features working together on real example circuits, headless (one {@link EditorView} per document). */
 class M3IntegrationTest {
 
-    private static final Path VSIM1_CIRCUIT = Path.of("../examples/vsim1/circuit.json");
-    private static final Path LABELS = Path.of("../examples/m3/labels.vsim");
-    private static final Path SHORT_CIRCUIT = Path.of("../examples/m3/short-circuit.vsim");
+    private static final Path VSIM1_CIRCUIT = Path.of("../core/src/test/resources/vsim1/circuit.json");
+    private static final Path LABELS = Path.of("../core/src/test/resources/fixtures/m3/labels.vsim");
+    private static final Path SHORT_CIRCUIT = Path.of("../core/src/test/resources/fixtures/m3/short-circuit.vsim");
 
     private final List<OpenDocument> documents = new ArrayList<>();
     private final List<EditorView> views = new ArrayList<>();

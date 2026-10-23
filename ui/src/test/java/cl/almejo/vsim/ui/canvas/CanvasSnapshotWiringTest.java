@@ -23,7 +23,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class CanvasSnapshotWiringTest {
 
-    private static final Path SHORT_CIRCUIT = Path.of("../examples/m3/short-circuit.vsim");
+    private static final Path SHORT_CIRCUIT = Path.of("../core/src/test/resources/fixtures/m3/short-circuit.vsim");
 
     private OpenDocument openDocument;
     private EditorView view;

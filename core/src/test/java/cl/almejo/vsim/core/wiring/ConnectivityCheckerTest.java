@@ -42,11 +42,11 @@ class ConnectivityCheckerTest {
     private static final int SEEDS = 80;
     private static final int VARIATIONS = 6;
 
-    /** The bundled examples ({@code bundled/<id>}) and the committed m3 example files ({@code m3/<name>.vsim}). */
+    /** The bundled examples ({@code bundled/<id>}) and the m3 test fixtures ({@code fixtures/m3/<name>.vsim}). */
     private static List<String> examples() {
         List<String> examples = new ArrayList<>();
         BundledExamples.ids().forEach(id -> examples.add("bundled/" + id));
-        ExampleCircuits.builders().keySet().stream().sorted().forEach(name -> examples.add("m3/" + name + ".vsim"));
+        ExampleCircuits.builders().keySet().stream().sorted().forEach(name -> examples.add("fixtures/m3/" + name + ".vsim"));
         return examples;
     }
 
@@ -54,7 +54,7 @@ class ConnectivityCheckerTest {
         if (example.startsWith("bundled/")) {
             return BundledExamples.open(example.substring("bundled/".length()), REGISTRY);
         }
-        return new CircuitReader(REGISTRY).read(Path.of("../examples", example));
+        return new CircuitReader(REGISTRY).read(Path.of("src/test/resources", example));
     }
 
     static Stream<Integer> seeds() {

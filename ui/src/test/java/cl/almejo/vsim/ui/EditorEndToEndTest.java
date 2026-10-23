@@ -66,7 +66,7 @@ class EditorEndToEndTest {
 
     @Test
     void theOldFourBitAdderOpensAndSimulatesWithoutFailures() throws Exception {
-        try (OpenDocument document = OpenDocument.open(Path.of("../examples/vsim1/4-bit-adder.json"),
+        try (OpenDocument document = OpenDocument.open(Path.of("../core/src/test/resources/vsim1/4-bit-adder.json"),
                 StandardComponentTypes.registry())) {
             waitUntil(() -> synced(document) && document.latestSnapshot().running());
             assertThat(document.latestSnapshot().failure()).isEmpty();

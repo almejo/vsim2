@@ -4,3 +4,6 @@ build/
 *.iml
 out/
 .superpowers/
+
+# The user's own circuits, never committed
+examples/ignored/

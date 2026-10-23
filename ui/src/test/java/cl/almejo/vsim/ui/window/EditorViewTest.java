@@ -379,7 +379,7 @@ class EditorViewTest {
     void viewWithTheOldFourBitAdderPaints() throws Exception {
         view.dispose();
         openDocument.close();
-        openDocument = OpenDocument.open(Path.of("../examples/vsim1/4-bit-adder.json"), StandardComponentTypes.registry());
+        openDocument = OpenDocument.open(Path.of("../core/src/test/resources/vsim1/4-bit-adder.json"), StandardComponentTypes.registry());
         view = new EditorView(openDocument, PainterRegistry.standard(), ColorScheme.LIGHT, window);
         view.setSize(1200, 800);
         layoutTree(view);

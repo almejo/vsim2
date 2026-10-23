@@ -157,7 +157,7 @@ class OpenDocumentTest {
 
     @Test
     void importedDocumentNeedsSaveAs() throws Exception {
-        OpenDocument document = track(OpenDocument.open(Path.of("../examples/vsim1/one-gate.json"), registry));
+        OpenDocument document = track(OpenDocument.open(Path.of("../core/src/test/resources/vsim1/one-gate.json"), registry));
         assertThat(document.isImportedFromVsim1()).isTrue();
         assertThat(document.path()).isEmpty();
         assertThat(document.needsSaveAs()).isTrue();
@@ -207,7 +207,7 @@ class OpenDocumentTest {
 
     @Test
     void anImportedVsim1DocumentIsBackedByItsSourceUntilSaved() throws Exception {
-        Path legacy = Path.of("../examples/vsim1/4-bit-adder.json");
+        Path legacy = Path.of("../core/src/test/resources/vsim1/4-bit-adder.json");
         OpenDocument document = track(OpenDocument.open(legacy, registry));
         assertThat(document.path()).isEmpty();
         assertThat(document.isBackedBy(legacy.toAbsolutePath())).isTrue();

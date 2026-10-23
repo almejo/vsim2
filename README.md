@@ -39,7 +39,7 @@ VSim 2 tiene una historia larga:
 ## Construir y ejecutar
 
     ./gradlew :ui:run                                              # el editor
-    ./gradlew :ui:run --args="../examples/vsim1/4-bit-adder.json"  # abrir un archivo (rutas relativas a ui/)
+    ./gradlew :ui:run --args="../examples/sumador-y-semisumador.vsim"  # abrir un archivo (rutas relativas a ui/)
     ./gradlew :ui:run -PvsimLanguage=en                            # la interfaz en inglés
 
 Jar ejecutable, con todas las dependencias adentro:
@@ -51,7 +51,7 @@ Jar ejecutable, con todas las dependencias adentro:
 
 Demo de consola (simula un circuito sin interfaz):
 
-    ./gradlew :core:run --args="../examples/vsim1/4-bit-adder.json"
+    ./gradlew :core:run --args="../examples/vsim1-sumador-4-bits.json"
 
 ## Pruebas
 

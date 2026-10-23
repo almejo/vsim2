@@ -30,10 +30,10 @@ import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** The committed files in examples/m3 must be what {@link ExampleCircuits} builds, and must behave as intended. */
+/** The committed files in core/src/test/resources/fixtures/m3 must be what {@link ExampleCircuits} builds, and must behave as intended. */
 class ExampleCircuitsTest {
 
-    private static final Path EXAMPLES_DIRECTORY = Path.of("../examples/m3");
+    private static final Path EXAMPLES_DIRECTORY = Path.of("src/test/resources/fixtures/m3");
     private static final String SHORT_CIRCUIT = "short-circuit";
 
     private final ComponentTypeRegistry registry = StandardComponentTypes.registry();

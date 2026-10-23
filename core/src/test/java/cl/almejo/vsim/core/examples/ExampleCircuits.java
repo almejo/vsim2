@@ -29,8 +29,8 @@ import static cl.almejo.vsim.core.component.standard.StandardComponentTypes.XOR2
 
 /**
  * Small circuits for trying the M3 features by hand. Run {@link #main} to (re)write the files in
- * {@code examples/m3}; {@code ExampleCircuitsTest} checks that the committed files match these builders.
- * Open one with {@code ./gradlew :ui:run --args="../examples/m3/labels.vsim"}.
+ * {@code core/src/test/resources/fixtures/m3}; {@code ExampleCircuitsTest} checks that the committed files match these builders.
+ * Open one with {@code ./gradlew :ui:run --args="../core/src/test/resources/fixtures/m3/labels.vsim"}.
  */
 public final class ExampleCircuits {
 
@@ -71,7 +71,7 @@ public final class ExampleCircuits {
     }
 
     public static void main(String[] arguments) throws IOException {
-        Path directory = Path.of(arguments.length > 0 ? arguments[0] : "../examples/m3");
+        Path directory = Path.of(arguments.length > 0 ? arguments[0] : "src/test/resources/fixtures/m3");
         Files.createDirectories(directory);
         CircuitFormat format = new CircuitFormat(StandardComponentTypes.registry());
         for (Map.Entry<String, Supplier<CircuitBuilder>> entry : builders().entrySet()) {

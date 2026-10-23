@@ -68,10 +68,10 @@ class TidyEquivalenceTest {
 
     /**
      * The committed example files, never a directory listing (people keep their own untracked circuits under
-     * examples/): the files {@link ExampleCircuits} generates for examples/m3, plus a fixed list.
+     * examples/): the test fixtures {@link ExampleCircuits} generates (fixtures/m3), plus a fixed list.
      */
     private static final List<String> OTHER_COMMITTED_FILES = List.of(
-            "m4/cortocircuitos.vsim", "vsim1/4-bit-adder.json", "vsim1/circuit.json", "vsim1/one-gate.json");
+            "fixtures/m4/cortocircuitos.vsim", "vsim1/4-bit-adder.json", "vsim1/circuit.json", "vsim1/one-gate.json");
 
     private record Example(String name, Loader loader) {
 
@@ -95,10 +95,10 @@ class TidyEquivalenceTest {
             examples.add(new Example("bundled/" + id, () -> BundledExamples.open(id, REGISTRY)));
         }
         List<String> files = new ArrayList<>();
-        ExampleCircuits.builders().keySet().stream().sorted().forEach(name -> files.add("m3/" + name + ".vsim"));
+        ExampleCircuits.builders().keySet().stream().sorted().forEach(name -> files.add("fixtures/m3/" + name + ".vsim"));
         files.addAll(OTHER_COMMITTED_FILES);
         for (String file : files) {
-            examples.add(new Example(file, () -> new CircuitReader(REGISTRY).read(Path.of("../examples", file))));
+            examples.add(new Example(file, () -> new CircuitReader(REGISTRY).read(Path.of("src/test/resources", file))));
         }
         return examples;
     }

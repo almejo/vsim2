@@ -237,7 +237,7 @@ Los mensajes de error del asistente de Karnaugh, de la importación de tablas y 
 
 ### Abrir y guardar
 
-- Archivo ▸ Abrir… abre circuitos de VSim 2 (`.vsim`) y también los del VSim original (`.json`, como `examples/vsim1/4-bit-adder.json`); un `.vsimcomponent.json` se agrega a la librería (ver [Componentes propios](#componentes-propios)).
+- Archivo ▸ Abrir… abre circuitos de VSim 2 (`.vsim`) y también los del VSim original (`.json`, como `examples/vsim1-sumador-4-bits.json`); un `.vsimcomponent.json` se agrega a la librería (ver [Componentes propios](#componentes-propios)).
 - «Guardar» (menú y barra) queda desactivado cuando no hay nada que guardar: recién guardado, o deshecho hasta lo guardado. Un circuito sin archivo propio y con contenido (un ejemplo recién abierto, un archivo de VSim 1) siempre se puede guardar.
 - Cada archivo de VSim 2 (circuito, componente de la librería y lo copiado al portapapeles) empieza diciendo qué es: `"format" : "vsim2"` y `"savedWith"` con la versión de VSim que lo guardó, junto a `"formatVersion"`. Un archivo de una versión más nueva de VSim 2 no se abre a medias: «Este archivo es de una versión más nueva de VSim 2 (formato N). Actualiza VSim para abrirlo.»; un JSON que no es de VSim (al abrir un circuito o al agregar un componente a la librería) dice «Este archivo no es de VSim.». Los archivos guardados antes de esta marca se siguen abriendo.
 

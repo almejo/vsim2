@@ -31,8 +31,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * The 7-segment displays' bus input was added to existing types (M7 follow-up): a pin joins any wire or pin on its point,
- * so a circuit saved before could change meaning. No bundled example and no committed file under {@code examples/}
- * (only what git tracks: the user keeps untracked circuits there) may have anything on that new pin, in its own body
+ * so a circuit saved before could change meaning. No bundled example and no test fixture saved before it
+ * (the new curated circuits in examples/ use that pin on purpose) may have anything on that new pin, in its own body
  * or in the body of any component it defines.
  */
 class DisplayBusPinClearanceTest {
@@ -53,8 +53,8 @@ class DisplayBusPinClearanceTest {
                 documents.put(file, reader.read(REPOSITORY.resolve(file)));
             }
         }
-        assertThat(documents.keySet()).contains("bus-8-bits", "examples/vsim1/circuit.json",
-                "examples/m3/selection-playground.vsim");
+        assertThat(documents.keySet()).contains("bus-8-bits",
+                "core/src/test/resources/fixtures/m3/selection-playground.vsim");
 
         List<String> touched = new ArrayList<>();
         int displays = 0;
@@ -120,12 +120,13 @@ class DisplayBusPinClearanceTest {
     }
 
     private static List<String> trackedExampleFiles() throws IOException, InterruptedException {
-        Process process = new ProcessBuilder("git", "ls-files", "examples")
+        Process process = new ProcessBuilder("git", "ls-files", "core/src/test/resources/fixtures",
+                "core/src/test/resources/vsim1")
                 .directory(REPOSITORY.toFile())
                 .redirectErrorStream(true)
                 .start();
         String output = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
-        assertThat(process.waitFor()).as("git ls-files examples: %s", output).isZero();
+        assertThat(process.waitFor()).as("git ls-files fixtures: %s", output).isZero();
         return output.lines().filter(line -> !line.isBlank()).toList();
     }
 }
