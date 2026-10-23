@@ -1,3 +1,5 @@
+<p align="center"><img src="docs/logo/vsim2.svg" alt="Logo de VSim 2: un chip con una señal verde que dibuja una V" width="128"></p>
+
 # VSim 2
 
 Simulador de circuitos digitales: se dibuja el circuito, se simula y se ve cómo avanza cada señal.
