@@ -8,10 +8,19 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 
 ## Sin publicar — Pulido
 
+### Agregado
+
+- Esquema de colores «Placa» (Preferencias ▸ General ▸ Esquema de color): el circuito como una placa de circuito
+  impreso, con fondo verde, cables de cobre en 0 y dorados en 1, contornos y textos blancos como la serigrafía,
+  piezas negras como chips y la cuadrícula como vías de un verde apenas más claro. Todos los estados de los cables,
+  los textos, los marcos, los túneles y los brillos se leen sobre el verde.
+
 ### Arreglado
 
 - Un marco que arma la IA alrededor de una nota ahora la encierra entera, con todas sus líneas (antes una nota de
   varias líneas quedaba medio afuera), y también la etiqueta larga de un componente.
+- El 0, 1 o Z de un interruptor se lee en todos los esquemas: sobre un color claro (el 1 de CSim, de Claro y de
+  Oscuro, la Z verde del VSim original) va en negro en vez de blanco.
 
 ## Versión 0.2 — 2026-10-22
 

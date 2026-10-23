@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.paint;
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.value.Value;
+import cl.almejo.vsim.ui.theme.ReadableColors;
 
 import java.awt.Color;
 import java.awt.Graphics2D;
@@ -11,6 +12,9 @@ import java.util.Map;
 
 public final class SwitchPainter implements ComponentPainter {
 
+    /** WCAG's graphics contrast: the switch's text is a single small bold character. */
+    private static final double MINIMUM_TEXT_CONTRAST = 3.0;
+
     @Override
     public void paint(Graphics2D graphics, ComponentType type, Map<String, Object> parameters, VisibleState state,
                       ColorScheme scheme) {
@@ -18,11 +22,20 @@ public final class SwitchPainter implements ComponentPainter {
                 ? switchState.value()
                 : fromParameter(parameters.get("value"));
         PainterSupport.lead(graphics, 27, 8, 32, 8, scheme);
-        PainterSupport.body(graphics, new RoundRectangle2D.Double(0, 1, 27, 14, 7, 7), scheme,
-                SignalColors.valueColor(value, scheme));
+        Color fill = SignalColors.valueColor(value, scheme);
+        PainterSupport.body(graphics, new RoundRectangle2D.Double(0, 1, 27, 14, 7, 7), scheme, fill);
         String text = value.equals(Value.ONE) ? "1" : value.equals(Value.ZERO) ? "0" : "Z";
-        PainterSupport.centeredText(graphics, text, 13.5, 8, 10f, Color.WHITE);
+        PainterSupport.centeredText(graphics, text, 13.5, 8, 10f, textColor(fill));
         PainterSupport.pinDots(graphics, type, scheme);
+    }
+
+    /**
+     * The colour of the 0, 1 or Z written on a switch filled with {@code fill}: white, unless white falls below
+     * {@link #MINIMUM_TEXT_CONTRAST}:1 there (a bright 1: the gold of «Placa», CSim's white, the greens of Claro and
+     * Oscuro), then black.
+     */
+    static Color textColor(Color fill) {
+        return ReadableColors.contrast(Color.WHITE, fill) >= MINIMUM_TEXT_CONTRAST ? Color.WHITE : Color.BLACK;
     }
 
     private static Value fromParameter(Object parameter) {

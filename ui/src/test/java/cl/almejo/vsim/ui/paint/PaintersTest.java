@@ -291,7 +291,9 @@ class PaintersTest {
         // (13.5, 8) is the middle of the switch body, where its 1/0/Z is centered. R0/R180 (and R90/R270) place
         // that point at the same sub-pixel offset, so upright text gives identical patches; upside-down text does not.
         int[] upright = patchAround(StandardComponentTypes.SWITCH, Rotation.R0, 13.5, 8);
-        assertThat(Arrays.stream(upright).filter(rgb -> new Color(rgb).getBlue() > 200).count()).isPositive();
+        // the 1 is black on the light green of a 1 (SwitchPainter.textColor): some pixels are far darker than the fill
+        assertThat(SwitchPainter.textColor(SCHEME.wireOne())).isEqualTo(Color.BLACK);
+        assertThat(Arrays.stream(upright).filter(rgb -> new Color(rgb).getGreen() < 100).count()).isPositive();
         assertThat(patchAround(StandardComponentTypes.SWITCH, Rotation.R180, 13.5, 8)).isEqualTo(upright);
         assertThat(patchAround(StandardComponentTypes.SWITCH, Rotation.R270, 13.5, 8))
                 .isEqualTo(patchAround(StandardComponentTypes.SWITCH, Rotation.R90, 13.5, 8));
