@@ -14,6 +14,7 @@ import cl.almejo.vsim.ui.canvas.CircuitRenderer;
 import cl.almejo.vsim.ui.canvas.DrawnBounds;
 import cl.almejo.vsim.ui.canvas.PaintPolicy;
 import cl.almejo.vsim.ui.canvas.RenderState;
+import cl.almejo.vsim.ui.paint.ColorRole;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
 
@@ -128,11 +129,7 @@ public final class CircuitImage {
 
     /** {@code scheme} on a white background (the «Fondo blanco para imprimir» option). */
     public static ColorScheme printScheme(ColorScheme scheme) {
-        return new ColorScheme(Color.WHITE, scheme.grid(), scheme.gridLine(), scheme.wireZero(), scheme.wireOne(),
-                scheme.wireHighImpedance(), scheme.wireConflict(), scheme.wireUnknown(), scheme.componentStroke(),
-                scheme.componentFill(), scheme.componentShade(), scheme.shadow(), scheme.text(), scheme.selection(),
-                scheme.preview(), scheme.displayBackground(), scheme.segmentOn(), scheme.segmentOff(),
-                scheme.diagramBackground(), scheme.diagramGrid(), scheme.diagramTrace());
+        return scheme.with(ColorRole.BACKGROUND, Color.WHITE);
     }
 
     /** A copy with only {@code ids}, in the same ids and paint order, and the same definitions. */

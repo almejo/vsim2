@@ -21,7 +21,8 @@ import java.util.regex.Pattern;
  * {@code name} and one key per {@link ColorRole} holding {@code #RRGGBBAA}. Ids are {@code custom-<n>}, one more than
  * the highest stored, so an id is never reused while it is stored. Every change tells the preference listeners, so
  * the theme manager repaints with an edited active scheme at once. A scheme stored before a role existed gets that
- * role from {@link ColorScheme#LIGHT}, except the grid line, which is derived from the scheme's own dots.
+ * role from {@link ColorScheme#LIGHT}, except the grid line, which is derived from the scheme's own dots, and the
+ * pins, which take the scheme's own outline colour (so it draws exactly as before the role existed).
  */
 public final class CustomColorSchemes {
 
@@ -62,8 +63,10 @@ public final class CustomColorSchemes {
         String name = node.get(NAME, "");
         ColorScheme stored = ColorRole.scheme(role -> parse(node.get(role.key(), ""))
                 .orElseGet(() -> role.get(ColorScheme.LIGHT)));
-        ColorScheme scheme = parse(node.get(ColorRole.GRID_LINE.key(), "")).isPresent() ? stored
+        ColorScheme withGridLine = parse(node.get(ColorRole.GRID_LINE.key(), "")).isPresent() ? stored
                 : stored.with(ColorRole.GRID_LINE, ColorScheme.derivedGridLine(stored.grid()));
+        ColorScheme scheme = parse(node.get(ColorRole.PAD.key(), "")).isPresent() ? withGridLine
+                : withGridLine.with(ColorRole.PAD, withGridLine.componentStroke());
         return Optional.of(new NamedColorScheme(id, name.isBlank() ? id : name, scheme));
     }
 

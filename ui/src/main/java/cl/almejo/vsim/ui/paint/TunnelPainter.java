@@ -106,7 +106,7 @@ public final class TunnelPainter implements ComponentPainter {
     /** The pin's mark, like every pin's: a round dot on a 1-bit net, a square on a bus. */
     private static void paintPin(Graphics2D graphics, TunnelShape shape, boolean bus, ColorScheme scheme) {
         Point2D pin = shape.pin();
-        graphics.setColor(scheme.componentStroke());
+        graphics.setColor(scheme.pad());
         if (bus) {
             double side = 2 * PainterSupport.BUS_PIN_HALF_SIDE;
             graphics.fill(new Rectangle2D.Double(pin.getX() - PainterSupport.BUS_PIN_HALF_SIDE,

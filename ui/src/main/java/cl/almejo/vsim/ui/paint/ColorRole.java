@@ -4,7 +4,7 @@ import java.awt.Color;
 import java.util.function.Function;
 
 /**
- * The twenty-one colours of a {@link ColorScheme}, in the record's order (M6.8 custom schemes): {@link #key()} names the
+ * The twenty-two colours of a {@link ColorScheme}, in the record's order (M6.8 custom schemes): {@link #key()} names the
  * colour in the stored scheme and in the message {@code scheme.role.<key>}.
  */
 public enum ColorRole {
@@ -28,7 +28,8 @@ public enum ColorRole {
     SEGMENT_OFF("segmentOff", ColorScheme::segmentOff),
     DIAGRAM_BACKGROUND("diagramBackground", ColorScheme::diagramBackground),
     DIAGRAM_GRID("diagramGrid", ColorScheme::diagramGrid),
-    DIAGRAM_TRACE("diagramTrace", ColorScheme::diagramTrace);
+    DIAGRAM_TRACE("diagramTrace", ColorScheme::diagramTrace),
+    PAD("pad", ColorScheme::pad);
 
     private final String key;
     private final Function<ColorScheme, Color> reader;
@@ -55,6 +56,6 @@ public enum ColorRole {
                 colors.apply(COMPONENT_SHADE), colors.apply(SHADOW), colors.apply(TEXT), colors.apply(SELECTION),
                 colors.apply(PREVIEW), colors.apply(DISPLAY_BACKGROUND), colors.apply(SEGMENT_ON),
                 colors.apply(SEGMENT_OFF), colors.apply(DIAGRAM_BACKGROUND), colors.apply(DIAGRAM_GRID),
-                colors.apply(DIAGRAM_TRACE));
+                colors.apply(DIAGRAM_TRACE), colors.apply(PAD));
     }
 }

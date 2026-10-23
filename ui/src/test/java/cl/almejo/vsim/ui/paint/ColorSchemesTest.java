@@ -71,14 +71,15 @@ class ColorSchemesTest {
     }
 
     @Test
-    void theTwentyOneRolesReadAndReplaceEachColorOfAScheme() {
-        assertThat(ColorRole.values()).hasSize(21);
+    void theTwentyTwoRolesReadAndReplaceEachColorOfAScheme() {
+        assertThat(ColorRole.values()).hasSize(22);
         assertThat(ColorRole.values()).extracting(ColorRole::key).containsExactly("background", "grid", "gridLine",
                 "wireZero",
                 "wireOne", "wireHighImpedance", "wireConflict", "wireUnknown", "componentStroke", "componentFill",
                 "componentShade", "shadow", "text", "selection", "preview", "displayBackground", "segmentOn",
-                "segmentOff", "diagramBackground", "diagramGrid", "diagramTrace");
+                "segmentOff", "diagramBackground", "diagramGrid", "diagramTrace", "pad");
         assertThat(ColorRole.scheme(role -> role.get(ColorSchemes.CSIM))).isEqualTo(ColorSchemes.CSIM);
+        assertThat(ColorRole.scheme(role -> role.get(ColorSchemes.PLACA))).isEqualTo(ColorSchemes.PLACA);
         Color marker = new Color(1, 2, 3, 4);
         for (ColorRole role : ColorRole.values()) {
             ColorScheme changed = ColorSchemes.DARK.with(role, marker);
@@ -272,6 +273,27 @@ class ColorSchemesTest {
         assertThat(contrast(vias, board.background())).as("vias are faint").isBetween(1.1, 2.0);
         assertThat(over(board.gridLine(), board.background()).getGreen()).as("lines: a lighter green")
                 .isGreaterThan(board.background().getGreen());
+    }
+
+    /** Spec §4: the pins take the outline colour everywhere but on «Placa», so no other scheme changes a pixel. */
+    @Test
+    void padsAreTheOutlineColourInEveryOtherScheme() {
+        List<ColorScheme> schemes = new ArrayList<>(ALL);
+        schemes.remove(ColorSchemes.PLACA);
+        schemes.add(MonochromeScheme.of(ColorScheme.LIGHT));
+        for (ColorScheme scheme : schemes) {
+            assertThat(scheme.pad()).as("%s", scheme).isEqualTo(scheme.componentStroke());
+        }
+    }
+
+    /** Gold pads on the green board, apart from the white silkscreen of the leads (spec §3.1: ≥ 3:1). */
+    @Test
+    void placaPadsAreGoldAndShowOnTheBoard() {
+        ColorScheme board = ColorSchemes.PLACA;
+        assertThat(contrast(board.pad(), board.background())).isGreaterThanOrEqualTo(DARK_WIRES);
+        assertThat(board.pad().getRed()).as("gold")
+                .isGreaterThan(board.pad().getGreen()).isGreaterThan(board.pad().getBlue());
+        assertThat(board.pad()).isNotEqualTo(board.componentStroke());
     }
 
     /** The glow of a step and of the AI's changes, the pending outline and the find highlight use the selection. */

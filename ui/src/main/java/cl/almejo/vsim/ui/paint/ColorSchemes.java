@@ -146,7 +146,8 @@ public final class ColorSchemes {
 
     /**
      * «Placa»: a printed circuit board. Green solder mask, copper traces at 0 and bright gold at 1, white silkscreen
-     * for the outlines and labels, black chip packages, faint lighter-green vias for the grid. Dark board, so the dark
+     * for the outlines and labels, black chip packages, gold pads at the pins (the only scheme whose pins are not its
+     * outline colour), faint lighter-green vias for the grid. Dark board, so the dark
      * variants of the frame tints and the tunnel palette apply (both read on it). Every wire state reaches 3:1 on the
      * board and the texts 4.5:1 (ColorSchemesTest).
      */
@@ -171,7 +172,8 @@ public final class ColorSchemes {
             new Color(255, 255, 255, 22), // segmentOff
             new Color(0x082E18),          // diagramBackground (a deeper green)
             new Color(255, 255, 255, 32), // diagramGrid
-            new Color(0xFFD34D));         // diagramTrace    (the gold of a 1)
+            new Color(0xFFD34D),          // diagramTrace    (the gold of a 1)
+            new Color(0xE0B04A));         // pad             (gold pads at the pins, 6.2:1 on the board)
 
     private ColorSchemes() {
     }

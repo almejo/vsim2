@@ -92,9 +92,9 @@ public final class PainterSupport {
         graphics.draw(new Line2D.Double(startX, startY, endX, endY));
     }
 
-    /** A round dot on each 1-bit pin and a square on each wider (bus) pin. */
+    /** A round dot on each 1-bit pin and a square on each wider (bus) pin, in the scheme's pin colour. */
     static void pinDots(Graphics2D graphics, ComponentType type, ColorScheme scheme) {
-        graphics.setColor(scheme.componentStroke());
+        graphics.setColor(scheme.pad());
         for (PinSpec pin : type.pins()) {
             double x = pin.position().x() * UNIT;
             double y = pin.position().y() * UNIT;

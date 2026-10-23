@@ -6,13 +6,26 @@ import java.awt.Color;
 
 /**
  * Colors of the circuit drawing, independent of the Swing theme. M4-D adds the other schemes; painters read the
- * scheme they are given on every paint and never cache colors.
+ * scheme they are given on every paint and never cache colors. {@code pad} is the colour of the pin marks (the dot
+ * of a 1-bit pin, the square of a bus pin); leads, outlines, wire junctions and open-pin rings stay
+ * {@code componentStroke}.
  */
 public record ColorScheme(Color background, Color grid, Color gridLine, Color wireZero, Color wireOne, Color wireHighImpedance,
                           Color wireConflict, Color wireUnknown, Color componentStroke, Color componentFill,
                           Color componentShade, Color shadow, Color text, Color selection, Color preview,
                           Color displayBackground, Color segmentOn, Color segmentOff,
-                          Color diagramBackground, Color diagramGrid, Color diagramTrace) {
+                          Color diagramBackground, Color diagramGrid, Color diagramTrace, Color pad) {
+
+    /** A scheme whose pins are drawn like its outlines ({@code pad = componentStroke}): every scheme but «Placa». */
+    public ColorScheme(Color background, Color grid, Color gridLine, Color wireZero, Color wireOne,
+                       Color wireHighImpedance, Color wireConflict, Color wireUnknown, Color componentStroke,
+                       Color componentFill, Color componentShade, Color shadow, Color text, Color selection,
+                       Color preview, Color displayBackground, Color segmentOn, Color segmentOff,
+                       Color diagramBackground, Color diagramGrid, Color diagramTrace) {
+        this(background, grid, gridLine, wireZero, wireOne, wireHighImpedance, wireConflict, wireUnknown,
+                componentStroke, componentFill, componentShade, shadow, text, selection, preview, displayBackground,
+                segmentOn, segmentOff, diagramBackground, diagramGrid, diagramTrace, componentStroke);
+    }
 
     public static final ColorScheme LIGHT = new ColorScheme(
             new Color(0xF7F8FA),

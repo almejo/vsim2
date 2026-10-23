@@ -10,13 +10,16 @@ import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.ui.UiTestSupport;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.CircuitBounds;
+import cl.almejo.vsim.ui.paint.ColorRole;
 import cl.almejo.vsim.ui.paint.ColorScheme;
+import cl.almejo.vsim.ui.paint.ColorSchemes;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.paint.TextFont;
 import cl.almejo.vsim.ui.paint.TextFonts;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
+import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.util.Map;
@@ -49,6 +52,18 @@ class CircuitImageTest {
         image.paint(graphics, scale);
         graphics.dispose();
         return result;
+    }
+
+    @Test
+    void thePrintSchemeWhitensOnlyTheBoardAndKeepsEveryOtherColourIncludingThePins() {
+        ColorScheme board = ColorSchemes.PLACA;
+        ColorScheme print = CircuitImage.printScheme(board);
+        assertThat(print.background()).isEqualTo(Color.WHITE);
+        for (ColorRole role : ColorRole.values()) {
+            if (role != ColorRole.BACKGROUND) {
+                assertThat(role.get(print)).as("%s", role).isEqualTo(role.get(board));
+            }
+        }
     }
 
     @Test

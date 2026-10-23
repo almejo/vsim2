@@ -14,6 +14,9 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
   impreso, con fondo verde, cables de cobre en 0 y dorados en 1, contornos y textos blancos como la serigrafía,
   piezas negras como chips y la cuadrícula como vías de un verde apenas más claro. Todos los estados de los cables,
   los textos, los marcos, los túneles y los brillos se leen sobre el verde.
+- En «Placa» los pines son dorados, como los contactos de una placa (las patas de las piezas siguen blancas). El
+  editor de esquemas tiene un color nuevo, «Pines»: en los demás esquemas es el mismo color del borde de las piezas,
+  así se ven igual que antes, y un esquema propio guardado antes lo toma de su borde.
 
 ### Arreglado
 

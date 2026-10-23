@@ -37,6 +37,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class PaintersTest {
 
+    private static final int UNIT = GridPoint.PIXELS_PER_UNIT;
+
     static final ColorScheme SCHEME = ColorScheme.LIGHT;
     private static final int MARGIN = 8;
     private final ComponentTypeRegistry registry = StandardComponentTypes.registry();
@@ -354,6 +356,53 @@ class PaintersTest {
                 .isEqualTo(SCHEME.componentStroke());
         assertThat(new Color(drawWith(InterfacePins.INPUT_PIN, Map.of()).getRGB(113, 105)))
                 .isNotEqualTo(SCHEME.componentStroke());
+    }
+
+    /** «Placa» (spec §4): the pin marks are gold pads, of gates, tunnels and bus pins alike. */
+    @Test
+    void pinMarksOnThePlacaBoardArePaintedInThePadColour() {
+        List<Map.Entry<String, Map<String, Object>>> parts = List.of(
+                Map.entry(StandardComponentTypes.AND2, Map.of()),
+                Map.entry(StandardComponentTypes.TUNNEL_ENTRANCE, Map.of()),
+                Map.entry(StandardComponentTypes.TUNNEL_EXIT, Map.of()),
+                Map.entry(InterfacePins.INPUT_PIN, Map.of(InterfacePins.WIDTH, 8)));
+        for (Map.Entry<String, Map<String, Object>> part : parts) {
+            Component component = placed(part.getKey(), part.getValue());
+            BufferedImage image = drawOn(ColorSchemes.PLACA, component);
+            for (int pinIndex = 0; pinIndex < registry.typeOf(component).pinCount(); pinIndex++) {
+                GridPoint pin = registry.typeOf(component).pinLocation(component, pinIndex);
+                assertThat(new Color(image.getRGB(pin.x() * UNIT, pin.y() * UNIT)))
+                        .as("%s pin %d", part.getKey(), pinIndex).isEqualTo(ColorSchemes.PLACA.pad());
+            }
+        }
+    }
+
+    /** Only the mark takes the pad colour: the lead next to it stays in the outline colour. */
+    @Test
+    void theLeadsKeepTheOutlineColourWhenThePinsHaveTheirOwn() {
+        ColorScheme magentaPins = ColorScheme.LIGHT.with(ColorRole.PAD, Color.MAGENTA)
+                .with(ColorRole.COMPONENT_STROKE, Color.BLACK).with(ColorRole.BACKGROUND, Color.WHITE);
+        Component gate = placed(StandardComponentTypes.AND2, Map.of());
+        BufferedImage image = drawOn(magentaPins, gate);
+        GridPoint input = registry.typeOf(gate).pinLocation(gate, 0);
+        Color lead = new Color(image.getRGB(input.x() * UNIT + 4, input.y() * UNIT));
+        assertThat(lead.getRed()).as("a grey between black and white, no magenta").isEqualTo(lead.getGreen());
+        assertThat(lead).isNotEqualTo(Color.WHITE);
+    }
+
+    private Component placed(String typeId, Map<String, Object> parameters) {
+        return registry.require(typeId).newComponent(new ElementId("c1"), new GridPoint(12, 12), Rotation.R0,
+                parameters, "");
+    }
+
+    private BufferedImage drawOn(ColorScheme scheme, Component component) {
+        BufferedImage image = new BufferedImage(200, 200, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D graphics = image.createGraphics();
+        graphics.setColor(scheme.background());
+        graphics.fillRect(0, 0, 200, 200);
+        ComponentDrawing.paint(graphics, registry.typeOf(component), component, VisibleState.NONE, scheme, painters);
+        graphics.dispose();
+        return image;
     }
 
     @Test

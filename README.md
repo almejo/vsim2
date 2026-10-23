@@ -114,7 +114,7 @@ Una línea por función; el detalle está en [docs/funciones.md](docs/funciones.
 - [Íconos, barra de herramientas y cursores](docs/funciones.md#íconos-barra-de-herramientas-y-cursores) que dicen qué hará cada cosa.
 - [Atajos de teclado](docs/funciones.md#atajos-de-teclado) que se pueden cambiar.
 - [Pestaña Componentes](docs/funciones.md#pestaña-componentes): el árbol del circuito con sus valores.
-- [Preferencias](docs/funciones.md#preferencias): tema, esquemas de colores (entre ellos «Placa», que dibuja el circuito como una placa de circuito impreso verde) y esquemas propios, idioma, letra y librería.
+- [Preferencias](docs/funciones.md#preferencias): tema, esquemas de colores (entre ellos «Placa», que dibuja el circuito como una placa de circuito impreso verde con pines dorados) y esquemas propios, idioma, letra y librería.
 - [Sesión y recuperación](docs/funciones.md#sesión-y-recuperación): copias automáticas, recientes y continuar donde quedaste.
 
 ### IA (MCP)

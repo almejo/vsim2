@@ -22,7 +22,7 @@ class CustomColorSchemesTest {
     }
 
     @Test
-    void aSavedSchemeComesBackWithAllTwentyOneRolesAndTheirAlpha() {
+    void aSavedSchemeComesBackWithAllTwentyTwoRolesAndTheirAlpha() {
         NamedColorScheme saved = schemes.save("Mío", distinctColors());
         assertThat(saved.id()).isEqualTo("custom-1");
         assertThat(saved.name()).isEqualTo("Mío");
@@ -65,6 +65,27 @@ class CustomColorSchemesTest {
         assertThat(found.gridLine()).isEqualTo(ColorScheme.derivedGridLine(new Color(0x405060)));
         assertThat(found.grid()).isEqualTo(new Color(0x405060));
         assertThat(found.background()).isEqualTo(ColorSchemes.DARK.background());
+    }
+
+    @Test
+    void aSchemeStoredBeforeThePinsColourPaintsItsPinsInItsOwnOutlineColour() {
+        NamedColorScheme saved = schemes.save("Antiguo", ColorSchemes.DARK.with(ColorRole.COMPONENT_STROKE,
+                new Color(0x405060)));
+        preferences.colorSchemesNode().node(saved.id()).remove("pad");
+
+        ColorScheme found = schemes.byId(saved.id()).orElseThrow().scheme();
+
+        assertThat(found.pad()).isEqualTo(new Color(0x405060));
+        assertThat(found.componentStroke()).isEqualTo(new Color(0x405060));
+    }
+
+    @Test
+    void aSavedSchemeKeepsItsOwnPinsColour() {
+        NamedColorScheme saved = schemes.save("Placa (copia)", ColorSchemes.PLACA);
+
+        assertThat(preferences.colorSchemesNode().node(saved.id()).get("pad", null))
+                .isEqualTo(CustomColorSchemes.format(ColorSchemes.PLACA.pad()));
+        assertThat(schemes.byId(saved.id()).orElseThrow().scheme()).isEqualTo(ColorSchemes.PLACA);
     }
 
     @Test
