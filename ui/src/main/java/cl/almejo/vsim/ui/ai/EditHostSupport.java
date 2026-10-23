@@ -4,6 +4,7 @@ import cl.almejo.vsim.automation.AutomationError;
 import cl.almejo.vsim.automation.AutomationException;
 import cl.almejo.vsim.automation.DocumentId;
 import cl.almejo.vsim.automation.DocumentVersion;
+import cl.almejo.vsim.automation.check.TextMeasure;
 import cl.almejo.vsim.automation.edit.EditableCircuit;
 import cl.almejo.vsim.core.command.History;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
@@ -103,6 +104,12 @@ final class EditHostSupport {
         @Override
         public DocumentVersion version() {
             return new DocumentVersion(openDocument.contentVersion());
+        }
+
+        /** Texts as the canvas draws them, so a {@code MakeFrame} wraps its notes whole. */
+        @Override
+        public TextMeasure textMeasure() {
+            return LabelTextMeasure.INSTANCE;
         }
     }
 }

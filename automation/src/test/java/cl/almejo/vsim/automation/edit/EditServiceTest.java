@@ -7,6 +7,7 @@ import cl.almejo.vsim.automation.DocumentId;
 import cl.almejo.vsim.automation.PinReference;
 import cl.almejo.vsim.automation.TaskInfo;
 import cl.almejo.vsim.automation.UndoOutcome;
+import cl.almejo.vsim.automation.check.TextMeasure;
 import cl.almejo.vsim.automation.edit.EditOperation.AddGuide;
 import cl.almejo.vsim.automation.edit.EditOperation.AddNote;
 import cl.almejo.vsim.automation.edit.EditOperation.AddWire;
@@ -22,10 +23,13 @@ import cl.almejo.vsim.automation.edit.EditOperation.SetLabel;
 import cl.almejo.vsim.automation.edit.EditOperation.SetParameters;
 import cl.almejo.vsim.automation.edit.EditOperation.TidyWires;
 import cl.almejo.vsim.core.command.MoveElementsCommand;
+import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.Frame;
+import cl.almejo.vsim.core.document.FrameContents;
 import cl.almejo.vsim.core.document.Guide;
+import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
 import cl.almejo.vsim.core.library.ComponentDefinition;
@@ -447,6 +451,53 @@ class EditServiceTest {
         assertThat(frame.title()).isEqualTo("Etapa 1: el latch");
         assertThat(frame.encloses(10, 10, 14, 14)).isTrue();
         assertThat(frame.topLeft().y()).isLessThan(10 - 2);
+    }
+
+    @Test
+    void aFrameAroundAPartAndAThreeLineNoteHoldsTheWholeMeasuredNote() {
+        EditReceipt receipt = service.edit(request(place("gate", "nand2", 10, 10),
+                new AddNote(Optional.of("note"), "La compuerta NAND invierte\nel AND de sus entradas\ny va aquí", 10,
+                        18),
+                new MakeFrame(Optional.of("stage"), "Etapa 1", List.of("new:gate", "new:note"), Optional.empty(),
+                        false)));
+
+        Frame frame = circuit.document().frame(new ElementId(receipt.aliases().get("stage"))).orElseThrow();
+        TextLabel note = circuit.document().label(new ElementId(receipt.aliases().get("note"))).orElseThrow();
+        assertEnclosesMeasured(frame, TextMeasure.APPROXIMATE.freeText(note));
+        assertThat(frame.encloses(10, 10, 14, 14)).isTrue();
+        assertThat(FrameContents.of(circuit.document(), circuit.registry(), frame))
+                .contains(new ElementId(receipt.aliases().get("gate")), note.id());
+    }
+
+    @Test
+    void aFrameAroundASingleNoteHoldsIt() {
+        EditReceipt receipt = service.edit(request(
+                new AddNote(Optional.of("note"), "Una nota sola\nen dos líneas", 0, 30),
+                new MakeFrame(Optional.of("stage"), "Nota", List.of("new:note"), Optional.empty(), false)));
+
+        Frame frame = circuit.document().frame(new ElementId(receipt.aliases().get("stage"))).orElseThrow();
+        TextLabel note = circuit.document().label(new ElementId(receipt.aliases().get("note"))).orElseThrow();
+        assertEnclosesMeasured(frame, TextMeasure.APPROXIMATE.freeText(note));
+        assertThat(FrameContents.of(circuit.document(), circuit.registry(), frame)).containsExactly(note.id());
+    }
+
+    @Test
+    void aFrameAroundAPartHoldsItsLongLabel() {
+        EditReceipt receipt = service.edit(request(
+                new PlacePart(Optional.of("gate"), "nand2", 10, 10, Rotation.R0, Map.of(),
+                        "Compuerta NAND de la entrada larga"),
+                new MakeFrame(Optional.of("stage"), "Etapa", List.of("new:gate"), Optional.empty(), false)));
+
+        Frame frame = circuit.document().frame(new ElementId(receipt.aliases().get("stage"))).orElseThrow();
+        Component gate = circuit.document().component(new ElementId(receipt.aliases().get("gate"))).orElseThrow();
+        assertEnclosesMeasured(frame, TextMeasure.APPROXIMATE
+                .componentLabel(circuit.registry().typeOf(gate), gate).orElseThrow());
+    }
+
+    private static void assertEnclosesMeasured(Frame frame, TextMeasure.TextBox box) {
+        assertThat(frame.encloses((int) Math.floor(box.left()), (int) Math.floor(box.top()),
+                (int) Math.ceil(box.left() + box.width()), (int) Math.ceil(box.top() + box.height())))
+                .as("the frame %s encloses the text box %s", frame, box).isTrue();
     }
 
     @Test

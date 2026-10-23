@@ -4,21 +4,19 @@ import cl.almejo.vsim.automation.AutomationError;
 import cl.almejo.vsim.automation.AutomationException;
 import cl.almejo.vsim.automation.DocumentId;
 import cl.almejo.vsim.automation.PresentationHost;
+import cl.almejo.vsim.automation.check.MeasuredBounds;
 import cl.almejo.vsim.automation.check.TextMeasure;
 import cl.almejo.vsim.automation.edit.AiTask;
 import cl.almejo.vsim.automation.edit.EditService;
 import cl.almejo.vsim.automation.edit.EditableCircuit;
 import cl.almejo.vsim.automation.edit.TaskStage;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
-import cl.almejo.vsim.core.component.ElementBounds;
 import cl.almejo.vsim.core.document.CircuitDocument;
-import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.Frame;
 import cl.almejo.vsim.core.document.FrameContents;
 import cl.almejo.vsim.core.document.FrameTint;
-import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.netlist.Net;
@@ -303,11 +301,11 @@ public final class Storyboard implements PresentationService.StageBoundary {
     static Optional<Frame> frameFor(CircuitDocument candidate, ComponentTypeRegistry registry, TextMeasure measure,
                                     AiTask task, int stage, boolean locked) {
         List<DocumentElement> elements = live(candidate, task.createdIn(stage));
-        Optional<Bounds> around = boundsOf(elements, registry, measure);
+        Optional<Bounds> around = MeasuredBounds.union(elements, registry, measure);
         if (around.isEmpty()) {
             return Optional.empty();
         }
-        Bounds bodies = boundsOf(elements, registry, measure, false).orElse(around.get());
+        Bounds bodies = MeasuredBounds.unionWithoutLabels(elements, registry, measure).orElse(around.get());
         Set<ElementId> own = ids(elements);
         if (insideAFrameAlready(candidate, registry, own)) {
             return Optional.empty();
@@ -386,7 +384,7 @@ public final class Storyboard implements PresentationService.StageBoundary {
         List<Bounds> obstacles = new ArrayList<>();
         for (DocumentElement element : document.elements()) {
             if (!ownWork.contains(element.id())) {
-                boundsOf(List.of(element), registry, measure).ifPresent(obstacles::add);
+                MeasuredBounds.union(List.of(element), registry, measure).ifPresent(obstacles::add);
             }
         }
         Optional<Bounds> previous = previousStageArea(document, registry, measure, task, stageIndex)
@@ -422,9 +420,9 @@ public final class Storyboard implements PresentationService.StageBoundary {
         for (int stage = stageIndex - 1; stage >= 0; stage--) {
             Optional<Frame> frame = liveFrame(document, task, stage);
             if (frame.isPresent()) {
-                return frame.flatMap(found -> boundsOf(List.of(found), registry, measure));
+                return frame.flatMap(found -> MeasuredBounds.union(List.of(found), registry, measure));
             }
-            Optional<Bounds> parts = boundsOf(live(document, task.createdIn(stage)), registry, measure);
+            Optional<Bounds> parts = MeasuredBounds.union(live(document, task.createdIn(stage)), registry, measure);
             if (parts.isPresent()) {
                 Bounds bounds = parts.get();
                 int top = FRAME_MARGIN + TITLE_ROOM;
@@ -454,48 +452,6 @@ public final class Storyboard implements PresentationService.StageBoundary {
         Set<ElementId> ids = new LinkedHashSet<>();
         elements.forEach(element -> ids.add(element.id()));
         return ids;
-    }
-
-    /**
-     * The union of the elements' bounds; a note with every line of its text and a part with its label as
-     * {@code measure} draws them (the editor's font), not just the note's corner or the part's body; a part whose type
-     * is unknown has none.
-     */
-    private static Optional<Bounds> boundsOf(List<DocumentElement> elements, ComponentTypeRegistry registry,
-                                             TextMeasure measure) {
-        return boundsOf(elements, registry, measure, true);
-    }
-
-    /** As above; without the part labels unless {@code withLabels}. */
-    private static Optional<Bounds> boundsOf(List<DocumentElement> elements, ComponentTypeRegistry registry,
-                                             TextMeasure measure, boolean withLabels) {
-        Bounds result = null;
-        for (DocumentElement element : elements) {
-            try {
-                Bounds bounds = element instanceof TextLabel label ? inGrid(measure.freeText(label))
-                        : ElementBounds.of(element, registry);
-                if (withLabels && element instanceof Component part) {
-                    Optional<TextMeasure.TextBox> label = registry.findTypeOf(part)
-                            .flatMap(type -> measure.componentLabel(type, part));
-                    if (label.isPresent()) {
-                        bounds = bounds.union(inGrid(label.get()));
-                    }
-                }
-                result = result == null ? bounds : result.union(bounds);
-            } catch (RuntimeException unknownType) {
-                // No size to frame or to keep clear of.
-            }
-        }
-        return Optional.ofNullable(result);
-    }
-
-    /** The whole grid units a text's box lies in. */
-    private static Bounds inGrid(TextMeasure.TextBox box) {
-        int left = (int) Math.floor(box.left());
-        int top = (int) Math.floor(box.top());
-        int right = (int) Math.ceil(box.left() + box.width());
-        int bottom = (int) Math.ceil(box.top() + box.height());
-        return new Bounds(left, top, Math.max(1, right - left), Math.max(1, bottom - top));
     }
 
     /** The stage's title for its frame; none for a stage the plan does not list. */

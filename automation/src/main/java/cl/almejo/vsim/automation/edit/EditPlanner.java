@@ -4,6 +4,8 @@ import cl.almejo.vsim.automation.AutomationError;
 import cl.almejo.vsim.automation.AutomationException;
 import cl.almejo.vsim.automation.PlainText;
 import cl.almejo.vsim.automation.PinReference;
+import cl.almejo.vsim.automation.check.MeasuredBounds;
+import cl.almejo.vsim.automation.check.TextMeasure;
 import cl.almejo.vsim.automation.edit.EditOperation.AddGuide;
 import cl.almejo.vsim.automation.edit.EditOperation.AddNote;
 import cl.almejo.vsim.automation.edit.EditOperation.AddWire;
@@ -32,7 +34,6 @@ import cl.almejo.vsim.core.command.SetLabelCommand;
 import cl.almejo.vsim.core.command.TidyWiresCommand;
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
-import cl.almejo.vsim.core.component.ElementBounds;
 import cl.almejo.vsim.core.component.ParameterSpec;
 import cl.almejo.vsim.core.component.PinDirection;
 import cl.almejo.vsim.core.component.PinSpec;
@@ -116,6 +117,7 @@ final class EditPlanner {
     private final CircuitDocument original;
     private final ComponentTypeRegistry liveRegistry;
     private final List<DefinitionBundle> library;
+    private final TextMeasure measure;
     private final CircuitDocument candidate;
     private final ComponentTypeRegistry registry;
     private final CandidateNetlist netlists;
@@ -130,10 +132,11 @@ final class EditPlanner {
     private int operationIndex;
 
     private EditPlanner(CircuitDocument original, ComponentTypeRegistry liveRegistry,
-                        List<DefinitionBundle> library) {
+                        List<DefinitionBundle> library, TextMeasure measure) {
         this.original = original;
         this.liveRegistry = liveRegistry;
         this.library = List.copyOf(library);
+        this.measure = measure;
         this.candidate = original.copy();
         // The live registry resolves the live circuit's components; the candidate needs its own (it may add one).
         this.registry = liveRegistry.copy();
@@ -145,17 +148,18 @@ final class EditPlanner {
     /**
      * Carries out {@code operations} on a copy of {@code document}; {@code registry} is the circuit's own. Neither is
      * changed. {@code library} is the user's library: an instance of one of its components brings the component's
-     * definitions into the circuit, as placing it from the palette does.
+     * definitions into the circuit, as placing it from the palette does. {@code measure} places the texts as the
+     * editor draws them, so a frame wraps its notes and part labels whole.
      *
      * @throws AutomationException for the first operation that cannot be done, with its index in the recovery data
      */
     static PlannedEdit plan(CircuitDocument document, ComponentTypeRegistry registry,
                             List<EditOperation> operations) {
-        return plan(document, registry, List.of(), operations);
+        return plan(document, registry, List.of(), TextMeasure.APPROXIMATE, operations);
     }
 
     static PlannedEdit plan(CircuitDocument document, ComponentTypeRegistry registry, List<DefinitionBundle> library,
-                            List<EditOperation> operations) {
+                            TextMeasure measure, List<EditOperation> operations) {
         if (operations.isEmpty()) {
             throw new AutomationException(AutomationError.INVALID_PARAMETER, "An edit needs at least one operation");
         }
@@ -163,7 +167,7 @@ final class EditPlanner {
             throw new AutomationException(AutomationError.INVALID_PARAMETER, "An edit carries at most "
                     + MAXIMUM_OPERATIONS + " operations; split it", Map.of("maximum", MAXIMUM_OPERATIONS));
         }
-        EditPlanner planner = new EditPlanner(document, registry, library);
+        EditPlanner planner = new EditPlanner(document, registry, library, measure);
         for (EditOperation operation : operations) {
             planner.carryOut(operation);
             planner.operationIndex++;
@@ -389,7 +393,8 @@ final class EditPlanner {
         List<DocumentElement> elements = requireTargets(operation.targets()).stream()
                 .map(id -> candidate.element(id).orElseThrow())
                 .toList();
-        Bounds around = ElementBounds.union(elements, registry).orElseThrow();
+        // A note's every line and a part's label, as the editor draws them (core's bounds stop at a note's corner).
+        Bounds around = MeasuredBounds.union(elements, registry, measure).orElseThrow();
         int top = FRAME_MARGIN + FRAME_TITLE_ROOM;
         return new Frame(candidate.newFrameId(), new GridPoint(around.x() - FRAME_MARGIN, around.y() - top),
                 Math.max(Frame.MINIMUM_WIDTH, around.width() + 2 * FRAME_MARGIN),

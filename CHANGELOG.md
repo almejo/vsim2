@@ -6,6 +6,13 @@ Los cambios de VSim 2 que se notan al usarlo, del más nuevo al más antiguo. El
 funciones, con las fechas en que se hizo. El detalle de cada función está en
 [docs/funciones.md](docs/funciones.md).
 
+## Sin publicar — Pulido
+
+### Arreglado
+
+- Un marco que arma la IA alrededor de una nota ahora la encierra entera, con todas sus líneas (antes una nota de
+  varias líneas quedaba medio afuera), y también la etiqueta larga de un componente.
+
 ## Versión 0.2 — 2026-10-22
 
 ### Cambiado

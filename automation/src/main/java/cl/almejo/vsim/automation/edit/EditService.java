@@ -167,7 +167,7 @@ public final class EditService {
         ReplaceContentCommand content;
         try {
             planned = EditPlanner.plan(circuit.document(), circuit.registry(), circuit.library(),
-                    request.operations());
+                    circuit.textMeasure(), request.operations());
             content = ReplaceContentCommand.between(circuit.document(), planned.candidate(),
                     AiEditCommand.DESCRIPTION);
         } catch (AutomationException | IllegalArgumentException refusal) {

@@ -1,6 +1,7 @@
 package cl.almejo.vsim.automation.edit;
 
 import cl.almejo.vsim.automation.DocumentVersion;
+import cl.almejo.vsim.automation.check.TextMeasure;
 import cl.almejo.vsim.core.command.History;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.document.CircuitDocument;
@@ -32,5 +33,13 @@ public interface EditableCircuit {
      */
     default List<DefinitionBundle> library() {
         return List.of();
+    }
+
+    /**
+     * Where the editor draws texts (notes, part labels), so the AI's frames wrap them whole;
+     * {@link TextMeasure#APPROXIMATE} by default.
+     */
+    default TextMeasure textMeasure() {
+        return TextMeasure.APPROXIMATE;
     }
 }
