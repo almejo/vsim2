@@ -259,6 +259,51 @@ class PresentationServiceTest {
         assertThat(circuit.document().elements()).isEmpty();
     }
 
+    /**
+     * Pulido T1: a step that reached VSim as the AI was turned off never starts a wait: the await answers STOPPED at
+     * once (not STILL_WAITING after the wait) and its ghost goes, until the AI is on again.
+     */
+    @Test
+    void afterTheAiWasTurnedOffAnAwaitAnswersStoppedAtOnceUntilItIsOnAgain() {
+        stepByStep();
+        service.stopAll();
+        service.edit(step(0, 0, place("gate", 0, 0)));
+
+        assertThat(service.awaitStep(task.taskId(), Duration.ofMillis(200)).status())
+                .isEqualTo(StepStatus.STOPPED);
+        assertThat(service.hasPendingStep(task.taskId())).as("the ghost went").isFalse();
+        assertThat(heard).contains("discarded STOPPED");
+
+        service.resume();
+        service.edit(step(0, 0, place("gate", 0, 0)));
+        assertThat(service.awaitStep(task.taskId(), Duration.ZERO).status()).isEqualTo(StepStatus.STILL_WAITING);
+    }
+
+    @Test
+    void theWaitsForSiguienteAreCountedWhileTheyWait() throws Exception {
+        stepByStep();
+        service.edit(step(0, 0, place("gate", 0, 0)));
+        assertThat(service.stepWaits()).isZero();
+
+        CompletableFuture<StepOutcome> waiting = CompletableFuture.supplyAsync(
+                () -> service.awaitStep(task.taskId(), Duration.ofSeconds(5)));
+        awaitStepWaits(1);
+        service.next(task.taskId());
+
+        assertThat(waiting.get(5, TimeUnit.SECONDS).status()).isEqualTo(StepStatus.APPLIED);
+        assertThat(service.stepWaits()).isZero();
+    }
+
+    private void awaitStepWaits(int count) {
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+        while (service.stepWaits() != count) {
+            if (System.nanoTime() > deadline) {
+                throw new AssertionError("never " + count + " waits for «Siguiente»");
+            }
+            Thread.onSpinWait();
+        }
+    }
+
     @Test
     void anAwaitWithNoStepProposedIsRefused() {
         assertThatThrownBy(() -> service.awaitStep(task.taskId(), Duration.ZERO))

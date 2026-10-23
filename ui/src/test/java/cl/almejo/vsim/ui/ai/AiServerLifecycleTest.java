@@ -231,6 +231,23 @@ class AiServerLifecycleTest {
         assertThat(portIsFree()).isTrue();
     }
 
+    /** Pulido T1: «Apagar» ended the waits for «Siguiente» for good; they wait again once the server listens. */
+    @Test
+    void theWaitsForSiguienteWaitAgainOnlyOnceTheServerListens() {
+        service.activate();
+        assertThat(tasks.waitsAccepted).as("while it starts").isZero();
+        runServerWork();
+        assertThat(tasks.waitsAccepted).isEqualTo(1);
+
+        service.deactivate();
+        runServerWork();
+        assertThat(tasks.waitsAccepted).as("Apagar").isEqualTo(1);
+
+        assertThat(service.restart()).isTrue();
+        runServerWork();
+        assertThat(tasks.waitsAccepted).as("Reiniciar listens again").isEqualTo(2);
+    }
+
     private boolean portIsFree() {
         try (ServerSocket probe = new ServerSocket(port, 50, InetAddress.getLoopbackAddress())) {
             return probe.getLocalPort() == port;

@@ -36,6 +36,10 @@ public interface AiTasks {
     default void endEveryWait() {
     }
 
+    /** The server listens again: the AI's waits for «Siguiente» wait again (after {@link #endEveryWait}). */
+    default void acceptWaits() {
+    }
+
     UndoOutcome undoTask(String taskId);
 
     /** The user answered the AI's question (IA.3): false when it is closed or does not take it. False by default. */
@@ -64,6 +68,11 @@ public interface AiTasks {
             @Override
             public void endEveryWait() {
                 api.stopPresenting();
+            }
+
+            @Override
+            public void acceptWaits() {
+                api.resumePresenting();
             }
 
             @Override

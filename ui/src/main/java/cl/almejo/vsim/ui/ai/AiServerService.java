@@ -253,7 +253,9 @@ public final class AiServerService {
         listening(VsimMcpServer.start(api, new McpServerSettings(effectivePort(), secret)), secret);
     }
 
+    /** The server listens: the AI's waits for «Siguiente», ended when it was last turned off, wait again. */
     private void listening(RunningServer server, String secret) {
+        tasks.acceptWaits();
         running = server;
         runningSecret = secret;
         failure = null;

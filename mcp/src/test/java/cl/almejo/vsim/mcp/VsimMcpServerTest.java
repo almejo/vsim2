@@ -214,6 +214,70 @@ class VsimMcpServerTest {
         assertThat(response.body()).isEqualTo("{\"vsim\":true}");
     }
 
+    /**
+     * Pulido T1: «Apagar» ends the AI's long poll, which is answered while the server stops; that answer still reaches
+     * the client (the sessions closed under it before, and the client waited for a reply that never came).
+     */
+    @Test
+    void aRequestBeingAnsweredWhenTheServerStopsStillGetsItsAnswer() throws Exception {
+        CountDownLatch editorBusy = new CountDownLatch(1);
+        CountDownLatch arrived = new CountDownLatch(1);
+        RunningServer server = start(new BlockingHost(editorBusy, arrived));
+        String session = initializeSession(server.port());
+        CompletableFuture<HttpResponse<String>> answering = http.sendAsync(
+                callListDocuments(server.port(), session, 2), HttpResponse.BodyHandlers.ofString());
+        assertThat(arrived.await(10, TimeUnit.SECONDS)).isTrue();
+
+        Thread stopping = Thread.ofPlatform().daemon().start(server::stop);
+        awaitShuttingDown(server.port());
+        editorBusy.countDown();
+
+        HttpResponse<String> answer = answering.get(10, TimeUnit.SECONDS);
+        assertThat(answer.statusCode()).isEqualTo(200);
+        assertThat(answer.body()).contains("\"id\":2", "\"result\"");
+        assertThat(stopping.join(Duration.ofSeconds(10))).as("the server stopped").isTrue();
+    }
+
+    @Test
+    void aRequestThatArrivesWhileTheServerStopsIsTurnedAway() throws Exception {
+        CountDownLatch editorBusy = new CountDownLatch(1);
+        CountDownLatch arrived = new CountDownLatch(1);
+        RunningServer server = start(new BlockingHost(editorBusy, arrived));
+        String session = initializeSession(server.port());
+        CompletableFuture<HttpResponse<String>> answering = http.sendAsync(
+                callListDocuments(server.port(), session, 2), HttpResponse.BodyHandlers.ofString());
+        assertThat(arrived.await(10, TimeUnit.SECONDS)).isTrue();
+        Thread stopping = Thread.ofPlatform().daemon().start(server::stop);
+        awaitShuttingDown(server.port());
+
+        HttpResponse<String> late = http.send(callListDocuments(server.port(), session, 3),
+                HttpResponse.BodyHandlers.ofString());
+
+        assertThat(late.statusCode()).isEqualTo(503);
+        editorBusy.countDown();
+        assertThat(answering.get(10, TimeUnit.SECONDS).statusCode()).isEqualTo(200);
+        assertThat(stopping.join(Duration.ofSeconds(10))).isTrue();
+    }
+
+    /** Until the server turns requests away: a GET without a session is a quick 400 while it serves, 503 after. */
+    private void awaitShuttingDown(int port) throws InterruptedException {
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
+        while (System.nanoTime() < deadline) {
+            try {
+                HttpResponse<String> probe = http.send(HttpRequest.newBuilder(
+                                URI.create("http://127.0.0.1:" + port + "/mcp"))
+                        .header("Authorization", "Bearer " + SECRET).GET().build(),
+                        HttpResponse.BodyHandlers.ofString());
+                if (probe.statusCode() == 503) {
+                    return;
+                }
+            } catch (IOException stoppedListening) {
+                return;
+            }
+        }
+        throw new AssertionError("the server never began to stop");
+    }
+
     @Test
     void stoppingFreesThePort() throws Exception {
         RunningServer server = VsimMcpServer.start(new AutomationApi(new FixedHost(List.of())),

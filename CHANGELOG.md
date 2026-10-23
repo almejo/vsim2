@@ -21,6 +21,8 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
   varias líneas quedaba medio afuera), y también la etiqueta larga de un componente.
 - El 0, 1 o Z de un interruptor se lee en todos los esquemas: sobre un color claro (el 1 de CSim, de Claro y de
   Oscuro, la Z verde del VSim original) va en negro en vez de blanco.
+- «Apagar» o «Reiniciar» la IA mientras espera «Siguiente» le responde de inmediato que se detuvo: antes, a veces la
+  respuesta se perdía al cerrar la conexión y Claude Code se quedaba esperando hasta agotar su tiempo.
 
 ## Versión 0.2 — 2026-10-22
 

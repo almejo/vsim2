@@ -86,6 +86,10 @@ public final class PresentationService {
     private final Predicate<String> questionWaits;
     /** Guarded by {@code this}; never held while waiting for the editor thread. */
     private final Map<String, TaskPresentation> presentations = new LinkedHashMap<>();
+    /** The AI is off ({@link #stopAll} until {@link #resume}): no wait for «Siguiente» starts. Guarded by this. */
+    private boolean turnedOff;
+    /** The {@link #awaitStep} calls waiting right now. Guarded by {@code this}. */
+    private int stepWaits;
 
     /**
      * @param listeners   the live list of listeners (the API's own)
@@ -483,7 +487,8 @@ public final class PresentationService {
     /**
      * {@code await_step}: the outcome of the task's pending step, waiting for it at most {@code wait} (capped at the
      * maximum): {@code APPLIED} with the receipt, {@code STALE}, {@code STOPPED}, or {@code STILL_WAITING} (ask
-     * again). With no step pending it answers the last step's outcome. {@code INVALID_REFERENCE} for an unknown task,
+     * again). With no step pending it answers the last step's outcome. While the AI is off ({@link #stopAll}) it
+     * answers {@code STOPPED} at once and drops the task's pending step. {@code INVALID_REFERENCE} for an unknown task,
      * {@code NOT_ALLOWED} when the task never proposed a step.
      */
     public StepOutcome awaitStep(String taskId, Duration wait) {
@@ -493,7 +498,9 @@ public final class PresentationService {
         CompletableFuture<StepOutcome> outcome;
         synchronized (this) {
             TaskPresentation presentation = presentations.get(taskId);
-            if (presentation != null && presentation.pending != null) {
+            if (turnedOff) {
+                outcome = null;
+            } else if (presentation != null && presentation.pending != null) {
                 outcome = presentation.pending.outcome();
             } else if (presentation != null && presentation.applying != null) {
                 outcome = presentation.applying.outcome();
@@ -505,6 +512,12 @@ public final class PresentationService {
                 throw new AutomationException(AutomationError.NOT_ALLOWED, "No step of task " + taskId + " waits: "
                         + "vsim_await_step follows a vsim_edit answered PROPOSED", Map.of("taskId", taskId));
             }
+            if (outcome != null) {
+                stepWaits++;
+            }
+        }
+        if (outcome == null) {
+            return stoppedWhileTurnedOff(taskId);
         }
         try {
             return outcome.get(capped(wait).toMillis(), TimeUnit.MILLISECONDS);
@@ -515,7 +528,26 @@ public final class PresentationService {
             return StepOutcome.of(StepStatus.STILL_WAITING);
         } catch (ExecutionException exception) {
             return StepOutcome.of(StepStatus.STOPPED);
+        } finally {
+            synchronized (this) {
+                stepWaits--;
+            }
         }
+    }
+
+    /**
+     * The AI is off: a step that reached VSim as it was turned off goes with its ghost, and its await never starts
+     * a wait (it would hold the server's stop until it ended, Pulido T1).
+     */
+    private StepOutcome stoppedWhileTurnedOff(String taskId) {
+        TaskPresentation presentation;
+        synchronized (this) {
+            presentation = presentations.get(taskId);
+        }
+        if (presentation != null) {
+            dropEverything(presentation, StepStatus.STOPPED);
+        }
+        return StepOutcome.of(StepStatus.STOPPED);
     }
 
     /** {@code wait} within zero and the maximum wait. */
@@ -727,13 +759,27 @@ public final class PresentationService {
         presentationsOf(document).forEach(presentation -> dropEverything(presentation, StepStatus.STOPPED));
     }
 
-    /** The AI was turned off or VSim quits: every pending step is dropped ({@code STOPPED}). */
+    /**
+     * The AI was turned off or VSim quits: every pending step is dropped ({@code STOPPED}), and until {@link #resume}
+     * every {@link #awaitStep} answers {@code STOPPED} at once (a call that reaches VSim as it is turned off).
+     */
     public void stopAll() {
         List<TaskPresentation> all;
         synchronized (this) {
+            turnedOff = true;
             all = new ArrayList<>(presentations.values());
         }
         all.forEach(presentation -> dropEverything(presentation, StepStatus.STOPPED));
+    }
+
+    /** The AI is on again (its server listens): {@link #awaitStep} waits for «Siguiente» again. */
+    public synchronized void resume() {
+        turnedOff = false;
+    }
+
+    /** How many {@link #awaitStep} calls wait for «Siguiente» right now (the panels' and tests' view of the AI). */
+    public synchronized int stepWaits() {
+        return stepWaits;
     }
 
     private List<TaskPresentation> presentationsOf(DocumentId document) {

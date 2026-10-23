@@ -11,15 +11,18 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.time.Duration;
 import java.util.Set;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
 import java.util.function.IntSupplier;
 
 /**
  * The checks in front of the MCP endpoint (spec §9, A§10.1), in this order: the Host names this loopback server (421,
  * against DNS rebinding), a browser Origin is local (403), the secret is right (401), the body is not too large (413),
- * and at most {@link McpServerSettings#MAXIMUM_CONCURRENT_REQUESTS} POSTs are served at once (503). The long-lived GET
- * stream a client keeps open for server messages is not counted, or one client would hold a slot for ever.
+ * the server is not stopping (503) and at most {@link McpServerSettings#MAXIMUM_CONCURRENT_REQUESTS} POSTs are served
+ * at once (503). The long-lived GET stream a client keeps open for server messages is not counted, or one client would
+ * hold a slot for ever. {@link #drain} lets the POSTs being served finish before the server closes its sessions.
  */
 final class AccessFilter extends HttpFilter {
 
@@ -31,6 +34,8 @@ final class AccessFilter extends HttpFilter {
     private final byte[] expectedAuthorization;
     private final IntSupplier port;
     private final Semaphore requestSlots = new Semaphore(McpServerSettings.MAXIMUM_CONCURRENT_REQUESTS);
+    /** The server is stopping: every new request is turned away. */
+    private volatile boolean stopping;
 
     /** @param port the port the server listens on, known only once it started (port 0 picks one) */
     AccessFilter(String secret, IntSupplier port) {
@@ -58,6 +63,10 @@ final class AccessFilter extends HttpFilter {
             response.sendError(HttpServletResponse.SC_REQUEST_ENTITY_TOO_LARGE);
             return;
         }
+        if (stopping) {
+            response.sendError(HttpServletResponse.SC_SERVICE_UNAVAILABLE, "VSim is turning the AI off");
+            return;
+        }
         if (!"POST".equals(request.getMethod())) {
             chain.doFilter(request, response);
             return;
@@ -76,6 +85,22 @@ final class AccessFilter extends HttpFilter {
             chain.doFilter(request, response);
         } finally {
             requestSlots.release();
+        }
+    }
+
+    /**
+     * The server is about to stop: new requests are turned away (503) and this waits, at most {@code grace}, until
+     * the POSTs being served have written their answers, so closing the sessions never drops one (Pulido T1: the
+     * AI's long poll, answered STOPPED by «Apagar», reached the client as an empty stream). True when none is left.
+     */
+    boolean drain(Duration grace) {
+        stopping = true;
+        try {
+            return requestSlots.tryAcquire(McpServerSettings.MAXIMUM_CONCURRENT_REQUESTS, grace.toMillis(),
+                    TimeUnit.MILLISECONDS);
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            return false;
         }
     }
 
