@@ -139,7 +139,7 @@ class ThemeManagerTest {
     void everyStoredSchemeIdComesBackAsItsScheme() {
         Map<String, ColorScheme> expected = Map.of("classic", ColorSchemes.CLASSIC, "light", ColorSchemes.LIGHT,
                 "dark", ColorSchemes.DARK, "pastel", ColorSchemes.PASTEL, "csim", ColorSchemes.CSIM,
-                "twilight", ColorSchemes.TWILIGHT);
+                "twilight", ColorSchemes.TWILIGHT, "placa", ColorSchemes.PLACA);
         for (Map.Entry<String, ColorScheme> entry : expected.entrySet()) {
             preferences.setColorScheme(Optional.of(entry.getKey()));
             assertThat(ThemeManager.schemeFor(preferences.colorScheme(), false)).isSameAs(entry.getValue());

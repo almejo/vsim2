@@ -9,7 +9,7 @@ import java.util.Optional;
 /**
  * The circuit color schemes the user can choose (spec §6.7), independent of the Swing theme. CLASSIC, PASTEL, CSIM and
  * TWILIGHT take the "default", "pastel", "csim" and "Twilight" schemes of the original VSim
- * ({@code vsim/src/main/resources/config/colors.json}).
+ * ({@code vsim/src/main/resources/config/colors.json}); PLACA draws the circuit as a printed circuit board.
  */
 public final class ColorSchemes {
 
@@ -19,6 +19,7 @@ public final class ColorSchemes {
     public static final String PASTEL_ID = "pastel";
     public static final String CSIM_ID = "csim";
     public static final String TWILIGHT_ID = "twilight";
+    public static final String PLACA_ID = "placa";
 
     /** VSim's colors: gray board, black 0, red 1, green Z, blue gates, purple labels, yellow selection. */
     public static final ColorScheme CLASSIC = new ColorScheme(
@@ -143,12 +144,41 @@ public final class ColorSchemes {
             new Color(0x1C1C1C),          // diagramGrid     (VSim "grid")
             new Color(0x990099));         // diagramTrace    (VSim "signal")
 
+    /**
+     * «Placa»: a printed circuit board. Green solder mask, copper traces at 0 and bright gold at 1, white silkscreen
+     * for the outlines and labels, black chip packages, faint lighter-green vias for the grid. Dark board, so the dark
+     * variants of the frame tints and the tunnel palette apply (both read on it). Every wire state reaches 3:1 on the
+     * board and the texts 4.5:1 (ColorSchemesTest).
+     */
+    public static final ColorScheme PLACA = new ColorScheme(
+            new Color(0x0B3D20),          // background      (solder mask)
+            new Color(0x24603A),          // grid            (vias: a faint lighter green)
+            new Color(0x6F, 0xCF, 0x8F, 36), // gridLine     (a slightly lighter green, faint)
+            new Color(0xC87533),          // wireZero        (copper trace, 3.55:1)
+            new Color(0xFFD34D),          // wireOne         (bright gold, 2.4:1 against the copper)
+            new Color(0x82A8FF),          // wireHighImpedance (periwinkle, away from copper and gold)
+            new Color(0xFF4F8B),          // wireConflict    (pink red, apart from the copper)
+            new Color(0xA7AEB2),          // wireUnknown
+            new Color(0xF0F0E6),          // componentStroke (white silkscreen)
+            new Color(0x1C201E),          // componentFill   (black chip package)
+            new Color(0x121513),          // componentShade
+            new Color(0, 0, 0, 90),       // shadow
+            new Color(0xF5F5EE),          // text            (white silkscreen)
+            new Color(0x3FE9FF),          // selection       (cyan: not a wire state, so the glows read)
+            new Color(0x3FE9FF),          // preview
+            new Color(0x0E1210),          // displayBackground
+            new Color(0xFF3B30),          // segmentOn
+            new Color(255, 255, 255, 22), // segmentOff
+            new Color(0x082E18),          // diagramBackground (a deeper green)
+            new Color(255, 255, 255, 32), // diagramGrid
+            new Color(0xFFD34D));         // diagramTrace    (the gold of a 1)
+
     private ColorSchemes() {
     }
 
     /** Scheme ids in the order the preferences dialog lists them. */
     public static List<String> ids() {
-        return List.of(CLASSIC_ID, LIGHT_ID, DARK_ID, PASTEL_ID, CSIM_ID, TWILIGHT_ID);
+        return List.of(CLASSIC_ID, LIGHT_ID, DARK_ID, PASTEL_ID, CSIM_ID, TWILIGHT_ID, PLACA_ID);
     }
 
     public static Optional<ColorScheme> byId(String id) {
@@ -159,6 +189,7 @@ public final class ColorSchemes {
             case PASTEL_ID -> Optional.of(PASTEL);
             case CSIM_ID -> Optional.of(CSIM);
             case TWILIGHT_ID -> Optional.of(TWILIGHT);
+            case PLACA_ID -> Optional.of(PLACA);
             default -> Optional.empty();
         };
     }
@@ -177,6 +208,7 @@ public final class ColorSchemes {
             case PASTEL_ID -> Messages.text("scheme.pastel");
             case CSIM_ID -> Messages.text("scheme.csim");
             case TWILIGHT_ID -> Messages.text("scheme.twilight");
+            case PLACA_ID -> Messages.text("scheme.placa");
             default -> id;
         };
     }

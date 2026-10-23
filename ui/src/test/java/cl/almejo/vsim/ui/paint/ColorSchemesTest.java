@@ -1,6 +1,7 @@
 package cl.almejo.vsim.ui.paint;
 
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.core.document.FrameTint;
 import cl.almejo.vsim.core.tunnel.Tunnels;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -8,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import java.awt.Color;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.function.Function;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -29,11 +31,18 @@ class ColorSchemesTest {
     /** A tunnel's name and hole against the inside of its tag (WCAG large or bold text). */
     private static final double TUNNEL_TEXT = 3.0;
 
+    /** «Placa»: wire 1 against wire 0 (WCAG non-text contrast), so they differ in lightness, not only in hue. */
+    private static final double BOARD_LEVELS = 2.0;
+    /** «Placa»: how far a frame tint over the green board moves it, in RGB units (DARK's green tint moves it 41). */
+    private static final double BOARD_TINT_VISIBLE = 30;
+    /** «Placa»: a silkscreen colour is an off-white, this close to white. */
+    private static final double SILKSCREEN = 1.2;
+
     private static final List<ColorScheme> ALL = List.of(ColorSchemes.CLASSIC, ColorSchemes.LIGHT, ColorSchemes.DARK,
-            ColorSchemes.PASTEL, ColorSchemes.CSIM, ColorSchemes.TWILIGHT);
+            ColorSchemes.PASTEL, ColorSchemes.CSIM, ColorSchemes.TWILIGHT, ColorSchemes.PLACA);
     /** Schemes whose labels and outlines must read as body text. */
     private static final List<ColorScheme> STRICT = List.of(ColorSchemes.CLASSIC, ColorSchemes.LIGHT,
-            ColorSchemes.DARK);
+            ColorSchemes.DARK, ColorSchemes.PLACA);
     /** VSim's other schemes, ported with their own colors. */
     private static final List<ColorScheme> PORTS = List.of(ColorSchemes.PASTEL, ColorSchemes.CSIM,
             ColorSchemes.TWILIGHT);
@@ -47,13 +56,15 @@ class ColorSchemesTest {
 
     @Test
     void schemesAreFoundByIdInMenuOrder() {
-        assertThat(ColorSchemes.ids()).containsExactly("classic", "light", "dark", "pastel", "csim", "twilight");
+        assertThat(ColorSchemes.ids()).containsExactly("classic", "light", "dark", "pastel", "csim", "twilight",
+                "placa");
         assertThat(ColorSchemes.byId("classic")).containsSame(ColorSchemes.CLASSIC);
         assertThat(ColorSchemes.byId("light")).containsSame(ColorScheme.LIGHT);
         assertThat(ColorSchemes.byId("dark")).containsSame(ColorSchemes.DARK);
         assertThat(ColorSchemes.byId("pastel")).containsSame(ColorSchemes.PASTEL);
         assertThat(ColorSchemes.byId("csim")).containsSame(ColorSchemes.CSIM);
         assertThat(ColorSchemes.byId("twilight")).containsSame(ColorSchemes.TWILIGHT);
+        assertThat(ColorSchemes.byId("placa")).containsSame(ColorSchemes.PLACA);
         assertThat(ColorSchemes.byId("Twilight")).isEmpty();
         assertThat(ColorSchemes.byId("neon")).isEmpty();
         assertThat(ColorSchemes.byId("")).isEmpty();
@@ -130,8 +141,19 @@ class ColorSchemesTest {
     @Test
     void schemesHaveSpanishNames() {
         assertThat(ColorSchemes.ids().stream().map(ColorSchemes::displayName))
-                .containsExactly("VSim clásico", "Claro", "Oscuro", "Pastel (VSim)", "CSim (VSim)", "Twilight (VSim)");
+                .containsExactly("VSim clásico", "Claro", "Oscuro", "Pastel (VSim)", "CSim (VSim)", "Twilight (VSim)",
+                        "Placa");
         assertThat(ColorSchemes.displayName("neon")).isEqualTo("neon");
+    }
+
+    @Test
+    void placaIsBoardInEnglish() {
+        Messages.initialize(Locale.ENGLISH);
+        try {
+            assertThat(ColorSchemes.displayName("placa")).isEqualTo("Board");
+        } finally {
+            Messages.initialize(Messages.SPANISH);
+        }
     }
 
     @Test
@@ -221,11 +243,63 @@ class ColorSchemesTest {
     }
 
     @Test
-    void darkWiresMeetTheGraphicsContrast() {
-        for (Function<ColorScheme, Color> state : WIRE_STATES) {
-            assertThat(contrast(state.apply(ColorSchemes.DARK), ColorSchemes.DARK.background()))
-                    .isGreaterThanOrEqualTo(DARK_WIRES);
+    void wiresOfTheNewSchemesMeetTheGraphicsContrast() {
+        for (ColorScheme scheme : List.of(ColorSchemes.DARK, ColorSchemes.PLACA)) {
+            for (Function<ColorScheme, Color> state : WIRE_STATES) {
+                assertThat(contrast(state.apply(scheme), scheme.background())).as("%s", scheme)
+                        .isGreaterThanOrEqualTo(DARK_WIRES);
+            }
         }
+    }
+
+    /** The PCB look: a green solder mask, copper traces, bright gold at 1, white silkscreen, faint lighter vias. */
+    @Test
+    void placaLooksLikeAPrintedCircuitBoard() {
+        ColorScheme board = ColorSchemes.PLACA;
+        assertThat(board.isDark()).isTrue();
+        assertThat(board.background().getGreen()).as("green board")
+                .isGreaterThan(board.background().getRed()).isGreaterThan(board.background().getBlue());
+        assertThat(board.wireZero().getRed()).as("copper")
+                .isGreaterThan(board.wireZero().getGreen()).isGreaterThan(board.wireZero().getBlue());
+        assertThat(board.wireOne().getRed()).as("gold")
+                .isGreaterThan(board.wireOne().getGreen()).isGreaterThan(board.wireOne().getBlue());
+        assertThat(luminance(board.wireOne())).as("1 brighter than 0").isGreaterThan(luminance(board.wireZero()));
+        assertThat(contrast(board.wireOne(), board.wireZero())).isGreaterThanOrEqualTo(BOARD_LEVELS);
+        assertThat(contrast(board.text(), Color.WHITE)).as("white silkscreen").isLessThan(SILKSCREEN);
+        assertThat(contrast(board.componentStroke(), Color.WHITE)).as("white silkscreen").isLessThan(SILKSCREEN);
+        Color vias = over(board.grid(), board.background());
+        assertThat(vias.getGreen()).as("vias: a lighter green").isGreaterThan(board.background().getGreen());
+        assertThat(contrast(vias, board.background())).as("vias are faint").isBetween(1.1, 2.0);
+        assertThat(over(board.gridLine(), board.background()).getGreen()).as("lines: a lighter green")
+                .isGreaterThan(board.background().getGreen());
+    }
+
+    /** The glow of a step and of the AI's changes, the pending outline and the find highlight use the selection. */
+    @Test
+    void placaSelectionAndGlowStandOutFromTheBoardAndFromEveryWire() {
+        ColorScheme board = ColorSchemes.PLACA;
+        assertThat(contrast(board.selection(), board.background())).isGreaterThanOrEqualTo(DARK_WIRES);
+        assertThat(contrast(board.preview(), board.background())).isGreaterThanOrEqualTo(DARK_WIRES);
+        for (Function<ColorScheme, Color> state : WIRE_STATES) {
+            assertThat(distance(board.selection(), state.apply(board))).isGreaterThanOrEqualTo(DISTINCT);
+        }
+        assertThat(contrast(board.segmentOn(), board.displayBackground())).isGreaterThanOrEqualTo(DARK_WIRES);
+        assertThat(contrast(board.diagramTrace(), board.diagramBackground())).isGreaterThanOrEqualTo(READABLE);
+    }
+
+    @Test
+    void placaFramesShowOnTheGreenBoardAndTheirTitlesReadOnEveryTint() {
+        ColorScheme board = ColorSchemes.PLACA;
+        for (FrameTint tint : FrameTint.values()) {
+            Color tinted = over(board.frameTint(tint), board.background());
+            assertThat(contrast(board.frameTitle(), tinted)).as("%s", tint).isGreaterThanOrEqualTo(READABLE);
+            if (tint != FrameTint.NONE) {
+                assertThat(distance(tinted, board.background())).as("%s", tint)
+                        .isGreaterThanOrEqualTo(BOARD_TINT_VISIBLE);
+            }
+        }
+        assertThat(contrast(over(board.frameBorder(), board.background()), board.background()))
+                .isGreaterThanOrEqualTo(DARK_WIRES);
     }
 
     @Test

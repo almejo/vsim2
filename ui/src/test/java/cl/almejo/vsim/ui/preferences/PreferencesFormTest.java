@@ -28,6 +28,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class PreferencesFormTest {
 
+    /** «Según el tema» and every built-in scheme: the scheme choice without custom schemes. */
+    private static final int BUILT_IN_CHOICES = 1 + ColorSchemes.ids().size();
+
     private final AppPreferences preferences = AppPreferences.inMemory();
     private final List<Path> offeredDirectories = new ArrayList<>();
     private Optional<Path> chooserAnswer = Optional.empty();
@@ -71,7 +74,7 @@ class PreferencesFormTest {
         PreferencesForm form = form();
         assertThat(labels(form.themeChoice())).containsExactly("Seguir sistema", "Claro", "Oscuro");
         assertThat(labels(form.schemeChoice())).containsExactly("Según el tema", "VSim clásico", "Claro", "Oscuro",
-                "Pastel (VSim)", "CSim (VSim)", "Twilight (VSim)");
+                "Pastel (VSim)", "CSim (VSim)", "Twilight (VSim)", "Placa");
         assertThat(labels(form.languageChoice())).containsExactly("Sistema", "Español", "English");
     }
 
@@ -299,7 +302,7 @@ class PreferencesFormTest {
         preferences.setColorScheme(Optional.of(amber.id()));
         PreferencesForm form = schemeForm();
         assertThat(labels(form.schemeChoice())).containsExactly("Según el tema", "VSim clásico", "Claro", "Oscuro",
-                "Pastel (VSim)", "CSim (VSim)", "Twilight (VSim)", "Zafiro", "Ámbar");
+                "Pastel (VSim)", "CSim (VSim)", "Twilight (VSim)", "Placa", "Zafiro", "Ámbar");
         assertThat(selected(form.schemeChoice())).contains(amber.id());
         assertThat(form.customizeSchemeButton().getText()).isEqualTo("Personalizar…");
         assertThat(form.deleteSchemeButton().getText()).isEqualTo("Borrar");
@@ -360,7 +363,7 @@ class PreferencesFormTest {
         form.customizeSchemeButton().doClick(0);
         assertThat(changes).hasValue(0);
         assertThat(new CustomColorSchemes(preferences).list()).isEmpty();
-        assertThat(form.schemeChoice().getItemCount()).isEqualTo(7);
+        assertThat(form.schemeChoice().getItemCount()).isEqualTo(BUILT_IN_CHOICES);
     }
 
     @Test
@@ -407,7 +410,7 @@ class PreferencesFormTest {
         assertThat(customSchemes.list()).isEmpty();
         assertThat(preferences.colorScheme()).isEmpty();
         assertThat(selected(form.schemeChoice())).isEmpty();
-        assertThat(form.schemeChoice().getItemCount()).isEqualTo(7);
+        assertThat(form.schemeChoice().getItemCount()).isEqualTo(BUILT_IN_CHOICES);
         assertThat(form.deleteSchemeButton().isEnabled()).isFalse();
         assertThat(appearance.scheme()).isSameAs(ColorSchemes.DARK);
         manager.dispose();
