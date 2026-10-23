@@ -1,7 +1,7 @@
 # VSim 2 code conventions
 
-The rules every new line of code follows, and how to treat code that already exists. `CLAUDE.md` describes the
-architecture and `docs/superpowers/workflow.md` how we work; this file is the coding rulebook. When a rule changes,
+The rules every new line of code follows, and how to treat code that already exists. The README describes what VSim 2
+is and how to build it; this file is the coding rulebook. When a rule changes,
 change it here in the same commit.
 
 ## 1. New code and modified code
@@ -124,4 +124,4 @@ We apply Clean Code (Robert C. Martin) to new code and to the code we modify (se
   README's «Funciones» list (under its area, linking to its section), its full detail in `docs/funciones.md` (under
   the same area, never by milestone) and an entry in `CHANGELOG.md` (newest section first, «Agregado» / «Cambiado» /
   «Arreglado», written as what the user notices). User-visible fixes get a changelog entry too. Decisions and
-  deferred items go to `docs/superpowers/plans/2026-10-08-m1-followups.md`.
+  deferred items are recorded with the project's design notes.

@@ -7,3 +7,7 @@ out/
 
 # The user's own circuits, never committed
 examples/ignored/
+
+# Private notes (almejo/vsim2-notas, cloned here) and the CLAUDE.md link to them
+docs/interno/
+CLAUDE.md

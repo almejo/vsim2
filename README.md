@@ -9,7 +9,7 @@ simuladores y agrega cosas que ningún otro editor de circuitos tiene: un asiste
 grupo y un modo práctica que corrige, un paso a paso que muestra qué va a cambiar, cables que siguen al mover y se
 ordenan solos, y un servidor MCP para conectar asistentes de IA (Claude Code, Codex u otro compatible) que arman,
 prueban y presentan circuitos paso a paso en el VSim abierto (ver la
-[comparación con Logisim, Digital y CircuitSim](docs/superpowers/research/2026-10-19-vsim-vs-logisim-digital.md)).
+[comparación con Logisim, Digital y CircuitSim](docs/comparacion/vsim-vs-logisim-digital.md)).
 
 ![VSim 2 con un sumador de 4 bits (bloque «Sumador», display de 7 segmentos y LED de acarreo) y un semisumador hecho con XOR y AND, cada uno en su marco](docs/screenshots/vsim2-sumadores.png)
 
