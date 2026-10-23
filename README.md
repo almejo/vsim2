@@ -45,7 +45,7 @@ VSim 2 tiene una historia larga:
 Jar ejecutable, con todas las dependencias adentro:
 
     ./gradlew :ui:executableJar          # deja ui/build/libs/vsim2-<versión>.jar
-    java -jar ui/build/libs/vsim2-0.1.jar
+    java -jar ui/build/libs/vsim2-0.2.jar
 
 `./gradlew check` construye el jar y verifica su manifiesto y contenido (`:ui:executableJarTest`).
 

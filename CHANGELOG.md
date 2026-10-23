@@ -1,9 +1,21 @@
 # Cambios
 
 Los cambios de VSim 2 que se notan al usarlo, del más nuevo al más antiguo. El formato sigue
-[Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). VSim 2 todavía no tiene versiones publicadas: cada
-sección es un conjunto de funciones, con las fechas en que se hizo. El detalle de cada función está en
+[Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Las versiones publicadas están en
+[GitHub Releases](https://github.com/almejo/vsim2/releases); antes de la 0.1, cada sección es un conjunto de
+funciones, con las fechas en que se hizo. El detalle de cada función está en
 [docs/funciones.md](docs/funciones.md).
+
+## Versión 0.2 — 2026-10-22
+
+### Cambiado
+
+- Ícono nuevo de VSim 2 en la ventana y en la barra de tareas: un chip con una señal verde que dibuja una V.
+- La carpeta `examples/` tiene ahora solo ejemplos para abrir y probar: contador de 4 bits con display, luz de
+  pasillo (interruptor de escalera), semáforo, sumador de 4 bits con semisumador, y un circuito del VSim original.
+  Los 14 ejemplos de Archivo ▸ Ejemplos siguen igual.
+- README renovado: logo, de qué se trata VSim 2, una captura, la historia (CSim, JCSim, VSim) y la comparación con
+  otros simuladores en `docs/comparacion/`.
 
 ## Versión 0.1 — 2026-10-22
 

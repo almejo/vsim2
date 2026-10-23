@@ -1,6 +1,6 @@
 {
   "format" : "vsim2",
-  "savedWith" : "0.1",
+  "savedWith" : "0.2",
   "formatVersion" : 2,
   "kind" : "circuit",
   "name" : "Bus de 8 bits",
