@@ -14,6 +14,10 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
   impreso, con fondo verde, cables de cobre en 0 y dorados en 1, contornos y textos blancos como la serigrafía,
   piezas negras como chips y la cuadrícula como vías de un verde apenas más claro. Todos los estados de los cables,
   los textos, los marcos, los túneles y los brillos se leen sobre el verde.
+- El estado de la IA donde miras: la barra de estado de cada ventana termina con un punto de color y «IA: apagada»,
+  «IA: escuchando», «IA: conectada», «IA: trabajando» o «IA: error»; al pasar el mouse dice la dirección y un clic
+  abre Herramientas ▸ «IA (MCP)…». Un aviso largo ya no lo saca de la barra (se corta, con el texto completo al pasar
+  el mouse). Preferencias ▸ «IA» muestra arriba el mismo estado con Encender / Apagar y Reiniciar.
 
 ### Arreglado
 
