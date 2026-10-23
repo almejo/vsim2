@@ -35,7 +35,7 @@ VSim 2 tiene una historia larga:
 1. **CSim** (1987), de [Luis Mateu](https://users.dcc.uchile.cl/~lmateu/), un simulador de circuitos digitales escrito
    en C para Commodore Amiga y usado en clases de introducción.
 2. **[JCSim](https://github.com/almejo/jcsim)** (2001–2004): mi reimplementación de CSim en Java, que fue mi memoria de título
-   ([el documento de la memoria](memoria.doc)).
+   ([el documento de la memoria](docs/historia/memoria-jcsim.doc)).
 3. **[VSim](https://github.com/almejo/vsim)** (2013): comencé a escribirlo como una reimplementación moderna en Java 8,
    sin las limitaciones del JCSim original, pero lo abandoné por falta de tiempo.
 4. **VSim 2** (2026, este repositorio): ahora encontré el tiempo para hacer esta nueva versión, con Java 21, pensada para
@@ -159,4 +159,4 @@ Demo de consola (simula un circuito sin interfaz):
 Cómo se regeneran los ejemplos y las reglas del código: [Para desarrolladores](docs/funciones.md#para-desarrolladores)
 y [conventions.md](conventions.md).
 
-Licencia: GPL (ver `license.txt`).
+Licencia: [GPL 3.0](LICENSE).
