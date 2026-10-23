@@ -14,8 +14,8 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 - La carpeta `examples/` tiene ahora solo ejemplos para abrir y probar: contador de 4 bits con display, luz de
   pasillo (interruptor de escalera), semáforo, sumador de 4 bits con semisumador, y un circuito del VSim original.
   Los 14 ejemplos de Archivo ▸ Ejemplos siguen igual.
-- README renovado: logo, de qué se trata VSim 2, una captura, la historia (CSim, JCSim, VSim) y la comparación con
-  otros simuladores en `docs/comparacion/`.
+- README renovado: logo, de qué se trata VSim 2, una captura, cómo descargarlo y usarlo, y la historia (CSim, JCSim,
+  VSim).
 
 ## Versión 0.1 — 2026-10-22
 
