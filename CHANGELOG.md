@@ -17,6 +17,10 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 - En «Placa» los pines son dorados, como los contactos de una placa (las patas de las piezas siguen blancas). El
   editor de esquemas tiene un color nuevo, «Pines»: en los demás esquemas es el mismo color del borde de las piezas,
   así se ven igual que antes, y un esquema propio guardado antes lo toma de su borde.
+- El estado de la IA donde miras: la barra de estado de cada ventana termina con un punto de color y «IA: apagada»,
+  «IA: escuchando», «IA: conectada», «IA: trabajando» o «IA: error»; al pasar el mouse dice la dirección y un clic
+  abre Herramientas ▸ «IA (MCP)…». Un aviso largo ya no lo saca de la barra (se corta, con el texto completo al pasar
+  el mouse). Preferencias ▸ «IA» muestra arriba el mismo estado con Encender / Apagar y Reiniciar.
 
 ### Arreglado
 

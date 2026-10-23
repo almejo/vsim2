@@ -70,7 +70,8 @@ class AiExtensionTest {
 
         assertThat(texts(tools)).endsWith("---", "IA (MCP)…");
         assertThat(view.shortcutActions()).containsKey(AiExtension.SHORTCUT_ID);
-        assertThat(view.statusBar().getComponentCount()).isEqualTo(statusComponents + 1);
+        assertThat(view.statusBar().getComponentCount()).as("the strip and the indicator")
+                .isEqualTo(statusComponents + 2);
         assertThat(view.canvas().overlayCount()).isEqualTo(overlays + 1);
 
         dispose.run();
@@ -81,6 +82,30 @@ class AiExtensionTest {
         assertThat(view.canvas().overlayCount()).isEqualTo(overlays);
         assertThat(service.listenerCount()).isEqualTo(serviceListeners);
         assertThat(proposals.listenerCount()).isEqualTo(proposalListeners);
+    }
+
+    @Test
+    void everyWindowsStatusBarSaysTheAiStateUntilDisposed() {
+        Runnable dispose = new AiExtension(service, host::documentId, proposals).install(view);
+
+        List<AiStatusIndicator> indicators = indicators();
+        assertThat(indicators).hasSize(1);
+        assertThat(indicators.getFirst().getText()).isEqualTo("IA: apagada");
+        assertThat(view.statusBar().text()).as("the bar's own texts stay as they were").doesNotContain("IA:");
+
+        dispose.run();
+
+        assertThat(indicators()).isEmpty();
+    }
+
+    private List<AiStatusIndicator> indicators() {
+        List<AiStatusIndicator> indicators = new ArrayList<>();
+        for (java.awt.Component child : view.statusBar().getComponents()) {
+            if (child instanceof AiStatusIndicator indicator) {
+                indicators.add(indicator);
+            }
+        }
+        return indicators;
     }
 
     private static List<String> texts(JMenu menu) {

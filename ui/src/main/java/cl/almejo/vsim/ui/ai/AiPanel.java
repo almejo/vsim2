@@ -8,21 +8,9 @@ import cl.almejo.vsim.ui.i18n.Messages;
 import net.miginfocom.swing.MigLayout;
 
 import javax.swing.JButton;
-import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JToggleButton;
-import javax.swing.UIManager;
-import java.awt.Color;
-import java.awt.Dimension;
-import java.awt.Font;
-import java.awt.Graphics;
-import java.awt.Graphics2D;
-import java.awt.RenderingHints;
-import java.time.Instant;
-import java.time.LocalTime;
-import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -35,7 +23,8 @@ import java.util.function.Supplier;
 /**
  * Herramientas ▸ «IA (MCP)…» of one window (spec §2, §7, §9.1; IA.3 «a proper AI panel»): a header with the server's
  * state as a coloured dot and one word (Apagada / Encendiendo… / Escuchando / Conectado / Trabajando / Error), its
- * sentence, the address, since when it runs and the requests served; «Encender» / «Apagar» and «Reiniciar»; on an
+ * sentence, the address, since when it runs and the requests served; «Encender» / «Apagar» and «Reiniciar» (the
+ * {@link AiStateHeader} Preferencias ▸ «IA» shows too); on an
  * error what to do, with «Usar el siguiente libre» for a taken port; the running tasks with «Detener» and «Deshacer lo
  * que hizo la IA»; the folded «Ajustes que tocó la IA» of the circuit's window (also from a second window of the
  * circuit), the AI's preference proposals with «Aceptar» / «No»; the configuration (port, secret, «Copiar
@@ -44,20 +33,13 @@ import java.util.function.Supplier;
  */
 public final class AiPanel extends JPanel {
 
-    private static final DateTimeFormatter CLOCK_TIME = DateTimeFormatter.ofPattern("HH:mm");
-
     private final AiServerService service;
     private final AppPreferences windowPreferences;
     private final Supplier<Optional<SettingsOverride>> circuitOverride;
     private final PreferenceProposals proposals;
     private final Consumer<String> clipboard;
-    private final ZoneId zone;
-    private final StateDot stateDot = new StateDot();
-    private final JLabel titleLabel = new StateLabel(true);
-    private final JLabel stateLabel = new StateLabel(false);
-    private final JLabel detailsLabel = new MutedLabel();
-    private final JButton toggleButton = AiIcons.on(new JButton(), AiIcons.POWER);
-    private final JButton restartButton = AiIcons.on(new JButton(Messages.text("ai.panel.restart")), AiIcons.RESTART);
+    /** The state line with «Encender» / «Apagar» and «Reiniciar», shared with Preferencias ▸ «IA». */
+    private final AiStateHeader header;
     private final JLabel helpLabel = new JLabel(" ");
     private final JButton nextFreePortButton = new JButton(Messages.text("ai.panel.useNextFreePort"));
     private final JLabel portNote = new JLabel(" ");
@@ -118,7 +100,7 @@ public final class AiPanel extends JPanel {
         this.circuitOverride = Objects.requireNonNull(circuitOverride, "circuitOverride");
         this.proposals = Objects.requireNonNull(proposals, "proposals");
         this.clipboard = Objects.requireNonNull(clipboard, "clipboard");
-        this.zone = ZoneId.systemDefault();
+        this.header = new AiStateHeader(service, this::showNotice);
 
         bindButtons();
         layOut();
@@ -140,20 +122,13 @@ public final class AiPanel extends JPanel {
         refresh();
     }
 
+    /** What the header's buttons say (a blank clears it). */
+    private void showNotice(String text) {
+        noticeText = text;
+        refreshState();
+    }
+
     private void bindButtons() {
-        toggleButton.addActionListener(event -> {
-            AiServerState state = service.state();
-            if (state.isListening() || state instanceof AiServerState.Starting) {
-                service.deactivate();
-            } else {
-                noticeText = " ";
-                service.activate();
-            }
-        });
-        restartButton.addActionListener(event -> {
-            noticeText = service.restart() ? " " : Messages.text("ai.panel.restartRefused");
-            refreshState();
-        });
         nextFreePortButton.addActionListener(event -> {
             int taken = service.effectivePort();
             if (!service.useNextFreePort()) {
@@ -176,12 +151,7 @@ public final class AiPanel extends JPanel {
 
     private void layOut() {
         helpLabel.putClientProperty("html.disable", Boolean.TRUE);
-        add(stateDot, "split 2, growx 0, aligny center");
-        add(titleLabel, "growx");
-        add(stateLabel, "hidemode 3");
-        add(detailsLabel, "hidemode 3");
-        add(toggleButton, "split 2, growx 0, gaptop 6");
-        add(restartButton, "growx 0");
+        add(header);
         add(helpLabel, "hidemode 3, gaptop 6");
         add(nextFreePortButton, "growx 0, hidemode 3");
         add(portNote, "hidemode 3");
@@ -213,6 +183,7 @@ public final class AiPanel extends JPanel {
     /** Stops following the service, the proposals and the preferences: the panel closed. */
     public void dispose() {
         disposed = true;
+        header.dispose();
         removeServiceListener.run();
         removeProposalsListener.run();
         windowPreferences.removeListener(preferencesListener);
@@ -221,15 +192,7 @@ public final class AiPanel extends JPanel {
 
     private void refreshState() {
         AiServerState state = service.state();
-        titleLabel.setText(state.title());
-        stateLabel.setText(state.text());
-        stateLabel.setVisible(!state.text().equals(state.title())); // «Apagada» says it once
-        Optional<String> details = detailsText();
-        detailsLabel.setText(details.orElse(" "));
-        detailsLabel.setVisible(details.isPresent());
-        boolean on = state.isListening() || state instanceof AiServerState.Starting;
-        toggleButton.setText(Messages.text(on ? "ai.panel.deactivate" : "ai.panel.activate"));
-        restartButton.setEnabled(state.isListening() || state.isError());
+        header.refresh();
         Optional<String> help = helpText(state);
         helpLabel.setText(help.orElse(" "));
         helpLabel.setVisible(help.isPresent());
@@ -245,17 +208,6 @@ public final class AiPanel extends JPanel {
         refreshTasks();
         revalidate();
         repaint();
-    }
-
-    /** «127.0.0.1:47017 · desde las 14:03 · 12 pedidos» while it listens. */
-    private Optional<String> detailsText() {
-        Optional<Instant> since = service.startedAt();
-        if (!service.state().isListening() || since.isEmpty() || service.port().isEmpty()) {
-            return Optional.empty();
-        }
-        String time = LocalTime.ofInstant(since.get(), zone).format(CLOCK_TIME);
-        return Optional.of(Messages.format("ai.panel.details", Integer.toString(service.port().getAsInt()), time,
-                service.requestsServed()));
     }
 
     private static Optional<String> helpText(AiServerState state) {
@@ -409,94 +361,28 @@ public final class AiPanel extends JPanel {
         return label;
     }
 
-    /** Coloured by the state at paint time, so a theme change shows at once; the title in bold. */
-    private final class StateLabel extends JLabel {
-
-        private final boolean bold;
-
-        StateLabel(boolean bold) {
-            this.bold = bold;
-            putClientProperty("html.disable", Boolean.TRUE);
-        }
-
-        @Override
-        public Color getForeground() {
-            return service == null ? super.getForeground() : AiColors.of(service.state());
-        }
-
-        @Override
-        public Font getFont() {
-            Font base = UIManager.getFont("Label.font");
-            if (!bold || base == null) {
-                return super.getFont();
-            }
-            return base.deriveFont(Font.BOLD, base.getSize2D() + 2);
-        }
-    }
-
-    /** Grey text read from the theme at paint time. */
-    private static final class MutedLabel extends JLabel {
-        @Override
-        public Color getForeground() {
-            return AiColors.muted();
-        }
-    }
-
-    /** The state's coloured indicator (never alone: the word goes next to it), its colour read when painted. */
-    final class StateDot extends JComponent {
-
-        private static final int SIZE = 10;
-
-        @Override
-        public Dimension getPreferredSize() {
-            return new Dimension(SIZE + 2, SIZE + 2);
-        }
-
-        Color color() {
-            return AiColors.of(service.state());
-        }
-
-        @Override
-        protected void paintComponent(Graphics graphics) {
-            Graphics2D painter = (Graphics2D) graphics.create();
-            try {
-                painter.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                painter.setColor(color());
-                int x = (getWidth() - SIZE) / 2;
-                int y = (getHeight() - SIZE) / 2;
-                if (service.state() instanceof AiServerState.Off) {
-                    painter.drawOval(x, y, SIZE - 1, SIZE - 1); // hollow when off
-                } else {
-                    painter.fillOval(x, y, SIZE, SIZE);
-                }
-            } finally {
-                painter.dispose();
-            }
-        }
-    }
-
-    StateDot stateDot() {
-        return stateDot;
+    AiStateDot stateDot() {
+        return header.stateDot();
     }
 
     JLabel titleLabel() {
-        return titleLabel;
+        return header.titleLabel();
     }
 
     JLabel stateLabel() {
-        return stateLabel;
+        return header.stateLabel();
     }
 
     JLabel detailsLabel() {
-        return detailsLabel;
+        return header.detailsLabel();
     }
 
     JButton toggleButton() {
-        return toggleButton;
+        return header.toggleButton();
     }
 
     JButton restartButton() {
-        return restartButton;
+        return header.restartButton();
     }
 
     JLabel helpLabel() {

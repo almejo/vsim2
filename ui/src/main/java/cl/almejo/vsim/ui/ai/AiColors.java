@@ -7,23 +7,36 @@ import java.awt.Color;
 
 /**
  * The colour of the AI's state text (spec §2: in words and colour; red with text, never colour alone), worked out
- * from the current theme each time: never cache it, the theme changes live.
+ * from the current theme each time: never cache it, the theme changes live. The panel's header and the status bar's
+ * indicator share one role per state.
  */
 public final class AiColors {
+
+    /** What a state's colour says: muted (off or starting), plain text, success or error. */
+    enum Role { MUTED, TEXT, SUCCESS, ERROR }
 
     private AiColors() {
     }
 
-    static Color of(AiServerState state) {
+    static Role role(AiServerState state) {
         return switch (state) {
-            case AiServerState.Off off -> muted();
-            case AiServerState.Starting starting -> muted();
-            case AiServerState.Listening listening -> foreground();
-            case AiServerState.Connected connected -> success();
-            case AiServerState.Working working -> success();
-            case AiServerState.PortInUse portInUse -> ReadableColors.errorText();
-            case AiServerState.OtherVsim otherVsim -> ReadableColors.errorText();
-            case AiServerState.Failed failed -> ReadableColors.errorText();
+            case AiServerState.Off off -> Role.MUTED;
+            case AiServerState.Starting starting -> Role.MUTED;
+            case AiServerState.Listening listening -> Role.TEXT;
+            case AiServerState.Connected connected -> Role.SUCCESS;
+            case AiServerState.Working working -> Role.SUCCESS;
+            case AiServerState.PortInUse portInUse -> Role.ERROR;
+            case AiServerState.OtherVsim otherVsim -> Role.ERROR;
+            case AiServerState.Failed failed -> Role.ERROR;
+        };
+    }
+
+    static Color of(AiServerState state) {
+        return switch (role(state)) {
+            case MUTED -> muted();
+            case TEXT -> foreground();
+            case SUCCESS -> success();
+            case ERROR -> ReadableColors.errorText();
         };
     }
 

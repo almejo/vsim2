@@ -83,6 +83,12 @@ class AiPanelStatesTest {
     }
 
     @Test
+    void theStateHeaderIsTheOneComponentPreferenciasShowsToo() {
+        assertThat(panel.getComponent(0)).isInstanceOf(AiStateHeader.class);
+        assertThat(panel.titleLabel()).isSameAs(((AiStateHeader) panel.getComponent(0)).titleLabel());
+    }
+
+    @Test
     void listeningConnectedAndWorkingSayTheirWordTheAddressSinceWhenAndTheRequests() {
         String time = LocalTime.ofInstant(STARTED, ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("HH:mm"));
 

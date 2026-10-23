@@ -17,7 +17,8 @@ import java.util.Optional;
 import java.util.function.Consumer;
 
 /**
- * Preferencias ▸ «IA» (spec §2, §9.1): «Iniciar con VSim», the port with «Usar el por defecto», «Generar un secreto
+ * Preferencias ▸ «IA» (spec §2, §9.1): at the top the AI panel's state line with «Encender» / «Apagar» and
+ * «Reiniciar» ({@link AiStateHeader}, when the application's server is given), then «Iniciar con VSim», the port with «Usar el por defecto», «Generar un secreto
  * nuevo», «Copiar configuración para Claude Code» and the data note. Every change is stored at once; a running server
  * follows a new port or secret by itself ({@link AiServerService}). With a port given on the command line for this
  * session it says so and the remembered port waits, disabled, until the next run.
@@ -40,6 +41,8 @@ public final class AiPreferencesPanel extends JPanel {
     private final Runnable preferenceListener = this::followPreferences;
     private final Optional<AiServerService> service;
     private final Runnable removeServiceListener;
+    /** The panel's state line with «Encender» / «Apagar» and «Reiniciar», when the application's server is given. */
+    private final Optional<AiStateHeader> header;
     private boolean following;
 
     /**
@@ -96,7 +99,9 @@ public final class AiPreferencesPanel extends JPanel {
             }
         })).orElse(() -> { });
         refreshSessionPort();
+        this.header = service.map(server -> new AiStateHeader(server, feedback::setText));
 
+        header.ifPresent(stateHeader -> add(stateHeader, "span 2, growx, gapbottom 12"));
         add(startWithVsimBox, "skip 1");
         add(new JLabel(Messages.text("ai.preferences.port")), "gaptop 12");
         add(portSpinner, "gaptop 12, split 2, growx 0, wmin 90");
@@ -118,6 +123,7 @@ public final class AiPreferencesPanel extends JPanel {
     public void dispose() {
         preferences.removeListener(preferenceListener);
         removeServiceListener.run();
+        header.ifPresent(AiStateHeader::dispose);
     }
 
     /** The port can change elsewhere while the dialog is open («Usar el siguiente libre»). */
@@ -149,6 +155,10 @@ public final class AiPreferencesPanel extends JPanel {
 
     private boolean sessionPortGiven() {
         return service.map(AiServerService::isSessionPort).orElse(false);
+    }
+
+    Optional<AiStateHeader> header() {
+        return header;
     }
 
     JCheckBox startWithVsimBox() {

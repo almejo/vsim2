@@ -13,7 +13,6 @@ import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.canvas.DrawnBounds;
 import cl.almejo.vsim.ui.i18n.Messages;
-import cl.almejo.vsim.ui.panels.StatusBar;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.panes.EveryPane;
 import net.miginfocom.swing.MigLayout;
@@ -79,6 +78,7 @@ final class AiStatusFeatures {
     private Phase phase = Phase.RUNNING;
     private final AiChangeGlowOverlay glow;
     private final Runnable removeOverlay;
+    private final Runnable removeStrip;
     private final Runnable removeServiceListener;
     private final Runnable removeProposalsListener;
     private TaskInfo shown;
@@ -131,8 +131,7 @@ final class AiStatusFeatures {
         strip.add(closeButton, "hidemode 3");
         strip.setOpaque(false);
         strip.setVisible(false);
-        StatusBar statusBar = view.statusBar();
-        statusBar.add(strip, "hidemode 3");
+        this.removeStrip = view.statusBar().addActivity(strip);
 
         this.removeOverlay = EveryPane.addOverlay(view, glow);
         this.removeServiceListener = service.addListener(new AiServerService.Listener() {
@@ -399,7 +398,7 @@ final class AiStatusFeatures {
         removeProposalsListener.run();
         removeOverlay.run();
         glow.dispose();
-        view.statusBar().remove(strip);
+        removeStrip.run();
         relayout();
     }
 

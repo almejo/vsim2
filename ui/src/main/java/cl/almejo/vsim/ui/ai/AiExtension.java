@@ -29,9 +29,10 @@ import java.util.function.Supplier;
 
 /**
  * The AI in every editor view (IA.1): Herramientas ▸ «IA (MCP)…» opens this window's panel ({@link AiPanel}) and the
- * status line shows the AI's tasks on its circuit ({@link AiStatusFeatures}). The server itself is one per
- * application ({@link AiServerService}); disposing takes back the menu item, the shortcut, the status strip, the glow
- * and the panel.
+ * status line shows the AI's tasks on its circuit ({@link AiStatusFeatures}) and, always, the server's state
+ * ({@link AiStatusIndicator}, a click opens the panel). The server itself is one per application
+ * ({@link AiServerService}); disposing takes back the menu item, the shortcut, the status strip, the indicator, the
+ * glow and the panel.
  */
 public final class AiExtension implements EditorExtension {
 
@@ -96,7 +97,11 @@ public final class AiExtension implements EditorExtension {
         tools.add(separator);
         tools.add(item);
         Runnable removeShortcut = view.registerShortcutAction(SHORTCUT_ID, open);
+        AiStatusIndicator indicator = new AiStatusIndicator(service, panelWindow::show);
+        Runnable removeIndicator = view.statusBar().addIndicator(indicator);
         return () -> {
+            removeIndicator.run();
+            indicator.dispose();
             removeShortcut.run();
             tools.remove(item);
             tools.remove(separator);

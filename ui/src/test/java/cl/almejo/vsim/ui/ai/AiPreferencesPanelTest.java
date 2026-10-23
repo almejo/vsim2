@@ -8,6 +8,10 @@ import cl.almejo.vsim.ui.i18n.Messages;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
+import java.net.InetAddress;
+import java.net.ServerSocket;
+import java.time.Clock;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -154,6 +158,51 @@ class AiPreferencesPanelTest {
         panel.dispose();
 
         assertThat(service.listenerCount()).isEqualTo(before);
+    }
+
+    @Test
+    void itsHeaderIsThePanelsAndTurnsTheServerOnAndOffThroughTheSameService() throws IOException {
+        preferences.setAiPort(freePort());
+        AiServerService service = new AiServerService(preferences, new AutomationApi(new NoDocuments()),
+                new FakeAiTasks(), Runnable::run, Runnable::run, AiServerService.QueuedWork.NONE, SessionPort.none(),
+                Runnable::run, Clock.systemUTC());
+        AiPreferencesPanel panel = new AiPreferencesPanel(preferences, service, copied::add);
+        try {
+            AiStateHeader header = panel.header().orElseThrow();
+            assertThat(panel.getComponent(0)).as("at the top of the tab").isSameAs(header);
+            assertThat(header.titleLabel().getText()).isEqualTo("Apagada");
+            assertThat(header.toggleButton().getText()).isEqualTo("Encender");
+            assertThat(header.restartButton().getText()).isEqualTo("Reiniciar");
+
+            header.toggleButton().doClick();
+
+            assertThat(service.state().isListening()).isTrue();
+            assertThat(header.titleLabel().getText()).isEqualTo("Escuchando");
+            assertThat(header.toggleButton().getText()).isEqualTo("Apagar");
+            assertThat(header.restartButton().isEnabled()).isTrue();
+
+            header.toggleButton().doClick();
+
+            assertThat(service.state()).isInstanceOf(AiServerState.Off.class);
+            assertThat(header.titleLabel().getText()).isEqualTo("Apagada");
+        } finally {
+            panel.dispose();
+            service.stop();
+        }
+    }
+
+    @Test
+    void withoutTheApplicationsServerThereIsNoHeader() {
+        AiPreferencesPanel panel = new AiPreferencesPanel(preferences, copied::add);
+
+        assertThat(panel.header()).isEmpty();
+        panel.dispose();
+    }
+
+    private static int freePort() throws IOException {
+        try (ServerSocket probe = new ServerSocket(0, 50, InetAddress.getLoopbackAddress())) {
+            return probe.getLocalPort();
+        }
     }
 
     private AiServerService sessionService(SessionPort sessionPort) {

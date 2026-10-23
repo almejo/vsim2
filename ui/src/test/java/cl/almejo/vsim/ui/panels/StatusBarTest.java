@@ -225,6 +225,50 @@ class StatusBarTest {
     }
 
     @Test
+    void aLongNoticeNeverPushesTheProblemsOrAnIndicatorOutOfTheBar() {
+        JLabel indicator = new JLabel("IA: escuchando");
+        statusBar.addIndicator(indicator);
+        statusBar.showSnapshot(snapshot(true, 0, Optional.empty()));
+        statusBar.showZoom(1);
+        statusBar.showShortCircuits(2);
+        String longNotice = "Guardado en /home/alumno/circuitos/" + "muy-largo/".repeat(40) + "sumador.vsim";
+        statusBar.showNotice(longNotice);
+        statusBar.setSize(640, 24);
+
+        statusBar.doLayout();
+
+        assertThat(indicator.getWidth()).as("its whole text").isEqualTo(indicator.getPreferredSize().width);
+        assertThat(indicator.getX() + indicator.getWidth()).isLessThanOrEqualTo(statusBar.getWidth());
+        JLabel problems = statusBar.shortCircuitsLabel();
+        assertThat(problems.getWidth()).isEqualTo(problems.getPreferredSize().width);
+        assertThat(problems.getX() + problems.getWidth()).isLessThanOrEqualTo(indicator.getX());
+        assertThat(statusBar.runStateLabel().getWidth())
+                .isEqualTo(statusBar.runStateLabel().getPreferredSize().width);
+        assertThat(statusBar.noticeLabel().getToolTipText()).as("the whole notice stays readable")
+                .isEqualTo(longNotice);
+    }
+
+    @Test
+    void indicatorsStayAtTheRightEndAfterTheActivitiesAndGoWhenRemoved() {
+        JLabel indicator = new JLabel("IA: apagada");
+        JLabel activity = new JLabel("IA trabajando: Flip-flop D…");
+        int before = statusBar.getComponentCount();
+
+        Runnable removeIndicator = statusBar.addIndicator(indicator);
+        Runnable removeActivity = statusBar.addActivity(activity);
+
+        assertThat(statusBar.getComponentCount()).isEqualTo(before + 2);
+        assertThat(statusBar.getComponentZOrder(activity)).isLessThan(statusBar.getComponentZOrder(indicator));
+        assertThat(statusBar.getComponentZOrder(statusBar.failureLabel()))
+                .isLessThan(statusBar.getComponentZOrder(activity));
+
+        removeActivity.run();
+        removeIndicator.run();
+
+        assertThat(statusBar.getComponentCount()).isEqualTo(before);
+    }
+
+    @Test
     void theRealNoticeTimerLastsFourSeconds() {
         assertThat(StatusBar.NOTICE_MILLISECONDS).isEqualTo(4000);
     }

@@ -7,6 +7,7 @@ import net.miginfocom.swing.MigLayout;
 
 import javax.swing.Icon;
 import javax.swing.JButton;
+import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
@@ -14,6 +15,7 @@ import javax.swing.Timer;
 import java.awt.Cursor;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -21,6 +23,12 @@ import java.util.stream.Collectors;
 public final class StatusBar extends JPanel {
 
     private static final String CLICK_TOOLTIP = "tooltip.shortCircuits";
+    /** Above MigLayout's default 100: these columns shrink before the others. */
+    private static final int YIELDING_PRIORITY = 200;
+    /** Text that may be cut short (the full text is in its tooltip). */
+    private static final String YIELDING_CONSTRAINTS = "wmin 0";
+    private static final String ACTIVITY_CONSTRAINTS = "hidemode 3, wmin 0";
+    private static final String INDICATOR_CONSTRAINTS = "";
 
     private final JLabel simulation = new JLabel();
     private final JLabel time = new JLabel();
@@ -36,6 +44,10 @@ public final class StatusBar extends JPanel {
     private boolean running;
     private boolean runStateClickable;
     private final Timer noticeTimer;
+    /** What extensions show while something happens (the AI's task strip), after the problems. */
+    private final List<JComponent> activities = new ArrayList<>();
+    /** What extensions always show (the AI's state), in the stable zone at the right end. */
+    private final List<JComponent> indicators = new ArrayList<>();
 
     public StatusBar() {
         this(StatusBar::swingNoticeTimer);
@@ -43,15 +55,18 @@ public final class StatusBar extends JPanel {
 
     /** {@code noticeTimerFactory} builds the one-shot timer that hides a notice; tests pass a fake. */
     public StatusBar(Function<Runnable, Timer> noticeTimerFactory) {
-        super(new MigLayout("insets 2 8 2 8", "[][][][][][][]push[][]"));
+        // Zones by priority (B01): when the bar is short the gesture help and the notice give way first (their whole
+        // text stays in the tooltip), then an activity; the state, the problems and the indicators keep their width.
+        super(new MigLayout("insets 2 8 2 8", "[][][][][shrinkprio " + YIELDING_PRIORITY + "][shrinkprio "
+                + YIELDING_PRIORITY + "][]push[][]"));
         noticeTimer = noticeTimerFactory.apply(this::hideNotice);
         add(simulation);
         time.setToolTipText(Messages.text("status.timeTip"));
         add(time);
         add(zoom);
         add(selection);
-        add(hint);
-        add(notice);
+        add(hint, YIELDING_CONSTRAINTS);
+        add(notice, YIELDING_CONSTRAINTS);
         noticeAction.putClientProperty("JButton.buttonType", "borderless");
         noticeAction.addActionListener(event -> noticeActionRun.run());
         add(noticeAction, "hidemode 3");
@@ -133,12 +148,52 @@ public final class StatusBar extends JPanel {
         });
     }
 
+    /**
+     * Adds {@code activity} (a strip that comes and goes, like the AI's task) after the problems and before the
+     * indicators. Returns what takes it back.
+     */
+    public Runnable addActivity(JComponent activity) {
+        add(activity, ACTIVITY_CONSTRAINTS, indexAfterFailure() + activities.size());
+        activities.add(activity);
+        revalidate();
+        return () -> {
+            activities.remove(activity);
+            remove(activity);
+            revalidate();
+            repaint();
+        };
+    }
+
+    /**
+     * Adds {@code indicator} (always shown, like the AI's state) to the stable zone at the right end, after the
+     * activities: it keeps its whole width however long a notice is. Returns what takes it back.
+     */
+    public Runnable addIndicator(JComponent indicator) {
+        add(indicator, INDICATOR_CONSTRAINTS, indexAfterFailure() + activities.size() + indicators.size());
+        indicators.add(indicator);
+        revalidate();
+        return () -> {
+            indicators.remove(indicator);
+            remove(indicator);
+            revalidate();
+            repaint();
+        };
+    }
+
+    private int indexAfterFailure() {
+        return getComponentZOrder(failure) + 1;
+    }
+
     JLabel shortCircuitsLabel() {
         return shortCircuits;
     }
 
     JLabel failureLabel() {
         return failure;
+    }
+
+    JLabel noticeLabel() {
+        return notice;
     }
 
     /**
@@ -252,6 +307,7 @@ public final class StatusBar extends JPanel {
 
     private void showNotice(String text, int milliseconds) {
         notice.setText(text);
+        notice.setToolTipText(text); // whole, when a short bar cuts it
         notice.setVisible(true);
         noticeTimer.setInitialDelay(milliseconds);
         noticeTimer.restart();
@@ -259,6 +315,7 @@ public final class StatusBar extends JPanel {
 
     private void hideNotice() {
         notice.setText("");
+        notice.setToolTipText(null);
         notice.setVisible(false);
         noticeAction.setVisible(false);
         noticeActionRun = () -> { };
