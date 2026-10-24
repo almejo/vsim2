@@ -319,6 +319,22 @@ public final class AppPreferences {
         return base.resolve("vsim2").resolve("components");
     }
 
+    /** Ordered palette favourites, shared by all windows; unavailable component ids remain stored. */
+    public List<String> paletteFavorites() {
+        return read("palette.favourites", "").lines().filter(id -> !id.isBlank()).distinct().toList();
+    }
+
+    /** Saves stable type ids rather than names, so renaming a user component preserves its favourite. */
+    public void setPaletteFavorites(List<String> typeIds) {
+        List<String> unique = List.copyOf(typeIds).stream().distinct().toList();
+        for (String typeId : unique) {
+            if (typeId.isBlank() || typeId.contains("\n") || typeId.contains("\r")) {
+                throw new IllegalArgumentException("A favourite must have a nonblank, single-line type id");
+            }
+        }
+        put("palette.favourites", String.join("\n", unique));
+    }
+
     public void addListener(Runnable listener) {
         listeners.add(listener);
     }

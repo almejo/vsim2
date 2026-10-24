@@ -36,10 +36,10 @@ class ShortcutCatalogTest {
     }
 
     @Test
-    void noTwoEntriesShareADefaultStrokeAndFortyFiveHaveOne() {
+    void noTwoEntriesShareADefaultStrokeAndFortySixHaveOne() {
         List<KeyStroke> defaults = ShortcutCatalog.entries().stream()
                 .map(ShortcutEntry::defaultStroke).flatMap(Optional::stream).toList();
-        assertThat(defaults).doesNotHaveDuplicates().hasSize(45);
+        assertThat(defaults).doesNotHaveDuplicates().hasSize(46);
         assertThat(defaults).noneMatch(KeyBindings::isReserved);
     }
 

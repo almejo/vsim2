@@ -6,6 +6,22 @@ Los cambios de VSim 2 que se notan al usarlo, del más nuevo al más antiguo. El
 funciones, con las fechas en que se hizo. El detalle de cada función está en
 [docs/funciones.md](docs/funciones.md).
 
+## Sin publicar — Favoritos
+
+### Agregado
+
+- Favoritos compartidos entre ventanas y circuitos: una estrella en la paleta agrega o quita el componente sin
+  moverlo de su categoría ni iniciar la colocación; también funciona con componentes propios.
+- Inserción rápida: doble clic en espacio vacío abre un buscador con los favoritos y coloca lo elegido ahí.
+  Insert abre el mismo buscador para iniciar la colocación flotante. Busca en toda la paleta, incluidos los
+  componentes propios; flechas y Enter eligen, y Esc cancela.
+
+### Cambiado
+
+- El buscador de inserción rápida muestra «Favoritos» encima de la lista y aclara en el campo y en el encabezado
+  de resultados que busca en todos los componentes disponibles, incluidos los propios. El título «Insertar
+  componente» identifica la ventanita encima del buscador.
+
 ## Versión 0.3 — 2026-10-24
 
 ### Agregado

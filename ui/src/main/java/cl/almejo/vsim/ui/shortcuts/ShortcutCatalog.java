@@ -84,6 +84,7 @@ public final class ShortcutCatalog {
                 stroke(KeyEvent.VK_L, menu | InputEvent.ALT_DOWN_MASK | shift));
         window(entries, "edit.wiresFollow", "action.wiresFollow", MenuId.EDIT, null);
         canvas(entries, "edit.label", "action.label", stroke(KeyEvent.VK_F2, 0));
+        canvas(entries, "edit.quickInsert", "action.quickInsert", stroke(KeyEvent.VK_INSERT, 0));
         moveKeys(entries, "edit.moveLeft", "action.moveLeft", "action.moveLeftFar", KeyEvent.VK_LEFT);
         moveKeys(entries, "edit.moveRight", "action.moveRight", "action.moveRightFar", KeyEvent.VK_RIGHT);
         moveKeys(entries, "edit.moveUp", "action.moveUp", "action.moveUpFar", KeyEvent.VK_UP);

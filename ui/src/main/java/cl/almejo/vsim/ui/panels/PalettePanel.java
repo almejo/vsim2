@@ -11,6 +11,7 @@ import cl.almejo.vsim.core.io.FragmentFormat;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.DefinitionBundle;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
+import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.clipboard.CircuitFileDrop;
 import cl.almejo.vsim.ui.clipboard.FragmentRefusingTransferHandler;
 import cl.almejo.vsim.ui.clipboard.FragmentTransferable;
@@ -29,6 +30,7 @@ import javax.swing.JComponent;
 import javax.swing.KeyStroke;
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
+import javax.swing.JMenuItem;
 import javax.swing.JScrollPane;
 import javax.swing.JTextField;
 import javax.swing.JTree;
@@ -40,10 +42,13 @@ import javax.swing.event.DocumentListener;
 import javax.swing.tree.DefaultMutableTreeNode;
 import javax.swing.tree.DefaultTreeCellRenderer;
 import javax.swing.tree.DefaultTreeModel;
+import javax.swing.tree.DefaultTreeSelectionModel;
 import javax.swing.tree.TreePath;
 import javax.swing.tree.TreeModel;
 import javax.swing.tree.TreeSelectionModel;
 import java.awt.Component;
+import java.awt.Graphics;
+import java.awt.Rectangle;
 import java.awt.GraphicsEnvironment;
 import java.awt.datatransfer.StringSelection;
 import java.awt.datatransfer.Transferable;
@@ -56,6 +61,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -93,13 +99,15 @@ public final class PalettePanel extends JPanel {
     /** Width of a help tooltip before it wraps, in pixels. */
     private static final int HELP_WIDTH = 260;
 
+    private enum FavoriteSection { FAVORITES, EMPTY }
+
     private final ComponentTypeRegistry registry;
     private final PainterRegistry painters;
     private final Appearance appearance;
     private final Runnable appearanceListener;
     private final Consumer<ComponentType> onChoose;
     private final JTextField search = new JTextField();
-    private final JTree tree = new JTree(new DefaultMutableTreeNode());
+    private final JTree tree = new FavoritesTree();
     private final Map<String, Icon> icons = new HashMap<>();
     private final PaletteTransferHandler transferHandler = new PaletteTransferHandler();
     private List<DefinitionBundle> libraryBundles = List.of();
@@ -113,6 +121,87 @@ public final class PalettePanel extends JPanel {
     private Runnable focusAfterMouseChoice = () -> {
     };
     private boolean updating;
+    private Optional<AppPreferences> favoritesPreferences = Optional.empty();
+    private List<String> favoriteIds = List.of();
+    private final Runnable favoritesListener = this::favoritesChanged;
+
+    /** Follows the shared favourites. Installed by the favourites extension, removed on disposal. */
+    public void enableFavorites(AppPreferences preferences) {
+        disableFavorites();
+        favoritesPreferences = Optional.of(Objects.requireNonNull(preferences));
+        preferences.addListener(favoritesListener);
+        favoriteIds = preferences.paletteFavorites();
+        rebuild();
+    }
+
+    /** Releases the preference listener when the extension is removed. */
+    public void disableFavorites() {
+        favoritesPreferences.ifPresent(preferences -> preferences.removeListener(favoritesListener));
+        favoritesPreferences = Optional.empty();
+        favoriteIds = List.of();
+        rebuild();
+    }
+
+    private void favoritesChanged() {
+        List<String> next = favoritesPreferences.orElseThrow().paletteFavorites();
+        if (!favoriteIds.equals(next)) {
+            TreePath selected = tree.getSelectionPath();
+            Object selectedSection = selected != null && selected.getPathCount() == 3
+                    ? ((DefaultMutableTreeNode) selected.getPathComponent(1)).getUserObject() : null;
+            Object selectedItem = selected != null
+                    ? ((DefaultMutableTreeNode) selected.getLastPathComponent()).getUserObject() : null;
+            favoriteIds = next;
+            rebuild();
+            // Rebuilding the new section must not clear an unrelated placement highlight or call its chooser.
+            if (selectedSection != null) {
+                updating = true;
+                try {
+                    sections().stream().filter(section -> section.getUserObject().equals(selectedSection))
+                            .flatMap(section -> Collections.list(section.children()).stream())
+                            .map(DefaultMutableTreeNode.class::cast)
+                            .filter(node -> node.getUserObject().equals(selectedItem)).findFirst()
+                            .ifPresent(node -> tree.setSelectionPath(new TreePath(node.getPath())));
+                } finally {
+                    updating = false;
+                }
+            }
+        }
+    }
+
+    /** Available standard and user entries, independent of the palette's current search filter. */
+    public List<PaletteEntry> entries() {
+        Map<String, PaletteEntry> entries = new LinkedHashMap<>();
+        for (ComponentCategory category : ORDER) {
+            registry.all().stream().filter(type -> type.category() == category)
+                    .forEach(type -> entries.put(type.id(), new PaletteEntry(type, Optional.empty())));
+        }
+        for (UserComponent component : libraryComponents) {
+            entries.put(component.type().id(), new PaletteEntry(component.type(), Optional.of(component)));
+        }
+        for (UserComponent component : documentComponents) {
+            entries.put(component.type().id(), new PaletteEntry(component.type(), Optional.of(component)));
+        }
+        return List.copyOf(entries.values());
+    }
+
+    /** Starts the same placement as choosing the entry in the palette, including library-version warnings. */
+    public void chooseEntry(PaletteEntry entry) {
+        if (entry.userComponent().isPresent()) {
+            userChooser.accept(entry.userComponent().get());
+        } else {
+            onChoose.accept(entry.type());
+        }
+    }
+
+    private void toggleFavorite(String typeId) {
+        favoritesPreferences.ifPresent(preferences -> {
+            List<String> next = new ArrayList<>(favoriteIds);
+            if (!next.remove(typeId)) {
+                next.add(typeId);
+            }
+            preferences.setPaletteFavorites(next);
+        });
+    }
 
     public PalettePanel(ComponentTypeRegistry registry, PainterRegistry painters, ColorScheme scheme,
                         Consumer<ComponentType> onChoose) {
@@ -156,6 +245,7 @@ public final class PalettePanel extends JPanel {
         tree.setRowHeight(ICON_SIZE + 4);
         tree.setCellRenderer(new Renderer());
         ToolTipManager.sharedInstance().registerComponent(tree);
+        tree.setSelectionModel(new FavoriteSelectionModel());
         tree.getSelectionModel().setSelectionMode(TreeSelectionModel.SINGLE_TREE_SELECTION);
         tree.addTreeSelectionListener(event -> {
             if (!updating) {
@@ -187,7 +277,10 @@ public final class PalettePanel extends JPanel {
 
     /** Stops following the shared appearance: the window showing this palette closed. */
     public void dispose() {
+        favoritesPreferences.ifPresent(preferences -> preferences.removeListener(favoritesListener));
+        favoritesPreferences = Optional.empty();
         appearance.removeListener(appearanceListener);
+        ToolTipManager.sharedInstance().unregisterComponent(tree);
     }
 
     /** The icon drawn for {@code type} with the current scheme. Package-private for tests. */
@@ -297,7 +390,8 @@ public final class PalettePanel extends JPanel {
         List<String> titles = new ArrayList<>();
         for (DefaultMutableTreeNode section : sections()) {
             Object item = section.getUserObject();
-            titles.add(item instanceof UserSection userSection ? userSection.title()
+            titles.add(item == FavoriteSection.FAVORITES ? Messages.text("palette.favorites")
+                    : item instanceof UserSection userSection ? userSection.title()
                     : Messages.categoryName((ComponentCategory) item));
         }
         return titles;
@@ -315,7 +409,21 @@ public final class PalettePanel extends JPanel {
 
     /** The context menu for the entry at {@code path} (null: no entry). Package-private for tests. */
     Optional<JPopupMenu> popupFor(TreePath path) {
-        return userMenuProvider.apply(path == null ? Optional.empty() : userComponentOf(path));
+        Optional<JPopupMenu> provided = userMenuProvider.apply(path == null ? Optional.empty() : userComponentOf(path));
+        Object item = path == null ? null : ((DefaultMutableTreeNode) path.getLastPathComponent()).getUserObject();
+        if (favoritesPreferences.isEmpty() || !(item instanceof ComponentType || item instanceof UserComponent)) {
+            return provided;
+        }
+        String typeId = typeIdOf(item);
+        JPopupMenu menu = provided.orElseGet(JPopupMenu::new);
+        if (menu.getComponentCount() > 0) {
+            menu.addSeparator();
+        }
+        JMenuItem favorite = new JMenuItem(Messages.text(favoriteIds.contains(typeId)
+                ? "palette.favorite.remove" : "palette.favorite.add"));
+        favorite.addActionListener(event -> toggleFavorite(typeId));
+        menu.add(favorite);
+        return Optional.of(menu);
     }
 
     /** What a paste or drop of {@code transferable} on the tree does. Package-private for tests. */
@@ -327,7 +435,10 @@ public final class PalettePanel extends JPanel {
         List<String> ids = new ArrayList<>();
         for (DefaultMutableTreeNode section : sections()) {
             for (Object leaf : Collections.list(section.children())) {
-                ids.add(typeIdOf(((DefaultMutableTreeNode) leaf).getUserObject()));
+                Object item = ((DefaultMutableTreeNode) leaf).getUserObject();
+                if (item instanceof ComponentType || item instanceof UserComponent) {
+                    ids.add(typeIdOf(item));
+                }
             }
         }
         return ids;
@@ -358,6 +469,7 @@ public final class PalettePanel extends JPanel {
     private void rebuild() {
         String query = search.getText();
         DefaultMutableTreeNode root = new DefaultMutableTreeNode();
+        addFavorites(root, query);
         for (ComponentCategory category : ORDER) {
             DefaultMutableTreeNode categoryNode = new DefaultMutableTreeNode(category);
             registry.all().stream()
@@ -388,6 +500,27 @@ public final class PalettePanel extends JPanel {
         }
         Object value = ((DefaultMutableTreeNode) path.getLastPathComponent()).getUserObject();
         return value instanceof ComponentType type ? Optional.of(type) : Optional.empty();
+    }
+
+    private void addFavorites(DefaultMutableTreeNode root, String query) {
+        if (favoritesPreferences.isEmpty()) {
+            return;
+        }
+        Map<String, PaletteEntry> available = new HashMap<>();
+        entries().forEach(entry -> available.put(entry.type().id(), entry));
+        DefaultMutableTreeNode section = new DefaultMutableTreeNode(FavoriteSection.FAVORITES);
+        for (String typeId : favoriteIds) {
+            PaletteEntry entry = available.get(typeId);
+            if (entry != null && PaletteFilter.matches(entry.type(), query)) {
+                section.add(new DefaultMutableTreeNode(entry.treeItem(), false));
+            }
+        }
+        if (section.getChildCount() == 0 && query.isBlank()) {
+            section.add(new DefaultMutableTreeNode(FavoriteSection.EMPTY, false));
+        }
+        if (section.getChildCount() > 0) {
+            root.add(section);
+        }
     }
 
     private void addUserSection(DefaultMutableTreeNode root, UserSection section, List<UserComponent> components,
@@ -421,7 +554,8 @@ public final class PalettePanel extends JPanel {
         for (DefaultMutableTreeNode section : sections()) {
             for (Object leaf : Collections.list(section.children())) {
                 DefaultMutableTreeNode node = (DefaultMutableTreeNode) leaf;
-                if (typeIdOf(node.getUserObject()).equals(typeId)) {
+                if ((node.getUserObject() instanceof ComponentType || node.getUserObject() instanceof UserComponent)
+                        && typeIdOf(node.getUserObject()).equals(typeId)) {
                     return new TreePath(node.getPath());
                 }
             }
@@ -456,7 +590,7 @@ public final class PalettePanel extends JPanel {
 
     private void showPopup(MouseEvent event) {
         if (event.isPopupTrigger()) {
-            popupFor(tree.getPathForLocation(event.getX(), event.getY()))
+            popupFor(((FavoritesTree) tree).pathAtRow(event.getX(), event.getY()))
                     .ifPresent(menu -> menu.show(tree, event.getX(), event.getY()));
         }
     }
@@ -508,12 +642,157 @@ public final class PalettePanel extends JPanel {
         }
     }
 
+    /** Prevents the empty hint from becoming a choice through mouse or keyboard navigation. */
+    private static final class FavoriteSelectionModel extends DefaultTreeSelectionModel {
+        @Override
+        public void setSelectionPaths(TreePath[] paths) {
+            super.setSelectionPaths(paths == null ? null : java.util.Arrays.stream(paths)
+                    .filter(path -> ((DefaultMutableTreeNode) path.getLastPathComponent()).getUserObject()
+                            != FavoriteSection.EMPTY).toArray(TreePath[]::new));
+        }
+    }
+
+    /** Intercepts the star before BasicTreeUI selects a row or starts a drag. */
+    private final class FavoritesTree extends JTree {
+        private static final int STAR_COLUMN_WIDTH = 24;
+        private TreePath hoverPath;
+        private boolean starGesture;
+
+        FavoritesTree() {
+            super(new DefaultMutableTreeNode());
+            addMouseMotionListener(new MouseAdapter() {
+                @Override
+                public void mouseMoved(MouseEvent event) {
+                    hoverPath = pathAtRow(event.getX(), event.getY());
+                    repaint();
+                }
+
+                @Override
+                public void mouseDragged(MouseEvent event) {
+                    hoverPath = null;
+                    repaint();
+                }
+            });
+            addMouseListener(new MouseAdapter() {
+                @Override
+                public void mouseExited(MouseEvent event) {
+                    hoverPath = null;
+                    repaint();
+                }
+            });
+            getInputMap().put(KeyStroke.getKeyStroke(KeyEvent.VK_F10, InputEvent.SHIFT_DOWN_MASK),
+                    "palette.contextMenu");
+            getInputMap().put(KeyStroke.getKeyStroke(KeyEvent.VK_CONTEXT_MENU, 0), "palette.contextMenu");
+            getActionMap().put("palette.contextMenu", new AbstractAction() {
+                @Override
+                public void actionPerformed(ActionEvent event) {
+                    TreePath path = getSelectionPath();
+                    if (path != null && isShowing()) {
+                        Rectangle bounds = getPathBounds(path);
+                        popupFor(path).ifPresent(menu -> menu.show(FavoritesTree.this, bounds.x,
+                                bounds.y + bounds.height));
+                    }
+                }
+            });
+        }
+
+        private TreePath pathAtRow(int x, int y) {
+            TreePath path = getClosestPathForLocation(x, y);
+            Rectangle bounds = path == null ? null : getPathBounds(path);
+            return bounds != null && y >= bounds.y && y < bounds.y + bounds.height ? path : null;
+        }
+
+        private Rectangle starBounds(TreePath path) {
+            Rectangle row = getPathBounds(path);
+            Rectangle visible = getVisibleRect();
+            return new Rectangle(visible.x + visible.width - STAR_COLUMN_WIDTH, row.y,
+                    STAR_COLUMN_WIDTH, row.height);
+        }
+
+        private Optional<String> favoriteType(TreePath path) {
+            if (path == null || favoritesPreferences.isEmpty()) {
+                return Optional.empty();
+            }
+            Object item = ((DefaultMutableTreeNode) path.getLastPathComponent()).getUserObject();
+            return item instanceof ComponentType || item instanceof UserComponent
+                    ? Optional.of(typeIdOf(item)) : Optional.empty();
+        }
+
+        @Override
+        protected void processMouseEvent(MouseEvent event) {
+            if (event.getID() == MouseEvent.MOUSE_PRESSED) {
+                starGesture = false;
+                TreePath path = pathAtRow(event.getX(), event.getY());
+                Optional<String> typeId = favoriteType(path);
+                if (SwingUtilities.isLeftMouseButton(event) && typeId.isPresent()
+                        && starBounds(path).contains(event.getPoint())) {
+                    starGesture = true;
+                    toggleFavorite(typeId.get());
+                    event.consume();
+                    return;
+                }
+            } else if (starGesture && (event.getID() == MouseEvent.MOUSE_RELEASED
+                    || event.getID() == MouseEvent.MOUSE_CLICKED)) {
+                event.consume();
+                return;
+            }
+            super.processMouseEvent(event);
+        }
+
+        @Override
+        protected void processMouseMotionEvent(MouseEvent event) {
+            if (starGesture && event.getID() == MouseEvent.MOUSE_DRAGGED) {
+                event.consume();
+                return;
+            }
+            super.processMouseMotionEvent(event);
+        }
+
+        @Override
+        public String getToolTipText(MouseEvent event) {
+            TreePath path = pathAtRow(event.getX(), event.getY());
+            Optional<String> typeId = favoriteType(path);
+            if (typeId.isPresent() && starBounds(path).contains(event.getPoint())) {
+                return Messages.text(favoriteIds.contains(typeId.get())
+                        ? "palette.favorite.remove" : "palette.favorite.add");
+            }
+            return super.getToolTipText(event);
+        }
+
+        @Override
+        protected void paintComponent(Graphics graphics) {
+            super.paintComponent(graphics);
+            for (int row = 0; row < getRowCount(); row++) {
+                TreePath path = getPathForRow(row);
+                Optional<String> typeId = favoriteType(path);
+                if (typeId.isEmpty()) {
+                    continue;
+                }
+                Rectangle bounds = starBounds(path);
+                if (!bounds.intersects(getVisibleRect())) {
+                    continue;
+                }
+                boolean filled = favoriteIds.contains(typeId.get());
+                if (filled || path.equals(hoverPath) && javax.swing.MenuSelectionManager.defaultManager()
+                        .getSelectedPath().length == 0) {
+                    // A filled star remains visible in the source category as well as in Favorites.
+                    FavoriteStar star = new FavoriteStar(filled);
+                    graphics.setColor(getBackground());
+                    graphics.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
+                    star.paintIcon(this, graphics, bounds.x + (bounds.width - star.getIconWidth()) / 2,
+                            bounds.y + (bounds.height - star.getIconHeight()) / 2);
+                }
+            }
+        }
+    }
+
     private final class Renderer extends DefaultTreeCellRenderer {
         @Override
         public Component getTreeCellRendererComponent(JTree owner, Object value, boolean selected, boolean expanded,
                                                       boolean leaf, int row, boolean focused) {
             super.getTreeCellRendererComponent(owner, value, selected, expanded, leaf, row, focused);
             Object item = ((DefaultMutableTreeNode) value).getUserObject();
+            setEnabled(owner.isEnabled() && item != FavoriteSection.EMPTY);
             if (item instanceof ComponentType type) {
                 setText(Messages.componentName(type));
                 setIcon(icon(type));
@@ -521,6 +800,11 @@ public final class PalettePanel extends JPanel {
             } else if (item instanceof UserComponent component) {
                 setText(Messages.componentName(component.type()));
                 setIcon(icon(component.type()));
+                setToolTipText(null);
+            } else if (item instanceof FavoriteSection section) {
+                setText(Messages.text(section == FavoriteSection.FAVORITES
+                        ? "palette.favorites" : "palette.favorites.empty"));
+                setIcon(section == FavoriteSection.FAVORITES ? new FavoriteStar(true) : null);
                 setToolTipText(null);
             } else if (item instanceof UserSection section) {
                 setText(section.title());

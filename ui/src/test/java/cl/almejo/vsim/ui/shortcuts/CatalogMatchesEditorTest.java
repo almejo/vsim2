@@ -27,7 +27,7 @@ class CatalogMatchesEditorTest {
     /** Defaults of actions an extension registers (M6.1-B's two advances); that front's own test checks the stroke. */
     private static final Set<String> REGISTERED_BY_EXTENSIONS = Set.of("simulation.advance",
             "simulation.advanceToClockEdge", "edit.tidyWires", "edit.tidyWiresOptions", "edit.frameSelection",
-            "edit.wiresFollow", "edit.find", "edit.findNext", "edit.findPrevious", "view.snap");
+            "edit.wiresFollow", "edit.find", "edit.findNext", "edit.findPrevious", "edit.quickInsert", "view.snap");
 
     private OpenDocument openDocument;
     private EditorView view;
@@ -109,7 +109,8 @@ class CatalogMatchesEditorTest {
         Map<String, Action> actions = canvasActions();
         JComponent canvas = view.canvas();
         for (ShortcutEntry entry : ShortcutCatalog.entries()) {
-            if (entry.scope() == Scope.CANVAS && entry.defaultStroke().isPresent()) {
+            if (entry.scope() == Scope.CANVAS && entry.defaultStroke().isPresent()
+                    && !REGISTERED_BY_EXTENSIONS.contains(entry.id())) {
                 assertThat(actions).as("an action for " + entry.id()).containsKey(entry.id());
                 Object name = canvas.getInputMap(JComponent.WHEN_FOCUSED).get(entry.defaultStroke().get());
                 assertThat(name).as("binding of " + entry.id()).isNotNull();

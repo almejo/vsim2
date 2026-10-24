@@ -275,6 +275,26 @@ class ApplicationExtensionsTest {
     }
 
     @Test
+    void favoritesAreSharedAndQuickInsertIsBoundOnlyOnTheCanvas() {
+        EditorView first = new EditorView(openDocument, services, NO_WINDOW);
+        EditorView second = new EditorView(openDocument, services, NO_WINDOW);
+        try {
+            preferences.setPaletteFavorites(List.of("and3", "led"));
+            assertThat(first.palette().visibleSections()).startsWith("Favoritos");
+            assertThat(second.palette().visibleTypeIds()).startsWith("and3", "led");
+            Object binding = first.canvas().getInputMap(JComponent.WHEN_FOCUSED)
+                    .get(KeyStroke.getKeyStroke(KeyEvent.VK_INSERT, 0));
+            assertThat(first.canvas().getActionMap().get(binding))
+                    .isSameAs(first.shortcutActions().get("edit.quickInsert"));
+            assertThat(ShortcutCatalog.find("edit.quickInsert").orElseThrow().scope())
+                    .isEqualTo(cl.almejo.vsim.ui.shortcuts.Scope.CANVAS);
+        } finally {
+            second.dispose();
+            first.dispose();
+        }
+    }
+
+    @Test
     void disposingEachOfTwoViewsTakesBackExactlyItsListeners() {
         Counts baseline = counts();
 

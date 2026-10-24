@@ -29,6 +29,7 @@ import cl.almejo.vsim.ui.ai.present.PresentationExtension;
 import cl.almejo.vsim.ui.examples.ExamplesFeature;
 import cl.almejo.vsim.ui.export.ExportImageExtension;
 import cl.almejo.vsim.ui.print.ExportPdfExtension;
+import cl.almejo.vsim.ui.favorites.FavoritesExtension;
 import cl.almejo.vsim.ui.frames.FramesExtension;
 import cl.almejo.vsim.ui.grid.GridExtension;
 import cl.almejo.vsim.ui.guides.GuidesExtension;
@@ -222,6 +223,7 @@ public final class Application {
         editorExtensions.add(new KarnaughExtension(libraryService, startDirectory, chosen));
         editorExtensions.add(new FindExtension());
         editorExtensions.add(new TunnelsExtension());
+        editorExtensions.add(new FavoritesExtension());
         editorExtensions.add(ai); // IA.1: last in Herramientas, before the shortcuts see its item
         editorExtensions.add(presentation); // IA.2: last in Ver and the toolbar, before the icons and shortcuts
         editorExtensions.add(new ActionIcons());
