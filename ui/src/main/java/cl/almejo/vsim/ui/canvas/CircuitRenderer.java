@@ -567,13 +567,15 @@ public final class CircuitRenderer {
         }
     }
 
-    /** The ghost of a note: a plain one in the preview colour, as ever; a styled one with its own colours. */
+    /**
+     * The ghost of a note, in the preview colour like every other ghost: its lines and, when it has a box, the box's
+     * outline (no fill, so what lies under the drop point shows through; review M4).
+     */
     private static void paintNoteGhost(Graphics2D graphics, TextLabel label, ColorScheme scheme) {
-        if (label.style().isPlain()) {
-            NotePainter.paintLines(graphics, label, scheme.preview());
-        } else {
-            NotePainter.paint(graphics, label, scheme, PaintPolicy.CANVAS);
+        if (label.style().boxed()) {
+            NotePainter.paintOutline(graphics, label, scheme.preview());
         }
+        NotePainter.paintLines(graphics, label, scheme.preview());
     }
 
     private Rectangle2D outline(ComponentType type, Component component) {

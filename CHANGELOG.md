@@ -24,11 +24,13 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 - Las notas pueden tener fondo, color de letra y un borde con su propio color, desde Propiedades («Fondo», «Letra»,
   «Borde») o el menú contextual «Estilo ▸», también para varias notas a la vez; por omisión se ven como siempre. Los
   colores se leen en todos los esquemas (también en «Placa»), salen al exportar e imprimir, y la IA puede usarlos en
-  sus notas.
-- Ver ▸ «Ver todo el circuito» (Mayús+1, también con un botón en la barra de herramientas) acerca o aleja la vista
-  hasta que se ve el circuito entero, con un margen, y Ver ▸ «Zoom a la selección» (Mayús+2) hace lo mismo con lo
-  seleccionado. Llegan con un viaje suave (o de un salto si «Animar los movimientos de la vista» está desactivado) y
-  actúan sobre el panel activo.
+  sus notas. Una nota con fondo del mismo color que el lienzo (negro en Twilight, blanco en Claro o al exportar con
+  «Fondo blanco para imprimir») muestra su caja con una línea suave, y al pegarla o arrastrarla su vista previa es un
+  contorno que deja ver lo que hay debajo.
+- Ver ▸ «Ver todo el circuito» (Mayús+1, también con un botón en el control de zoom de la barra de estado) acerca o
+  aleja la vista hasta que se ve el circuito entero, con un margen, y Ver ▸ «Zoom a la selección» (Mayús+2) hace lo
+  mismo con lo seleccionado. Llegan con un viaje suave (o de un salto si «Animar los movimientos de la vista» está
+  desactivado) y actúan sobre el panel activo.
 - Herramienta «Zoom» (botón después de «Mover vista», Ver ▸ «Zoom» o la tecla Z): arrastra un recuadro y la vista
   viaja hasta que ese recuadro llena el panel; mientras arrastras, el recuadro dice el zoom al que llegará («250 %»).
   Un clic acerca un paso alrededor del punto, y Alt + clic, Mayús + clic o el botón derecho alejan un paso. El cursor
@@ -37,8 +39,9 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 - Control de zoom al final de la barra de estado: «−», un deslizador de 25 % a 400 % con 100 % al medio (cada vez
   que el zoom se duplica avanza lo mismo y cerca del medio se queda en 100 %), «+», el porcentaje, «100 %», «Ver todo
   el circuito» y «Zoom a la selección». El porcentaje se escribe («150», «62,5») o se elige de una lista y la vista
-  llega con un viaje suave; si no es un número se marca en rojo y Esc lo devuelve. Ver ▸ «Escribir el zoom…» lleva
-  el teclado ahí. Muestra y mueve el panel activo; en una ventana angosta el deslizador se achica primero.
+  llega con un viaje suave (en la lista, las flechas solo la recorren: el zoom cambia al elegir con clic o Enter); si
+  no es un número se marca en rojo y Esc lo devuelve. Usar el deslizador o la lista con el mouse deja el teclado en
+  el lienzo. Ver ▸ «Escribir el zoom…» lleva el teclado ahí. Muestra y mueve el panel activo; en una ventana angosta el deslizador se achica primero.
 
 ### Cambiado
 
@@ -48,9 +51,9 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
   él. Mover la vista o hacer zoom a mano a mitad de camino lo detiene donde está.
 - El porcentaje de la barra de estado ya no vuelve a 100 % con un clic: ahora se escribe o se elige, y «100 %» es
   un botón al lado. El zoom pasó al final de la barra, después de «IA: …».
-- Los botones «Alejar», «Acercar», «Centrar circuito» y «Ver todo el circuito» salieron de la barra de herramientas,
-  que conserva solo la herramienta Zoom (la lupa, Z): el zoom se maneja desde el control de la barra de estado y
-  desde el menú Ver, con los mismos atajos.
+- Los botones «Alejar», «Acercar» y «Centrar circuito» salieron de la barra de herramientas, que conserva solo la
+  herramienta Zoom (la lupa, Z): el zoom se maneja desde el control de la barra de estado y desde el menú Ver, con los
+  mismos atajos.
 
 ### Arreglado
 
@@ -60,6 +63,9 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
   Oscuro, la Z verde del VSim original) va en negro en vez de blanco.
 - «Apagar» o «Reiniciar» la IA mientras espera «Siguiente» le responde de inmediato que se detuvo: antes, a veces la
   respuesta se perdía al cerrar la conexión y Claude Code se quedaba esperando hasta agotar su tiempo.
+- Encender la IA: si Claude Code pedía esperar «Siguiente» apenas el puerto respondía, a veces le contestaba que la IA
+  estaba apagada. Al cerrar la última ventana, VSim ya no se queda unos segundos esperando a que terminen las
+  respuestas de la IA.
 
 ## Versión 0.2 — 2026-10-22
 

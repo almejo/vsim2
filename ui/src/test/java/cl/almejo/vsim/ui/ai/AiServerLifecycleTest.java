@@ -231,21 +231,80 @@ class AiServerLifecycleTest {
         assertThat(portIsFree()).isTrue();
     }
 
-    /** Pulido T1: «Apagar» ended the waits for «Siguiente» for good; they wait again once the server listens. */
+    /**
+     * Pulido T1: «Apagar» ended the waits for «Siguiente» for good; «Encender» lets them wait again before the port
+     * answers (review M2: the AI may call as soon as it does, before the EDT hears that the server listens).
+     */
     @Test
-    void theWaitsForSiguienteWaitAgainOnlyOnceTheServerListens() {
+    void theWaitsForSiguienteWaitAgainFromEncenderBeforeThePortAnswers() {
         service.activate();
-        assertThat(tasks.waitsAccepted).as("while it starts").isZero();
+        assertThat(tasks.waitsAccepted).as("before the bind").isEqualTo(1);
         runServerWork();
         assertThat(tasks.waitsAccepted).isEqualTo(1);
+        assertThat(tasks.waitsEnded).isEmpty();
 
         service.deactivate();
         runServerWork();
         assertThat(tasks.waitsAccepted).as("Apagar").isEqualTo(1);
+        assertThat(tasks.waitsEnded).hasSize(1);
 
         assertThat(service.restart()).isTrue();
         runServerWork();
         assertThat(tasks.waitsAccepted).as("Reiniciar listens again").isEqualTo(2);
+    }
+
+    @Test
+    void apagarWhileStartingEndsTheWaitsAgain() {
+        service.activate();
+
+        service.deactivate();
+        runServerWork();
+
+        assertThat(tasks.waitsEnded).hasSize(1);
+    }
+
+    @Test
+    void aStartThatFailsEndsTheWaitsAgain() throws Exception {
+        try (ServerSocket other = new ServerSocket(0, 50, InetAddress.getLoopbackAddress())) {
+            preferences.setAiPort(other.getLocalPort());
+            service.activate();
+
+            runServerWork();
+
+            assertThat(service.state()).isEqualTo(new AiServerState.PortInUse(other.getLocalPort()));
+            assertThat(tasks.waitsEnded).hasSize(1);
+        }
+    }
+
+    /** Review M1: quitting never holds the EDT for the server's stop; VSim ends once the port is free. */
+    @Test
+    void quittingStopsTheServerOnItsThreadAndEndsAfterwards() {
+        service.activate();
+        runServerWork();
+        heard.clear();
+        List<String> ended = new ArrayList<>();
+
+        service.quit(() -> ended.add("exit"));
+
+        assertThat(service.isRunning()).isFalse();
+        assertThat(tasks.waitsEnded).as("the AI's waits end at once").hasSize(1);
+        assertThat(heard).as("off: the application withdraws the proposals").containsExactly("Apagada");
+        assertThat(ended).isEmpty();
+        assertThat(portIsFree()).as("the stop waits for the server thread").isFalse();
+
+        runServerWork();
+        assertThat(portIsFree()).isTrue();
+        assertThat(ended).containsExactly("exit");
+    }
+
+    @Test
+    void quittingWithTheServerOffEndsAfterTheServerThreadsWork() {
+        List<String> ended = new ArrayList<>();
+
+        service.quit(() -> ended.add("exit"));
+        runServerWork();
+
+        assertThat(ended).containsExactly("exit");
     }
 
     private boolean portIsFree() {

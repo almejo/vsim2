@@ -56,6 +56,9 @@ import java.util.stream.Stream;
  */
 public final class PropertiesPanel extends JPanel {
 
+    /** A note's nine colours go in two rows (5 + 4), no wider than a frame's seven tints: the panel stays narrow. */
+    private static final int NOTE_SWATCHES_PER_ROW = 5;
+
     private final OpenDocument openDocument;
     private final Selection selection;
     private final SelectionMoves selectionMoves;
@@ -280,7 +283,7 @@ public final class PropertiesPanel extends JPanel {
                     case TEXT -> color == NoteColor.NONE ? Optional.of(scheme.get().text())
                             : scheme.get().noteBorder(color);
                     case BORDER -> scheme.get().noteBorder(color);
-                });
+                }, NOTE_SWATCHES_PER_ROW);
     }
 
     /** The swatches of {@code role} for the notes shown; null when no note is shown alone or with other notes only. */

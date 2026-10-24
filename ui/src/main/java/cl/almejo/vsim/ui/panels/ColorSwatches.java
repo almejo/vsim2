@@ -90,7 +90,19 @@ public final class ColorSwatches<T> extends JPanel {
      */
     public ColorSwatches(List<T> values, T selected, Function<? super T, String> nameOf,
                          Function<? super T, Optional<Color>> fillOf) {
-        super(new MigLayout("insets 0, gap 2"));
+        this(values, selected, nameOf, fillOf, Integer.MAX_VALUE);
+    }
+
+    /**
+     * As the four-argument constructor, in rows of at most {@code perRow} swatches (a long list in a narrow panel);
+     * the arrows still go through them in order, from the end of a row to the start of the next.
+     */
+    public ColorSwatches(List<T> values, T selected, Function<? super T, String> nameOf,
+                         Function<? super T, Optional<Color>> fillOf, int perRow) {
+        super(new MigLayout(perRow < values.size() ? "insets 0, gap 2, wrap " + perRow : "insets 0, gap 2"));
+        if (perRow < 1) {
+            throw new IllegalArgumentException("perRow must be at least 1, was " + perRow);
+        }
         this.values = List.copyOf(values);
         if (!this.values.contains(selected)) {
             throw new IllegalArgumentException(selected + " is not one of " + values);

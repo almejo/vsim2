@@ -143,6 +143,15 @@ public record ColorScheme(Color background, Color grid, Color gridLine, Color wi
     }
 
     /**
+     * The line around a note's box in {@code style}: its border, or, when it has none and its background is the
+     * board's own colour (a black note on Twilight, a white one on Claro or on a white print), a quiet line that shows
+     * where the box is. Empty when the note needs no line (a plain note keeps its look).
+     */
+    public Optional<Color> noteOutline(NoteStyle style) {
+        return NotePalette.outline(style, background);
+    }
+
+    /**
      * The colour of a wire tunnel: its entrada's palette entry ({@code 0} .. {@code Tunnels.COLOR_COUNT - 1}), or grey
      * for any other index ({@code Tunnels.NO_COLOR}: a salida without entrada). Like the frame tints, each colour has a
      * light and a dark variant ({@link #isDark}), both readable on {@link #tunnelSurface()}.

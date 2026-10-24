@@ -302,6 +302,21 @@ class CircuitRendererTest {
                 .anyMatch(rgb -> (rgb & 0xFF) > ((rgb >> 16) & 0xFF) + 60);
     }
 
+    /** A white note on a white board (Claro, or any «Fondo blanco para imprimir» export) still shows its box. */
+    @Test
+    void aNoteWhoseBackgroundIsTheBoardsColourGetsAQuietOutline() {
+        TextLabel note = new TextLabel(document.newLabelId(), new GridPoint(2, 2), "WW",
+                new NoteStyle(NoteColor.WHITE, NoteColor.NONE, NoteColor.NONE));
+        document.add(note);
+        Rectangle2D box = LabelLayout.noteBox(note);
+
+        BufferedImage image = renderWithPolicy(PaintPolicy.CANVAS);
+
+        int middle = (int) box.getCenterY();
+        assertThat(new Color(image.getRGB((int) Math.floor(box.getMinX()), middle))).as("the box's edge")
+                .isNotEqualTo(new Color(image.getRGB((int) box.getMinX() + 2, middle)));
+    }
+
     @Test
     void inBlackAndWhiteAStyledNoteKeepsABlackBorderAndBlackTextAndDropsItsBackground() {
         TextLabel note = new TextLabel(document.newLabelId(), new GridPoint(2, 2), "WW",
@@ -366,6 +381,35 @@ class CircuitRendererTest {
         Rectangle2D belowTheText = new Rectangle2D.Double(placed.left(), placed.top() + placed.height() + 1,
                 placed.width(), 10);
         assertThat(inkInside(plain, belowTheText)).isZero();
+    }
+
+    /** Review M4: a styled note's ghost is a preview like every other ghost, not a translucent copy of the note. */
+    @Test
+    void theGhostOfAStyledNoteIsAnOutlineAndTextInThePreviewColour() {
+        TextLabel note = new TextLabel(new ElementId("l1"), new GridPoint(2, 2), "WW",
+                new NoteStyle(NoteColor.RED, NoteColor.BLUE, NoteColor.GREEN));
+        Rectangle2D box = LabelLayout.noteBox(note);
+
+        BufferedImage image = ghostOf(note);
+
+        int middle = (int) box.getCenterY();
+        assertThat(new Color(image.getRGB((int) box.getMinX() + 2, middle))).as("no fill inside the box")
+                .isEqualTo(SCHEME.background());
+        assertThat(inkInside(image, new Rectangle2D.Double(Math.floor(box.getMinX()), middle, 1, 1)))
+                .as("its outline").isPositive();
+        assertThat(inkInside(image, LabelLayout.freeText(note).bounds())).as("its text").isPositive();
+        assertThat(sameImage(image, ghostOf(note.withStyle(new NoteStyle(NoteColor.YELLOW, NoteColor.RED,
+                NoteColor.BLUE))))).as("the note's own colours do not show").isTrue();
+    }
+
+    private BufferedImage ghostOf(TextLabel note) {
+        BufferedImage image = new BufferedImage(120, 120, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D graphics = image.createGraphics();
+        graphics.setColor(SCHEME.background());
+        graphics.fillRect(0, 0, 120, 120);
+        renderer.paintGhost(graphics, note);
+        graphics.dispose();
+        return image;
     }
 
     @Test

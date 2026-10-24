@@ -81,6 +81,37 @@ class NoteColorsTest {
         }
     }
 
+    /**
+     * A black note on Twilight's black board, a white one on Claro or on any white print: the box would vanish, so it
+     * gets a quiet outline that shows on the board; a note with its own border keeps it, and a plain note or a note
+     * whose background already stands apart gets no line.
+     */
+    @Test
+    void aBackgroundOfTheBoardsColourGetsAQuietOutlineAndNothingElseChanges() {
+        NoteStyle blackNote = new NoteStyle(NoteColor.BLACK, NoteColor.NONE, NoteColor.NONE);
+        NoteStyle whiteNote = new NoteStyle(NoteColor.WHITE, NoteColor.NONE, NoteColor.NONE);
+        List<ColorScheme> boards = List.of(ColorSchemes.TWILIGHT, ColorSchemes.LIGHT,
+                CircuitImage.printScheme(ColorSchemes.DARK));
+        List<NoteStyle> notes = List.of(blackNote, whiteNote, whiteNote);
+        for (int index = 0; index < boards.size(); index++) {
+            ColorScheme scheme = boards.get(index);
+            Color line = scheme.noteOutline(notes.get(index)).orElseThrow();
+            assertThat(ReadableColors.contrast(line, scheme.background())).as("on %s", scheme.background())
+                    .isGreaterThanOrEqualTo(BORDER_VISIBLE)
+                    .isLessThan(READABLE); // quiet: not as loud as a chosen border
+        }
+        for (ColorScheme scheme : schemes()) {
+            assertThat(scheme.noteOutline(NoteStyle.PLAIN)).isEmpty();
+            assertThat(scheme.noteOutline(new NoteStyle(NoteColor.NONE, NoteColor.RED, NoteColor.NONE))).isEmpty();
+            for (NoteColor hue : HUES) {
+                assertThat(scheme.noteOutline(new NoteStyle(hue, NoteColor.NONE, NoteColor.NONE)))
+                        .as("%s stands apart on %s", hue, scheme.background()).isEmpty();
+                assertThat(scheme.noteOutline(new NoteStyle(NoteColor.WHITE, NoteColor.NONE, hue)))
+                        .isEqualTo(scheme.noteBorder(hue));
+            }
+        }
+    }
+
     @Test
     void blackAndWhiteAreExactlyBlackAndWhite() {
         ColorScheme placa = ColorSchemes.PLACA;

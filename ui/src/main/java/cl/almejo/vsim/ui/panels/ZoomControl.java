@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.panels;
 import cl.almejo.vsim.ui.canvas.Viewport;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.icons.Icons;
+import cl.almejo.vsim.ui.theme.ReadableColors;
 import net.miginfocom.swing.MigLayout;
 
 import javax.swing.AbstractAction;
@@ -18,6 +19,8 @@ import javax.swing.KeyStroke;
 import javax.swing.UIManager;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
+import javax.swing.event.PopupMenuEvent;
+import javax.swing.event.PopupMenuListener;
 import java.awt.Color;
 import java.awt.Graphics;
 import java.awt.Insets;
@@ -72,6 +75,15 @@ public final class ZoomControl extends JPanel {
     private static final int ICON_SIZE = Icons.MENU_SIZE;
     private static final String OUTLINE = "JComponent.outline";
     private static final String EDITED_COMMAND = "comboBoxEdited";
+    /**
+     * The 100 % mark's contrast on the panel: a line one pixel wide and three tall needs the contrast of text to be
+     * seen (the 3:1 of WCAG 1.4.11 is for larger shapes; the theme's tick colour reaches it and still looked faint).
+     */
+    static final double MINIMUM_MARK_CONTRAST = ReadableColors.MINIMUM_TEXT_CONTRAST;
+    /** The mark starts at about half the label colour over the panel and gains more until it stands out. */
+    private static final int MARK_FADED_ALPHA = 128;
+    private static final int MARK_ALPHA_STEP = 16;
+    private static final int OPAQUE = 255;
 
     private final Target target;
     private final JButton zoomOutButton;
@@ -86,6 +98,10 @@ public final class ZoomControl extends JPanel {
     private boolean updating;
     /** The user is typing in the field: the canvas does not overwrite the text meanwhile. */
     private boolean editing;
+    /** The field's list of presets is open: moving through it only shows a preset, closing it applies the pick. */
+    private boolean listOpen;
+    /** A preset was picked while the list was open; it applies when the list closes (or on Enter). */
+    private boolean pickPending;
     /** The zoom the field shows (what a typed value is compared with). */
     private double shownZoom = 1.0;
     private JTextField editor;
@@ -145,6 +161,8 @@ public final class ZoomControl extends JPanel {
 
     private void buildSlider() {
         slider.setFocusable(true);
+        // Tab reaches it (spec §6), but a mouse press leaves the keyboard on the canvas (review I1)
+        slider.setRequestFocusEnabled(false);
         slider.setOpaque(false);
         slider.setToolTipText(Messages.text("zoom.slider.tip"));
         slider.getAccessibleContext().setAccessibleName(Messages.text("zoom.slider.name"));
@@ -190,14 +208,54 @@ public final class ZoomControl extends JPanel {
         field.setToolTipText(Messages.text("zoom.field.tip"));
         field.getAccessibleContext().setAccessibleName(Messages.text("zoom.field.name"));
         field.addActionListener(event -> {
-            if (!updating && !EDITED_COMMAND.equals(event.getActionCommand())) {
-                applyChosen(); // a preset picked, or the text committed when the field lost the focus
+            if (updating || EDITED_COMMAND.equals(event.getActionCommand())) {
+                return;
+            }
+            if (listOpen) {
+                pickPending = true; // the arrows or a click in the list: applies when the list closes
+            } else {
+                applyChosen(); // the text committed when the field lost the focus
             }
         });
+        field.addPopupMenuListener(new PresetList());
         // the look and feel replaces its editor on a theme change: follow it
         PropertyChangeListener editorFollower = event -> attachEditor();
         field.addPropertyChangeListener("editor", editorFollower);
         attachEditor();
+    }
+
+    /** The field's list of presets: a pick made in it applies once, when it closes, and the keyboard goes back. */
+    private final class PresetList implements PopupMenuListener {
+
+        @Override
+        public void popupMenuWillBecomeVisible(PopupMenuEvent event) {
+            listOpen = true;
+            pickPending = false;
+        }
+
+        @Override
+        public void popupMenuWillBecomeInvisible(PopupMenuEvent event) {
+            listOpen = false;
+            if (pickPending) {
+                pickPending = false;
+                if (applyChosen()) {
+                    target.returnFocus();
+                }
+            }
+        }
+
+        @Override
+        public void popupMenuCanceled(PopupMenuEvent event) {
+            discardPick();
+        }
+    }
+
+    /** The list closed without a pick (Esc, a click elsewhere): the field shows the pane's zoom again. */
+    private void discardPick() {
+        if (pickPending) {
+            pickPending = false;
+            showInField(target.zoom());
+        }
     }
 
     private void attachEditor() {
@@ -320,16 +378,20 @@ public final class ZoomControl extends JPanel {
         }
     }
 
-    /** Enter in the field: a number travels there and the focus goes back to the pane; anything else is marked. */
+    /**
+     * Enter in the field (also on a preset the arrows reached in the open list): a number travels there and the focus
+     * goes back to the pane; anything else is marked.
+     */
     private void applyTyped() {
+        pickPending = false;
         if (apply(editor.getText())) {
             target.returnFocus();
         }
     }
 
     /** A preset picked from the list (or the text committed on leaving the field): travels there. */
-    private void applyChosen() {
-        apply(String.valueOf(field.getSelectedItem()));
+    private boolean applyChosen() {
+        return apply(String.valueOf(field.getSelectedItem()));
     }
 
     /** Travels to the zoom {@code text} says; false (and the error outline) when it is not a number. */
@@ -351,7 +413,8 @@ public final class ZoomControl extends JPanel {
 
     /** Escape: the field shows the current zoom again and the focus goes back to the pane (or the list closes). */
     private void cancelTyping() {
-        if (field.isPopupVisible()) {
+        if (listOpen || field.isPopupVisible()) {
+            discardPick();
             field.setPopupVisible(false);
             return;
         }
@@ -427,7 +490,28 @@ public final class ZoomControl extends JPanel {
         return selectionButton;
     }
 
-    /** A slider with a small, low-contrast mark at 100 % (its middle), coloured by the theme shown now. */
+    /**
+     * The colour of the slider's 100 % mark, read from the theme shown now: the label colour faded towards the panel,
+     * as quiet as it can be while still {@link #MINIMUM_MARK_CONTRAST}:1 on it, in the light and the dark theme (the
+     * theme's own {@code Slider.tickColor} is barely visible on FlatLaf Dark).
+     */
+    static Color centreMarkColor() {
+        Color panel = ReadableColors.panelBackground();
+        Color label = UIManager.getColor("Label.foreground");
+        if (label == null) {
+            label = Color.GRAY;
+        }
+        for (int alpha = MARK_FADED_ALPHA; alpha <= OPAQUE; alpha += MARK_ALPHA_STEP) {
+            Color mark = ReadableColors.over(new Color(label.getRed(), label.getGreen(), label.getBlue(), alpha),
+                    panel);
+            if (ReadableColors.contrast(mark, panel) >= MINIMUM_MARK_CONTRAST) {
+                return mark;
+            }
+        }
+        return label;
+    }
+
+    /** A slider with a small, quiet mark at 100 % (its middle), coloured by the theme shown now. */
     private static final class CentreMarkedSlider extends JSlider {
 
         private static final int MARK_HEIGHT = 3;
@@ -439,17 +523,10 @@ public final class ZoomControl extends JPanel {
         @Override
         protected void paintComponent(Graphics graphics) {
             super.paintComponent(graphics);
-            Color mark = UIManager.getColor("Slider.tickColor");
-            if (mark == null) {
-                mark = UIManager.getColor("Label.disabledForeground");
-            }
-            if (mark == null) {
-                return;
-            }
             Insets insets = getInsets();
             int centre = insets.left + (getWidth() - insets.left - insets.right) / 2;
             int bottom = getHeight() - insets.bottom - 1;
-            graphics.setColor(mark);
+            graphics.setColor(centreMarkColor());
             graphics.drawLine(centre, bottom - MARK_HEIGHT + 1, centre, bottom);
         }
     }

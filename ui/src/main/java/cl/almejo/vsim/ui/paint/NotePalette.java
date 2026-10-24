@@ -18,7 +18,8 @@ import java.util.Optional;
  *   bright one on a dark surface, darkened or lightened until it reaches {@link #MINIMUM_TEXT_CONTRAST}:1 there;
  *   «Automático» is the scheme's text colour, or black or white when that does not read on the note's
  *   background;</li>
- *   <li>a border is the text hue measured against the board, so it reads around the box.</li>
+ *   <li>a border is the text hue measured against the board, so it reads around the box; a black or white background
+ *   on a board of its colour, with no border, gets a quiet line instead, so the box still shows.</li>
  * </ul>
  * Black and white are always exactly black and white. Read through {@link ColorScheme}; nothing is cached.
  */
@@ -28,6 +29,8 @@ final class NotePalette {
     static final double MINIMUM_TEXT_CONTRAST = ReadableColors.MINIMUM_TEXT_CONTRAST;
     /** How far (in RGB units) a background must stand from the board to show as a box. */
     static final double MINIMUM_BACKGROUND_DISTANCE = 60;
+    /** WCAG's minimum contrast for a graphical object (1.4.11): the quiet line around a box the board hides. */
+    static final double MINIMUM_OUTLINE_CONTRAST = 3.0;
     /** A colour that does not read yet moves towards black or white in this many steps, the last one reaching it. */
     private static final int STEPS = 20;
 
@@ -93,6 +96,29 @@ final class NotePalette {
     /** The border of a note; empty for {@code NONE}. */
     static Optional<Color> border(NoteColor color, Color board) {
         return color == NoteColor.NONE ? Optional.empty() : Optional.of(readable(color, board));
+    }
+
+    /**
+     * The line around a note's box: its border; without one, a quiet line when its background is too close to the
+     * board to show as a box (black on a black board, white on a white one); empty otherwise.
+     */
+    static Optional<Color> outline(NoteStyle style, Color board) {
+        Optional<Color> border = border(style.border(), board);
+        if (border.isPresent()) {
+            return border;
+        }
+        return background(style, board).filter(fill -> distance(fill, board) < MINIMUM_BACKGROUND_DISTANCE)
+                .map(fill -> quietLine(board));
+    }
+
+    /** The board moved towards white (on a dark board) or black until it shows as a line, and no further. */
+    private static Color quietLine(Color board) {
+        Color away = isDark(board) ? Color.WHITE : Color.BLACK;
+        Color line = board;
+        for (int step = 1; ReadableColors.contrast(line, board) < MINIMUM_OUTLINE_CONTRAST && step <= STEPS; step++) {
+            line = mix(board, away, (double) step / STEPS);
+        }
+        return line;
     }
 
     /** The scheme's text colour where it reads on {@code surface}, else black or white, whichever reads better. */

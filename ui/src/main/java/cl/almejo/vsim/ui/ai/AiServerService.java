@@ -250,12 +250,13 @@ public final class AiServerService {
         }
         String secret = ensureSecret();
         queuedWork.accept();
-        listening(VsimMcpServer.start(api, new McpServerSettings(effectivePort(), secret)), secret);
+        RunningServer server = VsimMcpServer.start(api, new McpServerSettings(effectivePort(), secret));
+        tasks.acceptWaits(); // the AI's waits for «Siguiente», ended when it was last turned off, wait again
+        listening(server, secret);
     }
 
-    /** The server listens: the AI's waits for «Siguiente», ended when it was last turned off, wait again. */
+    /** The server listens. */
     private void listening(RunningServer server, String secret) {
-        tasks.acceptWaits();
         running = server;
         runningSecret = secret;
         failure = null;
@@ -265,16 +266,40 @@ public final class AiServerService {
     }
 
     /**
-     * Stops serving and frees the port on the calling thread (VSim quitting; tests); a no-op when not running. The
-     * AI's waits end first (its long polls answer STOPPED or WITHDRAWN) and its work still waiting for the EDT is
-     * refused, so the requests in flight answer at once and stopping never waits for the EDT it runs on. The panels
-     * use {@link #deactivate()}, which never blocks the EDT.
+     * Stops serving and frees the port on the calling thread (tests; VSim quitting uses {@link #quit}, which stops it
+     * off the EDT); a no-op when not running. The AI's waits end first (its long polls answer STOPPED or WITHDRAWN)
+     * and its work still waiting for the EDT is refused, so the requests in flight answer at once. The panels use
+     * {@link #deactivate()}, which never blocks the EDT.
      */
     public void stop() {
         RunningServer stopping = letGo();
         if (stopping != null) {
             stopping.stop();
         }
+    }
+
+    /**
+     * VSim quits (its last window closed): as «Apagar» for the AI, so its waits end at once and its proposals go with
+     * the state change, but the server stops on the server thread and {@code exit} runs there right after (review
+     * M1). Jetty gives the requests in flight up to two seconds, and some of them need the EDT to finish: the EDT must
+     * never be the one waiting.
+     */
+    public void quit(Runnable exit) {
+        Objects.requireNonNull(exit, "exit");
+        dropStart();
+        RunningServer stopping = letGo();
+        failure = null;
+        portChanged = false;
+        notifyStateChanged();
+        serverThread.execute(() -> {
+            try {
+                if (stopping != null) {
+                    stopping.stop();
+                }
+            } finally {
+                exit.run();
+            }
+        });
     }
 
     /**
@@ -326,6 +351,9 @@ public final class AiServerService {
         failure = null;
         queuedWork.accept();
         notifyStateChanged();
+        // the AI's waits for «Siguiente», ended when it was last turned off, wait again before the port answers: the
+        // AI may call as soon as it does, before this EDT hears that the server listens (review M2)
+        tasks.acceptWaits();
         serverThread.execute(() -> {
             RunningServer started = null;
             AiServerState refused = null;
@@ -358,11 +386,22 @@ public final class AiServerService {
             listening(server, secret);
         } else {
             failure = failed;
+            tasks.endEveryWait();
         }
         notifyStateChanged();
         settled.run();
         if (server != null) {
             followPreferences(); // the port or the secret may have changed while it started
+        }
+    }
+
+    /** Drops a start in progress (its server stops when its bind ends), refusing its work and ending its waits. */
+    private void dropStart() {
+        startGeneration++;
+        if (startingPort.isPresent()) {
+            startingPort = OptionalInt.empty();
+            queuedWork.refuse();
+            tasks.endEveryWait();
         }
     }
 
@@ -377,11 +416,7 @@ public final class AiServerService {
      * server stops off the EDT (IA.3 review I1).
      */
     public void deactivate() {
-        startGeneration++;
-        if (startingPort.isPresent()) {
-            startingPort = OptionalInt.empty();
-            queuedWork.refuse();
-        }
+        dropStart();
         List<String> stopping = List.copyOf(runningTasks.keySet());
         runningTasks.clear();
         stopping.forEach(this::stopTask);

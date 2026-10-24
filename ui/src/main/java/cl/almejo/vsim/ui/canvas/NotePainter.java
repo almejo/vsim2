@@ -37,10 +37,21 @@ final class NotePainter {
         paintLines(graphics, note, policy.monochrome() ? scheme.text() : scheme.noteText(style));
     }
 
-    private static void paintBox(Graphics2D graphics, TextLabel note, ColorScheme scheme, PaintPolicy policy) {
+    /** The rounded outline of {@code note}'s box in {@code color}, 1 px (its ghost). */
+    static void paintOutline(Graphics2D graphics, TextLabel note, Color color) {
+        graphics.setStroke(BORDER);
+        graphics.setColor(color);
+        graphics.draw(box(note));
+    }
+
+    private static RoundRectangle2D box(TextLabel note) {
         Rectangle2D bounds = LabelLayout.noteBox(note);
-        RoundRectangle2D box = new RoundRectangle2D.Double(bounds.getX(), bounds.getY(), bounds.getWidth(),
-                bounds.getHeight(), CORNER, CORNER);
+        return new RoundRectangle2D.Double(bounds.getX(), bounds.getY(), bounds.getWidth(), bounds.getHeight(), CORNER,
+                CORNER);
+    }
+
+    private static void paintBox(Graphics2D graphics, TextLabel note, ColorScheme scheme, PaintPolicy policy) {
+        RoundRectangle2D box = box(note);
         NoteStyle style = note.style();
         if (!policy.monochrome()) {
             scheme.noteBackground(style).ifPresent(fill -> {
@@ -50,7 +61,7 @@ final class NotePainter {
         }
         Optional<Color> border = policy.monochrome()
                 ? Optional.of(scheme.text()).filter(black -> style.border() != NoteColor.NONE)
-                : scheme.noteBorder(style.border());
+                : scheme.noteOutline(style);
         border.ifPresent(color -> {
             graphics.setStroke(policy.widened(BORDER));
             graphics.setColor(color);

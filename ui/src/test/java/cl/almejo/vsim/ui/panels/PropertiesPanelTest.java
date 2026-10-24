@@ -43,6 +43,7 @@ import java.awt.datatransfer.StringSelection;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static cl.almejo.vsim.ui.UiTestSupport.place;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -410,6 +411,20 @@ class PropertiesPanelTest {
         openDocument.history().undo();
         assertThat(styleOf(note)).isEqualTo(note.style());
         assertThat(panel.noteStyle(NoteStyle.Role.BACKGROUND).selectedValue()).isEqualTo(NoteColor.NONE);
+    }
+
+    /** The nine note colours must not widen a narrow Propiedades panel: no wider than a frame's seven tints. */
+    @Test
+    void theNoteColourRowsAreNoWiderThanTheFrameColourRow() {
+        TextLabel note = note(0, NoteStyle.PLAIN);
+        selection.select(note.id());
+        int frameRow = new ColorSwatches<>(List.of(FrameTint.values()), FrameTint.NONE, Enum::name,
+                tint -> Optional.<Color>empty()).getPreferredSize().width;
+
+        for (NoteStyle.Role role : NoteStyle.Role.values()) {
+            assertThat(panel.noteStyle(role).getPreferredSize().width).as(role.name())
+                    .isLessThanOrEqualTo(frameRow);
+        }
     }
 
     @Test

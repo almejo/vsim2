@@ -1,6 +1,9 @@
 package cl.almejo.vsim.ui.panels;
 
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.theme.ReadableColors;
+import com.formdev.flatlaf.FlatDarkLaf;
+import com.formdev.flatlaf.FlatLightLaf;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -9,6 +12,8 @@ import javax.swing.Action;
 import javax.swing.JComponent;
 import javax.swing.JTextField;
 import javax.swing.KeyStroke;
+import javax.swing.LookAndFeel;
+import javax.swing.UIManager;
 import java.awt.Component;
 import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
@@ -210,6 +215,82 @@ class ZoomControlTest {
 
         assertThat(pane.calls).as("the focus stays where it was").containsExactly("travel 0.5");
         assertThat(control.text()).isEqualTo("50 %");
+    }
+
+    /** Review I1: a preset picked with the mouse travels once and the keyboard goes back to the canvas. */
+    @Test
+    void aPresetPickedFromTheOpenListTravelsWhenTheListClosesAndGivesTheFocusBack() {
+        control.field().firePopupMenuWillBecomeVisible();
+
+        control.field().setSelectedItem("300 %");
+        assertThat(pane.calls).as("nothing while the list is open").isEmpty();
+        control.field().firePopupMenuWillBecomeInvisible();
+
+        assertThat(pane.calls).containsExactly("travel 3.0", "focus");
+        assertThat(control.text()).isEqualTo("300 %");
+    }
+
+    /** Review I1 (known T4d item): the arrows only move through the open list; one travel at the end. */
+    @Test
+    void movingThroughTheOpenListWithTheArrowsDoesNotZoomOnEveryPress() {
+        control.field().firePopupMenuWillBecomeVisible();
+
+        control.field().setSelectedItem("150 %");
+        control.field().setSelectedItem("200 %");
+        control.field().setSelectedItem("300 %");
+        assertThat(pane.calls).isEmpty();
+        type(editor().getText()); // Enter on the preset reached
+
+        assertThat(pane.calls).containsExactly("travel 3.0", "focus");
+        control.field().firePopupMenuWillBecomeInvisible(); // Enter closes the list: nothing more
+        assertThat(pane.calls).containsExactly("travel 3.0", "focus");
+    }
+
+    @Test
+    void closingTheListWithoutAPickLeavesTheZoomAndShowsItAgain() {
+        control.field().firePopupMenuWillBecomeVisible();
+        control.field().setSelectedItem("200 %");
+
+        control.field().firePopupMenuCanceled();
+        control.field().firePopupMenuWillBecomeInvisible();
+
+        assertThat(pane.calls).isEmpty();
+        assertThat(control.text()).isEqualTo("100 %");
+    }
+
+    @Test
+    void escapeInTheOpenListClosesItWithoutZooming() {
+        control.field().firePopupMenuWillBecomeVisible();
+        control.field().setSelectedItem("200 %");
+
+        Object name = editor().getInputMap(JComponent.WHEN_FOCUSED).get(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0));
+        editor().getActionMap().get(name).actionPerformed(new ActionEvent(editor(), ActionEvent.ACTION_PERFORMED, ""));
+        control.field().firePopupMenuWillBecomeInvisible();
+
+        assertThat(pane.calls).isEmpty();
+        assertThat(control.text()).isEqualTo("100 %");
+    }
+
+    /** Review I1: dragging or clicking the slider leaves the keyboard on the canvas; Tab still reaches it. */
+    @Test
+    void aMousePressOnTheSliderDoesNotTakeTheKeyboardFromTheCanvas() {
+        assertThat(control.slider().isRequestFocusEnabled()).isFalse();
+        assertThat(control.slider().isFocusable()).isTrue();
+    }
+
+    @Test
+    void theHundredPercentMarkStandsOutOnThePanelInTheLightAndTheDarkTheme() throws Exception {
+        LookAndFeel previous = UIManager.getLookAndFeel();
+        try {
+            for (LookAndFeel lookAndFeel : List.of(new FlatLightLaf(), new FlatDarkLaf())) {
+                UIManager.setLookAndFeel(lookAndFeel);
+                assertThat(ReadableColors.contrast(ZoomControl.centreMarkColor(), ReadableColors.panelBackground()))
+                        .as(lookAndFeel.getName())
+                        .isGreaterThanOrEqualTo(ZoomControl.MINIMUM_MARK_CONTRAST);
+            }
+        } finally {
+            UIManager.setLookAndFeel(previous);
+        }
     }
 
     @Test

@@ -161,7 +161,7 @@ public final class Application {
         aiServer.addListener(new AiServerService.Listener() {
             @Override
             public void stateChanged() {
-                if (!aiServer.isRunning()) {
+                if (!aiServer.isRunning() && !aiServer.isStarting()) {
                     proposals.withdrawAll(); // turning it off revokes everything (spec §9.1)
                     automationApi.stopPresenting(); // and ends every wait for «Siguiente» (IA.2)
                 }
@@ -480,8 +480,7 @@ public final class Application {
         sessionEnding.windowClosed(windows.isEmpty());
         if (windows.isEmpty()) {
             libraryService.close();
-            aiServer.stop();
-            System.exit(0);
+            aiServer.quit(() -> System.exit(0)); // the server stops off the EDT, then VSim ends (review M1)
         }
     }
 
