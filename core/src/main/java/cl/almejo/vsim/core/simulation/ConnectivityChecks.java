@@ -76,7 +76,11 @@ public final class ConnectivityChecks {
                         bodies.computeIfAbsent(definition, this::compileBody),
                         prefix + component.id().value() + InstancePath.SEPARATOR, depth + 1));
             }
-            checkWireEnds(level, prefix, pinPositions);
+            // The circuit itself is the user's work in progress: its loose wire ends are not faults, only those
+            // inside a component's body are.
+            if (!prefix.isEmpty()) {
+                checkWireEnds(level, prefix, pinPositions);
+            }
         }
 
         private Level compileBody(ComponentDefinition definition) {

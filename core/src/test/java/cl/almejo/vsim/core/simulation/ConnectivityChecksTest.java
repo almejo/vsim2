@@ -99,7 +99,14 @@ class ConnectivityChecksTest {
     }
 
     @Test
-    void aLooseBranchIsReportedEvenWhenTheNetConnectsTwoPins() {
+    void aDanglingWireInTheCircuitItselfIsNoProblem() {
+        document.add(new Wire(new ElementId("dangling"), new GridPoint(0, 0), new GridPoint(5, 0)));
+
+        assertThat(problems()).isEmpty();
+    }
+
+    @Test
+    void aLooseBranchInsideABodyIsReportedEvenWhenTheNetConnectsTwoPins() {
         Component source = component(StandardComponentTypes.SWITCH, "source", 0, 0);
         GridPoint output = registry.typeOf(source).pinLocation(source, 0);
         Component sink = component(StandardComponentTypes.LED, "sink", output.x() + 4, output.y() - 3);
@@ -110,9 +117,9 @@ class ConnectivityChecksTest {
         GridPoint junction = output.plus(new GridPoint(2, 0));
         document.add(new Wire(new ElementId("branch"), junction, junction.plus(new GridPoint(0, 3))));
 
-        assertThat(problems()).filteredOn(ConnectivityProblem::isPin).isEmpty();
-        assertThat(problems()).singleElement().satisfies(problem -> {
-            assertThat(problem.elementId()).isEqualTo("branch");
+        assertThat(internalProblems()).filteredOn(ConnectivityProblem::isPin).isEmpty();
+        assertThat(internalProblems()).singleElement().satisfies(problem -> {
+            assertThat(problem.elementId()).isEqualTo("wrapper/branch");
             assertThat(problem.position()).isEqualTo(junction.plus(new GridPoint(0, 3)));
         });
     }
@@ -131,7 +138,7 @@ class ConnectivityChecksTest {
         document.add(new Wire(new ElementId("first"), new GridPoint(0, 0), new GridPoint(5, 0)));
         document.add(new Wire(new ElementId("second"), new GridPoint(0, 0), new GridPoint(3, 0)));
 
-        assertThat(problems()).extracting(ConnectivityProblem::position)
+        assertThat(internalProblems()).extracting(ConnectivityProblem::position)
                 .containsExactlyInAnyOrder(new GridPoint(0, 0), new GridPoint(5, 0));
     }
 
@@ -180,8 +187,9 @@ class ConnectivityChecksTest {
         document.add(new Wire(new ElementId("horizontal"), new GridPoint(-5, 0), new GridPoint(5, 0)));
         document.add(new Wire(new ElementId("vertical"), new GridPoint(0, -5), new GridPoint(0, 5)));
 
-        assertThat(problems()).hasSize(4);
-        assertThat(problems()).extracting(ConnectivityProblem::netId).containsOnly("n:w:horizontal", "n:w:vertical");
+        assertThat(internalProblems()).hasSize(4);
+        assertThat(internalProblems()).extracting(ConnectivityProblem::netId)
+                .containsOnly("wrapper/n:w:horizontal", "wrapper/n:w:vertical");
     }
 
     @Test
