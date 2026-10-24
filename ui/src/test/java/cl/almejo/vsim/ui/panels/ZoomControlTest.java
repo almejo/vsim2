@@ -246,6 +246,19 @@ class ZoomControlTest {
         assertThat(pane.calls).containsExactly("travel 3.0", "focus");
     }
 
+    /** The user's check of the fix round: after using the field, a click on the slider or a button gives the keyboard back. */
+    @Test
+    void aClickOnTheSliderOrAButtonGivesTheKeyboardBackToThePane() {
+        for (javax.swing.JComponent clickable : List.of(control.slider(), control.zoomOutButton(),
+                control.zoomInButton(), control.resetButton(), control.fitButton(), control.selectionButton())) {
+            pane.calls.clear();
+            clickable.dispatchEvent(new java.awt.event.MouseEvent(clickable, java.awt.event.MouseEvent.MOUSE_PRESSED,
+                    0L, 0, 2, 2, 1, false, java.awt.event.MouseEvent.BUTTON1));
+
+            assertThat(pane.calls).as(clickable.getAccessibleContext().getAccessibleName()).contains("focus");
+        }
+    }
+
     @Test
     void closingTheListWithoutAPickLeavesTheZoomAndShowsItAgain() {
         control.field().firePopupMenuWillBecomeVisible();

@@ -30,7 +30,10 @@ import java.awt.event.FocusAdapter;
 import java.awt.event.FocusEvent;
 import java.awt.event.FocusListener;
 import java.awt.event.KeyEvent;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.beans.PropertyChangeListener;
+import java.util.List;
 import java.util.Objects;
 import java.util.OptionalDouble;
 import java.util.function.DoubleUnaryOperator;
@@ -149,6 +152,18 @@ public final class ZoomControl extends JPanel {
                 focusField();
             }
         };
+        // a click on the slider or a button never takes the keyboard, so give it back to the pane in case the field
+        // still holds it (the user used the field, then the slider: R and Supr must reach the canvas)
+        MouseAdapter keyboardToPane = new MouseAdapter() {
+            @Override
+            public void mousePressed(MouseEvent event) {
+                target.returnFocus();
+            }
+        };
+        for (JComponent clickable : List.of(slider, zoomOutButton, zoomInButton, resetButton, fitButton,
+                selectionButton)) {
+            clickable.addMouseListener(keyboardToPane);
+        }
         add(zoomOutButton);
         add(slider, "w " + SLIDER_MINIMUM_WIDTH + ":" + SLIDER_PREFERRED_WIDTH + ":" + SLIDER_PREFERRED_WIDTH);
         add(zoomInButton);
