@@ -102,12 +102,13 @@ class SimulationEngineTest {
     }
 
     @Test
-    void unconnectedInputGivesHighImpedanceOutput() {
+    void unconnectedInputGivesHighImpedanceOutputAndNoWarningForItsFreeTerminals() {
         ElementId buffer = place(TestComponentTypes.BUFFER, 0, 0, Map.of());
         synchronize();
         engine.advance(5);
         assertThat(valueAt(buffer, 1)).isEqualTo(Value.HIGH_IMPEDANCE);
-        assertThat(engine.snapshot().problems()).hasSize(2).allMatch(ConnectivityProblem.class::isInstance);
+        // A piece's free terminals on the canvas are work in progress, not a structural fault.
+        assertThat(engine.snapshot().problems()).noneMatch(ConnectivityProblem.class::isInstance);
     }
 
     @Test
