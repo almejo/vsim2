@@ -91,7 +91,7 @@ class WiresFollowFeaturesTest {
         List<java.awt.Component> components = List.of(view.toolBar().getComponents());
         AbstractButton button = buttonsNamed(view).get(0);
         int index = components.indexOf(button);
-        assertThat(((AbstractButton) components.get(index - 1)).getAction()).isSameAs(view.actions().panTool());
+        assertThat(((AbstractButton) components.get(index - 1)).getAction()).isSameAs(view.actions().zoomTool());
         assertThat(button.isSelected()).isTrue();
         assertThat(button.getToolTipText()).startsWith(NAME).contains("Mayús");
     }

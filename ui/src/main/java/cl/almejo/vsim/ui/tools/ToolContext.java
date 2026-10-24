@@ -44,6 +44,14 @@ public interface ToolContext {
         viewport().showAt(target.zoom(), target.centerX(), target.centerY(), size.width, size.height);
     }
 
+    /**
+     * Zooms the pane at once to {@code zoom} (clamped) around the screen point {@code screenPoint}, which keeps the
+     * grid point under it (the zoom tool's click steps); the canvas also tells its view listeners (the status bar).
+     */
+    default void zoomAt(Point2D screenPoint, double zoom) {
+        viewport().zoomAt(screenPoint.getX(), screenPoint.getY(), zoom);
+    }
+
     ColorScheme scheme();
 
     /** How moves of the selection treat the attached wires (M6.7), and where their notices go. */

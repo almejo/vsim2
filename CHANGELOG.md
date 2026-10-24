@@ -29,6 +29,11 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
   hasta que se ve el circuito entero, con un margen, y Ver ▸ «Zoom a la selección» (Mayús+2) hace lo mismo con lo
   seleccionado. Llegan con un viaje suave (o de un salto si «Animar los movimientos de la vista» está desactivado) y
   actúan sobre el panel activo.
+- Herramienta «Zoom» (botón después de «Mover vista», Ver ▸ «Zoom» o la tecla Z): arrastra un recuadro y la vista
+  viaja hasta que ese recuadro llena el panel; mientras arrastras, el recuadro dice el zoom al que llegará («250 %»).
+  Un clic acerca un paso alrededor del punto, y Alt + clic, Mayús + clic o el botón derecho alejan un paso. El cursor
+  es una lupa con «+» o, con Alt o Mayús apretada, con «−». Esc suelta el recuadro y, sin recuadro, vuelve a
+  Selección. El recuadro nunca sale al exportar ni al imprimir.
 
 ### Cambiado
 

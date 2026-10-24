@@ -52,6 +52,7 @@ public final class ActionIcons implements EditorExtension {
         names.put(actions.selectTool(), "select");
         names.put(actions.wireTool(), "wire");
         names.put(actions.panTool(), "pan");
+        names.put(actions.zoomTool(), "zoom-tool");
         names.put(actions.zoomIn(), "zoom-in");
         names.put(actions.zoomOut(), "zoom-out");
         names.put(actions.zoomReset(), "zoom-reset");

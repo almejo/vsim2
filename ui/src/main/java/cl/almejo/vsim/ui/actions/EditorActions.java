@@ -18,6 +18,7 @@ import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.panels.ConfigureDialog;
 import cl.almejo.vsim.ui.shortcuts.ShortcutCatalog;
 import cl.almejo.vsim.ui.tools.PanTool;
+import cl.almejo.vsim.ui.tools.ZoomTool;
 import cl.almejo.vsim.ui.tools.SelectTool;
 import cl.almejo.vsim.ui.tools.WireTool;
 import cl.almejo.vsim.ui.tunnel.TunnelNames;
@@ -83,6 +84,7 @@ public final class EditorActions {
     private final Action selectTool;
     private final Action wireTool;
     private final Action panTool;
+    private final Action zoomTool;
     private final Action zoomIn;
     private final Action zoomOut;
     private final Action zoomReset;
@@ -134,6 +136,8 @@ public final class EditorActions {
         selectTool = action(Messages.text("action.toolSelect"), null, toolChoice::useDefault);
         wireTool = action(Messages.text("action.toolWire"), null, () -> toolChoice.choose(WireTool::new));
         panTool = action(Messages.text("action.toolPan"), null, () -> toolChoice.choose(PanTool::new));
+        zoomTool = action(Messages.text("action.toolZoom"), null, () -> toolChoice.choose(ZoomTool::new));
+        zoomTool.putValue(Action.SHORT_DESCRIPTION, Messages.text("tooltip.toolZoom"));
         zoomIn = action(Messages.text("action.zoomIn"), shortcut(KeyEvent.VK_EQUALS, 0), 
                 () -> activePane.get().zoomIn());
         zoomOut = action(Messages.text("action.zoomOut"), shortcut(KeyEvent.VK_MINUS, 0),
@@ -195,6 +199,8 @@ public final class EditorActions {
     public Action selectTool() { return selectTool; }
     public Action wireTool() { return wireTool; }
     public Action panTool() { return panTool; }
+    /** «Zoom»: the zoom tool on every pane (a rectangle fills the pane, a click steps in, Alt/Mayús+click out). */
+    public Action zoomTool() { return zoomTool; }
     public Action zoomIn() { return zoomIn; }
     public Action zoomOut() { return zoomOut; }
     public Action zoomReset() { return zoomReset; }
@@ -271,6 +277,7 @@ public final class EditorActions {
         view.add(selectTool);
         view.add(wireTool);
         view.add(panTool);
+        view.add(zoomTool);
         view.addSeparator();
         view.add(zoomIn);
         view.add(zoomOut);

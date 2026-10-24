@@ -85,6 +85,7 @@ public final class ShortcutsExtension implements EditorExtension {
         map.put("view.selectTool", actions.selectTool());
         map.put("view.wireTool", actions.wireTool());
         map.put("view.panTool", actions.panTool());
+        map.put("view.zoomTool", actions.zoomTool());
         map.put("view.zoomIn", actions.zoomIn());
         map.put("view.zoomOut", actions.zoomOut());
         map.put("view.zoomReset", actions.zoomReset());

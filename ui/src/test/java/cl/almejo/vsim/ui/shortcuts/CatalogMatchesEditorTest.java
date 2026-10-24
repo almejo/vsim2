@@ -83,6 +83,7 @@ class CatalogMatchesEditorTest {
         actions.put("edit.rotateCounterClockwise", view.actions().rotateCounterClockwise());
         actions.put("edit.label", view.labelFeatures().actions().editLabel());
         actions.putAll(view.actions().moveActions());
+        actions.put("view.zoomTool", view.actions().zoomTool());
         actions.put("view.zoomToFit", view.actions().zoomToFit());
         actions.put("view.zoomToSelection", view.actions().zoomToSelection());
         actions.put("view.nextProblem", view.problems().nextProblem());

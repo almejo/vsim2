@@ -123,7 +123,7 @@ class SnapFeaturesTest {
         List<java.awt.Component> components = List.of(view.toolBar().getComponents());
         AbstractButton button = snapButtons(view, features.toggleAction()).getFirst();
         int index = components.indexOf(button);
-        assertThat(((AbstractButton) components.get(index - 1)).getAction()).isSameAs(view.actions().panTool());
+        assertThat(((AbstractButton) components.get(index - 1)).getAction()).isSameAs(view.actions().zoomTool());
         assertThat(button.isSelected()).isTrue();
         assertThat(button.getToolTipText()).isEqualTo("Ajustar a piezas y guías al mover");
         assertThat(features.toggleAction().getValue(Action.LARGE_ICON_KEY))

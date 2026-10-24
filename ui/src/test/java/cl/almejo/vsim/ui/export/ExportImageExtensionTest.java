@@ -4,10 +4,12 @@ import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.OpenDocument;
+import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.Appearance;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
+import cl.almejo.vsim.ui.tools.ZoomTool;
 import cl.almejo.vsim.core.library.ComponentLibrary;
 import cl.almejo.vsim.ui.window.EditorServices;
 import cl.almejo.vsim.ui.window.EditorView;
@@ -22,6 +24,8 @@ import javax.imageio.ImageIO;
 import javax.swing.JMenu;
 import javax.swing.JMenuItem;
 import java.awt.event.ActionEvent;
+import java.awt.event.InputEvent;
+import java.awt.event.MouseEvent;
 import java.awt.image.BufferedImage;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -120,6 +124,41 @@ class ExportImageExtensionTest {
         answer = Optional.of(new ExportChoice(file, ExportChoice.Format.SVG, 2, false));
         perform(features.action());
         assertThat(Files.readString(file)).contains("<svg");
+    }
+
+    @Test
+    void theZoomToolsRectangleNeverReachesAnExportedImage() throws Exception {
+        place(openDocument, StandardComponentTypes.SWITCH, 10, 10, Map.of());
+        view.setSize(1200, 800);
+        view.doLayout();
+        view.canvasPanes().setSize(800, 600);
+        view.canvasPanes().doLayout();
+        Path plain = directory.resolve("plain.png");
+        answer = Optional.of(new ExportChoice(plain, ExportChoice.Format.PNG, 1, false));
+        perform(features.action());
+
+        view.actions().zoomTool().actionPerformed(null);
+        CircuitCanvas canvas = view.canvas();
+        assertThat(canvas.tool()).isInstanceOf(ZoomTool.class);
+        int down = InputEvent.BUTTON1_DOWN_MASK;
+        canvas.getMouseListeners()[0].mousePressed(new MouseEvent(canvas, MouseEvent.MOUSE_PRESSED, 0, down, 50, 50, 1,
+                false, MouseEvent.BUTTON1));
+        canvas.getMouseMotionListeners()[0].mouseDragged(new MouseEvent(canvas, MouseEvent.MOUSE_DRAGGED, 0, down,
+                400, 300, 1, false, MouseEvent.NOBUTTON));
+        assertThat(canvas.tool().animatesOutline()).as("a rectangle is being dragged").isTrue();
+        Path during = directory.resolve("during.png");
+        answer = Optional.of(new ExportChoice(during, ExportChoice.Format.PNG, 1, false));
+        perform(features.action());
+
+        BufferedImage expected = ImageIO.read(plain.toFile());
+        BufferedImage actual = ImageIO.read(during.toFile());
+        assertThat(actual.getWidth()).isEqualTo(expected.getWidth());
+        assertThat(actual.getHeight()).isEqualTo(expected.getHeight());
+        for (int y = 0; y < expected.getHeight(); y++) {
+            for (int x = 0; x < expected.getWidth(); x++) {
+                assertThat(actual.getRGB(x, y)).as("pixel (%d, %d)", x, y).isEqualTo(expected.getRGB(x, y));
+            }
+        }
     }
 
     @Test

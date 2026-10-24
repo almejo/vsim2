@@ -434,6 +434,10 @@ class CanvasTravelTest {
 
             assertThat(canvas.viewState()).isEqualTo(new ViewState(2, 10, 5));
             assertThat(other.viewState()).isEqualTo(new ViewState(1, 0, 0));
+
+            crossing.zoomAt(new Point2D.Double(200, 150), 1.0); // a click step: the pressed pane too
+            assertThat(canvas.viewState().zoom()).isEqualTo(1.0);
+            assertThat(other.viewState()).isEqualTo(new ViewState(1, 0, 0));
         } finally {
             other.dispose();
         }

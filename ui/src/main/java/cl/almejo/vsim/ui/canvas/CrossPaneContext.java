@@ -70,6 +70,12 @@ final class CrossPaneContext implements ToolContext {
         owner.zoomTo(target);
     }
 
+    /** Zooms the pressed pane, never the one the pointer is over. */
+    @Override
+    public void zoomAt(Point2D screenPoint, double zoom) {
+        owner.zoomAt(screenPoint, zoom);
+    }
+
     @Override
     public ColorScheme scheme() {
         return over.scheme();

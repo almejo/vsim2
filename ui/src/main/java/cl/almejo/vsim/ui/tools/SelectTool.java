@@ -27,7 +27,6 @@ import cl.almejo.vsim.ui.canvas.LabelLayout;
 import cl.almejo.vsim.ui.paint.InterfacePinPainter;
 import cl.almejo.vsim.ui.paint.PainterSupport;
 import cl.almejo.vsim.ui.paint.TextFonts;
-import cl.almejo.vsim.ui.canvas.MarchingAnts;
 import cl.almejo.vsim.ui.canvas.SelectionBounds;
 import cl.almejo.vsim.ui.snap.AlignmentLinesPainter;
 import cl.almejo.vsim.ui.snap.MatchedGuides;
@@ -854,9 +853,8 @@ public final class SelectTool implements Tool {
         Rectangle2D pixels = new Rectangle2D.Double(band.getX() * unit, band.getY() * unit,
                 band.getWidth() * unit, band.getHeight() * unit);
         Color color = subtracts ? context.scheme().wireConflict() : context.scheme().selection();
-        graphics.setColor(PainterSupport.withAlpha(color, subtracts ? SUBTRACT_BAND_FILL_ALPHA : BAND_FILL_ALPHA));
-        graphics.fill(pixels);
-        MarchingAnts.draw(graphics, pixels, color, BAND_WIDTH, context.selectionDashPhase());
+        RubberBand.paint(graphics, pixels, color, subtracts ? SUBTRACT_BAND_FILL_ALPHA : BAND_FILL_ALPHA, BAND_WIDTH,
+                context.selectionDashPhase());
     }
 
     /** A pin of a selected component moves the selection when the selection holds more than one element. */

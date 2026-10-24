@@ -28,6 +28,7 @@ import cl.almejo.vsim.ui.panels.StatusBar;
 import cl.almejo.vsim.ui.problems.ProblemsController;
 import cl.almejo.vsim.ui.shortcuts.ShortcutCatalog;
 import cl.almejo.vsim.ui.tools.PanTool;
+import cl.almejo.vsim.ui.tools.ZoomTool;
 import cl.almejo.vsim.ui.tools.PlaceComponentTool;
 import cl.almejo.vsim.ui.tools.SelectTool;
 import cl.almejo.vsim.ui.tools.Tool;
@@ -106,6 +107,7 @@ public final class EditorView extends JPanel implements CanvasHost {
     private final JToggleButton selectButton;
     private final JToggleButton wireButton;
     private final JToggleButton panButton;
+    private final JToggleButton zoomButton;
     private final Map<Class<? extends Tool>, JToggleButton> extraToolButtons = new LinkedHashMap<>();
     private final LabelFeatures labelFeatures;
     private final InlineTextEditor inlineEditor;
@@ -154,6 +156,7 @@ public final class EditorView extends JPanel implements CanvasHost {
         selectButton = new JToggleButton(actions.selectTool());
         wireButton = new JToggleButton(actions.wireTool());
         panButton = new JToggleButton(actions.panTool());
+        zoomButton = new JToggleButton(actions.zoomTool());
         buildToolBar();
 
         this.canvasArea = new CanvasArea(canvasPanes);
@@ -557,10 +560,10 @@ public final class EditorView extends JPanel implements CanvasHost {
 
     /**
      * Adds a toggle button that is not a tool (it stays outside the tool group) right after the last tool button,
-     * Mover vista. Returns what takes it back.
+     * Zoom. Returns what takes it back.
      */
     public Runnable addToolbarToggleAfterTools(JToggleButton button) {
-        toolBar.add(button, indexOfToolButton(panButton) + 1);
+        toolBar.add(button, indexOfToolButton(zoomButton) + 1);
         toolBar.revalidate();
         return () -> {
             toolBar.remove(button);
@@ -591,7 +594,7 @@ public final class EditorView extends JPanel implements CanvasHost {
         toolBar.add(actions.undo());
         toolBar.add(actions.redo());
         toolBar.addSeparator();
-        for (JToggleButton button : new JToggleButton[]{selectButton, wireButton, panButton}) {
+        for (JToggleButton button : new JToggleButton[]{selectButton, wireButton, panButton, zoomButton}) {
             toolButtons.add(button);
             toolBar.add(button);
         }
@@ -688,6 +691,7 @@ public final class EditorView extends JPanel implements CanvasHost {
         bindKey(pane, bound, KeyStroke.getKeyStroke(KeyEvent.VK_R, InputEvent.SHIFT_DOWN_MASK),
                 "rotateCounterClockwise", actions.rotateCounterClockwise());
         Map<String, Action> canvasKeys = new LinkedHashMap<>(actions.moveActions());
+        canvasKeys.put("view.zoomTool", actions.zoomTool());
         canvasKeys.put("view.zoomToFit", actions.zoomToFit());
         canvasKeys.put("view.zoomToSelection", actions.zoomToSelection());
         canvasKeys.forEach((id, action) -> ShortcutCatalog.find(id).flatMap(entry -> entry.defaultStroke())
@@ -806,6 +810,7 @@ public final class EditorView extends JPanel implements CanvasHost {
             case SelectTool select -> selectButton.setSelected(true);
             case WireTool wire -> wireButton.setSelected(true);
             case PanTool pan -> panButton.setSelected(true);
+            case ZoomTool zoom -> zoomButton.setSelected(true);
             default -> {
                 JToggleButton extra = extraToolButtons.get(tool.getClass());
                 if (extra != null) {

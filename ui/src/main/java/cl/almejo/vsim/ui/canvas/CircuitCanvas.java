@@ -876,6 +876,13 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         zoomTo(ZoomTargets.fitting(bounds, getWidth(), getHeight(), FIT_FRACTION, viewport.zoom()));
     }
 
+    /** An instant zoom around a point of this pane (the zoom tool's click): the status bar follows. */
+    @Override
+    public void zoomAt(Point2D screenPoint, double zoom) {
+        viewport.zoomAt(screenPoint.getX(), screenPoint.getY(), zoom);
+        viewChanged();
+    }
+
     /** The canvas's size in pixels: the pane a tool zooms. */
     @Override
     public Dimension viewSize() {
@@ -1396,8 +1403,8 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     }
 
     /**
-     * The AWT cursor of {@code cursor} (AWT keeps one instance of each predefined cursor; the selection cursors are
-     * drawn once, lazily).
+     * The AWT cursor of {@code cursor} (AWT keeps one instance of each predefined cursor; the selection and zoom cursors
+     * are drawn once, lazily).
      */
     private static Cursor awtCursor(CanvasCursor cursor) {
         return switch (cursor) {
@@ -1417,6 +1424,8 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
             case SLIDE_HORIZONTAL -> Cursor.getPredefinedCursor(Cursor.E_RESIZE_CURSOR);
             case ADD_TO_SELECTION -> SelectionCursors.adding();
             case REMOVE_FROM_SELECTION -> SelectionCursors.removing();
+            case ZOOM_IN -> ZoomCursors.zoomIn();
+            case ZOOM_OUT -> ZoomCursors.zoomOut();
         };
     }
 

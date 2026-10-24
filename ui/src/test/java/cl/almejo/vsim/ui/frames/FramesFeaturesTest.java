@@ -416,14 +416,14 @@ class FramesFeaturesTest {
                 names.add(button.getAction().getValue(javax.swing.Action.NAME).toString());
             }
         }
-        assertThat(names).containsExactly("Selección", "Cable", "Marco", "Mover vista");
+        assertThat(names).containsExactly("Selección", "Cable", "Marco", "Mover vista", "Zoom");
         List<String> viewTexts = new ArrayList<>();
         for (java.awt.Component child : view.menu(MenuId.VIEW).getMenuComponents()) {
             if (child instanceof JMenuItem item) {
                 viewTexts.add(item.getText());
             }
         }
-        assertThat(viewTexts.subList(0, 4)).containsExactly("Selección", "Cable", "Marco", "Mover vista");
+        assertThat(viewTexts.subList(0, 5)).containsExactly("Selección", "Cable", "Marco", "Mover vista", "Zoom");
     }
 
     @Test

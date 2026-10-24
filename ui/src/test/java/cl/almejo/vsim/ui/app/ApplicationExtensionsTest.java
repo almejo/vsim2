@@ -158,7 +158,8 @@ class ApplicationExtensionsTest {
         EditorView view = new EditorView(openDocument, services, NO_WINDOW);
         try {
             assertThat(texts(view.menu(MenuId.VIEW))).containsExactly("Selección", "Cable", "Marco",
-                    "Mover vista", "---", "Acercar", "Alejar", "Zoom 100 %", "Ver todo el circuito", "Zoom a la selección",
+                    "Mover vista", "Zoom", "---", "Acercar", "Alejar", "Zoom 100 %", "Ver todo el circuito",
+                    "Zoom a la selección",
                     "Centrar circuito", "---", "Cuadrícula",
                     "Ajustar", "Ajustar a", "Mostrar guías", "Agregar guía horizontal", "Agregar guía vertical",
                     "Borrar guías", "---", "Siguiente problema", "Problema anterior", "---", "Formas de onda", "---",

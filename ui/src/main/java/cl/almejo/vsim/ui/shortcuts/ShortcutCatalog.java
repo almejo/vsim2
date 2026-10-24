@@ -14,11 +14,11 @@ import java.util.Set;
 
 /**
  * Every action whose keyboard shortcut the user can change (spec §5.2), ordered by menu and then menu order. Ids are
- * {@code <group>.<action>}; the name is the action's own menu text. The 44 defaults are the editor's accelerators
+ * {@code <group>.<action>}; the name is the action's own menu text. The 45 defaults are the editor's accelerators
  * (F5 for «Iniciar o pausar», F6 for «Avanzar N t», Ctrl+F, F3 and Mayús+F3 for «Buscar»), its canvas keys (the eight
- * arrows that move the selection, Mayús+1 and Mayús+2 for «Ver todo el circuito» and «Zoom a la selección» included),
- * F7 and Mayús+F7 for M6.1-B's two advances; the others start without a shortcut. Defaults use the platform menu
- * modifier (⌘ on macOS).
+ * arrows that move the selection, Z for the zoom tool, Mayús+1 and Mayús+2 for «Ver todo el circuito» and «Zoom a la
+ * selección» included), F7 and Mayús+F7 for M6.1-B's two advances; the others start without a shortcut. Defaults use
+ * the platform menu modifier (⌘ on macOS).
  */
 public final class ShortcutCatalog {
 
@@ -92,6 +92,8 @@ public final class ShortcutCatalog {
         window(entries, "view.wireTool", "action.toolWire", MenuId.VIEW, null);
         window(entries, "view.frameTool", "action.toolFrame", MenuId.VIEW, null);
         window(entries, "view.panTool", "action.toolPan", MenuId.VIEW, null);
+        // a plain letter: a canvas key, so typing «z» in a text field never picks the tool (zoom spec §5.1)
+        canvasView(entries, "view.zoomTool", "action.toolZoom", stroke(KeyEvent.VK_Z, 0));
         window(entries, "view.zoomIn", "action.zoomIn", MenuId.VIEW, stroke(KeyEvent.VK_EQUALS, menu));
         window(entries, "view.zoomOut", "action.zoomOut", MenuId.VIEW, stroke(KeyEvent.VK_MINUS, menu));
         window(entries, "view.zoomReset", "action.zoomReset", MenuId.VIEW, stroke(KeyEvent.VK_0, menu));
@@ -147,7 +149,7 @@ public final class ShortcutCatalog {
         entries.add(new ShortcutEntry(id, nameKey, MenuId.EDIT, Scope.CANVAS, Optional.of(defaultStroke)));
     }
 
-    /** Canvas keys of the Ver menu (Mayús+1, Mayús+2, F8, Mayús+F8): the menu items show no accelerator. */
+    /** Canvas keys of the Ver menu (Z, Mayús+1, Mayús+2, F8, Mayús+F8): the menu items show no accelerator. */
     private static void canvasView(List<ShortcutEntry> entries, String id, String nameKey, KeyStroke defaultStroke) {
         entries.add(new ShortcutEntry(id, nameKey, MenuId.VIEW, Scope.CANVAS, Optional.of(defaultStroke)));
     }
