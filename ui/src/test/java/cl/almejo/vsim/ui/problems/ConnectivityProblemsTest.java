@@ -91,7 +91,7 @@ class ConnectivityProblemsTest {
         assertThat(view.problems().nextProblem().isEnabled()).isTrue();
         ConnectivityProblem problem = openDocument.connectivityProblems().getFirst();
         assertThat(ProblemText.describe(problem, openDocument.document(), openDocument.registry()))
-                .contains("Padre", "A1", "Luz", "desconectado");
+                .contains("Padre", "A1", "Luz", "desconectada");
     }
 
     @Test
@@ -127,6 +127,41 @@ class ConnectivityProblemsTest {
         repairChild();
 
         assertThat(warningPixel(overlay)).isZero();
+    }
+
+    @Test
+    void aComponentBrokenInsideGlowsAsAWholeInTheCurrentThemeAndStopsGlowingAfterRepair() {
+        AtomicReference<ColorScheme> scheme = new AtomicReference<>(ColorScheme.LIGHT);
+        ConnectivityOverlay overlay = new ConnectivityOverlay(openDocument, scheme::get);
+        int light = bodyPixel(overlay);
+        assertThat(light).isNotZero();
+        scheme.set(ColorSchemes.DARK);
+        assertThat(bodyPixel(overlay)).isNotZero().isNotEqualTo(light);
+
+        repairChild();
+
+        assertThat(bodyPixel(overlay)).isZero();
+    }
+
+    @Test
+    void theProblemsLineNamesTheFullPathAndTheKindOfPin() {
+        ConnectivityProblem problem = openDocument.connectivityProblems().getFirst();
+
+        assertThat(ProblemText.describe(problem, openDocument.document(), openDocument.registry()))
+                .startsWith("Padre › A1 › Luz")
+                .contains("entrada")
+                .endsWith("desconectada");
+        assertThat(problem.path()).hasSize(3).first().isEqualTo(outer.id());
+    }
+
+    private int bodyPixel(ConnectivityOverlay overlay) {
+        BufferedImage image = new BufferedImage(180, 180, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D graphics = image.createGraphics();
+        overlay.paint(graphics, new RenderState(openDocument.document(), openDocument.netlist(),
+                openDocument.netlistToken(), SimulationSnapshot.EMPTY, Set.of(), 0));
+        graphics.dispose();
+        // The centre of the outer piece (10,10 .. 14,14), away from the triangle at its top-right corner.
+        return image.getRGB(12 * GridPoint.PIXELS_PER_UNIT, 12 * GridPoint.PIXELS_PER_UNIT);
     }
 
     private int warningPixel(ConnectivityOverlay overlay) {

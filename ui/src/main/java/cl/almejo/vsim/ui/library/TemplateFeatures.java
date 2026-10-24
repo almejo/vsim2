@@ -68,6 +68,9 @@ public final class TemplateFeatures {
                 () -> view.canvas().scheme(), EveryPane.repaint(view));
         badge.install();
         Runnable removeBadges = EveryPane.addOverlay(view, badge);
+        OutdatedPiecesReporter outdatedPieces = new OutdatedPiecesReporter(view.openDocument(), service.library(),
+                view.problems());
+        outdatedPieces.install();
 
         // Also on library changes: whether a broken file "can be deleted" depends on what the library holds.
         Runnable problemsListener = () -> {
@@ -96,6 +99,7 @@ public final class TemplateFeatures {
                 problemsListener, () -> {
                     removeWarnings.run();
                     removeBadges.run();
+                    outdatedPieces.dispose();
                 });
     }
 

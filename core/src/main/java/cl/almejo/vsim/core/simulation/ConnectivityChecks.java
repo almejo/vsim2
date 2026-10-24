@@ -72,9 +72,11 @@ public final class ConnectivityChecks {
             for (Component component : level.document().components()) {
                 ComponentType type = registry.typeOf(component);
                 checkPins(level, component, type, prefix, pinPositions);
-                SubcircuitTypes.definitionOf(type).ifPresent(definition -> visit(
-                        bodies.computeIfAbsent(definition, this::compileBody),
-                        prefix + component.id().value() + InstancePath.SEPARATOR, depth + 1));
+                SubcircuitTypes.definitionOf(type).ifPresent(definition -> {
+                    Level body = bodies.computeIfAbsent(definition, this::compileBody);
+                    checkInterface(body, definition, component, type, prefix);
+                    visit(body, prefix + component.id().value() + InstancePath.SEPARATOR, depth + 1);
+                });
             }
             // The circuit itself is the user's work in progress: its loose wire ends are not faults, only those
             // inside a component's body are.
@@ -114,6 +116,25 @@ public final class ConnectivityChecks {
                     String netId = net.map(found -> found.id().value()).orElse(component.id().value());
                     problems.add(new ConnectivityProblem(prefix + netId, prefix + component.id().value(),
                             pinIndex, position));
+                }
+            }
+        }
+
+        /**
+         * A terminal of {@code component} whose interface element ({@code input-pin} / {@code output-pin}) touches
+         * nothing inside the body leads nowhere: the outer terminal is marked, on the piece itself. The element is
+         * not a fault inside the body, and a terminal left free outside is not one either.
+         */
+        private void checkInterface(Level body, ComponentDefinition definition, Component component,
+                                    ComponentType type, String prefix) {
+            for (int pinIndex = 0; pinIndex < definition.pinout().size() && pinIndex < type.pinCount(); pinIndex++) {
+                PinRef element = new PinRef(definition.pinout().get(pinIndex).source(), 0);
+                Optional<Net> net = body.netlist().netForPin(element);
+                if (net.isEmpty() || net.get().pins().size() < 2) {
+                    problems.add(new ConnectivityProblem(
+                            prefix + net.map(found -> found.id().value()).orElse(element.componentId().value()),
+                            prefix + component.id().value(), pinIndex, type.pinLocation(component, pinIndex),
+                            ConnectivityProblem.Cause.UNCONNECTED_INTERFACE));
                 }
             }
         }
