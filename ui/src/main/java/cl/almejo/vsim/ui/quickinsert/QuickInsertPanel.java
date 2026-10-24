@@ -10,6 +10,7 @@ import cl.almejo.vsim.ui.paint.ComponentIcon;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
 
 import javax.swing.AbstractAction;
+import javax.swing.BorderFactory;
 import javax.swing.DefaultListCellRenderer;
 import javax.swing.DefaultListModel;
 import javax.swing.JComponent;
@@ -20,6 +21,7 @@ import javax.swing.JScrollPane;
 import javax.swing.JTextField;
 import javax.swing.KeyStroke;
 import javax.swing.ListSelectionModel;
+import javax.swing.SwingUtilities;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import java.awt.BorderLayout;
@@ -30,6 +32,7 @@ import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.function.Consumer;
 
@@ -53,7 +56,7 @@ final class QuickInsertPanel extends JPanel {
         this.palette = palette;
         this.choose = choose;
         this.cancel = cancel;
-        setBorder(javax.swing.BorderFactory.createEmptyBorder(6, 6, 6, 6));
+        setBorder(BorderFactory.createEmptyBorder(6, 6, 6, 6));
         setPreferredSize(POPUP_SIZE);
         search.putClientProperty("JTextField.placeholderText", Messages.text("quickInsert.search"));
         search.getAccessibleContext().setAccessibleName(Messages.text("quickInsert.search"));
@@ -82,7 +85,7 @@ final class QuickInsertPanel extends JPanel {
         list.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent event) {
-                if (javax.swing.SwingUtilities.isLeftMouseButton(event)) {
+                if (SwingUtilities.isLeftMouseButton(event)) {
                     int index = list.locationToIndex(event.getPoint());
                     if (index >= 0 && list.getCellBounds(index, index).contains(event.getPoint())) {
                         list.setSelectedIndex(index);
@@ -133,7 +136,7 @@ final class QuickInsertPanel extends JPanel {
     }
 
     List<PaletteEntry> results() {
-        return java.util.Collections.list(model.elements());
+        return Collections.list(model.elements());
     }
 
     /** Re-resolves ids on every refresh: a missing library entry stays saved but cannot be placed. */

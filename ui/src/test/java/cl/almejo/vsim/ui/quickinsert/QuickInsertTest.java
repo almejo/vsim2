@@ -35,8 +35,11 @@ import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import javax.swing.JTextField;
+import javax.swing.KeyStroke;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -149,6 +152,42 @@ class QuickInsertTest {
     }
 
     @Test
+    void aDoubleClickOnAPinTipOutsideTheBodyDoesNotOpenTheSearch() {
+        Component gate = document.registry().require("and3").newComponent(new ElementId("gate"),
+                new GridPoint(20, 20), Rotation.R0, Map.of(), "");
+        document.execute(new AddElementsCommand(List.of(gate)));
+        SelectToolDelegate delegate = ((SelectTool) view.canvas().defaultTool()).delegates().getLast();
+        Point2D outputTip = new Point2D.Double(24.4, 22);
+        assertThat(view.canvas().hitTester().elementAt(document.document(), outputTip)).as("outside the body")
+                .isEmpty();
+
+        CanvasMouseEvent event = new CanvasMouseEvent(outputTip, new GridPoint(24, 22), new Point2D.Double(),
+                CanvasMouseEvent.PRIMARY, false, false, 2);
+
+        assertThat(delegate.pressed(view.canvas(), event)).isEqualTo(SelectToolDelegate.Press.IGNORED);
+        assertThat(shown).isNull();
+    }
+
+    @Test
+    void choosingAUserComponentNobodyPlacesSendsNoPressToTheSelectTool() {
+        DefinitionBundle bundle = new DefinitionBundle(ExampleDefinitions.inverter(), List.of());
+        view.palette().setUserComponents(List.of(bundle), List.of());
+        view.canvas().tool().mousePressed(view.canvas(), at(10, 20, 2));
+        List<CanvasMouseEvent> presses = new ArrayList<>();
+        ((SelectTool) view.canvas().defaultTool()).addDelegate((context, event) -> {
+            presses.add(event);
+            return SelectToolDelegate.Press.IGNORED;
+        });
+
+        shown.setQuery("INVERSOR");
+        shown.acceptSelection();
+
+        assertThat(view.canvas().tool()).isInstanceOf(SelectTool.class);
+        assertThat(presses).isEmpty();
+        assertThat(document.document().components()).isEmpty();
+    }
+
+    @Test
     void existingComponentsLabelsBusValuesWiresAndFrameControlsKeepTheirDoubleClick() {
         Component gate = document.registry().require("and3").newComponent(new ElementId("gate"),
                 new GridPoint(20, 20), Rotation.R0, Map.of(), "Etiqueta larga");
@@ -195,15 +234,15 @@ class QuickInsertTest {
         showFavorites();
         view.services().preferences().setPaletteFavorites(List.of("and3", "led"));
         view.canvas().tool().mousePressed(view.canvas(), at(10, 10, 2));
-        javax.swing.JTextField field = shown.searchField();
-        Object down = field.getInputMap().get(javax.swing.KeyStroke.getKeyStroke(KeyEvent.VK_DOWN, 0));
+        JTextField field = shown.searchField();
+        Object down = field.getInputMap().get(KeyStroke.getKeyStroke(KeyEvent.VK_DOWN, 0));
         field.getActionMap().get(down).actionPerformed(new ActionEvent(field, 0, ""));
         field.postActionEvent();
         assertThat(document.document().components()).singleElement()
                 .extracting(component -> component.typeId()).isEqualTo("led");
         view.canvas().tool().mousePressed(view.canvas(), at(100, 100, 2));
-        javax.swing.JTextField nextField = shown.searchField();
-        Object escape = nextField.getInputMap().get(javax.swing.KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0));
+        JTextField nextField = shown.searchField();
+        Object escape = nextField.getInputMap().get(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0));
         nextField.getActionMap().get(escape).actionPerformed(new ActionEvent(nextField, 0, ""));
         assertThat(closed).isEqualTo(2);
         assertThat(document.document().components()).hasSize(1);

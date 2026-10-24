@@ -1,8 +1,11 @@
 package cl.almejo.vsim.ui.quickinsert;
 
+import cl.almejo.vsim.core.component.ComponentType;
+import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
+import cl.almejo.vsim.ui.canvas.ConnectionPoints;
 import cl.almejo.vsim.ui.canvas.LabelLayout;
 import cl.almejo.vsim.ui.frames.FrameHitTester;
 import cl.almejo.vsim.ui.i18n.Messages;
@@ -61,7 +64,11 @@ final class QuickInsertFeatures {
                     @Override public void actionPerformed(ActionEvent event) { openFromShortcut(); }
                 });
         removeDelegates = view.forEachPane(canvas -> {
-            Runnable remove = ((SelectTool) canvas.defaultTool()).addDelegate((context, event) -> {
+            if (!(canvas.defaultTool() instanceof SelectTool selectTool)) {
+                return () -> {
+                };
+            }
+            Runnable remove = selectTool.addDelegate((context, event) -> {
                 if (event.button() != CanvasMouseEvent.PRIMARY || event.clickCount() != 2 || event.shiftDown()
                         || event.controlDown() || event.altDown() || !isEmpty(context, event.gridPosition())) {
                     return SelectToolDelegate.Press.IGNORED;
@@ -131,6 +138,10 @@ final class QuickInsertFeatures {
         }
         close();
         view.palette().chooseEntry(available.get());
+        if (!canvas.tool().placesFromPalette()) {
+            canvas.requestFocusInWindow(); // nobody started placing it (no chooser for user components)
+            return;
+        }
         CanvasMouseEvent placement = chosenPoint.map(event -> new CanvasMouseEvent(event.gridPosition(),
                 event.snapped(), event.screenPosition(), CanvasMouseEvent.PRIMARY, false, false, 1))
                 .orElseGet(() -> new CanvasMouseEvent(canvas.viewport().screenToGrid(position.x, position.y),
@@ -141,17 +152,21 @@ final class QuickInsertFeatures {
         canvas.requestFocusInWindow();
     }
 
-    /** Excludes labels, bus value boxes and frame controls, which lie outside ordinary component hit bounds. */
+    /**
+     * Nothing there: excludes labels, bus value boxes, frame controls and pin tips, which lie outside ordinary
+     * component hit bounds.
+     */
     private static boolean isEmpty(ToolContext context, Point2D point) {
-        if (context.hitTester().elementAt(context.openDocument().document(), point).isPresent()
-                || FrameHitTester.hit(context.openDocument().document(), point,
-                context.viewport().pixelsPerUnit()).isPresent()) {
+        CircuitDocument document = context.openDocument().document();
+        if (context.hitTester().elementAt(document, point).isPresent()
+                || FrameHitTester.hit(document, point, context.viewport().pixelsPerUnit()).isPresent()
+                || new ConnectionPoints(context.openDocument().registry()).pinNear(document, point).isPresent()) {
             return false;
         }
         double documentX = point.getX() * GridPoint.PIXELS_PER_UNIT;
         double documentY = point.getY() * GridPoint.PIXELS_PER_UNIT;
-        for (Component component : context.openDocument().document().components()) {
-            cl.almejo.vsim.core.component.ComponentType type = context.openDocument().registry().typeOf(component);
+        for (Component component : document.components()) {
+            ComponentType type = context.openDocument().registry().typeOf(component);
             if (LabelLayout.componentLabel(type, component)
                     .map(label -> label.bounds().contains(documentX, documentY)).orElse(false)
                     || InterfacePinPainter.valueBox(type, component)

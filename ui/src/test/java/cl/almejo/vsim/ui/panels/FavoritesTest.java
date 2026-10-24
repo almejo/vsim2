@@ -11,11 +11,15 @@ import cl.almejo.vsim.ui.paint.PainterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import javax.swing.JComponent;
 import javax.swing.JMenuItem;
+import javax.swing.JScrollPane;
 import javax.swing.JTree;
+import javax.swing.TransferHandler;
 import javax.swing.tree.TreePath;
 import java.awt.Rectangle;
 import java.awt.event.ActionEvent;
+import java.awt.event.InputEvent;
 import java.awt.event.MouseEvent;
 import java.util.ArrayList;
 import java.util.List;
@@ -200,16 +204,16 @@ class FavoritesTest {
         JTree tree = palette.tree();
         palette.setSize(340, 2000);
         palette.doLayout();
-        javax.swing.JScrollPane scroll = (javax.swing.JScrollPane) palette.getComponent(1);
+        JScrollPane scroll = (JScrollPane) palette.getComponent(1);
         scroll.doLayout();
         scroll.getViewport().doLayout();
         tree.setSize(300, 2000);
         Rectangle entry = tree.getPathBounds(palette.pathOf("led"));
         int starX = tree.getVisibleRect().x + tree.getVisibleRect().width - 12;
         List<Integer> drags = new ArrayList<>();
-        tree.setTransferHandler(new javax.swing.TransferHandler() {
+        tree.setTransferHandler(new TransferHandler() {
             @Override
-            public void exportAsDrag(javax.swing.JComponent source, java.awt.event.InputEvent event, int action) {
+            public void exportAsDrag(JComponent source, InputEvent event, int action) {
                 drags.add(action);
             }
         });
@@ -219,7 +223,7 @@ class FavoritesTest {
                     1, false, MouseEvent.BUTTON1));
             if (eventId == MouseEvent.MOUSE_PRESSED) {
                 tree.dispatchEvent(new MouseEvent(tree, MouseEvent.MOUSE_DRAGGED, 0,
-                        java.awt.event.InputEvent.BUTTON1_DOWN_MASK, starX - 30, entry.y + 20,
+                        InputEvent.BUTTON1_DOWN_MASK, starX - 30, entry.y + 20,
                         0, false, MouseEvent.NOBUTTON));
             }
         }
