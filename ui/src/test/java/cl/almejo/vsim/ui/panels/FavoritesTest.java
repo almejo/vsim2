@@ -13,7 +13,9 @@ import org.junit.jupiter.api.Test;
 
 import javax.swing.JMenuItem;
 import javax.swing.JTree;
+import javax.swing.tree.TreePath;
 import java.awt.Rectangle;
+import java.awt.event.ActionEvent;
 import java.awt.event.MouseEvent;
 import java.util.ArrayList;
 import java.util.List;
@@ -98,6 +100,35 @@ class FavoritesTest {
         palette.setFilter("led");
         assertThat(palette.visibleSections()).startsWith("Favoritos");
         assertThat(palette.visibleTypeIds()).containsExactly("led", "led");
+    }
+
+    @Test
+    void theArrowKeysWalkPastTheEmptyHintBothWays() {
+        JTree tree = palette.tree();
+        tree.setSelectionRow(0);
+
+        press(tree, "selectNext");
+        assertThat(tree.getSelectionRows()).containsExactly(2);
+        assertThat(tree.getPathForRow(2).getLastPathComponent().toString()).isEqualTo("BASIC");
+        press(tree, "selectPrevious");
+        assertThat(tree.getSelectionRows()).containsExactly(0);
+        assertThat(chosen).isEmpty();
+    }
+
+    @Test
+    void aClickOnTheEmptyHintKeepsWhatIsBeingPlacedHighlighted() {
+        palette.choose("and3");
+        TreePath placing = palette.tree().getSelectionPath();
+
+        palette.tree().setSelectionRow(1);
+
+        assertThat(palette.tree().getSelectionPath()).isEqualTo(placing);
+        assertThat(chosen).containsExactly("and3");
+    }
+
+    private static void press(JTree tree, String actionName) {
+        tree.getActionMap().get(actionName).actionPerformed(new ActionEvent(tree, ActionEvent.ACTION_PERFORMED,
+                actionName));
     }
 
     @Test

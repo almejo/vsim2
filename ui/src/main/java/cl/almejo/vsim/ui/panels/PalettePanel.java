@@ -58,6 +58,7 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -260,7 +261,7 @@ public final class PalettePanel extends JPanel {
         tree.setRowHeight(ICON_SIZE + 4);
         tree.setCellRenderer(new Renderer());
         ToolTipManager.sharedInstance().registerComponent(tree);
-        tree.setSelectionModel(new FavoriteSelectionModel());
+        tree.setSelectionModel(new HintSkippingSelectionModel());
         tree.getSelectionModel().setSelectionMode(TreeSelectionModel.SINGLE_TREE_SELECTION);
         tree.addTreeSelectionListener(event -> {
             if (!updating) {
@@ -650,13 +651,31 @@ public final class PalettePanel extends JPanel {
         }
     }
 
-    /** Prevents the empty hint from becoming a choice through mouse or keyboard navigation. */
-    private static final class FavoriteSelectionModel extends DefaultTreeSelectionModel {
+    /**
+     * Never selects the empty hint of «Favoritos»: the arrow keys step over it (from the row above or below it), and
+     * a click on it keeps the selection there was, so it neither traps the keyboard nor clears what is being placed.
+     */
+    private final class HintSkippingSelectionModel extends DefaultTreeSelectionModel {
         @Override
         public void setSelectionPaths(TreePath[] paths) {
-            super.setSelectionPaths(paths == null ? null : java.util.Arrays.stream(paths)
-                    .filter(path -> ((DefaultMutableTreeNode) path.getLastPathComponent()).getUserObject()
-                            != FavoriteSection.EMPTY).toArray(TreePath[]::new));
+            if (paths != null && paths.length == 1 && isHint(paths[0])) {
+                pastTheHint(paths[0]).ifPresent(path -> super.setSelectionPaths(new TreePath[] {path}));
+                return;
+            }
+            super.setSelectionPaths(paths == null ? null
+                    : Arrays.stream(paths).filter(path -> !isHint(path)).toArray(TreePath[]::new));
+        }
+
+        /** The row beyond the hint in the direction the lead moves; none when the lead is not next to it. */
+        private Optional<TreePath> pastTheHint(TreePath hint) {
+            int hintRow = tree.getRowForPath(hint);
+            int leadRow = getLeadSelectionRow();
+            int step = leadRow == hintRow - 1 ? 1 : leadRow == hintRow + 1 ? -1 : 0;
+            return step == 0 ? Optional.empty() : Optional.ofNullable(tree.getPathForRow(hintRow + step));
+        }
+
+        private static boolean isHint(TreePath path) {
+            return ((DefaultMutableTreeNode) path.getLastPathComponent()).getUserObject() == FavoriteSection.EMPTY;
         }
     }
 
