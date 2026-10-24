@@ -388,6 +388,15 @@ public final class PalettePanel extends JPanel {
         }
     }
 
+    /** What a row's star column shows. */
+    enum StarState { NONE, OUTLINE, FILLED }
+
+    /** The star {@code row} shows now. Package-private for tests. */
+    StarState starState(int row) {
+        FavoritesTree favoritesTree = (FavoritesTree) tree;
+        return favoritesTree.starState(row, favoritesTree.hoverPath());
+    }
+
     /** The row under the pointer, whose hover star shows. Package-private for tests. */
     Optional<TreePath> hoveredPath() {
         return ((FavoritesTree) tree).hoverPath();
@@ -821,6 +830,24 @@ public final class PalettePanel extends JPanel {
             }
         }
 
+        /**
+         * The star {@code row} shows: filled for a favourite, in its own category as well as in «Favoritos» (no hover
+         * needed); an outline under the pointer while no popup is open; none on headers and hints.
+         */
+        StarState starState(int row, Optional<TreePath> hovered) {
+            TreePath path = getPathForRow(row);
+            Optional<String> typeId = favoriteType(path);
+            if (typeId.isEmpty()) {
+                return StarState.NONE;
+            }
+            if (favoriteIds.contains(typeId.get())) {
+                return StarState.FILLED;
+            }
+            return hovered.filter(path::equals).isPresent()
+                    && MenuSelectionManager.defaultManager().getSelectedPath().length == 0
+                    ? StarState.OUTLINE : StarState.NONE;
+        }
+
         /** Repaints the rows of {@code typeIds} (their stars filled or emptied). */
         void repaintRowsOf(Set<String> typeIds) {
             for (int row = 0; row < getRowCount(); row++) {
@@ -908,29 +935,20 @@ public final class PalettePanel extends JPanel {
             int lastRow = getClosestRowForLocation(clip.x, clip.y + clip.height);
             Optional<TreePath> hovered = hoverPath();
             for (int row = firstRow; row <= lastRow && row < getRowCount(); row++) {
-                TreePath path = getPathForRow(row);
-                Optional<String> typeId = favoriteType(path);
-                if (typeId.isEmpty()) {
+                StarState state = starState(row, hovered);
+                Rectangle bounds = state == StarState.NONE ? null : starBounds(getPathForRow(row));
+                if (bounds == null || !bounds.intersects(getVisibleRect())) {
                     continue;
                 }
-                Rectangle bounds = starBounds(path);
-                if (!bounds.intersects(getVisibleRect())) {
-                    continue;
+                boolean selected = isRowSelected(row);
+                FavoriteStar star = new FavoriteStar(state == StarState.FILLED, selected);
+                if (!selected) {
+                    // Hides the tail of a long name; a selected row keeps its highlight whole.
+                    graphics.setColor(getBackground());
+                    graphics.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
                 }
-                boolean filled = favoriteIds.contains(typeId.get());
-                if (filled || hovered.filter(path::equals).isPresent() && MenuSelectionManager.defaultManager()
-                        .getSelectedPath().length == 0) {
-                    // A filled star remains visible in the source category as well as in Favorites.
-                    boolean selected = isRowSelected(row);
-                    FavoriteStar star = new FavoriteStar(filled, selected);
-                    if (!selected) {
-                        // Hides the tail of a long name; a selected row keeps its highlight whole.
-                        graphics.setColor(getBackground());
-                        graphics.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
-                    }
-                    star.paintIcon(this, graphics, bounds.x + (bounds.width - star.getIconWidth()) / 2,
-                            bounds.y + (bounds.height - star.getIconHeight()) / 2);
-                }
+                star.paintIcon(this, graphics, bounds.x + (bounds.width - star.getIconWidth()) / 2,
+                        bounds.y + (bounds.height - star.getIconHeight()) / 2);
             }
         }
     }
