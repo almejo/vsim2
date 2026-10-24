@@ -17,8 +17,10 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public final class StatusBar extends JPanel {
 
@@ -32,7 +34,6 @@ public final class StatusBar extends JPanel {
 
     private final JLabel simulation = new JLabel();
     private final JLabel time = new JLabel();
-    private final JLabel zoom = new JLabel();
     private final JLabel selection = new JLabel();
     private final JLabel hint = new JLabel();
     private final JLabel notice = new JLabel();
@@ -48,6 +49,8 @@ public final class StatusBar extends JPanel {
     private final List<JComponent> activities = new ArrayList<>();
     /** What extensions always show (the AI's state), in the stable zone at the right end. */
     private final List<JComponent> indicators = new ArrayList<>();
+    /** The zoom control, at the very end (after the indicators); null until the window gives it. */
+    private ZoomControl zoomControl;
 
     public StatusBar() {
         this(StatusBar::swingNoticeTimer);
@@ -56,14 +59,14 @@ public final class StatusBar extends JPanel {
     /** {@code noticeTimerFactory} builds the one-shot timer that hides a notice; tests pass a fake. */
     public StatusBar(Function<Runnable, Timer> noticeTimerFactory) {
         // Zones by priority (B01): when the bar is short the gesture help and the notice give way first (their whole
-        // text stays in the tooltip), then an activity; the state, the problems and the indicators keep their width.
-        super(new MigLayout("insets 2 8 2 8", "[][][][][shrinkprio " + YIELDING_PRIORITY + "][shrinkprio "
+        // text stays in the tooltip), then an activity and the zoom slider; the state, the problems, the indicators
+        // and the zoom percentage keep their width.
+        super(new MigLayout("insets 2 8 2 8", "[][][][shrinkprio " + YIELDING_PRIORITY + "][shrinkprio "
                 + YIELDING_PRIORITY + "][]push[][]"));
         noticeTimer = noticeTimerFactory.apply(this::hideNotice);
         add(simulation);
         time.setToolTipText(Messages.text("status.timeTip"));
         add(time);
-        add(zoom);
         add(selection);
         add(hint, YIELDING_CONSTRAINTS);
         add(notice, YIELDING_CONSTRAINTS);
@@ -197,24 +200,16 @@ public final class StatusBar extends JPanel {
     }
 
     /**
-     * Clicking «zoom 125 %» runs {@code action} (the view goes back to 100 % around the middle of the canvas); the
-     * label gets the hand cursor and the tooltip «Clic: volver a 100 %». Only the primary button counts.
+     * Puts the window's zoom control at the very end of the bar, after the indicators (which an extension adds later
+     * still go before it). Given once.
      */
-    public void onZoomClicked(Runnable action) {
-        zoom.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-        zoom.setToolTipText(Messages.text("status.zoomTip"));
-        zoom.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseClicked(MouseEvent event) {
-                if (SwingUtilities.isLeftMouseButton(event)) {
-                    action.run();
-                }
-            }
-        });
-    }
-
-    JLabel zoomLabel() {
-        return zoom;
+    public void setZoomControl(ZoomControl control) {
+        if (zoomControl != null) {
+            throw new IllegalStateException("the status bar already has its zoom control");
+        }
+        zoomControl = Objects.requireNonNull(control, "control");
+        add(control, "gapleft 8");
+        revalidate();
     }
 
     /**
@@ -248,8 +243,11 @@ public final class StatusBar extends JPanel {
         return time;
     }
 
+    /** Shows the active pane's zoom in the zoom control (nothing before the window gives one). */
     public void showZoom(double zoomFactor) {
-        zoom.setText(Messages.format("status.zoom", Math.round(zoomFactor * 100)));
+        if (zoomControl != null) {
+            zoomControl.showZoom(zoomFactor);
+        }
     }
 
     public void showSelection(int count) {
@@ -331,11 +329,14 @@ public final class StatusBar extends JPanel {
         noticeTimer.stop();
     }
 
-    /** Visible texts joined with " · " (what the user reads, left to right). */
+    /** Visible texts joined with " · " (what the user reads, left to right), the zoom percentage last («125 %»). */
     public String text() {
-        return List.of(simulation, time, zoom, selection, hint, notice, shortCircuits, failure).stream()
+        Stream<String> labels = Stream.of(simulation, time, selection, hint, notice, shortCircuits, failure)
                 .filter(JLabel::isVisible)
-                .map(JLabel::getText)
+                .map(JLabel::getText);
+        Stream<String> zoom = zoomControl != null && zoomControl.isVisible() ? Stream.of(zoomControl.text())
+                : Stream.empty();
+        return Stream.concat(labels, zoom)
                 .filter(text -> !text.isEmpty())
                 .collect(Collectors.joining(" · "));
     }

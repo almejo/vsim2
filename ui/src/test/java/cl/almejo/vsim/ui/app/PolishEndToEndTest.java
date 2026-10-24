@@ -97,15 +97,6 @@ class PolishEndToEndTest {
                 MouseEvent.BUTTON1));
     }
 
-    private static JLabel zoomLabel(EditorView view) {
-        for (java.awt.Component child : view.statusBar().getComponents()) {
-            if (child instanceof JLabel label && label.getText() != null && label.getText().startsWith("zoom")) {
-                return label;
-            }
-        }
-        throw new AssertionError("no zoom label");
-    }
-
     @Test
     void liveNamesSurviveSaveAndReopenAndMarkersAndTheZoomLabelWork() throws Exception {
         OpenDocument original = track(OpenDocument.createEmpty(registry));
@@ -147,13 +138,10 @@ class PolishEndToEndTest {
 
             view.canvas().setSize(800, 600);
             view.canvas().zoomIn();
-            assertThat(view.statusBar().text()).doesNotContain("zoom 100 %");
-            JLabel zoom = zoomLabel(view);
-            for (MouseListener listener : zoom.getMouseListeners()) {
-                click(zoom, listener, 2, 2);
-            }
+            assertThat(view.statusBar().text()).endsWith("125 %");
+            view.zoomControl().resetButton().doClick();
             assertThat(view.canvas().viewport().zoom()).isEqualTo(1.0);
-            assertThat(view.statusBar().text()).contains("zoom 100 %");
+            assertThat(view.statusBar().text()).endsWith("100 %");
         } finally {
             view.dispose();
         }

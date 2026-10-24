@@ -406,18 +406,17 @@ class EditorViewTest {
     }
 
     @Test
-    void clickingTheStatusBarZoomGoesBackToOneHundredPercent() {
+    void theStatusBarHundredPercentButtonGoesBackToOneHundredPercent() {
         view.canvas().setSize(800, 600);
         view.canvas().zoomIn();
         view.canvas().zoomIn();
         assertThat(view.canvas().viewport().zoom()).isGreaterThan(1.0);
-        JLabel zoom = statusLabelStartingWith("zoom");
-        MouseEvent click = new MouseEvent(zoom, MouseEvent.MOUSE_CLICKED, 0, 0, 2, 2, 1, false, MouseEvent.BUTTON1);
-        for (MouseListener listener : zoom.getMouseListeners()) {
-            listener.mouseClicked(click);
-        }
+        assertThat(view.statusBar().text()).endsWith("156 %");
+
+        view.zoomControl().resetButton().doClick();
+
         assertThat(view.canvas().viewport().zoom()).isEqualTo(1.0);
-        assertThat(view.statusBar().text()).contains("zoom 100 %");
+        assertThat(view.statusBar().text()).endsWith("100 %");
     }
 
     @Test

@@ -226,7 +226,8 @@ class ZoomActionsTest {
         assertThat(texts).containsSubsequence("Zoom 100 %", "Ver todo el circuito", "Zoom a la selección",
                 "Centrar circuito");
         assertThat(texts.indexOf("Ver todo el circuito")).isEqualTo(texts.indexOf("Zoom 100 %") + 1);
-        assertThat(texts.indexOf("Centrar circuito")).isEqualTo(texts.indexOf("Zoom a la selección") + 1);
+        assertThat(texts.indexOf("Centrar circuito")).as("after «Escribir el zoom…»")
+                .isEqualTo(texts.indexOf("Zoom a la selección") + 2);
         JMenuItem fit = items.get(texts.indexOf("Ver todo el circuito"));
         assertThat(fit.getAction()).isSameAs(view.actions().zoomToFit());
         assertThat(fit.getAccelerator()).as("a canvas key, like F8").isNull();

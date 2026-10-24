@@ -34,13 +34,20 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
   Un clic acerca un paso alrededor del punto, y Alt + clic, Mayús + clic o el botón derecho alejan un paso. El cursor
   es una lupa con «+» o, con Alt o Mayús apretada, con «−». Esc suelta el recuadro y, sin recuadro, vuelve a
   Selección. El recuadro nunca sale al exportar ni al imprimir.
+- Control de zoom al final de la barra de estado: «−», un deslizador de 25 % a 400 % con 100 % al medio (cada vez
+  que el zoom se duplica avanza lo mismo y cerca del medio se queda en 100 %), «+», el porcentaje, «100 %», «Ver todo
+  el circuito» y «Zoom a la selección». El porcentaje se escribe («150», «62,5») o se elige de una lista y la vista
+  llega con un viaje suave; si no es un número se marca en rojo y Esc lo devuelve. Ver ▸ «Escribir el zoom…» lleva
+  el teclado ahí. Muestra y mueve el panel activo; en una ventana angosta el deslizador se achica primero.
 
 ### Cambiado
 
-- Volver a 100 % (Ver ▸ «Zoom 100 %», Ctrl+0 o el porcentaje de la barra de estado) ya no salta: viaja suave
+- Volver a 100 % (Ver ▸ «Zoom 100 %», Ctrl+0 o el botón «100 %» de la barra de estado) ya no salta: viaja suave
   alrededor del centro de la vista, salvo que «Animar los movimientos de la vista» esté desactivado. Cuando la vista
   cambia de zoom hacia un lugar que está en pantalla, ese lugar ya no resbala hacia un lado: se siente como entrar en
   él. Mover la vista o hacer zoom a mano a mitad de camino lo detiene donde está.
+- El porcentaje de la barra de estado ya no vuelve a 100 % con un clic: ahora se escribe o se elige, y «100 %» es
+  un botón al lado. El zoom pasó al final de la barra, después de «IA: …».
 
 ### Arreglado
 

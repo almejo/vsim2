@@ -16,6 +16,7 @@ import cl.almejo.vsim.ui.canvas.CanvasHost;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.canvas.CircuitRenderer;
 import cl.almejo.vsim.ui.canvas.Selection;
+import cl.almejo.vsim.ui.canvas.ZoomTargets;
 import cl.almejo.vsim.ui.clipboard.FragmentClipboard;
 import cl.almejo.vsim.ui.icons.Icons;
 import cl.almejo.vsim.ui.inline.InlineTextEditor;
@@ -25,6 +26,7 @@ import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.paint.TextFonts;
 import cl.almejo.vsim.ui.panels.PalettePanel;
 import cl.almejo.vsim.ui.panels.StatusBar;
+import cl.almejo.vsim.ui.panels.ZoomControl;
 import cl.almejo.vsim.ui.problems.ProblemsController;
 import cl.almejo.vsim.ui.shortcuts.ShortcutCatalog;
 import cl.almejo.vsim.ui.tools.PanTool;
@@ -44,6 +46,7 @@ import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JMenu;
 import javax.swing.JMenuBar;
+import javax.swing.JMenuItem;
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
 import javax.swing.JSplitPane;
@@ -93,6 +96,7 @@ public final class EditorView extends JPanel implements CanvasHost {
     private final SelectionActions selectionActions;
     private final PalettePanel palette;
     private final StatusBar statusBar = new StatusBar();
+    private final ZoomControl zoomControl;
     private final SelectionMoves selectionMoves;
     private final InspectorPanel inspector = new InspectorPanel();
     private final CanvasArea canvasArea;
@@ -153,6 +157,9 @@ public final class EditorView extends JPanel implements CanvasHost {
         });
         this.menuBar = actions.createMenuBar();
         indexMenus();
+        this.zoomControl = new ZoomControl(new ActivePaneZoom(), new ZoomControl.Actions(actions.zoomOut(),
+                actions.zoomIn(), actions.zoomReset(), actions.zoomToFit(), actions.zoomToSelection()));
+        addAfter(menu(MenuId.VIEW), actions.zoomToSelection(), zoomControl.typeZoomAction());
         selectButton = new JToggleButton(actions.selectTool());
         wireButton = new JToggleButton(actions.wireTool());
         panButton = new JToggleButton(actions.panTool());
@@ -174,8 +181,8 @@ public final class EditorView extends JPanel implements CanvasHost {
         canvasPanes.addActiveListener(this::activePaneChanged);
         selection.addListener(() -> statusBar.showSelection(selection.ids().size()));
         statusBar.showSnapshot(SimulationSnapshot.EMPTY);
+        statusBar.setZoomControl(zoomControl);
         statusBar.showZoom(canvas.viewport().zoom());
-        statusBar.onZoomClicked(() -> canvas().resetZoom());
         statusBar.onRunStateClicked(() -> performIfEnabled(actions.pause()),
                 () -> performIfEnabled(actions.start()));
         inlineEditor = new InlineTextEditor(this::canvas);
@@ -290,6 +297,9 @@ public final class EditorView extends JPanel implements CanvasHost {
     public SelectionActions selectionActions() { return selectionActions; }
     public PalettePanel palette() { return palette; }
     public StatusBar statusBar() { return statusBar; }
+
+    /** The zoom control of the status bar: it shows and drives the active pane (and holds «Escribir el zoom…»). */
+    public ZoomControl zoomControl() { return zoomControl; }
     public InspectorPanel inspector() { return inspector; }
     public BottomDock bottomDock() { return bottomDock; }
     public LabelFeatures labelFeatures() { return labelFeatures; }
@@ -489,6 +499,46 @@ public final class EditorView extends JPanel implements CanvasHost {
     @Override
     public void editValue(Component component, Value startingValue) {
         labelFeatures.actions().editInputValue(component, startingValue);
+    }
+
+    /** Puts {@code action} into {@code menu} right after the item of {@code anchor}. */
+    private static void addAfter(JMenu menu, Action anchor, Action action) {
+        for (int index = 0; index < menu.getItemCount(); index++) {
+            JMenuItem item = menu.getItem(index);
+            if (item != null && item.getAction() == anchor) {
+                menu.insert(action, index + 1);
+                return;
+            }
+        }
+        throw new IllegalStateException("no menu item for " + anchor.getValue(Action.NAME));
+    }
+
+    /**
+     * What the zoom control drives: the active pane, resolved on every call (spec §7: the control follows the pane
+     * the user last pressed or focused). The slider zooms at once; a typed or picked value travels.
+     */
+    private final class ActivePaneZoom implements ZoomControl.Target {
+
+        @Override
+        public double zoom() {
+            return canvas().viewport().zoom();
+        }
+
+        @Override
+        public void zoomAroundCenter(double zoom) {
+            canvas().zoomAroundCenter(zoom);
+        }
+
+        @Override
+        public void zoomTo(double zoom) {
+            CircuitCanvas pane = canvas();
+            pane.zoomTo(ZoomTargets.atZoom(pane.viewState(), zoom));
+        }
+
+        @Override
+        public void returnFocus() {
+            canvas().requestFocusInWindow();
+        }
     }
 
     private void indexMenus() {

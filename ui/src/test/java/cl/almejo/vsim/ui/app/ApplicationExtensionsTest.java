@@ -159,7 +159,7 @@ class ApplicationExtensionsTest {
         try {
             assertThat(texts(view.menu(MenuId.VIEW))).containsExactly("Selección", "Cable", "Marco",
                     "Mover vista", "Zoom", "---", "Acercar", "Alejar", "Zoom 100 %", "Ver todo el circuito",
-                    "Zoom a la selección",
+                    "Zoom a la selección", "Escribir el zoom…",
                     "Centrar circuito", "---", "Cuadrícula",
                     "Ajustar", "Ajustar a", "Mostrar guías", "Agregar guía horizontal", "Agregar guía vertical",
                     "Borrar guías", "---", "Siguiente problema", "Problema anterior", "---", "Formas de onda", "---",

@@ -100,6 +100,7 @@ public final class ShortcutCatalog {
         // Figma's keys; canvas keys, because a menu accelerator without Ctrl would fire while typing (zoom spec §5.1)
         canvasView(entries, "view.zoomToFit", "action.zoomToFit", stroke(KeyEvent.VK_1, shift));
         canvasView(entries, "view.zoomToSelection", "action.zoomToSelection", stroke(KeyEvent.VK_2, shift));
+        window(entries, "view.zoomField", "action.zoomField", MenuId.VIEW, null);
         window(entries, "view.centerView", "action.centerView", MenuId.VIEW, null);
         window(entries, "view.cycleGrid", "action.cycleGrid", MenuId.VIEW, null);
         window(entries, "view.snap", "action.snap", MenuId.VIEW, stroke(KeyEvent.VK_M, menu | shift));

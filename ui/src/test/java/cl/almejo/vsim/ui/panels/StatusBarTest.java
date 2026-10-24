@@ -10,10 +10,13 @@ import cl.almejo.vsim.ui.theme.ReadableColors;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import javax.swing.AbstractAction;
+import javax.swing.Action;
 import javax.swing.JLabel;
 import javax.swing.LookAndFeel;
 import javax.swing.UIManager;
 import java.awt.Cursor;
+import java.awt.event.ActionEvent;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.util.List;
@@ -39,11 +42,28 @@ class StatusBarTest {
         return new SimulationSnapshot(1, 1, 1234, running, Map.of(), Map.of(), List.copyOf(problems), failure);
     }
 
+    private static ZoomControl installZoomControl(StatusBar bar) {
+        Action nothing = new AbstractAction("—") {
+            @Override
+            public void actionPerformed(ActionEvent event) {
+            }
+        };
+        ZoomControl control = new ZoomControl(new ZoomControl.Target() {
+            @Override public double zoom() { return 1.0; }
+            @Override public void zoomAroundCenter(double zoom) { }
+            @Override public void zoomTo(double zoom) { }
+            @Override public void returnFocus() { }
+        }, new ZoomControl.Actions(nothing, nothing, nothing, nothing, nothing));
+        bar.setZoomControl(control);
+        return control;
+    }
+
     @Test
     void showsStateTimeAndZoom() {
+        installZoomControl(statusBar);
         statusBar.showSnapshot(snapshot(true, 0, Optional.empty()));
         statusBar.showZoom(1.25);
-        assertThat(statusBar.text()).isEqualTo("▶ corriendo · t = 1.234 · zoom 125 %");
+        assertThat(statusBar.text()).isEqualTo("▶ corriendo · t = 1.234 · 125 %");
         statusBar.showSnapshot(snapshot(false, 0, Optional.empty()));
         assertThat(statusBar.text()).startsWith("⏸ en pausa");
     }
@@ -72,7 +92,7 @@ class StatusBarTest {
         statusBar.showSelection(0);
         assertThat(statusBar.text()).doesNotContain("seleccionado");
         statusBar.showSelection(1);
-        assertThat(statusBar.text()).endsWith("zoom 100 % · 1 seleccionado");
+        assertThat(statusBar.text()).isEqualTo("1 seleccionado");
         statusBar.showSelection(3);
         assertThat(statusBar.text()).endsWith("3 seleccionados");
         statusBar.showSelection(0);
@@ -132,22 +152,49 @@ class StatusBarTest {
     }
 
     @Test
-    void clickingTheZoomRunsItsActionWithAHandCursorAndATooltip() {
-        AtomicInteger clicks = new AtomicInteger();
+    void theZoomControlSitsAtTheRightEndAfterTheIndicatorsAndReportsThePercentage() {
+        ZoomControl control = installZoomControl(statusBar);
+        JLabel indicator = new JLabel("IA: apagada");
+        JLabel activity = new JLabel("IA trabajando");
+        statusBar.addIndicator(indicator);
+        statusBar.addActivity(activity);
         statusBar.showZoom(1.25);
-        statusBar.onZoomClicked(clicks::incrementAndGet);
-        JLabel zoom = statusBar.zoomLabel();
-        MouseEvent click = new MouseEvent(zoom, MouseEvent.MOUSE_CLICKED, 0, 0, 2, 2, 1, false, MouseEvent.BUTTON1);
-        MouseEvent rightClick = new MouseEvent(zoom, MouseEvent.MOUSE_CLICKED, 0, 0, 2, 2, 1, false,
-                MouseEvent.BUTTON3);
-        for (MouseListener listener : zoom.getMouseListeners()) {
-            listener.mouseClicked(click);
-            listener.mouseClicked(rightClick);
+
+        assertThat(statusBar.getComponentZOrder(control)).isEqualTo(statusBar.getComponentCount() - 1);
+        assertThat(statusBar.getComponentZOrder(indicator)).isLessThan(statusBar.getComponentZOrder(control));
+        assertThat(statusBar.text()).isEqualTo("125 %");
+        for (java.awt.Component child : statusBar.getComponents()) {
+            if (child instanceof JLabel label) {
+                assertThat(label.getText()).as("the old «zoom N %» label is gone").doesNotStartWith("zoom");
+            }
         }
-        assertThat(clicks).hasValue(1);
-        assertThat(zoom.getCursor().getType()).isEqualTo(Cursor.HAND_CURSOR);
-        assertThat(zoom.getToolTipText()).isEqualTo("Clic: volver a 100 %");
-        assertThat(statusBar.text()).contains("zoom 125 %");
+    }
+
+    @Test
+    void aNarrowBarShrinksTheSliderFirstAndKeepsThePercentageAndTheIndicator() {
+        ZoomControl control = installZoomControl(statusBar);
+        JLabel indicator = new JLabel("IA: escuchando");
+        statusBar.addIndicator(indicator);
+        statusBar.showSnapshot(snapshot(true, 0, Optional.empty()));
+        statusBar.showShortCircuits(2);
+        statusBar.showZoom(1.5);
+        int roomy = statusBar.getPreferredSize().width;
+        statusBar.showNotice("Guardado en /home/alumno/circuitos/" + "muy-largo/".repeat(40) + "sumador.vsim");
+        statusBar.setSize(roomy - 40, 28);
+
+        statusBar.doLayout();
+        control.doLayout();
+
+        int sliderWidth = control.slider().getWidth();
+        assertThat(sliderWidth).as("the slider gave way").isLessThan(control.slider().getPreferredSize().width)
+                .isGreaterThanOrEqualTo(ZoomControl.SLIDER_MINIMUM_WIDTH);
+        assertThat(control.field().getWidth()).as("the percentage keeps its width")
+                .isEqualTo(control.field().getPreferredSize().width);
+        assertThat(control.getX() + control.getWidth()).isLessThanOrEqualTo(statusBar.getWidth());
+        assertThat(indicator.getWidth()).isEqualTo(indicator.getPreferredSize().width);
+        assertThat(indicator.getX() + indicator.getWidth()).isLessThanOrEqualTo(control.getX());
+        assertThat(statusBar.shortCircuitsLabel().getWidth())
+                .isEqualTo(statusBar.shortCircuitsLabel().getPreferredSize().width);
     }
 
     @Test

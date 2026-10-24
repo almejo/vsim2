@@ -181,13 +181,13 @@ class EditorViewPanesTest {
         CircuitCanvas left = view.panes().get(0);
         CircuitCanvas right = view.panes().get(1);
         right.applyViewState(new ViewState(2, 0, 0));
-        assertThat(view.statusBar().text()).doesNotContain(Messages.format("status.zoom", 200));
+        assertThat(view.statusBar().text()).doesNotContain(Messages.format("zoom.percent", 200));
         press(right);
-        assertThat(view.statusBar().text()).contains(Messages.format("status.zoom", 200));
+        assertThat(view.statusBar().text()).endsWith(Messages.format("zoom.percent", 200));
         left.applyViewState(new ViewState(0.5, 0, 0));
-        assertThat(view.statusBar().text()).contains(Messages.format("status.zoom", 200));
+        assertThat(view.statusBar().text()).endsWith(Messages.format("zoom.percent", 200));
         press(left);
-        assertThat(view.statusBar().text()).contains(Messages.format("status.zoom", 50));
+        assertThat(view.statusBar().text()).endsWith(Messages.format("zoom.percent", 50));
     }
 
     @Test
