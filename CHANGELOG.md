@@ -6,7 +6,7 @@ Los cambios de VSim 2 que se notan al usarlo, del más nuevo al más antiguo. El
 funciones, con las fechas en que se hizo. El detalle de cada función está en
 [docs/funciones.md](docs/funciones.md).
 
-## Sin publicar — Pulido
+## Versión 0.3 — 2026-10-24
 
 ### Agregado
 
