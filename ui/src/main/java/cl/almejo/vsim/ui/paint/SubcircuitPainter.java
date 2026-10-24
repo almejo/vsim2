@@ -30,6 +30,11 @@ public final class SubcircuitPainter implements ComponentPainter {
     @Override
     public void paint(Graphics2D graphics, ComponentType type, Map<String, Object> parameters, VisibleState state,
                       ColorScheme scheme) {
+        if (SubcircuitTypes.appearanceOf(type).isPresent()) {
+            SymbolPainter.paint(graphics, type, SubcircuitTypes.appearanceOf(type).orElseThrow(), scheme,
+                    SubcircuitTypes.definitionOf(type).map(ComponentDefinition::name).orElse(type.id()));
+            return;
+        }
         double width = type.size().width() * UNIT;
         double height = type.size().height() * UNIT;
         Rectangle2D box = new Rectangle2D.Double(1, 1, width - 2, height - 2);
@@ -50,6 +55,9 @@ public final class SubcircuitPainter implements ComponentPainter {
             double pinY = pin.position().y() * UNIT;
             boolean left = pinX <= 0;
             if (!left && pinX < width) {
+                double centerY = pinY <= height / 2 ? pinY + INSET + 2 : pinY - INSET - 2;
+                PainterSupport.centeredText(graphics, box, text, pinX, centerY,
+                        fitted(graphics, text, PIN_NAME_SIZE, Math.max(UNIT, width - 2 * INSET)), scheme.text());
                 continue;
             }
             // The pin's slot: its half of the box, between the midpoints to the neighbouring pins on its side.

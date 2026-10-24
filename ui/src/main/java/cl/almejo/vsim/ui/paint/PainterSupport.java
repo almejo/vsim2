@@ -121,11 +121,17 @@ public final class PainterSupport {
      */
     static void uprightText(Graphics2D graphics, String text, double anchorX, double anchorY, float size, Color color,
                             double alignment) {
+        uprightText(graphics, text, anchorX, anchorY, size, color, alignment, BASE_FONT);
+    }
+
+    /** Upright text using an explicitly supplied current or export-frozen font. */
+    static void uprightText(Graphics2D graphics, String text, double anchorX, double anchorY, float size, Color color,
+                            double alignment, Font font) {
         int quarterTurns = quarterTurns(graphics);
         Graphics2D upright = (Graphics2D) graphics.create();
         try {
             upright.rotate(-quarterTurns * Math.PI / 2, anchorX, anchorY);
-            upright.setFont(BASE_FONT.deriveFont(size));
+            upright.setFont(font.deriveFont(size));
             upright.setColor(color);
             FontMetrics metrics = upright.getFontMetrics();
             Rectangle2D textBounds = metrics.getStringBounds(text, upright);

@@ -75,7 +75,7 @@ public final class CircuitFlattener {
         Expansion expansion = new Expansion();
         expansion.addLevel("", document, netlist, TunnelChecks.problems(document, netlist, registry), 0);
         return new FlatCircuit(document.revision(), expansion.components, expansion.flatNets(),
-                expansion.tunnelProblems);
+                expansion.tunnelProblems, ConnectivityChecks.problems(document, registry));
     }
 
     /** A definition's body compiled once per flatten call, with its tunnel problems (the same for every instance). */

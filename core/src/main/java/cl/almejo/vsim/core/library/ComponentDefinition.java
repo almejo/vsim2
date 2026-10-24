@@ -2,6 +2,7 @@ package cl.almejo.vsim.core.library;
 
 import cl.almejo.vsim.core.component.PinDirection;
 import cl.almejo.vsim.core.component.PinSpec;
+import cl.almejo.vsim.core.component.appearance.SymbolDrawing;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.geometry.GridPoint;
@@ -11,6 +12,7 @@ import cl.almejo.vsim.core.io.CircuitFragment;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Pattern;
 
@@ -19,9 +21,16 @@ import java.util.regex.Pattern;
  * Immutable. The body never carries definitions; nested ones live next to it (document, file, bundle).
  */
 public record ComponentDefinition(String id, String name, String description, GridSize size,
-                                  List<DefinitionPin> pinout, CircuitFragment body) {
+                                  List<DefinitionPin> pinout, CircuitFragment body,
+                                  Optional<SymbolDrawing> appearance, long revision) {
 
     public static final Pattern ID_PATTERN = Pattern.compile("[a-z0-9]+(-[a-z0-9]+)*");
+
+    /** A newly created definition with the standard box and its first revision. */
+    public ComponentDefinition(String id, String name, String description, GridSize size,
+                               List<DefinitionPin> pinout, CircuitFragment body) {
+        this(id, name, description, size, pinout, body, Optional.empty(), 1);
+    }
 
     public ComponentDefinition {
         Objects.requireNonNull(id, "id");
@@ -35,6 +44,13 @@ public record ComponentDefinition(String id, String name, String description, Gr
         description = description == null ? "" : description;
         Objects.requireNonNull(size, "size");
         Objects.requireNonNull(body, "body");
+        Objects.requireNonNull(appearance, "appearance");
+        if (revision < 1) {
+            throw new IllegalArgumentException("component revision must be positive");
+        }
+        if (appearance.isPresent() && !appearance.get().size().equals(size)) {
+            throw new IllegalArgumentException("definition and drawing sizes must agree");
+        }
         // No pins is allowed: «Crear componente» warns first (a body that only runs on its own, like a blinker).
         pinout = List.copyOf(pinout);
         if (!body.definitions().isEmpty()) {
@@ -95,7 +111,46 @@ public record ComponentDefinition(String id, String name, String description, Gr
     }
 
     public ComponentDefinition withName(String newName) {
-        return new ComponentDefinition(id, newName, description, size, pinout, body);
+        if (name.equals(Objects.requireNonNull(newName, "newName").strip())) {
+            return this;
+        }
+        return new ComponentDefinition(id, newName, description, size, pinout, body, appearance,
+                Math.incrementExact(revision));
+    }
+
+    public ComponentDefinition withAppearance(Optional<SymbolDrawing> newAppearance) {
+        return withGeometry(size, pinout, newAppearance);
+    }
+
+    /** One accepted definition appearance edit advances the revision once, regardless of its pin count. */
+    public ComponentDefinition withGeometry(GridSize newSize, List<DefinitionPin> newPinout,
+                                            Optional<SymbolDrawing> newAppearance) {
+        if (size.equals(newSize) && pinout.equals(newPinout) && appearance.equals(newAppearance)) {
+            return this;
+        }
+        return new ComponentDefinition(id, name, description, newSize, newPinout, body, newAppearance,
+                Math.incrementExact(revision));
+    }
+
+    /** Content equality for revision comparison; independent counters are not a component's identity. */
+    public boolean sameContentAs(ComponentDefinition other) {
+        Objects.requireNonNull(other, "other");
+        return id.equals(other.id) && name.equals(other.name) && description.equals(other.description)
+                && size.equals(other.size) && pinout.equals(other.pinout) && body.equals(other.body)
+                && appearance.equals(other.appearance);
+    }
+
+    /** Assigns a locally edited candidate its next revision; importing a library version does not use this. */
+    public ComponentDefinition revisedFrom(ComponentDefinition previous) {
+        Objects.requireNonNull(previous, "previous");
+        if (!id.equals(previous.id)) {
+            throw new IllegalArgumentException("a revision must keep the component identity");
+        }
+        if (sameContentAs(previous)) {
+            return previous;
+        }
+        return new ComponentDefinition(id, name, description, size, pinout, body, appearance,
+                Math.incrementExact(previous.revision));
     }
 
     /** Ids of the definitions instantiated directly in the body, in body order, without repeats. */

@@ -183,6 +183,17 @@ El detalle de cada función de VSim 2, ordenado por área. La lista corta está 
 
 ## Simulación y paso a paso
 
+### Forma de los componentes propios
+
+- Mover vista (H), con ícono de mano, desplaza el lienzo arrastrando con el botón izquierdo y no modifica la forma. También funcionan Alt + arrastrar o el botón central, sin necesidad de cambiar de herramienta; Ctrl + rueda controla el zoom.
+- Clic derecho en una pieza propia o en su entrada de la paleta → «Cambiar forma…». La herramienta Seleccionar (V) permite elegir una figura: los ocho controles azules cambian su tamaño hacia dentro o hacia fuera; Mayús mantiene la proporción. Nodos (N) muestra puntos redondos en todas las figuras, sin seleccionarlas antes: arrástralos para cambiar el contorno. Los rombos controlan las curvas. Agregar nodo (A) se activa sin selección previa: resalta el segmento bajo el cursor, muestra el punto de inserción y agrega el nodo al hacer clic sobre el contorno. En Nodos también se puede agregar con doble clic en el segmento. La caja predeterminada permite las mismas operaciones; activar una herramienta no cambia el dibujo hasta realizar una edición.
+- El borde punteado gris, rotulado «Caja del componente», es el espacio que contiene el dibujo y sus pines. Su control redondo está separado de la figura, fuera de la esquina inferior derecha. Cambiar esta caja no escala las figuras: puede crecer, pero no reducirse hasta cortar el dibujo o juntar pines. Para hacerla más pequeña, reduce primero la figura con sus controles azules. Al pasar el ratón por cada control aparece una ayuda que explica qué modifica.
+
+### Conexiones pendientes
+
+- Al abrir un circuito y después de editarlo, se revisa el interior de los componentes propios de cualquier nivel. Problemas avisa por pines internos desconectados, tanto entradas como salidas. Los terminales exteriores de una pieza colocada en el lienzo y los elementos «Pin de entrada» / «Pin de salida» que definen la interfaz no generan este aviso por estar libres: colocar un componente sano sin cablearlo no lo marca como roto. Un cable que termina suelto también cuenta; una rama suelta se avisa aunque el resto de esa red tenga conexiones válidas. Las conexiones mediante túneles y hacia la interfaz del padre se reconocen por el cableado; una señal Z no basta para declarar un pin desconectado.
+- Cada advertencia nombra la ruta hasta el componente y su pin. Un triángulo de advertencia marca la pieza; si la causa está dentro, se marca la pieza exterior que la contiene. Doble clic en Problemas, F8 y Mayús+F8 llevan a la pieza o al extremo suelto; para un problema interno seleccionan el componente exterior visible. Las marcas se recalculan al corregir, deshacer o rehacer, sin esperar un avance de simulación, y vuelven a aparecer al reabrir si la conexión sigue pendiente. Son avisos: no impiden guardar ni simular.
+
 ### Cortocircuitos
 
 - Los cortocircuitos se ven en rojo pulsante, con un halo en cada pin que maneja la red; al pasar el mouse sobre el cable se listan los drivers. Click en "⚠ N cortocircuitos" o F8 / Mayús+F8 salta al siguiente/anterior; la pestaña Problemas los lista (doble click navega). Simulación → "Pausar al detectar cortocircuito" detiene la simulación cuando aparece uno nuevo. Un cortocircuito dentro de un componente propio resalta su instancia y F8 lleva a ella; si une redes del circuito a través de una instancia, solo se resalta (y muestra los drivers al pasar el mouse) la red principal.

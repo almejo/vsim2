@@ -14,7 +14,7 @@ import java.util.List;
 
 /**
  * Clipboard form of a {@link CircuitFragment}: compact JSON
- * {@code {"format":"vsim2","savedWith":...,"formatVersion":2,"kind":"fragment",...}} with the same component, wire
+ * {@code {"format":"vsim2","savedWith":...,"formatVersion":3,"kind":"fragment",...}} with the same component, wire
  * and label entries as the circuit file format. A fragment also carries the definitions its instances use, so it can
  * be pasted into a document that does not hold them.
  */

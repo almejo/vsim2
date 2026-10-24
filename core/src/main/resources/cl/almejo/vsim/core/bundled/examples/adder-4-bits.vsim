@@ -1,7 +1,7 @@
 {
   "format" : "vsim2",
   "savedWith" : "0.3",
-  "formatVersion" : 2,
+  "formatVersion" : 3,
   "kind" : "circuit",
   "name" : "Sumador de 4 bits",
   "components" : [ {
@@ -843,6 +843,7 @@
       "x2" : 46,
       "y2" : 14
     } ],
-    "labels" : [ ]
+    "labels" : [ ],
+    "revision" : 1
   } ]
 }

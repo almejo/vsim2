@@ -1,7 +1,7 @@
 {
   "format" : "vsim2",
   "savedWith" : "0.3",
-  "formatVersion" : 2,
+  "formatVersion" : 3,
   "kind" : "circuit",
   "name" : "Decodificador 2 a 4",
   "components" : [ {

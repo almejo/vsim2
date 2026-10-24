@@ -4,6 +4,7 @@ import cl.almejo.vsim.automation.PinReference;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.netlist.PinRef;
 import cl.almejo.vsim.core.simulation.DisplayBusOverride;
+import cl.almejo.vsim.core.simulation.ConnectivityProblem;
 import cl.almejo.vsim.core.simulation.DriverRef;
 import cl.almejo.vsim.core.simulation.FlatPinRef;
 import cl.almejo.vsim.core.simulation.InstancePath;
@@ -61,6 +62,17 @@ public final class ProblemsReader {
                 yield references.view("TUNNEL_" + tunnel.kind().name(), tunnel.isWarning(), problem.netId(),
                         tunnelMessage(tunnel));
             }
+            case ConnectivityProblem connectivity -> {
+                if (connectivity.isPin()) {
+                    references.pin(connectivity.elementId(), connectivity.pinIndex());
+                } else {
+                    references.element(connectivity.elementId());
+                }
+                yield references.view(connectivity.isPin() ? "DISCONNECTED_PIN" : "LOOSE_WIRE_END", true,
+                        problem.netId(), connectivity.isPin()
+                                ? "Disconnected pin " + connectivity.pinIndex() + " of " + connectivity.elementId()
+                                : "Loose wire end of " + connectivity.elementId() + " at " + connectivity.position());
+            }
         };
     }
 
@@ -103,7 +115,7 @@ public final class ProblemsReader {
 
         void element(String flatId) {
             String topLevel = InstancePath.topLevel(flatId);
-            if (source.document().component(new ElementId(topLevel)).isPresent()) {
+            if (source.document().element(new ElementId(topLevel)).isPresent()) {
                 elementIds.add(topLevel);
             }
             if (InstancePath.isNested(flatId)) {

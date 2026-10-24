@@ -107,6 +107,15 @@ public final class WireFollow {
     }
 
     /**
+     * Plans distinct destinations for many pins simultaneously. The original circuit determines net identities;
+     * routes are checked before any edit is applied, so swapping pins never observes an intermediate move.
+     */
+    public static FollowPlan plan(CircuitDocument document, ComponentTypeRegistry registry, PinMoves moves,
+                                  Supplier<ElementId> newWireIds) {
+        return PinMapFollow.plan(document, registry, moves, newWireIds);
+    }
+
+    /**
      * How the wires follow the move of {@code movedIds} by the delta; new wires take their ids from
      * {@code newWireIds}, in order (only for the wires the final plan adds). Ids that are not in the document, labels
      * and frames move no wire.

@@ -273,7 +273,12 @@ public final class TemplateActions {
             return;
         }
         KeptVersions.warn(document, bundle, dialogs, canvas.get());
-        openDocument.execute(new ReplaceDefinitionCommand(bundle));
+        try {
+            openDocument.execute(new ReplaceDefinitionCommand(bundle));
+        } catch (cl.almejo.vsim.core.library.UnsafeDefinitionUpdateException exception) {
+            dialogs.showMessage(canvas.get(), Messages.format(exception.messageKey(),
+                    String.join(", ", exception.containingNames())));
+        }
     }
 
     /** True when the library holds a different version of the instance's definition (the badge shows). */
@@ -400,7 +405,19 @@ public final class TemplateActions {
         }
         DefinitionBundle bundle = DefinitionBuilder.fromSelection(document, ids, result.definitionId(), result.name(),
                 result.pinOrder(), result.pinNames(), openDocument.registry());
-        openDocument.execute(new ReplaceDefinitionCommand(bundle));
+        Optional<ComponentDefinition> previous = document.definition(bundle.root().id());
+        if (previous.isPresent()) {
+            ComponentDefinition candidate = cl.almejo.vsim.core.library.AppearanceReconciler
+                    .preserveGeneralAppearance(previous.get(), bundle.root());
+            bundle = new DefinitionBundle(candidate.revisedFrom(previous.get()), bundle.dependencies());
+        }
+        try {
+            openDocument.execute(new ReplaceDefinitionCommand(bundle));
+        } catch (cl.almejo.vsim.core.library.UnsafeDefinitionUpdateException exception) {
+            dialogs.showMessage(canvas.get(), Messages.format(exception.messageKey(),
+                    String.join(", ", exception.containingNames())));
+            return;
+        }
         if (service.library().find(bundle.root().id()).isPresent()) {
             saveToLibrary(bundle);
         }

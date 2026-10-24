@@ -6,6 +6,7 @@ import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.GridSize;
 import cl.almejo.vsim.core.geometry.Rotation;
+import cl.almejo.vsim.core.library.SubcircuitTypes;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -92,6 +93,12 @@ public record ComponentType(String id, ComponentCategory category, GridSize size
 
     /** This type as {@code component} has it: {@link #specializedFor} its parameters. */
     public ComponentType forComponent(Component component) {
+        if (SubcircuitTypes.definitionOf(this).isPresent()) {
+            return SubcircuitTypes.forComponent(this, component);
+        }
+        if (component.appearance().isPresent()) {
+            throw new IllegalArgumentException("only user components can have an appearance override");
+        }
         return specializedFor(component.parameters());
     }
 

@@ -9,6 +9,7 @@ import cl.almejo.vsim.core.netlist.Netlist;
 import cl.almejo.vsim.core.netlist.NetlistCompiler;
 import cl.almejo.vsim.core.netlist.PinRef;
 import cl.almejo.vsim.core.simulation.CircuitFlattener;
+import cl.almejo.vsim.core.simulation.ConnectivityProblem;
 import cl.almejo.vsim.core.simulation.SimulationEngine;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.core.value.Value;
@@ -60,7 +61,8 @@ class FullAdderIntegrationTest {
         engine.advance(10);
         Component xor = document.components().stream().filter(component -> component.typeId().equals("xor2")).findFirst().orElseThrow();
         assertThat(output(xor, 2)).isEqualTo(Value.ONE);
-        assertThat(engine.snapshot().problems()).isEmpty();
+        assertThat(engine.snapshot().problems()).filteredOn(problem -> !(problem instanceof ConnectivityProblem))
+                .isEmpty();
     }
 
     @ParameterizedTest(name = "a={0} b={1} c={2}")
@@ -83,7 +85,8 @@ class FullAdderIntegrationTest {
         int total = a + b + carryIn;
         assertThat(output(sumGate, 2)).isEqualTo(Value.of(total % 2 == 1));
         assertThat(output(carryGate, 2)).isEqualTo(Value.of(total >= 2));
-        assertThat(engine.snapshot().problems()).isEmpty();
+        assertThat(engine.snapshot().problems()).filteredOn(problem -> !(problem instanceof ConnectivityProblem))
+                .isEmpty();
     }
 
     private void setSwitch(String label, int value) {
@@ -91,12 +94,12 @@ class FullAdderIntegrationTest {
     }
 
     @Test
-    void vsimExampleCircuitImportsAndSimulatesWithoutProblems() throws Exception {
+    void vsimExampleCircuitImportsAndSimulatesWithoutElectricalProblems() throws Exception {
         load("circuit.json");
         assertThat(document.components()).hasSize(21);
         engine.advance(5000);
         SimulationSnapshot snapshot = engine.snapshot();
-        assertThat(snapshot.problems()).isEmpty();
+        assertThat(snapshot.problems()).filteredOn(problem -> !(problem instanceof ConnectivityProblem)).isEmpty();
         assertThat(snapshot.time()).isEqualTo(5000);
         for (Component component : document.components()) {
             int pinCount = registry.require(component.typeId()).pinCount();

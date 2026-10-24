@@ -121,9 +121,11 @@ class EditorAutomationHostReadTest {
         });
         DocumentId id = idOf(document);
 
-        UiTestSupport.waitUntil(() -> !api.readProblems(id).problems().isEmpty());
+        UiTestSupport.waitUntil(() -> api.readProblems(id).problems().stream()
+                .anyMatch(problem -> problem.kind().equals("SHORT_CIRCUIT")));
 
-        ProblemView problem = api.readProblems(id).problems().get(0);
+        ProblemView problem = api.readProblems(id).problems().stream()
+                .filter(found -> found.kind().equals("SHORT_CIRCUIT")).findFirst().orElseThrow();
         assertThat(problem.kind()).isEqualTo("SHORT_CIRCUIT");
         assertThat(problem.pins()).containsExactlyInAnyOrder(new PinReference(high.id().value(), "out", 0),
                 new PinReference(low.id().value(), "out", 0));

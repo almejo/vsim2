@@ -1,5 +1,7 @@
 package cl.almejo.vsim.ui.tree;
 
+import cl.almejo.vsim.core.component.ComponentType;
+import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.simulation.InstancePath;
@@ -74,7 +76,7 @@ public final class ComponentTreePanel extends JPanel {
     private final PainterRegistry painters;
     private final Appearance appearance;
     /** Component icons by type id, drawn with the current scheme; cleared when the scheme changes. */
-    private final Map<String, Icon> icons = new HashMap<>();
+    private final Map<ComponentType, Icon> icons = new HashMap<>();
     private final DefaultTreeModel treeModel = new DefaultTreeModel(new DefaultMutableTreeNode());
     private final JTree tree = new JTree(treeModel);
     private final JCheckBox groupByType = new JCheckBox(Messages.text("tree.groupByType"));
@@ -174,6 +176,7 @@ public final class ComponentTreePanel extends JPanel {
 
     /** Rebuilds every row from the document, keeping expanded rows expanded and the chosen row chosen. */
     void rebuild() {
+        icons.clear();
         Set<String> expanded = filtering ? Set.of() : expandedPaths();
         rebuild(expanded);
     }
@@ -364,13 +367,28 @@ public final class ComponentTreePanel extends JPanel {
     Icon icon(ComponentTreeNode node) {
         String typeId = node.typeId(); // the palette icon: the type with its default parameters, as in PalettePanel
         return switch (node.kind()) {
-            case COMPONENT, GROUP -> openDocument.registry().find(typeId)
-                    .map(type -> icons.computeIfAbsent(type.id(), id -> new ComponentIcon(type,
-                            painters.painterFor(id), appearance.scheme(), ICON_SIZE)))
+            case COMPONENT, GROUP -> (node.kind() == ComponentTreeNode.Kind.COMPONENT
+                    ? effectiveType(node.path()) : openDocument.registry().find(typeId))
+                    .map(type -> icons.computeIfAbsent(type, current -> new ComponentIcon(current,
+                            painters.painterFor(current.id()), appearance.scheme(), ICON_SIZE)))
                     .orElse(null);
             case FRAME -> Icons.get(FrameIcons.FRAME_TOOL, ICON_SIZE);
             case DOCUMENT -> null;
         };
+    }
+
+    /** Walks the actual nested instances so their own shapes also appear in the tree. */
+    private Optional<ComponentType> effectiveType(String path) {
+        List<String> segments = InstancePath.segments(path);
+        Optional<cl.almejo.vsim.core.document.Component> component = openDocument.document()
+                .component(new ElementId(segments.getFirst()));
+        for (int index = 1; index < segments.size() && component.isPresent(); index++) {
+            String child = segments.get(index);
+            component = SubcircuitTypes.definitionOf(openDocument.registry().typeOf(component.get()))
+                    .flatMap(definition -> definition.body().components().stream()
+                            .filter(nested -> nested.id().value().equals(child)).findFirst());
+        }
+        return component.flatMap(openDocument.registry()::findTypeOf);
     }
 
     /** Draws each row with its icon. */

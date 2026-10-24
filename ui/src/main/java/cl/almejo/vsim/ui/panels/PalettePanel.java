@@ -71,6 +71,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -124,6 +125,7 @@ public final class PalettePanel extends JPanel {
     private Consumer<UserComponent> userChooser = component -> {
     };
     private Function<Optional<UserComponent>, Optional<JPopupMenu>> userMenuProvider = component -> Optional.empty();
+    private final List<BiConsumer<Optional<UserComponent>, JPopupMenu>> userMenuContributors = new ArrayList<>();
     private Consumer<List<Path>> fileDropHandler;
     private Runnable focusAfterMouseChoice = () -> {
     };
@@ -509,6 +511,12 @@ public final class PalettePanel extends JPanel {
         userMenuProvider = Objects.requireNonNull(provider);
     }
 
+    /** Adds view-owned feature entries after the library entries; the returned action removes the contribution. */
+    public Runnable addUserMenuContributor(BiConsumer<Optional<UserComponent>, JPopupMenu> contributor) {
+        userMenuContributors.add(Objects.requireNonNull(contributor));
+        return () -> userMenuContributors.remove(contributor);
+    }
+
     /**
      * Receives the circuit and component files dropped on the palette, as the canvas and the window do; without a
      * handler drops are refused.
@@ -542,7 +550,9 @@ public final class PalettePanel extends JPanel {
 
     /** The context menu for the entry at {@code path} (null: no entry). Package-private for tests. */
     Optional<JPopupMenu> popupFor(TreePath path) {
-        Optional<JPopupMenu> provided = userMenuProvider.apply(path == null ? Optional.empty() : userComponentOf(path));
+        Optional<UserComponent> component = path == null ? Optional.empty() : userComponentOf(path);
+        Optional<JPopupMenu> provided = userMenuProvider.apply(component);
+        provided.ifPresent(popup -> userMenuContributors.forEach(contributor -> contributor.accept(component, popup)));
         Object item = path == null ? null : ((DefaultMutableTreeNode) path.getLastPathComponent()).getUserObject();
         if (favoriteToggle.isEmpty() || !(item instanceof ComponentType || item instanceof UserComponent)) {
             return provided;

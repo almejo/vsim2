@@ -209,6 +209,7 @@ public final class Application {
         // M6: waveforms before ActionIcons, recents after PreferencesFeature, shortcuts last. M6.1: the step mode and
         // the truth table before ActionIcons, the examples after RecentFilesFeature (its submenu goes after «Recientes»).
         editorExtensions.add(new TemplatesExtension(libraryService, libraryDialogs));
+        editorExtensions.add(new cl.almejo.vsim.ui.appearance.AppearanceExtension(libraryService, libraryDialogs));
         editorExtensions.add(new ComponentTreeExtension());
         editorExtensions.add(new WaveformsExtension());
         editorExtensions.add(new StepModeExtension());

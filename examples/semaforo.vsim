@@ -1,7 +1,7 @@
 {
   "format" : "vsim2",
-  "savedWith" : "2.0.0-SNAPSHOT",
-  "formatVersion" : 2,
+  "savedWith" : "0.3",
+  "formatVersion" : 3,
   "kind" : "circuit",
   "name" : "Semáforo",
   "components" : [ {

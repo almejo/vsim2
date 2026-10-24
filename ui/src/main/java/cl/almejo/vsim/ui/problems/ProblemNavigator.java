@@ -11,6 +11,7 @@ import cl.almejo.vsim.core.netlist.Net;
 import cl.almejo.vsim.core.netlist.NetId;
 import cl.almejo.vsim.core.netlist.PinRef;
 import cl.almejo.vsim.core.simulation.DisplayBusOverride;
+import cl.almejo.vsim.core.simulation.ConnectivityProblem;
 import cl.almejo.vsim.core.simulation.InstancePath;
 import cl.almejo.vsim.core.simulation.Problem;
 import cl.almejo.vsim.core.simulation.ShortCircuit;
@@ -95,6 +96,9 @@ public final class ProblemNavigator {
         if (index >= 0) {
             current = index;
         }
+        if (problem instanceof ConnectivityProblem connectivity) {
+            return navigateToConnectivity(connectivity);
+        }
         if (problem instanceof TunnelProblem tunnel && navigateToTunnels(tunnel)) {
             return true;
         }
@@ -103,6 +107,24 @@ public final class ProblemNavigator {
             return navigateToInstances(problem);
         }
         focusNet(canvas.get(), blink, net.get());
+        return true;
+    }
+
+    private boolean navigateToConnectivity(ConnectivityProblem problem) {
+        CircuitCanvas pane = canvas.get();
+        CircuitDocument document = pane.openDocument().document();
+        ElementId visibleId = new ElementId(InstancePath.topLevel(problem.elementId()));
+        Optional<Component> component = document.component(visibleId);
+        if (component.isPresent()) {
+            pane.travelTo(pane.openDocument().registry().typeOf(component.get()).bounds(component.get()));
+        } else if (!InstancePath.isNested(problem.elementId()) && document.wire(visibleId).isPresent()) {
+            pane.travelTo(Bounds.of(problem.position(), problem.position()));
+        } else {
+            return false;
+        }
+        pane.selection().set(List.of(visibleId));
+        blink.stop();
+        pane.requestFocusInWindow();
         return true;
     }
 
@@ -161,6 +183,7 @@ public final class ProblemNavigator {
             case WidthMismatch mismatch -> mismatch.pins().forEach(pin -> ids.add(pin.componentId()));
             case DisplayBusOverride display -> ids.add(display.componentId());
             case TunnelProblem tunnel -> ids.addAll(tunnel.tunnels());
+            case ConnectivityProblem connectivity -> ids.add(connectivity.elementId());
         }
         CircuitDocument document = canvas.get().openDocument().document();
         ComponentTypeRegistry registry = canvas.get().openDocument().registry();

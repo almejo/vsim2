@@ -247,7 +247,9 @@ class ProblemsControllerTest {
         problems.showSnapshot(withWarning);
         view.statusBar().showSnapshot(withWarning);
 
-        assertThat(problems.panel().problemList().getModel().getSize()).isEqualTo(1);
+        int wiringWarnings = openDocument.connectivityProblems().size();
+        assertThat(wiringWarnings).isZero();
+        assertThat(problems.panel().problemList().getModel().getSize()).isEqualTo(1 + wiringWarnings);
         assertThat(problems.panel().summaryText()).isEqualTo("1 problema");
         assertThat(Arrays.stream(view.statusBar().getComponents())
                 .filter(JLabel.class::isInstance)
@@ -259,8 +261,9 @@ class ProblemsControllerTest {
         assertThat(view.canvas().selection().ids()).containsExactly(display.id());
 
         problems.showSnapshot(currentSnapshot(Map.of(), Map.of()));
-        assertThat(problems.panel().problemList().getModel().getSize()).isZero();
-        assertThat(problems.nextProblem().isEnabled()).isFalse();
+        assertThat(problems.navigator().problems()).doesNotContain(warning)
+                .containsExactlyElementsOf(openDocument.connectivityProblems());
+        assertThat(problems.nextProblem().isEnabled()).isEqualTo(wiringWarnings > 0);
     }
 
     @Test

@@ -17,6 +17,7 @@ import cl.almejo.vsim.core.netlist.Netlist;
 import cl.almejo.vsim.core.netlist.NetlistCompiler;
 import cl.almejo.vsim.core.netlist.ProbeResolver;
 import cl.almejo.vsim.core.simulation.CircuitFlattener;
+import cl.almejo.vsim.core.simulation.ConnectivityProblem;
 import cl.almejo.vsim.core.simulation.FlatCircuit;
 import cl.almejo.vsim.core.simulation.InputAssignment;
 import cl.almejo.vsim.core.simulation.RequestReport;
@@ -67,6 +68,7 @@ public final class OpenDocument implements AutoCloseable {
     private Path backingFile;
     private boolean importedFromVsim1;
     private Netlist netlist = Netlist.EMPTY;
+    private List<ConnectivityProblem> connectivityProblems = List.of();
     private long netlistToken = -1;
     private boolean closed;
     private boolean pauseOnShortCircuit;
@@ -237,6 +239,11 @@ public final class OpenDocument implements AutoCloseable {
     /** Revision of the document the current netlist was compiled from; compare with {@code snapshot.token()}. */
     public long netlistToken() {
         return netlistToken;
+    }
+
+    /** Current wiring warnings, available immediately after a document edit without a simulation tick. */
+    public List<ConnectivityProblem> connectivityProblems() {
+        return connectivityProblems;
     }
 
     public void execute(Command command) {
@@ -516,6 +523,7 @@ public final class OpenDocument implements AutoCloseable {
             netlistToken = document.revision();
             // One request with the circuit, so no tick runs between the new circuit and its channels (spec §3.4).
             FlatCircuit circuit = flattener.flatten(document, netlist);
+            connectivityProblems = circuit.connectivityProblems();
             hasClock = circuit.components().stream()
                     .anyMatch(component -> component.type().id().equals(StandardComponentTypes.CLOCK));
             simulation.update(circuit, updateProbeNets());
@@ -523,6 +531,7 @@ public final class OpenDocument implements AutoCloseable {
             LOGGER.error("Could not prepare {} for simulation", displayName(), exception);
             probeNets = Map.of();
             hasClock = false;
+            connectivityProblems = List.of();
             if (netlistToken != document.revision()) {
                 netlist = Netlist.EMPTY;
                 netlistToken = document.revision();

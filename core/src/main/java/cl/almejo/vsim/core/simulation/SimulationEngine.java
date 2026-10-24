@@ -34,6 +34,7 @@ public final class SimulationEngine {
     private Map<String, RuntimeNet> aliasRoots = Map.of();
     /** The wiring problems of the tunnels of the circuit last applied (FlatCircuit#tunnelProblems). */
     private List<TunnelProblem> tunnelProblems = List.of();
+    private List<ConnectivityProblem> connectivityProblems = List.of();
 
     /** At most this many events run in one {@link #advanceToNextEvent()} (a zero-delay loop never lets time move). */
     public static final int STEP_EVENT_BUDGET = 100_000;
@@ -90,6 +91,7 @@ public final class SimulationEngine {
         }
         token = circuit.token();
         tunnelProblems = circuit.tunnelProblems();
+        connectivityProblems = circuit.connectivityProblems();
         revision++;
     }
 
@@ -551,6 +553,7 @@ public final class SimulationEngine {
             }
         }
         problems.addAll(tunnelProblems);
+        problems.addAll(connectivityProblems);
         Map<String, VisibleState> states = new HashMap<>();
         for (ComponentInstance instance : instances.values()) {
             displayBusOverride(instance).ifPresent(problems::add);

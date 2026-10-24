@@ -109,7 +109,7 @@ class PolishEndToEndTest {
         Path file = directory.resolve("cadena.vsim");
         original.save(file);
         String saved = Files.readString(file);
-        assertThat(saved).contains("\"formatVersion\" : 2").doesNotContain("A.out");
+        assertThat(saved).contains("\"formatVersion\" : 3").doesNotContain("A.out");
         assertThat(saved.replaceAll("\\s", "")).as("the live name is left out")
                 .contains("{\"id\":\"p1\",\"name\":\"entrada\",\"component\":\"c1\",\"pin\":0}")
                 .contains("{\"id\":\"p2\",\"component\":\"c2\",\"pin\":1}");

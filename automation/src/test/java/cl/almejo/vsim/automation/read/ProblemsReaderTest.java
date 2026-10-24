@@ -3,9 +3,13 @@ package cl.almejo.vsim.automation.read;
 import cl.almejo.vsim.automation.PinReference;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
+import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.core.document.Wire;
+import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.library.ExampleDefinitions;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.core.simulation.DisplayBusOverride;
+import cl.almejo.vsim.core.simulation.ConnectivityProblem;
 import cl.almejo.vsim.core.simulation.DriverRef;
 import cl.almejo.vsim.core.simulation.FlatPinRef;
 import cl.almejo.vsim.core.simulation.Problem;
@@ -88,6 +92,25 @@ class ProblemsReaderTest {
                 List.of(), Optional.empty()));
 
         assertThat(ProblemsReader.read(fixture.source()).upToDate()).isFalse();
+    }
+
+    @Test
+    void disconnectedPinsAndLooseWireEndsAreWarningsWithUsableReferences() {
+        fixture.document.putDefinition(ExampleDefinitions.inverter());
+        Component instance = fixture.place(SubcircuitTypes.typeIdOf(ExampleDefinitions.INVERTER), 10, 10);
+        Wire wire = new Wire(new ElementId("wire"), GridPoint.ORIGIN, new GridPoint(5, 0));
+        fixture.document.add(wire);
+        String inside = instance.id().value() + "/c2";
+        publish(0, new ConnectivityProblem("n:pin", inside, 1, GridPoint.ORIGIN),
+                new ConnectivityProblem("n:wire", wire.id().value(), -1, wire.end()));
+
+        List<ProblemView> problems = ProblemsReader.read(fixture.source()).problems();
+
+        assertThat(problems).extracting(ProblemView::kind).containsExactly("DISCONNECTED_PIN", "LOOSE_WIRE_END");
+        assertThat(problems).allMatch(ProblemView::warning);
+        assertThat(problems.getFirst().elementIds()).containsExactly(instance.id().value());
+        assertThat(problems.getFirst().insidePaths()).containsExactly(inside);
+        assertThat(problems.getLast().elementIds()).containsExactly(wire.id().value());
     }
 
     private void publish(long time, Problem... problems) {

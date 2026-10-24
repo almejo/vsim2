@@ -1,7 +1,7 @@
 {
   "format" : "vsim2",
   "savedWith" : "0.3",
-  "formatVersion" : 2,
+  "formatVersion" : 3,
   "kind" : "circuit",
   "name" : "ALU de 4 bits",
   "components" : [ {
@@ -1035,7 +1035,8 @@
       "x2" : 46,
       "y2" : 14
     } ],
-    "labels" : [ ]
+    "labels" : [ ],
+    "revision" : 1
   }, {
     "id" : "bit-de-alu",
     "name" : "Bit de ALU",
@@ -1583,7 +1584,8 @@
       "x2" : 56,
       "y2" : 1
     } ],
-    "labels" : [ ]
+    "labels" : [ ],
+    "revision" : 1
   } ],
   "frames" : [ {
     "id" : "f109",

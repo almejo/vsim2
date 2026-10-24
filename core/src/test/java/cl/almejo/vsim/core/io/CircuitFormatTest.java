@@ -36,7 +36,7 @@ class CircuitFormatTest {
         document.add(new TextLabel(document.newLabelId(), new GridPoint(2, 9), "nota"));
 
         String json = format.write(document);
-        assertThat(json).contains("\"formatVersion\" : 2").contains("\"kind\" : \"circuit\"");
+        assertThat(json).contains("\"formatVersion\" : 3").contains("\"kind\" : \"circuit\"");
 
         CircuitDocument loaded = format.read(json);
         assertThat(loaded.name()).isEqualTo("sumador");
@@ -76,7 +76,7 @@ class CircuitFormatTest {
     static Stream<org.junit.jupiter.params.provider.Arguments> brokenFiles() {
         return Stream.of(
                 arguments("{", CircuitFormatException.Reason.INVALID_JSON),
-                arguments("{\"formatVersion\":3,\"kind\":\"circuit\"}", CircuitFormatException.Reason.NEWER_FORMAT),
+                arguments("{\"formatVersion\":4,\"kind\":\"circuit\"}", CircuitFormatException.Reason.NEWER_FORMAT),
                 arguments("{\"formatVersion\":\"2\",\"kind\":\"circuit\"}", CircuitFormatException.Reason.UNSUPPORTED_VERSION),
                 arguments("{\"formatVersion\":2.5,\"kind\":\"circuit\"}", CircuitFormatException.Reason.UNSUPPORTED_VERSION),
                 arguments("{\"kind\":\"circuit\"}", CircuitFormatException.Reason.NOT_VSIM_FILE),

@@ -5,12 +5,18 @@ import cl.almejo.vsim.core.component.BehaviorFactory;
 import cl.almejo.vsim.core.component.ComponentCategory;
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
+import cl.almejo.vsim.core.component.PinSpec;
+import cl.almejo.vsim.core.component.appearance.ComponentAppearance;
+import cl.almejo.vsim.core.component.appearance.SymbolDrawing;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
 
 import java.util.Collection;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -38,8 +44,11 @@ public final class SubcircuitTypes {
      * into their bodies); see {@link #resolverFor}.
      */
     public static ComponentType typeOf(ComponentDefinition definition) {
-        return new ComponentType(typeIdOf(definition.id()), ComponentCategory.CUSTOM, definition.size(),
-                definition.pinout().stream().map(DefinitionPin::spec).toList(), List.of(), new Factory(definition));
+        Factory factory = new Factory(definition);
+        ComponentType type = new ComponentType(typeIdOf(definition.id()), ComponentCategory.CUSTOM, definition.size(),
+                definition.pinout().stream().map(DefinitionPin::spec).toList(), List.of(), factory);
+        factory.baseType = type;
+        return type;
     }
 
     /** The distinct definition ids {@code components} instantiate directly, in order of first use. */
@@ -65,22 +74,101 @@ public final class SubcircuitTypes {
      */
     public static ComponentTypeRegistry.TypeResolver resolverFor(CircuitDocument document) {
         Map<String, ComponentType> types = new ConcurrentHashMap<>();
-        return typeId -> definitionIdOf(typeId)
+        return typeId -> {
+            types.keySet().removeIf(id -> document.definition(id).isEmpty());
+            return definitionIdOf(typeId)
                 .flatMap(document::definition)
                 .map(definition -> types.compute(definition.id(), (id, cached) ->
                         cached != null && definitionOf(cached).orElseThrow() == definition ? cached : typeOf(definition)));
+        };
     }
 
     public static Optional<ComponentDefinition> definitionOf(ComponentType type) {
-        return type.behaviorFactory() instanceof Factory factory ? Optional.of(factory.definition()) : Optional.empty();
+        return type.behaviorFactory() instanceof Factory factory ? Optional.of(factory.definition) : Optional.empty();
+    }
+
+    /** The drawing of this effective type; an override may deliberately restore the default box. */
+    public static Optional<SymbolDrawing> appearanceOf(ComponentType type) {
+        if (!(type.behaviorFactory() instanceof Factory factory)) {
+            return Optional.empty();
+        }
+        return factory.appearance.map(ComponentAppearance::drawing).orElse(factory.definition.appearance());
+    }
+
+    /**
+     * Resolves the instance override against its current definition, preserving pinout order for the flattener.
+     * Equal canonical overrides share one bounded cached type; replacing a definition replaces its cache too.
+     */
+    public static ComponentType forComponent(ComponentType type, Component component) {
+        if (!(type.behaviorFactory() instanceof Factory factory)) {
+            throw new IllegalArgumentException("not a user component type: " + type.id());
+        }
+        if (component.appearance().isEmpty()) {
+            return factory.root.baseType;
+        }
+        ComponentAppearance canonical = component.appearance().orElseThrow().canonical(factory.definition.pinout());
+        if (factory.appearance.filter(canonical::equals).isPresent()) {
+            return type;
+        }
+        return factory.root.typeFor(canonical);
     }
 
     /** The flattener expands instances, so this behavior never runs in a simulation; tools may still create it. */
-    private record Factory(ComponentDefinition definition) implements BehaviorFactory {
+    private static final class Factory implements BehaviorFactory {
+        /** Bound undo-session variants; live definitions own their caches and removed definitions release them. */
+        private static final int MAXIMUM_EFFECTIVE_TYPES = 512;
+        private final ComponentDefinition definition;
+        private final Optional<ComponentAppearance> appearance;
+        private final Factory root;
+        private final Map<ComponentAppearance, ComponentType> types = new LinkedHashMap<>(16, 0.75f, true);
+        private ComponentType baseType;
+
+        private Factory(ComponentDefinition definition) {
+            this.definition = definition;
+            appearance = Optional.empty();
+            root = this;
+        }
+
+        private Factory(Factory root, ComponentAppearance appearance) {
+            this.definition = root.definition;
+            this.appearance = Optional.of(appearance);
+            this.root = root;
+        }
+
+        private synchronized ComponentType typeFor(ComponentAppearance appearance) {
+            ComponentType cached = types.get(appearance);
+            if (cached != null) {
+                return cached;
+            }
+            List<PinSpec> pins = new ArrayList<>();
+            for (int index = 0; index < definition.pinout().size(); index++) {
+                PinSpec pin = definition.pinout().get(index).spec();
+                pins.add(new PinSpec(pin.name(), appearance.pins().get(index).offset(), pin.direction(), pin.width()));
+            }
+            ComponentType effective = new ComponentType(typeIdOf(definition.id()), ComponentCategory.CUSTOM,
+                    appearance.size(), pins, List.of(), new Factory(this, appearance));
+            if (types.size() >= MAXIMUM_EFFECTIVE_TYPES) {
+                types.remove(types.keySet().iterator().next());
+            }
+            types.put(appearance, effective);
+            return effective;
+        }
+
         @Override
         public Behavior create(Map<String, Object> parameters) {
             return (context, pinIndex) -> {
             };
+        }
+
+        @Override
+        public boolean equals(Object other) {
+            return other instanceof Factory factory && definition.equals(factory.definition)
+                    && appearance.equals(factory.appearance);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(definition, appearance);
         }
     }
 }

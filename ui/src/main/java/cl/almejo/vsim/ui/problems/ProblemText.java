@@ -8,6 +8,7 @@ import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.core.simulation.DisplayBusOverride;
+import cl.almejo.vsim.core.simulation.ConnectivityProblem;
 import cl.almejo.vsim.core.simulation.DriverRef;
 import cl.almejo.vsim.core.simulation.FlatPinRef;
 import cl.almejo.vsim.core.simulation.InstancePath;
@@ -45,6 +46,7 @@ public final class ProblemText {
             case TunnelProblem tunnel when !tunnel.isWarning() -> 2;
             case DisplayBusOverride display -> 3;
             case TunnelProblem tunnel -> 4;
+            case ConnectivityProblem connectivity -> 5;
         };
     }
 
@@ -72,7 +74,27 @@ public final class ProblemText {
                     .collect(Collectors.joining(SEPARATOR)));
             case DisplayBusOverride display -> displayBus(display, document);
             case TunnelProblem tunnel -> tunnel(tunnel, document);
+            case ConnectivityProblem connectivity -> connectivity(connectivity, document, registry);
         };
+    }
+
+    private static String connectivity(ConnectivityProblem problem, CircuitDocument document,
+                                       ComponentTypeRegistry registry) {
+        if (!problem.isPin()) {
+            String location = InstancePath.isNested(problem.elementId())
+                    ? path(problem.elementId().substring(0, problem.elementId().lastIndexOf('/')), document)
+                            .orElse(problem.elementId())
+                    : Messages.text("problem.connectivity.circuit");
+            return Messages.format("problem.connectivity.looseWire", location,
+                    problem.position().x(), problem.position().y());
+        }
+        String componentPath = path(problem.elementId(), document).orElse(problem.elementId());
+        Optional<ComponentType> type = chain(problem.elementId(), document)
+                .flatMap(components -> registry.findTypeOf(components.getLast()));
+        String pinName = type.filter(found -> problem.pinIndex() < found.pinCount())
+                .map(found -> found.pin(problem.pinIndex()).name())
+                .orElse(Integer.toString(problem.pinIndex()));
+        return Messages.format("problem.connectivity.pin", componentPath, pinName);
     }
 
     /**

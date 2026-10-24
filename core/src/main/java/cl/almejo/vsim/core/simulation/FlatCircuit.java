@@ -5,10 +5,11 @@ import java.util.List;
 /**
  * What the engine simulates: components and nets with no geometry and no hierarchy.
  * {@code token} identifies the document revision it was built from (echoed by {@link SimulationSnapshot#token()}).
- * {@code tunnelProblems} were found in the wiring while flattening; the engine publishes them with its own problems.
+ * {@code tunnelProblems} and {@code connectivityProblems} were found in the wiring while flattening; the engine
+ * publishes them with its own problems.
  */
 public record FlatCircuit(long token, List<FlatComponent> components, List<FlatNet> nets,
-                          List<TunnelProblem> tunnelProblems) {
+                          List<TunnelProblem> tunnelProblems, List<ConnectivityProblem> connectivityProblems) {
 
     public static final FlatCircuit EMPTY = new FlatCircuit(List.of(), List.of());
 
@@ -16,6 +17,12 @@ public record FlatCircuit(long token, List<FlatComponent> components, List<FlatN
         components = List.copyOf(components);
         nets = List.copyOf(nets);
         tunnelProblems = List.copyOf(tunnelProblems);
+        connectivityProblems = List.copyOf(connectivityProblems);
+    }
+
+    public FlatCircuit(long token, List<FlatComponent> components, List<FlatNet> nets,
+                       List<TunnelProblem> tunnelProblems) {
+        this(token, components, nets, tunnelProblems, List.of());
     }
 
     public FlatCircuit(long token, List<FlatComponent> components, List<FlatNet> nets) {

@@ -14,9 +14,11 @@ import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.GridSize;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.DefinitionPin;
+import com.fasterxml.jackson.annotation.JsonInclude;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 /** The JSON shape of a definition, shared by circuit files, clipboard fragments and component files. */
 final class DefinitionEntries {
@@ -26,7 +28,9 @@ final class DefinitionEntries {
 
     record DefinitionEntry(String id, String name, String description, int width, int height, List<PinEntry> pinout,
                            List<CircuitFormat.ComponentEntry> components, List<CircuitFormat.WireEntry> wires,
-                           List<CircuitFormat.LabelEntry> labels) {
+                           List<CircuitFormat.LabelEntry> labels,
+                           @JsonInclude(JsonInclude.Include.NON_NULL) Long revision,
+                           @JsonInclude(JsonInclude.Include.NON_NULL) AppearanceEntries.DrawingEntry appearance) {
     }
 
     private DefinitionEntries() {
@@ -40,7 +44,8 @@ final class DefinitionEntries {
                         pin.source().value())).toList(),
                 definition.body().components().stream().map(CircuitFormat::componentEntry).toList(),
                 definition.body().wires().stream().map(CircuitFormat::wireEntry).toList(),
-                definition.body().labels().stream().map(CircuitFormat::labelEntry).toList());
+                definition.body().labels().stream().map(CircuitFormat::labelEntry).toList(),
+                definition.revision(), definition.appearance().map(AppearanceEntries::entry).orElse(null));
     }
 
     /**
@@ -67,7 +72,8 @@ final class DefinitionEntries {
                         CircuitFormatException.Reason.UNKNOWN_COMPONENT_TYPE,
                         component.typeId() + " in definition " + definition.id()));
                 try {
-                    normalized.add(component.withParameters(type.resolveParameters(component.parameters())));
+                    normalized.add(CircuitFormat.validateAppearance(
+                            component.withParameters(type.resolveParameters(component.parameters())), type));
                 } catch (IllegalArgumentException | NullPointerException exception) {
                     // A malformed parameter value can surface as a NullPointerException; no unchecked exception may
                     // escape to the caller (on a paste that would reach the EDT), so it becomes INVALID_ELEMENT.
@@ -76,7 +82,8 @@ final class DefinitionEntries {
             }
             put(document, new ComponentDefinition(definition.id(), definition.name(), definition.description(),
                     definition.size(), definition.pinout(),
-                    new CircuitFragment(normalized, definition.body().wires(), definition.body().labels())));
+                    new CircuitFragment(normalized, definition.body().wires(), definition.body().labels()),
+                    definition.appearance(), definition.revision()));
         }
     }
 
@@ -117,8 +124,10 @@ final class DefinitionEntries {
             for (DocumentElement element : body.elements()) {
                 duplicateCheck.add(element);
             }
-            return new ComponentDefinition(entry.id(), entry.name(), entry.description(),
-                    new GridSize(entry.width(), entry.height()), pinout, body);
+            GridSize size = new GridSize(entry.width(), entry.height());
+            return new ComponentDefinition(entry.id(), entry.name(), entry.description(), size, pinout, body,
+                    Optional.ofNullable(entry.appearance()).map(value -> AppearanceEntries.drawing(value, size)),
+                    entry.revision() == null ? 1 : entry.revision());
         } catch (IllegalArgumentException | NullPointerException exception) {
             throw invalid("definition " + entry.id() + ": " + exception.getMessage(), exception);
         }

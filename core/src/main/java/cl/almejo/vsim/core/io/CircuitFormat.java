@@ -39,16 +39,17 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.function.Function;
 
-/** Reads and writes the VSim 2 circuit file format (JSON, formatVersion 2; first keys in {@link FileHeader}). */
+/** Reads formats 2 and 3 and writes format 3 (JSON; first keys in {@link FileHeader}). */
 public final class CircuitFormat {
 
-    public static final int FORMAT_VERSION = 2;
+    public static final int FORMAT_VERSION = 3;
     static final String KIND_CIRCUIT = "circuit";
 
     /** A component; {@code labelOffset} is written only when the user moved the label (M6.8). */
     record ComponentEntry(String id, String type, int x, int y, int rotation, String label,
                           Map<String, Object> parameters,
-                          @JsonInclude(JsonInclude.Include.NON_NULL) LabelOffsetEntry labelOffset) {
+                          @JsonInclude(JsonInclude.Include.NON_NULL) LabelOffsetEntry labelOffset,
+                          @JsonInclude(JsonInclude.Include.NON_NULL) AppearanceEntries.AppearanceEntry appearance) {
     }
 
     record LabelOffsetEntry(int x, int y) {
@@ -98,7 +99,8 @@ public final class CircuitFormat {
         return new ComponentEntry(component.id().value(), component.typeId(), component.position().x(),
                 component.position().y(), component.rotation().quarterTurns(), component.label(),
                 writtenParameters(component),
-                component.labelOffset().map(offset -> new LabelOffsetEntry(offset.x(), offset.y())).orElse(null));
+                component.labelOffset().map(offset -> new LabelOffsetEntry(offset.x(), offset.y())).orElse(null),
+                component.appearance().map(AppearanceEntries::entry).orElse(null));
     }
 
     /**
@@ -221,7 +223,7 @@ public final class CircuitFormat {
             ComponentType type = local.find(entry.type()).orElseThrow(() -> new CircuitFormatException(
                     CircuitFormatException.Reason.UNKNOWN_COMPONENT_TYPE, String.valueOf(entry.type())));
             requireRotation(entry);
-            add(document, () -> component(entry, type.resolveParameters(entry.parameters())));
+            add(document, () -> validateAppearance(component(entry, type.resolveParameters(entry.parameters())), type));
         }
         for (WireEntry entry : entries(file.wires())) {
             requireEntry(entry, "wires");
@@ -295,7 +297,24 @@ public final class CircuitFormat {
     static Component component(ComponentEntry entry, Map<String, Object> parameters) {
         return new Component(new ElementId(entry.id()), entry.type(), new GridPoint(entry.x(), entry.y()),
                 Rotation.fromQuarterTurns(entry.rotation()), parameters, entry.label(),
-                Optional.ofNullable(entry.labelOffset()).map(offset -> new LabelOffset(offset.x(), offset.y())));
+                Optional.ofNullable(entry.labelOffset()).map(offset -> new LabelOffset(offset.x(), offset.y())),
+                Optional.ofNullable(entry.appearance()).map(AppearanceEntries::appearance));
+    }
+
+    /** Invalid persisted pin maps must fail rather than silently change an instance's electrical connections. */
+    static Component validateAppearance(Component component, ComponentType type) {
+        if (component.appearance().isEmpty()) {
+            return component;
+        }
+        ComponentDefinition definition = SubcircuitTypes.definitionOf(type).orElseThrow(() ->
+                new IllegalArgumentException("appearance is only allowed on user components: " + component.id()));
+        try {
+            return component.withAppearance(Optional.of(component.appearance().orElseThrow()
+                    .canonical(definition.pinout())));
+        } catch (IllegalArgumentException exception) {
+            throw new IllegalArgumentException("appearance of " + component.id() + ": " + exception.getMessage(),
+                    exception);
+        }
     }
 
     static Wire wire(WireEntry entry) {

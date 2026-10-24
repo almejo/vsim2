@@ -11,6 +11,7 @@ import cl.almejo.vsim.core.netlist.Netlist;
 import cl.almejo.vsim.core.netlist.NetlistCompiler;
 import cl.almejo.vsim.core.netlist.PinRef;
 import cl.almejo.vsim.core.simulation.CircuitFlattener;
+import cl.almejo.vsim.core.simulation.ConnectivityProblem;
 import cl.almejo.vsim.core.simulation.SimulationEngine;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.core.value.Value;
@@ -104,7 +105,7 @@ class ExampleCircuitsTest {
         if (name.equals(SHORT_CIRCUIT)) {
             assertThat(snapshot.shortCircuits()).hasSizeGreaterThanOrEqualTo(2);
         } else {
-            assertThat(snapshot.problems()).isEmpty();
+            assertThat(snapshot.problems()).filteredOn(problem -> !(problem instanceof ConnectivityProblem)).isEmpty();
         }
     }
 

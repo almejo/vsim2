@@ -22,6 +22,16 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
   propios. Desde el doble clic coloca lo elegido en ese punto (un solo paso de deshacer); desde Insert empieza la
   colocación flotante.
 
+## Sin publicar — Conexiones pendientes
+
+### Agregado
+
+- Problemas avisa por pines internos desconectados y extremos de cable sueltos. Una marca en la pieza exterior indica los problemas internos; sus terminales exteriores libres no se marcan como un fallo. Doble clic o F8 lleva hasta la pieza y el panel identifica el pin. Los avisos se actualizan al editar, deshacer y reabrir, sin impedir guardar o simular.
+- En el editor de formas, la caja del componente se distingue del tamaño de la figura: borde gris con nombre y control redondo separado, frente a los controles azules de la figura. Ya no se confunden al reducir una figura; las ayudas explican el límite de reducción de la caja.
+- Nodos muestra puntos redondos arrastrables sin seleccionar antes una figura, también en la forma predeterminada. Los controles de curva se distinguen como rombos; elegir la herramienta o cancelar un arrastre no modifica la forma.
+- El editor de formas incorpora Mover vista (H), con ícono de mano, para desplazar el lienzo con el botón izquierdo cuando el mouse no tiene botón central. También se puede usar Alt + arrastrar.
+- Agregar nodo (A) funciona como herramienta: resalta el segmento apuntado e inserta el nodo donde se hace clic, sin seleccionar otro nodo primero. La detección sigue las curvas y evita agregar puntos en segmentos alejados del cursor.
+
 ## Versión 0.3 — 2026-10-24
 
 ### Agregado

@@ -107,7 +107,7 @@ class SimulationEngineTest {
         synchronize();
         engine.advance(5);
         assertThat(valueAt(buffer, 1)).isEqualTo(Value.HIGH_IMPEDANCE);
-        assertThat(engine.snapshot().problems()).isEmpty();
+        assertThat(engine.snapshot().problems()).hasSize(2).allMatch(ConnectivityProblem.class::isInstance);
     }
 
     @Test
@@ -128,7 +128,8 @@ class SimulationEngineTest {
         document.remove(high);
         synchronize();
         engine.advance(1);
-        assertThat(engine.snapshot().problems()).isEmpty();
+        assertThat(engine.snapshot().shortCircuits()).isEmpty();
+        assertThat(engine.snapshot().problems()).allMatch(ConnectivityProblem.class::isInstance);
         assertThat(valueAt(low, 0)).isEqualTo(Value.ZERO);
     }
 
@@ -196,8 +197,8 @@ class SimulationEngineTest {
         place(TestComponentTypes.WIDE_PROBE, 2, 1, Map.of());
         synchronize();
         engine.advance(2);
-        assertThat(engine.snapshot().problems()).singleElement().isInstanceOf(WidthMismatch.class);
-        assertThat(((WidthMismatch) engine.snapshot().problems().getFirst()).pins()).hasSize(2);
+        assertThat(engine.snapshot().widthMismatches()).singleElement()
+                .satisfies(mismatch -> assertThat(mismatch.pins()).hasSize(2));
         assertThat(valueAt(buffer, 1)).isEqualTo(Value.highImpedance(8));
     }
 

@@ -776,6 +776,33 @@ public final class AppPreferences {
         return port >= MINIMUM_AI_PORT && port <= MAXIMUM_PORT;
     }
 
+    /** The shape editor's independent magnet, enabled initially. */
+    public boolean shapeEditorSnap() {
+        return Boolean.parseBoolean(read("shapeEditor.snap", "true"));
+    }
+
+    public void setShapeEditorSnap(boolean enabled) {
+        put("shapeEditor.snap", Boolean.toString(enabled));
+    }
+
+    /** Dialog geometry, kept separately from the circuit viewport. */
+    public java.awt.Rectangle shapeEditorBounds() {
+        String[] values = read("shapeEditor.bounds", "80,80,1080,720").split(",");
+        try {
+            if (values.length == 4) {
+                return new java.awt.Rectangle(Integer.parseInt(values[0]), Integer.parseInt(values[1]),
+                        Math.max(640, Integer.parseInt(values[2])), Math.max(480, Integer.parseInt(values[3])));
+            }
+        } catch (NumberFormatException exception) {
+            LOGGER.debug("Ignoring invalid shape editor bounds", exception);
+        }
+        return new java.awt.Rectangle(80, 80, 1080, 720);
+    }
+
+    public void setShapeEditorBounds(java.awt.Rectangle bounds) {
+        put("shapeEditor.bounds", bounds.x + "," + bounds.y + "," + bounds.width + "," + bounds.height);
+    }
+
     private Optional<String> optional(String key) {
         String value = read(key, "");
         return value.isBlank() ? Optional.empty() : Optional.of(value);

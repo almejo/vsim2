@@ -15,6 +15,7 @@ import cl.almejo.vsim.core.netlist.Netlist;
 import cl.almejo.vsim.core.netlist.NetlistCompiler;
 import cl.almejo.vsim.core.simulation.CircuitFlattener;
 import cl.almejo.vsim.core.simulation.DisplayBusOverride;
+import cl.almejo.vsim.core.simulation.ConnectivityProblem;
 import cl.almejo.vsim.core.simulation.FlatCircuit;
 import cl.almejo.vsim.core.simulation.FlatComponent;
 import cl.almejo.vsim.core.simulation.FlatNet;
@@ -202,13 +203,14 @@ class SevenSegmentsBusInputTest {
 
         SimulationSnapshot both = simulate(document);
         assertThat(shown(both, display)).isEqualTo(Value.of(4, 0xA));
-        assertThat(both.problems()).singleElement().isInstanceOfSatisfying(DisplayBusOverride.class,
+        assertThat(both.problems()).filteredOn(problem -> !(problem instanceof ConnectivityProblem))
+                .singleElement().isInstanceOfSatisfying(DisplayBusOverride.class,
                 warning -> assertThat(warning.componentId()).isEqualTo(display.id().value()));
 
         document.remove(bitWire.id());
         SimulationSnapshot busOnly = simulate(document);
         assertThat(shown(busOnly, display)).isEqualTo(Value.of(4, 0xA));
-        assertThat(busOnly.problems()).isEmpty();
+        assertThat(busOnly.problems()).filteredOn(problem -> !(problem instanceof ConnectivityProblem)).isEmpty();
     }
 
     private Component place(CircuitDocument document, String typeId, GridPoint position,

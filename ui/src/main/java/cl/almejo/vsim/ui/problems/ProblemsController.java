@@ -4,11 +4,14 @@ import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
+import cl.almejo.vsim.core.document.DocumentListener;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.netlist.Net;
 import cl.almejo.vsim.core.netlist.Netlist;
 import cl.almejo.vsim.core.netlist.PinRef;
 import cl.almejo.vsim.core.simulation.FlatPinRef;
+import cl.almejo.vsim.core.simulation.ConnectivityProblem;
+import cl.almejo.vsim.core.simulation.Problem;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.core.simulation.TunnelProblem;
 import cl.almejo.vsim.core.simulation.WidthMismatch;
@@ -38,6 +41,7 @@ import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.awt.geom.Point2D;
 import java.util.List;
+import java.util.ArrayList;
 import java.util.Optional;
 import java.util.function.Consumer;
 
@@ -60,6 +64,7 @@ public final class ProblemsController {
     private final JMenu simulationMenu;
     private final NetBlink blink;
     private final ShortCircuitPulse pulse;
+    private final ConnectivityOverlay connectivityOverlay;
     private final ProblemNavigator navigator;
     private final ProblemsPanel panel;
     private final Action nextProblem;
@@ -70,6 +75,7 @@ public final class ProblemsController {
     private final JCheckBoxMenuItem pauseItem;
     private final MenuListener pauseListener;
     private final Consumer<SimulationSnapshot> snapshotListener = this::showSnapshot;
+    private final DocumentListener structureListener = (document, change) -> refreshStructure();
     private final Runnable removeFromPanes;
     private SimulationSnapshot snapshot = SimulationSnapshot.EMPTY;
     private boolean disposed;
@@ -83,6 +89,7 @@ public final class ProblemsController {
         Runnable repaintPanes = EveryPane.repaint(view);
         this.blink = new NetBlink(() -> view.canvas().scheme(), repaintPanes);
         this.pulse = new ShortCircuitPulse(() -> view.canvas().highlights(), repaintPanes, System::nanoTime);
+        this.connectivityOverlay = new ConnectivityOverlay(openDocument, () -> view.canvas().scheme());
         this.navigator = new ProblemNavigator(view::canvas, blink);
         this.panel = new ProblemsPanel(openDocument, navigator::navigateTo);
 
@@ -133,6 +140,7 @@ public final class ProblemsController {
             }
         };
         simulationMenu.addMenuListener(pauseListener);
+        openDocument.document().addListener(structureListener);
         showSnapshot(SimulationSnapshot.EMPTY);
     }
 
@@ -148,6 +156,7 @@ public final class ProblemsController {
         };
         pane.addOverlay(pulse);
         pane.addOverlay(blink);
+        pane.addOverlay(connectivityOverlay);
         pane.setToolTipProvider(gridPoint -> tooltipAt(pane, gridPoint));
         pane.addSnapshotListener(paneSnapshots);
         pane.bindKey(NEXT_KEY, "nextProblem", nextProblem);
@@ -156,6 +165,7 @@ public final class ProblemsController {
             pane.removeSnapshotListener(paneSnapshots);
             pane.removeOverlay(pulse);
             pane.removeOverlay(blink);
+            pane.removeOverlay(connectivityOverlay);
             pane.clearToolTipProvider();
             pane.unbindKey(NEXT_KEY, "nextProblem");
             pane.unbindKey(PREVIOUS_KEY, "previousProblem");
@@ -169,12 +179,34 @@ public final class ProblemsController {
             return;
         }
         snapshot = latest;
-        navigator.showSnapshot(latest);
-        panel.showSnapshot(latest);
+        refreshProblems();
         pulse.showSnapshot(latest);
         statusBar.showProblems(latest.shortCircuits().size(), latest.widthMismatches().size(),
                 tunnelErrorCount(latest));
-        boolean anyProblem = !navigator.problems().isEmpty();
+    }
+
+    /** Refreshes structural warnings even while the simulation is paused or its snapshot is still stale. */
+    private void refreshStructure() {
+        if (disposed) {
+            return;
+        }
+        if (snapshot.token() != openDocument.netlistToken()) {
+            snapshot = SimulationSnapshot.EMPTY;
+        }
+        refreshProblems();
+        EveryPane.repaint(view).run();
+    }
+
+    private void refreshProblems() {
+        List<Problem> problems = new ArrayList<>(snapshot.problems().stream()
+                .filter(problem -> !(problem instanceof ConnectivityProblem)).toList());
+        problems.addAll(openDocument.connectivityProblems());
+        SimulationSnapshot combined = new SimulationSnapshot(snapshot.revision(), openDocument.netlistToken(),
+                snapshot.time(), snapshot.running(), snapshot.netValues(), snapshot.componentStates(), problems,
+                snapshot.failure());
+        navigator.showSnapshot(combined);
+        panel.showSnapshot(combined);
+        boolean anyProblem = !problems.isEmpty();
         nextProblem.setEnabled(anyProblem);
         previousProblem.setEnabled(anyProblem);
     }
@@ -242,6 +274,7 @@ public final class ProblemsController {
             return;
         }
         disposed = true;
+        openDocument.document().removeListener(structureListener);
         blink.dispose();
         pulse.dispose();
         removeFromPanes.run();
