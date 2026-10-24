@@ -34,6 +34,7 @@ import javax.swing.JMenuItem;
 import javax.swing.JScrollPane;
 import javax.swing.JTextField;
 import javax.swing.JTree;
+import javax.swing.JViewport;
 import javax.swing.SwingUtilities;
 import javax.swing.ToolTipManager;
 import javax.swing.TransferHandler;
@@ -48,6 +49,7 @@ import javax.swing.tree.TreeModel;
 import javax.swing.tree.TreeSelectionModel;
 import java.awt.Component;
 import java.awt.Graphics;
+import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.GraphicsEnvironment;
 import java.awt.datatransfer.StringSelection;
@@ -62,11 +64,13 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -145,27 +149,78 @@ public final class PalettePanel extends JPanel {
         if (favoriteIds.equals(next)) {
             return;
         }
-        TreePath selected = tree.getSelectionPath();
-        Object selectedSection = selected != null && selected.getPathCount() == 3
-                ? ((DefaultMutableTreeNode) selected.getPathComponent(1)).getUserObject() : null;
-        Object selectedItem = selected != null
-                ? ((DefaultMutableTreeNode) selected.getLastPathComponent()).getUserObject() : null;
+        Set<String> changed = symmetricDifference(favoriteIds, next);
         favoriteIds = next;
-        rebuild();
-        // Rebuilding the new section must not clear an unrelated placement highlight or call its chooser.
-        if (selectedSection != null) {
-            updating = true;
-            try {
-                sections().stream().filter(section -> section.getUserObject().equals(selectedSection))
-                        .flatMap(section -> Collections.list(section.children()).stream())
-                        .map(DefaultMutableTreeNode.class::cast)
-                        .filter(node -> node.getUserObject().equals(selectedItem)).findFirst()
-                        .ifPresent(node -> tree.setSelectionPath(new TreePath(node.getPath())));
-            } finally {
-                updating = false;
+        refreshSection(FavoriteSection.FAVORITES, favoritesSection(search.getText()), 0);
+        ((FavoritesTree) tree).repaintRowsOf(changed);
+        fireEntriesChanged();
+    }
+
+    private static Set<String> symmetricDifference(List<String> first, List<String> second) {
+        Set<String> difference = new HashSet<>(first);
+        difference.addAll(second);
+        Set<String> common = new HashSet<>(first);
+        common.retainAll(second);
+        difference.removeAll(common);
+        return difference;
+    }
+
+    /**
+     * Puts {@code fresh}'s children in the section {@code key} of the tree shown, without rebuilding the rest: the
+     * other sections keep what the user folded, and a highlight inside the section stays on its entry (or moves to
+     * the same entry in its own category when it left the section) without calling the chooser again. An empty
+     * {@code fresh} removes the section; a missing one is inserted at {@code index}, expanded. EDT.
+     */
+    private void refreshSection(Object key, DefaultMutableTreeNode fresh, int index) {
+        DefaultTreeModel model = (DefaultTreeModel) tree.getModel();
+        DefaultMutableTreeNode root = (DefaultMutableTreeNode) model.getRoot();
+        Optional<DefaultMutableTreeNode> existing = sections().stream()
+                .filter(section -> section.getUserObject() == key).findFirst();
+        TreePath selected = tree.getSelectionPath();
+        Optional<Object> selectedInside = selected != null && existing.isPresent() && selected.getPathCount() == 3
+                && selected.getPathComponent(1) == existing.get()
+                ? Optional.of(((DefaultMutableTreeNode) selected.getLastPathComponent()).getUserObject())
+                : Optional.empty();
+        updating = true;
+        try {
+            if (fresh.getChildCount() == 0) {
+                existing.ifPresent(model::removeNodeFromParent);
+            } else if (existing.isPresent()) {
+                DefaultMutableTreeNode section = existing.get();
+                boolean expanded = tree.isExpanded(new TreePath(section.getPath()));
+                section.removeAllChildren();
+                while (fresh.getChildCount() > 0) {
+                    section.add((DefaultMutableTreeNode) fresh.getFirstChild());
+                }
+                model.nodeStructureChanged(section);
+                if (expanded) {
+                    tree.expandPath(new TreePath(section.getPath()));
+                }
+            } else {
+                model.insertNodeInto(fresh, root, Math.min(index, root.getChildCount()));
+                tree.expandPath(new TreePath(fresh.getPath()));
+            }
+            selectedInside.flatMap(item -> pathOfItem(key, item)).ifPresent(tree::setSelectionPath);
+        } finally {
+            updating = false;
+        }
+    }
+
+    /** The visible row of {@code item}: in the section {@code preferred} when there, else the first one. */
+    private Optional<TreePath> pathOfItem(Object preferred, Object item) {
+        Optional<TreePath> first = Optional.empty();
+        for (DefaultMutableTreeNode section : sections()) {
+            for (Object leaf : Collections.list(section.children())) {
+                DefaultMutableTreeNode node = (DefaultMutableTreeNode) leaf;
+                if (node.getUserObject().equals(item)) {
+                    if (section.getUserObject() == preferred) {
+                        return Optional.of(new TreePath(node.getPath()));
+                    }
+                    first = first.or(() -> Optional.of(new TreePath(node.getPath())));
+                }
             }
         }
-        fireEntriesChanged();
+        return first;
     }
 
     /** The favourites available now, in marking order (empty while favourites are off). */
@@ -288,7 +343,10 @@ public final class PalettePanel extends JPanel {
                 handOverFocusAfterChoice(event);
             }
         });
-        add(new JScrollPane(tree));
+        JScrollPane scroll = new JScrollPane(tree);
+        // The star column sits at the visible right edge: a blitted horizontal scroll would drag old stars along.
+        scroll.getViewport().setScrollMode(JViewport.SIMPLE_SCROLL_MODE);
+        add(scroll);
         rebuild();
     }
 
@@ -328,6 +386,11 @@ public final class PalettePanel extends JPanel {
         if (selectedType().isPresent() || selectedUserComponent().isPresent()) {
             SwingUtilities.invokeLater(focusAfterMouseChoice);
         }
+    }
+
+    /** The row under the pointer, whose hover star shows. Package-private for tests. */
+    Optional<TreePath> hoveredPath() {
+        return ((FavoritesTree) tree).hoverPath();
     }
 
     /** Package-private for tests. */
@@ -485,7 +548,7 @@ public final class PalettePanel extends JPanel {
     private void rebuild() {
         String query = search.getText();
         DefaultMutableTreeNode root = new DefaultMutableTreeNode();
-        addFavorites(root, query);
+        addSection(root, favoritesSection(query));
         for (ComponentCategory category : ORDER) {
             DefaultMutableTreeNode categoryNode = new DefaultMutableTreeNode(category);
             registry.all().stream()
@@ -518,16 +581,21 @@ public final class PalettePanel extends JPanel {
         return value instanceof ComponentType type ? Optional.of(type) : Optional.empty();
     }
 
-    private void addFavorites(DefaultMutableTreeNode root, String query) {
-        if (favoriteToggle.isEmpty()) {
-            return;
-        }
+    /** «Favoritos» filtered by {@code query}: no rows while favourites are off, the hint when empty and unfiltered. */
+    private DefaultMutableTreeNode favoritesSection(String query) {
         DefaultMutableTreeNode section = new DefaultMutableTreeNode(FavoriteSection.FAVORITES);
+        if (favoriteToggle.isEmpty()) {
+            return section;
+        }
         favoriteEntries().stream().filter(entry -> PaletteFilter.matches(entry.type(), query))
                 .forEach(entry -> section.add(new DefaultMutableTreeNode(entry.treeItem(), false)));
         if (section.getChildCount() == 0 && query.isBlank()) {
             section.add(new DefaultMutableTreeNode(FavoriteSection.EMPTY, false));
         }
+        return section;
+    }
+
+    private static void addSection(DefaultMutableTreeNode root, DefaultMutableTreeNode section) {
         if (section.getChildCount() > 0) {
             root.add(section);
         }
@@ -697,7 +765,7 @@ public final class PalettePanel extends JPanel {
     /** Intercepts the star before BasicTreeUI selects a row or starts a drag. */
     private final class FavoritesTree extends JTree {
         private static final int STAR_COLUMN_WIDTH = 24;
-        private TreePath hoverPath;
+        private Optional<Point> hoverPoint = Optional.empty();
         private boolean starGesture;
 
         FavoritesTree() {
@@ -705,21 +773,18 @@ public final class PalettePanel extends JPanel {
             addMouseMotionListener(new MouseAdapter() {
                 @Override
                 public void mouseMoved(MouseEvent event) {
-                    hoverPath = pathAtRow(event.getX(), event.getY());
-                    repaint();
+                    hoverAt(Optional.of(event.getPoint()));
                 }
 
                 @Override
                 public void mouseDragged(MouseEvent event) {
-                    hoverPath = null;
-                    repaint();
+                    hoverAt(Optional.empty());
                 }
             });
             addMouseListener(new MouseAdapter() {
                 @Override
                 public void mouseExited(MouseEvent event) {
-                    hoverPath = null;
-                    repaint();
+                    hoverAt(Optional.empty());
                 }
             });
             getInputMap().put(KeyStroke.getKeyStroke(KeyEvent.VK_F10, InputEvent.SHIFT_DOWN_MASK),
@@ -736,6 +801,40 @@ public final class PalettePanel extends JPanel {
                     }
                 }
             });
+        }
+
+        /**
+         * The row under the pointer, worked out from where the pointer is rather than kept as a path: a section that
+         * changes under it (a click on the star) leaves the star of the row now under the pointer showing.
+         */
+        Optional<TreePath> hoverPath() {
+            return hoverPoint.map(point -> pathAtRow(point.x, point.y));
+        }
+
+        private void hoverAt(Optional<Point> point) {
+            int previous = hoverPath().map(this::getRowForPath).orElse(-1);
+            hoverPoint = point;
+            int next = hoverPath().map(this::getRowForPath).orElse(-1);
+            if (previous != next) {
+                repaintRow(previous);
+                repaintRow(next);
+            }
+        }
+
+        /** Repaints the rows of {@code typeIds} (their stars filled or emptied). */
+        void repaintRowsOf(Set<String> typeIds) {
+            for (int row = 0; row < getRowCount(); row++) {
+                if (favoriteType(getPathForRow(row)).filter(typeIds::contains).isPresent()) {
+                    repaintRow(row);
+                }
+            }
+        }
+
+        private void repaintRow(int row) {
+            Rectangle bounds = row < 0 ? null : getRowBounds(row);
+            if (bounds != null) {
+                repaint(0, bounds.y, getWidth(), bounds.height);
+            }
         }
 
         private TreePath pathAtRow(int x, int y) {
@@ -804,7 +903,11 @@ public final class PalettePanel extends JPanel {
         @Override
         protected void paintComponent(Graphics graphics) {
             super.paintComponent(graphics);
-            for (int row = 0; row < getRowCount(); row++) {
+            Rectangle clip = graphics.getClipBounds() != null ? graphics.getClipBounds() : getVisibleRect();
+            int firstRow = Math.max(0, getClosestRowForLocation(clip.x, clip.y));
+            int lastRow = getClosestRowForLocation(clip.x, clip.y + clip.height);
+            Optional<TreePath> hovered = hoverPath();
+            for (int row = firstRow; row <= lastRow && row < getRowCount(); row++) {
                 TreePath path = getPathForRow(row);
                 Optional<String> typeId = favoriteType(path);
                 if (typeId.isEmpty()) {
@@ -815,7 +918,7 @@ public final class PalettePanel extends JPanel {
                     continue;
                 }
                 boolean filled = favoriteIds.contains(typeId.get());
-                if (filled || path.equals(hoverPath) && MenuSelectionManager.defaultManager()
+                if (filled || hovered.filter(path::equals).isPresent() && MenuSelectionManager.defaultManager()
                         .getSelectedPath().length == 0) {
                     // A filled star remains visible in the source category as well as in Favorites.
                     boolean selected = isRowSelected(row);

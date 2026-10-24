@@ -90,6 +90,53 @@ class FavoritesTest {
     }
 
     @Test
+    void aFavoritesChangeUpdatesOnlyItsSectionAndKeepsWhatTheUserFolded() {
+        Object model = palette.treeModel();
+        palette.tree().collapseRow(rowOfSection("BASIC"));
+
+        preferences.setPaletteFavorites(List.of("led", "and3"));
+        preferences.setPaletteFavorites(List.of("and3"));
+        preferences.setPaletteFavorites(List.of());
+
+        assertThat(palette.treeModel()).isSameAs(model);
+        assertThat(palette.tree().isCollapsed(rowOfSection("BASIC"))).isTrue();
+        assertThat(palette.tree().isExpanded(rowOfSection("INPUT_OUTPUT"))).isTrue();
+        assertThat(palette.visibleSections()).startsWith("Favoritos");
+    }
+
+    @Test
+    void unmarkingTheFavoriteBeingPlacedMovesItsHighlightToItsOwnCategory() {
+        preferences.setPaletteFavorites(List.of("led"));
+        palette.tree().setSelectionPath(palette.pathOf("led"));
+        assertThat(palette.tree().getSelectionPath().getPathComponent(1).toString()).isEqualTo("FAVORITES");
+
+        preferences.setPaletteFavorites(List.of());
+
+        TreePath highlighted = palette.tree().getSelectionPath();
+        assertThat(highlighted).isNotNull();
+        assertThat(highlighted.getPathComponent(1).toString()).isEqualTo("INPUT_OUTPUT");
+        assertThat(highlighted.getLastPathComponent().toString()).contains("id=led");
+        assertThat(chosen).containsExactly("led");
+    }
+
+    @Test
+    void theHoverStarSurvivesAFavoritesChange() {
+        JTree tree = palette.tree();
+        tree.setSize(300, 2000);
+        Rectangle entry = tree.getPathBounds(palette.pathOf("and3"));
+        tree.dispatchEvent(new MouseEvent(tree, MouseEvent.MOUSE_MOVED, 0, 0, entry.x + 4,
+                entry.y + entry.height / 2, 0, false, MouseEvent.NOBUTTON));
+        assertThat(palette.hoveredPath()).hasValue(palette.pathOf("and3"));
+
+        preferences.setPaletteFavorites(List.of("led"));
+
+        assertThat(palette.hoveredPath()).isPresent();
+        assertThat(palette.tree().getRowForPath(palette.hoveredPath().get())).as("a path of the tree shown now")
+                .isNotNegative();
+        assertThat(palette.hoveredPath().get().getLastPathComponent().toString()).contains("id=and3");
+    }
+
+    @Test
     void filteringHidesEmptyFavoritesAndTheHintCannotBeChosen() {
         palette.tree().setSelectionRow(1);
         assertThat(palette.hasSelection()).isFalse();
@@ -132,6 +179,15 @@ class FavoritesTest {
 
         assertThat(palette.tree().getSelectionPath()).isEqualTo(placing);
         assertThat(chosen).containsExactly("and3");
+    }
+
+    private int rowOfSection(String section) {
+        for (int row = 0; row < palette.tree().getRowCount(); row++) {
+            if (palette.tree().getPathForRow(row).getLastPathComponent().toString().equals(section)) {
+                return row;
+            }
+        }
+        throw new AssertionError("no section " + section);
     }
 
     private static void press(JTree tree, String actionName) {
