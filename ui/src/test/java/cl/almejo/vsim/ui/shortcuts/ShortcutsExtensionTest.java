@@ -234,12 +234,12 @@ class ShortcutsExtensionTest {
     void toolbarTooltipsEndWithTheCurrentShortcutAndFollowRebindings() {
         EditorView icons = iconView();
         AbstractButton save = toolbarButton(icons, icons.actions().save());
-        AbstractButton center = toolbarButton(icons, icons.actions().centerView());
+        AbstractButton center = toolbarButton(icons, icons.actions().start());
         assertThat(save.getToolTipText()).isEqualTo(withShortcut("Guardar", control(KeyEvent.VK_S)));
-        assertThat(center.getToolTipText()).as("no shortcut, no parentheses").isEqualTo("Centrar circuito");
+        assertThat(center.getToolTipText()).as("no shortcut, no parentheses").isEqualTo("Iniciar");
 
-        bindings.assign("view.centerView", control(KeyEvent.VK_J));
-        assertThat(center.getToolTipText()).isEqualTo(withShortcut("Centrar circuito", control(KeyEvent.VK_J)));
+        bindings.assign("simulation.start", control(KeyEvent.VK_J));
+        assertThat(center.getToolTipText()).isEqualTo(withShortcut("Iniciar", control(KeyEvent.VK_J)));
         bindings.clear("file.save");
         assertThat(save.getToolTipText()).isEqualTo("Guardar");
         bindings.reset("file.save");
@@ -256,9 +256,9 @@ class ShortcutsExtensionTest {
         assertThat(name).startsWith("Deshacer ").isNotEqualTo("Deshacer");
         assertThat(undo.getToolTipText()).isEqualTo(withShortcut(name, control(KeyEvent.VK_Z)));
 
-        icons.actions().centerView().putValue(Action.SHORT_DESCRIPTION, "Lleva el circuito al centro");
-        bindings.assign("view.centerView", control(KeyEvent.VK_J));
-        assertThat(toolbarButton(icons, icons.actions().centerView()).getToolTipText())
+        icons.actions().start().putValue(Action.SHORT_DESCRIPTION, "Lleva el circuito al centro");
+        bindings.assign("simulation.start", control(KeyEvent.VK_J));
+        assertThat(toolbarButton(icons, icons.actions().start()).getToolTipText())
                 .isEqualTo(withShortcut("Lleva el circuito al centro", control(KeyEvent.VK_J)));
     }
 
@@ -268,9 +268,9 @@ class ShortcutsExtensionTest {
                 EditorServices.of(PainterRegistry.standard(), ColorScheme.LIGHT), WINDOW);
         views.add(plain);
         Runnable removal = new ShortcutsExtension().install(plain);
-        AbstractButton center = toolbarButton(plain, plain.actions().centerView());
+        AbstractButton center = toolbarButton(plain, plain.actions().start());
         removal.run();
-        plain.actions().centerView().putValue(Action.SHORT_DESCRIPTION, "otra cosa");
+        plain.actions().start().putValue(Action.SHORT_DESCRIPTION, "otra cosa");
         assertThat(center.getToolTipText()).as("Swing shows the new description, nothing adds a shortcut")
                 .isEqualTo("otra cosa");
         AbstractButton undo = toolbarButton(plain, plain.actions().undo());

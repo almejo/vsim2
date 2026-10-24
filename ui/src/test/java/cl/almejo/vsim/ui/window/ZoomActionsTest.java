@@ -234,18 +234,17 @@ class ZoomActionsTest {
     }
 
     @Test
-    void theToolbarEndsWithVerTodoAfterCentrarCircuitoAndHasNoSelectionButton() {
+    void theToolbarHasTheZoomToolButNoAlejarAcercarCentrarNorVerTodoButtons() {
         List<Action> toolBarActions = new ArrayList<>();
         for (java.awt.Component child : view.toolBar().getComponents()) {
             if (child instanceof AbstractButton button && button.getAction() != null) {
                 toolBarActions.add(button.getAction());
             }
         }
-        assertThat(toolBarActions).containsSubsequence(view.actions().zoomOut(), view.actions().zoomIn(),
-                view.actions().centerView(), view.actions().zoomToFit());
-        assertThat(toolBarActions.indexOf(view.actions().zoomToFit()))
-                .isEqualTo(toolBarActions.indexOf(view.actions().centerView()) + 1);
-        assertThat(toolBarActions).doesNotContain(view.actions().zoomToSelection());
+        assertThat(toolBarActions).doesNotContain(view.actions().zoomOut(), view.actions().zoomIn(),
+                view.actions().centerView(), view.actions().zoomToFit(), view.actions().zoomToSelection());
+        assertThat(toolBarActions).as("the zoom tool (magnifier, Z) stays in the tool group")
+                .contains(view.actions().zoomTool());
     }
 
     @Test

@@ -48,6 +48,9 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
   él. Mover la vista o hacer zoom a mano a mitad de camino lo detiene donde está.
 - El porcentaje de la barra de estado ya no vuelve a 100 % con un clic: ahora se escribe o se elige, y «100 %» es
   un botón al lado. El zoom pasó al final de la barra, después de «IA: …».
+- Los botones «Alejar», «Acercar», «Centrar circuito» y «Ver todo el circuito» salieron de la barra de herramientas,
+  que conserva solo la herramienta Zoom (la lupa, Z): el zoom se maneja desde el control de la barra de estado y
+  desde el menú Ver, con los mismos atajos.
 
 ### Arreglado
 

@@ -659,11 +659,6 @@ public final class EditorView extends JPanel implements CanvasHost {
         speedIcon.setLabelFor(speed);
         toolBar.add(speedIcon);
         toolBar.add(speed);
-        toolBar.addSeparator();
-        toolBar.add(actions.zoomOut());
-        toolBar.add(actions.zoomIn());
-        toolBar.add(actions.centerView());
-        toolBar.add(actions.zoomToFit());
     }
 
     /**
