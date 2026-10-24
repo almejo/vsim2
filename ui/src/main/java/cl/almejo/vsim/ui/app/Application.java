@@ -47,6 +47,7 @@ import cl.almejo.vsim.ui.paint.Appearance;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.preferences.PreferencesFeature;
+import cl.almejo.vsim.ui.quickinsert.QuickInsertExtension;
 import cl.almejo.vsim.ui.search.FindExtension;
 import cl.almejo.vsim.ui.session.AutosaveService;
 import cl.almejo.vsim.ui.session.RecentFiles;
@@ -224,6 +225,7 @@ public final class Application {
         editorExtensions.add(new FindExtension());
         editorExtensions.add(new TunnelsExtension());
         editorExtensions.add(new FavoritesExtension());
+        editorExtensions.add(new QuickInsertExtension()); // its Insert key before the shortcuts extension
         editorExtensions.add(ai); // IA.1: last in Herramientas, before the shortcuts see its item
         editorExtensions.add(presentation); // IA.2: last in Ver and the toolbar, before the icons and shortcuts
         editorExtensions.add(new ActionIcons());

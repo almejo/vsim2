@@ -1,4 +1,4 @@
-package cl.almejo.vsim.ui.favorites;
+package cl.almejo.vsim.ui.quickinsert;
 
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.command.AddElementsCommand;
@@ -14,6 +14,7 @@ import cl.almejo.vsim.core.library.ExampleDefinitions;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.canvas.LabelLayout;
+import cl.almejo.vsim.ui.favorites.PaletteFavorites;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.library.PlaceDefinitionTool;
 import cl.almejo.vsim.ui.paint.ColorScheme;
@@ -79,6 +80,22 @@ class QuickInsertTest {
     }
 
     @Test
+    void quickInsertWorksWithoutThePaletteFavoritesWhichAreTheirOwnExtension() {
+        assertThat(view.palette().visibleSections()).doesNotContain("Favoritos");
+        view.services().preferences().setPaletteFavorites(List.of("led"));
+        view.canvas().tool().mousePressed(view.canvas(), at(10, 20, 2));
+        assertThat(shown.results()).isEmpty();
+        shown.setQuery("and3");
+        shown.acceptSelection();
+        assertThat(document.document().components()).singleElement()
+                .extracting(Component::typeId).isEqualTo("and3");
+    }
+
+    private void showFavorites() {
+        new PaletteFavorites(view.palette(), view.services().preferences()).install();
+    }
+
+    @Test
     void doubleClickPlacesAtTheChosenPointAsOneUndoAndKeepsItSelected() {
         view.canvas().tool().mousePressed(view.canvas(), at(10, 20, 2));
         assertThat(shown).isNotNull();
@@ -112,6 +129,7 @@ class QuickInsertTest {
 
     @Test
     void blankSearchUsesFavoritesAndTypingSearchesTheWholeCatalogueIncludingUserComponents() {
+        showFavorites();
         view.services().preferences().setPaletteFavorites(List.of("led", "missing", "and3"));
         DefinitionBundle bundle = new DefinitionBundle(ExampleDefinitions.inverter(), List.of());
         view.palette().setUserComponents(List.of(bundle), List.of());
@@ -174,6 +192,7 @@ class QuickInsertTest {
 
     @Test
     void theSearchFieldKeepsTheFocusWhileArrowsAndEnterChooseAndEscapeCloses() {
+        showFavorites();
         view.services().preferences().setPaletteFavorites(List.of("and3", "led"));
         view.canvas().tool().mousePressed(view.canvas(), at(10, 10, 2));
         javax.swing.JTextField field = shown.searchField();
@@ -191,7 +210,7 @@ class QuickInsertTest {
     }
 
     @Test
-    void noMatchAndCancelDoNothingAndDisposeRemovesTheDelegateAndPreferenceListener() {
+    void noMatchAndCancelDoNothingAndDisposeRemovesTheDelegateAndLeavesThePreferencesAlone() {
         int listeners = view.services().preferences().listenerCount();
         view.canvas().tool().mousePressed(view.canvas(), at(10, 10, 2));
         shown.setQuery("no-component-has-this-name");
@@ -202,6 +221,6 @@ class QuickInsertTest {
         features.dispose();
         assertThat(view.shortcutActions()).doesNotContainKey("edit.quickInsert");
         assertThat(((SelectTool) view.canvas().defaultTool()).delegates()).isEmpty();
-        assertThat(view.services().preferences().listenerCount()).isEqualTo(listeners - 1);
+        assertThat(view.services().preferences().listenerCount()).isEqualTo(listeners);
     }
 }

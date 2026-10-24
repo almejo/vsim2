@@ -10,6 +10,7 @@ import cl.almejo.vsim.ui.library.SwingLibraryDialogs;
 import cl.almejo.vsim.ui.paint.Appearance;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
+import cl.almejo.vsim.ui.shortcuts.Scope;
 import cl.almejo.vsim.ui.shortcuts.ShortcutCatalog;
 import cl.almejo.vsim.ui.stepping.StepIcons;
 import cl.almejo.vsim.ui.window.EditorServices;
@@ -275,21 +276,30 @@ class ApplicationExtensionsTest {
     }
 
     @Test
-    void favoritesAreSharedAndQuickInsertIsBoundOnlyOnTheCanvas() {
+    void theFavoritesAreSharedByTheWindows() {
         EditorView first = new EditorView(openDocument, services, NO_WINDOW);
         EditorView second = new EditorView(openDocument, services, NO_WINDOW);
         try {
             preferences.setPaletteFavorites(List.of("and3", "led"));
             assertThat(first.palette().visibleSections()).startsWith("Favoritos");
             assertThat(second.palette().visibleTypeIds()).startsWith("and3", "led");
+        } finally {
+            second.dispose();
+            first.dispose();
+        }
+    }
+
+    @Test
+    void quickInsertTakesInsertOnlyOnTheCanvas() {
+        EditorView first = new EditorView(openDocument, services, NO_WINDOW);
+        try {
             Object binding = first.canvas().getInputMap(JComponent.WHEN_FOCUSED)
                     .get(KeyStroke.getKeyStroke(KeyEvent.VK_INSERT, 0));
             assertThat(first.canvas().getActionMap().get(binding))
                     .isSameAs(first.shortcutActions().get("edit.quickInsert"));
             assertThat(ShortcutCatalog.find("edit.quickInsert").orElseThrow().scope())
-                    .isEqualTo(cl.almejo.vsim.ui.shortcuts.Scope.CANVAS);
+                    .isEqualTo(Scope.CANVAS);
         } finally {
-            second.dispose();
             first.dispose();
         }
     }

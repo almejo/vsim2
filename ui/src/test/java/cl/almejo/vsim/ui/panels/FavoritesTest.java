@@ -4,6 +4,7 @@ import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.library.DefinitionBundle;
 import cl.almejo.vsim.core.library.ExampleDefinitions;
 import cl.almejo.vsim.ui.app.AppPreferences;
+import cl.almejo.vsim.ui.favorites.PaletteFavorites;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
@@ -23,6 +24,7 @@ class FavoritesTest {
 
     private final AppPreferences preferences = AppPreferences.inMemory();
     private final List<String> chosen = new ArrayList<>();
+    private final List<PaletteFavorites> owners = new ArrayList<>();
     private PalettePanel palette;
 
     @BeforeEach
@@ -34,7 +36,9 @@ class FavoritesTest {
     private PalettePanel createPalette(List<String> choices) {
         PalettePanel result = new PalettePanel(StandardComponentTypes.registry(), PainterRegistry.standard(),
                 ColorScheme.LIGHT, type -> choices.add(type.id()));
-        result.enableFavorites(preferences);
+        PaletteFavorites favorites = new PaletteFavorites(result, preferences);
+        favorites.install();
+        owners.add(favorites);
         return result;
     }
 
@@ -53,8 +57,7 @@ class FavoritesTest {
         Object model = palette.treeModel();
         preferences.setStepUnits(20);
         assertThat(palette.treeModel()).isSameAs(model);
-        palette.dispose();
-        second.dispose();
+        owners.forEach(PaletteFavorites::dispose);
         assertThat(preferences.listenerCount()).isZero();
     }
 

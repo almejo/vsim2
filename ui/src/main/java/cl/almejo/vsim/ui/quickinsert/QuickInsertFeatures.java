@@ -1,4 +1,4 @@
-package cl.almejo.vsim.ui.favorites;
+package cl.almejo.vsim.ui.quickinsert;
 
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.geometry.GridPoint;
@@ -25,7 +25,7 @@ import java.awt.event.ActionEvent;
 import java.awt.geom.Point2D;
 import java.util.Optional;
 
-/** Installs favourites and quick insertion on every pane, preserving the existing placement and undo paths. */
+/** Installs quick insertion on every pane, preserving the existing placement and undo paths. */
 final class QuickInsertFeatures {
 
     /** Injectable popup boundary: tests exercise the real content without showing a window. */
@@ -44,6 +44,7 @@ final class QuickInsertFeatures {
             panel.refresh();
         }
     };
+    private Runnable removeRefresher = () -> { };
     private CircuitCanvas popupCanvas;
     private Runnable closePopup = () -> { };
     private boolean disposed;
@@ -55,7 +56,6 @@ final class QuickInsertFeatures {
     QuickInsertFeatures(EditorView view, PopupOpener opener) {
         this.view = view;
         this.opener = opener;
-        view.palette().enableFavorites(view.services().preferences());
         removeShortcut = view.registerShortcutAction("edit.quickInsert",
                 new AbstractAction(Messages.text("action.quickInsert")) {
                     @Override public void actionPerformed(ActionEvent event) { openFromShortcut(); }
@@ -110,10 +110,9 @@ final class QuickInsertFeatures {
         }
         close();
         popupCanvas = canvas;
-        panel = new QuickInsertPanel(view.palette(), view.services().preferences(), view.services().painters(),
-                view.services().appearance(), entry -> choose(canvas, position, chosenPoint, entry), this::close);
-        view.services().preferences().addListener(refreshPopup);
-        view.openDocument().addChangeListener(refreshPopup);
+        panel = new QuickInsertPanel(view.palette(), view.services().painters(), view.services().appearance(),
+                entry -> choose(canvas, position, chosenPoint, entry), this::close);
+        removeRefresher = view.palette().addEntriesListener(refreshPopup);
         try {
             closePopup = opener.open(canvas, position, panel);
         } catch (RuntimeException exception) {
@@ -170,8 +169,8 @@ final class QuickInsertFeatures {
         CircuitCanvas canvas = popupCanvas;
         panel = null;
         popupCanvas = null;
-        view.services().preferences().removeListener(refreshPopup);
-        view.openDocument().removeChangeListener(refreshPopup);
+        removeRefresher.run();
+        removeRefresher = () -> { };
         Runnable closer = closePopup;
         closePopup = () -> { };
         closer.run();
@@ -184,7 +183,6 @@ final class QuickInsertFeatures {
             close();
             removeDelegates.run();
             removeShortcut.run();
-            view.palette().disableFavorites();
         }
     }
 }

@@ -1,6 +1,5 @@
-package cl.almejo.vsim.ui.favorites;
+package cl.almejo.vsim.ui.quickinsert;
 
-import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.clipboard.FragmentRefusingTransferHandler;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.panels.PaletteEntry;
@@ -31,18 +30,15 @@ import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.function.Consumer;
 
-/** Search-first popup content; empty queries offer available favourites in their saved order. EDT only. */
+/** Search-first popup content; an empty query offers the palette's available favourites in order. EDT only. */
 final class QuickInsertPanel extends JPanel {
 
     private static final int ICON_SIZE = 24;
     private static final Dimension POPUP_SIZE = new Dimension(360, 300);
     private final PalettePanel palette;
-    private final AppPreferences preferences;
     private final Consumer<PaletteEntry> choose;
     private final Runnable cancel;
     private final JTextField search = new JTextField();
@@ -51,11 +47,10 @@ final class QuickInsertPanel extends JPanel {
     private final JLabel sectionTitle = new JLabel();
     private final JLabel hint = new JLabel();
 
-    QuickInsertPanel(PalettePanel palette, AppPreferences preferences, PainterRegistry painters,
-                     Appearance appearance, Consumer<PaletteEntry> choose, Runnable cancel) {
+    QuickInsertPanel(PalettePanel palette, PainterRegistry painters, Appearance appearance,
+                     Consumer<PaletteEntry> choose, Runnable cancel) {
         super(new BorderLayout(4, 4));
         this.palette = palette;
-        this.preferences = preferences;
         this.choose = choose;
         this.cancel = cancel;
         setBorder(javax.swing.BorderFactory.createEmptyBorder(6, 6, 6, 6));
@@ -145,19 +140,12 @@ final class QuickInsertPanel extends JPanel {
     void refresh() {
         String selectedId = list.getSelectedValue() == null ? "" : list.getSelectedValue().type().id();
         String query = search.getText();
-        List<PaletteEntry> entries = palette.entries();
         List<PaletteEntry> results = new ArrayList<>();
         if (query.isBlank()) {
-            Map<String, PaletteEntry> available = new HashMap<>();
-            entries.forEach(entry -> available.put(entry.type().id(), entry));
-            for (String typeId : preferences.paletteFavorites()) {
-                PaletteEntry entry = available.get(typeId);
-                if (entry != null) {
-                    results.add(entry);
-                }
-            }
+            results.addAll(palette.favoriteEntries());
         } else {
-            entries.stream().filter(entry -> PaletteFilter.matches(entry.type(), query)).forEach(results::add);
+            palette.entries().stream().filter(entry -> PaletteFilter.matches(entry.type(), query))
+                    .forEach(results::add);
         }
         model.clear();
         results.forEach(model::addElement);

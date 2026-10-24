@@ -11,7 +11,6 @@ import cl.almejo.vsim.core.io.FragmentFormat;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.DefinitionBundle;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
-import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.clipboard.CircuitFileDrop;
 import cl.almejo.vsim.ui.clipboard.FragmentRefusingTransferHandler;
 import cl.almejo.vsim.ui.clipboard.FragmentTransferable;
@@ -66,6 +65,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -121,51 +121,72 @@ public final class PalettePanel extends JPanel {
     private Runnable focusAfterMouseChoice = () -> {
     };
     private boolean updating;
-    private Optional<AppPreferences> favoritesPreferences = Optional.empty();
+    private Optional<Consumer<String>> favoriteToggle = Optional.empty();
     private List<String> favoriteIds = List.of();
-    private final Runnable favoritesListener = this::favoritesChanged;
+    private final List<Runnable> entriesListeners = new CopyOnWriteArrayList<>();
 
-    /** Follows the shared favourites. Installed by the favourites extension, removed on disposal. */
-    public void enableFavorites(AppPreferences preferences) {
-        disableFavorites();
-        favoritesPreferences = Optional.of(Objects.requireNonNull(preferences));
-        preferences.addListener(favoritesListener);
-        favoriteIds = preferences.paletteFavorites();
+    /**
+     * Turns on «Favoritos» and the star: a click on the star or the context-menu item hands the type id to
+     * {@code toggle}, whose owner saves the change and answers with {@link #setFavorites}.
+     */
+    public void setFavoriteToggle(Consumer<String> toggle) {
+        favoriteToggle = Optional.of(Objects.requireNonNull(toggle));
         rebuild();
     }
 
-    /** Releases the preference listener when the extension is removed. */
-    public void disableFavorites() {
-        favoritesPreferences.ifPresent(preferences -> preferences.removeListener(favoritesListener));
-        favoritesPreferences = Optional.empty();
-        favoriteIds = List.of();
+    /**
+     * The favourites' type ids in marking order; ids of components not available now are kept but not shown. An
+     * equal list changes nothing.
+     */
+    public void setFavorites(List<String> typeIds) {
+        List<String> next = List.copyOf(typeIds);
+        if (favoriteIds.equals(next)) {
+            return;
+        }
+        TreePath selected = tree.getSelectionPath();
+        Object selectedSection = selected != null && selected.getPathCount() == 3
+                ? ((DefaultMutableTreeNode) selected.getPathComponent(1)).getUserObject() : null;
+        Object selectedItem = selected != null
+                ? ((DefaultMutableTreeNode) selected.getLastPathComponent()).getUserObject() : null;
+        favoriteIds = next;
         rebuild();
-    }
-
-    private void favoritesChanged() {
-        List<String> next = favoritesPreferences.orElseThrow().paletteFavorites();
-        if (!favoriteIds.equals(next)) {
-            TreePath selected = tree.getSelectionPath();
-            Object selectedSection = selected != null && selected.getPathCount() == 3
-                    ? ((DefaultMutableTreeNode) selected.getPathComponent(1)).getUserObject() : null;
-            Object selectedItem = selected != null
-                    ? ((DefaultMutableTreeNode) selected.getLastPathComponent()).getUserObject() : null;
-            favoriteIds = next;
-            rebuild();
-            // Rebuilding the new section must not clear an unrelated placement highlight or call its chooser.
-            if (selectedSection != null) {
-                updating = true;
-                try {
-                    sections().stream().filter(section -> section.getUserObject().equals(selectedSection))
-                            .flatMap(section -> Collections.list(section.children()).stream())
-                            .map(DefaultMutableTreeNode.class::cast)
-                            .filter(node -> node.getUserObject().equals(selectedItem)).findFirst()
-                            .ifPresent(node -> tree.setSelectionPath(new TreePath(node.getPath())));
-                } finally {
-                    updating = false;
-                }
+        // Rebuilding the new section must not clear an unrelated placement highlight or call its chooser.
+        if (selectedSection != null) {
+            updating = true;
+            try {
+                sections().stream().filter(section -> section.getUserObject().equals(selectedSection))
+                        .flatMap(section -> Collections.list(section.children()).stream())
+                        .map(DefaultMutableTreeNode.class::cast)
+                        .filter(node -> node.getUserObject().equals(selectedItem)).findFirst()
+                        .ifPresent(node -> tree.setSelectionPath(new TreePath(node.getPath())));
+            } finally {
+                updating = false;
             }
         }
+        fireEntriesChanged();
+    }
+
+    /** The favourites available now, in marking order (empty while favourites are off). */
+    public List<PaletteEntry> favoriteEntries() {
+        if (favoriteToggle.isEmpty()) {
+            return List.of();
+        }
+        Map<String, PaletteEntry> available = new HashMap<>();
+        entries().forEach(entry -> available.put(entry.type().id(), entry));
+        return favoriteIds.stream().map(available::get).filter(Objects::nonNull).toList();
+    }
+
+    /**
+     * Runs {@code listener} after the entries, the favourites or the recent components change (EDT). Returns its
+     * removal.
+     */
+    public Runnable addEntriesListener(Runnable listener) {
+        entriesListeners.add(Objects.requireNonNull(listener));
+        return () -> entriesListeners.remove(listener);
+    }
+
+    private void fireEntriesChanged() {
+        entriesListeners.forEach(Runnable::run);
     }
 
     /** Available standard and user entries, independent of the palette's current search filter. */
@@ -194,13 +215,7 @@ public final class PalettePanel extends JPanel {
     }
 
     private void toggleFavorite(String typeId) {
-        favoritesPreferences.ifPresent(preferences -> {
-            List<String> next = new ArrayList<>(favoriteIds);
-            if (!next.remove(typeId)) {
-                next.add(typeId);
-            }
-            preferences.setPaletteFavorites(next);
-        });
+        favoriteToggle.ifPresent(toggle -> toggle.accept(typeId));
     }
 
     public PalettePanel(ComponentTypeRegistry registry, PainterRegistry painters, ColorScheme scheme,
@@ -277,8 +292,6 @@ public final class PalettePanel extends JPanel {
 
     /** Stops following the shared appearance: the window showing this palette closed. */
     public void dispose() {
-        favoritesPreferences.ifPresent(preferences -> preferences.removeListener(favoritesListener));
-        favoritesPreferences = Optional.empty();
         appearance.removeListener(appearanceListener);
         ToolTipManager.sharedInstance().unregisterComponent(tree);
     }
@@ -365,6 +378,7 @@ public final class PalettePanel extends JPanel {
         libraryComponents = libraryBundles.stream().map(bundle -> UserComponent.of(bundle, true)).toList();
         documentComponents = documentBundles.stream().map(bundle -> UserComponent.of(bundle, false)).toList();
         rebuild();
+        fireEntriesChanged();
     }
 
     /** Called when the user picks a user component (the standard types keep going to {@code onChoose}). */
@@ -411,7 +425,7 @@ public final class PalettePanel extends JPanel {
     Optional<JPopupMenu> popupFor(TreePath path) {
         Optional<JPopupMenu> provided = userMenuProvider.apply(path == null ? Optional.empty() : userComponentOf(path));
         Object item = path == null ? null : ((DefaultMutableTreeNode) path.getLastPathComponent()).getUserObject();
-        if (favoritesPreferences.isEmpty() || !(item instanceof ComponentType || item instanceof UserComponent)) {
+        if (favoriteToggle.isEmpty() || !(item instanceof ComponentType || item instanceof UserComponent)) {
             return provided;
         }
         String typeId = typeIdOf(item);
@@ -503,18 +517,12 @@ public final class PalettePanel extends JPanel {
     }
 
     private void addFavorites(DefaultMutableTreeNode root, String query) {
-        if (favoritesPreferences.isEmpty()) {
+        if (favoriteToggle.isEmpty()) {
             return;
         }
-        Map<String, PaletteEntry> available = new HashMap<>();
-        entries().forEach(entry -> available.put(entry.type().id(), entry));
         DefaultMutableTreeNode section = new DefaultMutableTreeNode(FavoriteSection.FAVORITES);
-        for (String typeId : favoriteIds) {
-            PaletteEntry entry = available.get(typeId);
-            if (entry != null && PaletteFilter.matches(entry.type(), query)) {
-                section.add(new DefaultMutableTreeNode(entry.treeItem(), false));
-            }
-        }
+        favoriteEntries().stream().filter(entry -> PaletteFilter.matches(entry.type(), query))
+                .forEach(entry -> section.add(new DefaultMutableTreeNode(entry.treeItem(), false)));
         if (section.getChildCount() == 0 && query.isBlank()) {
             section.add(new DefaultMutableTreeNode(FavoriteSection.EMPTY, false));
         }
@@ -710,7 +718,7 @@ public final class PalettePanel extends JPanel {
         }
 
         private Optional<String> favoriteType(TreePath path) {
-            if (path == null || favoritesPreferences.isEmpty()) {
+            if (path == null || favoriteToggle.isEmpty()) {
                 return Optional.empty();
             }
             Object item = ((DefaultMutableTreeNode) path.getLastPathComponent()).getUserObject();
