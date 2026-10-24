@@ -1066,13 +1066,14 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
      * listeners this canvas holds, and whether a tooltip provider is set.
      */
     public PaneHooks paneHooks() {
+        int delegates = defaultTool instanceof SelectTool select ? select.delegates().size() : 0;
         return new PaneHooks(pressInterceptors.size(), toolTipOverrides.size(), incomingFragmentListeners.size(),
-                toolTipProviderSet);
+                toolTipProviderSet, placementListeners.size(), delegates);
     }
 
     /** What {@link #paneHooks()} counts. */
     public record PaneHooks(int pressInterceptors, int toolTipOverrides, int incomingFragmentListeners,
-                            boolean toolTipProvider) {
+                            boolean toolTipProvider, int placementListeners, int selectToolDelegates) {
     }
 
     /**

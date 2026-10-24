@@ -170,8 +170,9 @@ public final class PalettePanel extends JPanel {
 
     /**
      * Puts {@code fresh}'s children in the section {@code key} of the tree shown, without rebuilding the rest: the
-     * other sections keep what the user folded, and a highlight inside the section stays on its entry (or moves to
-     * the same entry in its own category when it left the section) without calling the chooser again. An empty
+     * other sections keep what the user folded, and a highlight inside the section stays on its entry (or, when it
+     * left the section, moves to the first row that shows it: «Favoritos» when it was just marked, otherwise its
+     * category) without calling the chooser again. An empty
      * {@code fresh} removes the section; a missing one is inserted at {@code index}, expanded. EDT.
      */
     private void refreshSection(Object key, DefaultMutableTreeNode fresh, int index) {
@@ -285,7 +286,11 @@ public final class PalettePanel extends JPanel {
         entriesListeners.forEach(Runnable::run);
     }
 
-    /** Available standard and user entries, independent of the palette's current search filter. */
+    /**
+     * Available standard and user entries, independent of the palette's current search filter. An id is offered once;
+     * the library's and the circuit's own sections never share one (the circuit's list leaves out the library's ids),
+     * so no version of a user component hides another.
+     */
     public List<PaletteEntry> entries() {
         Map<String, PaletteEntry> entries = new LinkedHashMap<>();
         for (ComponentCategory category : ORDER) {

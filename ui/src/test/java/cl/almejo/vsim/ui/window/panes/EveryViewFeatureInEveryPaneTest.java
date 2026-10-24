@@ -97,12 +97,13 @@ class EveryViewFeatureInEveryPaneTest {
 
     /** What a pane holds for the features: what an extension adds there must be in every pane alike. */
     private record Footprint(int overlays, int snapshotListeners, int edgeHandles, int pressInterceptors,
-                             int toolTipOverrides, int incomingFragmentListeners, int toolTipProviders,
+                             int toolTipOverrides, int incomingFragmentListeners, int placementListeners,
+                             int selectToolDelegates, int toolTipProviders,
                              int focusedKeys, int actions) {
         static Footprint of(CircuitCanvas pane) {
             CircuitCanvas.PaneHooks hooks = pane.paneHooks();
             return new Footprint(pane.overlayCount(), pane.snapshotListenerCount(), pane.edgeHandles().size(),
-                    hooks.pressInterceptors(), hooks.toolTipOverrides(), hooks.incomingFragmentListeners(),
+                    hooks.pressInterceptors(), hooks.toolTipOverrides(), hooks.incomingFragmentListeners(), hooks.placementListeners(), hooks.selectToolDelegates(),
                     hooks.toolTipProvider() ? 1 : 0, sizeOf(pane.getInputMap(JComponent.WHEN_FOCUSED).keys()),
                     sizeOf(pane.getActionMap().keys()));
         }
@@ -113,12 +114,14 @@ class EveryViewFeatureInEveryPaneTest {
                     edgeHandles - before.edgeHandles, pressInterceptors - before.pressInterceptors,
                     toolTipOverrides - before.toolTipOverrides,
                     incomingFragmentListeners - before.incomingFragmentListeners,
+                    placementListeners - before.placementListeners,
+                    selectToolDelegates - before.selectToolDelegates,
                     toolTipProviders - before.toolTipProviders, focusedKeys - before.focusedKeys,
                     actions - before.actions);
         }
 
         boolean isEmpty() {
-            return equals(new Footprint(0, 0, 0, 0, 0, 0, 0, 0, 0));
+            return equals(new Footprint(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0));
         }
 
         private static int sizeOf(Object[] keys) {

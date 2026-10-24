@@ -444,6 +444,16 @@ class CanvasTravelTest {
     }
 
     @Test
+    void aCrossingContextReportsAPlacementToThePressedPane() {
+        List<String> placed = new java.util.ArrayList<>();
+        canvas.addPlacementListener(type -> placed.add(type.id()));
+
+        new CrossPaneContext(canvas, canvas).componentPlaced(openDocument.registry().require("and3"));
+
+        assertThat(placed).containsExactly("and3");
+    }
+
+    @Test
     void zoomToFitTravelsUntilTheBoundsFillNinetyPercentOfThePane() {
         showOnScreen();
         canvas.applyViewState(new ViewState(3, 100, 100));

@@ -64,13 +64,14 @@ class EveryExtensionFootprintTest {
 
     /** What a pane holds that an extension may add to. */
     private record Footprint(int overlays, int snapshotListeners, int edgeHandles, int pressInterceptors,
-                             int toolTipOverrides, int incomingFragmentListeners, int toolTipProviders,
+                             int toolTipOverrides, int incomingFragmentListeners, int placementListeners,
+                             int selectToolDelegates, int toolTipProviders,
                              int focusedKeys, int actions, int mouseListeners, int mouseMotionListeners,
                              int mouseWheelListeners, int keyListeners) {
         static Footprint of(CircuitCanvas pane) {
             CircuitCanvas.PaneHooks hooks = pane.paneHooks();
             return new Footprint(pane.overlayCount(), pane.snapshotListenerCount(), pane.edgeHandles().size(),
-                    hooks.pressInterceptors(), hooks.toolTipOverrides(), hooks.incomingFragmentListeners(),
+                    hooks.pressInterceptors(), hooks.toolTipOverrides(), hooks.incomingFragmentListeners(), hooks.placementListeners(), hooks.selectToolDelegates(),
                     hooks.toolTipProvider() ? 1 : 0, sizeOf(pane.getInputMap(JComponent.WHEN_FOCUSED).keys()),
                     sizeOf(pane.getActionMap().keys()), pane.getMouseListeners().length,
                     pane.getMouseMotionListeners().length, pane.getMouseWheelListeners().length,
@@ -82,6 +83,8 @@ class EveryExtensionFootprintTest {
                     edgeHandles - before.edgeHandles, pressInterceptors - before.pressInterceptors,
                     toolTipOverrides - before.toolTipOverrides,
                     incomingFragmentListeners - before.incomingFragmentListeners,
+                    placementListeners - before.placementListeners,
+                    selectToolDelegates - before.selectToolDelegates,
                     toolTipProviders - before.toolTipProviders, focusedKeys - before.focusedKeys,
                     actions - before.actions, mouseListeners - before.mouseListeners,
                     mouseMotionListeners - before.mouseMotionListeners,
