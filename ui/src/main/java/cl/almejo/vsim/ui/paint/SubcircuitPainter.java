@@ -55,9 +55,6 @@ public final class SubcircuitPainter implements ComponentPainter {
             double pinY = pin.position().y() * UNIT;
             boolean left = pinX <= 0;
             if (!left && pinX < width) {
-                double centerY = pinY <= height / 2 ? pinY + INSET + 2 : pinY - INSET - 2;
-                PainterSupport.centeredText(graphics, box, text, pinX, centerY,
-                        fitted(graphics, text, PIN_NAME_SIZE, Math.max(UNIT, width - 2 * INSET)), scheme.text());
                 continue;
             }
             // The pin's slot: its half of the box, between the midpoints to the neighbouring pins on its side.

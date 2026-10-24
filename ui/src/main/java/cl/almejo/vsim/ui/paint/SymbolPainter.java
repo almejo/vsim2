@@ -15,6 +15,7 @@ import java.awt.BasicStroke;
 import java.awt.FontMetrics;
 import java.awt.Graphics2D;
 import java.awt.Shape;
+import java.awt.geom.AffineTransform;
 import java.awt.geom.Line2D;
 import java.awt.geom.Path2D;
 import java.awt.geom.Point2D;
@@ -28,7 +29,6 @@ public final class SymbolPainter {
     private static final double UNIT = GridPoint.PIXELS_PER_UNIT;
     private static final double COORDINATE_SCALE = UNIT / SymbolPoint.EIGHTHS;
     private static final Map<SymbolPath, Shape> PATHS = Collections.synchronizedMap(new WeakHashMap<>());
-    private static final Map<SymbolPath, Shape> OUTLINES = Collections.synchronizedMap(new WeakHashMap<>());
     private static final float STROKE_WIDTH = 1.6f;
 
     private SymbolPainter() { }
@@ -40,7 +40,7 @@ public final class SymbolPainter {
             symbol.setStroke(new BasicStroke(STROKE_WIDTH, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
             for (SymbolElement element : drawing.elements()) {
                 if (element instanceof SymbolPath path) {
-                    Shape shape = path(path);
+                    Shape shape = insetByHalfTheStroke(path(path), drawing);
                     if (path.filled()) {
                         symbol.setColor(scheme.componentFill());
                         symbol.fill(shape);
@@ -58,6 +58,20 @@ public final class SymbolPainter {
         } finally {
             symbol.dispose();
         }
+    }
+
+    /**
+     * The path squeezed into the box by half the stroke width, so a figure on the box edge is drawn inside it and its
+     * stroke never spills past the type bounds (the selection outline and exports crop at those bounds).
+     */
+    private static Shape insetByHalfTheStroke(Shape shape, SymbolDrawing drawing) {
+        double inset = STROKE_WIDTH / 2;
+        double width = drawing.size().width() * UNIT;
+        double height = drawing.size().height() * UNIT;
+        AffineTransform transform = new AffineTransform();
+        transform.translate(inset, inset);
+        transform.scale((width - 2 * inset) / width, (height - 2 * inset) / height);
+        return transform.createTransformedShape(shape);
     }
 
     /** The cached path in local document pixels; callers must not mutate it. */
@@ -126,8 +140,8 @@ public final class SymbolPainter {
     }
 
     private static double stubLength(SymbolDrawing drawing, double x, double y, double directionX, double directionY) {
-        java.util.List<Shape> outlines = drawing.paths().stream().map(path -> OUTLINES.computeIfAbsent(path,
-                current -> new BasicStroke(STROKE_WIDTH + 0.5f).createStrokedShape(path(current)))).toList();
+        java.util.List<Shape> outlines = drawing.paths().stream().map(path -> new BasicStroke(STROKE_WIDTH + 0.5f)
+                .createStrokedShape(insetByHalfTheStroke(path(path), drawing))).toList();
         for (double distance = 0; distance <= 2 * UNIT; distance += 0.5) {
             Point2D point = new Point2D.Double(x + directionX * distance, y + directionY * distance);
             for (Shape outline : outlines) {

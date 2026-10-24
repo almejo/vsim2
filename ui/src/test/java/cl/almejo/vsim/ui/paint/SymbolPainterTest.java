@@ -1,6 +1,7 @@
 package cl.almejo.vsim.ui.paint;
 
 import cl.almejo.vsim.core.component.ComponentType;
+import cl.almejo.vsim.core.component.PinSpec;
 import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.component.appearance.SymbolDrawing;
 import cl.almejo.vsim.core.component.appearance.SymbolPath;
@@ -10,6 +11,8 @@ import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.GridSize;
 import cl.almejo.vsim.core.io.CircuitFragment;
 import cl.almejo.vsim.core.library.ComponentDefinition;
+import cl.almejo.vsim.core.library.DefinitionPin;
+import cl.almejo.vsim.core.library.ExampleDefinitions;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
 import org.junit.jupiter.api.Test;
 
@@ -18,6 +21,7 @@ import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -66,6 +70,46 @@ class SymbolPainterTest {
             new SubcircuitPainter().paint(graphics, type, Map.of(), VisibleState.NONE, ColorSchemes.LIGHT);
             assertThat(new Color(image.getRGB(2, 2), true).getAlpha()).isPositive();
         } finally { graphics.dispose(); }
+    }
+
+    @Test
+    void aFigureOnTheBoxEdgeDoesNotSpillOutsideTheBox() {
+        SymbolPath edge = SymbolTemplates.rectangle(new SymbolPoint(0, 0), new SymbolPoint(48, 32), false);
+        BufferedImage image = paint(new SymbolDrawing(SIZE, List.of(edge), false), ColorSchemes.LIGHT, 0);
+        int right = OFFSET + SIZE.width() * GridPoint.PIXELS_PER_UNIT;
+        int bottom = OFFSET + SIZE.height() * GridPoint.PIXELS_PER_UNIT;
+        int background = ColorSchemes.LIGHT.background().getRGB();
+        for (int step = OFFSET; step <= bottom; step++) {
+            assertThat(image.getRGB(OFFSET - 1, step)).as("left of row %s", step).isEqualTo(background);
+            assertThat(image.getRGB(right, step)).as("right of row %s", step).isEqualTo(background);
+        }
+        for (int step = OFFSET; step <= right; step++) {
+            assertThat(image.getRGB(step, OFFSET - 1)).as("above column %s", step).isEqualTo(background);
+            assertThat(image.getRGB(step, bottom)).as("below column %s", step).isEqualTo(background);
+        }
+        assertThat(image.getRGB(OFFSET + 1, OFFSET + 20)).isNotEqualTo(background);
+    }
+
+    @Test
+    void theDefaultBoxDoesNotNameThePinsOnItsTopAndBottomEdges() {
+        ComponentDefinition inverter = ExampleDefinitions.inverter();
+        ComponentDefinition withPin = inverter.withGeometry(inverter.size(), List.of(
+                new DefinitionPin(PinSpec.input("T", 1, 4), inverter.pinout().get(0).source()),
+                inverter.pinout().get(1)), Optional.empty());
+        BufferedImage image = new BufferedImage(192, 192, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D graphics = image.createGraphics();
+        try {
+            graphics.translate(OFFSET, OFFSET);
+            new SubcircuitPainter().paint(graphics, SubcircuitTypes.typeOf(withPin), Map.of(), VisibleState.NONE,
+                    ColorSchemes.LIGHT);
+        } finally { graphics.dispose(); }
+        int textColor = ColorSchemes.LIGHT.text().getRGB();
+        int unit = GridPoint.PIXELS_PER_UNIT;
+        for (int y = OFFSET + 3 * unit; y < OFFSET + 4 * unit - 2; y++) {
+            for (int x = OFFSET + 2; x < OFFSET + 2 * unit; x++) {
+                assertThat(image.getRGB(x, y)).as("pixel %s,%s", x, y).isNotEqualTo(textColor);
+            }
+        }
     }
 
     private static BufferedImage paint(SymbolDrawing drawing, ColorScheme scheme, int rotation) {

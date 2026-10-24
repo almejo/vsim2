@@ -172,12 +172,12 @@ final class AppearanceFeatures {
         if (plan.disconnected().isEmpty() && plan.keptOldShape().isEmpty()) { return true; }
         List<String> disconnected = plan.disconnected().stream().map(this::pinName).toList();
         List<String> kept = plan.keptOldShape().stream().map(contact -> Messages.format("shape.connections.foreign",
-                contact.instance().value(), contact.pinName(), contact.touchedNetName())).toList();
+                contact.instanceName(), contact.pinName(), contact.touchedNetName())).toList();
         return prompts.confirmConnections(view, disconnected, kept, instanceScope && !kept.isEmpty());
     }
 
     private String pinName(PinRef pin) {
-        return document().component(pin.componentId()).map(component -> component.id().value() + " · "
+        return document().component(pin.componentId()).map(component -> (component.label().isBlank() ? component.id().value() : component.label()) + " · "
                 + view.openDocument().registry().typeOf(component).pin(pin.pinIndex()).name()).orElse(pin.componentId().value());
     }
 

@@ -341,11 +341,13 @@ public final class ShapeEditorPanel extends JPanel {
         if (!buttons.isEmpty()) {
             buttons.get("undo").setEnabled(history.canUndo()); buttons.get("redo").setEnabled(history.canRedo());
             boolean segment = canvas.segmentSelected();
-            for (String name : List.of("nodeRemove", "curve")) {
-                buttons.get(name).setEnabled(segment);
-                buttons.get(name).setToolTipText(Messages.text(MESSAGE_PREFIX + name)
-                        + (segment ? "" : " — " + Messages.text("shape.segment.required")));
-            }
+            boolean node = canvas.nodeSelected();
+            buttons.get("nodeRemove").setEnabled(node);
+            buttons.get("nodeRemove").setToolTipText(Messages.text(MESSAGE_PREFIX + "nodeRemove")
+                    + (node ? "" : " — " + Messages.text("shape.node.required")));
+            buttons.get("curve").setEnabled(segment);
+            buttons.get("curve").setToolTipText(Messages.text(MESSAGE_PREFIX + "curve")
+                    + (segment ? "" : " — " + Messages.text("shape.segment.required")));
             for (String name : List.of("fill", "front", "back")) {
                 buttons.get(name).setEnabled(!draft.selection().isEmpty());
             }

@@ -139,6 +139,13 @@ final class ShapeCanvas extends JPanel {
     void selectPin(ElementId source) { pin = Optional.of(source); repaint(); }
     boolean operationActive() { return pressed != null || !polygon.isEmpty() || textField != null; }
     boolean hasSelection() { return pin.isPresent() || !current.get().selection().isEmpty() || nodeIndex >= 0; }
+    /** A node (not only a segment) is selected: the last node of an open path counts. */
+    boolean nodeSelected() {
+        SymbolDraft view = nodeView();
+        if (pathIndex < 0 || nodeIndex < 0 || pathIndex >= view.elements().size()) { return false; }
+        return view.elements().get(pathIndex) instanceof SymbolPath path && nodeIndex < path.nodes().size();
+    }
+
     boolean segmentSelected() {
         SymbolDraft view = nodeView();
         if (pathIndex < 0 || nodeIndex < 0 || pathIndex >= view.elements().size()) { return false; }

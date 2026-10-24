@@ -93,6 +93,23 @@ class SymbolDraftTest {
         assertThat(moved.appearance().pins().getFirst().offset()).isEqualTo(new GridPoint(0, 2));
     }
 
+    @Test
+    void theBlockingProblemComesFirstAndEveryProblemIsReturned() {
+        SymbolDraft invalid = draft(false).movePin(INPUT, new GridPoint(3, 2)).movePin(OUTPUT, new GridPoint(3, 2));
+        assertThat(invalid.problems().getFirst().kind()).isEqualTo(DraftProblem.Kind.COINCIDING_PINS);
+        assertThat(invalid.problems()).extracting(DraftProblem::kind).contains(DraftProblem.Kind.PIN_OFF_EDGE);
+        assertThat(invalid.problems()).extracting(DraftProblem::kind).hasSize(3);
+    }
+
+    @Test
+    void movingAFreeFigureWithTheMagnetOnKeepsItsShape() {
+        SymbolDraft moved = draft(false).addFigure(SymbolTemplates.line(new SymbolPoint(3, 3),
+                new SymbolPoint(10, 10), false)).moveSelection(2, 2, SnapMode.HALF_UNITS);
+        List<SymbolNode> nodes = ((SymbolPath) moved.elements().getFirst()).nodes();
+        assertThat(nodes.get(1).point().x() - nodes.getFirst().point().x()).isEqualTo(7);
+        assertThat(nodes.get(1).point().y() - nodes.getFirst().point().y()).isEqualTo(7);
+    }
+
     private static SymbolDraft draft(boolean locked) {
         List<DefinitionPin> pins = List.of(new DefinitionPin(PinSpec.input("A", 0, 2), INPUT),
                 new DefinitionPin(PinSpec.output("Y", 6, 2), OUTPUT));

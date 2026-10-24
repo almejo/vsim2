@@ -93,6 +93,34 @@ class ChangeAppearanceCommandTest {
     }
 
     @Test
+    void twoRetainedPiecesEachGetTheirOwnLabelAndTheNameOfWhatTheyWouldTouch() {
+        Component first = instance("c20", 10).withLabel("U1");
+        document.replace(first);
+        Component second = instance("c21", 40).withLabel("U2");
+        document.replace(second);
+        Component probeGate = new Component(new ElementId("c22"), StandardComponentTypes.NOT, GridPoint.ORIGIN,
+                Rotation.R0, Map.of(), "G1");
+        GridPoint offset = registry.typeOf(probeGate).pinLocation(probeGate, 0);
+        document.add(probeGate.withPosition(new GridPoint(16 - offset.x(), -offset.y())));
+        document.add(new Wire(new ElementId("w30"), new GridPoint(16, 0), new GridPoint(16, 20)));
+        document.add(new Wire(new ElementId("w33"), new GridPoint(46, 0), new GridPoint(46, 20)));
+        Map<ElementId, Component> after = Map.of(first.id(), first.withAppearance(Optional.of(wider())),
+                second.id(), second.withAppearance(Optional.of(wider())));
+
+        List<cl.almejo.vsim.core.wiring.ForeignContact> kept = cl.almejo.vsim.core.wiring.ShapeChangePlanner
+                .plan(document, registry, registry, after).keptOldShape();
+
+        assertThat(kept).extracting(contact -> contact.instanceName()).containsExactlyInAnyOrder("U1", "U2");
+        assertThat(kept).allSatisfy(contact -> {
+            assertThat(contact.pinName()).isNotBlank();
+            assertThat(contact.touchedNetName()).isNotBlank();
+            assertThat(contact.touchedNetName()).doesNotMatch("n\\d+|w\\d+|c\\d+");
+        });
+        assertThat(kept).extracting(contact -> contact.touchedNetName()).anyMatch(name -> name.contains("G1"));
+        assertThat(kept.get(0).touchedNetName()).isNotEqualTo(kept.get(1).touchedNetName());
+    }
+
+    @Test
     void aStalePreparedEditCannotOverwriteNewerWiring() {
         Component instance = instance("c20", 10);
         ChangeAppearanceCommand command = ChangeAppearanceCommand.forInstance(document, registry, instance.id(),

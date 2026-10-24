@@ -6,6 +6,7 @@ import cl.almejo.vsim.core.geometry.GridSize;
 import cl.almejo.vsim.core.library.DefinitionPin;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -87,9 +88,10 @@ public final class SymbolDraft {
         Optional<Box> box = selectionBounds();
         if (box.isEmpty()) { return this; }
         Box bounds = box.get();
-        int horizontal = Math.clamp(deltaX, -bounds.left(), maximumX() - bounds.right());
-        int vertical = Math.clamp(deltaY, -bounds.top(), maximumY() - bounds.bottom());
-        return mapSelection(point -> bounded(new SymbolPoint(point.x() + horizontal, point.y() + vertical), snap));
+        // The delta is snapped, not each point: a figure drawn off the magnet's lattice keeps its shape when moved.
+        int horizontal = Math.clamp(snap.snap(deltaX), -bounds.left(), maximumX() - bounds.right());
+        int vertical = Math.clamp(snap.snap(deltaY), -bounds.top(), maximumY() - bounds.bottom());
+        return mapSelection(point -> new SymbolPoint(point.x() + horizontal, point.y() + vertical));
     }
 
     public SymbolDraft duplicateSelection() {
@@ -291,6 +293,8 @@ public final class SymbolDraft {
         if (appearance.drawing().isPresent() && elements().isEmpty()) {
             problems.add(new DraftProblem(DraftProblem.Kind.EMPTY_DRAWING, List.of()));
         }
+        // Blocking problems first: the editor shows the first one, and a warning must not hide what stops Accept.
+        problems.sort(Comparator.comparing((DraftProblem problem) -> !problem.blocksAccept()));
         return List.copyOf(problems);
     }
 
