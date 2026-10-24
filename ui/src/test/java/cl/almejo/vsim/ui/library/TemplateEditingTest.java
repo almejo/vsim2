@@ -6,6 +6,7 @@ import cl.almejo.vsim.core.command.ChangeParametersCommand;
 import cl.almejo.vsim.core.command.PutDefinitionsCommand;
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
+import cl.almejo.vsim.core.component.PinSpec;
 import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.CircuitDocument;
@@ -18,9 +19,11 @@ import cl.almejo.vsim.core.geometry.GridSize;
 import cl.almejo.vsim.core.geometry.Rotation;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.DefinitionBundle;
+import cl.almejo.vsim.core.library.DefinitionPin;
 import cl.almejo.vsim.core.library.ExampleDefinitions;
 import cl.almejo.vsim.core.io.CircuitFragment;
 import cl.almejo.vsim.core.library.InterfacePins;
+import cl.almejo.vsim.core.netlist.Net;
 import cl.almejo.vsim.core.netlist.Netlist;
 import cl.almejo.vsim.core.netlist.NetlistCompiler;
 import cl.almejo.vsim.core.netlist.PinRef;
@@ -309,6 +312,86 @@ class TemplateEditingTest {
         assertThat(fixture.openDocument.history().undoDescription())
                 .isNotEqualTo(Optional.of("command.updateDefinition"));
         waitUntil(() -> fixture.stateOf(led).equals(LED_ZERO));
+    }
+
+    @Test
+    void updatingAPlacedComponentWithANewPinKeepsItsWiresAndSaysWhereThePinWent() {
+        Wired wired = wiredInverter("1");
+        waitUntil(() -> fixture.stateOf(wired.led()).equals(LED_ZERO));
+        ComponentDefinition before = document.definition(ExampleDefinitions.INVERTER).orElseThrow();
+        List<Component> body = new ArrayList<>(fixture.drawInverter(40, 0));
+        body.add(fixture.place(InterfacePins.INPUT_PIN, 40, 6, "b"));
+        fixture.select(body.toArray(Component[]::new));
+        fixture.dialogs.acceptForm(form -> form.setTarget(before));
+
+        perform(fixture.features.actions().updateComponent());
+
+        assertThat(document.definition(ExampleDefinitions.INVERTER).orElseThrow().pinout()).hasSize(3);
+        assertThat(fixture.dialogs.messages).containsExactly(
+                Messages.format("appearance.update.newPin.left", "b"));
+        assertThat(netOfPinNamed(wired.instance(), "y").pins()).contains(new PinRef(wired.led().id(), 0));
+        assertThat(netOfPinNamed(wired.instance(), "a").pins()).contains(new PinRef(wired.source().id(), 0));
+        waitUntil(() -> fixture.stateOf(wired.led()).equals(LED_ZERO));
+        fixture.openDocument.history().undo();
+        assertThat(document.definition(ExampleDefinitions.INVERTER)).contains(before);
+    }
+
+    @Test
+    void aLibraryVersionThatWouldTouchAnotherWireAsksFirstAndVolverChangesNothing() throws Exception {
+        Wired wired = wiredInverter("1");
+        wire(new GridPoint(16, 0), new GridPoint(16, 30));
+        ComponentDefinition before = document.definition(ExampleDefinitions.INVERTER).orElseThrow();
+        fixture.service.save(new DefinitionBundle(movedOutput(before), List.of()));
+        List<Integer> asked = new ArrayList<>();
+        fixture.features.actions().useConnectionsConfirmation(plan -> {
+            asked.add(plan.keptOldShape().size());
+            return false;
+        });
+        Optional<String> lastStep = fixture.openDocument.history().undoDescription();
+
+        fixture.features.actions().updateFromLibrary(wired.instance());
+
+        assertThat(asked).containsExactly(1);
+        assertThat(document.definition(ExampleDefinitions.INVERTER)).contains(before);
+        assertThat(fixture.openDocument.history().undoDescription()).isEqualTo(lastStep);
+    }
+
+    @Test
+    void aLibraryVersionAppliedAnywayKeepsTheTouchingPieceInItsOldShapeAndSaysSo() throws Exception {
+        Wired wired = wiredInverter("1");
+        wire(new GridPoint(16, 0), new GridPoint(16, 30));
+        ComponentDefinition before = document.definition(ExampleDefinitions.INVERTER).orElseThrow();
+        fixture.service.save(new DefinitionBundle(movedOutput(before), List.of()));
+        Runnable restore = fixture.features.actions().useConnectionsConfirmation(plan -> true);
+
+        fixture.features.actions().updateFromLibrary(wired.instance());
+        restore.run();
+
+        assertThat(document.definition(ExampleDefinitions.INVERTER).orElseThrow().size().width()).isEqualTo(6);
+        assertThat(document.component(wired.instance().id()).orElseThrow().appearance()).isPresent();
+        assertThat(netOfPinNamed(wired.instance(), "y").pins()).contains(new PinRef(wired.led().id(), 0));
+        assertThat(fixture.dialogs.messages).containsExactly(
+                Messages.format("appearance.update.keptOldShape", wired.instance().id().value()));
+    }
+
+    /** {@code definition} 6 wide with its output «y» at (6,2), as a newer library version could bring it. */
+    private static ComponentDefinition movedOutput(ComponentDefinition definition) {
+        return new ComponentDefinition(definition.id(), definition.name(), "", new GridSize(6, 4), List.of(
+                definition.pinout().getFirst(), new DefinitionPin(
+                        PinSpec.output("y", 6, 2),
+                        definition.pinout().getLast().source())), definition.body(), Optional.empty(),
+                definition.revision() + 1);
+    }
+
+    private Net netOfPinNamed(Component instance, String name) {
+        Component current = document.component(instance.id()).orElseThrow();
+        List<PinSpec> pins = fixture.openDocument.registry().typeOf(current).pins();
+        for (int index = 0; index < pins.size(); index++) {
+            if (pins.get(index).name().equals(name)) {
+                return netlist().netForPin(new PinRef(instance.id(), index)).orElseThrow();
+            }
+        }
+        throw new AssertionError("no pin " + name);
     }
 
     @Test

@@ -1,5 +1,7 @@
 package cl.almejo.vsim.core.command;
 
+import cl.almejo.vsim.core.component.ComponentTypeRegistry;
+import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentChange;
@@ -28,6 +30,10 @@ class DefinitionCommandsTest {
     private final CircuitDocument document = new CircuitDocument();
     private final ComponentDefinition inverter = ExampleDefinitions.inverter();
     private final ComponentDefinition doubleInverter = ExampleDefinitions.doubleInverter();
+
+    private ComponentTypeRegistry registry() {
+        return StandardComponentTypes.registry().extendedWith(SubcircuitTypes.resolverFor(document));
+    }
 
     @Test
     void putAddsOnlyAbsentDefinitionsAndRevertRemovesThem() {
@@ -67,7 +73,8 @@ class DefinitionCommandsTest {
         List<DocumentChange> changes = new ArrayList<>();
         document.addListener((changed, change) -> changes.add(change));
         ComponentDefinition renamed = inverter.withName("Negador");
-        ReplaceDefinitionCommand command = new ReplaceDefinitionCommand(new DefinitionBundle(renamed, List.of()));
+        ReplaceDefinitionCommand command = ReplaceDefinitionCommand.prepare(document, registry(),
+                new DefinitionBundle(renamed, List.of()));
 
         command.apply(document);
         assertThat(document.definition(ExampleDefinitions.INVERTER)).containsSame(renamed);
@@ -81,7 +88,7 @@ class DefinitionCommandsTest {
 
     @Test
     void replaceAddsMissingDependenciesAndRevertTakesThemAway() {
-        ReplaceDefinitionCommand command = new ReplaceDefinitionCommand(
+        ReplaceDefinitionCommand command = ReplaceDefinitionCommand.prepare(document, registry(),
                 DefinitionBundle.of(doubleInverter, id -> Optional.of(inverter)));
         command.apply(document);
         assertThat(document.definitions()).containsExactly(inverter, doubleInverter);
@@ -101,8 +108,8 @@ class DefinitionCommandsTest {
         ComponentDefinition recursiveInverter = new ComponentDefinition(ExampleDefinitions.INVERTER, "Inversor", "",
                 inverter.size(), inverter.pinout(), new CircuitFragment(List.of(input,
                 instance("c2", "helper", 2, 0), instance("c4", "extra", 20, 20), output), List.of(), List.of()));
-        ReplaceDefinitionCommand command = new ReplaceDefinitionCommand(new DefinitionBundle(recursiveInverter,
-                List.of(plain("helper"), plain("extra"))));
+        ReplaceDefinitionCommand command = ReplaceDefinitionCommand.prepare(document, registry(),
+                new DefinitionBundle(recursiveInverter, List.of(plain("helper"), plain("extra"))));
 
         assertThatThrownBy(() -> command.apply(document))
                 .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("recursive");

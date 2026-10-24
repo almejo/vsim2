@@ -2,7 +2,11 @@ package cl.almejo.vsim.core.library;
 
 import java.util.List;
 
-/** An explicit update whose interface geometry would detach wires inside a containing component. */
+/**
+ * An update refused before anything changed: its interface geometry would detach wires inside a containing component
+ * ({@code appearance.update.nestedGeometry}, the names are the containing components), or a new pin of a placed piece
+ * would land on a wire or a pin ({@code appearance.update.newPinTouches}, the names are «piece · pin»).
+ */
 public final class UnsafeDefinitionUpdateException extends IllegalArgumentException {
     private static final long serialVersionUID = 1L;
     private final String definitionId;
@@ -13,9 +17,9 @@ public final class UnsafeDefinitionUpdateException extends IllegalArgumentExcept
         this(definitionId, containingNames, "appearance.update.nestedGeometry");
     }
 
-    /** A separate reason is used when a top-level explicit update lacks a safe pin-follow plan. */
+    /** Another reason, with {@code containingNames} as the names its message lists. */
     public UnsafeDefinitionUpdateException(String definitionId, List<String> containingNames, String messageKey) {
-        super("nested component geometry cannot be updated: " + definitionId);
+        super("definition update refused (" + messageKey + "): " + definitionId);
         this.definitionId = definitionId;
         this.containingNames = List.copyOf(containingNames);
         this.messageKey = messageKey;

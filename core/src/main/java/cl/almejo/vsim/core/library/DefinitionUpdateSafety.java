@@ -27,26 +27,6 @@ public final class DefinitionUpdateSafety {
         });
     }
 
-    /**
-     * A library/logic replacement currently has no simultaneous wire-follow plan. Reject geometry changes while
-     * there are live pieces; geometry changes made through the shape command have their own checked planner.
-     */
-    public static void requireSafeReplacement(CircuitDocument document, ComponentDefinition replacement) {
-        requireSafe(document, replacement);
-        document.definition(replacement.id()).ifPresent(before -> {
-            if (!sameInterface(before, replacement)) {
-                List<String> instances = document.components().stream()
-                        .filter(component -> component.typeId().equals(SubcircuitTypes.typeIdOf(replacement.id())))
-                        .map(component -> component.label().isBlank() ? component.id().value() : component.label())
-                        .toList();
-                if (!instances.isEmpty()) {
-                    throw new UnsafeDefinitionUpdateException(replacement.id(), instances,
-                            "appearance.update.unsafeGeometry");
-                }
-            }
-        });
-    }
-
     private static boolean sameInterface(ComponentDefinition before, ComponentDefinition after) {
         if (!before.size().equals(after.size()) || before.pinout().size() != after.pinout().size()) {
             return false;

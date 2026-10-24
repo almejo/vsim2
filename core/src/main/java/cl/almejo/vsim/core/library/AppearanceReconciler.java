@@ -70,16 +70,15 @@ public final class AppearanceReconciler {
         }
         Map<ElementId, PinPlacement> placements = new HashMap<>();
         canonical.pins().forEach(pin -> placements.put(pin.source(), pin));
-        Set<ElementId> matched = new HashSet<>();
         List<PinPlacement> result = new ArrayList<>();
         List<DefinitionPin> newPins = new ArrayList<>();
         List<String> messages = new ArrayList<>();
-        for (DefinitionPin pin : after.pinout()) {
-            Optional<DefinitionPin> previous = matching(before, pin, matched);
+        List<Optional<DefinitionPin>> previousPins = previousPins(before, after);
+        for (int index = 0; index < after.pinout().size(); index++) {
+            DefinitionPin pin = after.pinout().get(index);
+            Optional<DefinitionPin> previous = previousPins.get(index);
             if (previous.isPresent()) {
-                DefinitionPin oldPin = previous.get();
-                matched.add(oldPin.source());
-                result.add(new PinPlacement(pin.source(), placements.get(oldPin.source()).offset()));
+                result.add(new PinPlacement(pin.source(), placements.get(previous.get().source()).offset()));
             } else {
                 newPins.add(pin);
             }
@@ -91,7 +90,7 @@ public final class AppearanceReconciler {
             GridPoint point = pin.spec().position();
             if (point.x() > size.width() || point.y() > size.height() || occupied.contains(point)) {
                 Optional<GridPoint> free = freeEdge(pin, size, occupied);
-                if (free.isEmpty()) {
+                while (free.isEmpty()) {
                     size = new GridSize(size.width(), Math.addExact(size.height(), 1));
                     free = freeEdge(pin, size, occupied);
                 }
@@ -110,6 +109,22 @@ public final class AppearanceReconciler {
         } catch (IllegalArgumentException exception) {
             return dropped();
         }
+    }
+
+    /**
+     * For each pin of {@code after}, in order, the pin of {@code before} it continues: the one with the same source,
+     * else the only unmatched one with the same name, direction and width; empty for a new pin. The pins of
+     * {@code before} that no pin continues are the removed ones.
+     */
+    public static List<Optional<DefinitionPin>> previousPins(ComponentDefinition before, ComponentDefinition after) {
+        Set<ElementId> matched = new HashSet<>();
+        List<Optional<DefinitionPin>> result = new ArrayList<>();
+        for (DefinitionPin pin : after.pinout()) {
+            Optional<DefinitionPin> previous = matching(before, pin, matched);
+            previous.ifPresent(oldPin -> matched.add(oldPin.source()));
+            result.add(previous);
+        }
+        return result;
     }
 
     private static Optional<DefinitionPin> matching(ComponentDefinition before, DefinitionPin pin,

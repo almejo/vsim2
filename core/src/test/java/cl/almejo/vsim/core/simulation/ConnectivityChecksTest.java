@@ -257,7 +257,7 @@ class ConnectivityChecksTest {
         DefinitionBundle fixed = DefinitionBuilder.fromSelection(repair, paste.pastedIds(), "inverter", "Inverter",
                 DefinitionBuilder.defaultPinOrder(repair, paste.pastedIds()), repairRegistry);
 
-        ReplaceDefinitionCommand update = new ReplaceDefinitionCommand(fixed);
+        ReplaceDefinitionCommand update = ReplaceDefinitionCommand.prepare(document, registry, fixed);
         update.apply(document);
 
         assertThat(problems()).noneMatch(problem -> problem.elementId().equals("outer/child/" + gate.id().value()));
