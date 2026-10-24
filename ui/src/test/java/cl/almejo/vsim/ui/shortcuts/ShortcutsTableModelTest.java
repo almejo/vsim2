@@ -72,7 +72,8 @@ class ShortcutsTableModelTest {
         model.setFilter("guar");
         assertThat(column(0)).containsExactly("Archivo", "Guardar", "Guardar como…");
         model.setFilter("SELECCION");
-        assertThat(column(0)).containsExactly("Editar", "Seleccionar todo", "Enmarcar selección", "Ver", "Selección");
+        assertThat(column(0)).containsExactly("Editar", "Seleccionar todo", "Enmarcar selección", "Ver", "Selección",
+                "Zoom a la selección");
         model.setFilter("zzz");
         assertThat(model.getRowCount()).isZero();
         assertThat(model.rowOf("file.save")).isEqualTo(-1);

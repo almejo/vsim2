@@ -867,6 +867,15 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         viewChanged();
     }
 
+    /**
+     * Zooms in or out until {@code bounds} (grid units) fill nine tenths of the pane (zoom spec §5: «Ver todo el
+     * circuito», «Zoom a la selección»), centred on them, through {@link #zoomTo}: up to 400 %, unlike
+     * {@link #travelTo}, which never zooms in.
+     */
+    public void zoomToFit(Bounds bounds) {
+        zoomTo(ZoomTargets.fitting(bounds, getWidth(), getHeight(), FIT_FRACTION, viewport.zoom()));
+    }
+
     /** The canvas's size in pixels: the pane a tool zooms. */
     @Override
     public Dimension viewSize() {

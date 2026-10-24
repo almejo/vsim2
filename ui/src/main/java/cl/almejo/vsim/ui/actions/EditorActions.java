@@ -6,10 +6,13 @@ import cl.almejo.vsim.core.command.RemoveElementsCommand;
 import cl.almejo.vsim.core.command.RotateElementsCommand;
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.document.Component;
+import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.OpenDocument;
+import cl.almejo.vsim.ui.canvas.CircuitBounds;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
+import cl.almejo.vsim.ui.canvas.DrawnBounds;
 import cl.almejo.vsim.ui.canvas.Selection;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.panels.ConfigureDialog;
@@ -83,6 +86,8 @@ public final class EditorActions {
     private final Action zoomIn;
     private final Action zoomOut;
     private final Action zoomReset;
+    private final Action zoomToFit;
+    private final Action zoomToSelection;
     private final Action centerView;
     private final Action start;
     private final Action pause;
@@ -135,6 +140,10 @@ public final class EditorActions {
                 () -> activePane.get().zoomOut());
         zoomReset = action(Messages.text("action.zoomReset"), shortcut(KeyEvent.VK_0, 0),
                 () -> activePane.get().resetZoom());
+        zoomToFit = action(Messages.text("action.zoomToFit"), null, this::zoomToCircuit);
+        zoomToFit.putValue(Action.SHORT_DESCRIPTION, Messages.text("tooltip.zoomToFit"));
+        zoomToSelection = action(Messages.text("action.zoomToSelection"), null, this::zoomToSelected);
+        zoomToSelection.putValue(Action.SHORT_DESCRIPTION, Messages.text("tooltip.zoomToSelection"));
         centerView = action(Messages.text("action.centerView"), null, () -> activePane.get().centerCircuit());
         start = action(Messages.text("action.start"), null, openDocument::resume);
         pause = action(Messages.text("action.pause"), null, openDocument::pause);
@@ -189,6 +198,10 @@ public final class EditorActions {
     public Action zoomIn() { return zoomIn; }
     public Action zoomOut() { return zoomOut; }
     public Action zoomReset() { return zoomReset; }
+    /** «Ver todo el circuito»: the active pane zooms until the whole circuit fills it; an empty circuit stays put. */
+    public Action zoomToFit() { return zoomToFit; }
+    /** «Zoom a la selección»: the active pane zooms until the selection fills it; enabled while something is selected. */
+    public Action zoomToSelection() { return zoomToSelection; }
     public Action centerView() { return centerView; }
     public Action start() { return start; }
     public Action pause() { return pause; }
@@ -262,6 +275,8 @@ public final class EditorActions {
         view.add(zoomIn);
         view.add(zoomOut);
         view.add(zoomReset);
+        view.add(zoomToFit);
+        view.add(zoomToSelection);
         view.add(centerView);
         JMenu simulation = tagged(new JMenu(Messages.text("menu.simulation")), MenuId.SIMULATION);
         simulation.add(start);
@@ -328,6 +343,7 @@ public final class EditorActions {
         rotateClockwise.setEnabled(!selected.isEmpty());
         rotateCounterClockwise.setEnabled(!selected.isEmpty());
         moveActions.values().forEach(move -> move.setEnabled(!selected.isEmpty()));
+        zoomToSelection.setEnabled(!selected.isEmpty());
         configure.setEnabled(singleConfigurable().isPresent());
     }
 
@@ -367,6 +383,20 @@ public final class EditorActions {
             return;
         }
         pane.selectionMoves().nudge(openDocument, selection, selection.effectiveIds(), deltaX, deltaY);
+    }
+
+    private void zoomToCircuit() {
+        CircuitCanvas pane = activePane.get();
+        CircuitBounds.of(openDocument.document(), openDocument.registry()).ifPresent(pane::zoomToFit);
+    }
+
+    private void zoomToSelected() {
+        CircuitCanvas pane = activePane.get();
+        List<DocumentElement> selected = selection.ids().stream()
+                .map(id -> openDocument.document().element(id))
+                .flatMap(Optional::stream)
+                .toList();
+        DrawnBounds.of(selected, openDocument.registry()).ifPresent(pane::zoomToFit);
     }
 
     private void rotateSelection(boolean clockwise) {

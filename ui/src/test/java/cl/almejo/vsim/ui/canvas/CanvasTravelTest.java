@@ -438,4 +438,29 @@ class CanvasTravelTest {
             other.dispose();
         }
     }
+
+    @Test
+    void zoomToFitTravelsUntilTheBoundsFillNinetyPercentOfThePane() {
+        showOnScreen();
+        canvas.applyViewState(new ViewState(3, 100, 100));
+
+        canvas.zoomToFit(new Bounds(0, 0, 40, 20)); // 320 × 160 px at 100 %: the width decides, 360 / 320
+
+        assertThat(canvas.isTravelling()).isTrue();
+        ticker.finish();
+        assertThat(canvas.viewState().zoom()).isCloseTo(1.125, within(1e-9));
+        assertThat(canvas.viewState().centerX()).isCloseTo(20, within(1e-9));
+        assertThat(canvas.viewState().centerY()).isCloseTo(10, within(1e-9));
+    }
+
+    @Test
+    void zoomToFitWithReducedMotionJumpsAndMayZoomInToTheLimit() {
+        showOnScreen();
+        animate.set(false);
+
+        canvas.zoomToFit(new Bounds(10, 10, 1, 1));
+
+        assertThat(canvas.isTravelling()).isFalse();
+        assertThat(canvas.viewState()).isEqualTo(new ViewState(Viewport.MAXIMUM_ZOOM, 10.5, 10.5));
+    }
 }

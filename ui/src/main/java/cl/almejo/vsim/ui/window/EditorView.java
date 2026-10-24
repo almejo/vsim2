@@ -610,6 +610,7 @@ public final class EditorView extends JPanel implements CanvasHost {
         toolBar.add(actions.zoomOut());
         toolBar.add(actions.zoomIn());
         toolBar.add(actions.centerView());
+        toolBar.add(actions.zoomToFit());
     }
 
     /**
@@ -686,7 +687,10 @@ public final class EditorView extends JPanel implements CanvasHost {
         bindKey(pane, bound, KeyStroke.getKeyStroke(KeyEvent.VK_R, 0), "rotateClockwise", actions.rotateClockwise());
         bindKey(pane, bound, KeyStroke.getKeyStroke(KeyEvent.VK_R, InputEvent.SHIFT_DOWN_MASK),
                 "rotateCounterClockwise", actions.rotateCounterClockwise());
-        actions.moveActions().forEach((id, action) -> ShortcutCatalog.find(id).flatMap(entry -> entry.defaultStroke())
+        Map<String, Action> canvasKeys = new LinkedHashMap<>(actions.moveActions());
+        canvasKeys.put("view.zoomToFit", actions.zoomToFit());
+        canvasKeys.put("view.zoomToSelection", actions.zoomToSelection());
+        canvasKeys.forEach((id, action) -> ShortcutCatalog.find(id).flatMap(entry -> entry.defaultStroke())
                 .ifPresent(stroke -> bindKey(pane, bound, stroke, id, action)));
         if (toolChoice != null) {
             pane.setTool(toolChoice.get());

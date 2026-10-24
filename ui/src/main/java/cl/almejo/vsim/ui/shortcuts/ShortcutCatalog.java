@@ -14,9 +14,11 @@ import java.util.Set;
 
 /**
  * Every action whose keyboard shortcut the user can change (spec §5.2), ordered by menu and then menu order. Ids are
- * {@code <group>.<action>}; the name is the action's own menu text. The 41 defaults are the editor's accelerators
- * (F5 for «Iniciar o pausar», F6 for «Avanzar N t», Ctrl+F, F3 and Mayús+F3 for «Buscar»), its canvas keys (the eight arrows that move the selection included), F7 and Mayús+F7 for M6.1-B's two advances; the others start without a
- * shortcut. Defaults use the platform menu modifier (⌘ on macOS).
+ * {@code <group>.<action>}; the name is the action's own menu text. The 44 defaults are the editor's accelerators
+ * (F5 for «Iniciar o pausar», F6 for «Avanzar N t», Ctrl+F, F3 and Mayús+F3 for «Buscar»), its canvas keys (the eight
+ * arrows that move the selection, Mayús+1 and Mayús+2 for «Ver todo el circuito» and «Zoom a la selección» included),
+ * F7 and Mayús+F7 for M6.1-B's two advances; the others start without a shortcut. Defaults use the platform menu
+ * modifier (⌘ on macOS).
  */
 public final class ShortcutCatalog {
 
@@ -93,6 +95,9 @@ public final class ShortcutCatalog {
         window(entries, "view.zoomIn", "action.zoomIn", MenuId.VIEW, stroke(KeyEvent.VK_EQUALS, menu));
         window(entries, "view.zoomOut", "action.zoomOut", MenuId.VIEW, stroke(KeyEvent.VK_MINUS, menu));
         window(entries, "view.zoomReset", "action.zoomReset", MenuId.VIEW, stroke(KeyEvent.VK_0, menu));
+        // Figma's keys; canvas keys, because a menu accelerator without Ctrl would fire while typing (zoom spec §5.1)
+        canvasView(entries, "view.zoomToFit", "action.zoomToFit", stroke(KeyEvent.VK_1, shift));
+        canvasView(entries, "view.zoomToSelection", "action.zoomToSelection", stroke(KeyEvent.VK_2, shift));
         window(entries, "view.centerView", "action.centerView", MenuId.VIEW, null);
         window(entries, "view.cycleGrid", "action.cycleGrid", MenuId.VIEW, null);
         window(entries, "view.snap", "action.snap", MenuId.VIEW, stroke(KeyEvent.VK_M, menu | shift));
@@ -103,10 +108,8 @@ public final class ShortcutCatalog {
         window(entries, "view.addHorizontalGuide", "action.addHorizontalGuide", MenuId.VIEW, null);
         window(entries, "view.addVerticalGuide", "action.addVerticalGuide", MenuId.VIEW, null);
         window(entries, "view.clearGuides", "action.clearGuides", MenuId.VIEW, null);
-        entries.add(new ShortcutEntry("view.nextProblem", "action.nextProblem", MenuId.VIEW, Scope.CANVAS,
-                Optional.of(stroke(KeyEvent.VK_F8, 0))));
-        entries.add(new ShortcutEntry("view.previousProblem", "action.previousProblem", MenuId.VIEW, Scope.CANVAS,
-                Optional.of(stroke(KeyEvent.VK_F8, shift))));
+        canvasView(entries, "view.nextProblem", "action.nextProblem", stroke(KeyEvent.VK_F8, 0));
+        canvasView(entries, "view.previousProblem", "action.previousProblem", stroke(KeyEvent.VK_F8, shift));
         window(entries, "waveforms.toggle", "menu.view.waveforms", MenuId.VIEW, null);
         window(entries, "view.aiPresent", "action.aiPresent", MenuId.VIEW, null);
         window(entries, "simulation.start", "action.start", MenuId.SIMULATION, null);
@@ -142,6 +145,11 @@ public final class ShortcutCatalog {
     /** Canvas keys of the Editar menu (Supr, R, Mayús+R, F2, the arrows). */
     private static void canvas(List<ShortcutEntry> entries, String id, String nameKey, KeyStroke defaultStroke) {
         entries.add(new ShortcutEntry(id, nameKey, MenuId.EDIT, Scope.CANVAS, Optional.of(defaultStroke)));
+    }
+
+    /** Canvas keys of the Ver menu (Mayús+1, Mayús+2, F8, Mayús+F8): the menu items show no accelerator. */
+    private static void canvasView(List<ShortcutEntry> entries, String id, String nameKey, KeyStroke defaultStroke) {
+        entries.add(new ShortcutEntry(id, nameKey, MenuId.VIEW, Scope.CANVAS, Optional.of(defaultStroke)));
     }
 
     /** An arrow that moves the selection one grid unit; with Mayús five (the id of that one ends in «Far»). */

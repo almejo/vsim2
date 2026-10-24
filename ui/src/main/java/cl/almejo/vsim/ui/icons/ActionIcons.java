@@ -55,6 +55,8 @@ public final class ActionIcons implements EditorExtension {
         names.put(actions.zoomIn(), "zoom-in");
         names.put(actions.zoomOut(), "zoom-out");
         names.put(actions.zoomReset(), "zoom-reset");
+        names.put(actions.zoomToFit(), "zoom-fit");
+        names.put(actions.zoomToSelection(), "zoom-selection");
         names.put(actions.centerView(), "center");
         names.put(actions.start(), "start");
         names.put(actions.pause(), "pause");

@@ -19,7 +19,8 @@ class ShortcutCatalogTest {
             "file.preferences", "file.close", "file.exit", "edit.undo", "edit.redo", "edit.delete",
             "edit.rotateClockwise", "edit.rotateCounterClockwise", "edit.configure", "edit.cut", "edit.copy",
             "edit.paste", "edit.duplicate", "edit.selectAll", "edit.label", "view.selectTool", "view.wireTool",
-            "view.panTool", "view.zoomIn", "view.zoomOut", "view.zoomReset", "view.centerView", "view.nextProblem",
+            "view.panTool", "view.zoomIn", "view.zoomOut", "view.zoomReset", "view.zoomToFit", "view.zoomToSelection",
+            "view.centerView", "view.nextProblem",
             "view.previousProblem", "simulation.start", "simulation.pause", "simulation.step", "window.newView");
 
     private static List<String> ids() {
@@ -35,10 +36,10 @@ class ShortcutCatalogTest {
     }
 
     @Test
-    void noTwoEntriesShareADefaultStrokeAndFortyTwoHaveOne() {
+    void noTwoEntriesShareADefaultStrokeAndFortyFourHaveOne() {
         List<KeyStroke> defaults = ShortcutCatalog.entries().stream()
                 .map(ShortcutEntry::defaultStroke).flatMap(Optional::stream).toList();
-        assertThat(defaults).doesNotHaveDuplicates().hasSize(42);
+        assertThat(defaults).doesNotHaveDuplicates().hasSize(44);
         assertThat(defaults).noneMatch(KeyBindings::isReserved);
     }
 

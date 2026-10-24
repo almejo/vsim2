@@ -25,6 +25,10 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
   «Borde») o el menú contextual «Estilo ▸», también para varias notas a la vez; por omisión se ven como siempre. Los
   colores se leen en todos los esquemas (también en «Placa»), salen al exportar e imprimir, y la IA puede usarlos en
   sus notas.
+- Ver ▸ «Ver todo el circuito» (Mayús+1, también con un botón en la barra de herramientas) acerca o aleja la vista
+  hasta que se ve el circuito entero, con un margen, y Ver ▸ «Zoom a la selección» (Mayús+2) hace lo mismo con lo
+  seleccionado. Llegan con un viaje suave (o de un salto si «Animar los movimientos de la vista» está desactivado) y
+  actúan sobre el panel activo.
 
 ### Cambiado
 
