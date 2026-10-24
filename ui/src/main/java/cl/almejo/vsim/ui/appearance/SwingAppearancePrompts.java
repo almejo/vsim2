@@ -22,12 +22,6 @@ public final class SwingAppearancePrompts implements AppearancePrompts {
                 JOptionPane.DEFAULT_OPTION, JOptionPane.WARNING_MESSAGE, null, choices, choices[0]) == 0;
     }
 
-    @Override public boolean confirmLibraryChange(Component owner) {
-        return JOptionPane.showConfirmDialog(owner, Messages.text("shape.library.consequences"),
-                Messages.text("shape.library.title"), JOptionPane.OK_CANCEL_OPTION, JOptionPane.INFORMATION_MESSAGE)
-                == JOptionPane.OK_OPTION;
-    }
-
     @Override public boolean retryLibraryWrite(Component owner, boolean applied) {
         Object[] choices = {Messages.text("shape.retry"), Messages.text("shape.close")};
         return JOptionPane.showOptionDialog(owner, Messages.text(applied ? "shape.library.failedApplied"

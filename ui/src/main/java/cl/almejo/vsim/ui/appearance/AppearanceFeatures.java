@@ -107,8 +107,6 @@ final class AppearanceFeatures {
             boolean writesLibrary = scope == ShapeEditScope.LIBRARY_DEFINITION || scope == ShapeEditScope.CIRCUIT_DEFINITION
                     && latestBundle.filter(this::matchesCircuitBundle).isPresent();
             Optional<DefinitionBundle> expectedLibrary = library.library().find(definitionId);
-            if (writesLibrary && !prompts.confirmLibraryChange(view)) { continue; }
-            if (writesLibrary && !library.library().find(definitionId).equals(expectedLibrary)) { continue; }
             try {
                 if (scope == ShapeEditScope.LIBRARY_DEFINITION && !appliesToCircuit) {
                     ComponentDefinition changed = withAppearance(starting, draft);

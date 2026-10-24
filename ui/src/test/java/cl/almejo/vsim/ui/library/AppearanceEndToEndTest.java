@@ -50,7 +50,7 @@ class AppearanceEndToEndTest {
     }
 
     @Test
-    void returningFromTheLibraryWarningKeepsTheDraftAndAcceptingStillAppliesIt() {
+    void changingTheCircuitCopyWritesTheLibraryWithoutAnExtraConfirmation() {
         try (TemplateFixture fixture = component()) {
             Component instance = fixture.single("subcircuit:negador");
             List<ShapeEditRequest> requests = new ArrayList<>();
@@ -58,12 +58,10 @@ class AppearanceEndToEndTest {
                 requests.add(request);
                 return Optional.of(shaped(request, ShapeEditScope.CIRCUIT_DEFINITION));
             };
-            Prompts prompts = new Prompts(); prompts.libraryBackOnce = true;
-            Runnable remove = install(fixture, editor, prompts);
+            Runnable remove = install(fixture, editor, new Prompts());
             try {
                 changeShape(fixture, instance);
-                assertThat(requests).hasSize(2);
-                assertThat(requests.get(1).appearance().drawing()).isPresent();
+                assertThat(requests).hasSize(1);
                 ComponentDefinition changed = fixture.openDocument.document().definition("negador").orElseThrow();
                 assertThat(changed.appearance()).isPresent();
                 assertThat(changed.revision()).isEqualTo(2);
@@ -144,13 +142,8 @@ class AppearanceEndToEndTest {
     }
 
     private static final class Prompts implements AppearancePrompts {
-        boolean libraryBackOnce;
         @Override public boolean confirmConnections(java.awt.Component owner, List<String> disconnected,
                                                      List<String> kept, boolean blockedInstance) { return !blockedInstance; }
-        @Override public boolean confirmLibraryChange(java.awt.Component owner) {
-            if (libraryBackOnce) { libraryBackOnce = false; return false; }
-            return true;
-        }
         @Override public boolean retryLibraryWrite(java.awt.Component owner, boolean applied) { return false; }
         @Override public boolean reopenStale(java.awt.Component owner) { return false; }
     }
