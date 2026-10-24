@@ -1,6 +1,9 @@
 package cl.almejo.vsim.ui.recents;
 
 import cl.almejo.vsim.core.command.AddElementsCommand;
+import cl.almejo.vsim.core.component.appearance.ComponentAppearance;
+import cl.almejo.vsim.core.component.appearance.SymbolDraft;
+import cl.almejo.vsim.core.component.appearance.SymbolTemplates;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
@@ -38,6 +41,7 @@ import java.awt.geom.Point2D;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -209,5 +213,36 @@ class RecentComponentsExtensionTest {
 
         assertThat(document.document().components()).hasSize(1);
         assertThat(extension.recents().typeIds()).isEmpty();
+    }
+
+    @Test
+    void aRecentOrFavouriteUserComponentPlacesThePlainDefinitionEvenWhenAPieceHasItsOwnShape() {
+        extension.install(view);
+        DefinitionBundle bundle = new DefinitionBundle(ExampleDefinitions.inverter(), List.of());
+        view.palette().setUserComponents(List.of(bundle), List.of());
+        view.palette().setUserComponentChooser(component ->
+                view.setToolOnEveryPane(() -> new PlaceDefinitionTool(component.bundle())));
+        view.palette().setFavoriteToggle(typeId -> { });
+        placeWithAClick(view, "subcircuit:inverter", 10, 10);
+        giveEveryPieceItsOwnShape(bundle);
+
+        view.palette().chooseEntry(view.palette().recentEntries().getFirst());
+        view.canvas().tool().mouseMoved(view.canvas(), at(view, 40, 10));
+        view.canvas().tool().mousePressed(view.canvas(), at(view, 40, 10));
+        view.palette().setFavorites(List.of("subcircuit:inverter"));
+        view.palette().chooseEntry(view.palette().favoriteEntries().getFirst());
+        view.canvas().tool().mouseMoved(view.canvas(), at(view, 70, 10));
+        view.canvas().tool().mousePressed(view.canvas(), at(view, 70, 10));
+
+        assertThat(document.document().components()).hasSize(3);
+        assertThat(document.document().components()).filteredOn(component -> component.appearance().isEmpty())
+                .hasSize(2);
+    }
+
+    private void giveEveryPieceItsOwnShape(DefinitionBundle bundle) {
+        ComponentAppearance ownShape = SymbolDraft.of(ComponentAppearance.of(bundle.root()), bundle.root().pinout(),
+                false).applyTemplate(SymbolTemplates.Template.ALU).appearance();
+        document.document().components().forEach(component ->
+                document.document().replace(component.withAppearance(Optional.of(ownShape))));
     }
 }
