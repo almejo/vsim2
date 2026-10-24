@@ -15,6 +15,7 @@ import cl.almejo.vsim.core.io.OpenedCircuit;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.core.netlist.Netlist;
 import cl.almejo.vsim.core.netlist.NetlistCompiler;
+import cl.almejo.vsim.core.netlist.PinRef;
 import cl.almejo.vsim.core.netlist.ProbeResolver;
 import cl.almejo.vsim.core.simulation.CircuitFlattener;
 import cl.almejo.vsim.core.simulation.ConnectivityProblem;
@@ -69,6 +70,7 @@ public final class OpenDocument implements AutoCloseable {
     private boolean importedFromVsim1;
     private Netlist netlist = Netlist.EMPTY;
     private List<ConnectivityProblem> connectivityProblems = List.of();
+    private Set<PinRef> loosenedPins = Set.of();
     private long netlistToken = -1;
     private boolean closed;
     private boolean pauseOnShortCircuit;
@@ -244,6 +246,19 @@ public final class OpenDocument implements AutoCloseable {
     /** Current wiring warnings, available immediately after a document edit without a simulation tick. */
     public List<ConnectivityProblem> connectivityProblems() {
         return connectivityProblems;
+    }
+
+    /**
+     * Pins of placed pieces that an accepted shape change or update left loose (spec §6.4); session only, never saved.
+     * Read-only: the accepted command owns it.
+     */
+    public Set<PinRef> loosenedPins() {
+        return loosenedPins;
+    }
+
+    /** For tests of what paints and lists the loosened pins, until the command that fills them exists. */
+    void setLoosenedPins(Set<PinRef> pins) {
+        loosenedPins = Set.copyOf(pins);
     }
 
     public void execute(Command command) {

@@ -2,6 +2,7 @@ package cl.almejo.vsim.ui.problems;
 
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
+import cl.almejo.vsim.core.component.PinDirection;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
@@ -12,6 +13,7 @@ import cl.almejo.vsim.core.simulation.ConnectivityProblem;
 import cl.almejo.vsim.core.simulation.DriverRef;
 import cl.almejo.vsim.core.simulation.FlatPinRef;
 import cl.almejo.vsim.core.simulation.InstancePath;
+import cl.almejo.vsim.core.simulation.OutdatedPieceChecks;
 import cl.almejo.vsim.core.simulation.Problem;
 import cl.almejo.vsim.core.simulation.ShortCircuit;
 import cl.almejo.vsim.core.simulation.TunnelProblem;
@@ -80,21 +82,65 @@ public final class ProblemText {
 
     private static String connectivity(ConnectivityProblem problem, CircuitDocument document,
                                        ComponentTypeRegistry registry) {
-        if (!problem.isPin()) {
-            String location = InstancePath.isNested(problem.elementId())
-                    ? path(problem.elementId().substring(0, problem.elementId().lastIndexOf('/')), document)
-                            .orElse(problem.elementId())
-                    : Messages.text("problem.connectivity.circuit");
-            return Messages.format("problem.connectivity.looseWire", location,
-                    problem.position().x(), problem.position().y());
-        }
+        return switch (problem.cause()) {
+            case INNER_PIN -> innerPin(problem, document, registry);
+            case LOOSE_WIRE_END -> looseWire(problem, document);
+            case UNCONNECTED_INTERFACE -> Messages.format("problem.connectivity.interface",
+                    path(problem.elementId(), document).orElse(problem.elementId()),
+                    pinName(problem, document, registry));
+            case LOOSENED_BY_SHAPE_CHANGE -> Messages.format("problem.connectivity.loosened",
+                    pieceName(problem.elementId(), document), pinName(problem, document, registry));
+            case OUTDATED_WOULD_BREAK -> Messages.format("problem.connectivity.outdated",
+                    pieceName(problem.elementId(), document), outdatedDefinitionName(problem, document));
+        };
+    }
+
+    private static String looseWire(ConnectivityProblem problem, CircuitDocument document) {
+        String location = InstancePath.isNested(problem.elementId())
+                ? path(problem.elementId().substring(0, problem.elementId().lastIndexOf('/')), document)
+                        .orElse(problem.elementId())
+                : Messages.text("problem.connectivity.circuit");
+        return Messages.format("problem.connectivity.looseWire", location,
+                problem.position().x(), problem.position().y());
+    }
+
+    /** «Padre › A1 › AND: entrada B desconectada»: the whole path, then the pin by its direction and name. */
+    private static String innerPin(ConnectivityProblem problem, CircuitDocument document,
+                                   ComponentTypeRegistry registry) {
         String componentPath = path(problem.elementId(), document).orElse(problem.elementId());
-        Optional<ComponentType> type = chain(problem.elementId(), document)
-                .flatMap(components -> registry.findTypeOf(components.getLast()));
-        String pinName = type.filter(found -> problem.pinIndex() < found.pinCount())
-                .map(found -> found.pin(problem.pinIndex()).name())
+        String pinName = pinName(problem, document, registry);
+        Optional<PinDirection> direction = pinType(problem, document, registry)
+                .map(type -> type.pin(problem.pinIndex()).direction());
+        return switch (direction.orElse(PinDirection.BIDIRECTIONAL)) {
+            case INPUT -> Messages.format("problem.connectivity.pin.input", componentPath, pinName);
+            case OUTPUT -> Messages.format("problem.connectivity.pin.output", componentPath, pinName);
+            case BIDIRECTIONAL -> Messages.format("problem.connectivity.pin", componentPath, pinName);
+        };
+    }
+
+    private static Optional<ComponentType> pinType(ConnectivityProblem problem, CircuitDocument document,
+                                                   ComponentTypeRegistry registry) {
+        return chain(problem.elementId(), document)
+                .flatMap(components -> registry.findTypeOf(components.getLast()))
+                .filter(type -> problem.pinIndex() >= 0 && problem.pinIndex() < type.pinCount());
+    }
+
+    private static String pinName(ConnectivityProblem problem, CircuitDocument document,
+                                  ComponentTypeRegistry registry) {
+        return pinType(problem, document, registry).map(type -> type.pin(problem.pinIndex()).name())
                 .orElse(Integer.toString(problem.pinIndex()));
-        return Messages.format("problem.connectivity.pin", componentPath, pinName);
+    }
+
+    /** A placed piece by its label, or by its type or definition name when it has none: «U5», «ALU». */
+    private static String pieceName(String hierarchicalId, CircuitDocument document) {
+        return chain(hierarchicalId, document).map(List::getLast)
+                .map(component -> component.label().isBlank() ? typeName(component, document) : component.label())
+                .orElse(hierarchicalId);
+    }
+
+    private static String outdatedDefinitionName(ConnectivityProblem problem, CircuitDocument document) {
+        String definitionId = problem.netId().substring(OutdatedPieceChecks.VERSION_PREFIX.length());
+        return document.definition(definitionId).map(ComponentDefinition::name).orElse(definitionId);
     }
 
     /**

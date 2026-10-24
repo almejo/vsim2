@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.problems;
 
+import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
@@ -42,6 +43,7 @@ import java.awt.event.KeyEvent;
 import java.awt.geom.Point2D;
 import java.util.List;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.Optional;
 import java.util.function.Consumer;
 
@@ -54,6 +56,7 @@ import java.util.function.Consumer;
  */
 public final class ProblemsController {
 
+    private static final String LOOSENED_NET_PREFIX = "loosened:";
     private static final KeyStroke NEXT_KEY = KeyStroke.getKeyStroke(KeyEvent.VK_F8, 0);
     private static final KeyStroke PREVIOUS_KEY = KeyStroke.getKeyStroke(KeyEvent.VK_F8, InputEvent.SHIFT_DOWN_MASK);
 
@@ -78,6 +81,7 @@ public final class ProblemsController {
     private final DocumentListener structureListener = (document, change) -> refreshStructure();
     private final Runnable removeFromPanes;
     private SimulationSnapshot snapshot = SimulationSnapshot.EMPTY;
+    private List<ConnectivityProblem> outdatedPieces = List.of();
     private boolean disposed;
     private final ConnectionPoints connectionPoints;
 
@@ -201,6 +205,8 @@ public final class ProblemsController {
         List<Problem> problems = new ArrayList<>(snapshot.problems().stream()
                 .filter(problem -> !(problem instanceof ConnectivityProblem)).toList());
         problems.addAll(openDocument.connectivityProblems());
+        problems.addAll(loosenedPinProblems());
+        problems.addAll(outdatedPieces);
         SimulationSnapshot combined = new SimulationSnapshot(snapshot.revision(), openDocument.netlistToken(),
                 snapshot.time(), snapshot.running(), snapshot.netValues(), snapshot.componentStates(), problems,
                 snapshot.failure());
@@ -209,6 +215,38 @@ public final class ProblemsController {
         boolean anyProblem = !problems.isEmpty();
         nextProblem.setEnabled(anyProblem);
         previousProblem.setEnabled(anyProblem);
+    }
+
+    /** One problem per pin a shape change left loose in this session, for the pieces still on the canvas. */
+    private List<ConnectivityProblem> loosenedPinProblems() {
+        List<ConnectivityProblem> loosened = new ArrayList<>();
+        for (PinRef pin : openDocument.loosenedPins()) {
+            Optional<Component> component = openDocument.document().component(pin.componentId());
+            if (component.isEmpty()) {
+                continue;
+            }
+            ComponentType type = openDocument.registry().typeOf(component.get());
+            if (pin.pinIndex() < type.pinCount()) {
+                loosened.add(new ConnectivityProblem(LOOSENED_NET_PREFIX + pin.componentId().value() + ":"
+                        + pin.pinIndex(), pin.componentId().value(), pin.pinIndex(),
+                        type.pinLocation(component.get(), pin.pinIndex()),
+                        ConnectivityProblem.Cause.LOOSENED_BY_SHAPE_CHANGE));
+            }
+        }
+        loosened.sort(Comparator.comparing(ConnectivityProblem::netId));
+        return loosened;
+    }
+
+    /**
+     * Lists the pieces that use an older version than the library's and would break if updated (what
+     * {@code OutdatedPieceChecks} found); replaces the previous list.
+     */
+    public void showOutdatedPieces(List<ConnectivityProblem> pieces) {
+        if (disposed || pieces.equals(outdatedPieces)) {
+            return;
+        }
+        outdatedPieces = List.copyOf(pieces);
+        refreshStructure();
     }
 
     /** The tunnel problems that are errors (the warnings show only in the Problems tab, like display warnings). */

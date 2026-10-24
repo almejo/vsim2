@@ -49,14 +49,45 @@ class ConnectivityChecksTest {
     }
 
     @Test
-    void anUnusedInterfaceTerminalIsNotAnInternalBrokenPin() {
+    void anInterfaceElementConnectedToNothingMarksTheOuterTerminalNotTheElement() {
         Component input = component(InterfacePins.INPUT_PIN, "interface", 0, 0);
         document.putDefinition(new ComponentDefinition("interface-only", "Interface", "", new GridSize(4, 4),
                 List.of(new DefinitionPin(PinSpec.input("A", 0, 1), input.id())),
                 new CircuitFragment(List.of(input), List.of(), List.of())));
-        document.add(component(SubcircuitTypes.typeIdOf("interface-only"), "outer", 0, 0));
+        Component outer = component(SubcircuitTypes.typeIdOf("interface-only"), "outer", 7, 3);
+        document.add(outer);
+
+        assertThat(problems()).singleElement().satisfies(problem -> {
+            assertThat(problem.cause()).isEqualTo(ConnectivityProblem.Cause.UNCONNECTED_INTERFACE);
+            assertThat(problem.elementId()).isEqualTo("outer");
+            assertThat(problem.pinIndex()).isZero();
+            assertThat(problem.position()).isEqualTo(registry.typeOf(outer).pinLocation(outer, 0));
+        });
+    }
+
+    @Test
+    void aWiredInterfaceMarksNoTerminalAndFreeOuterTerminalsStayQuiet() {
+        document.putDefinition(ExampleDefinitions.inverter());
+        document.add(component(SubcircuitTypes.typeIdOf(ExampleDefinitions.INVERTER), "outer", 0, 0));
 
         assertThat(problems()).isEmpty();
+    }
+
+    @Test
+    void anInterfaceElementLooseInsideANestedPieceMarksThatPiecesTerminalWithItsPath() {
+        Component input = component(InterfacePins.INPUT_PIN, "interface", 0, 0);
+        document.putDefinition(new ComponentDefinition("interface-only", "Interface", "", new GridSize(4, 4),
+                List.of(new DefinitionPin(PinSpec.input("A", 0, 1), input.id())),
+                new CircuitFragment(List.of(input), List.of(), List.of())));
+        document.putDefinition(new ComponentDefinition("parent", "Parent", "", new GridSize(4, 4), List.of(),
+                new CircuitFragment(List.of(component(SubcircuitTypes.typeIdOf("interface-only"), "child", 0, 0)),
+                        List.of(), List.of())));
+        document.add(component(SubcircuitTypes.typeIdOf("parent"), "outer", 0, 0));
+
+        assertThat(problems()).filteredOn(problem ->
+                        problem.cause() == ConnectivityProblem.Cause.UNCONNECTED_INTERFACE)
+                .singleElement().satisfies(problem -> assertThat(problem.path())
+                        .containsExactly(new ElementId("outer"), new ElementId("child")));
     }
 
     @Test
@@ -85,6 +116,23 @@ class ConnectivityChecksTest {
 
         assertThat(problems()).extracting(ConnectivityProblem::elementId)
                 .containsExactly("first/child/lamp", "second/child/lamp");
+    }
+
+    @Test
+    void theProblemKeepsTheWholePathFromTheVisiblePieceDownToTheFaultyPart() {
+        document.putDefinition(new ComponentDefinition("broken", "Broken", "", new GridSize(4, 4), List.of(),
+                new CircuitFragment(List.of(component(StandardComponentTypes.LED, "lamp", 0, 0)),
+                        List.of(), List.of())));
+        document.putDefinition(new ComponentDefinition("parent", "Parent", "", new GridSize(4, 4), List.of(),
+                new CircuitFragment(List.of(component(SubcircuitTypes.typeIdOf("broken"), "child", 0, 0)),
+                        List.of(), List.of())));
+        document.add(component(SubcircuitTypes.typeIdOf("parent"), "first", 0, 0));
+
+        assertThat(problems()).singleElement().satisfies(problem -> {
+            assertThat(problem.cause()).isEqualTo(ConnectivityProblem.Cause.INNER_PIN);
+            assertThat(problem.path()).containsExactly(new ElementId("first"), new ElementId("child"),
+                    new ElementId("lamp"));
+        });
     }
 
     @Test
