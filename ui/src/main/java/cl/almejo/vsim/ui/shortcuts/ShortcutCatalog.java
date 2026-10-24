@@ -14,7 +14,7 @@ import java.util.Set;
 
 /**
  * Every action whose keyboard shortcut the user can change (spec §5.2), ordered by menu and then menu order. Ids are
- * {@code <group>.<action>}; the name is the action's own menu text. The 45 defaults are the editor's accelerators
+ * {@code <group>.<action>}; the name is the action's own menu text. The 46 defaults are the editor's accelerators
  * (F5 for «Iniciar o pausar», F6 for «Avanzar N t», Ctrl+F, F3 and Mayús+F3 for «Buscar»), its canvas keys (the eight
  * arrows that move the selection, Z for the zoom tool, Mayús+1 and Mayús+2 for «Ver todo el circuito» and «Zoom a la
  * selección» included), F7 and Mayús+F7 for M6.1-B's two advances; the others start without a shortcut. Defaults use

@@ -47,7 +47,8 @@ Una línea por función; el detalle está en [docs/funciones.md](docs/funciones.
 ### Edición
 
 - [Colocar componentes](docs/funciones.md#colocar-componentes) con un clic o arrastrándolos desde la paleta, rotándolos antes de soltarlos.
-- [Favoritos e inserción rápida](docs/funciones.md#favoritos-e-inserción-rápida): estrellas en la paleta y un buscador con doble clic en espacio vacío o Insert.
+- [Favoritos](docs/funciones.md#favoritos): una estrella en la paleta copia el componente a «Favoritos», arriba de todo y en todas las ventanas.
+- [Inserción rápida](docs/funciones.md#inserción-rápida): doble clic en un espacio vacío o Insert abre un buscador de componentes que lo coloca ahí.
 - [Seleccionar](docs/funciones.md#seleccionar) con clic, Mayús/Ctrl o un rectángulo que suma o quita, con cursores que dicen qué hará el clic.
 - [Mover con el teclado](docs/funciones.md#mover-con-el-teclado): las flechas mueven la selección en un solo paso de deshacer.
 - [Portapapeles](docs/funciones.md#portapapeles): cortar, copiar, pegar flotando y duplicar.

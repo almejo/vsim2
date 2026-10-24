@@ -10,17 +10,13 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 
 ### Agregado
 
-- Favoritos compartidos entre ventanas y circuitos: una estrella en la paleta agrega o quita el componente sin
-  moverlo de su categoría ni iniciar la colocación; también funciona con componentes propios.
-- Inserción rápida: doble clic en espacio vacío abre un buscador con los favoritos y coloca lo elegido ahí.
-  Insert abre el mismo buscador para iniciar la colocación flotante. Busca en toda la paleta, incluidos los
-  componentes propios; flechas y Enter eligen, y Esc cancela.
-
-### Cambiado
-
-- El buscador de inserción rápida muestra «Favoritos» encima de la lista y aclara en el campo y en el encabezado
-  de resultados que busca en todos los componentes disponibles, incluidos los propios. El título «Insertar
-  componente» identifica la ventanita encima del buscador.
+- Favoritos en la paleta: al pasar el mouse por un componente aparece una estrella; un clic la llena y copia el
+  componente a «Favoritos», la primera sección de la paleta, sin empezar a colocarlo ni sacarlo de su categoría. Otro
+  clic, o el menú del clic derecho, lo quita. Se comparten entre todas las ventanas y circuitos, incluyen los
+  componentes propios y un componente propio que falta por un rato no pierde su estrella.
+- Inserción rápida: doble clic en un espacio vacío del lienzo, o Insert, abre «Insertar componente», un buscador que
+  sin texto muestra los favoritos y al escribir busca en toda la paleta, incluidos los componentes propios. Desde el
+  doble clic coloca lo elegido en ese punto (un solo paso de deshacer); desde Insert empieza la colocación flotante.
 
 ## Versión 0.3 — 2026-10-24
 

@@ -8,27 +8,18 @@ El detalle de cada función de VSim 2, ordenado por área. La lista corta está 
 
 - Paleta: click en un componente y luego click en el canvas para colocarlo (vuelve solo a Selección; con Mayús se siguen colocando). También se puede arrastrar desde la paleta al canvas. R / Mayús+R rota antes de colocar. Esc cancela la colocación (también la de un componente de «Mis componentes» y lo pegado que flota) aunque el foco haya quedado en la paleta o en otra parte de la ventana.
 
-### Favoritos e inserción rápida
+### Favoritos
 
-- «Favoritos» aparece primero en la paleta. Al pasar el mouse sobre un componente se muestra una estrella;
-  pulsarla lo agrega o lo quita de Favoritos, sin comenzar a colocarlo ni quitarlo de su categoría original.
-  Los favoritos conservan su estrella visible y se ordenan según cuándo se marcaron. El menú contextual también
-  permite agregarlos y quitarlos (Mayús+F10 o la tecla Menú abre el del componente seleccionado).
-- Se comparten entre ventanas y circuitos mediante las preferencias. Incluyen componentes estándar, de la librería
-  y del circuito. Si un componente propio deja de estar disponible, se oculta sin olvidar que era favorito;
-  vuelve a aparecer cuando está disponible otra vez. Cambiarle el nombre conserva su estrella.
-- Con Selección, doble clic en espacio vacío abre un buscador en ese punto, con el foco listo para escribir.
-  La ventanita lleva el título «Insertar componente» encima del campo «Buscar en todos los componentes…».
-  Sin texto muestra los favoritos, con «Favoritos» encima de la
-  lista; al escribir el encabezado cambia a «Resultados en todos los componentes» y busca por nombre o identificador
-  en todos los componentes de la
-  paleta, incluidos los propios, aunque la paleta lateral esté filtrada. Cada resultado muestra nombre, icono
-  y categoría. Las flechas recorren la lista, Enter o un clic elige, y Esc o un clic fuera cierra sin insertar.
-- Al elegir desde el doble clic, coloca el componente en ese punto, ajustado a la cuadrícula y con las mismas
-  reglas de colocación de la paleta; queda seleccionado y se deshace con un solo Ctrl+Z. **Insert**, configurable
-  en Atajos de teclado, abre el mismo buscador en el puntero (o en el centro del panel activo si está fuera), pero
-  al elegir inicia la colocación flotante normal: R rota, un clic coloca y Esc cancela. El atajo actúa solamente
-  con el lienzo enfocado y respeta los campos de texto.
+- «Favoritos» es la primera sección de la paleta. Al pasar el mouse sobre un componente aparece una estrella de contorno a la derecha de su fila; un clic en ella lo agrega a «Favoritos» (la estrella se llena) sin empezar a colocarlo y sin sacarlo de su categoría: es una copia. Un clic en una estrella llena, en «Favoritos» o en la categoría original, lo quita.
+- Los favoritos muestran su estrella llena también en su categoría, sin pasar el mouse, y se ordenan según cuándo se marcaron. El clic derecho sobre un componente ofrece «Agregar a favoritos» o «Quitar de favoritos» (Mayús+F10 o la tecla Menú abren ese menú para el componente seleccionado); en «Mis componentes» el ítem va al final, después de los propios de la librería. Un lector de pantalla anuncia «LED, favorito».
+- Sin favoritos, la sección muestra «Marca un componente con ☆ para tenerlo aquí»; las flechas pasan por encima de ese aviso. Con la búsqueda de la paleta, «Favoritos» se filtra como las demás secciones y el aviso se oculta.
+- Los favoritos se guardan en las preferencias y se comparten entre todas las ventanas y circuitos: marcar uno en una ventana lo muestra en las otras sin replegar ni desplegar nada. Incluyen componentes estándar, de «Mis componentes» y de «Componentes de este circuito». Si un componente propio deja de estar disponible, se oculta sin olvidar que era favorito y vuelve cuando está disponible otra vez; cambiarle el nombre conserva su estrella.
+
+### Inserción rápida
+
+- Con Selección, doble clic en un espacio vacío del lienzo (no sobre un componente, su etiqueta, la punta de un pin, un cable o un marco) abre la ventanita «Insertar componente» en ese punto, con el foco en «Buscar en todos los componentes…». Sin texto muestra «Favoritos»; al escribir, el encabezado pasa a «Resultados en todos los componentes» y busca por nombre o identificador en toda la paleta, incluidos los componentes propios, aunque la paleta lateral esté filtrada. Cada resultado muestra icono, nombre y categoría.
+- Las flechas recorren la lista, Enter o un clic elige y Esc o un clic fuera cierra sin insertar. Elegido desde el doble clic, el componente queda en ese punto, ajustado a la cuadrícula, seleccionado y en un solo paso de deshacer.
+- **Insert** (se cambia en Archivo ▸ Preferencias… ▸ Atajos de teclado) abre el mismo buscador en el puntero, o en el centro del panel si el puntero está fuera; al elegir empieza la colocación flotante de siempre: R rota, un clic coloca y Esc cancela. Actúa solo con el lienzo enfocado.
 
 ### Seleccionar
 
