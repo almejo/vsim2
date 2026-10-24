@@ -48,6 +48,7 @@ Una línea por función; el detalle está en [docs/funciones.md](docs/funciones.
 
 - [Colocar componentes](docs/funciones.md#colocar-componentes) con un clic o arrastrándolos desde la paleta, rotándolos antes de soltarlos.
 - [Favoritos](docs/funciones.md#favoritos): una estrella en la paleta copia el componente a «Favoritos», arriba de todo y en todas las ventanas.
+- [Recientes](docs/funciones.md#recientes): los últimos 5 componentes que colocaste en la sesión, justo debajo de «Favoritos».
 - [Inserción rápida](docs/funciones.md#inserción-rápida): doble clic en un espacio vacío o Insert abre un buscador de componentes que lo coloca ahí.
 - [Seleccionar](docs/funciones.md#seleccionar) con clic, Mayús/Ctrl o un rectángulo que suma o quita, con cursores que dicen qué hará el clic.
 - [Mover con el teclado](docs/funciones.md#mover-con-el-teclado): las flechas mueven la selección en un solo paso de deshacer.

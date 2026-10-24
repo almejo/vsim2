@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.tools;
 
+import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
@@ -82,6 +83,14 @@ public interface ToolContext {
     default void paintGhost(Graphics2D graphics, DocumentElement element, ComponentTypeRegistry registry,
                             Map<String, Integer> tunnelColors) {
         paintGhost(graphics, element, registry);
+    }
+
+    /**
+     * A component of {@code type} chosen in the palette's world (a palette entry, a drop from the palette, a quick
+     * insert) just landed in the circuit; pastes, duplicates, undo and the AI do not call this. By default nothing
+     * listens (the canvas tells «Recientes»).
+     */
+    default void componentPlaced(ComponentType type) {
     }
 
     void repaint();

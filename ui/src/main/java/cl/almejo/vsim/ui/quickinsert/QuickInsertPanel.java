@@ -13,6 +13,7 @@ import javax.swing.AbstractAction;
 import javax.swing.BorderFactory;
 import javax.swing.DefaultListCellRenderer;
 import javax.swing.DefaultListModel;
+import javax.swing.DefaultListSelectionModel;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JList;
@@ -34,10 +35,25 @@ import java.awt.event.MouseEvent;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.function.Consumer;
 
-/** Search-first popup content; an empty query offers the palette's available favourites in order. EDT only. */
+/**
+ * Search-first popup content. An empty query offers the palette's «Favoritos» and then its «Recientes», each under a
+ * heading row the selection never stops on; typing searches the whole palette. EDT only.
+ */
 final class QuickInsertPanel extends JPanel {
+
+    /** A row of the list: a group heading or a component to choose. */
+    sealed interface Row permits Heading, Choice {
+    }
+
+    /** The title of a group («Favoritos», «Recientes»); never selected. */
+    record Heading(String title) implements Row {
+    }
+
+    record Choice(PaletteEntry entry) implements Row {
+    }
 
     private static final int ICON_SIZE = 24;
     private static final Dimension POPUP_SIZE = new Dimension(360, 300);
@@ -45,8 +61,8 @@ final class QuickInsertPanel extends JPanel {
     private final Consumer<PaletteEntry> choose;
     private final Runnable cancel;
     private final JTextField search = new JTextField();
-    private final DefaultListModel<PaletteEntry> model = new DefaultListModel<>();
-    private final JList<PaletteEntry> list = new JList<>(model);
+    private final DefaultListModel<Row> model = new DefaultListModel<>();
+    private final JList<Row> list = new JList<>(model);
     private final JLabel sectionTitle = new JLabel();
     private final JLabel hint = new JLabel();
 
@@ -68,16 +84,23 @@ final class QuickInsertPanel extends JPanel {
             @Override public void changedUpdate(DocumentEvent event) { refresh(); }
         });
         search.addActionListener(event -> acceptSelection());
+        list.setSelectionModel(new HeadingSkippingSelectionModel());
         list.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         list.setCellRenderer(new DefaultListCellRenderer() {
             @Override
             public Component getListCellRendererComponent(JList<?> owner, Object value, int index,
                                                           boolean selected, boolean focused) {
                 super.getListCellRendererComponent(owner, value, index, selected, focused);
-                if (value instanceof PaletteEntry entry) {
+                if (value instanceof Choice choice) {
+                    PaletteEntry entry = choice.entry();
                     setText(Messages.componentName(entry.type()) + " · " + entry.category());
                     setIcon(new ComponentIcon(entry.type(), painters.painterFor(entry.type().id()),
                             appearance.scheme(), ICON_SIZE));
+                    putClientProperty("FlatLaf.style", null);
+                } else if (value instanceof Heading heading) {
+                    setText(heading.title());
+                    setIcon(null);
+                    putClientProperty("FlatLaf.style", "font: bold");
                 }
                 return this;
             }
@@ -87,7 +110,8 @@ final class QuickInsertPanel extends JPanel {
             public void mouseClicked(MouseEvent event) {
                 if (SwingUtilities.isLeftMouseButton(event)) {
                     int index = list.locationToIndex(event.getPoint());
-                    if (index >= 0 && list.getCellBounds(index, index).contains(event.getPoint())) {
+                    if (index >= 0 && model.get(index) instanceof Choice
+                            && list.getCellBounds(index, index).contains(event.getPoint())) {
                         list.setSelectedIndex(index);
                         acceptSelection();
                     }
@@ -135,50 +159,97 @@ final class QuickInsertPanel extends JPanel {
         search.setText(query);
     }
 
+    /** The group headings shown now, top to bottom (none while searching). */
+    List<String> groupTitles() {
+        return Collections.list(model.elements()).stream().filter(Heading.class::isInstance)
+                .map(row -> ((Heading) row).title()).toList();
+    }
+
+    /** The components offered now, top to bottom, without the headings. */
     List<PaletteEntry> results() {
-        return Collections.list(model.elements());
+        return Collections.list(model.elements()).stream().filter(Choice.class::isInstance)
+                .map(row -> ((Choice) row).entry()).toList();
     }
 
     /** Re-resolves ids on every refresh: a missing library entry stays saved but cannot be placed. */
     void refresh() {
-        String selectedId = list.getSelectedValue() == null ? "" : list.getSelectedValue().type().id();
+        String selectedId = selectedEntry().map(entry -> entry.type().id()).orElse("");
         String query = search.getText();
-        List<PaletteEntry> results = new ArrayList<>();
+        List<Row> rows = new ArrayList<>();
         if (query.isBlank()) {
-            results.addAll(palette.favoriteEntries());
+            addGroup(rows, "quickInsert.favorites", palette.favoriteEntries());
+            addGroup(rows, "quickInsert.recent", palette.recentEntries());
         } else {
             palette.entries().stream().filter(entry -> PaletteFilter.matches(entry.type(), query))
-                    .forEach(results::add);
+                    .forEach(entry -> rows.add(new Choice(entry)));
         }
         model.clear();
-        results.forEach(model::addElement);
-        if (!results.isEmpty()) {
-            int selectedIndex = 0;
-            for (int index = 0; index < results.size(); index++) {
-                if (results.get(index).type().id().equals(selectedId)) {
-                    selectedIndex = index;
+        rows.forEach(model::addElement);
+        int selectedIndex = -1;
+        for (int index = 0; index < rows.size(); index++) {
+            if (rows.get(index) instanceof Choice choice
+                    && (selectedIndex < 0 || choice.entry().type().id().equals(selectedId))) {
+                selectedIndex = index;
+                if (choice.entry().type().id().equals(selectedId)) {
                     break;
                 }
             }
+        }
+        if (selectedIndex >= 0) {
             list.setSelectedIndex(selectedIndex);
         }
-        sectionTitle.setText(Messages.text(query.isBlank() ? "quickInsert.favorites" : "quickInsert.results"));
+        sectionTitle.setText(Messages.text("quickInsert.results"));
+        sectionTitle.setVisible(!query.isBlank());
         hint.setText(Messages.text(query.isBlank() ? "quickInsert.empty" : "quickInsert.noResults"));
-        hint.setVisible(results.isEmpty());
+        hint.setVisible(rows.isEmpty());
     }
 
+    private static void addGroup(List<Row> rows, String titleKey, List<PaletteEntry> entries) {
+        if (!entries.isEmpty()) {
+            rows.add(new Heading(Messages.text(titleKey)));
+            entries.forEach(entry -> rows.add(new Choice(entry)));
+        }
+    }
+
+    private Optional<PaletteEntry> selectedEntry() {
+        return list.getSelectedValue() instanceof Choice choice ? Optional.of(choice.entry()) : Optional.empty();
+    }
+
+    /** Moves to the next component in {@code direction}, round the end of the list, over the headings. */
     private void moveSelection(int direction) {
-        if (!model.isEmpty()) {
-            int next = Math.floorMod(list.getSelectedIndex() + direction, model.size());
-            list.setSelectedIndex(next);
-            list.ensureIndexIsVisible(next);
+        int size = model.size();
+        int index = list.getSelectedIndex();
+        for (int step = 0; step < size; step++) {
+            index = Math.floorMod(index + direction, size);
+            if (model.get(index) instanceof Choice) {
+                list.setSelectedIndex(index);
+                list.ensureIndexIsVisible(index);
+                return;
+            }
         }
     }
 
     void acceptSelection() {
-        PaletteEntry entry = list.getSelectedValue();
-        if (entry != null) {
-            choose.accept(entry);
+        selectedEntry().ifPresent(choose);
+    }
+
+    /**
+     * Never selects a heading: the list's own arrow keys step over it in the direction they move, and a click on it
+     * keeps the selection there was.
+     */
+    private final class HeadingSkippingSelectionModel extends DefaultListSelectionModel {
+        @Override
+        public void setSelectionInterval(int index0, int index1) {
+            if (index0 >= 0 && index0 < model.size() && model.get(index0) instanceof Heading) {
+                int lead = getLeadSelectionIndex();
+                int past = index0 + (lead >= 0 && lead < index0 ? 1 : -1);
+                if (lead >= 0 && Math.abs(lead - index0) == 1 && past >= 0 && past < model.size()
+                        && model.get(past) instanceof Choice) {
+                    super.setSelectionInterval(past, past);
+                }
+                return;
+            }
+            super.setSelectionInterval(index0, index1);
         }
     }
 

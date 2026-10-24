@@ -40,6 +40,7 @@ public final class ComponentPlacement {
         context.openDocument().execute(new AddElementsCommand(List.of(component)));
         NewTunnels.placed(context.openDocument(), component);
         context.selection().select(component.id());
+        context.componentPlaced(type);
         context.repaint();
         return component;
     }

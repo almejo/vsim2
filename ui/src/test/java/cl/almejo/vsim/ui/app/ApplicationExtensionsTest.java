@@ -2,6 +2,7 @@ package cl.almejo.vsim.ui.app;
 
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
+import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.library.ComponentLibrary;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.icons.Icons;
@@ -13,6 +14,7 @@ import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.shortcuts.Scope;
 import cl.almejo.vsim.ui.shortcuts.ShortcutCatalog;
 import cl.almejo.vsim.ui.stepping.StepIcons;
+import cl.almejo.vsim.ui.tools.CanvasMouseEvent;
 import cl.almejo.vsim.ui.window.EditorServices;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.ImportMenu;
@@ -31,6 +33,7 @@ import javax.swing.JMenuItem;
 import javax.swing.KeyStroke;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
+import java.awt.geom.Point2D;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -283,6 +286,27 @@ class ApplicationExtensionsTest {
             preferences.setPaletteFavorites(List.of("and3", "led"));
             assertThat(first.palette().visibleSections()).startsWith("Favoritos");
             assertThat(second.palette().visibleTypeIds()).startsWith("and3", "led");
+        } finally {
+            second.dispose();
+            first.dispose();
+        }
+    }
+
+    @Test
+    void theRecentComponentsAreSharedByTheWindowsAndComeRightBelowFavorites() {
+        EditorView first = new EditorView(openDocument, services, NO_WINDOW);
+        EditorView second = new EditorView(openDocument, services, NO_WINDOW);
+        try {
+            first.canvas().setSize(800, 600);
+            first.palette().choose("and3");
+            CanvasMouseEvent click = new CanvasMouseEvent(new Point2D.Double(10, 10), new GridPoint(10, 10),
+                    first.canvas().viewport().gridToScreen(10, 10), CanvasMouseEvent.PRIMARY, false, false, 1);
+            first.canvas().tool().mouseMoved(first.canvas(), click);
+            first.canvas().tool().mousePressed(first.canvas(), click);
+
+            assertThat(second.palette().visibleSections()).startsWith("Favoritos", "Recientes");
+            assertThat(second.palette().recentEntries()).extracting(entry -> entry.type().id())
+                    .containsExactly("and3");
         } finally {
             second.dispose();
             first.dispose();

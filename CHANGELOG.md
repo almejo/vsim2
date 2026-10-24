@@ -14,9 +14,13 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
   componente a «Favoritos», la primera sección de la paleta, sin empezar a colocarlo ni sacarlo de su categoría. Otro
   clic, o el menú del clic derecho, lo quita. Se comparten entre todas las ventanas y circuitos, incluyen los
   componentes propios y un componente propio que falta por un rato no pierde su estrella.
+- Recientes en la paleta: justo debajo de «Favoritos», los últimos 5 componentes distintos que colocaste en la sesión
+  (con un clic, arrastrándolos, con la inserción rápida o un componente propio), el más reciente arriba. Es una lista
+  para todas las ventanas, no repite los favoritos y no aparece mientras está vacía.
 - Inserción rápida: doble clic en un espacio vacío del lienzo, o Insert, abre «Insertar componente», un buscador que
-  sin texto muestra los favoritos y al escribir busca en toda la paleta, incluidos los componentes propios. Desde el
-  doble clic coloca lo elegido en ese punto (un solo paso de deshacer); desde Insert empieza la colocación flotante.
+  sin texto muestra los favoritos y los recientes y al escribir busca en toda la paleta, incluidos los componentes
+  propios. Desde el doble clic coloca lo elegido en ese punto (un solo paso de deshacer); desde Insert empieza la
+  colocación flotante.
 
 ## Versión 0.3 — 2026-10-24
 

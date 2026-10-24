@@ -20,6 +20,7 @@ import cl.almejo.vsim.ui.library.PlaceDefinitionTool;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.paint.InterfacePinPainter;
+import cl.almejo.vsim.ui.recents.RecentComponentsExtension;
 import cl.almejo.vsim.ui.tools.CanvasMouseEvent;
 import cl.almejo.vsim.ui.tools.PlaceComponentTool;
 import cl.almejo.vsim.ui.tools.SelectTool;
@@ -92,6 +93,38 @@ class QuickInsertTest {
         shown.acceptSelection();
         assertThat(document.document().components()).singleElement()
                 .extracting(Component::typeId).isEqualTo("and3");
+    }
+
+    @Test
+    void aBlankSearchListsTheFavoritesThenTheRecentsAndTheArrowsSkipTheHeadings() {
+        showFavorites();
+        view.services().preferences().setPaletteFavorites(List.of("led"));
+        view.palette().setRecents(List.of("and3", "led", "or2"));
+        view.canvas().tool().mousePressed(view.canvas(), at(10, 20, 2));
+
+        assertThat(shown.groupTitles()).containsExactly("Favoritos", "Recientes");
+        assertThat(shown.results()).extracting(entry -> entry.type().id()).containsExactly("led", "and3", "or2");
+        JTextField field = shown.searchField();
+        Object down = field.getInputMap().get(KeyStroke.getKeyStroke(KeyEvent.VK_DOWN, 0));
+        field.getActionMap().get(down).actionPerformed(new ActionEvent(field, 0, ""));
+        shown.acceptSelection();
+
+        assertThat(document.document().components()).singleElement()
+                .extracting(Component::typeId).isEqualTo("and3");
+    }
+
+    @Test
+    void withOnlyRecentsTheirGroupIsTheOnlyOneAndAQuickInsertCountsAsUsed() {
+        new RecentComponentsExtension().install(view);
+        view.canvas().tool().mousePressed(view.canvas(), at(10, 20, 2));
+        assertThat(shown.groupTitles()).isEmpty();
+        shown.setQuery("and3");
+        shown.acceptSelection();
+
+        view.canvas().tool().mousePressed(view.canvas(), at(40, 40, 2));
+
+        assertThat(shown.groupTitles()).containsExactly("Recientes");
+        assertThat(shown.results()).extracting(entry -> entry.type().id()).containsExactly("and3");
     }
 
     private void showFavorites() {

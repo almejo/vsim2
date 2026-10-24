@@ -76,8 +76,9 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 
 /**
- * Component palette: search box plus a tree of categories, then "Mis componentes" (the user's library) and
- * "Componentes de este circuito". Choosing an entry starts placing it.
+ * Component palette: search box plus a tree of «Favoritos» and «Recientes» (when their owners turn them on), the
+ * categories, then "Mis componentes" (the user's library) and "Componentes de este circuito". Choosing an entry
+ * starts placing it.
  */
 public final class PalettePanel extends JPanel {
 
@@ -105,7 +106,8 @@ public final class PalettePanel extends JPanel {
     /** Width of a help tooltip before it wraps, in pixels. */
     private static final int HELP_WIDTH = 260;
 
-    private enum FavoriteSection { FAVORITES, EMPTY }
+    /** The sections above the categories, «Favoritos» and «Recientes», and the empty hint row of «Favoritos». */
+    private enum TopSection { FAVORITES, EMPTY, RECENT }
 
     private final ComponentTypeRegistry registry;
     private final PainterRegistry painters;
@@ -129,6 +131,7 @@ public final class PalettePanel extends JPanel {
     private boolean updating;
     private Optional<Consumer<String>> favoriteToggle = Optional.empty();
     private List<String> favoriteIds = List.of();
+    private List<String> recentIds = List.of();
     private final List<Runnable> entriesListeners = new CopyOnWriteArrayList<>();
 
     /**
@@ -151,7 +154,8 @@ public final class PalettePanel extends JPanel {
         }
         Set<String> changed = symmetricDifference(favoriteIds, next);
         favoriteIds = next;
-        refreshSection(FavoriteSection.FAVORITES, favoritesSection(search.getText()), 0);
+        refreshSection(TopSection.FAVORITES, favoritesSection(search.getText()), 0);
+        refreshRecents(); // a new favourite leaves «Recientes», an unmarked one may come back
         ((FavoritesTree) tree).repaintRowsOf(changed);
         fireEntriesChanged();
     }
@@ -223,13 +227,49 @@ public final class PalettePanel extends JPanel {
         return first;
     }
 
+    /**
+     * The components used recently, most recent first (spec 2026-10-21 §9.2): «Recientes», right below «Favoritos»,
+     * hidden while none is available. An equal list changes nothing. EDT.
+     */
+    public void setRecents(List<String> typeIds) {
+        List<String> next = List.copyOf(typeIds);
+        if (recentIds.equals(next)) {
+            return;
+        }
+        recentIds = next;
+        refreshRecents();
+        fireEntriesChanged();
+    }
+
+    /** The recent components available now and not favourites (those are already in view), most recent first. */
+    public List<PaletteEntry> recentEntries() {
+        Map<String, PaletteEntry> available = availableById();
+        return recentIds.stream().filter(typeId -> !isShownAsFavorite(typeId)).map(available::get)
+                .filter(Objects::nonNull).toList();
+    }
+
+    private boolean isShownAsFavorite(String typeId) {
+        return favoriteToggle.isPresent() && favoriteIds.contains(typeId);
+    }
+
+    private Map<String, PaletteEntry> availableById() {
+        Map<String, PaletteEntry> available = new HashMap<>();
+        entries().forEach(entry -> available.put(entry.type().id(), entry));
+        return available;
+    }
+
+    private void refreshRecents() {
+        boolean favoritesShown = sections().stream()
+                .anyMatch(section -> section.getUserObject() == TopSection.FAVORITES);
+        refreshSection(TopSection.RECENT, recentSection(search.getText()), favoritesShown ? 1 : 0);
+    }
+
     /** The favourites available now, in marking order (empty while favourites are off). */
     public List<PaletteEntry> favoriteEntries() {
         if (favoriteToggle.isEmpty()) {
             return List.of();
         }
-        Map<String, PaletteEntry> available = new HashMap<>();
-        entries().forEach(entry -> available.put(entry.type().id(), entry));
+        Map<String, PaletteEntry> available = availableById();
         return favoriteIds.stream().map(available::get).filter(Objects::nonNull).toList();
     }
 
@@ -478,7 +518,8 @@ public final class PalettePanel extends JPanel {
         List<String> titles = new ArrayList<>();
         for (DefaultMutableTreeNode section : sections()) {
             Object item = section.getUserObject();
-            titles.add(item == FavoriteSection.FAVORITES ? Messages.text("palette.favorites")
+            titles.add(item == TopSection.FAVORITES ? Messages.text("palette.favorites")
+                    : item == TopSection.RECENT ? Messages.text("palette.recent")
                     : item instanceof UserSection userSection ? userSection.title()
                     : Messages.categoryName((ComponentCategory) item));
         }
@@ -558,6 +599,7 @@ public final class PalettePanel extends JPanel {
         String query = search.getText();
         DefaultMutableTreeNode root = new DefaultMutableTreeNode();
         addSection(root, favoritesSection(query));
+        addSection(root, recentSection(query));
         for (ComponentCategory category : ORDER) {
             DefaultMutableTreeNode categoryNode = new DefaultMutableTreeNode(category);
             registry.all().stream()
@@ -592,15 +634,23 @@ public final class PalettePanel extends JPanel {
 
     /** «Favoritos» filtered by {@code query}: no rows while favourites are off, the hint when empty and unfiltered. */
     private DefaultMutableTreeNode favoritesSection(String query) {
-        DefaultMutableTreeNode section = new DefaultMutableTreeNode(FavoriteSection.FAVORITES);
+        DefaultMutableTreeNode section = new DefaultMutableTreeNode(TopSection.FAVORITES);
         if (favoriteToggle.isEmpty()) {
             return section;
         }
         favoriteEntries().stream().filter(entry -> PaletteFilter.matches(entry.type(), query))
                 .forEach(entry -> section.add(new DefaultMutableTreeNode(entry.treeItem(), false)));
         if (section.getChildCount() == 0 && query.isBlank()) {
-            section.add(new DefaultMutableTreeNode(FavoriteSection.EMPTY, false));
+            section.add(new DefaultMutableTreeNode(TopSection.EMPTY, false));
         }
+        return section;
+    }
+
+    /** «Recientes» filtered by {@code query}; no hint row: an empty section is not shown. */
+    private DefaultMutableTreeNode recentSection(String query) {
+        DefaultMutableTreeNode section = new DefaultMutableTreeNode(TopSection.RECENT);
+        recentEntries().stream().filter(entry -> PaletteFilter.matches(entry.type(), query))
+                .forEach(entry -> section.add(new DefaultMutableTreeNode(entry.treeItem(), false)));
         return section;
     }
 
@@ -767,7 +817,7 @@ public final class PalettePanel extends JPanel {
         }
 
         private static boolean isHint(TreePath path) {
-            return ((DefaultMutableTreeNode) path.getLastPathComponent()).getUserObject() == FavoriteSection.EMPTY;
+            return ((DefaultMutableTreeNode) path.getLastPathComponent()).getUserObject() == TopSection.EMPTY;
         }
     }
 
@@ -970,7 +1020,7 @@ public final class PalettePanel extends JPanel {
                                                       boolean leaf, int row, boolean focused) {
             super.getTreeCellRendererComponent(owner, value, selected, expanded, leaf, row, focused);
             Object item = ((DefaultMutableTreeNode) value).getUserObject();
-            setEnabled(owner.isEnabled() && item != FavoriteSection.EMPTY);
+            setEnabled(owner.isEnabled() && item != TopSection.EMPTY);
             getAccessibleContext().setAccessibleName(item instanceof ComponentType || item instanceof UserComponent
                     ? accessibleName(item) : null);
             if (item instanceof ComponentType type) {
@@ -981,10 +1031,17 @@ public final class PalettePanel extends JPanel {
                 setText(Messages.componentName(component.type()));
                 setIcon(icon(component.type()));
                 setToolTipText(null);
-            } else if (item instanceof FavoriteSection section) {
-                setText(Messages.text(section == FavoriteSection.FAVORITES
-                        ? "palette.favorites" : "palette.favorites.empty"));
-                setIcon(section == FavoriteSection.FAVORITES ? new FavoriteStar(true, selected) : null);
+            } else if (item instanceof TopSection section) {
+                setText(Messages.text(switch (section) {
+                    case FAVORITES -> "palette.favorites";
+                    case EMPTY -> "palette.favorites.empty";
+                    case RECENT -> "palette.recent";
+                }));
+                setIcon(switch (section) {
+                    case FAVORITES -> new FavoriteStar(true, selected);
+                    case EMPTY -> null;
+                    case RECENT -> new RecentIcon(selected);
+                });
                 setToolTipText(null);
             } else if (item instanceof UserSection section) {
                 setText(section.title());

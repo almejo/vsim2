@@ -130,6 +130,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     /** Told when the view moves by anything but a travel (the user's pan or zoom, a centring). */
     private final List<Runnable> viewTakenListeners = new CopyOnWriteArrayList<>();
     private final List<Consumer<CircuitFragment>> incomingFragmentListeners = new CopyOnWriteArrayList<>();
+    private final List<Consumer<ComponentType>> placementListeners = new CopyOnWriteArrayList<>();
     private final List<CanvasOverlay> overlays = new CopyOnWriteArrayList<>();
     private final List<Function<Point2D, Optional<String>>> toolTipOverrides = new CopyOnWriteArrayList<>();
     private final List<Predicate<CanvasMouseEvent>> pressInterceptors = new CopyOnWriteArrayList<>();
@@ -730,6 +731,20 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     /** Tells the incoming-fragment listeners that {@code fragment} is about to be placed (a drop or a paste). */
     public void announceIncomingFragment(CircuitFragment fragment) {
         incomingFragmentListeners.forEach(listener -> listener.accept(fragment));
+    }
+
+    /**
+     * Runs {@code listener} with the type of every component placed from the palette's world on this canvas (see
+     * {@link ToolContext#componentPlaced}). Returns its removal.
+     */
+    public Runnable addPlacementListener(Consumer<ComponentType> listener) {
+        placementListeners.add(Objects.requireNonNull(listener, "listener"));
+        return () -> placementListeners.remove(listener);
+    }
+
+    @Override
+    public void componentPlaced(ComponentType type) {
+        placementListeners.forEach(listener -> listener.accept(type));
     }
 
     /** Runs {@code listener} with every tool this canvas switches to. Returns its removal. */
