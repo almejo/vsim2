@@ -60,6 +60,9 @@ final class AppearanceFeatures {
         removals.add(view.palette().addUserMenuContributor((entry, menu) -> entry.ifPresent(component ->
                 menu.add(item("shape.change",
                         () -> edit(Optional.empty(), component.bundle().root().id(), component.inLibrary()))))));
+        // «Actualizar componente» / «desde la librería» ask with the same connections sheet (spec §6.3 step 4).
+        view.templateActions().ifPresent(actions ->
+                removals.add(actions.useConnectionsConfirmation(plan -> confirm(plan, false))));
     }
 
     void dispose() { for (int index = removals.size() - 1; index >= 0; index--) { removals.get(index).run(); } }

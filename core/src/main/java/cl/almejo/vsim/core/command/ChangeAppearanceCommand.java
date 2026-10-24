@@ -6,11 +6,11 @@ import cl.almejo.vsim.core.component.appearance.ComponentAppearance;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
-import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.DefinitionPin;
 import cl.almejo.vsim.core.library.DefinitionUpdateSafety;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
+import cl.almejo.vsim.core.netlist.PinRef;
 import cl.almejo.vsim.core.wiring.ShapeChangePlan;
 import cl.almejo.vsim.core.wiring.ShapeChangePlanner;
 
@@ -25,15 +25,12 @@ import java.util.Optional;
  * One prepared shape edit, including every affected instance and its wires. Undo restores geometry, definition
  * revision, wire ids and paint order; redo replays the same plan rather than routing against a different layout.
  */
-public final class ChangeAppearanceCommand implements Command {
+public final class ChangeAppearanceCommand implements Command, LoosensPins {
     private final CircuitDocument target;
     private final long startingRevision;
     private final Optional<ComponentDefinition> previousDefinition;
     private final Optional<ComponentDefinition> replacementDefinition;
-    private final ShapeChangePlan plan;
-    private final Map<ElementId, Component> previousInstances = new LinkedHashMap<>();
-    private final Map<ElementId, Wire> previousWires = new LinkedHashMap<>();
-    private final Map<ElementId, Long> removedOrders = new LinkedHashMap<>();
+    private final PlannedShapeChange pieces;
     private boolean wasApplied;
 
     private ChangeAppearanceCommand(CircuitDocument document, Optional<ComponentDefinition> previousDefinition,
@@ -42,14 +39,7 @@ public final class ChangeAppearanceCommand implements Command {
         startingRevision = document.revision();
         this.previousDefinition = previousDefinition;
         this.replacementDefinition = replacementDefinition;
-        this.plan = plan;
-        plan.instances().keySet().forEach(id -> previousInstances.put(id, document.component(id).orElseThrow()));
-        plan.wires().replacedWires().forEach(wire -> previousWires.put(wire.id(),
-                document.wire(wire.id()).orElseThrow()));
-        plan.wires().removedWireIds().forEach(id -> {
-            previousWires.put(id, document.wire(id).orElseThrow());
-            removedOrders.put(id, document.orderOf(id));
-        });
+        this.pieces = new PlannedShapeChange(document, plan);
     }
 
     /** A top-level instance's own shape, or empty to restore its definition's appearance. */
@@ -94,13 +84,17 @@ public final class ChangeAppearanceCommand implements Command {
         return new ChangeAppearanceCommand(document, Optional.of(before), Optional.of(replacement), plan);
     }
 
-    private static ComponentTypeRegistry registryFor(ComponentTypeRegistry base, CircuitDocument document) {
+    /** {@code base} resolving the user components of {@code document} (a frozen copy, never the live one). */
+    static ComponentTypeRegistry registryFor(ComponentTypeRegistry base, CircuitDocument document) {
         ComponentTypeRegistry registry = base.copy();
         registry.addResolver(SubcircuitTypes.resolverFor(document));
         return registry;
     }
 
-    public ShapeChangePlan plan() { return plan; }
+    public ShapeChangePlan plan() { return pieces.plan(); }
+
+    @Override
+    public List<PinRef> loosenedPins() { return pieces.plan().disconnected(); }
 
     /** A prepared plan is tied to its source document and wiring revision until its first apply. */
     public boolean isStale(CircuitDocument document) {
@@ -109,9 +103,7 @@ public final class ChangeAppearanceCommand implements Command {
 
     @Override
     public boolean changesNothing() {
-        return previousDefinition.equals(replacementDefinition) && plan.wires().isEmpty()
-                && previousInstances.entrySet().stream()
-                .allMatch(entry -> entry.getValue().equals(plan.instances().get(entry.getKey())));
+        return previousDefinition.equals(replacementDefinition) && pieces.changesNothing();
     }
 
     @Override
@@ -121,10 +113,7 @@ public final class ChangeAppearanceCommand implements Command {
         }
         document.batch(() -> {
             replacementDefinition.ifPresent(document::putDefinition);
-            plan.instances().values().forEach(document::replace);
-            plan.wires().removedWireIds().forEach(document::remove);
-            plan.wires().replacedWires().forEach(document::replace);
-            plan.wires().addedWires().forEach(document::add);
+            pieces.apply(document);
         });
         wasApplied = true;
     }
@@ -135,16 +124,8 @@ public final class ChangeAppearanceCommand implements Command {
             throw new IllegalArgumentException("appearance edit belongs to another circuit");
         }
         document.batch(() -> {
-            plan.wires().addedWires().forEach(wire -> document.remove(wire.id()));
             previousDefinition.ifPresent(document::putDefinition);
-            previousInstances.values().forEach(document::replace);
-            previousWires.forEach((id, wire) -> {
-                if (removedOrders.containsKey(id)) {
-                    document.restore(wire, removedOrders.get(id));
-                } else {
-                    document.replace(wire);
-                }
-            });
+            pieces.revert(document);
         });
     }
 

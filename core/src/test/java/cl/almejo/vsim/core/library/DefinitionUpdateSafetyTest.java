@@ -1,7 +1,9 @@
 package cl.almejo.vsim.core.library;
 
 import cl.almejo.vsim.core.command.ReplaceDefinitionCommand;
+import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.PinSpec;
+import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.component.appearance.ComponentAppearance;
 import cl.almejo.vsim.core.component.appearance.PinPlacement;
 import cl.almejo.vsim.core.document.CircuitDocument;
@@ -22,6 +24,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Updating a saved child must not detach its parent's wires from the child's interface. */
 class DefinitionUpdateSafetyTest {
+    private static ComponentTypeRegistry registry(CircuitDocument document) {
+        return StandardComponentTypes.registry().extendedWith(SubcircuitTypes.resolverFor(document));
+    }
+
     @Test
     void replacingANestedChildWithMovedPinsKeepsTheOldDefinition() {
         CircuitDocument document = new CircuitDocument();
@@ -32,7 +38,8 @@ class DefinitionUpdateSafetyTest {
                 new GridSize(6, 4), List.of(original.pinout().get(0),
                 new DefinitionPin(PinSpec.output("y", 6, 2), original.pinout().get(1).source())), original.body());
 
-        assertThatThrownBy(() -> new ReplaceDefinitionCommand(new DefinitionBundle(changed, List.of())).apply(document))
+        assertThatThrownBy(() -> ReplaceDefinitionCommand.prepare(document, registry(document),
+                new DefinitionBundle(changed, List.of())))
                 .isInstanceOf(UnsafeDefinitionUpdateException.class);
 
         assertThat(document.definition(original.id())).containsSame(original);
@@ -44,30 +51,12 @@ class DefinitionUpdateSafetyTest {
         ComponentDefinition original = ExampleDefinitions.inverter();
         document.putDefinition(original);
         document.putDefinition(ExampleDefinitions.doubleInverter());
-        ReplaceDefinitionCommand command = new ReplaceDefinitionCommand(
+        ReplaceDefinitionCommand command = ReplaceDefinitionCommand.prepare(document, registry(document),
                 new DefinitionBundle(original.withName("Nuevo nombre"), List.of()));
 
         command.apply(document);
         assertThat(document.definition(original.id()).orElseThrow().name()).isEqualTo("Nuevo nombre");
         command.revert(document);
-        assertThat(document.definition(original.id())).containsSame(original);
-    }
-
-    @Test
-    void anUnsupportedGeometryUpdateOfALiveTopLevelPieceKeepsItsOldCopy() {
-        CircuitDocument document = new CircuitDocument();
-        ComponentDefinition original = ExampleDefinitions.inverter();
-        document.putDefinition(original);
-        document.add(new Component(new ElementId("c20"), SubcircuitTypes.typeIdOf(original.id()), GridPoint.ORIGIN,
-                Rotation.R0, Map.of(), ""));
-        ComponentDefinition changed = new ComponentDefinition(original.id(), original.name(), "", new GridSize(6, 4),
-                List.of(original.pinout().getFirst(), new DefinitionPin(PinSpec.output("y", 6, 2),
-                original.pinout().getLast().source())), original.body());
-
-        assertThatThrownBy(() -> new ReplaceDefinitionCommand(new DefinitionBundle(changed, List.of())).apply(document))
-                .isInstanceOf(UnsafeDefinitionUpdateException.class)
-                .satisfies(exception -> assertThat(((UnsafeDefinitionUpdateException) exception).messageKey())
-                        .isEqualTo("appearance.update.unsafeGeometry"));
         assertThat(document.definition(original.id())).containsSame(original);
     }
 
@@ -97,7 +86,8 @@ class DefinitionUpdateSafetyTest {
         ComponentDefinition changed = new ComponentDefinition(original.id(), original.name(), original.description(),
                 original.size(), List.of(new DefinitionPin(original.pinout().getFirst().spec(), newSource),
                 original.pinout().getLast()), new CircuitFragment(components, original.body().wires(), List.of()));
-        ReplaceDefinitionCommand command = new ReplaceDefinitionCommand(new DefinitionBundle(changed, List.of()));
+        ReplaceDefinitionCommand command = ReplaceDefinitionCommand.prepare(document, registry(document),
+                new DefinitionBundle(changed, List.of()));
 
         command.apply(document);
         ComponentAppearance updated = document.component(instance.id()).orElseThrow().appearance().orElseThrow();

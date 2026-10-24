@@ -181,6 +181,7 @@ class ConnectivityProblemsTest {
         ComponentDefinition repaired = new ComponentDefinition(broken.id(), broken.name(), broken.description(),
                 broken.size(), broken.pinout(), new CircuitFragment(List.of(lamp, source), List.of(), List.of()));
 
-        openDocument.execute(new ReplaceDefinitionCommand(new DefinitionBundle(repaired, List.of())));
+        openDocument.execute(ReplaceDefinitionCommand.prepare(openDocument.document(), openDocument.registry(),
+                new DefinitionBundle(repaired, List.of())));
     }
 }

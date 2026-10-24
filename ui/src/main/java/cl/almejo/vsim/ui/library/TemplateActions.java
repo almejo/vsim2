@@ -17,6 +17,7 @@ import cl.almejo.vsim.core.document.Frame;
 import cl.almejo.vsim.core.document.FrameContents;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
+import cl.almejo.vsim.core.library.AppearanceReconciler;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.ConvertedSelection;
 import cl.almejo.vsim.core.library.DefinitionBuilder;
@@ -28,9 +29,11 @@ import cl.almejo.vsim.core.library.PinBridges;
 import cl.almejo.vsim.core.library.PinOrder;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.core.library.TestParts;
+import cl.almejo.vsim.core.library.UnsafeDefinitionUpdateException;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.core.tunnel.Tunnels;
 import cl.almejo.vsim.core.value.Value;
+import cl.almejo.vsim.core.wiring.ShapeChangePlan;
 import cl.almejo.vsim.ui.actions.ContextMenuContributor;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
@@ -49,9 +52,11 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
@@ -71,6 +76,7 @@ public final class TemplateActions {
     private final Action createComponent;
     private final Action updateComponent;
     private final Runnable refresher = this::refresh;
+    private Predicate<ShapeChangePlan> connectionsConfirmation = plan -> true;
 
     public TemplateActions(OpenDocument openDocument, Supplier<CircuitCanvas> canvas, LibraryService service,
                            LibraryDialogs dialogs) {
@@ -85,6 +91,17 @@ public final class TemplateActions {
         canvas.get().selection().addListener(refresher); // one selection for every pane of the window
         openDocument.addChangeListener(refresher);
         refresh();
+    }
+
+    /**
+     * Asks the user about an update whose pieces cannot all keep their wires (the «Cambiar forma» connections sheet:
+     * «Aplicar y conectar a mano» answers true, «Volver» false). The shape feature installs its sheet; until then an
+     * update applies the non-interactive rule (spec §6.3). The returned action puts back the previous one.
+     */
+    public Runnable useConnectionsConfirmation(Predicate<ShapeChangePlan> confirmation) {
+        Predicate<ShapeChangePlan> previous = connectionsConfirmation;
+        connectionsConfirmation = Objects.requireNonNull(confirmation);
+        return () -> connectionsConfirmation = previous;
     }
 
     public Action createComponent() {
@@ -193,9 +210,10 @@ public final class TemplateActions {
 
     /**
      * "Actualizar componente…": the user picks the definition to replace in the same pinout dialog; every instance,
-     * including those of definitions that nest it, follows in one undo step. A selection that would nest the target,
-     * directly or through other components, is refused with a message before anything changes. The library file is
-     * rewritten when the library has the definition.
+     * including those of definitions that nest it, follows in one undo step, keeping the drawing and the pin layout
+     * (pins that continue keep their wires, new pins go to a free edge spot; see {@link #replaceDefinition}). A
+     * selection that would nest the target, directly or through other components, is refused with a message before
+     * anything changes. The library file is rewritten when the library has the definition.
      */
     public void updateFromSelection() {
         CircuitDocument document = openDocument.document();
@@ -257,9 +275,10 @@ public final class TemplateActions {
     }
 
     /**
-     * "Actualizar desde la librería": the document's copy becomes the library's version, one undo step. The circuit
-     * keeps its own versions of nested definitions (a message names the ones that differ); a library version that
-     * would then nest itself is refused with a message.
+     * "Actualizar desde la librería": the document's copy becomes the library's version, one undo step, with the
+     * placed pieces following it ({@link #replaceDefinition}). The circuit keeps its own versions of nested
+     * definitions (a message names the ones that differ); a library version that would then nest itself is refused
+     * with a message.
      */
     public void updateFromLibrary(Component instance) {
         Optional<DefinitionBundle> found = definitionIdOf(instance).flatMap(id -> service.library().find(id));
@@ -273,12 +292,7 @@ public final class TemplateActions {
             return;
         }
         KeptVersions.warn(document, bundle, dialogs, canvas.get());
-        try {
-            openDocument.execute(new ReplaceDefinitionCommand(bundle));
-        } catch (cl.almejo.vsim.core.library.UnsafeDefinitionUpdateException exception) {
-            dialogs.showMessage(canvas.get(), Messages.format(exception.messageKey(),
-                    String.join(", ", exception.containingNames())));
-        }
+        replaceDefinition(bundle);
     }
 
     /** True when the library holds a different version of the instance's definition (the badge shows). */
@@ -407,20 +421,48 @@ public final class TemplateActions {
                 result.pinOrder(), result.pinNames(), openDocument.registry());
         Optional<ComponentDefinition> previous = document.definition(bundle.root().id());
         if (previous.isPresent()) {
-            ComponentDefinition candidate = cl.almejo.vsim.core.library.AppearanceReconciler
-                    .preserveGeneralAppearance(previous.get(), bundle.root());
+            ComponentDefinition candidate = AppearanceReconciler.preserveGeneralAppearance(previous.get(),
+                    bundle.root());
             bundle = new DefinitionBundle(candidate.revisedFrom(previous.get()), bundle.dependencies());
         }
-        try {
-            openDocument.execute(new ReplaceDefinitionCommand(bundle));
-        } catch (cl.almejo.vsim.core.library.UnsafeDefinitionUpdateException exception) {
-            dialogs.showMessage(canvas.get(), Messages.format(exception.messageKey(),
-                    String.join(", ", exception.containingNames())));
+        if (!replaceDefinition(bundle)) {
             return;
         }
         if (service.library().find(bundle.root().id()).isPresent()) {
             saveToLibrary(bundle);
         }
+    }
+
+    /**
+     * Replaces the definition by {@code bundle}'s root with the placed pieces following (spec §6.3), one undo step:
+     * when some pieces cannot keep all their wires the connections sheet asks first, and afterwards a message says
+     * what moved, which pieces kept their old shape and how many pins to connect by hand. False, with nothing
+     * changed, when the update is refused (a message says why) or the user goes back.
+     */
+    private boolean replaceDefinition(DefinitionBundle bundle) {
+        ReplaceDefinitionCommand command;
+        try {
+            command = ReplaceDefinitionCommand.prepare(openDocument.document(), openDocument.registry(), bundle);
+        } catch (UnsafeDefinitionUpdateException exception) {
+            dialogs.showMessage(canvas.get(), Messages.format(exception.messageKey(),
+                    String.join(", ", exception.containingNames())));
+            return false;
+        }
+        ShapeChangePlan plan = command.plan();
+        boolean needsAnswer = !plan.disconnected().isEmpty() || !plan.keptOldShape().isEmpty();
+        if (needsAnswer && !connectionsConfirmation.test(plan) || command.isStale(openDocument.document())) {
+            return false;
+        }
+        openDocument.execute(command);
+        List<String> lines = new ArrayList<>(command.notes().stream()
+                .map(note -> Messages.format(note.messageKey(), note.arguments().toArray())).toList());
+        if (!plan.disconnected().isEmpty()) {
+            lines.add(Messages.format("shape.connections.notice", plan.disconnected().size()));
+        }
+        if (!lines.isEmpty()) {
+            dialogs.showMessage(canvas.get(), String.join("\n", lines));
+        }
+        return true;
     }
 
     /**

@@ -2,6 +2,7 @@ package cl.almejo.vsim.ui.app;
 
 import cl.almejo.vsim.core.command.Command;
 import cl.almejo.vsim.core.command.History;
+import cl.almejo.vsim.core.command.LoosensPins;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.CircuitDocument;
@@ -37,8 +38,10 @@ import java.io.IOException;
 import java.nio.file.AccessDeniedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -70,7 +73,8 @@ public final class OpenDocument implements AutoCloseable {
     private boolean importedFromVsim1;
     private Netlist netlist = Netlist.EMPTY;
     private List<ConnectivityProblem> connectivityProblems = List.of();
-    private Set<PinRef> loosenedPins = Set.of();
+    /** The pins each applied command left unconnected and that are still loose ({@link #loosenedPins()}). */
+    private final Map<Command, Set<PinRef>> loosenedByCommand = new LinkedHashMap<>();
     private long netlistToken = -1;
     private boolean closed;
     private boolean pauseOnShortCircuit;
@@ -249,20 +253,86 @@ public final class OpenDocument implements AutoCloseable {
     }
 
     /**
-     * Pins of placed pieces that an accepted shape change or update left loose (spec §6.4); session only, never saved.
-     * Read-only: the accepted command owns it.
+     * The pins of placed pieces that an accepted shape change or definition update left unconnected on purpose
+     * («Aplicar y conectar a mano», spec §6.4): this session's to-do list, never saved. A pin leaves the set for good
+     * once it is on a net with another pin again; undoing the command takes its pins away, redoing brings them back.
+     * Up to date for every document listener told about the change (the marks are set inside the command's apply and
+     * revert, and checked against the netlist compiled before the other listeners run). Read-only.
      */
     public Set<PinRef> loosenedPins() {
-        return loosenedPins;
+        Set<PinRef> pins = new LinkedHashSet<>();
+        loosenedByCommand.values().forEach(pins::addAll);
+        pins.removeIf(pin -> !isPinOfThisCircuit(pin) || isOnANetWithAnotherPin(pin));
+        return Collections.unmodifiableSet(pins);
     }
 
-    /** For tests of what paints and lists the loosened pins, until the command that fills them exists. */
-    void setLoosenedPins(Set<PinRef> pins) {
-        loosenedPins = Set.copyOf(pins);
-    }
-
+    /** Runs {@code command} as one undo step; one that may loosen pins gets its pins marked while it is applied. */
     public void execute(Command command) {
-        history.execute(command);
+        history.execute(command instanceof LoosensPins loosening ? new MarkingCommand(command, loosening) : command);
+    }
+
+    private boolean isPinOfThisCircuit(PinRef pin) {
+        return document.component(pin.componentId())
+                .map(component -> pin.pinIndex() < registry.typeOf(component).pinCount())
+                .orElse(false);
+    }
+
+    private boolean isOnANetWithAnotherPin(PinRef pin) {
+        return netlist.netForPin(pin).map(net -> net.pins().size() > 1).orElse(false);
+    }
+
+    /** Forgets for good the marks of pins that are connected to another pin again (after each recompile). */
+    private void forgetReconnectedPins() {
+        loosenedByCommand.values().forEach(pins -> pins.removeIf(this::isOnANetWithAnotherPin));
+    }
+
+    /**
+     * {@code command} with its loosened pins marked from just before it applies until just before it reverts, so
+     * the document listeners see the marks that belong to the change they are told about. Everything else is the
+     * command's own.
+     */
+    private final class MarkingCommand implements Command {
+        private final Command command;
+        private final LoosensPins loosening;
+
+        private MarkingCommand(Command command, LoosensPins loosening) {
+            this.command = command;
+            this.loosening = loosening;
+        }
+
+        @Override
+        public void apply(CircuitDocument target) {
+            loosenedByCommand.put(this, new LinkedHashSet<>(loosening.loosenedPins()));
+            try {
+                command.apply(target);
+            } catch (RuntimeException exception) {
+                loosenedByCommand.remove(this);
+                throw exception;
+            }
+        }
+
+        @Override
+        public void revert(CircuitDocument target) {
+            Set<PinRef> marks = loosenedByCommand.remove(this);
+            try {
+                command.revert(target);
+            } catch (RuntimeException exception) {
+                if (marks != null) {
+                    loosenedByCommand.put(this, marks);
+                }
+                throw exception;
+            }
+        }
+
+        @Override
+        public String description() {
+            return command.description();
+        }
+
+        @Override
+        public boolean changesNothing() {
+            return command.changesNothing();
+        }
     }
 
     public void interact(ElementId componentId) {
@@ -536,6 +606,7 @@ public final class OpenDocument implements AutoCloseable {
         try {
             netlist = compiler.compile(document);
             netlistToken = document.revision();
+            forgetReconnectedPins();
             // One request with the circuit, so no tick runs between the new circuit and its channels (spec §3.4).
             FlatCircuit circuit = flattener.flatten(document, netlist);
             connectivityProblems = circuit.connectivityProblems();
