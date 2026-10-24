@@ -1,6 +1,7 @@
 package cl.almejo.vsim.ui.tools;
 
 import cl.almejo.vsim.core.command.PasteCommand;
+import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.Guide;
@@ -48,6 +49,7 @@ public final class FloatingSelectionTool implements Tool {
     public static final double CLICK_TOLERANCE = 0.5;
 
     private final CircuitFragment fragment;
+    private final Optional<ComponentType> fromPalette;
     private GridPoint position;
     /** Where the pointer puts the fragment's (0,0) before the magnet. */
     private GridPoint rawPosition;
@@ -66,9 +68,18 @@ public final class FloatingSelectionTool implements Tool {
     private CanvasCursor shownCursor;
 
     public FloatingSelectionTool(CircuitFragment fragment, GridPoint position) {
+        this(fragment, position, Optional.empty());
+    }
+
+    /**
+     * A fragment that came from the palette (a user component dragged out of it) reports {@code fromPalette} as
+     * placed when it lands; a pasted or duplicated one passes empty and counts for nothing.
+     */
+    public FloatingSelectionTool(CircuitFragment fragment, GridPoint position, Optional<ComponentType> fromPalette) {
         this.fragment = fragment;
         this.position = position;
         this.rawPosition = position;
+        this.fromPalette = fromPalette;
     }
 
     public CircuitFragment fragment() {
@@ -272,6 +283,7 @@ public final class FloatingSelectionTool implements Tool {
             PasteCommand command = new PasteCommand(fragment, position);
             context.openDocument().execute(command);
             context.selection().set(command.pastedIds());
+            fromPalette.ifPresent(context::componentPlaced);
         }
         context.repaint();
         if (switchTool) {

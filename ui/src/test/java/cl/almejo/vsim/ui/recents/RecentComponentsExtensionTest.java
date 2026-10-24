@@ -7,13 +7,18 @@ import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
 import cl.almejo.vsim.core.library.DefinitionBundle;
+import cl.almejo.vsim.core.io.CircuitFragment;
+import cl.almejo.vsim.core.io.FragmentFormat;
 import cl.almejo.vsim.core.library.ExampleDefinitions;
+import cl.almejo.vsim.core.library.SubcircuitTypes;
+import cl.almejo.vsim.ui.clipboard.FragmentTransferable;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.library.PlaceDefinitionTool;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
+import cl.almejo.vsim.ui.panels.PaletteDragTransferable;
 import cl.almejo.vsim.ui.panels.PaletteEntry;
 import cl.almejo.vsim.ui.panels.PaletteTransfer;
 import cl.almejo.vsim.ui.tools.CanvasMouseEvent;
@@ -24,8 +29,10 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import javax.swing.TransferHandler;
 import java.awt.Point;
 import java.awt.event.ActionEvent;
+import java.awt.datatransfer.Transferable;
 import java.awt.event.KeyEvent;
 import java.awt.geom.Point2D;
 import java.util.ArrayList;
@@ -164,5 +171,43 @@ class RecentComponentsExtensionTest {
         assertThat(extension.recents().typeIds()).containsExactly("or2");
         assertThat(view.palette().recentEntries()).extracting(PaletteEntry::type)
                 .extracting(type -> type.id()).containsExactly("or2");
+    }
+
+    private Transferable inverterFragment(boolean fromPalette) {
+        DefinitionBundle bundle = new DefinitionBundle(ExampleDefinitions.inverter(), List.of());
+        Component instance = SubcircuitTypes.typeOf(bundle.root())
+                .newComponent(new ElementId("c1"), GridPoint.ORIGIN, Rotation.R0, Map.of(), "");
+        String json = new FragmentFormat(document.registry()).write(
+                new CircuitFragment(List.of(instance), List.of(), List.of(), bundle.all()));
+        return fromPalette ? new PaletteDragTransferable(json, "subcircuit:inverter")
+                : new FragmentTransferable(json);
+    }
+
+    private void dropAndFix(Transferable transferable) {
+        TransferHandler handler = view.canvas().getTransferHandler();
+        assertThat(handler.importData(new TransferHandler.TransferSupport(view.canvas(), transferable))).isTrue();
+        view.canvas().tool().mouseMoved(view.canvas(), at(view, 30, 30));
+        view.canvas().tool().mousePressed(view.canvas(), at(view, 30, 30));
+        view.canvas().tool().mouseReleased(view.canvas(), at(view, 30, 30));
+    }
+
+    @Test
+    void droppingAUserComponentDraggedFromThePaletteCounts() {
+        extension.install(view);
+
+        dropAndFix(inverterFragment(true));
+
+        assertThat(document.document().components()).hasSize(1);
+        assertThat(extension.recents().typeIds()).containsExactly("subcircuit:inverter");
+    }
+
+    @Test
+    void pastingTheSameFragmentDoesNotCount() {
+        extension.install(view);
+
+        dropAndFix(inverterFragment(false));
+
+        assertThat(document.document().components()).hasSize(1);
+        assertThat(extension.recents().typeIds()).isEmpty();
     }
 }

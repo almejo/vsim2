@@ -2,6 +2,7 @@ package cl.almejo.vsim.ui.canvas;
 
 import cl.almejo.vsim.ui.clipboard.CircuitFileDrop;
 import cl.almejo.vsim.ui.clipboard.FragmentTransferable;
+import cl.almejo.vsim.ui.panels.PaletteDragTransferable;
 
 import javax.swing.JComponent;
 import javax.swing.TransferHandler;
@@ -102,7 +103,7 @@ final class CanvasTransferHandler extends TransferHandler {
         try {
             String fragmentJson = (String) transferable.getTransferData(FragmentTransferable.FRAGMENT_FLAVOR);
             return canvas.dropFragment(fragmentJson, CanvasDragTransferable.originOf(transferable), point,
-                    copyRequested);
+                    copyRequested, PaletteDragTransferable.typeIdOf(transferable));
         } catch (UnsupportedFlavorException | IOException exception) {
             return false;
         }

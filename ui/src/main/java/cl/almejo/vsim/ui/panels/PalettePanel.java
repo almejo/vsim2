@@ -13,7 +13,6 @@ import cl.almejo.vsim.core.library.DefinitionBundle;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.ui.clipboard.CircuitFileDrop;
 import cl.almejo.vsim.ui.clipboard.FragmentRefusingTransferHandler;
-import cl.almejo.vsim.ui.clipboard.FragmentTransferable;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.Appearance;
 import cl.almejo.vsim.ui.paint.ColorScheme;
@@ -777,7 +776,7 @@ public final class PalettePanel extends JPanel {
         public Transferable createTransferable(JComponent source) {
             Optional<UserComponent> user = selectedUserComponent();
             if (user.isPresent()) {
-                return new FragmentTransferable(fragmentJson(user.get()));
+                return new PaletteDragTransferable(fragmentJson(user.get()), user.get().type().id());
             }
             return selectedType().map(type -> new StringSelection(PaletteTransfer.encode(type.id()))).orElse(null);
         }

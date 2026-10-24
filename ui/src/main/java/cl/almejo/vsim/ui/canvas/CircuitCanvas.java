@@ -289,6 +289,16 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
      * top-left at the drop point. False, changing nothing, when the text is not a usable fragment.
      */
     boolean dropFragment(String fragmentJson, Optional<DragOrigin> origin, Point screenPoint, boolean copyRequested) {
+        return dropFragment(fragmentJson, origin, screenPoint, copyRequested, Optional.empty());
+    }
+
+    /**
+     * Like {@link #dropFragment(String, Optional, Point, boolean)}; {@code paletteTypeId} is the type a palette drag
+     * came from (a user component): it counts as placed in the palette's world once it lands (the click that fixes
+     * it, or at once with Ctrl).
+     */
+    boolean dropFragment(String fragmentJson, Optional<DragOrigin> origin, Point screenPoint, boolean copyRequested,
+                         Optional<String> paletteTypeId) {
         GridPoint at = viewport.snap(screenPoint.x, screenPoint.y);
         Optional<DragOrigin> source = origin.or(() -> Optional.ofNullable(dragOut));
         if (source.isPresent() && !copyRequested && source.get().canvas().openDocument() == openDocument) {
@@ -300,6 +310,8 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
             return false;
         }
         source.ifPresent(drag -> drag.canvas().endDragOut());
+        Optional<ComponentType> paletteType = paletteTypeId
+                .flatMap(typeId -> fragment.get().registryFor(openDocument.registry()).find(typeId));
         announceIncomingFragment(fragment.get());
         if (copyRequested) {
             GridPoint offset = source.map(DragOrigin::grabOffset).orElse(GridPoint.ORIGIN);
@@ -310,8 +322,9 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
             PasteCommand paste = new PasteCommand(fragment.get(), landing);
             openDocument.execute(paste);
             selection.set(paste.pastedIds());
+            paletteType.ifPresent(this::componentPlaced);
         } else {
-            setTool(new FloatingSelectionTool(fragment.get(), at));
+            setTool(new FloatingSelectionTool(fragment.get(), at, paletteType));
         }
         requestFocusInWindow();
         return true;
