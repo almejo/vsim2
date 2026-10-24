@@ -7,11 +7,13 @@ import cl.almejo.vsim.core.value.Value;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.HitTester;
 import cl.almejo.vsim.ui.canvas.Selection;
+import cl.almejo.vsim.ui.canvas.ViewState;
 import cl.almejo.vsim.ui.canvas.Viewport;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.snap.Snapper;
 import cl.almejo.vsim.ui.wiring.SelectionMoves;
 
+import java.awt.Dimension;
 import java.awt.Graphics2D;
 import java.awt.geom.Point2D;
 import java.util.Map;
@@ -27,6 +29,20 @@ public interface ToolContext {
     HitTester hitTester();
 
     Viewport viewport();
+
+    /** The size in pixels of the pane the tool works in; by default none (0 × 0). */
+    default Dimension viewSize() {
+        return new Dimension();
+    }
+
+    /**
+     * Takes the pane's view to {@code target} (its zoom clamped to the viewport's limits) as a zoom the user asked for
+     * (the zoom tool's rectangle). The canvas travels there when view moves are animated; by default it jumps.
+     */
+    default void zoomTo(ViewState target) {
+        Dimension size = viewSize();
+        viewport().showAt(target.zoom(), target.centerX(), target.centerY(), size.width, size.height);
+    }
 
     ColorScheme scheme();
 

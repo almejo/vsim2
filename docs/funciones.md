@@ -280,6 +280,7 @@ Los mensajes de error del asistente de Karnaugh, de la importación de tablas y 
 ### Viaje suave de la vista
 
 - Cuando VSim lleva la vista a otro lugar (una fila del árbol de componentes o de un marco, F8 / Mayús+F8 en los problemas, «Mostrar en el circuito» desde las formas de onda) ya no salta: viaja. Si el destino está cerca (a menos de una pantalla) la vista se desliza en unos 300 ms, arrancando y llegando suave; si está lejos «vuela» como un mapa: se aleja un poco mientras avanza, hasta que se ven los dos lugares, y vuelve a tu zoom al llegar (500 a 700 ms). Si lo que hay que mostrar no cabe en la pantalla, se aleja lo justo para que quepa, y el siguiente destino vuelve a tu zoom. Pedir otro destino a mitad de camino sigue desde donde está la vista, sin esperar; arrastrar o hacer zoom a mano la detiene donde está (y ese zoom pasa a ser el tuyo).
+- Volver a 100 % (Ver ▸ «Zoom 100 %», Ctrl+0 o el porcentaje de la barra de estado) también viaja: el zoom cambia de a poco alrededor del centro de la vista, en unos 300 ms, y ese 100 % pasa a ser tu zoom desde que lo pides. Cuando el zoom cambia hacia un lugar que se ve en la pantalla, un punto de la vista se queda quieto todo el viaje, así que se siente como entrar en ese lugar (o salir de él) sin resbalar hacia un lado. Mover la vista, la rueda u otro zoom a mitad de camino lo detienen donde está; acercar y alejar de a un paso (Ctrl + / Ctrl −, los botones, Ctrl+rueda) siguen siendo instantáneos. En una vista dividida solo se mueve el panel activo.
 - Archivo ▸ Preferencias… ▸ General ▸ «Animar los movimientos de la vista» (activado por defecto; desactivado si el escritorio pide reducir las animaciones, en GNOME) vuelve a los saltos instantáneos; la casilla sigue al botón «Viaje suave» de la barra aunque la ventana de preferencias esté abierta. «Centrar circuito», abrir un circuito y restaurar la sesión siempre son instantáneos.
 
 ## Interfaz, preferencias y sesión
@@ -306,7 +307,7 @@ Los mensajes de error del asistente de Karnaugh, de la importación de tablas y 
 
 ### Zoom y desplazamiento
 
-- Ctrl+rueda o Ctrl + / Ctrl − (también en el teclado numérico): zoom; rueda / Mayús+rueda: desplazar (en un touchpad, dos dedos hacia arriba, abajo o los lados); botón del medio o Espacio+arrastrar: mover la vista. Un clic en «zoom 125 %» de la barra de estado vuelve a 100 % sin mover el centro.
+- Ctrl+rueda o Ctrl + / Ctrl − (también en el teclado numérico): zoom; rueda / Mayús+rueda: desplazar (en un touchpad, dos dedos hacia arriba, abajo o los lados); botón del medio o Espacio+arrastrar: mover la vista. Un clic en «zoom 125 %» de la barra de estado vuelve a 100 % sin mover el centro, con un [viaje suave](#viaje-suave-de-la-vista) como Ctrl+0.
 
 ### Cuadrícula
 

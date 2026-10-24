@@ -24,6 +24,7 @@ import java.util.Map;
 
 import static cl.almejo.vsim.ui.UiTestSupport.place;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.within;
 
 /** One window, several panes (split views, Task 1): shared selection, window-wide tool choice, the active pane. */
 class EditorViewPanesTest {
@@ -187,6 +188,23 @@ class EditorViewPanesTest {
         assertThat(view.statusBar().text()).contains(Messages.format("status.zoom", 200));
         press(left);
         assertThat(view.statusBar().text()).contains(Messages.format("status.zoom", 50));
+    }
+
+    @Test
+    void zoomOneHundredPercentActsOnTheActivePaneOnly() {
+        view.canvasPanes().split(Orientation.VERTICAL, 0.5);
+        CircuitCanvas left = view.panes().get(0);
+        CircuitCanvas right = view.panes().get(1);
+        left.applyViewState(new ViewState(2, 3, 4));
+        right.applyViewState(new ViewState(2, 5, 6));
+        press(right);
+
+        view.actions().zoomReset().actionPerformed(null);
+
+        assertThat(right.isTravelling()).as("a pane that is not on screen jumps").isFalse();
+        assertThat(right.viewState().zoom()).isEqualTo(1.0);
+        assertThat(right.viewState().centerX()).isCloseTo(5, within(1e-9));
+        assertThat(left.viewState()).isEqualTo(new ViewState(2, 3, 4));
     }
 
     @Test

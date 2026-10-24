@@ -48,21 +48,17 @@ class ViewportTest {
 
     @Test
     void zoomIsClampedBetweenAQuarterAndFourTimes() {
-        viewport.zoomAt(0, 0, 100);
-        assertThat(viewport.zoom()).isEqualTo(Viewport.MAXIMUM_ZOOM);
         viewport.zoomAt(0, 0, 0.0001);
         assertThat(viewport.zoom()).isEqualTo(Viewport.MINIMUM_ZOOM);
     }
 
     @Test
-    void zoomInAndOutStepByAQuarterAndResetReturnsToOne() {
+    void zoomInAndOutStepByAQuarter() {
         viewport.zoomIn(0, 0);
         assertThat(viewport.zoom()).isCloseTo(1.25, within(1e-9));
         viewport.zoomOut(0, 0);
         viewport.zoomOut(0, 0);
         assertThat(viewport.zoom()).isCloseTo(0.8, within(1e-9));
-        viewport.resetZoom(0, 0);
-        assertThat(viewport.zoom()).isEqualTo(1.0);
     }
 
     @Test

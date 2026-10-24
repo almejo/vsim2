@@ -101,7 +101,7 @@ Una línea por función; el detalle está en [docs/funciones.md](docs/funciones.
 
 - [Barra de búsqueda](docs/funciones.md#barra-de-búsqueda) (Ctrl+F) por etiquetas, tipos, textos, marcos, pines y túneles.
 - [Filtrar el árbol de componentes](docs/funciones.md#filtrar-el-árbol-de-componentes) con las mismas reglas.
-- [Viaje suave de la vista](docs/funciones.md#viaje-suave-de-la-vista) hacia lo que VSim muestra.
+- [Viaje suave de la vista](docs/funciones.md#viaje-suave-de-la-vista) hacia lo que VSim muestra y al volver a 100 %, sin resbalar hacia un lado al cambiar el zoom.
 
 ### Interfaz, preferencias y sesión
 

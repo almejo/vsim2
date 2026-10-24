@@ -2,11 +2,14 @@ package cl.almejo.vsim.ui.canvas;
 
 import cl.almejo.vsim.core.geometry.GridPoint;
 
+import java.util.Optional;
 import java.util.function.DoubleUnaryOperator;
 
 /**
- * One animated move of the view (find bar «viaje suave»), as a pure function of the elapsed time. A target within
- * about one screen is an eased pan of {@value #PAN_MILLISECONDS} ms; a farther one is a «fly to» like a map: the view
+ * One animated move of the view (find bar «viaje suave»), as a pure function of the elapsed time. A zoom change toward
+ * a place in the pane keeps one point of the pane still for {@value #PAN_MILLISECONDS} ms (zooming into it, without
+ * sliding sideways). Otherwise a target within about one screen is an eased pan of {@value #PAN_MILLISECONDS} ms; a
+ * farther one is a «fly to» like a map: the view
  * zooms out while it pans until both places show, then zooms back in as it arrives (van Wijk and Nuij's optimal path,
  * the one d3 uses, so the motion on screen keeps a steady pace however far it goes). Both start and end gently and
  * never pass the target; a travel that takes over a view already moving starts at speed (ease-out) instead.
@@ -57,6 +60,10 @@ final class ViewTravel {
         if (deltaX * deltaX + deltaY * deltaY < SAME_PLACE && from.zoom() == to.zoom()) {
             return new ViewTravel(from, to, 0, false, easing, progress -> to);
         }
+        Optional<Path> anchored = anchored(from, to, screenWidth, screenHeight);
+        if (anchored.isPresent()) {
+            return new ViewTravel(from, to, PAN_MILLISECONDS, false, easing, anchored.get());
+        }
         double pixelsPerUnit = GridPoint.PIXELS_PER_UNIT * from.zoom();
         boolean near = Math.abs(deltaX) <= screenWidth / pixelsPerUnit
                 && Math.abs(deltaY) <= screenHeight / pixelsPerUnit;
@@ -68,6 +75,34 @@ final class ViewTravel {
         long duration = Math.round(Math.max(MINIMUM_FLIGHT_MILLISECONDS,
                 Math.min(MAXIMUM_FLIGHT_MILLISECONDS, 400 + 100 * Math.abs(flight.length))));
         return new ViewTravel(from, to, duration, true, easing, flight::at);
+    }
+
+    /**
+     * A zoom that keeps one grid point still on screen, so zooming into a place reads as «going into it» instead of a
+     * slide sideways while the zoom changes (zoom spec §3.1). With start centre c₀ at k₀ pixels per unit and target c₁
+     * at k₁, the still point is A = (c₁·k₁ − c₀·k₀) / (k₁ − k₀) per axis; along the way k goes evenly in scale and the
+     * centre is A − (A − c₀)·k₀ / k, which is c₁ at the end. Only when the zoom changes and A shows in the pane at the
+     * start (a target the user sees); else empty and the travel pans or flies as before.
+     */
+    private static Optional<Path> anchored(ViewState from, ViewState to, double screenWidth, double screenHeight) {
+        if (from.zoom() == to.zoom()) {
+            return Optional.empty();
+        }
+        double startPixels = GridPoint.PIXELS_PER_UNIT * from.zoom();
+        double endPixels = GridPoint.PIXELS_PER_UNIT * to.zoom();
+        double anchorX = (to.centerX() * endPixels - from.centerX() * startPixels) / (endPixels - startPixels);
+        double anchorY = (to.centerY() * endPixels - from.centerY() * startPixels) / (endPixels - startPixels);
+        boolean anchorShows = Math.abs(anchorX - from.centerX()) * startPixels <= screenWidth / 2
+                && Math.abs(anchorY - from.centerY()) * startPixels <= screenHeight / 2;
+        if (!anchorShows) {
+            return Optional.empty();
+        }
+        return Optional.of(progress -> {
+            double zoom = from.zoom() * Math.pow(to.zoom() / from.zoom(), progress);
+            double shrink = from.zoom() / zoom;
+            return new ViewState(zoom, anchorX - (anchorX - from.centerX()) * shrink,
+                    anchorY - (anchorY - from.centerY()) * shrink);
+        });
     }
 
     /** A straight pan; a zoom change, if any, goes evenly in scale (each frame the same ratio). */

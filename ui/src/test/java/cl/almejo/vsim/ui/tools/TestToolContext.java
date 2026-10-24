@@ -9,11 +9,13 @@ import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.HitTester;
 import cl.almejo.vsim.ui.canvas.Selection;
+import cl.almejo.vsim.ui.canvas.ViewState;
 import cl.almejo.vsim.ui.canvas.Viewport;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.snap.Snapper;
 import cl.almejo.vsim.ui.wiring.SelectionMoves;
 
+import java.awt.Dimension;
 import java.awt.Graphics2D;
 import java.awt.geom.Point2D;
 import java.awt.image.BufferedImage;
@@ -47,6 +49,10 @@ public final class TestToolContext implements ToolContext, AutoCloseable {
     public Snapper snapper = Snapper.none();
     /** The board colours the tools read at paint time; a test may switch it mid-gesture. */
     public ColorScheme scheme = ColorScheme.LIGHT;
+    /** The pane's size in pixels ({@link #viewSize()}); a test may change it. */
+    public Dimension paneSize = new Dimension(800, 600);
+    /** Every view a tool asked to zoom to ({@link #zoomTo}), in order; each is also shown on {@link #viewport}. */
+    public final List<ViewState> zoomTargets = new ArrayList<>();
     private final OpenDocument openDocument;
     private final HitTester hitTester;
 
@@ -217,6 +223,23 @@ public final class TestToolContext implements ToolContext, AutoCloseable {
     /** The last cursor a tool asked for, or null when none did. */
     public CanvasCursor lastCursor() {
         return cursors.isEmpty() ? null : cursors.get(cursors.size() - 1);
+    }
+
+    @Override
+    public Dimension viewSize() {
+        return new Dimension(paneSize);
+    }
+
+    /** Records {@code target} and shows it at once, as the default does (no animation here). */
+    @Override
+    public void zoomTo(ViewState target) {
+        zoomTargets.add(target);
+        ToolContext.super.zoomTo(target);
+    }
+
+    /** The last view a tool asked to zoom to, or null when none did. */
+    public ViewState lastZoomTarget() {
+        return zoomTargets.isEmpty() ? null : zoomTargets.get(zoomTargets.size() - 1);
     }
 
     @Override

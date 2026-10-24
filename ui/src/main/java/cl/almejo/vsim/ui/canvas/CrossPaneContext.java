@@ -12,6 +12,7 @@ import cl.almejo.vsim.ui.tools.Tool;
 import cl.almejo.vsim.ui.tools.ToolContext;
 import cl.almejo.vsim.ui.wiring.SelectionMoves;
 
+import java.awt.Dimension;
 import java.awt.Graphics2D;
 import java.awt.geom.Point2D;
 import java.util.Map;
@@ -55,6 +56,18 @@ final class CrossPaneContext implements ToolContext {
     @Override
     public Viewport viewport() {
         return over.viewport();
+    }
+
+    /** The pressed pane's: a zoom belongs to the pane where the gesture started (view gestures do not cross panes). */
+    @Override
+    public Dimension viewSize() {
+        return owner.viewSize();
+    }
+
+    /** Zooms the pressed pane, never the one the pointer is over. */
+    @Override
+    public void zoomTo(ViewState target) {
+        owner.zoomTo(target);
     }
 
     @Override

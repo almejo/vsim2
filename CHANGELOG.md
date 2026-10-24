@@ -26,6 +26,13 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
   colores se leen en todos los esquemas (también en «Placa»), salen al exportar e imprimir, y la IA puede usarlos en
   sus notas.
 
+### Cambiado
+
+- Volver a 100 % (Ver ▸ «Zoom 100 %», Ctrl+0 o el porcentaje de la barra de estado) ya no salta: viaja suave
+  alrededor del centro de la vista, salvo que «Animar los movimientos de la vista» esté desactivado. Cuando la vista
+  cambia de zoom hacia un lugar que está en pantalla, ese lugar ya no resbala hacia un lado: se siente como entrar en
+  él. Mover la vista o hacer zoom a mano a mitad de camino lo detiene donde está.
+
 ### Arreglado
 
 - Un marco que arma la IA alrededor de una nota ahora la encierra entera, con todas sus líneas (antes una nota de

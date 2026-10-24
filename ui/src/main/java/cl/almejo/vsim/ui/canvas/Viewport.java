@@ -20,6 +20,11 @@ public final class Viewport {
     private double originY;
     private final List<Runnable> changeListeners = new CopyOnWriteArrayList<>();
 
+    /** {@code requestedZoom} within [{@value #MINIMUM_ZOOM}, {@value #MAXIMUM_ZOOM}]: the zooms a view can show. */
+    public static double clampZoom(double requestedZoom) {
+        return Math.max(MINIMUM_ZOOM, Math.min(MAXIMUM_ZOOM, requestedZoom));
+    }
+
     /** Runs {@code listener} after every pan or zoom (M6.5: the inline editor follows the text). Returns its removal. */
     public Runnable addChangeListener(Runnable listener) {
         changeListeners.add(listener);
@@ -62,7 +67,7 @@ public final class Viewport {
             return;
         }
         Point2D anchor = screenToGrid(screenX, screenY);
-        zoom = Math.max(MINIMUM_ZOOM, Math.min(MAXIMUM_ZOOM, requestedZoom));
+        zoom = clampZoom(requestedZoom);
         originX = screenX - anchor.getX() * pixelsPerUnit();
         originY = screenY - anchor.getY() * pixelsPerUnit();
         changed();
@@ -76,10 +81,6 @@ public final class Viewport {
         zoomAt(screenX, screenY, zoom / ZOOM_STEP);
     }
 
-    public void resetZoom(double screenX, double screenY) {
-        zoomAt(screenX, screenY, 1.0);
-    }
-
     public void center(Bounds bounds, int screenWidth, int screenHeight) {
         double centerX = bounds.x() + bounds.width() / 2.0;
         double centerY = bounds.y() + bounds.height() / 2.0;
@@ -90,7 +91,7 @@ public final class Viewport {
 
     /** Shows grid point ({@code centerX}, {@code centerY}) in the middle of a screen of the given size, at the clamped zoom. */
     public void showAt(double requestedZoom, double centerX, double centerY, int screenWidth, int screenHeight) {
-        zoom = Math.max(MINIMUM_ZOOM, Math.min(MAXIMUM_ZOOM, requestedZoom));
+        zoom = clampZoom(requestedZoom);
         originX = screenWidth / 2.0 - centerX * pixelsPerUnit();
         originY = screenHeight / 2.0 - centerY * pixelsPerUnit();
         changed();

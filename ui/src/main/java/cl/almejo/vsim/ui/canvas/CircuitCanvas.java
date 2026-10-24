@@ -776,9 +776,9 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         viewChanged();
     }
 
+    /** Back to 100 % about the middle of the canvas, travelling there like every {@link #zoomTo}. */
     public void resetZoom() {
-        viewport.resetZoom(getWidth() / 2.0, getHeight() / 2.0);
-        viewChanged();
+        zoomTo(ZoomTargets.atZoom(viewState(), 1.0));
     }
 
     public void centerCircuit() {
@@ -826,24 +826,68 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     public void travelTo(Bounds bounds, Rectangle2D within) {
         int width = getWidth();
         int height = getHeight();
-        double zoom = Math.max(Viewport.MINIMUM_ZOOM, Math.min(userZoom,
-                fittingZoom(bounds, (int) Math.round(within.getWidth()), (int) Math.round(within.getHeight()))));
+        double zoom = Math.min(userZoom, ZoomTargets.fitting(bounds, (int) Math.round(within.getWidth()),
+                (int) Math.round(within.getHeight()), FIT_FRACTION, userZoom).zoom());
         double pixels = GridPoint.PIXELS_PER_UNIT * zoom;
         ViewState target = new ViewState(zoom,
                 bounds.x() + bounds.width() / 2.0 - (within.getCenterX() - width / 2.0) / pixels,
                 bounds.y() + bounds.height() / 2.0 - (within.getCenterY() - height / 2.0) / pixels);
-        if (disposed || width <= 0 || height <= 0 || !animateViewMoves.getAsBoolean()) {
-            viewAnimator.stop();
-            movingWithTheTravel = true; // a jump to a target is not the user's zoom either
-            try {
-                viewport.showAt(target.zoom(), target.centerX(), target.centerY(), width, height);
-            } finally {
-                movingWithTheTravel = false;
-            }
-            viewChanged();
-            return;
+        if (canAnimateViewMoves()) {
+            viewAnimator.travel(viewState(), target, width, height);
+        } else {
+            jumpTo(target);
         }
-        viewAnimator.travel(viewState(), target, width, height);
+    }
+
+    /**
+     * Takes the view to {@code target} (its zoom clamped to the viewport limits): a zoom the user asked for (100 %, the
+     * zoom tool's rectangle, «Ver todo el circuito»…), so it becomes the user's zoom at once, where later
+     * {@link #travelTo}s rest, and the view-taken listeners hear it once. With view moves animated and the canvas on
+     * screen it travels there, keeping one point of the pane still when the zoom changes nearby (no sideways slide);
+     * otherwise it jumps. A pan or zoom by hand during the travel stops it where it is; another target replaces it.
+     */
+    @Override
+    public void zoomTo(ViewState target) {
+        ViewState clamped = ZoomTargets.atZoom(Objects.requireNonNull(target, "target"), target.zoom());
+        userZoom = clamped.zoom(); // a travel frame never touches the user's zoom: set it now
+        viewTakenListeners.forEach(Runnable::run);
+        if (canAnimateViewMoves() && onScreen.getAsBoolean()) {
+            viewAnimator.travel(viewState(), clamped, getWidth(), getHeight());
+        } else {
+            jumpTo(clamped);
+        }
+    }
+
+    /**
+     * Zooms to {@code zoom} (clamped) about the middle of the canvas at once, as the user's zoom: for a control that
+     * must follow the hand (the status bar's slider). Stops a travel in progress.
+     */
+    public void zoomAroundCenter(double zoom) {
+        viewport.zoomAt(getWidth() / 2.0, getHeight() / 2.0, zoom);
+        viewChanged();
+    }
+
+    /** The canvas's size in pixels: the pane a tool zooms. */
+    @Override
+    public Dimension viewSize() {
+        return getSize();
+    }
+
+    /** True when a move of the view may travel: animations on, the canvas sized and not disposed. */
+    private boolean canAnimateViewMoves() {
+        return !disposed && getWidth() > 0 && getHeight() > 0 && animateViewMoves.getAsBoolean();
+    }
+
+    /** Shows {@code target} at once, stopping any travel; like a travel's frame, it does not change the user's zoom. */
+    private void jumpTo(ViewState target) {
+        viewAnimator.stop();
+        movingWithTheTravel = true;
+        try {
+            viewport.showAt(target.zoom(), target.centerX(), target.centerY(), getWidth(), getHeight());
+        } finally {
+            movingWithTheTravel = false;
+        }
+        viewChanged();
     }
 
     /** True when the whole of {@code bounds} (grid units) is on screen now; false before the canvas has a size. */
@@ -855,18 +899,6 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         Point2D end = viewport.screenToGrid(getWidth(), getHeight());
         return bounds.x() >= corner.getX() && bounds.y() >= corner.getY()
                 && bounds.maximumX() <= end.getX() && bounds.maximumY() <= end.getY();
-    }
-
-    /** The largest zoom at which {@code bounds} fill at most nine tenths of the canvas each way. */
-    private static double fittingZoom(Bounds bounds, int width, int height) {
-        double fitting = Double.MAX_VALUE;
-        if (bounds.width() > 0 && width > 0) {
-            fitting = Math.min(fitting, width * FIT_FRACTION / (bounds.width() * (double) GridPoint.PIXELS_PER_UNIT));
-        }
-        if (bounds.height() > 0 && height > 0) {
-            fitting = Math.min(fitting, height * FIT_FRACTION / (bounds.height() * (double) GridPoint.PIXELS_PER_UNIT));
-        }
-        return fitting;
     }
 
     private void showTravelFrame(ViewState state) {

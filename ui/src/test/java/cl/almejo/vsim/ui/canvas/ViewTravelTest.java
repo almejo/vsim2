@@ -125,6 +125,71 @@ class ViewTravelTest {
         assertThat(takingOver.at(takingOver.durationMilliseconds())).isEqualTo(target);
     }
 
+    /** Where grid point ({@code gridX}, {@code gridY}) shows in {@code view}, in pixels from the pane's middle. */
+    private static double[] fromTheMiddle(ViewState view, double gridX, double gridY) {
+        double pixelsPerUnit = 8 * view.zoom();
+        return new double[]{(gridX - view.centerX()) * pixelsPerUnit, (gridY - view.centerY()) * pixelsPerUnit};
+    }
+
+    @Test
+    void zoomingIntoAPlaceOnScreenKeepsOnePointStillSoTheViewDoesNotSlideSideways() {
+        // The user framed the part 200 px right and 100 px below the middle, a quarter of the pane wide: zoom ×4.
+        ViewState start = new ViewState(1, 0, 0);
+        ViewState target = new ViewState(4, 200 / 8.0, 100 / 8.0);
+        ViewTravel travel = ViewTravel.between(start, target, WIDTH, HEIGHT, false);
+
+        assertThat(travel.flies()).isFalse();
+        assertThat(travel.durationMilliseconds()).isEqualTo(ViewTravel.PAN_MILLISECONDS);
+        // The still point: A = (c1·k1 − c0·k0) / (k1 − k0), per axis.
+        double anchorX = (target.centerX() * 32 - start.centerX() * 8) / (32 - 8);
+        double anchorY = (target.centerY() * 32 - start.centerY() * 8) / (32 - 8);
+        double[] atStart = fromTheMiddle(start, anchorX, anchorY);
+        for (long elapsed : new long[]{0, 75, 150, 225, 300}) {
+            double[] now = fromTheMiddle(travel.at(elapsed), anchorX, anchorY);
+            assertThat(now[0]).as("x at " + elapsed + " ms").isCloseTo(atStart[0], within(1e-6));
+            assertThat(now[1]).as("y at " + elapsed + " ms").isCloseTo(atStart[1], within(1e-6));
+        }
+        assertThat(travel.at(300)).isEqualTo(target);
+    }
+
+    @Test
+    void zoomingOutOfAPlaceKeepsItsPointStillToo() {
+        ViewState start = new ViewState(2, 10, 5);
+        ViewState target = new ViewState(1, 20, 5);
+        ViewTravel travel = ViewTravel.between(start, target, WIDTH, HEIGHT, false);
+        double anchorX = (target.centerX() * 8 - start.centerX() * 16) / (8 - 16);
+        double[] atStart = fromTheMiddle(start, anchorX, 5);
+        double[] halfWay = fromTheMiddle(travel.at(150), anchorX, 5);
+        assertThat(halfWay[0]).isCloseTo(atStart[0], within(1e-6));
+        assertThat(travel.at(300)).isEqualTo(target);
+    }
+
+    @Test
+    void theSameCentreAtAnotherZoomIsAPureZoomAboutTheMiddle() {
+        ViewState start = new ViewState(2.5, 12, -7);
+        ViewState target = new ViewState(1, 12, -7);
+        ViewTravel travel = ViewTravel.between(start, target, WIDTH, HEIGHT, false);
+        double previous = start.zoom();
+        for (ViewState frame : frames(travel)) {
+            assertThat(frame.centerX()).isCloseTo(12, within(1e-9));
+            assertThat(frame.centerY()).isCloseTo(-7, within(1e-9));
+            assertThat(frame.zoom()).isBetween(1.0, previous);
+            previous = frame.zoom();
+        }
+        assertThat(travel.durationMilliseconds()).isEqualTo(ViewTravel.PAN_MILLISECONDS);
+    }
+
+    @Test
+    void aStillPointOffThePaneFallsBackToThePan() {
+        // ×1.25 toward a place 300 px right: the still point would be 1,500 px right, off the pane.
+        ViewState start = new ViewState(1, 0, 0);
+        ViewState target = new ViewState(1.25, 300 / 8.0, 0);
+        ViewTravel travel = ViewTravel.between(start, target, WIDTH, HEIGHT, false);
+        // The straight pan: the centre moves evenly with the eased time.
+        assertThat(travel.at(150).centerX()).isCloseTo(300 / 8.0 / 2, within(1e-9));
+        assertThat(travel.at(300)).isEqualTo(target);
+    }
+
     @Test
     void goingNowhereTakesNoTime() {
         ViewState here = new ViewState(1, 5, 5);
