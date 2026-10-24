@@ -103,6 +103,14 @@ class FavoritesTest {
     }
 
     @Test
+    void aMarkedRowSaysItIsAFavoriteToAScreenReaderAndAnUnmarkedOneOnlyItsName() {
+        preferences.setPaletteFavorites(List.of("led"));
+
+        assertThat(palette.accessibleNameOf("led")).hasValue("LED, favorito");
+        assertThat(palette.accessibleNameOf("and3")).hasValue("AND de 3 entradas");
+    }
+
+    @Test
     void theArrowKeysWalkPastTheEmptyHintBothWays() {
         JTree tree = palette.tree();
         tree.setSelectionRow(0);

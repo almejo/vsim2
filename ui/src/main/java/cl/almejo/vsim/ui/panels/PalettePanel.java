@@ -27,6 +27,7 @@ import javax.swing.DropMode;
 import javax.swing.Icon;
 import javax.swing.JComponent;
 import javax.swing.KeyStroke;
+import javax.swing.MenuSelectionManager;
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
 import javax.swing.JMenuItem;
@@ -593,6 +594,20 @@ public final class PalettePanel extends JPanel {
         return Optional.empty();
     }
 
+    /** What a screen reader announces for the entry of {@code typeId}, if shown. Package-private for tests. */
+    Optional<String> accessibleNameOf(String typeId) {
+        for (int row = 0; row < tree.getRowCount(); row++) {
+            DefaultMutableTreeNode node = (DefaultMutableTreeNode) tree.getPathForRow(row).getLastPathComponent();
+            Object item = node.getUserObject();
+            if ((item instanceof ComponentType || item instanceof UserComponent) && typeId.equals(typeIdOf(item))) {
+                Component rendered = tree.getCellRenderer().getTreeCellRendererComponent(tree, node, false, false,
+                        true, row, false);
+                return Optional.ofNullable(rendered.getAccessibleContext().getAccessibleName());
+            }
+        }
+        return Optional.empty();
+    }
+
     private static String typeIdOf(Object item) {
         return item instanceof UserComponent component ? component.type().id() : ((ComponentType) item).id();
     }
@@ -800,17 +815,32 @@ public final class PalettePanel extends JPanel {
                     continue;
                 }
                 boolean filled = favoriteIds.contains(typeId.get());
-                if (filled || path.equals(hoverPath) && javax.swing.MenuSelectionManager.defaultManager()
+                if (filled || path.equals(hoverPath) && MenuSelectionManager.defaultManager()
                         .getSelectedPath().length == 0) {
                     // A filled star remains visible in the source category as well as in Favorites.
-                    FavoriteStar star = new FavoriteStar(filled);
-                    graphics.setColor(getBackground());
-                    graphics.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
+                    boolean selected = isRowSelected(row);
+                    FavoriteStar star = new FavoriteStar(filled, selected);
+                    if (!selected) {
+                        // Hides the tail of a long name; a selected row keeps its highlight whole.
+                        graphics.setColor(getBackground());
+                        graphics.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
+                    }
                     star.paintIcon(this, graphics, bounds.x + (bounds.width - star.getIconWidth()) / 2,
                             bounds.y + (bounds.height - star.getIconHeight()) / 2);
                 }
             }
         }
+    }
+
+    /**
+     * The name a screen reader announces for a component row: a favourite says so («LED, favorito»), since the star
+     * is painted and has no accessible object of its own.
+     */
+    private String accessibleName(Object item) {
+        String name = Messages.componentName(item instanceof UserComponent component ? component.type()
+                : (ComponentType) item);
+        return favoriteToggle.isPresent() && favoriteIds.contains(typeIdOf(item))
+                ? Messages.format("palette.favorite.accessibleName", name) : name;
     }
 
     private final class Renderer extends DefaultTreeCellRenderer {
@@ -820,6 +850,8 @@ public final class PalettePanel extends JPanel {
             super.getTreeCellRendererComponent(owner, value, selected, expanded, leaf, row, focused);
             Object item = ((DefaultMutableTreeNode) value).getUserObject();
             setEnabled(owner.isEnabled() && item != FavoriteSection.EMPTY);
+            getAccessibleContext().setAccessibleName(item instanceof ComponentType || item instanceof UserComponent
+                    ? accessibleName(item) : null);
             if (item instanceof ComponentType type) {
                 setText(Messages.componentName(type));
                 setIcon(icon(type));
@@ -831,7 +863,7 @@ public final class PalettePanel extends JPanel {
             } else if (item instanceof FavoriteSection section) {
                 setText(Messages.text(section == FavoriteSection.FAVORITES
                         ? "palette.favorites" : "palette.favorites.empty"));
-                setIcon(section == FavoriteSection.FAVORITES ? new FavoriteStar(true) : null);
+                setIcon(section == FavoriteSection.FAVORITES ? new FavoriteStar(true, selected) : null);
                 setToolTipText(null);
             } else if (item instanceof UserSection section) {
                 setText(section.title());
