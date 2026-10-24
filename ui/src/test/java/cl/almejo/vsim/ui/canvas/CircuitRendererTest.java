@@ -6,6 +6,8 @@ import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.core.document.NoteColor;
+import cl.almejo.vsim.core.document.NoteStyle;
 import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
@@ -281,6 +283,66 @@ class CircuitRendererTest {
         BufferedImage plain = renderPlain(Set.of());
         assertThat(inkInside(plain, text)).isPositive();
         assertThat(inkInside(renderPlain(Set.of(label.id())), around)).isGreaterThan(inkInside(plain, around));
+    }
+
+    @Test
+    void aStyledNoteIsPaintedOnItsBackgroundInsideItsBorderInItsTextColour() {
+        NoteStyle style = new NoteStyle(NoteColor.YELLOW, NoteColor.BLUE, NoteColor.RED);
+        TextLabel note = new TextLabel(document.newLabelId(), new GridPoint(2, 2), "WW", style);
+        document.add(note);
+        Rectangle2D box = LabelLayout.noteBox(note);
+
+        BufferedImage image = renderWithPolicy(PaintPolicy.CANVAS);
+
+        int middle = (int) box.getCenterY();
+        assertThat(new Color(image.getRGB((int) box.getMinX() + 2, middle)))
+                .isEqualTo(SCHEME.noteBackground(NoteColor.YELLOW).orElseThrow());
+        assertThat(reddish(image.getRGB((int) Math.floor(box.getMinX()), middle))).as("the red border").isTrue();
+        assertThat(colours(image, LabelLayout.freeText(note).bounds())).as("blue ink on the yellow")
+                .anyMatch(rgb -> (rgb & 0xFF) > ((rgb >> 16) & 0xFF) + 60);
+    }
+
+    @Test
+    void inBlackAndWhiteAStyledNoteKeepsABlackBorderAndBlackTextAndDropsItsBackground() {
+        TextLabel note = new TextLabel(document.newLabelId(), new GridPoint(2, 2), "WW",
+                new NoteStyle(NoteColor.BLACK, NoteColor.WHITE, NoteColor.RED));
+        document.add(note);
+        Rectangle2D box = LabelLayout.noteBox(note);
+
+        BufferedImage image = renderWithPolicy(PaintPolicy.print(true));
+
+        int middle = (int) box.getCenterY();
+        assertThat(new Color(image.getRGB((int) box.getMinX() + 2, middle))).as("no background on paper")
+                .isEqualTo(SCHEME.background());
+        assertThat(new Color(image.getRGB((int) Math.floor(box.getMinX()), middle)))
+                .as("a dark (antialiased black) border, not the red chosen").satisfies(border -> {
+                    assertThat(border.getRed()).isLessThan(200);
+                    assertThat(reddish(border.getRGB())).isFalse();
+                });
+        assertThat(colours(image, LabelLayout.freeText(note).bounds())).as("black text, not the white chosen")
+                .anyMatch(rgb -> (rgb & 0xFF) < 60);
+    }
+
+    private BufferedImage renderWithPolicy(PaintPolicy policy) {
+        BufferedImage image = new BufferedImage(120, 120, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D graphics = image.createGraphics();
+        graphics.setColor(SCHEME.background());
+        graphics.fillRect(0, 0, 120, 120);
+        renderer.paint(graphics, new RenderState(document, new NetlistCompiler(registry).compile(document),
+                document.revision(), SimulationSnapshot.EMPTY, Set.of(), 0, RenderState.NO_PROBLEM_GLOW, Set.of(),
+                policy));
+        graphics.dispose();
+        return image;
+    }
+
+    private static Set<Integer> colours(BufferedImage image, Rectangle2D area) {
+        Set<Integer> colours = new java.util.HashSet<>();
+        for (int x = (int) area.getMinX(); x < (int) Math.ceil(area.getMaxX()); x++) {
+            for (int y = (int) area.getMinY(); y < (int) Math.ceil(area.getMaxY()); y++) {
+                colours.add(image.getRGB(x, y));
+            }
+        }
+        return colours;
     }
 
     @Test

@@ -1,8 +1,11 @@
 package cl.almejo.vsim.ui.paint;
 
 import cl.almejo.vsim.core.document.FrameTint;
+import cl.almejo.vsim.core.document.NoteColor;
+import cl.almejo.vsim.core.document.NoteStyle;
 
 import java.awt.Color;
+import java.util.Optional;
 
 /**
  * Colors of the circuit drawing, independent of the Swing theme. M4-D adds the other schemes; painters read the
@@ -108,6 +111,35 @@ public record ColorScheme(Color background, Color grid, Color gridLine, Color wi
             return new Color(0, 0, 0, 0);
         }
         return new Color((rgb & 0xFFFFFF) | ((isDark() ? DARK_TINT_ALPHA : LIGHT_TINT_ALPHA) << 24), true);
+    }
+
+    /**
+     * The fill behind a note with that background ({@link NotePalette}): a pale tint on a light board, a deep one on a
+     * dark board, always apart from the board; empty for {@code NONE}.
+     */
+    public Optional<Color> noteBackground(NoteColor color) {
+        return NotePalette.background(color, background);
+    }
+
+    /**
+     * The fill behind a note in {@code style}: as {@link #noteBackground(NoteColor)}, but deep under white text and pale
+     * under black text whatever the board, so the text chosen reads on it.
+     */
+    public Optional<Color> noteBackground(NoteStyle style) {
+        return NotePalette.background(style, background);
+    }
+
+    /**
+     * The colour of a note's text: its colour made readable on its background (or the board), or for «Automático»
+     * this scheme's text colour, black or white when that does not read on the note's background.
+     */
+    public Color noteText(NoteStyle style) {
+        return NotePalette.text(style, background, text);
+    }
+
+    /** The border of a note in that colour, readable on the board; empty for {@code NONE}. */
+    public Optional<Color> noteBorder(NoteColor color) {
+        return NotePalette.border(color, background);
     }
 
     /**

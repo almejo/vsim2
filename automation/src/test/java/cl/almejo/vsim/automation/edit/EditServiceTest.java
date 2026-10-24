@@ -29,6 +29,8 @@ import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.Frame;
 import cl.almejo.vsim.core.document.FrameContents;
 import cl.almejo.vsim.core.document.Guide;
+import cl.almejo.vsim.core.document.NoteColor;
+import cl.almejo.vsim.core.document.NoteStyle;
 import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
@@ -188,6 +190,54 @@ class EditServiceTest {
         assertThat(receipt.version()).isEqualTo(circuit.version());
         assertThat(receipt.changes().added()).contains(gateId, receipt.aliases().get("note"));
         assertThat(receipt.undoDescription()).isEqualTo(AiEditCommand.DESCRIPTION);
+    }
+
+    // --- styled notes (Pulido T5) ---
+
+    @Test
+    void anAddNoteWithAStyleMakesAStyledNote() {
+        NoteStyle style = new NoteStyle(NoteColor.YELLOW, NoteColor.NONE, NoteColor.RED);
+
+        EditReceipt receipt = service.edit(request(
+                new AddNote(Optional.of("note"), "Ojo: activo en bajo", 0, 10, style)));
+
+        assertThat(circuit.document().label(new ElementId(receipt.aliases().get("note"))).orElseThrow().style())
+                .isEqualTo(style);
+    }
+
+    @Test
+    void aSetLabelWithOnlyAStyleChangesTheColoursItNamesAndKeepsTheText() {
+        EditReceipt added = service.edit(request(new AddNote(Optional.of("note"), "nota", 0, 10,
+                new NoteStyle(NoteColor.BLUE, NoteColor.NONE, NoteColor.NONE))));
+        ElementId note = new ElementId(added.aliases().get("note"));
+
+        service.edit(request(new SetLabel(note.value(), Optional.empty(), Optional.of(new NoteStyleChange(
+                Optional.empty(), Optional.of(NoteColor.WHITE), Optional.of(NoteColor.BLACK))))));
+
+        TextLabel styled = circuit.document().label(note).orElseThrow();
+        assertThat(styled.text()).isEqualTo("nota");
+        assertThat(styled.style()).isEqualTo(new NoteStyle(NoteColor.BLUE, NoteColor.WHITE, NoteColor.BLACK));
+    }
+
+    @Test
+    void aStyleOnAnythingButANoteIsRefused() {
+        Map<String, String> ids = inverterParts();
+        long version = circuit.version().value();
+
+        AutomationException refusal = assertRefused(request(new SetLabel(ids.get("not"), Optional.empty(),
+                Optional.of(new NoteStyleChange(Optional.of(NoteColor.RED), Optional.empty(), Optional.empty())))),
+                AutomationError.INVALID_PARAMETER);
+
+        assertThat(refusal.getMessage()).contains("note");
+        assertThat(circuit.version().value()).isEqualTo(version);
+    }
+
+    @Test
+    void aSetLabelWithNeitherTextNorStyleIsRefused() {
+        Map<String, String> ids = inverterParts();
+
+        assertRefused(request(new SetLabel(ids.get("not"), Optional.empty(), Optional.empty())),
+                AutomationError.INVALID_PARAMETER);
     }
 
     @Test

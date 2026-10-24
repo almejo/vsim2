@@ -51,8 +51,8 @@ Una línea por función; el detalle está en [docs/funciones.md](docs/funciones.
 - [Mover con el teclado](docs/funciones.md#mover-con-el-teclado): las flechas mueven la selección en un solo paso de deshacer.
 - [Portapapeles](docs/funciones.md#portapapeles): cortar, copiar, pegar flotando y duplicar.
 - [Arrastrar entre ventanas](docs/funciones.md#arrastrar-entre-ventanas) para mover o copiar entre vistas y circuitos.
-- [Etiquetas, textos y Propiedades](docs/funciones.md#etiquetas-textos-y-propiedades): etiquetas que se mueven, textos libres (notas de varias líneas: Mayús+Enter agrega una línea al editarlas, también en Propiedades) y un panel para editar lo seleccionado.
-- [Elegir un color](docs/funciones.md#elegir-un-color) con una fila de muestras, igual para LED, marcos y túneles.
+- [Etiquetas, textos y Propiedades](docs/funciones.md#etiquetas-textos-y-propiedades): etiquetas que se mueven, textos libres (notas de varias líneas: Mayús+Enter agrega una línea al editarlas, también en Propiedades; con fondo, color de letra y borde si quieres) y un panel para editar lo seleccionado.
+- [Elegir un color](docs/funciones.md#elegir-un-color) con una fila de muestras, igual para LED, marcos, túneles y notas.
 - [Edición de texto en el lugar](docs/funciones.md#edición-de-texto-en-el-lugar) para etiquetas, textos, títulos y valores.
 - [Marcos](docs/funciones.md#marcos) con título, color y candado, que mueven su bloque completo.
 

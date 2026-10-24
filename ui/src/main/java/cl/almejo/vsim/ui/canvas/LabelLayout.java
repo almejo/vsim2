@@ -26,6 +26,8 @@ public final class LabelLayout {
 
     /** Space between a component's body and its label, in document pixels. */
     public static final double GAP = 3;
+    /** Room between the text of a note with a background or a border and the edge of its box, in document pixels. */
+    public static final double NOTE_PADDING = 3;
 
     private static final double UNIT = GridPoint.PIXELS_PER_UNIT;
     private static final FontRenderContext RENDER_CONTEXT = new FontRenderContext(null, true, true);
@@ -148,9 +150,23 @@ public final class LabelLayout {
                 measured.width());
     }
 
-    /** Bounds of a free text label in grid units. */
+    /**
+     * The box a note takes, in document pixels: its text box ({@link #freeText}), grown by {@link #NOTE_PADDING} on
+     * every side when the note has a background or a border, so the box is drawn around the text and the text stays
+     * where it was. Painting, hit testing, the selection outline and the circuit bounds all use it.
+     */
+    public static Rectangle2D noteBox(TextLabel label) {
+        Rectangle2D text = freeText(label).bounds();
+        if (!label.style().boxed()) {
+            return text;
+        }
+        return new Rectangle2D.Double(text.getX() - NOTE_PADDING, text.getY() - NOTE_PADDING,
+                text.getWidth() + 2 * NOTE_PADDING, text.getHeight() + 2 * NOTE_PADDING);
+    }
+
+    /** Bounds of a free text label in grid units: its {@link #noteBox}. */
     public static Rectangle2D gridBounds(TextLabel label) {
-        Rectangle2D bounds = freeText(label).bounds();
+        Rectangle2D bounds = noteBox(label);
         return new Rectangle2D.Double(bounds.getX() / UNIT, bounds.getY() / UNIT,
                 bounds.getWidth() / UNIT, bounds.getHeight() / UNIT);
     }

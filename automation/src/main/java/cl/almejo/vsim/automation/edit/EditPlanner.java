@@ -31,6 +31,7 @@ import cl.almejo.vsim.core.command.PutDefinitionsCommand;
 import cl.almejo.vsim.core.command.RemoveElementsCommand;
 import cl.almejo.vsim.core.command.SetGuidesCommand;
 import cl.almejo.vsim.core.command.SetLabelCommand;
+import cl.almejo.vsim.core.command.SetNoteStyleCommand;
 import cl.almejo.vsim.core.command.TidyWiresCommand;
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
@@ -45,6 +46,7 @@ import cl.almejo.vsim.core.document.Frame;
 import cl.almejo.vsim.core.document.FrameContents;
 import cl.almejo.vsim.core.document.FrameTint;
 import cl.almejo.vsim.core.document.Guide;
+import cl.almejo.vsim.core.document.NoteStyle;
 import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.Bounds;
@@ -207,7 +209,7 @@ final class EditPlanner {
     private static void requirePlainTexts(EditOperation operation) {
         switch (operation) {
             case PlacePart placePart -> PlainText.require(placePart.label(), "label");
-            case SetLabel setLabel -> PlainText.require(setLabel.text(), "label");
+            case SetLabel setLabel -> setLabel.text().ifPresent(text -> PlainText.require(text, "label"));
             case MakeFrame makeFrame -> PlainText.require(makeFrame.title(), "frame title");
             case AddNote addNote -> PlainText.require(addNote.text(), "note");
             case CreateComponent createComponent -> {
@@ -300,7 +302,26 @@ final class EditPlanner {
             throw new AutomationException(AutomationError.INVALID_REFERENCE, element.id() + " is a wire: wires have "
                     + "no label");
         }
-        new SetLabelCommand(element.id(), operation.text()).apply(candidate);
+        if (operation.text().isEmpty() && operation.style().isEmpty()) {
+            throw new AutomationException(AutomationError.INVALID_PARAMETER, "SetLabel needs a text, a style or "
+                    + "both");
+        }
+        if (operation.style().isPresent() && !(element instanceof TextLabel)) {
+            throw new AutomationException(AutomationError.INVALID_PARAMETER, element.id() + " is not a note: only "
+                    + "notes have a style");
+        }
+        operation.text().ifPresent(text -> new SetLabelCommand(element.id(), text).apply(candidate));
+        if (element instanceof TextLabel note) {
+            operation.style().ifPresent(change -> restyle(note, change));
+        }
+    }
+
+    /** Gives {@code note} the colours {@code change} names; nothing when they are the ones it has. */
+    private void restyle(TextLabel note, NoteStyleChange change) {
+        NoteStyle style = change.applyTo(note.style());
+        if (!style.equals(note.style())) {
+            new SetNoteStyleCommand(Map.of(note.id(), style)).apply(candidate);
+        }
     }
 
     // --- wires ---
@@ -408,7 +429,7 @@ final class EditPlanner {
             throw new AutomationException(AutomationError.INVALID_PARAMETER, "A note needs a text");
         }
         TextLabel note = new TextLabel(candidate.newLabelId(), new GridPoint(operation.x(), operation.y()),
-                operation.text());
+                operation.text(), operation.style());
         new AddElementsCommand(List.of(note)).apply(candidate);
         nameElement(alias, note.id());
     }

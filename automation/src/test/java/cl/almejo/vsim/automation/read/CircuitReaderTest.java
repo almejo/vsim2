@@ -12,6 +12,8 @@ import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.Frame;
 import cl.almejo.vsim.core.document.FrameTint;
 import cl.almejo.vsim.core.document.Guide;
+import cl.almejo.vsim.core.document.NoteColor;
+import cl.almejo.vsim.core.document.NoteStyle;
 import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.Bounds;
@@ -127,6 +129,19 @@ class CircuitReaderTest {
                         org.assertj.core.groups.Tuple.tuple(new PinReference(buffer.id().value(), "y", 0),
                                 8, new GridPoint(14, 12)));
         assertThat(view.summary().userComponents()).containsExactly("Búfer de 8 bits");
+    }
+
+    @Test
+    void aNotesStyleShowsOnlyWhenItIsNotPlainAndOnlyItsColours() {
+        fixture.document.add(new TextLabel(fixture.document.newLabelId(), new GridPoint(0, 0), "simple"));
+        fixture.document.add(new TextLabel(fixture.document.newLabelId(), new GridPoint(0, 4), "ojo",
+                new NoteStyle(NoteColor.YELLOW, NoteColor.NONE, NoteColor.RED)));
+
+        CircuitView view = CircuitReader.read(fixture.source(), ReadFilter.SUMMARY, Optional.empty());
+
+        assertThat(view.notes()).extracting(CircuitView.NoteView::style).containsExactly(Optional.empty(),
+                Optional.of(new CircuitView.NoteStyleView(Optional.of(NoteColor.YELLOW), Optional.empty(),
+                        Optional.of(NoteColor.RED))));
     }
 
     @Test

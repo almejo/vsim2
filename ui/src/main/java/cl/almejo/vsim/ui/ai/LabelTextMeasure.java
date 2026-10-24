@@ -30,7 +30,7 @@ final class LabelTextMeasure implements TextMeasure {
 
     @Override
     public TextBox freeText(TextLabel label) {
-        return inGridUnits(LabelLayout.freeText(label).bounds());
+        return inGridUnits(LabelLayout.noteBox(label));
     }
 
     private static TextBox inGridUnits(Rectangle2D pixels) {

@@ -6,6 +6,8 @@ import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.LabelOffset;
+import cl.almejo.vsim.core.document.NoteColor;
+import cl.almejo.vsim.core.document.NoteStyle;
 import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
@@ -64,6 +66,32 @@ class LabelLayoutTest {
             assertThat(label.getMaxX()).isCloseTo(body.getMinX() - LabelLayout.GAP, within(0.01));
             assertThat(label.getCenterY()).isCloseTo(body.getCenterY(), within(0.01));
         }
+    }
+
+    @Test
+    void aNoteWithABackgroundOrABorderIsABoxPaddedAroundItsTextAndItsTextStaysPut() {
+        TextLabel plain = new TextLabel(new ElementId("t1"), new GridPoint(4, 6), "Ojo\nactivo en bajo");
+        double padding = LabelLayout.NOTE_PADDING;
+        for (NoteStyle style : List.of(new NoteStyle(NoteColor.YELLOW, NoteColor.NONE, NoteColor.NONE),
+                new NoteStyle(NoteColor.NONE, NoteColor.NONE, NoteColor.RED))) {
+            TextLabel styled = plain.withStyle(style);
+            Rectangle2D text = LabelLayout.freeText(plain).bounds();
+
+            assertThat(LabelLayout.freeText(styled).lines()).isEqualTo(LabelLayout.freeText(plain).lines());
+            assertThat(LabelLayout.noteBox(styled)).isEqualTo(new Rectangle2D.Double(text.getX() - padding,
+                    text.getY() - padding, text.getWidth() + 2 * padding, text.getHeight() + 2 * padding));
+            assertThat(LabelLayout.gridBounds(styled).getWidth() * GridPoint.PIXELS_PER_UNIT)
+                    .isCloseTo(text.getWidth() + 2 * padding, within(0.01));
+        }
+    }
+
+    @Test
+    void aPlainNoteOrOneWithOnlyATextColourKeepsItsBoxAsAlways() {
+        TextLabel plain = new TextLabel(new ElementId("t1"), new GridPoint(4, 6), "nota");
+        TextLabel blue = plain.withStyle(new NoteStyle(NoteColor.NONE, NoteColor.BLUE, NoteColor.NONE));
+
+        assertThat(LabelLayout.noteBox(plain)).isEqualTo(LabelLayout.freeText(plain).bounds());
+        assertThat(LabelLayout.gridBounds(blue)).isEqualTo(LabelLayout.gridBounds(plain));
     }
 
     @Test

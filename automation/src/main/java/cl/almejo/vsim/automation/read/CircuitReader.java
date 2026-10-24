@@ -76,7 +76,7 @@ public final class CircuitReader {
                 case Frame frame -> frames.add(new FrameView(frame.id().value(), frame.title(),
                         new Bounds(frame.topLeft().x(), frame.topLeft().y(), frame.width(), frame.height()),
                         frame.tint().name(), frame.locked()));
-                case TextLabel label -> notes.add(new NoteView(label.id().value(), label.position(), label.text()));
+                case TextLabel label -> notes.add(NoteView.of(label));
             }
         }
         List<GuideView> guides = offset == 0

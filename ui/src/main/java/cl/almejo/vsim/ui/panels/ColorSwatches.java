@@ -40,9 +40,10 @@ import java.util.function.Supplier;
 
 /**
  * A row of colour swatches to pick one value of a fixed list: a tunnel entrada's palette colour, an LED's colour, a
- * frame's tint. The caller gives the values, the visible name of each (tooltip and accessible name, so the colour is
- * never the only cue) and its fill, which is asked again at every paint so a theme or scheme change shows at once;
- * an empty fill is a «no colour» swatch, drawn as an outline crossed by a diagonal.
+ * frame's tint, a note's background, text and border. The caller gives the values, the visible name of each (tooltip
+ * and accessible name, so the colour is never the only cue) and its fill, which is asked again at every paint so a
+ * theme or scheme change shows at once; an empty fill is a «no colour» swatch, drawn as an outline crossed by a
+ * diagonal.
  *
  * <p>The chosen swatch is pressed and circled by a ring in {@link #selectionRingColor()}, with a gap so the ring reads
  * on any hue. With the keyboard the row is one Tab stop (the chosen swatch, or the one the arrows last moved to), the
@@ -77,7 +78,9 @@ public final class ColorSwatches<T> extends JPanel {
     private final List<T> values;
     private final List<JToggleButton> swatches = new ArrayList<>();
     private final List<Runnable> listeners = new CopyOnWriteArrayList<>();
+    private final ButtonGroup group = new ButtonGroup();
     private T selectedValue;
+    private boolean showsNoChoice;
 
     /**
      * @param values   the values offered, in the order shown
@@ -95,7 +98,6 @@ public final class ColorSwatches<T> extends JPanel {
         Objects.requireNonNull(nameOf, "nameOf");
         Objects.requireNonNull(fillOf, "fillOf");
         this.selectedValue = selected;
-        ButtonGroup group = new ButtonGroup();
         for (int index = 0; index < this.values.size(); index++) {
             JToggleButton swatch = newSwatch(index, nameOf, fillOf);
             group.add(swatch);
@@ -204,15 +206,16 @@ public final class ColorSwatches<T> extends JPanel {
     }
 
     private void choose(T value) {
-        if (value.equals(selectedValue)) {
+        if (!showsNoChoice && value.equals(selectedValue)) {
             return;
         }
         selectedValue = value;
+        showsNoChoice = false;
         moveTabStopToTheChosenSwatch();
         listeners.forEach(Runnable::run);
     }
 
-    /** The value chosen now. */
+    /** The value chosen now; while {@link #showsNoChoice()}, the last one chosen. */
     public T selectedValue() {
         return selectedValue;
     }
@@ -224,8 +227,23 @@ public final class ColorSwatches<T> extends JPanel {
             throw new IllegalArgumentException(value + " is not one of " + values);
         }
         selectedValue = value;
+        showsNoChoice = false;
         swatches.get(index).setSelected(true);
         moveTabStopToTheChosenSwatch();
+    }
+
+    /**
+     * Shows no swatch as chosen, without calling the listeners: the row stands for several things whose values
+     * differ (notes of different colours). Any pick then calls the listeners, even of the value chosen last.
+     */
+    public void showNoChoice() {
+        showsNoChoice = true;
+        group.clearSelection();
+    }
+
+    /** True while no swatch is shown as chosen ({@link #showNoChoice}). */
+    public boolean showsNoChoice() {
+        return showsNoChoice;
     }
 
     /** The values offered, in the order shown. */

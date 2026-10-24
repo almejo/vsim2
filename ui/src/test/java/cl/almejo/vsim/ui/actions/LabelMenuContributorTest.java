@@ -7,6 +7,8 @@ import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.LabelOffset;
+import cl.almejo.vsim.core.document.NoteColor;
+import cl.almejo.vsim.core.document.NoteStyle;
 import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
@@ -25,6 +27,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import javax.swing.JMenu;
 import javax.swing.JMenuItem;
 import javax.swing.JPopupMenu;
 import java.awt.event.ActionEvent;
@@ -133,7 +136,50 @@ class LabelMenuContributorTest {
         TextLabel label = new TextLabel(openDocument.document().newLabelId(), new GridPoint(3, 3), "nota");
         openDocument.execute(new AddElementsCommand(List.of(label)));
         selection.select(label.id());
-        assertThat(texts(menuFor(Optional.of(label)))).containsExactly("Editar texto…");
+        assertThat(texts(menuFor(Optional.of(label)))).containsExactly("Editar texto…", "Estilo");
+    }
+
+    @Test
+    void estiloOffersFondoLetraAndBordeEachWithItsColoursAndTheCurrentOneChosen() {
+        TextLabel label = new TextLabel(openDocument.document().newLabelId(), new GridPoint(3, 3), "nota",
+                new NoteStyle(NoteColor.NONE, NoteColor.RED, NoteColor.NONE));
+        openDocument.execute(new AddElementsCommand(List.of(label)));
+        selection.select(label.id());
+
+        JMenu style = (JMenu) menuFor(Optional.of(label)).getComponent(1);
+
+        assertThat(texts(style)).containsExactly("Fondo", "Letra", "Borde");
+        JMenu text = (JMenu) style.getMenuComponent(1);
+        assertThat(texts(text)).hasSize(NoteColor.values().length).startsWith("Automático", "Azul");
+        assertThat(((JMenuItem) text.getMenuComponent(NoteColor.RED.ordinal())).isSelected()).isTrue();
+        assertThat(texts((JMenu) style.getMenuComponent(0))).startsWith("Ninguno");
+    }
+
+    @Test
+    void aColourFromEstiloPaintsEverySelectedNoteAsOneUndoStep() {
+        TextLabel first = new TextLabel(openDocument.document().newLabelId(), new GridPoint(3, 3), "uno");
+        TextLabel second = new TextLabel(openDocument.document().newLabelId(), new GridPoint(3, 9), "dos");
+        openDocument.execute(new AddElementsCommand(List.of(first, second)));
+        selection.set(List.of(first.id(), second.id()));
+
+        JPopupMenu menu = menuFor(Optional.of(first));
+        assertThat(texts(menu)).containsExactly("Estilo");
+        JMenu background = (JMenu) ((JMenu) menu.getComponent(0)).getMenuComponent(0);
+        ((JMenuItem) background.getMenuComponent(NoteColor.YELLOW.ordinal())).doClick();
+
+        assertThat(openDocument.document().labels()).extracting(note -> note.style().background())
+                .containsExactly(NoteColor.YELLOW, NoteColor.YELLOW);
+        openDocument.history().undo();
+        assertThat(openDocument.document().labels()).extracting(TextLabel::style)
+                .containsOnly(NoteStyle.PLAIN);
+    }
+
+    private static List<String> texts(JMenu menu) {
+        List<String> texts = new ArrayList<>();
+        for (java.awt.Component child : menu.getMenuComponents()) {
+            texts.add(child instanceof JMenuItem item ? item.getText() : "---");
+        }
+        return texts;
     }
 
     @Test

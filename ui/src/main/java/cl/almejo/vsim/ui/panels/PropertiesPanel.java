@@ -4,6 +4,7 @@ import cl.almejo.vsim.core.command.ChangeFrameCommand;
 import cl.almejo.vsim.core.command.Command;
 import cl.almejo.vsim.core.command.CompositeCommand;
 import cl.almejo.vsim.core.command.SetLabelCommand;
+import cl.almejo.vsim.core.command.SetNoteStyleCommand;
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
@@ -14,6 +15,8 @@ import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.Frame;
 import cl.almejo.vsim.core.document.FrameContents;
 import cl.almejo.vsim.core.document.FrameTint;
+import cl.almejo.vsim.core.document.NoteColor;
+import cl.almejo.vsim.core.document.NoteStyle;
 import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.ui.app.OpenDocument;
@@ -21,6 +24,7 @@ import cl.almejo.vsim.ui.canvas.Selection;
 import cl.almejo.vsim.ui.clipboard.FragmentRefusingTransferHandler;
 import cl.almejo.vsim.ui.i18n.FrameTintNames;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.i18n.NoteColorNames;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.theme.ErrorTextLabel;
 import cl.almejo.vsim.ui.tunnel.TunnelColorSwatches;
@@ -37,6 +41,7 @@ import javax.swing.text.JTextComponent;
 import java.awt.Color;
 import java.awt.event.FocusAdapter;
 import java.awt.event.FocusEvent;
+import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -64,6 +69,7 @@ public final class PropertiesPanel extends JPanel {
     private final Supplier<ColorScheme> scheme;
     private ColorSwatches<FrameTint> frameColor;
     private JSpinner[] frameSpinners;
+    private Map<NoteStyle.Role, ColorSwatches<NoteColor>> noteStyleRows = Map.of();
     private Runnable pendingEdits = () -> { };
     private int generation;
     private boolean applying;
@@ -155,6 +161,7 @@ public final class PropertiesPanel extends JPanel {
         parameterForm = null;
         frameColor = null;
         frameSpinners = null;
+        noteStyleRows = Map.of();
         pendingEdits = () -> { };
         error.setText(" ");
         shown = selection.ids();
@@ -163,6 +170,10 @@ public final class PropertiesPanel extends JPanel {
             heading.setText(Messages.text("properties.none"));
         } else if (shown.size() > 1) {
             heading.setText(Messages.format("properties.several", shown.size()));
+            List<TextLabel> notes = shownNotes();
+            if (notes.size() == shown.size()) {
+                addNoteStyleRows(notes);
+            }
         } else {
             showElement(openDocument.document().element(shown.iterator().next()).orElse(null));
         }
@@ -228,6 +239,53 @@ public final class PropertiesPanel extends JPanel {
         });
         noteArea = area;
         pendingEdits = apply;
+        addNoteStyleRows(List.of(label));
+    }
+
+    /** The notes among the elements shown, in document order. */
+    private List<TextLabel> shownNotes() {
+        return openDocument.document().labels().stream().filter(note -> shown.contains(note.id())).toList();
+    }
+
+    /**
+     * «Fondo», «Letra» and «Borde» for {@code notes}: each row shows the colour the notes share, or no choice when
+     * they differ; a pick paints that part of every note, one undo step.
+     */
+    private void addNoteStyleRows(List<TextLabel> notes) {
+        int built = generation;
+        List<ElementId> ids = notes.stream().map(TextLabel::id).toList();
+        Map<NoteStyle.Role, ColorSwatches<NoteColor>> rows = new EnumMap<>(NoteStyle.Role.class);
+        for (NoteStyle.Role role : NoteStyle.Role.values()) {
+            List<NoteColor> colors = notes.stream().map(note -> note.style().color(role)).distinct().toList();
+            ColorSwatches<NoteColor> swatches = noteColorSwatches(role, colors.getFirst());
+            if (colors.size() > 1) {
+                swatches.showNoChoice();
+            }
+            swatches.addChoiceListener(() -> applyIfCurrent(built, () -> SetNoteStyleCommand.setting(
+                    openDocument.document(), ids, role, swatches.selectedValue()).ifPresent(openDocument::execute)));
+            addRow(NoteColorNames.of(role), swatches);
+            rows.put(role, swatches);
+        }
+        noteStyleRows = rows;
+    }
+
+    /**
+     * One swatch per note colour as {@code role} shows it on the board now: the fill of a background, the colour of a
+     * text or a border; «Ninguno» is the crossed-out swatch and the text's «Automático» the scheme's text colour.
+     */
+    private ColorSwatches<NoteColor> noteColorSwatches(NoteStyle.Role role, NoteColor selected) {
+        return new ColorSwatches<>(List.of(NoteColor.values()), selected, color -> NoteColorNames.of(role, color),
+                color -> switch (role) {
+                    case BACKGROUND -> scheme.get().noteBackground(color);
+                    case TEXT -> color == NoteColor.NONE ? Optional.of(scheme.get().text())
+                            : scheme.get().noteBorder(color);
+                    case BORDER -> scheme.get().noteBorder(color);
+                });
+    }
+
+    /** The swatches of {@code role} for the notes shown; null when no note is shown alone or with other notes only. */
+    ColorSwatches<NoteColor> noteStyle(NoteStyle.Role role) {
+        return noteStyleRows.get(role);
     }
 
     /**

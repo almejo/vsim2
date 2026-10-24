@@ -21,6 +21,10 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
   «IA: escuchando», «IA: conectada», «IA: trabajando» o «IA: error»; al pasar el mouse dice la dirección y un clic
   abre Herramientas ▸ «IA (MCP)…». Un aviso largo ya no lo saca de la barra (se corta, con el texto completo al pasar
   el mouse). Preferencias ▸ «IA» muestra arriba el mismo estado con Encender / Apagar y Reiniciar.
+- Las notas pueden tener fondo, color de letra y un borde con su propio color, desde Propiedades («Fondo», «Letra»,
+  «Borde») o el menú contextual «Estilo ▸», también para varias notas a la vez; por omisión se ven como siempre. Los
+  colores se leen en todos los esquemas (también en «Placa»), salen al exportar e imprimir, y la IA puede usarlos en
+  sus notas.
 
 ### Arreglado
 

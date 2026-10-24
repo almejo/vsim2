@@ -507,7 +507,7 @@ public final class CircuitRenderer {
                     graphics.setColor(scheme.preview());
                     graphics.draw(line(wire));
                 }
-                case TextLabel label -> paintText(graphics, label, scheme.preview());
+                case TextLabel label -> paintNoteGhost(graphics, label, scheme);
                 case Frame frame -> FramePainter.paint(graphics, frame, scheme, Double.MAX_VALUE);
             }
         } finally {
@@ -556,9 +556,9 @@ public final class CircuitRenderer {
 
     private void paintTextLabels(Graphics2D graphics, RenderState state, ColorScheme scheme) {
         for (TextLabel label : state.document().labels()) {
-            paintText(graphics, label, scheme.text());
+            NotePainter.paint(graphics, label, scheme, state.policy());
             if (state.selection().contains(label.id())) {
-                Rectangle2D bounds = LabelLayout.freeText(label).bounds();
+                Rectangle2D bounds = LabelLayout.noteBox(label);
                 MarchingAnts.draw(graphics, new Rectangle2D.Double(bounds.getX() - OUTLINE_GAP,
                         bounds.getY() - OUTLINE_GAP, bounds.getWidth() + 2 * OUTLINE_GAP,
                         bounds.getHeight() + 2 * OUTLINE_GAP), scheme.selection(), SELECTION_OUTLINE_WIDTH,
@@ -567,15 +567,12 @@ public final class CircuitRenderer {
         }
     }
 
-    private static void paintText(Graphics2D graphics, TextLabel label, Color color) {
-        LabelLayout.PlacedText placed = LabelLayout.freeText(label);
-        graphics.setFont(LabelLayout.font());
-        graphics.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
-        graphics.setColor(color);
-        for (LabelLayout.Line line : placed.lines()) {
-            if (!line.text().isEmpty()) {
-                graphics.drawString(line.text(), line.baselineX(), line.baselineY());
-            }
+    /** The ghost of a note: a plain one in the preview colour, as ever; a styled one with its own colours. */
+    private static void paintNoteGhost(Graphics2D graphics, TextLabel label, ColorScheme scheme) {
+        if (label.style().isPlain()) {
+            NotePainter.paintLines(graphics, label, scheme.preview());
+        } else {
+            NotePainter.paint(graphics, label, scheme, PaintPolicy.CANVAS);
         }
     }
 

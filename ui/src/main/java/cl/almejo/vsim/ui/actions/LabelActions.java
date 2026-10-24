@@ -9,10 +9,13 @@ import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.command.RemoveWireSegmentCommand;
 import cl.almejo.vsim.core.command.SetLabelCommand;
 import cl.almejo.vsim.core.command.SetLabelOffsetCommand;
+import cl.almejo.vsim.core.command.SetNoteStyleCommand;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.Frame;
+import cl.almejo.vsim.core.document.NoteColor;
+import cl.almejo.vsim.core.document.NoteStyle;
 import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
@@ -35,6 +38,7 @@ import cl.almejo.vsim.ui.tunnel.TunnelNameEditor;
 import javax.swing.AbstractAction;
 import javax.swing.Action;
 import java.awt.event.ActionEvent;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -84,6 +88,14 @@ public final class LabelActions {
         } else {
             editLabel(element);
         }
+    }
+
+    /**
+     * Paints {@code role} of every note among {@code ids} in {@code color} (the other elements are left alone), one
+     * undo step; nothing when no note changes.
+     */
+    public void styleNotes(Collection<ElementId> ids, NoteStyle.Role role, NoteColor color) {
+        SetNoteStyleCommand.setting(openDocument.document(), ids, role, color).ifPresent(openDocument::execute);
     }
 
     /**

@@ -71,7 +71,7 @@ public final class PasteCommand implements Command {
             ids.add(placed.id());
         }
         for (TextLabel label : fragment.labels()) {
-            TextLabel placed = new TextLabel(document.newLabelId(), label.position().plus(at), label.text());
+            TextLabel placed = label.placed(document.newLabelId(), label.position().plus(at));
             elements.add(placed);
             ids.add(placed.id());
         }

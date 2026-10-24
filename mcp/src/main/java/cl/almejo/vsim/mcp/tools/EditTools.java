@@ -5,14 +5,18 @@ import cl.almejo.vsim.automation.PinReference;
 import cl.almejo.vsim.automation.edit.EditOperation;
 import cl.almejo.vsim.automation.edit.EditReceipt;
 import cl.almejo.vsim.automation.edit.EditRequest;
+import cl.almejo.vsim.automation.edit.NoteStyleChange;
 import cl.almejo.vsim.automation.edit.PinTarget;
 import cl.almejo.vsim.automation.edit.TaskStep;
 import cl.almejo.vsim.automation.present.PresentedEdit;
 import cl.almejo.vsim.automation.present.StepStatus;
 import cl.almejo.vsim.core.document.Guide;
+import cl.almejo.vsim.core.document.NoteColor;
+import cl.almejo.vsim.core.document.NoteStyle;
 import cl.almejo.vsim.core.geometry.Rotation;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -28,6 +32,7 @@ final class EditTools {
 
     private static final List<String> ROTATIONS = List.of("R0", "R90", "R180", "R270");
     private static final List<String> ORIENTATIONS = List.of("HORIZONTAL", "VERTICAL");
+    private static final List<String> NOTE_COLORS = Arrays.stream(NoteColor.values()).map(NoteColor::name).toList();
 
     private EditTools() {
     }
@@ -75,6 +80,13 @@ final class EditTools {
                 .required("target").build();
     }
 
+    /** A note's colours by name, the same list for the three. */
+    private static Map<String, Object> noteStyle(String description) {
+        Map<String, Object> color = Schema.enumeration("", NOTE_COLORS);
+        return Schema.object(description).property("background", color).property("text", color)
+                .property("border", color).build();
+    }
+
     private static Schema.ObjectSchema operation(String kind, String description) {
         return Schema.object(description).property("op", Schema.constant(kind)).required("op");
     }
@@ -96,11 +108,13 @@ final class EditTools {
                         .property("target", target("The part"))
                         .property("parameters", parameters)
                         .required("target", "parameters").build(),
-                operation("SetLabel", "The label of a part, the text of a note or the title of a frame")
+                operation("SetLabel", "The label of a part, the text of a note or the title of a frame; text, "
+                        + "style or both")
                         .property("target", target(""))
                         .property("text", Schema.string("A note may have several lines: use \\n for a new line "
                                 + "(a label or a title stays one line)"))
-                        .required("target", "text").build(),
+                        .property("style", noteStyle("Notes only: the colours given change"))
+                        .required("target").build(),
                 operation("Connect", "Joins two pins with an orthogonal route through the via points, if any; a "
                         + "route that would touch another net is refused (ROUTE_REJECTED): retry with via points "
                         + "around it")
@@ -133,6 +147,7 @@ final class EditTools {
                                 + "use \\n for a new line"))
                         .property("x", Schema.integer("Top-left corner"))
                         .property("y", coordinate())
+                        .property("style", noteStyle("Colours; NONE or left out: a plain note"))
                         .required("text", "x", "y").build(),
                 operation("AddGuide", "An alignment guide; layoutOnly true: VSim removes it when the task ends")
                         .property("orientation", Schema.enumeration("HORIZONTAL (y = position) or VERTICAL "
@@ -181,7 +196,8 @@ final class EditTools {
                     operation.map("parameters"), operation.string("label", ""));
             case "SetParameters" -> new EditOperation.SetParameters(operation.string("target"),
                     operation.map("parameters"));
-            case "SetLabel" -> new EditOperation.SetLabel(operation.string("target"), operation.string("text"));
+            case "SetLabel" -> new EditOperation.SetLabel(operation.string("target"),
+                    operation.optionalString("text"), operation.optionalObject("style").map(EditTools::styleOf));
             case "Connect" -> new EditOperation.Connect(pinTargetOf(operation.object("from")),
                     pinTargetOf(operation.object("to")), operation.points("via"));
             case "AddWire" -> new EditOperation.AddWire(operation.points("points"));
@@ -192,7 +208,8 @@ final class EditTools {
                     operation.string("title"), operation.strings("targets"), operation.optionalBounds("bounds"),
                     operation.bool("locked", false));
             case "AddNote" -> new EditOperation.AddNote(operation.optionalString("alias"), operation.string("text"),
-                    operation.integer("x"), operation.integer("y"));
+                    operation.integer("x"), operation.integer("y"), operation.optionalObject("style")
+                    .map(style -> styleOf(style).applyTo(NoteStyle.PLAIN)).orElse(NoteStyle.PLAIN));
             case "AddGuide" -> new EditOperation.AddGuide(
                     operation.enumeration("orientation", Guide.Orientation.class), operation.integer("position"),
                     operation.bool("layoutOnly", false));
@@ -215,6 +232,15 @@ final class EditTools {
             return presented.status();
         }
         return presented.receipt().applied() ? Optional.of(StepStatus.APPLIED) : Optional.empty();
+    }
+
+    /** The colours a {@code style} argument names; the ones it leaves out stay empty. */
+    private static NoteStyleChange styleOf(Arguments style) {
+        return new NoteStyleChange(color(style, "background"), color(style, "text"), color(style, "border"));
+    }
+
+    private static Optional<NoteColor> color(Arguments style, String name) {
+        return style.has(name) ? Optional.of(style.enumeration(name, NoteColor.class)) : Optional.empty();
     }
 
     private static Rotation rotationOf(Arguments operation) {

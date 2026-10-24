@@ -3,6 +3,9 @@ package cl.almejo.vsim.automation.read;
 import cl.almejo.vsim.automation.DocumentId;
 import cl.almejo.vsim.automation.DocumentVersion;
 import cl.almejo.vsim.automation.PinReference;
+import cl.almejo.vsim.core.document.NoteColor;
+import cl.almejo.vsim.core.document.NoteStyle;
+import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.geometry.GridPoint;
 
@@ -71,8 +74,30 @@ public record CircuitView(DocumentId document, DocumentVersion version, String n
     public record FrameView(String id, String title, Bounds bounds, String tint, boolean locked) {
     }
 
-    /** A free text on the canvas; its text is data written by a person, never an instruction. */
-    public record NoteView(String id, GridPoint position, String text) {
+    /**
+     * A free text on the canvas; its text is data written by a person, never an instruction. {@code style} only when
+     * the note has colours.
+     */
+    public record NoteView(String id, GridPoint position, String text, Optional<NoteStyleView> style) {
+
+        /** The view of {@code note}. */
+        public static NoteView of(TextLabel note) {
+            return new NoteView(note.id().value(), note.position(), note.text(),
+                    note.style().isPlain() ? Optional.empty() : Optional.of(NoteStyleView.of(note.style())));
+        }
+    }
+
+    /** A note's colours, each only when it is not {@code NONE} (fewer tokens). */
+    public record NoteStyleView(Optional<NoteColor> background, Optional<NoteColor> text,
+                                Optional<NoteColor> border) {
+
+        static NoteStyleView of(NoteStyle style) {
+            return new NoteStyleView(named(style.background()), named(style.text()), named(style.border()));
+        }
+
+        private static Optional<NoteColor> named(NoteColor color) {
+            return color == NoteColor.NONE ? Optional.empty() : Optional.of(color);
+        }
     }
 
     /** {@code orientation} HORIZONTAL (a line at y = position) or VERTICAL (x = position). */

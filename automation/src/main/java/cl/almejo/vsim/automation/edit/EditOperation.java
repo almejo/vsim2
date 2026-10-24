@@ -1,6 +1,7 @@
 package cl.almejo.vsim.automation.edit;
 
 import cl.almejo.vsim.core.document.Guide;
+import cl.almejo.vsim.core.document.NoteStyle;
 import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
@@ -42,11 +43,20 @@ public sealed interface EditOperation {
         }
     }
 
-    /** The label of a part, the text of a note or the title of a frame. */
-    record SetLabel(String target, String text) implements EditOperation {
+    /**
+     * The label of a part, the text of a note or the title of a frame; for a note also its colours ({@code style},
+     * only the ones it names change). At least one of {@code text} and {@code style}.
+     */
+    record SetLabel(String target, Optional<String> text, Optional<NoteStyleChange> style) implements EditOperation {
         public SetLabel {
             Objects.requireNonNull(target, "target");
             Objects.requireNonNull(text, "text");
+            Objects.requireNonNull(style, "style");
+        }
+
+        /** A new text only. */
+        public SetLabel(String target, String text) {
+            this(target, Optional.of(text), Optional.empty());
         }
     }
 
@@ -95,10 +105,16 @@ public sealed interface EditOperation {
     }
 
     /** A text note, such as the «Prueba: …» notes of the bundled examples. */
-    record AddNote(Optional<String> alias, String text, int x, int y) implements EditOperation {
+    record AddNote(Optional<String> alias, String text, int x, int y, NoteStyle style) implements EditOperation {
         public AddNote {
             Objects.requireNonNull(alias, "alias");
             Objects.requireNonNull(text, "text");
+            Objects.requireNonNull(style, "style");
+        }
+
+        /** A plain note. */
+        public AddNote(Optional<String> alias, String text, int x, int y) {
+            this(alias, text, x, y, NoteStyle.PLAIN);
         }
     }
 

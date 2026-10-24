@@ -11,6 +11,8 @@ import cl.almejo.vsim.core.document.Frame;
 import cl.almejo.vsim.core.document.FrameTint;
 import cl.almejo.vsim.core.document.Guide;
 import cl.almejo.vsim.core.document.LabelOffset;
+import cl.almejo.vsim.core.document.NoteColor;
+import cl.almejo.vsim.core.document.NoteStyle;
 import cl.almejo.vsim.core.document.Probe;
 import cl.almejo.vsim.core.document.ProbeTarget;
 import cl.almejo.vsim.core.document.TextLabel;
@@ -55,7 +57,14 @@ public final class CircuitFormat {
     record WireEntry(String id, int x1, int y1, int x2, int y2) {
     }
 
-    record LabelEntry(String id, int x, int y, String text) {
+    /** A note; {@code style} is written only when the note is not plain, so a plain note keeps its bytes. */
+    record LabelEntry(String id, int x, int y, String text,
+                      @JsonInclude(JsonInclude.Include.NON_NULL) StyleEntry style) {
+    }
+
+    /** A note's colours by {@link NoteColor} name; each one is written only when it is not {@code NONE}. */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    record StyleEntry(String background, String text, String border) {
     }
 
     /**
@@ -110,7 +119,20 @@ public final class CircuitFormat {
     }
 
     static LabelEntry labelEntry(TextLabel label) {
-        return new LabelEntry(label.id().value(), label.position().x(), label.position().y(), label.text());
+        return new LabelEntry(label.id().value(), label.position().x(), label.position().y(), label.text(),
+                styleEntry(label.style()));
+    }
+
+    /** The entry of a note's style; {@code null} (no key) for a plain note. */
+    private static StyleEntry styleEntry(NoteStyle style) {
+        if (style.isPlain()) {
+            return null;
+        }
+        return new StyleEntry(colorName(style.background()), colorName(style.text()), colorName(style.border()));
+    }
+
+    private static String colorName(NoteColor color) {
+        return color == NoteColor.NONE ? null : color.name();
     }
 
     /**
@@ -282,7 +304,33 @@ public final class CircuitFormat {
     }
 
     static TextLabel label(LabelEntry entry) {
-        return new TextLabel(new ElementId(entry.id()), new GridPoint(entry.x(), entry.y()), entry.text());
+        return new TextLabel(new ElementId(entry.id()), new GridPoint(entry.x(), entry.y()), entry.text(),
+                style(entry));
+    }
+
+    /**
+     * The style of a note entry. A colour name VSim does not know fails the load (IllegalArgumentException, which the
+     * readers turn into {@code INVALID_ELEMENT}) with a message that names the note, the part and the name.
+     */
+    private static NoteStyle style(LabelEntry entry) {
+        StyleEntry style = entry.style();
+        if (style == null) {
+            return NoteStyle.PLAIN;
+        }
+        return new NoteStyle(noteColor(style.background(), "background", entry),
+                noteColor(style.text(), "text", entry), noteColor(style.border(), "border", entry));
+    }
+
+    private static NoteColor noteColor(String name, String role, LabelEntry entry) {
+        if (name == null) {
+            return NoteColor.NONE;
+        }
+        try {
+            return NoteColor.valueOf(name);
+        } catch (IllegalArgumentException exception) {
+            throw new IllegalArgumentException("note " + entry.id() + ": unknown " + role + " colour " + name
+                    + "; the colours are " + List.of(NoteColor.values()), exception);
+        }
     }
 
     /**

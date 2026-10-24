@@ -95,7 +95,7 @@ public final class RotateElementsCommand implements Command {
                     .withPosition(around(component.position(), pivot, turn))
                     .withRotation(clockwise ? component.rotation().clockwise() : component.rotation().counterClockwise());
             case Wire wire -> wire.withEndpoints(around(wire.start(), pivot, turn), around(wire.end(), pivot, turn));
-            case TextLabel label -> new TextLabel(label.id(), around(label.position(), pivot, turn), label.text());
+            case TextLabel label -> label.placed(label.id(), around(label.position(), pivot, turn));
             case Frame frame -> rotatedFrame(frame, pivot, turn);
         };
     }

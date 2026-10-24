@@ -156,6 +156,32 @@ class ToolCallsTest {
         assertThat(map(connection, "from")).containsOnlyKeys("elementId", "pinName");
     }
 
+    /** Pulido T5: AddNote and SetLabel take a note's colours; the reading shows them only for a styled note. */
+    @Test
+    void aNoteGetsItsColoursAndTheReadingShowsOnlyThoseOfAStyledNote() {
+        String task = beginTask();
+        Map<String, Object> receipt = call("vsim_edit", edit(task, 0, List.of(
+                Map.of("op", "AddNote", "alias", "plain", "text", "simple", "x", 0, "y", 0),
+                Map.of("op", "AddNote", "alias", "warning", "text", "Ojo", "x", 0, "y", 4,
+                        "style", Map.of("background", "YELLOW", "border", "RED")))));
+
+        call("vsim_edit", edit(task, 1, List.of(Map.of("op", "SetLabel",
+                "target", map(receipt, "aliases").get("warning"), "style", Map.of("text", "BLUE")))));
+
+        List<Map<String, Object>> notes = list(call("vsim_read_circuit", Map.of("document", "circuit-1")),
+                "notes");
+        assertThat(notes).hasSize(2);
+        assertThat(notes.get(0)).doesNotContainKey("style");
+        assertThat(map(notes.get(1), "style")).containsExactlyInAnyOrderEntriesOf(
+                Map.of("background", "YELLOW", "text", "BLUE", "border", "RED"));
+    }
+
+    @Test
+    void aNoteColourVsimDoesNotKnowIsRefusedByTheSchema() {
+        assertThat(refusal("vsim_edit", edit(beginTask(), 0, List.of(Map.of("op", "AddNote", "text", "x", "x", 0,
+                "y", 0, "style", Map.of("background", "PINK")))))).containsEntry("error", "INVALID_PARAMETER");
+    }
+
     @Test
     void aReceiptStillSaysWhenAConnectJoinedBiggerNetsOrNothingNew() {
         String task = beginTask();

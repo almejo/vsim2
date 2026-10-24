@@ -10,6 +10,8 @@ import cl.almejo.vsim.core.command.PutDefinitionsCommand;
 import cl.almejo.vsim.core.command.SetLabelCommand;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
+import cl.almejo.vsim.core.document.NoteColor;
+import cl.almejo.vsim.core.document.NoteStyle;
 import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
@@ -374,6 +376,67 @@ class PropertiesPanelTest {
         openDocument.history().undo();
         assertThat(current(first).label()).isEmpty();
         assertThat(current(first).parameters()).containsEntry("delay", 1);
+    }
+
+    // --- styled notes (Pulido T5)
+
+    private TextLabel note(int y, NoteStyle style) {
+        TextLabel note = new TextLabel(openDocument.document().newLabelId(), new GridPoint(0, y), "nota " + y, style);
+        openDocument.execute(new AddElementsCommand(List.of(note)));
+        return note;
+    }
+
+    private NoteStyle styleOf(TextLabel note) {
+        return openDocument.document().label(note.id()).orElseThrow().style();
+    }
+
+    @Test
+    void aNoteShowsItsBackgroundTextAndBorderAndEachPickIsOneUndoStep() {
+        TextLabel note = note(0, new NoteStyle(NoteColor.NONE, NoteColor.BLUE, NoteColor.NONE));
+        selection.select(note.id());
+
+        assertThat(panel.noteStyle(NoteStyle.Role.BACKGROUND).selectedValue()).isEqualTo(NoteColor.NONE);
+        assertThat(panel.noteStyle(NoteStyle.Role.TEXT).selectedValue()).isEqualTo(NoteColor.BLUE);
+        assertThat(panel.noteStyle(NoteStyle.Role.TEXT).swatch(0).getToolTipText()).isEqualTo("Automático");
+        assertThat(panel.noteStyle(NoteStyle.Role.BORDER).swatch(0).getToolTipText()).isEqualTo("Ninguno");
+
+        panel.noteStyle(NoteStyle.Role.BACKGROUND).swatch(NoteColor.YELLOW.ordinal()).doClick();
+        panel.noteStyle(NoteStyle.Role.BORDER).swatch(NoteColor.RED.ordinal()).doClick();
+
+        assertThat(styleOf(note)).isEqualTo(new NoteStyle(NoteColor.YELLOW, NoteColor.BLUE, NoteColor.RED));
+        assertThat(openDocument.history().undoDescription()).contains("command.noteStyle");
+        openDocument.history().undo();
+        assertThat(styleOf(note)).isEqualTo(new NoteStyle(NoteColor.YELLOW, NoteColor.BLUE, NoteColor.NONE));
+        openDocument.history().undo();
+        assertThat(styleOf(note)).isEqualTo(note.style());
+        assertThat(panel.noteStyle(NoteStyle.Role.BACKGROUND).selectedValue()).isEqualTo(NoteColor.NONE);
+    }
+
+    @Test
+    void severalNotesShareTheirRowsAndOnePickColoursThemAllAsOneUndoStep() {
+        TextLabel plain = note(0, NoteStyle.PLAIN);
+        TextLabel yellow = note(4, new NoteStyle(NoteColor.YELLOW, NoteColor.NONE, NoteColor.NONE));
+        selection.set(List.of(plain.id(), yellow.id()));
+
+        assertThat(panel.noteStyle(NoteStyle.Role.BACKGROUND).showsNoChoice()).as("the backgrounds differ").isTrue();
+        assertThat(panel.noteStyle(NoteStyle.Role.TEXT).selectedValue()).isEqualTo(NoteColor.NONE);
+
+        panel.noteStyle(NoteStyle.Role.BACKGROUND).swatch(NoteColor.YELLOW.ordinal()).doClick();
+
+        assertThat(styleOf(plain).background()).isEqualTo(NoteColor.YELLOW);
+        assertThat(styleOf(yellow).background()).isEqualTo(NoteColor.YELLOW);
+        openDocument.history().undo();
+        assertThat(styleOf(plain)).isEqualTo(NoteStyle.PLAIN);
+        assertThat(styleOf(yellow)).isEqualTo(yellow.style());
+    }
+
+    @Test
+    void aSelectionOfANoteAndAPartHasNoStyleRows() {
+        TextLabel note = note(0, NoteStyle.PLAIN);
+        Component gate = gate(10);
+        selection.set(List.of(note.id(), gate.id()));
+
+        assertThat(panel.noteStyle(NoteStyle.Role.BACKGROUND)).isNull();
     }
 
     // --- frames (M6.3)
