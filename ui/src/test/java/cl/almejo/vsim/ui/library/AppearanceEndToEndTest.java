@@ -94,6 +94,23 @@ class AppearanceEndToEndTest {
         }
     }
 
+    @Test
+    void aPieceMenuEndsWithChangeShapeAndOffersNoVersionReview() {
+        try (TemplateFixture fixture = component()) {
+            Component instance = fixture.single("subcircuit:negador");
+            Runnable remove = install(fixture, (owner, request) -> Optional.empty(), new Prompts());
+            try {
+                List<String> texts = new ArrayList<>();
+                for (java.awt.Component component : menu(fixture, instance).getComponents()) {
+                    if (component instanceof JMenuItem item) {
+                        texts.add(item.getText());
+                    }
+                }
+                assertThat(texts).last().isEqualTo(Messages.text("shape.change"));
+            } finally { remove.run(); }
+        }
+    }
+
     private TemplateFixture component() {
         TemplateFixture fixture = new TemplateFixture(directory.resolve("library"));
         fixture.drawInverter(0, 0);

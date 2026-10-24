@@ -11,7 +11,6 @@ import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.DefinitionBundle;
 import cl.almejo.vsim.core.library.DefinitionPin;
 import cl.almejo.vsim.core.library.DefinitionUpdateSafety;
-import cl.almejo.vsim.core.library.LibraryVersions;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.core.library.UnsafeDefinitionUpdateException;
 import cl.almejo.vsim.core.netlist.PinRef;
@@ -31,9 +30,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-/** Per-view entry points, version checks and application of a completed appearance draft. */
+/** Per-view entry points and application of a completed appearance draft. */
 final class AppearanceFeatures {
-    private static final String REVISION_MESSAGE_PREFIX = "shape.revisions.";
     private static final Logger LOGGER = LoggerFactory.getLogger(AppearanceFeatures.class);
     private final EditorView view;
     private final LibraryService library;
@@ -41,7 +39,6 @@ final class AppearanceFeatures {
     private final ShapeEditor editor;
     private final AppearancePrompts prompts;
     private final List<Runnable> removals = new ArrayList<>();
-    private final Runnable revisionsChanged = this::showRevisionNotice;
 
     AppearanceFeatures(EditorView view, LibraryService library, LibraryDialogs dialogs, ShapeEditor editor,
                        AppearancePrompts prompts) {
@@ -59,17 +56,10 @@ final class AppearanceFeatures {
             if (instance.appearance().isPresent()) {
                 menu.add(item("shape.useDefinition", () -> clear(instance.id())));
             }
-            menu.add(item("shape.revisions.review", this::reviewRevisions));
         }));
-        removals.add(view.palette().addUserMenuContributor((entry, menu) -> entry.ifPresent(component -> {
-            menu.add(item("shape.change", () -> edit(Optional.empty(), component.bundle().root().id(), component.inLibrary())));
-            menu.add(item("shape.revisions.review", this::reviewRevisions));
-        })));
-        library.library().addListener(revisionsChanged);
-        view.openDocument().addChangeListener(revisionsChanged);
-        removals.add(() -> library.library().removeListener(revisionsChanged));
-        removals.add(() -> view.openDocument().removeChangeListener(revisionsChanged));
-        showRevisionNotice();
+        removals.add(view.palette().addUserMenuContributor((entry, menu) -> entry.ifPresent(component ->
+                menu.add(item("shape.change",
+                        () -> edit(Optional.empty(), component.bundle().root().id(), component.inLibrary()))))));
     }
 
     void dispose() { for (int index = removals.size() - 1; index >= 0; index--) { removals.get(index).run(); } }
@@ -205,21 +195,6 @@ final class AppearanceFeatures {
     }
 
     private CircuitDocument document() { return view.openDocument().document(); }
-
-    private void showRevisionNotice() {
-        int differences = LibraryVersions.differences(document().usedDefinitions(), library.library()).size();
-        if (differences > 0) { view.statusBar().showNotice(Messages.format("shape.revisions.notice", differences)); }
-    }
-
-    private void reviewRevisions() {
-        List<String> differences = LibraryVersions.differences(document().usedDefinitions(), library.library()).stream()
-                .map(difference -> Messages.format("shape.revisions.row", difference.definitionId(),
-                        difference.circuitRevision(), difference.libraryRevision(),
-                        Messages.text(REVISION_MESSAGE_PREFIX + difference.relation().name().toLowerCase(java.util.Locale.ROOT))))
-                .toList();
-        dialogs.showMessage(view, differences.isEmpty() ? Messages.text("shape.revisions.same")
-                : String.join("\n", differences) + "\n\n" + Messages.text("shape.revisions.keep"));
-    }
 
     private JMenuItem item(String key, Runnable action) {
         return new JMenuItem(new AbstractAction(Messages.text(key)) {
