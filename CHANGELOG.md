@@ -46,6 +46,7 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 
 ### Arreglado
 
+- Un pin fuera del borde de la caja se marca con un aro ámbar en el lienzo, su fila de «Pines» explica en un aviso al pasar el mouse por qué (el cable tendrá que entrar al componente) y qué hacer (arrastrarlo al borde punteado), y el aviso bajo el lienzo ya no se corta: se parte en varias líneas. «Bits» queda alineado a la derecha con el margen del resto del panel y el aviso de un pin dice «1 bit» en singular.
 - La línea de ayuda del editor de formas ya no se corta con varias figuras o un nodo elegidos: los textos son más cortos.
 - El diálogo «Actualizar componente…» dice que los pines que ya existen conservan su lugar en la caja y que los nuevos van a un punto libre del borde.
 - La hoja «Conexiones al cambiar la forma» pone sus botones a la derecha, como en el diseño.

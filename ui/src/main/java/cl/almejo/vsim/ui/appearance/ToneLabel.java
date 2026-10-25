@@ -35,11 +35,16 @@ final class ToneLabel extends JLabel {
 
     @Override
     public Color getForeground() {
+        return colorOf(tone, super.getForeground());
+    }
+
+    /** The colour of a tone, read from the theme now; {@code plain} is used for no tone or {@link Tone#PLAIN}. */
+    static Color colorOf(Tone tone, Color plain) {
         if (tone == null) {
-            return super.getForeground();
+            return plain;
         }
         return switch (tone) {
-            case PLAIN -> super.getForeground();
+            case PLAIN -> plain;
             case INFO -> ReadableColors.mutedText();
             case WARNING -> ReadableColors.warningText();
             case BLOCKING -> ReadableColors.errorText();

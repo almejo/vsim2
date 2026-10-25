@@ -50,6 +50,7 @@ import java.awt.Graphics2D;
 import java.awt.Graphics;
 import java.awt.Insets;
 import java.awt.KeyboardFocusManager;
+import java.awt.LayoutManager;
 import java.awt.RenderingHints;
 import java.awt.event.ActionEvent;
 import java.awt.event.ContainerAdapter;
@@ -104,7 +105,7 @@ public final class ShapeEditorPanel extends JPanel {
     private final List<JToggleButton> scopeSegments = new ArrayList<>();
     private final ToneLabel scopeTitle = new ToneLabel(ToneLabel.Tone.PLAIN);
     private final ToneLabel scopeDetail = new ToneLabel(ToneLabel.Tone.INFO);
-    private final JPanel messages = new Surface(new MigLayout("wrap 1, insets 6 10 6 10, gap 2", "[grow, fill]"));
+    private final MessageLines messages = new MessageLines();
     private List<Line> shownLines = List.of();
     private final PinTable pins = new PinTable();
     private Supplier<Component> focusOwner = () -> KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner();
@@ -723,7 +724,7 @@ public final class ShapeEditorPanel extends JPanel {
                     break;
                 }
                 tone = ToneLabel.Tone.WARNING;
-                problem = Messages.text("shape.pin.offEdge");
+                problem = Messages.format("shape.pin.offEdge", name);
             }
             rows.add(new PinTable.Row(name, direction, pin.spec().width(), tone, problem, draft.pinsLocked()));
         }
@@ -780,10 +781,7 @@ public final class ShapeEditorPanel extends JPanel {
         shownLines = lines;
         messages.removeAll();
         for (Line line : lines) {
-            ToneLabel label = new ToneLabel(line.tone());
-            label.show(line.tone(), line.text());
-            label.setIconTextGap(6);
-            messages.add(label, "wmin 0");
+            messages.add(new WrappedLine(line.tone(), line.text()));
         }
         messages.revalidate();
         messages.repaint();
@@ -887,6 +885,11 @@ public final class ShapeEditorPanel extends JPanel {
         return TextAlignment.values()[textAlignments.getSelectedIndex()];
     }
 
+    /** For tests: the component showing the line under the canvas at {@code index}. */
+    JComponent messageComponent(int index) {
+        return (JComponent) messages.getComponent(index);
+    }
+
     String pinRowProblem(int row) {
         return pins.row(row).problem();
     }
@@ -922,7 +925,7 @@ public final class ShapeEditorPanel extends JPanel {
 
     /** A band in the theme's surface colour (white on FlatLaf Light), like the mockups' side panel and scope line. */
     private static class Surface extends JPanel {
-        Surface(MigLayout layout) {
+        Surface(LayoutManager layout) {
             super(layout);
         }
 
@@ -930,6 +933,42 @@ public final class ShapeEditorPanel extends JPanel {
         public Color getBackground() {
             Color surface = UIManager.getColor("Table.background");
             return surface != null ? surface : super.getBackground();
+        }
+    }
+
+    /**
+     * The lines under the canvas, one under the other: each as tall as its sentence needs at the width the panel has,
+     * so a long warning wraps instead of being cut (the panel's height follows its width).
+     */
+    private static final class MessageLines extends Surface {
+        private static final int MARGIN_X = 10;
+        private static final int MARGIN_Y = 6;
+        private static final int GAP = 2;
+
+        MessageLines() {
+            super(null);
+        }
+
+        @Override
+        public Dimension getPreferredSize() {
+            int width = getWidth();
+            int height = 2 * MARGIN_Y - GAP;
+            for (java.awt.Component line : getComponents()) {
+                height += (width > 0 ? ((WrappedLine) line).heightFor(width - 2 * MARGIN_X)
+                        : ((WrappedLine) line).heightFor(WrappedLine.FALLBACK_WIDTH)) + GAP;
+            }
+            return new Dimension(1, height);
+        }
+
+        @Override
+        public void doLayout() {
+            int width = getWidth() - 2 * MARGIN_X;
+            int top = MARGIN_Y;
+            for (java.awt.Component line : getComponents()) {
+                int height = ((WrappedLine) line).heightFor(width);
+                line.setBounds(MARGIN_X, top, width, height);
+                top += height + GAP;
+            }
         }
     }
 

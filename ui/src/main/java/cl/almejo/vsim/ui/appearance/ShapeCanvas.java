@@ -4,6 +4,7 @@ import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.PinSpec;
 import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.component.appearance.ComponentAppearance;
+import cl.almejo.vsim.core.component.appearance.DraftProblem;
 import cl.almejo.vsim.core.component.appearance.PinPlacement;
 import cl.almejo.vsim.core.component.appearance.SnapMode;
 import cl.almejo.vsim.core.component.appearance.SymbolDraft;
@@ -28,9 +29,11 @@ import cl.almejo.vsim.ui.paint.PainterSupport;
 import cl.almejo.vsim.ui.paint.SubcircuitPainter;
 import cl.almejo.vsim.ui.paint.SymbolPainter;
 import cl.almejo.vsim.ui.paint.TextFonts;
+import cl.almejo.vsim.ui.theme.ReadableColors;
 
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Locale;
 import javax.swing.AbstractAction;
 import javax.swing.JComponent;
@@ -1016,6 +1019,7 @@ final class ShapeCanvas extends JPanel {
                 }
             }
             paintCoincidences(surface, scheme);
+            paintOffEdgePins(surface);
             if (tool == ShapeTool.ADD_NODE) {
                 paintInsertion(surface);
             }
@@ -1163,6 +1167,24 @@ final class ShapeCanvas extends JPanel {
             surface.setStroke(new BasicStroke((float) (1.5 / zoom)));
             surface.draw(new Ellipse2D.Double(x - 8 / zoom, y - 8 / zoom, 16 / zoom, 16 / zoom));
             surface.fill(new Ellipse2D.Double(x - 4 / zoom, y - 4 / zoom, 8 / zoom, 8 / zoom));
+        }
+    }
+
+    /** An amber ring on every pin that is not on the box edge: the row's triangle and the warning line say the rest. */
+    private void paintOffEdgePins(Graphics2D surface) {
+        Set<String> offEdge = new HashSet<>();
+        for (DraftProblem problem : current.get().problems()) {
+            if (problem.kind() == DraftProblem.Kind.PIN_OFF_EDGE) {
+                offEdge.addAll(problem.pins());
+            }
+        }
+        surface.setColor(ReadableColors.warningText());
+        surface.setStroke(new BasicStroke((float) (1.5 / zoom)));
+        for (PinPlacement placement : current.get().appearance().pins()) {
+            if (offEdge.contains(pinName(placement.source()))) {
+                surface.draw(new Ellipse2D.Double(placement.offset().x() * UNIT - 7 / zoom,
+                        placement.offset().y() * UNIT - 7 / zoom, 14 / zoom, 14 / zoom));
+            }
         }
     }
 

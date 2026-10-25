@@ -29,8 +29,12 @@ import org.junit.jupiter.api.Test;
 
 import javax.swing.AbstractButton;
 import javax.swing.Action;
+import javax.swing.JComponent;
+import javax.swing.JLabel;
 import javax.swing.JTextField;
 import javax.swing.KeyStroke;
+import javax.swing.SwingConstants;
+import java.awt.Container;
 import java.awt.Point;
 import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
@@ -216,7 +220,7 @@ class ShapeEditorPanelTest {
 
         panel.apply(shaped.movePin(INPUT, new GridPoint(2, 2)));
         assertThat(panel.statusText()).isEqualTo("1 aviso.");
-        assertThat(panel.messageLines()).contains("El pin A no está en el borde. (No impide aceptar.)");
+        assertThat(panel.messageLines()).anyMatch(line -> line.contains("A no está en el borde de la caja: el cable tendrá que entrar al componente para llegar a él. Arrástralo al borde punteado."));
         assertThat(panel.acceptButton().isEnabled()).isTrue();
 
         panel.apply(shaped.movePin(INPUT, new GridPoint(0, 3)));
@@ -275,6 +279,58 @@ class ShapeEditorPanelTest {
         panel.canvas().dispatchEvent(new MouseEvent(panel.canvas(), MouseEvent.MOUSE_PRESSED, 0,
                 MouseEvent.BUTTON1_DOWN_MASK, pin.x, pin.y, 1, false, MouseEvent.BUTTON1));
         assertThat(panel.pinTable().getSelectedRow()).isZero();
+    }
+
+    @Test
+    void anOffEdgePinSaysWhyInATooltipOnItsWholeRowAndTheWarningLineIsNeverCut() {
+        ComponentDefinition definition = twoPinDefinition();
+        ShapeEditorPanel panel = panel(definition, false);
+        SymbolDraft shaped = SymbolDraft.of(panel.appearance(), definition.pinout(), false)
+                .applyTemplate(SymbolTemplates.Template.RECTANGLE);
+        panel.apply(shaped.movePin(INPUT, new GridPoint(2, 2)));
+
+        String expected = "A no está en el borde de la caja: el cable tendrá que entrar al componente para llegar a él. "
+                + "Arrástralo al borde punteado.";
+        assertThat(panel.pinRowProblem(0)).isEqualTo(expected);
+        for (int column = 0; column < 3; column++) {
+            JComponent cell = (JComponent) panel.pinTable().prepareRenderer(
+                    panel.pinTable().getCellRenderer(0, column), 0, column);
+            assertThat(cell.getToolTipText()).as("tooltip of column %d", column).isEqualTo(expected);
+        }
+        JComponent untouched = (JComponent) panel.pinTable().prepareRenderer(
+                panel.pinTable().getCellRenderer(2, 0), 2, 0);
+        assertThat(untouched.getToolTipText()).isNull();
+
+        panel.setSize(520, 500);
+        layOut(panel);
+        JComponent warning = panel.messageComponent(0);
+        assertThat(warning.getHeight()).as("the long line wraps to more than one row")
+                .isGreaterThan(2 * warning.getFontMetrics(warning.getFont()).getHeight());
+    }
+
+    private static void layOut(Container container) {
+        container.doLayout();
+        for (java.awt.Component child : container.getComponents()) {
+            if (child instanceof Container nested) {
+                layOut(nested);
+            }
+        }
+    }
+
+    @Test
+    void theBitsColumnIsRightAlignedWithTheSameRightMarginAsTheRestOfThePanel() {
+        ShapeEditorPanel panel = panel(twoPinDefinition(), false);
+        PinTable table = panel.pinTable();
+        JLabel cell = (JLabel) table.prepareRenderer(table.getCellRenderer(0, 2), 0, 2);
+        JLabel header = (JLabel) table.getTableHeader().getDefaultRenderer()
+                .getTableCellRendererComponent(table, "Bits", false, false, -1, 2);
+
+        assertThat(cell.getHorizontalAlignment()).isEqualTo(SwingConstants.RIGHT);
+        assertThat(header.getHorizontalAlignment()).isEqualTo(SwingConstants.RIGHT);
+        assertThat(cell.getBorder().getBorderInsets(cell).right).isEqualTo(10);
+        assertThat(header.getBorder().getBorderInsets(header).right).isEqualTo(10);
+        JLabel name = (JLabel) table.prepareRenderer(table.getCellRenderer(0, 0), 0, 0);
+        assertThat(name.getHorizontalAlignment()).isNotEqualTo(SwingConstants.RIGHT);
     }
 
     @Test

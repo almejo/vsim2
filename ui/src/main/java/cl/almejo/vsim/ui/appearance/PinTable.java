@@ -31,6 +31,8 @@ final class PinTable extends JTable {
     private static final int NAME_COLUMN = 0;
     private static final int DIRECTION_COLUMN = 1;
     private static final int WIDTH_COLUMN = 2;
+    /** The margin of the rest of the side panel: the last column ends this far from its right edge. */
+    static final int RIGHT_MARGIN = 10;
 
     /** One pin as the table shows it; {@code problem} is empty when the pin has none. */
     record Row(String name, String direction, int width, ToneLabel.Tone tone, String problem, boolean locked) {
@@ -63,8 +65,8 @@ final class PinTable extends JTable {
         // Name : direction : bits as in the mockups; the direction column also holds «mismo punto que B».
         getColumnModel().getColumn(NAME_COLUMN).setPreferredWidth(80);
         getColumnModel().getColumn(DIRECTION_COLUMN).setPreferredWidth(140);
-        getColumnModel().getColumn(WIDTH_COLUMN).setPreferredWidth(40);
-        getColumnModel().getColumn(WIDTH_COLUMN).setMaxWidth(48);
+        getColumnModel().getColumn(WIDTH_COLUMN).setPreferredWidth(RIGHT_MARGIN + 40);
+        getColumnModel().getColumn(WIDTH_COLUMN).setMaxWidth(RIGHT_MARGIN + 48);
     }
 
     /** Shows {@code rows}, keeping the selected row when the pins did not change. */
@@ -128,13 +130,16 @@ final class PinTable extends JTable {
 
         HeaderRenderer() {
             title.putClientProperty("FlatLaf.style", "font: -1");
-            title.setBorder(new EdgeBorder(Set.of(EdgeBorder.Side.BOTTOM), new Insets(2, 10, 3, 6)));
         }
 
         @Override
         public Component getTableCellRendererComponent(JTable table, Object value, boolean selected,
                                                                  boolean focused, int rowIndex, int column) {
             title.setText(String.valueOf(value));
+            boolean last = column == WIDTH_COLUMN;
+            title.setHorizontalAlignment(last ? SwingConstants.RIGHT : SwingConstants.LEADING);
+            title.setBorder(new EdgeBorder(Set.of(EdgeBorder.Side.BOTTOM),
+                    new Insets(2, 10, 3, last ? RIGHT_MARGIN : 6)));
             return title;
         }
     }
@@ -151,7 +156,9 @@ final class PinTable extends JTable {
             cell.setHorizontalTextPosition(row.tone() == ToneLabel.Tone.WARNING ? SwingConstants.LEADING
                     : SwingConstants.TRAILING);
             cell.setToolTipText(row.problem().isEmpty() ? null : row.problem());
-            cell.setBorder(BorderFactory.createEmptyBorder(0, 10, 0, 6));
+            boolean last = column == WIDTH_COLUMN;
+            cell.setHorizontalAlignment(last ? SwingConstants.RIGHT : SwingConstants.LEADING);
+            cell.setBorder(BorderFactory.createEmptyBorder(0, 10, 0, last ? RIGHT_MARGIN : 6));
             if (!selected) {
                 cell.setForeground(row.blocking() ? ReadableColors.errorText()
                         : row.locked() ? ReadableColors.mutedText() : table.getForeground());

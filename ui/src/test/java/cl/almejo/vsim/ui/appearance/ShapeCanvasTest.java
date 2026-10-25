@@ -20,6 +20,7 @@ import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.core.geometry.GridSize;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.ui.paint.ColorSchemes;
+import cl.almejo.vsim.ui.theme.ReadableColors;
 import java.awt.Color;
 import org.junit.jupiter.api.Test;
 
@@ -284,6 +285,13 @@ class ShapeCanvasTest {
 
         assertThat(canvas.pinCallout()).hasValue(Messages.format("shape.pin.row", "A",
                 Messages.text("shape.direction.input"), 1));
+        assertThat(canvas.pinCallout().orElseThrow()).endsWith("· 1 bit");
+    }
+
+    @Test
+    void thePinCalloutPluralisesTheBits() {
+        assertThat(Messages.format("shape.pin.row", "Op", "entrada", 1)).endsWith("1 bit");
+        assertThat(Messages.format("shape.pin.row", "Op", "entrada", 2)).endsWith("2 bits");
     }
 
     @Test
@@ -415,6 +423,35 @@ class ShapeCanvasTest {
     }
 
     /** The dark pixels of the name band along the top of the default box (the pin names are lower down). */
+    @Test
+    void aPinOffTheEdgeGetsAnAmberMarkAndOneOnTheEdgeDoesNot() {
+        ComponentDefinition definition = ShapeEditorPanelTest.definition();
+        SymbolDraft shaped = SymbolDraft.of(ComponentAppearance.of(definition), definition.pinout(), false)
+                .applyTemplate(SymbolTemplates.Template.RECTANGLE);
+        AtomicReference<SymbolDraft> draft = new AtomicReference<>(shaped);
+        ShapeCanvas canvas = canvas(definition, draft);
+        assertThat(amberPixels(paintInto(canvas))).isZero();
+
+        draft.set(shaped.movePin(new ElementId("input"), new GridPoint(2, 2)));
+
+        assertThat(amberPixels(paintInto(canvas))).isGreaterThan(5);
+    }
+
+    private static int amberPixels(BufferedImage image) {
+        Color amber = ReadableColors.warningText();
+        int count = 0;
+        for (int y = 0; y < image.getHeight(); y++) {
+            for (int x = 0; x < image.getWidth(); x++) {
+                Color pixel = new Color(image.getRGB(x, y));
+                if (Math.abs(pixel.getRed() - amber.getRed()) < 30 && Math.abs(pixel.getGreen() - amber.getGreen()) < 30
+                        && Math.abs(pixel.getBlue() - amber.getBlue()) < 30) {
+                    count++;
+                }
+            }
+        }
+        return count;
+    }
+
     private static int inkOfTheDefaultBoxName(double zoom) {
         ComponentDefinition definition = ShapeEditorPanelTest.definition();
         AtomicReference<SymbolDraft> draft = new AtomicReference<>(SymbolDraft.of(ComponentAppearance.of(definition),
