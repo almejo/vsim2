@@ -19,6 +19,7 @@ import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.library.LibraryDialogs;
 import cl.almejo.vsim.ui.library.LibraryService;
 import cl.almejo.vsim.ui.window.EditorView;
+import cl.almejo.vsim.ui.window.panes.EveryPane;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -27,8 +28,10 @@ import javax.swing.JMenuItem;
 import java.awt.event.ActionEvent;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 /** Per-view entry points and application of a completed appearance draft. */
 final class AppearanceFeatures {
@@ -60,9 +63,24 @@ final class AppearanceFeatures {
         removals.add(view.palette().addUserMenuContributor((entry, menu) -> entry.ifPresent(component ->
                 menu.add(item("shape.change",
                         () -> edit(Optional.empty(), component.bundle().root().id(), component.inLibrary()))))));
+        installOwnShapeMark();
         // «Actualizar componente» / «desde la librería» ask with the same connections sheet (spec §6.3 step 4).
         view.templateActions().ifPresent(actions ->
                 removals.add(actions.useConnectionsConfirmation(plan -> confirm(plan, false))));
+    }
+
+    private void installOwnShapeMark() {
+        OwnShapeMark mark = new OwnShapeMark(view.openDocument(), () -> view.canvas().scheme(), EveryPane.repaint(view));
+        removals.add(view.forEachPane(pane -> {
+            pane.addOverlay(mark);
+            Runnable unfollow = mark.follow(pane);
+            Runnable unhelp = pane.addToolTipOverride(mark::tooltipAt);
+            return () -> {
+                unhelp.run();
+                unfollow.run();
+                pane.removeOverlay(mark);
+            };
+        }));
     }
 
     void dispose() { for (int index = removals.size() - 1; index >= 0; index--) { removals.get(index).run(); } }
@@ -173,15 +191,29 @@ final class AppearanceFeatures {
 
     private boolean confirm(ShapeChangePlan plan, boolean instanceScope) {
         if (plan.disconnected().isEmpty() && plan.keptOldShape().isEmpty()) { return true; }
-        List<String> disconnected = plan.disconnected().stream().map(this::pinName).toList();
-        List<String> kept = plan.keptOldShape().stream().map(contact -> Messages.format("shape.connections.foreign",
-                contact.instanceName(), contact.pinName(), contact.touchedNetName())).toList();
-        return prompts.confirmConnections(view, disconnected, kept, instanceScope && !kept.isEmpty());
+        List<ConnectionsQuestion.Entry> disconnected = plan.disconnected().stream().map(this::entry).toList();
+        List<ConnectionsQuestion.Entry> kept = plan.keptOldShape().stream().map(contact ->
+                new ConnectionsQuestion.Entry(contact.instanceName(), contact.pinName(), contact.touchedNetName())).toList();
+        return prompts.confirmConnections(view, new ConnectionsQuestion(disconnected, kept, unaffectedPieces(plan),
+                instanceScope && !kept.isEmpty()));
     }
 
-    private String pinName(PinRef pin) {
-        return document().component(pin.componentId()).map(component -> (component.label().isBlank() ? component.id().value() : component.label()) + " · "
-                + view.openDocument().registry().typeOf(component).pin(pin.pinIndex()).name()).orElse(pin.componentId().value());
+    /** The pieces that change with no pin to connect by hand and no pin touching another wire. */
+    private List<String> unaffectedPieces(ShapeChangePlan plan) {
+        Set<ElementId> affected = new HashSet<>(plan.disconnected().stream().map(PinRef::componentId).toList());
+        plan.keptOldShape().forEach(contact -> affected.add(contact.instance()));
+        return plan.instances().values().stream().filter(piece -> !affected.contains(piece.id()))
+                .map(this::pieceName).toList();
+    }
+
+    private String pieceName(Component piece) {
+        return piece.label().isBlank() ? piece.id().value() : piece.label();
+    }
+
+    private ConnectionsQuestion.Entry entry(PinRef pin) {
+        return document().component(pin.componentId()).map(component -> new ConnectionsQuestion.Entry(pieceName(component),
+                view.openDocument().registry().typeOf(component).pin(pin.pinIndex()).name(), ""))
+                .orElse(new ConnectionsQuestion.Entry(pin.componentId().value(), "", ""));
     }
 
     private static ComponentDefinition withAppearance(ComponentDefinition definition, ComponentAppearance appearance) {

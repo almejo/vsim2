@@ -1,5 +1,6 @@
 package cl.almejo.vsim.core.component.appearance;
 
+import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.GridSize;
 
 import java.util.ArrayList;
@@ -12,7 +13,20 @@ public final class SymbolTemplates {
 
     private SymbolTemplates() { }
 
+    /** A pin's drawn name and where its connection point is, in grid units from the box's corner. */
+    public record PinLabel(String text, GridPoint offset) { }
+
+    /** The template for a box with no pins to keep clear and no name to write (thumbnails). */
     public static Optional<SymbolDrawing> drawing(Template template, GridSize size) {
+        return drawing(template, size, "", List.of());
+    }
+
+    /**
+     * The template for a box whose pins are {@code pins} and whose component is called {@code name}: the name goes
+     * where it does not cover a pin name.
+     */
+    public static Optional<SymbolDrawing> drawing(Template template, GridSize size, String name,
+                                                  List<PinLabel> pins) {
         if (template == Template.DEFAULT_BOX) {
             return Optional.empty();
         }
@@ -29,12 +43,7 @@ public final class SymbolTemplates {
                         new SymbolPoint((width + side) / 2, (height + side) / 2), false));
             }
             case TRIANGLE -> elements.add(triangle(start, end, false));
-            case ALU -> elements.add(polygon(List.of(new SymbolPoint(0, 0), new SymbolPoint(width, height / 4),
-                    new SymbolPoint(width, 3 * height / 4), new SymbolPoint(0, height),
-                    new SymbolPoint(0, 5 * height / 8), new SymbolPoint(width / 4, height / 2),
-                    new SymbolPoint(0, 3 * height / 8)), true));
-            case MUX -> elements.add(polygon(List.of(start, new SymbolPoint(width, height / 4),
-                    new SymbolPoint(width, 3 * height / 4), new SymbolPoint(0, height)), true));
+            case ALU, MUX -> elements.add(polygon(body(template, width, height), true));
             case AND -> elements.add(new SymbolPath(List.of(node(start),
                     controlled(width / 2, 0, width, 0), controlled(width, height / 2, width, height),
                     node(new SymbolPoint(width / 2, height)), node(new SymbolPoint(0, height))), true, true));
@@ -50,12 +59,36 @@ public final class SymbolTemplates {
             }
             default -> throw new IllegalArgumentException("Unsupported template " + template);
         }
-        if (template == Template.RECTANGLE || template == Template.SQUARE || template == Template.ALU
-                || template == Template.MUX) {
-            elements.add(new SymbolText(new SymbolPoint(width / 2, height / 2), Optional.empty(),
-                    TextSize.MEDIUM, TextAlignment.CENTER));
+        if (hasName(template)) {
+            elements.add(NamePlacement.nameText(size, body(template, width, height), name, pins));
         }
         return Optional.of(new SymbolDrawing(size, elements, true));
+    }
+
+    private static boolean hasName(Template template) {
+        return template == Template.RECTANGLE || template == Template.SQUARE || template == Template.ALU
+                || template == Template.MUX;
+    }
+
+    /** The area inside the template where its name may go. */
+    private static List<SymbolPoint> body(Template template, int width, int height) {
+        return switch (template) {
+            case SQUARE -> {
+                int side = Math.min(width, height);
+                yield List.of(new SymbolPoint((width - side) / 2, (height - side) / 2),
+                        new SymbolPoint((width + side) / 2, (height - side) / 2),
+                        new SymbolPoint((width + side) / 2, (height + side) / 2),
+                        new SymbolPoint((width - side) / 2, (height + side) / 2));
+            }
+            case ALU -> List.of(new SymbolPoint(0, 0), new SymbolPoint(width, height / 4),
+                    new SymbolPoint(width, 3 * height / 4), new SymbolPoint(0, height),
+                    new SymbolPoint(0, 5 * height / 8), new SymbolPoint(width / 4, height / 2),
+                    new SymbolPoint(0, 3 * height / 8));
+            case MUX -> List.of(new SymbolPoint(0, 0), new SymbolPoint(width, height / 4),
+                    new SymbolPoint(width, 3 * height / 4), new SymbolPoint(0, height));
+            default -> List.of(new SymbolPoint(0, 0), new SymbolPoint(width, 0), new SymbolPoint(width, height),
+                    new SymbolPoint(0, height));
+        };
     }
 
     public static SymbolPath rectangle(SymbolPoint start, SymbolPoint end, boolean square) {

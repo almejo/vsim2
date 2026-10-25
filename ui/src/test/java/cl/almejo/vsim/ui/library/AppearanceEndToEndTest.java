@@ -15,6 +15,7 @@ import cl.almejo.vsim.core.library.DefinitionPin;
 import cl.almejo.vsim.core.library.ExampleDefinitions;
 import cl.almejo.vsim.ui.appearance.AppearanceExtension;
 import cl.almejo.vsim.ui.appearance.AppearancePrompts;
+import cl.almejo.vsim.ui.appearance.ConnectionsQuestion;
 import cl.almejo.vsim.ui.appearance.ShapeEditRequest;
 import cl.almejo.vsim.ui.appearance.ShapeEditResult;
 import cl.almejo.vsim.ui.appearance.ShapeEditScope;
@@ -204,12 +205,11 @@ class AppearanceEndToEndTest {
     }
 
     private static final class Prompts implements AppearancePrompts {
-        private final List<List<String>> keptLists = new ArrayList<>();
+        private final List<List<ConnectionsQuestion.Entry>> keptLists = new ArrayList<>();
 
-        @Override public boolean confirmConnections(java.awt.Component owner, List<String> disconnected,
-                                                     List<String> kept, boolean blockedInstance) {
-            keptLists.add(kept);
-            return !blockedInstance;
+        @Override public boolean confirmConnections(java.awt.Component owner, ConnectionsQuestion question) {
+            keptLists.add(question.kept());
+            return !question.blockedInstance();
         }
         @Override public boolean retryLibraryWrite(java.awt.Component owner, boolean applied) { return false; }
         @Override public boolean reopenStale(java.awt.Component owner) { return false; }

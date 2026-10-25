@@ -110,6 +110,21 @@ class SymbolDraftTest {
         assertThat(nodes.get(1).point().y() - nodes.getFirst().point().y()).isEqualTo(7);
     }
 
+    @Test
+    void aPinFarFromTheOutlineWarnsThatItIsNotOnTheEdge() {
+        SymbolDraft triangle = draft(false).applyTemplate(SymbolTemplates.Template.TRIANGLE)
+                .movePin(INPUT, new GridPoint(0, 0)).movePin(OUTPUT, new GridPoint(6, 0));
+        assertThat(triangle.problems()).filteredOn(problem -> problem.kind() == DraftProblem.Kind.PIN_OFF_EDGE)
+                .extracting(DraftProblem::pins).containsExactly(List.of("Y"));
+        assertThat(triangle.canAccept()).isTrue();
+    }
+
+    @Test
+    void aPinOnTheOutlineOrWithinTwoUnitsOfItDoesNotWarn() {
+        assertThat(draft(false).applyTemplate(SymbolTemplates.Template.ALU).problems()).isEmpty();
+        assertThat(draft(false).applyTemplate(SymbolTemplates.Template.TRIANGLE).problems()).isEmpty();
+    }
+
     private static SymbolDraft draft(boolean locked) {
         List<DefinitionPin> pins = List.of(new DefinitionPin(PinSpec.input("A", 0, 2), INPUT),
                 new DefinitionPin(PinSpec.output("Y", 6, 2), OUTPUT));
