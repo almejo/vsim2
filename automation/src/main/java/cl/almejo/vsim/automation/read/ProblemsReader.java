@@ -68,6 +68,12 @@ public final class ProblemsReader {
                 } else {
                     references.element(connectivity.elementId());
                 }
+                if (connectivity.cause() == ConnectivityProblem.Cause.UNCONNECTED_INTERFACE) {
+                    yield references.view("INTERFACE_UNCONNECTED_INSIDE", true, problem.netId(),
+                            "Terminal " + connectivity.pinIndex() + " of " + connectivity.elementId()
+                                    + " is not connected to anything inside the component; the fault is inside,"
+                                    + " not in the wire outside");
+                }
                 yield references.view(connectivity.isPin() ? "DISCONNECTED_PIN" : "LOOSE_WIRE_END", true,
                         problem.netId(), connectivity.isPin()
                                 ? "Disconnected pin " + connectivity.pinIndex() + " of " + connectivity.elementId()

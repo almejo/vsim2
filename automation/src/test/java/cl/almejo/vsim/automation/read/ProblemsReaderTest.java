@@ -113,6 +113,21 @@ class ProblemsReaderTest {
         assertThat(problems.getLast().elementIds()).containsExactly(wire.id().value());
     }
 
+    @Test
+    void anOuterTerminalWhoseInterfaceElementIsUnconnectedInsideHasItsOwnKindThatNamesThePiece() {
+        fixture.document.putDefinition(ExampleDefinitions.inverter());
+        Component instance = fixture.place(SubcircuitTypes.typeIdOf(ExampleDefinitions.INVERTER), 10, 10);
+        publish(0, new ConnectivityProblem("n:interface", instance.id().value(), 0, GridPoint.ORIGIN,
+                ConnectivityProblem.Cause.UNCONNECTED_INTERFACE));
+
+        ProblemView problem = ProblemsReader.read(fixture.source()).problems().getFirst();
+
+        assertThat(problem.kind()).isEqualTo("INTERFACE_UNCONNECTED_INSIDE");
+        assertThat(problem.warning()).isTrue();
+        assertThat(problem.elementIds()).containsExactly(instance.id().value());
+        assertThat(problem.message()).contains(instance.id().value()).contains("inside");
+    }
+
     private void publish(long time, Problem... problems) {
         fixture.useSnapshot(new SimulationSnapshot(0, fixture.document.revision(), time, true, Map.of(), Map.of(),
                 List.of(problems), Optional.empty()));
