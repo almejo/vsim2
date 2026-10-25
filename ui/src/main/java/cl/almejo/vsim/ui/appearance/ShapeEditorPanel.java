@@ -86,6 +86,8 @@ public final class ShapeEditorPanel extends JPanel {
     private static final int LARGEST_BOX = 4096;
     private static final int SPINNER_COLUMNS = 3;
     private static final double ZOOM_STEP = 1.25;
+    /** A closed figure needs three nodes: a line of two cannot be closed. */
+    private static final int CLOSABLE_NODES = 3;
 
     private final ShapeEditRequest request;
     private final AppPreferences preferences;
@@ -219,7 +221,12 @@ public final class ShapeEditorPanel extends JPanel {
         refresh();
     }
 
+    /** Undo; while a multiline or polygon is being drawn, takes back its last node instead (one click, one undo). */
     public void undo() {
+        if (canvas.drawingPath()) {
+            canvas.removeLastNode();
+            return;
+        }
         history.undo();
         draft = history.current().withPinLock(locked(scope));
         canvas.draftChanged();
@@ -227,6 +234,9 @@ public final class ShapeEditorPanel extends JPanel {
     }
 
     public void redo() {
+        if (canvas.drawingPath()) {
+            return;
+        }
         history.redo();
         draft = history.current().withPinLock(locked(scope));
         canvas.draftChanged();
@@ -379,12 +389,11 @@ public final class ShapeEditorPanel extends JPanel {
         ButtonGroup tools = new ButtonGroup();
         addTools(tools, ShapeTool.SELECT, ShapeTool.NODES, ShapeTool.PAN);
         toolbar.addSeparator();
-        addTools(tools, ShapeTool.LINE, ShapeTool.RECTANGLE, ShapeTool.ELLIPSE, ShapeTool.TRIANGLE, ShapeTool.POLYGON,
-                ShapeTool.TEXT);
+        addTools(tools, ShapeTool.LINE, ShapeTool.MULTILINE, ShapeTool.RECTANGLE, ShapeTool.ELLIPSE,
+                ShapeTool.TRIANGLE, ShapeTool.POLYGON, ShapeTool.TEXT);
         toolbar.addSeparator();
-        addTools(tools, ShapeTool.ADD_NODE);
-        actionButton("nodeRemove", icon(ShapeEditorIcons.NODE_REMOVE), canvas::deleteSelection);
-        actionButton("curve", icon(ShapeEditorIcons.CURVE), canvas::toggleCurve);
+        addTools(tools, ShapeTool.ADD_NODE, ShapeTool.REMOVE_NODE, ShapeTool.CURVE);
+        actionButton("closePath", icon(ShapeEditorIcons.CLOSE_PATH), this::toggleClosed);
         actionButton("fill", icon(ShapeEditorIcons.FILL), this::toggleFill);
         toolbar.addSeparator();
         actionButton("shapes", icon(ShapeEditorIcons.TEMPLATES), this::showTemplates);
@@ -470,12 +479,15 @@ public final class ShapeEditorPanel extends JPanel {
             case NODES -> ShapeEditorIcons.NODES;
             case PAN -> "pan";
             case LINE -> ShapeEditorIcons.LINE;
+            case MULTILINE -> ShapeEditorIcons.MULTILINE;
             case RECTANGLE -> ShapeEditorIcons.RECTANGLE;
             case ELLIPSE -> ShapeEditorIcons.ELLIPSE;
             case TRIANGLE -> ShapeEditorIcons.TRIANGLE;
             case POLYGON -> ShapeEditorIcons.POLYGON;
             case TEXT -> ShapeEditorIcons.TEXT;
             case ADD_NODE -> ShapeEditorIcons.NODE_ADD;
+            case REMOVE_NODE -> ShapeEditorIcons.NODE_REMOVE;
+            case CURVE -> ShapeEditorIcons.CURVE_SEGMENT;
         });
     }
 
@@ -487,6 +499,17 @@ public final class ShapeEditorPanel extends JPanel {
         JPopupMenu popup = ShapeTemplatesPopup.create(draft.appearance().size(), scheme,
                 template -> apply(draft.applyTemplate(template)));
         popup.show(buttons.get("shapes"), 0, buttons.get("shapes").getHeight());
+    }
+
+    /** «Cerrar / Abrir figura»: every chosen figure of three nodes or more, closed if it was open and the other way. */
+    private void toggleClosed() {
+        SymbolDraft edited = draft;
+        for (int index : draft.selection()) {
+            if (draft.elements().get(index) instanceof SymbolPath path && path.nodes().size() >= CLOSABLE_NODES) {
+                edited = path.closed() ? edited.openPath(index) : edited.closePath(index);
+            }
+        }
+        apply(edited);
     }
 
     private void toggleFill() {
@@ -518,7 +541,7 @@ public final class ShapeEditorPanel extends JPanel {
         int menu = ShortcutCatalog.menuMask();
         bind(KeyStroke.getKeyStroke("ESCAPE"), "escape", () -> {
             switch (ShapeKeys.escape(canvas.operationActive(), canvas.hasSelection())) {
-                case CANCEL_OPERATION -> canvas.cancelOperation();
+                case CANCEL_OPERATION -> canvas.escapeOperation();
                 case CLEAR_SELECTION -> canvas.clearSelection();
                 default -> onClose.run();
             }
@@ -754,6 +777,7 @@ public final class ShapeEditorPanel extends JPanel {
     private List<Line> lines() {
         List<Line> lines = new ArrayList<>();
         notice.ifPresent(text -> lines.add(new Line(ToneLabel.Tone.WARNING, text)));
+        canvas.refusal().ifPresent(text -> lines.add(new Line(ToneLabel.Tone.WARNING, text)));
         if (draft.pinsLocked()) {
             lines.add(new Line(ToneLabel.Tone.WARNING, Messages.format("shape.locked", request.lockReason())));
         }
@@ -808,11 +832,14 @@ public final class ShapeEditorPanel extends JPanel {
                 ShapeEditorTexts.shortcut(KeyEvent.VK_Y));
         contextual("undo", undoName, history.canUndo(), "shape.undo.none");
         contextual("redo", redoName, history.canRedo(), "shape.redo.none");
-        contextual("nodeRemove", Messages.text("shape.nodeRemove"), canvas.nodeSelected(), "shape.node.required");
-        contextual("curve", Messages.text("shape.curve"), canvas.segmentSelected(), "shape.segment.required");
+
+
         boolean closedFigure = draft.selection().stream().map(index -> draft.elements().get(index))
                 .anyMatch(element -> element instanceof SymbolPath path && path.closed());
         contextual("fill", Messages.text("shape.fill"), closedFigure, "shape.closedFigure.required");
+        boolean closable = draft.selection().stream().map(index -> draft.elements().get(index))
+                .anyMatch(element -> element instanceof SymbolPath path && path.nodes().size() >= CLOSABLE_NODES);
+        contextual("closePath", Messages.text("shape.closePath"), closable, "shape.closable.required");
         boolean anyFigure = !draft.selection().isEmpty();
         contextual("front", Messages.text("shape.front"), anyFigure, "shape.figure.required");
         contextual("back", Messages.text("shape.back"), anyFigure, "shape.figure.required");
@@ -847,6 +874,14 @@ public final class ShapeEditorPanel extends JPanel {
 
     JButton zoomValueButton() {
         return zoomValue;
+    }
+
+    JSpinner widthSpinner() {
+        return width;
+    }
+
+    JSpinner heightSpinner() {
+        return height;
     }
 
     List<String> scopeSwitchTexts() {
@@ -900,7 +935,8 @@ public final class ShapeEditorPanel extends JPanel {
 
     String hintText() {
         return ShapeEditorTexts.hint(new ShapeEditorTexts.HintState(activeTool, canvas.selectedPin().isPresent(),
-                draft.pinsLocked(), draft.selection().size(), canvas.nodeSelected()));
+                draft.pinsLocked(), draft.selection().size(), canvas.nodeSelected(),
+                draft.appearance().drawing().isPresent(), canvas.boxHandleActive()));
     }
 
     /** «Actual: Claro» and the other theme's default scheme («Oscuro»), as the two preview cards say. */

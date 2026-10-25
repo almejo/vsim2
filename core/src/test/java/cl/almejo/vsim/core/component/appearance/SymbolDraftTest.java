@@ -52,13 +52,74 @@ class SymbolDraftTest {
     }
 
     @Test
-    void resizingTheBoxMovesRightEdgePinsWithoutScalingTheDrawing() {
+    void growingTheBoxByAnEvenAmountKeepsTheDrawingAndThePinsCentred() {
         SymbolDraft original = draft(false).applyTemplate(SymbolTemplates.Template.SQUARE);
+
         SymbolDraft resized = original.resizeBox(new GridSize(8, 6));
-        assertThat(resized.elements()).isEqualTo(original.elements());
-        assertThat(resized.appearance().pins()).contains(new PinPlacement(OUTPUT, new GridPoint(8, 2)));
+
+        assertThat(points(resized)).containsExactly(new SymbolPoint(16, 8), new SymbolPoint(48, 8),
+                new SymbolPoint(48, 40), new SymbolPoint(16, 40));
+        assertThat(resized.appearance().pins()).containsExactly(new PinPlacement(INPUT, new GridPoint(0, 3)),
+                new PinPlacement(OUTPUT, new GridPoint(8, 3)));
         assertThatThrownBy(() -> original.resizeBox(new GridSize(1, 1)))
                 .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void anOddChangeMovesTheDrawingHalfAUnitAndPutsTheExtraUnitRightAndBelowThePins() {
+        SymbolDraft original = draft(false).applyTemplate(SymbolTemplates.Template.SQUARE)
+                .movePin(INPUT, new GridPoint(3, 0));
+
+        SymbolDraft resized = original.resizeBox(new GridSize(7, 5));
+
+        assertThat(points(resized)).containsExactly(new SymbolPoint(12, 4), new SymbolPoint(44, 4),
+                new SymbolPoint(44, 36), new SymbolPoint(12, 36));
+        assertThat(resized.appearance().pins()).containsExactly(new PinPlacement(INPUT, new GridPoint(3, 0)),
+                new PinPlacement(OUTPUT, new GridPoint(7, 2)));
+        assertThat(resized.resizeBox(new GridSize(6, 4)).appearance()).isEqualTo(original.appearance());
+    }
+
+    @Test
+    void topAndBottomPinsFollowTheMiddleOfTheBoxOnTheGrid() {
+        SymbolDraft original = draft(false).movePin(INPUT, new GridPoint(3, 0)).movePin(OUTPUT, new GridPoint(2, 4));
+
+        SymbolDraft resized = original.resizeBox(new GridSize(10, 6));
+
+        assertThat(resized.appearance().pins()).containsExactly(new PinPlacement(INPUT, new GridPoint(5, 0)),
+                new PinPlacement(OUTPUT, new GridPoint(4, 6)));
+    }
+
+    @Test
+    void scalingTheBoxScalesTheDrawingAndThePinsWithIt() {
+        SymbolDraft original = draft(false).applyTemplate(SymbolTemplates.Template.SQUARE);
+
+        SymbolDraft scaled = original.scaleBox(new GridSize(12, 8));
+
+        assertThat(scaled.appearance().size()).isEqualTo(new GridSize(12, 8));
+        assertThat(points(scaled)).containsExactly(new SymbolPoint(16, 0), new SymbolPoint(80, 0),
+                new SymbolPoint(80, 64), new SymbolPoint(16, 64));
+        assertThat(scaled.appearance().pins()).containsExactly(new PinPlacement(INPUT, new GridPoint(0, 4)),
+                new PinPlacement(OUTPUT, new GridPoint(12, 4)));
+    }
+
+    @Test
+    void scalingTheBoxIsRefusedWhenTwoPinsWouldMeet() {
+        SymbolDraft close = draft(false).movePin(INPUT, new GridPoint(3, 2)).movePin(OUTPUT, new GridPoint(4, 2));
+
+        assertThatThrownBy(() -> close.scaleBox(new GridSize(2, 4))).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> draft(true).scaleBox(new GridSize(8, 8))).isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    void theBoxShrinksUntilTheCentredDrawingTouchesAnEdge() {
+        SymbolDraft line = draft(false).addFigure(SymbolTemplates.line(new SymbolPoint(16, 8), new SymbolPoint(32, 8),
+                false));
+
+        GridSize minimum = line.minimumBoxSize();
+
+        assertThat(minimum).isEqualTo(new GridSize(2, 2));
+        assertThat(points(line.resizeBox(minimum))).containsExactly(new SymbolPoint(0, 0), new SymbolPoint(16, 0));
+        assertThatThrownBy(() -> line.resizeBox(new GridSize(1, 2))).isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
@@ -82,6 +143,56 @@ class SymbolDraftTest {
         assertThat(split.nodes().get(1).point()).isEqualTo(new SymbolPoint(24, 8));
         assertThat(split.nodes().getFirst().control()).contains(new SymbolPoint(16, 0));
         assertThat(split.nodes().get(1).control()).contains(new SymbolPoint(32, 16));
+    }
+
+    @Test
+    void openingAClosedFigureDropsItsClosingSegmentAndItsFill() {
+        SymbolPath triangle = new SymbolPath(List.of(
+                new SymbolNode(new SymbolPoint(8, 8), Optional.empty()),
+                new SymbolNode(new SymbolPoint(40, 8), Optional.empty()),
+                new SymbolNode(new SymbolPoint(24, 24), Optional.of(new SymbolPoint(8, 24)))), true, true);
+
+        SymbolPath opened = (SymbolPath) draft(false).addFigure(triangle).openPath(0).elements().getFirst();
+
+        assertThat(opened.closed()).isFalse();
+        assertThat(opened.filled()).isFalse();
+        assertThat(opened.nodes()).extracting(SymbolNode::point).containsExactly(new SymbolPoint(8, 8),
+                new SymbolPoint(40, 8), new SymbolPoint(24, 24));
+        assertThat(opened.nodes().getLast().control()).isEmpty();
+    }
+
+    @Test
+    void aCurveDrawnThroughAPointPassesThroughItAtItsMiddle() {
+        SymbolDraft line = draft(false).addFigure(SymbolTemplates.line(new SymbolPoint(0, 0), new SymbolPoint(32, 0),
+                false));
+
+        SymbolPath curved = (SymbolPath) line.curveThrough(0, 0, new SymbolPoint(16, 8), SnapMode.FREE)
+                .elements().getFirst();
+
+        assertThat(curved.nodes().getFirst().control()).contains(new SymbolPoint(16, 16));
+        assertThat(curved.segmentMiddle(0)).isEqualTo(new SymbolPoint(16, 8));
+    }
+
+    @Test
+    void theControlOfACurveThroughAPointStaysInsideTheBox() {
+        SymbolDraft line = draft(false).addFigure(SymbolTemplates.line(new SymbolPoint(0, 4), new SymbolPoint(48, 4),
+                false));
+
+        SymbolPath curved = (SymbolPath) line.curveThrough(0, 0, new SymbolPoint(24, 0), SnapMode.FREE)
+                .elements().getFirst();
+
+        assertThat(curved.nodes().getFirst().control()).contains(new SymbolPoint(24, 0));
+    }
+
+    @Test
+    void straighteningASegmentDropsItsCurve() {
+        SymbolDraft curved = draft(false).addFigure(SymbolTemplates.line(new SymbolPoint(0, 0),
+                new SymbolPoint(32, 0), false)).curveThrough(0, 0, new SymbolPoint(16, 8), SnapMode.FREE);
+
+        SymbolPath straight = (SymbolPath) curved.straighten(0, 0).elements().getFirst();
+
+        assertThat(straight.nodes().getFirst().control()).isEmpty();
+        assertThat(straight.segmentMiddle(0)).isEqualTo(new SymbolPoint(16, 0));
     }
 
     @Test
@@ -123,6 +234,10 @@ class SymbolDraftTest {
     void aPinOnTheOutlineOrWithinTwoUnitsOfItDoesNotWarn() {
         assertThat(draft(false).applyTemplate(SymbolTemplates.Template.ALU).problems()).isEmpty();
         assertThat(draft(false).applyTemplate(SymbolTemplates.Template.TRIANGLE).problems()).isEmpty();
+    }
+
+    private static List<SymbolPoint> points(SymbolDraft draft) {
+        return ((SymbolPath) draft.elements().getFirst()).nodes().stream().map(SymbolNode::point).toList();
     }
 
     private static SymbolDraft draft(boolean locked) {
