@@ -22,6 +22,7 @@ import java.awt.Color;
 import java.awt.Font;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.function.BiConsumer;
 
 /**
@@ -54,9 +55,15 @@ public final class ComponentFormPanel extends JPanel {
     private final List<JCheckBox> testPartChoices = new ArrayList<>();
     private final List<JLabel> testPartOutcomes = new ArrayList<>();
     private final Runnable refresher = this::refresh;
+    private JLabel updateNote;
 
     JLabel pinsHelpLabel() {
         return pinsHelp;
+    }
+
+    /** The note of the update dialog: the pins that already exist keep their place in the box. */
+    Optional<JLabel> updateNoteLabel() {
+        return Optional.ofNullable(updateNote);
     }
 
     public ComponentFormPanel(ComponentForm form) {
@@ -121,6 +128,11 @@ public final class ComponentFormPanel extends JPanel {
         add(buttons(inputs, inputUp, inputDown, form::moveInput));
         add(buttons(outputs, outputUp, outputDown, form::moveOutput));
         add(renameHelp, "span 2");
+        if (form.mode() == ComponentForm.Mode.UPDATE) {
+            updateNote = new JLabel("<html><body style='width:" + NOTE_WIDTH + "px'>"
+                    + Messages.text("template.dialog.updateKeepsPlaces") + "</body></html>");
+            add(updateNote, "span 2");
+        }
         if (form.mode() == ComponentForm.Mode.CREATE) {
             replace.setSelected(form.replaceSelection());
             replace.addActionListener(event -> form.setReplaceSelection(replace.isSelected()));

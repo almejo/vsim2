@@ -44,6 +44,8 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 
 ### Arreglado
 
+- La línea de ayuda del editor de formas ya no se corta con varias figuras o un nodo elegidos: los textos son más cortos.
+- El diálogo «Actualizar componente…» dice que los pines que ya existen conservan su lugar en la caja y que los nuevos van a un punto libre del borde.
 - La hoja «Conexiones al cambiar la forma» pone sus botones a la derecha, como en el diseño.
 - El triángulo de advertencia de un pin marcado en rojo se dibuja del lado de su patita, fuera de la pieza, y ya no tapa el nombre del pin.
 

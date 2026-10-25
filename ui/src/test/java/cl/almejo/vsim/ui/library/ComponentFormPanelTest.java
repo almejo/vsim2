@@ -229,4 +229,15 @@ class ComponentFormPanelTest {
                 List.of(ExampleDefinitions.inverter())));
         assertThat(updating.pinsHelpLabel().getParent()).isSameAs(updating);
     }
+
+    @Test
+    void theUpdateDialogSaysThatExistingPinsKeepTheirPlaceInTheBox() {
+        ComponentFormPanel updating = new ComponentFormPanel(ComponentForm.update(order, names, List.of(),
+                List.of(ExampleDefinitions.inverter())));
+        ComponentFormPanel creating = new ComponentFormPanel(ComponentForm.create(order, names, List.of(), Set.of()));
+
+        assertThat(updating.updateNoteLabel()).isPresent();
+        assertThat(updating.updateNoteLabel().orElseThrow().getText()).contains("conservan su lugar");
+        assertThat(creating.updateNoteLabel()).isEmpty();
+    }
 }

@@ -73,6 +73,7 @@ class ShapeEditorPanelTest {
                 .map(JTextField.class::cast).findFirst().orElseThrow();
         field.setText("Registro");
         assertThat(panel.hasChanges()).isTrue();
+        assertThat(panel.acceptButton().isEnabled()).as("Aceptar counts the open text as a change").isTrue();
         assertThat(panel.getInputMap(ShapeEditorPanel.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT)
                 .get(KeyStroke.getKeyStroke("V"))).isNull();
         AtomicBoolean accepted = new AtomicBoolean();
