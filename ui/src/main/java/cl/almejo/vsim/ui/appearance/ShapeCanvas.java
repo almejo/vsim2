@@ -779,7 +779,7 @@ final class ShapeCanvas extends JPanel {
             ComponentAppearance appearance = current.get().appearance();
             surface.translate(originX, originY); surface.scale(zoom, zoom);
             paintAppearance(surface, definition, appearance, scheme, true, (float) (SCREEN_STROKE_WIDTH / zoom),
-                    SCREEN_PIN_RADIUS / (PainterSupport.PIN_DOT_RADIUS * zoom));
+                    SCREEN_PIN_RADIUS / (PainterSupport.PIN_DOT_RADIUS * zoom), 1 / zoom);
             paintGuides(surface, scheme, appearance.size());
             surface.setColor(PainterSupport.withAlpha(scheme.text(), 130));
             surface.setStroke(new BasicStroke((float) (1 / zoom), BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER,
@@ -1049,12 +1049,16 @@ final class ShapeCanvas extends JPanel {
 
     static void paintAppearance(Graphics2D graphics, ComponentDefinition definition, ComponentAppearance appearance,
                                 ColorScheme scheme, boolean editing) {
-        paintAppearance(graphics, definition, appearance, scheme, editing, 1.6f, 1);
+        paintAppearance(graphics, definition, appearance, scheme, editing, 1.6f, 1, 1);
     }
 
-    /** With {@code strokeWidth} and {@code pinScale} in local pixels: a zoomed view keeps them constant on screen. */
+    /**
+     * With {@code strokeWidth}, {@code pinScale} and (for the default box only, whose texts are not geometry)
+     * {@code textScale} in local pixels: a zoomed view keeps them constant on screen.
+     */
     static void paintAppearance(Graphics2D graphics, ComponentDefinition definition, ComponentAppearance appearance,
-                                ColorScheme scheme, boolean editing, float strokeWidth, double pinScale) {
+                                ColorScheme scheme, boolean editing, float strokeWidth, double pinScale,
+                                double textScale) {
         ComponentType original = SubcircuitTypes.typeOf(definition);
         List<PinSpec> pins = new ArrayList<>();
         for (DefinitionPin pin : definition.pinout()) {
@@ -1069,6 +1073,6 @@ final class ShapeCanvas extends JPanel {
             SymbolPainter.paint(graphics, type, editing
                     ? new SymbolDrawing(drawing.size(), drawing.elements(), true) : drawing, scheme, definition.name(),
                     strokeWidth, pinScale);
-        } else { SubcircuitPainter.paintDefaultBox(graphics, type, scheme, strokeWidth, pinScale); }
+        } else { SubcircuitPainter.paintDefaultBox(graphics, type, scheme, strokeWidth, pinScale, textScale); }
     }
 }

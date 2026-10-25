@@ -361,11 +361,53 @@ class ShapeCanvasTest {
         assertThat(Math.abs(atFour - atOne)).isLessThanOrEqualTo(1);
     }
 
-    /** The run of ink across the left edge of a rectangle, low enough to be clear of every pin stub. */
-    private static int strokeWidthOfTheLeftEdge(double zoom) {
+    @Test
+    void theDefaultBoxKeepsItsStrokeWidthOnScreenWhateverTheZoom() {
+        int atOne = strokeWidthOfTheLeftEdge(1, Optional.empty());
+        int atFour = strokeWidthOfTheLeftEdge(4, Optional.empty());
+        int atSix = strokeWidthOfTheLeftEdge(6, Optional.empty());
+        assertThat(atOne).isBetween(1, 3);
+        assertThat(Math.abs(atFour - atOne)).isLessThanOrEqualTo(1);
+        assertThat(Math.abs(atSix - atOne)).isLessThanOrEqualTo(1);
+    }
+
+    @Test
+    void theDefaultBoxTextsKeepTheirSizeOnScreenWhateverTheZoom() {
+        int atTwo = inkOfTheDefaultBoxName(2);
+        int atFour = inkOfTheDefaultBoxName(4);
+        assertThat(atTwo).isPositive();
+        assertThat((double) atFour / atTwo).isBetween(0.6, 1.6);
+    }
+
+    /** The dark pixels of the name band along the top of the default box (the pin names are lower down). */
+    private static int inkOfTheDefaultBoxName(double zoom) {
         ComponentDefinition definition = ShapeEditorPanelTest.definition();
         AtomicReference<SymbolDraft> draft = new AtomicReference<>(SymbolDraft.of(ComponentAppearance.of(definition),
-                definition.pinout(), false).applyTemplate(SymbolTemplates.Template.RECTANGLE));
+                definition.pinout(), false));
+        ShapeCanvas canvas = canvas(definition, draft);
+        canvas.setZoom(zoom);
+        BufferedImage image = paintInto(canvas);
+        Rectangle2D box = canvas.boxOnScreen();
+        int ink = 0;
+        for (int y = (int) (box.getMinY() + zoom + 4); y < box.getMinY() + 1.5 * 8 * zoom; y++) {
+            for (int x = (int) box.getMinX() + 6; x < box.getMaxX() - 6; x++) {
+                java.awt.Color pixel = new java.awt.Color(image.getRGB(x, y));
+                if (pixel.getRed() + pixel.getGreen() + pixel.getBlue() < 3 * 128) { ink++; }
+            }
+        }
+        return ink;
+    }
+
+    private static int strokeWidthOfTheLeftEdge(double zoom) {
+        return strokeWidthOfTheLeftEdge(zoom, Optional.of(SymbolTemplates.Template.RECTANGLE));
+    }
+
+    /** The run of ink across the left edge of a template (the default box when empty), clear of every pin stub. */
+    private static int strokeWidthOfTheLeftEdge(double zoom, Optional<SymbolTemplates.Template> template) {
+        ComponentDefinition definition = ShapeEditorPanelTest.definition();
+        SymbolDraft base = SymbolDraft.of(ComponentAppearance.of(definition), definition.pinout(), false);
+        AtomicReference<SymbolDraft> draft = new AtomicReference<>(
+                template.map(base::applyTemplate).orElse(base));
         ShapeCanvas canvas = canvas(definition, draft);
         canvas.setZoom(zoom);
         BufferedImage image = paintInto(canvas);

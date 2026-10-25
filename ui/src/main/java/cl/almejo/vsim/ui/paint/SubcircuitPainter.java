@@ -35,19 +35,22 @@ public final class SubcircuitPainter implements ComponentPainter {
                     SubcircuitTypes.definitionOf(type).map(ComponentDefinition::name).orElse(type.id()));
             return;
         }
-        paintDefaultBox(graphics, type, scheme, PainterSupport.STROKE, 1);
+        paintDefaultBox(graphics, type, scheme, PainterSupport.STROKE, 1, 1);
     }
 
-    /** The default box with an explicit outline stroke and pin marker scale, for zoomed views (see SymbolPainter). */
+    /**
+     * The default box with an explicit outline stroke, pin marker scale and text scale, for zoomed views (see
+     * SymbolPainter): a zoomed view passes {@code 1 / zoom} for all three to keep them a constant size on screen.
+     */
     public static void paintDefaultBox(Graphics2D graphics, ComponentType type, ColorScheme scheme, float strokeWidth,
-                                       double pinScale) {
+                                       double pinScale, double textScale) {
         paintDefaultBox(graphics, type, scheme,
                 new java.awt.BasicStroke(strokeWidth, java.awt.BasicStroke.CAP_ROUND, java.awt.BasicStroke.JOIN_ROUND),
-                pinScale);
+                pinScale, textScale);
     }
 
     private static void paintDefaultBox(Graphics2D graphics, ComponentType type, ColorScheme scheme,
-                                        java.awt.BasicStroke stroke, double pinScale) {
+                                        java.awt.BasicStroke stroke, double pinScale, double textScale) {
         double width = type.size().width() * UNIT;
         double height = type.size().height() * UNIT;
         Rectangle2D box = new Rectangle2D.Double(1, 1, width - 2, height - 2);
@@ -59,7 +62,7 @@ public final class SubcircuitPainter implements ComponentPainter {
         // Sideways the name runs across the box, so it goes in the middle, between the two columns of pin names.
         double nameY = height >= 4 * UNIT && !sideways ? UNIT : height / 2;
         PainterSupport.centeredText(graphics, box, name, width / 2, nameY,
-                fitted(graphics, name, NAME_SIZE, (sideways ? height : width) - 2 * INSET), scheme.text());
+                fitted(graphics, name, (float) (NAME_SIZE * textScale), textScale, (sideways ? height : width) - 2 * INSET), scheme.text());
         for (PinSpec pin : type.pins()) {
             if (pin.name().isBlank()) {
                 continue;
@@ -75,7 +78,7 @@ public final class SubcircuitPainter implements ComponentPainter {
             double gap = gapToNeighbours(type, pin, height);
             Rectangle2D slot = new Rectangle2D.Double(left ? 1 : width / 2, pinY - gap / 2, width / 2 - 1, gap);
             double across = sideways ? gap - 2 : width / 2 - INSET;
-            float size = fitted(graphics, text, PIN_NAME_SIZE, across);
+            float size = fitted(graphics, text, (float) (PIN_NAME_SIZE * textScale), textScale, across);
             double extent = sideways ? textHeight(graphics, size) : textWidth(graphics, text, size);
             double centerX = left ? INSET + extent / 2 : width - INSET - extent / 2;
             PainterSupport.centeredText(graphics, box.createIntersection(slot), text, centerX, pinY, size,
@@ -102,9 +105,11 @@ public final class SubcircuitPainter implements ComponentPainter {
         return gap;
     }
 
-    private static float fitted(Graphics2D graphics, String text, float preferred, double available) {
+    private static float fitted(Graphics2D graphics, String text, float preferred, double textScale,
+                                double available) {
         double textWidth = textWidth(graphics, text, preferred);
-        return textWidth <= available ? preferred : (float) Math.max(MINIMUM_SIZE, preferred * available / textWidth);
+        return textWidth <= available ? preferred
+                : (float) Math.max(MINIMUM_SIZE * textScale, preferred * available / textWidth);
     }
 
     private static double textHeight(Graphics2D graphics, float size) {
