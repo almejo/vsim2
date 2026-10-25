@@ -25,6 +25,7 @@ import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.library.ComponentDefinition;
+import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.core.netlist.Net;
 import cl.almejo.vsim.core.netlist.NetId;
 import cl.almejo.vsim.core.netlist.PinRef;
@@ -157,7 +158,8 @@ public final class CircuitReader {
             }
         }
         return new PartView(component.id().value(), component.typeId(), component.label(), component.position(),
-                component.rotation().name(), parameters, boundsOf(component, source), pins);
+                component.rotation().name(), parameters, boundsOf(component, source), pins,
+                SubcircuitTypes.definitionIdOf(component.typeId()).map(definition -> component.appearance().isPresent()));
     }
 
     private static Map<String, Object> resolved(ComponentType type, Component component) {

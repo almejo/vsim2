@@ -7,6 +7,7 @@ import cl.almejo.vsim.automation.read.CircuitView.NetView;
 import cl.almejo.vsim.automation.read.CircuitView.PartView;
 import cl.almejo.vsim.automation.read.CircuitView.PinView;
 import cl.almejo.vsim.automation.read.ReadFilter.ElementKind;
+import cl.almejo.vsim.core.component.appearance.ComponentAppearance;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.Frame;
@@ -129,6 +130,22 @@ class CircuitReaderTest {
                         org.assertj.core.groups.Tuple.tuple(new PinReference(buffer.id().value(), "y", 0),
                                 8, new GridPoint(14, 12)));
         assertThat(view.summary().userComponents()).containsExactly("Búfer de 8 bits");
+    }
+
+    @Test
+    void anInstanceWithItsOwnShapeSaysSoAndOthersDoNot() {
+        fixture.document.putDefinition(ExampleDefinitions.byteBuffer());
+        Component plain = fixture.place(SubcircuitTypes.typeIdOf(ExampleDefinitions.BYTE_BUFFER), 10, 10);
+        Component shaped = fixture.place(SubcircuitTypes.typeIdOf(ExampleDefinitions.BYTE_BUFFER), 30, 10);
+        Component gate = fixture.place(StandardComponentTypes.NOT, 50, 10);
+        fixture.document.replace(shaped.withAppearance(Optional.of(ComponentAppearance.of(
+                ExampleDefinitions.byteBuffer()))));
+
+        CircuitView view = CircuitReader.read(fixture.source(), ReadFilter.FULL, Optional.empty());
+
+        assertThat(part(view, plain.id().value()).ownShape()).contains(false);
+        assertThat(part(view, shaped.id().value()).ownShape()).contains(true);
+        assertThat(part(view, gate.id().value()).ownShape()).isEmpty();
     }
 
     @Test

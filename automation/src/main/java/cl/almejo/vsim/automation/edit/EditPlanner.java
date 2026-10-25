@@ -17,6 +17,7 @@ import cl.almejo.vsim.automation.edit.EditOperation.Move;
 import cl.almejo.vsim.automation.edit.EditOperation.PlaceInstance;
 import cl.almejo.vsim.automation.edit.EditOperation.PlacePart;
 import cl.almejo.vsim.automation.edit.EditOperation.RemoveGuide;
+import cl.almejo.vsim.automation.edit.EditOperation.SetComponentShape;
 import cl.almejo.vsim.automation.edit.EditOperation.SetLabel;
 import cl.almejo.vsim.automation.edit.EditOperation.SetParameters;
 import cl.almejo.vsim.automation.edit.EditOperation.TidyWires;
@@ -24,6 +25,7 @@ import cl.almejo.vsim.automation.edit.EditReceipt.ConnectionReport;
 import cl.almejo.vsim.automation.edit.EditReceipt.CreatedComponent;
 import cl.almejo.vsim.core.command.AddElementsCommand;
 import cl.almejo.vsim.core.command.AddWireCommand;
+import cl.almejo.vsim.core.command.ChangeAppearanceCommand;
 import cl.almejo.vsim.core.command.ChangeParametersCommand;
 import cl.almejo.vsim.core.command.CreateFrameCommand;
 import cl.almejo.vsim.core.command.MoveWithWiresCommand;
@@ -38,6 +40,10 @@ import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.ParameterSpec;
 import cl.almejo.vsim.core.component.PinDirection;
 import cl.almejo.vsim.core.component.PinSpec;
+import cl.almejo.vsim.core.component.appearance.ComponentAppearance;
+import cl.almejo.vsim.core.component.appearance.DraftProblem;
+import cl.almejo.vsim.core.component.appearance.SymbolDraft;
+import cl.almejo.vsim.core.component.appearance.SymbolTemplates;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
@@ -51,6 +57,7 @@ import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.geometry.GridPoint;
+import cl.almejo.vsim.core.geometry.GridSize;
 import cl.almejo.vsim.core.geometry.Rotation;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.ConvertedSelection;
@@ -58,6 +65,8 @@ import cl.almejo.vsim.core.library.DefinitionBuilder;
 import cl.almejo.vsim.core.library.DefinitionBundle;
 import cl.almejo.vsim.core.library.DefinitionIds;
 import cl.almejo.vsim.core.library.DefinitionPin;
+import cl.almejo.vsim.core.library.DefinitionUpdateSafety;
+import cl.almejo.vsim.core.library.UnsafeDefinitionUpdateException;
 import cl.almejo.vsim.core.library.PinBridges;
 import cl.almejo.vsim.core.library.PinOrder;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
@@ -67,6 +76,7 @@ import cl.almejo.vsim.core.netlist.Netlist;
 import cl.almejo.vsim.core.netlist.NetlistCompiler;
 import cl.almejo.vsim.core.netlist.PinRef;
 import cl.almejo.vsim.core.tunnel.Tunnels;
+import cl.almejo.vsim.core.wiring.ShapeChangePlan;
 import cl.almejo.vsim.core.wiring.TidyOptions;
 import cl.almejo.vsim.core.wiring.TidyPlan;
 import cl.almejo.vsim.core.wiring.WireTidy;
@@ -196,6 +206,7 @@ final class EditPlanner {
                 case RemoveGuide removeGuide -> removeGuide(removeGuide);
                 case CreateComponent createComponent -> createComponent(createComponent);
                 case PlaceInstance placeInstance -> placeInstance(placeInstance);
+                case SetComponentShape setComponentShape -> setComponentShape(setComponentShape);
                 case TidyWires tidyWires -> tidyWires(tidyWires);
             }
         } catch (AutomationException refusal) {
@@ -353,6 +364,137 @@ final class EditPlanner {
             }
             new AddWireCommand(new Wire(candidate.newWireId(), previous, next)).apply(candidate);
         }
+    }
+
+    // --- shapes ---
+
+    /**
+     * «Cambiar forma» for the AI: the same {@link SymbolDraft} the dialog edits and the same
+     * {@link ChangeAppearanceCommand} it applies, refused whole (spec §10) when the draft is not acceptable or a wire
+     * could not follow a pin without touching another net; the dialog would ask «Aplicar y conectar a mano» there,
+     * and the AI never loosens a pin.
+     */
+    private void setComponentShape(SetComponentShape operation) {
+        if (operation.instance().isPresent() == operation.definition().isPresent()) {
+            throw new AutomationException(AutomationError.INVALID_PARAMETER,
+                    "Name exactly one of instance (a placed user component) and definition (its circuit copy)");
+        }
+        if (operation.template().isEmpty() && operation.pins().isEmpty() && !operation.clear()) {
+            throw new AutomationException(AutomationError.INVALID_PARAMETER,
+                    "Give a template, pins to move, or clear");
+        }
+        ChangeAppearanceCommand command = operation.instance().isPresent()
+                ? shapeOfInstance(operation, operation.instance().get())
+                : shapeOfDefinition(operation, circuitDefinition(operation.definition().get()));
+        requireWiresFollow(command.plan());
+        command.apply(candidate);
+    }
+
+    private ChangeAppearanceCommand shapeOfInstance(SetComponentShape operation, String target) {
+        DocumentElement element = requireElement(target);
+        if (!(element instanceof Component instance)
+                || SubcircuitTypes.definitionIdOf(instance.typeId()).isEmpty()) {
+            throw new AutomationException(AutomationError.INVALID_REFERENCE, target + " is not an instance of a "
+                    + "user component; read the circuit to see which parts are");
+        }
+        ComponentDefinition definition = candidate.definition(SubcircuitTypes.definitionIdOf(instance.typeId())
+                .orElseThrow()).orElseThrow(() -> new AutomationException(AutomationError.INVALID_REFERENCE,
+                target + " has no definition in the circuit"));
+        if (operation.clear()) {
+            requireNothingElse(operation);
+            return ChangeAppearanceCommand.forInstance(candidate, registry, instance.id(), Optional.empty());
+        }
+        SymbolDraft draft = draftOf(operation, definition, instance.appearance()
+                .orElseGet(() -> ComponentAppearance.of(definition)), false);
+        return ChangeAppearanceCommand.forInstance(candidate, registry, instance.id(),
+                Optional.of(draft.appearance()));
+    }
+
+    private ChangeAppearanceCommand shapeOfDefinition(SetComponentShape operation, ComponentDefinition definition) {
+        List<String> parents = DefinitionUpdateSafety.containingNames(candidate, definition.id());
+        SetComponentShape effective = operation.clear()
+                ? new SetComponentShape(operation.instance(), operation.definition(),
+                Optional.of(SymbolTemplates.Template.DEFAULT_BOX), List.of(), false) : operation;
+        if (operation.clear()) {
+            requireNothingElse(operation);
+        }
+        SymbolDraft draft = draftOf(effective, definition, ComponentAppearance.of(definition), !parents.isEmpty());
+        try {
+            return ChangeAppearanceCommand.forDefinition(candidate, registry, definition.id(), draft.appearance());
+        } catch (UnsafeDefinitionUpdateException unsafe) {
+            throw new AutomationException(AutomationError.INVALID_PARAMETER, definition.name() + " is used inside "
+                    + String.join(", ", unsafe.containingNames()) + ": its pins and size cannot change; the "
+                    + "drawing can");
+        }
+    }
+
+    private static void requireNothingElse(SetComponentShape operation) {
+        if (operation.template().isPresent() || !operation.pins().isEmpty()) {
+            throw new AutomationException(AutomationError.INVALID_PARAMETER,
+                    "clear goes alone: without a template and without pins");
+        }
+    }
+
+    /** The draft after the template and the pin moves, or the refusal the dialog would show as a blocked Aceptar. */
+    private static SymbolDraft draftOf(SetComponentShape operation, ComponentDefinition definition,
+                                       ComponentAppearance starting, boolean pinsLocked) {
+        SymbolDraft draft = SymbolDraft.of(starting, definition.pinout(), pinsLocked)
+                .withDefinitionName(definition.name());
+        if (operation.template().isPresent()) {
+            draft = draft.applyTemplate(operation.template().get());
+        }
+        for (SetComponentShape.PinPosition position : operation.pins()) {
+            DefinitionPin pin = definitionPin(definition, position.name());
+            GridSize size = draft.appearance().size();
+            if (position.x() < 0 || position.y() < 0 || position.x() > size.width() || position.y() > size.height()) {
+                throw new AutomationException(AutomationError.INVALID_PARAMETER, "Pin " + position.name()
+                        + " would be outside the box, which is " + size.width() + " × " + size.height()
+                        + " grid units");
+            }
+            draft = draft.movePin(pin.source(), new GridPoint(position.x(), position.y()));
+        }
+        for (DraftProblem problem : draft.problems()) {
+            if (problem.blocksAccept()) {
+                throw new AutomationException(AutomationError.INVALID_PARAMETER, "These pins would share a point: "
+                        + problem.pins() + "; give each pin its own place");
+            }
+        }
+        return draft;
+    }
+
+    private static DefinitionPin definitionPin(ComponentDefinition definition, String name) {
+        List<DefinitionPin> named = definition.pinout().stream().filter(pin -> pin.spec().name().equals(name)).toList();
+        if (named.size() != 1) {
+            throw new AutomationException(AutomationError.INVALID_PIN, named.isEmpty()
+                    ? definition.name() + " has no pin " + name + "; its pins are "
+                    + definition.pinout().stream().map(pin -> pin.spec().name()).toList()
+                    : "The pin name " + name + " repeats in " + definition.name() + "; rename a pin first");
+        }
+        return named.getFirst();
+    }
+
+    private void requireWiresFollow(ShapeChangePlan plan) {
+        if (plan.disconnected().isEmpty() && plan.keptOldShape().isEmpty()) {
+            return;
+        }
+        List<String> loose = plan.disconnected().stream().map(this::reference)
+                .map(pin -> pin.elementId() + "." + pin.pinName()).toList();
+        List<String> kept = plan.keptOldShape().stream()
+                .map(contact -> contact.instanceName() + "." + contact.pinName() + " would touch "
+                        + contact.touchedNetName()).toList();
+        throw new AutomationException(AutomationError.INVALID_PARAMETER, "A wire could not follow the moved pins "
+                + "without touching another net, so the user would have to connect by hand (the AI never loosens a "
+                + "pin). Loose pins: " + loose + (kept.isEmpty() ? "" : "; pieces that would keep their old shape: "
+                + kept) + ". Choose other pin places");
+    }
+
+    private ComponentDefinition circuitDefinition(String reference) {
+        if (reference.startsWith(ALIAS_PREFIX)) {
+            return requireDefinition(reference);
+        }
+        return byIdOrName(candidate.definitions(), reference).orElseThrow(() -> new AutomationException(
+                AutomationError.INVALID_REFERENCE, "The circuit has no component " + reference + "; its own are "
+                + candidate.definitions().stream().map(ComponentDefinition::name).toList()));
     }
 
     private void tidyWires(TidyWires operation) {

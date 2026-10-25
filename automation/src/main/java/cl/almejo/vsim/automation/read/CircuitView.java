@@ -11,6 +11,7 @@ import cl.almejo.vsim.core.geometry.GridPoint;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 
 /**
@@ -48,11 +49,15 @@ public record CircuitView(DocumentId document, DocumentVersion version, String n
     /**
      * A placed part: {@code rotation} R0, R90, R180 or R270 (clockwise on screen, y grows downwards), every
      * parameter with defaults filled in, its box, and in {@link ReadFilter.Detail#FULL} its pins where they are.
+     * {@code ownShape}: only for an instance of a user component, whether it has a shape of its own («Solo esta
+     * pieza») rather than its definition's.
      */
     public record PartView(String id, String typeId, String label, GridPoint position, String rotation,
-                           Map<String, Object> parameters, Bounds bounds, List<PinView> pins) {
+                           Map<String, Object> parameters, Bounds bounds, List<PinView> pins,
+                           Optional<Boolean> ownShape) {
 
         public PartView {
+            Objects.requireNonNull(ownShape, "ownShape");
             parameters = Map.copyOf(parameters);
             pins = List.copyOf(pins);
         }

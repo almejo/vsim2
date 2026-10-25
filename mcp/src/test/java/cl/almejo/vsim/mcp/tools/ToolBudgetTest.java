@@ -25,8 +25,8 @@ class ToolBudgetTest {
 
     /** 40,961 characters after the fix round. */
     private static final int ALL_TOOLS_BUDGET = 45_000;
-    /** 10,371 characters after the fix round. */
-    private static final int EDIT_BUDGET = 11_400;
+    /** 10,371 characters after the fix round; 12,244 with SetComponentShape (the shape editor, about 1,000). */
+    private static final int EDIT_BUDGET = 12_400;
     /** The answer to four parts and three Connects: 590 characters after the fix round. */
     private static final int TYPICAL_EDIT_ANSWER_BUDGET = 650;
 

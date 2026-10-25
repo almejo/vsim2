@@ -215,6 +215,39 @@ class ToolCallsTest {
     }
 
     @Test
+    void anAiGivesAnInstanceItsOwnShapeAndReadsItBack() {
+        String task = beginTask();
+        call("vsim_edit", edit(task, 0, List.of(
+                Map.of("op", "PlacePart", "alias", "in", "typeId", "input-pin", "x", 0, "y", 1, "label", "A"),
+                Map.of("op", "PlacePart", "alias", "gate", "typeId", "not", "x", 8, "y", 0),
+                Map.of("op", "PlacePart", "alias", "out", "typeId", "output-pin", "x", 18, "y", 1, "label", "Y"),
+                Map.of("op", "Connect", "from", Map.of("target", "new:in", "pinName", "pin"),
+                        "to", Map.of("target", "new:gate", "pinName", "in")),
+                Map.of("op", "Connect", "from", Map.of("target", "new:gate", "pinName", "out"),
+                        "to", Map.of("target", "new:out", "pinName", "pin")),
+                Map.of("op", "CreateComponent", "alias", "inverter", "name", "Inversor", "replaceSelection", true,
+                        "targets", List.of("new:in", "new:gate", "new:out")),
+                Map.of("op", "PlaceInstance", "alias", "piece", "definition", "new:inverter", "x", 40, "y", 0))));
+        Map<String, Object> circuit = call("vsim_read_circuit", Map.of("document", "circuit-1"));
+        Map<String, Object> instance = list(circuit, "parts").stream()
+                .filter(part -> part.containsKey("ownShape")).findFirst().orElseThrow();
+        assertThat(instance).containsEntry("ownShape", false);
+
+        call("vsim_edit", edit(task, 1, List.of(Map.of("op", "SetComponentShape", "instance",
+                (String) instance.get("id"), "template", "TRIANGLE"))));
+
+        Map<String, Object> after = call("vsim_read_circuit", Map.of("document", "circuit-1"));
+        assertThat(list(after, "parts")).filteredOn(part -> part.containsKey("ownShape"))
+                .extracting(part -> part.get("ownShape")).contains(true);
+    }
+
+    @Test
+    void aShapeTemplateThatIsNotOneOfTheFormasIsRefusedAsAnInvalidParameter() {
+        assertThat(refusal("vsim_edit", edit(beginTask(), 0, List.of(Map.of("op", "SetComponentShape",
+                "definition", "Inversor", "template", "HEXAGON"))))).containsEntry("error", "INVALID_PARAMETER");
+    }
+
+    @Test
     void anEditNeedsItsTaskAndAnOperationOfAKnownKind() {
         Map<String, Object> withoutTask = new LinkedHashMap<>(edit("task-1", 0, List.of(place("one", 0, 0))));
         withoutTask.remove("taskId");
