@@ -29,7 +29,7 @@ final class ConnectionsSheet {
     private static final int TEXT_WIDTH = 440;
     private static final float HEADING_GROWTH = 3f;
     private static final String LAYOUT = "insets 16 20 16 20, wrap 1, fillx";
-    private static final String BUTTON_LAYOUT = "alignx right, gaptop 12";
+    private static final String BUTTON_LAYOUT = "alignx right, growx 0, gaptop 12";
 
     private final JPanel content = new JPanel(new MigLayout(LAYOUT, "[grow, fill]"));
     private final JButton back = new JButton(Messages.text("shape.connections.back"));

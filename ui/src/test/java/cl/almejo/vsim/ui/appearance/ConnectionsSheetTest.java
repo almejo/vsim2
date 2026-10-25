@@ -5,6 +5,8 @@ import org.junit.jupiter.api.Test;
 
 import javax.swing.JButton;
 import javax.swing.JLabel;
+import javax.swing.SwingUtilities;
+import java.awt.Rectangle;
 import java.awt.Component;
 import java.awt.Container;
 import java.util.ArrayList;
@@ -51,6 +53,17 @@ class ConnectionsSheetTest {
     }
 
     @Test
+    void theButtonsSitAtTheRightEdgeOfTheSheet() {
+        ConnectionsSheet sheet = new ConnectionsSheet(question(false));
+        sheet.content().setSize(sheet.content().getPreferredSize());
+        layout(sheet.content());
+        JButton apply = sheet.defaultButton();
+        Rectangle applyBounds = SwingUtilities.convertRectangle(apply.getParent(), apply.getBounds(), sheet.content());
+        assertThat(applyBounds.x + applyBounds.width).isGreaterThanOrEqualTo(sheet.content().getWidth() - 24);
+        assertThat(applyBounds.x).isGreaterThan(sheet.content().getWidth() / 2);
+    }
+
+    @Test
     void whenThePieceItselfIsBlockedOnlyVolverIsOffered() {
         ConnectionsSheet sheet = new ConnectionsSheet(question(true));
         assertThat(buttons(sheet)).extracting(JButton::getText).containsExactly(Messages.text("shape.connections.back"));
@@ -73,6 +86,13 @@ class ConnectionsSheetTest {
         ConnectionsSheet sheet = new ConnectionsSheet(new ConnectionsQuestion(
                 List.of(new ConnectionsQuestion.Entry("<i>U1</i>", "A&B", "")), List.of(), List.of(), false));
         assertThat(labelNamed(sheet, "disconnected").getText()).contains("&lt;i&gt;U1&lt;/i&gt;").contains("A&amp;B");
+    }
+
+    private static void layout(Container container) {
+        container.doLayout();
+        for (Component child : container.getComponents()) {
+            if (child instanceof Container nested) { layout(nested); }
+        }
     }
 
     private static ConnectionsQuestion question(boolean blocked) {

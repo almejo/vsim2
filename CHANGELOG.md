@@ -41,6 +41,10 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 - Al «Actualizar componente…», un pin nuevo se ubica en un punto libre del borde, nunca en una esquina; si no queda ninguno, la caja crece hacia abajo.
 - «Actualizar componente…» deja en su lugar los pines que siguen existiendo (sus cables quedan conectados) y ubica los nuevos en un punto libre; con «Actualizar desde la librería», los cables siguen a los pines que se movieron (en 0.3 se volvían a ubicar todos los pines y los cables quedaban sueltos). Si el componente se usa dentro de otro y sus pines o su tamaño cambian, no se actualiza nada: se conserva la copia anterior y VSim dice dentro de cuál componente se usa. Tampoco se actualiza si un pin nuevo quedaría sobre un cable o un pin.
 
+### Arreglado
+
+- La hoja «Conexiones al cambiar la forma» pone sus botones a la derecha, como en el diseño.
+
 ## Versión 0.3 — 2026-10-24
 
 ### Agregado
