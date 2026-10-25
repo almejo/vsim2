@@ -379,6 +379,66 @@ class ShapeCanvasTest {
         return run;
     }
 
+    @Test
+    void theBoxEdgeHasANotchAtEveryWholeGridPoint() {
+        ComponentDefinition definition = ShapeEditorPanelTest.definition();
+        AtomicReference<SymbolDraft> draft = new AtomicReference<>(SymbolDraft.of(ComponentAppearance.of(definition),
+                definition.pinout(), false).resizeBox(new GridSize(6, 8)));
+        ShapeCanvas canvas = canvas(definition, draft);
+
+        assertThat(canvas.edgeNotches()).hasSize(2 * (6 + 8)).doesNotHaveDuplicates()
+                .contains(new GridPoint(0, 0), new GridPoint(6, 8), new GridPoint(3, 0), new GridPoint(0, 5),
+                        new GridPoint(6, 3))
+                .doesNotContain(new GridPoint(3, 4), new GridPoint(1, 1));
+    }
+
+    @Test
+    void whileAPinIsDraggedTheFreePointsAreHighlightedAndTheOccupiedOnesMarkedInTheProblemColour() {
+        ComponentDefinition definition = twoPinDefinition();
+        AtomicReference<SymbolDraft> draft = new AtomicReference<>(SymbolDraft.of(ComponentAppearance.of(definition),
+                definition.pinout(), false));
+        ShapeCanvas canvas = canvas(definition, draft);
+        BufferedImage idle = paintInto(canvas);
+
+        // A is at (0, 2) -> y 86; B at (0, 3) -> y 94. Drag A to the unit (2, 4) -> (86, 102), not yet released.
+        canvas.dispatchEvent(new MouseEvent(canvas, MouseEvent.MOUSE_PRESSED, 0, MouseEvent.BUTTON1_DOWN_MASK,
+                70, 86, 1, false, MouseEvent.BUTTON1));
+        canvas.dispatchEvent(new MouseEvent(canvas, MouseEvent.MOUSE_DRAGGED, 0, MouseEvent.BUTTON1_DOWN_MASK,
+                86, 102, 0, false, MouseEvent.NOBUTTON));
+
+        assertThat(canvas.pinGuideActive()).isTrue();
+        assertThat(canvas.occupiedPinPoints()).containsExactly(new GridPoint(0, 3));
+        assertThat(canvas.freePinPoints()).hasSize(7 * 5 - 1).contains(new GridPoint(2, 4), new GridPoint(0, 2))
+                .doesNotContain(new GridPoint(0, 3));
+        assertThat(canvas.nearestFreePinPoint()).hasValue(new GridPoint(2, 4));
+        BufferedImage dragged = paintInto(canvas);
+        assertThat(dragged.getRGB(86 + 5, 102)).isNotEqualTo(idle.getRGB(86 + 5, 102));
+        boolean occupiedMarked = false;
+        for (int x = 70 - 6; x <= 70 + 6; x++) {
+            for (int y = 94 - 6; y <= 94 + 6; y++) {
+                occupiedMarked |= dragged.getRGB(x, y) != idle.getRGB(x, y);
+            }
+        }
+        assertThat(occupiedMarked).as("the occupied point carries a mark").isTrue();
+    }
+
+    @Test
+    void nothingExtraIsDrawnWhenNoPinIsDragged() {
+        ComponentDefinition definition = twoPinDefinition();
+        AtomicReference<SymbolDraft> draft = new AtomicReference<>(SymbolDraft.of(ComponentAppearance.of(definition),
+                definition.pinout(), false));
+        ShapeCanvas canvas = canvas(definition, draft);
+        assertThat(canvas.pinGuideActive()).isFalse();
+        assertThat(canvas.freePinPoints()).isEmpty();
+        assertThat(canvas.occupiedPinPoints()).isEmpty();
+
+        drag(canvas, new Point(70, 86), new Point(86, 102));
+
+        assertThat(canvas.pinGuideActive()).isFalse();
+        assertThat(canvas.freePinPoints()).isEmpty();
+        assertThat(canvas.occupiedPinPoints()).isEmpty();
+    }
+
     private static BufferedImage paintInto(ShapeCanvas canvas) {
         BufferedImage image = new BufferedImage(canvas.getWidth(), canvas.getHeight(), BufferedImage.TYPE_INT_ARGB);
         Graphics2D graphics = image.createGraphics();

@@ -75,7 +75,7 @@ Una línea por función; el detalle está en [docs/funciones.md](docs/funciones.
 - [Constante](docs/funciones.md#constante) de 1 a 32 bits en binario, hexadecimal o decimal.
 - [Bloques](docs/funciones.md#bloques) de N bits: sumador, ALU, comparador, multiplexor, decodificador, registro y contador.
 - [Componentes propios](docs/funciones.md#componentes-propios) creados desde una selección, con librería, importación y exportación.
-- [Forma de los componentes propios](docs/funciones.md#forma-de-los-componentes-propios): figuras y nodos editables, caja independiente para sus pines y herramienta de mano para mover la vista.
+- [Forma de los componentes propios](docs/funciones.md#forma-de-los-componentes-propios): figuras y nodos editables, caja independiente para sus pines, guía de puntos al mover un pin y herramienta de mano para mover la vista.
 
 ### Simulación y paso a paso
 

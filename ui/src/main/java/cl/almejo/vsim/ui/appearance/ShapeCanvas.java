@@ -84,6 +84,7 @@ final class ShapeCanvas extends JPanel {
     /** Figure strokes and pin markers keep this size on screen whatever the zoom. */
     private static final float SCREEN_STROKE_WIDTH = 1.6f;
     private static final double SCREEN_PIN_RADIUS = 3;
+    private static final int NOTCH_LENGTH = 4;
     private final ComponentDefinition definition;
     private final Supplier<SymbolDraft> current;
     private final Consumer<SymbolDraft> publish;
@@ -103,6 +104,7 @@ final class ShapeCanvas extends JPanel {
     private Optional<ShapeSegments.Hit> insertion = Optional.empty();
     private Optional<SymbolDraft.Handle> handle = Optional.empty();
     private boolean resizingBox;
+    private boolean pinDragActive;
     private boolean panning;
     private boolean rubberBand;
     private SymbolPoint bandEnd;
@@ -238,6 +240,7 @@ final class ShapeCanvas extends JPanel {
     void cancelOperation() {
         if (committedBeforeDrag != null) { preview.accept(committedBeforeDrag); }
         pressed = null; dragging = null; beforeDrag = null; committedBeforeDrag = null; polygon.clear();
+        pinDragActive = false;
         dragTip = Optional.empty();
         if (textField != null) { remove(textField); textField = null; }
         repaint();
@@ -369,6 +372,7 @@ final class ShapeCanvas extends JPanel {
                 dragTip = figureTip(dragging);
             } else if (pin.isPresent() && tool == ShapeTool.SELECT) {
                 if (beforeDrag.pinsLocked()) { return; }
+                pinDragActive = true;
                 dragging = beforeDrag.movePin(pin.get(), new GridPoint(
                         (int) Math.round((event.getX() - originX) / zoom / UNIT),
                         (int) Math.round((event.getY() - originY) / zoom / UNIT)));
@@ -415,6 +419,7 @@ final class ShapeCanvas extends JPanel {
         SymbolDraft completed = dragging;
         SymbolDraft original = committedBeforeDrag;
         dragTip = Optional.empty();
+        pinDragActive = false;
         pressed = null; beforeDrag = null; committedBeforeDrag = null; dragging = null;
         if (completed != null && original != null) {
             preview.accept(original);
@@ -729,6 +734,7 @@ final class ShapeCanvas extends JPanel {
             surface.translate(originX, originY); surface.scale(zoom, zoom);
             paintAppearance(surface, definition, appearance, scheme, true, (float) (SCREEN_STROKE_WIDTH / zoom),
                     SCREEN_PIN_RADIUS / (PainterSupport.PIN_DOT_RADIUS * zoom));
+            paintGuides(surface, scheme, appearance.size());
             surface.setColor(PainterSupport.withAlpha(scheme.text(), 130));
             surface.setStroke(new BasicStroke((float) (1 / zoom), BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER,
                     10, new float[]{(float) (5 / zoom)}, 0));
@@ -773,6 +779,92 @@ final class ShapeCanvas extends JPanel {
             overlay.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
             paintCallouts(overlay, colors.get());
         } finally { overlay.dispose(); }
+    }
+
+    /** Every whole grid point on the box edge: where pins usually go and where the outline should pass. */
+    List<GridPoint> edgeNotches() {
+        GridSize size = current.get().appearance().size();
+        List<GridPoint> notches = new ArrayList<>();
+        for (int column = 0; column <= size.width(); column++) {
+            notches.add(new GridPoint(column, 0));
+            notches.add(new GridPoint(column, size.height()));
+        }
+        for (int row = 1; row < size.height(); row++) {
+            notches.add(new GridPoint(0, row));
+            notches.add(new GridPoint(size.width(), row));
+        }
+        return notches;
+    }
+
+    /** Whether a pin is being dragged right now (the pin guide is shown only then). */
+    boolean pinGuideActive() { return pinDragActive && pin.isPresent(); }
+
+    /** The points of the box another pin occupies while one is dragged; none when no pin is dragged. */
+    List<GridPoint> occupiedPinPoints() {
+        if (!pinGuideActive()) { return List.of(); }
+        return current.get().appearance().pins().stream().filter(placement -> !placement.source().equals(pin.get()))
+                .map(PinPlacement::offset).distinct().toList();
+    }
+
+    /** The whole grid points inside the box where the dragged pin can go free; none when no pin is dragged. */
+    List<GridPoint> freePinPoints() {
+        if (!pinGuideActive()) { return List.of(); }
+        GridSize size = current.get().appearance().size();
+        List<GridPoint> occupied = occupiedPinPoints();
+        List<GridPoint> free = new ArrayList<>();
+        for (int row = 0; row <= size.height(); row++) {
+            for (int column = 0; column <= size.width(); column++) {
+                GridPoint candidate = new GridPoint(column, row);
+                if (!occupied.contains(candidate)) { free.add(candidate); }
+            }
+        }
+        return free;
+    }
+
+    /** The free point nearest to the pointer: where the pin would land. */
+    Optional<GridPoint> nearestFreePinPoint() {
+        double pointerX = (pointer.x - originX) / zoom / UNIT;
+        double pointerY = (pointer.y - originY) / zoom / UNIT;
+        return freePinPoints().stream().min(java.util.Comparator.comparingDouble(
+                candidate -> Math.hypot(candidate.x() - pointerX, candidate.y() - pointerY)));
+    }
+
+    /** Notches on the box edge, and while a pin is dragged its free and occupied points; the colours are the scheme's. */
+    private void paintGuides(Graphics2D surface, ColorScheme scheme, GridSize size) {
+        Graphics2D guide = (Graphics2D) surface.create();
+        try {
+            guide.setStroke(new BasicStroke((float) (1.5 / zoom)));
+            guide.setColor(PainterSupport.withAlpha(scheme.text(), 150));
+            double notch = NOTCH_LENGTH / zoom;
+            for (GridPoint point : edgeNotches()) {
+                double x = point.x() * UNIT;
+                double y = point.y() * UNIT;
+                boolean onSide = point.x() == 0 || point.x() == size.width();
+                boolean corner = onSide && (point.y() == 0 || point.y() == size.height());
+                if (onSide || corner) { guide.draw(new Line2D.Double(x - notch, y, x + notch, y)); }
+                if (!onSide || corner) { guide.draw(new Line2D.Double(x, y - notch, x, y + notch)); }
+            }
+            Optional<GridPoint> nearest = nearestFreePinPoint();
+            for (GridPoint point : freePinPoints()) {
+                boolean strong = nearest.filter(point::equals).isPresent();
+                double radius = (strong ? 5 : 2) / zoom;
+                guide.setColor(strong ? scheme.selection() : PainterSupport.withAlpha(scheme.selection(), 140));
+                guide.setStroke(new BasicStroke((float) ((strong ? 2 : 1.2) / zoom)));
+                Ellipse2D ring = new Ellipse2D.Double(point.x() * UNIT - radius, point.y() * UNIT - radius,
+                        2 * radius, 2 * radius);
+                if (strong) { guide.draw(ring); } else { guide.fill(ring); }
+            }
+            guide.setColor(scheme.wireConflict());
+            guide.setStroke(new BasicStroke((float) (1.5 / zoom)));
+            double radius = 5 / zoom;
+            double slash = radius * 0.7;
+            for (GridPoint point : occupiedPinPoints()) {
+                double x = point.x() * UNIT;
+                double y = point.y() * UNIT;
+                guide.draw(new Ellipse2D.Double(x - radius, y - radius, 2 * radius, 2 * radius));
+                guide.draw(new Line2D.Double(x - slash, y + slash, x + slash, y - slash));
+            }
+        } finally { guide.dispose(); }
     }
 
     /** A red ring and dot on every pin that shares its point: the icon and the callout carry the meaning too. */

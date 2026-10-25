@@ -31,6 +31,7 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 - Nodos muestra puntos redondos arrastrables sin seleccionar antes una figura, también en la forma predeterminada. Los controles de curva se distinguen como rombos; elegir la herramienta o cancelar un arrastre no modifica la forma.
 - El editor de formas incorpora Mover vista (H), con ícono de mano, para desplazar el lienzo con el botón izquierdo cuando el mouse no tiene botón central. También se puede usar Alt + arrastrar.
 - Agregar nodo (A) funciona como herramienta: resalta el segmento apuntado e inserta el nodo donde se hace clic, sin seleccionar otro nodo primero. La detección sigue las curvas y evita agregar puntos en segmentos alejados del cursor.
+- Guía de pines en el editor de formas: una muesca en cada punto entero del borde de la caja y, mientras se arrastra un pin, los puntos libres resaltados (el más cercano, más fuerte) y los ocupados en rojo con un signo de «prohibido».
 
 ### Cambiado
 
