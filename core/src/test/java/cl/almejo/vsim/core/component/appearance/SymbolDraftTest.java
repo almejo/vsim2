@@ -52,13 +52,53 @@ class SymbolDraftTest {
     }
 
     @Test
-    void resizingTheBoxMovesRightEdgePinsWithoutScalingTheDrawing() {
+    void growingTheBoxByAnEvenAmountKeepsTheDrawingAndThePinsCentred() {
         SymbolDraft original = draft(false).applyTemplate(SymbolTemplates.Template.SQUARE);
+
         SymbolDraft resized = original.resizeBox(new GridSize(8, 6));
-        assertThat(resized.elements()).isEqualTo(original.elements());
-        assertThat(resized.appearance().pins()).contains(new PinPlacement(OUTPUT, new GridPoint(8, 2)));
+
+        assertThat(points(resized)).containsExactly(new SymbolPoint(16, 8), new SymbolPoint(48, 8),
+                new SymbolPoint(48, 40), new SymbolPoint(16, 40));
+        assertThat(resized.appearance().pins()).containsExactly(new PinPlacement(INPUT, new GridPoint(0, 3)),
+                new PinPlacement(OUTPUT, new GridPoint(8, 3)));
         assertThatThrownBy(() -> original.resizeBox(new GridSize(1, 1)))
                 .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void anOddChangeMovesTheDrawingHalfAUnitAndPutsTheExtraUnitRightAndBelowThePins() {
+        SymbolDraft original = draft(false).applyTemplate(SymbolTemplates.Template.SQUARE)
+                .movePin(INPUT, new GridPoint(3, 0));
+
+        SymbolDraft resized = original.resizeBox(new GridSize(7, 5));
+
+        assertThat(points(resized)).containsExactly(new SymbolPoint(12, 4), new SymbolPoint(44, 4),
+                new SymbolPoint(44, 36), new SymbolPoint(12, 36));
+        assertThat(resized.appearance().pins()).containsExactly(new PinPlacement(INPUT, new GridPoint(3, 0)),
+                new PinPlacement(OUTPUT, new GridPoint(7, 2)));
+        assertThat(resized.resizeBox(new GridSize(6, 4)).appearance()).isEqualTo(original.appearance());
+    }
+
+    @Test
+    void topAndBottomPinsFollowTheMiddleOfTheBoxOnTheGrid() {
+        SymbolDraft original = draft(false).movePin(INPUT, new GridPoint(3, 0)).movePin(OUTPUT, new GridPoint(2, 4));
+
+        SymbolDraft resized = original.resizeBox(new GridSize(10, 6));
+
+        assertThat(resized.appearance().pins()).containsExactly(new PinPlacement(INPUT, new GridPoint(5, 0)),
+                new PinPlacement(OUTPUT, new GridPoint(4, 6)));
+    }
+
+    @Test
+    void theBoxShrinksUntilTheCentredDrawingTouchesAnEdge() {
+        SymbolDraft line = draft(false).addFigure(SymbolTemplates.line(new SymbolPoint(16, 8), new SymbolPoint(32, 8),
+                false));
+
+        GridSize minimum = line.minimumBoxSize();
+
+        assertThat(minimum).isEqualTo(new GridSize(2, 2));
+        assertThat(points(line.resizeBox(minimum))).containsExactly(new SymbolPoint(0, 0), new SymbolPoint(16, 0));
+        assertThatThrownBy(() -> line.resizeBox(new GridSize(1, 2))).isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
@@ -173,6 +213,10 @@ class SymbolDraftTest {
     void aPinOnTheOutlineOrWithinTwoUnitsOfItDoesNotWarn() {
         assertThat(draft(false).applyTemplate(SymbolTemplates.Template.ALU).problems()).isEmpty();
         assertThat(draft(false).applyTemplate(SymbolTemplates.Template.TRIANGLE).problems()).isEmpty();
+    }
+
+    private static List<SymbolPoint> points(SymbolDraft draft) {
+        return ((SymbolPath) draft.elements().getFirst()).nodes().stream().map(SymbolNode::point).toList();
     }
 
     private static SymbolDraft draft(boolean locked) {

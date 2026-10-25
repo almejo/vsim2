@@ -297,65 +297,95 @@ public final class SymbolDraft {
                         ? new PinPlacement(source, clamped) : pin).toList()), selection);
     }
 
+    /**
+     * The box at {@code size}, its contents kept centred: the drawing moves by half the change (half units are fine
+     * for a drawing) and the pins by half rounded to whole units, so they stay on the grid; an odd change leaves the
+     * extra unit to the right or below them. A pin on an edge stays on that edge. Refused (an exception) when the
+     * drawing or a pin would fall outside, or two pins would meet.
+     */
     public SymbolDraft resizeBox(GridSize size) {
         requireUnlocked();
-        List<PinPlacement> pins = pinsAtSize(size);
-        if (pins.stream().anyMatch(pin -> pin.offset().x() > size.width() || pin.offset().y() > size.height())) {
+        List<PinPlacement> pins = centredPins(size);
+        if (pins.stream().anyMatch(pin -> !inside(pin.offset(), size))) {
             throw new IllegalArgumentException("Box would cut a pin");
         }
         if (pins.stream().map(PinPlacement::offset).distinct().count() != pins.size()) {
             throw new IllegalArgumentException("Box resize would create coinciding pins");
         }
+        List<SymbolElement> elements = centredElements(size);
+        if (elements.stream().flatMap(element -> points(element).stream()).anyMatch(point -> !inside(point, size))) {
+            throw new IllegalArgumentException("Box would cut the drawing");
+        }
         Optional<SymbolDrawing> drawing = appearance.drawing().map(current ->
-                new SymbolDrawing(size, current.elements(), current.showPinNames()));
+                new SymbolDrawing(size, elements, current.showPinNames()));
         return withAppearance(new ComponentAppearance(size, drawing, pins), selection);
     }
 
+    /**
+     * The smallest box {@link #resizeBox} accepts from here: narrower while it fits, then lower; if both together
+     * make two pins meet, a unit back at a time.
+     */
     public GridSize minimumBoxSize() {
-        List<SymbolPoint> points = elements().stream().flatMap(element -> points(element).stream()).toList();
-        int width = points.stream().mapToInt(SymbolPoint::x).max().orElse(0);
-        int height = points.stream().mapToInt(SymbolPoint::y).max().orElse(0);
-        for (PinPlacement pin : appearance.pins()) {
-            if (pin.offset().x() < appearance.size().width()) {
-                width = Math.max(width, pin.offset().x() * 8);
-            }
-            if (pin.offset().y() < appearance.size().height()) {
-                height = Math.max(height, pin.offset().y() * 8);
+        GridSize size = appearance.size();
+        int width = size.width();
+        while (width > 1 && fits(new GridSize(width - 1, size.height()))) {
+            width--;
+        }
+        int height = size.height();
+        while (height > 1 && fits(new GridSize(width, height - 1))) {
+            height--;
+        }
+        while (!fits(new GridSize(width, height)) && (width < size.width() || height < size.height())) {
+            if (height < size.height()) {
+                height++;
+            } else {
+                width++;
             }
         }
-        GridSize minimum = new GridSize(Math.max(1, (width + 7) / 8), Math.max(1, (height + 7) / 8));
-        for (int attempt = 0; attempt <= appearance.pins().size() * 2; attempt++) {
-            List<PinPlacement> resized = pinsAtSize(minimum);
-            GridSize enlarged = minimum;
-            for (int first = 0; first < resized.size() && enlarged.equals(minimum); first++) {
-                for (int second = first + 1; second < resized.size(); second++) {
-                    if (!resized.get(first).offset().equals(resized.get(second).offset())) {
-                        continue;
-                    }
-                    GridPoint firstOriginal = appearance.pins().get(first).offset();
-                    GridPoint secondOriginal = appearance.pins().get(second).offset();
-                    if (firstOriginal.x() != secondOriginal.x()) {
-                        enlarged = new GridSize(minimum.width() + 1, minimum.height());
-                        break;
-                    }
-                    if (firstOriginal.y() != secondOriginal.y()) {
-                        enlarged = new GridSize(minimum.width(), minimum.height() + 1);
-                        break;
-                    }
-                }
-            }
-            if (enlarged.equals(minimum)) {
-                return minimum;
-            }
-            minimum = enlarged;
-        }
-        return appearance.size();
+        return new GridSize(width, height);
     }
 
-    private List<PinPlacement> pinsAtSize(GridSize size) {
-        return appearance.pins().stream().map(pin -> new PinPlacement(pin.source(),
-                new GridPoint(pin.offset().x() == appearance.size().width() ? size.width() : pin.offset().x(),
-                        pin.offset().y() == appearance.size().height() ? size.height() : pin.offset().y()))).toList();
+    private boolean fits(GridSize size) {
+        List<PinPlacement> pins = centredPins(size);
+        return pins.stream().allMatch(pin -> inside(pin.offset(), size))
+                && pins.stream().map(PinPlacement::offset).distinct().count() == pins.size()
+                && centredElements(size).stream().flatMap(element -> points(element).stream())
+                .allMatch(point -> inside(point, size));
+    }
+
+    /** Each pin at {@code size}: on its edge if it was on one, else moved by half the change, rounded towards zero. */
+    private List<PinPlacement> centredPins(GridSize size) {
+        GridSize old = appearance.size();
+        return appearance.pins().stream().map(pin -> new PinPlacement(pin.source(), new GridPoint(
+                centredPin(pin.offset().x(), old.width(), size.width()),
+                centredPin(pin.offset().y(), old.height(), size.height())))).toList();
+    }
+
+    private static int centredPin(int coordinate, int oldExtent, int newExtent) {
+        if (coordinate == 0) {
+            return 0;
+        }
+        if (coordinate == oldExtent) {
+            return newExtent;
+        }
+        return coordinate + (newExtent - oldExtent) / 2;
+    }
+
+    /** Every element moved by half the change of the box, in eighths (exact: half a unit is four eighths). */
+    private List<SymbolElement> centredElements(GridSize size) {
+        int horizontal = (size.width() - appearance.size().width()) * SymbolPoint.EIGHTHS / 2;
+        int vertical = (size.height() - appearance.size().height()) * SymbolPoint.EIGHTHS / 2;
+        return elements().stream().map(element -> mapElement(element,
+                point -> new SymbolPoint(point.x() + horizontal, point.y() + vertical))).toList();
+    }
+
+    private static boolean inside(GridPoint offset, GridSize size) {
+        return offset.x() >= 0 && offset.y() >= 0 && offset.x() <= size.width() && offset.y() <= size.height();
+    }
+
+    private static boolean inside(SymbolPoint point, GridSize size) {
+        return point.x() >= 0 && point.y() >= 0 && point.x() <= size.width() * SymbolPoint.EIGHTHS
+                && point.y() <= size.height() * SymbolPoint.EIGHTHS;
     }
 
     private boolean isOffBoxEdge(GridPoint offset) {

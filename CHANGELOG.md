@@ -38,6 +38,7 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 
 ### Cambiado
 
+- En el editor de formas, cambiar el tamaño de la caja (con su control o con Ancho y Alto) deja el dibujo centrado: se mueve la mitad del cambio, y los pines de arriba y de abajo también, redondeado para seguir en la cuadrícula; los pines de los lados siguen en su borde. Antes el dibujo quedaba fijo en la esquina superior izquierda.
 - La IA (MCP) distingue un terminal exterior cuyo pin de interfaz está suelto por dentro (`INTERFACE_UNCONNECTED_INSIDE`) de un pin de compuerta suelto, y si pide mover un pin de un componente que se usa dentro de otro, VSim le dice dentro de cuál y que solo el dibujo puede cambiar.
 - Los textos «ALU» y «MUX» de los trapecios (y los textos de un dibujo en general) se ven en negrita, y el nombre de un pin del borde superior o inferior ya no se pisa con el contorno ni con el nombre de otro pin: se achica y, si no cabe, no se dibuja.
 - En el editor de formas, los textos de la forma predeterminada crecen con el zoom como los de las figuras; solo los trazos y las marcas de los pines mantienen un tamaño constante en pantalla.

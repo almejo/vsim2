@@ -878,6 +878,14 @@ public final class ShapeEditorPanel extends JPanel {
         return zoomValue;
     }
 
+    JSpinner widthSpinner() {
+        return width;
+    }
+
+    JSpinner heightSpinner() {
+        return height;
+    }
+
     List<String> scopeSwitchTexts() {
         return scopeSegments.stream().map(AbstractButton::getText).toList();
     }

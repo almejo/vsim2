@@ -180,7 +180,7 @@ class ShapeCanvasTest {
         drag(canvas, new Point(136, 120), new Point(152, 136));
         assertThat(draft.get().appearance().size()).isEqualTo(new GridSize(8, 6));
         assertThat(((SymbolPath) draft.get().elements().getFirst()).nodes().get(2).point())
-                .isEqualTo(new SymbolPoint(48, 32));
+                .as("the drawing stays centred: one unit right and down").isEqualTo(new SymbolPoint(56, 40));
         drag(canvas, new Point(152, 136), new Point(136, 120));
         assertThat(draft.get().appearance().size()).isEqualTo(new GridSize(6, 4));
     }
@@ -302,11 +302,11 @@ class ShapeCanvasTest {
         canvas.dispatchEvent(new MouseEvent(canvas, MouseEvent.MOUSE_RELEASED, 0, 0, 152, 136, 1, false, MouseEvent.BUTTON1));
         assertThat(canvas.dragTip()).isEmpty();
 
-        // The figure's own corner handle: the figure (6 x 4 units) shrinks from its bottom right corner.
+        // The figure's own corner handle: the figure (6 x 4 units, centred one unit in) shrinks from its corner.
         canvas.dispatchEvent(new MouseEvent(canvas, MouseEvent.MOUSE_PRESSED, 0, MouseEvent.BUTTON1_DOWN_MASK,
-                118, 102, 1, false, MouseEvent.BUTTON1));
+                126, 110, 1, false, MouseEvent.BUTTON1));
         canvas.dispatchEvent(new MouseEvent(canvas, MouseEvent.MOUSE_DRAGGED, 0, MouseEvent.BUTTON1_DOWN_MASK,
-                102, 86, 0, false, MouseEvent.NOBUTTON));
+                110, 94, 0, false, MouseEvent.NOBUTTON));
         assertThat(canvas.dragTip().orElseThrow()).startsWith("4 × 2").contains(Messages.text("shape.drag.shift"));
     }
 
