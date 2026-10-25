@@ -197,6 +197,8 @@ class ReplaceDefinitionCommandTest {
     void aDefinitionUsedInsideAnotherKeepsItsOldCopyAndSaysWhere() {
         placeInstance();
         document.putDefinition(ExampleDefinitions.doubleInverter());
+        document.add(new Component(new ElementId("c91"), SubcircuitTypes.typeIdOf(ExampleDefinitions.DOUBLE_INVERTER),
+                new GridPoint(60, 60), Rotation.R0, Map.of(), ""));
 
         assertThatThrownBy(() -> prepare(movedOutput(inverter)))
                 .isInstanceOf(UnsafeDefinitionUpdateException.class)

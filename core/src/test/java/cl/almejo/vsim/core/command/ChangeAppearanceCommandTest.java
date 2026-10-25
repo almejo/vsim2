@@ -133,12 +133,15 @@ class ChangeAppearanceCommandTest {
     }
 
     @Test
-    void nestedGeometryLocksWhileItsContainingDefinitionExistsAndUnlocksAfterRemoval() {
+    void nestedGeometryLocksWhileAPlacedPieceUsesItsContainingDefinitionAndUnlocksAfterRemovingIt() {
         document.putDefinition(ExampleDefinitions.doubleInverter());
+        ElementId placedParent = new ElementId("c90");
+        document.add(new Component(placedParent, SubcircuitTypes.typeIdOf(ExampleDefinitions.DOUBLE_INVERTER),
+                new GridPoint(60, 60), Rotation.R0, Map.of(), ""));
         assertThatThrownBy(() -> ChangeAppearanceCommand.forDefinition(document, registry, definition.id(), wider()))
                 .isInstanceOf(UnsafeDefinitionUpdateException.class);
 
-        document.removeDefinition(ExampleDefinitions.DOUBLE_INVERTER);
+        document.remove(placedParent);
         ChangeAppearanceCommand command = ChangeAppearanceCommand.forDefinition(document, registry, definition.id(),
                 wider());
         command.apply(document);

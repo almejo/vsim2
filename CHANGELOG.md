@@ -36,6 +36,7 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 
 ### Cambiado
 
+- Un componente propio solo queda con los pines bloqueados (y su actualización se rechaza) si una pieza colocada usa a otro componente que lo contiene; una copia sobrante de ese otro componente en el circuito, que nada usa, ya no bloquea ni dice «usado dentro de…».
 - Problemas nombra el pin entre comillas: «la salida «out» está desconectada» en lugar de «salida out desconectada».
 - La IA (MCP) distingue un terminal exterior cuyo pin de interfaz está suelto por dentro (`INTERFACE_UNCONNECTED_INSIDE`) de un pin de compuerta suelto, y si pide mover un pin de un componente que se usa dentro de otro, VSim le dice dentro de cuál y que solo el dibujo puede cambiar.
 - Los textos «ALU» y «MUX» de los trapecios (y los textos de un dibujo en general) se ven en negrita, y el nombre de un pin del borde superior o inferior ya no se pisa con el contorno ni con el nombre de otro pin: se achica y, si no cabe dentro de la caja, se dibuja fuera, junto a su pin (nunca se oculta).

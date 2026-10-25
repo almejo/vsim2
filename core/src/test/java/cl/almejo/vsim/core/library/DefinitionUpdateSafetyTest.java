@@ -34,6 +34,7 @@ class DefinitionUpdateSafetyTest {
         ComponentDefinition original = ExampleDefinitions.inverter();
         document.putDefinition(original);
         document.putDefinition(ExampleDefinitions.doubleInverter());
+        placeDoubleInverter(document);
         ComponentDefinition changed = new ComponentDefinition(original.id(), original.name(), original.description(),
                 new GridSize(6, 4), List.of(original.pinout().get(0),
                 new DefinitionPin(PinSpec.output("y", 6, 2), original.pinout().get(1).source())), original.body());
@@ -43,6 +44,51 @@ class DefinitionUpdateSafetyTest {
                 .isInstanceOf(UnsafeDefinitionUpdateException.class);
 
         assertThat(document.definition(original.id())).containsSame(original);
+    }
+
+    private static void placeDoubleInverter(CircuitDocument document) {
+        document.add(new Component(new ElementId("c30"),
+                SubcircuitTypes.typeIdOf(ExampleDefinitions.doubleInverter().id()), GridPoint.ORIGIN, Rotation.R0,
+                Map.of(), ""));
+    }
+
+    @Test
+    void aCopyOfAParentThatNoPlacedPieceReachesNeverLocksItsChild() {
+        CircuitDocument document = new CircuitDocument();
+        ComponentDefinition original = ExampleDefinitions.inverter();
+        document.putDefinition(original);
+        document.putDefinition(ExampleDefinitions.doubleInverter());
+        ComponentDefinition changed = new ComponentDefinition(original.id(), original.name(), original.description(),
+                new GridSize(6, 4), List.of(original.pinout().get(0),
+                new DefinitionPin(PinSpec.output("y", 6, 2), original.pinout().get(1).source())), original.body());
+
+        assertThat(DefinitionUpdateSafety.containingNames(document, original.id())).isEmpty();
+        assertThat(ReplaceDefinitionCommand.prepare(document, registry(document),
+                new DefinitionBundle(changed, List.of()))).isNotNull();
+
+        placeDoubleInverter(document);
+
+        assertThat(DefinitionUpdateSafety.containingNames(document, original.id()))
+                .containsExactly(ExampleDefinitions.doubleInverter().name());
+    }
+
+    @Test
+    void aParentReachedOnlyThroughAnotherDefinitionStillLocksItsChild() {
+        CircuitDocument document = new CircuitDocument();
+        ComponentDefinition inverter = ExampleDefinitions.inverter();
+        ComponentDefinition middle = ExampleDefinitions.doubleInverter();
+        document.putDefinition(inverter);
+        document.putDefinition(middle);
+        ComponentDefinition outer = new ComponentDefinition("outer", "Exterior", "", new GridSize(6, 4),
+                List.of(), new CircuitFragment(List.of(new Component(new ElementId("c40"),
+                SubcircuitTypes.typeIdOf(middle.id()), GridPoint.ORIGIN, Rotation.R0, Map.of(), "")),
+                List.of(), List.of()));
+        document.putDefinition(outer);
+        document.add(new Component(new ElementId("c41"), SubcircuitTypes.typeIdOf(outer.id()), GridPoint.ORIGIN,
+                Rotation.R0, Map.of(), ""));
+
+        assertThat(DefinitionUpdateSafety.containingNames(document, inverter.id())).containsExactly(middle.name());
+        assertThat(DefinitionUpdateSafety.containingNames(document, middle.id())).containsExactly(outer.name());
     }
 
     @Test

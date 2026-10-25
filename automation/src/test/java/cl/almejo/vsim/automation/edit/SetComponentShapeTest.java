@@ -180,6 +180,8 @@ class SetComponentShapeTest {
                 new CircuitFragment(List.of(new Component(new ElementId("inside"),
                         SubcircuitTypes.typeIdOf(definitionId), GridPoint.ORIGIN, Rotation.R0, Map.of(), "")),
                         List.of(), List.of())));
+        circuit.document().add(new Component(new ElementId("placedOuter"), SubcircuitTypes.typeIdOf("outer"),
+                new GridPoint(60, 60), Rotation.R0, Map.of(), ""));
         ComponentDefinition before = definition();
 
         AutomationException refusal = refused(shape(Optional.empty(), Optional.of(inner.name()), Optional.empty(),
