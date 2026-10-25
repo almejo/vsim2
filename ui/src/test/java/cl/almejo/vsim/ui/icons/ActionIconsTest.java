@@ -86,6 +86,7 @@ class ActionIconsTest {
         used.addAll(cl.almejo.vsim.ui.ai.AiIcons.names());
         used.addAll(cl.almejo.vsim.ui.inline.InlineIcons.names());
         used.addAll(cl.almejo.vsim.ui.search.FindIcons.names());
+        used.addAll(cl.almejo.vsim.ui.appearance.ShapeEditorIcons.names());
         used.add(cl.almejo.vsim.ui.karnaugh.TableImportPanel.HINT_ICON);
         assertThat(used).containsExactlyElementsOf(IconsTest.iconNames());
     }
