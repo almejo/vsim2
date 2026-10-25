@@ -932,7 +932,8 @@ public final class ShapeEditorPanel extends JPanel {
 
     String hintText() {
         return ShapeEditorTexts.hint(new ShapeEditorTexts.HintState(activeTool, canvas.selectedPin().isPresent(),
-                draft.pinsLocked(), draft.selection().size(), canvas.nodeSelected()));
+                draft.pinsLocked(), draft.selection().size(), canvas.nodeSelected(),
+                draft.appearance().drawing().isPresent(), canvas.boxHandleActive()));
     }
 
     /** «Actual: Claro» and the other theme's default scheme («Oscuro»), as the two preview cards say. */

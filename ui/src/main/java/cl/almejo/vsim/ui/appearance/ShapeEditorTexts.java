@@ -20,9 +20,13 @@ final class ShapeEditorTexts {
 
     private ShapeEditorTexts() { }
 
-    /** What the editor is looking at when the hint under the canvas is chosen. */
+    /**
+     * What the editor is looking at when the hint under the canvas is chosen; {@code drawing} is false while the
+     * shape is still the default box (it follows the box), {@code boxHandle} while the box's handle is pointed at or
+     * dragged.
+     */
     record HintState(ShapeTool tool, boolean pinSelected, boolean pinsLocked, int selectedFigures,
-                     boolean nodeSelected) { }
+                     boolean nodeSelected, boolean drawing, boolean boxHandle) { }
 
     /** The bold fixed text of the scope line when it is not a switch (opened from the palette). */
     static String scopeTitle(ShapeEditScope scope) {
@@ -102,13 +106,16 @@ final class ShapeEditorTexts {
     }
 
     private static String selectHint(HintState state) {
+        if (state.boxHandle()) {
+            return Messages.text(state.drawing() ? "shape.hint.boxDrawing" : "shape.hint.boxDefault");
+        }
         if (state.pinSelected()) {
             return Messages.text(state.pinsLocked() ? "shape.hint.lockedPin" : "shape.hint.pin");
         }
         if (state.selectedFigures() > 0) {
             return Messages.format("shape.hint.figures", state.selectedFigures(), shortcut(KeyEvent.VK_D));
         }
-        return Messages.text("shape.hint.select");
+        return Messages.text(state.drawing() ? "shape.hint.selectDrawing" : "shape.hint.select");
     }
 
     /** The visible name of a tool («Rectángulo»). */

@@ -119,6 +119,9 @@ final class ShapeCanvas extends JPanel {
     private Optional<SegmentRef> curving = Optional.empty();
     private Optional<String> refusal = Optional.empty();
     private boolean controlHeld;
+    private boolean shiftHeld;
+    /** The pointer is over the box's resize handle (the hint line then speaks about the box). */
+    private boolean overBoxHandle;
     private Optional<SymbolDraft.Handle> handle = Optional.empty();
     private boolean resizingBox;
     private boolean pinDragActive;
@@ -243,6 +246,7 @@ final class ShapeCanvas extends JPanel {
         removal = Optional.empty();
         refusal = Optional.empty();
         curveTarget = Optional.empty();
+        overBoxHandle = false;
         setCursor(selected == ShapeTool.PAN ? Cursor.getPredefinedCursor(Cursor.HAND_CURSOR) : Cursor.getDefaultCursor());
         repaint();
     }
@@ -719,11 +723,14 @@ final class ShapeCanvas extends JPanel {
     }
 
     private void drag(MouseEvent event) {
-        drag(event.getPoint(), event.isShiftDown());
+        controlHeld = event.isControlDown();
+        shiftHeld = event.isShiftDown();
+        drag(event.getPoint(), shiftHeld);
     }
 
     /** Shift pressed or released in the middle of a drag: the move is worked out again at the same pointer. */
     private void shiftChanged(boolean shift) {
+        shiftHeld = shift;
         if (pressed != null && lastDragPoint != null && !panning) {
             drag(lastDragPoint, shift);
         }
@@ -752,15 +759,8 @@ final class ShapeCanvas extends JPanel {
             if (curving.isPresent()) {
                 dragging = beforeDrag.curveThrough(curving.get().pathIndex(), curving.get().segment(), end, snap);
             } else if (resizingBox) {
-                GridSize minimum = beforeDrag.minimumBoxSize();
-                int width = beforeDrag.appearance().size().width()
-                        + (int) Math.round((where.x - pressed.x) / zoom / UNIT);
-                int height = beforeDrag.appearance().size().height()
-                        + (int) Math.round((where.y - pressed.y) / zoom / UNIT);
-                dragging = beforeDrag.resizeBox(new GridSize(Math.max(minimum.width(), width),
-                        Math.max(minimum.height(), height)));
-                dragTip = Optional.of(sizeTip(dragging.appearance().size().width(),
-                        dragging.appearance().size().height(), false));
+                dragging = resizedBox(where);
+                dragTip = Optional.of(boxTip(dragging));
             } else if (handle.isPresent()) {
                 dragging = beforeDrag.scaleSelection(handle.get(), end, shift, snap);
                 dragTip = figureTip(dragging);
@@ -822,6 +822,25 @@ final class ShapeCanvas extends JPanel {
             // A constrained figure at the box edge can be invalid until the pointer returns inside.
             preview.accept(dragging == null ? beforeDrag : dragging);
         }
+    }
+
+    /**
+     * The box under the dragged handle: with Ctrl and a drawing, the drawing scales with it; otherwise the drawing
+     * stays centred, never smaller than it allows.
+     */
+    private SymbolDraft resizedBox(Point where) {
+        int width = beforeDrag.appearance().size().width() + (int) Math.round((where.x - pressed.x) / zoom / UNIT);
+        int height = beforeDrag.appearance().size().height() + (int) Math.round((where.y - pressed.y) / zoom / UNIT);
+        if (controlHeld && beforeDrag.appearance().drawing().isPresent()) {
+            return beforeDrag.scaleBox(new GridSize(Math.max(1, width), Math.max(1, height)));
+        }
+        GridSize minimum = beforeDrag.minimumBoxSize();
+        return beforeDrag.resizeBox(new GridSize(Math.max(minimum.width(), width), Math.max(minimum.height(), height)));
+    }
+
+    /** Whether the box's handle is under the pointer or being dragged: the hint line then speaks about the box. */
+    boolean boxHandleActive() {
+        return overBoxHandle || resizingBox && pressed != null;
     }
 
     /** {@code target} kept only along the axis it is farthest from {@code origin} (horizontal on a tie). */
@@ -976,6 +995,8 @@ final class ShapeCanvas extends JPanel {
         if (isNodeTool()) {
             hoverNodeTool(pointer);
             repaint();
+        } else if (resizingBox && pressed != null && lastDragPoint != null) {
+            drag(lastDragPoint, shiftHeld);
         }
     }
 
@@ -1160,6 +1181,13 @@ final class ShapeCanvas extends JPanel {
 
     private void pointerMoved(MouseEvent event) {
         pointer = event.getPoint();
+        boolean wasOverBoxHandle = overBoxHandle;
+        overBoxHandle = tool == ShapeTool.SELECT && !current.get().pinsLocked()
+                && hitHandle(event.getPoint()).isEmpty()
+                && boxHandleLocation().distance(event.getPoint()) < HIT_RADIUS;
+        if (overBoxHandle != wasOverBoxHandle) {
+            changed.run();
+        }
         if (isNodeTool()) {
             controlHeld = event.isControlDown();
             hoverNodeTool(event.getPoint());
@@ -1168,7 +1196,8 @@ final class ShapeCanvas extends JPanel {
             hoverCurve(event);
         } else if (isPathTool()) {
             setCursor(Cursor.getPredefinedCursor(Cursor.CROSSHAIR_CURSOR));
-            setToolTipText(ShapeEditorTexts.hint(new ShapeEditorTexts.HintState(tool, false, false, 0, false)));
+            setToolTipText(ShapeEditorTexts.hint(new ShapeEditorTexts.HintState(tool, false, false, 0, false, true,
+                    false)));
             repaint();
         } else if (tool == ShapeTool.PAN) {
             setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
@@ -1179,8 +1208,7 @@ final class ShapeCanvas extends JPanel {
         } else if (tool == ShapeTool.SELECT && hitHandle(event.getPoint()).isPresent()) {
             setCursor(Cursor.getPredefinedCursor(Cursor.SE_RESIZE_CURSOR));
             setToolTipText(Messages.text("shape.figureResize.hint"));
-        } else if (tool == ShapeTool.SELECT && !current.get().pinsLocked()
-                && boxHandleLocation().distance(event.getPoint()) < HIT_RADIUS) {
+        } else if (overBoxHandle) {
             setCursor(Cursor.getPredefinedCursor(Cursor.SE_RESIZE_CURSOR));
             setToolTipText(Messages.text("shape.boxResize.hint"));
         } else {
@@ -1281,13 +1309,20 @@ final class ShapeCanvas extends JPanel {
                 .map(found -> found.spec().name()).orElse(source.value());
     }
 
+    /** «4 × 2» and, below, what Shift does to a figure. */
     private Optional<String> figureTip(SymbolDraft view) {
-        return view.selectionBounds().map(box -> sizeTip(box.width() / 8.0, box.height() / 8.0, true));
+        return view.selectionBounds().map(box -> sizeTip(box.width() / 8.0, box.height() / 8.0) + "\n"
+                + Messages.text("shape.drag.shift"));
     }
 
-    private static String sizeTip(double width, double height, boolean proportion) {
-        String size = Messages.format("shape.drag.size", units(width), units(height));
-        return proportion ? size + "\n" + Messages.text("shape.drag.shift") : size;
+    /** «8 × 6» of the box and, below when there is a drawing, what Ctrl does to it. */
+    private String boxTip(SymbolDraft resized) {
+        String size = sizeTip(resized.appearance().size().width(), resized.appearance().size().height());
+        return resized.appearance().drawing().isPresent() ? size + "\n" + Messages.text("shape.drag.ctrl") : size;
+    }
+
+    private static String sizeTip(double width, double height) {
+        return Messages.format("shape.drag.size", units(width), units(height));
     }
 
     private static String units(double value) {

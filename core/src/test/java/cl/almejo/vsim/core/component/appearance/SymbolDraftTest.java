@@ -90,6 +90,27 @@ class SymbolDraftTest {
     }
 
     @Test
+    void scalingTheBoxScalesTheDrawingAndThePinsWithIt() {
+        SymbolDraft original = draft(false).applyTemplate(SymbolTemplates.Template.SQUARE);
+
+        SymbolDraft scaled = original.scaleBox(new GridSize(12, 8));
+
+        assertThat(scaled.appearance().size()).isEqualTo(new GridSize(12, 8));
+        assertThat(points(scaled)).containsExactly(new SymbolPoint(16, 0), new SymbolPoint(80, 0),
+                new SymbolPoint(80, 64), new SymbolPoint(16, 64));
+        assertThat(scaled.appearance().pins()).containsExactly(new PinPlacement(INPUT, new GridPoint(0, 4)),
+                new PinPlacement(OUTPUT, new GridPoint(12, 4)));
+    }
+
+    @Test
+    void scalingTheBoxIsRefusedWhenTwoPinsWouldMeet() {
+        SymbolDraft close = draft(false).movePin(INPUT, new GridPoint(3, 2)).movePin(OUTPUT, new GridPoint(4, 2));
+
+        assertThatThrownBy(() -> close.scaleBox(new GridSize(2, 4))).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> draft(true).scaleBox(new GridSize(8, 8))).isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
     void theBoxShrinksUntilTheCentredDrawingTouchesAnEdge() {
         SymbolDraft line = draft(false).addFigure(SymbolTemplates.line(new SymbolPoint(16, 8), new SymbolPoint(32, 8),
                 false));

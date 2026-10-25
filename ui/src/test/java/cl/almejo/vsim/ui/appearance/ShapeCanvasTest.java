@@ -298,7 +298,7 @@ class ShapeCanvasTest {
                 136, 120, 1, false, MouseEvent.BUTTON1));
         canvas.dispatchEvent(new MouseEvent(canvas, MouseEvent.MOUSE_DRAGGED, 0, MouseEvent.BUTTON1_DOWN_MASK,
                 152, 136, 0, false, MouseEvent.NOBUTTON));
-        assertThat(canvas.dragTip()).hasValue("8 × 6");
+        assertThat(canvas.dragTip().orElseThrow()).startsWith("8 × 6").contains(Messages.text("shape.drag.ctrl"));
         canvas.dispatchEvent(new MouseEvent(canvas, MouseEvent.MOUSE_RELEASED, 0, 0, 152, 136, 1, false, MouseEvent.BUTTON1));
         assertThat(canvas.dragTip()).isEmpty();
 

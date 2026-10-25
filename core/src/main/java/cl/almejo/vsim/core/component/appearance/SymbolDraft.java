@@ -322,6 +322,30 @@ public final class SymbolDraft {
     }
 
     /**
+     * The box at {@code size} with the drawing and the pins scaled with it (Ctrl while dragging the box's handle):
+     * every point keeps its place in proportion, pins rounded to the grid, edges staying edges. Refused (an exception)
+     * when two pins would meet.
+     */
+    public SymbolDraft scaleBox(GridSize size) {
+        requireUnlocked();
+        GridSize old = appearance.size();
+        double horizontal = (double) size.width() / old.width();
+        double vertical = (double) size.height() / old.height();
+        List<PinPlacement> pins = appearance.pins().stream().map(pin -> new PinPlacement(pin.source(), new GridPoint(
+                (int) Math.round(pin.offset().x() * horizontal), (int) Math.round(pin.offset().y() * vertical))))
+                .toList();
+        if (pins.stream().map(PinPlacement::offset).distinct().count() != pins.size()) {
+            throw new IllegalArgumentException("Box scale would create coinciding pins");
+        }
+        List<SymbolElement> elements = elements().stream().map(element -> mapElement(element,
+                point -> new SymbolPoint((int) Math.round(point.x() * horizontal),
+                        (int) Math.round(point.y() * vertical)))).toList();
+        Optional<SymbolDrawing> drawing = appearance.drawing().map(current ->
+                new SymbolDrawing(size, elements, current.showPinNames()));
+        return withAppearance(new ComponentAppearance(size, drawing, pins), selection);
+    }
+
+    /**
      * The smallest box {@link #resizeBox} accepts from here: narrower while it fits, then lower; if both together
      * make two pins meet, a unit back at a time.
      */
