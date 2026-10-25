@@ -89,6 +89,7 @@ final class ShapeEditorTexts {
             case NODES -> Messages.text(state.nodeSelected() ? "shape.hint.nodeSelected" : "shape.nodes.hint");
             case PAN -> Messages.text("shape.pan.hint");
             case ADD_NODE -> Messages.text("shape.nodeAdd.hint");
+            case REMOVE_NODE -> Messages.text("shape.nodeRemove.hint");
             case LINE -> Messages.text("shape.hint.line");
             case RECTANGLE -> Messages.text("shape.hint.rectangle");
             case ELLIPSE -> Messages.text("shape.hint.ellipse");
@@ -110,7 +111,11 @@ final class ShapeEditorTexts {
 
     /** The visible name of a tool («Rectángulo»). */
     static String toolName(ShapeTool tool) {
-        return Messages.text(tool == ShapeTool.ADD_NODE ? "shape.nodeAdd" : tool.messageKey());
+        return Messages.text(switch (tool) {
+            case ADD_NODE -> "shape.nodeAdd";
+            case REMOVE_NODE -> "shape.nodeRemove";
+            default -> tool.messageKey();
+        });
     }
 
     /** «Rectángulo (R)» and, on a second line, what Shift or a double click does there. */

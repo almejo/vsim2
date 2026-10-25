@@ -381,8 +381,7 @@ public final class ShapeEditorPanel extends JPanel {
         addTools(tools, ShapeTool.LINE, ShapeTool.RECTANGLE, ShapeTool.ELLIPSE, ShapeTool.TRIANGLE, ShapeTool.POLYGON,
                 ShapeTool.TEXT);
         toolbar.addSeparator();
-        addTools(tools, ShapeTool.ADD_NODE);
-        actionButton("nodeRemove", icon(ShapeEditorIcons.NODE_REMOVE), canvas::deleteSelection);
+        addTools(tools, ShapeTool.ADD_NODE, ShapeTool.REMOVE_NODE);
         actionButton("curve", icon(ShapeEditorIcons.CURVE), canvas::toggleCurve);
         actionButton("fill", icon(ShapeEditorIcons.FILL), this::toggleFill);
         toolbar.addSeparator();
@@ -475,6 +474,7 @@ public final class ShapeEditorPanel extends JPanel {
             case POLYGON -> ShapeEditorIcons.POLYGON;
             case TEXT -> ShapeEditorIcons.TEXT;
             case ADD_NODE -> ShapeEditorIcons.NODE_ADD;
+            case REMOVE_NODE -> ShapeEditorIcons.NODE_REMOVE;
         });
     }
 
@@ -753,6 +753,7 @@ public final class ShapeEditorPanel extends JPanel {
     private List<Line> lines() {
         List<Line> lines = new ArrayList<>();
         notice.ifPresent(text -> lines.add(new Line(ToneLabel.Tone.WARNING, text)));
+        canvas.refusal().ifPresent(text -> lines.add(new Line(ToneLabel.Tone.WARNING, text)));
         if (draft.pinsLocked()) {
             lines.add(new Line(ToneLabel.Tone.WARNING, Messages.format("shape.locked", request.lockReason())));
         }
@@ -810,7 +811,7 @@ public final class ShapeEditorPanel extends JPanel {
                 ShapeEditorTexts.shortcut(KeyEvent.VK_Y));
         contextual("undo", undoName, history.canUndo(), "shape.undo.none");
         contextual("redo", redoName, history.canRedo(), "shape.redo.none");
-        contextual("nodeRemove", Messages.text("shape.nodeRemove"), canvas.nodeSelected(), "shape.node.required");
+
         contextual("curve", Messages.text("shape.curve"), canvas.segmentSelected(), "shape.segment.required");
         boolean closedFigure = draft.selection().stream().map(index -> draft.elements().get(index))
                 .anyMatch(element -> element instanceof SymbolPath path && path.closed());
