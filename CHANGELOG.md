@@ -35,6 +35,7 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 
 ### Cambiado
 
+- En el editor de formas, los textos de la forma predeterminada crecen con el zoom como los de las figuras; solo los trazos y las marcas de los pines mantienen un tamaño constante en pantalla.
 - En el editor de formas, dibujar la primera figura o el primer texto sobre la forma predeterminada ya no borra la caja: la convierte antes en la plantilla Rectángulo, con su título y su nombre.
 - Al «Actualizar componente…», un pin nuevo se ubica en un punto libre del borde, nunca en una esquina; si no queda ninguno, la caja crece hacia abajo.
 - «Actualizar componente…» deja en su lugar los pines que siguen existiendo (sus cables quedan conectados) y ubica los nuevos en un punto libre; con «Actualizar desde la librería», los cables siguen a los pines que se movieron (en 0.3 se volvían a ubicar todos los pines y los cables quedaban sueltos). Si el componente se usa dentro de otro y sus pines o su tamaño cambian, no se actualiza nada: se conserva la copia anterior y VSim dice dentro de cuál componente se usa. Tampoco se actualiza si un pin nuevo quedaría sobre un cable o un pin.

@@ -406,11 +406,11 @@ class ShapeCanvasTest {
     }
 
     @Test
-    void theDefaultBoxTextsKeepTheirSizeOnScreenWhateverTheZoom() {
+    void theDefaultBoxTextsGrowWithTheZoomLikeFigureTexts() {
         int atTwo = inkOfTheDefaultBoxName(2);
         int atFour = inkOfTheDefaultBoxName(4);
         assertThat(atTwo).isPositive();
-        assertThat((double) atFour / atTwo).isBetween(0.6, 1.6);
+        assertThat((double) atFour / atTwo).isGreaterThan(2.0);
     }
 
     /** The dark pixels of the name band along the top of the default box (the pin names are lower down). */
