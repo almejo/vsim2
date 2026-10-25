@@ -1,5 +1,6 @@
 package cl.almejo.vsim.core.component.appearance;
 
+import cl.almejo.vsim.core.component.PinSpec;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.GridSize;
@@ -29,19 +30,21 @@ public final class SymbolDraft {
 
     private final ComponentAppearance appearance;
     private final List<DefinitionPin> pinout;
+    private final String definitionName;
     private final boolean pinsLocked;
     private final Set<Integer> selection;
 
-    private SymbolDraft(ComponentAppearance appearance, List<DefinitionPin> pinout, boolean pinsLocked,
-                        Set<Integer> selection) {
+    private SymbolDraft(ComponentAppearance appearance, List<DefinitionPin> pinout, String definitionName,
+                        boolean pinsLocked, Set<Integer> selection) {
         this.appearance = Objects.requireNonNull(appearance, "appearance");
         this.pinout = List.copyOf(pinout);
+        this.definitionName = Objects.requireNonNull(definitionName, "definitionName");
         this.pinsLocked = pinsLocked;
         this.selection = Set.copyOf(selection);
     }
 
     public static SymbolDraft of(ComponentAppearance appearance, List<DefinitionPin> pinout, boolean pinsLocked) {
-        return new SymbolDraft(appearance, pinout, pinsLocked, Set.of());
+        return new SymbolDraft(appearance, pinout, "", pinsLocked, Set.of());
     }
 
     public ComponentAppearance appearance() { return appearance; }
@@ -55,15 +58,20 @@ public final class SymbolDraft {
         if (indices.stream().anyMatch(index -> index < 0 || index >= elements().size())) {
             throw new IllegalArgumentException("Selection outside drawing");
         }
-        return new SymbolDraft(appearance, pinout, pinsLocked, indices);
+        return new SymbolDraft(appearance, pinout, definitionName, pinsLocked, indices);
     }
 
     public SymbolDraft selectAll() {
         return select(new LinkedHashSet<>(IntStream.range(0, elements().size()).boxed().toList()));
     }
 
+    /** The component's name, which templates write in the free area of the box. */
+    public SymbolDraft withDefinitionName(String name) {
+        return new SymbolDraft(appearance, pinout, name, pinsLocked, selection);
+    }
+
     public SymbolDraft withPinLock(boolean locked) {
-        return new SymbolDraft(appearance, pinout, locked, selection);
+        return new SymbolDraft(appearance, pinout, definitionName, locked, selection);
     }
 
     public SymbolDraft addFigure(SymbolPath path) { return append(path); }
@@ -210,7 +218,19 @@ public final class SymbolDraft {
 
     public SymbolDraft applyTemplate(SymbolTemplates.Template template) {
         return withAppearance(new ComponentAppearance(appearance.size(),
-                SymbolTemplates.drawing(template, appearance.size()), appearance.pins()), Set.of());
+                SymbolTemplates.drawing(template, appearance.size(), definitionName, pinLabels()),
+                appearance.pins()), Set.of());
+    }
+
+    private List<SymbolTemplates.PinLabel> pinLabels() {
+        return appearance.pins().stream().map(pin -> pinout.stream()
+                .filter(definitionPin -> definitionPin.source().equals(pin.source())).findFirst()
+                .map(definitionPin -> new SymbolTemplates.PinLabel(pinText(definitionPin.spec()), pin.offset())))
+                .flatMap(Optional::stream).toList();
+    }
+
+    private static String pinText(PinSpec spec) {
+        return spec.width() > 1 ? spec.name() + "[" + spec.width() + "]" : spec.name();
     }
 
     public SymbolDraft movePin(ElementId source, GridPoint offset) {
@@ -276,6 +296,17 @@ public final class SymbolDraft {
                         pin.offset().y() == appearance.size().height() ? size.height() : pin.offset().y()))).toList();
     }
 
+    private boolean isOffBoxEdge(GridPoint offset) {
+        return offset.x() != 0 && offset.y() != 0 && offset.x() != appearance.size().width()
+                && offset.y() != appearance.size().height();
+    }
+
+    /** A pin on the box edge whose stub would end in empty space: too far from every figure (spec §5). */
+    private boolean isFloating(GridPoint offset) {
+        return appearance.drawing().filter(drawing -> !OutlineReach.reaches(drawing, appearance.size(), offset))
+                .isPresent();
+    }
+
     public List<DraftProblem> problems() {
         List<DraftProblem> problems = new ArrayList<>();
         Map<GridPoint, List<String>> byPosition = new HashMap<>();
@@ -283,8 +314,7 @@ public final class SymbolDraft {
             String name = pinout.stream().filter(spec -> spec.source().equals(pin.source())).findFirst()
                     .map(spec -> spec.spec().name()).orElse(pin.source().value());
             byPosition.computeIfAbsent(pin.offset(), ignored -> new ArrayList<>()).add(name);
-            if (pin.offset().x() != 0 && pin.offset().y() != 0 && pin.offset().x() != appearance.size().width()
-                    && pin.offset().y() != appearance.size().height()) {
+            if (isOffBoxEdge(pin.offset()) || isFloating(pin.offset())) {
                 problems.add(new DraftProblem(DraftProblem.Kind.PIN_OFF_EDGE, List.of(name)));
             }
         }
@@ -370,7 +400,7 @@ public final class SymbolDraft {
     }
 
     private SymbolDraft withAppearance(ComponentAppearance changed, Set<Integer> selected) {
-        return new SymbolDraft(changed, pinout, pinsLocked, selected);
+        return new SymbolDraft(changed, pinout, definitionName, pinsLocked, selected);
     }
 
     private SymbolDraft replaceElement(int index, SymbolElement element) {

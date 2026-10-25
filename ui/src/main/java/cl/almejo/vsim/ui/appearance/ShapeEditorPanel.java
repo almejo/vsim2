@@ -5,7 +5,6 @@ import cl.almejo.vsim.core.component.appearance.DraftHistory;
 import cl.almejo.vsim.core.component.appearance.DraftProblem;
 import cl.almejo.vsim.core.component.appearance.SymbolDraft;
 import cl.almejo.vsim.core.component.appearance.SymbolPath;
-import cl.almejo.vsim.core.component.appearance.SymbolTemplates;
 import cl.almejo.vsim.core.component.appearance.SymbolText;
 import cl.almejo.vsim.core.component.appearance.TextAlignment;
 import cl.almejo.vsim.core.component.appearance.TextSize;
@@ -27,7 +26,6 @@ import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
 import javax.swing.JLabel;
 import javax.swing.JList;
-import javax.swing.JMenuItem;
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
 import javax.swing.JScrollPane;
@@ -84,7 +82,8 @@ public final class ShapeEditorPanel extends JPanel {
         this.preferences = preferences;
         this.scheme = scheme;
         this.scope = request.initialScope();
-        this.draft = SymbolDraft.of(request.appearance(), request.definition().pinout(), locked(scope));
+        this.draft = SymbolDraft.of(request.appearance(), request.definition().pinout(), locked(scope))
+                .withDefinitionName(request.definition().name());
         this.history = new DraftHistory(draft);
         this.canvas = new ShapeCanvas(request.definition(), () -> draft, this::apply, this::preview, scheme, this::refresh);
         canvas.setSnap(preferences.shapeEditorSnap());
@@ -279,13 +278,9 @@ public final class ShapeEditorPanel extends JPanel {
     }
 
     private void templates() {
-        JPopupMenu menu = new JPopupMenu();
-        for (SymbolTemplates.Template template : SymbolTemplates.Template.values()) {
-            JMenuItem item = new JMenuItem(Messages.text(MESSAGE_PREFIX + "template." + template.name().toLowerCase(java.util.Locale.ROOT)));
-            item.addActionListener(event -> apply(draft.applyTemplate(template)));
-            menu.add(item);
-        }
-        menu.show(buttons.get("shapes"), 0, buttons.get("shapes").getHeight());
+        JPopupMenu popup = ShapeTemplatesPopup.create(draft.appearance().size(), scheme,
+                template -> apply(draft.applyTemplate(template)));
+        popup.show(buttons.get("shapes"), 0, buttons.get("shapes").getHeight());
     }
 
     private void bindKeys() {

@@ -7,6 +7,7 @@ import cl.almejo.vsim.core.component.appearance.SymbolDrawing;
 import cl.almejo.vsim.core.component.appearance.SymbolPath;
 import cl.almejo.vsim.core.component.appearance.SymbolPoint;
 import cl.almejo.vsim.core.component.appearance.SymbolTemplates;
+import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.GridSize;
 import cl.almejo.vsim.core.io.CircuitFragment;
@@ -110,6 +111,57 @@ class SymbolPainterTest {
                 assertThat(image.getRGB(x, y)).as("pixel %s,%s", x, y).isNotEqualTo(textColor);
             }
         }
+    }
+
+    @Test
+    void turnedAQuarterPinNamesShrinkToTheirSlotAndNeverRunIntoTheirNeighbours() {
+        ComponentDefinition definition = new ComponentDefinition("shape", "Prueba", "", SIZE, List.of(
+                new DefinitionPin(PinSpec.output("F[4]", 6, 1), new ElementId("f")),
+                new DefinitionPin(PinSpec.output("Cout", 6, 2), new ElementId("cout"))),
+                new CircuitFragment(List.of(
+                        new cl.almejo.vsim.core.document.Component(new ElementId("f"), "output-pin",
+                                new GridPoint(0, 0), cl.almejo.vsim.core.geometry.Rotation.R0, Map.of(), "f"),
+                        new cl.almejo.vsim.core.document.Component(new ElementId("cout"), "output-pin",
+                                new GridPoint(0, 0), cl.almejo.vsim.core.geometry.Rotation.R0, Map.of(), "cout")),
+                        List.of(), List.of()));
+        SymbolDrawing named = new SymbolDrawing(SIZE, List.of(), true);
+        SymbolDrawing silent = new SymbolDrawing(SIZE, List.of(), false);
+        boolean[] columns = new boolean[192];
+        BufferedImage withNames = paintQuarterTurned(definition, named);
+        BufferedImage without = paintQuarterTurned(definition, silent);
+        for (int y = 0; y < withNames.getHeight(); y++) {
+            for (int x = 0; x < withNames.getWidth(); x++) {
+                columns[x] |= withNames.getRGB(x, y) != without.getRGB(x, y);
+            }
+        }
+        int unit = GridPoint.PIXELS_PER_UNIT;
+        int boundary = OFFSET + (SIZE.height() - 2) * unit + unit / 2;
+        int slot = unit;
+        assertThat(extent(columns, 0, boundary)).as("Cout").isBetween(1, slot);
+        assertThat(extent(columns, boundary, columns.length)).as("F[4]").isBetween(1, slot);
+    }
+
+    private static int extent(boolean[] columns, int from, int until) {
+        int first = -1;
+        int last = -1;
+        for (int column = from; column < until; column++) {
+            if (columns[column]) {
+                if (first < 0) { first = column; }
+                last = column;
+            }
+        }
+        return first < 0 ? 0 : last - first + 1;
+    }
+
+    private static BufferedImage paintQuarterTurned(ComponentDefinition definition, SymbolDrawing drawing) {
+        BufferedImage image = new BufferedImage(192, 192, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D graphics = image.createGraphics();
+        try {
+            graphics.translate(OFFSET + SIZE.height() * GridPoint.PIXELS_PER_UNIT, OFFSET);
+            graphics.rotate(Math.PI / 2);
+            SymbolPainter.paint(graphics, SubcircuitTypes.typeOf(definition), drawing, ColorSchemes.LIGHT, "Prueba");
+            return image;
+        } finally { graphics.dispose(); }
     }
 
     private static BufferedImage paint(SymbolDrawing drawing, ColorScheme scheme, int rotation) {
