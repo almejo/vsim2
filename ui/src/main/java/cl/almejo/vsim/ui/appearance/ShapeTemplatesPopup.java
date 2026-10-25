@@ -32,11 +32,11 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 /**
- * The «Formas ▾» popup of the shape editor: a three by three grid of thumbnails of the starting shapes, each with its
+ * The «Formas ▾» popup of the shape editor: a five by two grid of thumbnails of the starting shapes, each with its
  * caption, drawn from the same paths the painter uses. Thumbnails read the colour scheme when they paint.
  */
 public final class ShapeTemplatesPopup {
-    private static final int COLUMNS = 3;
+    private static final int COLUMNS = 5;
     private static final int THUMBNAIL = 64;
     private static final int THUMBNAIL_PADDING = 6;
     private static final int CELL_WIDTH = 108;

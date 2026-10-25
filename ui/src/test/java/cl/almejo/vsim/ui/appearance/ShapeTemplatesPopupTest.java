@@ -26,14 +26,14 @@ class ShapeTemplatesPopupTest {
     private static final GridSize BOX = new GridSize(6, 8);
 
     @Test
-    void theNineTemplatesShowAsAThreeByThreeGridInTheBundleOrder() {
+    void theTenTemplatesShowAsAFiveByTwoGridInTheBundleOrder() {
         JPopupMenu popup = ShapeTemplatesPopup.create(BOX, () -> ColorSchemes.LIGHT, template -> { });
         Container grid = (Container) popup.getComponent(0);
         assertThat(grid.getLayout()).isInstanceOf(GridLayout.class);
-        assertThat(((GridLayout) grid.getLayout()).getColumns()).isEqualTo(3);
+        assertThat(((GridLayout) grid.getLayout()).getColumns()).isEqualTo(5);
         assertThat(cells(popup)).extracting(cell -> cell.getAccessibleContext().getAccessibleName()).containsExactly(
                 Messages.text("shape.template.default_box"), Messages.text("shape.template.rectangle"),
-                Messages.text("shape.template.square"), Messages.text("shape.template.triangle"),
+                Messages.text("shape.template.square"), Messages.text("shape.template.circle"), Messages.text("shape.template.triangle"),
                 Messages.text("shape.template.alu"), Messages.text("shape.template.mux"),
                 Messages.text("shape.template.and"), Messages.text("shape.template.or"),
                 Messages.text("shape.template.xor"));
@@ -43,7 +43,7 @@ class ShapeTemplatesPopupTest {
     void choosingAThumbnailReportsItsTemplateOnce() {
         List<SymbolTemplates.Template> chosen = new ArrayList<>();
         JPopupMenu popup = ShapeTemplatesPopup.create(BOX, () -> ColorSchemes.LIGHT, chosen::add);
-        cells(popup).get(4).doClick();
+        cells(popup).get(5).doClick();
         assertThat(chosen).containsExactly(SymbolTemplates.Template.ALU);
     }
 

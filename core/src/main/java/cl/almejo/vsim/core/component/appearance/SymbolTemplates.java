@@ -9,7 +9,7 @@ import java.util.Optional;
 
 /** Monochrome starting symbols and primitive figures, all expressed in eighths of a grid unit. */
 public final class SymbolTemplates {
-    public enum Template { DEFAULT_BOX, RECTANGLE, SQUARE, TRIANGLE, ALU, MUX, AND, OR, XOR }
+    public enum Template { DEFAULT_BOX, RECTANGLE, SQUARE, CIRCLE, TRIANGLE, ALU, MUX, AND, OR, XOR }
 
     private SymbolTemplates() { }
 
@@ -42,6 +42,10 @@ public final class SymbolTemplates {
                 elements.add(rectangle(new SymbolPoint((width - side) / 2, (height - side) / 2),
                         new SymbolPoint((width + side) / 2, (height + side) / 2), false));
             }
+            case CIRCLE -> {
+                int side = Math.min(width, height);
+                elements.add(circle(width / 2.0, height / 2.0, side / 2.0));
+            }
             case TRIANGLE -> elements.add(triangle(start, end, false));
             case ALU, MUX -> elements.add(polygon(body(template, width, height), true));
             case AND -> elements.add(new SymbolPath(List.of(node(start),
@@ -66,14 +70,15 @@ public final class SymbolTemplates {
     }
 
     private static boolean hasName(Template template) {
-        return template == Template.RECTANGLE || template == Template.SQUARE || template == Template.ALU
+        return template == Template.RECTANGLE || template == Template.SQUARE || template == Template.CIRCLE
+                || template == Template.ALU
                 || template == Template.MUX;
     }
 
     /** The area inside the template where its name may go. */
     private static List<SymbolPoint> body(Template template, int width, int height) {
         return switch (template) {
-            case SQUARE -> {
+            case SQUARE, CIRCLE -> {
                 int side = Math.min(width, height);
                 yield List.of(new SymbolPoint((width - side) / 2, (height - side) / 2),
                         new SymbolPoint((width + side) / 2, (height - side) / 2),
@@ -136,6 +141,22 @@ public final class SymbolTemplates {
         return new SymbolPath(List.of(controlled(middleX, top, right, top),
                 controlled(right, middleY, right, bottom), controlled(middleX, bottom, left, bottom),
                 controlled(left, middleY, left, top)), true, true);
+    }
+
+    /** A round circle: eight quadratic arcs, each one's control where the tangents at its ends meet. */
+    private static SymbolPath circle(double centreX, double centreY, double radius) {
+        int arcs = 8;
+        double controlRadius = radius / Math.cos(Math.PI / arcs);
+        List<SymbolNode> nodes = new ArrayList<>();
+        for (int arc = 0; arc < arcs; arc++) {
+            double angle = 2 * Math.PI * arc / arcs - Math.PI / 2;
+            double controlAngle = angle + Math.PI / arcs;
+            nodes.add(controlled((int) Math.round(centreX + radius * Math.cos(angle)),
+                    (int) Math.round(centreY + radius * Math.sin(angle)),
+                    (int) Math.round(centreX + controlRadius * Math.cos(controlAngle)),
+                    (int) Math.round(centreY + controlRadius * Math.sin(controlAngle))));
+        }
+        return new SymbolPath(nodes, true, true);
     }
 
     public static SymbolPath polygon(List<SymbolPoint> points, boolean closed) {
