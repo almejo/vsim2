@@ -31,12 +31,12 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 - Los cables siguen a los pines que cambian de lugar al cambiar la forma o al «Actualizar componente…» / «Actualizar desde la librería». Si un cable no puede seguir sin tocar otra red, una hoja lo explica y solo «Aplicar y conectar a mano» sigue adelante; los pines sueltos quedan marcados y en Problemas.
 - Avisos de conexiones pendientes dentro de los componentes propios: la pieza rota por dentro brilla en rojo y Problemas da la ruta completa hasta el pin suelto («A2 › A1 › AND: entrada B desconectada»); el terminal exterior cuyo pin de interfaz está suelto por dentro se marca en rojo. Se actualizan al editar, deshacer y reabrir, y no impiden guardar ni simular.
 - La IA (MCP) puede cambiar la forma de un componente propio, en una pieza o en todas: elige una de las formas predefinidas y la posición de los pines, en un solo paso de deshacer, y no lo hace si un cable no puede seguir a un pin sin tocar otra red. Al leer el circuito sabe qué piezas tienen forma propia.
-- Cada componente propio guarda su versión: al abrir un circuito, Problemas avisa si una pieza usa una versión anterior que la librería cambió y que, al actualizarla, dejaría conexiones sueltas. Nada se actualiza solo.
+- Cada componente propio guarda su versión: al abrir un circuito, Problemas avisa si una pieza usa una versión anterior que la librería cambió y que, al actualizarla, dejaría conexiones sueltas o no se podría actualizar por usarse dentro de otro componente (la línea lo dice). Nada se actualiza solo.
 
 ### Cambiado
 
 - Al «Actualizar componente…», un pin nuevo se ubica en un punto libre del borde, nunca en una esquina; si no queda ninguno, la caja crece hacia abajo.
-- «Actualizar componente…» ya no deja sueltos los cables de las piezas cuyos pines se movieron: los sigue. Una pieza dentro de otro componente conserva su copia anterior y se avisa por qué.
+- «Actualizar componente…» deja en su lugar los pines que siguen existiendo (sus cables quedan conectados) y ubica los nuevos en un punto libre; con «Actualizar desde la librería», los cables siguen a los pines que se movieron (en 0.3 se volvían a ubicar todos los pines y los cables quedaban sueltos). Si el componente se usa dentro de otro y sus pines o su tamaño cambian, no se actualiza nada: se conserva la copia anterior y VSim dice dentro de cuál componente se usa. Tampoco se actualiza si un pin nuevo quedaría sobre un cable o un pin.
 
 ## Versión 0.3 — 2026-10-24
 

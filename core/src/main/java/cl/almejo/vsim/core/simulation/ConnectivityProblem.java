@@ -28,7 +28,13 @@ public record ConnectivityProblem(String netId, String elementId, int pinIndex, 
          * The piece {@code elementId} uses an older version of a definition than the library's and updating it would
          * break inner connections; {@code netId} is {@code "version:"} plus that definition's id.
          */
-        OUTDATED_WOULD_BREAK
+        OUTDATED_WOULD_BREAK,
+        /**
+         * Like {@link #OUTDATED_WOULD_BREAK}, but the definition is used inside another component's body and its pins
+         * or size changed, so «Actualizar» is refused and the piece keeps its old copy; the containing names are
+         * found with {@code DefinitionUpdateSafety.containingNames}.
+         */
+        OUTDATED_CANNOT_UPDATE
     }
 
     public ConnectivityProblem {

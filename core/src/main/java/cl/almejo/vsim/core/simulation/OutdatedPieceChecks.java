@@ -7,8 +7,10 @@ import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.ComponentLibrary;
 import cl.almejo.vsim.core.library.DefinitionBundle;
+import cl.almejo.vsim.core.library.DefinitionUpdateSafety;
 import cl.almejo.vsim.core.library.LibraryVersions;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
+import cl.almejo.vsim.core.library.UnsafeDefinitionUpdateException;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -20,7 +22,8 @@ import java.util.Set;
 
 /**
  * Finds the pieces of a circuit that use an older version of a definition than the library's and whose update would
- * leave connections loose inside their bodies. It only reports: nothing is ever updated automatically, and the
+ * leave connections loose inside their bodies, or that cannot be updated at all because the definition is used inside
+ * another component and its pins or size changed. It only reports: nothing is ever updated automatically, and the
  * document is never changed (the update is tried on a copy).
  */
 public final class OutdatedPieceChecks {
@@ -62,7 +65,14 @@ public final class OutdatedPieceChecks {
                 updated.putDefinition(dependency);
             }
         }
+        ConnectivityProblem.Cause cause = ConnectivityProblem.Cause.OUTDATED_WOULD_BREAK;
+        try {
+            DefinitionUpdateSafety.requireSafe(updated, available.root());
+        } catch (UnsafeDefinitionUpdateException exception) {
+            cause = ConnectivityProblem.Cause.OUTDATED_CANNOT_UPDATE;
+        }
         updated.putDefinition(available.root());
+        ConnectivityProblem.Cause reportedCause = cause;
         Optional<List<ConnectivityProblem>> after = problemsOf(updated, baseRegistry);
         if (after.isEmpty()) {
             return List.of();
@@ -77,7 +87,7 @@ public final class OutdatedPieceChecks {
         for (String piece : pieces) {
             document.component(new ElementId(piece)).map(Component::position).ifPresent(position ->
                     reported.add(new ConnectivityProblem(VERSION_PREFIX + definitionId, piece, -1, position,
-                            ConnectivityProblem.Cause.OUTDATED_WOULD_BREAK)));
+                            reportedCause)));
         }
         return reported;
     }

@@ -36,13 +36,13 @@ class OutdatedPieceChecksTest {
     }
 
     @Test
-    void aPieceWhoseOlderPartWouldComeLooseWhenUpdatedIsReportedWithTheDefinitionToUpdate() {
+    void aPieceWhoseOlderPartIsUsedInsideAnotherBodyIsReportedAsNotUpdatable() {
         library.put(new DefinitionBundle(movedOutput(ExampleDefinitions.inverter()), List.of()));
 
         List<ConnectivityProblem> problems = OutdatedPieceChecks.problems(document, library, baseRegistry);
 
         assertThat(problems).singleElement().satisfies(problem -> {
-            assertThat(problem.cause()).isEqualTo(ConnectivityProblem.Cause.OUTDATED_WOULD_BREAK);
+            assertThat(problem.cause()).isEqualTo(ConnectivityProblem.Cause.OUTDATED_CANNOT_UPDATE);
             assertThat(problem.elementId()).isEqualTo("u3");
             assertThat(problem.netId()).isEqualTo("version:" + ExampleDefinitions.INVERTER);
         });

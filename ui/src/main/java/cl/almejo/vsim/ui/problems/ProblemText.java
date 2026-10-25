@@ -7,6 +7,7 @@ import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.library.ComponentDefinition;
+import cl.almejo.vsim.core.library.DefinitionUpdateSafety;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.core.simulation.DisplayBusOverride;
 import cl.almejo.vsim.core.simulation.ConnectivityProblem;
@@ -92,6 +93,9 @@ public final class ProblemText {
                     pieceName(problem.elementId(), document), pinName(problem, document, registry));
             case OUTDATED_WOULD_BREAK -> Messages.format("problem.connectivity.outdated",
                     pieceName(problem.elementId(), document), outdatedDefinitionName(problem, document));
+            case OUTDATED_CANNOT_UPDATE -> Messages.format("problem.connectivity.outdatedNested",
+                    pieceName(problem.elementId(), document), outdatedDefinitionName(problem, document),
+                    String.join(", ", DefinitionUpdateSafety.containingNames(document, outdatedDefinitionId(problem))));
         };
     }
 
@@ -138,8 +142,12 @@ public final class ProblemText {
                 .orElse(hierarchicalId);
     }
 
+    private static String outdatedDefinitionId(ConnectivityProblem problem) {
+        return problem.netId().substring(OutdatedPieceChecks.VERSION_PREFIX.length());
+    }
+
     private static String outdatedDefinitionName(ConnectivityProblem problem, CircuitDocument document) {
-        String definitionId = problem.netId().substring(OutdatedPieceChecks.VERSION_PREFIX.length());
+        String definitionId = outdatedDefinitionId(problem);
         return document.definition(definitionId).map(ComponentDefinition::name).orElse(definitionId);
     }
 

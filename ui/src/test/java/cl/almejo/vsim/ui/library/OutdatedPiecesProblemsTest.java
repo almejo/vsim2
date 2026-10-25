@@ -63,8 +63,9 @@ class OutdatedPiecesProblemsTest {
 
         assertThat(outdatedProblems()).singleElement().satisfies(problem ->
                 assertThat(ProblemText.describe(problem, openDocument.document(), openDocument.registry()))
-                        .isEqualTo("U3 usa una versión anterior de Inversor; actualizarla dejaría conexiones"
-                                + " internas sin conectar."));
+                        .isEqualTo("U3 usa una versión anterior de Inversor que no se puede actualizar porque se usa"
+                                + " dentro de Doble inversor: cambiaría sus pines o su tamaño."
+                                + " Se conserva la copia anterior."));
     }
 
     @Test
@@ -90,7 +91,7 @@ class OutdatedPiecesProblemsTest {
     private List<ConnectivityProblem> outdatedProblems() {
         return fixture.view.problems().navigator().problems().stream()
                 .filter(ConnectivityProblem.class::isInstance).map(ConnectivityProblem.class::cast)
-                .filter(problem -> problem.cause() == ConnectivityProblem.Cause.OUTDATED_WOULD_BREAK)
+                .filter(problem -> problem.cause() == ConnectivityProblem.Cause.OUTDATED_CANNOT_UPDATE)
                 .toList();
     }
 
