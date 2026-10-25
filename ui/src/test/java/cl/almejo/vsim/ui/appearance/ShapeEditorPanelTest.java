@@ -79,8 +79,8 @@ class ShapeEditorPanelTest {
         panel.onAccept(() -> accepted.set(true));
         panel.acceptButton().doClick(0);
         assertThat(accepted).isTrue();
-        assertThat(panel.appearance().drawing().orElseThrow().texts()).singleElement()
-                .satisfies(text -> assertThat(text.text()).contains("Registro"));
+        assertThat(panel.appearance().drawing().orElseThrow().texts())
+                .anySatisfy(text -> assertThat(text.text()).contains("Registro"));
     }
 
     @Test

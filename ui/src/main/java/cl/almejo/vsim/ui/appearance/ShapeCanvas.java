@@ -262,7 +262,7 @@ final class ShapeCanvas extends JPanel {
     void finishOperation() {
         if (textField != null) { finishText(); return; }
         if (polygon.size() >= 2) {
-            publish.accept(current.get().addFigure(SymbolTemplates.polygon(List.copyOf(polygon), false)));
+            publish.accept(nodeView().addFigure(SymbolTemplates.polygon(List.copyOf(polygon), false)));
             polygon.clear();
             repaint();
         }
@@ -302,7 +302,11 @@ final class ShapeCanvas extends JPanel {
 
     /** The default box exposes editable nodes, but becomes a custom figure only on an actual edit. */
     private SymbolDraft nodeView() {
-        SymbolDraft draft = current.get();
+        return withBoxAsFigure(current.get());
+    }
+
+    /** The default box as the Rectángulo template (box, title and name stay); any other drawing as it is. */
+    private static SymbolDraft withBoxAsFigure(SymbolDraft draft) {
         return draft.appearance().drawing().isEmpty() ? draft.applyTemplate(SymbolTemplates.Template.RECTANGLE) : draft;
     }
 
@@ -443,7 +447,7 @@ final class ShapeCanvas extends JPanel {
                     case TRIANGLE -> SymbolTemplates.triangle(start, end, shift);
                     default -> throw new IllegalStateException("Not a figure tool");
                 };
-                dragging = beforeDrag.addFigure(figure);
+                dragging = withBoxAsFigure(beforeDrag).addFigure(figure);
                 dragTip = figureTip(dragging);
             }
             preview.accept(dragging);
@@ -491,7 +495,7 @@ final class ShapeCanvas extends JPanel {
         } else if (tool == ShapeTool.POLYGON) {
             if (polygon.size() >= 3 && (event.getClickCount() > 1
                     || screen(polygon.getFirst().x(), polygon.getFirst().y()).distance(event.getPoint()) < HIT_RADIUS)) {
-                publish.accept(current.get().addFigure(SymbolTemplates.polygon(List.copyOf(polygon), true)));
+                publish.accept(nodeView().addFigure(SymbolTemplates.polygon(List.copyOf(polygon), true)));
                 polygon.clear();
             } else if (event.getClickCount() == 1) { polygon.add(point(event)); }
             repaint();
@@ -567,7 +571,7 @@ final class ShapeCanvas extends JPanel {
         SymbolText text = new SymbolText(anchor, value, existing == null ? TextSize.MEDIUM : existing.size(),
                 existing == null ? TextAlignment.LEFT : existing.alignment());
         remove(textField); textField = null;
-        publish.accept(index >= 0 ? current.get().editText(index, text) : current.get().addText(text));
+        publish.accept(index >= 0 ? current.get().editText(index, text) : nodeView().addText(text));
         requestFocusInWindow(); repaint();
     }
 

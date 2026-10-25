@@ -102,6 +102,40 @@ class ShapeCanvasTest {
     }
 
     @Test
+    void theFirstFigureOnTheDefaultShapeKeepsTheBoxAsTheRectangleTemplate() {
+        ComponentDefinition definition = ShapeEditorPanelTest.definition();
+        SymbolDraft original = SymbolDraft.of(ComponentAppearance.of(definition), definition.pinout(), false);
+        int templateElements = original.applyTemplate(SymbolTemplates.Template.RECTANGLE).elements().size();
+        AtomicReference<SymbolDraft> draft = new AtomicReference<>(original);
+        ShapeCanvas canvas = canvas(definition, draft);
+        canvas.setTool(ShapeTool.ELLIPSE);
+
+        drag(canvas, new Point(150, 120), new Point(190, 150));
+
+        assertThat(draft.get().elements()).hasSize(templateElements + 1);
+        assertThat(draft.get().elements().getFirst()).isEqualTo(
+                original.applyTemplate(SymbolTemplates.Template.RECTANGLE).elements().getFirst());
+    }
+
+    @Test
+    void theFirstTextOnTheDefaultShapeKeepsTheBoxAsTheRectangleTemplate() {
+        ComponentDefinition definition = ShapeEditorPanelTest.definition();
+        SymbolDraft original = SymbolDraft.of(ComponentAppearance.of(definition), definition.pinout(), false);
+        int templateElements = original.applyTemplate(SymbolTemplates.Template.RECTANGLE).elements().size();
+        AtomicReference<SymbolDraft> draft = new AtomicReference<>(original);
+        ShapeCanvas canvas = canvas(definition, draft);
+        canvas.setTool(ShapeTool.TEXT);
+        canvas.dispatchEvent(new MouseEvent(canvas, MouseEvent.MOUSE_CLICKED, 0, 0, 200, 150, 1, false,
+                MouseEvent.BUTTON1));
+        ((JTextField) canvas.getComponent(0)).setText("Hola");
+
+        canvas.finishOperation();
+
+        assertThat(draft.get().elements()).hasSize(templateElements + 1);
+        assertThat(draft.get().elements().getFirst()).isInstanceOf(SymbolPath.class);
+    }
+
+    @Test
     void nodesAreVisibleAndDraggableWithoutSelectingTheFigureFirst() {
         ComponentDefinition definition = ShapeEditorPanelTest.definition();
         AtomicReference<SymbolDraft> draft = new AtomicReference<>(SymbolDraft.of(ComponentAppearance.of(definition),
