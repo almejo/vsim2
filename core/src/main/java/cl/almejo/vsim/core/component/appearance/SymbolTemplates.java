@@ -175,13 +175,18 @@ public final class SymbolTemplates {
     }
 
     private static SymbolPoint constrainedEnd(SymbolPoint start, SymbolPoint end, boolean equal) {
-        if (!equal) { return end; }
+        if (!equal) {
+            return end;
+        }
         int side = Math.min(Math.abs(end.x() - start.x()), Math.abs(end.y() - start.y()));
         return new SymbolPoint(start.x() + Integer.signum(end.x() - start.x()) * side,
                 start.y() + Integer.signum(end.y() - start.y()) * side);
     }
 
-    private static SymbolNode node(SymbolPoint point) { return new SymbolNode(point, Optional.empty()); }
+    private static SymbolNode node(SymbolPoint point) {
+        return new SymbolNode(point, Optional.empty());
+    }
+
     private static SymbolNode controlled(int x, int y, int controlX, int controlY) {
         return new SymbolNode(new SymbolPoint(x, y), Optional.of(new SymbolPoint(controlX, controlY)));
     }

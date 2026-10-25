@@ -12,6 +12,9 @@ import cl.almejo.vsim.core.library.LibraryVersions;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.core.library.UnsafeDefinitionUpdateException;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
@@ -30,6 +33,8 @@ public final class OutdatedPieceChecks {
 
     /** Marks {@link ConnectivityProblem#netId()} as naming the definition whose update is the cause. */
     public static final String VERSION_PREFIX = "version:";
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(OutdatedPieceChecks.class);
 
     private OutdatedPieceChecks() {
     }
@@ -110,6 +115,7 @@ public final class OutdatedPieceChecks {
             return Optional.of(ConnectivityChecks.problems(document,
                     baseRegistry.extendedWith(SubcircuitTypes.resolverFor(document))));
         } catch (RuntimeException exception) {
+            LOGGER.debug("The circuit cannot be checked for outdated pieces", exception);
             return Optional.empty();
         }
     }

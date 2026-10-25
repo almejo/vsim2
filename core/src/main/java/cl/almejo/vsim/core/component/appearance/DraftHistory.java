@@ -14,9 +14,17 @@ public final class DraftHistory {
         states.add(Objects.requireNonNull(initial, "initial"));
     }
 
-    public SymbolDraft current() { return states.get(index); }
-    public boolean canUndo() { return index > 0; }
-    public boolean canRedo() { return index + 1 < states.size(); }
+    public SymbolDraft current() {
+        return states.get(index);
+    }
+
+    public boolean canUndo() {
+        return index > 0;
+    }
+
+    public boolean canRedo() {
+        return index + 1 < states.size();
+    }
 
     public void update(SymbolDraft draft) {
         Objects.requireNonNull(draft, "draft");
@@ -32,6 +40,15 @@ public final class DraftHistory {
         index = states.size() - 1;
     }
 
-    public void undo() { if (canUndo()) { index--; } }
-    public void redo() { if (canRedo()) { index++; } }
+    public void undo() {
+        if (canUndo()) {
+            index--;
+        }
+    }
+
+    public void redo() {
+        if (canRedo()) {
+            index++;
+        }
+    }
 }

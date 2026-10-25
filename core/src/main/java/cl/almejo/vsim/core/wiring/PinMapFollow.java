@@ -251,10 +251,33 @@ final class PinMapFollow implements ContactProbe.Layout {
                 || second.contains(first.start()) || second.contains(first.end());
     }
 
-    @Override public Object netOfWire(ElementId wireId) { return wireRoots.get(wireId); }
-    @Override public Object netOfPin(PinRef pin) { return original.find(pinsBefore.get(pin)); }
-    @Override public boolean isMoved(PinRef pin) { return !pinsBefore.get(pin).equals(pinsAfter.get(pin)); }
-    @Override public long orderOf(ElementId componentId) { return document.orderOf(componentId); }
-    @Override public ElementId reportedComponentId(ElementId componentId) { return componentId; }
-    @Override public String pinName(PinRef pin) { return pinNames.get(pin); }
+    @Override
+    public Object netOfWire(ElementId wireId) {
+        return wireRoots.get(wireId);
+    }
+
+    @Override
+    public Object netOfPin(PinRef pin) {
+        return original.find(pinsBefore.get(pin));
+    }
+
+    @Override
+    public boolean isMoved(PinRef pin) {
+        return !pinsBefore.get(pin).equals(pinsAfter.get(pin));
+    }
+
+    @Override
+    public long orderOf(ElementId componentId) {
+        return document.orderOf(componentId);
+    }
+
+    @Override
+    public ElementId reportedComponentId(ElementId componentId) {
+        return componentId;
+    }
+
+    @Override
+    public String pinName(PinRef pin) {
+        return pinNames.get(pin);
+    }
 }

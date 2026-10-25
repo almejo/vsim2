@@ -24,8 +24,13 @@ public final class SymbolDraft {
 
     /** Selection bounds in eighth-grid coordinates, including curve controls. */
     public record Box(int left, int top, int right, int bottom) {
-        public int width() { return right - left; }
-        public int height() { return bottom - top; }
+        public int width() {
+            return right - left;
+        }
+
+        public int height() {
+            return bottom - top;
+        }
     }
 
     private final ComponentAppearance appearance;
@@ -47,9 +52,18 @@ public final class SymbolDraft {
         return new SymbolDraft(appearance, pinout, "", pinsLocked, Set.of());
     }
 
-    public ComponentAppearance appearance() { return appearance; }
-    public Set<Integer> selection() { return selection; }
-    public boolean pinsLocked() { return pinsLocked; }
+    public ComponentAppearance appearance() {
+        return appearance;
+    }
+
+    public Set<Integer> selection() {
+        return selection;
+    }
+
+    public boolean pinsLocked() {
+        return pinsLocked;
+    }
+
     public List<SymbolElement> elements() {
         return appearance.drawing().map(SymbolDrawing::elements).orElse(List.of());
     }
@@ -74,8 +88,13 @@ public final class SymbolDraft {
         return new SymbolDraft(appearance, pinout, definitionName, locked, selection);
     }
 
-    public SymbolDraft addFigure(SymbolPath path) { return append(path); }
-    public SymbolDraft addText(SymbolText text) { return append(text); }
+    public SymbolDraft addFigure(SymbolPath path) {
+        return append(path);
+    }
+
+    public SymbolDraft addText(SymbolText text) {
+        return append(text);
+    }
 
     private SymbolDraft append(SymbolElement element) {
         List<SymbolElement> changed = new ArrayList<>(elements());
@@ -83,10 +102,14 @@ public final class SymbolDraft {
         return withElements(changed, Set.of(changed.size() - 1));
     }
 
-    public SymbolDraft editText(int index, SymbolText text) { return replaceElement(index, text); }
+    public SymbolDraft editText(int index, SymbolText text) {
+        return replaceElement(index, text);
+    }
 
     public SymbolDraft deleteSelection() {
-        if (selection.isEmpty()) { return this; }
+        if (selection.isEmpty()) {
+            return this;
+        }
         List<SymbolElement> kept = IntStream.range(0, elements().size()).filter(index -> !selection.contains(index))
                 .mapToObj(elements()::get).toList();
         return withElements(kept, Set.of());
@@ -94,7 +117,9 @@ public final class SymbolDraft {
 
     public SymbolDraft moveSelection(int deltaX, int deltaY, SnapMode snap) {
         Optional<Box> box = selectionBounds();
-        if (box.isEmpty()) { return this; }
+        if (box.isEmpty()) {
+            return this;
+        }
         Box bounds = box.get();
         // The delta is snapped, not each point: a figure drawn off the magnet's lattice keeps its shape when moved.
         int horizontal = Math.clamp(snap.snap(deltaX), -bounds.left(), maximumX() - bounds.right());
@@ -103,7 +128,9 @@ public final class SymbolDraft {
     }
 
     public SymbolDraft duplicateSelection() {
-        if (selection.isEmpty()) { return this; }
+        if (selection.isEmpty()) {
+            return this;
+        }
         List<SymbolElement> changed = new ArrayList<>(elements());
         Set<Integer> duplicates = new LinkedHashSet<>();
         Box box = selectionBounds().orElseThrow();
@@ -119,11 +146,18 @@ public final class SymbolDraft {
         return withElements(changed, duplicates);
     }
 
-    public SymbolDraft bringToFront() { return reorder(true); }
-    public SymbolDraft sendToBack() { return reorder(false); }
+    public SymbolDraft bringToFront() {
+        return reorder(true);
+    }
+
+    public SymbolDraft sendToBack() {
+        return reorder(false);
+    }
 
     private SymbolDraft reorder(boolean front) {
-        if (selection.isEmpty()) { return this; }
+        if (selection.isEmpty()) {
+            return this;
+        }
         List<SymbolElement> chosen = new ArrayList<>();
         List<SymbolElement> rest = new ArrayList<>();
         for (int index = 0; index < elements().size(); index++) {
@@ -184,7 +218,9 @@ public final class SymbolDraft {
 
     public SymbolDraft deleteNode(int pathIndex, int nodeIndex) {
         SymbolPath path = path(pathIndex);
-        if (path.nodes().size() == 2) { return select(Set.of(pathIndex)).deleteSelection(); }
+        if (path.nodes().size() == 2) {
+            return select(Set.of(pathIndex)).deleteSelection();
+        }
         List<SymbolNode> nodes = new ArrayList<>(path.nodes());
         nodes.remove(nodeIndex);
         boolean closed = path.closed() && nodes.size() >= 3;
@@ -264,8 +300,12 @@ public final class SymbolDraft {
         int width = points.stream().mapToInt(SymbolPoint::x).max().orElse(0);
         int height = points.stream().mapToInt(SymbolPoint::y).max().orElse(0);
         for (PinPlacement pin : appearance.pins()) {
-            if (pin.offset().x() < appearance.size().width()) { width = Math.max(width, pin.offset().x() * 8); }
-            if (pin.offset().y() < appearance.size().height()) { height = Math.max(height, pin.offset().y() * 8); }
+            if (pin.offset().x() < appearance.size().width()) {
+                width = Math.max(width, pin.offset().x() * 8);
+            }
+            if (pin.offset().y() < appearance.size().height()) {
+                height = Math.max(height, pin.offset().y() * 8);
+            }
         }
         GridSize minimum = new GridSize(Math.max(1, (width + 7) / 8), Math.max(1, (height + 7) / 8));
         for (int attempt = 0; attempt <= appearance.pins().size() * 2; attempt++) {
@@ -273,18 +313,24 @@ public final class SymbolDraft {
             GridSize enlarged = minimum;
             for (int first = 0; first < resized.size() && enlarged.equals(minimum); first++) {
                 for (int second = first + 1; second < resized.size(); second++) {
-                    if (!resized.get(first).offset().equals(resized.get(second).offset())) { continue; }
+                    if (!resized.get(first).offset().equals(resized.get(second).offset())) {
+                        continue;
+                    }
                     GridPoint firstOriginal = appearance.pins().get(first).offset();
                     GridPoint secondOriginal = appearance.pins().get(second).offset();
                     if (firstOriginal.x() != secondOriginal.x()) {
-                        enlarged = new GridSize(minimum.width() + 1, minimum.height()); break;
+                        enlarged = new GridSize(minimum.width() + 1, minimum.height());
+                        break;
                     }
                     if (firstOriginal.y() != secondOriginal.y()) {
-                        enlarged = new GridSize(minimum.width(), minimum.height() + 1); break;
+                        enlarged = new GridSize(minimum.width(), minimum.height() + 1);
+                        break;
                     }
                 }
             }
-            if (enlarged.equals(minimum)) { return minimum; }
+            if (enlarged.equals(minimum)) {
+                return minimum;
+            }
             minimum = enlarged;
         }
         return appearance.size();
@@ -328,12 +374,16 @@ public final class SymbolDraft {
         return List.copyOf(problems);
     }
 
-    public boolean canAccept() { return problems().stream().noneMatch(DraftProblem::blocksAccept); }
+    public boolean canAccept() {
+        return problems().stream().noneMatch(DraftProblem::blocksAccept);
+    }
 
     public Optional<Box> selectionBounds() {
         List<SymbolPoint> points = selection.stream().sorted().flatMap(index -> points(elements().get(index)).stream())
                 .toList();
-        if (points.isEmpty()) { return Optional.empty(); }
+        if (points.isEmpty()) {
+            return Optional.empty();
+        }
         return Optional.of(new Box(points.stream().mapToInt(SymbolPoint::x).min().orElseThrow(),
                 points.stream().mapToInt(SymbolPoint::y).min().orElseThrow(),
                 points.stream().mapToInt(SymbolPoint::x).max().orElseThrow(),
@@ -342,7 +392,9 @@ public final class SymbolDraft {
 
     public SymbolDraft scaleSelection(Handle handle, SymbolPoint to, boolean keepProportion, SnapMode snap) {
         Optional<Box> selected = selectionBounds();
-        if (selected.isEmpty()) { return this; }
+        if (selected.isEmpty()) {
+            return this;
+        }
         Box box = selected.get();
         boolean left = handle == Handle.LEFT || handle == Handle.TOP_LEFT || handle == Handle.BOTTOM_LEFT;
         boolean right = handle == Handle.RIGHT || handle == Handle.TOP_RIGHT || handle == Handle.BOTTOM_RIGHT;
@@ -383,7 +435,9 @@ public final class SymbolDraft {
     }
 
     private static List<SymbolPoint> points(SymbolElement element) {
-        if (element instanceof SymbolText text) { return List.of(text.anchor()); }
+        if (element instanceof SymbolText text) {
+            return List.of(text.anchor());
+        }
         SymbolPath path = (SymbolPath) element;
         List<SymbolPoint> points = new ArrayList<>();
         for (SymbolNode node : path.nodes()) {
@@ -413,16 +467,27 @@ public final class SymbolDraft {
         return replaceElement(index, new SymbolPath(nodes, path.closed(), path.filled()));
     }
 
-    private SymbolPath path(int index) { return (SymbolPath) elements().get(index); }
-    private int maximumX() { return appearance.size().width() * SymbolPoint.EIGHTHS; }
-    private int maximumY() { return appearance.size().height() * SymbolPoint.EIGHTHS; }
+    private SymbolPath path(int index) {
+        return (SymbolPath) elements().get(index);
+    }
+
+    private int maximumX() {
+        return appearance.size().width() * SymbolPoint.EIGHTHS;
+    }
+
+    private int maximumY() {
+        return appearance.size().height() * SymbolPoint.EIGHTHS;
+    }
+
     private SymbolPoint bounded(SymbolPoint point, SnapMode snap) {
         return new SymbolPoint(Math.clamp(snap.snap(point.x()), 0, maximumX()),
                 Math.clamp(snap.snap(point.y()), 0, maximumY()));
     }
 
     private void requireUnlocked() {
-        if (pinsLocked) { throw new IllegalStateException("Nested component pins and size are locked"); }
+        if (pinsLocked) {
+            throw new IllegalStateException("Nested component pins and size are locked");
+        }
     }
 
     private static void requireSegment(SymbolPath path, int segment) {
@@ -455,7 +520,10 @@ public final class SymbolDraft {
             double x = inverse * inverse * start.x() + 2 * inverse * parameter * control.x() + parameter * parameter * end.x();
             double y = inverse * inverse * start.y() + 2 * inverse * parameter * control.y() + parameter * parameter * end.y();
             double candidate = Math.pow(x - target.x(), 2) + Math.pow(y - target.y(), 2);
-            if (candidate < distance) { distance = candidate; nearest = parameter; }
+            if (candidate < distance) {
+                distance = candidate;
+                nearest = parameter;
+            }
         }
         return nearest;
     }

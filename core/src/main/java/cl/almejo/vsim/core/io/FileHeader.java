@@ -15,6 +15,8 @@ final class FileHeader {
     static final String FORMAT = "vsim2";
     static final String FORMAT_KEY = "format";
     static final String FORMAT_VERSION_KEY = "formatVersion";
+    /** The oldest format this build still reads; it always writes {@link CircuitFormat#FORMAT_VERSION}. */
+    static final int OLDEST_READABLE_VERSION = 2;
 
     private FileHeader() {
     }
@@ -48,7 +50,7 @@ final class FileHeader {
         }
         JsonNode version = root.path(FORMAT_VERSION_KEY);
         if (version.isIntegralNumber() && version.canConvertToInt()
-                && (version.intValue() == 2 || version.intValue() == CircuitFormat.FORMAT_VERSION)) {
+                && (version.intValue() == OLDEST_READABLE_VERSION || version.intValue() == CircuitFormat.FORMAT_VERSION)) {
             return;
         }
         if (version.isIntegralNumber()

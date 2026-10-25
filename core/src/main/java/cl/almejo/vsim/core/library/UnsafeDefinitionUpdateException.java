@@ -25,6 +25,11 @@ public final class UnsafeDefinitionUpdateException extends IllegalArgumentExcept
         this.messageKey = messageKey;
     }
 
-    public String messageKey() { return messageKey; }
-    public List<String> containingNames() { return containingNames; }
+    public String messageKey() {
+        return messageKey;
+    }
+
+    public List<String> containingNames() {
+        return containingNames;
+    }
 }
