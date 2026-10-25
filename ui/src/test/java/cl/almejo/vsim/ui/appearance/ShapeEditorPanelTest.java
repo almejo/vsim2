@@ -124,7 +124,7 @@ class ShapeEditorPanelTest {
             ShapeEditorPanel panel = panel(definition(), false);
             List<AbstractButton> tools = toolbarButtons(panel).stream()
                     .filter(button -> button != panel.zoomValueButton()).toList();
-            assertThat(tools).hasSize(21);
+            assertThat(tools).hasSize(23);
             for (AbstractButton button : tools) {
                 String name = button.getAccessibleContext().getAccessibleName();
                 assertThat(button.getIcon()).as(name).isNotNull();

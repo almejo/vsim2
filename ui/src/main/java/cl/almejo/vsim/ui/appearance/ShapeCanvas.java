@@ -124,7 +124,7 @@ final class ShapeCanvas extends JPanel {
     private SymbolDraft beforeDrag;
     private SymbolDraft committedBeforeDrag;
     private SymbolDraft dragging;
-    private final List<SymbolPoint> polygon = new ArrayList<>();
+    private final List<SymbolPoint> pathNodes = new ArrayList<>();
     private JTextField textField;
     private int textIndex = -1;
     private boolean fitPending = true;
@@ -220,6 +220,10 @@ final class ShapeCanvas extends JPanel {
     }
 
     void setTool(ShapeTool selected) {
+        // A figure being drawn is kept, as with Esc, rather than lost to the tool change.
+        if (!pathNodes.isEmpty()) {
+            finishOrDropPath();
+        }
         cancelOperation();
         tool = selected;
         pin = Optional.empty();
@@ -292,7 +296,7 @@ final class ShapeCanvas extends JPanel {
     }
 
     boolean operationActive() {
-        return pressed != null || !polygon.isEmpty() || textField != null;
+        return pressed != null || !pathNodes.isEmpty() || textField != null;
     }
 
     boolean hasSelection() {
@@ -354,7 +358,7 @@ final class ShapeCanvas extends JPanel {
         dragging = null;
         beforeDrag = null;
         committedBeforeDrag = null;
-        polygon.clear();
+        pathNodes.clear();
         pinDragActive = false;
         dragTip = Optional.empty();
         if (textField != null) {
@@ -364,16 +368,104 @@ final class ShapeCanvas extends JPanel {
         repaint();
     }
 
+    /** Enter: the text being typed is done; a multiline or polygon being drawn is finished (or dropped if too short). */
     void finishOperation() {
         if (textField != null) {
             finishText();
             return;
         }
-        if (polygon.size() >= 2) {
-            publish.accept(nodeView().addFigure(SymbolTemplates.polygon(List.copyOf(polygon), false)));
-            polygon.clear();
+        if (!pathNodes.isEmpty()) {
+            finishOrDropPath();
+        }
+    }
+
+    /**
+     * Esc: a multiline or polygon being drawn keeps its placed nodes (only the rubber band to the pointer goes), as
+     * long as it has enough of them; any other operation is cancelled.
+     */
+    void escapeOperation() {
+        if (pathNodes.isEmpty()) {
+            cancelOperation();
+        } else {
+            finishOrDropPath();
+        }
+    }
+
+    /** Whether a multiline or a polygon is being drawn: Ctrl+Z takes back its last node instead of an edit. */
+    boolean drawingPath() {
+        return !pathNodes.isEmpty();
+    }
+
+    /** Ctrl+Z while drawing: the last placed node goes; with the first one, the drawing ends. */
+    void removeLastNode() {
+        if (!pathNodes.isEmpty()) {
+            pathNodes.removeLast();
+            changed.run();
             repaint();
         }
+    }
+
+    /** The nodes placed so far by Multilínea or Polígono, in eighths. */
+    List<SymbolPoint> placedNodes() {
+        return List.copyOf(pathNodes);
+    }
+
+    /** Multilínea (open) or Polígono (always closed): figures drawn a click per node. */
+    private boolean isPathTool() {
+        return tool == ShapeTool.MULTILINE || tool == ShapeTool.POLYGON;
+    }
+
+    /**
+     * A click places a node; on the first node (three or more placed) it closes the figure; the second click of a
+     * double-click finishes it (its first click already placed the last node).
+     */
+    private void clickPathTool(MouseEvent event) {
+        if (closesOnFirstNode(event.getPoint())) {
+            commitPath(true);
+        } else if (event.getClickCount() > 1) {
+            finishPath();
+        } else {
+            SymbolPoint at = point(event);
+            if (pathNodes.size() >= SymbolPath.MAXIMUM_NODES) {
+                refuse("shape.nodes.limit");
+            } else if (pathNodes.isEmpty() || !pathNodes.getLast().equals(at)) {
+                pathNodes.add(at);
+                changed.run();
+            }
+        }
+        repaint();
+    }
+
+    /** Whether the pointer is on the first placed node and there are enough nodes to close the figure there. */
+    private boolean closesOnFirstNode(Point at) {
+        return pathNodes.size() >= MINIMUM_CLOSED_NODES
+                && screen(pathNodes.getFirst().x(), pathNodes.getFirst().y()).distance(at) < HIT_RADIUS;
+    }
+
+    /** Finishes the figure being drawn if it has enough nodes; otherwise forgets it. */
+    private void finishOrDropPath() {
+        if (!finishPath()) {
+            pathNodes.clear();
+            changed.run();
+            repaint();
+        }
+    }
+
+    /** A multiline needs two nodes and stays open; a polygon needs three and closes. False when there are too few. */
+    private boolean finishPath() {
+        boolean closed = tool == ShapeTool.POLYGON;
+        if (pathNodes.size() < (closed ? MINIMUM_CLOSED_NODES : MINIMUM_OPEN_NODES)) {
+            return false;
+        }
+        commitPath(closed);
+        return true;
+    }
+
+    private void commitPath(boolean closed) {
+        List<SymbolPoint> nodes = List.copyOf(pathNodes);
+        pathNodes.clear();
+        publish.accept(nodeView().addFigure(SymbolTemplates.polygon(nodes, closed)));
+        repaint();
     }
 
     void deleteSelection() {
@@ -452,7 +544,7 @@ final class ShapeCanvas extends JPanel {
         if (panning || !SwingUtilities.isLeftMouseButton(event)) {
             return;
         }
-        if (tool == ShapeTool.POLYGON || tool == ShapeTool.TEXT || isNodeTool()) {
+        if (isPathTool() || tool == ShapeTool.TEXT || isNodeTool()) {
             return;
         }
         handle = Optional.empty();
@@ -541,7 +633,7 @@ final class ShapeCanvas extends JPanel {
             repaint();
             return;
         }
-        if (tool == ShapeTool.POLYGON || tool == ShapeTool.TEXT || isNodeTool()) {
+        if (isPathTool() || tool == ShapeTool.TEXT || isNodeTool()) {
             return;
         }
         SymbolPoint end = point(where);
@@ -663,15 +755,8 @@ final class ShapeCanvas extends JPanel {
                 hoverNodeTool(event.getPoint());
             }
             repaint();
-        } else if (tool == ShapeTool.POLYGON) {
-            if (polygon.size() >= 3 && (event.getClickCount() > 1
-                    || screen(polygon.getFirst().x(), polygon.getFirst().y()).distance(event.getPoint()) < HIT_RADIUS)) {
-                publish.accept(nodeView().addFigure(SymbolTemplates.polygon(List.copyOf(polygon), true)));
-                polygon.clear();
-            } else if (event.getClickCount() == 1) {
-                polygon.add(point(event));
-            }
-            repaint();
+        } else if (isPathTool()) {
+            clickPathTool(event);
         } else if (tool == ShapeTool.TEXT) {
             beginText(event.getPoint(), -1);
         }
@@ -958,6 +1043,10 @@ final class ShapeCanvas extends JPanel {
             controlHeld = event.isControlDown();
             hoverNodeTool(event.getPoint());
             repaint();
+        } else if (isPathTool()) {
+            setCursor(Cursor.getPredefinedCursor(Cursor.CROSSHAIR_CURSOR));
+            setToolTipText(ShapeEditorTexts.hint(new ShapeEditorTexts.HintState(tool, false, false, 0, false)));
+            repaint();
         } else if (tool == ShapeTool.PAN) {
             setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
             setToolTipText(Messages.text("shape.pan.hint"));
@@ -1146,12 +1235,7 @@ final class ShapeCanvas extends JPanel {
                         Math.min(start.y(), bandEnd.y()) / 8.0 * UNIT, Math.abs(start.x() - bandEnd.x()) / 8.0 * UNIT,
                         Math.abs(start.y() - bandEnd.y()) / 8.0 * UNIT));
             }
-            for (int index = 1; index < polygon.size(); index++) {
-                SymbolPoint first = polygon.get(index - 1);
-                SymbolPoint second = polygon.get(index);
-                surface.draw(new Line2D.Double(first.x() / 8.0 * UNIT, first.y() / 8.0 * UNIT,
-                        second.x() / 8.0 * UNIT, second.y() / 8.0 * UNIT));
-            }
+            paintPathInProgress(surface, scheme);
         } finally {
             surface.dispose();
         }
@@ -1413,6 +1497,55 @@ final class ShapeCanvas extends JPanel {
             surface.fill(new Ellipse2D.Double(hit.point().x() / 8.0 * UNIT - 3 / zoom,
                     hit.point().y() / 8.0 * UNIT - 3 / zoom, 6 / zoom, 6 / zoom));
         });
+    }
+
+    /**
+     * The multiline or polygon being drawn: its placed segments and nodes, the rubber band from the last node to the
+     * pointer (and, for a polygon, back to the first node), and a ring on the first node when a click there closes it.
+     */
+    private void paintPathInProgress(Graphics2D surface, ColorScheme scheme) {
+        if (pathNodes.isEmpty()) {
+            return;
+        }
+        Path2D placed = new Path2D.Double();
+        placed.moveTo(pathNodes.getFirst().x() / 8.0 * UNIT, pathNodes.getFirst().y() / 8.0 * UNIT);
+        for (SymbolPoint node : pathNodes.subList(1, pathNodes.size())) {
+            placed.lineTo(node.x() / 8.0 * UNIT, node.y() / 8.0 * UNIT);
+        }
+        surface.setColor(scheme.componentStroke());
+        surface.setStroke(new BasicStroke((float) (SCREEN_STROKE_WIDTH / zoom), BasicStroke.CAP_ROUND,
+                BasicStroke.JOIN_ROUND));
+        surface.draw(placed);
+        boolean closing = closesOnFirstNode(pointer);
+        SymbolPoint last = pathNodes.getLast();
+        SymbolPoint target = closing ? pathNodes.getFirst() : point(pointer);
+        surface.setColor(scheme.selection());
+        surface.setStroke(new BasicStroke((float) (1.2 / zoom), BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER, 10,
+                new float[]{(float) (4 / zoom), (float) (3 / zoom)}, 0));
+        surface.draw(new Line2D.Double(last.x() / 8.0 * UNIT, last.y() / 8.0 * UNIT, target.x() / 8.0 * UNIT,
+                target.y() / 8.0 * UNIT));
+        if (tool == ShapeTool.POLYGON && pathNodes.size() >= 2 && !closing) {
+            SymbolPoint first = pathNodes.getFirst();
+            surface.setColor(PainterSupport.withAlpha(scheme.selection(), 110));
+            surface.draw(new Line2D.Double(target.x() / 8.0 * UNIT, target.y() / 8.0 * UNIT, first.x() / 8.0 * UNIT,
+                    first.y() / 8.0 * UNIT));
+        }
+        surface.setStroke(new BasicStroke((float) (1.5 / zoom)));
+        for (SymbolPoint node : pathNodes) {
+            Shape marker = new Ellipse2D.Double(node.x() / 8.0 * UNIT - 3 / zoom, node.y() / 8.0 * UNIT - 3 / zoom,
+                    6 / zoom, 6 / zoom);
+            surface.setColor(scheme.background());
+            surface.fill(marker);
+            surface.setColor(scheme.componentStroke());
+            surface.draw(marker);
+        }
+        if (closing) {
+            SymbolPoint first = pathNodes.getFirst();
+            surface.setColor(scheme.selection());
+            surface.setStroke(new BasicStroke((float) (2 / zoom)));
+            surface.draw(new Ellipse2D.Double(first.x() / 8.0 * UNIT - 7 / zoom, first.y() / 8.0 * UNIT - 7 / zoom,
+                    14 / zoom, 14 / zoom));
+        }
     }
 
     /** The node a click would remove: filled and ringed in the problem colour, larger than the other nodes. */

@@ -85,6 +85,22 @@ class SymbolDraftTest {
     }
 
     @Test
+    void openingAClosedFigureDropsItsClosingSegmentAndItsFill() {
+        SymbolPath triangle = new SymbolPath(List.of(
+                new SymbolNode(new SymbolPoint(8, 8), Optional.empty()),
+                new SymbolNode(new SymbolPoint(40, 8), Optional.empty()),
+                new SymbolNode(new SymbolPoint(24, 24), Optional.of(new SymbolPoint(8, 24)))), true, true);
+
+        SymbolPath opened = (SymbolPath) draft(false).addFigure(triangle).openPath(0).elements().getFirst();
+
+        assertThat(opened.closed()).isFalse();
+        assertThat(opened.filled()).isFalse();
+        assertThat(opened.nodes()).extracting(SymbolNode::point).containsExactly(new SymbolPoint(8, 8),
+                new SymbolPoint(40, 8), new SymbolPoint(24, 24));
+        assertThat(opened.nodes().getLast().control()).isEmpty();
+    }
+
+    @Test
     void snappingAppliesToFiguresWhilePinsAlwaysUseWholeGridUnits() {
         SymbolDraft moved = draft(false).addFigure(SymbolTemplates.line(new SymbolPoint(8, 8),
                 new SymbolPoint(16, 16), false)).moveSelection(3, 1, SnapMode.HALF_UNITS);

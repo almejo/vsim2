@@ -4,8 +4,8 @@ import java.util.Locale;
 
 /** Local tools of the appearance editor; shortcuts never enter the main circuit shortcut catalog. */
 public enum ShapeTool {
-    SELECT("V"), NODES("N"), PAN("H"), LINE("L"), RECTANGLE("R"), ELLIPSE("E"), TRIANGLE("G"), POLYGON("P"), TEXT("T"),
-    ADD_NODE("A"), REMOVE_NODE("Q");
+    SELECT("V"), NODES("N"), PAN("H"), LINE("L"), MULTILINE("K"), RECTANGLE("R"), ELLIPSE("E"), TRIANGLE("G"),
+    POLYGON("P"), TEXT("T"), ADD_NODE("A"), REMOVE_NODE("Q");
 
     private final String key;
 

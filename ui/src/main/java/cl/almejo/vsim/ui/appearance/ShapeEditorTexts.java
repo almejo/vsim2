@@ -91,10 +91,11 @@ final class ShapeEditorTexts {
             case ADD_NODE -> Messages.text("shape.nodeAdd.hint");
             case REMOVE_NODE -> Messages.text("shape.nodeRemove.hint");
             case LINE -> Messages.text("shape.hint.line");
+            case MULTILINE -> Messages.format("shape.hint.multiline", shortcut(KeyEvent.VK_Z));
             case RECTANGLE -> Messages.text("shape.hint.rectangle");
             case ELLIPSE -> Messages.text("shape.hint.ellipse");
             case TRIANGLE -> Messages.text("shape.hint.triangle");
-            case POLYGON -> Messages.text("shape.hint.polygon");
+            case POLYGON -> Messages.format("shape.hint.polygon", shortcut(KeyEvent.VK_Z));
             case TEXT -> Messages.text("shape.hint.text");
         };
     }

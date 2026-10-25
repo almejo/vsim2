@@ -237,6 +237,14 @@ public final class SymbolDraft {
         return replaceElement(index, new SymbolPath(path.nodes(), true, path.filled()));
     }
 
+    /** The closed figure at {@code index} opened where it closed: its closing segment and its fill go. */
+    public SymbolDraft openPath(int index) {
+        SymbolPath path = path(index);
+        List<SymbolNode> nodes = new ArrayList<>(path.nodes());
+        nodes.set(nodes.size() - 1, new SymbolNode(nodes.getLast().point(), Optional.empty()));
+        return replaceElement(index, new SymbolPath(nodes, false, false));
+    }
+
     public SymbolDraft setFilled(int index, boolean filled) {
         SymbolPath path = path(index);
         return replaceElement(index, new SymbolPath(path.nodes(), path.closed(), path.closed() && filled));
