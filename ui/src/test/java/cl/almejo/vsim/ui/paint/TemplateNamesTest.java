@@ -22,10 +22,12 @@ import cl.almejo.vsim.core.io.CircuitFragment;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.DefinitionPin;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
+import org.assertj.core.data.Percentage;
 import org.junit.jupiter.api.Test;
 
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -101,15 +103,65 @@ class TemplateNamesTest {
     }
 
     @Test
-    void theComponentNameIsDrawnBoldAndATextTheUserTypedIsNot() {
+    void everyTextOfADrawingIsBoldLikeTheComponentName() {
         ComponentDefinition definition = definition(1, 2);
-        SymbolText follows = new SymbolText(new SymbolPoint(24, 32), Optional.empty(), TextSize.LARGE,
+        SymbolText follows = new SymbolText(new SymbolPoint(24, 32), Optional.empty(), TextSize.SMALL,
                 TextAlignment.CENTER);
-        SymbolText typed = new SymbolText(new SymbolPoint(24, 32), Optional.of(NAME), TextSize.LARGE,
+        SymbolText typed = new SymbolText(new SymbolPoint(24, 32), Optional.of(NAME), TextSize.SMALL,
                 TextAlignment.CENTER);
-        int boldInk = count(ink(definition, only(follows)));
-        int regularInk = count(ink(definition, only(typed)));
-        assertThat(boldInk).isGreaterThan(regularInk);
+        int nameInk = count(ink(definition, only(follows)));
+        int typedInk = count(ink(definition, only(typed)));
+        assertThat((double) typedInk).isCloseTo(nameInk, Percentage.withPercentage(5));
+    }
+
+    /** The MUX of the editor render: S on the bottom edge, between the slanted outline and D3's name. */
+    @Test
+    void theNameOfABottomPinNeverOverlapsTheOutlineOrAnotherPinName() {
+        ComponentDefinition withSelect = muxDefinition(true);
+        ComponentDefinition withoutSelect = muxDefinition(false);
+        SymbolDrawing shape = SymbolDraft.of(ComponentAppearance.of(withSelect), withSelect.pinout(), false)
+                .applyTemplate(SymbolTemplates.Template.MUX).appearance().drawing().orElseThrow();
+        List<SymbolElement> outlineOnly = shape.elements().stream()
+                .filter(element -> !(element instanceof SymbolText)).toList();
+        SymbolDrawing named = new SymbolDrawing(SIZE, outlineOnly, true);
+        SymbolDrawing silent = new SymbolDrawing(SIZE, outlineOnly, false);
+        for (int zoom : new int[]{1, 4}) {
+            boolean[] selectNameAndStub = difference(paint(withSelect, named, zoom), paint(withoutSelect, named, zoom));
+            boolean[] selectStub = difference(paint(withSelect, silent, zoom), paint(withoutSelect, silent, zoom));
+            boolean[] selectName = subtract(selectNameAndStub, selectStub);
+            boolean[] otherNames = difference(paint(withoutSelect, named, zoom), paint(withoutSelect, silent, zoom));
+            boolean[] outline = difference(paint(withoutSelect, silent, zoom),
+                    paint(withoutSelect, new SymbolDrawing(SIZE, List.of(), false), zoom));
+            assertThat(overlap(selectName, outline)).as("S over the outline at %dx", zoom).isZero();
+            assertThat(overlap(selectName, otherNames)).as("S over another pin name at %dx", zoom).isZero();
+        }
+    }
+
+    private static boolean[] subtract(boolean[] first, boolean[] second) {
+        boolean[] result = new boolean[first.length];
+        for (int index = 0; index < first.length; index++) {
+            result[index] = first[index] && !second[index];
+        }
+        return result;
+    }
+
+    private static ComponentDefinition muxDefinition(boolean withSelect) {
+        List<DefinitionPin> pins = new ArrayList<>(List.of(
+                new DefinitionPin(PinSpec.input("D0", 0, 1, 4), new ElementId("d0")),
+                new DefinitionPin(PinSpec.input("D1", 0, 3, 4), new ElementId("d1")),
+                new DefinitionPin(PinSpec.input("D2", 0, 5, 4), new ElementId("d2")),
+                new DefinitionPin(PinSpec.input("D3", 0, 7, 4), new ElementId("d3")),
+                new DefinitionPin(PinSpec.output("Y", 6, 4, 4), new ElementId("y"))));
+        List<Component> interfaces = new ArrayList<>(List.of(
+                interfacePin("d0", InterfacePins.INPUT_PIN, 4), interfacePin("d1", InterfacePins.INPUT_PIN, 4),
+                interfacePin("d2", InterfacePins.INPUT_PIN, 4), interfacePin("d3", InterfacePins.INPUT_PIN, 4),
+                interfacePin("y", InterfacePins.OUTPUT_PIN, 4)));
+        if (withSelect) {
+            pins.add(new DefinitionPin(PinSpec.input("S", 3, 8, 2), new ElementId("s")));
+            interfaces.add(interfacePin("s", InterfacePins.INPUT_PIN, 2));
+        }
+        return new ComponentDefinition("mux", "Selector", "", SIZE, pins,
+                new CircuitFragment(interfaces, List.of(), List.of()));
     }
 
     private static SymbolDrawing only(SymbolElement element) {

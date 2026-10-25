@@ -35,6 +35,7 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 
 ### Cambiado
 
+- Los textos «ALU» y «MUX» de los trapecios (y los textos de un dibujo en general) se ven en negrita, y el nombre de un pin del borde superior o inferior ya no se pisa con el contorno ni con el nombre de otro pin: se achica y, si no cabe, no se dibuja.
 - En el editor de formas, los textos de la forma predeterminada crecen con el zoom como los de las figuras; solo los trazos y las marcas de los pines mantienen un tamaño constante en pantalla.
 - En el editor de formas, dibujar la primera figura o el primer texto sobre la forma predeterminada ya no borra la caja: la convierte antes en la plantilla Rectángulo, con su título y su nombre.
 - Al «Actualizar componente…», un pin nuevo se ubica en un punto libre del borde, nunca en una esquina; si no queda ninguno, la caja crece hacia abajo.

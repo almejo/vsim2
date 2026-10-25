@@ -26,6 +26,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.WeakHashMap;
 
 /** Shared ordered symbol rendering for the circuit, shape editor, palette and vector exports. */
@@ -130,7 +131,7 @@ public final class SymbolPainter {
         double anchorY = text.anchor().y() * COORDINATE_SCALE;
         boolean sideways = PainterSupport.turnedSideways(graphics);
         double available = (sideways ? drawing.size().height() : drawing.size().width()) * UNIT - 2;
-        Font font = TextFonts.labelFont();
+        Font font = TextFonts.labelFont().deriveFont(Font.BOLD);
         FontMetrics metrics = graphics.getFontMetrics(font.deriveFont(size));
         if (metrics.stringWidth(shown) > available) {
             size = (float) Math.max(3, size * available / Math.max(1, metrics.stringWidth(shown)));
@@ -224,10 +225,51 @@ public final class SymbolPainter {
         graphics.setColor(scheme.componentStroke());
         graphics.draw(new Line2D.Double(x, y, x + directionX * length, y + directionY * length));
         if (drawing.showPinNames()) {
-            PinName name = pinName(graphics, pin, pins, drawing, length);
-            upright(graphics, name.text(), TextFonts.labelFont(), name.anchorX(), name.anchorY(), name.size(),
-                    name.alignment(), scheme, name.slot());
+            visiblePinName(graphics, pin, pins, drawing, length, strokeWidth).ifPresent(name ->
+                    upright(graphics, name.text(), TextFonts.labelFont(), name.anchorX(), name.anchorY(), name.size(),
+                            name.alignment(), scheme, name.slot()));
         }
+    }
+
+    /**
+     * The name to draw for a pin: a side pin's name always (its slot keeps it off the neighbours). A top or bottom
+     * pin's name goes only where it overlaps neither the outline nor a side pin's name, shrinking to the smallest
+     * size first; when it cannot, it is not drawn (the pin table and the pin's tooltip still name it).
+     */
+    private static Optional<PinName> visiblePinName(Graphics2D graphics, PinSpec pin, List<PinSpec> pins,
+                                                    SymbolDrawing drawing, double stubLength, float strokeWidth) {
+        if (isOnSide(pin, drawing)) {
+            return Optional.of(pinName(graphics, pin, pins, drawing, stubLength, PIN_NAME_SIZE));
+        }
+        List<Area> obstacles = new ArrayList<>();
+        for (SymbolPath path : drawing.paths()) {
+            obstacles.add(new Area(new BasicStroke(strokeWidth + 1f)
+                    .createStrokedShape(insetByHalfTheStroke(path(path), drawing, strokeWidth))));
+        }
+        boolean sideways = PainterSupport.turnedSideways(graphics);
+        List<Rectangle2D> sideNames = new ArrayList<>();
+        for (PinSpec other : pins) {
+            if (other != pin && isOnSide(other, drawing)) {
+                sideNames.add(pinNameArea(graphics, other, pins, drawing, strokeWidth));
+            }
+        }
+        for (float limit = PIN_NAME_SIZE; limit >= MINIMUM_NAME_SIZE; limit -= 1) {
+            PinName name = pinName(graphics, pin, pins, drawing, stubLength, limit);
+            Rectangle2D area = textArea(graphics, name.text(), TextFonts.labelFont(), name.size(), name.anchorX(),
+                    name.anchorY(), name.alignment(), sideways).createIntersection(name.slot());
+            boolean clear = obstacles.stream().noneMatch(outline -> outline.intersects(area))
+                    && sideNames.stream().noneMatch(area::intersects);
+            if (clear) {
+                return Optional.of(name);
+            }
+        }
+        return Optional.empty();
+    }
+
+    private static boolean isOnSide(PinSpec pin, SymbolDrawing drawing) {
+        double x = pin.position().x() * UNIT;
+        double y = pin.position().y() * UNIT;
+        return Math.min(x, drawing.size().width() * UNIT - x) <= Math.min(y, drawing.size().height() * UNIT - y);
     }
 
     /** A pin's name as laid out inside the box: its text, size, anchor, alignment and the slot it is clipped to. */
@@ -240,7 +282,7 @@ public final class SymbolPainter {
      * that is still too long is cut at the slot, never run into the next pin's name.
      */
     private static PinName pinName(Graphics2D graphics, PinSpec pin, List<PinSpec> pins, SymbolDrawing drawing,
-                                   double stubLength) {
+                                   double stubLength, float largestSize) {
         double x = pin.position().x() * UNIT;
         double y = pin.position().y() * UNIT;
         double width = drawing.size().width() * UNIT;
@@ -253,7 +295,7 @@ public final class SymbolPainter {
         boolean runsAlongTheSpacing = onSide == sideways;
         double across = runsAlongTheSpacing ? gap - 2 : (onSide ? width : height) - 2 * NAME_INSET - stubLength;
         String text = SubcircuitPainter.pinText(pin);
-        float size = fittedSize(graphics, text, across);
+        float size = Math.min(largestSize, fittedSize(graphics, text, across));
         double inset = Math.max(5, stubLength + 3);
         double alignment = sideways ? 0.5 : directionX > 0 ? 0 : directionX < 0 ? 1 : 0.5;
         Rectangle2D slot = onSide
@@ -274,7 +316,7 @@ public final class SymbolPainter {
         double directionX = onSide ? (x <= width / 2 ? 1 : -1) : 0;
         double directionY = onSide ? 0 : (y <= height / 2 ? 1 : -1);
         PinName name = pinName(graphics, pin, pins, drawing,
-                stubLength(drawing, x, y, directionX, directionY, strokeWidth));
+                stubLength(drawing, x, y, directionX, directionY, strokeWidth), PIN_NAME_SIZE);
         Rectangle2D text = textArea(graphics, name.text(), TextFonts.labelFont(), name.size(), name.anchorX(),
                 name.anchorY(), name.alignment(), PainterSupport.turnedSideways(graphics));
         return text.createIntersection(name.slot());
