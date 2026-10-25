@@ -7,6 +7,7 @@ import cl.almejo.vsim.core.component.appearance.SymbolDraft;
 import cl.almejo.vsim.core.component.appearance.SymbolTemplates;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.library.ComponentDefinition;
+import cl.almejo.vsim.core.library.DefinitionBundle;
 import cl.almejo.vsim.core.library.ExampleDefinitions;
 import cl.almejo.vsim.core.netlist.Netlist;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
@@ -30,7 +31,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /** The dot on a piece with its own shape (spec §6.2): on hover and selection, and «Forma propia» in its help. */
 class OwnShapeMarkTest {
-    private static final int DOT_X = 108; // top-right corner of the 4 x 4 box at (10, 10)
+    private static final int DOT_X = 84; // top-left corner of the 4 x 4 box at (10, 10)
+    private static final int BADGE_X = 108; // its top-right corner, where the library-version badge sits
     private static final int DOT_Y = 84;
     @TempDir Path directory;
 
@@ -43,6 +45,28 @@ class OwnShapeMarkTest {
                 OwnShapeMark mark = mark(fixture);
                 assertThat(paint(fixture, mark, Set.of())).isZero();
                 assertThat(paint(fixture, mark, Set.of(shaped.id()))).isNotZero();
+            } finally { remove.run(); }
+        }
+    }
+
+    @Test
+    void theDotIsOnTheOppositeCornerFromTheLibraryVersionBadgeSoAPieceWithBothShowsBoth() throws Exception {
+        try (TemplateFixture fixture = new TemplateFixture(directory.resolve("library"))) {
+            Component shaped = shapedInverter(fixture, 10, 10);
+            Runnable remove = install(fixture);
+            try {
+                fixture.service.save(new DefinitionBundle(ExampleDefinitions.inverter().withName("Negador"), List.of()));
+                LibraryVersionBadge badge = fixture.features.badge();
+                assertThat(badge.outdatedIds()).containsExactly(ExampleDefinitions.INVERTER);
+                BufferedImage image = new BufferedImage(200, 200, BufferedImage.TYPE_INT_ARGB);
+                Graphics2D graphics = image.createGraphics();
+                RenderState state = new RenderState(fixture.openDocument.document(), Netlist.EMPTY, 0,
+                        SimulationSnapshot.EMPTY, Set.of(shaped.id()), 0);
+                badge.paint(graphics, state);
+                mark(fixture).paint(graphics, state);
+                graphics.dispose();
+                assertThat(image.getRGB(DOT_X, DOT_Y) >>> 24).as("own shape dot, top-left").isNotZero();
+                assertThat(image.getRGB(BADGE_X, DOT_Y) >>> 24).as("version badge, top-right").isNotZero();
             } finally { remove.run(); }
         }
     }
