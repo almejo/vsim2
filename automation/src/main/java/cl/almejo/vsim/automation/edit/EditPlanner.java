@@ -405,7 +405,7 @@ final class EditPlanner {
             return ChangeAppearanceCommand.forInstance(candidate, registry, instance.id(), Optional.empty());
         }
         SymbolDraft draft = draftOf(operation, definition, instance.appearance()
-                .orElseGet(() -> ComponentAppearance.of(definition)), false);
+                .orElseGet(() -> ComponentAppearance.of(definition)), List.of());
         return ChangeAppearanceCommand.forInstance(candidate, registry, instance.id(),
                 Optional.of(draft.appearance()));
     }
@@ -418,7 +418,7 @@ final class EditPlanner {
         if (operation.clear()) {
             requireNothingElse(operation);
         }
-        SymbolDraft draft = draftOf(effective, definition, ComponentAppearance.of(definition), !parents.isEmpty());
+        SymbolDraft draft = draftOf(effective, definition, ComponentAppearance.of(definition), parents);
         try {
             return ChangeAppearanceCommand.forDefinition(candidate, registry, definition.id(), draft.appearance());
         } catch (UnsafeDefinitionUpdateException unsafe) {
@@ -437,8 +437,12 @@ final class EditPlanner {
 
     /** The draft after the template and the pin moves, or the refusal the dialog would show as a blocked Aceptar. */
     private static SymbolDraft draftOf(SetComponentShape operation, ComponentDefinition definition,
-                                       ComponentAppearance starting, boolean pinsLocked) {
-        SymbolDraft draft = SymbolDraft.of(starting, definition.pinout(), pinsLocked)
+                                       ComponentAppearance starting, List<String> containingNames) {
+        if (!containingNames.isEmpty() && !operation.pins().isEmpty()) {
+            throw new AutomationException(AutomationError.INVALID_PARAMETER, definition.name() + " is used inside "
+                    + String.join(", ", containingNames) + ": its pins cannot move; the drawing can");
+        }
+        SymbolDraft draft = SymbolDraft.of(starting, definition.pinout(), !containingNames.isEmpty())
                 .withDefinitionName(definition.name());
         if (operation.template().isPresent()) {
             draft = draft.applyTemplate(operation.template().get());

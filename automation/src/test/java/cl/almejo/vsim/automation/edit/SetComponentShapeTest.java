@@ -10,8 +10,11 @@ import cl.almejo.vsim.core.component.appearance.SymbolTemplates;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.geometry.GridPoint;
+import cl.almejo.vsim.core.geometry.GridSize;
 import cl.almejo.vsim.core.geometry.Rotation;
+import cl.almejo.vsim.core.io.CircuitFragment;
 import cl.almejo.vsim.core.library.ComponentDefinition;
+import cl.almejo.vsim.core.library.SubcircuitTypes;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -168,6 +171,23 @@ class SetComponentShapeTest {
                 List.of(), false)).error()).isEqualTo(AutomationError.INVALID_PARAMETER);
         assertThat(refused(shape(Optional.of(instanceId), Optional.empty(), Optional.empty(), List.of(), false))
                 .error()).isEqualTo(AutomationError.INVALID_PARAMETER);
+    }
+
+    @Test
+    void movingAPinOfADefinitionUsedInsideAnotherNamesTheContainingComponent() {
+        ComponentDefinition inner = definition();
+        circuit.document().putDefinition(new ComponentDefinition("outer", "Externo", "", new GridSize(6, 4), List.of(),
+                new CircuitFragment(List.of(new Component(new ElementId("inside"),
+                        SubcircuitTypes.typeIdOf(definitionId), GridPoint.ORIGIN, Rotation.R0, Map.of(), "")),
+                        List.of(), List.of())));
+        ComponentDefinition before = definition();
+
+        AutomationException refusal = refused(shape(Optional.empty(), Optional.of(inner.name()), Optional.empty(),
+                List.of(new SetComponentShape.PinPosition("Y", inner.size().width(), 1)), false));
+
+        assertThat(refusal.error()).isEqualTo(AutomationError.INVALID_PARAMETER);
+        assertThat(refusal.getMessage()).contains("Externo").contains(inner.name());
+        assertThat(definition()).isEqualTo(before);
     }
 
     @Test
