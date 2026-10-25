@@ -116,7 +116,7 @@ public final class ShapeEditorPanel extends JPanel {
     private final JComboBox<String> textSizes = new JComboBox<>(new String[]{Messages.text("shape.text.small"),
             Messages.text("shape.text.medium"), Messages.text("shape.text.large")});
     private final JComboBox<String> textAlignments = new JComboBox<>(new String[]{Messages.text("shape.text.left"),
-            Messages.text("shape.text.center")});
+            Messages.text("shape.text.center"), Messages.text("shape.text.right")});
     private final JCheckBox componentName = new JCheckBox(Messages.text("shape.text.componentName"));
     private final JPanel previews = new JPanel(new MigLayout("insets 4 10 10 10, gap 8",
             "[grow, fill, sg card][grow, fill, sg card]", "[" + PREVIEW_HEIGHT + "!]"));

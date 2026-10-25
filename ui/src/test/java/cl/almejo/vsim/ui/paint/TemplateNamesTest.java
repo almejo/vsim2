@@ -115,6 +115,33 @@ class TemplateNamesTest {
         assertThat((double) typedInk).isCloseTo(nameInk, Percentage.withPercentage(5));
     }
 
+    @Test
+    void aRightAlignedTextEndsAtItsAnchorAndALeftAlignedOneStartsThere() {
+        ComponentDefinition definition = definition(1, 2);
+        int anchorColumn = OFFSET + 40;
+        int[] right = inkColumns(ink(definition, only(new SymbolText(new SymbolPoint(40, 32), Optional.of("Sal"),
+                TextSize.SMALL, TextAlignment.RIGHT))));
+        int[] left = inkColumns(ink(definition, only(new SymbolText(new SymbolPoint(40, 32), Optional.of("Sal"),
+                TextSize.SMALL, TextAlignment.LEFT))));
+        assertThat(right[1]).isLessThanOrEqualTo(anchorColumn + 1);
+        assertThat(right[0]).isLessThan(anchorColumn - 6);
+        assertThat(left[0]).isGreaterThanOrEqualTo(anchorColumn - 1);
+    }
+
+    /** First and last column holding ink. */
+    private static int[] inkColumns(boolean[] ink) {
+        int width = IMAGE_SIZE * 2;
+        int first = Integer.MAX_VALUE;
+        int last = -1;
+        for (int index = 0; index < ink.length; index++) {
+            if (ink[index]) {
+                first = Math.min(first, index % width);
+                last = Math.max(last, index % width);
+            }
+        }
+        return new int[]{first, last};
+    }
+
     /** The MUX of the editor render: S on the bottom edge, between the slanted outline and D3's name. */
     @Test
     void theNameOfABottomPinNeverOverlapsTheOutlineOrAnotherPinName() {

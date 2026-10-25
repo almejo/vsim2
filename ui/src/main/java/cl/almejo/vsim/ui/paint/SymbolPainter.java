@@ -121,6 +121,15 @@ public final class SymbolPainter {
         return shape;
     }
 
+    /** The part of a text, from its left end, that sits on the anchor. */
+    private static double anchorFraction(TextAlignment alignment) {
+        return switch (alignment) {
+            case LEFT -> PainterSupport.ALIGN_LEFT;
+            case CENTER -> PainterSupport.ALIGN_CENTER;
+            case RIGHT -> PainterSupport.ALIGN_RIGHT;
+        };
+    }
+
     private static void paintText(Graphics2D graphics, SymbolText text, String name, ComponentType type,
                                   SymbolDrawing drawing, ColorScheme scheme, float strokeWidth) {
         if (text.text().isEmpty()) {
@@ -143,7 +152,7 @@ public final class SymbolPainter {
             size = (float) Math.max(3, size * available / Math.max(1, metrics.stringWidth(shown)));
         }
         upright(graphics, shown, font, anchorX, anchorY, size,
-                text.alignment() == TextAlignment.CENTER ? 0.5 : 0, scheme,
+                anchorFraction(text.alignment()), scheme,
                 new Rectangle2D.Double(0, 0, drawing.size().width() * UNIT, drawing.size().height() * UNIT));
     }
 
@@ -157,7 +166,7 @@ public final class SymbolPainter {
         double anchorX = text.anchor().x() * COORDINATE_SCALE;
         double anchorY = text.anchor().y() * COORDINATE_SCALE;
         boolean sideways = PainterSupport.turnedSideways(graphics);
-        double alignment = text.alignment() == TextAlignment.CENTER || sideways ? 0.5 : 0;
+        double alignment = sideways ? 0.5 : anchorFraction(text.alignment());
         Font font = TextFonts.labelFont().deriveFont(Font.BOLD);
         double width = drawing.size().width() * UNIT;
         double height = drawing.size().height() * UNIT;

@@ -256,6 +256,12 @@ class ShapeEditorPanelTest {
         assertThat(panel.textGroupVisible()).isTrue();
         assertThat(panel.selectedTextSize()).isEqualTo(TextSize.LARGE);
         assertThat(panel.selectedTextAlignment()).isEqualTo(TextAlignment.CENTER);
+        SymbolDraft withRightText = SymbolDraft.of(panel.appearance(), definition.pinout(), false)
+                .applyTemplate(SymbolTemplates.Template.RECTANGLE)
+                .addText(new SymbolText(new SymbolPoint(8, 8), Optional.of("X"), TextSize.LARGE,
+                        TextAlignment.RIGHT));
+        panel.apply(withRightText.select(Set.of(withRightText.elements().size() - 1)));
+        assertThat(panel.selectedTextAlignment()).isEqualTo(TextAlignment.RIGHT);
     }
 
     @Test
