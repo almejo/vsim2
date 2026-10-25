@@ -26,13 +26,11 @@ class ShapeEditorHintsTest {
                 for (boolean pinSelected : new boolean[]{false, true}) {
                     for (boolean nodeSelected : new boolean[]{false, true}) {
                         for (int figures : new int[]{0, 1, 12}) {
-                            for (boolean drawing : new boolean[]{false, true}) {
-                                for (boolean boxHandle : new boolean[]{false, true}) {
-                                    String hint = ShapeEditorTexts.hint(new ShapeEditorTexts.HintState(tool,
-                                            pinSelected, false, figures, nodeSelected, drawing, boxHandle));
-                                    assertThat(hint.length()).as("%s %s tool=%s", locale, hint, tool)
-                                            .isLessThanOrEqualTo(LONGEST_HINT);
-                                }
+                            for (boolean boxHandle : new boolean[]{false, true}) {
+                                String hint = ShapeEditorTexts.hint(new ShapeEditorTexts.HintState(tool,
+                                        pinSelected, false, figures, nodeSelected, boxHandle));
+                                assertThat(hint.length()).as("%s %s tool=%s", locale, hint, tool)
+                                        .isLessThanOrEqualTo(LONGEST_HINT);
                             }
                         }
                     }

@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.paint;
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.PinSpec;
 import cl.almejo.vsim.core.component.VisibleState;
+import cl.almejo.vsim.core.component.appearance.SymbolTemplates;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
 
@@ -61,7 +62,7 @@ public final class SubcircuitPainter implements ComponentPainter {
         boolean sideways = PainterSupport.turnedSideways(graphics);
         String name = SubcircuitTypes.definitionOf(type).map(ComponentDefinition::name).orElse(type.id());
         // Sideways the name runs across the box, so it goes in the middle, between the two columns of pin names.
-        double nameY = height >= 4 * UNIT && !sideways ? UNIT : height / 2;
+        double nameY = height >= SymbolTemplates.NAME_AT_TOP_HEIGHT * UNIT && !sideways ? UNIT : height / 2;
         float nameSize = fitted(graphics, name, NAME_SIZE, (sideways ? height : width) - 2 * INSET);
         PainterSupport.centeredText(graphics, box, name, width / 2, nameY, nameSize, scheme.text());
         for (PinSpec pin : type.pins()) {

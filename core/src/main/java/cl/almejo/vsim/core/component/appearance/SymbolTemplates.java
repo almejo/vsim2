@@ -11,10 +11,29 @@ import java.util.Optional;
 public final class SymbolTemplates {
     public enum Template { DEFAULT_BOX, RECTANGLE, SQUARE, CIRCLE, TRIANGLE, ALU, MUX, AND, OR, XOR }
 
+    /** From this height (in grid units) the default box writes the name one unit below its top, not in its middle. */
+    public static final int NAME_AT_TOP_HEIGHT = 4;
+
     private SymbolTemplates() { }
 
     /** A pin's drawn name and where its connection point is, in grid units from the box's corner. */
     public record PinLabel(String text, GridPoint offset) { }
+
+    /**
+     * The default shape as real figures, laid out like the default box the circuit paints for a component without
+     * its own drawing: the box outline and the component's name, centred near the top (in the middle of a box under
+     * {@value #NAME_AT_TOP_HEIGHT} units high). The shape editor opens on it, and a drawing equal to it is stored as
+     * no own drawing.
+     */
+    public static SymbolDrawing defaultShape(GridSize size) {
+        int width = size.width() * SymbolPoint.EIGHTHS;
+        int height = size.height() * SymbolPoint.EIGHTHS;
+        int nameY = size.height() >= NAME_AT_TOP_HEIGHT ? SymbolPoint.EIGHTHS : height / 2;
+        SymbolText name = new SymbolText(new SymbolPoint(width / 2, nameY), Optional.empty(), TextSize.MEDIUM,
+                TextAlignment.CENTER);
+        return new SymbolDrawing(size, List.of(rectangle(new SymbolPoint(0, 0), new SymbolPoint(width, height), false),
+                name), true);
+    }
 
     /** The template for a box with no pins to keep clear and no name to write (thumbnails). */
     public static Optional<SymbolDrawing> drawing(Template template, GridSize size) {

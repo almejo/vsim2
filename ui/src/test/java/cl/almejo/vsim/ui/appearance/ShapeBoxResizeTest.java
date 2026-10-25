@@ -19,17 +19,18 @@ import java.awt.Point;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
-import java.awt.geom.Rectangle2D;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * The box's spinners resize it like its handle: the drawing stays centred and the pins stay on the grid. Ctrl while
- * dragging the handle scales the drawing with the box instead; the hint line says which of the two is in play. The
- * 6 × 4 box at zoom 1 has its corner at (70, 70) and its handle 18 px beyond the bottom right corner, at (136, 120).
+ * The box's spinners resize it like its handle: what is on an edge moves with it, the rest stays centred and the pins
+ * stay on the grid. Ctrl while dragging the handle scales the whole drawing with the box instead. The 6 × 4 box at
+ * zoom 1 has its corner at (70, 70) and its handle 18 px beyond the bottom right corner, at (136, 120).
  */
 class ShapeBoxResizeTest {
+    private static final SymbolPath INNER_RECTANGLE = SymbolTemplates.rectangle(new SymbolPoint(8, 8),
+            new SymbolPoint(40, 24), false);
 
     @BeforeEach
     void speakSpanish() {
@@ -38,54 +39,57 @@ class ShapeBoxResizeTest {
 
     @Test
     void ctrlWhileDraggingTheBoxHandleScalesTheDrawingWithTheBox() {
-        AtomicReference<SymbolDraft> draft = ShapeNodeToolsTest.rectangle();
+        AtomicReference<SymbolDraft> draft = innerRectangle();
         ShapeCanvas canvas = ShapeNodeToolsTest.canvas(draft);
 
         drag(canvas, new Point(136, 120), new Point(184, 152), InputEvent.CTRL_DOWN_MASK);
 
         assertThat(draft.get().appearance().size()).isEqualTo(new GridSize(12, 8));
-        assertThat(ShapeNodeToolsTest.firstPath(draft).nodes().get(2).point()).isEqualTo(new SymbolPoint(96, 64));
+        assertThat(ShapeNodeToolsTest.firstPath(draft).nodes().get(2).point()).isEqualTo(new SymbolPoint(80, 48));
     }
 
     @Test
     void pressingCtrlInTheMiddleOfTheDragSwitchesToScaling() {
-        AtomicReference<SymbolDraft> draft = ShapeNodeToolsTest.rectangle();
+        AtomicReference<SymbolDraft> draft = innerRectangle();
         ShapeCanvas canvas = ShapeNodeToolsTest.canvas(draft);
         canvas.dispatchEvent(new MouseEvent(canvas, MouseEvent.MOUSE_PRESSED, 0, InputEvent.BUTTON1_DOWN_MASK,
                 136, 120, 1, false, MouseEvent.BUTTON1));
         canvas.dispatchEvent(new MouseEvent(canvas, MouseEvent.MOUSE_DRAGGED, 0, InputEvent.BUTTON1_DOWN_MASK,
                 184, 152, 0, false, MouseEvent.NOBUTTON));
-        assertThat(ShapeNodeToolsTest.firstPath(draft).nodes().get(2).point()).isEqualTo(new SymbolPoint(72, 48));
+        assertThat(ShapeNodeToolsTest.firstPath(draft).nodes().get(2).point()).isEqualTo(new SymbolPoint(64, 40));
 
         ShapeNodeToolsTest.control(canvas, KeyEvent.KEY_PRESSED);
 
-        assertThat(ShapeNodeToolsTest.firstPath(draft).nodes().get(2).point()).isEqualTo(new SymbolPoint(96, 64));
+        assertThat(ShapeNodeToolsTest.firstPath(draft).nodes().get(2).point()).isEqualTo(new SymbolPoint(80, 48));
     }
 
     @Test
-    void theHintLineSaysWhetherTheBoxStillDrivesTheShape() {
+    void theSpinnersKeepAnInnerDrawingCentredForEvenAndOddChanges() {
         ShapeEditorPanel panel = panel();
-        assertThat(panel.hintText()).startsWith("Forma predeterminada: sigue el tamaño de la caja");
+        panel.apply(draft(panel).applyTemplate(SymbolTemplates.Template.MUX).addFigure(INNER_RECTANGLE));
 
-        panel.apply(draft(panel).applyTemplate(SymbolTemplates.Template.RECTANGLE));
+        panel.widthSpinner().setValue(7);
 
-        assertThat(panel.hintText()).startsWith("Ahora es un dibujo: la caja y las figuras se cambian por separado");
+        assertThat(panel.appearance().size()).isEqualTo(new GridSize(7, 4));
+        assertThat(lastFigureCorner(panel)).isEqualTo(new SymbolPoint(12, 8));
+        assertThat(panel.appearance().pins()).containsExactly(new PinPlacement(
+                ShapeEditorPanelTest.definition().pinout().getFirst().source(), new GridPoint(0, 2)));
+
+        panel.heightSpinner().setValue(6);
+
+        assertThat(lastFigureCorner(panel)).isEqualTo(new SymbolPoint(12, 16));
+        assertThat(panel.appearance().pins().getFirst().offset()).isEqualTo(new GridPoint(0, 3));
     }
 
     @Test
-    void overTheBoxHandleTheHintLineOffersCtrlToScaleTheDrawing() {
+    void theSpinnersMoveWhatIsOnTheBoxEdgesWithThem() {
         ShapeEditorPanel panel = panel();
-        panel.apply(draft(panel).applyTemplate(SymbolTemplates.Template.RECTANGLE));
-        ShapeCanvas canvas = panel.canvas();
-        canvas.setZoom(1);
-        canvas.setSize(400, 300);
-        Rectangle2D box = canvas.boxOnScreen();
 
-        ShapeNodeToolsTest.move(canvas, (int) box.getMaxX() + 18, (int) box.getMaxY() + 18, 0);
+        panel.widthSpinner().setValue(7);
+        panel.heightSpinner().setValue(6);
 
-        assertThat(panel.hintText()).isEqualTo(Messages.text("shape.hint.boxDrawing"));
-        ShapeNodeToolsTest.move(canvas, (int) box.getCenterX(), (int) box.getCenterY(), 0);
-        assertThat(panel.hintText()).isEqualTo(Messages.text("shape.hint.selectDrawing"));
+        assertThat(((SymbolPath) panel.appearance().drawing().orElseThrow().elements().getFirst()).nodes().get(2)
+                .point()).isEqualTo(new SymbolPoint(56, 48));
     }
 
     private static void drag(ShapeCanvas canvas, Point from, Point to, int modifiers) {
@@ -97,27 +101,16 @@ class ShapeBoxResizeTest {
                 MouseEvent.BUTTON1));
     }
 
-    @Test
-    void theSpinnersKeepTheDrawingCentredForEvenAndOddChanges() {
-        ShapeEditorPanel panel = panel();
-        panel.apply(draft(panel).applyTemplate(SymbolTemplates.Template.RECTANGLE));
-
-        panel.widthSpinner().setValue(7);
-
-        assertThat(panel.appearance().size()).isEqualTo(new GridSize(7, 4));
-        assertThat(firstNode(panel)).isEqualTo(new SymbolPoint(4, 0));
-        assertThat(panel.appearance().pins()).containsExactly(new PinPlacement(
-                ShapeEditorPanelTest.definition().pinout().getFirst().source(), new GridPoint(0, 2)));
-
-        panel.heightSpinner().setValue(6);
-
-        assertThat(firstNode(panel)).isEqualTo(new SymbolPoint(4, 8));
-        assertThat(panel.appearance().pins().getFirst().offset()).isEqualTo(new GridPoint(0, 3));
+    private static SymbolPoint lastFigureCorner(ShapeEditorPanel panel) {
+        return ((SymbolPath) panel.appearance().drawing().orElseThrow().elements().getLast()).nodes().getFirst()
+                .point();
     }
 
-    private static SymbolPoint firstNode(ShapeEditorPanel panel) {
-        return ((SymbolPath) panel.appearance().drawing().orElseThrow().elements().getFirst()).nodes().getFirst()
-                .point();
+    /** A rectangle clear of every edge of the 6 × 4 box, so a resize without Ctrl only centres it. */
+    private static AtomicReference<SymbolDraft> innerRectangle() {
+        ComponentDefinition definition = ShapeEditorPanelTest.definition();
+        return new AtomicReference<>(SymbolDraft.of(ComponentAppearance.of(definition), definition.pinout(), false)
+                .addFigure(INNER_RECTANGLE));
     }
 
     private static ShapeEditorPanel panel() {

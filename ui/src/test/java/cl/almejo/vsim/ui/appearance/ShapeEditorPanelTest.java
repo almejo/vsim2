@@ -106,13 +106,14 @@ class ShapeEditorPanelTest {
     void scopeSwitchingRetainsTheDraftAndClosingStartsANewLocalHistory() {
         ComponentDefinition definition = definition();
         ShapeEditorPanel panel = panel(definition, false);
+        ComponentAppearance opened = panel.appearance();
         SymbolDraft shaped = SymbolDraft.of(panel.appearance(), definition.pinout(), false)
                 .applyTemplate(SymbolTemplates.Template.MUX);
         panel.apply(shaped);
         panel.switchScope(ShapeEditScope.CIRCUIT_DEFINITION);
         assertThat(panel.appearance()).isEqualTo(shaped.appearance());
         panel.undo();
-        assertThat(panel.appearance()).isEqualTo(ComponentAppearance.of(definition));
+        assertThat(panel.appearance()).isEqualTo(opened);
         panel.redo();
         assertThat(panel.appearance()).isEqualTo(shaped.appearance());
         ShapeEditorPanel reopened = new ShapeEditorPanel(new ShapeEditRequest(definition, shaped.appearance(),

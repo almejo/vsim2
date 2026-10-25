@@ -173,23 +173,23 @@ class ShapePathToolsTest {
         ShapeEditorPanel panel = panel();
         SymbolPath triangle = SymbolTemplates.polygon(List.of(new SymbolPoint(8, 8), new SymbolPoint(40, 8),
                 new SymbolPoint(24, 24)), true);
-        panel.apply(draftOf(panel).addFigure(triangle).select(Set.of(0)));
+        panel.apply(draftOf(panel).addFigure(triangle));
         AbstractButton button = closeOrOpen(panel);
         assertThat(button.isEnabled()).isTrue();
 
         button.doClick(0);
-        SymbolPath opened = (SymbolPath) draftOf(panel).elements().getFirst();
+        SymbolPath opened = (SymbolPath) draftOf(panel).elements().getLast();
         assertThat(opened.closed()).isFalse();
         assertThat(opened.filled()).isFalse();
         button.doClick(0);
-        assertThat(((SymbolPath) draftOf(panel).elements().getFirst()).closed()).isTrue();
+        assertThat(((SymbolPath) draftOf(panel).elements().getLast()).closed()).isTrue();
     }
 
     @Test
     void aTwoNodeLineCannotBeClosedAndTheButtonSaysWhy() {
         ShapeEditorPanel panel = panel();
         panel.apply(draftOf(panel).addFigure(SymbolTemplates.line(new SymbolPoint(8, 8), new SymbolPoint(40, 8),
-                false)).select(Set.of(0)));
+                false)));
 
         AbstractButton button = closeOrOpen(panel);
 

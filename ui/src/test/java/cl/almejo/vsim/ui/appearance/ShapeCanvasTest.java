@@ -86,9 +86,10 @@ class ShapeCanvasTest {
     }
 
     @Test
-    void cancellingADefaultNodeDragRestoresTheOriginalDefaultAppearance() {
+    void cancellingANodeDragOfTheDefaultShapeRestoresIt() {
         ComponentDefinition definition = ShapeEditorPanelTest.definition();
-        SymbolDraft original = SymbolDraft.of(ComponentAppearance.of(definition), definition.pinout(), false);
+        SymbolDraft original = SymbolDraft.of(ComponentAppearance.of(definition), definition.pinout(), false)
+                .withDefaultShapeAsFigures();
         AtomicReference<SymbolDraft> draft = new AtomicReference<>(original);
         ShapeCanvas canvas = canvas(definition, draft);
         canvas.setTool(ShapeTool.NODES);
@@ -96,45 +97,11 @@ class ShapeCanvasTest {
                 70, 70, 1, false, MouseEvent.BUTTON1));
         canvas.dispatchEvent(new MouseEvent(canvas, MouseEvent.MOUSE_DRAGGED, 0, MouseEvent.BUTTON1_DOWN_MASK,
                 78, 78, 0, false, MouseEvent.NOBUTTON));
-        assertThat(draft.get().appearance().drawing()).isPresent();
+        assertThat(draft.get().appearance()).isNotEqualTo(original.appearance());
 
         canvas.cancelOperation();
 
         assertThat(draft.get().appearance()).isEqualTo(original.appearance());
-    }
-
-    @Test
-    void theFirstFigureOnTheDefaultShapeKeepsTheBoxAsTheRectangleTemplate() {
-        ComponentDefinition definition = ShapeEditorPanelTest.definition();
-        SymbolDraft original = SymbolDraft.of(ComponentAppearance.of(definition), definition.pinout(), false);
-        int templateElements = original.applyTemplate(SymbolTemplates.Template.RECTANGLE).elements().size();
-        AtomicReference<SymbolDraft> draft = new AtomicReference<>(original);
-        ShapeCanvas canvas = canvas(definition, draft);
-        canvas.setTool(ShapeTool.ELLIPSE);
-
-        drag(canvas, new Point(150, 120), new Point(190, 150));
-
-        assertThat(draft.get().elements()).hasSize(templateElements + 1);
-        assertThat(draft.get().elements().getFirst()).isEqualTo(
-                original.applyTemplate(SymbolTemplates.Template.RECTANGLE).elements().getFirst());
-    }
-
-    @Test
-    void theFirstTextOnTheDefaultShapeKeepsTheBoxAsTheRectangleTemplate() {
-        ComponentDefinition definition = ShapeEditorPanelTest.definition();
-        SymbolDraft original = SymbolDraft.of(ComponentAppearance.of(definition), definition.pinout(), false);
-        int templateElements = original.applyTemplate(SymbolTemplates.Template.RECTANGLE).elements().size();
-        AtomicReference<SymbolDraft> draft = new AtomicReference<>(original);
-        ShapeCanvas canvas = canvas(definition, draft);
-        canvas.setTool(ShapeTool.TEXT);
-        canvas.dispatchEvent(new MouseEvent(canvas, MouseEvent.MOUSE_CLICKED, 0, 0, 200, 150, 1, false,
-                MouseEvent.BUTTON1));
-        ((JTextField) canvas.getComponent(0)).setText("Hola");
-
-        canvas.finishOperation();
-
-        assertThat(draft.get().elements()).hasSize(templateElements + 1);
-        assertThat(draft.get().elements().getFirst()).isInstanceOf(SymbolPath.class);
     }
 
     @Test
@@ -156,22 +123,6 @@ class ShapeCanvasTest {
     }
 
     @Test
-    void defaultBoxNodesCanBeEditedWithoutChangingTheDraftJustByActivatingTheTool() {
-        ComponentDefinition definition = ShapeEditorPanelTest.definition();
-        SymbolDraft original = SymbolDraft.of(ComponentAppearance.of(definition), definition.pinout(), false);
-        AtomicReference<SymbolDraft> draft = new AtomicReference<>(original);
-        ShapeCanvas canvas = canvas(definition, draft);
-        canvas.setTool(ShapeTool.NODES);
-        assertThat(draft.get().appearance()).isEqualTo(original.appearance());
-
-        drag(canvas, new Point(70, 70), new Point(78, 78));
-
-        assertThat(draft.get().appearance().drawing()).isPresent();
-        assertThat(((SymbolPath) draft.get().elements().getFirst()).nodes().getFirst().point())
-                .isEqualTo(new SymbolPoint(8, 8));
-    }
-
-    @Test
     void theSeparateBoxHandleCanEnlargeAndThenShrinkBackToTheDrawing() {
         ComponentDefinition definition = ShapeEditorPanelTest.definition();
         AtomicReference<SymbolDraft> draft = new AtomicReference<>(SymbolDraft.of(ComponentAppearance.of(definition),
@@ -181,7 +132,7 @@ class ShapeCanvasTest {
         drag(canvas, new Point(136, 120), new Point(152, 136));
         assertThat(draft.get().appearance().size()).isEqualTo(new GridSize(8, 6));
         assertThat(((SymbolPath) draft.get().elements().getFirst()).nodes().get(2).point())
-                .as("the drawing stays centred: one unit right and down").isEqualTo(new SymbolPoint(56, 40));
+                .as("the rectangle on the box edges grows with the box").isEqualTo(new SymbolPoint(64, 48));
         drag(canvas, new Point(152, 136), new Point(136, 120));
         assertThat(draft.get().appearance().size()).isEqualTo(new GridSize(6, 4));
     }
@@ -310,12 +261,12 @@ class ShapeCanvasTest {
         canvas.dispatchEvent(new MouseEvent(canvas, MouseEvent.MOUSE_RELEASED, 0, 0, 152, 136, 1, false, MouseEvent.BUTTON1));
         assertThat(canvas.dragTip()).isEmpty();
 
-        // The figure's own corner handle: the figure (6 x 4 units, centred one unit in) shrinks from its corner.
+        // The figure's own corner handle: the rectangle (8 x 6 units, grown with the box) shrinks from its corner.
         canvas.dispatchEvent(new MouseEvent(canvas, MouseEvent.MOUSE_PRESSED, 0, MouseEvent.BUTTON1_DOWN_MASK,
-                126, 110, 1, false, MouseEvent.BUTTON1));
+                134, 118, 1, false, MouseEvent.BUTTON1));
         canvas.dispatchEvent(new MouseEvent(canvas, MouseEvent.MOUSE_DRAGGED, 0, MouseEvent.BUTTON1_DOWN_MASK,
-                110, 94, 0, false, MouseEvent.NOBUTTON));
-        assertThat(canvas.dragTip().orElseThrow()).startsWith("4 × 2").contains(Messages.text("shape.drag.shift"));
+                118, 102, 0, false, MouseEvent.NOBUTTON));
+        assertThat(canvas.dragTip().orElseThrow()).startsWith("6 × 4").contains(Messages.text("shape.drag.shift"));
     }
 
     @Test

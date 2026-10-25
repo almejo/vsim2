@@ -93,6 +93,8 @@ public final class ShapeEditorPanel extends JPanel {
     private final AppPreferences preferences;
     private final Supplier<ColorScheme> scheme;
     private final DraftHistory history;
+    /** The draft's appearance on opening (the default shape already as figures): «Aceptar» needs a change from it. */
+    private final ComponentAppearance openedAppearance;
     private SymbolDraft draft;
     private ShapeEditScope scope;
     private ShapeTool activeTool = ShapeTool.SELECT;
@@ -134,7 +136,8 @@ public final class ShapeEditorPanel extends JPanel {
         this.scheme = scheme;
         this.scope = request.initialScope();
         this.draft = SymbolDraft.of(request.appearance(), request.definition().pinout(), locked(scope))
-                .withDefinitionName(request.definition().name());
+                .withDefinitionName(request.definition().name()).withDefaultShapeAsFigures();
+        this.openedAppearance = draft.appearance();
         this.history = new DraftHistory(draft);
         this.canvas = new ShapeCanvas(request.definition(), () -> draft, this::apply, this::preview, scheme,
                 this::refresh);
@@ -168,14 +171,15 @@ public final class ShapeEditorPanel extends JPanel {
         return draft.appearance();
     }
 
+    /** The edited appearance as it is stored: still the default shape for the final box means no own drawing. */
     public ShapeEditResult result() {
-        return new ShapeEditResult(scope, draft.appearance());
+        return new ShapeEditResult(scope, draft.storedAppearance());
     }
 
     /** A gesture in progress, another drawing or another scope than the one it opened with. */
     public boolean hasChanges() {
         return canvas.operationActive() || scope != request.initialScope()
-                || !draft.appearance().equals(request.appearance());
+                || !draft.appearance().equals(openedAppearance);
     }
 
     public boolean canAccept() {
@@ -935,8 +939,7 @@ public final class ShapeEditorPanel extends JPanel {
 
     String hintText() {
         return ShapeEditorTexts.hint(new ShapeEditorTexts.HintState(activeTool, canvas.selectedPin().isPresent(),
-                draft.pinsLocked(), draft.selection().size(), canvas.nodeSelected(),
-                draft.appearance().drawing().isPresent(), canvas.boxHandleActive()));
+                draft.pinsLocked(), draft.selection().size(), canvas.nodeSelected(), canvas.boxHandleActive()));
     }
 
     /** «Actual: Claro» and the other theme's default scheme («Oscuro»), as the two preview cards say. */
@@ -1066,8 +1069,9 @@ public final class ShapeEditorPanel extends JPanel {
             surface.drawString(caption, 6, (CAPTION_HEIGHT + metrics.getAscent() - metrics.getDescent()) / 2);
         }
 
+        /** As the circuit will show it: still the default shape, it is painted as the default box is. */
         private void paintComponentShape(Graphics2D surface, ColorScheme shown) {
-            ComponentAppearance appearance = draft.appearance();
+            ComponentAppearance appearance = draft.storedAppearance();
             double boxWidth = appearance.size().width() * GridPoint.PIXELS_PER_UNIT;
             double boxHeight = appearance.size().height() * GridPoint.PIXELS_PER_UNIT;
             double room = getHeight() - CAPTION_HEIGHT;
