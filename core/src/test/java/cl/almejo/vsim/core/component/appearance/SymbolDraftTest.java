@@ -13,6 +13,7 @@ import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.within;
 
 class SymbolDraftTest {
     private static final ElementId INPUT = new ElementId("input");
@@ -135,22 +136,22 @@ class SymbolDraftTest {
     @Test
     void insertingACurveNodeSplitsTheCurveWithoutChangingItsOutline() {
         SymbolPath curve = new SymbolPath(List.of(
-                new SymbolNode(new SymbolPoint(0, 0), Optional.of(new SymbolPoint(32, 0))),
-                new SymbolNode(new SymbolPoint(32, 32), Optional.empty())), false, false);
+                SymbolNode.quadratic(new SymbolPoint(0, 0), new SymbolPoint(32, 0)),
+                SymbolNode.straight(new SymbolPoint(32, 32))), false, false);
         SymbolDraft changed = draft(false).addFigure(curve).insertNode(0, 0, new SymbolPoint(24, 8));
         SymbolPath split = (SymbolPath) changed.elements().getFirst();
         assertThat(split.nodes()).hasSize(3);
         assertThat(split.nodes().get(1).point()).isEqualTo(new SymbolPoint(24, 8));
-        assertThat(split.nodes().getFirst().control()).contains(new SymbolPoint(16, 0));
-        assertThat(split.nodes().get(1).control()).contains(new SymbolPoint(32, 16));
+        assertThat(split.nodes().getFirst().curve()).contains(new SegmentCurve.Quadratic(new SymbolPoint(16, 0)));
+        assertThat(split.nodes().get(1).curve()).contains(new SegmentCurve.Quadratic(new SymbolPoint(32, 16)));
     }
 
     @Test
     void openingAClosedFigureDropsItsClosingSegmentAndItsFill() {
         SymbolPath triangle = new SymbolPath(List.of(
-                new SymbolNode(new SymbolPoint(8, 8), Optional.empty()),
-                new SymbolNode(new SymbolPoint(40, 8), Optional.empty()),
-                new SymbolNode(new SymbolPoint(24, 24), Optional.of(new SymbolPoint(8, 24)))), true, true);
+                SymbolNode.straight(new SymbolPoint(8, 8)),
+                SymbolNode.straight(new SymbolPoint(40, 8)),
+                SymbolNode.quadratic(new SymbolPoint(24, 24), new SymbolPoint(8, 24))), true, true);
 
         SymbolPath opened = (SymbolPath) draft(false).addFigure(triangle).openPath(0).elements().getFirst();
 
@@ -158,41 +159,43 @@ class SymbolDraftTest {
         assertThat(opened.filled()).isFalse();
         assertThat(opened.nodes()).extracting(SymbolNode::point).containsExactly(new SymbolPoint(8, 8),
                 new SymbolPoint(40, 8), new SymbolPoint(24, 24));
-        assertThat(opened.nodes().getLast().control()).isEmpty();
+        assertThat(opened.nodes().getLast().curve()).isEmpty();
     }
 
     @Test
-    void aCurveDrawnThroughAPointPassesThroughItAtItsMiddle() {
+    void aCurveBentThroughAPointPassesThroughItAtItsMiddle() {
         SymbolDraft line = draft(false).addFigure(SymbolTemplates.line(new SymbolPoint(0, 0), new SymbolPoint(32, 0),
                 false));
 
-        SymbolPath curved = (SymbolPath) line.curveThrough(0, 0, new SymbolPoint(16, 8), SnapMode.FREE)
+        SymbolPath curved = (SymbolPath) line.bendSegment(0, 0, 0.5, new SymbolPoint(16, 8), SnapMode.FREE)
                 .elements().getFirst();
 
-        assertThat(curved.nodes().getFirst().control()).contains(new SymbolPoint(16, 16));
-        assertThat(curved.segmentMiddle(0)).isEqualTo(new SymbolPoint(16, 8));
+        assertThat(curved.nodes().getFirst().curve()).containsInstanceOf(SegmentCurve.Cubic.class);
+        assertThat(curved.pointAt(0, 0.5).x()).isCloseTo(16, within(0.5));
+        assertThat(curved.pointAt(0, 0.5).y()).isCloseTo(8, within(0.5));
     }
 
     @Test
-    void theControlOfACurveThroughAPointStaysInsideTheBox() {
+    void theHandlesOfABentCurveStayInsideTheBox() {
         SymbolDraft line = draft(false).addFigure(SymbolTemplates.line(new SymbolPoint(0, 4), new SymbolPoint(48, 4),
                 false));
 
-        SymbolPath curved = (SymbolPath) line.curveThrough(0, 0, new SymbolPoint(24, 0), SnapMode.FREE)
+        SymbolPath curved = (SymbolPath) line.bendSegment(0, 0, 0.5, new SymbolPoint(24, 0), SnapMode.FREE)
                 .elements().getFirst();
 
-        assertThat(curved.nodes().getFirst().control()).contains(new SymbolPoint(24, 0));
+        assertThat(curved.nodes().getFirst().curve()).contains(new SegmentCurve.Cubic(new SymbolPoint(16, 0),
+                new SymbolPoint(32, 0)));
     }
 
     @Test
     void straighteningASegmentDropsItsCurve() {
         SymbolDraft curved = draft(false).addFigure(SymbolTemplates.line(new SymbolPoint(0, 0),
-                new SymbolPoint(32, 0), false)).curveThrough(0, 0, new SymbolPoint(16, 8), SnapMode.FREE);
+                new SymbolPoint(32, 0), false)).bendSegment(0, 0, 0.5, new SymbolPoint(16, 8), SnapMode.FREE);
 
         SymbolPath straight = (SymbolPath) curved.straighten(0, 0).elements().getFirst();
 
-        assertThat(straight.nodes().getFirst().control()).isEmpty();
-        assertThat(straight.segmentMiddle(0)).isEqualTo(new SymbolPoint(16, 0));
+        assertThat(straight.nodes().getFirst().curve()).isEmpty();
+        assertThat(straight.pointAt(0, 0.5)).isEqualTo(new CurvePoint(16, 0));
     }
 
     @Test

@@ -1,11 +1,13 @@
 package cl.almejo.vsim.ui.appearance;
 
+import cl.almejo.vsim.core.component.appearance.SegmentCurve;
 import cl.almejo.vsim.core.component.appearance.SymbolElement;
 import cl.almejo.vsim.core.component.appearance.SymbolNode;
 import cl.almejo.vsim.core.component.appearance.SymbolPath;
 import cl.almejo.vsim.core.component.appearance.SymbolPoint;
 
 import java.awt.Shape;
+import java.awt.geom.CubicCurve2D;
 import java.awt.geom.Line2D;
 import java.awt.geom.PathIterator;
 import java.awt.geom.QuadCurve2D;
@@ -43,12 +45,15 @@ final class ShapeSegments {
 
     static Shape shape(SymbolPath path, int segment) {
         SymbolNode start = path.nodes().get(segment);
-        SymbolPoint end = path.nodes().get((segment + 1) % path.nodes().size()).point();
-        if (start.control().isPresent()) {
-            SymbolPoint control = start.control().get();
-            return new QuadCurve2D.Double(start.point().x(), start.point().y(), control.x(), control.y(), end.x(), end.y());
-        }
-        return new Line2D.Double(start.point().x(), start.point().y(), end.x(), end.y());
+        SymbolPoint from = start.point();
+        SymbolPoint end = path.segmentEnd(segment);
+        return switch (start.curve().orElse(null)) {
+            case null -> new Line2D.Double(from.x(), from.y(), end.x(), end.y());
+            case SegmentCurve.Quadratic quadratic -> new QuadCurve2D.Double(from.x(), from.y(),
+                    quadratic.control().x(), quadratic.control().y(), end.x(), end.y());
+            case SegmentCurve.Cubic cubic -> new CubicCurve2D.Double(from.x(), from.y(), cubic.first().x(),
+                    cubic.first().y(), cubic.second().x(), cubic.second().y(), end.x(), end.y());
+        };
     }
 
     private static Nearest nearest(Shape shape, double x, double y, double flatness) {

@@ -2,6 +2,7 @@ package cl.almejo.vsim.ui.paint;
 
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.PinSpec;
+import cl.almejo.vsim.core.component.appearance.SegmentCurve;
 import cl.almejo.vsim.core.component.appearance.SymbolDrawing;
 import cl.almejo.vsim.core.component.appearance.SymbolElement;
 import cl.almejo.vsim.core.component.appearance.SymbolNode;
@@ -109,12 +110,14 @@ public final class SymbolPainter {
         for (int index = 0; index < segments; index++) {
             SymbolNode node = symbol.nodes().get(index);
             SymbolPoint end = symbol.nodes().get((index + 1) % symbol.nodes().size()).point();
-            if (node.control().isPresent()) {
-                SymbolPoint control = node.control().get();
-                shape.quadTo(control.x() * COORDINATE_SCALE, control.y() * COORDINATE_SCALE,
+            switch (node.curve().orElse(null)) {
+                case null -> shape.lineTo(end.x() * COORDINATE_SCALE, end.y() * COORDINATE_SCALE);
+                case SegmentCurve.Quadratic quadratic -> shape.quadTo(quadratic.control().x() * COORDINATE_SCALE,
+                        quadratic.control().y() * COORDINATE_SCALE,
                         end.x() * COORDINATE_SCALE, end.y() * COORDINATE_SCALE);
-            } else {
-                shape.lineTo(end.x() * COORDINATE_SCALE, end.y() * COORDINATE_SCALE);
+                case SegmentCurve.Cubic cubic -> shape.curveTo(cubic.first().x() * COORDINATE_SCALE,
+                        cubic.first().y() * COORDINATE_SCALE, cubic.second().x() * COORDINATE_SCALE,
+                        cubic.second().y() * COORDINATE_SCALE, end.x() * COORDINATE_SCALE, end.y() * COORDINATE_SCALE);
             }
         }
         if (symbol.closed()) {

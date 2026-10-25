@@ -15,6 +15,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.IntUnaryOperator;
 import java.util.function.UnaryOperator;
 import java.util.stream.IntStream;
 
@@ -33,23 +34,45 @@ public final class SymbolDraft {
         }
     }
 
+    /** A node of a figure: its element index and its place in the figure. */
+    private record NodeKey(int path, int node) { }
+
+    /** Body drags never use a parameter closer to an end than this: there the handles would have to fly off. */
+    private static final double BEND_PARAMETER_MARGIN = 0.1;
+    /** Body drags at a parameter up to this far from an end move only that end's handle (Inkscape's weighting). */
+    private static final double BEND_END_SHARE = 1.0 / 6;
+
     private final ComponentAppearance appearance;
     private final List<DefinitionPin> pinout;
     private final String definitionName;
     private final boolean pinsLocked;
     private final Set<Integer> selection;
+    /**
+     * Smooth or corner as the user chose it while editing, which the file does not keep: a corner whose handles still
+     * lie on one line, or a smooth node rounded slightly off it. Nodes not here are inferred from their handles.
+     */
+    private final Map<NodeKey, Boolean> smoothChoices;
 
     private SymbolDraft(ComponentAppearance appearance, List<DefinitionPin> pinout, String definitionName,
-                        boolean pinsLocked, Set<Integer> selection) {
+                        boolean pinsLocked, Set<Integer> selection, Map<NodeKey, Boolean> smoothChoices) {
         this.appearance = Objects.requireNonNull(appearance, "appearance");
         this.pinout = List.copyOf(pinout);
         this.definitionName = Objects.requireNonNull(definitionName, "definitionName");
         this.pinsLocked = pinsLocked;
         this.selection = Set.copyOf(selection);
+        this.smoothChoices = Map.copyOf(smoothChoices);
     }
 
     public static SymbolDraft of(ComponentAppearance appearance, List<DefinitionPin> pinout, boolean pinsLocked) {
-        return new SymbolDraft(appearance, pinout, "", pinsLocked, Set.of());
+        return new SymbolDraft(appearance, pinout, "", pinsLocked, Set.of(), Map.of());
+    }
+
+    /**
+     * Whether {@code other} is the same edit: the same appearance and the same smooth or corner choices (selection
+     * aside), so the editor's history keeps one step per change the user can see or feel.
+     */
+    public boolean sameEdit(SymbolDraft other) {
+        return appearance.equals(other.appearance) && smoothChoices.equals(other.smoothChoices);
     }
 
     public ComponentAppearance appearance() {
@@ -72,7 +95,7 @@ public final class SymbolDraft {
         if (indices.stream().anyMatch(index -> index < 0 || index >= elements().size())) {
             throw new IllegalArgumentException("Selection outside drawing");
         }
-        return new SymbolDraft(appearance, pinout, definitionName, pinsLocked, indices);
+        return new SymbolDraft(appearance, pinout, definitionName, pinsLocked, indices, smoothChoices);
     }
 
     public SymbolDraft selectAll() {
@@ -81,11 +104,11 @@ public final class SymbolDraft {
 
     /** The component's name, which templates write in the free area of the box. */
     public SymbolDraft withDefinitionName(String name) {
-        return new SymbolDraft(appearance, pinout, name, pinsLocked, selection);
+        return new SymbolDraft(appearance, pinout, name, pinsLocked, selection, smoothChoices);
     }
 
     public SymbolDraft withPinLock(boolean locked) {
-        return new SymbolDraft(appearance, pinout, definitionName, locked, selection);
+        return new SymbolDraft(appearance, pinout, definitionName, locked, selection, smoothChoices);
     }
 
     public SymbolDraft addFigure(SymbolPath path) {
@@ -110,9 +133,10 @@ public final class SymbolDraft {
         if (selection.isEmpty()) {
             return this;
         }
-        List<SymbolElement> kept = IntStream.range(0, elements().size()).filter(index -> !selection.contains(index))
-                .mapToObj(elements()::get).toList();
-        return withElements(kept, Set.of());
+        List<Integer> keptIndices = IntStream.range(0, elements().size()).filter(index -> !selection.contains(index))
+                .boxed().toList();
+        List<SymbolElement> kept = keptIndices.stream().map(elements()::get).toList();
+        return withElements(kept, Set.of()).withSmoothChoices(choicesForElements(keptIndices::indexOf));
     }
 
     public SymbolDraft moveSelection(int deltaX, int deltaY, SnapMode snap) {
@@ -158,41 +182,130 @@ public final class SymbolDraft {
         if (selection.isEmpty()) {
             return this;
         }
-        List<SymbolElement> chosen = new ArrayList<>();
-        List<SymbolElement> rest = new ArrayList<>();
+        List<Integer> chosen = new ArrayList<>();
+        List<Integer> rest = new ArrayList<>();
         for (int index = 0; index < elements().size(); index++) {
-            (selection.contains(index) ? chosen : rest).add(elements().get(index));
+            (selection.contains(index) ? chosen : rest).add(index);
         }
-        List<SymbolElement> changed = new ArrayList<>(front ? rest : chosen);
-        changed.addAll(front ? chosen : rest);
+        List<Integer> order = new ArrayList<>(front ? rest : chosen);
+        order.addAll(front ? chosen : rest);
         int first = front ? rest.size() : 0;
-        return withElements(changed, new LinkedHashSet<>(IntStream.range(first, first + chosen.size()).boxed().toList()));
+        return withElements(order.stream().map(elements()::get).toList(),
+                new LinkedHashSet<>(IntStream.range(first, first + chosen.size()).boxed().toList()))
+                .withSmoothChoices(choicesForElements(order::indexOf));
     }
 
+    /** Node {@code nodeIndex} to {@code point}; its own handles (of cubic segments) travel with it. */
     public SymbolDraft moveNode(int pathIndex, int nodeIndex, SymbolPoint point, SnapMode snap) {
         SymbolPath path = path(pathIndex);
         List<SymbolNode> nodes = new ArrayList<>(path.nodes());
-        nodes.set(nodeIndex, new SymbolNode(bounded(point, snap), nodes.get(nodeIndex).control()));
+        SymbolPoint original = nodes.get(nodeIndex).point();
+        SymbolPoint moved = bounded(point, snap);
+        nodes.set(nodeIndex, nodes.get(nodeIndex).withPoint(moved));
+        for (HandleSide side : HandleSide.values()) {
+            path.segmentOf(nodeIndex, side).ifPresent(segment -> {
+                if (nodes.get(segment).curve().orElse(null) instanceof SegmentCurve.Cubic) {
+                    SymbolPoint handle = path.handle(nodeIndex, side).orElseThrow();
+                    setHandle(nodes, segment, side, bounded(new SymbolPoint(handle.x() + moved.x() - original.x(),
+                            handle.y() + moved.y() - original.y()), SnapMode.FREE));
+                }
+            });
+        }
         return replacePath(pathIndex, path, nodes);
     }
 
+    /** Whether node {@code nodeIndex} is smooth: between two curves, as the user chose or as its handles say. */
+    public boolean smooth(int pathIndex, int nodeIndex) {
+        SymbolPath path = path(pathIndex);
+        return path.hasTwoHandles(nodeIndex)
+                && smoothChoices.getOrDefault(new NodeKey(pathIndex, nodeIndex), path.looksSmooth(nodeIndex));
+    }
 
     /**
-     * Curves segment {@code segment} so that its middle passes through {@code through} (the handle «Curvar tramo»
-     * drags): the quadratic's control is 2·through − (start + end)/2, kept inside the box, so the stored format is
-     * the same {@code Q} as always.
+     * Handle {@code side} of node {@code nodeIndex} to {@code to} (a quadratic segment becomes its cubic first). On a
+     * smooth node the other handle turns the opposite way with the same length (shortened only where the box ends:
+     * the handle under the pointer always follows it); {@code alone} (Alt) moves only this one and makes the node a
+     * corner.
      */
-    public SymbolDraft curveThrough(int pathIndex, int segment, SymbolPoint through, SnapMode snap) {
+    public SymbolDraft moveHandle(int pathIndex, int nodeIndex, HandleSide side, SymbolPoint to, boolean alone,
+                                  SnapMode snap) {
+        SymbolPath path = path(pathIndex);
+        if (path.handle(nodeIndex, side).isEmpty()) {
+            throw new IllegalArgumentException("No " + side + " handle at node " + nodeIndex);
+        }
+        boolean mirrored = !alone && smooth(pathIndex, nodeIndex);
+        SymbolPoint target = bounded(to, snap);
+        List<SymbolNode> nodes = new ArrayList<>(path.nodes());
+        setHandle(nodes, path.segmentOf(nodeIndex, side).orElseThrow(), side, target);
+        if (mirrored) {
+            SymbolPoint point = path.nodes().get(nodeIndex).point();
+            double length = distance(point, target);
+            SymbolPoint opposite = length == 0 ? point : alongInside(point, (point.x() - target.x()) / length,
+                    (point.y() - target.y()) / length, length);
+            setHandle(nodes, path.segmentOf(nodeIndex, side.opposite()).orElseThrow(), side.opposite(), opposite);
+        }
+        SymbolDraft changed = replacePath(pathIndex, path, nodes);
+        return path.hasTwoHandles(nodeIndex) ? changed.choose(pathIndex, nodeIndex, mirrored) : changed;
+    }
+
+    /**
+     * A smooth node becomes a corner (nothing moves); a corner becomes smooth with its handles turned by the same
+     * angle onto one line through the node, each keeping its length (shortened only if it would leave the box).
+     */
+    public SymbolDraft toggleSmooth(int pathIndex, int nodeIndex) {
+        SymbolPath path = path(pathIndex);
+        if (!path.hasTwoHandles(nodeIndex)) {
+            throw new IllegalArgumentException("Node " + nodeIndex + " is not between two curves");
+        }
+        if (smooth(pathIndex, nodeIndex)) {
+            return choose(pathIndex, nodeIndex, false);
+        }
+        SymbolPoint point = path.nodes().get(nodeIndex).point();
+        SymbolPoint incoming = path.handle(nodeIndex, HandleSide.INCOMING).orElseThrow();
+        SymbolPoint outgoing = path.handle(nodeIndex, HandleSide.OUTGOING).orElseThrow();
+        CurvePoint direction = smoothDirection(path, nodeIndex, point, incoming, outgoing);
+        List<SymbolNode> nodes = new ArrayList<>(path.nodes());
+        setHandle(nodes, path.segmentOf(nodeIndex, HandleSide.INCOMING).orElseThrow(), HandleSide.INCOMING,
+                alongInside(point, -direction.x(), -direction.y(), distance(point, incoming)));
+        setHandle(nodes, path.segmentOf(nodeIndex, HandleSide.OUTGOING).orElseThrow(), HandleSide.OUTGOING,
+                alongInside(point, direction.x(), direction.y(), distance(point, outgoing)));
+        return replacePath(pathIndex, path, nodes).choose(pathIndex, nodeIndex, true);
+    }
+
+    /** The parameter of the point of segment {@code segment} nearest to {@code point}: where a body drag grabs it. */
+    public double nearestParameter(int pathIndex, int segment, SymbolPoint point) {
         SymbolPath path = path(pathIndex);
         requireSegment(path, segment);
+        return path.nearestParameter(segment, point.x(), point.y());
+    }
+
+    /**
+     * Segment {@code segment} bent so its point at {@code parameter} passes through {@code target} («Curvar tramo»):
+     * a straight segment first becomes a cubic with its handles at a third and two thirds, then both handles move,
+     * the nearer one more (Inkscape's weighting), kept inside the box. A smooth node at either end stays smooth: its
+     * other handle turns with this one, keeping its length.
+     */
+    public SymbolDraft bendSegment(int pathIndex, int segment, double parameter, SymbolPoint target, SnapMode snap) {
+        SymbolPath path = path(pathIndex);
+        requireSegment(path, segment);
+        CubicSpan span = path.span(segment);
+        double grabbed = Math.clamp(parameter, BEND_PARAMETER_MARGIN, 1 - BEND_PARAMETER_MARGIN);
+        CurvePoint now = span.at(grabbed);
+        SymbolPoint aim = new SymbolPoint(snap.snap(target.x()), snap.snap(target.y()));
+        double shiftX = aim.x() - now.x();
+        double shiftY = aim.y() - now.y();
+        double weight = bendWeight(grabbed);
+        double rest = 1 - grabbed;
+        double firstShare = (1 - weight) / (3 * grabbed * rest * rest);
+        double secondShare = weight / (3 * grabbed * grabbed * rest);
+        SymbolPoint first = bounded(CubicSpan.rounded(new CurvePoint(span.first().x() + firstShare * shiftX,
+                span.first().y() + firstShare * shiftY)), SnapMode.FREE);
+        SymbolPoint second = bounded(CubicSpan.rounded(new CurvePoint(span.second().x() + secondShare * shiftX,
+                span.second().y() + secondShare * shiftY)), SnapMode.FREE);
         List<SymbolNode> nodes = new ArrayList<>(path.nodes());
-        SymbolNode start = nodes.get(segment);
-        SymbolPoint end = nodes.get((segment + 1) % nodes.size()).point();
-        SymbolPoint handle = new SymbolPoint(snap.snap(through.x()), snap.snap(through.y()));
-        SymbolPoint control = new SymbolPoint(
-                (int) Math.round(2.0 * handle.x() - (start.point().x() + end.x()) / 2.0),
-                (int) Math.round(2.0 * handle.y() - (start.point().y() + end.y()) / 2.0));
-        nodes.set(segment, new SymbolNode(start.point(), Optional.of(bounded(control, SnapMode.FREE))));
+        nodes.set(segment, SymbolNode.cubic(nodes.get(segment).point(), first, second));
+        keepSmooth(pathIndex, path, nodes, segment, HandleSide.OUTGOING);
+        keepSmooth(pathIndex, path, nodes, (segment + 1) % nodes.size(), HandleSide.INCOMING);
         return replacePath(pathIndex, path, nodes);
     }
 
@@ -201,27 +314,36 @@ public final class SymbolDraft {
         SymbolPath path = path(pathIndex);
         requireSegment(path, segment);
         List<SymbolNode> nodes = new ArrayList<>(path.nodes());
-        nodes.set(segment, new SymbolNode(nodes.get(segment).point(), Optional.empty()));
+        nodes.set(segment, nodes.get(segment).straightened());
         return replacePath(pathIndex, path, nodes);
     }
 
+    /**
+     * A node on segment {@code segment}: at {@code at} on a straight segment; on a curve, at its point nearest to
+     * {@code at}, splitting it so the outline stays the same (a split cubic gives a smooth node).
+     */
     public SymbolDraft insertNode(int pathIndex, int segment, SymbolPoint at) {
         SymbolPath path = path(pathIndex);
         requireSegment(path, segment);
         SymbolNode start = path.nodes().get(segment);
-        SymbolPoint end = path.nodes().get((segment + 1) % path.nodes().size()).point();
         List<SymbolNode> changed = new ArrayList<>(path.nodes());
-        if (start.control().isEmpty()) {
-            changed.add(segment + 1, new SymbolNode(bounded(at, SnapMode.FREE), Optional.empty()));
-        } else {
-            SymbolPoint control = start.control().get();
-            double parameter = nearestParameter(start.point(), control, end, at);
+        if (start.curve().isEmpty()) {
+            changed.add(segment + 1, SymbolNode.straight(bounded(at, SnapMode.FREE)));
+        } else if (start.curve().get() instanceof SegmentCurve.Quadratic quadratic) {
+            SymbolPoint control = quadratic.control();
+            SymbolPoint end = path.segmentEnd(segment);
+            double parameter = path.nearestParameter(segment, at.x(), at.y());
             SymbolPoint left = interpolate(start.point(), control, parameter);
             SymbolPoint right = interpolate(control, end, parameter);
-            changed.set(segment, new SymbolNode(start.point(), Optional.of(left)));
-            changed.add(segment + 1, new SymbolNode(interpolate(left, right, parameter), Optional.of(right)));
+            changed.set(segment, SymbolNode.quadratic(start.point(), left));
+            changed.add(segment + 1, SymbolNode.quadratic(interpolate(left, right, parameter), right));
+        } else {
+            List<CubicSpan> halves = path.span(segment).split(path.nearestParameter(segment, at.x(), at.y()));
+            changed.set(segment, cubicNode(halves.getFirst()));
+            changed.add(segment + 1, cubicNode(halves.getLast()));
         }
-        return replacePath(pathIndex, path, changed);
+        return replacePath(pathIndex, path, changed)
+                .withSmoothChoices(choicesForNodes(pathIndex, node -> node > segment ? node + 1 : node));
     }
 
     public SymbolDraft deleteNode(int pathIndex, int nodeIndex) {
@@ -233,11 +355,13 @@ public final class SymbolDraft {
         nodes.remove(nodeIndex);
         boolean closed = path.closed() && nodes.size() >= 3;
         int previous = Math.floorMod(nodeIndex - 1, nodes.size());
-        nodes.set(previous, new SymbolNode(nodes.get(previous).point(), Optional.empty()));
+        nodes.set(previous, nodes.get(previous).straightened());
         if (!closed) {
-            nodes.set(nodes.size() - 1, new SymbolNode(nodes.getLast().point(), Optional.empty()));
+            nodes.set(nodes.size() - 1, nodes.getLast().straightened());
         }
-        return replaceElement(pathIndex, new SymbolPath(nodes, closed, closed && path.filled()));
+        return replaceElement(pathIndex, new SymbolPath(nodes, closed, closed && path.filled()))
+                .withSmoothChoices(choicesForNodes(pathIndex, node -> node == nodeIndex ? -1
+                        : node > nodeIndex ? node - 1 : node));
     }
 
     public SymbolDraft closePath(int index) {
@@ -249,7 +373,7 @@ public final class SymbolDraft {
     public SymbolDraft openPath(int index) {
         SymbolPath path = path(index);
         List<SymbolNode> nodes = new ArrayList<>(path.nodes());
-        nodes.set(nodes.size() - 1, new SymbolNode(nodes.getLast().point(), Optional.empty()));
+        nodes.set(nodes.size() - 1, nodes.getLast().straightened());
         return replaceElement(index, new SymbolPath(nodes, false, false));
     }
 
@@ -271,7 +395,7 @@ public final class SymbolDraft {
     public SymbolDraft applyTemplate(SymbolTemplates.Template template) {
         return withAppearance(new ComponentAppearance(appearance.size(),
                 SymbolTemplates.drawing(template, appearance.size(), definitionName, pinLabels()),
-                appearance.pins()), Set.of());
+                appearance.pins()), Set.of()).withSmoothChoices(Map.of());
     }
 
     private List<SymbolTemplates.PinLabel> pinLabels() {
@@ -498,8 +622,8 @@ public final class SymbolDraft {
     private static SymbolElement mapElement(SymbolElement element, UnaryOperator<SymbolPoint> mapper) {
         return switch (element) {
             case SymbolPath path -> new SymbolPath(path.nodes().stream().map(node ->
-                    new SymbolNode(mapper.apply(node.point()), node.control().map(mapper))).toList(),
-                    path.closed(), path.filled());
+                    new SymbolNode(mapper.apply(node.point()), node.curve().map(curve -> curve.map(mapper))))
+                    .toList(), path.closed(), path.filled());
             case SymbolText text -> new SymbolText(mapper.apply(text.anchor()), text.text(), text.size(), text.alignment());
         };
     }
@@ -512,7 +636,7 @@ public final class SymbolDraft {
         List<SymbolPoint> points = new ArrayList<>();
         for (SymbolNode node : path.nodes()) {
             points.add(node.point());
-            node.control().ifPresent(points::add);
+            node.curve().ifPresent(curve -> points.addAll(curve.controls()));
         }
         return points;
     }
@@ -524,7 +648,151 @@ public final class SymbolDraft {
     }
 
     private SymbolDraft withAppearance(ComponentAppearance changed, Set<Integer> selected) {
-        return new SymbolDraft(changed, pinout, definitionName, pinsLocked, selected);
+        return new SymbolDraft(changed, pinout, definitionName, pinsLocked, selected, smoothChoices);
+    }
+
+    private SymbolDraft withSmoothChoices(Map<NodeKey, Boolean> choices) {
+        return new SymbolDraft(appearance, pinout, definitionName, pinsLocked, selection, choices);
+    }
+
+    private SymbolDraft choose(int pathIndex, int nodeIndex, boolean smooth) {
+        Map<NodeKey, Boolean> choices = new HashMap<>(smoothChoices);
+        choices.put(new NodeKey(pathIndex, nodeIndex), smooth);
+        return withSmoothChoices(choices);
+    }
+
+    /** The choices with each figure at its new index ({@code -1}: gone). */
+    private Map<NodeKey, Boolean> choicesForElements(IntUnaryOperator newIndex) {
+        Map<NodeKey, Boolean> moved = new HashMap<>();
+        smoothChoices.forEach((key, smooth) -> {
+            int index = newIndex.applyAsInt(key.path());
+            if (index >= 0) {
+                moved.put(new NodeKey(index, key.node()), smooth);
+            }
+        });
+        return moved;
+    }
+
+    /** The choices with the nodes of figure {@code pathIndex} at their new places ({@code -1}: gone). */
+    private Map<NodeKey, Boolean> choicesForNodes(int pathIndex, IntUnaryOperator newIndex) {
+        Map<NodeKey, Boolean> moved = new HashMap<>();
+        smoothChoices.forEach((key, smooth) -> {
+            int node = key.path() == pathIndex ? newIndex.applyAsInt(key.node()) : key.node();
+            if (node >= 0) {
+                moved.put(new NodeKey(key.path(), node), smooth);
+            }
+        });
+        return moved;
+    }
+
+    /** Sets handle {@code side} of segment {@code segment}'s cubic (a quadratic or straight one is raised first). */
+    private static void setHandle(List<SymbolNode> nodes, int segment, HandleSide side, SymbolPoint handle) {
+        SymbolNode start = nodes.get(segment);
+        SymbolPoint end = nodes.get((segment + 1) % nodes.size()).point();
+        SegmentCurve.Cubic cubic = start.curve().map(curve -> curve.cubic(start.point(), end))
+                .orElseGet(() -> straightCubic(start.point(), end));
+        nodes.set(segment, side == HandleSide.OUTGOING
+                ? SymbolNode.cubic(start.point(), handle, cubic.second())
+                : SymbolNode.cubic(start.point(), cubic.first(), handle));
+    }
+
+    private static SegmentCurve.Cubic straightCubic(SymbolPoint start, SymbolPoint end) {
+        CubicSpan span = CubicSpan.of(start, Optional.empty(), end);
+        return new SegmentCurve.Cubic(CubicSpan.rounded(span.first()), CubicSpan.rounded(span.second()));
+    }
+
+    private static SymbolNode cubicNode(CubicSpan span) {
+        return SymbolNode.cubic(CubicSpan.rounded(span.start()), CubicSpan.rounded(span.first()),
+                CubicSpan.rounded(span.second()));
+    }
+
+    /**
+     * After a body drag moved handle {@code side} of node {@code nodeIndex}: if the node was smooth, its other handle
+     * turns onto the same line, keeping its own length.
+     */
+    private void keepSmooth(int pathIndex, SymbolPath before, List<SymbolNode> nodes, int nodeIndex, HandleSide side) {
+        if (!smooth(pathIndex, nodeIndex)) {
+            return;
+        }
+        SymbolPath bent = new SymbolPath(nodes, before.closed(), before.filled());
+        SymbolPoint point = bent.nodes().get(nodeIndex).point();
+        SymbolPoint moved = bent.handle(nodeIndex, side).orElseThrow();
+        double length = distance(point, moved);
+        if (length == 0) {
+            return;
+        }
+        SymbolPoint other = bent.handle(nodeIndex, side.opposite()).orElseThrow();
+        setHandle(nodes, bent.segmentOf(nodeIndex, side.opposite()).orElseThrow(), side.opposite(),
+                alongInside(point, (point.x() - moved.x()) / length, (point.y() - moved.y()) / length,
+                        distance(point, other)));
+    }
+
+    /**
+     * The unit vector (outgoing) a corner's handles lie on when it becomes smooth: both turned by the same angle; for
+     * a handle of zero length, the other one's line; for two, the line between the neighbour nodes.
+     */
+    private static CurvePoint smoothDirection(SymbolPath path, int nodeIndex, SymbolPoint point, SymbolPoint incoming,
+                                              SymbolPoint outgoing) {
+        double backLength = distance(point, incoming);
+        double aheadLength = distance(point, outgoing);
+        CurvePoint direction;
+        if (backLength > 0 && aheadLength > 0) {
+            direction = new CurvePoint(
+                    (outgoing.x() - point.x()) / aheadLength - (incoming.x() - point.x()) / backLength,
+                    (outgoing.y() - point.y()) / aheadLength - (incoming.y() - point.y()) / backLength);
+            if (Math.hypot(direction.x(), direction.y()) < 1e-9) {
+                // Both handles point the same way: the line across them.
+                direction = new CurvePoint(-(outgoing.y() - point.y()), outgoing.x() - point.x());
+            }
+        } else if (aheadLength > 0) {
+            direction = new CurvePoint(outgoing.x() - point.x(), outgoing.y() - point.y());
+        } else if (backLength > 0) {
+            direction = new CurvePoint(point.x() - incoming.x(), point.y() - incoming.y());
+        } else {
+            SymbolPoint previous = path.nodes().get(path.segmentOf(nodeIndex, HandleSide.INCOMING).orElseThrow())
+                    .point();
+            SymbolPoint next = path.segmentEnd(nodeIndex);
+            direction = new CurvePoint(next.x() - previous.x(), next.y() - previous.y());
+        }
+        double length = Math.hypot(direction.x(), direction.y());
+        return length == 0 ? new CurvePoint(1, 0) : new CurvePoint(direction.x() / length, direction.y() / length);
+    }
+
+    /** The point {@code length} from {@code point} along the unit vector, shortened so it stays in the box. */
+    private SymbolPoint alongInside(SymbolPoint point, double directionX, double directionY, double length) {
+        double reach = Math.min(length, Math.min(room(point.x(), directionX, maximumX()),
+                room(point.y(), directionY, maximumY())));
+        return bounded(CubicSpan.rounded(new CurvePoint(point.x() + directionX * reach,
+                point.y() + directionY * reach)), SnapMode.FREE);
+    }
+
+    /** How many steps of {@code direction} fit from {@code coordinate} before leaving 0..{@code limit}. */
+    private static double room(int coordinate, double direction, int limit) {
+        if (direction > 0) {
+            return (limit - coordinate) / direction;
+        }
+        return direction < 0 ? coordinate / -direction : Double.POSITIVE_INFINITY;
+    }
+
+    private static double distance(SymbolPoint from, SymbolPoint to) {
+        return Math.hypot(to.x() - from.x(), to.y() - from.y());
+    }
+
+    /**
+     * How a body drag at {@code parameter} shares the move between the handles: 0 moves only the first, 1 only the
+     * second, smoothly in between (Inkscape's curve drag).
+     */
+    private static double bendWeight(double parameter) {
+        if (parameter <= BEND_END_SHARE) {
+            return 0;
+        }
+        if (parameter <= 0.5) {
+            return Math.pow((6 * parameter - 1) / 2, 3) / 2;
+        }
+        if (parameter <= 1 - BEND_END_SHARE) {
+            return (1 - Math.pow((6 * (1 - parameter) - 1) / 2, 3)) / 2 + 0.5;
+        }
+        return 1;
     }
 
     private SymbolDraft replaceElement(int index, SymbolElement element) {
@@ -561,7 +829,7 @@ public final class SymbolDraft {
     }
 
     private static void requireSegment(SymbolPath path, int segment) {
-        if (segment < 0 || segment >= path.nodes().size() - (path.closed() ? 0 : 1)) {
+        if (segment < 0 || segment >= path.segmentCount()) {
             throw new IllegalArgumentException("No segment at " + segment);
         }
     }
@@ -578,20 +846,4 @@ public final class SymbolDraft {
                 (int) Math.round(first.y() + (second.y() - first.y()) * fraction));
     }
 
-    private static double nearestParameter(SymbolPoint start, SymbolPoint control, SymbolPoint end, SymbolPoint target) {
-        double nearest = 0.5;
-        double distance = Double.POSITIVE_INFINITY;
-        for (int sample = 1; sample < 1024; sample++) {
-            double parameter = sample / 1024.0;
-            double inverse = 1 - parameter;
-            double x = inverse * inverse * start.x() + 2 * inverse * parameter * control.x() + parameter * parameter * end.x();
-            double y = inverse * inverse * start.y() + 2 * inverse * parameter * control.y() + parameter * parameter * end.y();
-            double candidate = Math.pow(x - target.x(), 2) + Math.pow(y - target.y(), 2);
-            if (candidate < distance) {
-                distance = candidate;
-                nearest = parameter;
-            }
-        }
-        return nearest;
-    }
 }

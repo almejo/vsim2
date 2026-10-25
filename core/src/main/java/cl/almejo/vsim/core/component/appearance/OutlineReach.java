@@ -78,13 +78,11 @@ final class OutlineReach {
     private static List<SymbolPoint[]> segments(SymbolDrawing drawing) {
         List<SymbolPoint[]> segments = new ArrayList<>();
         for (SymbolPath path : drawing.paths()) {
-            List<SymbolNode> nodes = path.nodes();
-            int count = nodes.size() - (path.closed() ? 0 : 1);
-            for (int index = 0; index < count; index++) {
-                SymbolNode node = nodes.get(index);
-                SymbolPoint end = nodes.get((index + 1) % nodes.size()).point();
-                if (node.control().isPresent()) {
-                    addCurve(segments, node.point(), node.control().get(), end);
+            for (int index = 0; index < path.segmentCount(); index++) {
+                SymbolNode node = path.nodes().get(index);
+                SymbolPoint end = path.segmentEnd(index);
+                if (node.curved()) {
+                    addCurve(segments, path.span(index));
                 } else {
                     segments.add(new SymbolPoint[] {node.point(), end});
                 }
@@ -93,17 +91,10 @@ final class OutlineReach {
         return segments;
     }
 
-    private static void addCurve(List<SymbolPoint[]> segments, SymbolPoint start, SymbolPoint control,
-                                 SymbolPoint end) {
-        SymbolPoint previous = start;
+    private static void addCurve(List<SymbolPoint[]> segments, CubicSpan curve) {
+        SymbolPoint previous = CubicSpan.rounded(curve.start());
         for (int step = 1; step <= CURVE_STEPS; step++) {
-            double parameter = step / (double) CURVE_STEPS;
-            double rest = 1 - parameter;
-            SymbolPoint next = new SymbolPoint(
-                    (int) Math.round(rest * rest * start.x() + 2 * rest * parameter * control.x()
-                            + parameter * parameter * end.x()),
-                    (int) Math.round(rest * rest * start.y() + 2 * rest * parameter * control.y()
-                            + parameter * parameter * end.y()));
+            SymbolPoint next = CubicSpan.rounded(curve.at(step / (double) CURVE_STEPS));
             segments.add(new SymbolPoint[] {previous, next});
             previous = next;
         }

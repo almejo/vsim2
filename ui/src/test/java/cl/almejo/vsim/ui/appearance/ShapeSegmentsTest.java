@@ -7,7 +7,6 @@ import cl.almejo.vsim.core.component.appearance.SymbolTemplates;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
-import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -15,8 +14,19 @@ class ShapeSegmentsTest {
     @Test
     void curvePickingFollowsTheCurveRatherThanItsStraightChord() {
         SymbolPath curve = new SymbolPath(List.of(
-                new SymbolNode(new SymbolPoint(0, 0), Optional.of(new SymbolPoint(24, 32))),
-                new SymbolNode(new SymbolPoint(48, 0), Optional.empty())), false, false);
+                SymbolNode.quadratic(new SymbolPoint(0, 0), new SymbolPoint(24, 32)),
+                SymbolNode.straight(new SymbolPoint(48, 0))), false, false);
+        SymbolPath line = SymbolTemplates.line(new SymbolPoint(0, 0), new SymbolPoint(48, 0), false);
+
+        assertThat(ShapeSegments.find(List.of(curve, line), 24, 16, 1))
+                .contains(new ShapeSegments.Hit(0, 0, new SymbolPoint(24, 16)));
+    }
+
+    @Test
+    void aCubicSegmentIsPickedOnItsCurve() {
+        SymbolPath curve = new SymbolPath(List.of(
+                SymbolNode.cubic(new SymbolPoint(0, 0), new SymbolPoint(16, 21), new SymbolPoint(32, 21)),
+                SymbolNode.straight(new SymbolPoint(48, 0))), false, false);
         SymbolPath line = SymbolTemplates.line(new SymbolPoint(0, 0), new SymbolPoint(48, 0), false);
 
         assertThat(ShapeSegments.find(List.of(curve, line), 24, 16, 1))

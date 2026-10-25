@@ -106,7 +106,7 @@ class AppearanceFilesTest {
         ObjectMapper mapper = new ObjectMapper();
         ObjectNode tree = (ObjectNode) mapper.readTree(format.write(document));
         ObjectNode path = (ObjectNode) tree.path("definitions").get(0).path("appearance").path("elements").get(0);
-        path.put("d", "M 0 0 C 1 1 2 2 3 3");
+        path.put("d", "M 0 0 C 1 1 2 2");
         assertThatThrownBy(() -> format.read(tree.toString())).isInstanceOfSatisfying(CircuitFormatException.class,
                 exception -> assertThat(exception.reason()).isEqualTo(CircuitFormatException.Reason.INVALID_ELEMENT));
     }

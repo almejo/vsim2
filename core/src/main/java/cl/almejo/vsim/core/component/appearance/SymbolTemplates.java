@@ -184,10 +184,10 @@ public final class SymbolTemplates {
     }
 
     private static SymbolNode node(SymbolPoint point) {
-        return new SymbolNode(point, Optional.empty());
+        return SymbolNode.straight(point);
     }
 
     private static SymbolNode controlled(int x, int y, int controlX, int controlY) {
-        return new SymbolNode(new SymbolPoint(x, y), Optional.of(new SymbolPoint(controlX, controlY)));
+        return SymbolNode.quadratic(new SymbolPoint(x, y), new SymbolPoint(controlX, controlY));
     }
 }

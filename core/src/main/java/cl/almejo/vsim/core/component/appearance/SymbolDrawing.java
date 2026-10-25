@@ -21,7 +21,7 @@ public record SymbolDrawing(GridSize size, List<SymbolElement> elements, boolean
             switch (element) {
                 case SymbolPath path -> path.nodes().forEach(node -> {
                     requireInside(node.point(), size);
-                    node.control().ifPresent(control -> requireInside(control, size));
+                    node.curve().ifPresent(curve -> curve.controls().forEach(control -> requireInside(control, size)));
                 });
                 case SymbolText text -> requireInside(text.anchor(), size);
             }

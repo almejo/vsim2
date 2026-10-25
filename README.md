@@ -75,7 +75,7 @@ Una línea por función; el detalle está en [docs/funciones.md](docs/funciones.
 - [Constante](docs/funciones.md#constante) de 1 a 32 bits en binario, hexadecimal o decimal.
 - [Bloques](docs/funciones.md#bloques) de N bits: sumador, ALU, comparador, multiplexor, decodificador, registro y contador.
 - [Componentes propios](docs/funciones.md#componentes-propios) creados desde una selección, con librería, importación y exportación.
-- [Forma de los componentes propios](docs/funciones.md#forma-de-los-componentes-propios): editor de formas con figuras (también multilíneas y polígonos), nodos que se agregan y se quitan con un clic, tramos que se curvan arrastrando un punto, plantillas (incluido el círculo), pines movibles con guía, una caja que cambia de tamaño con el dibujo centrado (o escalado, con Ctrl), y cables que siguen a los pines al cambiar la forma o actualizar el componente.
+- [Forma de los componentes propios](docs/funciones.md#forma-de-los-componentes-propios): editor de formas con figuras (también multilíneas y polígonos), nodos que se agregan y se quitan con un clic, tramos curvos con dos manijas y nodos suaves o esquinas, plantillas (incluido el círculo), pines movibles con guía, una caja que cambia de tamaño con el dibujo centrado (o escalado, con Ctrl), y cables que siguen a los pines al cambiar la forma o actualizar el componente.
 - [Conexiones pendientes](docs/funciones.md#conexiones-pendientes): la pieza rota por dentro brilla en rojo y Problemas dice la ruta hasta el pin suelto.
 
 ### Simulación y paso a paso

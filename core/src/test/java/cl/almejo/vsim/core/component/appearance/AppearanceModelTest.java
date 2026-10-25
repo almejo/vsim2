@@ -37,8 +37,8 @@ class AppearanceModelTest {
 
     @Test
     void drawingsRejectControlsOutsideTheirBoxAndFilledOpenPaths() {
-        SymbolPath outside = new SymbolPath(List.of(new SymbolNode(new SymbolPoint(0, 0),
-                Optional.of(new SymbolPoint(33, 0))), new SymbolNode(new SymbolPoint(8, 8), Optional.empty())),
+        SymbolPath outside = new SymbolPath(List.of(SymbolNode.quadratic(new SymbolPoint(0, 0),
+                new SymbolPoint(33, 0)), SymbolNode.straight(new SymbolPoint(8, 8))),
                 false, false);
         assertThatThrownBy(() -> new SymbolDrawing(size, List.of(outside), true))
                 .isInstanceOf(IllegalArgumentException.class);

@@ -5,12 +5,12 @@ import cl.almejo.vsim.core.component.PinSpec;
 import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.component.appearance.ComponentAppearance;
 import cl.almejo.vsim.core.component.appearance.DraftProblem;
+import cl.almejo.vsim.core.component.appearance.HandleSide;
 import cl.almejo.vsim.core.component.appearance.PinPlacement;
 import cl.almejo.vsim.core.component.appearance.SnapMode;
 import cl.almejo.vsim.core.component.appearance.SymbolDraft;
 import cl.almejo.vsim.core.component.appearance.SymbolDrawing;
 import cl.almejo.vsim.core.component.appearance.SymbolElement;
-import cl.almejo.vsim.core.component.appearance.SymbolNode;
 import cl.almejo.vsim.core.component.appearance.SymbolPath;
 import cl.almejo.vsim.core.component.appearance.SymbolPoint;
 import cl.almejo.vsim.core.component.appearance.SymbolTemplates;
@@ -32,6 +32,7 @@ import cl.almejo.vsim.ui.paint.TextFonts;
 import cl.almejo.vsim.ui.theme.ReadableColors;
 
 import java.util.Comparator;
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Locale;
@@ -98,6 +99,12 @@ final class ShapeCanvas extends JPanel {
     private static final int MINIMUM_CLOSED_NODES = 3;
     /** A click curves a straight segment by a sixth of its length: visible, and gentle enough to drag from. */
     private static final double DEFAULT_BULGE_DIVISOR = 6;
+    /** Handles and their lines, in screen pixels: smaller than a node, so the node stays the thing to grab. */
+    private static final double HANDLE_RADIUS = 3.5;
+    private static final double ACTIVE_HANDLE_RADIUS = 4.5;
+    private static final double HANDLE_LINE_WIDTH = 1.2;
+    /** A corner node's diamond, in screen pixels to each tip: about the size of a round node. */
+    private static final double CORNER_MARKER_RADIUS = 5.5;
     private final ComponentDefinition definition;
     private final Supplier<SymbolDraft> current;
     private final Consumer<SymbolDraft> publish;
@@ -112,14 +119,18 @@ final class ShapeCanvas extends JPanel {
     private Optional<ElementId> pin = Optional.empty();
     private int pathIndex = -1;
     private int nodeIndex = -1;
-    /** The chosen point of the figure is its segment's curve handle (on the curve, halfway), not the node. */
-    private boolean curveHandle;
     private boolean nodeDrag;
+    /** The node was chosen on itself (not through a segment of its figure): Nodos shows its handles. */
+    private boolean handlesShown;
+    /** Nodos: the handle of the chosen node being dragged; with Alt it moves alone. */
+    private Optional<HandleSide> handleDrag = Optional.empty();
+    private boolean handleAlone;
     private Optional<ShapeSegments.Hit> insertion = Optional.empty();
     private Optional<NodeHit> removal = Optional.empty();
-    /** «Curvar tramo»: the segment or handle under the pointer, and the one being bent. */
+    /** «Curvar tramo»: the segment under the pointer, and the one being bent with where along it it was grabbed. */
     private Optional<SegmentRef> curveTarget = Optional.empty();
     private Optional<SegmentRef> curving = Optional.empty();
+    private double curvingParameter;
     private Optional<String> refusal = Optional.empty();
     private boolean controlHeld;
     private boolean shiftHeld;
@@ -245,6 +256,7 @@ final class ShapeCanvas extends JPanel {
         pin = Optional.empty();
         pathIndex = -1;
         nodeIndex = -1;
+        handlesShown = false;
         insertion = Optional.empty();
         removal = Optional.empty();
         refusal = Optional.empty();
@@ -345,8 +357,8 @@ final class ShapeCanvas extends JPanel {
                 || nodeIndex >= path.nodes().size()) {
             pathIndex = -1;
             nodeIndex = -1;
-            curveHandle = false;
             nodeDrag = false;
+            handleDrag = Optional.empty();
         }
     }
 
@@ -368,6 +380,8 @@ final class ShapeCanvas extends JPanel {
         committedBeforeDrag = null;
         pathNodes.clear();
         pinDragActive = false;
+        handleDrag = Optional.empty();
+        curving = Optional.empty();
         dragTip = Optional.empty();
         if (textField != null) {
             remove(textField);
@@ -508,16 +522,14 @@ final class ShapeCanvas extends JPanel {
             SymbolDraft editing = nodeDraft();
             SymbolPoint point = chosenPoint((SymbolPath) editing.elements().get(pathIndex));
             SymbolPoint moved = new SymbolPoint(point.x() + horizontal * eighths, point.y() + vertical * eighths);
-            publish.accept(curveHandle ? editing.curveThrough(pathIndex, nodeIndex, moved, snap)
-                    : editing.moveNode(pathIndex, nodeIndex, moved, snap));
+            publish.accept(editing.moveNode(pathIndex, nodeIndex, moved, snap));
         } else {
             publish.accept(current.get().moveSelection(horizontal * eighths, vertical * eighths, snap));
         }
     }
 
-    /** The chosen node, or the middle of its curved segment when the curve handle is chosen. */
     private SymbolPoint chosenPoint(SymbolPath path) {
-        return curveHandle ? path.segmentMiddle(nodeIndex) : path.nodes().get(nodeIndex).point();
+        return path.nodes().get(nodeIndex).point();
     }
 
     /** The default box exposes editable nodes, but becomes a custom figure only on an actual edit. */
@@ -546,8 +558,18 @@ final class ShapeCanvas extends JPanel {
         beforeDrag = current.get();
         dragging = null;
         committedBeforeDrag = beforeDrag;
-        panning = tool == ShapeTool.PAN || SwingUtilities.isMiddleMouseButton(event) || event.isAltDown();
+        handleDrag = tool == ShapeTool.NODES && SwingUtilities.isLeftMouseButton(event)
+                ? handleAt(event.getPoint()) : Optional.empty();
+        // Alt pans the view, except on a handle of the chosen node: there it drags that handle alone.
+        panning = tool == ShapeTool.PAN || SwingUtilities.isMiddleMouseButton(event)
+                || event.isAltDown() && handleDrag.isEmpty();
         if (panning || !SwingUtilities.isLeftMouseButton(event)) {
+            return;
+        }
+        if (handleDrag.isPresent()) {
+            handleAlone = event.isAltDown();
+            nodeDrag = false;
+            beforeDrag = nodeDraft();
             return;
         }
         if (isPathTool() || tool == ShapeTool.TEXT || isNodeTool()) {
@@ -614,14 +636,14 @@ final class ShapeCanvas extends JPanel {
             if (tool == ShapeTool.NODES && hit >= 0 && view.elements().get(hit) instanceof SymbolPath) {
                 pathIndex = hit;
                 nodeIndex = hitSegment(hit, event.getPoint());
-                curveHandle = false;
+                handlesShown = false;
             }
         }
     }
 
     /**
-     * «Curvar tramo»: Ctrl+press straightens the segment or handle under the pointer; a press on a handle or a segment
-     * starts bending it (a release without moving gives a straight segment a gentle default curve).
+     * «Curvar tramo»: Ctrl+press straightens the segment under the pointer; a press on a segment grabs it where it was
+     * pressed and starts bending it (a release without moving gives a straight segment a gentle default curve).
      */
     private void pressCurve(MouseEvent event) {
         controlHeld = event.isControlDown();
@@ -632,56 +654,71 @@ final class ShapeCanvas extends JPanel {
         SymbolDraft editing = nodeView().select(Set.of(target.get().pathIndex()));
         if (event.isControlDown()) {
             SymbolPath path = (SymbolPath) editing.elements().get(target.get().pathIndex());
-            if (path.nodes().get(target.get().segment()).control().isPresent()) {
+            if (path.nodes().get(target.get().segment()).curved()) {
                 publish.accept(editing.straighten(target.get().pathIndex(), target.get().segment()));
             }
             return;
         }
         curving = target;
+        SymbolPath path = (SymbolPath) editing.elements().get(target.get().pathIndex());
+        curvingParameter = path.nearestParameter(target.get().segment(), localX(event.getPoint()),
+                localY(event.getPoint()));
         beforeDrag = editing;
     }
 
-    /** The curve handle under the pointer, else the segment under it. */
+    /** The segment under the pointer. */
     private Optional<SegmentRef> curveTargetAt(Point at) {
-        return curveHandleAt(at).or(() -> segmentAt(at).map(hit -> new SegmentRef(hit.pathIndex(),
-                hit.segmentIndex())));
+        return segmentAt(at).map(hit -> new SegmentRef(hit.pathIndex(), hit.segmentIndex()));
     }
 
-    /** The handle of a curved segment under the pointer, the topmost figure first. */
-    private Optional<SegmentRef> curveHandleAt(Point at) {
-        List<SymbolElement> elements = nodeView().elements();
-        for (int index = elements.size() - 1; index >= 0; index--) {
-            if (!(elements.get(index) instanceof SymbolPath path)) {
-                continue;
-            }
-            for (int segment = 0; segment < segmentCount(path); segment++) {
-                SymbolPoint middle = path.segmentMiddle(segment);
-                if (path.nodes().get(segment).control().isPresent()
-                        && screen(middle.x(), middle.y()).distance(at) < HIT_RADIUS) {
-                    return Optional.of(new SegmentRef(index, segment));
-                }
-            }
+    /**
+     * The handles drawn now, in eighths: with Nodos the chosen node's (incoming first); with «Curvar tramo» the two of
+     * the curved segment being bent or under the pointer.
+     */
+    List<SymbolPoint> visibleHandles() {
+        if (tool == ShapeTool.NODES) {
+            return chosenNodeHandles().values().stream().toList();
         }
-        return Optional.empty();
+        if (tool == ShapeTool.CURVE) {
+            return curveToolSegment().map(target -> segmentHandles(
+                    (SymbolPath) nodeView().elements().get(target.pathIndex()), target.segment())).orElse(List.of());
+        }
+        return List.of();
     }
 
-    private static int segmentCount(SymbolPath path) {
-        return path.nodes().size() - (path.closed() ? 0 : 1);
+    /** The two handles of a curved segment (a quadratic's as its cubic), or none for a straight one. */
+    private static List<SymbolPoint> segmentHandles(SymbolPath path, int segment) {
+        SymbolPoint start = path.nodes().get(segment).point();
+        return path.nodes().get(segment).curve()
+                .map(curve -> curve.cubic(start, path.segmentEnd(segment)).controls()).orElse(List.of());
     }
 
-    /** Where every curved segment shows its handle (its middle, on the curve), in eighths. */
-    List<SymbolPoint> curveHandles() {
-        List<SymbolPoint> handles = new ArrayList<>();
-        for (SymbolElement element : nodeView().elements()) {
-            if (element instanceof SymbolPath path) {
-                for (int segment = 0; segment < segmentCount(path); segment++) {
-                    if (path.nodes().get(segment).control().isPresent()) {
-                        handles.add(path.segmentMiddle(segment));
-                    }
-                }
-            }
+    /** The handles of the node chosen with Nodos, by side (incoming first); none when no node is chosen. */
+    private Map<HandleSide, SymbolPoint> chosenNodeHandles() {
+        Map<HandleSide, SymbolPoint> handles = new EnumMap<>(HandleSide.class);
+        if (tool != ShapeTool.NODES || !handlesShown || !nodeSelected()) {
+            return handles;
+        }
+        SymbolPath path = (SymbolPath) nodeView().elements().get(pathIndex);
+        for (HandleSide side : HandleSide.values()) {
+            path.handle(nodeIndex, side).ifPresent(handle -> handles.put(side, handle));
         }
         return handles;
+    }
+
+    /** The handle of the chosen node under the pointer. */
+    private Optional<HandleSide> handleAt(Point at) {
+        return chosenNodeHandles().entrySet().stream()
+                .filter(entry -> screen(entry.getValue().x(), entry.getValue().y()).distance(at) < HIT_RADIUS)
+                .map(Map.Entry::getKey).findFirst();
+    }
+
+    /** The curved segment «Curvar tramo» shows the handles of: the one being bent, else the one under the pointer. */
+    private Optional<SegmentRef> curveToolSegment() {
+        List<SymbolElement> elements = nodeView().elements();
+        return (curving.isPresent() ? curving : curveTarget).filter(target -> target.pathIndex() < elements.size()
+                && elements.get(target.pathIndex()) instanceof SymbolPath path
+                && target.segment() < path.segmentCount() && path.nodes().get(target.segment()).curved());
     }
 
     /**
@@ -728,6 +765,9 @@ final class ShapeCanvas extends JPanel {
     private void drag(MouseEvent event) {
         controlHeld = event.isControlDown();
         shiftHeld = event.isShiftDown();
+        if (handleDrag.isPresent()) {
+            handleAlone = event.isAltDown();
+        }
         drag(event.getPoint(), shiftHeld);
     }
 
@@ -760,7 +800,14 @@ final class ShapeCanvas extends JPanel {
         dragTip = Optional.empty();
         try {
             if (curving.isPresent()) {
-                dragging = beforeDrag.curveThrough(curving.get().pathIndex(), curving.get().segment(), end, snap);
+                dragging = beforeDrag.bendSegment(curving.get().pathIndex(), curving.get().segment(),
+                        curvingParameter, end, snap);
+            } else if (handleDrag.isPresent()) {
+                SymbolPoint original = ((SymbolPath) beforeDrag.elements().get(pathIndex))
+                        .handle(nodeIndex, handleDrag.get()).orElseThrow();
+                dragging = beforeDrag.moveHandle(pathIndex, nodeIndex, handleDrag.get(),
+                        shift ? axisLocked(original, end) : end, handleAlone, snap);
+                dragTip = Optional.of(Messages.text("shape.drag.handleAlone"));
             } else if (resizingBox) {
                 dragging = resizedBox(where);
                 dragTip = Optional.of(boxTip(dragging));
@@ -785,8 +832,7 @@ final class ShapeCanvas extends JPanel {
             } else if (tool == ShapeTool.NODES && nodeDrag && nodeIndex >= 0) {
                 SymbolPoint original = chosenPoint((SymbolPath) beforeDrag.elements().get(pathIndex));
                 SymbolPoint target = shift ? axisLocked(original, end) : end;
-                dragging = curveHandle ? beforeDrag.curveThrough(pathIndex, nodeIndex, target, snap)
-                        : beforeDrag.moveNode(pathIndex, nodeIndex, target, snap);
+                dragging = beforeDrag.moveNode(pathIndex, nodeIndex, target, snap);
                 dragTip = Optional.of(Messages.text("shape.drag.axis"));
             } else if (rubberBand) {
                 bandEnd = end;
@@ -854,7 +900,7 @@ final class ShapeCanvas extends JPanel {
 
     private static boolean straight(SymbolDraft draft, SegmentRef target) {
         SymbolPath path = (SymbolPath) draft.elements().get(target.pathIndex());
-        return path.nodes().get(target.segment()).control().isEmpty();
+        return path.nodes().get(target.segment()).curve().isEmpty();
     }
 
     private void release(MouseEvent event) {
@@ -863,10 +909,11 @@ final class ShapeCanvas extends JPanel {
         }
         SymbolDraft completed = dragging;
         if (completed == null && curving.isPresent() && straight(beforeDrag, curving.get())) {
-            completed = beforeDrag.curveThrough(curving.get().pathIndex(), curving.get().segment(),
+            completed = beforeDrag.bendSegment(curving.get().pathIndex(), curving.get().segment(), 0.5,
                     defaultBulge(beforeDrag, curving.get(), point(event)), SnapMode.FREE);
         }
         curving = Optional.empty();
+        handleDrag = Optional.empty();
         SymbolDraft original = committedBeforeDrag;
         dragTip = Optional.empty();
         pinDragActive = false;
@@ -904,6 +951,9 @@ final class ShapeCanvas extends JPanel {
             beginText(event.getPoint(), -1);
         }
         else if (event.getClickCount() == 2) {
+            if (tool == ShapeTool.NODES && toggledNodeAt(event.getPoint())) {
+                return;
+            }
             int figure = hitFigure(event.getPoint());
             SymbolDraft view = tool == ShapeTool.NODES ? nodeView() : current.get();
             if (figure >= 0 && view.elements().get(figure) instanceof SymbolText
@@ -922,6 +972,33 @@ final class ShapeCanvas extends JPanel {
                 }
             }
         }
+    }
+
+    /**
+     * Nodos, a double click on a node: smooth becomes corner and corner smooth; a node that is not between two curves
+     * says why instead. False when there is no node there, or on the first node of an open figure (that closes it).
+     */
+    private boolean toggledNodeAt(Point at) {
+        Optional<NodeHit> node = nodeAt(at);
+        if (node.isEmpty()) {
+            return false;
+        }
+        SymbolDraft view = nodeView();
+        SymbolPath path = (SymbolPath) view.elements().get(node.get().pathIndex());
+        if (!path.closed() && node.get().nodeIndex() == 0 && path.nodes().size() >= MINIMUM_CLOSED_NODES) {
+            return false;
+        }
+        if (!path.hasTwoHandles(node.get().nodeIndex())) {
+            refuse("shape.node.smoothNeedsCurves");
+            repaint();
+            return true;
+        }
+        pathIndex = node.get().pathIndex();
+        nodeIndex = node.get().nodeIndex();
+        handlesShown = true;
+        publish.accept(view.select(Set.of(pathIndex)).toggleSmooth(pathIndex, nodeIndex));
+        repaint();
+        return true;
     }
 
     /** «Agregar nodo» or «Quitar nodo»: the tools that act with one click on a segment or a node. */
@@ -947,7 +1024,6 @@ final class ShapeCanvas extends JPanel {
         }
         pathIndex = hit.pathIndex();
         nodeIndex = hit.segmentIndex() + 1;
-        curveHandle = false;
         insertion = Optional.empty();
         publish.accept(editing.insertNode(hit.pathIndex(), hit.segmentIndex(), hit.point()));
     }
@@ -1095,32 +1171,15 @@ final class ShapeCanvas extends JPanel {
         repaint();
     }
 
+    /** Chooses the node under the pointer, if any, and shows its handles. */
     private boolean hitNode(Point at) {
-        List<SymbolElement> elements = nodeView().elements();
-        for (int index = elements.size() - 1; index >= 0; index--) {
-            if (!(elements.get(index) instanceof SymbolPath path)) {
-                continue;
-            }
-            for (int node = 0; node < path.nodes().size(); node++) {
-                SymbolNode candidate = path.nodes().get(node);
-                if (candidate.control().isPresent()) {
-                    SymbolPoint middle = path.segmentMiddle(node);
-                    if (screen(middle.x(), middle.y()).distance(at) < HIT_RADIUS) {
-                        pathIndex = index;
-                        nodeIndex = node;
-                        curveHandle = true;
-                        return true;
-                    }
-                }
-                if (screen(candidate.point().x(), candidate.point().y()).distance(at) < HIT_RADIUS) {
-                    pathIndex = index;
-                    nodeIndex = node;
-                    curveHandle = false;
-                    return true;
-                }
-            }
-        }
-        return false;
+        Optional<NodeHit> node = nodeAt(at);
+        node.ifPresent(hit -> {
+            pathIndex = hit.pathIndex();
+            nodeIndex = hit.nodeIndex();
+            handlesShown = true;
+        });
+        return node.isPresent();
     }
 
     private int hitFigure(Point at) {
@@ -1206,8 +1265,13 @@ final class ShapeCanvas extends JPanel {
             setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
             setToolTipText(Messages.text("shape.pan.hint"));
         } else if (tool == ShapeTool.NODES) {
-            setCursor(Cursor.getPredefinedCursor(Cursor.CROSSHAIR_CURSOR));
-            setToolTipText(Messages.text("shape.nodes.hint"));
+            boolean onHandle = handleAt(event.getPoint()).isPresent();
+            setCursor(Cursor.getPredefinedCursor(onHandle ? Cursor.HAND_CURSOR : Cursor.CROSSHAIR_CURSOR));
+            setToolTipText(Messages.text(onHandle ? "shape.handle.hint" : "shape.nodes.hint"));
+            if (refusal.isPresent() && nodeAt(event.getPoint()).isEmpty()) {
+                refusal = Optional.empty();
+                changed.run();
+            }
         } else if (tool == ShapeTool.SELECT && hitHandle(event.getPoint()).isPresent()) {
             setCursor(Cursor.getPredefinedCursor(Cursor.SE_RESIZE_CURSOR));
             setToolTipText(Messages.text("shape.figureResize.hint"));
@@ -1220,13 +1284,10 @@ final class ShapeCanvas extends JPanel {
         }
     }
 
-    /** A handle under the pointer offers a move (or, with Ctrl, a straightening); a segment offers a click. */
+    /** The segment under the pointer lights up and shows its handles if it is curved; the hand offers a click. */
     private void hoverCurve(MouseEvent event) {
-        boolean onHandle = curveHandleAt(event.getPoint()).isPresent();
         curveTarget = curveTargetAt(event.getPoint());
-        int cursor = onHandle && !event.isControlDown() ? Cursor.MOVE_CURSOR
-                : curveTarget.isPresent() ? Cursor.HAND_CURSOR : Cursor.DEFAULT_CURSOR;
-        setCursor(Cursor.getPredefinedCursor(cursor));
+        setCursor(Cursor.getPredefinedCursor(curveTarget.isPresent() ? Cursor.HAND_CURSOR : Cursor.DEFAULT_CURSOR));
         setToolTipText(Messages.text("shape.hint.curve"));
         repaint();
     }
@@ -1303,8 +1364,14 @@ final class ShapeCanvas extends JPanel {
         if (tool != ShapeTool.NODES && tool != ShapeTool.ADD_NODE || !nodeSelected()) {
             return Optional.empty();
         }
-        SymbolPoint point = chosenPoint((SymbolPath) nodeView().elements().get(pathIndex));
-        return Optional.of("(" + units(point.x()) + ", " + units(point.y()) + ")");
+        SymbolPath path = (SymbolPath) nodeView().elements().get(pathIndex);
+        SymbolPoint point = chosenPoint(path);
+        String coordinates = "(" + units(point.x()) + ", " + units(point.y()) + ")";
+        if (!path.hasTwoHandles(nodeIndex)) {
+            return Optional.of(coordinates);
+        }
+        String kind = Messages.text(nodeView().smooth(pathIndex, nodeIndex) ? "shape.node.smooth" : "shape.node.corner");
+        return Optional.of(Messages.format("shape.node.label", coordinates, kind));
     }
 
     private String pinName(ElementId source) {
@@ -1642,30 +1709,64 @@ final class ShapeCanvas extends JPanel {
         }
     }
 
+    /**
+     * Every node as a round point (the chosen one filled), a corner between two curves as a diamond; the chosen node's
+     * handles joined by a thin line through it, the line straight when the node is smooth.
+     */
     private void paintNodes(Graphics2D surface) {
-        List<SymbolElement> elements = nodeView().elements();
+        SymbolDraft view = nodeView();
+        List<SymbolElement> elements = view.elements();
+        Map<HandleSide, SymbolPoint> handles = chosenNodeHandles();
+        if (!handles.isEmpty()) {
+            SymbolPoint chosen = ((SymbolPath) elements.get(pathIndex)).nodes().get(nodeIndex).point();
+            handles.values().forEach(handle -> paintHandleLine(surface, chosen, handle));
+        }
         surface.setStroke(new BasicStroke((float) (1.5 / zoom)));
         for (int index = 0; index < elements.size(); index++) {
             if (!(elements.get(index) instanceof SymbolPath path)) {
                 continue;
             }
             for (int nodeNumber = 0; nodeNumber < path.nodes().size(); nodeNumber++) {
-                SymbolNode node = path.nodes().get(nodeNumber);
-                double x = node.point().x() / 8.0 * UNIT;
-                double y = node.point().y() / 8.0 * UNIT;
-                Shape marker = new Ellipse2D.Double(x - 4 / zoom, y - 4 / zoom, 8 / zoom, 8 / zoom);
+                SymbolPoint point = path.nodes().get(nodeNumber).point();
                 boolean chosen = index == pathIndex && nodeNumber == nodeIndex;
-                surface.setColor(chosen && !curveHandle ? colors.get().selection() : colors.get().background());
-                surface.fill(marker);
-                surface.setColor(colors.get().componentStroke());
-                surface.draw(marker);
-                if (node.control().isPresent()) {
-                    paintDiamond(surface, path.segmentMiddle(nodeNumber), 4,
-                            chosen && curveHandle ? colors.get().selection() : colors.get().background(),
-                            colors.get().componentStroke());
+                Color fill = chosen ? colors.get().selection() : colors.get().background();
+                if (path.hasTwoHandles(nodeNumber) && !view.smooth(index, nodeNumber)) {
+                    paintDiamond(surface, point, CORNER_MARKER_RADIUS, fill, colors.get().componentStroke());
+                } else {
+                    double x = point.x() / 8.0 * UNIT;
+                    double y = point.y() / 8.0 * UNIT;
+                    Shape marker = new Ellipse2D.Double(x - 4 / zoom, y - 4 / zoom, 8 / zoom, 8 / zoom);
+                    surface.setColor(fill);
+                    surface.fill(marker);
+                    surface.setColor(colors.get().componentStroke());
+                    surface.draw(marker);
                 }
             }
         }
+        handles.forEach((side, handle) -> paintHandle(surface, handle, handleDrag.filter(side::equals).isPresent()));
+    }
+
+    /** The thin line from a node to one of its handles, in the selection colour. */
+    private void paintHandleLine(Graphics2D surface, SymbolPoint node, SymbolPoint handle) {
+        surface.setColor(colors.get().selection());
+        surface.setStroke(new BasicStroke((float) (HANDLE_LINE_WIDTH / zoom)));
+        surface.draw(new Line2D.Double(node.x() / 8.0 * UNIT, node.y() / 8.0 * UNIT, handle.x() / 8.0 * UNIT,
+                handle.y() / 8.0 * UNIT));
+    }
+
+    /**
+     * A handle: a dot in the selection colour with a thin ring of the background around it, so it stands out on the
+     * figure's stroke in both themes; larger while dragged.
+     */
+    private void paintHandle(Graphics2D surface, SymbolPoint handle, boolean active) {
+        double radius = (active ? ACTIVE_HANDLE_RADIUS : HANDLE_RADIUS) / zoom;
+        Shape dot = new Ellipse2D.Double(handle.x() / 8.0 * UNIT - radius, handle.y() / 8.0 * UNIT - radius,
+                2 * radius, 2 * radius);
+        surface.setColor(colors.get().selection());
+        surface.fill(dot);
+        surface.setColor(colors.get().background());
+        surface.setStroke(new BasicStroke((float) (1 / zoom)));
+        surface.draw(dot);
     }
 
     private void paintInsertion(Graphics2D surface) {
@@ -1731,12 +1832,11 @@ final class ShapeCanvas extends JPanel {
     }
 
     /**
-     * «Curvar tramo»: the segment under the pointer in the selection colour (unless one is being bent) and one
-     * diamond handle on every curved segment, at its middle on the curve; the hovered or dragged one is filled.
+     * «Curvar tramo»: the segment under the pointer in the selection colour (unless one is being bent) and, when it is
+     * curved (or while it is bent), its two handles, each joined to its node.
      */
     private void paintCurveTool(Graphics2D surface, ColorScheme scheme) {
         List<SymbolElement> elements = nodeView().elements();
-        Optional<SegmentRef> active = curving.isPresent() ? curving : curveTarget;
         if (curving.isEmpty()) {
             curveTarget.filter(target -> target.pathIndex() < elements.size()
                     && elements.get(target.pathIndex()) instanceof SymbolPath).ifPresent(target -> {
@@ -1748,22 +1848,16 @@ final class ShapeCanvas extends JPanel {
                 surface.draw(segment);
             });
         }
-        surface.setStroke(new BasicStroke((float) (1.5 / zoom)));
-        for (int index = 0; index < elements.size(); index++) {
-            if (!(elements.get(index) instanceof SymbolPath path)) {
-                continue;
-            }
-            for (int segment = 0; segment < segmentCount(path); segment++) {
-                if (path.nodes().get(segment).control().isPresent()) {
-                    boolean highlighted = active.equals(Optional.of(new SegmentRef(index, segment)));
-                    paintDiamond(surface, path.segmentMiddle(segment), highlighted ? 7 : 5.5,
-                            highlighted ? scheme.selection() : scheme.background(), scheme.selection());
-                }
-            }
-        }
+        curveToolSegment().ifPresent(target -> {
+            SymbolPath path = (SymbolPath) elements.get(target.pathIndex());
+            List<SymbolPoint> handles = segmentHandles(path, target.segment());
+            paintHandleLine(surface, path.nodes().get(target.segment()).point(), handles.getFirst());
+            paintHandleLine(surface, path.segmentEnd(target.segment()), handles.getLast());
+            handles.forEach(handle -> paintHandle(surface, handle, false));
+        });
     }
 
-    /** A curve handle: a diamond centred on {@code point} (eighths), {@code radius} screen pixels to each tip. */
+    /** A corner node: a diamond centred on {@code point} (eighths), {@code radius} screen pixels to each tip. */
     private void paintDiamond(Graphics2D surface, SymbolPoint point, double radius, Color fill, Color outline) {
         double x = point.x() / 8.0 * UNIT;
         double y = point.y() / 8.0 * UNIT;

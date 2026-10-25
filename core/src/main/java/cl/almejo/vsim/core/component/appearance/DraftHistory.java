@@ -28,7 +28,7 @@ public final class DraftHistory {
 
     public void update(SymbolDraft draft) {
         Objects.requireNonNull(draft, "draft");
-        if (current().appearance().equals(draft.appearance())) {
+        if (current().sameEdit(draft)) {
             states.set(index, draft);
             return;
         }
