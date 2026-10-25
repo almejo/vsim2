@@ -91,6 +91,17 @@ class RedMarksTest {
     }
 
     @Test
+    void theWarningTriangleOfAPinSitsOutsideThePieceWhereItCoversNoPinName() {
+        ConnectivityOverlay overlay = new ConnectivityOverlay(openDocument, () -> ColorScheme.LIGHT);
+        GridPoint pin = openDocument.registry().typeOf(piece).pinLocation(piece, 0);
+        int pinX = pin.x() * UNIT;
+        int pinY = pin.y() * UNIT;
+
+        assertThat(pixel(overlay, pinX - 9, pinY - 4)).as("the triangle on the stub side").isNotZero();
+        assertThat(pixel(overlay, pinX + 9, pinY - 4)).as("nothing inside the body next to the pin").isZero();
+    }
+
+    @Test
     void theProblemsLineNamesThePieceAndTheTerminalAndNavigationSelectsThePiece() {
         ConnectivityProblem problem = openDocument.connectivityProblems().getFirst();
 

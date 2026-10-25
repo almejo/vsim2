@@ -60,14 +60,17 @@ final class ConnectivityOverlay implements CanvasOverlay {
                 state.document().component(visibleId).filter(component -> glowing.add(visibleId))
                         .ifPresent(component -> glowPiece(graphics, component, colors));
             } else {
-                markPin(graphics, problem.position(), colors);
+                Bounds bounds = state.document().component(new ElementId(problem.elementId()))
+                        .map(component -> openDocument.registry().typeOf(component).bounds(component))
+                        .orElse(null);
+                markPin(graphics, problem.position(), bounds, colors);
             }
         }
         for (PinRef pin : openDocument.loosenedPins()) {
             state.document().component(pin.componentId()).ifPresent(component -> {
                 ComponentType type = openDocument.registry().typeOf(component);
                 if (pin.pinIndex() < type.pinCount()) {
-                    markPin(graphics, type.pinLocation(component, pin.pinIndex()), colors);
+                    markPin(graphics, type.pinLocation(component, pin.pinIndex()), type.bounds(component), colors);
                 }
             });
         }
@@ -87,7 +90,8 @@ final class ConnectivityOverlay implements CanvasOverlay {
         warning(graphics, bounds.maximumX() * UNIT, bounds.y() * UNIT, colors);
     }
 
-    private void markPin(Graphics2D graphics, GridPoint position, ColorScheme colors) {
+    /** The pin's mark; its triangle goes on the stub side, away from the piece's body and the pin names in it. */
+    private void markPin(Graphics2D graphics, GridPoint position, Bounds bounds, ColorScheme colors) {
         double x = position.x() * UNIT;
         double y = position.y() * UNIT;
         graphics.setColor(PainterSupport.withAlpha(colors.wireConflict(), GLOW_FILL_ALPHA));
@@ -95,7 +99,25 @@ final class ConnectivityOverlay implements CanvasOverlay {
                 PIN_GLOW_RADIUS * 2));
         graphics.setColor(colors.wireConflict());
         graphics.draw(new Ellipse2D.Double(x - PIN_RADIUS, y - PIN_RADIUS, PIN_RADIUS * 2, PIN_RADIUS * 2));
-        warning(graphics, x + PIN_RADIUS, y - MARK_SIZE, colors);
+        double left = x + PIN_RADIUS;
+        double top = y - MARK_SIZE;
+        if (bounds != null) {
+            double toLeft = position.x() - bounds.x();
+            double toRight = bounds.maximumX() - position.x();
+            double toTop = position.y() - bounds.y();
+            double toBottom = bounds.maximumY() - position.y();
+            double nearest = Math.min(Math.min(toLeft, toRight), Math.min(toTop, toBottom));
+            if (nearest == toLeft) {
+                left = x - PIN_RADIUS - MARK_SIZE;
+            } else if (nearest == toTop) {
+                left = x - MARK_SIZE / 2;
+                top = y - PIN_RADIUS - MARK_SIZE;
+            } else if (nearest == toBottom) {
+                left = x - MARK_SIZE / 2;
+                top = y + PIN_RADIUS;
+            }
+        }
+        warning(graphics, left, top, colors);
     }
 
     private void warning(Graphics2D graphics, double left, double top, ColorScheme colors) {

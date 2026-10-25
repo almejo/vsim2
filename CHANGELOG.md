@@ -44,6 +44,7 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 ### Arreglado
 
 - La hoja «Conexiones al cambiar la forma» pone sus botones a la derecha, como en el diseño.
+- El triángulo de advertencia de un pin marcado en rojo se dibuja del lado de su patita, fuera de la pieza, y ya no tapa el nombre del pin.
 
 ## Versión 0.3 — 2026-10-24
 
