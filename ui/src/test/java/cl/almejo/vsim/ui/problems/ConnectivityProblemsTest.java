@@ -91,7 +91,7 @@ class ConnectivityProblemsTest {
         assertThat(view.problems().nextProblem().isEnabled()).isTrue();
         ConnectivityProblem problem = openDocument.connectivityProblems().getFirst();
         assertThat(ProblemText.describe(problem, openDocument.document(), openDocument.registry()))
-                .contains("Padre", "A1", "Luz", "desconectada");
+                .contains("Padre", "A1", "Luz").contains("la entrada «").contains("» está desconectada");
     }
 
     @Test
@@ -149,8 +149,8 @@ class ConnectivityProblemsTest {
 
         assertThat(ProblemText.describe(problem, openDocument.document(), openDocument.registry()))
                 .startsWith("Padre › A1 › Luz")
-                .contains("entrada")
-                .endsWith("desconectada");
+                .contains("la entrada «")
+                .endsWith("» está desconectada");
         assertThat(problem.path()).hasSize(3).first().isEqualTo(outer.id());
     }
 

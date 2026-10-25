@@ -107,7 +107,7 @@ class RedMarksTest {
 
         assertThat(problem.cause()).isEqualTo(ConnectivityProblem.Cause.UNCONNECTED_INTERFACE);
         assertThat(ProblemText.describe(problem, openDocument.document(), openDocument.registry()))
-                .contains("U5", "terminal A", "por dentro");
+                .contains("U5", "terminal «A»", "por dentro");
         assertThat(view.problems().navigator().navigateTo(problem)).isTrue();
         assertThat(view.canvas().selection().ids()).containsExactly(piece.id());
     }
