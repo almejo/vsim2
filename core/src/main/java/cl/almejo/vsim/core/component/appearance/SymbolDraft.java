@@ -176,24 +176,32 @@ public final class SymbolDraft {
         return replacePath(pathIndex, path, nodes);
     }
 
-    public SymbolDraft moveControl(int pathIndex, int nodeIndex, SymbolPoint point, SnapMode snap) {
-        SymbolPath path = path(pathIndex);
-        if (!path.closed() && nodeIndex == path.nodes().size() - 1) {
-            throw new IllegalArgumentException("An open path has no closing control");
-        }
-        List<SymbolNode> nodes = new ArrayList<>(path.nodes());
-        nodes.set(nodeIndex, new SymbolNode(nodes.get(nodeIndex).point(), Optional.of(bounded(point, snap))));
-        return replacePath(pathIndex, path, nodes);
-    }
 
-    public SymbolDraft toggleCurve(int pathIndex, int segment) {
+    /**
+     * Curves segment {@code segment} so that its middle passes through {@code through} (the handle «Curvar tramo»
+     * drags): the quadratic's control is 2·through − (start + end)/2, kept inside the box, so the stored format is
+     * the same {@code Q} as always.
+     */
+    public SymbolDraft curveThrough(int pathIndex, int segment, SymbolPoint through, SnapMode snap) {
         SymbolPath path = path(pathIndex);
         requireSegment(path, segment);
         List<SymbolNode> nodes = new ArrayList<>(path.nodes());
         SymbolNode start = nodes.get(segment);
         SymbolPoint end = nodes.get((segment + 1) % nodes.size()).point();
-        nodes.set(segment, new SymbolNode(start.point(), start.control().isPresent() ? Optional.empty()
-                : Optional.of(midpoint(start.point(), end))));
+        SymbolPoint handle = new SymbolPoint(snap.snap(through.x()), snap.snap(through.y()));
+        SymbolPoint control = new SymbolPoint(
+                (int) Math.round(2.0 * handle.x() - (start.point().x() + end.x()) / 2.0),
+                (int) Math.round(2.0 * handle.y() - (start.point().y() + end.y()) / 2.0));
+        nodes.set(segment, new SymbolNode(start.point(), Optional.of(bounded(control, SnapMode.FREE))));
+        return replacePath(pathIndex, path, nodes);
+    }
+
+    /** Segment {@code segment} back to a straight line. */
+    public SymbolDraft straighten(int pathIndex, int segment) {
+        SymbolPath path = path(pathIndex);
+        requireSegment(path, segment);
+        List<SymbolNode> nodes = new ArrayList<>(path.nodes());
+        nodes.set(segment, new SymbolNode(nodes.get(segment).point(), Optional.empty()));
         return replacePath(pathIndex, path, nodes);
     }
 
@@ -504,9 +512,6 @@ public final class SymbolDraft {
         }
     }
 
-    private static SymbolPoint midpoint(SymbolPoint first, SymbolPoint second) {
-        return interpolate(first, second, 0.5);
-    }
 
     private static double maximumScale(int anchor, int minimum, int maximum, int limit) {
         double before = minimum < anchor ? (double) anchor / (anchor - minimum) : Double.POSITIVE_INFINITY;

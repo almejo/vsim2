@@ -19,7 +19,7 @@ public final class ShapeEditorIcons {
     public static final String TEXT = "shape-text";
     public static final String NODE_ADD = "shape-node-add";
     public static final String NODE_REMOVE = "shape-node-remove";
-    public static final String CURVE = "shape-curve";
+    public static final String CURVE_SEGMENT = "shape-curve-segment";
     public static final String CLOSE_PATH = "shape-close-path";
     public static final String FILL = "shape-fill";
     public static final String TEMPLATES = "shape-templates";
@@ -32,6 +32,6 @@ public final class ShapeEditorIcons {
     /** Every shape editor icon, once. */
     public static List<String> names() {
         return List.of(NODES, LINE, MULTILINE, RECTANGLE, ELLIPSE, TRIANGLE, POLYGON, TEXT, NODE_ADD, NODE_REMOVE,
-                CURVE, CLOSE_PATH, FILL, TEMPLATES, FRONT, BACK);
+                CURVE_SEGMENT, CLOSE_PATH, FILL, TEMPLATES, FRONT, BACK);
     }
 }

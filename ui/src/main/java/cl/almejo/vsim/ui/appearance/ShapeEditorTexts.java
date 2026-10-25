@@ -90,6 +90,7 @@ final class ShapeEditorTexts {
             case PAN -> Messages.text("shape.pan.hint");
             case ADD_NODE -> Messages.text("shape.nodeAdd.hint");
             case REMOVE_NODE -> Messages.text("shape.nodeRemove.hint");
+            case CURVE -> Messages.text("shape.hint.curve");
             case LINE -> Messages.text("shape.hint.line");
             case MULTILINE -> Messages.format("shape.hint.multiline", shortcut(KeyEvent.VK_Z));
             case RECTANGLE -> Messages.text("shape.hint.rectangle");

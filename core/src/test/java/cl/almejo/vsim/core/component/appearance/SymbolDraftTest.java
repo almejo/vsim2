@@ -101,6 +101,40 @@ class SymbolDraftTest {
     }
 
     @Test
+    void aCurveDrawnThroughAPointPassesThroughItAtItsMiddle() {
+        SymbolDraft line = draft(false).addFigure(SymbolTemplates.line(new SymbolPoint(0, 0), new SymbolPoint(32, 0),
+                false));
+
+        SymbolPath curved = (SymbolPath) line.curveThrough(0, 0, new SymbolPoint(16, 8), SnapMode.FREE)
+                .elements().getFirst();
+
+        assertThat(curved.nodes().getFirst().control()).contains(new SymbolPoint(16, 16));
+        assertThat(curved.segmentMiddle(0)).isEqualTo(new SymbolPoint(16, 8));
+    }
+
+    @Test
+    void theControlOfACurveThroughAPointStaysInsideTheBox() {
+        SymbolDraft line = draft(false).addFigure(SymbolTemplates.line(new SymbolPoint(0, 4), new SymbolPoint(48, 4),
+                false));
+
+        SymbolPath curved = (SymbolPath) line.curveThrough(0, 0, new SymbolPoint(24, 0), SnapMode.FREE)
+                .elements().getFirst();
+
+        assertThat(curved.nodes().getFirst().control()).contains(new SymbolPoint(24, 0));
+    }
+
+    @Test
+    void straighteningASegmentDropsItsCurve() {
+        SymbolDraft curved = draft(false).addFigure(SymbolTemplates.line(new SymbolPoint(0, 0),
+                new SymbolPoint(32, 0), false)).curveThrough(0, 0, new SymbolPoint(16, 8), SnapMode.FREE);
+
+        SymbolPath straight = (SymbolPath) curved.straighten(0, 0).elements().getFirst();
+
+        assertThat(straight.nodes().getFirst().control()).isEmpty();
+        assertThat(straight.segmentMiddle(0)).isEqualTo(new SymbolPoint(16, 0));
+    }
+
+    @Test
     void snappingAppliesToFiguresWhilePinsAlwaysUseWholeGridUnits() {
         SymbolDraft moved = draft(false).addFigure(SymbolTemplates.line(new SymbolPoint(8, 8),
                 new SymbolPoint(16, 16), false)).moveSelection(3, 1, SnapMode.HALF_UNITS);

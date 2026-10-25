@@ -391,8 +391,7 @@ public final class ShapeEditorPanel extends JPanel {
         addTools(tools, ShapeTool.LINE, ShapeTool.MULTILINE, ShapeTool.RECTANGLE, ShapeTool.ELLIPSE,
                 ShapeTool.TRIANGLE, ShapeTool.POLYGON, ShapeTool.TEXT);
         toolbar.addSeparator();
-        addTools(tools, ShapeTool.ADD_NODE, ShapeTool.REMOVE_NODE);
-        actionButton("curve", icon(ShapeEditorIcons.CURVE), canvas::toggleCurve);
+        addTools(tools, ShapeTool.ADD_NODE, ShapeTool.REMOVE_NODE, ShapeTool.CURVE);
         actionButton("closePath", icon(ShapeEditorIcons.CLOSE_PATH), this::toggleClosed);
         actionButton("fill", icon(ShapeEditorIcons.FILL), this::toggleFill);
         toolbar.addSeparator();
@@ -487,6 +486,7 @@ public final class ShapeEditorPanel extends JPanel {
             case TEXT -> ShapeEditorIcons.TEXT;
             case ADD_NODE -> ShapeEditorIcons.NODE_ADD;
             case REMOVE_NODE -> ShapeEditorIcons.NODE_REMOVE;
+            case CURVE -> ShapeEditorIcons.CURVE_SEGMENT;
         });
     }
 
@@ -835,7 +835,7 @@ public final class ShapeEditorPanel extends JPanel {
         contextual("undo", undoName, history.canUndo(), "shape.undo.none");
         contextual("redo", redoName, history.canRedo(), "shape.redo.none");
 
-        contextual("curve", Messages.text("shape.curve"), canvas.segmentSelected(), "shape.segment.required");
+
         boolean closedFigure = draft.selection().stream().map(index -> draft.elements().get(index))
                 .anyMatch(element -> element instanceof SymbolPath path && path.closed());
         contextual("fill", Messages.text("shape.fill"), closedFigure, "shape.closedFigure.required");
