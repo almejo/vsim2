@@ -35,7 +35,7 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 ### Cambiado
 
 - El interruptor «Solo esta pieza» | «Todas las piezas» del editor de formas da a cada opción su ancho natural, no el mismo ancho.
-
+- El editor de formas abre con la caja a cerca del 60 % del lienzo y un zoom cómodo (como máximo unos 32 px por unidad), en vez de llegar al 600 %. Las líneas y los pines se dibujan con un grosor y tamaño constantes en pantalla al hacer zoom; el dibujo en tamaño real del circuito y las vistas previas no cambian.
 ### Arreglado
 
 - El nombre del componente en las formas predefinidas (por ejemplo «ALU 4 bits») se desbordaba del trapecio y tapaba los nombres de los pines. Ahora se achica y luego se acorta con «…» para caber en el espacio libre, en el editor, las vistas previas y el lienzo.

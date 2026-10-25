@@ -337,6 +337,48 @@ class ShapeCanvasTest {
         assertThat(draft.get().elements()).isEmpty();
     }
 
+    @Test
+    void theFitOnOpenLeavesTheBoxAtAboutSixtyPercentAndAComfortableZoom() {
+        ComponentDefinition definition = ShapeEditorPanelTest.definition();
+        AtomicReference<SymbolDraft> draft = new AtomicReference<>(SymbolDraft.of(ComponentAppearance.of(definition),
+                definition.pinout(), false).resizeBox(new GridSize(6, 8)));
+        ShapeCanvas canvas = new ShapeCanvas(definition, draft::get, draft::set, draft::set,
+                () -> ColorSchemes.LIGHT, () -> { });
+        canvas.setSize(790, 500);
+        paintInto(canvas);
+
+        assertThat(canvas.zoom()).isLessThanOrEqualTo(4);
+        assertThat(canvas.boxOnScreen().getHeight()).isLessThanOrEqualTo(0.6 * 500 + 1);
+        assertThat(canvas.boxOnScreen().getWidth()).isLessThanOrEqualTo(0.6 * 790 + 1);
+    }
+
+    @Test
+    void figureStrokesKeepTheirWidthOnScreenWhateverTheZoom() {
+        int atOne = strokeWidthOfTheLeftEdge(1);
+        int atFour = strokeWidthOfTheLeftEdge(4);
+        assertThat(atOne).isBetween(1, 3);
+        assertThat(atFour).isBetween(1, 3);
+        assertThat(Math.abs(atFour - atOne)).isLessThanOrEqualTo(1);
+    }
+
+    /** The run of ink across the left edge of a rectangle, low enough to be clear of every pin stub. */
+    private static int strokeWidthOfTheLeftEdge(double zoom) {
+        ComponentDefinition definition = ShapeEditorPanelTest.definition();
+        AtomicReference<SymbolDraft> draft = new AtomicReference<>(SymbolDraft.of(ComponentAppearance.of(definition),
+                definition.pinout(), false).applyTemplate(SymbolTemplates.Template.RECTANGLE));
+        ShapeCanvas canvas = canvas(definition, draft);
+        canvas.setZoom(zoom);
+        BufferedImage image = paintInto(canvas);
+        Rectangle2D box = canvas.boxOnScreen();
+        int y = (int) (box.getMaxY() - 4 * zoom);
+        int run = 0;
+        for (int x = (int) box.getMinX() - 8; x < box.getMinX() + 8; x++) {
+            java.awt.Color pixel = new java.awt.Color(image.getRGB(x, y));
+            if (pixel.getRed() + pixel.getGreen() + pixel.getBlue() < 3 * 128) { run++; }
+        }
+        return run;
+    }
+
     private static BufferedImage paintInto(ShapeCanvas canvas) {
         BufferedImage image = new BufferedImage(canvas.getWidth(), canvas.getHeight(), BufferedImage.TYPE_INT_ARGB);
         Graphics2D graphics = image.createGraphics();

@@ -77,7 +77,13 @@ final class ShapeCanvas extends JPanel {
     private static final int BOX_HANDLE_OFFSET = 18;
     private static final int FIT_SIDE_MARGIN = 64;
     private static final int FIT_VERTICAL_MARGIN = 64;
-    private static final double FIT_MAXIMUM_ZOOM = 6;
+    /** About 32 px per grid unit: the box looks comfortable, as in the mockup, however small it is. */
+    private static final double FIT_MAXIMUM_ZOOM = 4;
+    /** On open the box takes about this part of each side of the canvas. */
+    private static final double FIT_BOX_SHARE = 0.6;
+    /** Figure strokes and pin markers keep this size on screen whatever the zoom. */
+    private static final float SCREEN_STROKE_WIDTH = 1.6f;
+    private static final double SCREEN_PIN_RADIUS = 3;
     private final ComponentDefinition definition;
     private final Supplier<SymbolDraft> current;
     private final Consumer<SymbolDraft> publish;
@@ -168,7 +174,10 @@ final class ShapeCanvas extends JPanel {
         double boxHeight = size.height() * UNIT;
         double availableWidth = Math.max(1, getWidth() - 2.0 * FIT_SIDE_MARGIN);
         double availableHeight = Math.max(1, getHeight() - 2.0 * FIT_VERTICAL_MARGIN);
-        zoom = Math.clamp(Math.min(availableWidth / boxWidth, availableHeight / boxHeight), 0.25, FIT_MAXIMUM_ZOOM);
+        double sharedWidth = FIT_BOX_SHARE * getWidth() / boxWidth;
+        double sharedHeight = FIT_BOX_SHARE * getHeight() / boxHeight;
+        zoom = Math.clamp(Math.min(Math.min(availableWidth / boxWidth, availableHeight / boxHeight),
+                Math.min(sharedWidth, sharedHeight)), 0.25, FIT_MAXIMUM_ZOOM);
         originX = (getWidth() - boxWidth * zoom) / 2;
         originY = (getHeight() - boxHeight * zoom) / 2;
         fittedWidth = getWidth();
@@ -718,7 +727,8 @@ final class ShapeCanvas extends JPanel {
             }
             ComponentAppearance appearance = current.get().appearance();
             surface.translate(originX, originY); surface.scale(zoom, zoom);
-            paintAppearance(surface, definition, appearance, scheme, true);
+            paintAppearance(surface, definition, appearance, scheme, true, (float) (SCREEN_STROKE_WIDTH / zoom),
+                    SCREEN_PIN_RADIUS / (PainterSupport.PIN_DOT_RADIUS * zoom));
             surface.setColor(PainterSupport.withAlpha(scheme.text(), 130));
             surface.setStroke(new BasicStroke((float) (1 / zoom), BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER,
                     10, new float[]{(float) (5 / zoom)}, 0));
@@ -901,6 +911,12 @@ final class ShapeCanvas extends JPanel {
 
     static void paintAppearance(Graphics2D graphics, ComponentDefinition definition, ComponentAppearance appearance,
                                 ColorScheme scheme, boolean editing) {
+        paintAppearance(graphics, definition, appearance, scheme, editing, 1.6f, 1);
+    }
+
+    /** With {@code strokeWidth} and {@code pinScale} in local pixels: a zoomed view keeps them constant on screen. */
+    static void paintAppearance(Graphics2D graphics, ComponentDefinition definition, ComponentAppearance appearance,
+                                ColorScheme scheme, boolean editing, float strokeWidth, double pinScale) {
         ComponentType original = SubcircuitTypes.typeOf(definition);
         List<PinSpec> pins = new ArrayList<>();
         for (DefinitionPin pin : definition.pinout()) {
@@ -913,7 +929,8 @@ final class ShapeCanvas extends JPanel {
         if (appearance.drawing().isPresent()) {
             SymbolDrawing drawing = appearance.drawing().get();
             SymbolPainter.paint(graphics, type, editing
-                    ? new SymbolDrawing(drawing.size(), drawing.elements(), true) : drawing, scheme, definition.name());
-        } else { new SubcircuitPainter().paint(graphics, type, java.util.Map.of(), VisibleState.NONE, scheme); }
+                    ? new SymbolDrawing(drawing.size(), drawing.elements(), true) : drawing, scheme, definition.name(),
+                    strokeWidth, pinScale);
+        } else { SubcircuitPainter.paintDefaultBox(graphics, type, scheme, strokeWidth, pinScale); }
     }
 }
