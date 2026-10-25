@@ -50,6 +50,8 @@ import java.awt.RenderingHints;
 import java.awt.Shape;
 import java.awt.event.ActionEvent;
 import java.awt.event.MouseAdapter;
+import java.awt.event.KeyAdapter;
+import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseWheelEvent;
 import java.awt.geom.Ellipse2D;
@@ -120,6 +122,7 @@ final class ShapeCanvas extends JPanel {
     private int fittedWidth = -1;
     private int fittedHeight = -1;
     private Point pointer = new Point();
+    private Point lastDragPoint;
     private Optional<String> dragTip = Optional.empty();
 
     /** A pin sharing its connection point with another one: the editor refuses to accept this. */
@@ -152,6 +155,14 @@ final class ShapeCanvas extends JPanel {
         addMouseListener(mouse);
         addMouseMotionListener(mouse);
         addMouseWheelListener(mouse);
+        addKeyListener(new KeyAdapter() {
+            @Override public void keyPressed(KeyEvent event) {
+                if (event.getKeyCode() == KeyEvent.VK_SHIFT) { shiftChanged(true); }
+            }
+            @Override public void keyReleased(KeyEvent event) {
+                if (event.getKeyCode() == KeyEvent.VK_SHIFT) { shiftChanged(false); }
+            }
+        });
     }
 
     void setTool(ShapeTool selected) {
@@ -239,7 +250,7 @@ final class ShapeCanvas extends JPanel {
 
     void cancelOperation() {
         if (committedBeforeDrag != null) { preview.accept(committedBeforeDrag); }
-        pressed = null; dragging = null; beforeDrag = null; committedBeforeDrag = null; polygon.clear();
+        pressed = null; lastDragPoint = null; dragging = null; beforeDrag = null; committedBeforeDrag = null; polygon.clear();
         pinDragActive = false;
         dragTip = Optional.empty();
         if (textField != null) { remove(textField); textField = null; }
@@ -345,40 +356,59 @@ final class ShapeCanvas extends JPanel {
         }
     }
 
-    private void drag(MouseEvent event) {
+    private void drag(MouseEvent event) { drag(event.getPoint(), event.isShiftDown()); }
+
+    /** Shift pressed or released in the middle of a drag: the move is worked out again at the same pointer. */
+    private void shiftChanged(boolean shift) {
+        if (pressed != null && lastDragPoint != null && !panning) { drag(lastDragPoint, shift); }
+    }
+
+    private void drag(Point where, boolean shift) {
         if (pressed == null) { return; }
-        pointer = event.getPoint();
+        pointer = where;
+        lastDragPoint = where;
         if (panning) {
             fitPending = false;
-            originX += event.getX() - pressed.x; originY += event.getY() - pressed.y;
-            pressed = event.getPoint(); repaint(); return;
+            originX += where.x - pressed.x; originY += where.y - pressed.y;
+            pressed = where; repaint(); return;
         }
         if (tool == ShapeTool.POLYGON || tool == ShapeTool.TEXT || tool == ShapeTool.ADD_NODE) { return; }
-        SymbolPoint end = point(event);
+        SymbolPoint end = point(where);
         dragTip = Optional.empty();
         try {
             if (resizingBox) {
                 GridSize minimum = beforeDrag.minimumBoxSize();
                 int width = beforeDrag.appearance().size().width()
-                        + (int) Math.round((event.getX() - pressed.x) / zoom / UNIT);
+                        + (int) Math.round((where.x - pressed.x) / zoom / UNIT);
                 int height = beforeDrag.appearance().size().height()
-                        + (int) Math.round((event.getY() - pressed.y) / zoom / UNIT);
+                        + (int) Math.round((where.y - pressed.y) / zoom / UNIT);
                 dragging = beforeDrag.resizeBox(new GridSize(Math.max(minimum.width(), width),
                         Math.max(minimum.height(), height)));
                 dragTip = Optional.of(sizeTip(dragging.appearance().size().width(),
                         dragging.appearance().size().height(), false));
             } else if (handle.isPresent()) {
-                dragging = beforeDrag.scaleSelection(handle.get(), end, event.isShiftDown(), snap);
+                dragging = beforeDrag.scaleSelection(handle.get(), end, shift, snap);
                 dragTip = figureTip(dragging);
             } else if (pin.isPresent() && tool == ShapeTool.SELECT) {
                 if (beforeDrag.pinsLocked()) { return; }
                 pinDragActive = true;
-                dragging = beforeDrag.movePin(pin.get(), new GridPoint(
-                        (int) Math.round((event.getX() - originX) / zoom / UNIT),
-                        (int) Math.round((event.getY() - originY) / zoom / UNIT)));
+                GridPoint target = new GridPoint((int) Math.round((where.x - originX) / zoom / UNIT),
+                        (int) Math.round((where.y - originY) / zoom / UNIT));
+                if (shift) {
+                    GridPoint original = beforeDrag.appearance().pins().stream()
+                            .filter(placement -> placement.source().equals(pin.get())).findFirst().orElseThrow().offset();
+                    boolean horizontal = Math.abs(target.x() - original.x()) >= Math.abs(target.y() - original.y());
+                    target = horizontal ? new GridPoint(target.x(), original.y()) : new GridPoint(original.x(), target.y());
+                }
+                dragging = beforeDrag.movePin(pin.get(), target);
+                dragTip = Optional.of(Messages.text("shape.drag.axis"));
             } else if (tool == ShapeTool.NODES && nodeDrag && nodeIndex >= 0) {
-                dragging = control ? beforeDrag.moveControl(pathIndex, nodeIndex, end, snap)
-                        : beforeDrag.moveNode(pathIndex, nodeIndex, end, snap);
+                SymbolNode grabbed = ((SymbolPath) beforeDrag.elements().get(pathIndex)).nodes().get(nodeIndex);
+                SymbolPoint original = control ? grabbed.control().orElse(grabbed.point()) : grabbed.point();
+                SymbolPoint target = shift ? axisLocked(original, end) : end;
+                dragging = control ? beforeDrag.moveControl(pathIndex, nodeIndex, target, snap)
+                        : beforeDrag.moveNode(pathIndex, nodeIndex, target, snap);
+                dragTip = Optional.of(Messages.text("shape.drag.axis"));
             } else if (rubberBand) {
                 bandEnd = end;
                 Rectangle2D band = new Rectangle2D.Double(Math.min(start.x(), end.x()) / 8.0 * UNIT,
@@ -394,13 +424,15 @@ final class ShapeCanvas extends JPanel {
                 }
                 dragging = beforeDrag.select(selected);
             } else if (tool == ShapeTool.SELECT || tool == ShapeTool.NODES) {
-                dragging = beforeDrag.moveSelection(end.x() - start.x(), end.y() - start.y(), snap);
+                SymbolPoint moved = shift ? axisLocked(start, end) : end;
+                dragging = beforeDrag.moveSelection(moved.x() - start.x(), moved.y() - start.y(), snap);
+                dragTip = Optional.of(Messages.text("shape.drag.axis"));
             } else {
                 SymbolPath figure = switch (tool) {
-                    case LINE -> SymbolTemplates.line(start, end, event.isShiftDown());
-                    case RECTANGLE -> SymbolTemplates.rectangle(start, end, event.isShiftDown());
-                    case ELLIPSE -> SymbolTemplates.ellipse(start, end, event.isShiftDown());
-                    case TRIANGLE -> SymbolTemplates.triangle(start, end, event.isShiftDown());
+                    case LINE -> SymbolTemplates.line(start, end, shift);
+                    case RECTANGLE -> SymbolTemplates.rectangle(start, end, shift);
+                    case ELLIPSE -> SymbolTemplates.ellipse(start, end, shift);
+                    case TRIANGLE -> SymbolTemplates.triangle(start, end, shift);
                     default -> throw new IllegalStateException("Not a figure tool");
                 };
                 dragging = beforeDrag.addFigure(figure);
@@ -414,13 +446,19 @@ final class ShapeCanvas extends JPanel {
         }
     }
 
+    /** {@code target} kept only along the axis it is farthest from {@code origin} (horizontal on a tie). */
+    private static SymbolPoint axisLocked(SymbolPoint origin, SymbolPoint target) {
+        return Math.abs(target.x() - origin.x()) >= Math.abs(target.y() - origin.y())
+                ? new SymbolPoint(target.x(), origin.y()) : new SymbolPoint(origin.x(), target.y());
+    }
+
     private void release(MouseEvent event) {
         if (pressed == null) { return; }
         SymbolDraft completed = dragging;
         SymbolDraft original = committedBeforeDrag;
         dragTip = Optional.empty();
         pinDragActive = false;
-        pressed = null; beforeDrag = null; committedBeforeDrag = null; dragging = null;
+        pressed = null; lastDragPoint = null; beforeDrag = null; committedBeforeDrag = null; dragging = null;
         if (completed != null && original != null) {
             preview.accept(original);
             publish.accept(completed);
