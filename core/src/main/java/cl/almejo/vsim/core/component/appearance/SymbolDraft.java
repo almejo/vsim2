@@ -2,6 +2,7 @@ package cl.almejo.vsim.core.component.appearance;
 
 import cl.almejo.vsim.core.component.PinSpec;
 import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.core.document.NoteColor;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.GridSize;
 import cl.almejo.vsim.core.library.DefinitionPin;
@@ -237,12 +238,12 @@ public final class SymbolDraft {
         if (!closed) {
             nodes.set(nodes.size() - 1, new SymbolNode(nodes.getLast().point(), Optional.empty()));
         }
-        return replaceElement(pathIndex, new SymbolPath(nodes, closed, closed && path.filled()));
+        return replaceElement(pathIndex, path.reshaped(nodes, closed, closed && path.filled()));
     }
 
     public SymbolDraft closePath(int index) {
         SymbolPath path = path(index);
-        return replaceElement(index, new SymbolPath(path.nodes(), true, path.filled()));
+        return replaceElement(index, path.reshaped(path.nodes(), true, path.filled()));
     }
 
     /** The closed figure at {@code index} opened where it closed: its closing segment and its fill go. */
@@ -250,12 +251,20 @@ public final class SymbolDraft {
         SymbolPath path = path(index);
         List<SymbolNode> nodes = new ArrayList<>(path.nodes());
         nodes.set(nodes.size() - 1, new SymbolNode(nodes.getLast().point(), Optional.empty()));
-        return replaceElement(index, new SymbolPath(nodes, false, false));
+        return replaceElement(index, path.reshaped(nodes, false, false));
+    }
+
+    /** The figure at {@code index} with those fill and outline colours (a fill colour fills the figure). */
+    public SymbolDraft setFigureColours(int index, NoteColor fill, NoteColor line) {
+        SymbolPath path = path(index);
+        boolean filled = path.filled() || fill != NoteColor.NONE && path.closed();
+        return replaceElement(index, path.reshaped(path.nodes(), path.closed(), filled).coloured(
+                filled ? fill : NoteColor.NONE, line));
     }
 
     public SymbolDraft setFilled(int index, boolean filled) {
         SymbolPath path = path(index);
-        return replaceElement(index, new SymbolPath(path.nodes(), path.closed(), path.closed() && filled));
+        return replaceElement(index, path.reshaped(path.nodes(), path.closed(), path.closed() && filled));
     }
 
     public SymbolDraft showPinNames(boolean show) {
@@ -497,10 +506,10 @@ public final class SymbolDraft {
 
     private static SymbolElement mapElement(SymbolElement element, UnaryOperator<SymbolPoint> mapper) {
         return switch (element) {
-            case SymbolPath path -> new SymbolPath(path.nodes().stream().map(node ->
+            case SymbolPath path -> path.reshaped(path.nodes().stream().map(node ->
                     new SymbolNode(mapper.apply(node.point()), node.control().map(mapper))).toList(),
                     path.closed(), path.filled());
-            case SymbolText text -> new SymbolText(mapper.apply(text.anchor()), text.text(), text.size(), text.alignment());
+            case SymbolText text -> text.movedTo(mapper.apply(text.anchor()));
         };
     }
 
@@ -534,7 +543,7 @@ public final class SymbolDraft {
     }
 
     private SymbolDraft replacePath(int index, SymbolPath path, List<SymbolNode> nodes) {
-        return replaceElement(index, new SymbolPath(nodes, path.closed(), path.filled()));
+        return replaceElement(index, path.reshaped(nodes, path.closed(), path.filled()));
     }
 
     private SymbolPath path(int index) {

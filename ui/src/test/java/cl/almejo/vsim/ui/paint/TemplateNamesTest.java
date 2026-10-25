@@ -128,6 +128,37 @@ class TemplateNamesTest {
         assertThat(left[0]).isGreaterThanOrEqualTo(anchorColumn - 1);
     }
 
+    @Test
+    void everyLineOfARightAlignedTwoLineTextEndsAtTheAnchorAndTheBlockIsCentredOnIt() {
+        ComponentDefinition definition = definition(1, 2);
+        SymbolText text = new SymbolText(new SymbolPoint(40, 32), Optional.of("Salida\nA"), TextSize.SMALL,
+                TextAlignment.RIGHT);
+        boolean[] ink = ink(definition, only(text));
+        int anchorColumn = OFFSET + 40;
+        int anchorRow = OFFSET + 32;
+        int width = IMAGE_SIZE * 2;
+        int top = Integer.MAX_VALUE;
+        int bottom = -1;
+        int shortLineLastColumn = -1;
+        for (int index = 0; index < ink.length; index++) {
+            if (ink[index]) {
+                top = Math.min(top, index / width);
+                bottom = Math.max(bottom, index / width);
+            }
+        }
+        for (int index = 0; index < ink.length; index++) {
+            boolean secondLine = index / width > (top + bottom) / 2 + 1;
+            if (ink[index] && secondLine) {
+                shortLineLastColumn = Math.max(shortLineLastColumn, index % width);
+            }
+        }
+
+        assertThat(inkColumns(ink)[1]).isLessThanOrEqualTo(anchorColumn + 1);
+        assertThat(shortLineLastColumn).as("the short second line ends at the anchor too")
+                .isBetween(anchorColumn - 2, anchorColumn + 1);
+        assertThat((top + bottom) / 2.0).isCloseTo(anchorRow, org.assertj.core.data.Offset.offset(2.5));
+    }
+
     /** First and last column holding ink. */
     private static int[] inkColumns(boolean[] ink) {
         int width = IMAGE_SIZE * 2;

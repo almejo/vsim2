@@ -38,7 +38,10 @@ import java.util.Locale;
 import javax.swing.AbstractAction;
 import javax.swing.JComponent;
 import javax.swing.JPanel;
-import javax.swing.JTextField;
+import javax.swing.JTextArea;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
+import javax.swing.text.JTextComponent;
 import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
 import javax.swing.undo.UndoManager;
@@ -49,10 +52,13 @@ import java.awt.Font;
 import java.awt.FontMetrics;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
+import java.awt.Insets;
 import java.awt.Point;
 import java.awt.RenderingHints;
 import java.awt.Shape;
 import java.awt.event.ActionEvent;
+import java.awt.event.FocusAdapter;
+import java.awt.event.FocusEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
@@ -137,7 +143,11 @@ final class ShapeCanvas extends JPanel {
     private SymbolDraft committedBeforeDrag;
     private SymbolDraft dragging;
     private final List<SymbolPoint> pathNodes = new ArrayList<>();
-    private JTextField textField;
+    /** What a text line adds to the clickable area of a text, in document pixels. */
+    private static final double TEXT_LINE_HIT_HEIGHT = 20;
+    private static final int TEXT_AREA_WIDTH = 180;
+    private static final int TEXT_AREA_MARGIN = 3;
+    private JTextArea textArea;
     private int textIndex = -1;
     private boolean fitPending = true;
     private int fittedWidth = -1;
@@ -314,7 +324,7 @@ final class ShapeCanvas extends JPanel {
     }
 
     boolean operationActive() {
-        return pressed != null || !pathNodes.isEmpty() || textField != null;
+        return pressed != null || !pathNodes.isEmpty() || textArea != null;
     }
 
     boolean hasSelection() {
@@ -334,9 +344,9 @@ final class ShapeCanvas extends JPanel {
     void draftChanged() {
         insertion = Optional.empty();
         // A text being typed was started on an earlier draft: its element may no longer exist (undo, toolbar edit).
-        if (textField != null) {
-            remove(textField);
-            textField = null;
+        if (textArea != null) {
+            remove(textArea);
+            textArea = null;
             textIndex = -1;
         }
         if (pathIndex < 0 || pathIndex >= current.get().elements().size()
@@ -369,16 +379,19 @@ final class ShapeCanvas extends JPanel {
         pathNodes.clear();
         pinDragActive = false;
         dragTip = Optional.empty();
-        if (textField != null) {
-            remove(textField);
-            textField = null;
+        if (textArea != null && textArea.getText().isBlank()) {
+            finishText();
+        }
+        if (textArea != null) {
+            remove(textArea);
+            textArea = null;
         }
         repaint();
     }
 
     /** Enter: the text being typed is done; a multiline or polygon being drawn is finished (or dropped if too short). */
     void finishOperation() {
-        if (textField != null) {
+        if (textArea != null) {
             finishText();
             return;
         }
@@ -535,7 +548,7 @@ final class ShapeCanvas extends JPanel {
     }
 
     private void press(MouseEvent event) {
-        if (textField != null) {
+        if (textArea != null) {
             finishText();
         }
         pointer = event.getPoint();
@@ -1028,22 +1041,64 @@ final class ShapeCanvas extends JPanel {
     private void beginText(Point location, int index) {
         SymbolText existing = index >= 0 && current.get().elements().get(index) instanceof SymbolText found ? found : null;
         textIndex = existing == null ? -1 : index;
-        textField = new JTextField(existing == null ? "" : existing.text().orElse(""));
-        textField.putClientProperty("shape.anchor", existing == null ? point(location) : existing.anchor());
-        textField.setBounds(location.x, location.y - 12, 160, 26);
-        textField.addActionListener(event -> finishText());
-        bindTextUndo(textField);
-        add(textField);
-        textField.requestFocusInWindow();
-        textField.selectAll();
+        textArea = new JTextArea(existing == null ? "" : existing.text().orElse(""));
+        textArea.putClientProperty("shape.anchor", existing == null ? point(location) : existing.anchor());
+        textArea.setMargin(new Insets(TEXT_AREA_MARGIN, TEXT_AREA_MARGIN, TEXT_AREA_MARGIN, TEXT_AREA_MARGIN));
+        fitTextArea(location);
+        textArea.getDocument().addDocumentListener(new DocumentListener() {
+            @Override
+            public void insertUpdate(DocumentEvent event) {
+                fitTextArea(location);
+            }
+
+            @Override
+            public void removeUpdate(DocumentEvent event) {
+                fitTextArea(location);
+            }
+
+            @Override
+            public void changedUpdate(DocumentEvent event) {
+                fitTextArea(location);
+            }
+        });
+        textArea.addFocusListener(new FocusAdapter() {
+            @Override
+            public void focusLost(FocusEvent event) {
+                if (!event.isTemporary()) {
+                    finishText();
+                }
+            }
+        });
+        bindTextCommit(textArea);
+        bindTextUndo(textArea);
+        add(textArea);
+        textArea.requestFocusInWindow();
+        textArea.selectAll();
         repaint();
+    }
+
+    /** The area is as tall as its lines (Enter adds a line), so a text of several lines is never cut. */
+    private void fitTextArea(Point location) {
+        if (textArea == null) {
+            return;
+        }
+        int lines = Math.max(1, textArea.getLineCount());
+        int height = lines * textArea.getFontMetrics(textArea.getFont()).getHeight() + 2 * TEXT_AREA_MARGIN + 4;
+        textArea.setBounds(location.x, location.y - height / 2, TEXT_AREA_WIDTH, height);
+    }
+
+    /** Enter is a new line inside the text; Ctrl/Cmd+Enter says it is done (so do a click elsewhere and «Aceptar»). */
+    private void bindTextCommit(JTextComponent field) {
+        for (String modifier : new String[]{"ctrl", "meta"}) {
+            bindText(field, modifier + " ENTER", "commit", this::finishText);
+        }
     }
 
     /**
      * Ctrl/Cmd+Z, Y and D belong to the text while it is being typed: the dialog binds them on an ancestor, which would
      * otherwise undo or duplicate the draft under the field.
      */
-    private static void bindTextUndo(JTextField field) {
+    private static void bindTextUndo(JTextComponent field) {
         UndoManager history = new UndoManager();
         field.getDocument().addUndoableEditListener(history);
         for (String modifier : new String[]{"ctrl", "meta"}) {
@@ -1064,7 +1119,7 @@ final class ShapeCanvas extends JPanel {
         }
     }
 
-    private static void bindText(JTextField field, String key, String name, Runnable action) {
+    private static void bindText(JTextComponent field, String key, String name, Runnable action) {
         String binding = "shape.text." + name + "." + key;
         field.getInputMap(JComponent.WHEN_FOCUSED).put(KeyStroke.getKeyStroke(key), binding);
         field.getActionMap().put(binding, new AbstractAction() {
@@ -1076,20 +1131,32 @@ final class ShapeCanvas extends JPanel {
     }
 
     private void finishText() {
-        if (textField == null) {
+        if (textArea == null) {
             return;
         }
-        SymbolPoint anchor = (SymbolPoint) textField.getClientProperty("shape.anchor");
+        SymbolPoint anchor = (SymbolPoint) textArea.getClientProperty("shape.anchor");
         SymbolText existing = textIndex >= 0 && textIndex < current.get().elements().size()
                 && current.get().elements().get(textIndex) instanceof SymbolText found ? found : null;
         int index = existing == null ? -1 : textIndex;
-        String entered = textField.getText();
+        String entered = textArea.getText();
+        remove(textArea);
+        textArea = null;
+        boolean followsName = existing != null && existing.text().isEmpty() && entered.isEmpty();
+        if (entered.isBlank() && !followsName) {
+            // A text left blank is no text: a new one is never added, an old one goes with this same edit.
+            if (index >= 0) {
+                publish.accept(current.get().select(Set.of(index)).deleteSelection());
+            }
+            requestFocusInWindow();
+            repaint();
+            return;
+        }
         Optional<String> value = existing != null && entered.equals(existing.text().orElse(""))
                 ? existing.text() : Optional.of(entered);
-        SymbolText text = new SymbolText(anchor, value, existing == null ? TextSize.MEDIUM : existing.size(),
-                existing == null ? TextAlignment.LEFT : existing.alignment());
-        remove(textField);
-        textField = null;
+        SymbolText text = existing == null
+                ? new SymbolText(anchor, value, TextSize.MEDIUM, TextAlignment.LEFT)
+                : new SymbolText(anchor, value, existing.size(), existing.alignment(), existing.color(),
+                existing.border());
         publish.accept(index >= 0 ? current.get().editText(index, text) : nodeView().addText(text));
         requestFocusInWindow();
         repaint();
@@ -1137,8 +1204,9 @@ final class ShapeCanvas extends JPanel {
                 }
             } else if (element instanceof SymbolText text) {
                 Point anchor = screen(text.anchor().x(), text.anchor().y());
-                if (new Rectangle2D.Double(anchor.x - 40 * zoom, anchor.y - 10 * zoom,
-                        80 * zoom, 20 * zoom).contains(at)) {
+                double halfHeight = TEXT_LINE_HIT_HEIGHT * text.lines().size() / 2;
+                if (new Rectangle2D.Double(anchor.x - 40 * zoom, anchor.y - halfHeight * zoom,
+                        80 * zoom, 2 * halfHeight * zoom).contains(at)) {
                             return index;
                         }
             }
