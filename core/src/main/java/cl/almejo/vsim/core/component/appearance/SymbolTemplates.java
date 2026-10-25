@@ -64,9 +64,20 @@ public final class SymbolTemplates {
             default -> throw new IllegalArgumentException("Unsupported template " + template);
         }
         if (hasName(template)) {
-            elements.add(NamePlacement.nameText(size, body(template, width, height), name, pins));
+            Optional<String> fixedText = fixedText(template);
+            elements.add(NamePlacement.nameText(size, body(template, width, height), fixedText.orElse(name), pins,
+                    fixedText));
         }
         return Optional.of(new SymbolDrawing(size, elements, true));
+    }
+
+    /** The ALU and MUX trapezoids write their own short text (editable afterwards); the others follow the name. */
+    private static Optional<String> fixedText(Template template) {
+        return switch (template) {
+            case ALU -> Optional.of("ALU");
+            case MUX -> Optional.of("MUX");
+            default -> Optional.empty();
+        };
     }
 
     private static boolean hasName(Template template) {
