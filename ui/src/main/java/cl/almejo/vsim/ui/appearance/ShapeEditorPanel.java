@@ -204,7 +204,7 @@ public final class ShapeEditorPanel extends JPanel {
             all.addActionListener(event -> switchScope(ShapeEditScope.CIRCUIT_DEFINITION));
             scopeSegments.add(instance);
             scopeSegments.add(all);
-            bar.add(new SegmentedSwitch(instance, all));
+            bar.add(SegmentedSwitch.withNaturalWidths(instance, all));
         } else {
             scopeTitle.setText(ShapeEditorTexts.scopeTitle(scope));
             scopeTitle.putClientProperty("FlatLaf.style", "font: bold");

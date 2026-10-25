@@ -7,9 +7,11 @@ import javax.swing.JToggleButton;
 import javax.swing.UIManager;
 import java.awt.Color;
 import java.awt.Dimension;
+import java.awt.FlowLayout;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.GridLayout;
+import java.awt.LayoutManager;
 import java.awt.RenderingHints;
 import java.awt.geom.RoundRectangle2D;
 
@@ -25,7 +27,16 @@ public final class SegmentedSwitch extends JPanel {
     private final ButtonGroup group = new ButtonGroup();
 
     public SegmentedSwitch(JToggleButton... segments) {
-        super(new GridLayout(1, segments.length, 2, 0));
+        this(new GridLayout(1, segments.length, 2, 0), segments);
+    }
+
+    /** A switch whose segments each keep their own natural width (the equal-width one suits short, even labels). */
+    public static SegmentedSwitch withNaturalWidths(JToggleButton... segments) {
+        return new SegmentedSwitch(new FlowLayout(FlowLayout.LEADING, 2, 0), segments);
+    }
+
+    private SegmentedSwitch(LayoutManager layout, JToggleButton... segments) {
+        super(layout);
         setOpaque(false);
         setBorder(BorderFactory.createEmptyBorder(2, 2, 2, 2));
         for (JToggleButton segment : segments) {

@@ -32,6 +32,10 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 - El editor de formas incorpora Mover vista (H), con ícono de mano, para desplazar el lienzo con el botón izquierdo cuando el mouse no tiene botón central. También se puede usar Alt + arrastrar.
 - Agregar nodo (A) funciona como herramienta: resalta el segmento apuntado e inserta el nodo donde se hace clic, sin seleccionar otro nodo primero. La detección sigue las curvas y evita agregar puntos en segmentos alejados del cursor.
 
+### Cambiado
+
+- El interruptor «Solo esta pieza» | «Todas las piezas» del editor de formas da a cada opción su ancho natural, no el mismo ancho.
+
 ## Versión 0.3 — 2026-10-24
 
 ### Agregado
