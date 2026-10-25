@@ -56,9 +56,6 @@ import java.util.stream.Stream;
  */
 public final class PropertiesPanel extends JPanel {
 
-    /** A note's nine colours go in two rows (5 + 4), no wider than a frame's seven tints: the panel stays narrow. */
-    private static final int NOTE_SWATCHES_PER_ROW = 5;
-
     private final OpenDocument openDocument;
     private final Selection selection;
     private final SelectionMoves selectionMoves;
@@ -260,7 +257,8 @@ public final class PropertiesPanel extends JPanel {
         Map<NoteStyle.Role, ColorSwatches<NoteColor>> rows = new EnumMap<>(NoteStyle.Role.class);
         for (NoteStyle.Role role : NoteStyle.Role.values()) {
             List<NoteColor> colors = notes.stream().map(note -> note.style().color(role)).distinct().toList();
-            ColorSwatches<NoteColor> swatches = noteColorSwatches(role, colors.getFirst());
+            ColorSwatches<NoteColor> swatches = NoteColorSwatches.of(role, List.of(NoteColor.values()), colors.getFirst(),
+                    scheme);
             if (colors.size() > 1) {
                 swatches.showNoChoice();
             }
@@ -270,20 +268,6 @@ public final class PropertiesPanel extends JPanel {
             rows.put(role, swatches);
         }
         noteStyleRows = rows;
-    }
-
-    /**
-     * One swatch per note colour as {@code role} shows it on the board now: the fill of a background, the colour of a
-     * text or a border; «Ninguno» is the crossed-out swatch and the text's «Automático» the scheme's text colour.
-     */
-    private ColorSwatches<NoteColor> noteColorSwatches(NoteStyle.Role role, NoteColor selected) {
-        return new ColorSwatches<>(List.of(NoteColor.values()), selected, color -> NoteColorNames.of(role, color),
-                color -> switch (role) {
-                    case BACKGROUND -> scheme.get().noteBackground(color);
-                    case TEXT -> color == NoteColor.NONE ? Optional.of(scheme.get().text())
-                            : scheme.get().noteBorder(color);
-                    case BORDER -> scheme.get().noteBorder(color);
-                }, NOTE_SWATCHES_PER_ROW);
     }
 
     /** The swatches of {@code role} for the notes shown; null when no note is shown alone or with other notes only. */

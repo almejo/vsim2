@@ -6,6 +6,10 @@ import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.component.appearance.SymbolDrawing;
 import cl.almejo.vsim.core.component.appearance.SymbolPath;
 import cl.almejo.vsim.core.component.appearance.SymbolPoint;
+import cl.almejo.vsim.core.component.appearance.SymbolText;
+import cl.almejo.vsim.core.component.appearance.TextAlignment;
+import cl.almejo.vsim.core.component.appearance.TextSize;
+import cl.almejo.vsim.core.document.NoteColor;
 import cl.almejo.vsim.core.component.appearance.SymbolTemplates;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
@@ -153,6 +157,70 @@ class SymbolPainterTest {
             }
         }
         return first < 0 ? 0 : last - first + 1;
+    }
+
+    @Test
+    void aColouredFigureIsFilledAndOutlinedInThePaletteAndAPlainOneKeepsTheSchemesColours() {
+        SymbolPath plain = SymbolTemplates.rectangle(new SymbolPoint(8, 8), new SymbolPoint(40, 24), false);
+        SymbolPath coloured = plain.coloured(NoteColor.GREEN, NoteColor.PURPLE);
+        int centerX = OFFSET + 3 * GridPoint.PIXELS_PER_UNIT;
+        int centerY = OFFSET + 2 * GridPoint.PIXELS_PER_UNIT;
+        int edgeY = OFFSET + GridPoint.PIXELS_PER_UNIT - 1;
+
+        BufferedImage image = paint(new SymbolDrawing(SIZE, List.of(coloured), true), ColorSchemes.LIGHT, 0);
+        BufferedImage untouched = paint(new SymbolDrawing(SIZE, List.of(plain), true), ColorSchemes.LIGHT, 0);
+
+        assertThat(new Color(image.getRGB(centerX, centerY), true))
+                .isEqualTo(ColorSchemes.LIGHT.noteBackground(NoteColor.GREEN).orElseThrow());
+        assertThat(new Color(image.getRGB(centerX, edgeY), true))
+                .isEqualTo(ColorSchemes.LIGHT.noteBorder(NoteColor.PURPLE).orElseThrow());
+        assertThat(new Color(untouched.getRGB(centerX, centerY), true)).isEqualTo(ColorSchemes.LIGHT.componentFill());
+    }
+
+    @Test
+    void whenPrintingInBlackAndWhiteTheColoursAreLeftOut() {
+        SymbolPath coloured = SymbolTemplates.rectangle(new SymbolPoint(8, 8), new SymbolPoint(40, 24), false)
+                .coloured(NoteColor.GREEN, NoteColor.PURPLE);
+        SymbolText text = new SymbolText(new SymbolPoint(24, 16), Optional.of("Hola"), TextSize.MEDIUM,
+                TextAlignment.CENTER, NoteColor.BLUE, NoteColor.NONE);
+        ColorScheme paper = MonochromeScheme.of(ColorSchemes.LIGHT);
+        SymbolDrawing painted = new SymbolDrawing(SIZE, List.of(coloured, text), true);
+        SymbolDrawing plain = new SymbolDrawing(SIZE, List.of(
+                SymbolTemplates.rectangle(new SymbolPoint(8, 8), new SymbolPoint(40, 24), false),
+                new SymbolText(new SymbolPoint(24, 16), Optional.of("Hola"), TextSize.MEDIUM, TextAlignment.CENTER)),
+                true);
+
+        BufferedImage withColours = paint(painted, paper, 0);
+        BufferedImage without = paint(plain, paper, 0);
+
+        for (int y = 0; y < withColours.getHeight(); y++) {
+            for (int x = 0; x < withColours.getWidth(); x++) {
+                assertThat(withColours.getRGB(x, y)).as("pixel %d,%d", x, y).isEqualTo(without.getRGB(x, y));
+            }
+        }
+    }
+
+    @Test
+    void aTextBorderIsDrawnAroundTheTextBlock() {
+        SymbolText framed = new SymbolText(new SymbolPoint(24, 16), Optional.of("uno\ndos"), TextSize.SMALL,
+                TextAlignment.CENTER, NoteColor.NONE, NoteColor.BLUE);
+        SymbolText bare = new SymbolText(new SymbolPoint(24, 16), Optional.of("uno\ndos"), TextSize.SMALL,
+                TextAlignment.CENTER);
+
+        BufferedImage with = paint(new SymbolDrawing(SIZE, List.of(framed), true), ColorSchemes.LIGHT, 0);
+        BufferedImage without = paint(new SymbolDrawing(SIZE, List.of(bare), true), ColorSchemes.LIGHT, 0);
+
+        Color border = ColorSchemes.LIGHT.noteBorder(NoteColor.BLUE).orElseThrow();
+        int bordered = 0;
+        int plain = 0;
+        for (int y = 0; y < with.getHeight(); y++) {
+            for (int x = 0; x < with.getWidth(); x++) {
+                bordered += with.getRGB(x, y) == border.getRGB() ? 1 : 0;
+                plain += without.getRGB(x, y) == border.getRGB() ? 1 : 0;
+            }
+        }
+        assertThat(bordered).isGreaterThan(20);
+        assertThat(plain).isZero();
     }
 
     private static BufferedImage paintQuarterTurned(ComponentDefinition definition, SymbolDrawing drawing) {

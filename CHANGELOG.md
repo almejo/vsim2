@@ -26,6 +26,13 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 
 ### Agregado
 
+- Textos de varias líneas en el editor de formas: Enter agrega una línea y Ctrl+Enter (o un clic fuera) lo da por listo;
+  cada línea conserva la alineación y el área crece con las líneas.
+- Colores en las formas con la paleta de las notas: «Letra» y «Borde» para los textos, «Relleno» (sin rojo) y «Línea»
+  para las figuras; se adaptan al esquema, salen en blanco y negro al imprimir y se guardan como campos opcionales (los
+  archivos sin colores no cambian).
+- Un texto de una forma que queda vacío se quita, en el mismo paso de deshacer de la edición; un texto nuevo en el que
+  no escribiste desaparece al salir.
 - Texto del editor de formas con alineación «Derecha»: el punto donde hiciste clic es el borde derecho del texto.
 - Editor de formas para los componentes propios («Cambiar forma…», clic derecho en la pieza o en la paleta): dibuja con líneas, rectángulos, elipses, triángulos, polígonos y textos, edita nodos y curvas, mueve los pines y cambia el tamaño de la caja y de la figura por separado. «Formas ▾» da puntos de partida (predeterminada, rectángulo, cuadrado, círculo, triángulo, trapecios ALU y MUX con su texto, AND, OR, XOR). El cambio vale para «Solo esta pieza», «Todas las piezas» o la librería.
 - En el editor de formas, Mayús al mover limita el movimiento a horizontal o vertical; las flechas mueven la selección (Mayús+flecha, más lejos) y Supr la borra. Mover vista (H) y Agregar nodo (A) son herramientas; una muesca marca cada punto entero del borde de la caja y, al arrastrar un pin, se resaltan los puntos libres y los ocupados.
@@ -40,6 +47,8 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 
 ### Cambiado
 
+- En el editor de formas, Enter dentro de un texto agrega una línea (antes lo confirmaba); se confirma con Ctrl+Enter,
+  un clic fuera o «Aceptar».
 - Un componente propio solo queda con los pines bloqueados (y su actualización se rechaza) si una pieza colocada usa a otro componente que lo contiene; una copia sobrante de ese otro componente en el circuito, que nada usa, ya no bloquea ni dice «usado dentro de…».
 - Problemas nombra el pin entre comillas: «la salida «out» está desconectada» en lugar de «salida out desconectada».
 - En el editor de formas, cambiar el tamaño de la caja (con su control o con Ancho y Alto) sigue una sola regla: lo que toca el borde de la caja se mueve con ese borde (el rectángulo crece con la caja, la punta de un triángulo sigue en el borde derecho, el punto de control de una curva acompaña a su nodo) y lo demás queda centrado, moviéndose la mitad del cambio. Los pines de arriba y de abajo también se mueven la mitad, redondeado para seguir en la cuadrícula; los de los lados siguen en su borde. Antes el dibujo quedaba fijo en la esquina superior izquierda.

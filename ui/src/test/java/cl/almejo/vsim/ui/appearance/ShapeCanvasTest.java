@@ -25,7 +25,7 @@ import java.awt.Color;
 import org.junit.jupiter.api.Test;
 
 import javax.swing.JComponent;
-import javax.swing.JTextField;
+import javax.swing.JTextArea;
 import javax.swing.KeyStroke;
 import java.awt.Point;
 import java.awt.event.ActionEvent;
@@ -295,7 +295,7 @@ class ShapeCanvasTest {
         AtomicReference<SymbolDraft> draft = new AtomicReference<>(original);
         ShapeCanvas canvas = canvas(definition, draft);
         canvas.dispatchEvent(new MouseEvent(canvas, MouseEvent.MOUSE_CLICKED, 0, 0, 78, 78, 2, false, MouseEvent.BUTTON1));
-        JTextField field = (JTextField) canvas.getComponent(0);
+        JTextArea field = (JTextArea) canvas.getComponent(0);
         field.setText("dos");
 
         for (String key : new String[]{"ctrl Z", "ctrl Y", "ctrl D", "meta Z", "meta Y", "meta D", "ctrl shift Z"}) {
