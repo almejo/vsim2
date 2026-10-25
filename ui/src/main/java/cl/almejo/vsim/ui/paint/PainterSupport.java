@@ -20,6 +20,8 @@ import java.awt.geom.NoninvertibleTransformException;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 import java.awt.geom.RoundRectangle2D;
+import java.util.List;
+import java.util.Optional;
 
 /** Shared drawing style: shadowed bodies with screen-aligned light, round strokes, pin dots. */
 public final class PainterSupport {
@@ -32,6 +34,11 @@ public final class PainterSupport {
     private static final double SHADOW_DISTANCE = 2.0;
     /** The font of every text drawn by painters (sized per use); also for measuring a text before drawing it. */
     static final Font BASE_FONT = new Font(Font.SANS_SERIF, Font.BOLD, 10);
+    /** The distance between the baselines of two lines of a text, in sizes of its font. */
+    static final double LINE_HEIGHT = 1.2;
+    /** The air between a text and its border box, and the box's rounded corner, in local pixels. */
+    private static final double BORDER_PADDING = 2;
+    private static final double BORDER_CORNER = 4;
     static final double ALIGN_LEFT = 0;
     static final double ALIGN_CENTER = 0.5;
     static final double ALIGN_RIGHT = 1;
@@ -157,6 +164,43 @@ public final class PainterSupport {
             Rectangle2D textBounds = metrics.getStringBounds(text, upright);
             upright.drawString(text, (float) (anchorX - textBounds.getWidth() * alignment),
                     (float) (anchorY + (metrics.getAscent() - metrics.getDescent()) / 2.0));
+        } finally {
+            upright.dispose();
+        }
+    }
+
+    /** Where a block of text goes: its anchor, font size and the part of each line, from its left, on the anchor. */
+    record TextPlace(double anchorX, double anchorY, float size, double alignment) { }
+
+    /**
+     * The lines of a text upright on screen whatever the rotation, the block centred vertically on the anchor and
+     * every line keeping the alignment (a right-aligned text ends every line at the anchor), inside a rounded box of
+     * {@code border} when there is one. The same placement as {@link #uprightText} for a single line.
+     */
+    static void uprightLines(Graphics2D graphics, List<String> lines, Font font, TextPlace place, Color color,
+                             Optional<Color> border, float borderWidth) {
+        Graphics2D upright = (Graphics2D) graphics.create();
+        try {
+            upright.rotate(-quarterTurns(graphics) * Math.PI / 2, place.anchorX(), place.anchorY());
+            upright.setFont(font.deriveFont(place.size()));
+            FontMetrics metrics = upright.getFontMetrics();
+            double lineHeight = place.size() * LINE_HEIGHT;
+            double top = place.anchorY() - lines.size() * lineHeight / 2;
+            double widest = lines.stream().mapToDouble(line -> metrics.getStringBounds(line, upright).getWidth())
+                    .max().orElse(0);
+            border.ifPresent(borderColor -> {
+                upright.setColor(borderColor);
+                upright.setStroke(new BasicStroke(borderWidth));
+                upright.draw(new RoundRectangle2D.Double(place.anchorX() - widest * place.alignment() - BORDER_PADDING,
+                        top - BORDER_PADDING, widest + 2 * BORDER_PADDING,
+                        lines.size() * lineHeight + 2 * BORDER_PADDING, BORDER_CORNER, BORDER_CORNER));
+            });
+            upright.setColor(color);
+            for (int index = 0; index < lines.size(); index++) {
+                double width = metrics.getStringBounds(lines.get(index), upright).getWidth();
+                upright.drawString(lines.get(index), (float) (place.anchorX() - width * place.alignment()),
+                        (float) (top + (index + 0.5) * lineHeight + (metrics.getAscent() - metrics.getDescent()) / 2.0));
+            }
         } finally {
             upright.dispose();
         }

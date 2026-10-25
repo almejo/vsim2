@@ -407,7 +407,7 @@ final class EditPlanner {
         SymbolDraft draft = draftOf(operation, definition, instance.appearance()
                 .orElseGet(() -> ComponentAppearance.of(definition)), List.of());
         return ChangeAppearanceCommand.forInstance(candidate, registry, instance.id(),
-                Optional.of(draft.appearance()));
+                Optional.of(draft.storedAppearance()));
     }
 
     private ChangeAppearanceCommand shapeOfDefinition(SetComponentShape operation, ComponentDefinition definition) {
@@ -420,7 +420,8 @@ final class EditPlanner {
         }
         SymbolDraft draft = draftOf(effective, definition, ComponentAppearance.of(definition), parents);
         try {
-            return ChangeAppearanceCommand.forDefinition(candidate, registry, definition.id(), draft.appearance());
+            return ChangeAppearanceCommand.forDefinition(candidate, registry, definition.id(),
+                    draft.storedAppearance());
         } catch (UnsafeDefinitionUpdateException unsafe) {
             throw new AutomationException(AutomationError.INVALID_PARAMETER, definition.name() + " is used inside "
                     + String.join(", ", unsafe.containingNames()) + ": its pins and size cannot change; the "

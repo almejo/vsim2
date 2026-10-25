@@ -15,6 +15,7 @@ import cl.almejo.vsim.core.command.PasteCommand;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.core.document.NoteColor;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.GridSize;
 import cl.almejo.vsim.core.geometry.Rotation;
@@ -22,6 +23,7 @@ import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.DefinitionBundle;
 import cl.almejo.vsim.core.library.ExampleDefinitions;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.junit.jupiter.api.Test;
@@ -128,6 +130,42 @@ class AppearanceFilesTest {
                 .isInstanceOfSatisfying(CircuitFormatException.class,
                         exception -> assertThat(exception.reason())
                                 .isEqualTo(CircuitFormatException.Reason.INVALID_ELEMENT));
+    }
+
+    @Test
+    void coloursAndAMultilineTextRoundTripAndDefaultsStayOutOfTheFile() throws Exception {
+        SymbolPath path = new SymbolPath(List.of(new SymbolNode(new SymbolPoint(0, 0), Optional.empty()),
+                new SymbolNode(new SymbolPoint(32, 0), Optional.empty()),
+                new SymbolNode(new SymbolPoint(16, 32), Optional.empty())), true, true, NoteColor.GREEN,
+                NoteColor.PURPLE);
+        SymbolText text = new SymbolText(new SymbolPoint(16, 16), Optional.of("uno\ndos"), TextSize.MEDIUM,
+                TextAlignment.RIGHT, NoteColor.BLUE, NoteColor.GRAY);
+        SymbolDrawing coloured = new SymbolDrawing(new GridSize(4, 4), List.<SymbolElement>of(path, text), true);
+        ComponentDefinition definition = original.withAppearance(Optional.of(coloured));
+
+        String json = format.write(document(definition));
+
+        assertThat(format.read(json).definitions()).containsExactly(definition);
+        JsonNode elements = new ObjectMapper().readTree(json).path("definitions").get(0).path("appearance")
+                .path("elements");
+        assertThat(elements.get(0).path("fill").asText()).isEqualTo("green");
+        assertThat(elements.get(0).path("line").asText()).isEqualTo("purple");
+        assertThat(elements.get(1).path("color").asText()).isEqualTo("blue");
+        assertThat(elements.get(1).path("border").asText()).isEqualTo("gray");
+        assertThat(elements.get(1).path("text").asText()).isEqualTo("uno\ndos");
+        String plain = format.write(document(original.withAppearance(Optional.of(drawing()))));
+        assertThat(plain).doesNotContain("\"fill\"", "\"line\"", "\"color\"", "\"border\"");
+    }
+
+    @Test
+    void aRedFillInAFileIsAnElementError() throws Exception {
+        ObjectMapper mapper = new ObjectMapper();
+        ObjectNode tree = (ObjectNode) mapper.readTree(format.write(document(original.withAppearance(
+                Optional.of(drawing())))));
+        ObjectNode path = (ObjectNode) tree.path("definitions").get(0).path("appearance").path("elements").get(0);
+        path.put("fill", "red");
+        assertThatThrownBy(() -> format.read(tree.toString())).isInstanceOfSatisfying(CircuitFormatException.class,
+                exception -> assertThat(exception.reason()).isEqualTo(CircuitFormatException.Reason.INVALID_ELEMENT));
     }
 
     private CircuitDocument document(ComponentDefinition definition) {

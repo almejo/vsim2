@@ -8,14 +8,19 @@ import cl.almejo.vsim.core.component.appearance.SymbolPath;
 import cl.almejo.vsim.core.component.appearance.SymbolText;
 import cl.almejo.vsim.core.component.appearance.TextAlignment;
 import cl.almejo.vsim.core.component.appearance.TextSize;
+import cl.almejo.vsim.core.document.NoteColor;
+import cl.almejo.vsim.core.document.NoteStyle;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.GridSize;
 import cl.almejo.vsim.core.library.DefinitionPin;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.i18n.NoteColorNames;
 import cl.almejo.vsim.ui.icons.Icons;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.ColorSchemes;
+import cl.almejo.vsim.ui.panels.ColorSwatches;
+import cl.almejo.vsim.ui.panels.NoteColorSwatches;
 import cl.almejo.vsim.ui.shortcuts.ShortcutCatalog;
 import cl.almejo.vsim.ui.theme.ReadableColors;
 import cl.almejo.vsim.ui.theme.SegmentedSwitch;
@@ -65,6 +70,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
 
@@ -93,6 +99,8 @@ public final class ShapeEditorPanel extends JPanel {
     private final AppPreferences preferences;
     private final Supplier<ColorScheme> scheme;
     private final DraftHistory history;
+    /** The draft's appearance on opening (the default shape already as figures): «Aceptar» needs a change from it. */
+    private final ComponentAppearance openedAppearance;
     private SymbolDraft draft;
     private ShapeEditScope scope;
     private ShapeTool activeTool = ShapeTool.SELECT;
@@ -121,6 +129,13 @@ public final class ShapeEditorPanel extends JPanel {
     private final JComboBox<String> textAlignments = new JComboBox<>(new String[]{Messages.text("shape.text.left"),
             Messages.text("shape.text.center"), Messages.text("shape.text.right")});
     private final JCheckBox componentName = new JCheckBox(Messages.text("shape.text.componentName"));
+    private final ColorSwatches<NoteColor> textColors;
+    private final ColorSwatches<NoteColor> textBorders;
+    private final JPanel figureGroup = new JPanel(new MigLayout("wrap 2, insets 0 10 4 10, gap 6 4, hidemode 3",
+            "[][grow, fill]"));
+    private final ColorSwatches<NoteColor> figureFills;
+    private final ColorSwatches<NoteColor> figureLines;
+    private final ToneLabel figureFillLabel = plainLabel(Messages.text("shape.figure.fill"));
     private final JPanel previews = new JPanel(new MigLayout("insets 4 10 10 10, gap 8",
             "[grow, fill, sg card][grow, fill, sg card]", "[" + PREVIEW_HEIGHT + "!]"));
     private boolean refreshing;
@@ -132,9 +147,20 @@ public final class ShapeEditorPanel extends JPanel {
         this.request = request;
         this.preferences = preferences;
         this.scheme = scheme;
+        this.textColors = NoteColorSwatches.of(NoteStyle.Role.TEXT, List.of(NoteColor.values()), NoteColor.NONE, scheme);
+        this.textBorders = NoteColorSwatches.of(NoteStyle.Role.BORDER, List.of(NoteColor.values()), NoteColor.NONE,
+                scheme);
+        this.figureFills = NoteColorSwatches.of(NoteStyle.Role.BACKGROUND, SymbolPath.FILL_CHOICES, NoteColor.NONE,
+                scheme);
+        this.figureLines = NoteColorSwatches.of(NoteStyle.Role.BORDER, List.of(NoteColor.values()), NoteColor.NONE,
+                scheme);
+        for (ColorSwatches<NoteColor> swatches : List.of(textColors, textBorders, figureFills, figureLines)) {
+            swatches.setOpaque(false);
+        }
         this.scope = request.initialScope();
         this.draft = SymbolDraft.of(request.appearance(), request.definition().pinout(), locked(scope))
-                .withDefinitionName(request.definition().name());
+                .withDefinitionName(request.definition().name()).withDefaultShapeAsFigures();
+        this.openedAppearance = draft.appearance();
         this.history = new DraftHistory(draft);
         this.canvas = new ShapeCanvas(request.definition(), () -> draft, this::apply, this::preview, scheme,
                 this::refresh);
@@ -168,14 +194,15 @@ public final class ShapeEditorPanel extends JPanel {
         return draft.appearance();
     }
 
+    /** The edited appearance as it is stored: still the default shape for the final box means no own drawing. */
     public ShapeEditResult result() {
-        return new ShapeEditResult(scope, draft.appearance());
+        return new ShapeEditResult(scope, draft.storedAppearance());
     }
 
     /** A gesture in progress, another drawing or another scope than the one it opened with. */
     public boolean hasChanges() {
         return canvas.operationActive() || scope != request.initialScope()
-                || !draft.appearance().equals(request.appearance());
+                || !draft.appearance().equals(openedAppearance);
     }
 
     public boolean canAccept() {
@@ -306,6 +333,7 @@ public final class ShapeEditorPanel extends JPanel {
             }
         });
         side.add(pinNames, "gap 10 10 6 2");
+        side.add(figureGroup());
         side.add(textGroup());
         side.add(sectionTitle(Messages.text("shape.preview")), "gap 10 10 10 2");
         previews.setOpaque(false);
@@ -346,14 +374,37 @@ public final class ShapeEditorPanel extends JPanel {
         textGroup.add(textAlignments);
         componentName.setOpaque(false);
         textGroup.add(componentName, "span 2");
+        textGroup.add(plainLabel(NoteColorNames.of(NoteStyle.Role.TEXT)), "aligny top");
+        textGroup.add(textColors);
+        textGroup.add(plainLabel(NoteColorNames.of(NoteStyle.Role.BORDER)), "aligny top");
+        textGroup.add(textBorders);
+        textColors.addChoiceListener(() -> editSelectedText(text -> text.coloured(textColors.selectedValue(),
+                text.border())));
+        textBorders.addChoiceListener(() -> editSelectedText(text -> text.coloured(text.color(),
+                textBorders.selectedValue())));
         textSizes.addActionListener(event -> editSelectedText(text -> new SymbolText(text.anchor(), text.text(),
-                TextSize.values()[textSizes.getSelectedIndex()], text.alignment())));
+                TextSize.values()[textSizes.getSelectedIndex()], text.alignment(), text.color(), text.border())));
         textAlignments.addActionListener(event -> editSelectedText(text -> new SymbolText(text.anchor(), text.text(),
-                text.size(), TextAlignment.values()[textAlignments.getSelectedIndex()])));
+                text.size(), TextAlignment.values()[textAlignments.getSelectedIndex()], text.color(),
+                text.border())));
         componentName.addActionListener(event -> editSelectedText(text -> new SymbolText(text.anchor(),
                 componentName.isSelected() ? Optional.empty() : Optional.of(request.definition().name()),
-                text.size(), text.alignment())));
+                text.size(), text.alignment(), text.color(), text.border())));
         return textGroup;
+    }
+
+    private JComponent figureGroup() {
+        figureGroup.setOpaque(false);
+        figureGroup.add(sectionTitle(Messages.text("shape.figureGroup")), "span 2, gap 0 0 10 2");
+        figureGroup.add(figureFillLabel, "aligny top");
+        figureGroup.add(figureFills);
+        figureGroup.add(plainLabel(Messages.text("shape.figure.line")), "aligny top");
+        figureGroup.add(figureLines);
+        figureFills.addChoiceListener(() -> editSelectedFigures(path -> path.closed()
+                ? Optional.of(path.coloured(figureFills.selectedValue(), path.line())) : Optional.empty()));
+        figureLines.addChoiceListener(() -> editSelectedFigures(path ->
+                Optional.of(path.coloured(path.fill(), figureLines.selectedValue()))));
+        return figureGroup;
     }
 
     private JComponent footer() {
@@ -666,6 +717,42 @@ public final class ShapeEditorPanel extends JPanel {
         apply(edited);
     }
 
+    /** Recolours the selected figures; a figure for which {@code change} gives nothing is left as it is. */
+    private void editSelectedFigures(Function<SymbolPath, Optional<SymbolPath>> change) {
+        if (refreshing) {
+            return;
+        }
+        SymbolDraft edited = draft;
+        for (int index : draft.selection()) {
+            if (draft.elements().get(index) instanceof SymbolPath path) {
+                Optional<SymbolPath> changed = change.apply(path);
+                if (changed.isPresent()) {
+                    edited = edited.setFigureColours(index, changed.get().fill(), changed.get().line());
+                }
+            }
+        }
+        apply(edited);
+    }
+
+    private List<SymbolPath> selectedFigures() {
+        return draft.selection().stream().sorted().map(index -> draft.elements().get(index))
+                .filter(SymbolPath.class::isInstance).map(SymbolPath.class::cast).toList();
+    }
+
+    private List<SymbolText> selectedTexts() {
+        return draft.selection().stream().sorted().map(index -> draft.elements().get(index))
+                .filter(SymbolText.class::isInstance).map(SymbolText.class::cast).toList();
+    }
+
+    /** Shows the colour the selected elements share, or no choice when they differ. */
+    private static void showShared(ColorSwatches<NoteColor> swatches, List<NoteColor> colors) {
+        List<NoteColor> distinct = colors.stream().distinct().toList();
+        swatches.select(distinct.getFirst());
+        if (distinct.size() > 1) {
+            swatches.showNoChoice();
+        }
+    }
+
     private Optional<SymbolText> selectedText() {
         return draft.selection().stream().sorted().map(index -> draft.elements().get(index))
                 .filter(SymbolText.class::isInstance).map(SymbolText.class::cast).findFirst();
@@ -682,6 +769,7 @@ public final class ShapeEditorPanel extends JPanel {
             refreshScope();
             refreshSize();
             refreshTextGroup();
+            refreshFigureGroup();
             pins.show(pinRows());
             syncPinSelection();
             refreshMessages();
@@ -721,10 +809,31 @@ public final class ShapeEditorPanel extends JPanel {
             revalidate();
         }
         text.ifPresent(chosen -> {
+            List<SymbolText> texts = selectedTexts();
+            showShared(textColors, texts.stream().map(SymbolText::color).toList());
+            showShared(textBorders, texts.stream().map(SymbolText::border).toList());
             textSizes.setSelectedIndex(chosen.size().ordinal());
             textAlignments.setSelectedIndex(chosen.alignment().ordinal());
             componentName.setSelected(chosen.text().isEmpty());
         });
+    }
+
+    private void refreshFigureGroup() {
+        List<SymbolPath> figures = selectedFigures();
+        if (figureGroup.isVisible() != !figures.isEmpty()) {
+            figureGroup.setVisible(!figures.isEmpty());
+            revalidate();
+        }
+        if (figures.isEmpty()) {
+            return;
+        }
+        List<SymbolPath> closed = figures.stream().filter(SymbolPath::closed).toList();
+        figureFillLabel.setVisible(!closed.isEmpty());
+        figureFills.setVisible(!closed.isEmpty());
+        if (!closed.isEmpty()) {
+            showShared(figureFills, closed.stream().map(SymbolPath::fill).toList());
+        }
+        showShared(figureLines, figures.stream().map(SymbolPath::line).toList());
     }
 
     private List<PinTable.Row> pinRows() {
@@ -908,6 +1017,38 @@ public final class ShapeEditorPanel extends JPanel {
         return shownLines.stream().map(Line::text).toList();
     }
 
+    SymbolDraft draft() {
+        return draft;
+    }
+
+    ColorSwatches<NoteColor> textColors() {
+        return textColors;
+    }
+
+    ColorSwatches<NoteColor> textBorders() {
+        return textBorders;
+    }
+
+    JComboBox<String> textSizes() {
+        return textSizes;
+    }
+
+    JComboBox<String> textAlignments() {
+        return textAlignments;
+    }
+
+    ColorSwatches<NoteColor> figureFills() {
+        return figureFills;
+    }
+
+    ColorSwatches<NoteColor> figureLines() {
+        return figureLines;
+    }
+
+    boolean figureGroupVisible() {
+        return figureGroup.isVisible();
+    }
+
     boolean textGroupVisible() {
         return textGroup.isVisible();
     }
@@ -935,8 +1076,7 @@ public final class ShapeEditorPanel extends JPanel {
 
     String hintText() {
         return ShapeEditorTexts.hint(new ShapeEditorTexts.HintState(activeTool, canvas.selectedPin().isPresent(),
-                draft.pinsLocked(), draft.selection().size(), canvas.nodeSelected(),
-                draft.appearance().drawing().isPresent(), canvas.boxHandleActive()));
+                draft.pinsLocked(), draft.selection().size(), canvas.nodeSelected(), canvas.boxHandleActive()));
     }
 
     /** «Actual: Claro» and the other theme's default scheme («Oscuro»), as the two preview cards say. */
@@ -1066,8 +1206,9 @@ public final class ShapeEditorPanel extends JPanel {
             surface.drawString(caption, 6, (CAPTION_HEIGHT + metrics.getAscent() - metrics.getDescent()) / 2);
         }
 
+        /** As the circuit will show it: still the default shape, it is painted as the default box is. */
         private void paintComponentShape(Graphics2D surface, ColorScheme shown) {
-            ComponentAppearance appearance = draft.appearance();
+            ComponentAppearance appearance = draft.storedAppearance();
             double boxWidth = appearance.size().width() * GridPoint.PIXELS_PER_UNIT;
             double boxHeight = appearance.size().height() * GridPoint.PIXELS_PER_UNIT;
             double room = getHeight() - CAPTION_HEIGHT;

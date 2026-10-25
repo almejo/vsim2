@@ -26,6 +26,13 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 
 ### Agregado
 
+- Textos de varias líneas en el editor de formas: Enter agrega una línea y Ctrl+Enter (o un clic fuera) lo da por listo;
+  cada línea conserva la alineación y el área crece con las líneas.
+- Colores en las formas con la paleta de las notas: «Letra» y «Borde» para los textos, «Relleno» (sin rojo) y «Línea»
+  para las figuras; se adaptan al esquema, salen en blanco y negro al imprimir y se guardan como campos opcionales (los
+  archivos sin colores no cambian).
+- Un texto de una forma que queda vacío se quita, en el mismo paso de deshacer de la edición; un texto nuevo en el que
+  no escribiste desaparece al salir.
 - Texto del editor de formas con alineación «Derecha»: el punto donde hiciste clic es el borde derecho del texto.
 - Editor de formas para los componentes propios («Cambiar forma…», clic derecho en la pieza o en la paleta): dibuja con líneas, rectángulos, elipses, triángulos, polígonos y textos, edita nodos y curvas, mueve los pines y cambia el tamaño de la caja y de la figura por separado. «Formas ▾» da puntos de partida (predeterminada, rectángulo, cuadrado, círculo, triángulo, trapecios ALU y MUX con su texto, AND, OR, XOR). El cambio vale para «Solo esta pieza», «Todas las piezas» o la librería.
 - En el editor de formas, Mayús al mover limita el movimiento a horizontal o vertical; las flechas mueven la selección (Mayús+flecha, más lejos) y Supr la borra. Mover vista (H) y Agregar nodo (A) son herramientas; una muesca marca cada punto entero del borde de la caja y, al arrastrar un pin, se resaltan los puntos libres y los ocupados.
@@ -33,7 +40,7 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 - En el editor de formas, Multilínea (K) dibuja una línea abierta de varios tramos y Polígono (P) una figura siempre cerrada: un clic por nodo; doble clic, Enter o Esc terminan (Esc conserva los nodos puestos) y un clic en el primer nodo cierra la figura. Ctrl+Z mientras dibujas quita el último nodo. «Cerrar / Abrir figura» convierte una figura elegida de abierta a cerrada y al revés.
 - En el editor de formas, «Curvar tramo» (C) reemplaza al botón «Recto / Curvo»: resalta el tramo bajo el cursor, un clic en un tramo recto lo curva y, al arrastrar la curva desde cualquier punto, ese punto sigue al cursor. Ctrl+clic lo deja recto.
 - En el editor de formas, cada tramo curvo tiene dos manijas y los nodos son suaves o esquinas: al elegir un nodo con Nodos se ven sus manijas unidas por una línea que pasa por él; en un nodo suave, arrastrar una manija gira la otra al lado opuesto con el mismo largo, y con Alt se mueve sola (el nodo queda en esquina). Doble clic en el nodo cambia entre suave y esquina. Los tramos curvos se guardan como curvas cúbicas (`C`); los archivos con curvas anteriores (`Q`) se abren igual.
-- En el editor de formas, Ctrl mientras arrastras el control de la caja escala el dibujo con ella (y los pines, en la cuadrícula). La línea de ayuda dice si la forma todavía es la predeterminada, que sigue el tamaño de la caja, o si ya es un dibujo, en el que la caja y las figuras se cambian por separado.
+- En el editor de formas, Ctrl mientras arrastras el control de la caja escala todo el dibujo con ella (y los pines, en la cuadrícula).
 - Los cables siguen a los pines que cambian de lugar al cambiar la forma o al «Actualizar componente…» / «Actualizar desde la librería». Si un cable no puede seguir sin tocar otra red, una hoja lo explica y solo «Aplicar y conectar a mano» sigue adelante; los pines sueltos quedan marcados y en Problemas.
 - Avisos de conexiones pendientes dentro de los componentes propios: la pieza rota por dentro brilla en rojo y Problemas da la ruta completa hasta el pin suelto («A2 › A1 › AND: la entrada «B» está desconectada»); el terminal exterior cuyo pin de interfaz está suelto por dentro se marca en rojo. Se actualizan al editar, deshacer y reabrir, y no impiden guardar ni simular.
 - La IA (MCP) puede cambiar la forma de un componente propio, en una pieza o en todas: elige una de las formas predefinidas y la posición de los pines, en un solo paso de deshacer, y no lo hace si un cable no puede seguir a un pin sin tocar otra red. Al leer el circuito sabe qué piezas tienen forma propia.
@@ -41,13 +48,15 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 
 ### Cambiado
 
+- En el editor de formas, Enter dentro de un texto agrega una línea (antes lo confirmaba); se confirma con Ctrl+Enter,
+  un clic fuera o «Aceptar».
 - Un componente propio solo queda con los pines bloqueados (y su actualización se rechaza) si una pieza colocada usa a otro componente que lo contiene; una copia sobrante de ese otro componente en el circuito, que nada usa, ya no bloquea ni dice «usado dentro de…».
 - Problemas nombra el pin entre comillas: «la salida «out» está desconectada» en lugar de «salida out desconectada».
-- En el editor de formas, cambiar el tamaño de la caja (con su control o con Ancho y Alto) deja el dibujo centrado: se mueve la mitad del cambio, y los pines de arriba y de abajo también, redondeado para seguir en la cuadrícula; los pines de los lados siguen en su borde. Antes el dibujo quedaba fijo en la esquina superior izquierda.
+- En el editor de formas, cambiar el tamaño de la caja (con su control o con Ancho y Alto) sigue una sola regla: lo que toca el borde de la caja se mueve con ese borde (el rectángulo crece con la caja, la punta de un triángulo sigue en el borde derecho, el punto de control de una curva acompaña a su nodo) y lo demás queda centrado, moviéndose la mitad del cambio. Los pines de arriba y de abajo también se mueven la mitad, redondeado para seguir en la cuadrícula; los de los lados siguen en su borde. Antes el dibujo quedaba fijo en la esquina superior izquierda.
 - La IA (MCP) distingue un terminal exterior cuyo pin de interfaz está suelto por dentro (`INTERFACE_UNCONNECTED_INSIDE`) de un pin de compuerta suelto, y si pide mover un pin de un componente que se usa dentro de otro, VSim le dice dentro de cuál y que solo el dibujo puede cambiar.
 - Los textos «ALU» y «MUX» de los trapecios (y los textos de un dibujo en general) se ven en negrita, y el nombre de un pin del borde superior o inferior ya no se pisa con el contorno ni con el nombre de otro pin: se achica y, si no cabe dentro de la caja, se dibuja fuera, junto a su pin (nunca se oculta).
 - En el editor de formas, los textos de la forma predeterminada crecen con el zoom como los de las figuras; solo los trazos y las marcas de los pines mantienen un tamaño constante en pantalla.
-- En el editor de formas, dibujar la primera figura o el primer texto sobre la forma predeterminada ya no borra la caja: la convierte antes en la plantilla Rectángulo, con su título y su nombre.
+- En el editor de formas, la forma predeterminada aparece desde el principio como figuras de verdad (el rectángulo y el nombre), que se eligen y se editan con el primer clic; ya no se vuelve de golpe un dibujo aparte al tocar un nodo, y la línea de ayuda ya no habla de «forma predeterminada» y «dibujo». Al aceptar, si sigue igual a la forma predeterminada para la caja final, se guarda como forma predeterminada y sigue sus cambios futuros.
 - Al «Actualizar componente…», un pin nuevo se ubica en un punto libre del borde, nunca en una esquina; si no queda ninguno, la caja crece hacia abajo.
 - «Actualizar componente…» deja en su lugar los pines que siguen existiendo (sus cables quedan conectados) y ubica los nuevos en un punto libre; con «Actualizar desde la librería», los cables siguen a los pines que se movieron (en 0.3 se volvían a ubicar todos los pines y los cables quedaban sueltos). Si el componente se usa dentro de otro y sus pines o su tamaño cambian, no se actualiza nada: se conserva la copia anterior y VSim dice dentro de cuál componente se usa. Tampoco se actualiza si un pin nuevo quedaría sobre un cable o un pin.
 

@@ -39,7 +39,10 @@ import java.util.Locale;
 import javax.swing.AbstractAction;
 import javax.swing.JComponent;
 import javax.swing.JPanel;
-import javax.swing.JTextField;
+import javax.swing.JTextArea;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
+import javax.swing.text.JTextComponent;
 import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
 import javax.swing.undo.UndoManager;
@@ -50,10 +53,13 @@ import java.awt.Font;
 import java.awt.FontMetrics;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
+import java.awt.Insets;
 import java.awt.Point;
 import java.awt.RenderingHints;
 import java.awt.Shape;
 import java.awt.event.ActionEvent;
+import java.awt.event.FocusAdapter;
+import java.awt.event.FocusEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
@@ -148,7 +154,11 @@ final class ShapeCanvas extends JPanel {
     private SymbolDraft committedBeforeDrag;
     private SymbolDraft dragging;
     private final List<SymbolPoint> pathNodes = new ArrayList<>();
-    private JTextField textField;
+    /** What a text line adds to the clickable area of a text, in document pixels. */
+    private static final double TEXT_LINE_HIT_HEIGHT = 20;
+    private static final int TEXT_AREA_WIDTH = 180;
+    private static final int TEXT_AREA_MARGIN = 3;
+    private JTextArea textArea;
     private int textIndex = -1;
     private boolean fitPending = true;
     private int fittedWidth = -1;
@@ -326,7 +336,7 @@ final class ShapeCanvas extends JPanel {
     }
 
     boolean operationActive() {
-        return pressed != null || !pathNodes.isEmpty() || textField != null;
+        return pressed != null || !pathNodes.isEmpty() || textArea != null;
     }
 
     boolean hasSelection() {
@@ -335,7 +345,7 @@ final class ShapeCanvas extends JPanel {
 
     /** A node (not only a segment) is selected: the last node of an open path counts. */
     boolean nodeSelected() {
-        SymbolDraft view = nodeView();
+        SymbolDraft view = current.get();
         if (pathIndex < 0 || nodeIndex < 0 || pathIndex >= view.elements().size()) {
             return false;
         }
@@ -346,9 +356,9 @@ final class ShapeCanvas extends JPanel {
     void draftChanged() {
         insertion = Optional.empty();
         // A text being typed was started on an earlier draft: its element may no longer exist (undo, toolbar edit).
-        if (textField != null) {
-            remove(textField);
-            textField = null;
+        if (textArea != null) {
+            remove(textArea);
+            textArea = null;
             textIndex = -1;
         }
         if (pathIndex < 0 || pathIndex >= current.get().elements().size()
@@ -383,16 +393,19 @@ final class ShapeCanvas extends JPanel {
         handleDrag = Optional.empty();
         curving = Optional.empty();
         dragTip = Optional.empty();
-        if (textField != null) {
-            remove(textField);
-            textField = null;
+        if (textArea != null && textArea.getText().isBlank()) {
+            finishText();
+        }
+        if (textArea != null) {
+            remove(textArea);
+            textArea = null;
         }
         repaint();
     }
 
     /** Enter: the text being typed is done; a multiline or polygon being drawn is finished (or dropped if too short). */
     void finishOperation() {
-        if (textField != null) {
+        if (textArea != null) {
             finishText();
             return;
         }
@@ -486,7 +499,7 @@ final class ShapeCanvas extends JPanel {
     private void commitPath(boolean closed) {
         List<SymbolPoint> nodes = List.copyOf(pathNodes);
         pathNodes.clear();
-        publish.accept(nodeView().addFigure(SymbolTemplates.polygon(nodes, closed)));
+        publish.accept(current.get().addFigure(SymbolTemplates.polygon(nodes, closed)));
         repaint();
     }
 
@@ -532,22 +545,12 @@ final class ShapeCanvas extends JPanel {
         return path.nodes().get(nodeIndex).point();
     }
 
-    /** The default box exposes editable nodes, but becomes a custom figure only on an actual edit. */
-    private SymbolDraft nodeView() {
-        return withBoxAsFigure(current.get());
-    }
-
-    /** The default box as the Rectángulo template (box, title and name stay); any other drawing as it is. */
-    private static SymbolDraft withBoxAsFigure(SymbolDraft draft) {
-        return draft.appearance().drawing().isEmpty() ? draft.applyTemplate(SymbolTemplates.Template.RECTANGLE) : draft;
-    }
-
     private SymbolDraft nodeDraft() {
-        return nodeView().select(Set.of(pathIndex));
+        return current.get().select(Set.of(pathIndex));
     }
 
     private void press(MouseEvent event) {
-        if (textField != null) {
+        if (textArea != null) {
             finishText();
         }
         pointer = event.getPoint();
@@ -604,9 +607,7 @@ final class ShapeCanvas extends JPanel {
             if (hitNode(event.getPoint())) {
                 nodeDrag = true;
                 beforeDrag = nodeDraft();
-                if (current.get().appearance().drawing().isPresent()) {
-                    publish.accept(beforeDrag);
-                }
+                publish.accept(beforeDrag);
                 changed.run();
                 repaint();
                 return;
@@ -628,11 +629,9 @@ final class ShapeCanvas extends JPanel {
             }
             rubberBand = hit < 0;
             bandEnd = start;
-            SymbolDraft view = tool == ShapeTool.NODES ? nodeView() : current.get();
+            SymbolDraft view = current.get();
             beforeDrag = view.select(selection);
-            if (current.get().appearance().drawing().isPresent() || tool != ShapeTool.NODES) {
-                publish.accept(beforeDrag);
-            }
+            publish.accept(beforeDrag);
             if (tool == ShapeTool.NODES && hit >= 0 && view.elements().get(hit) instanceof SymbolPath) {
                 pathIndex = hit;
                 nodeIndex = hitSegment(hit, event.getPoint());
@@ -651,7 +650,7 @@ final class ShapeCanvas extends JPanel {
         if (target.isEmpty()) {
             return;
         }
-        SymbolDraft editing = nodeView().select(Set.of(target.get().pathIndex()));
+        SymbolDraft editing = current.get().select(Set.of(target.get().pathIndex()));
         if (event.isControlDown()) {
             SymbolPath path = (SymbolPath) editing.elements().get(target.get().pathIndex());
             if (path.nodes().get(target.get().segment()).curved()) {
@@ -681,7 +680,7 @@ final class ShapeCanvas extends JPanel {
         }
         if (tool == ShapeTool.CURVE) {
             return curveToolSegment().map(target -> segmentHandles(
-                    (SymbolPath) nodeView().elements().get(target.pathIndex()), target.segment())).orElse(List.of());
+                    (SymbolPath) current.get().elements().get(target.pathIndex()), target.segment())).orElse(List.of());
         }
         return List.of();
     }
@@ -699,7 +698,7 @@ final class ShapeCanvas extends JPanel {
         if (tool != ShapeTool.NODES || !handlesShown || !nodeSelected()) {
             return handles;
         }
-        SymbolPath path = (SymbolPath) nodeView().elements().get(pathIndex);
+        SymbolPath path = (SymbolPath) current.get().elements().get(pathIndex);
         for (HandleSide side : HandleSide.values()) {
             path.handle(nodeIndex, side).ifPresent(handle -> handles.put(side, handle));
         }
@@ -715,7 +714,7 @@ final class ShapeCanvas extends JPanel {
 
     /** The curved segment «Curvar tramo» shows the handles of: the one being bent, else the one under the pointer. */
     private Optional<SegmentRef> curveToolSegment() {
-        List<SymbolElement> elements = nodeView().elements();
+        List<SymbolElement> elements = current.get().elements();
         return (curving.isPresent() ? curving : curveTarget).filter(target -> target.pathIndex() < elements.size()
                 && elements.get(target.pathIndex()) instanceof SymbolPath path
                 && target.segment() < path.segmentCount() && path.nodes().get(target.segment()).curved());
@@ -862,7 +861,7 @@ final class ShapeCanvas extends JPanel {
                     case TRIANGLE -> SymbolTemplates.triangle(start, end, shift);
                     default -> throw new IllegalStateException("Not a figure tool");
                 };
-                dragging = withBoxAsFigure(beforeDrag).addFigure(figure);
+                dragging = beforeDrag.addFigure(figure);
                 dragTip = figureTip(dragging);
             }
             preview.accept(dragging);
@@ -874,13 +873,13 @@ final class ShapeCanvas extends JPanel {
     }
 
     /**
-     * The box under the dragged handle: with Ctrl and a drawing, the drawing scales with it; otherwise the drawing
-     * stays centred, never smaller than it allows.
+     * The box under the dragged handle: with Ctrl the whole drawing scales with it; otherwise what is on an edge moves
+     * with that edge and the rest stays centred ({@link SymbolDraft#resizeBox}), never smaller than it allows.
      */
     private SymbolDraft resizedBox(Point where) {
         int width = beforeDrag.appearance().size().width() + (int) Math.round((where.x - pressed.x) / zoom / UNIT);
         int height = beforeDrag.appearance().size().height() + (int) Math.round((where.y - pressed.y) / zoom / UNIT);
-        if (controlHeld && beforeDrag.appearance().drawing().isPresent()) {
+        if (controlHeld) {
             return beforeDrag.scaleBox(new GridSize(Math.max(1, width), Math.max(1, height)));
         }
         GridSize minimum = beforeDrag.minimumBoxSize();
@@ -955,9 +954,8 @@ final class ShapeCanvas extends JPanel {
                 return;
             }
             int figure = hitFigure(event.getPoint());
-            SymbolDraft view = tool == ShapeTool.NODES ? nodeView() : current.get();
-            if (figure >= 0 && view.elements().get(figure) instanceof SymbolText
-                    && current.get().appearance().drawing().isPresent()) {
+            SymbolDraft view = current.get();
+            if (figure >= 0 && view.elements().get(figure) instanceof SymbolText) {
                 beginText(event.getPoint(), figure);
             } else if (figure >= 0 && tool == ShapeTool.NODES && view.elements().get(figure) instanceof SymbolPath path) {
                 if (!path.closed() && path.nodes().size() >= 3
@@ -983,7 +981,7 @@ final class ShapeCanvas extends JPanel {
         if (node.isEmpty()) {
             return false;
         }
-        SymbolDraft view = nodeView();
+        SymbolDraft view = current.get();
         SymbolPath path = (SymbolPath) view.elements().get(node.get().pathIndex());
         if (!path.closed() && node.get().nodeIndex() == 0 && path.nodes().size() >= MINIMUM_CLOSED_NODES) {
             return false;
@@ -1016,7 +1014,7 @@ final class ShapeCanvas extends JPanel {
     }
 
     private void addNode(ShapeSegments.Hit hit) {
-        SymbolDraft editing = nodeView().select(Set.of(hit.pathIndex()));
+        SymbolDraft editing = current.get().select(Set.of(hit.pathIndex()));
         SymbolPath path = (SymbolPath) editing.elements().get(hit.pathIndex());
         if (path.nodes().size() >= SymbolPath.MAXIMUM_NODES) {
             refuse("shape.nodes.limit");
@@ -1030,7 +1028,7 @@ final class ShapeCanvas extends JPanel {
 
     /** Removes the node, unless the figure would fall below two nodes (three if it is closed): then says why. */
     private void removeNode(NodeHit hit) {
-        SymbolDraft editing = nodeView().select(Set.of(hit.pathIndex()));
+        SymbolDraft editing = current.get().select(Set.of(hit.pathIndex()));
         SymbolPath path = (SymbolPath) editing.elements().get(hit.pathIndex());
         int minimum = path.closed() ? MINIMUM_CLOSED_NODES : MINIMUM_OPEN_NODES;
         if (path.nodes().size() <= minimum) {
@@ -1050,7 +1048,7 @@ final class ShapeCanvas extends JPanel {
 
     /** The node of a figure under the pointer, the topmost figure first. */
     private Optional<NodeHit> nodeAt(Point at) {
-        List<SymbolElement> elements = nodeView().elements();
+        List<SymbolElement> elements = current.get().elements();
         for (int index = elements.size() - 1; index >= 0; index--) {
             if (!(elements.get(index) instanceof SymbolPath path)) {
                 continue;
@@ -1104,22 +1102,64 @@ final class ShapeCanvas extends JPanel {
     private void beginText(Point location, int index) {
         SymbolText existing = index >= 0 && current.get().elements().get(index) instanceof SymbolText found ? found : null;
         textIndex = existing == null ? -1 : index;
-        textField = new JTextField(existing == null ? "" : existing.text().orElse(""));
-        textField.putClientProperty("shape.anchor", existing == null ? point(location) : existing.anchor());
-        textField.setBounds(location.x, location.y - 12, 160, 26);
-        textField.addActionListener(event -> finishText());
-        bindTextUndo(textField);
-        add(textField);
-        textField.requestFocusInWindow();
-        textField.selectAll();
+        textArea = new JTextArea(existing == null ? "" : existing.text().orElse(""));
+        textArea.putClientProperty("shape.anchor", existing == null ? point(location) : existing.anchor());
+        textArea.setMargin(new Insets(TEXT_AREA_MARGIN, TEXT_AREA_MARGIN, TEXT_AREA_MARGIN, TEXT_AREA_MARGIN));
+        fitTextArea(location);
+        textArea.getDocument().addDocumentListener(new DocumentListener() {
+            @Override
+            public void insertUpdate(DocumentEvent event) {
+                fitTextArea(location);
+            }
+
+            @Override
+            public void removeUpdate(DocumentEvent event) {
+                fitTextArea(location);
+            }
+
+            @Override
+            public void changedUpdate(DocumentEvent event) {
+                fitTextArea(location);
+            }
+        });
+        textArea.addFocusListener(new FocusAdapter() {
+            @Override
+            public void focusLost(FocusEvent event) {
+                if (!event.isTemporary()) {
+                    finishText();
+                }
+            }
+        });
+        bindTextCommit(textArea);
+        bindTextUndo(textArea);
+        add(textArea);
+        textArea.requestFocusInWindow();
+        textArea.selectAll();
         repaint();
+    }
+
+    /** The area is as tall as its lines (Enter adds a line), so a text of several lines is never cut. */
+    private void fitTextArea(Point location) {
+        if (textArea == null) {
+            return;
+        }
+        int lines = Math.max(1, textArea.getLineCount());
+        int height = lines * textArea.getFontMetrics(textArea.getFont()).getHeight() + 2 * TEXT_AREA_MARGIN + 4;
+        textArea.setBounds(location.x, location.y - height / 2, TEXT_AREA_WIDTH, height);
+    }
+
+    /** Enter is a new line inside the text; Ctrl/Cmd+Enter says it is done (so do a click elsewhere and «Aceptar»). */
+    private void bindTextCommit(JTextComponent field) {
+        for (String modifier : new String[]{"ctrl", "meta"}) {
+            bindText(field, modifier + " ENTER", "commit", this::finishText);
+        }
     }
 
     /**
      * Ctrl/Cmd+Z, Y and D belong to the text while it is being typed: the dialog binds them on an ancestor, which would
      * otherwise undo or duplicate the draft under the field.
      */
-    private static void bindTextUndo(JTextField field) {
+    private static void bindTextUndo(JTextComponent field) {
         UndoManager history = new UndoManager();
         field.getDocument().addUndoableEditListener(history);
         for (String modifier : new String[]{"ctrl", "meta"}) {
@@ -1140,7 +1180,7 @@ final class ShapeCanvas extends JPanel {
         }
     }
 
-    private static void bindText(JTextField field, String key, String name, Runnable action) {
+    private static void bindText(JTextComponent field, String key, String name, Runnable action) {
         String binding = "shape.text." + name + "." + key;
         field.getInputMap(JComponent.WHEN_FOCUSED).put(KeyStroke.getKeyStroke(key), binding);
         field.getActionMap().put(binding, new AbstractAction() {
@@ -1152,21 +1192,33 @@ final class ShapeCanvas extends JPanel {
     }
 
     private void finishText() {
-        if (textField == null) {
+        if (textArea == null) {
             return;
         }
-        SymbolPoint anchor = (SymbolPoint) textField.getClientProperty("shape.anchor");
+        SymbolPoint anchor = (SymbolPoint) textArea.getClientProperty("shape.anchor");
         SymbolText existing = textIndex >= 0 && textIndex < current.get().elements().size()
                 && current.get().elements().get(textIndex) instanceof SymbolText found ? found : null;
         int index = existing == null ? -1 : textIndex;
-        String entered = textField.getText();
+        String entered = textArea.getText();
+        remove(textArea);
+        textArea = null;
+        boolean followsName = existing != null && existing.text().isEmpty() && entered.isEmpty();
+        if (entered.isBlank() && !followsName) {
+            // A text left blank is no text: a new one is never added, an old one goes with this same edit.
+            if (index >= 0) {
+                publish.accept(current.get().select(Set.of(index)).deleteSelection());
+            }
+            requestFocusInWindow();
+            repaint();
+            return;
+        }
         Optional<String> value = existing != null && entered.equals(existing.text().orElse(""))
                 ? existing.text() : Optional.of(entered);
-        SymbolText text = new SymbolText(anchor, value, existing == null ? TextSize.MEDIUM : existing.size(),
-                existing == null ? TextAlignment.LEFT : existing.alignment());
-        remove(textField);
-        textField = null;
-        publish.accept(index >= 0 ? current.get().editText(index, text) : nodeView().addText(text));
+        SymbolText text = existing == null
+                ? new SymbolText(anchor, value, TextSize.MEDIUM, TextAlignment.LEFT)
+                : new SymbolText(anchor, value, existing.size(), existing.alignment(), existing.color(),
+                existing.border());
+        publish.accept(index >= 0 ? current.get().editText(index, text) : current.get().addText(text));
         requestFocusInWindow();
         repaint();
     }
@@ -1185,7 +1237,7 @@ final class ShapeCanvas extends JPanel {
     private int hitFigure(Point at) {
         double x = (at.x - originX) / zoom;
         double y = (at.y - originY) / zoom;
-        List<SymbolElement> elements = (tool == ShapeTool.NODES ? nodeView() : current.get()).elements();
+        List<SymbolElement> elements = current.get().elements();
         for (int index = elements.size() - 1; index >= 0; index--) {
             SymbolElement element = elements.get(index);
             if (element instanceof SymbolPath path) {
@@ -1196,8 +1248,9 @@ final class ShapeCanvas extends JPanel {
                 }
             } else if (element instanceof SymbolText text) {
                 Point anchor = screen(text.anchor().x(), text.anchor().y());
-                if (new Rectangle2D.Double(anchor.x - 40 * zoom, anchor.y - 10 * zoom,
-                        80 * zoom, 20 * zoom).contains(at)) {
+                double halfHeight = TEXT_LINE_HIT_HEIGHT * text.lines().size() / 2;
+                if (new Rectangle2D.Double(anchor.x - 40 * zoom, anchor.y - halfHeight * zoom,
+                        80 * zoom, 2 * halfHeight * zoom).contains(at)) {
                             return index;
                         }
             }
@@ -1206,13 +1259,13 @@ final class ShapeCanvas extends JPanel {
     }
 
     private int hitSegment(int index, Point at) {
-        SymbolPath path = (SymbolPath) nodeView().elements().get(index);
+        SymbolPath path = (SymbolPath) current.get().elements().get(index);
         return ShapeSegments.find(List.of(path), localX(at), localY(at), HIT_RADIUS / zoom / UNIT * 8)
                 .map(ShapeSegments.Hit::segmentIndex).orElse(-1);
     }
 
     private Optional<ShapeSegments.Hit> segmentAt(Point at) {
-        return ShapeSegments.find(nodeView().elements(), localX(at), localY(at), HIT_RADIUS / zoom / UNIT * 8);
+        return ShapeSegments.find(current.get().elements(), localX(at), localY(at), HIT_RADIUS / zoom / UNIT * 8);
     }
 
     private double localX(Point point) {
@@ -1258,7 +1311,7 @@ final class ShapeCanvas extends JPanel {
             hoverCurve(event);
         } else if (isPathTool()) {
             setCursor(Cursor.getPredefinedCursor(Cursor.CROSSHAIR_CURSOR));
-            setToolTipText(ShapeEditorTexts.hint(new ShapeEditorTexts.HintState(tool, false, false, 0, false, true,
+            setToolTipText(ShapeEditorTexts.hint(new ShapeEditorTexts.HintState(tool, false, false, 0, false,
                     false)));
             repaint();
         } else if (tool == ShapeTool.PAN) {
@@ -1364,13 +1417,13 @@ final class ShapeCanvas extends JPanel {
         if (tool != ShapeTool.NODES && tool != ShapeTool.ADD_NODE || !nodeSelected()) {
             return Optional.empty();
         }
-        SymbolPath path = (SymbolPath) nodeView().elements().get(pathIndex);
+        SymbolPath path = (SymbolPath) current.get().elements().get(pathIndex);
         SymbolPoint point = chosenPoint(path);
         String coordinates = "(" + units(point.x()) + ", " + units(point.y()) + ")";
         if (!path.hasTwoHandles(nodeIndex)) {
             return Optional.of(coordinates);
         }
-        String kind = Messages.text(nodeView().smooth(pathIndex, nodeIndex) ? "shape.node.smooth" : "shape.node.corner");
+        String kind = Messages.text(current.get().smooth(pathIndex, nodeIndex) ? "shape.node.smooth" : "shape.node.corner");
         return Optional.of(Messages.format("shape.node.label", coordinates, kind));
     }
 
@@ -1385,10 +1438,10 @@ final class ShapeCanvas extends JPanel {
                 + Messages.text("shape.drag.shift"));
     }
 
-    /** «8 × 6» of the box and, below when there is a drawing, what Ctrl does to it. */
+    /** «8 × 6» of the box and, below, what Ctrl does to the drawing. */
     private String boxTip(SymbolDraft resized) {
-        String size = sizeTip(resized.appearance().size().width(), resized.appearance().size().height());
-        return resized.appearance().drawing().isPresent() ? size + "\n" + Messages.text("shape.drag.ctrl") : size;
+        return sizeTip(resized.appearance().size().width(), resized.appearance().size().height()) + "\n"
+                + Messages.text("shape.drag.ctrl");
     }
 
     private static String sizeTip(double width, double height) {
@@ -1645,7 +1698,7 @@ final class ShapeCanvas extends JPanel {
         dragTip.ifPresent(tip -> paintCallout(overlay, pointer,
                 tip.split("\n"), scheme.selection(), false, false));
         nodeLabel().ifPresent(label -> {
-            SymbolPoint point = chosenPoint((SymbolPath) nodeView().elements().get(pathIndex));
+            SymbolPoint point = chosenPoint((SymbolPath) current.get().elements().get(pathIndex));
             Point at = screen(point.x(), point.y());
             overlay.setFont(TextFonts.labelFont().deriveFont(Font.BOLD, 13f));
             FontMetrics metrics = overlay.getFontMetrics();
@@ -1714,7 +1767,7 @@ final class ShapeCanvas extends JPanel {
      * handles joined by a thin line through it, the line straight when the node is smooth.
      */
     private void paintNodes(Graphics2D surface) {
-        SymbolDraft view = nodeView();
+        SymbolDraft view = current.get();
         List<SymbolElement> elements = view.elements();
         Map<HandleSide, SymbolPoint> handles = chosenNodeHandles();
         if (!handles.isEmpty()) {
@@ -1771,7 +1824,7 @@ final class ShapeCanvas extends JPanel {
 
     private void paintInsertion(Graphics2D surface) {
         insertion.ifPresent(hit -> {
-            SymbolPath path = (SymbolPath) nodeView().elements().get(hit.pathIndex());
+            SymbolPath path = (SymbolPath) current.get().elements().get(hit.pathIndex());
             Shape segment = AffineTransform.getScaleInstance(UNIT / 8, UNIT / 8)
                     .createTransformedShape(ShapeSegments.shape(path, hit.segmentIndex()));
             surface.setColor(colors.get().selection());
@@ -1836,7 +1889,7 @@ final class ShapeCanvas extends JPanel {
      * curved (or while it is bent), its two handles, each joined to its node.
      */
     private void paintCurveTool(Graphics2D surface, ColorScheme scheme) {
-        List<SymbolElement> elements = nodeView().elements();
+        List<SymbolElement> elements = current.get().elements();
         if (curving.isEmpty()) {
             curveTarget.filter(target -> target.pathIndex() < elements.size()
                     && elements.get(target.pathIndex()) instanceof SymbolPath).ifPresent(target -> {
@@ -1876,7 +1929,7 @@ final class ShapeCanvas extends JPanel {
     /** The node a click would remove: filled and ringed in the problem colour, larger than the other nodes. */
     private void paintRemoval(Graphics2D surface, ColorScheme scheme) {
         removal.ifPresent(hit -> {
-            SymbolPoint point = ((SymbolPath) nodeView().elements().get(hit.pathIndex())).nodes()
+            SymbolPoint point = ((SymbolPath) current.get().elements().get(hit.pathIndex())).nodes()
                     .get(hit.nodeIndex()).point();
             double x = point.x() / 8.0 * UNIT;
             double y = point.y() / 8.0 * UNIT;

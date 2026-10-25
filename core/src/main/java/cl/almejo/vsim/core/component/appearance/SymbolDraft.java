@@ -2,6 +2,7 @@ package cl.almejo.vsim.core.component.appearance;
 
 import cl.almejo.vsim.core.component.PinSpec;
 import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.core.document.NoteColor;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.GridSize;
 import cl.almejo.vsim.core.library.DefinitionPin;
@@ -77,6 +78,49 @@ public final class SymbolDraft {
 
     public ComponentAppearance appearance() {
         return appearance;
+    }
+
+    /**
+     * The default shape (no own drawing) as the real figures it is drawn with ({@link SymbolTemplates#defaultShape}):
+     * the rectangle on the box edges and the component's name. The editor opens on this, so the shape can be chosen
+     * and edited from the first click; any other drawing is returned as it is.
+     */
+    public SymbolDraft withDefaultShapeAsFigures() {
+        return appearance.drawing().isPresent() ? this : withDrawing(defaultShape(), Set.of());
+    }
+
+    /**
+     * The appearance to store: a drawing equal to the default shape for the current box becomes no own drawing, so
+     * the component keeps following future changes of the default shape.
+     */
+    public ComponentAppearance storedAppearance() {
+        return isDefaultShape() ? new ComponentAppearance(appearance.size(), Optional.empty(), appearance.pins())
+                : appearance;
+    }
+
+    /** No own drawing, or a drawing equal to the default shape for the current box. */
+    private boolean isDefaultShape() {
+        return appearance.drawing().isEmpty() || appearance.drawing().equals(defaultShape());
+    }
+
+    private Optional<SymbolDrawing> defaultShape() {
+        return Optional.of(SymbolTemplates.defaultShape(appearance.size()));
+    }
+
+    /**
+     * {@code changed} (this draft with another box) still showing the default shape when this one showed it: the
+     * default for the new box, whose name keeps the default box's place, so an untouched default never turns into
+     * an own drawing.
+     */
+    private SymbolDraft keepingTheDefaultShape(SymbolDraft changed) {
+        if (appearance.drawing().isEmpty() || !isDefaultShape()) {
+            return changed;
+        }
+        return changed.withDrawing(changed.defaultShape(), changed.selection);
+    }
+
+    private SymbolDraft withDrawing(Optional<SymbolDrawing> drawing, Set<Integer> selected) {
+        return withAppearance(new ComponentAppearance(appearance.size(), drawing, appearance.pins()), selected);
     }
 
     public Set<Integer> selection() {
@@ -359,14 +403,14 @@ public final class SymbolDraft {
         if (!closed) {
             nodes.set(nodes.size() - 1, nodes.getLast().straightened());
         }
-        return replaceElement(pathIndex, new SymbolPath(nodes, closed, closed && path.filled()))
+        return replaceElement(pathIndex, path.reshaped(nodes, closed, closed && path.filled()))
                 .withSmoothChoices(choicesForNodes(pathIndex, node -> node == nodeIndex ? -1
                         : node > nodeIndex ? node - 1 : node));
     }
 
     public SymbolDraft closePath(int index) {
         SymbolPath path = path(index);
-        return replaceElement(index, new SymbolPath(path.nodes(), true, path.filled()));
+        return replaceElement(index, path.reshaped(path.nodes(), true, path.filled()));
     }
 
     /** The closed figure at {@code index} opened where it closed: its closing segment and its fill go. */
@@ -374,28 +418,36 @@ public final class SymbolDraft {
         SymbolPath path = path(index);
         List<SymbolNode> nodes = new ArrayList<>(path.nodes());
         nodes.set(nodes.size() - 1, nodes.getLast().straightened());
-        return replaceElement(index, new SymbolPath(nodes, false, false));
+        return replaceElement(index, path.reshaped(nodes, false, false));
+    }
+
+    /** The figure at {@code index} with those fill and outline colours (a fill colour fills the figure). */
+    public SymbolDraft setFigureColours(int index, NoteColor fill, NoteColor line) {
+        SymbolPath path = path(index);
+        boolean filled = path.filled() || fill != NoteColor.NONE && path.closed();
+        return replaceElement(index, path.reshaped(path.nodes(), path.closed(), filled).coloured(
+                filled ? fill : NoteColor.NONE, line));
     }
 
     public SymbolDraft setFilled(int index, boolean filled) {
         SymbolPath path = path(index);
-        return replaceElement(index, new SymbolPath(path.nodes(), path.closed(), path.closed() && filled));
+        return replaceElement(index, path.reshaped(path.nodes(), path.closed(), path.closed() && filled));
     }
 
     public SymbolDraft showPinNames(boolean show) {
-        Optional<SymbolDrawing> drawing = appearance.drawing().map(current ->
-                new SymbolDrawing(appearance.size(), current.elements(), show));
-        if (drawing.isEmpty() && !show) {
-            drawing = SymbolTemplates.drawing(SymbolTemplates.Template.RECTANGLE, appearance.size())
-                    .map(current -> new SymbolDrawing(current.size(), current.elements(), false));
+        if (appearance.drawing().isEmpty() && show) {
+            return this;
         }
-        return withAppearance(new ComponentAppearance(appearance.size(), drawing, appearance.pins()), selection);
+        Optional<SymbolDrawing> drawing = appearance.drawing().or(this::defaultShape).map(current ->
+                new SymbolDrawing(appearance.size(), current.elements(), show));
+        return withDrawing(drawing, selection);
     }
 
+    /** The template's figures; «Forma predeterminada» gives the default shape's (stored as no own drawing). */
     public SymbolDraft applyTemplate(SymbolTemplates.Template template) {
-        return withAppearance(new ComponentAppearance(appearance.size(),
-                SymbolTemplates.drawing(template, appearance.size(), definitionName, pinLabels()),
-                appearance.pins()), Set.of()).withSmoothChoices(Map.of());
+        return withDrawing(template == SymbolTemplates.Template.DEFAULT_BOX ? defaultShape()
+                : SymbolTemplates.drawing(template, appearance.size(), definitionName, pinLabels()), Set.of())
+                .withSmoothChoices(Map.of());
     }
 
     private List<SymbolTemplates.PinLabel> pinLabels() {
@@ -422,10 +474,13 @@ public final class SymbolDraft {
     }
 
     /**
-     * The box at {@code size}, its contents kept centred: the drawing moves by half the change (half units are fine
-     * for a drawing) and the pins by half rounded to whole units, so they stay on the grid; an odd change leaves the
-     * extra unit to the right or below them. A pin on an edge stays on that edge. Refused (an exception) when the
-     * drawing or a pin would fall outside, or two pins would meet.
+     * The box at {@code size}, with one rule for what touches its edges: a figure's node on an edge moves with that
+     * edge (the rectangle of the default shape grows with the box, a triangle's tip stays on the right edge), a
+     * control point moves with its node, and everything else stays centred, moving by half the change (half units
+     * are fine for a drawing). Pins move by half the change rounded to whole units, so they stay on the grid (an odd
+     * change leaves the extra unit to the right or below them); a pin on an edge stays on that edge. The default shape
+     * stays the default shape for the new box. Refused (an exception) when the drawing or a pin would fall outside,
+     * or two pins would meet.
      */
     public SymbolDraft resizeBox(GridSize size) {
         requireUnlocked();
@@ -436,13 +491,13 @@ public final class SymbolDraft {
         if (pins.stream().map(PinPlacement::offset).distinct().count() != pins.size()) {
             throw new IllegalArgumentException("Box resize would create coinciding pins");
         }
-        List<SymbolElement> elements = centredElements(size);
+        List<SymbolElement> elements = resizedElements(size);
         if (elements.stream().flatMap(element -> points(element).stream()).anyMatch(point -> !inside(point, size))) {
             throw new IllegalArgumentException("Box would cut the drawing");
         }
         Optional<SymbolDrawing> drawing = appearance.drawing().map(current ->
                 new SymbolDrawing(size, elements, current.showPinNames()));
-        return withAppearance(new ComponentAppearance(size, drawing, pins), selection);
+        return keepingTheDefaultShape(withAppearance(new ComponentAppearance(size, drawing, pins), selection));
     }
 
     /**
@@ -466,7 +521,7 @@ public final class SymbolDraft {
                         (int) Math.round(point.y() * vertical)))).toList();
         Optional<SymbolDrawing> drawing = appearance.drawing().map(current ->
                 new SymbolDrawing(size, elements, current.showPinNames()));
-        return withAppearance(new ComponentAppearance(size, drawing, pins), selection);
+        return keepingTheDefaultShape(withAppearance(new ComponentAppearance(size, drawing, pins), selection));
     }
 
     /**
@@ -497,7 +552,7 @@ public final class SymbolDraft {
         List<PinPlacement> pins = centredPins(size);
         return pins.stream().allMatch(pin -> inside(pin.offset(), size))
                 && pins.stream().map(PinPlacement::offset).distinct().count() == pins.size()
-                && centredElements(size).stream().flatMap(element -> points(element).stream())
+                && resizedElements(size).stream().flatMap(element -> points(element).stream())
                 .allMatch(point -> inside(point, size));
     }
 
@@ -505,11 +560,16 @@ public final class SymbolDraft {
     private List<PinPlacement> centredPins(GridSize size) {
         GridSize old = appearance.size();
         return appearance.pins().stream().map(pin -> new PinPlacement(pin.source(), new GridPoint(
-                centredPin(pin.offset().x(), old.width(), size.width()),
-                centredPin(pin.offset().y(), old.height(), size.height())))).toList();
+                followingTheEdges(pin.offset().x(), old.width(), size.width()),
+                followingTheEdges(pin.offset().y(), old.height(), size.height())))).toList();
     }
 
-    private static int centredPin(int coordinate, int oldExtent, int newExtent) {
+    /**
+     * One coordinate when its extent changes from {@code oldExtent} to {@code newExtent}: on an edge it stays on that
+     * edge, elsewhere it moves by half the change (rounded towards zero for pins in grid units; exact for figures in
+     * eighths, where half a unit is four eighths).
+     */
+    private static int followingTheEdges(int coordinate, int oldExtent, int newExtent) {
         if (coordinate == 0) {
             return 0;
         }
@@ -519,12 +579,55 @@ public final class SymbolDraft {
         return coordinate + (newExtent - oldExtent) / 2;
     }
 
-    /** Every element moved by half the change of the box, in eighths (exact: half a unit is four eighths). */
-    private List<SymbolElement> centredElements(GridSize size) {
-        int horizontal = (size.width() - appearance.size().width()) * SymbolPoint.EIGHTHS / 2;
-        int vertical = (size.height() - appearance.size().height()) * SymbolPoint.EIGHTHS / 2;
-        return elements().stream().map(element -> mapElement(element,
-                point -> new SymbolPoint(point.x() + horizontal, point.y() + vertical))).toList();
+    /** Every element at {@code size} by the rule of {@link #resizeBox}: texts centred, figures by their nodes. */
+    private List<SymbolElement> resizedElements(GridSize size) {
+        int width = size.width() * SymbolPoint.EIGHTHS;
+        int height = size.height() * SymbolPoint.EIGHTHS;
+        return elements().stream().map(element -> switch (element) {
+            case SymbolPath path -> resizedPath(path, width, height);
+            case SymbolText text -> mapElement(text, point -> new SymbolPoint(
+                    point.x() + (width - maximumX()) / 2, point.y() + (height - maximumY()) / 2));
+        }).toList();
+    }
+
+    /**
+     * A figure in a box of {@code width} × {@code height} eighths: a node on an edge moves with that edge, elsewhere it
+     * stays centred. A control point moves by as much as its node, so the curve leaves the node the same way (a
+     * quadratic's single control goes with the node that stores it; a cubic's first handle with the segment's start
+     * node and its second with its end node); a control coordinate on an edge follows that edge instead, which keeps it
+     * inside the box and a curve drawn to a corner (the AND gate's) still reaching that corner.
+     */
+    private SymbolPath resizedPath(SymbolPath path, int width, int height) {
+        List<SymbolPoint> moved = path.nodes().stream().map(node -> new SymbolPoint(
+                followingTheEdges(node.point().x(), maximumX(), width),
+                followingTheEdges(node.point().y(), maximumY(), height))).toList();
+        List<SymbolNode> nodes = new ArrayList<>();
+        for (int index = 0; index < path.nodes().size(); index++) {
+            SymbolNode node = path.nodes().get(index);
+            int next = (index + 1) % path.nodes().size();
+            UnaryOperator<SymbolPoint> withStart = withTheNode(node.point(), moved.get(index), width, height);
+            UnaryOperator<SymbolPoint> withEnd = withTheNode(path.nodes().get(next).point(), moved.get(next), width,
+                    height);
+            nodes.add(new SymbolNode(moved.get(index), node.curve().map(curve -> switch (curve) {
+                case SegmentCurve.Quadratic quadratic -> quadratic.map(withStart);
+                case SegmentCurve.Cubic cubic -> new SegmentCurve.Cubic(withStart.apply(cubic.first()),
+                        withEnd.apply(cubic.second()));
+            })));
+        }
+        return path.reshaped(nodes, path.closed(), path.filled());
+    }
+
+    /** A control point moved as its node moved from {@code original} to {@code moved}, or along a box edge. */
+    private UnaryOperator<SymbolPoint> withTheNode(SymbolPoint original, SymbolPoint moved, int width, int height) {
+        return control -> new SymbolPoint(
+                onAnEdge(control.x(), maximumX()) ? followingTheEdges(control.x(), maximumX(), width)
+                        : control.x() + moved.x() - original.x(),
+                onAnEdge(control.y(), maximumY()) ? followingTheEdges(control.y(), maximumY(), height)
+                        : control.y() + moved.y() - original.y());
+    }
+
+    private static boolean onAnEdge(int coordinate, int extent) {
+        return coordinate == 0 || coordinate == extent;
     }
 
     private static boolean inside(GridPoint offset, GridSize size) {
@@ -621,11 +724,15 @@ public final class SymbolDraft {
 
     private static SymbolElement mapElement(SymbolElement element, UnaryOperator<SymbolPoint> mapper) {
         return switch (element) {
-            case SymbolPath path -> new SymbolPath(path.nodes().stream().map(node ->
-                    new SymbolNode(mapper.apply(node.point()), node.curve().map(curve -> curve.map(mapper))))
-                    .toList(), path.closed(), path.filled());
-            case SymbolText text -> new SymbolText(mapper.apply(text.anchor()), text.text(), text.size(), text.alignment());
+            case SymbolPath path -> mapNodes(path, node ->
+                    new SymbolNode(mapper.apply(node.point()), node.curve().map(curve -> curve.map(mapper))));
+            case SymbolText text -> text.movedTo(mapper.apply(text.anchor()));
         };
+    }
+
+    /** The path with each node replaced by {@code mapper}'s, the rest of the figure as it was. */
+    private static SymbolPath mapNodes(SymbolPath path, UnaryOperator<SymbolNode> mapper) {
+        return path.reshaped(path.nodes().stream().map(mapper).toList(), path.closed(), path.filled());
     }
 
     private static List<SymbolPoint> points(SymbolElement element) {
@@ -714,7 +821,7 @@ public final class SymbolDraft {
         if (!smooth(pathIndex, nodeIndex)) {
             return;
         }
-        SymbolPath bent = new SymbolPath(nodes, before.closed(), before.filled());
+        SymbolPath bent = before.reshaped(nodes, before.closed(), before.filled());
         SymbolPoint point = bent.nodes().get(nodeIndex).point();
         SymbolPoint moved = bent.handle(nodeIndex, side).orElseThrow();
         double length = distance(point, moved);
@@ -802,7 +909,7 @@ public final class SymbolDraft {
     }
 
     private SymbolDraft replacePath(int index, SymbolPath path, List<SymbolNode> nodes) {
-        return replaceElement(index, new SymbolPath(nodes, path.closed(), path.filled()));
+        return replaceElement(index, path.reshaped(nodes, path.closed(), path.filled()));
     }
 
     private SymbolPath path(int index) {

@@ -18,13 +18,16 @@ import static org.assertj.core.api.Assertions.within;
 class SymbolDraftTest {
     private static final ElementId INPUT = new ElementId("input");
     private static final ElementId OUTPUT = new ElementId("output");
+    /** A rectangle clear of every edge of the 6 × 4 box, so a resize only centres it. */
+    private static final SymbolPath INNER_RECTANGLE = SymbolTemplates.rectangle(new SymbolPoint(8, 8),
+            new SymbolPoint(40, 24), false);
 
     @Test
-    void restoringTheDefaultBoxKeepsTheEditedPinsAndIsDifferentFromABlankDrawing() {
+    void restoringTheDefaultShapeKeepsTheEditedPinsAndIsDifferentFromABlankDrawing() {
         SymbolDraft changed = draft(false).movePin(INPUT, new GridPoint(0, 3))
                 .applyTemplate(SymbolTemplates.Template.ALU);
         SymbolDraft restored = changed.applyTemplate(SymbolTemplates.Template.DEFAULT_BOX);
-        assertThat(restored.appearance().drawing()).isEmpty();
+        assertThat(restored.storedAppearance().drawing()).isEmpty();
         assertThat(restored.appearance().pins()).contains(new PinPlacement(INPUT, new GridPoint(0, 3)));
         assertThat(restored.addFigure(SymbolTemplates.rectangle(new SymbolPoint(0, 0), new SymbolPoint(16, 16), false))
                 .deleteSelection().appearance().drawing()).isPresent();
@@ -53,13 +56,13 @@ class SymbolDraftTest {
     }
 
     @Test
-    void growingTheBoxByAnEvenAmountKeepsTheDrawingAndThePinsCentred() {
-        SymbolDraft original = draft(false).applyTemplate(SymbolTemplates.Template.SQUARE);
+    void growingTheBoxByAnEvenAmountKeepsAnInnerDrawingAndThePinsCentred() {
+        SymbolDraft original = draft(false).addFigure(INNER_RECTANGLE);
 
         SymbolDraft resized = original.resizeBox(new GridSize(8, 6));
 
-        assertThat(points(resized)).containsExactly(new SymbolPoint(16, 8), new SymbolPoint(48, 8),
-                new SymbolPoint(48, 40), new SymbolPoint(16, 40));
+        assertThat(points(resized)).containsExactly(new SymbolPoint(16, 16), new SymbolPoint(48, 16),
+                new SymbolPoint(48, 32), new SymbolPoint(16, 32));
         assertThat(resized.appearance().pins()).containsExactly(new PinPlacement(INPUT, new GridPoint(0, 3)),
                 new PinPlacement(OUTPUT, new GridPoint(8, 3)));
         assertThatThrownBy(() -> original.resizeBox(new GridSize(1, 1)))
@@ -68,13 +71,12 @@ class SymbolDraftTest {
 
     @Test
     void anOddChangeMovesTheDrawingHalfAUnitAndPutsTheExtraUnitRightAndBelowThePins() {
-        SymbolDraft original = draft(false).applyTemplate(SymbolTemplates.Template.SQUARE)
-                .movePin(INPUT, new GridPoint(3, 0));
+        SymbolDraft original = draft(false).addFigure(INNER_RECTANGLE).movePin(INPUT, new GridPoint(3, 0));
 
         SymbolDraft resized = original.resizeBox(new GridSize(7, 5));
 
-        assertThat(points(resized)).containsExactly(new SymbolPoint(12, 4), new SymbolPoint(44, 4),
-                new SymbolPoint(44, 36), new SymbolPoint(12, 36));
+        assertThat(points(resized)).containsExactly(new SymbolPoint(12, 12), new SymbolPoint(44, 12),
+                new SymbolPoint(44, 28), new SymbolPoint(12, 28));
         assertThat(resized.appearance().pins()).containsExactly(new PinPlacement(INPUT, new GridPoint(3, 0)),
                 new PinPlacement(OUTPUT, new GridPoint(7, 2)));
         assertThat(resized.resizeBox(new GridSize(6, 4)).appearance()).isEqualTo(original.appearance());

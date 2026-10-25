@@ -10,9 +10,12 @@ import cl.almejo.vsim.core.component.appearance.SymbolPath;
 import cl.almejo.vsim.core.component.appearance.SymbolPoint;
 import cl.almejo.vsim.core.component.appearance.SymbolText;
 import cl.almejo.vsim.core.component.appearance.TextAlignment;
+import cl.almejo.vsim.core.document.NoteColor;
+import cl.almejo.vsim.core.document.NoteStyle;
 import cl.almejo.vsim.core.geometry.GridPoint;
 
 import java.awt.BasicStroke;
+import java.awt.Color;
 import java.awt.Font;
 import java.awt.FontMetrics;
 import java.awt.Graphics2D;
@@ -42,7 +45,6 @@ public final class SymbolPainter {
     /** The space between the box edge and a pin name drawn outside it. */
     private static final double OUTSIDE_GAP = 2;
     private static final float[] NAME_SIZE_STEPS = {13f, 9f, 6f, 5f};
-    private static final double LINE_HEIGHT = 1.2;
     private static final String ELLIPSIS = "\u2026";
 
     private SymbolPainter() { }
@@ -58,6 +60,7 @@ public final class SymbolPainter {
      */
     public static void paint(Graphics2D graphics, ComponentType type, SymbolDrawing drawing, ColorScheme scheme,
                              String componentName, float strokeWidth, double pinScale) {
+        boolean monochrome = MonochromeScheme.isMonochrome(scheme);
         Graphics2D symbol = (Graphics2D) graphics.create();
         try {
             symbol.setStroke(new BasicStroke(strokeWidth, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
@@ -65,13 +68,13 @@ public final class SymbolPainter {
                 if (element instanceof SymbolPath path) {
                     Shape shape = insetByHalfTheStroke(path(path), drawing, strokeWidth);
                     if (path.filled()) {
-                        symbol.setColor(scheme.componentFill());
+                        symbol.setColor(fillColor(path, scheme, monochrome));
                         symbol.fill(shape);
                     }
-                    symbol.setColor(scheme.componentStroke());
+                    symbol.setColor(lineColor(path, scheme, monochrome));
                     symbol.draw(shape);
                 } else if (element instanceof SymbolText text) {
-                    paintText(symbol, text, componentName, type, drawing, scheme, strokeWidth);
+                    paintText(symbol, text, componentName, type, drawing, scheme, strokeWidth, monochrome);
                 }
             }
             for (PinSpec pin : type.pins()) {
@@ -80,6 +83,31 @@ public final class SymbolPainter {
             PainterSupport.pinDots(symbol, type, scheme, pinScale);
         } finally {
             symbol.dispose();
+        }
+    }
+
+    /** The fill of a figure: its palette colour (pale on a light board, deep on a dark one) or the scheme's own. */
+    private static Color fillColor(SymbolPath path, ColorScheme scheme, boolean monochrome) {
+        return monochrome ? scheme.componentFill() : scheme.noteBackground(path.fill()).orElse(scheme.componentFill());
+    }
+
+    /** The outline of a figure: its palette colour made readable on the board, or the scheme's own. */
+    private static Color lineColor(SymbolPath path, ColorScheme scheme, boolean monochrome) {
+        return monochrome ? scheme.componentStroke() : scheme.noteBorder(path.line()).orElse(scheme.componentStroke());
+    }
+
+    /**
+     * How a text is drawn: its letters and, when it has a border, the line of the box around it. On paper in black and
+     * white the letters and the border are the scheme's black, whatever the colours chosen.
+     */
+    private record TextLook(Color letters, Optional<Color> border) {
+        static TextLook of(SymbolText text, ColorScheme scheme, boolean monochrome) {
+            if (monochrome) {
+                return new TextLook(scheme.text(),
+                        text.border() == NoteColor.NONE ? Optional.empty() : Optional.of(scheme.text()));
+            }
+            return new TextLook(scheme.noteText(new NoteStyle(NoteColor.NONE, text.color(), NoteColor.NONE)),
+                    scheme.noteBorder(text.border()));
         }
     }
 
@@ -136,12 +164,13 @@ public final class SymbolPainter {
     }
 
     private static void paintText(Graphics2D graphics, SymbolText text, String name, ComponentType type,
-                                  SymbolDrawing drawing, ColorScheme scheme, float strokeWidth) {
+                                  SymbolDrawing drawing, ColorScheme scheme, float strokeWidth, boolean monochrome) {
+        TextLook look = TextLook.of(text, scheme, monochrome);
         if (text.text().isEmpty()) {
-            paintName(graphics, text, name, type, drawing, scheme, strokeWidth);
+            paintName(graphics, text, name, type, drawing, look, strokeWidth);
             return;
         }
-        String shown = text.text().get();
+        List<String> lines = text.lines();
         float size = switch (text.size()) {
             case SMALL -> 6f;
             case MEDIUM -> 9f;
@@ -153,12 +182,13 @@ public final class SymbolPainter {
         double available = (sideways ? drawing.size().height() : drawing.size().width()) * UNIT - 2;
         Font font = TextFonts.labelFont().deriveFont(Font.BOLD);
         FontMetrics metrics = graphics.getFontMetrics(font.deriveFont(size));
-        if (metrics.stringWidth(shown) > available) {
-            size = (float) Math.max(3, size * available / Math.max(1, metrics.stringWidth(shown)));
+        int widest = lines.stream().mapToInt(metrics::stringWidth).max().orElse(0);
+        if (widest > available) {
+            size = (float) Math.max(3, size * available / Math.max(1, widest));
         }
-        upright(graphics, shown, font, anchorX, anchorY, size,
-                anchorFraction(text.alignment()), scheme,
-                new Rectangle2D.Double(0, 0, drawing.size().width() * UNIT, drawing.size().height() * UNIT));
+        uprightBlock(graphics, lines, font, new PainterSupport.TextPlace(anchorX, anchorY, size, anchorFraction(text.alignment())), look,
+                strokeWidth, new Rectangle2D.Double(0, 0, drawing.size().width() * UNIT,
+                        drawing.size().height() * UNIT));
     }
 
     /**
@@ -167,7 +197,7 @@ public final class SymbolPainter {
      * run over an outline or a pin name; when not even that fits, nothing is drawn.
      */
     private static void paintName(Graphics2D graphics, SymbolText text, String name, ComponentType type,
-                                  SymbolDrawing drawing, ColorScheme scheme, float strokeWidth) {
+                                  SymbolDrawing drawing, TextLook look, float strokeWidth) {
         double anchorX = text.anchor().x() * COORDINATE_SCALE;
         double anchorY = text.anchor().y() * COORDINATE_SCALE;
         boolean sideways = PainterSupport.turnedSideways(graphics);
@@ -202,7 +232,8 @@ public final class SymbolPainter {
             smallest = step;
             Rectangle2D area = textArea(graphics, name, font, step, anchorX, anchorY, alignment, sideways);
             if (isFree(area, box, bodies, obstacles)) {
-                upright(graphics, name, font, anchorX, anchorY, step, alignment, scheme, box);
+                uprightBlock(graphics, List.of(name), font, new PainterSupport.TextPlace(anchorX, anchorY, step, alignment), look,
+                        strokeWidth, box);
                 return;
             }
         }
@@ -210,7 +241,8 @@ public final class SymbolPainter {
             String elided = name.substring(0, length).stripTrailing() + ELLIPSIS;
             Rectangle2D area = textArea(graphics, elided, font, smallest, anchorX, anchorY, alignment, sideways);
             if (isFree(area, box, bodies, obstacles)) {
-                upright(graphics, elided, font, anchorX, anchorY, smallest, alignment, scheme, box);
+                uprightBlock(graphics, List.of(elided), font, new PainterSupport.TextPlace(anchorX, anchorY, smallest, alignment), look,
+                        strokeWidth, box);
                 return;
             }
         }
@@ -239,7 +271,7 @@ public final class SymbolPainter {
     private static Rectangle2D textArea(Graphics2D graphics, String text, Font font, float size, double anchorX,
                                         double anchorY, double alignment, boolean sideways) {
         double width = graphics.getFontMetrics(font.deriveFont(size)).getStringBounds(text, graphics).getWidth();
-        double half = size * LINE_HEIGHT / 2;
+        double half = size * PainterSupport.LINE_HEIGHT / 2;
         return sideways
                 ? new Rectangle2D.Double(anchorX - half, anchorY - width / 2, 2 * half, width)
                 : new Rectangle2D.Double(anchorX - width * alignment, anchorY - half, width, 2 * half);
@@ -413,6 +445,18 @@ public final class SymbolPainter {
             }
         }
         return 0;
+    }
+
+    /** The lines of a text upright (see {@link PainterSupport#uprightLines}), nothing drawn outside {@code clip}. */
+    private static void uprightBlock(Graphics2D graphics, List<String> lines, Font font,
+                                     PainterSupport.TextPlace place, TextLook look, float strokeWidth, Shape clip) {
+        Graphics2D clipped = (Graphics2D) graphics.create();
+        try {
+            clipped.clip(clip);
+            PainterSupport.uprightLines(clipped, lines, font, place, look.letters(), look.border(), strokeWidth);
+        } finally {
+            clipped.dispose();
+        }
     }
 
     private static void upright(Graphics2D graphics, String text, Font font, double x, double y, float size,
