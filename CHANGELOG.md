@@ -34,6 +34,7 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 - Guía de pines en el editor de formas: una muesca en cada punto entero del borde de la caja y, mientras se arrastra un pin, los puntos libres resaltados (el más cercano, más fuerte) y los ocupados en rojo con un signo de «prohibido».
 - «Formas ▾» del editor de formas suma «Círculo», el círculo más grande centrado en la caja, y las diez formas de partida se muestran en una grilla de 5 × 2.
 - Mayús al mover en el editor de formas (figuras, nodos, puntos de curva y pines, arrastrando) fija el movimiento al eje dominante, horizontal o vertical; se puede apretar o soltar a mitad del arrastre, el cartel del arrastre lo recuerda y Mayús+clic sin arrastrar sigue agregando o quitando de la selección.
+- Teclado en el editor de formas: las flechas mueven lo elegido (figuras, textos, nodos y pines; con Mayús, cinco unidades) y Supr (o Retroceso) lo quita, salvo los pines. Siguen funcionando después de elegir una herramienta o una fila de la tabla PINES, y no se roban mientras se escribe en un campo de texto, un selector numérico o una lista desplegable. La línea de ayuda de la herramienta Seleccionar lo recuerda.
 
 ### Cambiado
 

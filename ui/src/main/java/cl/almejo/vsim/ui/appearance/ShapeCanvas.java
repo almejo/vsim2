@@ -87,6 +87,8 @@ final class ShapeCanvas extends JPanel {
     private static final float SCREEN_STROKE_WIDTH = 1.6f;
     private static final double SCREEN_PIN_RADIUS = 3;
     private static final int NOTCH_LENGTH = 4;
+    /** Shift and an arrow moves this many grid units, as in the main editor. */
+    private static final int FAR_STEP = 5;
     private final ComponentDefinition definition;
     private final Supplier<SymbolDraft> current;
     private final Consumer<SymbolDraft> publish;
@@ -273,21 +275,27 @@ final class ShapeCanvas extends JPanel {
         } else if (pin.isEmpty()) { publish.accept(current.get().deleteSelection()); }
     }
 
-    void moveSelection(int horizontal, int vertical) {
+    /** One arrow press: a grid unit for a pin, a magnet step (half a unit) for the rest. */
+    void moveSelection(int horizontal, int vertical) { moveSelection(horizontal, vertical, 1, 4); }
+
+    /** Shift and an arrow: the main editor's larger step, five grid units. */
+    void moveSelectionFar(int horizontal, int vertical) { moveSelection(horizontal, vertical, FAR_STEP, 8 * FAR_STEP); }
+
+    private void moveSelection(int horizontal, int vertical, int pinUnits, int eighths) {
         if (pin.isPresent()) {
             if (current.get().pinsLocked()) { return; }
             PinPlacement selected = current.get().appearance().pins().stream()
                     .filter(placement -> placement.source().equals(pin.get())).findFirst().orElseThrow();
-            publish.accept(current.get().movePin(pin.get(), new GridPoint(selected.offset().x() + horizontal,
-                    selected.offset().y() + vertical)));
+            publish.accept(current.get().movePin(pin.get(), new GridPoint(selected.offset().x() + horizontal * pinUnits,
+                    selected.offset().y() + vertical * pinUnits)));
         } else if ((tool == ShapeTool.NODES || tool == ShapeTool.ADD_NODE) && nodeIndex >= 0) {
             SymbolDraft editing = nodeDraft();
             SymbolNode node = ((SymbolPath) editing.elements().get(pathIndex)).nodes().get(nodeIndex);
             SymbolPoint point = control ? node.control().orElse(node.point()) : node.point();
-            SymbolPoint moved = new SymbolPoint(point.x() + horizontal * 4, point.y() + vertical * 4);
+            SymbolPoint moved = new SymbolPoint(point.x() + horizontal * eighths, point.y() + vertical * eighths);
             publish.accept(control ? editing.moveControl(pathIndex, nodeIndex, moved, snap)
                     : editing.moveNode(pathIndex, nodeIndex, moved, snap));
-        } else { publish.accept(current.get().moveSelection(horizontal * 4, vertical * 4, snap)); }
+        } else { publish.accept(current.get().moveSelection(horizontal * eighths, vertical * eighths, snap)); }
     }
 
     void toggleCurve() { if (segmentSelected()) { publish.accept(nodeDraft().toggleCurve(pathIndex, nodeIndex)); } }

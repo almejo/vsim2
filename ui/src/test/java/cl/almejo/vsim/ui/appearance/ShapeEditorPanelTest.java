@@ -310,7 +310,7 @@ class ShapeEditorPanelTest {
         action.actionPerformed(new ActionEvent(panel, ActionEvent.ACTION_PERFORMED, "enter"));
     }
 
-    private static List<AbstractButton> toolbarButtons(ShapeEditorPanel panel) {
+    static List<AbstractButton> toolbarButtons(ShapeEditorPanel panel) {
         return Arrays.stream(panel.toolbar().getComponents()).filter(AbstractButton.class::isInstance)
                 .map(AbstractButton.class::cast).toList();
     }

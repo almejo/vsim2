@@ -38,14 +38,18 @@ import javax.swing.JToggleButton;
 import javax.swing.JToolBar;
 import javax.swing.KeyStroke;
 import javax.swing.SpinnerNumberModel;
+import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
+import javax.swing.text.JTextComponent;
 import java.awt.BorderLayout;
 import java.awt.Color;
+import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.FontMetrics;
-import java.awt.Graphics;
 import java.awt.Graphics2D;
+import java.awt.Graphics;
 import java.awt.Insets;
+import java.awt.KeyboardFocusManager;
 import java.awt.RenderingHints;
 import java.awt.event.ActionEvent;
 import java.awt.event.ContainerAdapter;
@@ -103,6 +107,8 @@ public final class ShapeEditorPanel extends JPanel {
     private final JPanel messages = new Surface(new MigLayout("wrap 1, insets 6 10 6 10, gap 2", "[grow, fill]"));
     private List<Line> shownLines = List.of();
     private final PinTable pins = new PinTable();
+    private Supplier<Component> focusOwner = () -> KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner();
+    private int canvasFocusRequests;
     private final JSpinner width;
     private final JSpinner height;
     private final JCheckBox pinNames = new JCheckBox(Messages.text("shape.pinNames"));
@@ -238,6 +244,8 @@ public final class ShapeEditorPanel extends JPanel {
             if (!event.getValueIsAdjusting() && !refreshing && pins.getSelectedRow() >= 0) {
                 canvas.selectPin(request.definition().pinout().get(pins.getSelectedRow()).source());
                 refresh();
+                // The arrows move the pin that was just chosen: the keys must reach the canvas, not the table.
+                SwingUtilities.invokeLater(this::focusCanvas);
             }
         });
         side.add(sectionTitle(Messages.text("shape.size")), "gap 10 10 10 2");
@@ -373,7 +381,7 @@ public final class ShapeEditorPanel extends JPanel {
     private void chooseTool(ShapeTool tool) {
         activeTool = tool;
         canvas.setTool(tool);
-        canvas.requestFocusInWindow();
+        focusCanvas();
         refresh();
     }
 
@@ -467,11 +475,17 @@ public final class ShapeEditorPanel extends JPanel {
                 canvas.finishOperation();
             } else if (acceptable()) { onAccept.run(); }
         });
-        bind(KeyStroke.getKeyStroke("DELETE"), "delete", canvas::deleteSelection);
-        bind(KeyStroke.getKeyStroke("LEFT"), "left", () -> canvas.moveSelection(-1, 0));
-        bind(KeyStroke.getKeyStroke("RIGHT"), "right", () -> canvas.moveSelection(1, 0));
-        bind(KeyStroke.getKeyStroke("UP"), "up", () -> canvas.moveSelection(0, -1));
-        bind(KeyStroke.getKeyStroke("DOWN"), "down", () -> canvas.moveSelection(0, 1));
+        // The selection keys belong to the canvas: a text, a spinner or a combo box that has the focus keeps them.
+        bindSelectionKey(KeyStroke.getKeyStroke(KeyEvent.VK_DELETE, 0), "delete", canvas::deleteSelection);
+        bindSelectionKey(KeyStroke.getKeyStroke(KeyEvent.VK_BACK_SPACE, 0), "backspace", canvas::deleteSelection);
+        int[][] arrows = {{KeyEvent.VK_LEFT, -1, 0}, {KeyEvent.VK_RIGHT, 1, 0}, {KeyEvent.VK_UP, 0, -1},
+                {KeyEvent.VK_DOWN, 0, 1}};
+        for (int[] arrow : arrows) {
+            bindSelectionKey(KeyStroke.getKeyStroke(arrow[0], 0), "arrow" + arrow[0],
+                    () -> canvas.moveSelection(arrow[1], arrow[2]));
+            bindSelectionKey(KeyStroke.getKeyStroke(arrow[0], InputEvent.SHIFT_DOWN_MASK), "farArrow" + arrow[0],
+                    () -> canvas.moveSelectionFar(arrow[1], arrow[2]));
+        }
         bind(KeyStroke.getKeyStroke(KeyEvent.VK_Z, menu), "undo", this::undo);
         bind(KeyStroke.getKeyStroke(KeyEvent.VK_Y, menu), "redo", this::redo);
         // The main window's redo stroke works here too, so the hand does not have to switch habits.
@@ -479,6 +493,27 @@ public final class ShapeEditorPanel extends JPanel {
         bind(KeyStroke.getKeyStroke(KeyEvent.VK_D, menu), "duplicate", () -> apply(draft.duplicateSelection()));
         bind(KeyStroke.getKeyStroke(KeyEvent.VK_A, menu), "selectAll", () -> apply(draft.selectAll()));
     }
+
+    private void bindSelectionKey(KeyStroke stroke, String name, Runnable action) {
+        bind(stroke, name, () -> { if (canvasOwnsSelectionKeys()) { action.run(); } });
+    }
+
+    /** False while a text field, spinner or combo box has the focus: their arrows and deletes are theirs. */
+    private boolean canvasOwnsSelectionKeys() {
+        Component owner = focusOwner.get();
+        return owner == null || !(owner instanceof JTextComponent || owner instanceof JComboBox<?>
+                || SwingUtilities.getAncestorOfClass(JSpinner.class, owner) != null);
+    }
+
+    /** Test seam: who has the keyboard focus (the focus manager does not work on a window that is not showing). */
+    void focusOwner(Supplier<Component> owner) { focusOwner = owner; }
+
+    private void focusCanvas() {
+        canvasFocusRequests++;
+        canvas.requestFocusInWindow();
+    }
+
+    int canvasFocusRequests() { return canvasFocusRequests; }
 
     private void bind(KeyStroke stroke, String name, Runnable action) {
         getInputMap(WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(stroke, "shape." + name);
