@@ -162,6 +162,15 @@ class TemplateNamesTest {
                     paint(withoutSelect, new SymbolDrawing(SIZE, List.of(), false), zoom));
             assertThat(overlap(selectName, outline)).as("S over the outline at %dx", zoom).isZero();
             assertThat(overlap(selectName, otherNames)).as("S over another pin name at %dx", zoom).isZero();
+            assertThat(count(selectName)).as("S is drawn at %dx, never hidden", zoom).isPositive();
+            int width = IMAGE_SIZE * 2 * zoom;
+            int bottomEdgeRow = (OFFSET + SIZE.height() * 8) * zoom;
+            for (int index = 0; index < selectName.length; index++) {
+                if (selectName[index]) {
+                    assertThat(index / width).as("S ink is outside the box, below its bottom edge").isGreaterThanOrEqualTo(
+                            bottomEdgeRow);
+                }
+            }
         }
     }
 

@@ -38,6 +38,8 @@ public final class SymbolPainter {
     private static final float PIN_NAME_SIZE = 6f;
     private static final float MINIMUM_NAME_SIZE = 4f;
     private static final double NAME_INSET = 4;
+    /** The space between the box edge and a pin name drawn outside it. */
+    private static final double OUTSIDE_GAP = 2;
     private static final float[] NAME_SIZE_STEPS = {13f, 9f, 6f, 5f};
     private static final double LINE_HEIGHT = 1.2;
     private static final String ELLIPSIS = "\u2026";
@@ -292,7 +294,30 @@ public final class SymbolPainter {
                 return Optional.of(name);
             }
         }
-        return Optional.empty();
+        return Optional.of(outsideName(graphics, pin, pins, drawing));
+    }
+
+    /**
+     * A top or bottom pin's name that has no clear room inside the box: drawn outside, past the box edge next to its
+     * pin, at a size that fits between the neighbouring pins on that edge. It is never hidden.
+     */
+    private static PinName outsideName(Graphics2D graphics, PinSpec pin, List<PinSpec> pins, SymbolDrawing drawing) {
+        double x = pin.position().x() * UNIT;
+        double y = pin.position().y() * UNIT;
+        double height = drawing.size().height() * UNIT;
+        double outward = y <= height / 2 ? -1 : 1;
+        boolean sideways = PainterSupport.turnedSideways(graphics);
+        double gap = gapToNeighbours(pin, pins, false, drawing.size().width() * UNIT);
+        String text = SubcircuitPainter.pinText(pin);
+        float size = Math.min(PIN_NAME_SIZE, fittedSize(graphics, text, sideways ? PIN_NAME_SIZE * 4 : gap - 2));
+        FontMetrics metrics = graphics.getFontMetrics(TextFonts.labelFont().deriveFont(size));
+        // Upright on screen, so when the box is turned a quarter the text's width runs along the box's local y axis.
+        double extent = sideways ? metrics.stringWidth(text) / 2.0 : metrics.getAscent() / 2.0;
+        double anchorY = y + outward * (OUTSIDE_GAP + extent);
+        double margin = OUTSIDE_GAP + 2 * extent + 4;
+        Rectangle2D slot = new Rectangle2D.Double(x - Math.max(gap, UNIT) / 2, -margin,
+                Math.max(gap, UNIT), height + 2 * margin);
+        return new PinName(text, size, x, anchorY, 0.5, slot);
     }
 
     private static boolean isOnSide(PinSpec pin, SymbolDrawing drawing) {
