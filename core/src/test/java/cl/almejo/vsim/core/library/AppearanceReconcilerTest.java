@@ -42,8 +42,7 @@ class AppearanceReconcilerTest {
                 new PinPlacement(before.pinout().getFirst().source(), new GridPoint(0, 1)),
                 new PinPlacement(before.pinout().getLast().source(), new GridPoint(6, 5))));
 
-        ComponentAppearance reconciled = AppearanceReconciler.reconcile(before, after, Optional.of(override))
-                .kept().orElseThrow();
+        ComponentAppearance reconciled = AppearanceReconciler.reconcile(before, after, Optional.of(override)).orElseThrow();
 
         assertThat(reconciled.pins().getFirst()).isEqualTo(new PinPlacement(renamedSource, new GridPoint(0, 1)));
         assertThat(reconciled.pins().getLast().offset()).isEqualTo(new GridPoint(6, 5));
@@ -63,8 +62,7 @@ class AppearanceReconcilerTest {
                 new PinPlacement(before.pinout().getFirst().source(), new GridPoint(0, 1)),
                 new PinPlacement(before.pinout().getLast().source(), new GridPoint(4, 2))));
 
-        ComponentAppearance reconciled = AppearanceReconciler.reconcile(before, after, Optional.of(override))
-                .kept().orElseThrow();
+        ComponentAppearance reconciled = AppearanceReconciler.reconcile(before, after, Optional.of(override)).orElseThrow();
 
         assertThat(reconciled.pins()).hasSize(3);
         assertThat(reconciled.pins()).extracting(PinPlacement::offset).doesNotHaveDuplicates();
@@ -86,8 +84,7 @@ class AppearanceReconcilerTest {
                 new PinPlacement(before.pinout().getFirst().source(), new GridPoint(0, 2)),
                 new PinPlacement(before.pinout().getLast().source(), new GridPoint(6, 2))));
 
-        ComponentAppearance reconciled = AppearanceReconciler.reconcile(before, after, Optional.of(common))
-                .kept().orElseThrow();
+        ComponentAppearance reconciled = AppearanceReconciler.reconcile(before, after, Optional.of(common)).orElseThrow();
 
         PinPlacement added = reconciled.pins().getLast();
         assertThat(added.offset().y()).isStrictlyBetween(0, reconciled.size().height());
@@ -104,7 +101,7 @@ class AppearanceReconcilerTest {
                 new PinPlacement(before.pinout().getFirst().source(), new GridPoint(0, 1)),
                 new PinPlacement(before.pinout().getLast().source(), new GridPoint(0, 1))));
 
-        assertThat(AppearanceReconciler.reconcile(before, before, Optional.of(invalid)).kept()).isEmpty();
+        assertThat(AppearanceReconciler.reconcile(before, before, Optional.of(invalid))).isEmpty();
     }
 
     @Test

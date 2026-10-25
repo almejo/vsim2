@@ -84,7 +84,7 @@ final class PieceUpdatePlanner {
     private static ComponentAppearance oldShape(ComponentDefinition before, ComponentDefinition replacement,
                                                 Component piece) {
         ComponentAppearance current = piece.appearance().orElseGet(() -> ComponentAppearance.of(before));
-        return AppearanceReconciler.reconcile(before, replacement, Optional.of(current)).kept()
+        return AppearanceReconciler.reconcile(before, replacement, Optional.of(current))
                 .orElseThrow(() -> new IllegalStateException("the current shape of " + piece.id().value()
                         + " cannot take the new pins of " + replacement.id()));
     }
@@ -95,15 +95,15 @@ final class PieceUpdatePlanner {
         if (piece.appearance().isEmpty()) {
             return piece;
         }
-        AppearanceReconciler.ReconcileResult result = AppearanceReconciler.reconcile(before, replacement,
+        Optional<ComponentAppearance> kept = AppearanceReconciler.reconcile(before, replacement,
                 piece.appearance());
-        if (result.kept().isEmpty()) {
+        if (kept.isEmpty()) {
             notes.add(new UpdateNote("appearance.update.dropped", List.of(nameOf(piece))));
         } else {
             newPins(before, replacement).forEach(pin -> notes.add(new UpdateNote("appearance.update.newPinOwnShape",
                     List.of(nameOf(piece), pin.spec().name()))));
         }
-        return piece.withAppearance(result.kept());
+        return piece.withAppearance(kept);
     }
 
     /** Refuses the update when a new pin of a piece would land on a wire or on another pin (spec §6.4 rule). */

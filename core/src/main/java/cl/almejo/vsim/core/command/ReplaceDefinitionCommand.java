@@ -175,7 +175,7 @@ public final class ReplaceDefinitionCommand implements Command, LoosensPins {
         }
         ComponentAppearance original = component.appearance().orElseThrow().canonical(before.pinout());
         Optional<ComponentAppearance> kept = AppearanceReconciler.reconcile(before, replacement,
-                component.appearance()).kept();
+                component.appearance());
         ComponentAppearance after = kept.orElseGet(() -> ComponentAppearance.of(replacement));
         if (!sameGeometry(original, after)) {
             throw new UnsafeDefinitionUpdateException(replacement.id(), List.of(parent.name()));

@@ -122,7 +122,7 @@ final class AppearanceFeatures {
                     || libraryScope && !latestBundle.equals(librarySnapshot)) {
                 if (!prompts.reopenStale(view)) { return; }
                 draft = AppearanceReconciler.reconcile(starting, latest.get(), Optional.of(draft))
-                        .kept().orElseGet(() -> ComponentAppearance.of(latest.get()));
+                        .orElseGet(() -> ComponentAppearance.of(latest.get()));
                 starting = latest.get(); instance = latestInstance; librarySnapshot = latestBundle; continue;
             }
             ComponentAppearance originalEffective = instance.flatMap(Component::appearance)

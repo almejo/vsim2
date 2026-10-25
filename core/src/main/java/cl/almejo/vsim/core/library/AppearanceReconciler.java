@@ -19,14 +19,6 @@ import java.util.Set;
 
 /** Reconciles a complete instance override when its definition's interface identity changes. */
 public final class AppearanceReconciler {
-    /** A validated whole override, or empty to inherit the definition, with localizable explanation keys. */
-    public record ReconcileResult(Optional<ComponentAppearance> kept, List<String> messageKeys) {
-        public ReconcileResult {
-            Objects.requireNonNull(kept, "kept");
-            messageKeys = List.copyOf(messageKeys);
-        }
-    }
-
     private AppearanceReconciler() {
     }
 
@@ -40,8 +32,8 @@ public final class AppearanceReconciler {
         if (!before.id().equals(candidate.id())) {
             throw new IllegalArgumentException("appearance can only be retained for the same component identity");
         }
-        ReconcileResult result = reconcile(before, candidate, Optional.of(ComponentAppearance.of(before)));
-        ComponentAppearance appearance = result.kept().orElseGet(() -> ComponentAppearance.of(candidate));
+        ComponentAppearance appearance = reconcile(before, candidate, Optional.of(ComponentAppearance.of(before)))
+                .orElseGet(() -> ComponentAppearance.of(candidate));
         List<DefinitionPin> pins = new ArrayList<>();
         for (int index = 0; index < candidate.pinout().size(); index++) {
             DefinitionPin original = candidate.pinout().get(index);
@@ -53,26 +45,28 @@ public final class AppearanceReconciler {
                 pins, candidate.body(), appearance.drawing(), candidate.revision());
     }
 
-    /** Match by source first, then an unambiguous name/direction/width; never return a partially invalid override. */
-    public static ReconcileResult reconcile(ComponentDefinition before, ComponentDefinition after,
+    /**
+     * A validated whole override, or empty to inherit the definition. Match by source first, then an unambiguous
+     * name/direction/width; never return a partially invalid override.
+     */
+    public static Optional<ComponentAppearance> reconcile(ComponentDefinition before, ComponentDefinition after,
                                              Optional<ComponentAppearance> appearance) {
         Objects.requireNonNull(before, "before");
         Objects.requireNonNull(after, "after");
         Objects.requireNonNull(appearance, "appearance");
         if (appearance.isEmpty()) {
-            return new ReconcileResult(Optional.empty(), List.of());
+            return Optional.empty();
         }
         ComponentAppearance canonical;
         try {
             canonical = appearance.orElseThrow().canonical(before.pinout());
         } catch (IllegalArgumentException exception) {
-            return dropped();
+            return Optional.empty();
         }
         Map<ElementId, PinPlacement> placements = new HashMap<>();
         canonical.pins().forEach(pin -> placements.put(pin.source(), pin));
         List<PinPlacement> result = new ArrayList<>();
         List<DefinitionPin> newPins = new ArrayList<>();
-        List<String> messages = new ArrayList<>();
         List<Optional<DefinitionPin>> previousPins = previousPins(before, after);
         for (int index = 0; index < after.pinout().size(); index++) {
             DefinitionPin pin = after.pinout().get(index);
@@ -98,16 +92,15 @@ public final class AppearanceReconciler {
             }
             result.add(new PinPlacement(pin.source(), point));
             occupied.add(point);
-            messages.add("appearance.reconcile.newPin");
         }
         GridSize finalSize = size;
         Optional<SymbolDrawing> drawing = canonical.drawing().map(original ->
                 new SymbolDrawing(finalSize, original.elements(), original.showPinNames()));
         try {
             ComponentAppearance reconciled = new ComponentAppearance(size, drawing, result).canonical(after.pinout());
-            return new ReconcileResult(Optional.of(reconciled), messages);
+            return Optional.of(reconciled);
         } catch (IllegalArgumentException exception) {
-            return dropped();
+            return Optional.empty();
         }
     }
 
@@ -165,9 +158,5 @@ public final class AppearanceReconciler {
             }
         }
         return Optional.empty();
-    }
-
-    private static ReconcileResult dropped() {
-        return new ReconcileResult(Optional.empty(), List.of("appearance.reconcile.dropped"));
     }
 }
