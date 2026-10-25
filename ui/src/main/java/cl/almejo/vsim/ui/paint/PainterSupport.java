@@ -61,6 +61,11 @@ public final class PainterSupport {
 
     /** Like {@link #body(Graphics2D, Shape, ColorScheme)} but with a flat fill when {@code flatFill} is not null. */
     static void body(Graphics2D graphics, Shape shape, ColorScheme scheme, Color flatFill) {
+        body(graphics, shape, scheme, flatFill, STROKE);
+    }
+
+    /** Like the flat-fill overload with an explicit outline stroke (a zoomed view keeps its width on screen). */
+    static void body(Graphics2D graphics, Shape shape, ColorScheme scheme, Color flatFill, BasicStroke stroke) {
         Point2D shadowOffset = localDirection(graphics, 1, 1, SHADOW_DISTANCE);
         graphics.setColor(scheme.shadow());
         graphics.fill(AffineTransform.getTranslateInstance(shadowOffset.getX(), shadowOffset.getY())
@@ -76,12 +81,16 @@ public final class PainterSupport {
                     (float) (box.getCenterX() + down.getX()), (float) (box.getCenterY() + down.getY()), scheme.componentShade()));
         }
         graphics.fill(shape);
-        outline(graphics, shape, scheme);
+        outline(graphics, shape, scheme, stroke);
     }
 
     static void outline(Graphics2D graphics, Shape shape, ColorScheme scheme) {
+        outline(graphics, shape, scheme, STROKE);
+    }
+
+    private static void outline(Graphics2D graphics, Shape shape, ColorScheme scheme, BasicStroke stroke) {
         graphics.setColor(scheme.componentStroke());
-        graphics.setStroke(STROKE);
+        graphics.setStroke(stroke);
         graphics.draw(shape);
     }
 
@@ -94,16 +103,22 @@ public final class PainterSupport {
 
     /** A round dot on each 1-bit pin and a square on each wider (bus) pin, in the scheme's pin colour. */
     static void pinDots(Graphics2D graphics, ComponentType type, ColorScheme scheme) {
+        pinDots(graphics, type, scheme, 1);
+    }
+
+    /** Pin dots at {@code scale} times their real size (a zoomed view keeps them a constant size on screen). */
+    static void pinDots(Graphics2D graphics, ComponentType type, ColorScheme scheme, double scale) {
+        double busHalfSide = BUS_PIN_HALF_SIDE * scale;
+        double dotRadius = PIN_DOT_RADIUS * scale;
         graphics.setColor(scheme.pad());
         for (PinSpec pin : type.pins()) {
             double x = pin.position().x() * UNIT;
             double y = pin.position().y() * UNIT;
             if (pin.width() > 1) {
-                graphics.fill(new Rectangle2D.Double(x - BUS_PIN_HALF_SIDE, y - BUS_PIN_HALF_SIDE,
-                        2 * BUS_PIN_HALF_SIDE, 2 * BUS_PIN_HALF_SIDE));
+                graphics.fill(new Rectangle2D.Double(x - busHalfSide, y - busHalfSide, 2 * busHalfSide,
+                        2 * busHalfSide));
             } else {
-                graphics.fill(new Ellipse2D.Double(x - PIN_DOT_RADIUS, y - PIN_DOT_RADIUS, 2 * PIN_DOT_RADIUS,
-                        2 * PIN_DOT_RADIUS));
+                graphics.fill(new Ellipse2D.Double(x - dotRadius, y - dotRadius, 2 * dotRadius, 2 * dotRadius));
             }
         }
     }

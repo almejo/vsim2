@@ -36,6 +36,10 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 
 - El interruptor «Solo esta pieza» | «Todas las piezas» del editor de formas da a cada opción su ancho natural, no el mismo ancho.
 
+### Arreglado
+
+- El nombre del componente en las formas predefinidas (por ejemplo «ALU 4 bits») se desbordaba del trapecio y tapaba los nombres de los pines. Ahora se achica y luego se acorta con «…» para caber en el espacio libre, en el editor, las vistas previas y el lienzo.
+
 ## Versión 0.3 — 2026-10-24
 
 ### Agregado

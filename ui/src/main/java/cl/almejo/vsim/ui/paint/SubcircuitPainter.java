@@ -35,10 +35,24 @@ public final class SubcircuitPainter implements ComponentPainter {
                     SubcircuitTypes.definitionOf(type).map(ComponentDefinition::name).orElse(type.id()));
             return;
         }
+        paintDefaultBox(graphics, type, scheme, PainterSupport.STROKE, 1);
+    }
+
+    /** The default box with an explicit outline stroke and pin marker scale, for zoomed views (see SymbolPainter). */
+    public static void paintDefaultBox(Graphics2D graphics, ComponentType type, ColorScheme scheme, float strokeWidth,
+                                       double pinScale) {
+        paintDefaultBox(graphics, type, scheme,
+                new java.awt.BasicStroke(strokeWidth, java.awt.BasicStroke.CAP_ROUND, java.awt.BasicStroke.JOIN_ROUND),
+                pinScale);
+    }
+
+    private static void paintDefaultBox(Graphics2D graphics, ComponentType type, ColorScheme scheme,
+                                        java.awt.BasicStroke stroke, double pinScale) {
         double width = type.size().width() * UNIT;
         double height = type.size().height() * UNIT;
         Rectangle2D box = new Rectangle2D.Double(1, 1, width - 2, height - 2);
-        PainterSupport.body(graphics, new RoundRectangle2D.Double(1, 1, width - 2, height - 2, 4, 4), scheme);
+        PainterSupport.body(graphics, new RoundRectangle2D.Double(1, 1, width - 2, height - 2, 4, 4), scheme, null,
+                stroke);
         // Texts stay upright: turned a quarter, they run across the box (local y) instead of along it (local x).
         boolean sideways = PainterSupport.turnedSideways(graphics);
         String name = SubcircuitTypes.definitionOf(type).map(ComponentDefinition::name).orElse(type.id());
@@ -67,7 +81,7 @@ public final class SubcircuitPainter implements ComponentPainter {
             PainterSupport.centeredText(graphics, box.createIntersection(slot), text, centerX, pinY, size,
                     scheme.text());
         }
-        PainterSupport.pinDots(graphics, type, scheme);
+        PainterSupport.pinDots(graphics, type, scheme, pinScale);
     }
 
     /** The distance to the nearest other pin on the same side (the box height when there is none). */

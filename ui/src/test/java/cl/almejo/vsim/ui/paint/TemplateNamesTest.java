@@ -60,6 +60,46 @@ class TemplateNamesTest {
         }
     }
 
+    /** The case that failed on screen: the bold real font is wider than the core's estimate (ALU with Op[2] below, F dragged off the edge, the template laid out for a short placeholder name). */
+    @Test
+    void theRenderedNameOfTheAluStaysOffEveryPinNameAndInsideItsBody() {
+        for (int zoom : new int[]{1, 6}) {
+            assertRenderedNameClear(zoom);
+        }
+    }
+
+    private static void assertRenderedNameClear(int zoom) {
+        ComponentDefinition definition = aluDefinition(5);
+        for (SymbolTemplates.Template template : List.of(SymbolTemplates.Template.ALU,
+                SymbolTemplates.Template.MUX, SymbolTemplates.Template.RECTANGLE)) {
+            SymbolDrawing full = templateForAnotherName(aluDefinition(6), template);
+            List<SymbolElement> withoutName = full.elements().stream()
+                    .filter(element -> !(element instanceof SymbolText)).toList();
+            SymbolDrawing nameless = new SymbolDrawing(SIZE, withoutName, true);
+            SymbolDrawing bare = new SymbolDrawing(SIZE, withoutName, false);
+            boolean[] nameInk = difference(paint(definition, full, zoom), paint(definition, nameless, zoom));
+            boolean[] pinNameInk = difference(paint(definition, nameless, zoom), paint(definition, bare, zoom));
+            assertThat(count(nameInk)).as("%s at %dx: the name is drawn", template, zoom).isPositive();
+            assertThat(overlap(nameInk, pinNameInk)).as("%s at %dx: name over pin names", template, zoom).isZero();
+        }
+    }
+
+    @Test
+    void aNameTooWideForItsFreeAreaIsElidedNotDrawnPastTheBox() {
+        ComponentDefinition definition = aluDefinition(6);
+        String longName = "A very long component name that never fits";
+        SymbolDrawing drawing = SymbolDraft.of(ComponentAppearance.of(definition), definition.pinout(), false)
+                .withDefinitionName(longName).applyTemplate(SymbolTemplates.Template.ALU).appearance().drawing()
+                .orElseThrow();
+        BufferedImage painted = paint(definition, drawing);
+        int rightEdge = OFFSET + SIZE.width() * 8;
+        for (int y = 0; y < painted.getHeight(); y++) {
+            for (int x = rightEdge + 3; x < painted.getWidth(); x++) {
+                assertThat(painted.getRGB(x, y) >>> 24).as("nothing past the box at %d,%d", x, y).isZero();
+            }
+        }
+    }
+
     @Test
     void theComponentNameIsDrawnBoldAndATextTheUserTypedIsNot() {
         ComponentDefinition definition = definition(1, 2);
@@ -95,11 +135,36 @@ class TemplateNamesTest {
         return ink;
     }
 
+    /** The template as laid out for a short placeholder name, painted later with the real, longer one. */
+    private static SymbolDrawing templateForAnotherName(ComponentDefinition definition,
+                                                        SymbolTemplates.Template template) {
+        return SymbolDraft.of(ComponentAppearance.of(definition), definition.pinout(), false)
+                .applyTemplate(template).appearance().drawing().orElseThrow();
+    }
+
+    private static boolean[] difference(BufferedImage first, BufferedImage second) {
+        boolean[] ink = new boolean[first.getWidth() * first.getHeight()];
+        for (int y = 0; y < first.getHeight(); y++) {
+            for (int x = 0; x < first.getWidth(); x++) {
+                ink[y * first.getWidth() + x] = first.getRGB(x, y) != second.getRGB(x, y);
+            }
+        }
+        return ink;
+    }
+
     private static BufferedImage paint(ComponentDefinition definition, SymbolDrawing drawing) {
+        return paint(definition, drawing, 1);
+    }
+
+    /** Painted under a zoom, as the editor does: the text must fit whatever the transform. */
+    private static BufferedImage paint(ComponentDefinition definition, SymbolDrawing drawing, int zoom) {
         ComponentType type = SubcircuitTypes.typeOf(definition);
-        BufferedImage image = new BufferedImage(IMAGE_SIZE * 2, IMAGE_SIZE * 2, BufferedImage.TYPE_INT_ARGB);
+        BufferedImage image = new BufferedImage(IMAGE_SIZE * 2 * zoom, IMAGE_SIZE * 2 * zoom,
+                BufferedImage.TYPE_INT_ARGB);
         Graphics2D graphics = image.createGraphics();
         try {
+            graphics.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING, java.awt.RenderingHints.VALUE_ANTIALIAS_ON);
+            graphics.scale(zoom, zoom);
             graphics.translate(OFFSET, OFFSET);
             SymbolPainter.paint(graphics, type, drawing, ColorSchemes.LIGHT, NAME);
         } finally { graphics.dispose(); }
@@ -120,6 +185,20 @@ class TemplateNamesTest {
             if (pixel) { total++; }
         }
         return total;
+    }
+
+    /** The ALU of the editor render: A, B, Op on the left and F (in {@code fColumn}), Cout on the right. */
+    private static ComponentDefinition aluDefinition(int fColumn) {
+        return new ComponentDefinition("alu", NAME, "", SIZE, List.of(
+                new DefinitionPin(PinSpec.input("A", 0, 2, 4), new ElementId("a")),
+                new DefinitionPin(PinSpec.input("B", 0, 4, 4), new ElementId("b")),
+                new DefinitionPin(PinSpec.input("Op", 0, 6, 2), new ElementId("op")),
+                new DefinitionPin(PinSpec.output("F", fColumn, 2, 4), new ElementId("f")),
+                new DefinitionPin(PinSpec.output("Cout", 6, 4), new ElementId("cout"))),
+                new CircuitFragment(List.of(interfacePin("a", InterfacePins.INPUT_PIN, 4),
+                        interfacePin("b", InterfacePins.INPUT_PIN, 4), interfacePin("op", InterfacePins.INPUT_PIN, 2),
+                        interfacePin("f", InterfacePins.OUTPUT_PIN, 4),
+                        interfacePin("cout", InterfacePins.OUTPUT_PIN, 1)), List.of(), List.of()));
     }
 
     /** A, B on the left and F, Cout on the right, {@code firstRow} and {@code secondRow} units from the top. */
