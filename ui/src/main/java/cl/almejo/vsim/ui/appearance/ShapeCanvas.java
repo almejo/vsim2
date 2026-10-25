@@ -29,27 +29,40 @@ import cl.almejo.vsim.ui.paint.SubcircuitPainter;
 import cl.almejo.vsim.ui.paint.SymbolPainter;
 import cl.almejo.vsim.ui.paint.TextFonts;
 
+import javax.swing.AbstractAction;
+import javax.swing.JComponent;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
+import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
+import javax.swing.undo.CannotRedoException;
+import javax.swing.undo.CannotUndoException;
+import javax.swing.undo.UndoManager;
 import java.awt.BasicStroke;
+import java.awt.Color;
 import java.awt.Cursor;
+import java.awt.Font;
+import java.awt.FontMetrics;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Point;
 import java.awt.RenderingHints;
 import java.awt.Shape;
+import java.awt.event.ActionEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseWheelEvent;
 import java.awt.geom.Ellipse2D;
+import java.awt.geom.RoundRectangle2D;
 import java.awt.geom.Line2D;
 import java.awt.geom.Path2D;
 import java.awt.geom.Rectangle2D;
 import java.awt.geom.AffineTransform;
+import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Consumer;
@@ -59,8 +72,12 @@ import java.util.function.Supplier;
 @SuppressWarnings("serial")
 final class ShapeCanvas extends JPanel {
     private static final double UNIT = GridPoint.PIXELS_PER_UNIT;
+    private static final String MESSAGE_PREFIX = "shape.";
     private static final int HIT_RADIUS = 7;
     private static final int BOX_HANDLE_OFFSET = 18;
+    private static final int FIT_SIDE_MARGIN = 64;
+    private static final int FIT_VERTICAL_MARGIN = 64;
+    private static final double FIT_MAXIMUM_ZOOM = 6;
     private final ComponentDefinition definition;
     private final Supplier<SymbolDraft> current;
     private final Consumer<SymbolDraft> publish;
@@ -91,6 +108,14 @@ final class ShapeCanvas extends JPanel {
     private final List<SymbolPoint> polygon = new ArrayList<>();
     private JTextField textField;
     private int textIndex = -1;
+    private boolean fitPending = true;
+    private int fittedWidth = -1;
+    private int fittedHeight = -1;
+    private Point pointer = new Point();
+    private Optional<String> dragTip = Optional.empty();
+
+    /** A pin sharing its connection point with another one: the editor refuses to accept this. */
+    record Coincidence(ElementId pin, GridPoint offset, String otherName) { }
 
     ShapeCanvas(ComponentDefinition definition, Supplier<SymbolDraft> current, Consumer<SymbolDraft> publish,
                 Consumer<SymbolDraft> preview, Supplier<ColorScheme> colors, Runnable changed) {
@@ -113,7 +138,7 @@ final class ShapeCanvas extends JPanel {
             @Override public void mouseWheelMoved(MouseWheelEvent event) {
                 if (event.isControlDown() || event.isMetaDown()) {
                     setZoom(zoom * Math.pow(1.15, -event.getPreciseWheelRotation()));
-                } else { originY -= event.getPreciseWheelRotation() * 24; repaint(); }
+                } else { fitPending = false; originY -= event.getPreciseWheelRotation() * 24; repaint(); }
             }
         };
         addMouseListener(mouse);
@@ -133,7 +158,30 @@ final class ShapeCanvas extends JPanel {
     }
 
     void setSnap(boolean enabled) { snap = enabled ? SnapMode.HALF_UNITS : SnapMode.FREE; }
-    void setZoom(double value) { zoom = Math.clamp(value, 0.25, 6); changed.run(); repaint(); }
+    void setZoom(double value) { fitPending = false; zoom = Math.clamp(value, 0.25, 6); changed.run(); repaint(); }
+
+    /** Zooms and pans so the whole box (with room for the callouts and its resize handle) is centred and visible. */
+    void fitBox() {
+        if (getWidth() <= 0 || getHeight() <= 0) { return; }
+        GridSize size = current.get().appearance().size();
+        double boxWidth = size.width() * UNIT;
+        double boxHeight = size.height() * UNIT;
+        double availableWidth = Math.max(1, getWidth() - 2.0 * FIT_SIDE_MARGIN);
+        double availableHeight = Math.max(1, getHeight() - 2.0 * FIT_VERTICAL_MARGIN);
+        zoom = Math.clamp(Math.min(availableWidth / boxWidth, availableHeight / boxHeight), 0.25, FIT_MAXIMUM_ZOOM);
+        originX = (getWidth() - boxWidth * zoom) / 2;
+        originY = (getHeight() - boxHeight * zoom) / 2;
+        fittedWidth = getWidth();
+        fittedHeight = getHeight();
+        changed.run();
+    }
+
+    /** The box rectangle in canvas pixels. */
+    Rectangle2D boxOnScreen() {
+        GridSize size = current.get().appearance().size();
+        return new Rectangle2D.Double(originX, originY, size.width() * UNIT * zoom, size.height() * UNIT * zoom);
+    }
+
     double zoom() { return zoom; }
     Optional<ElementId> selectedPin() { return pin; }
     void selectPin(ElementId source) { pin = Optional.of(source); repaint(); }
@@ -155,6 +203,8 @@ final class ShapeCanvas extends JPanel {
 
     void draftChanged() {
         insertion = Optional.empty();
+        // A text being typed was started on an earlier draft: its element may no longer exist (undo, toolbar edit).
+        if (textField != null) { remove(textField); textField = null; textIndex = -1; }
         if (pathIndex < 0 || pathIndex >= current.get().elements().size()
                 || !current.get().selection().contains(pathIndex)
                 || !(current.get().elements().get(pathIndex) instanceof SymbolPath path)
@@ -171,6 +221,7 @@ final class ShapeCanvas extends JPanel {
     void cancelOperation() {
         if (committedBeforeDrag != null) { preview.accept(committedBeforeDrag); }
         pressed = null; dragging = null; beforeDrag = null; committedBeforeDrag = null; polygon.clear();
+        dragTip = Optional.empty();
         if (textField != null) { remove(textField); textField = null; }
         repaint();
     }
@@ -222,6 +273,8 @@ final class ShapeCanvas extends JPanel {
 
     private void press(MouseEvent event) {
         if (textField != null) { finishText(); }
+        pointer = event.getPoint();
+        dragTip = Optional.empty();
         requestFocusInWindow();
         pressed = event.getPoint(); start = point(event); beforeDrag = current.get(); dragging = null;
         committedBeforeDrag = beforeDrag;
@@ -274,12 +327,15 @@ final class ShapeCanvas extends JPanel {
 
     private void drag(MouseEvent event) {
         if (pressed == null) { return; }
+        pointer = event.getPoint();
         if (panning) {
+            fitPending = false;
             originX += event.getX() - pressed.x; originY += event.getY() - pressed.y;
             pressed = event.getPoint(); repaint(); return;
         }
         if (tool == ShapeTool.POLYGON || tool == ShapeTool.TEXT || tool == ShapeTool.ADD_NODE) { return; }
         SymbolPoint end = point(event);
+        dragTip = Optional.empty();
         try {
             if (resizingBox) {
                 GridSize minimum = beforeDrag.minimumBoxSize();
@@ -289,8 +345,11 @@ final class ShapeCanvas extends JPanel {
                         + (int) Math.round((event.getY() - pressed.y) / zoom / UNIT);
                 dragging = beforeDrag.resizeBox(new GridSize(Math.max(minimum.width(), width),
                         Math.max(minimum.height(), height)));
+                dragTip = Optional.of(sizeTip(dragging.appearance().size().width(),
+                        dragging.appearance().size().height(), false));
             } else if (handle.isPresent()) {
                 dragging = beforeDrag.scaleSelection(handle.get(), end, event.isShiftDown(), snap);
+                dragTip = figureTip(dragging);
             } else if (pin.isPresent() && tool == ShapeTool.SELECT) {
                 if (beforeDrag.pinsLocked()) { return; }
                 dragging = beforeDrag.movePin(pin.get(), new GridPoint(
@@ -324,6 +383,7 @@ final class ShapeCanvas extends JPanel {
                     default -> throw new IllegalStateException("Not a figure tool");
                 };
                 dragging = beforeDrag.addFigure(figure);
+                dragTip = figureTip(dragging);
             }
             preview.accept(dragging);
             repaint();
@@ -337,6 +397,7 @@ final class ShapeCanvas extends JPanel {
         if (pressed == null) { return; }
         SymbolDraft completed = dragging;
         SymbolDraft original = committedBeforeDrag;
+        dragTip = Optional.empty();
         pressed = null; beforeDrag = null; committedBeforeDrag = null; dragging = null;
         if (completed != null && original != null) {
             preview.accept(original);
@@ -387,26 +448,58 @@ final class ShapeCanvas extends JPanel {
     }
 
     private void beginText(Point location, int index) {
-        textIndex = index;
-        SymbolText existing = index >= 0 ? (SymbolText) current.get().elements().get(index) : null;
+        SymbolText existing = index >= 0 && current.get().elements().get(index) instanceof SymbolText found ? found : null;
+        textIndex = existing == null ? -1 : index;
         textField = new JTextField(existing == null ? "" : existing.text().orElse(""));
         textField.putClientProperty("shape.anchor", existing == null ? point(location) : existing.anchor());
         textField.setBounds(location.x, location.y - 12, 160, 26);
         textField.addActionListener(event -> finishText());
+        bindTextUndo(textField);
         add(textField); textField.requestFocusInWindow(); textField.selectAll(); repaint();
+    }
+
+    /**
+     * Ctrl/Cmd+Z, Y and D belong to the text while it is being typed: the dialog binds them on an ancestor, which would
+     * otherwise undo or duplicate the draft under the field.
+     */
+    private static void bindTextUndo(JTextField field) {
+        UndoManager history = new UndoManager();
+        field.getDocument().addUndoableEditListener(history);
+        for (String modifier : new String[]{"ctrl", "meta"}) {
+            bindText(field, modifier + " Z", "undo", () -> {
+                try { if (history.canUndo()) { history.undo(); } } catch (CannotUndoException exception) { /* nothing left */ }
+            });
+            bindText(field, modifier + " shift Z", "redo", () -> redo(history));
+            bindText(field, modifier + " Y", "redo", () -> redo(history));
+            bindText(field, modifier + " D", "swallow", () -> { });
+        }
+    }
+
+    private static void redo(UndoManager history) {
+        try { if (history.canRedo()) { history.redo(); } } catch (CannotRedoException exception) { /* nothing left */ }
+    }
+
+    private static void bindText(JTextField field, String key, String name, Runnable action) {
+        String binding = "shape.text." + name + "." + key;
+        field.getInputMap(JComponent.WHEN_FOCUSED).put(KeyStroke.getKeyStroke(key), binding);
+        field.getActionMap().put(binding, new AbstractAction() {
+            @Override public void actionPerformed(ActionEvent event) { action.run(); }
+        });
     }
 
     private void finishText() {
         if (textField == null) { return; }
         SymbolPoint anchor = (SymbolPoint) textField.getClientProperty("shape.anchor");
-        SymbolText existing = textIndex >= 0 ? (SymbolText) current.get().elements().get(textIndex) : null;
+        SymbolText existing = textIndex >= 0 && textIndex < current.get().elements().size()
+                && current.get().elements().get(textIndex) instanceof SymbolText found ? found : null;
+        int index = existing == null ? -1 : textIndex;
         String entered = textField.getText();
         Optional<String> value = existing != null && entered.equals(existing.text().orElse(""))
                 ? existing.text() : Optional.of(entered);
         SymbolText text = new SymbolText(anchor, value, existing == null ? TextSize.MEDIUM : existing.size(),
                 existing == null ? TextAlignment.LEFT : existing.alignment());
         remove(textField); textField = null;
-        publish.accept(textIndex >= 0 ? current.get().editText(textIndex, text) : current.get().addText(text));
+        publish.accept(index >= 0 ? current.get().editText(index, text) : current.get().addText(text));
         requestFocusInWindow(); repaint();
     }
 
@@ -481,6 +574,7 @@ final class ShapeCanvas extends JPanel {
     }
 
     private void pointerMoved(MouseEvent event) {
+        pointer = event.getPoint();
         if (tool == ShapeTool.ADD_NODE) {
             insertion = segmentAt(event.getPoint());
             setCursor(Cursor.getPredefinedCursor(Cursor.CROSSHAIR_CURSOR));
@@ -532,18 +626,86 @@ final class ShapeCanvas extends JPanel {
                 (int) Math.round(originY + y / 8.0 * UNIT * zoom));
     }
 
+    /** Pins that share their connection point, each with the name of another pin on the same point. */
+    List<Coincidence> coincidences() {
+        List<PinPlacement> placements = current.get().appearance().pins();
+        List<Coincidence> found = new ArrayList<>();
+        for (PinPlacement placement : placements) {
+            placements.stream().filter(other -> !other.source().equals(placement.source())
+                            && other.offset().equals(placement.offset())).findFirst()
+                    .ifPresent(other -> found.add(new Coincidence(placement.source(), placement.offset(),
+                            pinName(other.source()))));
+        }
+        return found;
+    }
+
+    /** «Ya hay un pin aquí (A)» for the pin being dragged or selected, when it sits on another one. */
+    Optional<String> coincidenceCallout() {
+        return pin.flatMap(selected -> coincidences().stream().filter(found -> found.pin().equals(selected)).findFirst())
+                .map(found -> Messages.format("shape.pin.coincides", found.otherName()));
+    }
+
+    /** «Op · entrada · 2 bits» for the selected pin. */
+    Optional<String> pinCallout() {
+        return pin.flatMap(selected -> definition.pinout().stream().filter(candidate -> candidate.source().equals(selected))
+                .findFirst()).map(found -> Messages.format("shape.pin.row", found.spec().name(),
+                Messages.text(MESSAGE_PREFIX + "direction." + found.spec().direction().name().toLowerCase(java.util.Locale.ROOT)),
+                found.spec().width()));
+    }
+
+    /** The live size of the box or figure being dragged, with the proportion hint when Shift applies. */
+    Optional<String> dragTip() { return dragTip; }
+
+    /** «(x, y)» of the selected node (or control point) in grid units. */
+    Optional<String> nodeLabel() {
+        if (tool != ShapeTool.NODES && tool != ShapeTool.ADD_NODE || !nodeSelected()) { return Optional.empty(); }
+        SymbolNode node = ((SymbolPath) nodeView().elements().get(pathIndex)).nodes().get(nodeIndex);
+        SymbolPoint point = control ? node.control().orElse(node.point()) : node.point();
+        return Optional.of("(" + units(point.x()) + ", " + units(point.y()) + ")");
+    }
+
+    private String pinName(ElementId source) {
+        return definition.pinout().stream().filter(candidate -> candidate.source().equals(source)).findFirst()
+                .map(found -> found.spec().name()).orElse(source.value());
+    }
+
+    private Optional<String> figureTip(SymbolDraft view) {
+        return view.selectionBounds().map(box -> sizeTip(box.width() / 8.0, box.height() / 8.0, true));
+    }
+
+    private static String sizeTip(double width, double height, boolean proportion) {
+        String size = Messages.format("shape.drag.size", units(width), units(height));
+        return proportion ? size + "\n" + Messages.text("shape.drag.shift") : size;
+    }
+
+    private static String units(double value) {
+        NumberFormat format = NumberFormat.getNumberInstance(Messages.locale());
+        format.setMaximumFractionDigits(3);
+        format.setGroupingUsed(false);
+        return format.format(value);
+    }
+
+    private static String units(int smallUnits) { return units(smallUnits / 8.0); }
+
     @Override protected void paintComponent(Graphics graphics) {
         super.paintComponent(graphics);
+        if (fitPending && (getWidth() != fittedWidth || getHeight() != fittedHeight)) {
+            boolean pending = fitPending;
+            fitBox();
+            fitPending = pending;
+        }
         Graphics2D surface = (Graphics2D) graphics.create();
         try {
             ColorScheme scheme = colors.get();
             surface.setColor(scheme.background()); surface.fillRect(0, 0, getWidth(), getHeight());
             surface.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-            double spacing = UNIT * zoom / 2;
-            surface.setColor(scheme.grid());
-            for (double x = originX % spacing; x < getWidth(); x += spacing) {
-                for (double y = originY % spacing; y < getHeight(); y += spacing) {
-                    surface.fill(new Ellipse2D.Double(x - 0.6, y - 0.6, 1.2, 1.2));
+            double spacing = UNIT * zoom;
+            if (spacing >= 4) {
+                surface.setColor(scheme.grid());
+                for (double x = originX % spacing; x < getWidth(); x += spacing) {
+                    for (double y = originY % spacing; y < getHeight(); y += spacing) {
+                        surface.fill(new Ellipse2D.Double(x - 0.8, y - 0.8, 1.6, 1.6));
+                    }
                 }
             }
             ComponentAppearance appearance = current.get().appearance();
@@ -573,6 +735,7 @@ final class ShapeCanvas extends JPanel {
                             placement.offset().y() * UNIT - 5 / zoom, 10 / zoom, 10 / zoom));
                 }
             }
+            paintCoincidences(surface, scheme);
             if (tool == ShapeTool.ADD_NODE) { paintInsertion(surface); }
             if (tool == ShapeTool.NODES || tool == ShapeTool.ADD_NODE) { paintNodes(surface); }
             if (pressed != null && rubberBand && bandEnd != null) {
@@ -586,6 +749,95 @@ final class ShapeCanvas extends JPanel {
                         second.x() / 8.0 * UNIT, second.y() / 8.0 * UNIT));
             }
         } finally { surface.dispose(); }
+        Graphics2D overlay = (Graphics2D) graphics.create();
+        try {
+            overlay.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            overlay.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+            paintCallouts(overlay, colors.get());
+        } finally { overlay.dispose(); }
+    }
+
+    /** A red ring and dot on every pin that shares its point: the icon and the callout carry the meaning too. */
+    private void paintCoincidences(Graphics2D surface, ColorScheme scheme) {
+        Map<GridPoint, Boolean> marked = new java.util.HashMap<>();
+        for (Coincidence found : coincidences()) {
+            if (marked.put(found.offset(), true) != null) { continue; }
+            double x = found.offset().x() * UNIT;
+            double y = found.offset().y() * UNIT;
+            surface.setColor(scheme.wireConflict());
+            surface.setStroke(new BasicStroke((float) (1.5 / zoom)));
+            surface.draw(new Ellipse2D.Double(x - 8 / zoom, y - 8 / zoom, 16 / zoom, 16 / zoom));
+            surface.fill(new Ellipse2D.Double(x - 4 / zoom, y - 4 / zoom, 8 / zoom, 8 / zoom));
+        }
+    }
+
+    private void paintCallouts(Graphics2D overlay, ColorScheme scheme) {
+        Optional<String> coincidence = coincidenceCallout();
+        if (coincidence.isPresent()) {
+            PinPlacement selected = current.get().appearance().pins().stream()
+                    .filter(placement -> pin.filter(placement.source()::equals).isPresent()).findFirst().orElseThrow();
+            paintCallout(overlay, screen(selected.offset().x() * 8, selected.offset().y() * 8),
+                    new String[]{coincidence.get()}, scheme.wireConflict(), true, true);
+        } else if (pinCallout().isPresent()) {
+            PinPlacement selected = current.get().appearance().pins().stream()
+                    .filter(placement -> pin.filter(placement.source()::equals).isPresent()).findFirst().orElseThrow();
+            paintCallout(overlay, screen(selected.offset().x() * 8, selected.offset().y() * 8),
+                    new String[]{pinCallout().get()}, scheme.selection(), false, true);
+        }
+        dragTip.ifPresent(tip -> paintCallout(overlay, pointer,
+                tip.split("\n"), scheme.selection(), false, false));
+        nodeLabel().ifPresent(label -> {
+            SymbolNode node = ((SymbolPath) nodeView().elements().get(pathIndex)).nodes().get(nodeIndex);
+            SymbolPoint point = control ? node.control().orElse(node.point()) : node.point();
+            Point at = screen(point.x(), point.y());
+            overlay.setFont(TextFonts.labelFont().deriveFont(Font.BOLD, 13f));
+            FontMetrics metrics = overlay.getFontMetrics();
+            int width = metrics.stringWidth(label) + 10;
+            int x = Math.min(at.x + 12, Math.max(0, getWidth() - width - 2));
+            int y = Math.max(metrics.getHeight() + 2, at.y - 10);
+            overlay.setColor(PainterSupport.withAlpha(scheme.background(), 220));
+            overlay.fill(new RoundRectangle2D.Double(x - 4, y - metrics.getAscent() - 1, width, metrics.getHeight() + 2, 6, 6));
+            overlay.setColor(scheme.text());
+            overlay.drawString(label, x, y);
+        });
+    }
+
+    /**
+     * A rounded label next to {@code anchor}, kept inside the canvas. With {@code warning} it starts with a drawn
+     * «no entry» sign, so the meaning never depends on its colour alone.
+     */
+    private void paintCallout(Graphics2D overlay, Point anchor, String[] lines, Color fill, boolean warning,
+                              boolean above) {
+        overlay.setFont(TextFonts.labelFont().deriveFont(Font.BOLD, 13f));
+        FontMetrics metrics = overlay.getFontMetrics();
+        int iconSize = warning ? 14 : 0;
+        int iconGap = warning ? 6 : 0;
+        int textWidth = 0;
+        for (String line : lines) { textWidth = Math.max(textWidth, metrics.stringWidth(line)); }
+        int width = textWidth + iconSize + iconGap + 16;
+        int height = metrics.getHeight() * lines.length + 10;
+        int x = Math.clamp(anchor.x + 16, 2, Math.max(2, getWidth() - width - 2));
+        int y = Math.clamp(above ? anchor.y - 18 - height : anchor.y + 18, 2, Math.max(2, getHeight() - height - 2));
+        overlay.setColor(fill);
+        overlay.fill(new RoundRectangle2D.Double(x, y, width, height, 8, 8));
+        Color ink = readableOn(fill);
+        overlay.setColor(ink);
+        int textX = x + 8;
+        if (warning) {
+            int iconY = y + (height - iconSize) / 2;
+            overlay.setStroke(new BasicStroke(2f));
+            overlay.draw(new Ellipse2D.Double(textX + 1, iconY + 1, iconSize - 2, iconSize - 2));
+            overlay.draw(new Line2D.Double(textX + 4, iconY + iconSize / 2.0, textX + iconSize - 4, iconY + iconSize / 2.0));
+            textX += iconSize + iconGap;
+        }
+        for (int line = 0; line < lines.length; line++) {
+            overlay.drawString(lines[line], textX, y + 5 + metrics.getAscent() + line * metrics.getHeight());
+        }
+    }
+
+    private static Color readableOn(Color fill) {
+        double luminance = (0.2126 * fill.getRed() + 0.7152 * fill.getGreen() + 0.0722 * fill.getBlue()) / 255;
+        return luminance < 0.6 ? Color.WHITE : Color.BLACK;
     }
 
     private void paintSelection(Graphics2D surface, SymbolDraft.Box box) {
