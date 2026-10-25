@@ -75,12 +75,12 @@ Una línea por función; el detalle está en [docs/funciones.md](docs/funciones.
 - [Constante](docs/funciones.md#constante) de 1 a 32 bits en binario, hexadecimal o decimal.
 - [Bloques](docs/funciones.md#bloques) de N bits: sumador, ALU, comparador, multiplexor, decodificador, registro y contador.
 - [Componentes propios](docs/funciones.md#componentes-propios) creados desde una selección, con librería, importación y exportación.
-- [Forma de los componentes propios](docs/funciones.md#forma-de-los-componentes-propios): figuras y nodos editables, caja independiente para sus pines, guía de puntos al mover un pin y herramienta de mano para mover la vista.
+- [Forma de los componentes propios](docs/funciones.md#forma-de-los-componentes-propios): editor de formas con figuras, nodos, plantillas (incluido el círculo), pines movibles con guía, y cables que siguen a los pines al cambiar la forma o actualizar el componente.
+- [Conexiones pendientes](docs/funciones.md#conexiones-pendientes): la pieza rota por dentro brilla en rojo y Problemas dice la ruta hasta el pin suelto.
 
 ### Simulación y paso a paso
 
 - [Cortocircuitos](docs/funciones.md#cortocircuitos) marcados en el circuito, listados en Problemas y recorridos con F8.
-- [Conexiones pendientes](docs/funciones.md#conexiones-pendientes): pines internos desconectados y cables sueltos, con advertencias en la pieza exterior que contiene el problema.
 - [Paso a paso](docs/funciones.md#paso-a-paso): avanzar al próximo evento o flanco de reloj, ver qué cambió y qué viene, y reiniciar.
 
 ### Formas de onda

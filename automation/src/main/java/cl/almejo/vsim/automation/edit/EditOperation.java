@@ -1,5 +1,6 @@
 package cl.almejo.vsim.automation.edit;
 
+import cl.almejo.vsim.core.component.appearance.SymbolTemplates;
 import cl.almejo.vsim.core.document.Guide;
 import cl.almejo.vsim.core.document.NoteStyle;
 import cl.almejo.vsim.core.geometry.Bounds;
@@ -165,6 +166,33 @@ public sealed interface EditOperation {
             Objects.requireNonNull(alias, "alias");
             Objects.requireNonNull(definition, "definition");
             Objects.requireNonNull(rotation, "rotation");
+        }
+    }
+
+    /**
+     * «Cambiar forma» without free drawing: gives the shape of one placed instance ({@code instance}: its id or
+     * {@code new:<alias>}; its own shape, the definition stays) or of a circuit definition ({@code definition}: its
+     * name, id or {@code new:<alias>}; all its instances without a shape of their own change) a starting
+     * {@code template} and/or moves pins ({@code pins}: grid units from the box corner). {@code clear}: the instance
+     * goes back to its definition's shape, a definition to the default box. Exactly one of {@code instance} and
+     * {@code definition}, and at least one of {@code template}, {@code pins}, {@code clear}. Refused, changing
+     * nothing, when a wire could not follow a pin without touching another net.
+     */
+    record SetComponentShape(Optional<String> instance, Optional<String> definition,
+                             Optional<SymbolTemplates.Template> template, List<PinPosition> pins, boolean clear)
+            implements EditOperation {
+        public SetComponentShape {
+            Objects.requireNonNull(instance, "instance");
+            Objects.requireNonNull(definition, "definition");
+            Objects.requireNonNull(template, "template");
+            pins = List.copyOf(pins);
+        }
+
+        /** The place of the pin called {@code name}, in grid units from the box's top-left corner. */
+        public record PinPosition(String name, int x, int y) {
+            public PinPosition {
+                Objects.requireNonNull(name, "name");
+            }
         }
     }
 

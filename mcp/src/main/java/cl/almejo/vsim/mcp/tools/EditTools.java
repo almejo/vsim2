@@ -10,6 +10,7 @@ import cl.almejo.vsim.automation.edit.PinTarget;
 import cl.almejo.vsim.automation.edit.TaskStep;
 import cl.almejo.vsim.automation.present.PresentedEdit;
 import cl.almejo.vsim.automation.present.StepStatus;
+import cl.almejo.vsim.core.component.appearance.SymbolTemplates;
 import cl.almejo.vsim.core.document.Guide;
 import cl.almejo.vsim.core.document.NoteColor;
 import cl.almejo.vsim.core.document.NoteStyle;
@@ -32,6 +33,8 @@ final class EditTools {
 
     private static final List<String> ROTATIONS = List.of("R0", "R90", "R180", "R270");
     private static final List<String> ORIENTATIONS = List.of("HORIZONTAL", "VERTICAL");
+    private static final List<String> TEMPLATES = Arrays.stream(SymbolTemplates.Template.values())
+            .map(SymbolTemplates.Template::name).toList();
     private static final List<String> NOTE_COLORS = Arrays.stream(NoteColor.values()).map(NoteColor::name).toList();
 
     private EditTools() {
@@ -179,6 +182,20 @@ final class EditTools {
                         .property("y", coordinate())
                         .property("rotation", rotation())
                         .required("definition", "x", "y").build(),
+                operation("SetComponentShape", "«Cambiar forma» of a user component: one placed instance (instance, "
+                        + "its own shape) or the circuit's definition (definition, instances without their own). "
+                        + "Refused whole if a wire could not follow a moved pin")
+                        .property("instance", Schema.nonEmptyString("Id or new:<alias>"))
+                        .property("definition", Schema.nonEmptyString("Name, id or new:<alias>"))
+                        .property("template", Schema.enumeration("", TEMPLATES))
+                        .property("pins", Schema.array("Grid units from the box's top-left corner",
+                                Schema.object("")
+                                .property("name", Schema.nonEmptyString(""))
+                                .property("x", coordinate())
+                                .property("y", coordinate())
+                                .required("name", "x", "y").build()))
+                        .property("clear", Schema.bool("Back to the definition's shape (a definition: the box)"))
+                        .build(),
                 operation("TidyWires", "«Ordenar cables» on the targets' wires (all wires when no targets)")
                         .property("targets", targets(""))
                         .build());
@@ -221,6 +238,12 @@ final class EditTools {
             case "PlaceInstance" -> new EditOperation.PlaceInstance(operation.optionalString("alias"),
                     operation.string("definition"), operation.integer("x"), operation.integer("y"),
                     rotationOf(operation));
+            case "SetComponentShape" -> new EditOperation.SetComponentShape(operation.optionalString("instance"),
+                    operation.optionalString("definition"), operation.has("template")
+                    ? Optional.of(operation.enumeration("template", SymbolTemplates.Template.class))
+                    : Optional.empty(), operation.objects("pins").stream()
+                    .map(pin -> new EditOperation.SetComponentShape.PinPosition(pin.string("name"),
+                            pin.integer("x"), pin.integer("y"))).toList(), operation.bool("clear", false));
             case "TidyWires" -> new EditOperation.TidyWires(operation.strings("targets"));
             default -> throw operation.invalid("op", "is not an operation VSim knows: " + kind);
         };
