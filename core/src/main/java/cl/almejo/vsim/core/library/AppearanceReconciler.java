@@ -88,10 +88,10 @@ public final class AppearanceReconciler {
         GridSize size = canonical.size();
         for (DefinitionPin pin : newPins) {
             GridPoint point = pin.spec().position();
-            if (point.x() > size.width() || point.y() > size.height() || occupied.contains(point)) {
+            if (!isFreeEdgeSpot(pin, point, size, occupied)) {
                 Optional<GridPoint> free = freeEdge(pin, size, occupied);
                 while (free.isEmpty()) {
-                    size = new GridSize(size.width(), Math.addExact(size.height(), 1));
+                    size = new GridSize(size.width(), Math.addExact(size.height(), DefinitionBuilder.PIN_SPACING));
                     free = freeEdge(pin, size, occupied);
                 }
                 point = free.orElseThrow();
@@ -142,12 +142,25 @@ public final class AppearanceReconciler {
         return matches.size() == 1 ? Optional.of(matches.getFirst()) : Optional.empty();
     }
 
+    /** A new pin goes strictly inside its own side (never on a corner), at least one spacing from the other pins. */
+    private static boolean isFreeEdgeSpot(DefinitionPin pin, GridPoint point, GridSize size, Set<GridPoint> occupied) {
+        int edgeX = pin.spec().isInput() ? 0 : size.width();
+        if (point.x() != edgeX || point.y() <= 0 || point.y() >= size.height()) {
+            return false;
+        }
+        for (GridPoint other : occupied) {
+            if (other.x() == edgeX && Math.abs(other.y() - point.y()) < DefinitionBuilder.PIN_SPACING) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     private static Optional<GridPoint> freeEdge(DefinitionPin pin, GridSize size, Set<GridPoint> occupied) {
-        int x = pin.spec().isInput() ? 0 : size.width();
-        int limit = Math.min(size.height(), occupied.size());
-        for (int y = 0; y <= limit; y++) {
-            GridPoint candidate = new GridPoint(x, y);
-            if (!occupied.contains(candidate)) {
+        int edgeX = pin.spec().isInput() ? 0 : size.width();
+        for (int y = 1; y < size.height(); y++) {
+            GridPoint candidate = new GridPoint(edgeX, y);
+            if (isFreeEdgeSpot(pin, candidate, size, occupied)) {
                 return Optional.of(candidate);
             }
         }

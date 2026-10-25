@@ -182,7 +182,8 @@ class ReplaceDefinitionCommandTest {
     void aNewPinThatWouldLandOnAWireRefusesTheUpdate() {
         wiredInstance();
         ComponentDefinition updated = AppearanceReconciler.preserveGeneralAppearance(inverter, withExtraInput());
-        GridPoint newPin = new GridPoint(INSTANCE_ORIGIN.x(), INSTANCE_ORIGIN.y() + 3);
+        GridPoint landing = updated.pinout().getLast().spec().position();
+        GridPoint newPin = new GridPoint(INSTANCE_ORIGIN.x() + landing.x(), INSTANCE_ORIGIN.y() + landing.y());
         document.add(new Wire(document.newWireId(), newPin.translate(-4, 0), newPin));
 
         assertThatThrownBy(() -> prepare(updated))

@@ -35,6 +35,7 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 
 ### Cambiado
 
+- Al «Actualizar componente…», un pin nuevo se ubica en un punto libre del borde, nunca en una esquina; si no queda ninguno, la caja crece hacia abajo.
 - «Actualizar componente…» ya no deja sueltos los cables de las piezas cuyos pines se movieron: los sigue. Una pieza dentro de otro componente conserva su copia anterior y se avisa por qué.
 
 ## Versión 0.3 — 2026-10-24

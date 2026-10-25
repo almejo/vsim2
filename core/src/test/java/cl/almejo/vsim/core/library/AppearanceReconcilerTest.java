@@ -72,6 +72,33 @@ class AppearanceReconcilerTest {
     }
 
     @Test
+    void aNewInputNeverLandsOnACornerAndTheBoxGrowsKeepingTheTopLeft() {
+        Component extra = new Component(new ElementId("c99"), InterfacePins.INPUT_PIN,
+                new GridPoint(0, 8), Rotation.R0, Map.of(), "b");
+        List<Component> components = new ArrayList<>(before.body().components());
+        components.add(extra);
+        List<DefinitionPin> pins = new ArrayList<>(before.pinout());
+        pins.add(new DefinitionPin(PinSpec.input("b", 0, DefinitionBuilder.FIRST_PIN_Y
+                + DefinitionBuilder.PIN_SPACING), extra.id()));
+        ComponentDefinition after = new ComponentDefinition(before.id(), before.name(), before.description(),
+                before.size(), pins, new CircuitFragment(components, before.body().wires(), List.of()));
+        ComponentAppearance common = new ComponentAppearance(new GridSize(6, 4), Optional.empty(), List.of(
+                new PinPlacement(before.pinout().getFirst().source(), new GridPoint(0, 2)),
+                new PinPlacement(before.pinout().getLast().source(), new GridPoint(6, 2))));
+
+        ComponentAppearance reconciled = AppearanceReconciler.reconcile(before, after, Optional.of(common))
+                .kept().orElseThrow();
+
+        PinPlacement added = reconciled.pins().getLast();
+        assertThat(added.offset().y()).isStrictlyBetween(0, reconciled.size().height());
+        assertThat(added.offset().x()).isZero();
+        assertThat(reconciled.size().width()).isEqualTo(6);
+        assertThat(reconciled.size().height()).isGreaterThan(4);
+        assertThat(reconciled.pins().getFirst().offset()).isEqualTo(new GridPoint(0, 2));
+        assertThat(Math.abs(added.offset().y() - 2)).isGreaterThanOrEqualTo(DefinitionBuilder.PIN_SPACING);
+    }
+
+    @Test
     void anInvalidOldOverrideIsDroppedAsAWhole() {
         ComponentAppearance invalid = new ComponentAppearance(before.size(), Optional.empty(), List.of(
                 new PinPlacement(before.pinout().getFirst().source(), new GridPoint(0, 1)),
