@@ -22,24 +22,19 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
   propios. Desde el doble clic coloca lo elegido en ese punto (un solo paso de deshacer); desde Insert empieza la
   colocación flotante.
 
-## Sin publicar — Conexiones pendientes
+## Sin publicar — Forma de los componentes propios
 
 ### Agregado
 
-- Problemas avisa por pines internos desconectados y extremos de cable sueltos. Una marca en la pieza exterior indica los problemas internos; sus terminales exteriores libres no se marcan como un fallo. Doble clic o F8 lleva hasta la pieza y el panel identifica el pin. Los avisos se actualizan al editar, deshacer y reabrir, sin impedir guardar o simular.
-- En el editor de formas, la caja del componente se distingue del tamaño de la figura: borde gris con nombre y control redondo separado, frente a los controles azules de la figura. Ya no se confunden al reducir una figura; las ayudas explican el límite de reducción de la caja.
-- Nodos muestra puntos redondos arrastrables sin seleccionar antes una figura, también en la forma predeterminada. Los controles de curva se distinguen como rombos; elegir la herramienta o cancelar un arrastre no modifica la forma.
-- El editor de formas incorpora Mover vista (H), con ícono de mano, para desplazar el lienzo con el botón izquierdo cuando el mouse no tiene botón central. También se puede usar Alt + arrastrar.
-- Agregar nodo (A) funciona como herramienta: resalta el segmento apuntado e inserta el nodo donde se hace clic, sin seleccionar otro nodo primero. La detección sigue las curvas y evita agregar puntos en segmentos alejados del cursor.
-- Guía de pines en el editor de formas: una muesca en cada punto entero del borde de la caja y, mientras se arrastra un pin, los puntos libres resaltados (el más cercano, más fuerte) y los ocupados en rojo con un signo de «prohibido».
+- Editor de formas para los componentes propios («Cambiar forma…», clic derecho en la pieza o en la paleta): dibuja con líneas, rectángulos, elipses, triángulos, polígonos y textos, edita nodos y curvas, mueve los pines y cambia el tamaño de la caja y de la figura por separado. «Formas ▾» da puntos de partida (predeterminada, rectángulo, cuadrado, círculo, triángulo, trapecios ALU y MUX con su texto, AND, OR, XOR). El cambio vale para «Solo esta pieza», «Todas las piezas» o la librería.
+- En el editor de formas, Mayús al mover limita el movimiento a horizontal o vertical; las flechas mueven la selección (Mayús+flecha, más lejos) y Supr la borra. Mover vista (H) y Agregar nodo (A) son herramientas; una muesca marca cada punto entero del borde de la caja y, al arrastrar un pin, se resaltan los puntos libres y los ocupados.
+- Los cables siguen a los pines que cambian de lugar al cambiar la forma o al «Actualizar componente…» / «Actualizar desde la librería». Si un cable no puede seguir sin tocar otra red, una hoja lo explica y solo «Aplicar y conectar a mano» sigue adelante; los pines sueltos quedan marcados y en Problemas.
+- Avisos de conexiones pendientes dentro de los componentes propios: la pieza rota por dentro brilla en rojo y Problemas da la ruta completa hasta el pin suelto («A2 › A1 › AND: entrada B desconectada»); el terminal exterior cuyo pin de interfaz está suelto por dentro se marca en rojo. Se actualizan al editar, deshacer y reabrir, y no impiden guardar ni simular.
+- Cada componente propio guarda su versión: al abrir un circuito, Problemas avisa si una pieza usa una versión anterior que la librería cambió y que, al actualizarla, dejaría conexiones sueltas. Nada se actualiza solo.
 
 ### Cambiado
 
-- El interruptor «Solo esta pieza» | «Todas las piezas» del editor de formas da a cada opción su ancho natural, no el mismo ancho.
-- El editor de formas abre con la caja a cerca del 60 % del lienzo y un zoom cómodo (como máximo unos 32 px por unidad), en vez de llegar al 600 %. Las líneas y los pines se dibujan con un grosor y tamaño constantes en pantalla al hacer zoom; el dibujo en tamaño real del circuito y las vistas previas no cambian.
-### Arreglado
-
-- El nombre del componente en las formas predefinidas (por ejemplo «ALU 4 bits») se desbordaba del trapecio y tapaba los nombres de los pines. Ahora se achica y luego se acorta con «…» para caber en el espacio libre, en el editor, las vistas previas y el lienzo.
+- «Actualizar componente…» ya no deja sueltos los cables de las piezas cuyos pines se movieron: los sigue. Una pieza dentro de otro componente conserva su copia anterior y se avisa por qué.
 
 ## Versión 0.3 — 2026-10-24
 
