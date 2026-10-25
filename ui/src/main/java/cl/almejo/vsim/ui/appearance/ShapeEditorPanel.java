@@ -383,12 +383,13 @@ public final class ShapeEditorPanel extends JPanel {
         textBorders.addChoiceListener(() -> editSelectedText(text -> text.coloured(text.color(),
                 textBorders.selectedValue())));
         textSizes.addActionListener(event -> editSelectedText(text -> new SymbolText(text.anchor(), text.text(),
-                TextSize.values()[textSizes.getSelectedIndex()], text.alignment())));
+                TextSize.values()[textSizes.getSelectedIndex()], text.alignment(), text.color(), text.border())));
         textAlignments.addActionListener(event -> editSelectedText(text -> new SymbolText(text.anchor(), text.text(),
-                text.size(), TextAlignment.values()[textAlignments.getSelectedIndex()])));
+                text.size(), TextAlignment.values()[textAlignments.getSelectedIndex()], text.color(),
+                text.border())));
         componentName.addActionListener(event -> editSelectedText(text -> new SymbolText(text.anchor(),
                 componentName.isSelected() ? Optional.empty() : Optional.of(request.definition().name()),
-                text.size(), text.alignment())));
+                text.size(), text.alignment(), text.color(), text.border())));
         return textGroup;
     }
 
@@ -1026,6 +1027,14 @@ public final class ShapeEditorPanel extends JPanel {
 
     ColorSwatches<NoteColor> textBorders() {
         return textBorders;
+    }
+
+    JComboBox<String> textSizes() {
+        return textSizes;
+    }
+
+    JComboBox<String> textAlignments() {
+        return textAlignments;
     }
 
     ColorSwatches<NoteColor> figureFills() {

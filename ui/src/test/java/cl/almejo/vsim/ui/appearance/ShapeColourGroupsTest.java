@@ -76,6 +76,24 @@ class ShapeColourGroupsTest {
     }
 
     @Test
+    void changingTheSizeOrTheAlignmentOfATextKeepsItsColours() {
+        SymbolDraft draft = withFigureAndText();
+        int textIndex = draft.elements().size() - 1;
+        panel.apply(draft.select(Set.of(textIndex)));
+        pick(panel.textColors(), NoteColor.BLUE);
+        pick(panel.textBorders(), NoteColor.GRAY);
+
+        panel.textSizes().setSelectedIndex(TextSize.LARGE.ordinal());
+        panel.textAlignments().setSelectedIndex(TextAlignment.RIGHT.ordinal());
+
+        SymbolText text = (SymbolText) panel.draft().elements().get(textIndex);
+        assertThat(text.size()).isEqualTo(TextSize.LARGE);
+        assertThat(text.alignment()).isEqualTo(TextAlignment.RIGHT);
+        assertThat(text.color()).isEqualTo(NoteColor.BLUE);
+        assertThat(text.border()).isEqualTo(NoteColor.GRAY);
+    }
+
+    @Test
     void severalFiguresWithDifferentColoursShowNoChoice() {
         SymbolDraft draft = withFigureAndText().setFigureColours(0, NoteColor.GREEN, NoteColor.NONE)
                 .addFigure(SymbolTemplates.rectangle(new SymbolPoint(8, 8), new SymbolPoint(16, 16), false));
