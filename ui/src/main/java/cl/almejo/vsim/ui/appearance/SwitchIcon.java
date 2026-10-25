@@ -24,10 +24,18 @@ final class SwitchIcon implements Icon {
     private static final int KNOB_MARGIN = 2;
     private static final float DISABLED_ALPHA = 0.45f;
 
-    @Override public int getIconWidth() { return WIDTH; }
-    @Override public int getIconHeight() { return HEIGHT; }
+    @Override
+    public int getIconWidth() {
+        return WIDTH;
+    }
 
-    @Override public void paintIcon(Component component, Graphics graphics, int x, int y) {
+    @Override
+    public int getIconHeight() {
+        return HEIGHT;
+    }
+
+    @Override
+    public void paintIcon(Component component, Graphics graphics, int x, int y) {
         boolean on = component instanceof AbstractButton button && button.isSelected();
         Graphics2D track = (Graphics2D) graphics.create();
         try {
@@ -42,7 +50,9 @@ final class SwitchIcon implements Icon {
             int knobX = on ? WIDTH - KNOB_MARGIN - knob : KNOB_MARGIN;
             track.setColor(Color.WHITE);
             track.fill(new Ellipse2D.Double(knobX, KNOB_MARGIN, knob, knob));
-        } finally { track.dispose(); }
+        } finally {
+            track.dispose();
+        }
     }
 
     private static Color offTrack() {

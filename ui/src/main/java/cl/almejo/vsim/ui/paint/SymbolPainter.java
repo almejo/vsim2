@@ -115,7 +115,9 @@ public final class SymbolPainter {
                 shape.lineTo(end.x() * COORDINATE_SCALE, end.y() * COORDINATE_SCALE);
             }
         }
-        if (symbol.closed()) { shape.closePath(); }
+        if (symbol.closed()) {
+            shape.closePath();
+        }
         return shape;
     }
 
@@ -126,7 +128,11 @@ public final class SymbolPainter {
             return;
         }
         String shown = text.text().get();
-        float size = switch (text.size()) { case SMALL -> 6f; case MEDIUM -> 9f; case LARGE -> 13f; };
+        float size = switch (text.size()) {
+            case SMALL -> 6f;
+            case MEDIUM -> 9f;
+            case LARGE -> 13f;
+        };
         double anchorX = text.anchor().x() * COORDINATE_SCALE;
         double anchorY = text.anchor().y() * COORDINATE_SCALE;
         boolean sideways = PainterSupport.turnedSideways(graphics);
@@ -159,7 +165,9 @@ public final class SymbolPainter {
         List<Area> bodies = new ArrayList<>();
         for (SymbolPath path : drawing.paths()) {
             Shape shape = insetByHalfTheStroke(path(path), drawing, strokeWidth);
-            if (path.closed() && shape.contains(anchorX, anchorY)) { bodies.add(new Area(shape)); }
+            if (path.closed() && shape.contains(anchorX, anchorY)) {
+                bodies.add(new Area(shape));
+            }
         }
         List<Rectangle2D> obstacles = new ArrayList<>();
         if (drawing.showPinNames()) {
@@ -167,10 +175,16 @@ public final class SymbolPainter {
                 obstacles.add(pinNameArea(graphics, pin, type.pins(), drawing, strokeWidth));
             }
         }
-        float nominal = switch (text.size()) { case SMALL -> 6f; case MEDIUM -> 9f; case LARGE -> 13f; };
+        float nominal = switch (text.size()) {
+            case SMALL -> 6f;
+            case MEDIUM -> 9f;
+            case LARGE -> 13f;
+        };
         float smallest = nominal;
         for (float step : NAME_SIZE_STEPS) {
-            if (step > nominal) { continue; }
+            if (step > nominal) {
+                continue;
+            }
             smallest = step;
             Rectangle2D area = textArea(graphics, name, font, step, anchorX, anchorY, alignment, sideways);
             if (isFree(area, box, bodies, obstacles)) {
@@ -191,12 +205,18 @@ public final class SymbolPainter {
     private static boolean isFree(Rectangle2D area, Rectangle2D box, List<Area> bodies, List<Rectangle2D> obstacles) {
         Rectangle2D margin = new Rectangle2D.Double(area.getX() - 1, area.getY() - 1, area.getWidth() + 2,
                 area.getHeight() + 2);
-        if (!box.contains(area)) { return false; }
+        if (!box.contains(area)) {
+            return false;
+        }
         for (Area body : bodies) {
-            if (!body.contains(margin)) { return false; }
+            if (!body.contains(margin)) {
+                return false;
+            }
         }
         for (Rectangle2D obstacle : obstacles) {
-            if (obstacle.intersects(margin)) { return false; }
+            if (obstacle.intersects(margin)) {
+                return false;
+            }
         }
         return true;
     }
@@ -350,7 +370,9 @@ public final class SymbolPainter {
         for (double distance = 0; distance <= 2 * UNIT; distance += 0.5) {
             Point2D point = new Point2D.Double(x + directionX * distance, y + directionY * distance);
             for (Shape outline : outlines) {
-                if (outline.contains(point)) { return distance; }
+                if (outline.contains(point)) {
+                    return distance;
+                }
             }
         }
         return 0;
@@ -362,6 +384,8 @@ public final class SymbolPainter {
         try {
             upright.clip(clip);
             PainterSupport.uprightText(upright, text, x, y, size, scheme.text(), alignment, font);
-        } finally { upright.dispose(); }
+        } finally {
+            upright.dispose();
+        }
     }
 }

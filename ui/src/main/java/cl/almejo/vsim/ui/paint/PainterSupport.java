@@ -56,12 +56,17 @@ public final class PainterSupport {
 
     /** Fills {@code shape} with a shadow and a top-lit gradient, then outlines it. */
     static void body(Graphics2D graphics, Shape shape, ColorScheme scheme) {
-        body(graphics, shape, scheme, null);
+        body(graphics, shape, scheme, STROKE);
     }
 
     /** Like {@link #body(Graphics2D, Shape, ColorScheme)} but with a flat fill when {@code flatFill} is not null. */
     static void body(Graphics2D graphics, Shape shape, ColorScheme scheme, Color flatFill) {
         body(graphics, shape, scheme, flatFill, STROKE);
+    }
+
+    /** Like {@link #body(Graphics2D, Shape, ColorScheme)} with an explicit outline stroke and the gradient fill. */
+    static void body(Graphics2D graphics, Shape shape, ColorScheme scheme, BasicStroke stroke) {
+        body(graphics, shape, scheme, null, stroke);
     }
 
     /** Like the flat-fill overload with an explicit outline stroke (a zoomed view keeps its width on screen). */

@@ -19,8 +19,12 @@ final class DialogPlacement {
     private DialogPlacement() { }
 
     static Rectangle place(Optional<Rectangle> saved, Rectangle owner, List<Rectangle> screens, Dimension defaultSize) {
-        if (screens.isEmpty()) { return saved.orElseGet(() -> centred(defaultSize, owner)); }
-        if (saved.isPresent() && grabbable(saved.get(), screens)) { return saved.get(); }
+        if (screens.isEmpty()) {
+            return saved.orElseGet(() -> centred(defaultSize, owner));
+        }
+        if (saved.isPresent() && grabbable(saved.get(), screens)) {
+            return saved.get();
+        }
         Dimension wanted = saved.map(Rectangle::getSize).orElse(defaultSize);
         Rectangle screen = screenOf(owner, screens);
         Dimension fitted = new Dimension(Math.min(wanted.width, screen.width), Math.min(wanted.height, screen.height));

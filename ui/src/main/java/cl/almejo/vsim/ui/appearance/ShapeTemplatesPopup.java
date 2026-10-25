@@ -146,7 +146,14 @@ public final class ShapeTemplatesPopup {
             canvas.draw(titleBar);
         }
 
-        @Override public int getIconWidth() { return THUMBNAIL; }
-        @Override public int getIconHeight() { return THUMBNAIL; }
+        @Override
+        public int getIconWidth() {
+            return THUMBNAIL;
+        }
+
+        @Override
+        public int getIconHeight() {
+            return THUMBNAIL;
+        }
     }
 }

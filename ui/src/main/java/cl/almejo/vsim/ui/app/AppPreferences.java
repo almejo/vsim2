@@ -9,6 +9,7 @@ import cl.almejo.vsim.ui.print.Paper;
 import cl.almejo.vsim.ui.print.PrintOptions;
 import cl.almejo.vsim.ui.print.PrintScope;
 import cl.almejo.vsim.ui.print.ScaleMode;
+import java.awt.Rectangle;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -786,11 +787,11 @@ public final class AppPreferences {
     }
 
     /** The shape editor's last bounds, kept separately from the circuit viewport; none before its first use. */
-    public Optional<java.awt.Rectangle> shapeEditorBounds() {
+    public Optional<Rectangle> shapeEditorBounds() {
         String[] values = read("shapeEditor.bounds", "").split(",");
         try {
             if (values.length == 4) {
-                return Optional.of(new java.awt.Rectangle(Integer.parseInt(values[0]), Integer.parseInt(values[1]),
+                return Optional.of(new Rectangle(Integer.parseInt(values[0]), Integer.parseInt(values[1]),
                         Math.max(640, Integer.parseInt(values[2])), Math.max(480, Integer.parseInt(values[3]))));
             }
         } catch (NumberFormatException exception) {
@@ -799,7 +800,7 @@ public final class AppPreferences {
         return Optional.empty();
     }
 
-    public void setShapeEditorBounds(java.awt.Rectangle bounds) {
+    public void setShapeEditorBounds(Rectangle bounds) {
         put("shapeEditor.bounds", bounds.x + "," + bounds.y + "," + bounds.width + "," + bounds.height);
     }
 

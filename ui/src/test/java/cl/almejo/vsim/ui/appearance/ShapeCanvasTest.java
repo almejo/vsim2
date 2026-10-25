@@ -20,6 +20,7 @@ import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.core.geometry.GridSize;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.ui.paint.ColorSchemes;
+import java.awt.Color;
 import org.junit.jupiter.api.Test;
 
 import javax.swing.JComponent;
@@ -425,7 +426,7 @@ class ShapeCanvasTest {
         int ink = 0;
         for (int y = (int) (box.getMinY() + zoom + 4); y < box.getMinY() + 1.5 * 8 * zoom; y++) {
             for (int x = (int) box.getMinX() + 6; x < box.getMaxX() - 6; x++) {
-                java.awt.Color pixel = new java.awt.Color(image.getRGB(x, y));
+                Color pixel = new Color(image.getRGB(x, y));
                 if (pixel.getRed() + pixel.getGreen() + pixel.getBlue() < 3 * 128) { ink++; }
             }
         }
@@ -449,7 +450,7 @@ class ShapeCanvasTest {
         int y = (int) (box.getMaxY() - 4 * zoom);
         int run = 0;
         for (int x = (int) box.getMinX() - 8; x < box.getMinX() + 8; x++) {
-            java.awt.Color pixel = new java.awt.Color(image.getRGB(x, y));
+            Color pixel = new Color(image.getRGB(x, y));
             if (pixel.getRed() + pixel.getGreen() + pixel.getBlue() < 3 * 128) { run++; }
         }
         return run;

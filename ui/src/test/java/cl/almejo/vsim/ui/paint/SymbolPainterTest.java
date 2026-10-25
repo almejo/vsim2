@@ -7,9 +7,11 @@ import cl.almejo.vsim.core.component.appearance.SymbolDrawing;
 import cl.almejo.vsim.core.component.appearance.SymbolPath;
 import cl.almejo.vsim.core.component.appearance.SymbolPoint;
 import cl.almejo.vsim.core.component.appearance.SymbolTemplates;
+import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.GridSize;
+import cl.almejo.vsim.core.geometry.Rotation;
 import cl.almejo.vsim.core.io.CircuitFragment;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.DefinitionPin;
@@ -119,10 +121,10 @@ class SymbolPainterTest {
                 new DefinitionPin(PinSpec.output("F[4]", 6, 1), new ElementId("f")),
                 new DefinitionPin(PinSpec.output("Cout", 6, 2), new ElementId("cout"))),
                 new CircuitFragment(List.of(
-                        new cl.almejo.vsim.core.document.Component(new ElementId("f"), "output-pin",
-                                new GridPoint(0, 0), cl.almejo.vsim.core.geometry.Rotation.R0, Map.of(), "f"),
-                        new cl.almejo.vsim.core.document.Component(new ElementId("cout"), "output-pin",
-                                new GridPoint(0, 0), cl.almejo.vsim.core.geometry.Rotation.R0, Map.of(), "cout")),
+                        new Component(new ElementId("f"), "output-pin",
+                                new GridPoint(0, 0), Rotation.R0, Map.of(), "f"),
+                        new Component(new ElementId("cout"), "output-pin",
+                                new GridPoint(0, 0), Rotation.R0, Map.of(), "cout")),
                         List.of(), List.of()));
         SymbolDrawing named = new SymbolDrawing(SIZE, List.of(), true);
         SymbolDrawing silent = new SymbolDrawing(SIZE, List.of(), false);

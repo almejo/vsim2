@@ -53,11 +53,13 @@ public final class OwnShapeMark implements CanvasOverlay {
     /** Follows the pointer of {@code pane}; the returned runnable stops following it. */
     public Runnable follow(CircuitCanvas pane) {
         MouseAdapter pointer = new MouseAdapter() {
-            @Override public void mouseMoved(MouseEvent event) {
+            @Override
+            public void mouseMoved(MouseEvent event) {
                 hoverAt(pane.viewport().screenToGrid(event.getX(), event.getY()));
             }
 
-            @Override public void mouseExited(MouseEvent event) {
+            @Override
+            public void mouseExited(MouseEvent event) {
                 setHovered(Optional.empty());
             }
         };

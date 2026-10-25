@@ -41,7 +41,9 @@ final class PinTable extends JTable {
             Objects.requireNonNull(problem, "problem");
         }
 
-        boolean blocking() { return tone == ToneLabel.Tone.BLOCKING; }
+        boolean blocking() {
+            return tone == ToneLabel.Tone.BLOCKING;
+        }
     }
 
     private final Model model = new Model();
@@ -67,26 +69,41 @@ final class PinTable extends JTable {
 
     /** Shows {@code rows}, keeping the selected row when the pins did not change. */
     void show(List<Row> rows) {
-        if (rows.equals(model.rows)) { return; }
+        if (rows.equals(model.rows)) {
+            return;
+        }
         int selected = getSelectedRow();
         model.rows = List.copyOf(rows);
         model.fireTableDataChanged();
-        if (selected >= 0 && selected < rows.size()) { setRowSelectionInterval(selected, selected); }
+        if (selected >= 0 && selected < rows.size()) {
+            setRowSelectionInterval(selected, selected);
+        }
     }
 
-    Row row(int index) { return model.rows.get(index); }
+    Row row(int index) {
+        return model.rows.get(index);
+    }
 
-    @Override public Dimension getPreferredScrollableViewportSize() {
+    @Override
+    public Dimension getPreferredScrollableViewportSize() {
         return new Dimension(super.getPreferredScrollableViewportSize().width, getPreferredSize().height);
     }
 
     private static final class Model extends AbstractTableModel {
         private List<Row> rows = List.of();
 
-        @Override public int getRowCount() { return rows.size(); }
-        @Override public int getColumnCount() { return 3; }
+        @Override
+        public int getRowCount() {
+            return rows.size();
+        }
 
-        @Override public String getColumnName(int column) {
+        @Override
+        public int getColumnCount() {
+            return 3;
+        }
+
+        @Override
+        public String getColumnName(int column) {
             return Messages.text(switch (column) {
                 case NAME_COLUMN -> "shape.pins.name";
                 case DIRECTION_COLUMN -> "shape.pins.direction";
@@ -94,7 +111,8 @@ final class PinTable extends JTable {
             });
         }
 
-        @Override public Object getValueAt(int rowIndex, int column) {
+        @Override
+        public Object getValueAt(int rowIndex, int column) {
             Row row = rows.get(rowIndex);
             return switch (column) {
                 case NAME_COLUMN -> row.name();
@@ -113,7 +131,8 @@ final class PinTable extends JTable {
             title.setBorder(new EdgeBorder(Set.of(EdgeBorder.Side.BOTTOM), new Insets(2, 10, 3, 6)));
         }
 
-        @Override public Component getTableCellRendererComponent(JTable table, Object value, boolean selected,
+        @Override
+        public Component getTableCellRendererComponent(JTable table, Object value, boolean selected,
                                                                  boolean focused, int rowIndex, int column) {
             title.setText(String.valueOf(value));
             return title;
@@ -122,7 +141,8 @@ final class PinTable extends JTable {
 
     /** Icons and colours per row, read from the theme at each paint. */
     private final class Renderer extends DefaultTableCellRenderer {
-        @Override public Component getTableCellRendererComponent(JTable table, Object value, boolean selected,
+        @Override
+        public Component getTableCellRendererComponent(JTable table, Object value, boolean selected,
                                                                  boolean focused, int rowIndex, int column) {
             JLabel cell = (JLabel) super.getTableCellRendererComponent(table, value, selected, false, rowIndex, column);
             Row row = model.rows.get(rowIndex);
@@ -140,7 +160,9 @@ final class PinTable extends JTable {
         }
 
         private Icon icon(Row row) {
-            if (row.tone() != ToneLabel.Tone.PLAIN) { return ProblemIcon.of(row.tone()).orElse(null); }
+            if (row.tone() != ToneLabel.Tone.PLAIN) {
+                return ProblemIcon.of(row.tone()).orElse(null);
+            }
             return row.locked() ? Icons.get("lock-closed", LOCK_ICON_SIZE) : null;
         }
     }

@@ -16,6 +16,7 @@ import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.geometry.Rotation;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.library.InterfacePins;
+import java.awt.RenderingHints;
 import java.util.Map;
 import cl.almejo.vsim.core.geometry.GridSize;
 import cl.almejo.vsim.core.io.CircuitFragment;
@@ -215,7 +216,7 @@ class TemplateNamesTest {
                 BufferedImage.TYPE_INT_ARGB);
         Graphics2D graphics = image.createGraphics();
         try {
-            graphics.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING, java.awt.RenderingHints.VALUE_ANTIALIAS_ON);
+            graphics.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
             graphics.scale(zoom, zoom);
             graphics.translate(OFFSET, OFFSET);
             SymbolPainter.paint(graphics, type, drawing, ColorSchemes.LIGHT, NAME);

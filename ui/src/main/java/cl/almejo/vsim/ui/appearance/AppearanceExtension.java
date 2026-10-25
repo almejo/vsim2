@@ -20,10 +20,14 @@ public final class AppearanceExtension implements EditorExtension {
 
     public AppearanceExtension(LibraryService library, LibraryDialogs dialogs, Optional<ShapeEditor> editor,
                                AppearancePrompts prompts) {
-        this.library = library; this.dialogs = dialogs; this.editor = editor; this.prompts = prompts;
+        this.library = library;
+        this.dialogs = dialogs;
+        this.editor = editor;
+        this.prompts = prompts;
     }
 
-    @Override public Runnable install(EditorView view) {
+    @Override
+    public Runnable install(EditorView view) {
         ShapeEditor opener = editor.orElseGet(() -> new SwingShapeEditor(view.services().preferences(),
                 view.services().appearance()::scheme));
         AppearanceFeatures features = new AppearanceFeatures(view, library, dialogs, opener, prompts);

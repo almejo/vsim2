@@ -23,7 +23,9 @@ final class ShapeSegments {
         Optional<Hit> hit = Optional.empty();
         double bestDistance = radius * radius;
         for (int pathIndex = elements.size() - 1; pathIndex >= 0; pathIndex--) {
-            if (!(elements.get(pathIndex) instanceof SymbolPath path)) { continue; }
+            if (!(elements.get(pathIndex) instanceof SymbolPath path)) {
+                continue;
+            }
             int count = path.nodes().size() - (path.closed() ? 0 : 1);
             for (int segment = 0; segment < count; segment++) {
                 Nearest nearest = nearest(shape(path, segment), x, y, Math.max(0.05, radius / 8));
@@ -66,9 +68,12 @@ final class ShapeSegments {
                 double projectedX = previousX + horizontal * fraction;
                 double projectedY = previousY + vertical * fraction;
                 double distance = Math.pow(projectedX - x, 2) + Math.pow(projectedY - y, 2);
-                if (distance < best.distanceSquared()) { best = new Nearest(projectedX, projectedY, distance); }
+                if (distance < best.distanceSquared()) {
+                    best = new Nearest(projectedX, projectedY, distance);
+                }
             }
-            previousX = coordinates[0]; previousY = coordinates[1];
+            previousX = coordinates[0];
+            previousY = coordinates[1];
             segments.next();
         }
         return best;

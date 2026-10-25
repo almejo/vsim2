@@ -6,6 +6,7 @@ import cl.almejo.vsim.core.component.appearance.ComponentAppearance;
 import cl.almejo.vsim.core.component.appearance.SymbolDraft;
 import cl.almejo.vsim.core.component.appearance.SymbolTemplates;
 import cl.almejo.vsim.core.document.Component;
+import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.DefinitionBundle;
 import cl.almejo.vsim.core.library.ExampleDefinitions;
@@ -151,7 +152,7 @@ class OwnShapeMarkTest {
     }
 
     /** The alpha at the dot's place: the dot is the only thing the overlay paints. */
-    private static int paint(TemplateFixture fixture, CanvasOverlay overlay, Set<cl.almejo.vsim.core.document.ElementId> selection) {
+    private static int paint(TemplateFixture fixture, CanvasOverlay overlay, Set<ElementId> selection) {
         BufferedImage image = new BufferedImage(200, 200, BufferedImage.TYPE_INT_ARGB);
         Graphics2D graphics = image.createGraphics();
         overlay.paint(graphics, new RenderState(fixture.openDocument.document(), Netlist.EMPTY, 0,

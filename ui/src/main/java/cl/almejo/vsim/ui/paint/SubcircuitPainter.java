@@ -55,7 +55,7 @@ public final class SubcircuitPainter implements ComponentPainter {
         double width = type.size().width() * UNIT;
         double height = type.size().height() * UNIT;
         Rectangle2D box = new Rectangle2D.Double(1, 1, width - 2, height - 2);
-        PainterSupport.body(graphics, new RoundRectangle2D.Double(1, 1, width - 2, height - 2, 4, 4), scheme, null,
+        PainterSupport.body(graphics, new RoundRectangle2D.Double(1, 1, width - 2, height - 2, 4, 4), scheme,
                 stroke);
         // Texts stay upright: turned a quarter, they run across the box (local y) instead of along it (local x).
         boolean sideways = PainterSupport.turnedSideways(graphics);

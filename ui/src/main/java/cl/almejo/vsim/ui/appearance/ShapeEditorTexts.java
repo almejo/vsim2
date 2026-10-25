@@ -51,9 +51,13 @@ final class ShapeEditorTexts {
     /** The status next to «Aceptar»: what blocks it, else how many warnings, else whether there is anything to accept. */
     static String status(List<DraftProblem> problems, boolean changed) {
         Optional<DraftProblem> blocking = problems.stream().filter(DraftProblem::blocksAccept).findFirst();
-        if (blocking.isPresent()) { return problem(blocking.get().kind(), blocking.get().pins()); }
+        if (blocking.isPresent()) {
+            return problem(blocking.get().kind(), blocking.get().pins());
+        }
         long warnings = problems.stream().filter(problem -> !problem.blocksAccept()).count();
-        if (warnings > 0) { return Messages.format("shape.status.warnings", warnings); }
+        if (warnings > 0) {
+            return Messages.format("shape.status.warnings", warnings);
+        }
         return Messages.text(changed ? "shape.status.ready" : "shape.status.unchanged");
     }
 
@@ -68,8 +72,12 @@ final class ShapeEditorTexts {
 
     /** «A», «A y B», «A, B y C». */
     static String names(List<String> names) {
-        if (names.isEmpty()) { return ""; }
-        if (names.size() == 1) { return names.getFirst(); }
+        if (names.isEmpty()) {
+            return "";
+        }
+        if (names.size() == 1) {
+            return names.getFirst();
+        }
         String allButLast = String.join(", ", names.subList(0, names.size() - 1));
         return Messages.format("shape.list.and", allButLast, names.getLast());
     }
@@ -91,7 +99,9 @@ final class ShapeEditorTexts {
     }
 
     private static String selectHint(HintState state) {
-        if (state.pinSelected()) { return Messages.text(state.pinsLocked() ? "shape.hint.lockedPin" : "shape.hint.pin"); }
+        if (state.pinSelected()) {
+            return Messages.text(state.pinsLocked() ? "shape.hint.lockedPin" : "shape.hint.pin");
+        }
         if (state.selectedFigures() > 0) {
             return Messages.format("shape.hint.figures", state.selectedFigures(), shortcut(KeyEvent.VK_D));
         }

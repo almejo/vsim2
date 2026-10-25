@@ -54,12 +54,18 @@ final class ConnectionsSheet {
         content.add(buttons(), BUTTON_LAYOUT);
     }
 
-    JComponent content() { return content; }
+    JComponent content() {
+        return content;
+    }
 
     /** «Aplicar y conectar a mano», or «Volver» when that is the only answer. */
-    JButton defaultButton() { return blocked ? back : apply; }
+    JButton defaultButton() {
+        return blocked ? back : apply;
+    }
 
-    boolean confirmed() { return confirmed; }
+    boolean confirmed() {
+        return confirmed;
+    }
 
     /** Shows the sheet over {@code owner}'s window and returns true when the user chose to apply. */
     static boolean ask(Component owner, ConnectionsQuestion question) {

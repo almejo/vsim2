@@ -12,6 +12,8 @@ import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.ColorSchemes;
 import cl.almejo.vsim.ui.app.AppPreferences;
+import java.awt.Component;
+import javax.swing.JToggleButton;
 import org.junit.jupiter.api.Test;
 
 import javax.swing.Action;
@@ -126,7 +128,7 @@ class ShapeEditorSelectionKeysTest {
                 new JComboBox<>(new String[]{"a"})};
         for (Object owner : owners) {
             ShapeEditorPanel panel = panelWithFigure();
-            panel.focusOwner(() -> (java.awt.Component) owner);
+            panel.focusOwner(() -> (Component) owner);
 
             press(panel, KeyEvent.VK_RIGHT, 0);
             press(panel, KeyEvent.VK_DELETE, 0);
@@ -148,7 +150,7 @@ class ShapeEditorSelectionKeysTest {
         assertThat(panel.canvasFocusRequests()).as("after choosing a pin row").isGreaterThan(initial);
 
         int afterRow = panel.canvasFocusRequests();
-        ShapeEditorPanelTest.toolbarButtons(panel).stream().filter(javax.swing.JToggleButton.class::isInstance)
+        ShapeEditorPanelTest.toolbarButtons(panel).stream().filter(JToggleButton.class::isInstance)
                 .findFirst().orElseThrow().doClick(0);
         assertThat(panel.canvasFocusRequests()).as("after choosing a tool").isGreaterThan(afterRow);
     }

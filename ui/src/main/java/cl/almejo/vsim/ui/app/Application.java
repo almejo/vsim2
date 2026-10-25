@@ -26,6 +26,7 @@ import cl.almejo.vsim.ui.ai.present.AutomationPresentationControls;
 import cl.almejo.vsim.ui.ai.present.PresentationControls;
 import cl.almejo.vsim.ui.ai.present.PresentationEvents;
 import cl.almejo.vsim.ui.ai.present.PresentationExtension;
+import cl.almejo.vsim.ui.appearance.AppearanceExtension;
 import cl.almejo.vsim.ui.examples.ExamplesFeature;
 import cl.almejo.vsim.ui.export.ExportImageExtension;
 import cl.almejo.vsim.ui.print.ExportPdfExtension;
@@ -209,7 +210,7 @@ public final class Application {
         // M6: waveforms before ActionIcons, recents after PreferencesFeature, shortcuts last. M6.1: the step mode and
         // the truth table before ActionIcons, the examples after RecentFilesFeature (its submenu goes after «Recientes»).
         editorExtensions.add(new TemplatesExtension(libraryService, libraryDialogs));
-        editorExtensions.add(new cl.almejo.vsim.ui.appearance.AppearanceExtension(libraryService, libraryDialogs));
+        editorExtensions.add(new AppearanceExtension(libraryService, libraryDialogs));
         editorExtensions.add(new ComponentTreeExtension());
         editorExtensions.add(new WaveformsExtension());
         editorExtensions.add(new StepModeExtension());

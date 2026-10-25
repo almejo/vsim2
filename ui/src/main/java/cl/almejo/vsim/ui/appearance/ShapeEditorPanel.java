@@ -138,8 +138,15 @@ public final class ShapeEditorPanel extends JPanel {
         canvas.setSnap(preferences.shapeEditorSnap());
         // The in-place text field counts as a change while it is open, so «Aceptar» must follow it.
         canvas.addContainerListener(new ContainerAdapter() {
-            @Override public void componentAdded(ContainerEvent event) { refresh(); }
-            @Override public void componentRemoved(ContainerEvent event) { refresh(); }
+            @Override
+            public void componentAdded(ContainerEvent event) {
+                refresh();
+            }
+
+            @Override
+            public void componentRemoved(ContainerEvent event) {
+                refresh();
+            }
         });
         width = new JSpinner(new SpinnerNumberModel(draft.appearance().size().width(), 1, LARGEST_BOX, 1));
         height = new JSpinner(new SpinnerNumberModel(draft.appearance().size().height(), 1, LARGEST_BOX, 1));
@@ -154,8 +161,13 @@ public final class ShapeEditorPanel extends JPanel {
         refresh();
     }
 
-    public ComponentAppearance appearance() { return draft.appearance(); }
-    public ShapeEditResult result() { return new ShapeEditResult(scope, draft.appearance()); }
+    public ComponentAppearance appearance() {
+        return draft.appearance();
+    }
+
+    public ShapeEditResult result() {
+        return new ShapeEditResult(scope, draft.appearance());
+    }
 
     /** A gesture in progress, another drawing or another scope than the one it opened with. */
     public boolean hasChanges() {
@@ -163,20 +175,38 @@ public final class ShapeEditorPanel extends JPanel {
                 || !draft.appearance().equals(request.appearance());
     }
 
-    public boolean canAccept() { return draft.canAccept() && (!locked(scope) || compatibleGeometry()); }
-    public JButton acceptButton() { return accept; }
-    public JToolBar toolbar() { return toolbar; }
-    public void onAccept(Runnable action) { onAccept = action; }
-    public void onClose(Runnable action) { onClose = action; }
+    public boolean canAccept() {
+        return draft.canAccept() && (!locked(scope) || compatibleGeometry());
+    }
+
+    public JButton acceptButton() {
+        return accept;
+    }
+
+    public JToolBar toolbar() {
+        return toolbar;
+    }
+
+    public void onAccept(Runnable action) {
+        onAccept = action;
+    }
+
+    public void onClose(Runnable action) {
+        onClose = action;
+    }
 
     public void apply(SymbolDraft changed) {
         notice = Optional.empty();
         history.update(changed.withPinLock(locked(scope)));
-        draft = history.current(); canvas.draftChanged(); refresh();
+        draft = history.current();
+        canvas.draftChanged();
+        refresh();
     }
 
     public void switchScope(ShapeEditScope next) {
-        if (!request.switchable() || next == ShapeEditScope.LIBRARY_DEFINITION) { return; }
+        if (!request.switchable() || next == ShapeEditScope.LIBRARY_DEFINITION) {
+            return;
+        }
         if (locked(next) && !compatibleGeometry()) {
             notice = Optional.of(Messages.text("shape.scope.incompatible"));
             refresh();
@@ -189,11 +219,17 @@ public final class ShapeEditorPanel extends JPanel {
     }
 
     public void undo() {
-        history.undo(); draft = history.current().withPinLock(locked(scope)); canvas.draftChanged(); refresh();
+        history.undo();
+        draft = history.current().withPinLock(locked(scope));
+        canvas.draftChanged();
+        refresh();
     }
 
     public void redo() {
-        history.redo(); draft = history.current().withPinLock(locked(scope)); canvas.draftChanged(); refresh();
+        history.redo();
+        draft = history.current().withPinLock(locked(scope));
+        canvas.draftChanged();
+        refresh();
     }
 
     // --- Layout -------------------------------------------------------------------------------------------------
@@ -254,7 +290,9 @@ public final class ShapeEditorPanel extends JPanel {
         pinNames.setOpaque(false);
         pinNames.setIconTextGap(8);
         pinNames.addActionListener(event -> {
-            if (!refreshing) { apply(draft.showPinNames(pinNames.isSelected())); }
+            if (!refreshing) {
+                apply(draft.showPinNames(pinNames.isSelected()));
+            }
         });
         side.add(pinNames, "gap 10 10 6 2");
         side.add(textGroup());
@@ -406,7 +444,10 @@ public final class ShapeEditorPanel extends JPanel {
         zoomValue.putClientProperty("FlatLaf.style", "font: -1");
         zoomValue.getAccessibleContext().setAccessibleName(Messages.text("shape.zoomReset"));
         zoomValue.setFocusable(false);
-        zoomValue.addActionListener(event -> { canvas.setZoom(1); canvas.requestFocusInWindow(); });
+        zoomValue.addActionListener(event -> {
+            canvas.setZoom(1);
+            canvas.requestFocusInWindow();
+        });
         toolbar.add(zoomValue);
     }
 
@@ -414,7 +455,10 @@ public final class ShapeEditorPanel extends JPanel {
         JButton button = new JButton(icon);
         button.getAccessibleContext().setAccessibleName(Messages.text(MESSAGE_PREFIX + name));
         button.setFocusable(false);
-        button.addActionListener(event -> { action.run(); canvas.requestFocusInWindow(); });
+        button.addActionListener(event -> {
+            action.run();
+            canvas.requestFocusInWindow();
+        });
         buttons.put(name, button);
         toolbar.add(button);
     }
@@ -434,7 +478,9 @@ public final class ShapeEditorPanel extends JPanel {
         });
     }
 
-    private static Icon icon(String name) { return Icons.get(name, TOOL_ICON_SIZE); }
+    private static Icon icon(String name) {
+        return Icons.get(name, TOOL_ICON_SIZE);
+    }
 
     private void showTemplates() {
         JPopupMenu popup = ShapeTemplatesPopup.create(draft.appearance().size(), scheme,
@@ -455,11 +501,17 @@ public final class ShapeEditorPanel extends JPanel {
     // --- Keys ---------------------------------------------------------------------------------------------------
 
     private void acceptEdits() {
-        if (canvas.operationActive()) { canvas.finishOperation(); }
-        if (!canvas.operationActive() && canAccept()) { onAccept.run(); }
+        if (canvas.operationActive()) {
+            canvas.finishOperation();
+        }
+        if (!canvas.operationActive() && canAccept()) {
+            onAccept.run();
+        }
     }
 
-    private boolean acceptable() { return canAccept() && hasChanges(); }
+    private boolean acceptable() {
+        return canAccept() && hasChanges();
+    }
 
     private void bindKeys() {
         int menu = ShortcutCatalog.menuMask();
@@ -473,7 +525,9 @@ public final class ShapeEditorPanel extends JPanel {
         bind(KeyStroke.getKeyStroke("ENTER"), "enter", () -> {
             if (ShapeKeys.enter(canvas.operationActive()) == ShapeKeys.Intent.FINISH_OPERATION) {
                 canvas.finishOperation();
-            } else if (acceptable()) { onAccept.run(); }
+            } else if (acceptable()) {
+                onAccept.run();
+            }
         });
         // The selection keys belong to the canvas: a text, a spinner or a combo box that has the focus keeps them.
         bindSelectionKey(KeyStroke.getKeyStroke(KeyEvent.VK_DELETE, 0), "delete", canvas::deleteSelection);
@@ -495,7 +549,11 @@ public final class ShapeEditorPanel extends JPanel {
     }
 
     private void bindSelectionKey(KeyStroke stroke, String name, Runnable action) {
-        bind(stroke, name, () -> { if (canvasOwnsSelectionKeys()) { action.run(); } });
+        bind(stroke, name, () -> {
+            if (canvasOwnsSelectionKeys()) {
+                action.run();
+            }
+        });
     }
 
     /** False while a text field, spinner or combo box has the focus: their arrows and deletes are theirs. */
@@ -506,19 +564,26 @@ public final class ShapeEditorPanel extends JPanel {
     }
 
     /** Test seam: who has the keyboard focus (the focus manager does not work on a window that is not showing). */
-    void focusOwner(Supplier<Component> owner) { focusOwner = owner; }
+    void focusOwner(Supplier<Component> owner) {
+        focusOwner = owner;
+    }
 
     private void focusCanvas() {
         canvasFocusRequests++;
         canvas.requestFocusInWindow();
     }
 
-    int canvasFocusRequests() { return canvasFocusRequests; }
+    int canvasFocusRequests() {
+        return canvasFocusRequests;
+    }
 
     private void bind(KeyStroke stroke, String name, Runnable action) {
         getInputMap(WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(stroke, "shape." + name);
         getActionMap().put("shape." + name, new AbstractAction() {
-            @Override public void actionPerformed(ActionEvent event) { action.run(); }
+            @Override
+            public void actionPerformed(ActionEvent event) {
+                action.run();
+            }
         });
     }
 
@@ -526,14 +591,19 @@ public final class ShapeEditorPanel extends JPanel {
         String name = "shape.canvas." + stroke;
         canvas.getInputMap(WHEN_FOCUSED).put(stroke, name);
         canvas.getActionMap().put(name, new AbstractAction() {
-            @Override public void actionPerformed(ActionEvent event) { action.run(); }
+            @Override
+            public void actionPerformed(ActionEvent event) {
+                action.run();
+            }
         });
     }
 
     // --- Edits --------------------------------------------------------------------------------------------------
 
     private boolean compatibleGeometry() {
-        if (!draft.appearance().size().equals(request.definition().size())) { return false; }
+        if (!draft.appearance().size().equals(request.definition().size())) {
+            return false;
+        }
         return request.definition().pinout().stream().allMatch(pin -> draft.appearance().pins().stream().anyMatch(
                 placement -> placement.source().equals(pin.source()) && placement.offset().equals(pin.spec().position())));
     }
@@ -542,10 +612,15 @@ public final class ShapeEditorPanel extends JPanel {
         return candidate != ShapeEditScope.INSTANCE && request.definitionPinsLocked();
     }
 
-    private void preview(SymbolDraft changed) { draft = changed; refresh(); }
+    private void preview(SymbolDraft changed) {
+        draft = changed;
+        refresh();
+    }
 
     private void resize() {
-        if (refreshing || draft.pinsLocked()) { return; }
+        if (refreshing || draft.pinsLocked()) {
+            return;
+        }
         try {
             apply(draft.resizeBox(new GridSize((Integer) width.getValue(), (Integer) height.getValue())));
         } catch (IllegalArgumentException exception) {
@@ -555,7 +630,9 @@ public final class ShapeEditorPanel extends JPanel {
     }
 
     private void editSelectedText(UnaryOperator<SymbolText> change) {
-        if (refreshing) { return; }
+        if (refreshing) {
+            return;
+        }
         SymbolDraft edited = draft;
         for (int index : draft.selection()) {
             if (draft.elements().get(index) instanceof SymbolText text) {
@@ -573,7 +650,9 @@ public final class ShapeEditorPanel extends JPanel {
     // --- Refresh ------------------------------------------------------------------------------------------------
 
     private void refresh() {
-        if (width == null || refreshing) { return; }
+        if (width == null || refreshing) {
+            return;
+        }
         refreshing = true;
         try {
             refreshScope();
@@ -584,7 +663,9 @@ public final class ShapeEditorPanel extends JPanel {
             refreshMessages();
             refreshFooter();
             refreshToolbar();
-        } finally { refreshing = false; }
+        } finally {
+            refreshing = false;
+        }
         canvas.repaint();
         previews.repaint();
     }
@@ -632,7 +713,9 @@ public final class ShapeEditorPanel extends JPanel {
             ToneLabel.Tone tone = ToneLabel.Tone.PLAIN;
             String problem = "";
             for (DraftProblem candidate : problems) {
-                if (!candidate.pins().contains(name)) { continue; }
+                if (!candidate.pins().contains(name)) {
+                    continue;
+                }
                 if (candidate.kind() == DraftProblem.Kind.COINCIDING_PINS) {
                     List<String> others = candidate.pins().stream().filter(other -> !other.equals(name)).toList();
                     tone = ToneLabel.Tone.BLOCKING;
@@ -651,13 +734,19 @@ public final class ShapeEditorPanel extends JPanel {
         Optional<Integer> row = canvas.selectedPin().flatMap(source -> {
             List<DefinitionPin> pinout = request.definition().pinout();
             for (int index = 0; index < pinout.size(); index++) {
-                if (pinout.get(index).source().equals(source)) { return Optional.of(index); }
+                if (pinout.get(index).source().equals(source)) {
+                    return Optional.of(index);
+                }
             }
             return Optional.empty();
         });
         if (row.isPresent()) {
-            if (pins.getSelectedRow() != row.get()) { pins.setRowSelectionInterval(row.get(), row.get()); }
-        } else if (pins.getSelectedRow() >= 0) { pins.clearSelection(); }
+            if (pins.getSelectedRow() != row.get()) {
+                pins.setRowSelectionInterval(row.get(), row.get());
+            }
+        } else if (pins.getSelectedRow() >= 0) {
+            pins.clearSelection();
+        }
     }
 
     /** The lines under the canvas: a notice, the lock, the warnings; the tool's hint when there is nothing to warn. */
@@ -677,13 +766,17 @@ public final class ShapeEditorPanel extends JPanel {
         draft.problems().stream().filter(problem -> problem.kind() == DraftProblem.Kind.EMPTY_DRAWING).findFirst()
                 .ifPresent(problem -> lines.add(new Line(ToneLabel.Tone.WARNING,
                         ShapeEditorTexts.problem(problem.kind(), problem.pins()))));
-        if (lines.isEmpty()) { lines.add(new Line(ToneLabel.Tone.INFO, hintText())); }
+        if (lines.isEmpty()) {
+            lines.add(new Line(ToneLabel.Tone.INFO, hintText()));
+        }
         return lines;
     }
 
     private void refreshMessages() {
         List<Line> lines = lines();
-        if (lines.equals(shownLines)) { return; }
+        if (lines.equals(shownLines)) {
+            return;
+        }
         shownLines = lines;
         messages.removeAll();
         for (Line line : lines) {
@@ -701,12 +794,16 @@ public final class ShapeEditorPanel extends JPanel {
         boolean blocked = problems.stream().anyMatch(DraftProblem::blocksAccept);
         status.show(blocked ? ToneLabel.Tone.BLOCKING : ToneLabel.Tone.INFO,
                 ShapeEditorTexts.status(problems, hasChanges()));
-        if (!blocked) { status.setIcon(null); }
+        if (!blocked) {
+            status.setIcon(null);
+        }
         accept.setEnabled(acceptable());
     }
 
     private void refreshToolbar() {
-        if (buttons.isEmpty()) { return; }
+        if (buttons.isEmpty()) {
+            return;
+        }
         String undoName = Messages.format("shape.tool.tooltip", Messages.text("shape.undo"),
                 ShapeEditorTexts.shortcut(KeyEvent.VK_Z));
         String redoName = Messages.format("shape.tool.tooltip", Messages.text("shape.redo"),
@@ -736,24 +833,67 @@ public final class ShapeEditorPanel extends JPanel {
         button.setToolTipText(enabled ? tooltip : Messages.format("shape.disabled", tooltip, Messages.text(reasonKey)));
     }
 
-    private void plain(String name, String tooltip) { buttons.get(name).setToolTipText(tooltip); }
+    private void plain(String name, String tooltip) {
+        buttons.get(name).setToolTipText(tooltip);
+    }
 
     // --- Accessors for tests ------------------------------------------------------------------------------------
 
-    ShapeCanvas canvas() { return canvas; }
-    PinTable pinTable() { return pins; }
-    JButton zoomValueButton() { return zoomValue; }
-    List<String> scopeSwitchTexts() { return scopeSegments.stream().map(AbstractButton::getText).toList(); }
-    String scopeTitle() { return scopeTitle.getText(); }
-    String scopeDetail() { return scopeDetail.getText(); }
-    String statusText() { return status.getText(); }
-    Icon statusIcon() { return status.getIcon(); }
-    List<String> messageLines() { return shownLines.stream().map(Line::text).toList(); }
-    boolean textGroupVisible() { return textGroup.isVisible(); }
-    TextSize selectedTextSize() { return TextSize.values()[textSizes.getSelectedIndex()]; }
-    TextAlignment selectedTextAlignment() { return TextAlignment.values()[textAlignments.getSelectedIndex()]; }
-    String pinRowProblem(int row) { return pins.row(row).problem(); }
-    boolean pinRowLocked(int row) { return pins.row(row).locked(); }
+    ShapeCanvas canvas() {
+        return canvas;
+    }
+
+    PinTable pinTable() {
+        return pins;
+    }
+
+    JButton zoomValueButton() {
+        return zoomValue;
+    }
+
+    List<String> scopeSwitchTexts() {
+        return scopeSegments.stream().map(AbstractButton::getText).toList();
+    }
+
+    String scopeTitle() {
+        return scopeTitle.getText();
+    }
+
+    String scopeDetail() {
+        return scopeDetail.getText();
+    }
+
+    String statusText() {
+        return status.getText();
+    }
+
+    Icon statusIcon() {
+        return status.getIcon();
+    }
+
+    List<String> messageLines() {
+        return shownLines.stream().map(Line::text).toList();
+    }
+
+    boolean textGroupVisible() {
+        return textGroup.isVisible();
+    }
+
+    TextSize selectedTextSize() {
+        return TextSize.values()[textSizes.getSelectedIndex()];
+    }
+
+    TextAlignment selectedTextAlignment() {
+        return TextAlignment.values()[textAlignments.getSelectedIndex()];
+    }
+
+    String pinRowProblem(int row) {
+        return pins.row(row).problem();
+    }
+
+    boolean pinRowLocked(int row) {
+        return pins.row(row).locked();
+    }
 
     String hintText() {
         return ShapeEditorTexts.hint(new ShapeEditorTexts.HintState(activeTool, canvas.selectedPin().isPresent(),
@@ -782,9 +922,12 @@ public final class ShapeEditorPanel extends JPanel {
 
     /** A band in the theme's surface colour (white on FlatLaf Light), like the mockups' side panel and scope line. */
     private static class Surface extends JPanel {
-        Surface(MigLayout layout) { super(layout); }
+        Surface(MigLayout layout) {
+            super(layout);
+        }
 
-        @Override public Color getBackground() {
+        @Override
+        public Color getBackground() {
             Color surface = UIManager.getColor("Table.background");
             return surface != null ? surface : super.getBackground();
         }
@@ -792,7 +935,9 @@ public final class ShapeEditorPanel extends JPanel {
 
     /** Takes the side panel's spare height, so the sections stay at the top. */
     private static final class Spacer extends JPanel {
-        Spacer() { setOpaque(false); }
+        Spacer() {
+            setOpaque(false);
+        }
     }
 
     /**
@@ -811,7 +956,8 @@ public final class ShapeEditorPanel extends JPanel {
             setPreferredSize(new Dimension(100, PREVIEW_HEIGHT));
         }
 
-        @Override protected void paintComponent(Graphics graphics) {
+        @Override
+        protected void paintComponent(Graphics graphics) {
             Graphics2D surface = (Graphics2D) graphics.create();
             try {
                 surface.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
@@ -833,7 +979,9 @@ public final class ShapeEditorPanel extends JPanel {
                 Color border = UIManager.getColor("Component.borderColor");
                 surface.setColor(border != null ? border : Color.GRAY);
                 surface.draw(card);
-            } finally { surface.dispose(); }
+            } finally {
+                surface.dispose();
+            }
         }
 
         private void paintCaption(Graphics2D surface, String caption) {
@@ -855,7 +1003,9 @@ public final class ShapeEditorPanel extends JPanel {
                 shape.translate((getWidth() - boxWidth * scale) / 2, CAPTION_HEIGHT + (room - boxHeight * scale) / 2);
                 shape.scale(scale, scale);
                 ShapeCanvas.paintAppearance(shape, request.definition(), appearance, shown, false);
-            } finally { shape.dispose(); }
+            } finally {
+                shape.dispose();
+            }
         }
     }
 }

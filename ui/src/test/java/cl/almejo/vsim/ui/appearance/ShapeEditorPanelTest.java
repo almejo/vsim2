@@ -22,6 +22,7 @@ import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.ColorSchemes;
 import cl.almejo.vsim.ui.shortcuts.KeyBindings;
 import cl.almejo.vsim.ui.shortcuts.ShortcutCatalog;
+import java.util.Optional;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -246,7 +247,7 @@ class ShapeEditorPanelTest {
         assertThat(panel.textGroupVisible()).isFalse();
         SymbolDraft withText = SymbolDraft.of(panel.appearance(), definition.pinout(), false)
                 .applyTemplate(SymbolTemplates.Template.RECTANGLE)
-                .addText(new SymbolText(new SymbolPoint(8, 8), java.util.Optional.of("X"), TextSize.LARGE,
+                .addText(new SymbolText(new SymbolPoint(8, 8), Optional.of("X"), TextSize.LARGE,
                         TextAlignment.CENTER));
         int textIndex = withText.elements().size() - 1;
         panel.apply(withText.select(Set.of()));

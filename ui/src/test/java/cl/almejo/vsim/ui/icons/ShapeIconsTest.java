@@ -4,6 +4,7 @@ import cl.almejo.vsim.ui.appearance.ShapeEditorIcons;
 import com.formdev.flatlaf.FlatDarkLaf;
 import com.formdev.flatlaf.FlatLaf;
 import com.formdev.flatlaf.FlatLightLaf;
+import javax.swing.LookAndFeel;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
@@ -19,7 +20,7 @@ class ShapeIconsTest {
 
     static final List<String> NAMES = ShapeEditorIcons.names();
 
-    private final javax.swing.LookAndFeel originalLookAndFeel = UIManager.getLookAndFeel();
+    private final LookAndFeel originalLookAndFeel = UIManager.getLookAndFeel();
 
     @AfterEach
     void restoreTheLookAndFeel() throws Exception {

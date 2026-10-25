@@ -45,7 +45,11 @@ final class AppearanceFeatures {
 
     AppearanceFeatures(EditorView view, LibraryService library, LibraryDialogs dialogs, ShapeEditor editor,
                        AppearancePrompts prompts) {
-        this.view = view; this.library = library; this.dialogs = dialogs; this.editor = editor; this.prompts = prompts;
+        this.view = view;
+        this.library = library;
+        this.dialogs = dialogs;
+        this.editor = editor;
+        this.prompts = prompts;
     }
 
     void install() {
@@ -83,11 +87,17 @@ final class AppearanceFeatures {
         }));
     }
 
-    void dispose() { for (int index = removals.size() - 1; index >= 0; index--) { removals.get(index).run(); } }
+    void dispose() {
+        for (int index = removals.size() - 1; index >= 0; index--) {
+            removals.get(index).run();
+        }
+    }
 
     private void edit(Optional<ElementId> instanceId, String definitionId, boolean libraryScope) {
         Optional<ComponentDefinition> source = source(definitionId, libraryScope);
-        if (source.isEmpty()) { return; }
+        if (source.isEmpty()) {
+            return;
+        }
         ComponentDefinition starting = source.get();
         Optional<Component> instance = instanceId.flatMap(id -> document().component(id));
         ComponentAppearance draft = instance.flatMap(Component::appearance).orElseGet(() -> ComponentAppearance.of(source.get()));
@@ -109,27 +119,38 @@ final class AppearanceFeatures {
                     !parents.isEmpty(), String.join(", ", parents), count, instanceName, savesToLibrary,
                     circuitUsesOtherVersion);
             Optional<ShapeEditResult> result = editor.edit(view, request);
-            if (result.isEmpty()) { return; }
+            if (result.isEmpty()) {
+                return;
+            }
             ShapeEditResult accepted = result.get();
-            scope = accepted.scope(); draft = accepted.appearance();
+            scope = accepted.scope();
+            draft = accepted.appearance();
             Optional<ComponentDefinition> latest = source(definitionId, libraryScope);
             Optional<Component> latestInstance = instanceId.flatMap(id -> document().component(id));
             if (latest.isEmpty() || instanceId.isPresent() && latestInstance.isEmpty()) {
-                dialogs.showMessage(view, Messages.text("shape.stale.message")); return;
+                dialogs.showMessage(view, Messages.text("shape.stale.message"));
+                return;
             }
             Optional<DefinitionBundle> latestBundle = library.library().find(definitionId);
             if (!latest.get().equals(starting) || !latestInstance.equals(instance)
                     || libraryScope && !latestBundle.equals(librarySnapshot)) {
-                if (!prompts.reopenStale(view)) { return; }
+                if (!prompts.reopenStale(view)) {
+                    return;
+                }
                 draft = AppearanceReconciler.reconcile(starting, latest.get(), Optional.of(draft))
                         .orElseGet(() -> ComponentAppearance.of(latest.get()));
-                starting = latest.get(); instance = latestInstance; librarySnapshot = latestBundle; continue;
+                starting = latest.get();
+                instance = latestInstance;
+                librarySnapshot = latestBundle;
+                continue;
             }
             ComponentAppearance originalEffective = instance.flatMap(Component::appearance)
                     .orElseGet(() -> ComponentAppearance.of(latest.get()));
             if (scope == ShapeEditScope.INSTANCE && draft.equals(originalEffective)
                     && request.initialScope() == ShapeEditScope.INSTANCE
-                    || scope != ShapeEditScope.INSTANCE && draft.equals(ComponentAppearance.of(starting))) { return; }
+                    || scope != ShapeEditScope.INSTANCE && draft.equals(ComponentAppearance.of(starting))) {
+                        return;
+                    }
             boolean writesLibrary = scope == ShapeEditScope.LIBRARY_DEFINITION || scope == ShapeEditScope.CIRCUIT_DEFINITION
                     && latestBundle.filter(this::matchesCircuitBundle).isPresent();
             Optional<DefinitionBundle> expectedLibrary = library.library().find(definitionId);
@@ -146,9 +167,15 @@ final class AppearanceFeatures {
                 ChangeAppearanceCommand command = scope == ShapeEditScope.INSTANCE
                         ? ChangeAppearanceCommand.forInstance(document(), view.openDocument().registry(), instanceId.orElseThrow(), Optional.of(draft))
                         : ChangeAppearanceCommand.forDefinition(document(), view.openDocument().registry(), definitionId, draft);
-                if (!confirm(command.plan(), scope == ShapeEditScope.INSTANCE)) { continue; }
-                if (command.isStale(document())) { continue; }
-                if (writesLibrary && !library.library().find(definitionId).equals(expectedLibrary)) { continue; }
+                if (!confirm(command.plan(), scope == ShapeEditScope.INSTANCE)) {
+                    continue;
+                }
+                if (command.isStale(document())) {
+                    continue;
+                }
+                if (writesLibrary && !library.library().find(definitionId).equals(expectedLibrary)) {
+                    continue;
+                }
                 view.openDocument().execute(command);
                 if (writesLibrary) {
                     ComponentDefinition changed = document().definition(definitionId).orElseThrow();
@@ -180,10 +207,15 @@ final class AppearanceFeatures {
                 dialogs.showMessage(view, Messages.text("shape.stale.message"));
                 return false;
             }
-            try { library.save(bundle); return true; }
+            try {
+                library.save(bundle);
+                return true;
+            }
             catch (IOException exception) {
                 LOGGER.warn("Could not save appearance for {}", bundle.root().id(), exception);
-                if (!prompts.retryLibraryWrite(view, circuitApplied)) { return false; }
+                if (!prompts.retryLibraryWrite(view, circuitApplied)) {
+                    return false;
+                }
             }
         }
     }
@@ -191,11 +223,15 @@ final class AppearanceFeatures {
     private void clear(ElementId instance) {
         ChangeAppearanceCommand command = ChangeAppearanceCommand.forInstance(document(), view.openDocument().registry(),
                 instance, Optional.empty());
-        if (confirm(command.plan(), true) && !command.isStale(document())) { view.openDocument().execute(command); }
+        if (confirm(command.plan(), true) && !command.isStale(document())) {
+            view.openDocument().execute(command);
+        }
     }
 
     private boolean confirm(ShapeChangePlan plan, boolean instanceScope) {
-        if (plan.disconnected().isEmpty() && plan.keptOldShape().isEmpty()) { return true; }
+        if (plan.disconnected().isEmpty() && plan.keptOldShape().isEmpty()) {
+            return true;
+        }
         List<ConnectionsQuestion.Entry> disconnected = plan.disconnected().stream().map(this::entry).toList();
         List<ConnectionsQuestion.Entry> kept = plan.keptOldShape().stream().map(contact ->
                 new ConnectionsQuestion.Entry(contact.instanceName(), contact.pinName(), contact.touchedNetName())).toList();
@@ -225,18 +261,24 @@ final class AppearanceFeatures {
         ComponentAppearance canonical = appearance.canonical(definition.pinout());
         List<DefinitionPin> pins = new ArrayList<>();
         for (int index = 0; index < definition.pinout().size(); index++) {
-            DefinitionPin pin = definition.pinout().get(index); PinSpec spec = pin.spec();
+            DefinitionPin pin = definition.pinout().get(index);
+            PinSpec spec = pin.spec();
             pins.add(new DefinitionPin(new PinSpec(spec.name(), canonical.pins().get(index).offset(),
                     spec.direction(), spec.width()), pin.source()));
         }
         return definition.withGeometry(canonical.size(), pins, canonical.drawing());
     }
 
-    private CircuitDocument document() { return view.openDocument().document(); }
+    private CircuitDocument document() {
+        return view.openDocument().document();
+    }
 
     private JMenuItem item(String key, Runnable action) {
         return new JMenuItem(new AbstractAction(Messages.text(key)) {
-            @Override public void actionPerformed(ActionEvent event) { action.run(); }
+            @Override
+            public void actionPerformed(ActionEvent event) {
+                action.run();
+            }
         });
     }
 }

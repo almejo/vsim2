@@ -21,7 +21,9 @@ final class ToneLabel extends JLabel {
         putClientProperty("html.disable", Boolean.TRUE);
     }
 
-    Tone tone() { return tone; }
+    Tone tone() {
+        return tone;
+    }
 
     /** The tone and its icon: a hint gets ⓘ, a warning ⚠, a blocking problem ⛔ (never colour alone). */
     void show(Tone shown, String text) {
@@ -31,8 +33,11 @@ final class ToneLabel extends JLabel {
         repaint();
     }
 
-    @Override public Color getForeground() {
-        if (tone == null) { return super.getForeground(); }
+    @Override
+    public Color getForeground() {
+        if (tone == null) {
+            return super.getForeground();
+        }
         return switch (tone) {
             case PLAIN -> super.getForeground();
             case INFO -> ReadableColors.mutedText();

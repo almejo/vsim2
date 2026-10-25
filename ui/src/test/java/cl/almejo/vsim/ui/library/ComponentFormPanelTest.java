@@ -8,6 +8,8 @@ import cl.almejo.vsim.core.library.ExampleDefinitions;
 import cl.almejo.vsim.core.library.PinOrder;
 import cl.almejo.vsim.core.library.TestParts;
 import cl.almejo.vsim.ui.i18n.Messages;
+import java.awt.Color;
+import javax.swing.JComponent;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -57,7 +59,7 @@ class ComponentFormPanelTest {
         panel.nameField().setText("Par");
         JTable inputs = panel.inputTable();
         assertThat(inputs.isCellEditable(0, 0)).isTrue();
-        java.awt.Color normal = rendered(inputs, 1).getForeground();
+        Color normal = rendered(inputs, 1).getForeground();
 
         assertThat(inputs.editCellAt(1, 0)).isTrue();
         JTextField editor = (JTextField) inputs.getEditorComponent();
@@ -70,12 +72,12 @@ class ComponentFormPanelTest {
         assertThat(panel.messageLabel().getText()).isEqualTo("Hay más de un pin llamado «Y».");
         assertThat(inputs.isEditing()).isTrue();
         inputs.getCellEditor().stopCellEditing();
-        java.awt.Color marked = rendered(inputs, 1).getForeground();
+        Color marked = rendered(inputs, 1).getForeground();
         assertThat(marked).isNotEqualTo(normal);
-        assertThat(((javax.swing.JComponent) rendered(inputs, 1)).getToolTipText()).isEqualTo("Hay más de un pin llamado «Y».");
-        assertThat(((javax.swing.JComponent) rendered(panel.outputTable(), 0)).getToolTipText())
+        assertThat(((JComponent) rendered(inputs, 1)).getToolTipText()).isEqualTo("Hay más de un pin llamado «Y».");
+        assertThat(((JComponent) rendered(panel.outputTable(), 0)).getToolTipText())
                 .isEqualTo("Hay más de un pin llamado «y».");
-        assertThat(((javax.swing.JComponent) rendered(inputs, 0)).getToolTipText()).isNull();
+        assertThat(((JComponent) rendered(inputs, 0)).getToolTipText()).isNull();
 
         panel.outputTable().setValueAt("Salida", 0, 0);
         assertThat(form.canAccept()).isTrue();

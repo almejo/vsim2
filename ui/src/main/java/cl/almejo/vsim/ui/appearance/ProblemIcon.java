@@ -27,7 +27,9 @@ final class ProblemIcon implements Icon {
     private static final ProblemIcon BLOCKING = new ProblemIcon(ToneLabel.Tone.BLOCKING);
     private final ToneLabel.Tone tone;
 
-    private ProblemIcon(ToneLabel.Tone tone) { this.tone = tone; }
+    private ProblemIcon(ToneLabel.Tone tone) {
+        this.tone = tone;
+    }
 
     static Optional<Icon> of(ToneLabel.Tone tone) {
         return switch (tone) {
@@ -38,10 +40,18 @@ final class ProblemIcon implements Icon {
         };
     }
 
-    @Override public int getIconWidth() { return SIZE; }
-    @Override public int getIconHeight() { return SIZE; }
+    @Override
+    public int getIconWidth() {
+        return SIZE;
+    }
 
-    @Override public void paintIcon(Component component, Graphics graphics, int x, int y) {
+    @Override
+    public int getIconHeight() {
+        return SIZE;
+    }
+
+    @Override
+    public void paintIcon(Component component, Graphics graphics, int x, int y) {
         Graphics2D mark = (Graphics2D) graphics.create();
         try {
             mark.translate(x, y);
@@ -53,7 +63,9 @@ final class ProblemIcon implements Icon {
                 case BLOCKING -> paintBlocking(mark);
                 case PLAIN -> { }
             }
-        } finally { mark.dispose(); }
+        } finally {
+            mark.dispose();
+        }
     }
 
     private static void paintInfo(Graphics2D mark) {

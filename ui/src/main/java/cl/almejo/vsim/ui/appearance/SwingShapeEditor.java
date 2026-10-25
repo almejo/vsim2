@@ -35,7 +35,8 @@ public final class SwingShapeEditor implements ShapeEditor {
         this.scheme = scheme;
     }
 
-    @Override public Optional<ShapeEditResult> edit(Component owner, ShapeEditRequest request) {
+    @Override
+    public Optional<ShapeEditResult> edit(Component owner, ShapeEditRequest request) {
         ShapeEditorPanel panel = new ShapeEditorPanel(request, preferences, scheme);
         Window ownerWindow = SwingUtilities.getWindowAncestor(owner);
         JDialog dialog = new JDialog(ownerWindow, Messages.format("shape.title", request.definition().name()),
@@ -50,11 +51,17 @@ public final class SwingShapeEditor implements ShapeEditor {
         };
         panel.onClose(close);
         panel.onAccept(() -> {
-            if (panel.canAccept()) { result.set(Optional.of(panel.result())); dialog.dispose(); }
+            if (panel.canAccept()) {
+                result.set(Optional.of(panel.result()));
+                dialog.dispose();
+            }
         });
         dialog.setDefaultCloseOperation(JDialog.DO_NOTHING_ON_CLOSE);
         dialog.addWindowListener(new WindowAdapter() {
-            @Override public void windowClosing(WindowEvent event) { close.run(); }
+            @Override
+            public void windowClosing(WindowEvent event) {
+                close.run();
+            }
         });
         dialog.setContentPane(panel);
         dialog.setMinimumSize(MINIMUM_SIZE);
@@ -69,7 +76,9 @@ public final class SwingShapeEditor implements ShapeEditor {
 
     /** The usable bounds of every screen; none when headless. */
     private static List<Rectangle> screens() {
-        if (GraphicsEnvironment.isHeadless()) { return List.of(); }
+        if (GraphicsEnvironment.isHeadless()) {
+            return List.of();
+        }
         List<Rectangle> screens = new ArrayList<>();
         for (GraphicsDevice device : GraphicsEnvironment.getLocalGraphicsEnvironment().getScreenDevices()) {
             screens.add(device.getDefaultConfiguration().getBounds());
