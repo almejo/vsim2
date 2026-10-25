@@ -43,19 +43,23 @@ final class NamePlacement {
 
     private NamePlacement() { }
 
-    /** The component name's text element for a template whose body is {@code body}. */
-    static SymbolText nameText(GridSize size, List<SymbolPoint> body, String name, List<SymbolTemplates.PinLabel> pins) {
+    /**
+     * The text element for a template whose body is {@code body}: {@code name} is what gets written, and
+     * {@code fixedText} (when present) is stored in the element instead of following the component's name.
+     */
+    static SymbolText nameText(GridSize size, List<SymbolPoint> body, String name, List<SymbolTemplates.PinLabel> pins,
+                               Optional<String> fixedText) {
         int width = size.width() * SymbolPoint.EIGHTHS;
         int height = size.height() * SymbolPoint.EIGHTHS;
         List<Area> occupied = pins.stream().map(pin -> pinArea(pin, width, height)).toList();
         for (int sizeIndex = 0; sizeIndex < SIZES.length; sizeIndex++) {
             Optional<SymbolPoint> spot = freeSpot(SIZE_PIXELS[sizeIndex], name, width, height, body, occupied);
             if (spot.isPresent()) {
-                return text(spot.get(), SIZES[sizeIndex]);
+                return text(spot.get(), SIZES[sizeIndex], fixedText);
             }
         }
         return text(leastCrowdedSpot(SIZE_PIXELS[SIZE_PIXELS.length - 1], name, width, height, body, occupied),
-                TextSize.SMALL);
+                TextSize.SMALL, fixedText);
     }
 
     /** No size fits clear of the pin names: the smallest lettering where it covers the least of them. */
@@ -81,8 +85,8 @@ final class NamePlacement {
         return best;
     }
 
-    private static SymbolText text(SymbolPoint anchor, TextSize size) {
-        return new SymbolText(anchor, Optional.empty(), size, TextAlignment.CENTER);
+    private static SymbolText text(SymbolPoint anchor, TextSize size, Optional<String> fixedText) {
+        return new SymbolText(anchor, fixedText, size, TextAlignment.CENTER);
     }
 
     private static Optional<SymbolPoint> freeSpot(int pixels, String name, int width, int height,

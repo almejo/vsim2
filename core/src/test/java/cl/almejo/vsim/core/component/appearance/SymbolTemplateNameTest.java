@@ -66,6 +66,20 @@ class SymbolTemplateNameTest {
         assertThat(drawing.texts().getFirst().size()).isNotEqualTo(TextSize.LARGE);
     }
 
+    @Test
+    void theAluAndMuxWriteTheirFixedTextWhateverTheComponentIsCalled() {
+        assertThat(name(SymbolTemplates.Template.ALU, "Sumador de 4 bits", ALU_PINS).text()).contains("ALU");
+        assertThat(name(SymbolTemplates.Template.MUX, "Selector", ALU_PINS).text()).contains("MUX");
+    }
+
+    @Test
+    void theOtherNamedTemplatesFollowTheComponentName() {
+        for (SymbolTemplates.Template template : List.of(SymbolTemplates.Template.RECTANGLE,
+                SymbolTemplates.Template.SQUARE, SymbolTemplates.Template.CIRCLE)) {
+            assertThat(name(template, "Sumador", ALU_PINS).text()).as(template.name()).isEmpty();
+        }
+    }
+
     private static SymbolText name(SymbolTemplates.Template template, String name,
                                    List<SymbolTemplates.PinLabel> pins) {
         return SymbolTemplates.drawing(template, SIZE, name, pins).orElseThrow().texts().getFirst();

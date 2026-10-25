@@ -27,9 +27,10 @@ import java.util.Optional;
 import java.util.function.Supplier;
 
 /**
- * A dot on the top-right corner of every piece with its own shape (spec §6.2, mockup 13), shown while the pointer is
- * over the piece or the piece is selected, and «Forma propia» in its help (a pin under the pointer keeps its own help).
- * The scheme is read when painting, never kept.
+ * A dot on the top-left corner of every piece with its own shape (spec §6.2, mockup 13; the library-version badge
+ * has the top-right one, so a piece with both shows both), shown while the pointer is over the piece or the piece is
+ * selected, and «Forma propia» in its help (a pin under the pointer keeps its own help). The scheme is read when
+ * painting, never kept.
  */
 public final class OwnShapeMark implements CanvasOverlay {
     private static final double RADIUS = 3;
@@ -102,7 +103,7 @@ public final class OwnShapeMark implements CanvasOverlay {
     }
 
     private static void paintDot(Graphics2D graphics, Rectangle2D bounds, ColorScheme colors) {
-        Ellipse2D dot = new Ellipse2D.Double(bounds.getMaxX() - 2 * RADIUS - 1, bounds.getMinY() + 1,
+        Ellipse2D dot = new Ellipse2D.Double(bounds.getMinX() + 1, bounds.getMinY() + 1,
                 2 * RADIUS, 2 * RADIUS);
         graphics.setColor(colors.selection());
         graphics.fill(dot);
