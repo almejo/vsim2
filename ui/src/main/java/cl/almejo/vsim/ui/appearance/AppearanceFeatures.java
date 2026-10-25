@@ -101,8 +101,13 @@ final class AppearanceFeatures {
                     .filter(piece -> piece.typeId().equals(SubcircuitTypes.typeIdOf(definitionId)))
                     .filter(piece -> piece.appearance().isEmpty()).count();
             String instanceName = instance.map(piece -> piece.label().isBlank() ? piece.id().value() : piece.label()).orElse("");
+            boolean savesToLibrary = !libraryScope
+                    && library.library().find(definitionId).filter(this::matchesCircuitBundle).isPresent();
+            boolean circuitUsesOtherVersion = libraryScope && !appliesToCircuit
+                    && document().definition(definitionId).isPresent();
             ShapeEditRequest request = new ShapeEditRequest(starting, draft, scope, instanceId.isPresent(),
-                    !parents.isEmpty(), String.join(", ", parents), count, instanceName);
+                    !parents.isEmpty(), String.join(", ", parents), count, instanceName, savesToLibrary,
+                    circuitUsesOtherVersion);
             Optional<ShapeEditResult> result = editor.edit(view, request);
             if (result.isEmpty()) { return; }
             ShapeEditResult accepted = result.get();

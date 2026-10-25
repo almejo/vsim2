@@ -785,18 +785,18 @@ public final class AppPreferences {
         put("shapeEditor.snap", Boolean.toString(enabled));
     }
 
-    /** Dialog geometry, kept separately from the circuit viewport. */
-    public java.awt.Rectangle shapeEditorBounds() {
-        String[] values = read("shapeEditor.bounds", "80,80,1080,720").split(",");
+    /** The shape editor's last bounds, kept separately from the circuit viewport; none before its first use. */
+    public Optional<java.awt.Rectangle> shapeEditorBounds() {
+        String[] values = read("shapeEditor.bounds", "").split(",");
         try {
             if (values.length == 4) {
-                return new java.awt.Rectangle(Integer.parseInt(values[0]), Integer.parseInt(values[1]),
-                        Math.max(640, Integer.parseInt(values[2])), Math.max(480, Integer.parseInt(values[3])));
+                return Optional.of(new java.awt.Rectangle(Integer.parseInt(values[0]), Integer.parseInt(values[1]),
+                        Math.max(640, Integer.parseInt(values[2])), Math.max(480, Integer.parseInt(values[3]))));
             }
         } catch (NumberFormatException exception) {
             LOGGER.debug("Ignoring invalid shape editor bounds", exception);
         }
-        return new java.awt.Rectangle(80, 80, 1080, 720);
+        return Optional.empty();
     }
 
     public void setShapeEditorBounds(java.awt.Rectangle bounds) {

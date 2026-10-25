@@ -1,6 +1,4 @@
-package cl.almejo.vsim.ui.ai.present;
-
-import cl.almejo.vsim.ui.theme.ReadableColors;
+package cl.almejo.vsim.ui.theme;
 
 import javax.swing.BorderFactory;
 import javax.swing.ButtonGroup;
@@ -16,16 +14,17 @@ import java.awt.RenderingHints;
 import java.awt.geom.RoundRectangle2D;
 
 /**
- * «De corrido» | «Paso a paso» as one segmented control (the user's first look: which pace is on was not obvious):
- * the chosen segment filled with the theme's accent and its text in a colour readable on it, the other one plain,
+ * Two or more choices as one segmented control, as «De corrido» | «Paso a paso» in «Presentar» and «Solo esta pieza» |
+ * «Todas las piezas» in «Cambiar forma» (the user's first look at the pace: which one is on was not obvious): the
+ * chosen segment filled with the theme's accent and its text in a colour readable on it, the other one plain,
  * inside one rounded outline. Colours read from the theme at each paint (light and dark change live). EDT only.
  */
-final class PaceSwitch extends JPanel {
+public final class SegmentedSwitch extends JPanel {
 
     private static final int ARC = 8;
     private final ButtonGroup group = new ButtonGroup();
 
-    PaceSwitch(JToggleButton... segments) {
+    public SegmentedSwitch(JToggleButton... segments) {
         super(new GridLayout(1, segments.length, 2, 0));
         setOpaque(false);
         setBorder(BorderFactory.createEmptyBorder(2, 2, 2, 2));
@@ -36,7 +35,7 @@ final class PaceSwitch extends JPanel {
     }
 
     /** The accent the chosen segment is filled with. */
-    static Color accent() {
+    public static Color accent() {
         Color accent = UIManager.getColor("Component.accentColor");
         if (accent == null) {
             accent = UIManager.getColor("Component.focusColor");
@@ -48,7 +47,7 @@ final class PaceSwitch extends JPanel {
     }
 
     /** White or black, whichever reads better on the accent. */
-    static Color onAccent() {
+    public static Color onAccent() {
         Color accent = accent();
         return ReadableColors.contrast(Color.WHITE, accent) >= ReadableColors.contrast(Color.BLACK, accent)
                 ? Color.WHITE : Color.BLACK;
@@ -69,9 +68,9 @@ final class PaceSwitch extends JPanel {
     }
 
     /** One segment: no button chrome of its own; the chosen one is a filled rounded rectangle. */
-    static final class Segment extends JToggleButton {
+    public static final class Segment extends JToggleButton {
 
-        Segment(String text) {
+        public Segment(String text) {
             super(text);
             putClientProperty("html.disable", Boolean.TRUE);
             setContentAreaFilled(false);

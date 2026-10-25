@@ -30,6 +30,23 @@ class ReadableColorsTest {
     }
 
     @Test
+    void theWarningAndMutedTextsAreReadableOnEveryTheme() throws Exception {
+        LookAndFeel previous = UIManager.getLookAndFeel();
+        try {
+            for (LookAndFeel theme : AppThemes.all()) {
+                UIManager.setLookAndFeel(theme);
+                for (Color text : new Color[]{ReadableColors.warningText(), ReadableColors.mutedText()}) {
+                    assertThat(ReadableColors.contrast(text, ReadableColors.panelBackground()))
+                            .as(theme.getName())
+                            .isGreaterThanOrEqualTo(ReadableColors.MINIMUM_TEXT_CONTRAST);
+                }
+            }
+        } finally {
+            UIManager.setLookAndFeel(previous);
+        }
+    }
+
+    @Test
     void anErrorLabelFollowsALiveThemeChange() throws Exception {
         LookAndFeel previous = UIManager.getLookAndFeel();
         try {

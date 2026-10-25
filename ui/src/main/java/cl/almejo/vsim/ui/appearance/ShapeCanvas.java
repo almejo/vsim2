@@ -185,6 +185,14 @@ final class ShapeCanvas extends JPanel {
     double zoom() { return zoom; }
     Optional<ElementId> selectedPin() { return pin; }
     void selectPin(ElementId source) { pin = Optional.of(source); repaint(); }
+
+    /** Where the pin {@code source} is on screen now (its connection point). */
+    Point pinLocation(ElementId source) {
+        GridPoint offset = current.get().appearance().pins().stream()
+                .filter(placement -> placement.source().equals(source)).findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("no pin " + source.value())).offset();
+        return screen(offset.x() * 8, offset.y() * 8);
+    }
     boolean operationActive() { return pressed != null || !polygon.isEmpty() || textField != null; }
     boolean hasSelection() { return pin.isPresent() || !current.get().selection().isEmpty() || nodeIndex >= 0; }
     /** A node (not only a segment) is selected: the last node of an open path counts. */

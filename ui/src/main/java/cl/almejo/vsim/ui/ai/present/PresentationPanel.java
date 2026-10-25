@@ -11,6 +11,7 @@ import cl.almejo.vsim.ui.ai.QuestionCard;
 import cl.almejo.vsim.ui.ai.SettingsOverride;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.theme.SegmentedSwitch;
 import net.miginfocom.swing.MigLayout;
 
 import javax.swing.AbstractAction;
@@ -88,9 +89,9 @@ final class PresentationPanel extends JPanel {
     private final StackLayout bodyLayout = new StackLayout(6);
     private final JPanel body = new JPanel(bodyLayout);
     private final StageCard.Line notice = new StageCard.Line(" ", StageCard.Tone.NORMAL, StageCard.Style.PLAIN);
-    private final JToggleButton continuousButton = new PaceSwitch.Segment(Messages.text("ai.present.continuous"));
-    private final JToggleButton stepByStepButton = new PaceSwitch.Segment(Messages.text("ai.present.stepByStep"));
-    private final PaceSwitch paceSwitch = new PaceSwitch(continuousButton, stepByStepButton);
+    private final JToggleButton continuousButton = new SegmentedSwitch.Segment(Messages.text("ai.present.continuous"));
+    private final JToggleButton stepByStepButton = new SegmentedSwitch.Segment(Messages.text("ai.present.stepByStep"));
+    private final SegmentedSwitch paceSwitch = new SegmentedSwitch(continuousButton, stepByStepButton);
     private final StageCard.Line paceHint = new StageCard.Line(" ", StageCard.Tone.MUTED, StageCard.Style.PLAIN);
     private final CardsPanel cardsPanel = new CardsPanel();
     private final JScrollPane cardsScroll = new JScrollPane(cardsPanel, JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,

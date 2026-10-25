@@ -14,6 +14,10 @@ public final class ReadableColors {
     public static final double MINIMUM_TEXT_CONTRAST = 4.5;
     private static final Color LIGHT_ERROR_TEXT = new Color(0xC62828);
     private static final Color DARK_ERROR_TEXT = new Color(0xFF8F8F);
+    private static final Color LIGHT_WARNING_TEXT = new Color(0x8A5300);
+    private static final Color DARK_WARNING_TEXT = new Color(0xF2B85C);
+    private static final Color LIGHT_MUTED_TEXT = new Color(0x626262);
+    private static final Color DARK_MUTED_TEXT = new Color(0xADADAD);
 
     private ReadableColors() {
     }
@@ -26,6 +30,24 @@ public final class ReadableColors {
      */
     public static Color errorText() {
         return dark() ? DARK_ERROR_TEXT : LIGHT_ERROR_TEXT;
+    }
+
+    /**
+     * The amber of a warning text that does not block anything («El pin F no está en el borde»): a dark amber on a
+     * light theme and a bright one on a dark theme, at least {@link #MINIMUM_TEXT_CONTRAST}:1 on the panel background
+     * (the theme's {@code Actions.Yellow} is an icon colour, about 2:1 as text on FlatLaf Light).
+     */
+    public static Color warningText() {
+        return dark() ? DARK_WARNING_TEXT : LIGHT_WARNING_TEXT;
+    }
+
+    /**
+     * The grey of a secondary sentence (a hint under a drawing, the scope line of a dialog), at least
+     * {@link #MINIMUM_TEXT_CONTRAST}:1 on the panel background; {@code Label.disabledForeground} is about 3:1 on
+     * FlatLaf Light and reads as «disabled».
+     */
+    public static Color mutedText() {
+        return dark() ? DARK_MUTED_TEXT : LIGHT_MUTED_TEXT;
     }
 
     /** The panel background of the current theme (white when the look and feel has none). */

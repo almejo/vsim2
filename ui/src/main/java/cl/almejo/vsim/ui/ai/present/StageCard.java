@@ -5,6 +5,7 @@ import cl.almejo.vsim.automation.present.StepPreview;
 import cl.almejo.vsim.ui.ai.AiColors;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.theme.ReadableColors;
+import cl.almejo.vsim.ui.theme.SegmentedSwitch;
 import net.miginfocom.swing.MigLayout;
 
 import javax.swing.JLabel;
@@ -114,7 +115,7 @@ final class StageCard extends JPanel {
      */
     static Color accentText() {
         Color background = ReadableColors.panelBackground();
-        Color accent = PaceSwitch.accent();
+        Color accent = SegmentedSwitch.accent();
         Color towards = ReadableColors.dark() ? Color.WHITE : Color.BLACK;
         for (int step = 0; step < 10 && ReadableColors.contrast(accent, background)
                 < ReadableColors.MINIMUM_TEXT_CONTRAST; step++) {
