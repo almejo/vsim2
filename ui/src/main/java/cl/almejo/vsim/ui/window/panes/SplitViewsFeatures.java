@@ -112,22 +112,6 @@ public final class SplitViewsFeatures {
         next.requestFocusInWindow();
     }
 
-    public Action splitHorizontalAction() {
-        return splitHorizontal;
-    }
-
-    public Action splitVerticalAction() {
-        return splitVertical;
-    }
-
-    public Action removeSplitAction() {
-        return removeSplit;
-    }
-
-    public Action nextPaneAction() {
-        return nextPane;
-    }
-
     public void dispose() {
         if (disposed) {
             return;

@@ -108,10 +108,6 @@ public final class TidyWiresPanel extends JPanel {
         return mergeSegments;
     }
 
-    JCheckBox flattenDetoursBox() {
-        return flattenDetours;
-    }
-
     JRadioButton selectionButton() {
         return selection;
     }

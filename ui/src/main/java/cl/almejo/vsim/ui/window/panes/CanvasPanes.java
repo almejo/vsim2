@@ -99,10 +99,6 @@ public final class CanvasPanes extends JComponent {
         return active;
     }
 
-    public Optional<CircuitCanvas> paneAt(PanePosition position) {
-        return Optional.ofNullable(panesByPosition.get(position));
-    }
-
     public Optional<PanePosition> positionOf(CircuitCanvas pane) {
         return panesByPosition.entrySet().stream().filter(entry -> entry.getValue() == pane)
                 .map(Map.Entry::getKey).findFirst();
