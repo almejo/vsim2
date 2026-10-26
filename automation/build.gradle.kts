@@ -2,6 +2,7 @@
 // editor implements. Depends on core only: never on Swing, never on the MCP SDK.
 plugins {
     `java-library`
+    `java-test-fixtures` // FakeAutomationHost, the base of the fake hosts of this module's, mcp's and ui's tests
 }
 
 dependencies {

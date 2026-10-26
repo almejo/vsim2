@@ -17,6 +17,7 @@ dependencies {
     runtimeOnly(libs.logback.classic)
 
     testImplementation(testFixtures(project(":core")))
+    testImplementation(testFixtures(project(":automation")))
     testImplementation(platform(libs.junit.bom))
     testImplementation(libs.junit.jupiter)
     testImplementation(libs.assertj.core)

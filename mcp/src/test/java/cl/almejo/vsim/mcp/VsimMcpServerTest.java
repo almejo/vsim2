@@ -6,6 +6,7 @@ import cl.almejo.vsim.automation.DocumentId;
 import cl.almejo.vsim.automation.DocumentSummary;
 import cl.almejo.vsim.automation.DocumentVersion;
 import cl.almejo.vsim.automation.EditorAccess;
+import cl.almejo.vsim.automation.FakeAutomationHost;
 import io.modelcontextprotocol.client.McpClient;
 import io.modelcontextprotocol.client.McpSyncClient;
 import io.modelcontextprotocol.client.transport.HttpClientStreamableHttpTransport;
@@ -384,7 +385,7 @@ class VsimMcpServerTest {
     }
 
     /** Answers at once with a fixed list of documents. */
-    static final class FixedHost implements AutomationHost {
+    static final class FixedHost extends FakeAutomationHost {
 
         private final List<DocumentSummary> documents;
 
@@ -393,8 +394,8 @@ class VsimMcpServerTest {
         }
 
         @Override
-        public <T> CompletableFuture<T> onEditorThread(Function<EditorAccess, T> work) {
-            return CompletableFuture.completedFuture(work.apply(() -> documents));
+        protected List<DocumentSummary> openDocuments() {
+            return documents;
         }
     }
 

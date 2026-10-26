@@ -2,11 +2,10 @@ package cl.almejo.vsim.mcp.tools;
 
 import cl.almejo.vsim.automation.AutomationError;
 import cl.almejo.vsim.automation.AutomationException;
-import cl.almejo.vsim.automation.AutomationHost;
 import cl.almejo.vsim.automation.DocumentId;
 import cl.almejo.vsim.automation.DocumentSummary;
 import cl.almejo.vsim.automation.DocumentVersion;
-import cl.almejo.vsim.automation.EditorAccess;
+import cl.almejo.vsim.automation.FakeAutomationHost;
 import cl.almejo.vsim.automation.EditorSetting;
 import cl.almejo.vsim.automation.ProposalAnswer;
 import cl.almejo.vsim.automation.ProposedPreference;
@@ -46,7 +45,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 /**
@@ -54,7 +52,7 @@ import java.util.stream.Collectors;
  * automation layer on the calling thread; the simulation answers with receipts the test sets, truth tables are real
  * (on a copy), pictures are a few bytes, exports and settings are recorded.
  */
-final class ToolTestHost implements AutomationHost {
+final class ToolTestHost extends FakeAutomationHost {
 
     private static final ComponentTypeRegistry BASE_REGISTRY = StandardComponentTypes.registry();
     private static final ComponentNames NAMES = new ComponentNames() {
@@ -89,12 +87,11 @@ final class ToolTestHost implements AutomationHost {
     }
 
     @Override
-    public <T> CompletableFuture<T> onEditorThread(Function<EditorAccess, T> work) {
-        EditorAccess access = () -> circuits.values().stream()
+    protected List<DocumentSummary> openDocuments() {
+        return circuits.values().stream()
                 .map(circuit -> new DocumentSummary(circuit.id, circuit.id.value(), circuit.version(),
                         circuit.history.isModified()))
                 .toList();
-        return run(() -> work.apply(access));
     }
 
     @Override
@@ -234,14 +231,6 @@ final class ToolTestHost implements AutomationHost {
             throw new AutomationException(AutomationError.INVALID_REFERENCE, "No circuit " + document.value());
         }
         return circuit;
-    }
-
-    private static <T> CompletableFuture<T> run(Supplier<T> work) {
-        try {
-            return CompletableFuture.completedFuture(work.get());
-        } catch (RuntimeException failure) {
-            return CompletableFuture.failedFuture(failure);
-        }
     }
 
     /** One open circuit: its version grows with every change of its history, like {@code OpenDocument}. */
