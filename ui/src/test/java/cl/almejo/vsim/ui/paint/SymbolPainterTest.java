@@ -245,6 +245,84 @@ class SymbolPainterTest {
         } finally { graphics.dispose(); }
     }
 
+    /** The rows and columns, as {left, top, right, bottom}, holding pixels unlike the background. */
+    private static int[] inkBounds(BufferedImage image) {
+        int background = ColorSchemes.LIGHT.background().getRGB();
+        int[] bounds = {Integer.MAX_VALUE, Integer.MAX_VALUE, -1, -1};
+        for (int y = 0; y < image.getHeight(); y++) {
+            for (int x = 0; x < image.getWidth(); x++) {
+                if (image.getRGB(x, y) != background) {
+                    bounds[0] = Math.min(bounds[0], x);
+                    bounds[1] = Math.min(bounds[1], y);
+                    bounds[2] = Math.max(bounds[2], x);
+                    bounds[3] = Math.max(bounds[3], y);
+                }
+            }
+        }
+        return bounds;
+    }
+
+    private static int[] textInk(String content, TextSize size, GridSize figure) {
+        SymbolText text = new SymbolText(new SymbolPoint(24, 16), Optional.of(content), size, TextAlignment.CENTER);
+        BufferedImage image = new BufferedImage(192, 192, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D graphics = image.createGraphics();
+        try {
+            graphics.setColor(ColorSchemes.LIGHT.background());
+            graphics.fillRect(0, 0, 192, 192);
+            graphics.translate(OFFSET, OFFSET);
+            SymbolPainter.paint(graphics, SubcircuitTypes.typeOf(definition()),
+                    new SymbolDrawing(figure, List.of(text), true), ColorSchemes.LIGHT, "Prueba");
+        } finally { graphics.dispose(); }
+        return inkBounds(image);
+    }
+
+    @Test
+    void anExplicitTextKeepsItsChosenSizeWhateverItsLengthOrTheFigure() {
+        for (TextSize size : TextSize.values()) {
+            int[] short1 = textInk("H", size, SIZE);
+            int[] longer = textInk("HHHHHHHHHHHHHHHHHHHH", size, SIZE);
+            int[] bigFigure = textInk("H", size, new GridSize(12, 8));
+            int[] smallFigure = textInk("H", size, new GridSize(3, 2));
+
+            assertThat(longer[3] - longer[1]).as("height with %s", size).isEqualTo(short1[3] - short1[1]);
+            assertThat(bigFigure[3] - bigFigure[1]).isEqualTo(short1[3] - short1[1]);
+            assertThat(smallFigure[3] - smallFigure[1]).isEqualTo(short1[3] - short1[1]);
+        }
+        assertThat(textInk("H", TextSize.SMALL, SIZE)[3] - textInk("H", TextSize.SMALL, SIZE)[1])
+                .isLessThan(textInk("H", TextSize.MEDIUM, SIZE)[3] - textInk("H", TextSize.MEDIUM, SIZE)[1]);
+        assertThat(textInk("H", TextSize.MEDIUM, SIZE)[3] - textInk("H", TextSize.MEDIUM, SIZE)[1])
+                .isLessThan(textInk("H", TextSize.LARGE, SIZE)[3] - textInk("H", TextSize.LARGE, SIZE)[1]);
+    }
+
+    @Test
+    void anExplicitTextLongerThanTheFigureOverflowsItInsteadOfShrinking() {
+        int[] ink = textInk("HHHHHHHHHHHHHHHHHHHH", TextSize.MEDIUM, SIZE);
+
+        assertThat(ink[0]).as("starts left of the figure").isLessThan(OFFSET);
+        assertThat(ink[2]).as("ends right of the figure").isGreaterThan(OFFSET + SIZE.width() * GridPoint.PIXELS_PER_UNIT);
+    }
+
+    @Test
+    void theComponentNameTextStillFitsItsFigure() {
+        SymbolText follows = new SymbolText(new SymbolPoint(24, 16), Optional.empty(), TextSize.LARGE,
+                TextAlignment.CENTER);
+        SymbolPath box = SymbolTemplates.rectangle(new SymbolPoint(0, 0), new SymbolPoint(48, 32), false);
+        BufferedImage image = new BufferedImage(192, 192, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D graphics = image.createGraphics();
+        try {
+            graphics.setColor(ColorSchemes.LIGHT.background());
+            graphics.fillRect(0, 0, 192, 192);
+            graphics.translate(OFFSET, OFFSET);
+            SymbolPainter.paint(graphics, SubcircuitTypes.typeOf(definition()),
+                    new SymbolDrawing(SIZE, List.of(box, follows), true), ColorSchemes.LIGHT,
+                    "UnNombreMuyMuyLargoDeComponente");
+        } finally { graphics.dispose(); }
+
+        int[] ink = inkBounds(image);
+        assertThat(ink[0]).isGreaterThanOrEqualTo(OFFSET - 2);
+        assertThat(ink[2]).isLessThanOrEqualTo(OFFSET + 48 + 2);
+    }
+
     private static ComponentDefinition definition() {
         return new ComponentDefinition("shape", "Prueba", "", SIZE, List.of(),
                 new CircuitFragment(List.of(), List.of(), List.of()));

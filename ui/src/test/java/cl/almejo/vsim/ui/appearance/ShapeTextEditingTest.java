@@ -14,6 +14,7 @@ import org.junit.jupiter.api.Test;
 import javax.swing.JComponent;
 import javax.swing.JTextArea;
 import javax.swing.KeyStroke;
+import javax.swing.SwingUtilities;
 import java.awt.event.ActionEvent;
 import java.awt.event.MouseEvent;
 import java.util.ArrayList;
@@ -23,7 +24,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** The in-place text area of the shape canvas: several lines, colours kept, a blank text is no text. */
+/** The shared inline editor over the shape canvas: several lines, colours kept, a blank text is no text. */
 class ShapeTextEditingTest {
     private static final SymbolText UNO = new SymbolText(new SymbolPoint(8, 8), Optional.of("uno"), TextSize.MEDIUM,
             TextAlignment.LEFT, NoteColor.BLUE, NoteColor.GRAY);
@@ -33,36 +34,55 @@ class ShapeTextEditingTest {
     private final AtomicReference<SymbolDraft> draft = new AtomicReference<>();
 
     @Test
-    void enterInsideTheAreaIsANewLineAndTheTextIsStoredWithNewlines() {
+    void theTextIsEditedInTheSharedInlineEditorInItsMultiLineMode() {
         ShapeCanvas canvas = canvasWith(UNO);
         editTextAt(canvas);
         JTextArea area = area(canvas);
 
-        assertThat(area.getInputMap(JComponent.WHEN_FOCUSED).get(KeyStroke.getKeyStroke("ENTER")))
-                .as("Enter is the area's own insert-break").isEqualTo("insert-break");
+        assertThat(canvas.textEditor().isOpen()).isTrue();
+        assertThat(canvas.textEditor().textComponent()).isSameAs(area);
+        assertThat(area.isVisible()).isTrue();
+        assertThat(canvas.textEditor().field().isVisible()).isFalse();
+        assertThat(area.getText()).isEqualTo("uno");
+        assertThat(area.getSelectedText()).as("all selected on open").isEqualTo("uno");
+        assertThat(SwingUtilities.isDescendingFrom(area, canvas)).isTrue();
+    }
+
+    @Test
+    void enterConfirmsShiftEnterAddsALineAndEscCancels() {
+        ShapeCanvas canvas = canvasWith(UNO);
+        editTextAt(canvas);
+        JTextArea area = area(canvas);
+
+        assertThat(area.getInputMap(JComponent.WHEN_FOCUSED).get(KeyStroke.getKeyStroke("shift ENTER")))
+                .as("Shift+Enter is the area's own insert-break").isEqualTo("insert-break");
         area.setText("uno\ndos");
-        canvas.finishOperation();
+        press(area, "ENTER");
 
         SymbolText stored = textOf(draft.get());
         assertThat(stored.text()).contains("uno\ndos");
         assertThat(stored.color()).isEqualTo(NoteColor.BLUE);
         assertThat(stored.border()).isEqualTo(NoteColor.GRAY);
+        assertThat(canvas.operationActive()).isFalse();
+
+        editTextAt(canvas);
+        area(canvas).setText("otra");
+        press(area(canvas), "ESCAPE");
+
+        assertThat(textOf(draft.get()).text()).as("Esc cancels").contains("uno\ndos");
+        assertThat(canvas.operationActive()).isFalse();
+        assertThat(published).hasSize(1);
     }
 
     @Test
-    void controlEnterCommitsTheTextAndTheAreaGrowsWithItsLines() {
+    void theEditorFollowsThePanAndZoomOfTheCanvas() {
         ShapeCanvas canvas = canvasWith(UNO);
         editTextAt(canvas);
-        JTextArea area = area(canvas);
-        int oneLine = area.getHeight();
+        int before = canvas.textEditor().textComponent().getParent().getX();
 
-        area.setText("uno\ndos\ntres");
-        assertThat(area.getHeight()).isGreaterThan(oneLine);
-        Object binding = area.getInputMap(JComponent.WHEN_FOCUSED).get(KeyStroke.getKeyStroke("ctrl ENTER"));
-        area.getActionMap().get(binding).actionPerformed(new ActionEvent(area, ActionEvent.ACTION_PERFORMED, "done"));
+        canvas.setZoom(2);
 
-        assertThat(textOf(draft.get()).text()).contains("uno\ndos\ntres");
-        assertThat(canvas.operationActive()).isFalse();
+        assertThat(canvas.textEditor().textComponent().getParent().getX()).isNotEqualTo(before);
     }
 
     @Test
@@ -80,12 +100,12 @@ class ShapeTextEditingTest {
     }
 
     @Test
-    void leavingTheAreaBlankByEscOrAToolChangeAlsoRemovesTheText() {
+    void leavingTheAreaBlankByAToolChangeAlsoRemovesTheText() {
         ShapeCanvas canvas = canvasWith(UNO);
         editTextAt(canvas);
         area(canvas).setText("");
 
-        canvas.escapeOperation();
+        canvas.finishOperation();
 
         assertThat(draft.get().elements()).noneMatch(SymbolText.class::isInstance);
         assertThat(published).hasSize(1);
@@ -165,7 +185,14 @@ class ShapeTextEditingTest {
     }
 
     private static JTextArea area(ShapeCanvas canvas) {
-        return (JTextArea) canvas.getComponent(0);
+        return canvas.textEditor().area();
+    }
+
+    /** Runs the action the area binds to {@code stroke}, as the focused area would. */
+    private static void press(JTextArea area, String stroke) {
+        Object binding = area.getInputMap(JComponent.WHEN_FOCUSED).get(KeyStroke.getKeyStroke(stroke));
+        assertThat(binding).as("binding for %s", stroke).isNotNull();
+        area.getActionMap().get(binding).actionPerformed(new ActionEvent(area, ActionEvent.ACTION_PERFORMED, stroke));
     }
 
     private static SymbolText textOf(SymbolDraft draft) {

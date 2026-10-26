@@ -20,7 +20,7 @@ final class NamePlacement {
     private static final int STUB_ALLOWANCE = 3;
     private static final int MARGIN = 2;
     private static final int STEP = 2;
-    private static final int[] SIZE_PIXELS = {13, 9, 6};
+    private static final int[] SIZE_PIXELS = {14, 9, 6};
     private static final TextSize[] SIZES = {TextSize.LARGE, TextSize.MEDIUM, TextSize.SMALL};
     private static final int EDGE_SAMPLES = 4;
 

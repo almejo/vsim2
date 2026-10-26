@@ -26,8 +26,13 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 
 ### Agregado
 
-- Textos de varias líneas en el editor de formas: Enter agrega una línea y Ctrl+Enter (o un clic fuera) lo da por listo;
-  cada línea conserva la alineación y el área crece con las líneas.
+- Textos de varias líneas en el editor de formas, escritos en el mismo editor en el lugar del editor principal: Mayús+Enter
+  agrega una línea, Enter (o un clic fuera) lo da por listo y Esc lo cancela; cada línea conserva la alineación y el
+  editor crece con las líneas.
+- En el editor de formas, los pines se dibujan más grandes y, al pasar el mouse con Seleccionar, llevan un aro, el
+  cursor de mover y su nombre («A · entrada»).
+- En el editor de formas, un texto elegido se rodea con un rectángulo de todo su bloque (todas sus líneas, a su tamaño
+  real); al pasar el mouse se perfila el bloque, y todo él es zona de clic.
 - Colores en las formas con la paleta de las notas: «Letra» y «Borde» para los textos, «Relleno» (sin rojo) y «Línea»
   para las figuras; se adaptan al esquema, salen en blanco y negro al imprimir y se guardan como campos opcionales (los
   archivos sin colores no cambian).
@@ -52,8 +57,9 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
   toman directamente: ya no hay que pasar el mouse por el tramo ni elegir antes el nodo. Al curvar un tramo con
   «Curvar tramo» sus manijas quedan a la vista y se arrastran en seguida; arrastrar la curva sigue funcionando. Un nodo
   agregado en una curva nace siempre suave, con sus dos manijas.
-- En el editor de formas, Enter dentro de un texto agrega una línea (antes lo confirmaba); se confirma con Ctrl+Enter,
-  un clic fuera o «Aceptar».
+- En el editor de formas, un texto escrito se dibuja siempre con el tamaño elegido (6, 9 o 14), sin achicarse ni crecer
+  con la figura o con lo largo del texto, y puede sobresalir de ella; solo el texto que sigue el nombre del componente
+  se ajusta al espacio. El tamaño «Grande» pasa de 13 a 14.
 - Un componente propio solo queda con los pines bloqueados (y su actualización se rechaza) si una pieza colocada usa a otro componente que lo contiene; una copia sobrante de ese otro componente en el circuito, que nada usa, ya no bloquea ni dice «usado dentro de…».
 - Problemas nombra el pin entre comillas: «la salida «out» está desconectada» en lugar de «salida out desconectada».
 - En el editor de formas, cambiar el tamaño de la caja (con su control o con Ancho y Alto) sigue una sola regla: lo que toca el borde de la caja se mueve con ese borde (el rectángulo crece con la caja, la punta de un triángulo sigue en el borde derecho, el punto de control de una curva acompaña a su nodo) y lo demás queda centrado, moviéndose la mitad del cambio. Los pines de arriba y de abajo también se mueven la mitad, redondeado para seguir en la cuadrícula; los de los lados siguen en su borde. Antes el dibujo quedaba fijo en la esquina superior izquierda.

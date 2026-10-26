@@ -1,11 +1,7 @@
 package cl.almejo.vsim.ui.inline;
 
-import cl.almejo.vsim.core.document.CircuitDocument;
-import cl.almejo.vsim.core.document.DocumentChange;
-import cl.almejo.vsim.core.document.DocumentListener;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.canvas.LabelLayout;
-import cl.almejo.vsim.ui.canvas.Viewport;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.icons.Icons;
 import cl.almejo.vsim.ui.paint.TextFonts;
@@ -93,9 +89,9 @@ public final class InlineTextEditor {
     /** WCAG AA contrast for normal text. */
 
     /** Where a new edit opens: the window's active pane. */
-    private final Supplier<CircuitCanvas> paneForNewEdits;
+    private final Supplier<InlineHost> paneForNewEdits;
     /** The pane the open (or the last) edit is shown in. */
-    private CircuitCanvas canvas;
+    private InlineHost canvas;
     private final JPanel panel = new JPanel(null);
     private final Field field = new Field();
     private final Area area = new Area();
@@ -105,7 +101,6 @@ public final class InlineTextEditor {
     private final DefaultListModel<String> suggestionModel = new DefaultListModel<>();
     private final JList<String> suggestionList = new JList<>(suggestionModel);
     private final AWTEventListener pressListener = this::anywhereInTheApplication;
-    private final DocumentListener documentListener = this::documentChanged;
     private final List<Runnable> whileOpen = new ArrayList<>();
     private InlineEditRequest request;
     private BooleanSupplier stillValid = () -> true;
@@ -118,7 +113,18 @@ public final class InlineTextEditor {
      * opens (the active one) and stays there until it closes.
      */
     public InlineTextEditor(Supplier<CircuitCanvas> paneForNewEdits) {
-        this.paneForNewEdits = paneForNewEdits;
+        this(new Hosts(() -> InlineHost.of(paneForNewEdits.get())));
+    }
+
+    /** An editor for one surface that is not a circuit canvas (the shape editor's). */
+    public static InlineTextEditor forHost(InlineHost host) {
+        return new InlineTextEditor(new Hosts(() -> host));
+    }
+
+    private record Hosts(Supplier<InlineHost> supplier) { }
+
+    private InlineTextEditor(Hosts hosts) {
+        this.paneForNewEdits = hosts.supplier();
         this.canvas = paneForNewEdits.get();
         panel.setOpaque(false);
         // a press on the empty parts of the editor stops here instead of reaching the canvas tool, and the
@@ -224,9 +230,7 @@ public final class InlineTextEditor {
         edited = false;
         whileOpen.add(canvas.addFloatingComponent(panel));
         whileOpen.add(canvas.addViewportListener(this::layOut));
-        CircuitDocument document = canvas.openDocument().document();
-        document.addListener(documentListener);
-        whileOpen.add(() -> document.removeListener(documentListener));
+        whileOpen.add(canvas.addChangeListener(this::documentChanged));
         Toolkit.getDefaultToolkit().addAWTEventListener(pressListener, AWTEvent.MOUSE_EVENT_MASK);
         whileOpen.add(() -> Toolkit.getDefaultToolkit().removeAWTEventListener(pressListener));
         // the request carries the font and area it was opened with: a font change (Preferencias) ends the edit
@@ -243,12 +247,12 @@ public final class InlineTextEditor {
 
     /** The pane the open edit is shown in; empty while closed. */
     public Optional<CircuitCanvas> openIn() {
-        return isOpen() ? Optional.of(canvas) : Optional.empty();
+        return isOpen() && canvas instanceof InlineHost.CanvasHost host ? Optional.of(host.canvas()) : Optional.empty();
     }
 
     /** Closes without applying when the open edit is shown in {@code pane} (the pane is going away). */
     public void cancelIfOpenIn(CircuitCanvas pane) {
-        if (isOpen() && canvas == pane) {
+        if (isOpen() && canvas instanceof InlineHost.CanvasHost host && host.canvas() == pane) {
             cancel();
         }
     }
@@ -366,7 +370,7 @@ public final class InlineTextEditor {
             removals.get(index).run();
         }
         if (hadFocus) {
-            canvas.requestFocusInWindow();
+            canvas.component().requestFocusInWindow();
         }
     }
 
@@ -415,7 +419,7 @@ public final class InlineTextEditor {
         layOut();
     }
 
-    private void documentChanged(CircuitDocument document, DocumentChange change) {
+    private void documentChanged() {
         if (!isOpen()) {
             return;
         }
@@ -442,7 +446,7 @@ public final class InlineTextEditor {
     }
 
     private boolean sameWindow(Component source) {
-        Component canvasRoot = rootOf(canvas);
+        Component canvasRoot = rootOf(canvas.component());
         for (Component root = rootOf(source); root != null;
              root = root instanceof Window window ? window.getOwner() : null) {
             if (root == canvasRoot) {
@@ -477,9 +481,8 @@ public final class InlineTextEditor {
         if (!isOpen()) {
             return;
         }
-        Viewport viewport = canvas.viewport();
-        Rectangle2D area = viewport.documentTransform().createTransformedShape(request.documentArea()).getBounds2D();
-        float size = (float) Math.max(MINIMUM_FONT_SIZE, request.font().getSize2D() * viewport.zoom());
+        Rectangle2D area = canvas.documentTransform().createTransformedShape(request.documentArea()).getBounds2D();
+        float size = (float) Math.max(MINIMUM_FONT_SIZE, request.font().getSize2D() * canvas.zoom());
         Font font = request.font().deriveFont(size);
         JTextComponent text = textComponent();
         if (!font.equals(text.getFont())) {
