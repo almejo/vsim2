@@ -105,9 +105,10 @@ class EditorAutomationHostToolsTest {
 
         assertThat(api.describeComponents(id, Optional.of("Doble inversor")).types()).singleElement()
                 .satisfies(type -> assertThat(type.origin()).isEqualTo(ComponentTypeView.Origin.LIBRARY));
-        EditReceipt receipt = api.edit(new EditRequest(id, new DocumentVersion(document.contentVersion()), "place-1",
+        EditReceipt receipt = api.editStep(new EditRequest(id, new DocumentVersion(document.contentVersion()),
+                "place-1",
                 Optional.empty(), List.of(new EditOperation.PlaceInstance(Optional.of("twice"), "Doble inversor", 0,
-                0, Rotation.R0)), false));
+                0, Rotation.R0)), false), Optional.empty()).receipt();
 
         assertThat(receipt.applied()).isTrue();
         assertThat(document.document().definition(ExampleDefinitions.DOUBLE_INVERTER)).isPresent();
@@ -123,9 +124,9 @@ class EditorAutomationHostToolsTest {
         document("Prueba");
         DocumentId never = new DocumentId("circuit-77");
 
-        assertThatThrownBy(() -> api.edit(new EditRequest(never, new DocumentVersion(0), "x", Optional.empty(),
+        assertThatThrownBy(() -> api.editStep(new EditRequest(never, new DocumentVersion(0), "x", Optional.empty(),
                 List.of(new EditOperation.AddGuide(cl.almejo.vsim.core.document.Guide.Orientation.VERTICAL, 4)),
-                false))).isInstanceOfSatisfying(AutomationException.class,
+                false), Optional.empty()).receipt()).isInstanceOfSatisfying(AutomationException.class,
                 refusal -> assertThat(refusal.error()).isEqualTo(AutomationError.INVALID_REFERENCE));
         assertThatThrownBy(() -> api.step(never, StepKind.NEXT_EVENT, 1, 0))
                 .isInstanceOfSatisfying(AutomationException.class,

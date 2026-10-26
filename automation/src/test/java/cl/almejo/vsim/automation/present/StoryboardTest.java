@@ -70,7 +70,7 @@ class StoryboardTest {
         TaskInfo task = api.beginTask(DOCUMENT, "Sumador de 4 bits", STORY);
         Map<Integer, Set<String>> created = tellTheStory(task);
 
-        api.endTask(task.taskId());
+        api.endTask(task.taskId(), false).task();
 
         List<Frame> frames = framesLeftToRight();
         assertThat(frames).extracting(Frame::title)
@@ -95,7 +95,7 @@ class StoryboardTest {
         presenting();
         TaskInfo task = api.beginTask(DOCUMENT, "Sumador de 4 bits", STORY);
         Map<Integer, Set<String>> created = tellTheStory(task);
-        api.endTask(task.taskId());
+        api.endTask(task.taskId(), false).task();
         Set<String> before = elementIds();
 
         api.keepOnlyResult(task.taskId());
@@ -118,12 +118,12 @@ class StoryboardTest {
     void keepOnlyTheResultNeverRemovesTheUsersParts() {
         presenting();
         TaskInfo task = api.beginTask(DOCUMENT, "Dos etapas", STORY);
-        api.beginStage(task.taskId(), 0);
+        api.beginStage(task.taskId(), 0, Optional.empty());
         apply(task, 0, place("first", "led", 2, 4));
-        StageOrigin second = api.beginStage(task.taskId(), 1);
+        StageOrigin second = api.beginStage(task.taskId(), 1, Optional.empty());
         apply(task, 1, place("second", "led", second.x(), second.y()));
         String users = userPlaces("switch", 100, 100);
-        api.endTask(task.taskId());
+        api.endTask(task.taskId(), false).task();
 
         api.keepOnlyResult(task.taskId());
 
@@ -135,8 +135,8 @@ class StoryboardTest {
     void keepOnlyTheResultIsRefusedWhileAStepWaitsAndWhileTheTaskRuns() {
         presenting();
         TaskInfo task = api.beginTask(DOCUMENT, "Dos etapas", STORY);
-        api.beginStage(task.taskId(), 0);
-        api.editStep(request(task, 0, place("first", "led", 2, 4)));
+        api.beginStage(task.taskId(), 0, Optional.empty());
+        api.editStep(request(task, 0, place("first", "led", 2, 4)), Optional.empty());
 
         assertRefused(() -> api.keepOnlyResult(task.taskId()), "waits for «Siguiente»");
         api.nextStep(task.taskId());
@@ -151,13 +151,13 @@ class StoryboardTest {
     void aStageWithAMultiLineNoteGetsAFrameAroundEveryLineOfIt() {
         presenting();
         TaskInfo task = api.beginTask(DOCUMENT, "Una nota", STORY);
-        StageOrigin origin = api.beginStage(task.taskId(), 0);
+        StageOrigin origin = api.beginStage(task.taskId(), 0, Optional.empty());
         String text = "Prueba: haz clic en A0–A3, B0–B3 y Cin\npara elegir los números (A0 y B0 son las unidades).\n"
                 + "Lee la suma en S3 S2 S1 S0 y el acarreo en Cout.";
         EditReceipt note = apply(task, 0, new EditOperation.AddNote(Optional.of("note"), text, origin.x(),
                 origin.y()));
 
-        api.endTask(task.taskId());
+        api.endTask(task.taskId(), false).task();
 
         TextLabel label = (TextLabel) circuit.document().element(new ElementId(note.aliases().get("note")))
                 .orElseThrow();
@@ -176,12 +176,12 @@ class StoryboardTest {
     void aUserPartNextToAStageIsNeverFramed() {
         presenting();
         TaskInfo task = api.beginTask(DOCUMENT, "Una etapa", STORY);
-        api.beginStage(task.taskId(), 0);
+        api.beginStage(task.taskId(), 0, Optional.empty());
         EditReceipt stage = apply(task, 0, place("lamp", "led", 10, 10), place("other", "led", 20, 10));
         Bounds lamp = boundsOf(stage.aliases().get("lamp"));
         String users = userPlaces("led", lamp.x() - 4, lamp.y());
 
-        api.endTask(task.taskId());
+        api.endTask(task.taskId(), false).task();
 
         Frame frame = circuit.document().frames().getFirst();
         assertThat(values(FrameContents.of(circuit.document(), circuit.registry(), frame)))
@@ -193,11 +193,11 @@ class StoryboardTest {
     void aStageAroundAUserPartGetsNoFrameAtAll() {
         presenting();
         TaskInfo task = api.beginTask(DOCUMENT, "Una etapa", STORY);
-        api.beginStage(task.taskId(), 0);
+        api.beginStage(task.taskId(), 0, Optional.empty());
         apply(task, 0, place("left", "led", 0, 10), place("right", "led", 40, 10));
         userPlaces("switch", 20, 10);
 
-        api.endTask(task.taskId());
+        api.endTask(task.taskId(), false).task();
 
         assertThat(circuit.document().frames()).isEmpty();
     }
@@ -210,11 +210,11 @@ class StoryboardTest {
         TaskInfo task = api.beginTask(DOCUMENT, "Cuatro etapas", STORY);
         int[] rowsBelowTheOrigin = {0, 3, 1, 5};
         for (int stage = 0; stage < rowsBelowTheOrigin.length; stage++) {
-            StageOrigin origin = api.beginStage(task.taskId(), stage);
+            StageOrigin origin = api.beginStage(task.taskId(), stage, Optional.empty());
             apply(task, stage, place("lamp" + stage, "led", origin.x(), origin.y() + rowsBelowTheOrigin[stage]));
         }
 
-        api.endTask(task.taskId());
+        api.endTask(task.taskId(), false).task();
 
         List<Frame> frames = framesLeftToRight();
         assertThat(frames).hasSize(4);
@@ -225,11 +225,11 @@ class StoryboardTest {
     void aLongPartLabelStaysInsideItsFrame() {
         presenting();
         TaskInfo task = api.beginTask(DOCUMENT, "Una etapa", STORY);
-        StageOrigin origin = api.beginStage(task.taskId(), 0);
+        StageOrigin origin = api.beginStage(task.taskId(), 0, Optional.empty());
         EditReceipt receipt = apply(task, 0, new PlacePart(Optional.of("carry"), "input-pin", origin.x(),
                 origin.y() + 2, Rotation.R0, Map.of(), "Acarreo que llega de la etapa anterior"));
 
-        api.endTask(task.taskId());
+        api.endTask(task.taskId(), false).task();
 
         Component part = (Component) circuit.document().element(new ElementId(receipt.aliases().get("carry")))
                 .orElseThrow();
@@ -246,11 +246,11 @@ class StoryboardTest {
     void aUserPartBetweenTheOriginAndTheStagesPartsIsNeverFramed() {
         presenting();
         TaskInfo task = api.beginTask(DOCUMENT, "Una etapa", STORY);
-        StageOrigin origin = api.beginStage(task.taskId(), 0);
+        StageOrigin origin = api.beginStage(task.taskId(), 0, Optional.empty());
         EditReceipt stage = apply(task, 0, place("lamp", "led", origin.x(), origin.y() + 10));
         String users = userPlaces("led", origin.x(), origin.y());
 
-        api.endTask(task.taskId());
+        api.endTask(task.taskId(), false).task();
 
         Frame frame = circuit.document().frames().getFirst();
         assertThat(values(FrameContents.of(circuit.document(), circuit.registry(), frame)))
@@ -263,16 +263,16 @@ class StoryboardTest {
     void aSecondTasksStageInsideAnEarlierFrameIsNotFramedAgain() {
         presenting();
         TaskInfo first = api.beginTask(DOCUMENT, "Nota de prueba", STORY);
-        StageOrigin origin = api.beginStage(first.taskId(), 0);
+        StageOrigin origin = api.beginStage(first.taskId(), 0, Optional.empty());
         apply(first, 0, place("left", "led", origin.x(), origin.y()), place("right", "led", origin.x() + 20,
                 origin.y() + 8));
-        api.endTask(first.taskId());
+        api.endTask(first.taskId(), false).task();
         Frame outer = circuit.document().frames().getFirst();
 
         TaskInfo second = api.beginTask(DOCUMENT, "Ordeno la nota de prueba", STORY);
         apply(second, 0, new EditOperation.AddNote(Optional.of("note"), "Prueba: enciende A", origin.x() + 4,
                 origin.y() + 4));
-        api.endTask(second.taskId());
+        api.endTask(second.taskId(), false).task();
 
         assertThat(circuit.document().frames()).containsExactly(outer);
     }
@@ -290,7 +290,7 @@ class StoryboardTest {
         TaskInfo task = api.beginTask(DOCUMENT, "Dentro", STORY);
         apply(task, 0, place("lamp", "led", 110, 10));
 
-        api.endTask(task.taskId());
+        api.endTask(task.taskId(), false).task();
 
         assertThat(circuit.document().frames()).containsExactly(users);
     }
@@ -299,10 +299,10 @@ class StoryboardTest {
     void aStagesFrameUndoesAsMarcoDeEtapa() {
         presenting();
         TaskInfo task = api.beginTask(DOCUMENT, "Una etapa", STORY);
-        StageOrigin origin = api.beginStage(task.taskId(), 0);
+        StageOrigin origin = api.beginStage(task.taskId(), 0, Optional.empty());
         apply(task, 0, place("lamp", "led", origin.x(), origin.y()));
 
-        api.endTask(task.taskId());
+        api.endTask(task.taskId(), false).task();
 
         assertThat(circuit.history().undoDescription()).contains("command.aiStageFrame");
         assertThat(cl.almejo.vsim.automation.edit.EditService.STAGE_FRAME_DESCRIPTION)
@@ -315,10 +315,10 @@ class StoryboardTest {
     void theNextStagesOriginIsRightOfThePreviousFrameAndTheViewTravelsThere() {
         presenting();
         TaskInfo task = api.beginTask(DOCUMENT, "Dos etapas", STORY);
-        StageOrigin first = api.beginStage(task.taskId(), 0);
+        StageOrigin first = api.beginStage(task.taskId(), 0, Optional.empty());
         apply(task, 0, place("lamp", "led", first.x(), first.y()));
 
-        StageOrigin second = api.beginStage(task.taskId(), 1);
+        StageOrigin second = api.beginStage(task.taskId(), 1, Optional.empty());
 
         Frame frame = circuit.document().frames().getFirst();
         assertThat(second.x()).isGreaterThanOrEqualTo(frame.topLeft().x() + frame.width() + Storyboard.GAP);
@@ -330,13 +330,13 @@ class StoryboardTest {
     void theNextStagesOriginNeverOverlapsWhatIsThere() {
         presenting();
         TaskInfo task = api.beginTask(DOCUMENT, "Dos etapas", STORY);
-        StageOrigin first = api.beginStage(task.taskId(), 0);
+        StageOrigin first = api.beginStage(task.taskId(), 0, Optional.empty());
         apply(task, 0, place("lamp", "led", first.x(), first.y()));
         // The user's part lies just where the next stage would begin.
         String users = userPlaces("switch", first.x() + 20, first.y());
         Bounds blocking = boundsOf(users);
 
-        StageOrigin second = api.beginStage(task.taskId(), 1);
+        StageOrigin second = api.beginStage(task.taskId(), 1, Optional.empty());
 
         Bounds stageArea = new Bounds(second.x() - 2, second.y() - 4, Storyboard.STAGE_WIDTH,
                 Storyboard.STAGE_HEIGHT);
@@ -352,7 +352,7 @@ class StoryboardTest {
         String users = userPlaces("switch", 0, 0);
         TaskInfo task = api.beginTask(DOCUMENT, "Una etapa", STORY);
 
-        StageOrigin first = api.beginStage(task.taskId(), 0);
+        StageOrigin first = api.beginStage(task.taskId(), 0, Optional.empty());
 
         assertThat(first.x()).isGreaterThan(boundsOf(users).maximumX() + Storyboard.GAP);
     }
@@ -360,11 +360,12 @@ class StoryboardTest {
     @Test
     void inWorkingModeAStageBeginsWithoutFramesOrTravel() {
         TaskInfo task = api.beginTask(DOCUMENT, "Dos etapas", STORY);
-        StageOrigin first = api.beginStage(task.taskId(), 0);
-        known = api.edit(request(task, 0, place("lamp", "led", first.x(), first.y()))).version();
+        StageOrigin first = api.beginStage(task.taskId(), 0, Optional.empty());
+        known = api.editStep(request(task, 0, place("lamp", "led", first.x(), first.y())), Optional.empty()).receipt()
+                .version();
 
-        StageOrigin second = api.beginStage(task.taskId(), 1);
-        api.endTask(task.taskId());
+        StageOrigin second = api.beginStage(task.taskId(), 1, Optional.empty());
+        api.endTask(task.taskId(), false).task();
 
         assertThat(second.x()).isGreaterThan(first.x());
         assertThat(circuit.document().frames()).isEmpty();
@@ -376,12 +377,12 @@ class StoryboardTest {
         presenting();
         TaskInfo task = api.beginTask(DOCUMENT, "Dos etapas", STORY);
 
-        assertThatThrownBy(() -> api.beginStage(task.taskId(), STORY.size()))
+        assertThatThrownBy(() -> api.beginStage(task.taskId(), STORY.size(), Optional.empty()))
                 .isInstanceOfSatisfying(AutomationException.class,
                         refusal -> assertThat(refusal.error()).isEqualTo(AutomationError.INVALID_PARAMETER));
-        api.beginStage(task.taskId(), 0);
-        api.editStep(request(task, 0, place("first", "led", 2, 4)));
-        assertRefused(() -> api.beginStage(task.taskId(), 1), "waits for «Siguiente»");
+        api.beginStage(task.taskId(), 0, Optional.empty());
+        api.editStep(request(task, 0, place("first", "led", 2, 4)), Optional.empty());
+        assertRefused(() -> api.beginStage(task.taskId(), 1, Optional.empty()), "waits for «Siguiente»");
     }
 
     // --- frames and the AI's version ---
@@ -390,11 +391,11 @@ class StoryboardTest {
     void aStagesFrameNeverMakesTheAisNextStepStale() {
         presenting();
         TaskInfo task = api.beginTask(DOCUMENT, "Dos etapas", STORY);
-        api.beginStage(task.taskId(), 0);
+        api.beginStage(task.taskId(), 0, Optional.empty());
         apply(task, 0, place("first", "led", 2, 4));
         DocumentVersion beforeTheFrame = known;
 
-        StageOrigin second = api.beginStage(task.taskId(), 1);
+        StageOrigin second = api.beginStage(task.taskId(), 1, Optional.empty());
         EditReceipt receipt = apply(task, 1, place("second", "led", second.x(), second.y()));
 
         assertThat(receipt.applied()).isTrue();
@@ -405,12 +406,12 @@ class StoryboardTest {
     void aUserEditAfterTheFrameStillMakesTheAisStepStale() {
         presenting();
         TaskInfo task = api.beginTask(DOCUMENT, "Dos etapas", STORY);
-        api.beginStage(task.taskId(), 0);
+        api.beginStage(task.taskId(), 0, Optional.empty());
         apply(task, 0, place("first", "led", 2, 4));
-        api.beginStage(task.taskId(), 1);
+        api.beginStage(task.taskId(), 1, Optional.empty());
         userPlaces("switch", 200, 200);
 
-        assertThatThrownBy(() -> api.editStep(request(task, 1, place("second", "led", 100, 4))))
+        assertThatThrownBy(() -> api.editStep(request(task, 1, place("second", "led", 100, 4)), Optional.empty()))
                 .isInstanceOfSatisfying(AutomationException.class,
                         refusal -> assertThat(refusal.error()).isEqualTo(AutomationError.STALE_DOCUMENT));
     }
@@ -434,10 +435,10 @@ class StoryboardTest {
     void undoStageUndoesTheStagesStepsAndItsFrame() {
         presenting();
         TaskInfo task = api.beginTask(DOCUMENT, "Dos etapas", STORY);
-        api.beginStage(task.taskId(), 0);
+        api.beginStage(task.taskId(), 0, Optional.empty());
         apply(task, 0, place("first", "led", 2, 4));
         apply(task, 0, place("second", "led", 12, 4));
-        api.beginStage(task.taskId(), 1);
+        api.beginStage(task.taskId(), 1, Optional.empty());
 
         StageUndoOutcome outcome = api.undoStage(task.taskId(), 0);
 
@@ -449,7 +450,7 @@ class StoryboardTest {
     void undoStageStopsAtTheUsersEdit() {
         presenting();
         TaskInfo task = api.beginTask(DOCUMENT, "Una etapa", STORY);
-        api.beginStage(task.taskId(), 0);
+        api.beginStage(task.taskId(), 0, Optional.empty());
         apply(task, 0, place("first", "led", 2, 4));
         String users = userPlaces("switch", 100, 100);
 
@@ -463,9 +464,9 @@ class StoryboardTest {
     void undoStageStopsAtAnotherStagesStep() {
         presenting();
         TaskInfo task = api.beginTask(DOCUMENT, "Dos etapas", STORY);
-        api.beginStage(task.taskId(), 0);
+        api.beginStage(task.taskId(), 0, Optional.empty());
         apply(task, 0, place("first", "led", 2, 4));
-        StageOrigin second = api.beginStage(task.taskId(), 1);
+        StageOrigin second = api.beginStage(task.taskId(), 1, Optional.empty());
         apply(task, 1, place("second", "led", second.x(), second.y()));
 
         StageUndoOutcome outcome = api.undoStage(task.taskId(), 0);
@@ -486,12 +487,12 @@ class StoryboardTest {
         List<TaskStage> plan = List.of(new TaskStage("Coloco las piezas", List.of("Coloco")),
                 new TaskStage("Conecto", List.of("Conecto")));
         TaskInfo task = api.beginTask(DOCUMENT, "Dos etapas", plan);
-        api.beginStage(task.taskId(), 0);
+        api.beginStage(task.taskId(), 0, Optional.empty());
         EditReceipt parts = applyIn(task, "Coloco las piezas",
                 new PlacePart(Optional.of("a"), "input-pin", 2, 4, Rotation.R0, Map.of(), "A"),
                 new PlacePart(Optional.of("s"), "output-pin", 20, 4, Rotation.R0, Map.of(), "S"));
         applyIn(task, "Conecto", connect(parts.aliases().get("a"), "pin", parts.aliases().get("s"), "pin"));
-        api.endTask(task.taskId());
+        api.endTask(task.taskId(), false).task();
         Set<String> before = elementIds();
 
         assertThat(api.storyboardState(task.taskId()).canKeepOnlyResult()).isFalse();
@@ -505,13 +506,13 @@ class StoryboardTest {
     void keepOnlyTheResultIsRefusedWhenAnEarlierStageHasNoFrame() {
         presenting();
         TaskInfo task = api.beginTask(DOCUMENT, "Dos etapas", STORY);
-        api.beginStage(task.taskId(), 0);
+        api.beginStage(task.taskId(), 0, Optional.empty());
         apply(task, 0, place("left", "led", 0, 10), place("right", "led", 40, 10));
         userPlaces("switch", 20, 10);
         known = host.onEditor(circuit::version);
-        StageOrigin second = api.beginStage(task.taskId(), 1);
+        StageOrigin second = api.beginStage(task.taskId(), 1, Optional.empty());
         apply(task, 1, place("second", "led", second.x(), second.y()));
-        api.endTask(task.taskId());
+        api.endTask(task.taskId(), false).task();
         assertThat(circuit.document().frames()).singleElement()
                 .satisfies(frame -> assertThat(frame.title()).isEqualTo("Componente de 2 bits"));
 
@@ -527,7 +528,7 @@ class StoryboardTest {
         tellTheStory(task);
 
         assertThat(api.storyboardState(task.taskId()).canKeepOnlyResult()).as("not while it runs").isFalse();
-        api.endTask(task.taskId());
+        api.endTask(task.taskId(), false).task();
 
         assertThat(api.storyboardState(task.taskId())).isEqualTo(new StoryboardState(true, true));
     }
@@ -540,16 +541,16 @@ class StoryboardTest {
                 new TaskStage("Componente", List.of("Creo", "Coloco")),
                 new TaskStage("Prueba", List.of("Coloco")));
         TaskInfo task = api.beginTask(DOCUMENT, "Tres etapas", plan);
-        StageOrigin first = api.beginStage(task.taskId(), 0);
+        StageOrigin first = api.beginStage(task.taskId(), 0, Optional.empty());
         EditReceipt gates = applyIn(task, "Sumador",
                 new PlacePart(Optional.of("a"), "input-pin", first.x(), first.y() + 1, Rotation.R0, Map.of(), "A"),
                 new PlacePart(Optional.of("s"), "output-pin", first.x() + 10, first.y() + 1, Rotation.R0, Map.of(),
                         "S"));
-        StageOrigin second = api.beginStage(task.taskId(), 1);
+        StageOrigin second = api.beginStage(task.taskId(), 1, Optional.empty());
         applyIn(task, "Componente", new CreateComponent(Optional.empty(), "Comp", addedBy(gates), Map.of(), false));
         applyIn(task, "Componente", new PlaceInstance(Optional.empty(), "Comp", second.x(), second.y(),
                 Rotation.R0));
-        api.beginStage(task.taskId(), 2);
+        api.beginStage(task.taskId(), 2, Optional.empty());
         assertThat(frameTitled("Sumador").locked()).isTrue();
 
         StageUndoOutcome outcome = api.undoStage(task.taskId(), 1);
@@ -569,12 +570,12 @@ class StoryboardTest {
                 new TaskStage("Dos", List.of("Coloco")),
                 new TaskStage("Comprobar", List.of("Compruebo la tabla")));
         TaskInfo task = api.beginTask(DOCUMENT, "Tres etapas", plan);
-        api.beginStage(task.taskId(), 0);
+        api.beginStage(task.taskId(), 0, Optional.empty());
         applyIn(task, "Uno", place("first", "led", 2, 4));
-        StageOrigin second = api.beginStage(task.taskId(), 1);
+        StageOrigin second = api.beginStage(task.taskId(), 1, Optional.empty());
         applyIn(task, "Dos", place("second", "led", second.x(), second.y()));
-        api.beginStage(task.taskId(), 2);
-        api.endTask(task.taskId());
+        api.beginStage(task.taskId(), 2, Optional.empty());
+        api.endTask(task.taskId(), false).task();
         assertThat(api.storyboardState(task.taskId()).canUndoStage()).isTrue();
 
         assertThat(api.undoLatestStage(task.taskId()))
@@ -592,11 +593,12 @@ class StoryboardTest {
     void undoTheLatestStageTakesBackTheLayoutGuidesCleanupWithIt() {
         presenting();
         TaskInfo task = api.beginTask(DOCUMENT, "Una etapa", STORY);
-        api.beginStage(task.taskId(), 0);
-        known = api.edit(request(task, 0, new EditOperation.AddGuide(Guide.Orientation.VERTICAL, 2, true)))
+        api.beginStage(task.taskId(), 0, Optional.empty());
+        known = api.editStep(request(task, 0, new EditOperation.AddGuide(Guide.Orientation.VERTICAL, 2, true)),
+                Optional.empty()).receipt()
                 .version();
         apply(task, 0, place("first", "led", 2, 4));
-        api.endTask(task.taskId());
+        api.endTask(task.taskId(), false).task();
         assertThat(circuit.document().guides()).isEmpty();
 
         StageUndoOutcome outcome = api.undoLatestStage(task.taskId());
@@ -611,7 +613,7 @@ class StoryboardTest {
     /** The four stages of the story, each built at its origin; returns what each stage added. */
     private Map<Integer, Set<String>> tellTheStory(TaskInfo task) {
         Map<Integer, Set<String>> created = new java.util.HashMap<>();
-        StageOrigin first = api.beginStage(task.taskId(), 0);
+        StageOrigin first = api.beginStage(task.taskId(), 0, Optional.empty());
         int x = first.x();
         int y = first.y();
         EditReceipt gates = apply(task, 0,
@@ -626,18 +628,18 @@ class StoryboardTest {
         apply(task, 0, new CreateComponent(Optional.empty(), "Sumador 2 bits", adder, Map.of(), false));
         created.put(0, new HashSet<>(adder));
 
-        StageOrigin second = api.beginStage(task.taskId(), 1);
+        StageOrigin second = api.beginStage(task.taskId(), 1, Optional.empty());
         EditReceipt instance = apply(task, 1,
                 new PlaceInstance(Optional.empty(), "Sumador 2 bits", second.x(), second.y(), Rotation.R0));
         created.put(1, new HashSet<>(addedBy(instance)));
 
-        StageOrigin third = api.beginStage(task.taskId(), 2);
+        StageOrigin third = api.beginStage(task.taskId(), 2, Optional.empty());
         EditReceipt pair = apply(task, 2,
                 new PlaceInstance(Optional.empty(), "Sumador 2 bits", third.x(), third.y(), Rotation.R0),
                 new PlaceInstance(Optional.empty(), "Sumador 2 bits", third.x(), third.y() + 12, Rotation.R0));
         created.put(2, new HashSet<>(addedBy(pair)));
 
-        StageOrigin fourth = api.beginStage(task.taskId(), 3);
+        StageOrigin fourth = api.beginStage(task.taskId(), 3, Optional.empty());
         EditReceipt wide = apply(task, 3,
                 new PlacePart(Optional.of("a"), "input-pin", fourth.x(), fourth.y() + 1, Rotation.R0, Map.of(), "A"),
                 new PlaceInstance(Optional.of("low"), "Sumador 2 bits", fourth.x() + 8, fourth.y(), Rotation.R0),
@@ -660,7 +662,7 @@ class StoryboardTest {
 
     /** One step in «Paso a paso»: proposed, «Siguiente», applied; the AI then knows the receipt's version. */
     private EditReceipt apply(TaskInfo task, int stage, EditOperation... operations) {
-        PresentedEdit edit = api.editStep(request(task, stage, operations));
+        PresentedEdit edit = api.editStep(request(task, stage, operations), Optional.empty());
         EditReceipt receipt = edit.receipt();
         if (edit.proposed()) {
             api.nextStep(task.taskId());
@@ -676,7 +678,8 @@ class StoryboardTest {
     private EditReceipt applyIn(TaskInfo task, String stage, EditOperation... operations) {
         String text = "Paso " + nextOperation;
         PresentedEdit edit = api.editStep(new EditRequest(DOCUMENT, known, "op-" + nextOperation++,
-                Optional.of(new TaskStep(task.taskId(), stage, text, text)), List.of(operations), false));
+                Optional.of(new TaskStep(task.taskId(), stage, text, text)), List.of(operations), false),
+                        Optional.empty());
         EditReceipt receipt = edit.receipt();
         if (edit.proposed()) {
             api.nextStep(task.taskId());

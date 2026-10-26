@@ -39,22 +39,6 @@ public record ReadFilter(Detail detail, Set<ElementKind> kinds, Set<String> elem
         pageSize = Math.min(pageSize, MAXIMUM_PAGE_SIZE);
     }
 
-    public ReadFilter withKinds(Set<ElementKind> newKinds) {
-        return new ReadFilter(detail, newKinds, elementIds, region, pageSize);
-    }
-
-    public ReadFilter withElementIds(Set<String> newElementIds) {
-        return new ReadFilter(detail, kinds, newElementIds, region, pageSize);
-    }
-
-    public ReadFilter withRegion(Bounds newRegion) {
-        return new ReadFilter(detail, kinds, elementIds, Optional.of(newRegion), pageSize);
-    }
-
-    public ReadFilter withPageSize(int newPageSize) {
-        return new ReadFilter(detail, kinds, elementIds, region, newPageSize);
-    }
-
     /** The kinds this filter lists: the asked ones, or those of the detail. */
     Set<ElementKind> listedKinds() {
         if (!kinds.isEmpty()) {

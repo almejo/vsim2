@@ -7,6 +7,7 @@ import cl.almejo.vsim.automation.edit.TaskStep;
 import cl.almejo.vsim.automation.present.FakePresentingHost;
 import cl.almejo.vsim.automation.present.PresentationListener;
 import cl.almejo.vsim.automation.present.PresentationPace;
+import cl.almejo.vsim.automation.present.PresentationService;
 import cl.almejo.vsim.automation.present.PresentationSettings;
 import cl.almejo.vsim.automation.present.PresentedEdit;
 import cl.almejo.vsim.automation.present.StepPreview;
@@ -42,7 +43,7 @@ class AutomationApiPresentationTest {
         TaskInfo task = api.beginTask(DOCUMENT, "Latch", List.of(new TaskStage("Compuertas", List.of("Coloco"))));
         assertThat(next()).isEqualTo("plan 0 0");
 
-        PresentedEdit edit = api.editStep(request(task, "op-1"));
+        PresentedEdit edit = api.editStep(request(task, "op-1"), Optional.empty());
 
         assertThat(edit.status()).contains(StepStatus.PROPOSED);
         assertThat(api.awaitStep(task.taskId(), Duration.ZERO).status()).isEqualTo(StepStatus.STILL_WAITING);
@@ -50,11 +51,12 @@ class AutomationApiPresentationTest {
         assertThat(next()).isEqualTo("proposed Coloco");
         api.nextStep(task.taskId());
         assertThat(next()).isEqualTo("applied Coloco");
-        assertThat(api.awaitStep(task.taskId()).status()).isEqualTo(StepStatus.APPLIED);
+        assertThat(api.awaitStep(task.taskId(), PresentationService.MAXIMUM_STEP_WAIT)
+                .status()).isEqualTo(StepStatus.APPLIED);
         assertThat(circuit.document().components()).hasSize(1);
 
         removal.run();
-        api.endTask(task.taskId());
+        api.endTask(task.taskId(), false).task();
     }
 
     @Test
@@ -63,11 +65,12 @@ class AutomationApiPresentationTest {
         host.present(DOCUMENT.value(), new PresentationSettings(true, PresentationPace.STEP_BY_STEP,
                 Duration.ofSeconds(1)));
         TaskInfo task = api.beginTask(DOCUMENT, "Latch", List.of(new TaskStage("Compuertas", List.of("Coloco"))));
-        api.editStep(request(task, "op-1"));
+        api.editStep(request(task, "op-1"), Optional.empty());
 
         api.stopTask(task.taskId());
 
-        assertThat(api.awaitStep(task.taskId()).status()).isEqualTo(StepStatus.STOPPED);
+        assertThat(api.awaitStep(task.taskId(), PresentationService.MAXIMUM_STEP_WAIT)
+                .status()).isEqualTo(StepStatus.STOPPED);
         assertThat(circuit.document().components()).isEmpty();
     }
 
@@ -79,7 +82,7 @@ class AutomationApiPresentationTest {
                 () -> api.setPresentation(DOCUMENT, true, Optional.of(PresentationPace.CONTINUOUS),
                         Optional.empty())).error()).isEqualTo(AutomationError.NOT_ALLOWED);
         TaskInfo task = api.beginTask(DOCUMENT, "Latch", List.of(new TaskStage("Compuertas", List.of("Coloco"))));
-        assertThat(api.editStep(request(task, "op-1")).status()).contains(StepStatus.PROPOSED);
+        assertThat(api.editStep(request(task, "op-1"), Optional.empty()).status()).contains(StepStatus.PROPOSED);
         assertThat(org.assertj.core.api.Assertions.catchThrowableOfType(AutomationException.class,
                 () -> api.setPresentation(DOCUMENT, true, Optional.empty(), Optional.of(Duration.ofMillis(100))))
                 .error()).isEqualTo(AutomationError.INVALID_PARAMETER);
@@ -89,7 +92,8 @@ class AutomationApiPresentationTest {
 
         assertThat(settings).isEqualTo(new PresentationSettings(true, PresentationPace.CONTINUOUS,
                 Duration.ofMillis(1500)));
-        assertThat(api.awaitStep(task.taskId()).status()).isEqualTo(StepStatus.APPLIED);
+        assertThat(api.awaitStep(task.taskId(), PresentationService.MAXIMUM_STEP_WAIT)
+                .status()).isEqualTo(StepStatus.APPLIED);
         assertThat(circuit.document().components()).hasSize(1);
     }
 
@@ -109,8 +113,8 @@ class AutomationApiPresentationTest {
 
         EditRequest request = request(task, "op-1");
 
-        assertThat(api.edit(request).applied()).isTrue();
-        assertThat(api.editStep(request).status()).isEmpty();
+        assertThat(api.editStep(request, Optional.empty()).receipt().applied()).isTrue();
+        assertThat(api.editStep(request, Optional.empty()).status()).isEmpty();
         assertThat(circuit.document().components()).hasSize(1);
     }
 

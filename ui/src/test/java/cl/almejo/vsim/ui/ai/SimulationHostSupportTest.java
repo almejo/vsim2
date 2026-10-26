@@ -268,7 +268,7 @@ class SimulationHostSupportTest {
     void aCounterHasNoTruthTable() throws Exception {
         example("counter-4-bits");
 
-        assertError(() -> api.truthTable(summary().id(), Set.of(), 0), AutomationError.NOT_ALLOWED);
+        assertError(() -> api.truthTable(summary().id(), Set.of(), 0, 0), AutomationError.NOT_ALLOWED);
     }
 
     @Test
@@ -284,7 +284,7 @@ class SimulationHostSupportTest {
                     assertThat(exception.error()).isEqualTo(AutomationError.INVALID_PIN);
                     assertThat(exception.recovery()).containsEntry("pins", List.of("in"));
                 });
-        assertError(() -> api.truthTable(adder, Set.of("ghost"), 0), AutomationError.INVALID_REFERENCE);
+        assertError(() -> api.truthTable(adder, Set.of("ghost"), 0, 0), AutomationError.INVALID_REFERENCE);
     }
 
     @Test

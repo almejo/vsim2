@@ -156,7 +156,7 @@ class EditorAutomationHostReadTest {
         api.readCircuit(id, ReadFilter.FULL, Optional.empty());
         api.describeComponents(id, Optional.empty());
         api.readProblems(id);
-        api.pictureOf(id, Optional.empty());
+        api.pictureOf(id, Optional.empty(), false);
         api.pictureOf(id, Optional.empty(), true);
         api.pictureOfWindow(id);
 
@@ -171,9 +171,9 @@ class EditorAutomationHostReadTest {
         onEditor(() -> place(document, StandardComponentTypes.FLIP_FLOP_DATA, 10, 10, Map.of()));
         DocumentId id = idOf(document);
 
-        RegionPicture whole = api.pictureOf(id, Optional.empty());
-        RegionPicture huge = api.pictureOf(id, Optional.of(new Bounds(-1000, -1000, 5000, 2000)));
-        RegionPicture small = api.pictureOf(id, Optional.of(new Bounds(8, 8, 10, 10)));
+        RegionPicture whole = api.pictureOf(id, Optional.empty(), false);
+        RegionPicture huge = api.pictureOf(id, Optional.of(new Bounds(-1000, -1000, 5000, 2000)), false);
+        RegionPicture small = api.pictureOf(id, Optional.of(new Bounds(8, 8, 10, 10)), false);
 
         assertThat(whole.asOnScreen()).isFalse();
         assertThat(whole.region()).isEqualTo(new Bounds(8, 8, 8, 8));
@@ -194,10 +194,10 @@ class EditorAutomationHostReadTest {
         OpenDocument document = document("Vacío");
         DocumentId id = idOf(document);
 
-        assertThatThrownBy(() -> api.pictureOf(id, Optional.empty()))
+        assertThatThrownBy(() -> api.pictureOf(id, Optional.empty(), false))
                 .isInstanceOfSatisfying(AutomationException.class,
                         exception -> assertThat(exception.error()).isEqualTo(AutomationError.INVALID_REFERENCE));
-        assertThat(api.pictureOf(id, Optional.of(new Bounds(0, 0, 20, 10))).width()).isEqualTo(320);
+        assertThat(api.pictureOf(id, Optional.of(new Bounds(0, 0, 20, 10)), false).width()).isEqualTo(320);
     }
 
     @Test

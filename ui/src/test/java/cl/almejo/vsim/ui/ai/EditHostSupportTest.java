@@ -58,10 +58,10 @@ class EditHostSupportTest {
 
     @Test
     void anEditIsOneUndoStepOfTheOpenCircuitNamedAsTheAisChange() throws Exception {
-        EditReceipt receipt = api.edit(request("op-1", Optional.empty(), placePart("gate", "nand2", 0, 0),
+        EditReceipt receipt = api.editStep(request("op-1", Optional.empty(), placePart("gate", "nand2", 0, 0),
                 placePart("lamp", "led", 10, -1),
                 new EditOperation.Connect(PinTarget.named("new:gate", "out"), PinTarget.named("new:lamp", "in"),
-                        List.of())));
+                        List.of())), Optional.empty()).receipt();
 
         onEditorThread(() -> {
             assertThat(circuit.document().components()).hasSize(2);
@@ -83,8 +83,8 @@ class EditHostSupportTest {
     @Test
     void theAisUndoWorksFromAButtonOnTheEditorThreadWithoutWaitingForItself() throws Exception {
         TaskInfo task = api.beginTask(id, "Compuerta", List.of());
-        api.edit(request("op-1", Optional.of(new TaskStep(task.taskId(), "1", "1", "Coloco la NAND")),
-                placePart("gate", "nand2", 0, 0)));
+        api.editStep(request("op-1", Optional.of(new TaskStep(task.taskId(), "1", "1", "Coloco la NAND")),
+                placePart("gate", "nand2", 0, 0)), Optional.empty()).receipt();
         AtomicReference<UndoOutcome> outcome = new AtomicReference<>();
 
         SwingUtilities.invokeAndWait(() -> outcome.set(api.undoTask(task.taskId())));
@@ -98,7 +98,8 @@ class EditHostSupportTest {
         EditRequest prepared = request("op-1", Optional.empty(), placePart("gate", "nand2", 0, 0));
         SwingUtilities.invokeAndWait(() -> place(circuit, StandardComponentTypes.NOT, 20, 0, Map.of()));
 
-        assertThatThrownBy(() -> api.edit(prepared)).isInstanceOfSatisfying(AutomationException.class,
+        assertThatThrownBy(() -> api.editStep(prepared, Optional.empty()).receipt())
+                .isInstanceOfSatisfying(AutomationException.class,
                 refusal -> assertThat(refusal.error()).isEqualTo(AutomationError.STALE_DOCUMENT));
         onEditorThread(() -> assertThat(circuit.document().components()).hasSize(1));
     }
@@ -109,7 +110,7 @@ class EditHostSupportTest {
         EditRequest prepared = request("op-1", Optional.empty(), placePart("gate", "nand2", 0, 0));
         SwingUtilities.invokeAndWait(() -> circuit.history().markSaved());
 
-        assertThat(api.edit(prepared).applied()).isTrue();
+        assertThat(api.editStep(prepared, Optional.empty()).receipt().applied()).isTrue();
         onEditorThread(() -> assertThat(circuit.document().components()).hasSize(1));
     }
 
@@ -119,13 +120,14 @@ class EditHostSupportTest {
         open.remove(circuit);
         circuit.close();
 
-        assertThatThrownBy(() -> api.edit(request)).isInstanceOfSatisfying(AutomationException.class,
+        assertThatThrownBy(() -> api.editStep(request, Optional.empty()).receipt())
+                .isInstanceOfSatisfying(AutomationException.class,
                 refusal -> assertThat(refusal.error()).isEqualTo(AutomationError.DOCUMENT_CLOSED));
     }
 
     @Test
     void theIdOfAnEditedCircuitStaysTheSame() throws Exception {
-        api.edit(request("op-1", Optional.empty(), placePart("gate", "nand2", 0, 0)));
+        api.editStep(request("op-1", Optional.empty(), placePart("gate", "nand2", 0, 0)), Optional.empty()).receipt();
 
         List<DocumentSummary> documents = host.onEditorThread(EditorAccess::openDocuments).get(5, TimeUnit.SECONDS);
 

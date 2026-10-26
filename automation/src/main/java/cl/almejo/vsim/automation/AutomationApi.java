@@ -19,7 +19,6 @@ import cl.almejo.vsim.automation.simulate.SimulationOperations;
 import cl.almejo.vsim.automation.simulate.SimulationReceipt;
 import cl.almejo.vsim.automation.simulate.StepKind;
 import cl.almejo.vsim.automation.simulate.TruthTableView;
-import cl.almejo.vsim.automation.edit.EditReceipt;
 import cl.almejo.vsim.automation.edit.EditRequest;
 import cl.almejo.vsim.automation.edit.EditService;
 import cl.almejo.vsim.automation.edit.OrderedExecutor;
@@ -225,10 +224,6 @@ public final class AutomationApi {
         return simulation.readSignals(document, pins);
     }
 
-    public TruthTableView truthTable(DocumentId document, Set<String> elementIds, int maximumRows) {
-        return simulation.truthTable(document, elementIds, maximumRows, 0);
-    }
-
     public TruthTableView truthTable(DocumentId document, Set<String> elementIds, int maximumRows, int eventBudget) {
         return simulation.truthTable(document, elementIds, maximumRows, eventBudget);
     }
@@ -260,12 +255,10 @@ public final class AutomationApi {
         return reads.readProblems(id);
     }
 
-    /** A PNG of {@code region} of circuit {@code id} as the export paints it; never shown, never saved. */
-    public RegionPicture pictureOf(DocumentId id, Optional<Bounds> region) {
-        return reads.pictureOf(id, region, false);
-    }
-
-    /** Like {@link #pictureOf(DocumentId, Optional)}; {@code asOnScreen} paints the active pane as the user sees it. */
+    /**
+     * A PNG of {@code region} of circuit {@code id} as the export paints it; never shown, never saved.
+     * {@code asOnScreen} paints the active pane as the user sees it.
+     */
     public RegionPicture pictureOf(DocumentId id, Optional<Bounds> region, boolean asOnScreen) {
         return reads.pictureOf(id, region, asOnScreen);
     }
@@ -294,23 +287,10 @@ public final class AutomationApi {
     }
 
     /**
-     * One edit call, all or nothing, as one undo step (spec §10; see {@link EditService#edit}). In «Presentar» it is
-     * one step, paced or proposed ({@link #editStep}); a proposed step's receipt says {@code applied} false.
-     */
-    public EditReceipt edit(EditRequest request) {
-        return presentation.edit(request).receipt();
-    }
-
-    /**
      * One edit call with how «Presentar» took it (spec §5.1): not paced (working mode), {@code APPLIED} («De corrido»,
-     * after the pause) or {@code PROPOSED} («Paso a paso»: shown as a ghost, then {@link #awaitStep}).
-     */
-    public PresentedEdit editStep(EditRequest request) {
-        return presentation.edit(request);
-    }
-
-    /**
-     * As {@link #editStep(EditRequest)}, with a line the AI says about what comes and why ({@link #say}): shown only
+     * after the pause) or {@code PROPOSED} («Paso a paso»: shown as a ghost, then {@link #awaitStep}); {@code receipt}
+     * says {@code applied} false for a proposed step. All or nothing, as one undo step (spec §10; see
+     * {@link EditService#edit}). With a line the AI says about what comes and why ({@link #say}): shown only
      * once VSim accepted the edit (with its ghost, or before the step's pause in «De corrido»), never for a refused
      * one or a retry. A call that only validates says nothing. See {@link PresentationService#edit(EditRequest,
      * Optional)}.
@@ -354,15 +334,10 @@ public final class AutomationApi {
     }
 
     /**
-     * {@code await_step}: what became of the task's proposed step, waiting at most
-     * {@link PresentationService#MAXIMUM_STEP_WAIT}: {@code APPLIED} with the receipt, {@code STALE} (read again and
+     * {@code await_step}: what became of the task's proposed step, waiting at most {@code wait} (capped at
+     * {@link PresentationService#MAXIMUM_STEP_WAIT}): {@code APPLIED} with the receipt, {@code STALE} (read again and
      * propose it again), {@code STOPPED}, or {@code STILL_WAITING} (ask again).
      */
-    public StepOutcome awaitStep(String taskId) {
-        return presentation.awaitStep(taskId, PresentationService.MAXIMUM_STEP_WAIT);
-    }
-
-    /** {@link #awaitStep(String)} waiting at most {@code wait} (capped at the maximum). */
     public StepOutcome awaitStep(String taskId, Duration wait) {
         return presentation.awaitStep(taskId, wait);
     }
@@ -384,12 +359,8 @@ public final class AutomationApi {
      * frames first (VSim's own undo steps, which never make the AI's version stale) and the view travels to the
      * origin. Refused while a step waits for «Siguiente» ({@code NOT_ALLOWED}) or for a stage the plan does not have
      * ({@code INVALID_PARAMETER}).
+     * With a {@code narration} the AI then says it about the stage ({@link #say}).
      */
-    public StageOrigin beginStage(String taskId, int stageIndex) {
-        return beginStage(taskId, stageIndex, Optional.empty());
-    }
-
-    /** As {@link #beginStage(String, int)}, then the AI says {@code narration} about the stage ({@link #say}). */
     public StageOrigin beginStage(String taskId, int stageIndex, Optional<String> narration) {
         Objects.requireNonNull(narration, "narration");
         presentation.heardFrom(taskId);
@@ -547,11 +518,6 @@ public final class AutomationApi {
         presentation.heardFrom(taskId);
         edits.updatePlan(taskId, stages);
         presentation.planUpdated(taskId);
-    }
-
-    /** Ends a task; listeners hear it end with the elements it changed. Its layout-only guides go away. */
-    public TaskInfo endTask(String taskId) {
-        return endTask(taskId, false).task();
     }
 
     /**

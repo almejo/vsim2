@@ -40,7 +40,8 @@ class PresentationAwaitWhileApplyingTest {
         TaskInfo task = api.beginTask(DOCUMENT, "Una luz", PLAN);
         PresentedEdit proposed = api.editStep(new EditRequest(DOCUMENT, host.onEditor(circuit::version), "op-1",
                 Optional.of(new TaskStep(task.taskId(), "Una etapa", "Coloco una luz", "Coloco una luz")),
-                List.of(new PlacePart(Optional.of("lamp"), "led", 0, 0, Rotation.R0, Map.of(), "")), false));
+                List.of(new PlacePart(Optional.of("lamp"), "led", 0, 0, Rotation.R0, Map.of(), "")), false),
+                        Optional.empty());
         assertThat(proposed.proposed()).isTrue();
         AtomicReference<StepOutcome> duringTheWrite = new AtomicReference<>();
         AtomicReference<RuntimeException> refusedDuringTheWrite = new AtomicReference<>();

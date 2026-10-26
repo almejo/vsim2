@@ -88,7 +88,7 @@ class AutomationApiReadTest {
 
     @Test
     void aPictureIsTheExportOneUnlessAskedAsOnScreen() {
-        api.pictureOf(OPEN, Optional.empty());
+        api.pictureOf(OPEN, Optional.empty(), false);
         api.pictureOf(OPEN, Optional.of(new Bounds(0, 0, 10, 10)), true);
 
         assertThat(pictureRequests).containsExactly(List.of(OPEN, Optional.empty(), false),
