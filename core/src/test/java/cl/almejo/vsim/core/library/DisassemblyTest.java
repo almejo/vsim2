@@ -71,7 +71,8 @@ class DisassemblyTest {
     void anOutsideWireRunningThroughTheInstancePinAndTheBodyPinIsNotBlocked() {
         Component instance = inverterAt10();
         wire(document, 4, 12, 10, 12);
-        wire(document, 13, 12, 20, 12); // passes mid-wire through the output pin (14, 12) and the body's output (16, 12)
+        // passes mid-wire through the output pin (14, 12) and the body's output (16, 12)
+        wire(document, 13, 12, 20, 12);
 
         Disassembly.Plan plan = Disassembly.plan(document, instance, ExampleDefinitions.inverter(), registry);
 

@@ -24,7 +24,6 @@ import org.junit.jupiter.api.io.TempDir;
 
 import javax.swing.AbstractButton;
 import javax.swing.Action;
-import javax.swing.JLabel;
 import javax.swing.KeyStroke;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;

@@ -97,9 +97,10 @@ class PinBridgesTest {
 
     @Test
     void aBendGoesVerticalFirstUnlessThatRouteTouchesSomethingElse() {
-        Component first = place(registry, document, InterfacePins.INPUT_PIN, 0, 0, "a");   // point (2,1) → instance pin (0,2)
-        Component second = place(registry, document, InterfacePins.INPUT_PIN, 0, 4, "b");  // point (2,5) → instance pin (0,4)
-        Component output = place(registry, document, InterfacePins.OUTPUT_PIN, 6, 0, "y");  // point (6,1) → instance pin (6,2)
+        // points (2,1), (2,5) and (6,1) → instance pins (0,2), (0,4) and (6,2)
+        Component first = place(registry, document, InterfacePins.INPUT_PIN, 0, 0, "a");
+        Component second = place(registry, document, InterfacePins.INPUT_PIN, 0, 4, "b");
+        Component output = place(registry, document, InterfacePins.OUTPUT_PIN, 6, 0, "y");
         List<ElementId> selection = ids(first, second, output);
         wire(document, 2, -4, 2, 1);
         wire(document, 2, 5, 2, 10);
@@ -127,8 +128,9 @@ class PinBridgesTest {
     @Test
     void anInstancePinOnAnotherPinsOutsideNetIsBlockedAndNeverBridgedIntoIt() {
         Component input = place(registry, document, InterfacePins.INPUT_PIN, 0, 0, "a");
-        Component first = place(registry, document, InterfacePins.OUTPUT_PIN, 6, 3, "y1");   // point (6,4) → instance pin (6,2)
-        Component second = place(registry, document, InterfacePins.OUTPUT_PIN, 6, 5, "y2");  // point (6,6) → instance pin (6,4)
+        // points (6,4) and (6,6) → instance pins (6,2) and (6,4)
+        Component first = place(registry, document, InterfacePins.OUTPUT_PIN, 6, 3, "y1");
+        Component second = place(registry, document, InterfacePins.OUTPUT_PIN, 6, 5, "y2");
         wire(document, 6, 4, 12, 4);
         wire(document, 6, 6, 12, 6);
 

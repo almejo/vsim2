@@ -114,7 +114,8 @@ public final class EditorActions {
                 window::saveAs);
         closeWindow = Actions.of(Messages.text("action.close"), shortcut(KeyEvent.VK_W, 0), window::closeWindow);
         exit = Actions.of(Messages.text("action.exit"), shortcut(KeyEvent.VK_Q, 0), window::exit);
-        undo = Actions.of(Messages.text("action.undo"), shortcut(KeyEvent.VK_Z, 0), () -> openDocument.history().undo());
+        undo = Actions.of(Messages.text("action.undo"), shortcut(KeyEvent.VK_Z, 0),
+                () -> openDocument.history().undo());
         redo = Actions.of(Messages.text("action.redo"), shortcut(KeyEvent.VK_Z, InputEvent.SHIFT_DOWN_MASK),
                 () -> openDocument.history().redo());
         delete = Actions.of(Messages.text("action.delete"), null, this::deleteSelection);

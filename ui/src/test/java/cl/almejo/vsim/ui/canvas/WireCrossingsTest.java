@@ -132,7 +132,8 @@ class WireCrossingsTest {
         // one unit each way, so the two small crosses (two units apart) do not cross each other
         wire(document, rotatedPin.x() - 1, rotatedPin.y(), rotatedPin.x() + 1, rotatedPin.y());
         wire(document, rotatedPin.x(), rotatedPin.y() - 1, rotatedPin.x(), rotatedPin.y() + 1);
-        Wire horizontal = wire(document, unrotatedPin.x() - 1, unrotatedPin.y(), unrotatedPin.x() + 1, unrotatedPin.y());
+        Wire horizontal =
+                wire(document, unrotatedPin.x() - 1, unrotatedPin.y(), unrotatedPin.x() + 1, unrotatedPin.y());
         Wire vertical = wire(document, unrotatedPin.x(), unrotatedPin.y() - 1, unrotatedPin.x(), unrotatedPin.y() + 1);
 
         assertThat(WireCrossings.of(document, registry))

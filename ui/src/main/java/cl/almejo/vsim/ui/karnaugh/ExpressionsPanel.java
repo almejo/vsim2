@@ -104,7 +104,8 @@ public final class ExpressionsPanel extends JPanel {
     private final Map<WizardOptions.GateChoice, JRadioButton> gateButtons =
             new EnumMap<>(WizardOptions.GateChoice.class);
     private final Map<Minimization.Form, JRadioButton> formButtons = new EnumMap<>(Minimization.Form.class);
-    private final JLabel formReason = WizardColors.label(Messages.text("expressions.asWrittenReason"), WizardColors::muted);
+    private final JLabel formReason =
+            WizardColors.label(Messages.text("expressions.asWrittenReason"), WizardColors::muted);
     private final JCheckBox share = new JCheckBox(Messages.text("karnaugh.expression.share"));
     private final JLabel costLine = new JLabel(" ");
     private final JButton close = new JButton(Messages.text("karnaugh.close"));

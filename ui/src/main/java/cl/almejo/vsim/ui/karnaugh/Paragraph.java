@@ -28,7 +28,10 @@ class Paragraph extends JTextArea {
         applyLabelLook();
     }
 
-    /** An empty paragraph in the error colour, read at paint time (a line that does not parse, a table that cannot be imported). */
+    /**
+     * An empty paragraph in the error colour, read at paint time (a line that does not parse, a table that cannot be
+     * imported).
+     */
     static Paragraph error() {
         return new Paragraph("") {
             @Override

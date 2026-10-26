@@ -33,7 +33,6 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 
 import static cl.almejo.vsim.ui.UiTestSupport.NO_WINDOW;
 import static org.assertj.core.api.Assertions.assertThat;

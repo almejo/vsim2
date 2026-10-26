@@ -18,7 +18,6 @@ import cl.almejo.vsim.ui.paint.Appearance;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.ComponentIcon;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
-import cl.almejo.vsim.ui.panels.TextChanges;
 import cl.almejo.vsim.ui.shortcuts.ShortcutCatalog;
 import net.miginfocom.swing.MigLayout;
 

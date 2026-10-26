@@ -25,7 +25,6 @@ import java.util.Map;
 import java.util.Optional;
 
 import static cl.almejo.vsim.ui.UiTestSupport.NO_WINDOW;
-import static cl.almejo.vsim.ui.UiTestSupport.perform;
 
 /**
  * One editor view of {@code openDocument} with the M4-A features installed over a library kept in

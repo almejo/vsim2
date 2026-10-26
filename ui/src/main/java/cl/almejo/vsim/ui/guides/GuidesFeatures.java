@@ -85,7 +85,8 @@ public final class GuidesFeatures {
         this.openDocument = view.openDocument();
         this.preferences = view.services().preferences();
         this.menuShower = menuShower;
-        this.showGuides = Actions.of(Messages.text("action.showGuides"), () -> preferences.setShowGuides(!preferences.showGuides()));
+        this.showGuides = Actions.of(Messages.text("action.showGuides"),
+                () -> preferences.setShowGuides(!preferences.showGuides()));
         this.addHorizontal = Actions.of(Messages.text("action.addHorizontalGuide"),
                 () -> addAtPoint(Orientation.HORIZONTAL, pointerOrMiddle()));
         this.addVertical = Actions.of(Messages.text("action.addVerticalGuide"),

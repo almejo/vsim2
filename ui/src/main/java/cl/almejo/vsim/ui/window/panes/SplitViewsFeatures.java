@@ -45,8 +45,10 @@ public final class SplitViewsFeatures {
     public SplitViewsFeatures(EditorView view) {
         this.view = view;
         this.panes = view.canvasPanes();
-        this.splitHorizontal = Actions.of(Messages.text("action.splitHorizontal"), () -> panes.split(Orientation.HORIZONTAL, MIDDLE));
-        this.splitVertical = Actions.of(Messages.text("action.splitVertical"), () -> panes.split(Orientation.VERTICAL, MIDDLE));
+        this.splitHorizontal = Actions.of(Messages.text("action.splitHorizontal"),
+                () -> panes.split(Orientation.HORIZONTAL, MIDDLE));
+        this.splitVertical = Actions.of(Messages.text("action.splitVertical"),
+                () -> panes.split(Orientation.VERTICAL, MIDDLE));
         this.removeSplit = Actions.of(Messages.text("action.removeSplit"), panes::removeAll);
         this.nextPane = Actions.of(Messages.text("action.nextPane"), this::activateNextPane);
         this.windowMenu = view.menu(MenuId.WINDOW);

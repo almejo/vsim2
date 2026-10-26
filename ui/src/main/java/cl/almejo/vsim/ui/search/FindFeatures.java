@@ -340,8 +340,8 @@ public final class FindFeatures {
         field.onTextChange(() -> search(Reason.QUERY));
         Keys.bindWhenFocused(field, KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, 0), "find.next", this::next);
         Keys.bindWhenFocused(field, KeyStroke.getKeyStroke(KeyEvent.VK_DOWN, 0), "find.next", this::next);
-        Keys.bindWhenFocused(field, KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, InputEvent.SHIFT_DOWN_MASK), "find.previous",
-                this::previous);
+        Keys.bindWhenFocused(field, KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, InputEvent.SHIFT_DOWN_MASK),
+                "find.previous", this::previous);
         Keys.bindWhenFocused(field, KeyStroke.getKeyStroke(KeyEvent.VK_UP, 0), "find.previous", this::previous);
         Keys.bindWhenFocused(field, KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "find.close", this::close);
         bar.nextButton().addActionListener(event -> next());

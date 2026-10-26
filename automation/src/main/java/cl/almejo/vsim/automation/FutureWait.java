@@ -12,8 +12,8 @@ import java.util.function.Supplier;
 
 /**
  * Waits, off the editor thread, for a future the editor (or the simulation) completes: at most {@code timeout}, after
- * which the AI is told the outcome is unknown. What the work threw reaches the caller as it is; each caller passes its
- * own texts.
+ * which the AI is told the outcome is unknown. What the work threw reaches the caller as it is (a checked cause is
+ * wrapped in an {@code IllegalStateException}); each caller passes its own texts.
  */
 public final class FutureWait {
 
@@ -56,7 +56,7 @@ public final class FutureWait {
     }
 
     /** What the work threw: a runtime exception as it is, an error rethrown, anything else wrapped. */
-    public static RuntimeException unwrap(Throwable cause) {
+    private static RuntimeException unwrap(Throwable cause) {
         Throwable actual = cause instanceof CompletionException && cause.getCause() != null ? cause.getCause() : cause;
         if (actual instanceof RuntimeException runtimeException) {
             return runtimeException;

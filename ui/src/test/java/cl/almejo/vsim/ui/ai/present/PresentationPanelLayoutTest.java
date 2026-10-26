@@ -20,7 +20,6 @@ import org.junit.jupiter.api.Test;
 
 import javax.swing.AbstractButton;
 import javax.swing.JComponent;
-import javax.swing.JLayeredPane;
 import javax.swing.JMenuItem;
 import javax.swing.JRootPane;
 import javax.swing.JScrollBar;

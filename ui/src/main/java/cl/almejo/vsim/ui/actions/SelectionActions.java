@@ -69,8 +69,10 @@ public final class SelectionActions {
         this.clipboard = clipboard;
         this.format = new FragmentFormat(openDocument.registry());
         int menuMask = ShortcutCatalog.menuMask();
-        cut = Actions.of(Messages.text("action.cut"), KeyStroke.getKeyStroke(KeyEvent.VK_X, menuMask), this::cutSelection);
-        copy = Actions.of(Messages.text("action.copy"), KeyStroke.getKeyStroke(KeyEvent.VK_C, menuMask), this::copySelection);
+        cut = Actions.of(Messages.text("action.cut"), KeyStroke.getKeyStroke(KeyEvent.VK_X, menuMask),
+                this::cutSelection);
+        copy = Actions.of(Messages.text("action.copy"), KeyStroke.getKeyStroke(KeyEvent.VK_C, menuMask),
+                this::copySelection);
         paste = Actions.of(Messages.text("action.paste"), KeyStroke.getKeyStroke(KeyEvent.VK_V, menuMask),
                 () -> pasteAt(activePane.get().mouseGridPoint()));
         duplicate = Actions.of(Messages.text("action.duplicate"), KeyStroke.getKeyStroke(KeyEvent.VK_D, menuMask),

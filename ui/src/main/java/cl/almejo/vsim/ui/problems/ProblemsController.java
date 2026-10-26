@@ -8,7 +8,6 @@ import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.DocumentListener;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.netlist.Net;
-import cl.almejo.vsim.core.netlist.Netlist;
 import cl.almejo.vsim.core.netlist.PinRef;
 import cl.almejo.vsim.core.simulation.FlatPinRef;
 import cl.almejo.vsim.core.simulation.ConnectivityProblem;
