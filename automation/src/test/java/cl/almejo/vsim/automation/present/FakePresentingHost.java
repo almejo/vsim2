@@ -2,11 +2,10 @@ package cl.almejo.vsim.automation.present;
 
 import cl.almejo.vsim.automation.AutomationError;
 import cl.almejo.vsim.automation.AutomationException;
-import cl.almejo.vsim.automation.AutomationHost;
 import cl.almejo.vsim.automation.DocumentId;
 import cl.almejo.vsim.automation.DocumentSummary;
 import cl.almejo.vsim.automation.DocumentVersion;
-import cl.almejo.vsim.automation.EditorAccess;
+import cl.almejo.vsim.automation.FakeAutomationHost;
 import cl.almejo.vsim.automation.edit.EditableCircuit;
 import cl.almejo.vsim.core.command.Command;
 import cl.almejo.vsim.core.command.History;
@@ -36,7 +35,7 @@ import java.util.function.Supplier;
  * settings, and a pacer whose clock and timer the test moves by hand. The editor thread is the calling thread,
  * serialised by one lock so a waiting call on another thread and the test never touch a circuit at the same time.
  */
-public final class FakePresentingHost implements AutomationHost {
+public final class FakePresentingHost extends FakeAutomationHost {
 
     private static final ComponentTypeRegistry BASE_REGISTRY = StandardComponentTypes.registry();
 
@@ -105,12 +104,11 @@ public final class FakePresentingHost implements AutomationHost {
     }
 
     @Override
-    public <T> CompletableFuture<T> onEditorThread(Function<EditorAccess, T> work) {
-        EditorAccess access = () -> circuits.entrySet().stream()
+    protected List<DocumentSummary> openDocuments() {
+        return circuits.entrySet().stream()
                 .map(entry -> new DocumentSummary(entry.getKey(), entry.getKey().value(), entry.getValue().version(),
                         entry.getValue().history().isModified()))
                 .toList();
-        return run(() -> work.apply(access));
     }
 
     @Override
@@ -122,7 +120,8 @@ public final class FakePresentingHost implements AutomationHost {
         return run(() -> work.apply(circuit));
     }
 
-    private <T> CompletableFuture<T> run(Supplier<T> work) {
+    @Override
+    protected <T> CompletableFuture<T> run(Supplier<T> work) {
         try {
             return CompletableFuture.completedFuture(onEditor(work));
         } catch (RuntimeException failure) {

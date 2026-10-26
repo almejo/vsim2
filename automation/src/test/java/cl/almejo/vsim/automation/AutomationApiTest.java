@@ -95,7 +95,7 @@ class AutomationApiTest {
     }
 
     /** Runs the work at once on the calling thread, over a fixed list of documents. */
-    static final class FakeHost implements AutomationHost {
+    static final class FakeHost extends FakeAutomationHost {
 
         private final List<DocumentSummary> documents;
 
@@ -104,8 +104,8 @@ class AutomationApiTest {
         }
 
         @Override
-        public <T> CompletableFuture<T> onEditorThread(Function<EditorAccess, T> work) {
-            return CompletableFuture.completedFuture(work.apply(() -> documents));
+        protected List<DocumentSummary> openDocuments() {
+            return documents;
         }
     }
 }
