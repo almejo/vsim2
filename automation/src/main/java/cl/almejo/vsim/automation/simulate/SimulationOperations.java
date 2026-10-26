@@ -4,6 +4,7 @@ import cl.almejo.vsim.automation.AutomationError;
 import cl.almejo.vsim.automation.AutomationException;
 import cl.almejo.vsim.automation.DocumentId;
 import cl.almejo.vsim.automation.DocumentVersion;
+import cl.almejo.vsim.automation.FutureWait;
 import cl.almejo.vsim.automation.PinReference;
 import cl.almejo.vsim.automation.SimulationHost;
 import cl.almejo.vsim.core.truthtable.BudgetedTruthTable;
@@ -17,10 +18,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 /**
  * The simulation part of {@link cl.almejo.vsim.automation.AutomationApi} (IA.1 Task 4, A§7): checks the AI's limits,
@@ -221,27 +218,7 @@ public final class SimulationOperations {
     }
 
     private <T> T await(CompletableFuture<T> future) {
-        try {
-            return future.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
-        } catch (TimeoutException exception) {
-            throw new AutomationException(AutomationError.OUTCOME_UNKNOWN, "The simulation did not answer within "
-                    + timeout.toSeconds() + " s; read the signals before retrying");
-        } catch (InterruptedException exception) {
-            Thread.currentThread().interrupt();
-            throw new AutomationException(AutomationError.OUTCOME_UNKNOWN, "The request was interrupted");
-        } catch (ExecutionException exception) {
-            throw unwrap(exception.getCause());
-        }
-    }
-
-    private static RuntimeException unwrap(Throwable cause) {
-        Throwable actual = cause instanceof CompletionException && cause.getCause() != null ? cause.getCause() : cause;
-        if (actual instanceof RuntimeException runtimeException) {
-            return runtimeException;
-        }
-        if (actual instanceof Error error) {
-            throw error;
-        }
-        return new IllegalStateException("The editor failed the request", actual);
+        return FutureWait.get(future, timeout, "The simulation did not answer within " + timeout.toSeconds()
+                + " s; read the signals before retrying");
     }
 }

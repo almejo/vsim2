@@ -48,9 +48,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.function.Function;
 
 /**
@@ -170,16 +167,7 @@ public final class AutomationApi {
         Duration capped = wait.compareTo(MAXIMUM_PROPOSAL_WAIT) > 0 ? MAXIMUM_PROPOSAL_WAIT
                 : wait.isNegative() ? Duration.ZERO : wait;
         CompletableFuture<ProposalAnswer> answer = onEditorThread(access -> host.proposalAnswer(proposalId));
-        try {
-            return Optional.of(answer.get(capped.toMillis(), TimeUnit.MILLISECONDS));
-        } catch (TimeoutException exception) {
-            return Optional.empty();
-        } catch (InterruptedException exception) {
-            Thread.currentThread().interrupt();
-            throw new AutomationException(AutomationError.OUTCOME_UNKNOWN, "The wait was interrupted; ask again");
-        } catch (ExecutionException exception) {
-            throw unwrap(exception.getCause());
-        }
+        return FutureWait.getIfAnswered(answer, capped, "The wait was interrupted; ask again");
     }
 
     // --- Exports (spec §7, Exports row) and stage checks (spec §3, A§9) ---
@@ -188,17 +176,9 @@ public final class AutomationApi {
     public ExportReceipt export(ExportRequest request) {
         Objects.requireNonNull(request, "request");
         CompletableFuture<ExportReceipt> result = host.export(request);
-        try {
-            return result.get(EXPORT_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
-        } catch (TimeoutException exception) {
-            throw new AutomationException(AutomationError.OUTCOME_UNKNOWN, "The export did not finish within "
-                    + EXPORT_TIMEOUT.toSeconds() + " s; look in the export folder before trying again");
-        } catch (InterruptedException exception) {
-            Thread.currentThread().interrupt();
-            throw new AutomationException(AutomationError.OUTCOME_UNKNOWN, "The export was interrupted");
-        } catch (ExecutionException exception) {
-            throw unwrap(exception.getCause());
-        }
+        return FutureWait.get(result, EXPORT_TIMEOUT, "The export did not finish within "
+                + EXPORT_TIMEOUT.toSeconds() + " s; look in the export folder before trying again",
+                "The export was interrupted");
     }
 
     /**
@@ -608,26 +588,7 @@ public final class AutomationApi {
 
     /** Waits here, off the editor thread, at most the editor timeout, for work queued on the editor thread. */
     private <T> T awaited(CompletableFuture<T> result) {
-        try {
-            return result.get(editorTimeout.toMillis(), TimeUnit.MILLISECONDS);
-        } catch (TimeoutException exception) {
-            throw new AutomationException(AutomationError.OUTCOME_UNKNOWN,
-                    "The editor did not answer within " + editorTimeout.toSeconds() + " s; read again before retrying");
-        } catch (InterruptedException exception) {
-            Thread.currentThread().interrupt();
-            throw new AutomationException(AutomationError.OUTCOME_UNKNOWN, "The request was interrupted");
-        } catch (ExecutionException exception) {
-            throw unwrap(exception.getCause());
-        }
-    }
-
-    private static RuntimeException unwrap(Throwable cause) {
-        if (cause instanceof RuntimeException runtimeException) {
-            return runtimeException;
-        }
-        if (cause instanceof Error error) {
-            throw error;
-        }
-        return new IllegalStateException("The editor failed the request", cause);
+        return FutureWait.get(result, editorTimeout,
+                "The editor did not answer within " + editorTimeout.toSeconds() + " s; read again before retrying");
     }
 }

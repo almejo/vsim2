@@ -1,8 +1,7 @@
 package cl.almejo.vsim.automation.read;
 
-import cl.almejo.vsim.automation.AutomationError;
-import cl.almejo.vsim.automation.AutomationException;
 import cl.almejo.vsim.automation.DocumentId;
+import cl.almejo.vsim.automation.FutureWait;
 import cl.almejo.vsim.automation.ReadHost;
 import cl.almejo.vsim.automation.check.LayoutCheck;
 import cl.almejo.vsim.automation.check.StageCheck;
@@ -14,9 +13,6 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 /**
  * The reading half of {@code AutomationApi}: asks the {@link ReadHost} for the circuit on the editor thread, runs the
@@ -71,23 +67,7 @@ public final class Reads {
     }
 
     private <T> T await(CompletableFuture<T> result) {
-        try {
-            return result.get(editorTimeout.toMillis(), TimeUnit.MILLISECONDS);
-        } catch (TimeoutException exception) {
-            throw new AutomationException(AutomationError.OUTCOME_UNKNOWN,
-                    "The editor did not answer within " + editorTimeout.toSeconds() + " s; try again");
-        } catch (InterruptedException exception) {
-            Thread.currentThread().interrupt();
-            throw new AutomationException(AutomationError.OUTCOME_UNKNOWN, "The request was interrupted");
-        } catch (ExecutionException exception) {
-            Throwable cause = exception.getCause();
-            if (cause instanceof RuntimeException runtimeException) {
-                throw runtimeException;
-            }
-            if (cause instanceof Error error) {
-                throw error;
-            }
-            throw new IllegalStateException("The editor failed the request", cause);
-        }
+        return FutureWait.get(result, editorTimeout,
+                "The editor did not answer within " + editorTimeout.toSeconds() + " s; try again");
     }
 }
