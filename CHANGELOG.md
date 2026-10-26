@@ -53,7 +53,7 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 
 ### Cambiado
 
-- En el editor de formas, el zoom funciona como en el editor principal: va de 25 % a 400 % (antes llegaba a 600 %), Ctrl + rueda acerca o aleja un paso por muesca dejando quieto el punto bajo el cursor (antes se acercaba hacia la esquina de la caja) y los botones de zoom de la barra dejan quieto el centro del lienzo.
+- En el editor de formas, el zoom funciona como en el editor principal: va de 25 % a 400 % (antes llegaba a 600 %), Ctrl + rueda acerca o aleja un paso por muesca dejando quieto el punto bajo el cursor (antes se acercaba hacia la esquina de la caja) y los botones de zoom de la barra dejan quieto el centro del lienzo. El rectángulo que elige figuras al arrastrar en vacío se ve como el del editor principal: un relleno tenue del color de selección y un borde de hormigas en marcha.
 - En el editor de formas, las manijas de todos los tramos curvos se ven siempre con Nodos y con «Curvar tramo» y se
   toman directamente: ya no hay que pasar el mouse por el tramo ni elegir antes el nodo. Al curvar un tramo con
   «Curvar tramo» sus manijas quedan a la vista y se arrastran en seguida; arrastrar la curva sigue funcionando. Un nodo

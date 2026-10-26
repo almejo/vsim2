@@ -23,6 +23,8 @@ import cl.almejo.vsim.core.geometry.GridSize;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.DefinitionPin;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
+import cl.almejo.vsim.ui.canvas.FrameTicker;
+import cl.almejo.vsim.ui.canvas.MarchingAnts;
 import cl.almejo.vsim.ui.canvas.Viewport;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.ColorScheme;
@@ -34,6 +36,7 @@ import cl.almejo.vsim.ui.inline.InlineTextEditor;
 import cl.almejo.vsim.ui.inline.InlineHost;
 import cl.almejo.vsim.ui.inline.InlineEditRequest;
 import cl.almejo.vsim.ui.theme.ReadableColors;
+import cl.almejo.vsim.ui.tools.RubberBand;
 
 import java.util.Comparator;
 import java.util.HashMap;
@@ -89,6 +92,10 @@ final class ShapeCanvas extends JPanel {
     /** The view before the first fit (and in tests that never paint): zoom 2, the box's corner 70 px in. */
     private static final double INITIAL_ZOOM = 2;
     private static final double INITIAL_ORIGIN = 70;
+    /** The selection band as the main editor's Selección draws it: fill alpha, ants width, ants pace. */
+    private static final int BAND_FILL_ALPHA = 40;
+    private static final float BAND_WIDTH = 1f;
+    private static final int ANTS_MILLISECONDS = 90;
     /** On open the box takes about this part of each side of the canvas. */
     private static final double FIT_BOX_SHARE = 0.6;
     /** Figure strokes and pin markers keep this size on screen whatever the zoom. */
@@ -122,6 +129,8 @@ final class ShapeCanvas extends JPanel {
     private SnapMode snap = SnapMode.HALF_UNITS;
     /** Zoom and pan, the main editor's: grid units of 8 px times the zoom, the box's corner at the grid origin. */
     private final Viewport viewport = new Viewport();
+    private final MarchingAnts marchingAnts = new MarchingAnts();
+    private FrameTicker antsTicker = FrameTicker.swing(ANTS_MILLISECONDS);
     private Optional<ElementId> pin = Optional.empty();
     private int pathIndex = -1;
     private int nodeIndex = -1;
@@ -307,6 +316,16 @@ final class ShapeCanvas extends JPanel {
         repaint();
     }
 
+    /** Drives the band's marching ants with {@code ticker} instead of a Swing timer: for tests. */
+    void useAntsTicker(FrameTicker ticker) {
+        antsTicker.stop();
+        antsTicker = ticker;
+    }
+
+    double antsPhase() {
+        return marchingAnts.phase();
+    }
+
     /** Zooms and pans so the whole box (with room for the callouts and its resize handle) is centred and visible. */
     void fitBox() {
         if (getWidth() <= 0 || getHeight() <= 0) {
@@ -415,6 +434,7 @@ final class ShapeCanvas extends JPanel {
         curving = Optional.empty();
         dragTip = Optional.empty();
         textEditor.cancel();
+        updateAnts();
         repaint();
     }
 
@@ -884,6 +904,7 @@ final class ShapeCanvas extends JPanel {
                 dragTip = Optional.of(Messages.text("shape.drag.axis"));
             } else if (rubberBand) {
                 bandEnd = end;
+                updateAnts();
                 Rectangle2D band = new Rectangle2D.Double(Math.min(start.x(), end.x()) / 8.0 * UNIT,
                         Math.min(start.y(), end.y()) / 8.0 * UNIT, Math.abs(start.x() - end.x()) / 8.0 * UNIT,
                         Math.abs(start.y() - end.y()) / 8.0 * UNIT);
@@ -972,11 +993,39 @@ final class ShapeCanvas extends JPanel {
         beforeDrag = null;
         committedBeforeDrag = null;
         dragging = null;
+        updateAnts();
         if (completed != null && original != null) {
             preview.accept(original);
             publish.accept(completed);
         }
         repaint();
+    }
+
+    private boolean bandShown() {
+        return pressed != null && rubberBand && bandEnd != null;
+    }
+
+    /** The ants march only while a band is on screen, like the main editor's: the ticker stops by itself after. */
+    private void updateAnts() {
+        if (bandShown() && !antsTicker.isRunning()) {
+            antsTicker.start(this::antsTick);
+        } else if (!bandShown() && antsTicker.isRunning()) {
+            antsTicker.stop();
+        }
+    }
+
+    private void antsTick() {
+        updateAnts();
+        if (antsTicker.isRunning()) {
+            marchingAnts.advance();
+            repaint();
+        }
+    }
+
+    @Override
+    public void removeNotify() {
+        antsTicker.stop();
+        super.removeNotify();
     }
 
     private void click(MouseEvent event) {
@@ -1615,10 +1664,11 @@ final class ShapeCanvas extends JPanel {
             } else if (nodeAction() == ShapeTool.REMOVE_NODE) {
                 paintRemoval(surface, scheme);
             }
-            if (pressed != null && rubberBand && bandEnd != null) {
-                surface.draw(new Rectangle2D.Double(Math.min(start.x(), bandEnd.x()) / 8.0 * UNIT,
+            if (bandShown()) {
+                RubberBand.paint(surface, new Rectangle2D.Double(Math.min(start.x(), bandEnd.x()) / 8.0 * UNIT,
                         Math.min(start.y(), bandEnd.y()) / 8.0 * UNIT, Math.abs(start.x() - bandEnd.x()) / 8.0 * UNIT,
-                        Math.abs(start.y() - bandEnd.y()) / 8.0 * UNIT));
+                        Math.abs(start.y() - bandEnd.y()) / 8.0 * UNIT), scheme.selection(), BAND_FILL_ALPHA,
+                        BAND_WIDTH, marchingAnts.phase());
             }
             paintPathInProgress(surface, scheme);
         } finally {
