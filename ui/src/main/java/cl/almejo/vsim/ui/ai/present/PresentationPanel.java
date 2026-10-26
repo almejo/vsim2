@@ -8,6 +8,7 @@ import cl.almejo.vsim.automation.present.StepStatus;
 import cl.almejo.vsim.ui.ai.AiIcons;
 import cl.almejo.vsim.ui.ai.AiPanel;
 import cl.almejo.vsim.ui.ai.QuestionCard;
+import cl.almejo.vsim.ui.ai.ChangedSettingsSection;
 import cl.almejo.vsim.ui.ai.SettingsOverride;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.i18n.Messages;
@@ -99,15 +100,13 @@ final class PresentationPanel extends JPanel {
     private final JButton keepOnlyResultButton = new JButton(Messages.text("ai.present.keepOnlyResult"));
     private final ButtonRow stepRow = new ButtonRow(nextButton, toStageEndButton);
     private final ButtonRow stageRow = new ButtonRow(stopButton, undoStageButton, keepOnlyResultButton);
-    private final JPanel settingsSection = new JPanel(new MigLayout("insets 0, wrap 1, gap 0 2, hidemode 3",
-            "[grow, fill]"));
-    private final JToggleButton settingsHeader = new JToggleButton();
-    private final JPanel settingsList = new JPanel(new MigLayout("insets 0 12 0 0, wrap 1, gap 0 2"));
+    private final ChangedSettingsSection settingsSection = new ChangedSettingsSection(
+            "insets 0, wrap 1, gap 0 2, hidemode 3", "insets 0 12 0 0, wrap 1, gap 0 2", "wmin 0",
+            text -> new StageCard.Line(text, null, null), this::relayout);
     private final JPopupMenu menu = new JPopupMenu();
     private final PauseMenu pauseMenu;
     private final List<JMenuItem> moveItems = new ArrayList<>();
     private final List<StageCard> cards = new ArrayList<>();
-    private final List<JLabel> settingLabels = new ArrayList<>();
     private final Runnable preferencesListener = this::followPreferences;
     private Runnable sizeChanged = () -> {
     };
@@ -182,8 +181,7 @@ final class PresentationPanel extends JPanel {
         cardsScroll.getViewport().setOpaque(false);
         cardsScroll.setBorder(BorderFactory.createEmptyBorder());
         cardsScroll.getVerticalScrollBar().setUnitIncrement(16);
-        settingsSection.setOpaque(false);
-        settingsList.setOpaque(false);
+        settingsSection.setTransparent();
         continuousButton.addActionListener(event -> windowPreferences.setAiPace(PresentationPace.CONTINUOUS));
         stepByStepButton.addActionListener(event -> windowPreferences.setAiPace(PresentationPace.STEP_BY_STEP));
         nextButton.addActionListener(event -> ifShown(task -> {
@@ -197,10 +195,6 @@ final class PresentationPanel extends JPanel {
                 outcome -> answered(task, () -> task.stageUndone(outcome)))));
         keepOnlyResultButton.addActionListener(event -> ifShown(task -> controls.keepOnlyResult(
                 task.task().taskId(), done -> answered(task, () -> task.keptOnlyResult(done)))));
-        settingsHeader.addActionListener(event -> {
-            settingsList.setVisible(settingsHeader.isSelected());
-            relayout();
-        });
 
         cardsScroll.setMinimumSize(new Dimension(0, MINIMUM_CARDS_HEIGHT));
         bodyLayout.setFlexible(cardsScroll);
@@ -210,9 +204,6 @@ final class PresentationPanel extends JPanel {
         body.add(cardsScroll);
         body.add(stepRow);
         body.add(stageRow);
-        settingsList.setVisible(false);
-        settingsSection.add(settingsHeader, "growx 0, wmin 0");
-        settingsSection.add(settingsList, "wmin 0");
         body.add(settingsSection);
         add(body);
         ((StackLayout) getLayout()).setFlexible(body);
@@ -413,16 +404,8 @@ final class PresentationPanel extends JPanel {
 
     private void refreshSettings() {
         List<SettingsOverride.Change> changes = override.map(SettingsOverride::changes).orElse(List.of());
-        settingsSection.setVisible(!changes.isEmpty());
-        settingsHeader.setText(Messages.format("ai.panel.settings", Integer.toString(changes.size())));
-        settingsList.removeAll();
-        settingLabels.clear();
-        for (SettingsOverride.Change change : changes) {
-            JLabel label = new StageCard.Line(Messages.format("ai.setting.change",
-                    AiPanel.settingName(change.setting()), AiPanel.valueText(change.value())), null, null);
-            settingLabels.add(label);
-            settingsList.add(label, "wmin 0");
-        }
+        settingsSection.show(changes.stream().map(change -> Messages.format("ai.setting.change",
+                AiPanel.settingName(change.setting()), AiPanel.valueText(change.value()))).toList());
     }
 
     private void setFolded(boolean fold) {
@@ -583,15 +566,15 @@ final class PresentationPanel extends JPanel {
     }
 
     JToggleButton settingsHeader() {
-        return settingsHeader;
+        return settingsSection.header();
     }
 
     JPanel settingsList() {
-        return settingsList;
+        return settingsSection.changesList();
     }
 
     List<String> settingTexts() {
-        return settingLabels.stream().map(JLabel::getText).toList();
+        return settingsSection.texts();
     }
 
     /** The stage cards, as wide as the scroll pane that holds them (never wider: their texts end in «…»). */
