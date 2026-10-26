@@ -82,6 +82,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
+import java.awt.Component;
 import java.awt.Frame;
 import java.awt.GraphicsDevice;
 import java.awt.GraphicsEnvironment;
@@ -136,17 +137,19 @@ public final class Application {
     private final PresentationExtension presentation;
     /** Each window reads the preferences through its own layer: the AI's temporary settings (spec §7). */
     private final Map<CircuitWindow, AppPreferences> windowPreferences = new WeakHashMap<>();
+    /** What the AI's host may do with the windows; stateless, one for the whole application. */
+    private final ApplicationWindows applicationWindows = new ApplicationWindows();
 
     public Application(AppPreferences preferences) {
         this.preferences = preferences;
         this.libraryService = new LibraryService(preferences, library, registry);
         this.proposals = new PreferenceProposals(preferences);
         this.automationHost = new EditorAutomationHost(windows::documents,
-                document -> ShownWindow.activeFirst(windows.windowsOf(document)), new ApplicationWindows(), proposals);
+                document -> ShownWindow.activeFirst(windows.windowsOf(document)), applicationWindows, proposals);
         this.automationApi = new AutomationApi(automationHost);
         this.presentationControls = new AutomationPresentationControls(automationApi);
         this.presentationWatcher = new PresentationModeWatcher(windows::documents,
-                document -> new ApplicationWindows().presentationSettings(document), automationHost::documentId,
+                applicationWindows::presentationSettings, automationHost::documentId,
                 PresentationModeWatcher.Target.of(automationApi), presentationModeThread());
         preferences.addListener(presentationWatcher::refresh); // lives as long as the application
         this.aiServer = new AiServerService(preferences, automationApi,
@@ -178,7 +181,7 @@ public final class Application {
                 editorExtensions(libraryService, SwingLibraryDialogs.INSTANCE, this::initialDirectory,
                         this::rememberDirectory,
                         new AiExtension(aiServer, automationHost::documentId, proposals,
-                                new ApplicationWindows()::settingsOverride), presentation));
+                                applicationWindows::settingsOverride), presentation));
         // Lives as long as the application: it follows the preferences and is never disposed.
         this.themeManager = ThemeManager.forCurrentPlatform(preferences, appearance);
         this.textFontManager = new TextFontManager(preferences);
@@ -497,8 +500,7 @@ public final class Application {
             return Optional.of(OpenDocument.open(path, registry));
         } catch (CircuitFormatException exception) {
             LOGGER.warn("Could not open {}", path, exception);
-            JOptionPane.showMessageDialog(requester, Messages.readError(exception), Messages.text("error.open.title"),
-                    JOptionPane.ERROR_MESSAGE);
+            showOpenError(requester, exception);
             return Optional.empty();
         }
     }
@@ -581,8 +583,7 @@ public final class Application {
             return Optional.of(copy);
         } catch (CircuitFormatException exception) {
             LOGGER.warn("Could not recover {}", copy.content(), exception);
-            JOptionPane.showMessageDialog(null, Messages.readError(exception), Messages.text("error.open.title"),
-                    JOptionPane.ERROR_MESSAGE);
+            showOpenError(null, exception);
             return Optional.empty(); // the copy stays for the next start
         }
     }
@@ -673,6 +674,11 @@ public final class Application {
             }
         }
         return screens;
+    }
+
+    private static void showOpenError(Component requester, CircuitFormatException exception) {
+        JOptionPane.showMessageDialog(requester, Messages.readError(exception), Messages.text("error.open.title"),
+                JOptionPane.ERROR_MESSAGE);
     }
 
     /** What the AI's host may do with the windows (spec §7): open a new unsaved circuit, reach an override. */
