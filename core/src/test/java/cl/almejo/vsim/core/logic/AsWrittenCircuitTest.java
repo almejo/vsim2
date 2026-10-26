@@ -129,7 +129,7 @@ class AsWrittenCircuitTest {
     @Test
     void theCostLineNamesTheXorFamily() {
         GateCost cost = cost("F = (A ^ B) C + D'", true);
-        assertThat(cost.familyCounts()).containsExactly(Map.entry("AND", 1), Map.entry("OR", 1),
+        assertThat(FamilyCounts.of(cost)).containsExactly(Map.entry("AND", 1), Map.entry("OR", 1),
                 Map.entry("XOR", 1), Map.entry("NOT", 1));
         assertThat(GateCost.FAMILIES).containsExactly("AND", "OR", "XOR", "NOT", "NAND", "NOR");
     }

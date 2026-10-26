@@ -59,7 +59,7 @@ class CircuitGeneratorTest {
         assertThat(circuit.gatesByType()).containsExactly(Map.entry("and2", 3), Map.entry("or2", 1),
                 Map.entry("or3", 1), Map.entry("not", 1));
         assertThat(circuit.gateCount()).isEqualTo(6);
-        assertThat(circuit.cost().familyCounts()).containsExactly(Map.entry("AND", 3), Map.entry("OR", 2),
+        assertThat(FamilyCounts.of(circuit.cost())).containsExactly(Map.entry("AND", 3), Map.entry("OR", 2),
                 Map.entry("NOT", 1));
         assertMatches(spec, circuit);
     }

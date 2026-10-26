@@ -129,8 +129,8 @@ class ComponentTypeTest {
 
     @Test
     void aParameterizedTypeShowsTheShapeOfItsDefaults() {
-        assertThat(RIBBON.isParameterized()).isTrue();
-        assertThat(buffer.isParameterized()).isFalse();
+        assertThat(RIBBON.layout()).isNotNull();
+        assertThat(buffer.layout()).isNull();
         assertThat(RIBBON.size()).isEqualTo(new GridSize(2, 2));
         assertThat(RIBBON.pins()).containsExactly(new PinSpec("bus", GridPoint.ORIGIN, PinDirection.INPUT, 2),
                 PinSpec.output("last", 2, 2));

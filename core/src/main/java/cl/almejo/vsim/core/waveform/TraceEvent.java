@@ -19,8 +19,4 @@ public record TraceEvent(long time, Optional<Value> value) {
     public static TraceEvent gap(long time) {
         return new TraceEvent(time, Optional.empty());
     }
-
-    public boolean isGap() {
-        return value.isEmpty();
-    }
 }

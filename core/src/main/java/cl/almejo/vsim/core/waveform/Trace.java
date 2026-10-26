@@ -2,7 +2,6 @@ package cl.almejo.vsim.core.waveform;
 
 import cl.almejo.vsim.core.value.Value;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -57,19 +56,6 @@ public final class Trace {
     public Optional<Value> valueAt(long time) {
         int index = lastIndexAtOrBefore(time);
         return index < 0 ? Optional.empty() : Optional.ofNullable(valueAtIndex(index));
-    }
-
-    /** The events with {@code from <= time <= to}, oldest first. */
-    public List<TraceEvent> edgesBetween(long from, long to) {
-        List<TraceEvent> events = new ArrayList<>();
-        if (from > to) {
-            return events;
-        }
-        int last = lastIndexAtOrBefore(to);
-        for (int index = lastIndexAtOrBefore(from - 1) + 1; index <= last; index++) {
-            events.add(new TraceEvent(timeAt(index), Optional.ofNullable(valueAtIndex(index))));
-        }
-        return events;
     }
 
     /** The time of the latest event strictly before {@code time}. */

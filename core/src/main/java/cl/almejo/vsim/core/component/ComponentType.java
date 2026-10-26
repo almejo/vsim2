@@ -71,10 +71,6 @@ public record ComponentType(String id, ComponentCategory category, GridSize size
                 parameterCheck);
     }
 
-    public boolean isParameterized() {
-        return layout != null;
-    }
-
     /**
      * This type with the size and pins {@code rawParameters} give (normalized first; invalid values throw
      * IllegalArgumentException). Returns {@code this} for a fixed type and whenever the shape does not change.

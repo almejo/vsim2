@@ -25,6 +25,7 @@ import cl.almejo.vsim.core.netlist.NetlistCompiler;
 import cl.almejo.vsim.core.netlist.PinRef;
 import cl.almejo.vsim.core.value.Value;
 import cl.almejo.vsim.core.waveform.Trace;
+import cl.almejo.vsim.core.waveform.TraceEdges;
 import cl.almejo.vsim.core.waveform.TraceEvent;
 import cl.almejo.vsim.core.waveform.WaveformSnapshot;
 import org.junit.jupiter.api.Test;
@@ -78,9 +79,9 @@ class SimulationEngineWaveformTest {
 
         WaveformSnapshot waveforms = engine.waveforms();
         assertThat(waveforms.time()).isEqualTo(15);
-        assertThat(trace("a").edgesBetween(6, 15)).containsExactly(TraceEvent.of(10, Value.ONE));
-        assertThat(trace("b").edgesBetween(6, 15)).containsExactly(TraceEvent.of(11, Value.ZERO));
-        assertThat(trace("c").edgesBetween(6, 15)).containsExactly(TraceEvent.of(12, Value.ONE));
+        assertThat(TraceEdges.between(trace("a"), 6, 15)).containsExactly(TraceEvent.of(10, Value.ONE));
+        assertThat(TraceEdges.between(trace("b"), 6, 15)).containsExactly(TraceEvent.of(11, Value.ZERO));
+        assertThat(TraceEdges.between(trace("c"), 6, 15)).containsExactly(TraceEvent.of(12, Value.ONE));
         assertThat(trace("a").valueAt(5)).contains(Value.ZERO);
         assertThat(trace("b").valueAt(5)).contains(Value.ONE);
         assertThat(trace("c").valueAt(5)).contains(Value.ZERO);
@@ -100,7 +101,7 @@ class SimulationEngineWaveformTest {
         engine.interact(source.value());
         engine.interact(source.value());
 
-        assertThat(trace("a").edgesBetween(0, 6))
+        assertThat(TraceEdges.between(trace("a"), 0, 6))
                 .containsExactly(TraceEvent.of(0, Value.ZERO), TraceEvent.of(6, Value.ONE));
     }
 
@@ -121,7 +122,7 @@ class SimulationEngineWaveformTest {
         engine.advance(1);
 
         assertThat(trace("in").firstTime()).hasValue(0);
-        assertThat(trace("in").edgesBetween(0, 6))
+        assertThat(TraceEdges.between(trace("in"), 0, 6))
                 .containsExactly(TraceEvent.of(0, Value.HIGH_IMPEDANCE), TraceEvent.of(5, Value.ONE));
     }
 
@@ -142,7 +143,7 @@ class SimulationEngineWaveformTest {
         synchronize();
         engine.advance(5);
 
-        assertThat(trace("out").edgesBetween(0, 15)).containsExactly(TraceEvent.of(0, Value.HIGH_IMPEDANCE),
+        assertThat(TraceEdges.between(trace("out"), 0, 15)).containsExactly(TraceEvent.of(0, Value.HIGH_IMPEDANCE),
                 TraceEvent.of(1, Value.ZERO), TraceEvent.gap(5), TraceEvent.of(10, Value.HIGH_IMPEDANCE),
                 TraceEvent.of(11, Value.ZERO));
         assertThat(trace("out").valueAt(7)).isEmpty();
@@ -182,7 +183,7 @@ class SimulationEngineWaveformTest {
         standardEngine.interact(switchId.value());
         standardEngine.advance(5);
 
-        assertThat(standardEngine.waveforms().trace("led").orElseThrow().edgesBetween(0, 10))
+        assertThat(TraceEdges.between(standardEngine.waveforms().trace("led").orElseThrow(), 0, 10))
                 .containsExactly(TraceEvent.of(0, Value.ONE), TraceEvent.of(5, Value.ZERO));
     }
 
@@ -211,7 +212,7 @@ class SimulationEngineWaveformTest {
         engine.interact(source.value());
         engine.advance(5);
 
-        assertThat(trace("out").edgesBetween(6, 10)).containsExactly(TraceEvent.of(6, Value.ZERO));
+        assertThat(TraceEdges.between(trace("out"), 6, 10)).containsExactly(TraceEvent.of(6, Value.ZERO));
     }
 
     @Test
@@ -259,7 +260,7 @@ class SimulationEngineWaveformTest {
         engine.advance(1);
 
         assertThat(trace("in").firstTime()).hasValue(0);
-        assertThat(trace("in").edgesBetween(0, 6))
+        assertThat(TraceEdges.between(trace("in"), 0, 6))
                 .containsExactly(TraceEvent.of(0, Value.HIGH_IMPEDANCE), TraceEvent.of(5, Value.ONE));
 
         before = engine.waveformRebinds();
@@ -281,7 +282,7 @@ class SimulationEngineWaveformTest {
         engine.advance(4);
 
         engine.clearWaveforms();
-        assertThat(trace("a").edgesBetween(0, 7)).containsExactly(TraceEvent.of(7, Value.ONE));
+        assertThat(TraceEdges.between(trace("a"), 0, 7)).containsExactly(TraceEvent.of(7, Value.ONE));
 
         engine.setProbes(Map.of());
         assertThat(engine.waveforms().traces()).isEmpty();
