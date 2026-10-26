@@ -23,13 +23,11 @@ import cl.almejo.vsim.ui.tools.PanTool;
 import cl.almejo.vsim.ui.window.EditorServices;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuId;
-import cl.almejo.vsim.ui.window.WindowCommands;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import javax.swing.JCheckBoxMenuItem;
-import javax.swing.JMenu;
 import javax.swing.JMenuItem;
 import javax.swing.JPopupMenu;
 import java.awt.Graphics2D;
@@ -43,19 +41,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import static cl.almejo.vsim.ui.UiTestSupport.NO_WINDOW;
 import static cl.almejo.vsim.ui.UiTestSupport.place;
+import static cl.almejo.vsim.ui.UiTestSupport.texts;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class WaveformsExtensionTest {
 
-    private static final WindowCommands NO_WINDOW = new WindowCommands() {
-        @Override public void newDocument() { }
-        @Override public void open() { }
-        @Override public void save() { }
-        @Override public void saveAs() { }
-        @Override public void closeWindow() { }
-        @Override public void exit() { }
-    };
     private static final TextPrompt NO_ANSWER = (parent, title, message, initialText) -> Optional.empty();
 
     private final List<String> messages = new ArrayList<>();
@@ -75,14 +67,6 @@ class WaveformsExtensionTest {
     @AfterEach
     void close() {
         openDocument.close();
-    }
-
-    private static List<String> texts(JMenu menu) {
-        List<String> texts = new ArrayList<>();
-        for (java.awt.Component child : menu.getMenuComponents()) {
-            texts.add(child instanceof JMenuItem item ? item.getText() : "---");
-        }
-        return texts;
     }
 
     private static JCheckBoxMenuItem toggleItem(EditorView view) {

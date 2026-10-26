@@ -32,6 +32,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import static cl.almejo.vsim.ui.UiTestSupport.NO_WINDOW;
 import static cl.almejo.vsim.ui.UiTestSupport.place;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
@@ -39,15 +40,6 @@ import static org.assertj.core.api.Assertions.within;
 /** The zoom tool in the window (zoom spec §4.1, §5, §7): button, Ver menu, Z, one pane at a time. */
 class ZoomToolViewTest {
 
-    private final WindowCommands window = new WindowCommands() {
-        @Override public void newDocument() { }
-        @Override public void open() { }
-        @Override public void save() { }
-        @Override public void saveAs() { }
-        @Override public void closeWindow() { }
-        @Override public void exit() { }
-        @Override public void newView() { }
-    };
     private OpenDocument openDocument;
     private EditorView view;
 
@@ -55,7 +47,7 @@ class ZoomToolViewTest {
     void create() {
         Messages.initialize(Messages.SPANISH);
         openDocument = OpenDocument.createEmpty(StandardComponentTypes.registry());
-        view = new EditorView(openDocument, PainterRegistry.standard(), ColorScheme.LIGHT, window);
+        view = new EditorView(openDocument, PainterRegistry.standard(), ColorScheme.LIGHT, NO_WINDOW);
         view.setSize(1200, 800);
         view.doLayout();
         view.canvasPanes().setSize(800, 600);

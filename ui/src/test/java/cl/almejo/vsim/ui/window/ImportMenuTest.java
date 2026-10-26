@@ -6,10 +6,9 @@ import org.junit.jupiter.api.Test;
 
 import javax.swing.JMenu;
 import javax.swing.JMenuItem;
-import java.awt.Component;
-import java.util.ArrayList;
 import java.util.List;
 
+import static cl.almejo.vsim.ui.UiTestSupport.texts;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class ImportMenuTest {
@@ -69,13 +68,5 @@ class ImportMenuTest {
         assertThat(texts(bare)).containsExactly("Guardar", "---", "Importar");
         remover.run();
         assertThat(texts(bare)).containsExactly("Guardar");
-    }
-
-    private static List<String> texts(JMenu menu) {
-        List<String> texts = new ArrayList<>();
-        for (Component child : menu.getMenuComponents()) {
-            texts.add(child instanceof JMenuItem item ? item.getText() : "---");
-        }
-        return texts;
     }
 }

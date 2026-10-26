@@ -29,8 +29,8 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static cl.almejo.vsim.ui.UiTestSupport.perform;
 import static cl.almejo.vsim.ui.library.TemplateActionsTest.texts;
-import static cl.almejo.vsim.ui.library.TemplateFixture.perform;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class LibraryImportTest {

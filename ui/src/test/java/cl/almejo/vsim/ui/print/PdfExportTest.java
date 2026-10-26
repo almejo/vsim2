@@ -4,7 +4,6 @@ import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
-import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
 import cl.almejo.vsim.core.netlist.Netlist;
@@ -38,6 +37,7 @@ import java.util.concurrent.Executor;
 import java.util.function.IntPredicate;
 import java.util.stream.Stream;
 
+import static cl.almejo.vsim.ui.UiTestSupport.wire;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.within;
@@ -104,10 +104,6 @@ class PdfExportTest {
         return component;
     }
 
-    private void wire(int startX, int startY, int endX, int endY) {
-        document.add(new Wire(document.newWireId(), new GridPoint(startX, startY), new GridPoint(endX, endY)));
-    }
-
     private void smallCircuit() {
         add(StandardComponentTypes.AND2, 4, 4);
     }
@@ -115,7 +111,7 @@ class PdfExportTest {
     /** An AND gate at the top-left and a wire far enough to need 3 columns × 2 rows of A4 portrait at 100 %. */
     private void wideCircuit() {
         add(StandardComponentTypes.AND2, 4, 4);
-        wire(135, 125, 140, 125);
+        wire(document, 135, 125, 140, 125);
     }
 
     private PrintInput input() {
@@ -355,7 +351,7 @@ class PdfExportTest {
     @Test
     void moreSheetsThanTheLimitAreRefusedWithoutPaintingOrWriting(@TempDir Path folder) throws IOException {
         add(StandardComponentTypes.AND2, 4, 4);
-        wire(1000, 1000, 1005, 1000);
+        wire(document, 1000, 1000, 1005, 1000);
         PagePainter painter = painter(options(Paper.A4, PageOrientation.PORTRAIT, new ScaleMode.Percentage(400)));
         assertThat(painter.pages().size()).isGreaterThan(PdfExport.REFUSE_ABOVE_PAGES);
         RecordingProgress progress = never();

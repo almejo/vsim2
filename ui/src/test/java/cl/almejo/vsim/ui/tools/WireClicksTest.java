@@ -1,6 +1,5 @@
 package cl.almejo.vsim.ui.tools;
 
-import cl.almejo.vsim.core.command.AddWireCommand;
 import cl.almejo.vsim.core.command.CreateFrameCommand;
 import cl.almejo.vsim.core.command.RemoveElementsCommand;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
@@ -18,6 +17,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 import java.util.Map;
 
+import static cl.almejo.vsim.ui.UiTestSupport.addWire;
 import static cl.almejo.vsim.ui.UiTestSupport.place;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -38,23 +38,16 @@ class WireClicksTest {
 
     @BeforeEach
     void create() {
-        first = addWire(10, 0, 20, 0);
-        middle = addWire(20, 0, 20, 10);
-        last = addWire(20, 10, 30, 10);
-        onward = addWire(30, 10, 40, 10);
-        down = addWire(30, 10, 30, 20);
+        first = addWire(context.openDocument(), 10, 0, 20, 0);
+        middle = addWire(context.openDocument(), 20, 0, 20, 10);
+        last = addWire(context.openDocument(), 20, 10, 30, 10);
+        onward = addWire(context.openDocument(), 30, 10, 40, 10);
+        down = addWire(context.openDocument(), 30, 10, 30, 20);
     }
 
     @AfterEach
     void close() {
         context.close();
-    }
-
-    private Wire addWire(int startX, int startY, int endX, int endY) {
-        Wire added = new Wire(context.openDocument().document().newWireId(), new GridPoint(startX, startY),
-                new GridPoint(endX, endY));
-        context.openDocument().execute(new AddWireCommand(added));
-        return added;
     }
 
     private CircuitDocument document() {

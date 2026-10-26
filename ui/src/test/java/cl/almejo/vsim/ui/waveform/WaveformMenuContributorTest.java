@@ -25,6 +25,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import static cl.almejo.vsim.ui.UiTestSupport.place;
+import static cl.almejo.vsim.ui.UiTestSupport.texts;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class WaveformMenuContributorTest {
@@ -50,14 +51,6 @@ class WaveformMenuContributorTest {
         JPopupMenu menu = new JPopupMenu();
         contributor.contribute(menu, target, selection, new Point2D.Double(1, 1));
         return menu;
-    }
-
-    private static List<String> texts(JPopupMenu menu) {
-        List<String> texts = new ArrayList<>();
-        for (java.awt.Component child : menu.getComponents()) {
-            texts.add(child instanceof JMenuItem item ? item.getText() : "---");
-        }
-        return texts;
     }
 
     private static void perform(JPopupMenu menu) {

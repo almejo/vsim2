@@ -27,19 +27,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeSet;
 
+import static cl.almejo.vsim.ui.UiTestSupport.NO_WINDOW;
 import static cl.almejo.vsim.ui.UiTestSupport.place;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class ActionIconsTest {
 
-    private final WindowCommands window = new WindowCommands() {
-        @Override public void newDocument() { }
-        @Override public void open() { }
-        @Override public void save() { }
-        @Override public void saveAs() { }
-        @Override public void closeWindow() { }
-        @Override public void exit() { }
-    };
     private OpenDocument openDocument;
     private EditorView view;
 
@@ -49,7 +42,7 @@ class ActionIconsTest {
         openDocument = OpenDocument.createEmpty(StandardComponentTypes.registry());
         EditorServices services = EditorServices.of(PainterRegistry.standard(), ColorScheme.LIGHT)
                 .withExtensions(List.of(new ActionIcons()));
-        view = new EditorView(openDocument, services, window);
+        view = new EditorView(openDocument, services, NO_WINDOW);
     }
 
     @AfterEach
@@ -129,7 +122,7 @@ class ActionIconsTest {
     @Test
     void theReturnedRemovalStopsFollowingNames() {
         EditorView plain = new EditorView(openDocument,
-                EditorServices.of(PainterRegistry.standard(), ColorScheme.LIGHT), window);
+                EditorServices.of(PainterRegistry.standard(), ColorScheme.LIGHT), NO_WINDOW);
         try {
             Runnable removal = new ActionIcons().install(plain);
             AbstractButton undo = toolbarButton(plain, plain.actions().undo());

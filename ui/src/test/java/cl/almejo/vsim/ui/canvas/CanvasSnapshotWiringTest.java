@@ -7,13 +7,13 @@ import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.window.EditorView;
-import cl.almejo.vsim.ui.window.WindowCommands;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.nio.file.Path;
 
+import static cl.almejo.vsim.ui.UiTestSupport.NO_WINDOW;
 import static cl.almejo.vsim.ui.UiTestSupport.waitUntil;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -32,14 +32,7 @@ class CanvasSnapshotWiringTest {
     void open() throws Exception {
         Messages.initialize(Messages.SPANISH);
         openDocument = OpenDocument.open(SHORT_CIRCUIT, StandardComponentTypes.registry());
-        view = new EditorView(openDocument, PainterRegistry.standard(), ColorScheme.LIGHT, new WindowCommands() {
-            @Override public void newDocument() { }
-            @Override public void open() { }
-            @Override public void save() { }
-            @Override public void saveAs() { }
-            @Override public void closeWindow() { }
-            @Override public void exit() { }
-        });
+        view = new EditorView(openDocument, PainterRegistry.standard(), ColorScheme.LIGHT, NO_WINDOW);
         view.canvas().setSize(800, 600);
     }
 

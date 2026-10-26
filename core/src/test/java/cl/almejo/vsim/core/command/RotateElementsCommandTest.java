@@ -18,23 +18,15 @@ import cl.almejo.vsim.core.netlist.PinRef;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
+import static cl.almejo.vsim.core.DocumentFixtures.gate;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class RotateElementsCommandTest {
 
     private final ComponentTypeRegistry registry = StandardComponentTypes.registry();
     private final CircuitDocument document = new CircuitDocument();
-
-    /** NOT gate: 4x4, input pin 0 at local (0,2), output pin 1 at local (4,2). */
-    private Component gate(int x, int y) {
-        Component component = registry.require(StandardComponentTypes.NOT).newComponent(document.newComponentId(),
-                new GridPoint(x, y), Rotation.R0, Map.of(), "");
-        document.add(component);
-        return component;
-    }
 
     private GridPoint pin(ElementId id, int pinIndex) {
         Component component = document.component(id).orElseThrow();
@@ -43,7 +35,7 @@ class RotateElementsCommandTest {
 
     @Test
     void singleComponentTurnsInPlace() {
-        Component not = gate(0, 0);
+        Component not = gate(registry, document, 0, 0);
         new RotateElementsCommand(List.of(not.id()), true, registry).apply(document);
         Component turned = document.component(not.id()).orElseThrow();
         assertThat(turned.rotation()).isEqualTo(Rotation.R90);
@@ -55,7 +47,7 @@ class RotateElementsCommandTest {
 
     @Test
     void counterClockwiseTurnsTheOtherWay() {
-        Component not = gate(0, 0);
+        Component not = gate(registry, document, 0, 0);
         new RotateElementsCommand(List.of(not.id()), false, registry).apply(document);
         Component turned = document.component(not.id()).orElseThrow();
         assertThat(turned.rotation()).isEqualTo(Rotation.R270);
@@ -65,7 +57,7 @@ class RotateElementsCommandTest {
 
     @Test
     void groupTurnsAroundItsCenterAndStaysConnected() {
-        Component not = gate(0, 0);
+        Component not = gate(registry, document, 0, 0);
         Wire wire = new Wire(document.newWireId(), new GridPoint(4, 2), new GridPoint(8, 2));
         TextLabel label = new TextLabel(document.newLabelId(), new GridPoint(6, 0), "nota");
         document.add(wire);
@@ -81,8 +73,8 @@ class RotateElementsCommandTest {
 
     @Test
     void groupWithOddBoundsStaysOnTheGridAndRevertsExactly() {
-        Component first = gate(0, 0);
-        Component second = gate(7, 3);
+        Component first = gate(registry, document, 0, 0);
+        Component second = gate(registry, document, 7, 3);
         Set<DocumentElement> before = Set.copyOf(document.elements());
         RotateElementsCommand command = new RotateElementsCommand(
                 List.of(first.id(), second.id(), new ElementId("c99")), false, registry);
@@ -101,7 +93,7 @@ class RotateElementsCommandTest {
 
     @Test
     void nothingToRotateChangesNothing() {
-        gate(0, 0);
+        gate(registry, document, 0, 0);
         long revision = document.revision();
         new RotateElementsCommand(List.of(new ElementId("c99")), true, registry).apply(document);
         assertThat(document.revision()).isEqualTo(revision);
@@ -124,7 +116,7 @@ class RotateElementsCommandTest {
     void reportsWhetherTheTurnWouldChangeAnything() {
         TextLabel label = new TextLabel(document.newLabelId(), new GridPoint(3, 3), "nota");
         document.add(label);
-        Component gate = gate(0, 0);
+        Component gate = gate(registry, document, 0, 0);
         long revision = document.revision();
         assertThat(new RotateElementsCommand(List.of(label.id()), true, registry).changes(document)).isFalse();
         assertThat(new RotateElementsCommand(List.of(new ElementId("c99")), true, registry).changes(document))
@@ -136,7 +128,7 @@ class RotateElementsCommandTest {
     void aFrameTurnsWithTheSelectionAndRevertsExactly() {
         Frame frame = new Frame(document.newFrameId(), new GridPoint(0, 0), 10, 6, "Sumador", FrameTint.BLUE, true);
         document.add(frame);
-        Component inside = gate(2, 1);
+        Component inside = gate(registry, document, 2, 1);
         RotateElementsCommand command = new RotateElementsCommand(List.of(frame.id(), inside.id()), true, registry);
         command.apply(document);
         // pivot (5, 3): the corners (0, 0) and (10, 6) land on (8, -2) and (2, 8)

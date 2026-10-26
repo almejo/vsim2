@@ -16,7 +16,6 @@ import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.window.EditorServices;
 import cl.almejo.vsim.ui.window.EditorView;
-import cl.almejo.vsim.ui.window.WindowCommands;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -25,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import static cl.almejo.vsim.ui.UiTestSupport.NO_WINDOW;
 import static cl.almejo.vsim.ui.UiTestSupport.place;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
@@ -32,14 +32,6 @@ import static org.assertj.core.api.Assertions.within;
 /** «Avanzar» moves the waveform cursor (M6.1-B). */
 class WaveformStepCursorTest {
 
-    private static final WindowCommands NO_WINDOW = new WindowCommands() {
-        @Override public void newDocument() { }
-        @Override public void open() { }
-        @Override public void save() { }
-        @Override public void saveAs() { }
-        @Override public void closeWindow() { }
-        @Override public void exit() { }
-    };
     private static final TextPrompt NO_ANSWER = (parent, title, message, initialText) -> Optional.empty();
 
     private OpenDocument openDocument;

@@ -1,6 +1,5 @@
 package cl.almejo.vsim.ui.print;
 
-import cl.almejo.vsim.core.command.AddWireCommand;
 import cl.almejo.vsim.core.command.CreateFrameCommand;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
@@ -28,6 +27,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import static cl.almejo.vsim.ui.UiTestSupport.addWire;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class PrintScopesTest {
@@ -44,13 +44,6 @@ class PrintScopesTest {
 
     private PrintInput capture() {
         return PrintInput.capture(openDocument, Set.of(), ColorScheme.LIGHT, TextFont.DEFAULT, CLOCK);
-    }
-
-    private Wire addWire(int startX, int startY, int endX, int endY) {
-        Wire wire = new Wire(openDocument.document().newWireId(), new GridPoint(startX, startY),
-                new GridPoint(endX, endY));
-        openDocument.execute(new AddWireCommand(wire));
-        return wire;
     }
 
     private Frame addFrame(int x, int y, int width, int height, boolean locked) {
@@ -76,7 +69,7 @@ class PrintScopesTest {
 
     @Test
     void theWholeCircuitIsItsBoundsPlusTheImageMarginWithoutAClip() {
-        Wire wire = addWire(10, 10, 20, 10);
+        Wire wire = addWire(openDocument, 10, 10, 20, 10);
         Component led = UiTestSupport.place(openDocument, StandardComponentTypes.LED, 30, 5, Map.of());
         PrintInput input = capture();
         PrintArea area = PrintScopes.area(input, new PrintScope.WholeCircuit()).orElseThrow();
@@ -88,7 +81,7 @@ class PrintScopesTest {
 
     @Test
     void aWholeCircuitWithANegativeOriginKeepsIt() {
-        addWire(-30, -20, -10, -20);
+        addWire(openDocument, -30, -20, -10, -20);
         PrintArea area = PrintScopes.area(capture(), new PrintScope.WholeCircuit()).orElseThrow();
         assertThat(area.gridArea().getX()).isNegative();
         assertThat(area.gridArea().getY()).isNegative();
@@ -96,8 +89,8 @@ class PrintScopesTest {
 
     @Test
     void aSelectionHasItsOwnBounds() {
-        addWire(0, 0, 5, 0);
-        Wire selected = addWire(40, 40, 50, 40);
+        addWire(openDocument, 0, 0, 5, 0);
+        Wire selected = addWire(openDocument, 40, 40, 50, 40);
         PrintInput input = capture();
         PrintArea area = PrintScopes.area(input, new PrintScope.Selection(Set.of(selected.id()))).orElseThrow();
         assertThat(area.elements()).containsExactly(selected.id());
@@ -108,8 +101,8 @@ class PrintScopesTest {
     @Test
     void aLockedFrameInTheSelectionExpandsToItsContents() {
         Frame locked = addFrame(0, 0, 30, 20, true);
-        Wire inside = addWire(5, 5, 15, 5);
-        addWire(50, 50, 60, 50);
+        Wire inside = addWire(openDocument, 5, 5, 15, 5);
+        addWire(openDocument, 50, 50, 60, 50);
         PrintArea area = PrintScopes.area(capture(), new PrintScope.Selection(Set.of(locked.id()))).orElseThrow();
         assertThat(area.elements()).containsExactlyInAnyOrder(locked.id(), inside.id());
     }
@@ -117,23 +110,23 @@ class PrintScopesTest {
     @Test
     void anUnlockedFrameInTheSelectionIsOnlyItsRectangle() {
         Frame unlocked = addFrame(0, 0, 30, 20, false);
-        addWire(5, 5, 15, 5);
+        addWire(openDocument, 5, 5, 15, 5);
         PrintArea area = PrintScopes.area(capture(), new PrintScope.Selection(Set.of(unlocked.id()))).orElseThrow();
         assertThat(area.elements()).containsExactly(unlocked.id());
     }
 
     @Test
     void aSelectionOfElementsThatAreGoneIsEmpty() {
-        addWire(0, 0, 5, 0);
+        addWire(openDocument, 0, 0, 5, 0);
         assertThat(PrintScopes.area(capture(), new PrintScope.Selection(Set.of(new ElementId("w99"))))).isEmpty();
     }
 
     @Test
     void aFrameIsCroppedToItsRectangleWithTheWiresThatCrossItsBorder() {
         Frame frame = addFrame(10, 10, 20, 10, false);
-        Wire inside = addWire(12, 15, 20, 15);
-        Wire crossing = addWire(20, 12, 50, 12);
-        Wire outside = addWire(60, 60, 70, 60);
+        Wire inside = addWire(openDocument, 12, 15, 20, 15);
+        Wire crossing = addWire(openDocument, 20, 12, 50, 12);
+        Wire outside = addWire(openDocument, 60, 60, 70, 60);
         PrintArea area = PrintScopes.area(capture(), new PrintScope.Frame(frame.id())).orElseThrow();
         assertThat(area.elements()).contains(frame.id(), inside.id(), crossing.id()).doesNotContain(outside.id());
         Rectangle2D crop = new Rectangle2D.Double(10 - ONE_PIXEL, 10 - ONE_PIXEL, 20 + 2 * ONE_PIXEL,
@@ -152,7 +145,7 @@ class PrintScopesTest {
 
     @Test
     void theAreaCannotBeChangedFromOutside() {
-        addWire(10, 10, 20, 10);
+        addWire(openDocument, 10, 10, 20, 10);
         PrintArea area = PrintScopes.area(capture(), new PrintScope.WholeCircuit()).orElseThrow();
         area.gridArea().setRect(0, 0, 1, 1);
         assertThat(area.gridArea().getWidth()).isGreaterThan(1);

@@ -27,14 +27,15 @@ import javax.swing.JMenuItem;
 import javax.swing.KeyStroke;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
-import java.awt.event.MouseEvent;
 import java.awt.geom.Point2D;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import static cl.almejo.vsim.ui.UiTestSupport.NO_WINDOW;
 import static cl.almejo.vsim.ui.UiTestSupport.place;
+import static cl.almejo.vsim.ui.UiTestSupport.press;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
 
@@ -43,15 +44,6 @@ class ZoomActionsTest {
 
     private static final double MARGIN_FRACTION = 0.9;
 
-    private final WindowCommands window = new WindowCommands() {
-        @Override public void newDocument() { }
-        @Override public void open() { }
-        @Override public void save() { }
-        @Override public void saveAs() { }
-        @Override public void closeWindow() { }
-        @Override public void exit() { }
-        @Override public void newView() { }
-    };
     private OpenDocument openDocument;
     private EditorView view;
 
@@ -59,7 +51,7 @@ class ZoomActionsTest {
     void create() {
         Messages.initialize(Messages.SPANISH);
         openDocument = OpenDocument.createEmpty(StandardComponentTypes.registry());
-        view = new EditorView(openDocument, PainterRegistry.standard(), ColorScheme.LIGHT, window);
+        view = new EditorView(openDocument, PainterRegistry.standard(), ColorScheme.LIGHT, NO_WINDOW);
         view.setSize(1200, 800);
         view.doLayout();
         view.canvasPanes().setSize(800, 600);
@@ -70,14 +62,6 @@ class ZoomActionsTest {
     void close() {
         view.dispose();
         openDocument.close();
-    }
-
-    private static void press(CircuitCanvas canvas) {
-        MouseEvent event = new MouseEvent(canvas, MouseEvent.MOUSE_PRESSED, 0, 0, 20, 20, 1, false,
-                MouseEvent.BUTTON1);
-        for (var listener : canvas.getMouseListeners()) {
-            listener.mousePressed(event);
-        }
     }
 
     /** The screen rectangle {@code bounds} covers in {@code pane}: left, top, right, bottom. */

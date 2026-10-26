@@ -15,7 +15,6 @@ import cl.almejo.vsim.ui.paint.TextFonts;
 import cl.almejo.vsim.ui.shortcuts.ShortcutCatalog;
 import cl.almejo.vsim.ui.window.EditorServices;
 import cl.almejo.vsim.ui.window.EditorView;
-import cl.almejo.vsim.ui.window.WindowCommands;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -40,19 +39,12 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
 
+import static cl.almejo.vsim.ui.UiTestSupport.NO_WINDOW;
 import static cl.almejo.vsim.ui.UiTestSupport.place;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class InlineTextEditorTest {
 
-    private static final WindowCommands NO_WINDOW = new WindowCommands() {
-        @Override public void newDocument() { }
-        @Override public void open() { }
-        @Override public void save() { }
-        @Override public void saveAs() { }
-        @Override public void closeWindow() { }
-        @Override public void exit() { }
-    };
     private static final Rectangle2D AREA = new Rectangle2D.Double(80, 40, 160, 24);
     private static final Font FONT = new Font(Font.SANS_SERIF, Font.PLAIN, 12);
     private static final Function<String, Optional<String>> NOT_BAD =

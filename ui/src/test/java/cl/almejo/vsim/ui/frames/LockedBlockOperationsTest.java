@@ -22,19 +22,18 @@ import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.tools.FloatingSelectionTool;
 import cl.almejo.vsim.ui.window.EditorServices;
 import cl.almejo.vsim.ui.window.EditorView;
-import cl.almejo.vsim.ui.window.WindowCommands;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import javax.swing.Action;
 import javax.swing.JMenuItem;
 import javax.swing.JPopupMenu;
 import java.awt.datatransfer.Clipboard;
-import java.awt.event.ActionEvent;
 import java.util.List;
 import java.util.Map;
 
+import static cl.almejo.vsim.ui.UiTestSupport.NO_WINDOW;
+import static cl.almejo.vsim.ui.UiTestSupport.perform;
 import static cl.almejo.vsim.ui.UiTestSupport.place;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -43,15 +42,6 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Supr) act on its block: the frame at (0, 0) 20 x 12 with a NOT gate at (4, 4) inside and one at (30, 4) outside.
  */
 class LockedBlockOperationsTest {
-
-    private static final WindowCommands NO_WINDOW = new WindowCommands() {
-        @Override public void newDocument() { }
-        @Override public void open() { }
-        @Override public void save() { }
-        @Override public void saveAs() { }
-        @Override public void closeWindow() { }
-        @Override public void exit() { }
-    };
 
     private final FragmentClipboard clipboard = new FragmentClipboard(new Clipboard("test"));
     private OpenDocument openDocument;
@@ -88,10 +78,6 @@ class LockedBlockOperationsTest {
 
     private Component gate(int x, int y) {
         return place(openDocument, StandardComponentTypes.NOT, x, y, Map.of());
-    }
-
-    private static void perform(Action action) {
-        action.actionPerformed(new ActionEvent(new Object(), ActionEvent.ACTION_PERFORMED, ""));
     }
 
     private CircuitFragment copied() throws Exception {

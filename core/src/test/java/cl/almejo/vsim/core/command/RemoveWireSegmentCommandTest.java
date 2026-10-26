@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import static cl.almejo.vsim.core.DocumentFixtures.wire;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -23,12 +24,6 @@ class RemoveWireSegmentCommandTest {
 
     private final ComponentTypeRegistry registry = StandardComponentTypes.registry();
     private final CircuitDocument document = new CircuitDocument();
-
-    private Wire wire(int startX, int startY, int endX, int endY) {
-        Wire wire = new Wire(document.newWireId(), new GridPoint(startX, startY), new GridPoint(endX, endY));
-        document.add(wire);
-        return wire;
-    }
 
     private RemoveWireSegmentCommand removeNear(Wire wire, int x, int y) {
         RemoveWireSegmentCommand command = new RemoveWireSegmentCommand(wire.id(), new GridPoint(x, y), registry);
@@ -51,9 +46,9 @@ class RemoveWireSegmentCommandTest {
 
     @Test
     void segmentBetweenTwoJunctionsSplitsTheWire() {
-        Wire main = wire(0, 0, 10, 0);
-        Wire left = wire(3, 0, 3, 4);
-        Wire right = wire(7, 0, 7, 4);
+        Wire main = wire(document, 0, 0, 10, 0);
+        Wire left = wire(document, 3, 0, 3, 4);
+        Wire right = wire(document, 7, 0, 7, 4);
         Netlist before = new NetlistCompiler(registry).compile(document);
         assertThat(before.netForWire(left.id()).map(net -> net.id()))
                 .isEqualTo(before.netForWire(right.id()).map(net -> net.id()));
@@ -70,9 +65,9 @@ class RemoveWireSegmentCommandTest {
 
     @Test
     void undoRestoresExactlyAndRedoReusesTheNewPieceId() {
-        Wire main = wire(0, 0, 10, 0);
-        wire(3, 0, 3, 4);
-        wire(7, 0, 7, 4);
+        Wire main = wire(document, 0, 0, 10, 0);
+        wire(document, 3, 0, 3, 4);
+        wire(document, 7, 0, 7, 4);
         History history = new History(document);
         Set<DocumentElement> before = contents();
         List<ElementId> orderBefore = document.wires().stream().map(Wire::id).toList();
@@ -89,8 +84,8 @@ class RemoveWireSegmentCommandTest {
 
     @Test
     void stretchAtTheEndShortensTheWireAndKeepsItsId() {
-        Wire main = wire(0, 0, 10, 0);
-        wire(4, 0, 4, 5);
+        Wire main = wire(document, 0, 0, 10, 0);
+        wire(document, 4, 0, 4, 5);
         removeNear(main, 8, 0);
         assertSpans(current(main), new GridPoint(0, 0), new GridPoint(4, 0));
         assertThat(document.wires()).hasSize(2);
@@ -98,8 +93,8 @@ class RemoveWireSegmentCommandTest {
 
     @Test
     void stretchAtTheStartKeepsTheIdOnTheRemainingPiece() {
-        Wire main = wire(0, 0, 10, 0);
-        wire(4, 0, 4, 5);
+        Wire main = wire(document, 0, 0, 10, 0);
+        wire(document, 4, 0, 4, 5);
         removeNear(main, 2, 0);
         assertSpans(current(main), new GridPoint(4, 0), new GridPoint(10, 0));
         assertThat(document.wires()).hasSize(2);
@@ -107,9 +102,9 @@ class RemoveWireSegmentCommandTest {
 
     @Test
     void wireWithoutStopsIsRemovedAndUndoKeepsItsPlace() {
-        Wire first = wire(0, 5, 3, 5);
-        Wire main = wire(0, 0, 10, 0);
-        Wire last = wire(0, 9, 3, 9);
+        Wire first = wire(document, 0, 5, 3, 5);
+        Wire main = wire(document, 0, 0, 10, 0);
+        Wire last = wire(document, 0, 9, 3, 9);
         RemoveWireSegmentCommand command = removeNear(main, 5, 0);
         assertThat(document.wire(main.id())).isEmpty();
         command.revert(document);
@@ -120,7 +115,7 @@ class RemoveWireSegmentCommandTest {
     void pinsAreStops() {
         document.add(registry.require(StandardComponentTypes.NOT).newComponent(document.newComponentId(),
                 GridPoint.ORIGIN, Rotation.R0, Map.of(), ""));
-        Wire main = wire(-3, 2, 8, 2);
+        Wire main = wire(document, -3, 2, 8, 2);
         removeNear(main, 2, 2);
         assertSpans(current(main), new GridPoint(-3, 2), new GridPoint(0, 2));
         assertThat(document.wires()).hasSize(2)
@@ -129,24 +124,24 @@ class RemoveWireSegmentCommandTest {
 
     @Test
     void aCrossingWireWithoutAnEndpointThereIsNotAStop() {
-        Wire main = wire(0, 0, 10, 0);
-        wire(5, -3, 5, 3);
+        Wire main = wire(document, 0, 0, 10, 0);
+        wire(document, 5, -3, 5, 3);
         removeNear(main, 2, 0);
         assertThat(document.wire(main.id())).isEmpty();
     }
 
     @Test
     void nearOnAStopRemovesTheStretchAfterIt() {
-        Wire main = wire(0, 0, 10, 0);
-        wire(5, 0, 5, 4);
+        Wire main = wire(document, 0, 0, 10, 0);
+        wire(document, 5, 0, 5, 4);
         removeNear(main, 5, 0);
         assertSpans(current(main), new GridPoint(0, 0), new GridPoint(5, 0));
     }
 
     @Test
     void nearOutsideTheWireIsClampedToIt() {
-        Wire main = wire(0, 0, 10, 0);
-        wire(5, 0, 5, 4);
+        Wire main = wire(document, 0, 0, 10, 0);
+        wire(document, 5, 0, 5, 4);
         RemoveWireSegmentCommand beyondTheEnd = removeNear(main, 20, 3);
         assertSpans(current(main), new GridPoint(0, 0), new GridPoint(5, 0));
         beyondTheEnd.revert(document);
@@ -156,8 +151,8 @@ class RemoveWireSegmentCommandTest {
 
     @Test
     void verticalWiresWorkTheSameWay() {
-        Wire main = wire(2, 0, 2, 10);
-        wire(2, 6, 8, 6);
+        Wire main = wire(document, 2, 0, 2, 10);
+        wire(document, 2, 6, 8, 6);
         removeNear(main, 2, 8);
         assertSpans(current(main), new GridPoint(2, 0), new GridPoint(2, 6));
     }

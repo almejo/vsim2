@@ -15,31 +15,22 @@ import cl.almejo.vsim.ui.shortcuts.Scope;
 import cl.almejo.vsim.ui.window.EditorServices;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuId;
-import cl.almejo.vsim.ui.window.WindowCommands;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import javax.swing.JMenu;
-import javax.swing.JMenuItem;
 import javax.swing.JRadioButtonMenuItem;
 import java.awt.event.ActionEvent;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+import static cl.almejo.vsim.ui.UiTestSupport.NO_WINDOW;
+import static cl.almejo.vsim.ui.UiTestSupport.texts;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class GridFeaturesTest {
-
-    private static final WindowCommands NO_WINDOW = new WindowCommands() {
-        @Override public void newDocument() { }
-        @Override public void open() { }
-        @Override public void save() { }
-        @Override public void saveAs() { }
-        @Override public void closeWindow() { }
-        @Override public void exit() { }
-    };
 
     private final AppPreferences preferences = AppPreferences.inMemory();
     private OpenDocument openDocument;
@@ -67,14 +58,6 @@ class GridFeaturesTest {
         view.dispose();
         otherView.dispose();
         openDocument.close();
-    }
-
-    private static List<String> texts(JMenu menu) {
-        List<String> texts = new ArrayList<>();
-        for (java.awt.Component child : menu.getMenuComponents()) {
-            texts.add(child instanceof JMenuItem item ? item.getText() : "---");
-        }
-        return texts;
     }
 
     private static Optional<JMenu> gridMenu(EditorView target) {

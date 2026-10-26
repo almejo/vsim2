@@ -18,6 +18,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static cl.almejo.vsim.core.DocumentFixtures.wireId;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class WireTidyDetourTest {
@@ -26,12 +27,6 @@ class WireTidyDetourTest {
 
     private final ComponentTypeRegistry registry = TestComponentTypes.registry();
     private final CircuitDocument document = new CircuitDocument();
-
-    private ElementId wire(int startX, int startY, int endX, int endY) {
-        ElementId id = document.newWireId();
-        document.add(new Wire(id, new GridPoint(startX, startY), new GridPoint(endX, endY)));
-        return id;
-    }
 
     /** Buffer at (x,y), unrotated: input pin at (x, y+1), output pin at (x+2, y+1), body x..x+2, y..y+2. */
     private void buffer(int x, int y) {
@@ -72,11 +67,11 @@ class WireTidyDetourTest {
     private void equalLegsU() {
         buffer(0, 0);
         buffer(20, 0);
-        wire(2, 1, 6, 1);
-        wire(6, 1, 6, 5);
-        wire(6, 5, 12, 5);
-        wire(12, 5, 12, 1);
-        wire(12, 1, 20, 1);
+        wireId(document, 2, 1, 6, 1);
+        wireId(document, 6, 1, 6, 5);
+        wireId(document, 6, 5, 12, 5);
+        wireId(document, 12, 5, 12, 1);
+        wireId(document, 12, 1, 20, 1);
     }
 
     @Test
@@ -91,11 +86,11 @@ class WireTidyDetourTest {
     void theShorterRightLegDisappearsAndTheLeftOneShortens() {
         buffer(0, 0);
         buffer(20, 2);
-        wire(2, 1, 6, 1);
-        wire(6, 1, 6, 5);
-        ElementId middle = wire(6, 5, 12, 5);
-        wire(12, 5, 12, 3);
-        wire(12, 3, 20, 3);
+        wireId(document, 2, 1, 6, 1);
+        wireId(document, 6, 1, 6, 5);
+        ElementId middle = wireId(document, 6, 5, 12, 5);
+        wireId(document, 12, 5, 12, 3);
+        wireId(document, 12, 3, 20, 3);
         TidyPlan plan = plan(ALL);
         assertThat(plan.detoursFlattened()).isEqualTo(1);
         assertThat(finalSegments(plan)).containsExactlyInAnyOrder("2,1-6,1", "6,1-6,3", "6,3-20,3");
@@ -106,11 +101,11 @@ class WireTidyDetourTest {
     void theShorterLeftLegDisappearsAndTheRightOneShortens() {
         buffer(0, 2);
         buffer(20, 0);
-        wire(2, 3, 6, 3);
-        wire(6, 3, 6, 5);
-        wire(6, 5, 12, 5);
-        wire(12, 5, 12, 1);
-        wire(12, 1, 20, 1);
+        wireId(document, 2, 3, 6, 3);
+        wireId(document, 6, 3, 6, 5);
+        wireId(document, 6, 5, 12, 5);
+        wireId(document, 12, 5, 12, 1);
+        wireId(document, 12, 1, 20, 1);
         TidyPlan plan = plan(ALL);
         assertThat(plan.detoursFlattened()).isEqualTo(1);
         assertThat(finalSegments(plan)).containsExactlyInAnyOrder("2,3-12,3", "12,1-12,3", "12,1-20,1");
@@ -120,11 +115,11 @@ class WireTidyDetourTest {
     void aUOpeningDownwardsFlattensToo() {
         buffer(0, 4);
         buffer(20, 4);
-        wire(2, 5, 6, 5);
-        wire(6, 5, 6, 1);
-        wire(6, 1, 12, 1);
-        wire(12, 1, 12, 5);
-        wire(12, 5, 20, 5);
+        wireId(document, 2, 5, 6, 5);
+        wireId(document, 6, 5, 6, 1);
+        wireId(document, 6, 1, 12, 1);
+        wireId(document, 12, 1, 12, 5);
+        wireId(document, 12, 5, 20, 5);
         TidyPlan plan = plan(ALL);
         assertThat(plan.detoursFlattened()).isEqualTo(1);
         assertThat(finalSegments(plan)).containsExactly("2,5-20,5");
@@ -146,7 +141,7 @@ class WireTidyDetourTest {
         buffer(7, -4);
         buffer(9, 2);
         // from (9,-3) to (9,3): its interior would cross the moved middle at (9,1), it does not join it
-        wire(9, -3, 9, 3);
+        wireId(document, 9, -3, 9, 3);
         TidyPlan plan = plan(ALL);
         assertThat(plan.detoursFlattened()).isZero();
         assertThat(plan.isEmpty()).isTrue();
@@ -166,7 +161,7 @@ class WireTidyDetourTest {
     void aUWhoseCornerCarriesATIsNotTouched() {
         equalLegsU();
         buffer(0, 4);
-        wire(2, 5, 6, 5);
+        wireId(document, 2, 5, 6, 5);
         TidyPlan plan = plan(ALL);
         assertThat(plan.detoursFlattened()).isZero();
         assertThat(finalSegments(plan)).contains("6,1-6,5", "12,1-12,5");
@@ -176,11 +171,11 @@ class WireTidyDetourTest {
     void aUInABusWireFlattens() {
         place(TestComponentTypes.WIDE_PROBE, 2, 1, Rotation.R180);
         place(TestComponentTypes.WIDE_PROBE, 20, 1, Rotation.R0);
-        wire(2, 1, 6, 1);
-        wire(6, 1, 6, 5);
-        wire(6, 5, 12, 5);
-        wire(12, 5, 12, 1);
-        wire(12, 1, 20, 1);
+        wireId(document, 2, 1, 6, 1);
+        wireId(document, 6, 1, 6, 5);
+        wireId(document, 6, 5, 12, 5);
+        wireId(document, 12, 5, 12, 1);
+        wireId(document, 12, 1, 20, 1);
         TidyPlan plan = plan(ALL);
         assertThat(plan.detoursFlattened()).isEqualTo(1);
         assertThat(finalSegments(plan)).containsExactly("2,1-20,1");
@@ -190,15 +185,15 @@ class WireTidyDetourTest {
     void aUWithANotchFlattensInSuccessiveRounds() {
         buffer(0, 0);
         buffer(20, 0);
-        wire(2, 1, 6, 1);
-        wire(6, 1, 6, 7);
-        wire(6, 7, 9, 7);
-        wire(9, 7, 9, 5);
-        wire(9, 5, 11, 5);
-        wire(11, 5, 11, 7);
-        wire(11, 7, 14, 7);
-        wire(14, 7, 14, 1);
-        wire(14, 1, 20, 1);
+        wireId(document, 2, 1, 6, 1);
+        wireId(document, 6, 1, 6, 7);
+        wireId(document, 6, 7, 9, 7);
+        wireId(document, 9, 7, 9, 5);
+        wireId(document, 9, 5, 11, 5);
+        wireId(document, 11, 5, 11, 7);
+        wireId(document, 11, 7, 14, 7);
+        wireId(document, 14, 7, 14, 1);
+        wireId(document, 14, 1, 20, 1);
         TidyPlan plan = plan(ALL);
         assertThat(plan.detoursFlattened()).isGreaterThanOrEqualTo(2);
         assertThat(finalSegments(plan)).containsExactly("2,1-20,1");

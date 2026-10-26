@@ -1,23 +1,18 @@
 package cl.almejo.vsim.ui.ai;
 
 import cl.almejo.vsim.automation.AutomationApi;
-import cl.almejo.vsim.automation.AutomationHost;
-import cl.almejo.vsim.automation.EditorAccess;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import java.io.IOException;
 import java.net.InetAddress;
 import java.net.ServerSocket;
-import java.util.List;
 import java.util.Optional;
 import java.util.OptionalInt;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Function;
 
+import static cl.almejo.vsim.ui.UiTestSupport.freePort;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** The session port (review focus 2): it overrides the remembered port for this run and is never remembered. */
@@ -126,18 +121,5 @@ class AiServerSessionPortTest {
         assertThat(service.effectivePort()).isEqualTo(REMEMBERED);
         assertThat(service.invalidSessionPort()).contains("abc");
         assertThat(service.claudeCodeCommand()).contains(" vsim http://127.0.0.1:" + REMEMBERED + "/mcp");
-    }
-
-    private static int freePort() throws IOException {
-        try (ServerSocket probe = new ServerSocket(0, 50, InetAddress.getLoopbackAddress())) {
-            return probe.getLocalPort();
-        }
-    }
-
-    private static final class NoDocuments implements AutomationHost {
-        @Override
-        public <T> CompletableFuture<T> onEditorThread(Function<EditorAccess, T> work) {
-            return CompletableFuture.completedFuture(work.apply(List::of));
-        }
     }
 }

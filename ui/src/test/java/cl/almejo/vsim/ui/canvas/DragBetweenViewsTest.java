@@ -22,7 +22,6 @@ import cl.almejo.vsim.ui.tree.ComponentTreePanel;
 import cl.almejo.vsim.ui.window.EditorServices;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.NewViewPlacement;
-import cl.almejo.vsim.ui.window.WindowCommands;
 import cl.almejo.vsim.ui.window.panes.CanvasPanes;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -41,6 +40,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+import static cl.almejo.vsim.ui.UiTestSupport.NO_WINDOW;
 import static cl.almejo.vsim.ui.UiTestSupport.place;
 import static cl.almejo.vsim.ui.canvas.CanvasDragSupport.dragOut;
 import static cl.almejo.vsim.ui.canvas.CanvasDragSupport.handlerOf;
@@ -51,15 +51,6 @@ import static org.assertj.core.api.Assertions.assertThat;
  * target's transfer handler, as a drop would.
  */
 class DragBetweenViewsTest {
-
-    private static final WindowCommands WINDOW = new WindowCommands() {
-        @Override public void newDocument() { }
-        @Override public void open() { }
-        @Override public void save() { }
-        @Override public void saveAs() { }
-        @Override public void closeWindow() { }
-        @Override public void exit() { }
-    };
 
     private final List<EditorView> views = new ArrayList<>();
     private OpenDocument first;
@@ -90,7 +81,7 @@ class DragBetweenViewsTest {
     private EditorView viewOf(OpenDocument document) {
         EditorServices services = EditorServices.of(PainterRegistry.standard(), ColorScheme.LIGHT)
                 .withExtensions(List.of(new ComponentTreeExtension()));
-        EditorView view = new EditorView(document, services, WINDOW);
+        EditorView view = new EditorView(document, services, NO_WINDOW);
         view.canvas().setSize(400, 300);
         views.add(view);
         return view;

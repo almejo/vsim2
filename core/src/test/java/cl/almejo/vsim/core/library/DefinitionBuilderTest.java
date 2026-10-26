@@ -15,6 +15,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
+import static cl.almejo.vsim.core.DocumentFixtures.place;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.entry;
@@ -28,24 +29,17 @@ class DefinitionBuilderTest {
         registry.addResolver(SubcircuitTypes.resolverFor(document));
     }
 
-    private Component place(String typeId, int x, int y, String label) {
-        Component component = registry.require(typeId).newComponent(document.newComponentId(), new GridPoint(x, y),
-                Rotation.R0, Map.of(), label);
-        document.add(component);
-        return component;
-    }
-
     private static List<ElementId> ids(Component... components) {
         return Arrays.stream(components).map(Component::id).toList();
     }
 
     @Test
     void defaultOrderPutsInputsOnTheLeftAndOutputsOnTheRightTopToBottom() {
-        Component lowInput = place(InterfacePins.INPUT_PIN, 0, 8, "b");
-        Component highInput = place(InterfacePins.INPUT_PIN, 4, 2, "a");
-        Component sameRowLeft = place(InterfacePins.INPUT_PIN, 0, 2, "c");
-        Component output = place(InterfacePins.OUTPUT_PIN, 20, 4, "y");
-        Component gate = place(StandardComponentTypes.NOT, 10, 0, "");
+        Component lowInput = place(registry, document, InterfacePins.INPUT_PIN, 0, 8, "b");
+        Component highInput = place(registry, document, InterfacePins.INPUT_PIN, 4, 2, "a");
+        Component sameRowLeft = place(registry, document, InterfacePins.INPUT_PIN, 0, 2, "c");
+        Component output = place(registry, document, InterfacePins.OUTPUT_PIN, 20, 4, "y");
+        Component gate = place(registry, document, StandardComponentTypes.NOT, 10, 0, "");
 
         PinOrder order = DefinitionBuilder.defaultPinOrder(document,
                 ids(lowInput, highInput, sameRowLeft, output, gate));
@@ -65,9 +59,9 @@ class DefinitionBuilderTest {
 
     @Test
     void aSelectionBecomesADefinitionWithItsBodyMovedToTheOrigin() {
-        Component input = place(InterfacePins.INPUT_PIN, 10, 11, "a");
-        Component gate = place(StandardComponentTypes.NOT, 12, 10, "");
-        Component output = place(InterfacePins.OUTPUT_PIN, 16, 11, "y");
+        Component input = place(registry, document, InterfacePins.INPUT_PIN, 10, 11, "a");
+        Component gate = place(registry, document, StandardComponentTypes.NOT, 12, 10, "");
+        Component output = place(registry, document, InterfacePins.OUTPUT_PIN, 16, 11, "y");
         List<ElementId> selection = ids(input, gate, output);
 
         DefinitionBundle bundle = DefinitionBuilder.fromSelection(document, selection, "negador", "Negador",
@@ -89,10 +83,10 @@ class DefinitionBuilderTest {
 
     @Test
     void renamedPinsNameTheDefinitionsPinsAndItsBodyButNotTheUsersCircuit() {
-        Component input = place(InterfacePins.INPUT_PIN, 10, 11, "a");
-        Component blank = place(InterfacePins.INPUT_PIN, 10, 13, "");
-        Component gate = place(StandardComponentTypes.AND2, 12, 10, "");
-        Component output = place(InterfacePins.OUTPUT_PIN, 16, 11, "y");
+        Component input = place(registry, document, InterfacePins.INPUT_PIN, 10, 11, "a");
+        Component blank = place(registry, document, InterfacePins.INPUT_PIN, 10, 13, "");
+        Component gate = place(registry, document, StandardComponentTypes.AND2, 12, 10, "");
+        Component output = place(registry, document, InterfacePins.OUTPUT_PIN, 16, 11, "y");
         List<ElementId> selection = ids(input, blank, gate, output);
 
         DefinitionBundle bundle = DefinitionBuilder.fromSelection(document, selection, "y-logico", "Y lógico",
@@ -109,8 +103,8 @@ class DefinitionBuilderTest {
 
     @Test
     void aBlankPinNameIsRefused() {
-        Component input = place(InterfacePins.INPUT_PIN, 10, 11, "a");
-        Component output = place(InterfacePins.OUTPUT_PIN, 16, 11, "y");
+        Component input = place(registry, document, InterfacePins.INPUT_PIN, 10, 11, "a");
+        Component output = place(registry, document, InterfacePins.OUTPUT_PIN, 16, 11, "y");
         List<ElementId> selection = ids(input, output);
 
         assertThatThrownBy(() -> DefinitionBuilder.fromSelection(document, selection, "x", "X",
@@ -120,9 +114,9 @@ class DefinitionBuilderTest {
 
     @Test
     void theChosenOrderSetsThePinPositionsAndBlankLabelsGetStableDefaultNames() {
-        Component first = place(InterfacePins.INPUT_PIN, 0, 1, "");
-        Component second = place(InterfacePins.INPUT_PIN, 0, 5, "b");
-        Component output = place(InterfacePins.OUTPUT_PIN, 10, 1, " ");
+        Component first = place(registry, document, InterfacePins.INPUT_PIN, 0, 1, "");
+        Component second = place(registry, document, InterfacePins.INPUT_PIN, 0, 5, "b");
+        Component output = place(registry, document, InterfacePins.OUTPUT_PIN, 10, 1, " ");
         List<ElementId> selection = ids(first, second, output);
         assertThat(DefinitionBuilder.pinNames(document, DefinitionBuilder.defaultPinOrder(document, selection)))
                 .containsExactly(Map.entry(first.id(), "in1"), Map.entry(second.id(), "b"),
@@ -138,11 +132,11 @@ class DefinitionBuilderTest {
 
     @Test
     void repeatedPinNamesAreNumberedInTheDefaultOrderSoTheDefinitionIsValid() {
-        Component upper = place(InterfacePins.INPUT_PIN, 0, 1, "a");
-        Component lower = place(InterfacePins.INPUT_PIN, 0, 5, " a ");
-        Component output = place(InterfacePins.OUTPUT_PIN, 10, 1, "a");
-        Component blank = place(InterfacePins.INPUT_PIN, 0, 9, "");
-        Component labeledLikeAFallback = place(InterfacePins.INPUT_PIN, 0, 13, "in4");
+        Component upper = place(registry, document, InterfacePins.INPUT_PIN, 0, 1, "a");
+        Component lower = place(registry, document, InterfacePins.INPUT_PIN, 0, 5, " a ");
+        Component output = place(registry, document, InterfacePins.OUTPUT_PIN, 10, 1, "a");
+        Component blank = place(registry, document, InterfacePins.INPUT_PIN, 0, 9, "");
+        Component labeledLikeAFallback = place(registry, document, InterfacePins.INPUT_PIN, 0, 13, "in4");
         List<ElementId> selection = ids(output, lower, upper, blank, labeledLikeAFallback);
         PinOrder defaultOrder = DefinitionBuilder.defaultPinOrder(document, selection);
 
@@ -160,11 +154,11 @@ class DefinitionBuilderTest {
 
     @Test
     void defaultNamesDifferEvenIgnoringCaseSoTheyAreValidInTheDialog() {
-        Component lower = place(InterfacePins.INPUT_PIN, 0, 1, "a");
-        Component upper = place(InterfacePins.INPUT_PIN, 0, 5, "A");
-        Component labeledLikeAFallback = place(InterfacePins.INPUT_PIN, 0, 9, "IN4");
-        Component blank = place(InterfacePins.INPUT_PIN, 0, 13, "");
-        Component converted = place(InterfacePins.INPUT_PIN, 0, 17, "");
+        Component lower = place(registry, document, InterfacePins.INPUT_PIN, 0, 1, "a");
+        Component upper = place(registry, document, InterfacePins.INPUT_PIN, 0, 5, "A");
+        Component labeledLikeAFallback = place(registry, document, InterfacePins.INPUT_PIN, 0, 9, "IN4");
+        Component blank = place(registry, document, InterfacePins.INPUT_PIN, 0, 13, "");
+        Component converted = place(registry, document, InterfacePins.INPUT_PIN, 0, 17, "");
         List<ElementId> selection = ids(lower, upper, labeledLikeAFallback, blank, converted);
 
         Map<ElementId, String> names = DefinitionBuilder.pinNames(document,
@@ -176,8 +170,8 @@ class DefinitionBuilderTest {
 
     @Test
     void aBlankPinDoesNotTakeTheNameOfALabeledOne() {
-        Component blank = place(InterfacePins.INPUT_PIN, 0, 1, "");
-        Component labeled = place(InterfacePins.INPUT_PIN, 0, 5, "in1");
+        Component blank = place(registry, document, InterfacePins.INPUT_PIN, 0, 1, "");
+        Component labeled = place(registry, document, InterfacePins.INPUT_PIN, 0, 5, "in1");
         List<ElementId> selection = ids(blank, labeled);
 
         Map<ElementId, String> names = DefinitionBuilder.pinNames(document,
@@ -192,9 +186,9 @@ class DefinitionBuilderTest {
     @Test
     void nestedInstancesBringTheirDefinitionsAsDependencies() {
         document.putDefinition(ExampleDefinitions.inverter());
-        Component input = place(InterfacePins.INPUT_PIN, 0, 1, "a");
-        Component inner = place(SubcircuitTypes.typeIdOf(ExampleDefinitions.INVERTER), 2, 0, "");
-        Component output = place(InterfacePins.OUTPUT_PIN, 6, 1, "y");
+        Component input = place(registry, document, InterfacePins.INPUT_PIN, 0, 1, "a");
+        Component inner = place(registry, document, SubcircuitTypes.typeIdOf(ExampleDefinitions.INVERTER), 2, 0, "");
+        Component output = place(registry, document, InterfacePins.OUTPUT_PIN, 6, 1, "y");
         List<ElementId> selection = ids(input, inner, output);
 
         DefinitionBundle bundle = DefinitionBuilder.fromSelection(document, selection, "envoltura", "Envoltura",
@@ -207,8 +201,8 @@ class DefinitionBuilderTest {
 
     @Test
     void aSelectionWithoutInterfacePinsOrAWrongOrderIsRejected() {
-        Component gate = place(StandardComponentTypes.NOT, 0, 0, "");
-        Component input = place(InterfacePins.INPUT_PIN, 10, 1, "a");
+        Component gate = place(registry, document, StandardComponentTypes.NOT, 0, 0, "");
+        Component input = place(registry, document, InterfacePins.INPUT_PIN, 10, 1, "a");
         PinOrder none = new PinOrder(List.of(), List.of());
         assertThatThrownBy(() -> DefinitionBuilder.fromSelection(document, ids(gate), "x", "X", none, registry))
                 .isInstanceOf(IllegalArgumentException.class)

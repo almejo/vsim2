@@ -29,7 +29,6 @@ import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.window.EditorServices;
 import cl.almejo.vsim.ui.window.EditorView;
-import cl.almejo.vsim.ui.window.WindowCommands;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -48,21 +47,15 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static cl.almejo.vsim.ui.UiTestSupport.NO_WINDOW;
+import static cl.almejo.vsim.ui.UiTestSupport.layOut;
+import static cl.almejo.vsim.ui.UiTestSupport.onEditor;
 import static cl.almejo.vsim.ui.UiTestSupport.place;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** The read side of the editor's host (IA.1 Task 2) over real open circuits and a view that is never shown. */
 class EditorAutomationHostReadTest {
-
-    private static final WindowCommands NO_WINDOW = new WindowCommands() {
-        @Override public void newDocument() { }
-        @Override public void open() { }
-        @Override public void save() { }
-        @Override public void saveAs() { }
-        @Override public void closeWindow() { }
-        @Override public void exit() { }
-    };
 
     private final List<OpenDocument> open = new ArrayList<>();
     private final List<ShownWindow> windows = new ArrayList<>();
@@ -291,35 +284,9 @@ class EditorAutomationHostReadTest {
         return created.get();
     }
 
-    /** Lays {@code container} out all the way down, as showing a window would. */
-    private static void layOut(java.awt.Container container) {
-        container.doLayout();
-        for (java.awt.Component child : container.getComponents()) {
-            if (child instanceof java.awt.Container nested) {
-                layOut(nested);
-            }
-        }
-    }
-
     private DocumentId idOf(OpenDocument document) {
         int index = open.indexOf(document);
         return api.listDocuments().get(index).id();
-    }
-
-    private static <T> T onEditor(java.util.concurrent.Callable<T> work) throws Exception {
-        AtomicReference<T> result = new AtomicReference<>();
-        AtomicReference<Exception> failure = new AtomicReference<>();
-        SwingUtilities.invokeAndWait(() -> {
-            try {
-                result.set(work.call());
-            } catch (Exception exception) {
-                failure.set(exception);
-            }
-        });
-        if (failure.get() != null) {
-            throw failure.get();
-        }
-        return result.get();
     }
 
     private static BufferedImage decode(byte[] png) throws IOException {

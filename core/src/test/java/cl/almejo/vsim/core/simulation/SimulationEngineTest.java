@@ -11,7 +11,6 @@ import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
-import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.GridSize;
 import cl.almejo.vsim.core.geometry.Rotation;
@@ -27,6 +26,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static cl.almejo.vsim.core.DocumentFixtures.wireId;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
@@ -43,12 +43,6 @@ class SimulationEngineTest {
     private ElementId place(String typeId, int x, int y, Map<String, Object> parameters) {
         ElementId id = document.newComponentId();
         document.add(new Component(id, typeId, new GridPoint(x, y), Rotation.R0, parameters, ""));
-        return id;
-    }
-
-    private ElementId wire(int x1, int y1, int x2, int y2) {
-        ElementId id = document.newWireId();
-        document.add(new Wire(id, new GridPoint(x1, y1), new GridPoint(x2, y2)));
         return id;
     }
 
@@ -115,7 +109,7 @@ class SimulationEngineTest {
     void shortCircuitReportsBothDriversAndClearsWhenOneIsRemoved() {
         ElementId low = place(TestComponentTypes.SOURCE, 0, 0, Map.of("value", "0"));
         ElementId high = place(TestComponentTypes.SOURCE, 4, 0, Map.of("value", "1"));
-        wire(2, 1, 6, 1);
+        wireId(document, 2, 1, 6, 1);
         synchronize();
         engine.advance(1);
 
@@ -166,7 +160,7 @@ class SimulationEngineTest {
     void removingComponentDropsItsPendingEvents() {
         place(TestComponentTypes.SOURCE, 0, 0, Map.of("value", "1"));
         ElementId buffer = place(TestComponentTypes.BUFFER, 2, 0, Map.of("delay", 10));
-        ElementId output = wire(4, 1, 8, 1);
+        ElementId output = wireId(document, 4, 1, 8, 1);
         synchronize();
         engine.advance(1);
 
@@ -180,9 +174,9 @@ class SimulationEngineTest {
     @Test
     void inverterLoopOscillatesWithoutHanging() {
         ElementId inverter = place(TestComponentTypes.INVERTER, 0, 0, Map.of("delay", 1));
-        wire(2, 1, 2, 3);
-        wire(0, 3, 2, 3);
-        wire(0, 1, 0, 3);
+        wireId(document, 2, 1, 2, 3);
+        wireId(document, 0, 3, 2, 3);
+        wireId(document, 0, 1, 0, 3);
         synchronize();
         assertTimeoutPreemptively(Duration.ofSeconds(2), () -> engine.advance(100_000));
         Value first = valueAt(inverter, 1);
@@ -251,7 +245,7 @@ class SimulationEngineTest {
         assertThat(FlatCircuit.EMPTY.token()).isZero();
         assertThat(SimulationSnapshot.EMPTY.token()).isZero();
         place(TestComponentTypes.SOURCE, 0, 0, Map.of());
-        wire(10, 10, 12, 10);
+        wireId(document, 10, 10, 12, 10);
         netlist = compiler.compile(document);
         FlatCircuit circuit = flattener.flatten(document, netlist);
         assertThat(circuit.token()).isEqualTo(document.revision()).isEqualTo(2);
@@ -353,10 +347,10 @@ class SimulationEngineTest {
     void shortCircuitKeepsItsStartTimeWhenTheNetGrows() {
         ElementId low = place(TestComponentTypes.SOURCE, 0, 0, Map.of("value", "0"));
         place(TestComponentTypes.SOURCE, 4, 0, Map.of("value", "1"));
-        wire(2, 1, 6, 1);
+        wireId(document, 2, 1, 6, 1);
         synchronize();
         engine.advance(10);
-        wire(2, -4, 2, 1);
+        wireId(document, 2, -4, 2, 1);
         synchronize();
         engine.advance(5);
         assertThat(engine.snapshot().shortCircuits()).singleElement().satisfies(shortCircuit -> {

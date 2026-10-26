@@ -21,7 +21,6 @@ import cl.almejo.vsim.ui.paint.InterfacePinPainter;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.window.EditorServices;
 import cl.almejo.vsim.ui.window.EditorView;
-import cl.almejo.vsim.ui.window.WindowCommands;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -35,26 +34,18 @@ import java.awt.event.InputEvent;
 import java.awt.event.MouseEvent;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import static cl.almejo.vsim.ui.UiTestSupport.NO_WINDOW;
 import static cl.almejo.vsim.ui.UiTestSupport.place;
+import static cl.almejo.vsim.ui.UiTestSupport.texts;
 import static cl.almejo.vsim.ui.UiTestSupport.waitUntil;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** M7: «Valor…» types a value into a bus input pin, in place over its value box; it is not a document change. */
 class BusInputValueEditorTest {
-
-    private static final WindowCommands NO_WINDOW = new WindowCommands() {
-        @Override public void newDocument() { }
-        @Override public void open() { }
-        @Override public void save() { }
-        @Override public void saveAs() { }
-        @Override public void closeWindow() { }
-        @Override public void exit() { }
-    };
 
     private final OpenDocument openDocument = OpenDocument.createEmpty(StandardComponentTypes.registry());
     private EditorView view;
@@ -297,13 +288,5 @@ class BusInputValueEditorTest {
         JPopupMenu menu = new JPopupMenu();
         contributor.contribute(menu, Optional.of(target), view.canvas().selection(), new Point2D.Double(0, 0));
         return menu;
-    }
-
-    private static List<String> texts(JPopupMenu menu) {
-        List<String> texts = new ArrayList<>();
-        for (java.awt.Component child : menu.getComponents()) {
-            texts.add(child instanceof JMenuItem item ? item.getText() : "---");
-        }
-        return texts;
     }
 }

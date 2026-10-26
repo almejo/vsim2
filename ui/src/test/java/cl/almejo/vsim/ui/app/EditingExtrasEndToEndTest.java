@@ -17,7 +17,6 @@ import cl.almejo.vsim.ui.shortcuts.ShortcutsExtension;
 import cl.almejo.vsim.ui.window.EditorServices;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.NewViewPlacement;
-import cl.almejo.vsim.ui.window.WindowCommands;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -36,6 +35,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
+import static cl.almejo.vsim.ui.UiTestSupport.NO_WINDOW;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
 
@@ -43,15 +43,6 @@ import static org.assertj.core.api.Assertions.within;
 class EditingExtrasEndToEndTest {
 
     private static final int CONTROL = InputEvent.CTRL_DOWN_MASK;
-    private static final WindowCommands NO_WINDOW = new WindowCommands() {
-        @Override public void newDocument() { }
-        @Override public void open() { }
-        @Override public void save() { }
-        @Override public void saveAs() { }
-        @Override public void closeWindow() { }
-        @Override public void exit() { }
-    };
-
     @TempDir
     Path directory;
 

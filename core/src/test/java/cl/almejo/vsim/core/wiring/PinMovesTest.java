@@ -16,6 +16,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import static cl.almejo.vsim.core.DocumentFixtures.wire;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Pin maps must be planned together, including swaps between two separately connected pins. */
@@ -29,8 +30,8 @@ class PinMovesTest {
         Component second = gate(10, 8);
         Component upper = gate(30, 0);
         Component lower = gate(30, 8);
-        wire(14, 2, 30, 2);
-        wire(14, 10, 30, 10);
+        wire(document, 14, 2, 30, 2);
+        wire(document, 14, 10, 30, 10);
         PinRef firstPin = new PinRef(first.id(), 1);
         PinRef secondPin = new PinRef(second.id(), 1);
         Map<PinRef, GridPoint> moved = Map.of(firstPin, new GridPoint(14, 10),
@@ -51,7 +52,7 @@ class PinMovesTest {
     void aPinLandingOnAFixedForeignWireReportsTheContact() {
         Component first = gate(0, 0);
         Component second = gate(30, 0);
-        wire(34, 2, 40, 2);
+        wire(document, 34, 2, 40, 2);
         PinRef pin = new PinRef(first.id(), 1);
 
         FollowPlan plan = WireFollow.plan(document, registry,
@@ -66,7 +67,7 @@ class PinMovesTest {
     void movingAPinFromTheInteriorOfAWireAddsABridgeAndKeepsItsJunction() {
         Component first = gate(10, 0);
         Component second = gate(30, 0);
-        wire(0, 2, 30, 2);
+        wire(document, 0, 2, 30, 2);
         PinRef pin = new PinRef(first.id(), 1);
         Map<PinRef, GridPoint> moved = Map.of(pin, new GridPoint(14, 6));
 
@@ -102,10 +103,6 @@ class PinMovesTest {
                 new GridPoint(x, y), Rotation.R0, Map.of(), "");
         document.add(component);
         return component;
-    }
-
-    private void wire(int x1, int y1, int x2, int y2) {
-        document.add(new Wire(document.newWireId(), new GridPoint(x1, y1), new GridPoint(x2, y2)));
     }
 
     private Map<PinRef, GridPoint> points(Map<PinRef, GridPoint> moved) {

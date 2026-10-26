@@ -17,7 +17,6 @@ import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.window.EditorServices;
 import cl.almejo.vsim.ui.window.EditorView;
-import cl.almejo.vsim.ui.window.WindowCommands;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -32,19 +31,12 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import static cl.almejo.vsim.ui.UiTestSupport.NO_WINDOW;
+import static cl.almejo.vsim.ui.UiTestSupport.perform;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tidying off the EDT: the 2 s progress window, Cancelar, a document that changed meanwhile and the dialog summary. */
 class TidyWiresBackgroundTest {
-
-    private static final WindowCommands NO_WINDOW = new WindowCommands() {
-        @Override public void newDocument() { }
-        @Override public void open() { }
-        @Override public void save() { }
-        @Override public void saveAs() { }
-        @Override public void closeWindow() { }
-        @Override public void exit() { }
-    };
 
     /** Collects what should run on the EDT, so the test decides when. */
     private final Deque<Runnable> edtQueue = new ArrayDeque<>();
@@ -145,10 +137,6 @@ class TidyWiresBackgroundTest {
         while (!edtQueue.isEmpty()) {
             edtQueue.poll().run();
         }
-    }
-
-    private static void perform(javax.swing.Action action) {
-        action.actionPerformed(new java.awt.event.ActionEvent(action, java.awt.event.ActionEvent.ACTION_PERFORMED, ""));
     }
 
     @Test

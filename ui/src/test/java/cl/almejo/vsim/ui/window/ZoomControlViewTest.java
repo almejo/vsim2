@@ -19,11 +19,12 @@ import org.junit.jupiter.api.Test;
 
 import javax.swing.JMenuItem;
 import javax.swing.JTextField;
-import java.awt.event.MouseEvent;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+import static cl.almejo.vsim.ui.UiTestSupport.NO_WINDOW;
+import static cl.almejo.vsim.ui.UiTestSupport.press;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
 
@@ -37,14 +38,7 @@ class ZoomControlViewTest {
     void create() {
         Messages.initialize(Messages.SPANISH);
         openDocument = OpenDocument.createEmpty(StandardComponentTypes.registry());
-        view = new EditorView(openDocument, PainterRegistry.standard(), ColorScheme.LIGHT, new WindowCommands() {
-            @Override public void newDocument() { }
-            @Override public void open() { }
-            @Override public void save() { }
-            @Override public void saveAs() { }
-            @Override public void closeWindow() { }
-            @Override public void exit() { }
-        });
+        view = new EditorView(openDocument, PainterRegistry.standard(), ColorScheme.LIGHT, NO_WINDOW);
         view.setSize(1200, 800);
         view.doLayout();
         view.canvasPanes().setSize(800, 600);
@@ -59,14 +53,6 @@ class ZoomControlViewTest {
 
     private ZoomControl control() {
         return view.zoomControl();
-    }
-
-    private static void press(CircuitCanvas canvas) {
-        MouseEvent event = new MouseEvent(canvas, MouseEvent.MOUSE_PRESSED, 0, 0, 20, 20, 1, false,
-                MouseEvent.BUTTON1);
-        for (var listener : canvas.getMouseListeners()) {
-            listener.mousePressed(event);
-        }
     }
 
     @Test

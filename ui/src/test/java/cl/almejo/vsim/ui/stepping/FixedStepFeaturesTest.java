@@ -11,7 +11,6 @@ import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.window.EditorServices;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuId;
-import cl.almejo.vsim.ui.window.WindowCommands;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -19,31 +18,24 @@ import org.junit.jupiter.api.Test;
 import javax.swing.AbstractButton;
 import javax.swing.Action;
 import javax.swing.JComponent;
-import javax.swing.JMenu;
 import javax.swing.JMenuItem;
 import javax.swing.JSplitPane;
 import javax.swing.KeyStroke;
 import java.awt.Container;
-import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.OptionalLong;
 
+import static cl.almejo.vsim.ui.UiTestSupport.NO_WINDOW;
+import static cl.almejo.vsim.ui.UiTestSupport.perform;
+import static cl.almejo.vsim.ui.UiTestSupport.texts;
 import static cl.almejo.vsim.ui.UiTestSupport.waitUntil;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class FixedStepFeaturesTest {
 
-    private static final WindowCommands NO_WINDOW = new WindowCommands() {
-        @Override public void newDocument() { }
-        @Override public void open() { }
-        @Override public void save() { }
-        @Override public void saveAs() { }
-        @Override public void closeWindow() { }
-        @Override public void exit() { }
-    };
     private static final KeyStroke F6 = KeyStroke.getKeyStroke(KeyEvent.VK_F6, 0);
 
     private final AppPreferences preferences = AppPreferences.inMemory();
@@ -73,18 +65,6 @@ class FixedStepFeaturesTest {
         features.dispose();
         view.dispose();
         openDocument.close();
-    }
-
-    private static void perform(Action action) {
-        action.actionPerformed(new ActionEvent(new Object(), ActionEvent.ACTION_PERFORMED, ""));
-    }
-
-    private static List<String> texts(JMenu menu) {
-        List<String> texts = new ArrayList<>();
-        for (java.awt.Component child : menu.getMenuComponents()) {
-            texts.add(child instanceof JMenuItem item ? item.getText() : "---");
-        }
-        return texts;
     }
 
     private static JMenuItem item(StepSizeButton button, String text) {

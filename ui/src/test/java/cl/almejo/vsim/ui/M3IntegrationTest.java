@@ -16,19 +16,16 @@ import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.tools.FloatingSelectionTool;
 import cl.almejo.vsim.ui.tools.SelectTool;
 import cl.almejo.vsim.ui.window.EditorView;
-import cl.almejo.vsim.ui.window.WindowCommands;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import javax.swing.Action;
 import javax.swing.JComponent;
 import javax.swing.JList;
 import javax.swing.JTextField;
 import javax.swing.KeyStroke;
 import java.awt.Container;
 import java.awt.datatransfer.Clipboard;
-import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -37,6 +34,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
+import static cl.almejo.vsim.ui.UiTestSupport.NO_WINDOW;
+import static cl.almejo.vsim.ui.UiTestSupport.perform;
 import static cl.almejo.vsim.ui.UiTestSupport.waitUntil;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -75,14 +74,7 @@ class M3IntegrationTest {
     }
 
     private EditorView viewOf(OpenDocument document) {
-        EditorView view = new EditorView(document, PainterRegistry.standard(), ColorScheme.LIGHT, new WindowCommands() {
-            @Override public void newDocument() { }
-            @Override public void open() { }
-            @Override public void save() { }
-            @Override public void saveAs() { }
-            @Override public void closeWindow() { }
-            @Override public void exit() { }
-        });
+        EditorView view = new EditorView(document, PainterRegistry.standard(), ColorScheme.LIGHT, NO_WINDOW);
         view.canvas().setSize(800, 600);
         views.add(view);
         return view;
@@ -92,10 +84,6 @@ class M3IntegrationTest {
     private SelectionActions clipboardActions(EditorView view) {
         return new SelectionActions(view.openDocument(), view::canvas, view.canvas().selection(), view.actions(),
                 clipboard);
-    }
-
-    private static void perform(Action action) {
-        action.actionPerformed(new ActionEvent(new Object(), ActionEvent.ACTION_PERFORMED, ""));
     }
 
     private static boolean synced(OpenDocument document) {

@@ -17,7 +17,6 @@ import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.window.EditorServices;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuId;
-import cl.almejo.vsim.ui.window.WindowCommands;
 import cl.almejo.vsim.ui.window.panes.CanvasPanes.Orientation;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -25,10 +24,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import javax.swing.Action;
-import javax.swing.JMenu;
-import javax.swing.JMenuItem;
 import javax.swing.Timer;
-import java.awt.event.ActionEvent;
 import java.nio.file.Path;
 import java.time.Clock;
 import java.time.Instant;
@@ -39,18 +35,13 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
+import static cl.almejo.vsim.ui.UiTestSupport.NO_WINDOW;
+import static cl.almejo.vsim.ui.UiTestSupport.perform;
+import static cl.almejo.vsim.ui.UiTestSupport.texts;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class ExportPdfFeaturesTest {
 
-    private static final WindowCommands NO_WINDOW = new WindowCommands() {
-        @Override public void newDocument() { }
-        @Override public void open() { }
-        @Override public void save() { }
-        @Override public void saveAs() { }
-        @Override public void closeWindow() { }
-        @Override public void exit() { }
-    };
     private static final Clock CLOCK = Clock.fixed(Instant.parse("2026-10-20T15:30:00Z"), ZoneOffset.UTC);
 
     @TempDir
@@ -90,18 +81,6 @@ class ExportPdfFeaturesTest {
         imageFeatures.dispose();
         view.dispose();
         openDocument.close();
-    }
-
-    private static void perform(Action action) {
-        action.actionPerformed(new ActionEvent(action, ActionEvent.ACTION_PERFORMED, ""));
-    }
-
-    private static List<String> texts(JMenu menu) {
-        List<String> texts = new ArrayList<>();
-        for (java.awt.Component child : menu.getMenuComponents()) {
-            texts.add(child instanceof JMenuItem item ? item.getText() : "---");
-        }
-        return texts;
     }
 
     @Test

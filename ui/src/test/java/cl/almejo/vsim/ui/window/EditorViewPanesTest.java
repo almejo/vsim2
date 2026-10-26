@@ -17,27 +17,19 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import java.awt.event.MouseEvent;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+import static cl.almejo.vsim.ui.UiTestSupport.NO_WINDOW;
 import static cl.almejo.vsim.ui.UiTestSupport.place;
+import static cl.almejo.vsim.ui.UiTestSupport.press;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
 
 /** One window, several panes (split views, Task 1): shared selection, window-wide tool choice, the active pane. */
 class EditorViewPanesTest {
 
-    private final WindowCommands window = new WindowCommands() {
-        @Override public void newDocument() { }
-        @Override public void open() { }
-        @Override public void save() { }
-        @Override public void saveAs() { }
-        @Override public void closeWindow() { }
-        @Override public void exit() { }
-        @Override public void newView() { }
-    };
     private OpenDocument openDocument;
     private EditorView view;
 
@@ -45,7 +37,7 @@ class EditorViewPanesTest {
     void create() {
         Messages.initialize(Messages.SPANISH);
         openDocument = OpenDocument.createEmpty(StandardComponentTypes.registry());
-        view = new EditorView(openDocument, PainterRegistry.standard(), ColorScheme.LIGHT, window);
+        view = new EditorView(openDocument, PainterRegistry.standard(), ColorScheme.LIGHT, NO_WINDOW);
         view.setSize(1200, 800);
         view.doLayout();
         view.canvasPanes().setSize(800, 600);
@@ -56,14 +48,6 @@ class EditorViewPanesTest {
     void close() {
         view.dispose();
         openDocument.close();
-    }
-
-    private static void press(CircuitCanvas canvas) {
-        MouseEvent event = new MouseEvent(canvas, MouseEvent.MOUSE_PRESSED, 0, 0, 20, 20, 1, false,
-                MouseEvent.BUTTON1);
-        for (var listener : canvas.getMouseListeners()) {
-            listener.mousePressed(event);
-        }
     }
 
     /** A tool that records the presses it gets. */
@@ -103,7 +87,7 @@ class EditorViewPanesTest {
 
     @Test
     void separateWindowsOfOneDocumentKeepTheirOwnSelection() {
-        EditorView other = new EditorView(openDocument, PainterRegistry.standard(), ColorScheme.LIGHT, window);
+        EditorView other = new EditorView(openDocument, PainterRegistry.standard(), ColorScheme.LIGHT, NO_WINDOW);
         try {
             assertThat(other.selection()).isNotSameAs(view.selection());
         } finally {

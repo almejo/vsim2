@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.function.Function;
 
+import static cl.almejo.vsim.ui.UiTestSupport.luminance;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class ColorSchemesTest {
@@ -356,16 +357,6 @@ class ColorSchemesTest {
         double lighter = Math.max(luminance(first), luminance(second));
         double darker = Math.min(luminance(first), luminance(second));
         return (lighter + 0.05) / (darker + 0.05);
-    }
-
-    private static double luminance(Color color) {
-        return 0.2126 * channel(color.getRed()) + 0.7152 * channel(color.getGreen())
-                + 0.0722 * channel(color.getBlue());
-    }
-
-    private static double channel(int value) {
-        double scaled = value / 255.0;
-        return scaled <= 0.03928 ? scaled / 12.92 : Math.pow((scaled + 0.055) / 1.055, 2.4);
     }
 
     private static double distance(Color first, Color second) {

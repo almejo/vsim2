@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Map;
 
+import static cl.almejo.vsim.core.DocumentFixtures.wire;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
 
@@ -31,15 +32,11 @@ class DisassemblyTest {
         return instance;
     }
 
-    private void wire(int startX, int startY, int endX, int endY) {
-        document.add(new Wire(document.newWireId(), new GridPoint(startX, startY), new GridPoint(endX, endY)));
-    }
-
     @Test
     void outsideWiresAreBridgedToThePastedPins() {
         Component instance = inverterAt10();
-        wire(4, 12, 10, 12);
-        wire(14, 12, 20, 12); // already runs over the body's output pin: no bridge needed
+        wire(document, 4, 12, 10, 12);
+        wire(document, 14, 12, 20, 12); // already runs over the body's output pin: no bridge needed
 
         Disassembly.Plan plan = Disassembly.plan(document, instance, ExampleDefinitions.inverter(), registry);
 
@@ -53,8 +50,8 @@ class DisassemblyTest {
     @Test
     void aBodyLandingOnAnotherNetIsBlocked() {
         Component instance = inverterAt10();
-        wire(4, 12, 10, 12);
-        wire(12, 4, 12, 12); // a foreign wire ending where the body's input lands
+        wire(document, 4, 12, 10, 12);
+        wire(document, 12, 4, 12, 12); // a foreign wire ending where the body's input lands
 
         assertThat(Disassembly.plan(document, instance, ExampleDefinitions.inverter(), registry).blocked()).isTrue();
     }
@@ -62,10 +59,10 @@ class DisassemblyTest {
     @Test
     void anOutsideWireOfTheInputRunningUnderTheOutputIsBlocked() {
         Component instance = inverterAt10();
-        wire(4, 12, 10, 12);
-        wire(10, 12, 10, 20);
-        wire(10, 20, 16, 20);
-        wire(16, 12, 16, 20); // the input's net reaches (16, 12), where the body's output lands
+        wire(document, 4, 12, 10, 12);
+        wire(document, 10, 12, 10, 20);
+        wire(document, 10, 20, 16, 20);
+        wire(document, 16, 12, 16, 20); // the input's net reaches (16, 12), where the body's output lands
 
         assertThat(Disassembly.plan(document, instance, ExampleDefinitions.inverter(), registry).blocked()).isTrue();
     }
@@ -73,8 +70,8 @@ class DisassemblyTest {
     @Test
     void anOutsideWireRunningThroughTheInstancePinAndTheBodyPinIsNotBlocked() {
         Component instance = inverterAt10();
-        wire(4, 12, 10, 12);
-        wire(13, 12, 20, 12); // passes mid-wire through the output pin (14, 12) and the body's output (16, 12)
+        wire(document, 4, 12, 10, 12);
+        wire(document, 13, 12, 20, 12); // passes mid-wire through the output pin (14, 12) and the body's output (16, 12)
 
         Disassembly.Plan plan = Disassembly.plan(document, instance, ExampleDefinitions.inverter(), registry);
 
@@ -86,8 +83,8 @@ class DisassemblyTest {
     @Test
     void aBridgeFromAPinOnTheMiddleOfAnOutsideWireJoinsThatWire() {
         Component instance = inverterAt10();
-        wire(4, 12, 10, 12);
-        wire(14, 6, 14, 18); // a bus passing mid-wire through the output pin (14, 12)
+        wire(document, 4, 12, 10, 12);
+        wire(document, 14, 6, 14, 18); // a bus passing mid-wire through the output pin (14, 12)
 
         Disassembly.Plan plan = Disassembly.plan(document, instance, ExampleDefinitions.inverter(), registry);
 

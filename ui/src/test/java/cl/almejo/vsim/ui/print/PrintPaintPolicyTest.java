@@ -5,7 +5,6 @@ import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
-import cl.almejo.vsim.core.document.Frame;
 import cl.almejo.vsim.core.document.FrameTint;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
@@ -37,6 +36,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
+import static cl.almejo.vsim.ui.UiTestSupport.frame;
+import static cl.almejo.vsim.ui.UiTestSupport.wire;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -56,18 +57,6 @@ class PrintPaintPolicyTest {
                 Rotation.R0, parameters, "");
         document.add(component);
         return component;
-    }
-
-    private Wire wire(int startX, int startY, int endX, int endY) {
-        Wire wire = new Wire(document.newWireId(), new GridPoint(startX, startY), new GridPoint(endX, endY));
-        document.add(wire);
-        return wire;
-    }
-
-    private Frame frame(int x, int y, int width, int height, String title, FrameTint tint) {
-        Frame frame = new Frame(document.newFrameId(), new GridPoint(x, y), width, height, title, tint, false);
-        document.add(frame);
-        return frame;
     }
 
     private BufferedImage render(ColorScheme scheme, PaintPolicy policy, double scale, int width, int height,
@@ -158,7 +147,7 @@ class PrintPaintPolicyTest {
 
     @Test
     void thePrintPolicyPaintsAFrameTitleAtAScaleWhereTheCanvasHidesIt() {
-        frame(0, 0, 60, 20, "WWWWWWWWWW", FrameTint.NONE);
+        frame(document, 0, 0, 60, 20, "WWWWWWWWWW", FrameTint.NONE);
         // 2 screen pixels per grid unit: below the canvas' 3 px threshold for titles
         double scale = 2.0 / UNIT;
         BufferedImage canvas = render(ColorScheme.LIGHT, PaintPolicy.CANVAS, scale, 130, 50, true);
@@ -171,7 +160,7 @@ class PrintPaintPolicyTest {
     @Test
     void onPaperTheTitleTakesTheRoomTheButtonsWouldHaveKept() {
         // 6 grid units = 48 px: 38 px for the title without the buttons, 8 px with them
-        frame(1, 1, 6, 6, "WW", FrameTint.NONE);
+        frame(document, 1, 1, 6, 6, "WW", FrameTint.NONE);
         BufferedImage canvas = render(ColorScheme.LIGHT, PaintPolicy.CANVAS, 1, 80, 80, true);
         BufferedImage print = render(ColorScheme.LIGHT, PaintPolicy.print(false), 1, 80, 80, true);
         assertThat(darkPixels(canvas, UNIT + 2, UNIT + 2, 7 * UNIT - 2, 3 * UNIT - 2)).isZero();
@@ -180,9 +169,9 @@ class PrintPaintPolicyTest {
 
     /** Tinted frames, both tunnels, a display, a lit LED, a switch, a bus and a wire in every state. */
     private void colourfulCircuit() {
-        frame(0, 0, 70, 40, "Rojo", FrameTint.RED);
-        frame(2, 4, 30, 30, "Azul", FrameTint.BLUE);
-        frame(36, 4, 30, 30, "", FrameTint.YELLOW);
+        frame(document, 0, 0, 70, 40, "Rojo", FrameTint.RED);
+        frame(document, 2, 4, 30, 30, "Azul", FrameTint.BLUE);
+        frame(document, 36, 4, 30, 30, "", FrameTint.YELLOW);
         add(StandardComponentTypes.SWITCH, 4, 6, Map.of("value", "1"));
         Component led = add(StandardComponentTypes.LED, 12, 6, Map.of("color", "green"));
         componentStates.put(led.id().value(), new VisibleState.LedState(Value.ONE));
@@ -190,12 +179,12 @@ class PrintPaintPolicyTest {
         componentStates.put(display.id().value(), new VisibleState.SevenSegmentsState(Value.of(4, 8)));
         add(TunnelKind.ENTRANCE.typeId(), 40, 6, Map.of(Tunnels.NAME, "a", Tunnels.COLOR, 1));
         add(TunnelKind.EXIT.typeId(), 52, 6, Map.of(Tunnels.NAME, "a"));
-        value(wire(4, 20, 20, 20), Value.ONE);
-        value(wire(4, 22, 20, 22), Value.ZERO);
-        value(wire(4, 24, 20, 24), Value.HIGH_IMPEDANCE);
-        value(wire(4, 26, 20, 26), new Value(2, 1, 2, false));
-        value(wire(4, 28, 20, 28), Value.ONE.withConflict());
-        value(wire(40, 20, 60, 20), Value.of(8, 0x5A));
+        value(wire(document, 4, 20, 20, 20), Value.ONE);
+        value(wire(document, 4, 22, 20, 22), Value.ZERO);
+        value(wire(document, 4, 24, 20, 24), Value.HIGH_IMPEDANCE);
+        value(wire(document, 4, 26, 20, 26), new Value(2, 1, 2, false));
+        value(wire(document, 4, 28, 20, 28), Value.ONE.withConflict());
+        value(wire(document, 40, 20, 60, 20), Value.of(8, 0x5A));
     }
 
     @Test
@@ -230,7 +219,7 @@ class PrintPaintPolicyTest {
 
     @Test
     void inBlackAndWhiteAFrameHasNoFillOnlyItsBorderAndTitle() {
-        frame(0, 0, 40, 30, "Marco", FrameTint.PURPLE);
+        frame(document, 0, 0, 40, 30, "Marco", FrameTint.PURPLE);
         BufferedImage image = render(ColorScheme.LIGHT, PaintPolicy.print(true), 1, 340, 260, true);
         assertThat(image.getRGB(20 * UNIT, 15 * UNIT)).as("interior").isEqualTo(Color.WHITE.getRGB());
         assertThat(image.getRGB(30 * UNIT, UNIT - 3)).as("title band, right of the title")
@@ -273,8 +262,8 @@ class PrintPaintPolicyTest {
 
     @Test
     void aOneWireIsBlackAndAZeroWireMidGreyOnPaper() {
-        value(wire(2, 4, 20, 4), Value.ONE);
-        value(wire(2, 8, 20, 8), Value.ZERO);
+        value(wire(document, 2, 4, 20, 4), Value.ONE);
+        value(wire(document, 2, 8, 20, 8), Value.ZERO);
         BufferedImage image = render(ColorScheme.LIGHT, PaintPolicy.print(true), 1, 200, 100, true);
         assertThat(new Color(image.getRGB(10 * UNIT, 4 * UNIT))).isEqualTo(Color.BLACK);
         assertThat(new Color(image.getRGB(10 * UNIT, 8 * UNIT)))
@@ -283,7 +272,7 @@ class PrintPaintPolicyTest {
 
     @Test
     void withoutValuesBlackAndWhiteWiresArePlainBlackLines() {
-        wire(2, 4, 20, 4);
+        wire(document, 2, 4, 20, 4);
         BufferedImage image = render(ColorScheme.LIGHT, PaintPolicy.print(true), 1, 200, 100, false);
         for (int x = 3 * UNIT; x < 19 * UNIT; x++) {
             assertThat(new Color(image.getRGB(x, 4 * UNIT))).as("x %d", x).isEqualTo(Color.BLACK);
@@ -292,7 +281,7 @@ class PrintPaintPolicyTest {
 
     @Test
     void theMinimumStrokeWidensThinWires() {
-        value(wire(2, 4, 20, 4), Value.ONE);
+        value(wire(document, 2, 4, 20, 4), Value.ONE);
         PaintPolicy wide = new PaintPolicy(true, false, false, 8);
         BufferedImage canvas = render(ColorScheme.LIGHT, PaintPolicy.CANVAS, 1, 200, 100, true);
         BufferedImage widened = render(ColorScheme.LIGHT, wide, 1, 200, 100, true);

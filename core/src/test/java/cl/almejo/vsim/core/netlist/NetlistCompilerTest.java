@@ -8,13 +8,13 @@ import cl.almejo.vsim.core.TestComponentTypes;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
-import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
 import org.junit.jupiter.api.Test;
 
 import java.util.Map;
 
+import static cl.almejo.vsim.core.DocumentFixtures.wireId;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class NetlistCompilerTest {
@@ -29,12 +29,6 @@ class NetlistCompilerTest {
         return id;
     }
 
-    private ElementId wire(int x1, int y1, int x2, int y2) {
-        ElementId id = document.newWireId();
-        document.add(new Wire(id, new GridPoint(x1, y1), new GridPoint(x2, y2)));
-        return id;
-    }
-
     private Net netOf(ElementId component, int pin, Netlist netlist) {
         return netlist.netForPin(new PinRef(component, pin)).orElseThrow();
     }
@@ -43,7 +37,7 @@ class NetlistCompilerTest {
     void wireConnectsPinsAtItsEndpoints() {
         ElementId first = buffer(0, 0);
         ElementId second = buffer(10, 0);
-        ElementId link = wire(2, 1, 10, 1);
+        ElementId link = wireId(document, 2, 1, 10, 1);
         Netlist netlist = compiler.compile(document);
         Net net = netOf(first, 1, netlist);
         assertThat(net.pins()).containsExactlyInAnyOrder(new PinRef(first, 1), new PinRef(second, 0));
@@ -55,15 +49,15 @@ class NetlistCompilerTest {
     void pinOnWireInteriorConnects() {
         ElementId first = buffer(0, 0);
         ElementId middle = buffer(5, 0);
-        wire(2, 1, 12, 1);
+        wireId(document, 2, 1, 12, 1);
         Netlist netlist = compiler.compile(document);
         assertThat(netOf(first, 1, netlist)).isEqualTo(netOf(middle, 0, netlist));
     }
 
     @Test
     void crossingWiresWithoutPointDoNotConnect() {
-        ElementId horizontal = wire(0, 5, 10, 5);
-        ElementId vertical = wire(5, 0, 5, 10);
+        ElementId horizontal = wireId(document, 0, 5, 10, 5);
+        ElementId vertical = wireId(document, 5, 0, 5, 10);
         Netlist netlist = compiler.compile(document);
         assertThat(netlist.netForWire(horizontal)).isNotEqualTo(netlist.netForWire(vertical));
         assertThat(netlist.nets()).hasSize(2);
@@ -71,8 +65,8 @@ class NetlistCompilerTest {
 
     @Test
     void teeJunctionConnects() {
-        ElementId horizontal = wire(0, 5, 10, 5);
-        ElementId branch = wire(5, 5, 5, 10);
+        ElementId horizontal = wireId(document, 0, 5, 10, 5);
+        ElementId branch = wireId(document, 5, 5, 5, 10);
         Netlist netlist = compiler.compile(document);
         assertThat(netlist.netForWire(horizontal)).isEqualTo(netlist.netForWire(branch));
     }
@@ -96,7 +90,7 @@ class NetlistCompilerTest {
 
     @Test
     void netIsNamedAfterItsSmallestAnchorAndPinsComeFirst() {
-        ElementId alone = wire(0, 0, 4, 0);
+        ElementId alone = wireId(document, 0, 0, 4, 0);
         assertThat(compiler.compile(document).netForWire(alone).orElseThrow().id())
                 .isEqualTo(new NetId("n:w:" + alone.value()));
         ElementId gate = buffer(4, -1);
@@ -121,11 +115,11 @@ class NetlistCompilerTest {
     void netIdSurvivesEditsThatKeepItsAnchor() {
         ElementId first = buffer(0, 0);
         buffer(10, 0);
-        wire(2, 1, 10, 1);
+        wireId(document, 2, 1, 10, 1);
         NetId before = netOf(first, 1, compiler.compile(document)).id();
         ElementId unrelated = buffer(30, 30);
         document.replace(document.component(unrelated).orElseThrow().translate(-40, -40));
-        wire(2, -3, 2, 1);
+        wireId(document, 2, -3, 2, 1);
         assertThat(netOf(first, 1, compiler.compile(document)).id())
                 .isEqualTo(before)
                 .isEqualTo(new NetId("n:p:" + first.value() + "#1"));
@@ -135,7 +129,7 @@ class NetlistCompilerTest {
     void rotatedComponentPinsAreUsed() {
         ElementId id = document.newComponentId();
         document.add(new Component(id, TestComponentTypes.BUFFER, new GridPoint(10, 10), Rotation.R90, Map.of(), ""));
-        ElementId link = wire(9, 12, 9, 20);
+        ElementId link = wireId(document, 9, 12, 9, 20);
         Netlist netlist = compiler.compile(document);
         assertThat(netlist.netForWire(link).orElseThrow().pins()).containsExactly(new PinRef(id, 1));
     }
@@ -153,7 +147,7 @@ class NetlistCompilerTest {
 
     @Test
     void wireOnlyNetHasWidthOne() {
-        ElementId alone = wire(0, 0, 4, 0);
+        ElementId alone = wireId(document, 0, 0, 4, 0);
         Net net = compiler.compile(document).netForWire(alone).orElseThrow();
         assertThat(net.width()).isEqualTo(1);
         assertThat(net.widthMismatch()).isFalse();
@@ -182,7 +176,7 @@ class NetlistCompilerTest {
     @Test
     void changingAWidthMovesThePinsAndUndoRestoresThem() {
         Component splitter = splitter(4);
-        ElementId tap = wire(2, 4, 6, 4); // b3 of the 4-bit splitter is at (2, 4)
+        ElementId tap = wireId(document, 2, 4, 6, 4); // b3 of the 4-bit splitter is at (2, 4)
         NetlistCompiler standardCompiler = new NetlistCompiler(standard);
         assertThat(standardCompiler.compile(document).netForWire(tap).orElseThrow().pins())
                 .containsExactly(new PinRef(splitter.id(), 4));

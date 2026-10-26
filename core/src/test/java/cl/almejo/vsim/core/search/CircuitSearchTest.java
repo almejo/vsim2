@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 
+import static cl.almejo.vsim.core.DocumentFixtures.place;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class CircuitSearchTest {
@@ -48,13 +49,6 @@ class CircuitSearchTest {
 
     private List<SearchHit> find(String text) {
         return CircuitSearch.find(document, registry, new SearchQuery(text, false, false).compile(), typeDisplayName);
-    }
-
-    private Component place(String typeId, int x, int y, String label) {
-        Component component = registry.require(typeId).newComponent(document.newComponentId(), new GridPoint(x, y),
-                Rotation.R0, Map.of(), label);
-        document.add(component);
-        return component;
     }
 
     private TextLabel text(int x, int y, String text) {
@@ -91,7 +85,7 @@ class CircuitSearchTest {
 
     @Test
     void findsComponentLabels() {
-        Component gate = place(StandardComponentTypes.AND2, 0, 0, "Acarreo");
+        Component gate = place(registry, document, StandardComponentTypes.AND2, 0, 0, "Acarreo");
 
         assertThat(find("acarreo"))
                 .containsExactly(new SearchHit(gate.id(), List.of(), List.of(), SearchHit.Field.LABEL, "Acarreo"));
@@ -99,7 +93,7 @@ class CircuitSearchTest {
 
     @Test
     void findsTypeNamesThroughTheGivenDisplayName() {
-        Component gate = place(StandardComponentTypes.AND2, 0, 0, "");
+        Component gate = place(registry, document, StandardComponentTypes.AND2, 0, 0, "");
 
         assertThat(find("and")).containsExactly(new SearchHit(gate.id(), List.of(), List.of(), SearchHit.Field.TYPE, "And"));
     }
@@ -116,8 +110,8 @@ class CircuitSearchTest {
 
     @Test
     void theLabelOfAnInterfacePinIsItsPinName() {
-        Component input = place(InterfacePins.INPUT_PIN, 0, 0, "Cin");
-        Component output = place(InterfacePins.OUTPUT_PIN, 0, 10, "Cout");
+        Component input = place(registry, document, InterfacePins.INPUT_PIN, 0, 0, "Cin");
+        Component output = place(registry, document, InterfacePins.OUTPUT_PIN, 0, 10, "Cout");
 
         assertThat(find("cin"))
                 .containsExactly(new SearchHit(input.id(), List.of(), List.of(), SearchHit.Field.PIN_NAME, "Cin"));
@@ -133,7 +127,7 @@ class CircuitSearchTest {
                 document.newComponentId(), new GridPoint(0, 10), Rotation.R0, Map.of(Tunnels.NAME, "CLK"), "");
         document.add(entrance);
         document.add(exit);
-        place(StandardComponentTypes.AND2, 0, 20, "");
+        place(registry, document, StandardComponentTypes.AND2, 0, 20, "");
 
         assertThat(find("clk")).containsExactly(
                 new SearchHit(entrance.id(), List.of(), List.of(), SearchHit.Field.TUNNEL_NAME, "CLK"),
@@ -142,7 +136,7 @@ class CircuitSearchTest {
 
     @Test
     void anElementMatchingOnLabelAndTypeGivesOneHitWithItsLabel() {
-        Component gate = place(StandardComponentTypes.AND2, 0, 0, "Banda");
+        Component gate = place(registry, document, StandardComponentTypes.AND2, 0, 0, "Banda");
 
         assertThat(find("and"))
                 .containsExactly(new SearchHit(gate.id(), List.of(), List.of(), SearchHit.Field.LABEL, "Banda"));
@@ -157,7 +151,7 @@ class CircuitSearchTest {
 
     @Test
     void anEmptyOrInvalidQueryFindsNothing() {
-        place(StandardComponentTypes.AND2, 0, 0, "(a");
+        place(registry, document, StandardComponentTypes.AND2, 0, 0, "(a");
 
         assertThat(find("")).isEmpty();
         assertThat(CircuitSearch.find(document, registry, new SearchQuery("(a", false, true).compile(),
@@ -166,9 +160,9 @@ class CircuitSearchTest {
 
     @Test
     void hitsFollowTheReadingOrderTopToBottomThenLeftToRight() {
-        Component right = place(StandardComponentTypes.LED, 20, 0, "x3");
-        Component below = place(StandardComponentTypes.LED, 0, 10, "x4");
-        Component left = place(StandardComponentTypes.LED, 0, 0, "x1");
+        Component right = place(registry, document, StandardComponentTypes.LED, 20, 0, "x3");
+        Component below = place(registry, document, StandardComponentTypes.LED, 0, 10, "x4");
+        Component left = place(registry, document, StandardComponentTypes.LED, 0, 0, "x1");
         TextLabel middle = text(10, 0, "x2");
 
         assertThat(find("x").stream().map(SearchHit::elementId))
@@ -178,7 +172,7 @@ class CircuitSearchTest {
     @Test
     void elementsAtTheSameTopLeftKeepTheDocumentOrder() {
         TextLabel first = text(5, 5, "uno");
-        Component second = place(StandardComponentTypes.LED, 5, 5, "uno");
+        Component second = place(registry, document, StandardComponentTypes.LED, 5, 5, "uno");
 
         assertThat(find("uno").stream().map(SearchHit::elementId)).containsExactly(first.id(), second.id());
     }
@@ -186,7 +180,7 @@ class CircuitSearchTest {
     @Test
     void matchesInsideUserComponentsAreReachedThroughTheirTopLevelInstance() {
         defineAdders();
-        Component adder = place(SubcircuitTypes.typeIdOf(FULL_ADDER), 0, 0, "U3");
+        Component adder = place(registry, document, SubcircuitTypes.typeIdOf(FULL_ADDER), 0, 0, "U3");
 
         assertThat(find("x1")).containsExactly(
                 new SearchHit(adder.id(), ids("c1", "c1"), List.of("H1", "X1"), SearchHit.Field.LABEL, "X1"),
@@ -196,7 +190,7 @@ class CircuitSearchTest {
     @Test
     void aNestedPartWithoutLabelIsNamedByItsType() {
         defineAdders();
-        Component adder = place(SubcircuitTypes.typeIdOf(FULL_ADDER), 0, 0, "U3");
+        Component adder = place(registry, document, SubcircuitTypes.typeIdOf(FULL_ADDER), 0, 0, "U3");
 
         List<SearchHit> hits = CircuitSearch.find(document, registry, new SearchQuery("Or", true, false).compile(),
                 typeDisplayName);
@@ -208,7 +202,7 @@ class CircuitSearchTest {
     @Test
     void theInstanceComesFirstThenItsNestedHitsThenTheNextElement() {
         defineAdders();
-        Component adder = place(SubcircuitTypes.typeIdOf(FULL_ADDER), 0, 0, "U3");
+        Component adder = place(registry, document, SubcircuitTypes.typeIdOf(FULL_ADDER), 0, 0, "U3");
         TextLabel note = text(0, 30, "Un sumador");
 
         assertThat(find("sumador")).containsExactly(
@@ -223,7 +217,7 @@ class CircuitSearchTest {
         document.putDefinition(new ComponentDefinition("two-ors", "Dos o", "", new GridSize(4, 4), List.of(),
                 new CircuitFragment(List.of(part(StandardComponentTypes.OR2, "c1", 0, 0, ""),
                         part(StandardComponentTypes.OR2, "c2", 0, 6, "")), List.of(), List.of())));
-        Component instance = place(SubcircuitTypes.typeIdOf("two-ors"), 0, 0, "");
+        Component instance = place(registry, document, SubcircuitTypes.typeIdOf("two-ors"), 0, 0, "");
 
         List<SearchHit> hits = CircuitSearch.find(document, registry, new SearchQuery("Or", true, false).compile(),
                 typeDisplayName);
@@ -237,9 +231,9 @@ class CircuitSearchTest {
     @Test
     void aQueryThatGivesUpFindsNothingAtAll() {
         // The first labels match cheaply; the long ones exhaust the shared budget: no partial results.
-        place(StandardComponentTypes.LED, 0, 0, "aa");
+        place(registry, document, StandardComponentTypes.LED, 0, 0, "aa");
         for (int index = 0; index < 400; index++) {
-            place(StandardComponentTypes.LED, 0, 10 + index, "a".repeat(20) + "!");
+            place(registry, document, StandardComponentTypes.LED, 0, 10 + index, "a".repeat(20) + "!");
         }
         CompiledQuery query = new SearchQuery("^(a+)+\\1$", true, true).compile();
 

@@ -24,6 +24,7 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
 
+import static cl.almejo.vsim.core.DocumentFixtures.wire;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Spec M6.7 §2–§4: how the wires attached to a move stretch, and the accidental contacts. */
@@ -31,12 +32,6 @@ class WireFollowTest {
 
     private final ComponentTypeRegistry registry = StandardComponentTypes.registry();
     private final CircuitDocument document = new CircuitDocument();
-
-    private Wire wire(int startX, int startY, int endX, int endY) {
-        Wire wire = new Wire(document.newWireId(), new GridPoint(startX, startY), new GridPoint(endX, endY));
-        document.add(wire);
-        return wire;
-    }
 
     /** A NOT gate: input pin at (x, y + 2), output pin at (x + 4, y + 2). */
     private Component gate(int x, int y) {
@@ -86,7 +81,7 @@ class WireFollowTest {
     @Test
     void aHorizontalWireStretchesAndShrinksAlongItsAxis() {
         Component gate = gate(10, 10);
-        Wire attached = wire(14, 12, 30, 12);
+        Wire attached = wire(document, 14, 12, 30, 12);
         assertThat(move(3, 0, gate.id())).containsExactlyInAnyOrder(span(17, 12, 30, 12));
         assertThat(move(-6, 0, gate.id())).containsExactlyInAnyOrder(span(11, 12, 30, 12));
         assertThat(current(attached).id()).isEqualTo(attached.id());
@@ -94,8 +89,8 @@ class WireFollowTest {
 
     @Test
     void aVerticalWireStretchesAndShrinksAlongItsAxis() {
-        Wire moved = wire(0, 0, 0, 5);
-        Wire attached = wire(0, 5, 0, 10);
+        Wire moved = wire(document, 0, 0, 0, 5);
+        Wire attached = wire(document, 0, 5, 0, 10);
         move(0, 2, moved.id());
         assertThat(current(attached)).isEqualTo(new Wire(attached.id(), new GridPoint(0, 7), new GridPoint(0, 10)));
         move(0, -4, moved.id());
@@ -105,7 +100,7 @@ class WireFollowTest {
     @Test
     void aWireThatShrinksToNothingIsRemoved() {
         Component gate = gate(10, 10);
-        Wire attached = wire(14, 12, 18, 12);
+        Wire attached = wire(document, 14, 12, 18, 12);
         FollowPlan plan = WireFollow.plan(document, registry, Set.of(gate.id()), 4, 0);
         assertThat(plan.removedWireIds()).containsExactly(attached.id());
         assertThat(move(4, 0, gate.id())).isEmpty();
@@ -114,8 +109,8 @@ class WireFollowTest {
     @Test
     void shrinkingNeverDropsAJunctionOnTheWire() {
         Component gate = gate(10, 10);
-        wire(14, 12, 30, 12);
-        wire(20, 12, 20, 20);
+        wire(document, 14, 12, 30, 12);
+        wire(document, 20, 12, 20, 20);
         assertThat(move(10, 0, gate.id())).containsExactlyInAnyOrder(span(14, 12, 30, 12), span(20, 12, 20, 20));
     }
 
@@ -124,8 +119,8 @@ class WireFollowTest {
     @Test
     void aSimpleCornerMovesWithTheWireSoTheRouteKeepsItsShape() {
         Component gate = gate(10, 10);
-        wire(14, 12, 20, 12);
-        wire(20, 12, 20, 20);
+        wire(document, 14, 12, 20, 12);
+        wire(document, 20, 12, 20, 20);
         assertThat(move(0, 2, gate.id())).containsExactlyInAnyOrder(span(14, 14, 20, 14), span(20, 14, 20, 20));
         assertThat(move(0, -5, gate.id())).containsExactlyInAnyOrder(span(14, 9, 20, 9), span(20, 9, 20, 20));
     }
@@ -133,8 +128,8 @@ class WireFollowTest {
     @Test
     void aSimpleCornerOnAVerticalWire() {
         Component lamp = led(0, 0);
-        wire(1, 3, 1, 10);
-        wire(1, 10, 8, 10);
+        wire(document, 1, 3, 1, 10);
+        wire(document, 1, 10, 8, 10);
         assertThat(move(2, 0, lamp.id())).containsExactlyInAnyOrder(span(3, 3, 3, 10), span(3, 10, 8, 10));
         assertThat(move(-4, 0, lamp.id())).containsExactlyInAnyOrder(span(-1, 3, -1, 10), span(-1, 10, 8, 10));
     }
@@ -143,9 +138,9 @@ class WireFollowTest {
     void aTwoCornerRouteKeepsItsShape() {
         Component gate = gate(10, 10);
         Component target = gate(30, 18);
-        wire(14, 12, 20, 12);
-        wire(20, 12, 20, 20);
-        wire(20, 20, 30, 20);
+        wire(document, 14, 12, 20, 12);
+        wire(document, 20, 12, 20, 20);
+        wire(document, 20, 20, 30, 20);
         assertThat(move(3, 2, gate.id()))
                 .containsExactlyInAnyOrder(span(17, 14, 20, 14), span(20, 14, 20, 20), span(20, 20, 30, 20));
         assertThat(document.component(target.id())).isPresent();
@@ -158,9 +153,9 @@ class WireFollowTest {
     @Test
     void aTeeAtTheFarEndGetsAnLThatLeavesItHorizontally() {
         Component gate = gate(10, 10);
-        Wire attached = wire(14, 12, 20, 12);
-        wire(20, 5, 20, 12);
-        wire(20, 12, 20, 16);
+        Wire attached = wire(document, 14, 12, 20, 12);
+        wire(document, 20, 5, 20, 12);
+        wire(document, 20, 12, 20, 16);
         FollowPlan plan = WireFollow.plan(document, registry, Set.of(gate.id()), 3, 2);
         assertThat(plan.replacedWires()).containsExactly(
                 new Wire(attached.id(), new GridPoint(17, 12), new GridPoint(20, 12)));
@@ -172,16 +167,16 @@ class WireFollowTest {
     void aPinAtTheFarEndOfAVerticalWireGetsAnLThatLeavesItVertically() {
         Component lamp = led(0, 0);
         led(0, 10);
-        wire(1, 3, 1, 13);
+        wire(document, 1, 3, 1, 13);
         assertThat(move(2, 4, lamp.id())).containsExactlyInAnyOrder(span(1, 7, 1, 13), span(1, 7, 3, 7));
     }
 
     @Test
     void anLWhoseFirstLegVanishesKeepsTheWireIdOnTheSecond() {
         Component gate = gate(10, 10);
-        Wire attached = wire(14, 12, 20, 12);
-        wire(20, 5, 20, 12);
-        wire(20, 12, 20, 16);
+        Wire attached = wire(document, 14, 12, 20, 12);
+        wire(document, 20, 5, 20, 12);
+        wire(document, 20, 12, 20, 16);
         FollowPlan plan = WireFollow.plan(document, registry, Set.of(gate.id()), 6, 3);
         assertThat(plan.addedWires()).isEmpty();
         assertThat(plan.replacedWires()).containsExactly(
@@ -193,15 +188,15 @@ class WireFollowTest {
     @Test
     void aWireWithAFreeEndMovesWhole() {
         Component gate = gate(10, 10);
-        wire(14, 12, 20, 12);
+        wire(document, 14, 12, 20, 12);
         assertThat(move(0, 2, gate.id())).containsExactlyInAnyOrder(span(14, 14, 20, 14));
         assertThat(move(1, -3, gate.id())).containsExactlyInAnyOrder(span(15, 11, 21, 11));
     }
 
     @Test
     void aVerticalWireWithAFreeEndMovesWhole() {
-        Wire moved = wire(-5, 5, 0, 5);
-        wire(0, 5, 0, 10);
+        Wire moved = wire(document, -5, 5, 0, 5);
+        wire(document, 0, 5, 0, 10);
         assertThat(move(3, 0, moved.id())).containsExactlyInAnyOrder(span(-2, 5, 3, 5), span(3, 5, 3, 10));
         assertThat(move(-2, 0, moved.id())).containsExactlyInAnyOrder(span(-4, 5, 1, 5), span(1, 5, 1, 10));
     }
@@ -212,7 +207,7 @@ class WireFollowTest {
     void aWireBetweenTwoMovedComponentsMovesWhole() {
         Component first = gate(10, 10);
         Component second = gate(20, 10);
-        Wire between = wire(14, 12, 20, 12);
+        Wire between = wire(document, 14, 12, 20, 12);
         FollowPlan plan = WireFollow.plan(document, registry, Set.of(first.id(), second.id()), 2, 3);
         assertThat(plan.movedWholeWireIds()).containsExactly(between.id());
         assertThat(plan.replacedWires()).isEmpty();
@@ -221,14 +216,14 @@ class WireFollowTest {
 
     @Test
     void aWireEndingOnAMovedWiresInteriorFollowsIt() {
-        Wire moved = wire(0, 0, 10, 0);
-        wire(5, 0, 5, 8);
+        Wire moved = wire(document, 0, 0, 10, 0);
+        wire(document, 5, 0, 5, 8);
         assertThat(move(0, 2, moved.id())).containsExactlyInAnyOrder(span(0, 2, 10, 2), span(5, 2, 5, 8));
     }
 
     @Test
     void labelsDoNotDragWires() {
-        Wire wire = wire(0, 0, 10, 0);
+        Wire wire = wire(document, 0, 0, 10, 0);
         TextLabel label = new TextLabel(document.newLabelId(), new GridPoint(0, 0), "a");
         document.add(label);
         assertThat(WireFollow.plan(document, registry, Set.of(label.id()), 3, 3).isEmpty()).isTrue();
@@ -238,7 +233,7 @@ class WireFollowTest {
     @Test
     void aZeroDeltaPlansNothing() {
         Component gate = gate(10, 10);
-        wire(14, 12, 20, 12);
+        wire(document, 14, 12, 20, 12);
         assertThat(WireFollow.plan(document, registry, Set.of(gate.id()), 0, 0).isEmpty()).isTrue();
     }
 
@@ -248,9 +243,9 @@ class WireFollowTest {
     void aBusWireFollowsLikeASingleWire() {
         Component source = component(StandardComponentTypes.INPUT_PIN, 0, 0, Map.of(InterfacePins.WIDTH, 8));
         component(StandardComponentTypes.OUTPUT_PIN, 20, 4, Map.of(InterfacePins.WIDTH, 8));
-        wire(2, 1, 10, 1);
-        wire(10, 1, 10, 5);
-        wire(10, 5, 20, 5);
+        wire(document, 2, 1, 10, 1);
+        wire(document, 10, 1, 10, 5);
+        wire(document, 10, 5, 20, 5);
         assertThat(move(0, 2, source.id())).containsExactlyInAnyOrder(span(2, 3, 10, 3), span(10, 3, 10, 5),
                 span(10, 5, 20, 5));
         Netlist netlist = new NetlistCompiler(registry).compile(document);
@@ -264,9 +259,9 @@ class WireFollowTest {
     @Test
     void aNewContactIsDetectedAndTheOtherOrientationChosenWhenClean() {
         Component gate = gate(10, 10);
-        Wire attached = wire(14, 12, 20, 12);
-        wire(20, 5, 20, 12);
-        wire(20, 12, 20, 14);
+        Wire attached = wire(document, 14, 12, 20, 12);
+        wire(document, 20, 5, 20, 12);
+        wire(document, 20, 12, 20, 14);
         led(11, 9);
         FollowPlan plan = WireFollow.plan(document, registry, Set.of(gate.id()), -4, 6);
         assertThat(plan.newContacts()).isEmpty();
@@ -278,9 +273,9 @@ class WireFollowTest {
     @Test
     void whenBothOrientationsCollideTheFirstIsKeptAndTheContactListed() {
         Component gate = gate(10, 10);
-        Wire attached = wire(14, 12, 20, 12);
-        wire(20, 5, 20, 12);
-        wire(20, 12, 20, 14);
+        Wire attached = wire(document, 14, 12, 20, 12);
+        wire(document, 20, 5, 20, 12);
+        wire(document, 20, 12, 20, 14);
         Component lamp = led(11, 9);
         led(14, 15);
         FollowPlan plan = WireFollow.plan(document, registry, Set.of(gate.id()), -4, 6);
@@ -294,7 +289,7 @@ class WireFollowTest {
     @Test
     void aGateDroppedOnAWireIsANewContact() {
         Component gate = gate(10, 10);
-        wire(0, 20, 30, 20);
+        wire(document, 0, 20, 30, 20);
         FollowPlan plan = WireFollow.plan(document, registry, Set.of(gate.id()), 0, 8);
         assertThat(plan.newContacts()).extracting(NewContact::point)
                 .containsExactly(new GridPoint(10, 20), new GridPoint(14, 20));
@@ -303,8 +298,8 @@ class WireFollowTest {
     @Test
     void stretchingAlongExistingConnectionsIsNotAContact() {
         Component gate = gate(10, 10);
-        wire(14, 12, 20, 12);
-        wire(20, 12, 20, 20);
+        wire(document, 14, 12, 20, 12);
+        wire(document, 20, 12, 20, 20);
         assertThat(WireFollow.plan(document, registry, Set.of(gate.id()), 0, 3).newContacts()).isEmpty();
     }
 
@@ -313,8 +308,8 @@ class WireFollowTest {
     @Test
     void aMovedPinOnAWiresInteriorStaysConnected() {
         Component gate = gate(10, 10);
-        wire(0, 12, 10, 12);
-        Wire through = wire(14, 0, 14, 30);
+        wire(document, 0, 12, 10, 12);
+        Wire through = wire(document, 14, 0, 14, 30);
         move(3, 2, gate.id());
         assertThat(current(through)).isEqualTo(through);
         Netlist netlist = new NetlistCompiler(registry).compile(document);
@@ -323,8 +318,8 @@ class WireFollowTest {
 
     @Test
     void aMovedWireEndingOnAFixedWiresInteriorStaysConnected() {
-        Wire fixed = wire(0, 0, 20, 0);
-        Wire moved = wire(10, 0, 10, 8);
+        Wire fixed = wire(document, 0, 0, 20, 0);
+        Wire moved = wire(document, 10, 0, 10, 8);
         move(3, 2, moved.id());
         Netlist netlist = new NetlistCompiler(registry).compile(document);
         assertThat(netlist.netForWire(moved.id())).isEqualTo(netlist.netForWire(fixed.id()));
@@ -334,9 +329,9 @@ class WireFollowTest {
     @Test
     void thePlanIsDeterministic() {
         Component gate = gate(10, 10);
-        wire(14, 12, 20, 12);
-        wire(20, 5, 20, 12);
-        wire(20, 12, 20, 14);
+        wire(document, 14, 12, 20, 12);
+        wire(document, 20, 5, 20, 12);
+        wire(document, 20, 12, 20, 14);
         led(11, 9);
         CircuitDocument copy = new CircuitDocument();
         document.elements().forEach(copy::add);

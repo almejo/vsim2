@@ -15,7 +15,6 @@ import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.window.EditorServices;
 import cl.almejo.vsim.ui.window.EditorView;
-import cl.almejo.vsim.ui.window.WindowCommands;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -31,6 +30,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
 
+import static cl.almejo.vsim.ui.UiTestSupport.NO_WINDOW;
+import static cl.almejo.vsim.ui.UiTestSupport.layOut;
 import static cl.almejo.vsim.ui.ai.present.FakePresentationEvents.step;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -40,14 +41,6 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class PresentationQuestionTest {
 
-    private static final WindowCommands NO_WINDOW = new WindowCommands() {
-        @Override public void newDocument() { }
-        @Override public void open() { }
-        @Override public void save() { }
-        @Override public void saveAs() { }
-        @Override public void closeWindow() { }
-        @Override public void exit() { }
-    };
     private static final DocumentId THIS_CIRCUIT = new DocumentId("this");
     private static final TaskInfo TASK = new TaskInfo("t1", THIS_CIRCUIT, "Contador");
     private static final List<TaskStage> STAGES = List.of(
@@ -256,14 +249,5 @@ class PresentationQuestionTest {
             }
         }
         return null;
-    }
-
-    private static void layOut(Container container) {
-        container.doLayout();
-        for (Component child : container.getComponents()) {
-            if (child instanceof Container inner) {
-                layOut(inner);
-            }
-        }
     }
 }

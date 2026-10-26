@@ -1,6 +1,5 @@
 package cl.almejo.vsim.ui.print;
 
-import cl.almejo.vsim.core.command.AddWireCommand;
 import cl.almejo.vsim.core.command.CreateFrameCommand;
 import cl.almejo.vsim.core.command.MoveElementsCommand;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
@@ -32,6 +31,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
+import static cl.almejo.vsim.ui.UiTestSupport.addWire;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class PrintInputTest {
@@ -50,13 +50,6 @@ class PrintInputTest {
         return PrintInput.capture(openDocument, selection, ColorScheme.LIGHT, TextFont.DEFAULT, CLOCK);
     }
 
-    private Wire addWire(int startX, int startY, int endX, int endY) {
-        Wire wire = new Wire(openDocument.document().newWireId(), new GridPoint(startX, startY),
-                new GridPoint(endX, endY));
-        openDocument.execute(new AddWireCommand(wire));
-        return wire;
-    }
-
     private Frame addFrame(int x, int y, int width, int height, String title) {
         Frame frame = new Frame(openDocument.document().newFrameId(), new GridPoint(x, y), width, height, title,
                 FrameTint.BLUE, false);
@@ -66,11 +59,11 @@ class PrintInputTest {
 
     @Test
     void editingTheLiveDocumentAfterTheCaptureDoesNotChangeTheCopy() {
-        Wire wire = addWire(10, 10, 20, 10);
+        Wire wire = addWire(openDocument, 10, 10, 20, 10);
         PrintInput input = capture(Set.of());
         List<DocumentElement> before = input.document().elements();
         openDocument.execute(new MoveElementsCommand(List.of(wire.id()), 5, 5));
-        addWire(40, 40, 50, 40);
+        addWire(openDocument, 40, 40, 50, 40);
         assertThat(input.document().elements()).isEqualTo(before).containsExactly(wire);
         assertThat(PrintScopes.area(input, new PrintScope.WholeCircuit()).orElseThrow().elements())
                 .containsExactly(wire.id());
@@ -90,7 +83,7 @@ class PrintInputTest {
 
     @Test
     void theSchemeAndTheFontAreTheOnesOfTheMomentOfTheCapture() {
-        addWire(10, 10, 20, 10);
+        addWire(openDocument, 10, 10, 20, 10);
         ColorScheme scheme = CircuitImage.printScheme(ColorScheme.LIGHT);
         TextFont font = new TextFont("Serif", 14);
         PrintInput input = PrintInput.capture(openDocument, Set.of(), scheme, font, CLOCK);
@@ -103,7 +96,7 @@ class PrintInputTest {
 
     @Test
     void aSnapshotOfTheSameRevisionGivesValues() {
-        addWire(10, 10, 20, 10);
+        addWire(openDocument, 10, 10, 20, 10);
         UiTestSupport.awaitSimulation(openDocument);
         PrintInput input = capture(Set.of());
         assertThat(input.hasValues()).isTrue();
@@ -115,7 +108,7 @@ class PrintInputTest {
 
     @Test
     void aStaleSnapshotGivesNoValuesAndSaysWhy() {
-        addWire(10, 10, 20, 10);
+        addWire(openDocument, 10, 10, 20, 10);
         SimulationSnapshot stale = new SimulationSnapshot(0, openDocument.netlistToken() - 1, 0, false, Map.of(),
                 Map.of(), List.of(), Optional.empty());
         PrintInput input = PrintInput.capture(new PrintInput.LiveCircuit(openDocument.document(),
@@ -130,7 +123,7 @@ class PrintInputTest {
 
     @Test
     void aNetlistOfAnotherRevisionIsNotTrustedEither() {
-        addWire(10, 10, 20, 10);
+        addWire(openDocument, 10, 10, 20, 10);
         UiTestSupport.awaitSimulation(openDocument);
         long oldToken = openDocument.netlistToken() - 1;
         SimulationSnapshot snapshot = new SimulationSnapshot(0, oldToken, 0, false, Map.of(), Map.of(), List.of(),
@@ -144,7 +137,7 @@ class PrintInputTest {
 
     @Test
     void theCaptureCreatesNoCommandKeepsModifiedAndTheSelection() {
-        Wire wire = addWire(10, 10, 20, 10);
+        Wire wire = addWire(openDocument, 10, 10, 20, 10);
         openDocument.history().markSaved();
         long revision = openDocument.document().revision();
         long changes = openDocument.changeCount();
@@ -160,14 +153,14 @@ class PrintInputTest {
 
     @Test
     void theSelectionKeepsOnlyElementsOfTheDocument() {
-        Wire wire = addWire(10, 10, 20, 10);
+        Wire wire = addWire(openDocument, 10, 10, 20, 10);
         PrintInput input = capture(Set.of(wire.id(), new ElementId("c999")));
         assertThat(input.selection()).containsExactly(wire.id());
     }
 
     @Test
     void theNamesAndTheDateComeFromTheDocumentAndTheClock() {
-        addWire(10, 10, 20, 10);
+        addWire(openDocument, 10, 10, 20, 10);
         PrintInput input = capture(Set.of());
         assertThat(input.circuitName()).isEqualTo(openDocument.displayName());
         assertThat(input.fileName()).isEmpty();
@@ -212,7 +205,7 @@ class PrintInputTest {
     @Test
     void aComponentIsCopiedWithItsDefinitionsAndOrder() {
         Component led = UiTestSupport.place(openDocument, StandardComponentTypes.LED, 10, 10, Map.of());
-        Wire wire = addWire(0, 0, 5, 0);
+        Wire wire = addWire(openDocument, 0, 0, 5, 0);
         PrintInput input = capture(Set.of());
         assertThat(input.document().elements()).containsExactly(led, wire);
         assertThat(input.document().orderOf(wire.id())).isEqualTo(openDocument.document().orderOf(wire.id()));

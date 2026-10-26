@@ -1,6 +1,5 @@
 package cl.almejo.vsim.ui.tools;
 
-import cl.almejo.vsim.core.command.AddWireCommand;
 import cl.almejo.vsim.core.command.CreateFrameCommand;
 import cl.almejo.vsim.core.command.MoveWithWiresCommand;
 import cl.almejo.vsim.core.component.ComponentType;
@@ -23,6 +22,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
+import static cl.almejo.vsim.ui.UiTestSupport.addWire;
 import static cl.almejo.vsim.ui.UiTestSupport.place;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
@@ -43,21 +43,14 @@ class SelectToolSegmentTest {
     @BeforeEach
     void create() {
         Messages.initialize(Messages.SPANISH);
-        left = addWire(40, 0, 40, 10);
-        segment = addWire(40, 10, 50, 10);
-        right = addWire(50, 10, 50, 20);
+        left = addWire(context.openDocument(), 40, 0, 40, 10);
+        segment = addWire(context.openDocument(), 40, 10, 50, 10);
+        right = addWire(context.openDocument(), 50, 10, 50, 20);
     }
 
     @AfterEach
     void close() {
         context.close();
-    }
-
-    private Wire addWire(int startX, int startY, int endX, int endY) {
-        Wire added = new Wire(context.openDocument().document().newWireId(), new GridPoint(startX, startY),
-                new GridPoint(endX, endY));
-        context.openDocument().execute(new AddWireCommand(added));
-        return added;
     }
 
     private List<Wire> wires() {
@@ -74,8 +67,8 @@ class SelectToolSegmentTest {
 
     @Test
     void aSegmentTheCleanUpMergesIntoAnEarlierWireLeavesTheSurvivorSelected() {
-        Wire earlier = addWire(55, 13, 60, 13);
-        Wire moved = addWire(60, 10, 65, 10);
+        Wire earlier = addWire(context.openDocument(), 55, 13, 60, 13);
+        Wire moved = addWire(context.openDocument(), 60, 10, 65, 10);
         context.selection.select(moved.id());
         context.dragHolding(tool, 62, 10, 62, 13, false, true);
         assertThat(context.openDocument().document().wire(moved.id())).isEmpty();
@@ -130,7 +123,7 @@ class SelectToolSegmentTest {
     void anEndOnAComponentPinGetsABridgeAndThePinStaysConnected() {
         Component gate = place(context.openDocument(), StandardComponentTypes.NOT, 10, 10, Map.of());
         Component lamp = place(context.openDocument(), StandardComponentTypes.LED, 29, 9, Map.of());
-        Wire driven = addWire(14, 12, 30, 12);
+        Wire driven = addWire(context.openDocument(), 14, 12, 30, 12);
         context.selection.select(driven.id());
         context.dragHolding(tool, 20, 12, 23, 15, false, true);
         assertThat(current(driven)).isEqualTo(wireAt(driven, 14, 15, 30, 15));

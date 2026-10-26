@@ -27,6 +27,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
+import static cl.almejo.vsim.ui.UiTestSupport.wire;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -39,12 +40,6 @@ class CircuitRendererCrossingsTest {
     private static final int COLUMN = 56;
     private final ComponentTypeRegistry registry = StandardComponentTypes.registry();
     private final CircuitDocument document = new CircuitDocument();
-
-    private Wire wire(int startX, int startY, int endX, int endY) {
-        Wire wire = new Wire(document.newWireId(), new GridPoint(startX, startY), new GridPoint(endX, endY));
-        document.add(wire);
-        return wire;
-    }
 
     private BufferedImage render(ColorScheme scheme, Set<ElementId> selection) {
         return render(scheme, selection, new NetlistCompiler(registry).compile(document), SimulationSnapshot.EMPTY);
@@ -83,8 +78,8 @@ class CircuitRendererCrossingsTest {
 
     @Test
     void theVerticalWireOfACrossingHasAGapAndTheHorizontalOneIsContinuous() {
-        wire(1, 5, 13, 5);
-        wire(7, 1, 7, 13);
+        wire(document, 1, 5, 13, 5);
+        wire(document, 7, 1, 7, 13);
 
         BufferedImage image = render();
 
@@ -99,8 +94,8 @@ class CircuitRendererCrossingsTest {
 
     @Test
     void aBusAcrossMakesTheGapWider() {
-        wire(1, 5, 13, 5);
-        wire(7, 1, 7, 13);
+        wire(document, 1, 5, 13, 5);
+        wire(document, 7, 1, 7, 13);
         BufferedImage thin = render();
         // the 2.5 px vertical wire's round caps reach y 36.75 and 43.25: rows 36 and 43 still get some paint
         assertThat(background(thin, COLUMN, 36, ColorScheme.LIGHT)).isFalse();
@@ -118,11 +113,11 @@ class CircuitRendererCrossingsTest {
 
     @Test
     void junctionsAndTeesKeepTheirWiresWhole() {
-        wire(1, 5, 13, 5);
-        wire(7, 5, 7, 8); // a T at (7, 5)
-        wire(1, 10, 13, 10);
-        wire(3, 1, 3, 10);
-        wire(3, 10, 3, 13); // two vertical wires meeting on the horizontal one: a junction at (3, 10)
+        wire(document, 1, 5, 13, 5);
+        wire(document, 7, 5, 7, 8); // a T at (7, 5)
+        wire(document, 1, 10, 13, 10);
+        wire(document, 3, 1, 3, 10);
+        wire(document, 3, 10, 3, 13); // two vertical wires meeting on the horizontal one: a junction at (3, 10)
 
         BufferedImage image = render();
 
@@ -136,8 +131,8 @@ class CircuitRendererCrossingsTest {
 
     @Test
     void theSelectionHaloOfTheVerticalWireStaysContinuousOverTheGap() {
-        wire(1, 5, 13, 5);
-        Wire vertical = wire(7, 1, 7, 13);
+        wire(document, 1, 5, 13, 5);
+        Wire vertical = wire(document, 7, 1, 7, 13);
 
         BufferedImage image = render(ColorScheme.LIGHT, Set.of(vertical.id()));
 
@@ -147,8 +142,8 @@ class CircuitRendererCrossingsTest {
 
     @Test
     void aDashedMismatchedVerticalStopsTwoPixelsFromTheHorizontal() {
-        wire(1, 5, 13, 5);
-        wire(7, 1, 7, 13);
+        wire(document, 1, 5, 13, 5);
+        wire(document, 7, 1, 7, 13);
         place(StandardComponentTypes.LED, 6, -2, Map.of()); // its 1-bit input (offset 1, 3) ends the vertical at (7, 1)
         place(StandardComponentTypes.BUS_SPLITTER, 7, 13, Map.of(StandardComponentTypes.WIDTH, 4)); // 4-bit pin at (7, 13)
 
@@ -165,8 +160,8 @@ class CircuitRendererCrossingsTest {
 
     @Test
     void aShortCircuitedVerticalKeepsItsRoundCapsOutOfTheGap() {
-        wire(1, 5, 13, 5);
-        Wire vertical = wire(7, 1, 7, 13);
+        wire(document, 1, 5, 13, 5);
+        Wire vertical = wire(document, 7, 1, 7, 13);
         Component high = place(StandardComponentTypes.SWITCH, 3, 12, Map.of("value", "1")); // output (4, 1) at (7, 13)
         Netlist netlist = new NetlistCompiler(registry).compile(document);
         String netId = netlist.netForWire(vertical.id()).orElseThrow().id().value();
@@ -185,8 +180,8 @@ class CircuitRendererCrossingsTest {
 
     @Test
     void theGapShowsTheDarkSchemesOwnBackground() {
-        wire(1, 5, 13, 5);
-        wire(7, 1, 7, 13);
+        wire(document, 1, 5, 13, 5);
+        wire(document, 7, 1, 7, 13);
 
         BufferedImage image = render(ColorSchemes.DARK, Set.of());
 

@@ -17,6 +17,7 @@ import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 
+import static cl.almejo.vsim.ui.UiTestSupport.luminance;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** The find bar's error state reads well in light and dark themes (the badge of the inline editor's problems). */
@@ -104,14 +105,5 @@ class FindBarErrorTest {
         double lighter = Math.max(luminance(first), luminance(second));
         double darker = Math.min(luminance(first), luminance(second));
         return (lighter + 0.05) / (darker + 0.05);
-    }
-
-    private static double luminance(Color color) {
-        return 0.2126 * channel(color.getRed()) + 0.7152 * channel(color.getGreen()) + 0.0722 * channel(color.getBlue());
-    }
-
-    private static double channel(int value) {
-        double fraction = value / 255.0;
-        return fraction <= 0.03928 ? fraction / 12.92 : Math.pow((fraction + 0.055) / 1.055, 2.4);
     }
 }

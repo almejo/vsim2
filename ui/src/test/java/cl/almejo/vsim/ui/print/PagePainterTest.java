@@ -48,6 +48,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
+import static cl.almejo.vsim.ui.UiTestSupport.frame;
+import static cl.almejo.vsim.ui.UiTestSupport.wire;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -78,18 +80,6 @@ class PagePainterTest {
         return component;
     }
 
-    private Wire wire(int startX, int startY, int endX, int endY) {
-        Wire wire = new Wire(document.newWireId(), new GridPoint(startX, startY), new GridPoint(endX, endY));
-        document.add(wire);
-        return wire;
-    }
-
-    private Frame frame(int x, int y, int width, int height, String title, FrameTint tint) {
-        Frame frame = new Frame(document.newFrameId(), new GridPoint(x, y), width, height, title, tint, false);
-        document.add(frame);
-        return frame;
-    }
-
     private void value(Wire wire, Value value) {
         Netlist netlist = new NetlistCompiler(registry).compile(document);
         netValues.put(netlist.netForWire(wire.id()).orElseThrow().id().value(), value);
@@ -98,7 +88,7 @@ class PagePainterTest {
     /** An AND gate at the top-left and a wire far enough to need 2 × 2 A4 portrait sheets at 100 %. */
     private void bigCircuit() {
         add(StandardComponentTypes.AND2, 4, 4, Map.of());
-        wire(95, 125, 100, 125);
+        wire(document, 95, 125, 100, 125);
     }
 
     private void smallCircuit() {
@@ -106,8 +96,8 @@ class PagePainterTest {
     }
 
     private void colourfulCircuit() {
-        frame(0, 0, 70, 40, "Rojo", FrameTint.RED);
-        frame(2, 4, 30, 30, "Azul", FrameTint.BLUE);
+        frame(document, 0, 0, 70, 40, "Rojo", FrameTint.RED);
+        frame(document, 2, 4, 30, 30, "Azul", FrameTint.BLUE);
         add(StandardComponentTypes.SWITCH, 4, 6, Map.of("value", "1"));
         Component led = add(StandardComponentTypes.LED, 12, 6, Map.of("color", "green"));
         componentStates.put(led.id().value(), new VisibleState.LedState(Value.ONE));
@@ -115,10 +105,10 @@ class PagePainterTest {
         componentStates.put(display.id().value(), new VisibleState.SevenSegmentsState(Value.of(4, 8)));
         add(TunnelKind.ENTRANCE.typeId(), 40, 6, Map.of(Tunnels.NAME, "a", Tunnels.COLOR, 1));
         add(TunnelKind.EXIT.typeId(), 52, 6, Map.of(Tunnels.NAME, "a"));
-        value(wire(4, 20, 20, 20), Value.ONE);
-        value(wire(4, 22, 20, 22), Value.ZERO);
-        value(wire(4, 24, 20, 24), Value.HIGH_IMPEDANCE);
-        value(wire(4, 28, 20, 28), Value.ONE.withConflict());
+        value(wire(document, 4, 20, 20, 20), Value.ONE);
+        value(wire(document, 4, 22, 20, 22), Value.ZERO);
+        value(wire(document, 4, 24, 20, 24), Value.HIGH_IMPEDANCE);
+        value(wire(document, 4, 28, 20, 28), Value.ONE.withConflict());
     }
 
     // --- the input, the options and the painter ----------------------------------------------------------------
@@ -301,8 +291,8 @@ class PagePainterTest {
 
     @Test
     void aHugeLayoutIsListedWithoutMaterialisingItsPages() {
-        wire(0, 0, 25000, 0);
-        wire(0, 0, 0, 25000);
+        wire(document, 0, 0, 25000, 0);
+        wire(document, 0, 0, 0, 25000);
         PagePainter painter = painter(input(), atFullSize());
         int count = painter.pages().size();
         assertThat(count).isGreaterThan(100_000);
@@ -391,7 +381,7 @@ class PagePainterTest {
     @Test
     void theCircuitIsCutAtThePagesRectangle() {
         bigCircuit();
-        wire(0, 60, 100, 60);
+        wire(document, 0, 60, 100, 60);
         PrintInput input = input();
         PageLayout layout = layoutOf(input, atFullSize());
         BufferedImage first = render(painter(input, atFullSize()), 0);
@@ -406,9 +396,9 @@ class PagePainterTest {
 
     @Test
     void aFramePageCutsAWireThatCrossesItsBorder() {
-        frame(10, 10, 20, 10, "Bloque", FrameTint.GREEN);
-        wire(20, 12, 50, 12);
-        wire(60, 60, 70, 60);
+        frame(document, 10, 10, 20, 10, "Bloque", FrameTint.GREEN);
+        wire(document, 20, 12, 50, 12);
+        wire(document, 60, 60, 70, 60);
         PrintInput input = input();
         Frame frame = input.document().frames().iterator().next();
         PrintOptions options = options(new PrintScope.Frame(frame.id()), new ScaleMode.FitToOnePage(), true, false,
@@ -470,7 +460,7 @@ class PagePainterTest {
         smallCircuit();
         PrintInput small = input();
         BufferedImage smallPage = render(painter(small, withHeader), 0);
-        wire(0, 0, 3000, 0);
+        wire(document, 0, 0, 3000, 0);
         PrintInput huge = input();
         assertThat(layoutOf(huge, withHeader).scale()).isLessThan(0.05);
         BufferedImage hugePage = render(painter(huge, withHeader), 0);
@@ -548,7 +538,7 @@ class PagePainterTest {
     void withoutValuesTheSheetLooksLikeAnUnsimulatedCircuit() {
         Component led = add(StandardComponentTypes.LED, 12, 6, Map.of("color", "green"));
         componentStates.put(led.id().value(), new VisibleState.LedState(Value.ONE));
-        value(wire(4, 20, 20, 20), Value.ONE);
+        value(wire(document, 4, 20, 20, 20), Value.ONE);
         PrintInput simulated = input();
         assertThat(simulated.hasValues()).isTrue();
         PrintOptions withoutValues = options(new PrintScope.WholeCircuit(), new ScaleMode.FitToOnePage(), false,
@@ -587,8 +577,8 @@ class PagePainterTest {
 
     @Test
     void theSameSheetMakesTheSameDecisionsAtAnyDestinationScale() {
-        frame(0, 0, 40, 20, "MMMMMMMMMMMMMMMM", FrameTint.BLUE);
-        wire(190, 0, 195, 0);
+        frame(document, 0, 0, 40, 20, "MMMMMMMMMMMMMMMM", FrameTint.BLUE);
+        wire(document, 190, 0, 195, 0);
         PrintInput titled = input();
         assertThat(layoutOf(titled, fit()).scale() * GridPoint.PIXELS_PER_UNIT).as("the canvas hides titles here")
                 .isLessThan(3);
@@ -604,7 +594,7 @@ class PagePainterTest {
 
     @Test
     void aFontChosenWhileTheDialogIsOpenDoesNotChangeTheSheet() {
-        frame(0, 0, 30, 12, "Sumador", FrameTint.BLUE);
+        frame(document, 0, 0, 30, 12, "Sumador", FrameTint.BLUE);
         add(StandardComponentTypes.AND2, 4, 4, Map.of());
         PrintInput input = input();
         PrintArea area = PrintScopes.area(input, new PrintScope.WholeCircuit()).orElseThrow();
@@ -657,7 +647,7 @@ class PagePainterTest {
         document.add(led);
         componentStates.put(led.id().value(), new VisibleState.LedState(Value.ONE));
         document.add(new TextLabel(document.newLabelId(), new GridPoint(4, 16), "ALU de 4 bits — señal"));
-        value(wire(7, 6, 14, 6), Value.ONE);
+        value(wire(document, 7, 6, 14, 6), Value.ONE);
     }
 
     /** The PDF's page {@code pageIndex} and the preview's image of it, at the same resolution, side by side. */
@@ -785,8 +775,8 @@ class PagePainterTest {
                 document.add(gate);
             }
         }
-        value(wire(-2, 62, 104, 62), Value.ONE);
-        wire(50, -2, 50, 126);
+        value(wire(document, -2, 62, 104, 62), Value.ONE);
+        wire(document, 50, -2, 50, 126);
         document.add(new TextLabel(document.newLabelId(), new GridPoint(40, 60), "Una nota sobre el borde"));
     }
 

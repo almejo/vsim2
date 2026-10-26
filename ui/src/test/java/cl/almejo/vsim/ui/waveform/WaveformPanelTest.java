@@ -19,14 +19,12 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import javax.swing.AbstractButton;
-import javax.swing.Action;
 import javax.swing.JComponent;
 import javax.swing.JMenuItem;
 import javax.swing.JPopupMenu;
 import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
 import java.awt.Cursor;
-import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayDeque;
@@ -36,7 +34,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import static cl.almejo.vsim.ui.UiTestSupport.perform;
 import static cl.almejo.vsim.ui.UiTestSupport.place;
+import static cl.almejo.vsim.ui.UiTestSupport.texts;
 import static cl.almejo.vsim.ui.UiTestSupport.waitUntil;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
@@ -88,21 +88,9 @@ class WaveformPanelTest {
         return channel.snapshot();
     }
 
-    private static void perform(Action action) {
-        action.actionPerformed(new ActionEvent(new Object(), ActionEvent.ACTION_PERFORMED, ""));
-    }
-
     private void pressKey(int keyCode) {
         Object name = panel.plot().getInputMap(JComponent.WHEN_FOCUSED).get(KeyStroke.getKeyStroke(keyCode, 0));
         perform(panel.plot().getActionMap().get(name));
-    }
-
-    private static List<String> texts(JPopupMenu menu) {
-        List<String> texts = new ArrayList<>();
-        for (java.awt.Component child : menu.getComponents()) {
-            texts.add(child instanceof JMenuItem item ? item.getText() : "---");
-        }
-        return texts;
     }
 
     private static JMenuItem item(JPopupMenu menu, String text) {

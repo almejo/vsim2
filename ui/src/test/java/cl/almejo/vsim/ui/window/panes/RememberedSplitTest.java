@@ -8,7 +8,6 @@ import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.window.EditorView;
-import cl.almejo.vsim.ui.window.WindowCommands;
 import cl.almejo.vsim.ui.window.panes.CanvasPanes.Orientation;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -23,22 +22,13 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalDouble;
 
+import static cl.almejo.vsim.ui.UiTestSupport.NO_WINDOW;
 import static cl.almejo.vsim.ui.UiTestSupport.place;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
 
 /** Dividir la vista, Task 4: a file's window comes back split as it was; the circuit file never knows. */
 class RememberedSplitTest {
-
-    private static final WindowCommands WINDOW = new WindowCommands() {
-        @Override public void newDocument() { }
-        @Override public void open() { }
-        @Override public void save() { }
-        @Override public void saveAs() { }
-        @Override public void closeWindow() { }
-        @Override public void exit() { }
-        @Override public void newView() { }
-    };
 
     /** A delay that runs only when the test says so. */
     private static final class FakeDelay implements RememberedSplit.Delay {
@@ -81,7 +71,7 @@ class RememberedSplitTest {
 
     /** One editor window on {@code document}, with its canvas area sized {@code width} × {@code height}. */
     private Editor open(OpenDocument document, int width, int height) {
-        EditorView view = new EditorView(document, PainterRegistry.standard(), ColorScheme.LIGHT, WINDOW);
+        EditorView view = new EditorView(document, PainterRegistry.standard(), ColorScheme.LIGHT, NO_WINDOW);
         view.setSize(1200, 800);
         view.doLayout();
         view.canvasPanes().setSize(width, height);

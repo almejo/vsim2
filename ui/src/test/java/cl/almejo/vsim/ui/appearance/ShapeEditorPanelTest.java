@@ -34,7 +34,6 @@ import javax.swing.JLabel;
 import javax.swing.JTextArea;
 import javax.swing.KeyStroke;
 import javax.swing.SwingConstants;
-import java.awt.Container;
 import java.awt.Point;
 import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
@@ -46,6 +45,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import static cl.almejo.vsim.ui.UiTestSupport.layOut;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class ShapeEditorPanelTest {
@@ -306,15 +306,6 @@ class ShapeEditorPanelTest {
         JComponent warning = panel.messageComponent(0);
         assertThat(warning.getHeight()).as("the long line wraps to more than one row")
                 .isGreaterThan(2 * warning.getFontMetrics(warning.getFont()).getHeight());
-    }
-
-    private static void layOut(Container container) {
-        container.doLayout();
-        for (java.awt.Component child : container.getComponents()) {
-            if (child instanceof Container nested) {
-                layOut(nested);
-            }
-        }
     }
 
     @Test

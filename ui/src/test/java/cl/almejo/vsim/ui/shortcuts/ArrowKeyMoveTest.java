@@ -21,7 +21,6 @@ import cl.almejo.vsim.ui.preferences.PreferencesFeature;
 import cl.almejo.vsim.ui.tools.WireTool;
 import cl.almejo.vsim.ui.window.EditorServices;
 import cl.almejo.vsim.ui.window.EditorView;
-import cl.almejo.vsim.ui.window.WindowCommands;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -37,20 +36,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import static cl.almejo.vsim.ui.UiTestSupport.NO_WINDOW;
 import static cl.almejo.vsim.ui.UiTestSupport.place;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** The arrow keys move the selection one grid unit (five with Mayús), as one undo step per run. */
 class ArrowKeyMoveTest {
-
-    private static final WindowCommands WINDOW = new WindowCommands() {
-        @Override public void newDocument() { }
-        @Override public void open() { }
-        @Override public void save() { }
-        @Override public void saveAs() { }
-        @Override public void closeWindow() { }
-        @Override public void exit() { }
-    };
 
     private OpenDocument openDocument;
     private EditorServices services;
@@ -64,7 +55,7 @@ class ArrowKeyMoveTest {
         openDocument = OpenDocument.createEmpty(StandardComponentTypes.registry());
         services = EditorServices.of(PainterRegistry.standard(), ColorScheme.LIGHT)
                 .withExtensions(List.of(new PreferencesFeature(), new FramesExtension(), new ShortcutsExtension()));
-        view = new EditorView(openDocument, services, WINDOW);
+        view = new EditorView(openDocument, services, NO_WINDOW);
         canvas = view.canvas();
         canvas.setSize(400, 300);
         gate = place(openDocument, StandardComponentTypes.NOT, 5, 5, Map.of());

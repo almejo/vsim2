@@ -1,9 +1,7 @@
 package cl.almejo.vsim.ui.ai;
 
 import cl.almejo.vsim.automation.AutomationApi;
-import cl.almejo.vsim.automation.AutomationHost;
 import cl.almejo.vsim.automation.DocumentId;
-import cl.almejo.vsim.automation.EditorAccess;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.i18n.Messages;
 import org.junit.jupiter.api.AfterEach;
@@ -21,12 +19,11 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Function;
 
+import static cl.almejo.vsim.ui.UiTestSupport.freePort;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** «Encender» off the EDT, «Apagar» during a start, «Reiniciar» and what the panel's header says (IA.3). */
@@ -312,19 +309,6 @@ class AiServerLifecycleTest {
             return probe.getLocalPort() == port;
         } catch (IOException exception) {
             return false;
-        }
-    }
-
-    private static int freePort() throws IOException {
-        try (ServerSocket probe = new ServerSocket(0, 50, InetAddress.getLoopbackAddress())) {
-            return probe.getLocalPort();
-        }
-    }
-
-    private static final class NoDocuments implements AutomationHost {
-        @Override
-        public <T> CompletableFuture<T> onEditorThread(Function<EditorAccess, T> work) {
-            return CompletableFuture.completedFuture(work.apply(List::of));
         }
     }
 }

@@ -22,7 +22,6 @@ import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.window.EditorServices;
 import cl.almejo.vsim.ui.window.EditorView;
-import cl.almejo.vsim.ui.window.WindowCommands;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -32,24 +31,16 @@ import javax.swing.JMenuItem;
 import javax.swing.JPopupMenu;
 import java.awt.event.ActionEvent;
 import java.awt.geom.Point2D;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import static cl.almejo.vsim.ui.UiTestSupport.NO_WINDOW;
 import static cl.almejo.vsim.ui.UiTestSupport.place;
+import static cl.almejo.vsim.ui.UiTestSupport.texts;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class LabelMenuContributorTest {
-
-    private static final WindowCommands NO_WINDOW = new WindowCommands() {
-        @Override public void newDocument() { }
-        @Override public void open() { }
-        @Override public void save() { }
-        @Override public void saveAs() { }
-        @Override public void closeWindow() { }
-        @Override public void exit() { }
-    };
 
     private final OpenDocument openDocument = OpenDocument.createEmpty(StandardComponentTypes.registry());
     private EditorView view;
@@ -78,14 +69,6 @@ class LabelMenuContributorTest {
         JPopupMenu menu = new JPopupMenu();
         contributor.contribute(menu, target, selection, clickedAt);
         return menu;
-    }
-
-    private static List<String> texts(JPopupMenu menu) {
-        List<String> texts = new ArrayList<>();
-        for (java.awt.Component child : menu.getComponents()) {
-            texts.add(child instanceof JMenuItem item ? item.getText() : "---");
-        }
-        return texts;
     }
 
     private static void choose(JPopupMenu menu, int index) {
@@ -172,14 +155,6 @@ class LabelMenuContributorTest {
         openDocument.history().undo();
         assertThat(openDocument.document().labels()).extracting(TextLabel::style)
                 .containsOnly(NoteStyle.PLAIN);
-    }
-
-    private static List<String> texts(JMenu menu) {
-        List<String> texts = new ArrayList<>();
-        for (java.awt.Component child : menu.getMenuComponents()) {
-            texts.add(child instanceof JMenuItem item ? item.getText() : "---");
-        }
-        return texts;
     }
 
     @Test
