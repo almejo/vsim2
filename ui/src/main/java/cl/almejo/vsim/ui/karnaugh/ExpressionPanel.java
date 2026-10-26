@@ -8,16 +8,12 @@ import cl.almejo.vsim.ui.i18n.Messages;
 import net.miginfocom.swing.MigLayout;
 
 import javax.swing.AbstractButton;
-import javax.swing.ButtonGroup;
 import javax.swing.JCheckBox;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
-import javax.swing.JRadioButton;
 import java.awt.Font;
 import java.util.ArrayList;
-import java.util.EnumMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -36,10 +32,7 @@ final class ExpressionPanel extends JPanel implements WizardStep {
     private final KarnaughCost cost;
     private final JPanel expressions = new JPanel(new MigLayout("insets 0, gap 0 6, wrap 1"));
     private final List<ColoredExpression> lines = new ArrayList<>();
-    private final Map<WizardOptions.GateChoice, JRadioButton> gateButtons =
-            new EnumMap<>(WizardOptions.GateChoice.class);
-    private final Map<Minimization.Form, JRadioButton> formButtons = new EnumMap<>(Minimization.Form.class);
-    private final JCheckBox share = new JCheckBox(Messages.text("karnaugh.expression.share"));
+    private final OptionControls optionControls;
     private final JCheckBox useMine = new JCheckBox(Messages.text("karnaugh.practice.useMine"));
     private final JLabel useMineReason = WizardColors.label("", WizardColors::warning);
     private final JLabel costLabel = new JLabel();
@@ -49,46 +42,21 @@ final class ExpressionPanel extends JPanel implements WizardStep {
         this.model = model;
         this.cost = cost;
 
-        ButtonGroup gates = new ButtonGroup();
-        JPanel gatesPanel = new JPanel(new MigLayout("insets 0"));
-        addGate(gates, gatesPanel, WizardOptions.GateChoice.AND_OR_NOT, "karnaugh.expression.gates.andOrNot");
-        addGate(gates, gatesPanel, WizardOptions.GateChoice.NAND_ONLY, "karnaugh.expression.gates.nandOnly");
-        addGate(gates, gatesPanel, WizardOptions.GateChoice.NOR_ONLY, "karnaugh.expression.gates.norOnly");
-        ButtonGroup forms = new ButtonGroup();
-        JPanel formsPanel = new JPanel(new MigLayout("insets 0"));
-        addForm(forms, formsPanel, Minimization.Form.SUM_OF_PRODUCTS, "karnaugh.expression.form.sop");
-        addForm(forms, formsPanel, Minimization.Form.PRODUCT_OF_SUMS, "karnaugh.expression.form.pos");
-        share.addActionListener(event -> model.setOptions(model.options().withShareTerms(share.isSelected())));
+        optionControls = new OptionControls(model::options, model::setOptions);
         useMine.addActionListener(event -> model.setUseStudentGroups(useMine.isSelected()));
         costLabel.setFont(costLabel.getFont().deriveFont(Font.BOLD));
 
         add(new Paragraph(Messages.text("karnaugh.expression.help")), "span 2, growx, wmin 100");
         add(expressions, "span 2");
         add(new JLabel(Messages.text("karnaugh.expression.gates")));
-        add(gatesPanel);
+        add(optionControls.gatesPanel());
         add(new JLabel(Messages.text("karnaugh.expression.form")));
-        add(formsPanel);
-        add(share, "skip 1");
+        add(optionControls.formsPanel());
+        add(optionControls.shareBox(), "skip 1");
         add(useMine, "skip 1");
         add(useMineReason, "skip 1, gapleft 24");
         add(new JLabel(Messages.text("karnaugh.expression.cost")));
         add(costLabel);
-    }
-
-    private void addGate(ButtonGroup group, JPanel panel, WizardOptions.GateChoice choice, String key) {
-        JRadioButton button = new JRadioButton(Messages.text(key));
-        button.addActionListener(event -> model.setOptions(model.options().withGates(choice)));
-        group.add(button);
-        panel.add(button);
-        gateButtons.put(choice, button);
-    }
-
-    private void addForm(ButtonGroup group, JPanel panel, Minimization.Form form, String key) {
-        JRadioButton button = new JRadioButton(Messages.text(key));
-        button.addActionListener(event -> model.setOptions(model.options().withForm(form)));
-        group.add(button);
-        panel.add(button);
-        formButtons.put(form, button);
     }
 
     @Override
@@ -97,9 +65,7 @@ final class ExpressionPanel extends JPanel implements WizardStep {
             return;
         }
         WizardOptions options = model.options();
-        gateButtons.get(options.gates()).setSelected(true);
-        formButtons.get(options.form()).setSelected(true);
-        share.setSelected(options.shareTerms());
+        optionControls.sync(options);
         refreshUseMine();
         Minimization minimization = model.shownMinimization();
         expressions.removeAll();
@@ -184,7 +150,7 @@ final class ExpressionPanel extends JPanel implements WizardStep {
     }
 
     AbstractButton shareCheckBox() {
-        return share;
+        return optionControls.shareBox();
     }
 
     AbstractButton useMineCheckBox() {
@@ -196,10 +162,10 @@ final class ExpressionPanel extends JPanel implements WizardStep {
     }
 
     AbstractButton gateButton(WizardOptions.GateChoice choice) {
-        return gateButtons.get(choice);
+        return optionControls.gateButton(choice);
     }
 
     AbstractButton formButton(Minimization.Form form) {
-        return formButtons.get(form);
+        return optionControls.formButton(form);
     }
 }

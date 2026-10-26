@@ -12,11 +12,9 @@ import net.miginfocom.swing.MigLayout;
 import javax.swing.Action;
 import javax.swing.AbstractButton;
 import javax.swing.BorderFactory;
-import javax.swing.ButtonGroup;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
-import javax.swing.JRadioButton;
 import javax.swing.JScrollPane;
 import javax.swing.JToggleButton;
 import javax.swing.KeyStroke;
@@ -32,9 +30,7 @@ import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.ArrayList;
-import java.util.EnumMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -70,7 +66,7 @@ final class GroupsPanel extends JPanel implements WizardStep {
     private final JToggleButton rulesToggle = new JToggleButton();
     private final Paragraph rules = new Paragraph("");
     private final JPanel practiceForm = new JPanel(new MigLayout("insets 0"));
-    private final Map<Minimization.Form, JRadioButton> formButtons = new EnumMap<>(Minimization.Form.class);
+    private final OptionControls optionControls;
     private final JPanel solutionSide = new JPanel(new MigLayout("insets 0, fillx, wrap 1, hidemode 3",
             "[grow, fill]"));
     private final PracticePanel practicePanel;
@@ -83,6 +79,7 @@ final class GroupsPanel extends JPanel implements WizardStep {
         super(new MigLayout("insets 12, fill, hidemode 3", "[grow, fill][400!, fill]",
                 model.practice().practising() ? "[][grow, fill]" : "[grow, fill]"));
         this.model = model;
+        this.optionControls = new OptionControls(model::options, model::setOptions);
         this.hover = hover;
         this.tabs = new OutputTabs(model, hover, true);
         this.practicePanel = new PracticePanel(model,
@@ -125,19 +122,9 @@ final class GroupsPanel extends JPanel implements WizardStep {
 
     /** The practice's «Forma:» (the same option as step 4); not in the solution wizard's panel. */
     private void buildPracticeForm() {
-        ButtonGroup forms = new ButtonGroup();
         practiceForm.add(new JLabel(Messages.text("karnaugh.practice.form")));
-        addForm(forms, Minimization.Form.SUM_OF_PRODUCTS, "karnaugh.expression.form.sop");
-        addForm(forms, Minimization.Form.PRODUCT_OF_SUMS, "karnaugh.expression.form.pos");
+        optionControls.formRadios().forEach(practiceForm::add);
         practiceForm.setVisible(model.practice().practising());
-    }
-
-    private void addForm(ButtonGroup group, Minimization.Form form, String key) {
-        JRadioButton button = new JRadioButton(Messages.text(key));
-        button.addActionListener(event -> model.setOptions(model.options().withForm(form)));
-        group.add(button);
-        practiceForm.add(button);
-        formButtons.put(form, button);
     }
 
     /** Esc lets a pinned group go; unpinned, the action is off so Esc reaches the window (which closes). */
@@ -165,7 +152,7 @@ final class GroupsPanel extends JPanel implements WizardStep {
         tabs.refresh();
         boolean practising = model.practice().practising();
         practiceForm.setVisible(practising);
-        formButtons.get(model.options().form()).setSelected(true);
+        optionControls.syncForm(model.options());
         solutionSide.setVisible(!practising);
         practicePanel.setVisible(practising);
         if (practising) {
@@ -268,7 +255,7 @@ final class GroupsPanel extends JPanel implements WizardStep {
     }
 
     AbstractButton practiceFormButton(Minimization.Form form) {
-        return formButtons.get(form);
+        return optionControls.formButton(form);
     }
 
     boolean practiceFormVisible() {

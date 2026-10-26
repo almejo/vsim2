@@ -12,13 +12,11 @@ import net.miginfocom.swing.MigLayout;
 
 import javax.swing.AbstractButton;
 import javax.swing.BorderFactory;
-import javax.swing.ButtonGroup;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JDialog;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
-import javax.swing.JRadioButton;
 import javax.swing.JRootPane;
 import javax.swing.JScrollPane;
 import javax.swing.JTextField;
@@ -36,9 +34,7 @@ import java.awt.Rectangle;
 import java.awt.event.FocusAdapter;
 import java.awt.event.FocusEvent;
 import java.util.ArrayList;
-import java.util.EnumMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.Callable;
 
@@ -101,12 +97,9 @@ public final class ExpressionsPanel extends JPanel {
     private final Paragraph tableProblems = Paragraph.error();
     private final JCheckBox simplify = new JCheckBox(Messages.text("expressions.simplify"));
     private final JButton wizardLink = new JButton(Messages.text("expressions.openInWizard"));
-    private final Map<WizardOptions.GateChoice, JRadioButton> gateButtons =
-            new EnumMap<>(WizardOptions.GateChoice.class);
-    private final Map<Minimization.Form, JRadioButton> formButtons = new EnumMap<>(Minimization.Form.class);
+    private final OptionControls optionControls;
     private final JLabel formReason =
             WizardColors.label(Messages.text("expressions.asWrittenReason"), WizardColors::muted);
-    private final JCheckBox share = new JCheckBox(Messages.text("karnaugh.expression.share"));
     private final JLabel costLine = new JLabel(" ");
     private final JButton close = new JButton(Messages.text("karnaugh.close"));
     private final ExpressionLegend legend;
@@ -165,22 +158,13 @@ public final class ExpressionsPanel extends JPanel {
 
         content.add(simplify, "span 2, gaptop 12");
 
-        ButtonGroup gates = new ButtonGroup();
-        JPanel gatesPanel = new JPanel(new MigLayout("insets 0"));
-        addGate(gates, gatesPanel, WizardOptions.GateChoice.AND_OR_NOT, "karnaugh.expression.gates.andOrNot");
-        addGate(gates, gatesPanel, WizardOptions.GateChoice.NAND_ONLY, "karnaugh.expression.gates.nandOnly");
-        addGate(gates, gatesPanel, WizardOptions.GateChoice.NOR_ONLY, "karnaugh.expression.gates.norOnly");
-        ButtonGroup forms = new ButtonGroup();
-        JPanel formsPanel = new JPanel(new MigLayout("insets 0"));
-        addForm(forms, formsPanel, Minimization.Form.SUM_OF_PRODUCTS, "karnaugh.expression.form.sop");
-        addForm(forms, formsPanel, Minimization.Form.PRODUCT_OF_SUMS, "karnaugh.expression.form.pos");
-        share.addActionListener(event -> model.setOptions(model.options().withShareTerms(share.isSelected())));
+        optionControls = new OptionControls(model::options, model::setOptions);
         content.add(new JLabel(Messages.text("karnaugh.expression.gates")));
-        content.add(gatesPanel);
+        content.add(optionControls.gatesPanel());
         content.add(new JLabel(Messages.text("karnaugh.expression.form")));
-        content.add(formsPanel);
+        content.add(optionControls.formsPanel());
         content.add(formReason, "span 2, hidemode 3");
-        content.add(share, "span 2");
+        content.add(optionControls.shareBox(), "span 2");
         JPanel costRow = new JPanel(new MigLayout("insets 0", "[]8[]"));
         costRow.add(new JLabel(Messages.text("karnaugh.expression.cost")));
         costLine.setFont(costLine.getFont().deriveFont(Font.BOLD));
@@ -249,22 +233,6 @@ public final class ExpressionsPanel extends JPanel {
                 action.run();
             }
         });
-    }
-
-    private void addGate(ButtonGroup group, JPanel panel, WizardOptions.GateChoice choice, String key) {
-        JRadioButton button = new JRadioButton(Messages.text(key));
-        button.addActionListener(event -> model.setOptions(model.options().withGates(choice)));
-        group.add(button);
-        panel.add(button);
-        gateButtons.put(choice, button);
-    }
-
-    private void addForm(ButtonGroup group, JPanel panel, Minimization.Form choice, String key) {
-        JRadioButton button = new JRadioButton(Messages.text(key));
-        button.addActionListener(event -> model.setOptions(model.options().withForm(choice)));
-        group.add(button);
-        panel.add(button);
-        formButtons.put(choice, button);
     }
 
     /** «+ Agregar salida»: a new line with the next free name, ready to type in. */
@@ -392,13 +360,7 @@ public final class ExpressionsPanel extends JPanel {
         tableProblems.setText(String.join("\n", problems));
         tableProblems.setVisible(!problems.isEmpty());
         simplify.setSelected(model.simplify());
-        for (Map.Entry<WizardOptions.GateChoice, JRadioButton> entry : gateButtons.entrySet()) {
-            entry.getValue().setSelected(entry.getKey() == model.options().gates());
-        }
-        for (Map.Entry<Minimization.Form, JRadioButton> entry : formButtons.entrySet()) {
-            entry.getValue().setSelected(entry.getKey() == model.options().form());
-        }
-        share.setSelected(model.options().shareTerms());
+        optionControls.sync(model.options());
         form.proposeName(model.spec().map(TruthTableSpec::title).orElse(model.title()));
         refreshButtons();
         refreshPreview();
@@ -509,11 +471,10 @@ public final class ExpressionsPanel extends JPanel {
         }
         addLine.setEnabled(!busy && model.canAddLine());
         simplify.setEnabled(!busy);
-        List<AbstractButton> minimizing = new ArrayList<>(gateButtons.values());
-        minimizing.addAll(formButtons.values());
+        List<AbstractButton> minimizing = new ArrayList<>(optionControls.radioButtons());
         minimizing.forEach(button -> button.setEnabled(!busy && simplifying));
         formReason.setVisible(!simplifying);
-        share.setEnabled(!busy);
+        optionControls.shareBox().setEnabled(!busy);
         wizardLink.setEnabled(!busy && model.canOpenInWizard());
         boolean outOfRange = model.spec().isPresent() && !model.canOpenInWizard();
         wizardLink.setToolTipText(outOfRange ? Messages.text("expressions.openInWizard.range") : null);
@@ -689,11 +650,11 @@ public final class ExpressionsPanel extends JPanel {
     }
 
     AbstractButton shareBox() {
-        return share;
+        return optionControls.shareBox();
     }
 
     AbstractButton gateButton(WizardOptions.GateChoice choice) {
-        return gateButtons.get(choice);
+        return optionControls.gateButton(choice);
     }
 
     AbstractButton wizardLink() {
