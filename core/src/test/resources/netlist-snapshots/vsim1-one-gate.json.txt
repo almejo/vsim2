@@ -1,0 +1,36 @@
+== compile
+net n:p:c1#0 width=1 mismatch=false
+  wires [w4, w7]
+  pins [c1#0, c3#0]
+  points [GridPoint[x=23, y=29], GridPoint[x=23, y=31], GridPoint[x=28, y=31]]
+net n:p:c2#0 width=1 mismatch=false
+  wires [w5, w6]
+  pins [c2#0, c3#1]
+  points [GridPoint[x=21, y=35], GridPoint[x=22, y=35], GridPoint[x=28, y=35]]
+net n:p:c3#2 width=1 mismatch=false
+  wires []
+  pins [c3#2]
+  points [GridPoint[x=32, y=33]]
+pin c1#0 -> n:p:c1#0
+pin c2#0 -> n:p:c2#0
+pin c3#0 -> n:p:c1#0
+pin c3#1 -> n:p:c2#0
+pin c3#2 -> n:p:c3#2
+== compileAsDrawn
+net n:p:c1#0 width=1 mismatch=false
+  wires [w4, w7]
+  pins [c1#0, c3#0]
+  points [GridPoint[x=23, y=29], GridPoint[x=23, y=31], GridPoint[x=28, y=31]]
+net n:p:c2#0 width=1 mismatch=false
+  wires [w5, w6]
+  pins [c2#0, c3#1]
+  points [GridPoint[x=21, y=35], GridPoint[x=22, y=35], GridPoint[x=28, y=35]]
+net n:p:c3#2 width=1 mismatch=false
+  wires []
+  pins [c3#2]
+  points [GridPoint[x=32, y=33]]
+pin c1#0 -> n:p:c1#0
+pin c2#0 -> n:p:c2#0
+pin c3#0 -> n:p:c1#0
+pin c3#1 -> n:p:c2#0
+pin c3#2 -> n:p:c3#2
