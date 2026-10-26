@@ -26,6 +26,8 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
+import static cl.almejo.vsim.mcp.McpResults.structured;
+import static cl.almejo.vsim.mcp.McpResults.map;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** «Presentar» as the AI reaches it (spec §4, §5.1, §6): the mode, the stage origin, proposed steps and their wait. */
@@ -356,15 +358,5 @@ class PresentationToolsTest {
         McpSchema.CallToolResult result = runner.call(tool(name), arguments);
         assertThat(result.isError()).as("%s answered %s", name, result.content()).isTrue();
         return structured(result);
-    }
-
-    @SuppressWarnings("unchecked")
-    private static Map<String, Object> structured(McpSchema.CallToolResult result) {
-        return (Map<String, Object>) result.structuredContent();
-    }
-
-    @SuppressWarnings("unchecked")
-    private static Map<String, Object> map(Map<String, Object> object, String key) {
-        return (Map<String, Object>) object.get(key);
     }
 }

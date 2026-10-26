@@ -25,6 +25,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
+import static cl.almejo.vsim.mcp.McpResults.structured;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** The AI's questions as it reaches them (IA.3 Task 8): ask, wait for the answer, withdraw. */
@@ -190,10 +191,5 @@ class AskToolsTest {
         McpSchema.CallToolResult result = runner.call(tool(name), arguments);
         assertThat(result.isError()).as("%s answered %s", name, result.content()).isTrue();
         return structured(result);
-    }
-
-    @SuppressWarnings("unchecked")
-    private static Map<String, Object> structured(McpSchema.CallToolResult result) {
-        return (Map<String, Object>) result.structuredContent();
     }
 }

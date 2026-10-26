@@ -22,6 +22,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import static cl.almejo.vsim.mcp.McpResults.structured;
+import static cl.almejo.vsim.mcp.McpResults.map;
+import static cl.almejo.vsim.mcp.McpResults.list;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Each tool called as a client calls it, on a headless host with real circuits; every result matches its schema. */
@@ -516,22 +519,7 @@ class ToolCallsTest {
         assertThat(validation.valid()).as("%s output: %s", tool.name(), validation.errorMessage()).isTrue();
     }
 
-    @SuppressWarnings("unchecked")
-    private static Map<String, Object> structured(McpSchema.CallToolResult result) {
-        return (Map<String, Object>) result.structuredContent();
-    }
-
     private static Map<String, Object> error(McpSchema.CallToolResult result) {
         return structured(result);
-    }
-
-    @SuppressWarnings("unchecked")
-    private static Map<String, Object> map(Map<String, Object> object, String key) {
-        return (Map<String, Object>) object.get(key);
-    }
-
-    @SuppressWarnings("unchecked")
-    private static List<Map<String, Object>> list(Map<String, Object> object, String key) {
-        return (List<Map<String, Object>>) object.get(key);
     }
 }

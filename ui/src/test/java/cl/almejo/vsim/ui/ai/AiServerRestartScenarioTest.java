@@ -34,6 +34,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
+import static cl.almejo.vsim.mcp.McpResults.structured;
+import static cl.almejo.vsim.mcp.McpResults.list;
 import static cl.almejo.vsim.ui.UiTestSupport.freePort;
 import static cl.almejo.vsim.ui.UiTestSupport.onEditor;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -340,16 +342,6 @@ class AiServerRestartScenarioTest {
                 .arguments(arguments).build());
         assertThat(result.isError()).as("%s answered %s", name, result.structuredContent()).isNotEqualTo(true);
         return structured(result);
-    }
-
-    @SuppressWarnings("unchecked")
-    private static Map<String, Object> structured(McpSchema.CallToolResult result) {
-        return (Map<String, Object>) result.structuredContent();
-    }
-
-    @SuppressWarnings("unchecked")
-    private static List<Map<String, Object>> list(Map<String, Object> object, String key) {
-        return (List<Map<String, Object>>) object.get(key);
     }
 
     private final class Heard implements PresentationListener {

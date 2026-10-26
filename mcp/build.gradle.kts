@@ -2,6 +2,7 @@
 // the MCP Java SDK; never on ui.
 plugins {
     `java-library`
+    `java-test-fixtures` // McpResults, shared by the tool tests here and the editor's AI scenarios
 }
 
 dependencies {
@@ -11,6 +12,8 @@ dependencies {
     implementation(libs.jetty.servlet)
     implementation(libs.jackson.databind)
     implementation(libs.slf4j.api)
+
+    testFixturesImplementation(libs.mcp.core)
 
     testImplementation(testFixtures(project(":core")))
     testImplementation(testFixtures(project(":automation")))

@@ -47,6 +47,9 @@ import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static cl.almejo.vsim.mcp.McpResults.structured;
+import static cl.almejo.vsim.mcp.McpResults.map;
+import static cl.almejo.vsim.mcp.McpResults.list;
 import static cl.almejo.vsim.ui.UiTestSupport.NO_WINDOW;
 import static cl.almejo.vsim.ui.UiTestSupport.layOut;
 import static cl.almejo.vsim.ui.UiTestSupport.onEditor;
@@ -733,26 +736,11 @@ class EndToEndScenariosTest {
     }
 
     @SuppressWarnings("unchecked")
-    private static Map<String, Object> structured(McpSchema.CallToolResult result) {
-        return (Map<String, Object>) result.structuredContent();
-    }
-
-    @SuppressWarnings("unchecked")
     private static Map<String, String> aliases(Map<String, Object> receipt) {
         return (Map<String, String>) receipt.get("aliases");
     }
 
     private static long versionIn(Map<String, Object> result) {
         return ((Number) result.get("version")).longValue();
-    }
-
-    @SuppressWarnings("unchecked")
-    private static Map<String, Object> map(Map<String, Object> object, String key) {
-        return (Map<String, Object>) object.get(key);
-    }
-
-    @SuppressWarnings("unchecked")
-    private static List<Map<String, Object>> list(Map<String, Object> object, String key) {
-        return (List<Map<String, Object>>) object.get(key);
     }
 }
