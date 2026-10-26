@@ -20,6 +20,19 @@ class FileNamesTest {
     }
 
     @Test
+    void addsAnyExtensionOnlyWhenMissing() {
+        assertThat(FileNames.withExtension(Path.of("/tmp/tabla"), ".csv")).isEqualTo(Path.of("/tmp/tabla.csv"));
+        assertThat(FileNames.withExtension(Path.of("/tmp/tabla.CSV"), ".csv")).isEqualTo(Path.of("/tmp/tabla.CSV"));
+        assertThat(FileNames.withExtension(Path.of("sumador.vsim"), ".pdf")).isEqualTo(Path.of("sumador.vsim.pdf"));
+    }
+
+    @Test
+    void safeNameReplacesTheCharactersFileSystemsRefuse() {
+        assertThat(FileNames.safeName("a/b\\c:d*e?f\"g<h>i|j")).isEqualTo("a_b_c_d_e_f_g_h_i_j");
+        assertThat(FileNames.safeName("sumador 4 bits")).isEqualTo("sumador 4 bits");
+    }
+
+    @Test
     void normalizedGivesOneSpellingPerFile(@TempDir Path directory) throws IOException {
         Path file = Files.createFile(directory.resolve("a.vsim"));
         Files.createDirectory(directory.resolve("sub"));

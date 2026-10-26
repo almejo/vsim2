@@ -196,8 +196,7 @@ final class TruthTableWindow extends JDialog implements TruthTableDisplay {
     }
 
     private void exportTable() {
-        Path directory = view.openDocument().path().map(Path::getParent)
-                .orElseGet(() -> Path.of(System.getProperty("user.home")));
+        Path directory = view.openDocument().startDirectory(Optional.empty());
         TruthTableExport.choose(this, directory, view.openDocument().displayName()).ifPresent(target -> {
             try {
                 TruthTableExport.write(target, shown);

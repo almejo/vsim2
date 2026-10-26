@@ -195,8 +195,14 @@ public final class OpenDocument implements AutoCloseable {
         return document.name().isBlank() ? Messages.text("document.untitled") : document.name();
     }
 
+    /** {@code preferred} when given, else the folder of this document's file, else the user's home. */
+    public Path startDirectory(Optional<Path> preferred) {
+        return preferred.or(() -> path().map(Path::getParent))
+                .orElseGet(() -> Path.of(System.getProperty("user.home")));
+    }
+
     public String suggestedFileName() {
-        return displayName().replaceAll("[/\\\\:*?\"<>|]", "_") + FileNames.EXTENSION;
+        return FileNames.safeName(displayName()) + FileNames.EXTENSION;
     }
 
     public boolean isModified() {

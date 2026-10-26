@@ -12,8 +12,19 @@ public final class FileNames {
     }
 
     public static Path withExtension(Path path) {
+        return withExtension(path, EXTENSION);
+    }
+
+    /** {@code path}, with {@code extension} (dot included, like «.pdf») added unless it already ends in it (any case). */
+    public static Path withExtension(Path path, String extension) {
         String fileName = path.getFileName().toString();
-        return fileName.toLowerCase(Locale.ROOT).endsWith(EXTENSION) ? path : path.resolveSibling(fileName + EXTENSION);
+        return fileName.toLowerCase(Locale.ROOT).endsWith(extension) ? path
+                : path.resolveSibling(fileName + extension);
+    }
+
+    /** {@code name} with the characters file systems refuse ({@code / \ : * ? " < > |}) replaced by {@code _}. */
+    public static String safeName(String name) {
+        return name.replaceAll("[/\\\\:*?\"<>|]", "_");
     }
 
     /** One spelling per file: the real path when it exists (links and ".." resolved), else absolute and normalized. */

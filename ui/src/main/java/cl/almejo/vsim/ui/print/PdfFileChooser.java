@@ -1,12 +1,12 @@
 package cl.almejo.vsim.ui.print;
 
 import cl.almejo.vsim.ui.app.FileDialogs;
+import cl.almejo.vsim.ui.app.FileNames;
 import cl.almejo.vsim.ui.i18n.Messages;
 
 import javax.swing.filechooser.FileNameExtensionFilter;
 import java.awt.Component;
 import java.nio.file.Path;
-import java.util.Locale;
 import java.util.Optional;
 
 /**
@@ -29,8 +29,6 @@ public interface PdfFileChooser {
 
     /** {@code path}, with «.pdf» added unless it already ends in it (any case). */
     static Path withPdfExtension(Path path) {
-        String fileName = path.getFileName().toString();
-        return fileName.toLowerCase(Locale.ROOT).endsWith(EXTENSION) ? path
-                : path.resolveSibling(fileName + EXTENSION);
+        return FileNames.withExtension(path, EXTENSION);
     }
 }
