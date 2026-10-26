@@ -18,17 +18,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import static cl.almejo.vsim.core.DocumentFixtures.wire;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class MoveWithWiresCommandTest {
 
     private final ComponentTypeRegistry registry = StandardComponentTypes.registry();
-
-    private static Wire wire(CircuitDocument document, int startX, int startY, int endX, int endY) {
-        Wire wire = new Wire(document.newWireId(), new GridPoint(startX, startY), new GridPoint(endX, endY));
-        document.add(wire);
-        return wire;
-    }
 
     private static Component gate(CircuitDocument document, int x, int y) {
         Component component = new Component(document.newComponentId(), StandardComponentTypes.NOT,
