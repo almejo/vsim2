@@ -1,0 +1,76 @@
+== compile
+net n:p:c1#0 width=1 mismatch=false
+  wires [w7]
+  pins [c1#0, c4#0]
+  points [GridPoint[x=6, y=6], GridPoint[x=16, y=6]]
+net n:p:c2#0 width=1 mismatch=false
+  wires [w10, w8, w9]
+  pins [c2#0, c4#1]
+  points [GridPoint[x=6, y=12], GridPoint[x=12, y=10], GridPoint[x=12, y=12], GridPoint[x=16, y=10]]
+net n:p:c3#0 width=1 mismatch=false
+  wires [w14, w15, w16]
+  pins [c3#0, c5#1]
+  points [GridPoint[x=6, y=18], GridPoint[x=24, y=16], GridPoint[x=24, y=18], GridPoint[x=26, y=16]]
+net n:p:c4#2 width=1 mismatch=false
+  wires [w11, w12, w13]
+  pins [c4#2, c5#0]
+  points [GridPoint[x=20, y=8], GridPoint[x=23, y=8], GridPoint[x=23, y=12], GridPoint[x=26, y=12]]
+net n:p:c5#2 width=1 mismatch=false
+  wires [w17, w18, w20, w21]
+  pins [c19#0, c5#2, c6#0]
+  points [GridPoint[x=30, y=14], GridPoint[x=34, y=14], GridPoint[x=34, y=22], GridPoint[x=36, y=22], GridPoint[x=40, y=12], GridPoint[x=40, y=14]]
+net n:p:c6#1 width=1 mismatch=false
+  wires [w22, w23]
+  pins [c24#0, c6#1]
+  points [GridPoint[x=40, y=22], GridPoint[x=46, y=20], GridPoint[x=46, y=22]]
+pin c1#0 -> n:p:c1#0
+pin c2#0 -> n:p:c2#0
+pin c3#0 -> n:p:c3#0
+pin c4#0 -> n:p:c1#0
+pin c4#1 -> n:p:c2#0
+pin c4#2 -> n:p:c4#2
+pin c5#0 -> n:p:c4#2
+pin c5#1 -> n:p:c3#0
+pin c5#2 -> n:p:c5#2
+pin c6#0 -> n:p:c5#2
+pin c6#1 -> n:p:c6#1
+pin c19#0 -> n:p:c5#2
+pin c24#0 -> n:p:c6#1
+== compileAsDrawn
+net n:p:c1#0 width=1 mismatch=false
+  wires [w7]
+  pins [c1#0, c4#0]
+  points [GridPoint[x=6, y=6], GridPoint[x=16, y=6]]
+net n:p:c2#0 width=1 mismatch=false
+  wires [w10, w8, w9]
+  pins [c2#0, c4#1]
+  points [GridPoint[x=6, y=12], GridPoint[x=12, y=10], GridPoint[x=12, y=12], GridPoint[x=16, y=10]]
+net n:p:c3#0 width=1 mismatch=false
+  wires [w14, w15, w16]
+  pins [c3#0, c5#1]
+  points [GridPoint[x=6, y=18], GridPoint[x=24, y=16], GridPoint[x=24, y=18], GridPoint[x=26, y=16]]
+net n:p:c4#2 width=1 mismatch=false
+  wires [w11, w12, w13]
+  pins [c4#2, c5#0]
+  points [GridPoint[x=20, y=8], GridPoint[x=23, y=8], GridPoint[x=23, y=12], GridPoint[x=26, y=12]]
+net n:p:c5#2 width=1 mismatch=false
+  wires [w17, w18, w20, w21]
+  pins [c19#0, c5#2, c6#0]
+  points [GridPoint[x=30, y=14], GridPoint[x=34, y=14], GridPoint[x=34, y=22], GridPoint[x=36, y=22], GridPoint[x=40, y=12], GridPoint[x=40, y=14]]
+net n:p:c6#1 width=1 mismatch=false
+  wires [w22, w23]
+  pins [c24#0, c6#1]
+  points [GridPoint[x=40, y=22], GridPoint[x=46, y=20], GridPoint[x=46, y=22]]
+pin c1#0 -> n:p:c1#0
+pin c2#0 -> n:p:c2#0
+pin c3#0 -> n:p:c3#0
+pin c4#0 -> n:p:c1#0
+pin c4#1 -> n:p:c2#0
+pin c4#2 -> n:p:c4#2
+pin c5#0 -> n:p:c4#2
+pin c5#1 -> n:p:c3#0
+pin c5#2 -> n:p:c5#2
+pin c6#0 -> n:p:c5#2
+pin c6#1 -> n:p:c6#1
+pin c19#0 -> n:p:c5#2
+pin c24#0 -> n:p:c6#1

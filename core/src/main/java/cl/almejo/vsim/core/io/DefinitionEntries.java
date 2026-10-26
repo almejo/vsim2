@@ -20,6 +20,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+import static cl.almejo.vsim.core.io.CircuitFormatException.invalid;
+
 /** The JSON shape of a definition, shared by circuit files, clipboard fragments and component files. */
 final class DefinitionEntries {
 
@@ -60,7 +62,7 @@ final class DefinitionEntries {
             CircuitFormat.requireEntry(entry, "definitions");
             ComponentDefinition definition = definition(entry);
             if (document.definition(definition.id()).isPresent()) {
-                throw invalid("duplicate definition " + definition.id(), null);
+                throw invalid("duplicate definition " + definition.id());
             }
             put(document, definition);
             written.add(definition);
@@ -133,7 +135,4 @@ final class DefinitionEntries {
         }
     }
 
-    private static CircuitFormatException invalid(String detail, Throwable cause) {
-        return new CircuitFormatException(CircuitFormatException.Reason.INVALID_ELEMENT, detail, cause);
-    }
 }

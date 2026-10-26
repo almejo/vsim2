@@ -13,20 +13,17 @@ import java.util.Optional;
  * The helpers build {@code before} and {@code after} from the document's guides as they are when called, and give
  * no command when the edit would change nothing.
  */
-public final class SetGuidesCommand implements Command {
+public final class SetGuidesCommand extends BeforeAfterCommand<List<Guide>> {
 
     private static final String ADD_GUIDE = "command.addGuide";
     private static final String MOVE_GUIDE = "command.moveGuide";
     private static final String REMOVE_GUIDE = "command.removeGuide";
     private static final String CLEAR_GUIDES = "command.clearGuides";
 
-    private final List<Guide> before;
-    private final List<Guide> after;
     private final String descriptionKey;
 
     public SetGuidesCommand(List<Guide> before, List<Guide> after, String descriptionKey) {
-        this.before = List.copyOf(before);
-        this.after = List.copyOf(after);
+        super(List.copyOf(before), List.copyOf(after));
         this.descriptionKey = Objects.requireNonNull(descriptionKey, "descriptionKey");
     }
 
@@ -80,13 +77,8 @@ public final class SetGuidesCommand implements Command {
     }
 
     @Override
-    public void apply(CircuitDocument document) {
-        document.setGuides(after);
-    }
-
-    @Override
-    public void revert(CircuitDocument document) {
-        document.setGuides(before);
+    protected void set(CircuitDocument document, List<Guide> guides) {
+        document.setGuides(guides);
     }
 
     @Override

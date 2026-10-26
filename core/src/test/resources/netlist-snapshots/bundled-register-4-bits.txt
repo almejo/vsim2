@@ -1,0 +1,116 @@
+== compile
+net n:p:c1#0 width=1 mismatch=false
+  wires [w15, w16, w2, w23, w24, w3, w31, w32, w7, w8]
+  pins [c1#0, c13#2, c21#2, c29#2, c5#2]
+  points [GridPoint[x=6, y=48], GridPoint[x=14, y=14], GridPoint[x=14, y=24], GridPoint[x=14, y=34], GridPoint[x=14, y=44], GridPoint[x=14, y=48], GridPoint[x=22, y=12], GridPoint[x=22, y=14], GridPoint[x=22, y=22], GridPoint[x=22, y=24], GridPoint[x=22, y=32], GridPoint[x=22, y=34], GridPoint[x=22, y=42], GridPoint[x=22, y=44]]
+net n:p:c12#0 width=1 mismatch=false
+  wires [w14]
+  pins [c12#0, c13#0]
+  points [GridPoint[x=6, y=20], GridPoint[x=20, y=20]]
+net n:p:c13#1 width=1 mismatch=false
+  wires [w17, w18]
+  pins [c13#1, c19#0]
+  points [GridPoint[x=24, y=20], GridPoint[x=28, y=18], GridPoint[x=28, y=20]]
+net n:p:c20#0 width=1 mismatch=false
+  wires [w22]
+  pins [c20#0, c21#0]
+  points [GridPoint[x=6, y=30], GridPoint[x=20, y=30]]
+net n:p:c21#1 width=1 mismatch=false
+  wires [w25, w26]
+  pins [c21#1, c27#0]
+  points [GridPoint[x=24, y=30], GridPoint[x=28, y=28], GridPoint[x=28, y=30]]
+net n:p:c28#0 width=1 mismatch=false
+  wires [w30]
+  pins [c28#0, c29#0]
+  points [GridPoint[x=6, y=40], GridPoint[x=20, y=40]]
+net n:p:c29#1 width=1 mismatch=false
+  wires [w33, w34]
+  pins [c29#1, c35#0]
+  points [GridPoint[x=24, y=40], GridPoint[x=28, y=38], GridPoint[x=28, y=40]]
+net n:p:c4#0 width=1 mismatch=false
+  wires [w6]
+  pins [c4#0, c5#0]
+  points [GridPoint[x=6, y=10], GridPoint[x=20, y=10]]
+net n:p:c5#1 width=1 mismatch=false
+  wires [w10, w9]
+  pins [c11#0, c5#1]
+  points [GridPoint[x=24, y=10], GridPoint[x=28, y=8], GridPoint[x=28, y=10]]
+pin c1#0 -> n:p:c1#0
+pin c4#0 -> n:p:c4#0
+pin c5#0 -> n:p:c4#0
+pin c5#1 -> n:p:c5#1
+pin c5#2 -> n:p:c1#0
+pin c11#0 -> n:p:c5#1
+pin c12#0 -> n:p:c12#0
+pin c13#0 -> n:p:c12#0
+pin c13#1 -> n:p:c13#1
+pin c13#2 -> n:p:c1#0
+pin c19#0 -> n:p:c13#1
+pin c20#0 -> n:p:c20#0
+pin c21#0 -> n:p:c20#0
+pin c21#1 -> n:p:c21#1
+pin c21#2 -> n:p:c1#0
+pin c27#0 -> n:p:c21#1
+pin c28#0 -> n:p:c28#0
+pin c29#0 -> n:p:c28#0
+pin c29#1 -> n:p:c29#1
+pin c29#2 -> n:p:c1#0
+pin c35#0 -> n:p:c29#1
+== compileAsDrawn
+net n:p:c1#0 width=1 mismatch=false
+  wires [w15, w16, w2, w23, w24, w3, w31, w32, w7, w8]
+  pins [c1#0, c13#2, c21#2, c29#2, c5#2]
+  points [GridPoint[x=6, y=48], GridPoint[x=14, y=14], GridPoint[x=14, y=24], GridPoint[x=14, y=34], GridPoint[x=14, y=44], GridPoint[x=14, y=48], GridPoint[x=22, y=12], GridPoint[x=22, y=14], GridPoint[x=22, y=22], GridPoint[x=22, y=24], GridPoint[x=22, y=32], GridPoint[x=22, y=34], GridPoint[x=22, y=42], GridPoint[x=22, y=44]]
+net n:p:c12#0 width=1 mismatch=false
+  wires [w14]
+  pins [c12#0, c13#0]
+  points [GridPoint[x=6, y=20], GridPoint[x=20, y=20]]
+net n:p:c13#1 width=1 mismatch=false
+  wires [w17, w18]
+  pins [c13#1, c19#0]
+  points [GridPoint[x=24, y=20], GridPoint[x=28, y=18], GridPoint[x=28, y=20]]
+net n:p:c20#0 width=1 mismatch=false
+  wires [w22]
+  pins [c20#0, c21#0]
+  points [GridPoint[x=6, y=30], GridPoint[x=20, y=30]]
+net n:p:c21#1 width=1 mismatch=false
+  wires [w25, w26]
+  pins [c21#1, c27#0]
+  points [GridPoint[x=24, y=30], GridPoint[x=28, y=28], GridPoint[x=28, y=30]]
+net n:p:c28#0 width=1 mismatch=false
+  wires [w30]
+  pins [c28#0, c29#0]
+  points [GridPoint[x=6, y=40], GridPoint[x=20, y=40]]
+net n:p:c29#1 width=1 mismatch=false
+  wires [w33, w34]
+  pins [c29#1, c35#0]
+  points [GridPoint[x=24, y=40], GridPoint[x=28, y=38], GridPoint[x=28, y=40]]
+net n:p:c4#0 width=1 mismatch=false
+  wires [w6]
+  pins [c4#0, c5#0]
+  points [GridPoint[x=6, y=10], GridPoint[x=20, y=10]]
+net n:p:c5#1 width=1 mismatch=false
+  wires [w10, w9]
+  pins [c11#0, c5#1]
+  points [GridPoint[x=24, y=10], GridPoint[x=28, y=8], GridPoint[x=28, y=10]]
+pin c1#0 -> n:p:c1#0
+pin c4#0 -> n:p:c4#0
+pin c5#0 -> n:p:c4#0
+pin c5#1 -> n:p:c5#1
+pin c5#2 -> n:p:c1#0
+pin c11#0 -> n:p:c5#1
+pin c12#0 -> n:p:c12#0
+pin c13#0 -> n:p:c12#0
+pin c13#1 -> n:p:c13#1
+pin c13#2 -> n:p:c1#0
+pin c19#0 -> n:p:c13#1
+pin c20#0 -> n:p:c20#0
+pin c21#0 -> n:p:c20#0
+pin c21#1 -> n:p:c21#1
+pin c21#2 -> n:p:c1#0
+pin c27#0 -> n:p:c21#1
+pin c28#0 -> n:p:c28#0
+pin c29#0 -> n:p:c28#0
+pin c29#1 -> n:p:c29#1
+pin c29#2 -> n:p:c1#0
+pin c35#0 -> n:p:c29#1

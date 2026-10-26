@@ -7,6 +7,8 @@ import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
+import cl.almejo.vsim.core.geometry.UnionFind;
+import cl.almejo.vsim.core.geometry.WireLines;
 import cl.almejo.vsim.core.tunnel.Tunnels;
 
 import java.util.ArrayList;
@@ -16,10 +18,8 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.NavigableMap;
 import java.util.Objects;
 import java.util.Set;
-import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.stream.Stream;
 
@@ -78,20 +78,11 @@ public final class NetlistCompiler {
             pointsOfInterest.add(wire.end());
         }
 
-        UnionFind unionFind = connections.unionFind;
+        UnionFind<GridPoint> unionFind = connections.unionFind;
         pointsOfInterest.forEach(unionFind::add);
-        // points of interest by row and by column, so each wire finds the ones it contains with a range lookup
-        Map<Integer, TreeMap<Integer, GridPoint>> rows = new HashMap<>();
-        Map<Integer, TreeMap<Integer, GridPoint>> columns = new HashMap<>();
-        for (GridPoint point : pointsOfInterest) {
-            rows.computeIfAbsent(point.y(), row -> new TreeMap<>()).put(point.x(), point);
-            columns.computeIfAbsent(point.x(), column -> new TreeMap<>()).put(point.y(), point);
-        }
+        WireLines wireLines = new WireLines(pointsOfInterest);
         for (Wire wire : document.wires()) {
-            NavigableMap<Integer, GridPoint> contained = wire.isHorizontal()
-                    ? rows.get(wire.start().y()).subMap(wire.start().x(), true, wire.end().x(), true)
-                    : columns.get(wire.start().x()).subMap(wire.start().y(), true, wire.end().y(), true);
-            for (GridPoint point : contained.values()) {
+            for (GridPoint point : wireLines.pointsOn(wire)) {
                 unionFind.union(wire.start(), point);
             }
         }
@@ -105,7 +96,7 @@ public final class NetlistCompiler {
         final Map<PinRef, Integer> pinWidths = new HashMap<>();
         final Map<ElementId, GridPoint> tunnelPins = new LinkedHashMap<>();
         final Set<GridPoint> pointsOfInterest = new HashSet<>();
-        final UnionFind unionFind = new UnionFind();
+        final UnionFind<GridPoint> unionFind = new UnionFind<>();
 
         void joinTunnelsByName(CircuitDocument document) {
             Map<String, GridPoint> firstOfName = new HashMap<>();
@@ -176,36 +167,6 @@ public final class NetlistCompiler {
 
         String text() {
             return kind + elementId + ("p:".equals(kind) ? "#" + pinIndex : "");
-        }
-    }
-
-    private static final class UnionFind {
-        private final Map<GridPoint, GridPoint> parents = new HashMap<>();
-
-        void add(GridPoint point) {
-            parents.putIfAbsent(point, point);
-        }
-
-        GridPoint find(GridPoint point) {
-            GridPoint root = point;
-            while (!parents.get(root).equals(root)) {
-                root = parents.get(root);
-            }
-            GridPoint current = point;
-            while (!current.equals(root)) {
-                GridPoint next = parents.get(current);
-                parents.put(current, root);
-                current = next;
-            }
-            return root;
-        }
-
-        void union(GridPoint first, GridPoint second) {
-            GridPoint firstRoot = find(first);
-            GridPoint secondRoot = find(second);
-            if (!firstRoot.equals(secondRoot)) {
-                parents.put(secondRoot, firstRoot);
-            }
         }
     }
 }

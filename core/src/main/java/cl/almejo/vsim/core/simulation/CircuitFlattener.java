@@ -83,8 +83,7 @@ public final class CircuitFlattener {
     }
 
     private Body compileBody(ComponentDefinition definition) {
-        CircuitDocument body = new CircuitDocument();
-        definition.body().elements().forEach(body::add);
+        CircuitDocument body = definition.bodyDocument();
         Netlist netlist = compiler.compile(body);
         return new Body(body, netlist, TunnelChecks.problems(body, netlist, registry));
     }

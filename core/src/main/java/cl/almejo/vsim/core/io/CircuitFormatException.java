@@ -23,6 +23,15 @@ public class CircuitFormatException extends Exception {
         this.detail = detail;
     }
 
+    /** An {@code INVALID_ELEMENT} failure: a well-formed file with an element the format does not allow. */
+    public static CircuitFormatException invalid(String detail) {
+        return new CircuitFormatException(Reason.INVALID_ELEMENT, detail);
+    }
+
+    public static CircuitFormatException invalid(String detail, Throwable cause) {
+        return new CircuitFormatException(Reason.INVALID_ELEMENT, detail, cause);
+    }
+
     public Reason reason() {
         return reason;
     }

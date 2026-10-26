@@ -50,7 +50,6 @@ public final class TableImport {
     private static final int MAXIMUM_ROW = 1_048_576;
     private static final int MAXIMUM_COLUMN = 16_384;
 
-    private static final String SPREADSHEET_NAMESPACE = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
     private static final String RELATIONSHIPS_NAMESPACE =
             "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
     private static final String WORKBOOK = "xl/workbook.xml";

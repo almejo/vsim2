@@ -8,6 +8,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
+import static cl.almejo.vsim.core.io.CircuitFormatException.invalid;
+
 /**
  * The JSON shape of the alignment guides of a circuit file: {@code {"orientation": "horizontal" | "vertical",
  * "position": <int>}}. Entries are read straight from the JSON tree, so a fractional or quoted position is refused
@@ -97,7 +99,4 @@ final class GuideEntries {
         return orientation.name().toLowerCase(Locale.ROOT);
     }
 
-    private static CircuitFormatException invalid(String detail) {
-        return new CircuitFormatException(CircuitFormatException.Reason.INVALID_ELEMENT, detail);
-    }
 }

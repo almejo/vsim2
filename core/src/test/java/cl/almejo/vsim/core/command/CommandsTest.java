@@ -86,8 +86,8 @@ class CommandsTest {
 
     @Test
     void rotateComponent() {
-        assertApplyAndRevertRestore(new RotateComponentCommand(gate.id(), true));
-        new RotateComponentCommand(gate.id(), false).apply(document);
+        assertApplyAndRevertRestore(rotating(true));
+        rotating(false).apply(document);
         assertThat(document.component(gate.id()).orElseThrow().rotation()).isEqualTo(Rotation.R270);
     }
 
@@ -130,9 +130,13 @@ class CommandsTest {
     void compositeAppliesInOrderAndRevertsInReverse() {
         CompositeCommand command = new CompositeCommand("command.paste", List.of(
                 new MoveElementsCommand(List.of(gate.id()), 1, 0),
-                new RotateComponentCommand(gate.id(), true)));
+                rotating(true)));
         assertApplyAndRevertRestore(command);
         assertThat(command.description()).isEqualTo("command.paste");
+    }
+
+    private RotateElementsCommand rotating(boolean clockwise) {
+        return new RotateElementsCommand(List.of(gate.id()), clockwise, StandardComponentTypes.registry());
     }
 
     private long netCount() {
