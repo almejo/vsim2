@@ -433,6 +433,8 @@ final class ShapeCanvas extends JPanel {
         grabbedHandle = Optional.empty();
         curving = Optional.empty();
         dragTip = Optional.empty();
+        rubberBand = false;
+        bandEnd = null;
         textEditor.cancel();
         updateAnts();
         repaint();
@@ -993,6 +995,8 @@ final class ShapeCanvas extends JPanel {
         beforeDrag = null;
         committedBeforeDrag = null;
         dragging = null;
+        rubberBand = false;
+        bandEnd = null;
         updateAnts();
         if (completed != null && original != null) {
             preview.accept(original);

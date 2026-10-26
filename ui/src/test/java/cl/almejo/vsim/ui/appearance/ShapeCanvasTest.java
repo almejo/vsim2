@@ -19,6 +19,7 @@ import cl.almejo.vsim.core.library.InterfacePins;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.core.geometry.GridSize;
 import cl.almejo.vsim.core.library.ComponentDefinition;
+import cl.almejo.vsim.ui.canvas.ManualFrameTicker;
 import cl.almejo.vsim.ui.paint.ColorSchemes;
 import cl.almejo.vsim.ui.theme.ReadableColors;
 import java.awt.Color;
@@ -514,6 +515,23 @@ class ShapeCanvasTest {
                 List.of(new DefinitionPin(PinSpec.input("A", 0, 2, 1), first),
                         new DefinitionPin(PinSpec.input("B", 0, 3, 1), second)),
                 new CircuitFragment(List.of(input, other), List.of(), List.of()));
+    }
+
+    @Test
+    void aPressAfterABandSelectionDoesNotPaintTheOldBandAgain() {
+        ComponentDefinition definition = ShapeEditorPanelTest.definition();
+        AtomicReference<SymbolDraft> draft = new AtomicReference<>(SymbolDraft.of(ComponentAppearance.of(definition),
+                definition.pinout(), false).resizeBox(new GridSize(20, 20)));
+        ShapeCanvas canvas = canvas(definition, draft);
+        canvas.useAntsTicker(new ManualFrameTicker());
+        canvas.setZoom(1);
+        canvas.setSize(400, 300);
+        int background = paintInto(canvas).getRGB(120, 120);
+        drag(canvas, new Point(300, 280), new Point(180, 180));
+        canvas.setTool(ShapeTool.POLYGON);
+        canvas.dispatchEvent(new MouseEvent(canvas, MouseEvent.MOUSE_PRESSED, 0, MouseEvent.BUTTON1_DOWN_MASK,
+                80, 80, 1, false, MouseEvent.BUTTON1));
+        assertThat(paintInto(canvas).getRGB(120, 120)).isEqualTo(background);
     }
 
     private static ShapeCanvas canvas(ComponentDefinition definition, AtomicReference<SymbolDraft> draft) {
