@@ -6,6 +6,7 @@ import cl.almejo.vsim.ui.canvas.LabelLayout;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.icons.Icons;
 import cl.almejo.vsim.ui.paint.TextFonts;
+import cl.almejo.vsim.ui.panels.TextChanges;
 
 import javax.swing.DefaultListModel;
 import javax.swing.JButton;
@@ -20,7 +21,6 @@ import javax.swing.KeyStroke;
 import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
-import javax.swing.event.DocumentEvent;
 import javax.swing.text.DefaultEditorKit;
 import javax.swing.text.JTextComponent;
 import java.awt.AWTEvent;
@@ -175,24 +175,8 @@ public final class InlineTextEditor {
         area.getActionMap().put(CONFIRM, Actions.unnamed(this::confirm));
         area.getActionMap().put(CANCEL, Actions.unnamed(this::cancel));
         area.getActionMap().put(NOTHING, Actions.unnamed(() -> { }));
-        javax.swing.event.DocumentListener typing = new javax.swing.event.DocumentListener() {
-            @Override
-            public void insertUpdate(DocumentEvent event) {
-                textChanged();
-            }
-
-            @Override
-            public void removeUpdate(DocumentEvent event) {
-                textChanged();
-            }
-
-            @Override
-            public void changedUpdate(DocumentEvent event) {
-                textChanged();
-            }
-        };
-        field.getDocument().addDocumentListener(typing);
-        area.getDocument().addDocumentListener(typing);
+        TextChanges.onChange(field, this::textChanged);
+        TextChanges.onChange(area, this::textChanged);
     }
 
     /** Opens {@code newRequest}; the editor stays open whatever happens to the document. */

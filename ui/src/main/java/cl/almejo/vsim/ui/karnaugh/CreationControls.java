@@ -4,6 +4,7 @@ import cl.almejo.vsim.core.logic.ExpressionLine;
 import cl.almejo.vsim.core.logic.Minimization;
 import cl.almejo.vsim.core.logic.TruthTableSpec;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.panels.TextChanges;
 import net.miginfocom.swing.MigLayout;
 
 import javax.swing.AbstractButton;
@@ -15,8 +16,6 @@ import javax.swing.JPanel;
 import javax.swing.JProgressBar;
 import javax.swing.JRadioButton;
 import javax.swing.JTextField;
-import javax.swing.event.DocumentEvent;
-import javax.swing.event.DocumentListener;
 import java.awt.Color;
 import java.util.ArrayList;
 import java.util.EnumMap;
@@ -90,22 +89,7 @@ final class CreationControls extends JPanel {
                 "karnaugh.create.newCircuit");
         addDestination(destinations, destinationPanel, CreationForm.Destination.INSERT, "karnaugh.create.insert");
         component.addActionListener(event -> form.setAlsoComponent(component.isSelected()));
-        name.getDocument().addDocumentListener(new DocumentListener() {
-            @Override
-            public void insertUpdate(DocumentEvent event) {
-                typed();
-            }
-
-            @Override
-            public void removeUpdate(DocumentEvent event) {
-                typed();
-            }
-
-            @Override
-            public void changedUpdate(DocumentEvent event) {
-                typed();
-            }
-        });
+        TextChanges.onChange(name, this::typed);
         create.addActionListener(event -> create());
         progress.setIndeterminate(true);
 

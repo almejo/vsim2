@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.print;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.TextFonts;
+import cl.almejo.vsim.ui.panels.TextChanges;
 import net.miginfocom.swing.MigLayout;
 
 import javax.swing.ButtonGroup;
@@ -25,8 +26,6 @@ import javax.swing.KeyStroke;
 import javax.swing.SpinnerNumberModel;
 import javax.swing.SwingUtilities;
 import javax.swing.Timer;
-import javax.swing.event.DocumentEvent;
-import javax.swing.event.DocumentListener;
 import java.awt.BorderLayout;
 import java.awt.Component;
 import java.awt.event.KeyEvent;
@@ -384,22 +383,7 @@ public final class PdfExportDialog extends JPanel {
         paperChoice.addActionListener(event -> update());
         scaleChoice.addActionListener(event -> update());
         percentSpinner.addChangeListener(event -> update());
-        titleField.getDocument().addDocumentListener(new DocumentListener() {
-            @Override
-            public void insertUpdate(DocumentEvent event) {
-                update();
-            }
-
-            @Override
-            public void removeUpdate(DocumentEvent event) {
-                update();
-            }
-
-            @Override
-            public void changedUpdate(DocumentEvent event) {
-                update();
-            }
-        });
+        TextChanges.onChange(titleField, this::update);
         split.addActionListener(event -> scaleChoice.setSelectedItem(ScaleChoice.HUNDRED));
         refresh.addActionListener(event -> refresh());
         save.addActionListener(event -> save());

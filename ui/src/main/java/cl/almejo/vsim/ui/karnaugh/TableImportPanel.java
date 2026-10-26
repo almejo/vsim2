@@ -12,6 +12,7 @@ import cl.almejo.vsim.core.logic.Term;
 import cl.almejo.vsim.core.logic.TruthTableSpec;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.icons.Icons;
+import cl.almejo.vsim.ui.panels.TextChanges;
 import net.miginfocom.swing.MigLayout;
 
 import javax.swing.AbstractButton;
@@ -28,8 +29,6 @@ import javax.swing.JSpinner;
 import javax.swing.JTextField;
 import javax.swing.SpinnerNumberModel;
 import javax.swing.SwingUtilities;
-import javax.swing.event.DocumentEvent;
-import javax.swing.event.DocumentListener;
 import java.awt.BorderLayout;
 import java.awt.CardLayout;
 import java.awt.Color;
@@ -302,22 +301,7 @@ public final class TableImportPanel extends JPanel {
         hintButton.addActionListener(event -> openWizard(Page.DATA));
         back.addActionListener(event -> goTo(Page.DATA));
         next.addActionListener(event -> goTo(Page.CREATE));
-        title.getDocument().addDocumentListener(new DocumentListener() {
-            @Override
-            public void insertUpdate(DocumentEvent event) {
-                titleTyped();
-            }
-
-            @Override
-            public void removeUpdate(DocumentEvent event) {
-                titleTyped();
-            }
-
-            @Override
-            public void changedUpdate(DocumentEvent event) {
-                titleTyped();
-            }
-        });
+        TextChanges.onChange(title, this::titleTyped);
         inputCount.addChangeListener(event -> {
             if (!syncing) {
                 model.setInputCount((Integer) inputCount.getValue());

@@ -9,6 +9,7 @@ import cl.almejo.vsim.ui.panels.PalettePanel;
 import cl.almejo.vsim.ui.paint.Appearance;
 import cl.almejo.vsim.ui.paint.ComponentIcon;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
+import cl.almejo.vsim.ui.panels.TextChanges;
 
 import javax.swing.BorderFactory;
 import javax.swing.DefaultListCellRenderer;
@@ -23,8 +24,6 @@ import javax.swing.JTextField;
 import javax.swing.KeyStroke;
 import javax.swing.ListSelectionModel;
 import javax.swing.SwingUtilities;
-import javax.swing.event.DocumentEvent;
-import javax.swing.event.DocumentListener;
 import java.awt.BorderLayout;
 import java.awt.Component;
 import java.awt.Dimension;
@@ -77,11 +76,7 @@ final class QuickInsertPanel extends JPanel {
         search.getAccessibleContext().setAccessibleName(Messages.text("quickInsert.search"));
         search.putClientProperty("JTextField.showClearButton", true);
         FragmentRefusingTransferHandler.install(search);
-        search.getDocument().addDocumentListener(new DocumentListener() {
-            @Override public void insertUpdate(DocumentEvent event) { refresh(); }
-            @Override public void removeUpdate(DocumentEvent event) { refresh(); }
-            @Override public void changedUpdate(DocumentEvent event) { refresh(); }
-        });
+        TextChanges.onChange(search, this::refresh);
         search.addActionListener(event -> acceptSelection());
         list.setSelectionModel(new HeadingSkippingSelectionModel());
         list.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);

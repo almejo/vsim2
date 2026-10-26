@@ -18,6 +18,7 @@ import cl.almejo.vsim.ui.paint.Appearance;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.ComponentIcon;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
+import cl.almejo.vsim.ui.panels.TextChanges;
 import cl.almejo.vsim.ui.shortcuts.ShortcutCatalog;
 import net.miginfocom.swing.MigLayout;
 
@@ -37,8 +38,6 @@ import javax.swing.JViewport;
 import javax.swing.SwingUtilities;
 import javax.swing.ToolTipManager;
 import javax.swing.TransferHandler;
-import javax.swing.event.DocumentEvent;
-import javax.swing.event.DocumentListener;
 import javax.swing.tree.DefaultMutableTreeNode;
 import javax.swing.tree.DefaultTreeCellRenderer;
 import javax.swing.tree.DefaultTreeModel;
@@ -341,22 +340,7 @@ public final class PalettePanel extends JPanel {
         FragmentRefusingTransferHandler.install(search);
         search.putClientProperty("JTextField.placeholderText", Messages.text("palette.search"));
         search.putClientProperty("JTextField.showClearButton", true);
-        search.getDocument().addDocumentListener(new DocumentListener() {
-            @Override
-            public void insertUpdate(DocumentEvent event) {
-                rebuild();
-            }
-
-            @Override
-            public void removeUpdate(DocumentEvent event) {
-                rebuild();
-            }
-
-            @Override
-            public void changedUpdate(DocumentEvent event) {
-                rebuild();
-            }
-        });
+        TextChanges.onChange(search, this::rebuild);
         swallowUndoKeystrokes();
         tree.setRootVisible(false);
         tree.setShowsRootHandles(true);

@@ -1,6 +1,7 @@
 package cl.almejo.vsim.ui.karnaugh;
 
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.panels.TextChanges;
 import net.miginfocom.swing.MigLayout;
 
 import javax.swing.JLabel;
@@ -9,8 +10,6 @@ import javax.swing.JScrollPane;
 import javax.swing.JSpinner;
 import javax.swing.JTextField;
 import javax.swing.SpinnerNumberModel;
-import javax.swing.event.DocumentEvent;
-import javax.swing.event.DocumentListener;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BiConsumer;
@@ -48,7 +47,7 @@ final class TablePanel extends JPanel {
         this.table = new WizardTable(model, hover, true);
 
         titleField.setText(model.title());
-        onEdit(titleField, () -> model.setTitle(titleField.getText()));
+        TextChanges.onChange(titleField, () -> model.setTitle(titleField.getText()));
         inputCount.addChangeListener(event -> model.setInputCount((Integer) inputCount.getValue()));
         outputCount.addChangeListener(event -> model.setOutputCount((Integer) outputCount.getValue()));
 
@@ -157,29 +156,9 @@ final class TablePanel extends JPanel {
             JTextField field = new JTextField(current.get(index), NAME_COLUMNS);
             field.setEditable(editable);
             int position = index;
-            onEdit(field, () -> rename.accept(position, field.getText()));
+            TextChanges.onChange(field, () -> rename.accept(position, field.getText()));
             fields.add(field);
             panel.add(field);
         }
-    }
-
-    private static void onEdit(JTextField field, Runnable action) {
-        Consumer<DocumentEvent> run = event -> action.run();
-        field.getDocument().addDocumentListener(new DocumentListener() {
-            @Override
-            public void insertUpdate(DocumentEvent event) {
-                run.accept(event);
-            }
-
-            @Override
-            public void removeUpdate(DocumentEvent event) {
-                run.accept(event);
-            }
-
-            @Override
-            public void changedUpdate(DocumentEvent event) {
-                run.accept(event);
-            }
-        });
     }
 }

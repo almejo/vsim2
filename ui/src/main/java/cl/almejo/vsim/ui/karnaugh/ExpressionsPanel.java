@@ -7,6 +7,7 @@ import cl.almejo.vsim.core.logic.Minimizer;
 import cl.almejo.vsim.core.logic.TruthTableSpec;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.panels.TextChanges;
 import net.miginfocom.swing.MigLayout;
 
 import javax.swing.AbstractButton;
@@ -23,9 +24,8 @@ import javax.swing.JRootPane;
 import javax.swing.JScrollPane;
 import javax.swing.JTextField;
 import javax.swing.UIManager;
-import javax.swing.event.DocumentEvent;
-import javax.swing.event.DocumentListener;
 import javax.swing.plaf.FontUIResource;
+import javax.swing.text.JTextComponent;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
@@ -247,34 +247,18 @@ public final class ExpressionsPanel extends JPanel {
             model.setSimplify(simplify.isSelected());
         });
         title.setText(model.title());
-        title.getDocument().addDocumentListener(onEdit(() -> model.setTitle(title.getText())));
+        onEdit(title, () -> model.setTitle(title.getText()));
         model.addListener(this::modelChanged);
         modelChanged();
     }
 
-    private DocumentListener onEdit(Runnable action) {
-        return new DocumentListener() {
-            @Override
-            public void insertUpdate(DocumentEvent event) {
-                edited();
+    /** Runs {@code action} when the user edits {@code component}, not while the panel syncs it from the model. */
+    private void onEdit(JTextComponent component, Runnable action) {
+        TextChanges.onChange(component, () -> {
+            if (!syncing) {
+                action.run();
             }
-
-            @Override
-            public void removeUpdate(DocumentEvent event) {
-                edited();
-            }
-
-            @Override
-            public void changedUpdate(DocumentEvent event) {
-                edited();
-            }
-
-            private void edited() {
-                if (!syncing) {
-                    action.run();
-                }
-            }
-        };
+        });
     }
 
     private void addGate(ButtonGroup group, JPanel panel, WizardOptions.GateChoice choice, String key) {
@@ -614,12 +598,12 @@ public final class ExpressionsPanel extends JPanel {
             add(problem, "span 2, hidemode 3");
             add(warningRow, "span 2, hidemode 3");
             add(preview, "span 2, hidemode 3");
-            field.getDocument().addDocumentListener(onEdit(() -> {
+            onEdit(field, () -> {
                 int index = rows.indexOf(this);
                 if (index >= 0) {
                     model.setLine(index, field.getText());
                 }
-            }));
+            });
             field.addFocusListener(new FocusAdapter() {
                 @Override
                 public void focusGained(FocusEvent event) {
