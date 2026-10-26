@@ -14,6 +14,8 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import java.util.ArrayList;
 import java.util.List;
 
+import static cl.almejo.vsim.core.io.CircuitFormatException.invalid;
+
 /**
  * A library component file ({@code <id>.vsimcomponent.json}, spec §5.8): the definition's fields at the top level plus
  * the definitions it nests in {@code "definitions"}.
@@ -71,8 +73,7 @@ public final class DefinitionFormat {
         try {
             return DefinitionBundle.of(definition, scratch::definition);
         } catch (IllegalArgumentException exception) {
-            throw new CircuitFormatException(CircuitFormatException.Reason.INVALID_ELEMENT, exception.getMessage(),
-                    exception);
+            throw invalid(exception.getMessage(), exception);
         }
     }
 }

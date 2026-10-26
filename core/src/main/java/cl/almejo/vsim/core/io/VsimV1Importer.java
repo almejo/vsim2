@@ -12,6 +12,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import java.util.HashMap;
 import java.util.Map;
 
+import static cl.almejo.vsim.core.io.CircuitFormatException.invalid;
+
 /** Imports circuits saved by VSim 1 (pixel coordinates, "gates" and "connections"). */
 public final class VsimV1Importer {
 
@@ -56,7 +58,7 @@ public final class VsimV1Importer {
                         type.resolveParameters(parameters(typeId, parameters)),
                         label));
             } catch (IllegalArgumentException exception) {
-                throw new CircuitFormatException(CircuitFormatException.Reason.INVALID_ELEMENT, exception.getMessage(), exception);
+                throw invalid(exception.getMessage(), exception);
             }
         }
         for (JsonNode connection : connections) {
@@ -75,7 +77,7 @@ public final class VsimV1Importer {
                 }
                 document.add(new Wire(document.newWireId(), start, end));
             } catch (IllegalArgumentException exception) {
-                throw new CircuitFormatException(CircuitFormatException.Reason.INVALID_ELEMENT, exception.getMessage(), exception);
+                throw invalid(exception.getMessage(), exception);
             }
         }
         return document;
@@ -87,10 +89,6 @@ public final class VsimV1Importer {
             throw invalid("'" + field + "' must be an integer");
         }
         return node.asInt();
-    }
-
-    private static CircuitFormatException invalid(String message) {
-        return new CircuitFormatException(CircuitFormatException.Reason.INVALID_ELEMENT, message);
     }
 
     private static Map<String, Object> parameters(String typeId, JsonNode parameters) {

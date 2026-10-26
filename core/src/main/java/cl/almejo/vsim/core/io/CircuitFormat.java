@@ -39,6 +39,8 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.function.Function;
 
+import static cl.almejo.vsim.core.io.CircuitFormatException.invalid;
+
 /** Reads formats 2 and 3 and writes format 3 (JSON; first keys in {@link FileHeader}). */
 public final class CircuitFormat {
 
@@ -265,11 +267,11 @@ public final class CircuitFormat {
         try {
             file = mapper.treeToValue(root, fileType);
         } catch (JsonProcessingException | IllegalArgumentException exception) {
-            throw new CircuitFormatException(CircuitFormatException.Reason.INVALID_ELEMENT, exception.getMessage(), exception);
+            throw invalid(exception.getMessage(), exception);
         }
         String fileKind = kindOf.apply(file);
         if (!kind.equals(fileKind)) {
-            throw new CircuitFormatException(CircuitFormatException.Reason.INVALID_ELEMENT, "kind " + fileKind);
+            throw invalid("kind " + fileKind);
         }
         return file;
     }
@@ -281,15 +283,14 @@ public final class CircuitFormat {
 
     static <T> T requireEntry(T entry, String key) throws CircuitFormatException {
         if (entry == null) {
-            throw new CircuitFormatException(CircuitFormatException.Reason.INVALID_ELEMENT, "null entry in " + key);
+            throw invalid("null entry in " + key);
         }
         return entry;
     }
 
     static void requireRotation(ComponentEntry entry) throws CircuitFormatException {
         if (entry.rotation() < 0 || entry.rotation() > 3) {
-            throw new CircuitFormatException(CircuitFormatException.Reason.INVALID_ELEMENT,
-                    "rotation must be 0..3 for " + entry.id() + ": " + entry.rotation());
+            throw invalid("rotation must be 0..3 for " + entry.id() + ": " + entry.rotation());
         }
     }
 
@@ -364,13 +365,13 @@ public final class CircuitFormat {
             ProbeEntry entry = entries.get(index);
             String where = "probes[" + index + "]: ";
             if (entry == null) {
-                throw invalidProbe(where + "null entry");
+                throw invalid(where + "null entry");
             }
             if (entry.id() == null || entry.id().isBlank()) {
-                throw invalidProbe(where + "missing id");
+                throw invalid(where + "missing id");
             }
             if (!ids.add(entry.id())) {
-                throw invalidProbe(where + "duplicate id " + entry.id());
+                throw invalid(where + "duplicate id " + entry.id());
             }
             probes.add(new Probe(entry.id(), probeTarget(entry, where), entry.name()));
         }
@@ -383,7 +384,7 @@ public final class CircuitFormat {
         try {
             if (pinShape) {
                 if (entry.pin() < 0) {
-                    throw invalidProbe(where + "negative pin " + entry.pin());
+                    throw invalid(where + "negative pin " + entry.pin());
                 }
                 return new ProbeTarget.PinTarget(new ElementId(entry.component()), entry.pin());
             }
@@ -391,14 +392,9 @@ public final class CircuitFormat {
                 return new ProbeTarget.WireTarget(new ElementId(entry.wire()));
             }
         } catch (IllegalArgumentException exception) {
-            throw new CircuitFormatException(CircuitFormatException.Reason.INVALID_ELEMENT,
-                    where + exception.getMessage(), exception);
+            throw invalid(where + exception.getMessage(), exception);
         }
-        throw invalidProbe(where + "a probe needs either component and pin, or wire");
-    }
-
-    private static CircuitFormatException invalidProbe(String detail) {
-        return new CircuitFormatException(CircuitFormatException.Reason.INVALID_ELEMENT, detail);
+        throw invalid(where + "a probe needs either component and pin, or wire");
     }
 
     private interface ElementSupplier {
@@ -409,7 +405,7 @@ public final class CircuitFormat {
         try {
             document.add(supplier.create());
         } catch (IllegalArgumentException | NullPointerException exception) {
-            throw new CircuitFormatException(CircuitFormatException.Reason.INVALID_ELEMENT, exception.getMessage(), exception);
+            throw invalid(exception.getMessage(), exception);
         }
     }
 }
