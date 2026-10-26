@@ -31,15 +31,4 @@ public record PinReference(String elementId, String pinName, int index) {
         }
         return new PinReference(elementId, name, occurrence);
     }
-
-    /** The pin number of this reference in {@code type}, or -1 when the type has no such pin. */
-    public int pinIndexIn(ComponentType type) {
-        int seen = 0;
-        for (int pinIndex = 0; pinIndex < type.pinCount(); pinIndex++) {
-            if (type.pin(pinIndex).name().equals(pinName) && seen++ == index) {
-                return pinIndex;
-            }
-        }
-        return -1;
-    }
 }

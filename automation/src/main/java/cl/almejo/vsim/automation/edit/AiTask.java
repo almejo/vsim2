@@ -136,11 +136,6 @@ public final class AiTask {
         elementIds.forEach(elementId -> howItWasMade.merge(elementId, stageIndex, Math::max));
     }
 
-    /** True when a component was made of some of {@code elementIds} without replacing them («cómo se hizo»). */
-    public synchronized boolean madeAComponentOf(Collection<String> elementIds) {
-        return stageThatMadeAComponentOf(elementIds).isPresent();
-    }
-
     /** The latest stage that made a component of some of {@code elementIds} without replacing them. */
     public synchronized OptionalInt stageThatMadeAComponentOf(Collection<String> elementIds) {
         return elementIds.stream().filter(howItWasMade::containsKey).mapToInt(howItWasMade::get).max();

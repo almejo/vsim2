@@ -548,10 +548,7 @@ public final class AutomationApi {
 
     /** Ends a task; listeners hear it end with the elements it changed. Its layout-only guides go away. */
     public TaskInfo endTask(String taskId) {
-        presentation.taskEnding(taskId);
-        questions.withdrawTask(taskId);
-        storyboard.taskEnding(taskId);
-        return edits.endTask(taskId);
+        return endTask(taskId, false).task();
     }
 
     /**
