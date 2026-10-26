@@ -8,7 +8,6 @@ import cl.almejo.vsim.mcp.McpServerSettings;
 import cl.almejo.vsim.mcp.RunningServer;
 import cl.almejo.vsim.mcp.VsimMcpServer;
 import cl.almejo.vsim.ui.app.AppPreferences;
-import cl.almejo.vsim.ui.i18n.Messages;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -40,7 +39,6 @@ class AiServerStatesTest {
 
     @BeforeEach
     void spanish() throws IOException {
-        Messages.initialize(Messages.SPANISH);
         preferences.setAiPort(freePort());
         heard = AiTestSupport.recordStates(service, AiServerState::text);
     }

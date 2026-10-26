@@ -10,7 +10,6 @@ import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.ColorSchemes;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.awt.geom.Rectangle2D;
@@ -24,11 +23,6 @@ import static org.assertj.core.api.Assertions.assertThat;
  * default shape for the final box.
  */
 class ShapeDefaultFiguresTest {
-
-    @BeforeEach
-    void speakSpanish() {
-        Messages.initialize(Messages.SPANISH);
-    }
 
     @Test
     void theDefaultShapeOpensAsFiguresSelectableWithTheFirstClick() {

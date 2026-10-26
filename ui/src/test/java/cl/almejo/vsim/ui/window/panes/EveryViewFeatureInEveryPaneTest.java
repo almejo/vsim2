@@ -16,7 +16,6 @@ import cl.almejo.vsim.ui.canvas.ViewState;
 import cl.almejo.vsim.ui.export.ExportChoice;
 import cl.almejo.vsim.ui.export.ExportImageExtension;
 import cl.almejo.vsim.ui.export.ExportImageFeatures;
-import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.karnaugh.KarnaughExtension;
 import cl.almejo.vsim.ui.library.LibraryService;
 import cl.almejo.vsim.ui.library.SwingLibraryDialogs;
@@ -123,7 +122,6 @@ class EveryViewFeatureInEveryPaneTest {
 
     @BeforeEach
     void create() {
-        Messages.initialize(Messages.SPANISH);
         preferences.setLibraryDirectory(Optional.of(directory.resolve("library")));
         preferences.setAnimateViewMoves(false);
         service = new LibraryService(preferences, library, registry, Runnable::run);

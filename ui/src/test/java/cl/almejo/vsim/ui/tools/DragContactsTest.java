@@ -7,7 +7,6 @@ import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
 import cl.almejo.vsim.core.io.CircuitFragment;
 import cl.almejo.vsim.core.wiring.NewContact;
-import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.ColorSchemes;
 import cl.almejo.vsim.ui.wiring.SelectionMoves;
@@ -45,7 +44,6 @@ class DragContactsTest {
 
     @BeforeEach
     void create() {
-        Messages.initialize(Messages.SPANISH);
         gate = place(context.openDocument(), StandardComponentTypes.NOT, 10, 10, Map.of());
         lamp = place(context.openDocument(), StandardComponentTypes.LED, 29, 9, Map.of());
         addWire(context.openDocument(), 14, 12, 30, 12);

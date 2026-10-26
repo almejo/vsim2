@@ -18,7 +18,6 @@ import cl.almejo.vsim.core.truthtable.TruthTable;
 import cl.almejo.vsim.core.value.Value;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.OpenDocument;
-import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.Appearance;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
@@ -85,7 +84,6 @@ class TruthTableExtensionTest {
 
     @BeforeEach
     void create() {
-        Messages.initialize(Messages.SPANISH);
         openDocument = OpenDocument.createEmpty(StandardComponentTypes.registry());
         TruthTableExtension extension = new TruthTableExtension((view, title, controls) -> {
             FakeDisplay display = new FakeDisplay(title, controls);

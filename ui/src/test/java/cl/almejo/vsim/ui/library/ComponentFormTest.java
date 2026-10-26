@@ -7,8 +7,6 @@ import cl.almejo.vsim.core.library.ConvertedSelection;
 import cl.almejo.vsim.core.library.ExampleDefinitions;
 import cl.almejo.vsim.core.library.PinOrder;
 import cl.almejo.vsim.core.library.TestParts;
-import cl.almejo.vsim.ui.i18n.Messages;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -29,11 +27,6 @@ class ComponentFormTest {
     private final ElementId output = new ElementId("c3");
     private final PinOrder order = new PinOrder(List.of(first, second), List.of(output));
     private final Map<ElementId, String> names = Map.of(first, "a", second, "b", output, "y");
-
-    @BeforeEach
-    void spanish() {
-        Messages.initialize(Messages.SPANISH);
-    }
 
     @Test
     void okNeedsANameThatNoOtherComponentUses() {

@@ -11,7 +11,6 @@ import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.export.CircuitImage;
 import cl.almejo.vsim.ui.export.ImageExport;
-import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.Appearance;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
@@ -68,7 +67,6 @@ class AlignmentLinesNeverOnPaperTest {
 
     @BeforeEach
     void create() {
-        Messages.initialize(Messages.SPANISH);
         openDocument = OpenDocument.createEmpty(StandardComponentTypes.registry());
         for (GridPoint position : List.of(new GridPoint(0, 0), new GridPoint(20, 10))) {
             Component gate = openDocument.registry().require(StandardComponentTypes.NOT)

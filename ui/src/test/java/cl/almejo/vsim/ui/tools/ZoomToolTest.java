@@ -3,7 +3,6 @@ package cl.almejo.vsim.ui.tools;
 import cl.almejo.vsim.ui.canvas.ViewState;
 import cl.almejo.vsim.ui.canvas.Viewport;
 import cl.almejo.vsim.ui.canvas.ZoomTargets;
-import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.ColorSchemes;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assumptions;
@@ -30,7 +29,6 @@ class ZoomToolTest {
 
     @BeforeEach
     void useTheTool() {
-        Messages.initialize(Messages.SPANISH);
         context.tool = tool;
     }
 

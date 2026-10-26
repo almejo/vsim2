@@ -9,7 +9,6 @@ import cl.almejo.vsim.core.logic.Minimization;
 import cl.almejo.vsim.core.logic.Minimization.Form;
 import cl.almejo.vsim.core.logic.Term;
 import cl.almejo.vsim.core.logic.TruthTableSpec;
-import cl.almejo.vsim.ui.i18n.Messages;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -35,7 +34,6 @@ class PracticeModelTest {
 
     @BeforeEach
     void create() {
-        Messages.initialize(Messages.SPANISH);
         model = new KarnaughModel();
         practice = model.practice();
     }

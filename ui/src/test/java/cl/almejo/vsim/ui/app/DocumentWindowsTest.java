@@ -5,10 +5,8 @@ import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
-import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.window.WindowMenu;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -26,11 +24,6 @@ class DocumentWindowsTest {
     private final ComponentTypeRegistry registry = StandardComponentTypes.registry();
     private final List<OpenDocument> opened = new ArrayList<>();
     private final DocumentWindows<String> windows = new DocumentWindows<>();
-
-    @BeforeEach
-    void spanish() {
-        Messages.initialize(Messages.SPANISH);
-    }
 
     @AfterEach
     void closeAll() {

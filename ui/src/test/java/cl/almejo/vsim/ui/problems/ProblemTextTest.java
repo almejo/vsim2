@@ -21,7 +21,6 @@ import cl.almejo.vsim.core.simulation.WidthMismatch;
 import cl.almejo.vsim.core.value.Value;
 import cl.almejo.vsim.ui.i18n.Messages;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -37,11 +36,6 @@ class ProblemTextTest {
     private final CircuitDocument document = new CircuitDocument();
     private final Component andGate = place(StandardComponentTypes.AND2, 0, 0, "U3");
     private final Component notGate = place(StandardComponentTypes.NOT, 10, 0, "");
-
-    @BeforeEach
-    void spanish() {
-        Messages.initialize(Messages.SPANISH);
-    }
 
     @AfterEach
     void restoreSpanish() {

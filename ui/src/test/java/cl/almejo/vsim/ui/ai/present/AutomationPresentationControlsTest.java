@@ -27,7 +27,6 @@ import cl.almejo.vsim.ui.ai.PresentationPreferences;
 import cl.almejo.vsim.ui.ai.SettingsOverride;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.OpenDocument;
-import cl.almejo.vsim.ui.i18n.Messages;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -61,7 +60,6 @@ class AutomationPresentationControlsTest {
 
     @BeforeEach
     void openACircuitInPasoAPaso() throws Exception {
-        Messages.initialize(Messages.SPANISH);
         circuit = new OpenDocument(new CircuitDocument(), StandardComponentTypes.registry(), null, false);
         open.add(circuit);
         id = host.onEditorThread(EditorAccess::openDocuments).get(5, TimeUnit.SECONDS).getFirst().id();

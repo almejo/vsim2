@@ -17,7 +17,6 @@ import cl.almejo.vsim.core.simulation.ConnectivityProblem;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.RenderState;
-import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.ColorSchemes;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
@@ -47,7 +46,6 @@ class ConnectivityProblemsTest {
 
     @BeforeEach
     void create() {
-        Messages.initialize(Messages.SPANISH);
         openDocument = OpenDocument.createEmpty(registry);
         Component lamp = registry.require(StandardComponentTypes.LED).newComponent(new ElementId("lamp"),
                 GridPoint.ORIGIN, Rotation.R0, Map.of(), "Luz");

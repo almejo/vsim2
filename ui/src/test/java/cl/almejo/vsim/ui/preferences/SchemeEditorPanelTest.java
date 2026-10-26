@@ -5,7 +5,6 @@ import cl.almejo.vsim.ui.paint.ColorRole;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.ColorSchemes;
 import cl.almejo.vsim.ui.paint.NamedColorScheme;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.awt.Color;
@@ -23,11 +22,6 @@ class SchemeEditorPanelTest {
     private final List<String> chooserTitles = new ArrayList<>();
     private final List<Color> chooserStarts = new ArrayList<>();
     private Optional<Color> chooserAnswer = Optional.empty();
-
-    @BeforeEach
-    void spanish() {
-        Messages.initialize(Messages.SPANISH);
-    }
 
     private SchemeEditorPanel panel(NamedColorScheme start) {
         return new SchemeEditorPanel(start, (parent, title, initial) -> {

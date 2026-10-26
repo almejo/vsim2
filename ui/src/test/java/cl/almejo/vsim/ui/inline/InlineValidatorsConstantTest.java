@@ -2,8 +2,6 @@ package cl.almejo.vsim.ui.inline;
 
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
-import cl.almejo.vsim.ui.i18n.Messages;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.Map;
@@ -15,11 +13,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 class InlineValidatorsConstantTest {
 
     private final ComponentType constant = StandardComponentTypes.registry().require(StandardComponentTypes.CONSTANT);
-
-    @BeforeEach
-    void language() {
-        Messages.initialize(Messages.SPANISH);
-    }
 
     private Function<String, Optional<String>> at(int width) {
         return InlineValidators.constantValue(constant, Map.of("width", width, "format", "auto"));

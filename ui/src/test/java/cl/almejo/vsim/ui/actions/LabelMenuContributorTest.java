@@ -14,7 +14,6 @@ import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.Selection;
-import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.core.library.ComponentLibrary;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.paint.Appearance;
@@ -50,7 +49,6 @@ class LabelMenuContributorTest {
 
     @BeforeEach
     void create() {
-        Messages.initialize(Messages.SPANISH);
         view = new EditorView(openDocument, new EditorServices(PainterRegistry.standard(),
                 new Appearance(ColorScheme.LIGHT), AppPreferences.inMemory(), new ComponentLibrary(), List.of()),
                 NO_WINDOW);

@@ -1,7 +1,5 @@
 package cl.almejo.vsim.ui.session;
 
-import cl.almejo.vsim.ui.i18n.Messages;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.nio.file.Path;
@@ -17,11 +15,6 @@ class RecoveryChoicesTest {
 
     private static final Clock CLOCK = Clock.fixed(Instant.parse("2026-10-09T18:00:00Z"), ZoneOffset.UTC);
     private static final Path ORIGINAL = Path.of("/home/ana/contador.vsim");
-
-    @BeforeEach
-    void spanish() {
-        Messages.initialize(Messages.SPANISH);
-    }
 
     private static RecoveryChoices.Candidate<String> candidate(String copy, String name, Optional<Path> original,
                                                                String savedAt, boolean readable) {

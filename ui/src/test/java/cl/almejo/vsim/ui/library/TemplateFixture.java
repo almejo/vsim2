@@ -11,7 +11,6 @@ import cl.almejo.vsim.core.library.ComponentLibrary;
 import cl.almejo.vsim.core.library.InterfacePins;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.OpenDocument;
-import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.Appearance;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
@@ -46,7 +45,6 @@ final class TemplateFixture implements AutoCloseable {
     }
 
     TemplateFixture(Path libraryDirectory, OpenDocument openDocument) {
-        Messages.initialize(Messages.SPANISH);
         this.preferences = AppPreferences.inMemory();
         preferences.setLibraryDirectory(Optional.of(libraryDirectory));
         this.library = new ComponentLibrary();

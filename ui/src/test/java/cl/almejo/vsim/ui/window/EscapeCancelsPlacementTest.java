@@ -4,7 +4,6 @@ import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.frames.FrameTool;
-import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.inline.InlineEditRequest;
 import cl.almejo.vsim.ui.inline.InlineValidators;
 import cl.almejo.vsim.ui.paint.ColorScheme;
@@ -41,7 +40,6 @@ class EscapeCancelsPlacementTest {
 
     @BeforeEach
     void create() {
-        Messages.initialize(Messages.SPANISH);
         openDocument = OpenDocument.createEmpty(StandardComponentTypes.registry());
         view = new EditorView(openDocument, PainterRegistry.standard(), ColorScheme.LIGHT, NO_WINDOW);
     }

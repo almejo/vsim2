@@ -2,8 +2,6 @@ package cl.almejo.vsim.ui.karnaugh;
 
 import cl.almejo.vsim.core.logic.ImportedGrid;
 import cl.almejo.vsim.core.logic.TableImport;
-import cl.almejo.vsim.ui.i18n.Messages;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import javax.swing.JScrollPane;
@@ -13,11 +11,6 @@ import javax.swing.SwingUtilities;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class TablePreviewTest {
-
-    @BeforeEach
-    void spanish() {
-        Messages.initialize(Messages.SPANISH);
-    }
 
     @Test
     void theColumnNamesStayUnderTheBarOnceTheTableIsShownInAWindow() {

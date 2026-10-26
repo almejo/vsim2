@@ -9,7 +9,6 @@ import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.netlist.Net;
 import cl.almejo.vsim.core.netlist.PinRef;
 import cl.almejo.vsim.ui.app.AppPreferences;
-import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -41,7 +40,6 @@ class SelectToolFollowTest {
 
     @BeforeEach
     void create() {
-        Messages.initialize(Messages.SPANISH);
         gate = place(context.openDocument(), StandardComponentTypes.NOT, 10, 10, Map.of());
         lamp = place(context.openDocument(), StandardComponentTypes.LED, 29, 9, Map.of());
         wire = addWire(context.openDocument(), 14, 12, 30, 12);

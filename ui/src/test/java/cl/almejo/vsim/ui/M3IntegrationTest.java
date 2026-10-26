@@ -10,14 +10,12 @@ import cl.almejo.vsim.core.simulation.Problem;
 import cl.almejo.vsim.ui.actions.SelectionActions;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.clipboard.FragmentClipboard;
-import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.tools.FloatingSelectionTool;
 import cl.almejo.vsim.ui.tools.SelectTool;
 import cl.almejo.vsim.ui.window.EditorView;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import javax.swing.JComponent;
@@ -49,11 +47,6 @@ class M3IntegrationTest {
     private final List<OpenDocument> documents = new ArrayList<>();
     private final List<EditorView> views = new ArrayList<>();
     private final FragmentClipboard clipboard = new FragmentClipboard(new Clipboard("integration"));
-
-    @BeforeEach
-    void initialize() {
-        Messages.initialize(Messages.SPANISH);
-    }
 
     @AfterEach
     void close() {

@@ -3,7 +3,6 @@ package cl.almejo.vsim.ui.karnaugh;
 import cl.almejo.vsim.core.logic.KarnaughGroup;
 import cl.almejo.vsim.core.logic.LogicValue;
 import cl.almejo.vsim.core.logic.Minimization;
-import cl.almejo.vsim.ui.i18n.Messages;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -38,7 +37,6 @@ class KarnaughWizardTest {
 
     @BeforeEach
     void create() {
-        Messages.initialize(Messages.SPANISH);
         model = new KarnaughModel();
         wizard = new KarnaughWizard(model, KarnaughCost.GENERATOR, new FakeCreationTarget(), Background.inline());
     }

@@ -163,7 +163,6 @@ class MessagesTest {
 
     @Test
     void newerAndForeignFilesSayWhatToDo() {
-        Messages.initialize(Messages.SPANISH);
         assertThat(Messages.readError(new CircuitFormatException(CircuitFormatException.Reason.NEWER_FORMAT, "3")))
                 .isEqualTo("Este archivo es de una versión más nueva de VSim 2 (formato 3). Actualiza VSim para abrirlo.");
         assertThat(Messages.readError(new CircuitFormatException(CircuitFormatException.Reason.NOT_VSIM_FILE, "x")))
@@ -181,7 +180,6 @@ class MessagesTest {
 
     @Test
     void subcircuitTypesAreNamedAfterTheirDefinition() {
-        Messages.initialize(Messages.SPANISH);
         assertThat(Messages.componentName(SubcircuitTypes.typeOf(ExampleDefinitions.inverter()))).isEqualTo("Inversor");
         assertThat(Messages.componentName(StandardComponentTypes.registry().require("not"))).isEqualTo("NOT");
     }

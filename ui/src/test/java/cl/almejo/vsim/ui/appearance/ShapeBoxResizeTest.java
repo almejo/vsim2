@@ -11,8 +11,6 @@ import cl.almejo.vsim.core.geometry.GridSize;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.paint.ColorSchemes;
-import cl.almejo.vsim.ui.i18n.Messages;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.awt.Point;
@@ -31,11 +29,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 class ShapeBoxResizeTest {
     private static final SymbolPath INNER_RECTANGLE = SymbolTemplates.rectangle(new SymbolPoint(8, 8),
             new SymbolPoint(40, 24), false);
-
-    @BeforeEach
-    void speakSpanish() {
-        Messages.initialize(Messages.SPANISH);
-    }
 
     @Test
     void ctrlWhileDraggingTheBoxHandleScalesTheDrawingWithTheBox() {

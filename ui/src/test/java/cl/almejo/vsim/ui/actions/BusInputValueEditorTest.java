@@ -13,7 +13,6 @@ import cl.almejo.vsim.core.library.ComponentLibrary;
 import cl.almejo.vsim.core.value.Value;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.OpenDocument;
-import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.inline.InlineTextEditor;
 import cl.almejo.vsim.ui.paint.Appearance;
 import cl.almejo.vsim.ui.paint.ColorScheme;
@@ -54,7 +53,6 @@ class BusInputValueEditorTest {
 
     @BeforeEach
     void create() {
-        Messages.initialize(Messages.SPANISH);
         view = new EditorView(openDocument, new EditorServices(PainterRegistry.standard(),
                 new Appearance(ColorScheme.LIGHT), AppPreferences.inMemory(), new ComponentLibrary(), List.of()),
                 NO_WINDOW);

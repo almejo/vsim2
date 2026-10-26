@@ -8,7 +8,6 @@ import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.ColorSchemes;
 import cl.almejo.vsim.ui.paint.LedPainter;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import javax.swing.JComboBox;
@@ -24,11 +23,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 class ParameterFormTest {
 
     private final ComponentTypeRegistry registry = StandardComponentTypes.registry();
-
-    @BeforeEach
-    void spanish() {
-        Messages.initialize(Messages.SPANISH);
-    }
 
     private ParameterForm form(String typeId, Map<String, Object> current) {
         return new ParameterForm(registry.require(typeId), current);

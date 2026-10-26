@@ -22,7 +22,6 @@ import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.Selection;
 import cl.almejo.vsim.ui.clipboard.FragmentTransferable;
 import cl.almejo.vsim.ui.i18n.FrameTintNames;
-import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.ColorSchemes;
 import cl.almejo.vsim.ui.wiring.SelectionMoves;
 import cl.almejo.vsim.ui.theme.FlatLafInstaller;
@@ -57,7 +56,6 @@ class PropertiesPanelTest {
 
     @BeforeEach
     void create() {
-        Messages.initialize(Messages.SPANISH);
         panel = new PropertiesPanel(openDocument, selection);
     }
 

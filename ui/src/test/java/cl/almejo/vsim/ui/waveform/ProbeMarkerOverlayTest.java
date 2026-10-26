@@ -9,7 +9,6 @@ import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.RenderState;
-import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.ColorSchemes;
 import org.junit.jupiter.api.AfterEach;
@@ -37,7 +36,6 @@ class ProbeMarkerOverlayTest {
 
     @BeforeEach
     void create() {
-        Messages.initialize(Messages.SPANISH);
         openDocument = OpenDocument.createEmpty(StandardComponentTypes.registry());
         overlay = new ProbeMarkerOverlay(openDocument, () -> scheme);
         gate = place(openDocument, StandardComponentTypes.NOT, 4, 9, Map.of()); // out (8,11): badge x 68–80, y 72–80

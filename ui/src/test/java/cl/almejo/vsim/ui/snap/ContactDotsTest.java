@@ -3,12 +3,10 @@ package cl.almejo.vsim.ui.snap;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.wiring.NewContact;
-import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.ColorSchemes;
 import cl.almejo.vsim.ui.tools.TestToolContext;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.awt.Color;
@@ -35,11 +33,6 @@ class ContactDotsTest {
     private static NewContact meeting(int x, String moving, String met) {
         return new NewContact(new GridPoint(x, 10), Optional.of(new ElementId("c2")), Optional.of(met),
                 Optional.of(moving), Optional.of(met));
-    }
-
-    @BeforeEach
-    void language() {
-        Messages.initialize(Messages.SPANISH);
     }
 
     private final TestToolContext context = TestToolContext.withNewDocument();

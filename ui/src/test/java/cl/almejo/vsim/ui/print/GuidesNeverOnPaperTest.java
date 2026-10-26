@@ -13,7 +13,6 @@ import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.export.CircuitImage;
 import cl.almejo.vsim.ui.export.ImageExport;
 import cl.almejo.vsim.ui.guides.GuidesFeatures;
-import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.Appearance;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
@@ -63,7 +62,6 @@ class GuidesNeverOnPaperTest {
 
     @BeforeEach
     void create() {
-        Messages.initialize(Messages.SPANISH);
         openDocument = OpenDocument.createEmpty(StandardComponentTypes.registry());
         Component gate = openDocument.registry().require(StandardComponentTypes.AND2)
                 .newComponent(openDocument.document().newComponentId(), new GridPoint(4, 4), Rotation.R0, Map.of(),

@@ -3,7 +3,6 @@ package cl.almejo.vsim.ui.frames;
 import cl.almejo.vsim.core.document.Frame;
 import cl.almejo.vsim.core.document.Guide;
 import cl.almejo.vsim.core.document.Guide.Orientation;
-import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.snap.DefaultSnapper;
 import cl.almejo.vsim.ui.tools.TestToolContext;
 import org.junit.jupiter.api.AfterEach;
@@ -23,7 +22,6 @@ class FrameToolSnapTest {
 
     @BeforeEach
     void create() {
-        Messages.initialize(Messages.SPANISH);
         context.snapper = new DefaultSnapper(context.preferences, Dimension::new);
     }
 

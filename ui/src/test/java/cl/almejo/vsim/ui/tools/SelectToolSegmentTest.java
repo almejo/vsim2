@@ -12,7 +12,6 @@ import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.netlist.Net;
 import cl.almejo.vsim.core.netlist.PinRef;
 import cl.almejo.vsim.ui.app.AppPreferences;
-import cl.almejo.vsim.ui.i18n.Messages;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -42,7 +41,6 @@ class SelectToolSegmentTest {
 
     @BeforeEach
     void create() {
-        Messages.initialize(Messages.SPANISH);
         left = addWire(context.openDocument(), 40, 0, 40, 10);
         segment = addWire(context.openDocument(), 40, 10, 50, 10);
         right = addWire(context.openDocument(), 50, 10, 50, 20);

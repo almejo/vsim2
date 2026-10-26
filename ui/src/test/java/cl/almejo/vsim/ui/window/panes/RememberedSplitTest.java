@@ -5,13 +5,11 @@ import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.Delay;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.ViewState;
-import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.panes.CanvasPanes.Orientation;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -57,11 +55,6 @@ class RememberedSplitTest {
     private final SplitLayoutStore store = new SplitLayoutStore(preferences);
     private final FakeDelay delay = new FakeDelay();
     private final List<AutoCloseable> toClose = new ArrayList<>();
-
-    @BeforeEach
-    void language() {
-        Messages.initialize(Messages.SPANISH);
-    }
 
     @AfterEach
     void close() throws Exception {

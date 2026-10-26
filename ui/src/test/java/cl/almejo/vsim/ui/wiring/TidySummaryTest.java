@@ -22,7 +22,6 @@ class TidySummaryTest {
 
     @Test
     void spanishFuturePluralsAndSingulars() {
-        Messages.initialize(Messages.SPANISH);
         assertThat(TidySummary.preview(plan(3, 2, 1)))
                 .isEqualTo("Se borrarán 3 puntas sueltas, se unirán 2 tramos y se aplanará 1 vuelta");
         assertThat(TidySummary.preview(plan(1, 0, 0))).isEqualTo("Se borrará 1 punta suelta");
@@ -32,7 +31,6 @@ class TidySummaryTest {
 
     @Test
     void spanishPast() {
-        Messages.initialize(Messages.SPANISH);
         assertThat(TidySummary.notice(plan(3, 2, 0))).isEqualTo("Se borraron 3 puntas sueltas y se unieron 2 tramos");
         assertThat(TidySummary.notice(TidyPlan.EMPTY)).isEqualTo("Los cables ya estaban ordenados");
     }

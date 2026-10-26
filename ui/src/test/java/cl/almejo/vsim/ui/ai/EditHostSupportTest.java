@@ -45,7 +45,6 @@ class EditHostSupportTest {
 
     @BeforeEach
     void openACircuit() throws Exception {
-        Messages.initialize(Messages.SPANISH);
         circuit = new OpenDocument(new CircuitDocument(), StandardComponentTypes.registry(), null, false);
         open.add(circuit);
         id = host.onEditorThread(EditorAccess::openDocuments).get(5, TimeUnit.SECONDS).getFirst().id();

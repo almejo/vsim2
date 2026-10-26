@@ -20,7 +20,6 @@ import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.ui.app.LoosenedPinsTestSupport;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.RenderState;
-import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.ColorSchemes;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
@@ -50,7 +49,6 @@ class RedMarksTest {
 
     @BeforeEach
     void create() {
-        Messages.initialize(Messages.SPANISH);
         openDocument = OpenDocument.createEmpty(StandardComponentTypes.registry());
         Component input = openDocument.registry().require(InterfacePins.INPUT_PIN).newComponent(
                 new ElementId("interface"), GridPoint.ORIGIN, Rotation.R0, Map.of(), "");

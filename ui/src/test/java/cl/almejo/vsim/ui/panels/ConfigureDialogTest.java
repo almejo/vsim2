@@ -2,10 +2,8 @@ package cl.almejo.vsim.ui.panels;
 
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
-import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.theme.FlatLafInstaller;
 import cl.almejo.vsim.ui.theme.ReadableColors;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import javax.swing.JLabel;
@@ -20,11 +18,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 class ConfigureDialogTest {
 
     private final ComponentTypeRegistry registry = StandardComponentTypes.registry();
-
-    @BeforeEach
-    void spanish() {
-        Messages.initialize(Messages.SPANISH);
-    }
 
     private ParameterForm notForm() {
         return new ParameterForm(registry.require(StandardComponentTypes.NOT), Map.of());

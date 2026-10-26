@@ -11,7 +11,6 @@ import cl.almejo.vsim.core.wiring.TidyPlan;
 import cl.almejo.vsim.core.wiring.WireTidy;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.OpenDocument;
-import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.Appearance;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
@@ -84,7 +83,6 @@ class TidyWiresBackgroundTest {
 
     @BeforeEach
     void create() {
-        Messages.initialize(Messages.SPANISH);
         openDocument = OpenDocument.createEmpty(StandardComponentTypes.registry());
         ElementId left = addWire(new GridPoint(0, 0), new GridPoint(8, 0));
         addWire(new GridPoint(8, 0), new GridPoint(16, 0));

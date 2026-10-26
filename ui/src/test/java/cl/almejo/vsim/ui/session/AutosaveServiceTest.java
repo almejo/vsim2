@@ -4,7 +4,6 @@ import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.io.CircuitReader;
 import cl.almejo.vsim.ui.app.OpenDocument;
-import cl.almejo.vsim.ui.i18n.Messages;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -41,7 +40,6 @@ class AutosaveServiceTest {
 
     @BeforeEach
     void create() {
-        Messages.initialize(Messages.SPANISH);
         store = new RecoveryStore(directory.resolve("recovery"));
         autosave = new AutosaveService(store, Clock.fixed(NOW, ZoneOffset.UTC), pendingWrites::add);
     }

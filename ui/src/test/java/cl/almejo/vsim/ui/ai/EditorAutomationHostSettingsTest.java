@@ -10,7 +10,6 @@ import cl.almejo.vsim.automation.ProposedPreference;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.OpenDocument;
-import cl.almejo.vsim.ui.i18n.Messages;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -53,7 +52,6 @@ class EditorAutomationHostSettingsTest {
 
     @BeforeEach
     void spanish() {
-        Messages.initialize(Messages.SPANISH);
         host.addRequestListener(requests::incrementAndGet);
     }
 

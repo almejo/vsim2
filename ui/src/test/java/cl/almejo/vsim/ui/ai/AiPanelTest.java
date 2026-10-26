@@ -9,7 +9,6 @@ import cl.almejo.vsim.mcp.McpServerSettings;
 import cl.almejo.vsim.mcp.RunningServer;
 import cl.almejo.vsim.mcp.VsimMcpServer;
 import cl.almejo.vsim.ui.app.AppPreferences;
-import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.theme.AppThemes;
 import cl.almejo.vsim.ui.theme.ReadableColors;
 import org.junit.jupiter.api.AfterEach;
@@ -41,7 +40,6 @@ class AiPanelTest {
 
     @BeforeEach
     void create() throws IOException {
-        Messages.initialize(Messages.SPANISH);
         saved.setAiPort(freePort());
         panel = new AiPanel(service, windowPreferences, proposals, copied::add);
     }

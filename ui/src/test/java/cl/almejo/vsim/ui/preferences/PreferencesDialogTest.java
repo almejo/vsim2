@@ -2,7 +2,6 @@ package cl.almejo.vsim.ui.preferences;
 
 import cl.almejo.vsim.ui.ai.AiPreferencesPanel;
 import cl.almejo.vsim.ui.app.AppPreferences;
-import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.shortcuts.ShortcutsPanel;
 import org.junit.jupiter.api.Test;
 
@@ -15,7 +14,6 @@ class PreferencesDialogTest {
 
     @Test
     void thePreferencesHaveAGeneralTabAShortcutsTabAndAnAiTab() {
-        Messages.initialize(Messages.SPANISH);
         JTabbedPane tabs = PreferencesDialog.tabs(AppPreferences.inMemory(), (parent, current) -> Optional.empty());
         assertThat(tabs.getTabCount()).isEqualTo(3);
         assertThat(tabs.getTitleAt(0)).isEqualTo("General");
@@ -28,7 +26,6 @@ class PreferencesDialogTest {
 
     @Test
     void closingTheDialogStopsTheFormFollowingThePreferences() {
-        Messages.initialize(Messages.SPANISH);
         AppPreferences preferences = AppPreferences.inMemory();
         int listeners = preferences.listenerCount();
         JTabbedPane tabs = PreferencesDialog.tabs(preferences, (parent, current) -> Optional.empty());

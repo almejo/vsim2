@@ -18,9 +18,7 @@ import cl.almejo.vsim.core.bundled.BundledExamples;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.ui.app.OpenDocument;
-import cl.almejo.vsim.ui.i18n.Messages;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import javax.swing.SwingUtilities;
@@ -46,11 +44,6 @@ class SimulationHostSupportTest {
     private final List<OpenDocument> open = new ArrayList<>();
     private final EditorAutomationHost host = new EditorAutomationHost(() -> List.copyOf(open));
     private final AutomationApi api = new AutomationApi(host);
-
-    @BeforeEach
-    void spanish() {
-        Messages.initialize(Messages.SPANISH);
-    }
 
     @AfterEach
     void closeDocuments() {

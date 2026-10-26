@@ -8,7 +8,6 @@ import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
 import cl.almejo.vsim.core.value.Value;
 import cl.almejo.vsim.ui.i18n.Messages;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.Locale;
@@ -20,11 +19,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 class PinTextTest {
 
     private final ComponentTypeRegistry registry = StandardComponentTypes.registry();
-
-    @BeforeEach
-    void spanish() {
-        Messages.initialize(Messages.SPANISH);
-    }
 
     private String describe(String typeId, Map<String, Object> parameters, int pinIndex, boolean unconnected,
                             Optional<Value> value) {

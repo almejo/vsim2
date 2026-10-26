@@ -9,7 +9,6 @@ import cl.almejo.vsim.core.library.ComponentLibrary;
 import cl.almejo.vsim.ui.ai.QuestionCard;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.OpenDocument;
-import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.Appearance;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
@@ -61,7 +60,6 @@ class PresentationQuestionTest {
 
     @BeforeEach
     void create() {
-        Messages.initialize(Messages.SPANISH);
         saved.setAnimateViewMoves(false);
         document = OpenDocument.createEmpty(StandardComponentTypes.registry());
         view = new EditorView(document, new EditorServices(PainterRegistry.standard(),

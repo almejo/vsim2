@@ -5,7 +5,6 @@ import cl.almejo.vsim.core.library.DefinitionBundle;
 import cl.almejo.vsim.core.library.ExampleDefinitions;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.favorites.PaletteFavorites;
-import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
 import org.junit.jupiter.api.BeforeEach;
@@ -39,7 +38,6 @@ class FavoritesTest {
 
     @BeforeEach
     void createPalette() {
-        Messages.initialize(Messages.SPANISH);
         palette = createPalette(chosen);
     }
 

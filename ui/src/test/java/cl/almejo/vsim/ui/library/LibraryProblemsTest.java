@@ -40,7 +40,6 @@ class LibraryProblemsTest {
 
     @Test
     void everyKindOfProblemHasAText() {
-        Messages.initialize(Messages.SPANISH);
         Path file = Path.of("library", "roto.vsimcomponent.json");
         assertThat(LibraryProblemText.describe(new LibraryProblem(file, LibraryProblem.Kind.INVALID,
                 Optional.of(CircuitFormatException.Reason.INVALID_JSON), "line 1")))

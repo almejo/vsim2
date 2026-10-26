@@ -3,7 +3,6 @@ package cl.almejo.vsim.ui.ai;
 import cl.almejo.vsim.automation.AutomationApi;
 import cl.almejo.vsim.automation.DocumentId;
 import cl.almejo.vsim.ui.app.AppPreferences;
-import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.theme.FlatLafInstaller;
 import cl.almejo.vsim.ui.theme.ReadableColors;
 import org.junit.jupiter.api.AfterEach;
@@ -39,7 +38,6 @@ class AiStatusIndicatorTest {
 
     @BeforeEach
     void create() throws IOException {
-        Messages.initialize(Messages.SPANISH);
         port = freePort();
         saved.setAiPort(port);
         indicator = new AiStatusIndicator(service, panelsOpened::incrementAndGet);

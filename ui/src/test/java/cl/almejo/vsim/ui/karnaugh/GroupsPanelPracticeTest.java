@@ -47,7 +47,6 @@ class GroupsPanelPracticeTest {
 
     @BeforeEach
     void create() {
-        Messages.initialize(Messages.SPANISH);
         model = new KarnaughModel();
         wizard = new KarnaughWizard(model, KarnaughCost.GENERATOR, new FakeCreationTarget(), Background.inline(),
                 KarnaughWizard.Mode.PRACTICE);
