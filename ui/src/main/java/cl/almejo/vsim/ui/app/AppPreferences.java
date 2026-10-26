@@ -15,7 +15,6 @@ import org.slf4j.LoggerFactory;
 
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
@@ -24,7 +23,6 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.WeakHashMap;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.BooleanSupplier;
 import java.util.prefs.BackingStoreException;
 import java.util.prefs.Preferences;
@@ -190,7 +188,7 @@ public final class AppPreferences {
 
     private final Preferences node;
     private final BooleanSupplier systemReducesMotion;
-    private final List<Runnable> listeners;
+    private final Listeners<Runnable> listeners;
     /** Null but for the preferences of one window ({@link #layered()}). */
     private final PreferenceLayer layer;
     /** The layers of every window over the same saved preferences (shared; a closed window's layer goes away). */
@@ -204,7 +202,7 @@ public final class AppPreferences {
     AppPreferences(Preferences node, BooleanSupplier systemReducesMotion) {
         this.node = node;
         this.systemReducesMotion = systemReducesMotion;
-        this.listeners = new CopyOnWriteArrayList<>();
+        this.listeners = new Listeners<>();
         this.layer = null;
         this.windowLayers = Collections.newSetFromMap(new WeakHashMap<>());
     }
@@ -858,15 +856,7 @@ public final class AppPreferences {
      * the others from following it); the failures are logged once all have run, and the setter returns normally.
      */
     private void notifyListeners(String key) {
-        List<RuntimeException> failures = new ArrayList<>();
-        for (Runnable listener : listeners) {
-            try {
-                listener.run();
-            } catch (RuntimeException exception) {
-                failures.add(exception);
-            }
-        }
-        for (RuntimeException failure : failures) {
+        for (RuntimeException failure : listeners.fireAll(Runnable::run)) {
             LOGGER.error("A listener failed to follow the change of preference {}", key, failure);
         }
     }

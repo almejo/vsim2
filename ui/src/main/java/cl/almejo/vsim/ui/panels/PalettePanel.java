@@ -11,6 +11,7 @@ import cl.almejo.vsim.core.io.FragmentFormat;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.DefinitionBundle;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
+import cl.almejo.vsim.ui.app.Listeners;
 import cl.almejo.vsim.ui.clipboard.CircuitFileDrop;
 import cl.almejo.vsim.ui.clipboard.FragmentRefusingTransferHandler;
 import cl.almejo.vsim.ui.i18n.Messages;
@@ -68,7 +69,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -131,7 +131,7 @@ public final class PalettePanel extends JPanel {
     private Optional<Consumer<String>> favoriteToggle = Optional.empty();
     private List<String> favoriteIds = List.of();
     private List<String> recentIds = List.of();
-    private final List<Runnable> entriesListeners = new CopyOnWriteArrayList<>();
+    private final Listeners<Runnable> entriesListeners = new Listeners<>();
 
     /**
      * Turns on «Favoritos» and the star: a click on the star or the context-menu item hands the type id to
@@ -278,12 +278,11 @@ public final class PalettePanel extends JPanel {
      * removal.
      */
     public Runnable addEntriesListener(Runnable listener) {
-        entriesListeners.add(Objects.requireNonNull(listener));
-        return () -> entriesListeners.remove(listener);
+        return entriesListeners.add(Objects.requireNonNull(listener));
     }
 
     private void fireEntriesChanged() {
-        entriesListeners.forEach(Runnable::run);
+        entriesListeners.fire(Runnable::run);
     }
 
     /**

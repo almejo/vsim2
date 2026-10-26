@@ -5,6 +5,7 @@ import cl.almejo.vsim.automation.AutomationException;
 import cl.almejo.vsim.automation.ProposalAnswer;
 import cl.almejo.vsim.automation.ProposedPreference;
 import cl.almejo.vsim.ui.app.AppPreferences;
+import cl.almejo.vsim.ui.app.Listeners;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -14,7 +15,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * The AI's preference proposals of this VSim (spec §7): the user preferences change only through «Aceptar». One per
@@ -33,7 +33,7 @@ public final class PreferenceProposals {
     private final Map<String, PreferenceProposal> pending = new LinkedHashMap<>();
     private final Map<String, CompletableFuture<ProposalAnswer>> answers = new HashMap<>();
     private final List<String> answeredOrder = new ArrayList<>();
-    private final List<Runnable> listeners = new CopyOnWriteArrayList<>();
+    private final Listeners<Runnable> listeners = new Listeners<>();
     private long lastId;
 
     public PreferenceProposals(AppPreferences preferences) {
@@ -102,8 +102,7 @@ public final class PreferenceProposals {
 
     /** {@code listener} runs whenever a proposal arrives or is answered, until the returned runnable takes it back. */
     public Runnable addListener(Runnable listener) {
-        listeners.add(Objects.requireNonNull(listener, "listener"));
-        return () -> listeners.remove(listener);
+        return listeners.add(Objects.requireNonNull(listener, "listener"));
     }
 
     int listenerCount() {
@@ -127,6 +126,6 @@ public final class PreferenceProposals {
     }
 
     private void notifyListeners() {
-        listeners.forEach(Runnable::run);
+        listeners.fire(Runnable::run);
     }
 }

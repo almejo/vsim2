@@ -87,7 +87,7 @@ public final class OpenDocument implements AutoCloseable {
     private String lastTunnelEntranceName;
     /** Whether the simulated circuit has a clock, also inside a user component (M6.1-B); set with each recompile. */
     private boolean hasClock;
-    private final List<Runnable> stepModeListeners = new CopyOnWriteArrayList<>();
+    private final Listeners<Runnable> stepModeListeners = new Listeners<>();
 
     public OpenDocument(CircuitDocument document, ComponentTypeRegistry baseRegistry, Path path,
                         boolean importedFromVsim1) {
@@ -443,7 +443,7 @@ public final class OpenDocument implements AutoCloseable {
         if (enabled) {
             simulation.pause();
         }
-        stepModeListeners.forEach(Runnable::run);
+        stepModeListeners.fire(Runnable::run);
     }
 
     public void addStepModeListener(Runnable listener) {

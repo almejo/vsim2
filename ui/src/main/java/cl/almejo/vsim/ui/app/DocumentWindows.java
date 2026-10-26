@@ -10,7 +10,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 
 /**
@@ -25,7 +24,7 @@ public final class DocumentWindows<W> {
 
     private final Map<OpenDocument, List<W>> windowsByDocument = new LinkedHashMap<>();
     private final Map<W, OpenDocument> documentByWindow = new HashMap<>();
-    private final List<Runnable> changeListeners = new CopyOnWriteArrayList<>();
+    private final Listeners<Runnable> changeListeners = new Listeners<>();
 
     public void add(OpenDocument document, W window) {
         if (documentByWindow.putIfAbsent(window, document) != null) {
@@ -141,6 +140,6 @@ public final class DocumentWindows<W> {
     }
 
     private void changed() {
-        changeListeners.forEach(Runnable::run);
+        changeListeners.fire(Runnable::run);
     }
 }

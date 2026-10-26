@@ -26,6 +26,7 @@ import cl.almejo.vsim.automation.check.TextMeasure;
 import cl.almejo.vsim.automation.present.PresentationPace;
 import cl.almejo.vsim.automation.present.PresentationSettings;
 import cl.almejo.vsim.automation.present.StepPacer;
+import cl.almejo.vsim.ui.app.Listeners;
 import cl.almejo.vsim.ui.app.OpenDocument;
 
 import javax.swing.SwingUtilities;
@@ -38,7 +39,6 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.WeakHashMap;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ForkJoinPool;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -55,7 +55,7 @@ public final class EditorAutomationHost implements AutomationHost {
     private final EditorWindows windows;
     private final Optional<PreferenceProposals> proposals;
     /** Told of every request (any thread): the panel's «Claude Code conectado». */
-    private final List<Runnable> requestListeners = new CopyOnWriteArrayList<>();
+    private final Listeners<Runnable> requestListeners = new Listeners<>();
     /** EDT only. Weak, so a closed circuit's entry goes with it; the counter never gives an id twice. */
     private final Map<OpenDocument, DocumentId> ids = new WeakHashMap<>();
     private long lastId;
@@ -136,8 +136,7 @@ public final class EditorAutomationHost implements AutomationHost {
 
     /** {@code listener} runs (on the caller's thread) at every request until the returned runnable takes it back. */
     public Runnable addRequestListener(Runnable listener) {
-        requestListeners.add(Objects.requireNonNull(listener, "listener"));
-        return () -> requestListeners.remove(listener);
+        return requestListeners.add(Objects.requireNonNull(listener, "listener"));
     }
 
     /** EDT only: the id the AI knows {@code document} by, given now if it has none yet. */
@@ -231,7 +230,7 @@ public final class EditorAutomationHost implements AutomationHost {
 
     @Override
     public <T> CompletableFuture<T> onEditorThread(Function<EditorAccess, T> work) {
-        requestListeners.forEach(Runnable::run);
+        requestListeners.fire(Runnable::run);
         return queue.submit(SwingUtilities::invokeLater, () -> work.apply(new Access()));
     }
 

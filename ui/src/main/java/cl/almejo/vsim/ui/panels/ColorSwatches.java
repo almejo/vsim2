@@ -1,6 +1,7 @@
 package cl.almejo.vsim.ui.panels;
 
 import cl.almejo.vsim.ui.actions.Actions;
+import cl.almejo.vsim.ui.app.Listeners;
 import cl.almejo.vsim.ui.theme.ReadableColors;
 import net.miginfocom.swing.MigLayout;
 
@@ -33,7 +34,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -76,7 +76,7 @@ public final class ColorSwatches<T> extends JPanel {
 
     private final List<T> values;
     private final List<JToggleButton> swatches = new ArrayList<>();
-    private final List<Runnable> listeners = new CopyOnWriteArrayList<>();
+    private final Listeners<Runnable> listeners = new Listeners<>();
     private final ButtonGroup group = new ButtonGroup();
     private T selectedValue;
     private boolean showsNoChoice;
@@ -214,7 +214,7 @@ public final class ColorSwatches<T> extends JPanel {
         selectedValue = value;
         showsNoChoice = false;
         moveTabStopToTheChosenSwatch();
-        listeners.forEach(Runnable::run);
+        listeners.fire(Runnable::run);
     }
 
     /** The value chosen now; while {@link #showsNoChoice()}, the last one chosen. */

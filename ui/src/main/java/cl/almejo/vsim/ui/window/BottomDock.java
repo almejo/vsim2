@@ -1,14 +1,14 @@
 package cl.almejo.vsim.ui.window;
 
+import cl.almejo.vsim.ui.app.Listeners;
+
 import javax.swing.JComponent;
 import javax.swing.JPanel;
 import javax.swing.JSplitPane;
 import java.awt.BorderLayout;
 import java.awt.Component;
 import java.awt.Dimension;
-import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * Vertical split between the canvas (top) and a docked panel spanning its width (the waveform panel, M6-A). Hidden,
@@ -21,7 +21,7 @@ public final class BottomDock extends JSplitPane {
     static final int DIVIDER_SIZE = InspectorSplit.DIVIDER_SIZE;
 
     private final JPanel holder = new JPanel(new BorderLayout());
-    private final List<Runnable> listeners = new CopyOnWriteArrayList<>();
+    private final Listeners<Runnable> listeners = new Listeners<>();
     private boolean dockShowing;
     private boolean placeOnNextLayout;
     private int dockHeight = DEFAULT_HEIGHT;
@@ -62,7 +62,7 @@ public final class BottomDock extends JSplitPane {
             placeDivider();
         }
         revalidate();
-        listeners.forEach(Runnable::run);
+        listeners.fire(Runnable::run);
     }
 
     public void hideDock() {
@@ -76,7 +76,7 @@ public final class BottomDock extends JSplitPane {
         holder.setVisible(false);
         setDividerSize(0);
         revalidate();
-        listeners.forEach(Runnable::run);
+        listeners.fire(Runnable::run);
     }
 
     /** Whether the docked panel is open (not {@code isShowing()}, which is AWT's "on screen"). */
