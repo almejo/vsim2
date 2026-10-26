@@ -2,6 +2,7 @@ package cl.almejo.vsim.ui.window.panes;
 
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.ui.app.AppPreferences;
+import cl.almejo.vsim.ui.app.Delay;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.ViewState;
 import cl.almejo.vsim.ui.i18n.Messages;
@@ -41,7 +42,7 @@ class RememberedSplitTest {
     };
 
     /** A delay that runs only when the test says so. */
-    private static final class FakeDelay implements RememberedSplit.Delay {
+    private static final class FakeDelay implements Delay {
         final List<Runnable> pending = new ArrayList<>();
         int scheduled;
 

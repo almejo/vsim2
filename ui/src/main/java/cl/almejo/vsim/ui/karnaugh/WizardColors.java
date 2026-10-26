@@ -2,8 +2,10 @@ package cl.almejo.vsim.ui.karnaugh;
 
 import cl.almejo.vsim.ui.theme.ReadableColors;
 
+import javax.swing.JLabel;
 import javax.swing.UIManager;
 import java.awt.Color;
+import java.util.function.Supplier;
 
 /**
  * The theme colours the wizard paints with, read from the FlatLaf theme each time (never cached: the theme changes
@@ -49,6 +51,21 @@ final class WizardColors {
      */
     static Color errorText() {
         return failure();
+    }
+
+    /** A label whose colour is asked each time it paints, so a theme change recolours it. */
+    static JLabel label(String text, Supplier<Color> colour) {
+        return new JLabel(text) {
+            @Override
+            public Color getForeground() {
+                return colour.get();
+            }
+        };
+    }
+
+    /** A label in the {@link #errorText()} colour. */
+    static JLabel errorLabel(String text) {
+        return label(text, WizardColors::errorText);
     }
 
     /**

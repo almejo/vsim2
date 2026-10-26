@@ -20,12 +20,10 @@ import cl.almejo.vsim.ui.tools.FloatingSelectionTool;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.swing.AbstractAction;
 import javax.swing.Action;
 import javax.swing.JMenuItem;
 import javax.swing.JPopupMenu;
 import javax.swing.KeyStroke;
-import java.awt.event.ActionEvent;
 import java.awt.geom.Point2D;
 import java.awt.event.KeyEvent;
 import java.util.List;

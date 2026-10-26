@@ -84,12 +84,12 @@ public final class KarnaughWizard extends JPanel {
         boolean discard(Component parent);
 
         /** «Descartar» / «Seguir editando», with «Seguir editando» as the default answer. */
-        static DiscardConfirmation dialog() {
+        static DiscardConfirmation dialog(String titleKey, String messageKey) {
             return parent -> {
                 String discard = Messages.text("karnaugh.discard.discard");
                 String keep = Messages.text("karnaugh.discard.keep");
-                int answer = JOptionPane.showOptionDialog(parent, Messages.text("karnaugh.discard.message"),
-                        Messages.text("karnaugh.discard.title"), JOptionPane.YES_NO_OPTION,
+                int answer = JOptionPane.showOptionDialog(parent, Messages.text(messageKey),
+                        Messages.text(titleKey), JOptionPane.YES_NO_OPTION,
                         JOptionPane.WARNING_MESSAGE, null, new Object[] {discard, keep}, keep);
                 return answer == 0;
             };
@@ -138,7 +138,8 @@ public final class KarnaughWizard extends JPanel {
     private final JButton nextButton;
     private final JPanel buttonBar;
     private Runnable onClose = () -> { };
-    private DiscardConfirmation discardConfirmation = DiscardConfirmation.dialog();
+    private DiscardConfirmation discardConfirmation =
+            DiscardConfirmation.dialog("karnaugh.discard.title", "karnaugh.discard.message");
     private LeaveConfirmation leaveConfirmation = LeaveConfirmation.dialog();
     /** The table as the wizard opened it, or as «Crear» last created it: closing asks only when it differs. */
     private KarnaughModel.Contents unchanged;

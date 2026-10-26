@@ -12,6 +12,7 @@ import cl.almejo.vsim.core.truthtable.TruthTableScope;
 import cl.almejo.vsim.core.value.Value;
 import cl.almejo.vsim.ui.actions.Actions;
 import cl.almejo.vsim.ui.actions.ContextMenuContributor;
+import cl.almejo.vsim.ui.app.Delay;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.Selection;
 import cl.almejo.vsim.ui.i18n.Messages;
@@ -25,7 +26,6 @@ import javax.swing.JMenu;
 import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
 import javax.swing.JPopupMenu;
-import javax.swing.Timer;
 import java.awt.Component;
 import java.awt.geom.Point2D;
 import java.util.ArrayList;
@@ -52,22 +52,6 @@ public final class TruthTableFeatures {
             StandardComponentTypes.INPUT_PIN);
     private static final Set<String> OUTPUT_TYPES = Set.of(StandardComponentTypes.LED,
             StandardComponentTypes.OUTPUT_PIN);
-
-    /** Runs {@code task} once after a delay, on the EDT; the returned runnable stops it if it has not run yet. */
-    @FunctionalInterface
-    public interface Delay {
-        Runnable after(int milliseconds, Runnable task);
-
-        /** A one-shot Swing {@link Timer}. */
-        static Delay swing() {
-            return (milliseconds, task) -> {
-                Timer timer = new Timer(milliseconds, event -> task.run());
-                timer.setRepeats(false);
-                timer.start();
-                return timer::stop;
-            };
-        }
-    }
 
     /** Asks the user a yes/no question before a long computation (spec §5.4); true means go ahead. */
     @FunctionalInterface

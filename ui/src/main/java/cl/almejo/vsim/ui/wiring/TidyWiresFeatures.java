@@ -12,7 +12,7 @@ import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.ui.actions.Actions;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.i18n.Messages;
-import cl.almejo.vsim.ui.truthtable.TruthTableFeatures.Delay;
+import cl.almejo.vsim.ui.app.Delay;
 import cl.almejo.vsim.ui.icons.Icons;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuId;

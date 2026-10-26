@@ -17,7 +17,6 @@ import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JDialog;
 import javax.swing.JLabel;
-import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JRadioButton;
 import javax.swing.JRootPane;
@@ -27,7 +26,6 @@ import javax.swing.UIManager;
 import javax.swing.plaf.FontUIResource;
 import javax.swing.text.JTextComponent;
 import java.awt.BorderLayout;
-import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.Font;
@@ -100,23 +98,13 @@ public final class ExpressionsPanel extends JPanel {
     private final List<LineRow> rows = new ArrayList<>();
     private final JButton addLine = new JButton(Messages.text("expressions.addLine"));
     private final JLabel inputs = new JLabel(" ");
-    private final Paragraph tableProblems = new Paragraph("") {
-        @Override
-        public Color getForeground() {
-            return WizardColors.errorText();
-        }
-    };
+    private final Paragraph tableProblems = Paragraph.error();
     private final JCheckBox simplify = new JCheckBox(Messages.text("expressions.simplify"));
     private final JButton wizardLink = new JButton(Messages.text("expressions.openInWizard"));
     private final Map<WizardOptions.GateChoice, JRadioButton> gateButtons =
             new EnumMap<>(WizardOptions.GateChoice.class);
     private final Map<Minimization.Form, JRadioButton> formButtons = new EnumMap<>(Minimization.Form.class);
-    private final JLabel formReason = new JLabel(Messages.text("expressions.asWrittenReason")) {
-        @Override
-        public Color getForeground() {
-            return WizardColors.muted();
-        }
-    };
+    private final JLabel formReason = WizardColors.label(Messages.text("expressions.asWrittenReason"), WizardColors::muted);
     private final JCheckBox share = new JCheckBox(Messages.text("karnaugh.expression.share"));
     private final JLabel costLine = new JLabel(" ");
     private final JButton close = new JButton(Messages.text("karnaugh.close"));
@@ -125,7 +113,8 @@ public final class ExpressionsPanel extends JPanel {
     private final JScrollPane contentScroll;
     private final JScrollPane legendScroll;
     private Runnable onClose = () -> { };
-    private KarnaughWizard.DiscardConfirmation discardConfirmation = discardDialog();
+    private KarnaughWizard.DiscardConfirmation discardConfirmation =
+            KarnaughWizard.DiscardConfirmation.dialog("expressions.discard.title", "expressions.discard.message");
     /** The lines as the dialog opened, or as «Crear» last created them: closing asks only when they differ. */
     private ExpressionsModel.Contents unchanged;
     /** The line the legend types into: the last one that had the focus. */
@@ -357,18 +346,6 @@ public final class ExpressionsPanel extends JPanel {
         onClose = action;
     }
 
-    /** «Descartar» / «Seguir editando», with «Seguir editando» as the default answer. */
-    static KarnaughWizard.DiscardConfirmation discardDialog() {
-        return parent -> {
-            String discard = Messages.text("karnaugh.discard.discard");
-            String keep = Messages.text("karnaugh.discard.keep");
-            int answer = JOptionPane.showOptionDialog(parent, Messages.text("expressions.discard.message"),
-                    Messages.text("expressions.discard.title"), JOptionPane.YES_NO_OPTION,
-                    JOptionPane.WARNING_MESSAGE, null, new Object[] {discard, keep}, keep);
-            return answer == 0;
-        };
-    }
-
     /**
      * «Ver en Karnaugh…»: the wizard opens over this dialog, which stays open with its lines; closing the wizard comes
      * back here, and a circuit created there closes both.
@@ -568,19 +545,9 @@ public final class ExpressionsPanel extends JPanel {
             }
         };
         final JButton remove = new JButton("✕");
-        final JLabel problem = new JLabel(" ") {
-            @Override
-            public Color getForeground() {
-                return WizardColors.errorText();
-            }
-        };
+        final JLabel problem = WizardColors.errorLabel(" ");
         final JPanel warningRow = new JPanel(new MigLayout("insets 0", "[]4[]"));
-        final JLabel warning = new JLabel(" ") {
-            @Override
-            public Color getForeground() {
-                return WizardColors.warning();
-            }
-        };
+        final JLabel warning = WizardColors.label(" ", WizardColors::warning);
         final JButton dismiss = new JButton("✕");
         final JLabel preview = new JLabel(" ");
         String mergedName;

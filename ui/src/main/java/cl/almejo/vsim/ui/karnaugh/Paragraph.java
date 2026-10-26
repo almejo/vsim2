@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.karnaugh;
 import javax.swing.BorderFactory;
 import javax.swing.JTextArea;
 import javax.swing.UIManager;
+import java.awt.Color;
 import java.awt.Font;
 
 /** Read-only text that wraps at the width it is given and looks like a label (follows the theme on updateUI). */
@@ -25,6 +26,16 @@ class Paragraph extends JTextArea {
         setOpaque(false);
         setBorder(BorderFactory.createEmptyBorder());
         applyLabelLook();
+    }
+
+    /** An empty paragraph in the error colour, read at paint time (a line that does not parse, a table that cannot be imported). */
+    static Paragraph error() {
+        return new Paragraph("") {
+            @Override
+            public Color getForeground() {
+                return WizardColors.errorText();
+            }
+        };
     }
 
     @Override

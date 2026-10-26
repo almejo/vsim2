@@ -16,7 +16,6 @@ import javax.swing.JPanel;
 import javax.swing.JProgressBar;
 import javax.swing.JRadioButton;
 import javax.swing.JTextField;
-import java.awt.Color;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
@@ -53,12 +52,7 @@ final class CreationControls extends JPanel {
     private final JCheckBox component = new JCheckBox(Messages.text("karnaugh.create.alsoComponent"));
     private final JLabel nameLabel = new JLabel(Messages.text("karnaugh.create.componentName"));
     private final JTextField name = new JTextField(20);
-    private final JLabel reason = new JLabel(" ") {
-        @Override
-        public Color getForeground() {
-            return WizardColors.errorText();
-        }
-    };
+    private final JLabel reason = WizardColors.errorLabel(" ");
     private final JButton create = new JButton(Messages.text("karnaugh.create.create"));
     private final JProgressBar progress = new JProgressBar();
     private final JLabel busyLabel = new JLabel(Messages.text("karnaugh.create.busy"));
