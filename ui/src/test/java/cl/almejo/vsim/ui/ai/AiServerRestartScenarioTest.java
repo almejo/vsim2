@@ -21,8 +21,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import javax.swing.SwingUtilities;
-import java.net.InetAddress;
-import java.net.ServerSocket;
 import java.net.http.HttpRequest;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -167,9 +165,7 @@ class AiServerRestartScenarioTest {
         assertThat(onEditor(() -> circuit.document().components())).isEmpty();
         // the server stops on its own thread (IA.3 review I1): the port is free once it did
         serverThread.submit(() -> null).get(10, TimeUnit.SECONDS);
-        try (ServerSocket free = new ServerSocket(port, 50, InetAddress.getLoopbackAddress())) {
-            assertThat(free.getLocalPort()).as("the port is free again").isEqualTo(port);
-        }
+        assertThat(AiTestSupport.portIsFree(port)).as("the port is free again").isTrue();
     }
 
     /**

@@ -48,9 +48,8 @@ public final class AiPanel extends JPanel {
     private final List<JLabel> taskLabels = new ArrayList<>();
     private final Map<String, JButton> stopButtons = new HashMap<>();
     private final Map<String, JButton> undoButtons = new HashMap<>();
-    private final JPanel settingsSection = new JPanel(new MigLayout("insets 0, wrap 1", "[grow, fill]"));
-    private final JToggleButton settingsHeader = new JToggleButton();
-    private final JPanel settingsList = new JPanel(new MigLayout("insets 0 16 0 0, wrap 1, gap 2"));
+    private final ChangedSettingsSection settingsSection = new ChangedSettingsSection("insets 0, wrap 1",
+            "insets 0 16 0 0, wrap 1, gap 2", "", JLabel::new, () -> { });
     private final JButton keepSettingsButton = new JButton(Messages.text("ai.panel.settings.keep"));
     private final JButton dropSettingsButton = new JButton(Messages.text("ai.panel.settings.drop"));
     private final JPanel proposalsSection = new JPanel(new MigLayout("insets 0, wrap 3", "[grow, fill][][]"));
@@ -62,7 +61,6 @@ public final class AiPanel extends JPanel {
     private final JButton copyButton = AiIcons.on(new JButton(Messages.text("ai.copyConfiguration")),
             AiIcons.CLIPBOARD);
     private final JLabel dataNote = new JLabel(Messages.text("ai.dataNote"));
-    private final List<JLabel> settingLabels = new ArrayList<>();
     private final List<JLabel> proposalLabels = new ArrayList<>();
     private final Map<String, JButton> acceptButtons = new HashMap<>();
     private final Map<String, JButton> declineButtons = new HashMap<>();
@@ -142,7 +140,6 @@ public final class AiPanel extends JPanel {
             service.configurationCopied();
             refreshState();
         });
-        settingsHeader.addActionListener(event -> settingsList.setVisible(settingsHeader.isSelected()));
         keepSettingsButton.addActionListener(event -> circuitOverride.get().ifPresent(SettingsOverride::keep));
         dropSettingsButton.addActionListener(event -> circuitOverride.get()
                 .ifPresent(SettingsOverride::dropEditorSettings));
@@ -157,9 +154,6 @@ public final class AiPanel extends JPanel {
         add(portNote, "hidemode 3");
         add(notice);
         add(tasksSection, "gaptop 8, hidemode 3");
-        settingsList.setVisible(false);
-        settingsSection.add(settingsHeader, "growx 0");
-        settingsSection.add(settingsList, "hidemode 3");
         settingsSection.add(keepSettingsButton, "split 2, growx 0");
         settingsSection.add(dropSettingsButton, "growx 0");
         add(settingsSection, "gaptop 12, hidemode 3");
@@ -266,16 +260,8 @@ public final class AiPanel extends JPanel {
         Optional<SettingsOverride> override = circuitOverride.get();
         follow(override.map(SettingsOverride::windowPreferences).orElse(null));
         List<SettingsOverride.Change> changes = override.map(SettingsOverride::changes).orElse(List.of());
-        settingsSection.setVisible(!changes.isEmpty());
-        settingsHeader.setText(Messages.format("ai.panel.settings", Integer.toString(changes.size())));
-        settingsList.removeAll();
-        settingLabels.clear();
-        for (SettingsOverride.Change change : changes) {
-            JLabel label = new JLabel(Messages.format("ai.setting.change", settingName(change.setting()),
-                    valueText(change.value())));
-            settingLabels.add(label);
-            settingsList.add(label);
-        }
+        settingsSection.show(changes.stream().map(change -> Messages.format("ai.setting.change",
+                settingName(change.setting()), valueText(change.value()))).toList());
         revalidate();
         repaint();
     }
@@ -442,11 +428,11 @@ public final class AiPanel extends JPanel {
     }
 
     JToggleButton settingsHeader() {
-        return settingsHeader;
+        return settingsSection.header();
     }
 
     List<String> settingTexts() {
-        return settingLabels.stream().map(JLabel::getText).toList();
+        return settingsSection.texts();
     }
 
     JButton keepSettingsButton() {

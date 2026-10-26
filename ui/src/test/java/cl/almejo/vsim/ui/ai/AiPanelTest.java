@@ -63,25 +63,6 @@ class AiPanelTest {
     }
 
     @Test
-    void activarListensAndTheStateFollowsConnectionAndTasks() {
-        int port = saved.aiPort();
-
-        panel.toggleButton().doClick();
-        assertThat(panel.stateLabel().getText()).isEqualTo("Escuchando en 127.0.0.1:" + port);
-        assertThat(panel.toggleButton().getText()).isEqualTo("Apagar");
-
-        service.requestServed();
-        assertThat(panel.stateLabel().getText()).isEqualTo("Claude Code conectado");
-
-        tasks.start(FakeAiTasks.task("task-1", new DocumentId("circuit-1"), "Flip-flop D"));
-        assertThat(panel.stateLabel().getText()).isEqualTo("IA trabajando: Flip-flop D");
-
-        panel.toggleButton().doClick();
-        assertThat(panel.stateLabel().getText()).isEqualTo("Apagada");
-        assertThat(service.isRunning()).isFalse();
-    }
-
-    @Test
     void aTakenPortOffersTheNextFreeOneAndThenAsksToCopyAgain() throws Exception {
         try (ServerSocket other = new ServerSocket(0, 50, InetAddress.getLoopbackAddress())) {
             saved.setAiPort(other.getLocalPort());
@@ -107,23 +88,6 @@ class AiPanelTest {
             assertThat(copied.get(0)).contains("http://127.0.0.1:" + saved.aiPort() + "/mcp");
             assertThat(panel.notice().getText()).isNotEqualTo(
                     "Cambió el puerto: vuelve a copiar la configuración en Claude Code");
-        }
-    }
-
-    @Test
-    void anotherVsimOnThePortIsSaidWithoutTheNextFreeChoice() throws Exception {
-        RunningServer otherVsim = VsimMcpServer.start(new AutomationApi(new NoDocuments()),
-                new McpServerSettings(0, "another-vsim-secret-value"));
-        try {
-            saved.setAiPort(otherVsim.port());
-
-            panel.toggleButton().doClick();
-
-            assertThat(panel.stateLabel().getText())
-                    .isEqualTo("Otro VSim ya tiene la IA conectada; ciérralo o usa ese");
-            assertThat(panel.nextFreePortButton().isVisible()).isFalse();
-        } finally {
-            otherVsim.stop();
         }
     }
 

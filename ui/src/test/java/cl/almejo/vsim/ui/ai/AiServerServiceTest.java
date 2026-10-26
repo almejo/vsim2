@@ -85,9 +85,7 @@ class AiServerServiceTest {
         service.stop();
 
         assertThat(service.isRunning()).isFalse();
-        try (ServerSocket again = new ServerSocket(port, 50, InetAddress.getLoopbackAddress())) {
-            assertThat(again.getLocalPort()).isEqualTo(port);
-        }
+        assertThat(AiTestSupport.portIsFree(port)).isTrue();
     }
 
     @Test
@@ -133,6 +131,7 @@ class AiServerServiceTest {
             atOnce.startAtLaunch(new PrintStream(terminal, true, StandardCharsets.UTF_8));
 
             assertThat(atOnce.isRunning()).isTrue();
+            assertThat(atOnce.state()).isInstanceOf(AiServerState.Listening.class);
             assertThat(terminal.toString(StandardCharsets.UTF_8)).isEmpty();
         } finally {
             atOnce.stop();
