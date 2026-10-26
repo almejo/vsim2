@@ -60,7 +60,7 @@ public final class TruthTableScope {
                                       ComponentTypeRegistry registry) {
         Optional<ComponentDefinition> instance = singleInstance(document, selection);
         CircuitDocument evaluated = instance.isPresent()
-                ? bodyOf(document, instance.get())
+                ? instance.get().bodyDocument(document)
                 : copyOf(document, selection, registry);
         ComponentTypeRegistry evaluatedRegistry = registry.extendedWith(SubcircuitTypes.resolverFor(evaluated));
         Netlist netlist = new NetlistCompiler(evaluatedRegistry).compile(evaluated);
@@ -153,13 +153,6 @@ public final class TruthTableScope {
         return document.component(selection.iterator().next())
                 .flatMap(component -> SubcircuitTypes.definitionIdOf(component.typeId()))
                 .flatMap(document::definition);
-    }
-
-    private static CircuitDocument bodyOf(CircuitDocument document, ComponentDefinition definition) {
-        CircuitDocument body = new CircuitDocument();
-        document.definitionsUsedBy(definition.body().components()).forEach(body::putDefinition);
-        definition.body().elements().forEach(body::add);
-        return body;
     }
 
     private static CircuitDocument copyOf(CircuitDocument document, Set<ElementId> selection,

@@ -86,9 +86,7 @@ public final class ConnectivityChecks {
         }
 
         private Level compileBody(ComponentDefinition definition) {
-            CircuitDocument document = new CircuitDocument();
-            definition.body().elements().forEach(document::add);
-            return compileLevel(document);
+            return compileLevel(definition.bodyDocument());
         }
 
         private Level compileLevel(CircuitDocument document) {

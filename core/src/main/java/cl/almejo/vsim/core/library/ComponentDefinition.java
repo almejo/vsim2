@@ -3,6 +3,7 @@ package cl.almejo.vsim.core.library;
 import cl.almejo.vsim.core.component.PinDirection;
 import cl.almejo.vsim.core.component.PinSpec;
 import cl.almejo.vsim.core.component.appearance.SymbolDrawing;
+import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.geometry.GridPoint;
@@ -151,6 +152,24 @@ public record ComponentDefinition(String id, String name, String description, Gr
         }
         return new ComponentDefinition(id, name, description, size, pinout, body, appearance,
                 Math.incrementExact(previous.revision));
+    }
+
+    /** A new document holding the body's elements (and no definitions: the body never carries them). */
+    public CircuitDocument bodyDocument() {
+        CircuitDocument document = new CircuitDocument();
+        body.elements().forEach(document::add);
+        return document;
+    }
+
+    /**
+     * Like {@link #bodyDocument()}, with the definitions of {@code source} that the body uses (directly or nested),
+     * so the body's subcircuits can be resolved.
+     */
+    public CircuitDocument bodyDocument(CircuitDocument source) {
+        CircuitDocument document = new CircuitDocument();
+        source.definitionsUsedBy(body.components()).forEach(document::putDefinition);
+        body.elements().forEach(document::add);
+        return document;
     }
 
     /** Ids of the definitions instantiated directly in the body, in body order, without repeats. */
