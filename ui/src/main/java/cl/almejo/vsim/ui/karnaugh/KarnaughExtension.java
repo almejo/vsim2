@@ -7,9 +7,9 @@ import cl.almejo.vsim.ui.window.EditorExtension;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.ImportMenu;
 import cl.almejo.vsim.ui.window.MenuId;
+import cl.almejo.vsim.ui.window.Menus;
 
 import javax.swing.Action;
-import javax.swing.JMenu;
 import javax.swing.JMenuItem;
 import java.nio.file.Path;
 import java.util.function.Consumer;
@@ -72,16 +72,11 @@ public final class KarnaughExtension implements EditorExtension {
         CreationTarget target = targets.apply(view);
         Action action = Actions.of(Messages.text("action.circuitFromTruthTable"),
                 () -> opener.open(view, new KarnaughWizard(new KarnaughModel(), cost, target, background)));
-        JMenu tools = view.menu(MenuId.TOOLS);
-        JMenuItem item = new JMenuItem(action);
-        tools.add(item);
-        Runnable shortcutRemover = view.registerShortcutAction(SHORTCUT_ID, action);
+        Runnable toolsItemRemover = Menus.install(view, MenuId.TOOLS, -1, action, SHORTCUT_ID);
         Action practiceAction = Actions.of(Messages.text("action.karnaughPractice"),
                 () -> opener.open(view, new KarnaughWizard(new KarnaughModel(), cost, target, background,
                         KarnaughWizard.Mode.PRACTICE)));
-        JMenuItem practiceItem = new JMenuItem(practiceAction);
-        tools.add(practiceItem);
-        Runnable practiceShortcutRemover = view.registerShortcutAction(PRACTICE_SHORTCUT_ID, practiceAction);
+        Runnable practiceRemover = Menus.install(view, MenuId.TOOLS, -1, practiceAction, PRACTICE_SHORTCUT_ID);
         // The truth-table window's «Abrir en el asistente de Karnaugh» opens a wizard on its table.
         view.setTableWizard(spec -> {
             KarnaughModel model = new KarnaughModel();
@@ -102,10 +97,8 @@ public final class KarnaughExtension implements EditorExtension {
         Action expressionsAction = Actions.of(Messages.text("action.circuitFromExpressions"),
                 () -> expressionsOpener.open(view, new ExpressionsPanel(target, background,
                         view.services().preferences(), cost, openInWizard)));
-        JMenuItem expressionsItem = new JMenuItem(expressionsAction);
-        tools.add(expressionsItem);
-        Runnable expressionsShortcutRemover = view.registerShortcutAction(EXPRESSIONS_SHORTCUT_ID,
-                expressionsAction);
+        Runnable expressionsRemover = Menus.install(view, MenuId.TOOLS, -1, expressionsAction,
+                EXPRESSIONS_SHORTCUT_ID);
 
         // «Abrir en el asistente» of the import dialog: that dialog is closed, the normal (editable) wizard opens over
         // the view on the map, with the table and the dialog's options.
@@ -125,12 +118,9 @@ public final class KarnaughExtension implements EditorExtension {
             view.setTableWizard(null);
             importShortcutRemover.run();
             importItemRemover.run();
-            expressionsShortcutRemover.run();
-            tools.remove(expressionsItem);
-            practiceShortcutRemover.run();
-            tools.remove(practiceItem);
-            shortcutRemover.run();
-            tools.remove(item);
+            expressionsRemover.run();
+            practiceRemover.run();
+            toolsItemRemover.run();
         };
     }
 }

@@ -19,6 +19,7 @@ import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.karnaugh.KarnaughHandoff;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuId;
+import cl.almejo.vsim.ui.window.Menus;
 import cl.almejo.vsim.ui.window.panes.EveryPane;
 
 import javax.swing.Action;
@@ -77,8 +78,7 @@ public final class TruthTableFeatures {
     private final Action action;
     private final JMenu simulationMenu;
     private final Component separator;
-    private final JMenuItem item;
-    private final Runnable shortcutRemover;
+    private final Runnable itemRemover;
     private final List<Session> sessions = new ArrayList<>();
     /** On the canvas while a window is open: moves each window's highlight to the row of the live inputs. */
     private final Consumer<SimulationSnapshot> snapshotListener = this::followSnapshot;
@@ -109,9 +109,7 @@ public final class TruthTableFeatures {
         this.simulationMenu = view.menu(MenuId.SIMULATION);
         simulationMenu.addSeparator();
         this.separator = simulationMenu.getMenuComponent(simulationMenu.getMenuComponentCount() - 1);
-        this.item = new JMenuItem(action);
-        simulationMenu.add(item);
-        this.shortcutRemover = view.registerShortcutAction("simulation.truthTable", action);
+        this.itemRemover = Menus.install(view, MenuId.SIMULATION, -1, action, "simulation.truthTable");
         view.addContextMenuContributor(new Contributor());
     }
 
@@ -197,8 +195,7 @@ public final class TruthTableFeatures {
             return;
         }
         disposed = true;
-        shortcutRemover.run();
-        simulationMenu.remove(item);
+        itemRemover.run();
         simulationMenu.remove(separator);
         runner.dispose();
         for (Session session : List.copyOf(sessions)) {

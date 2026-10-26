@@ -22,6 +22,26 @@ public final class Menus {
         return -1;
     }
 
+    /**
+     * Adds a plain item of {@code action} to {@code menu} at {@code index} (a negative index appends it) and offers
+     * the action to the shortcut editor under {@code shortcutId}. Returns one remover that undoes both, the shortcut
+     * first and then the item.
+     */
+    public static Runnable install(EditorView view, MenuId menu, int index, Action action, String shortcutId) {
+        JMenu target = view.menu(menu);
+        JMenuItem item = new JMenuItem(action);
+        if (index < 0) {
+            target.add(item);
+        } else {
+            target.insert(item, index);
+        }
+        Runnable shortcutRemover = view.registerShortcutAction(shortcutId, action);
+        return () -> {
+            shortcutRemover.run();
+            target.remove(item);
+        };
+    }
+
     /** Runs {@code opened} each time {@code menu} opens; returns the listener so a disposer can remove it. */
     public static MenuListener onOpen(JMenu menu, Runnable opened) {
         MenuListener listener = new MenuListener() {

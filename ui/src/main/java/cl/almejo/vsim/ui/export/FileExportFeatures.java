@@ -9,7 +9,6 @@ import cl.almejo.vsim.ui.window.Menus;
 
 import javax.swing.Action;
 import javax.swing.JMenu;
-import javax.swing.JMenuItem;
 import java.nio.file.Path;
 import java.util.Optional;
 
@@ -22,9 +21,7 @@ public abstract class FileExportFeatures {
 
     private final EditorView view;
     private final Action action;
-    private final JMenu fileMenu;
-    private final JMenuItem item;
-    private final Runnable shortcutRemover;
+    private final Runnable itemRemover;
     private final Runnable changeListener = this::updateEnabled;
     private boolean disposed;
 
@@ -41,10 +38,7 @@ public abstract class FileExportFeatures {
         this.view = view;
         this.action = Actions.of(Messages.text(actionTextKey), () -> export());
         Icons.install(action, iconName);
-        this.fileMenu = view.menu(MenuId.FILE);
-        this.item = new JMenuItem(action);
-        fileMenu.add(item, insertionIndex);
-        this.shortcutRemover = view.registerShortcutAction(shortcutId, action);
+        this.itemRemover = Menus.install(view, MenuId.FILE, insertionIndex, action, shortcutId);
         view.openDocument().addChangeListener(changeListener);
         updateEnabled();
     }
@@ -91,8 +85,7 @@ public abstract class FileExportFeatures {
             return;
         }
         disposed = true;
-        shortcutRemover.run();
-        fileMenu.remove(item);
+        itemRemover.run();
         view.openDocument().removeChangeListener(changeListener);
     }
 }

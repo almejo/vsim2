@@ -1,5 +1,11 @@
 package cl.almejo.vsim.ui.window;
 
+import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
+import cl.almejo.vsim.ui.UiTestSupport;
+import cl.almejo.vsim.ui.app.OpenDocument;
+import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.paint.ColorScheme;
+import cl.almejo.vsim.ui.paint.PainterRegistry;
 import org.junit.jupiter.api.Test;
 
 import javax.swing.AbstractAction;
@@ -46,5 +52,26 @@ class MenusTest {
         assertThat(menu.getMenuListeners()).contains(listener);
         menu.removeMenuListener(listener);
         assertThat(menu.getMenuListeners()).doesNotContain(listener);
+    }
+
+    @Test
+    void installAddsTheItemAndTheShortcutAndOneRemoverUndoesBoth() {
+        Messages.initialize(Messages.SPANISH);
+        EditorView view = new EditorView(OpenDocument.createEmpty(StandardComponentTypes.registry()),
+                PainterRegistry.standard(), ColorScheme.LIGHT, UiTestSupport.NO_WINDOW);
+        JMenu menu = view.menu(MenuId.TOOLS);
+        int before = menu.getMenuComponentCount();
+        Action first = action("Primera");
+        Action second = action("Segunda");
+        Runnable firstRemover = Menus.install(view, MenuId.TOOLS, -1, first, "test.first");
+        Runnable secondRemover = Menus.install(view, MenuId.TOOLS, 0, second, "test.second");
+        assertThat(Menus.indexOf(menu, second)).isZero();
+        assertThat(Menus.indexOf(menu, first)).isEqualTo(before + 1);
+        assertThat(view.shortcutActions()).containsEntry("test.first", first).containsEntry("test.second", second);
+        secondRemover.run();
+        firstRemover.run();
+        assertThat(menu.getMenuComponentCount()).isEqualTo(before);
+        assertThat(view.shortcutActions()).doesNotContainKeys("test.first", "test.second");
+        view.dispose();
     }
 }

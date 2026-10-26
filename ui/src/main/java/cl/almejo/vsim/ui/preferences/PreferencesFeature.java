@@ -11,7 +11,6 @@ import cl.almejo.vsim.ui.window.Menus;
 
 import javax.swing.Action;
 import javax.swing.JMenu;
-import javax.swing.JMenuItem;
 import javax.swing.JPopupMenu;
 import javax.swing.JSeparator;
 import java.awt.Component;
@@ -40,15 +39,12 @@ public final class PreferencesFeature implements EditorExtension {
         JMenu file = view.menu(MenuId.FILE);
         Action preferences = Actions.of(Messages.text("action.preferences"),
                 () -> opener.accept(view, view.services().preferences()));
-        JMenuItem item = new JMenuItem(preferences);
-        Runnable unregisterShortcut = view.registerShortcutAction("file.preferences", preferences);
         JSeparator separator = new JPopupMenu.Separator();
         int position = insertionIndex(file, view.actions().closeWindow());
         file.add(separator, position);
-        file.add(item, position + 1);
+        Runnable itemRemover = Menus.install(view, MenuId.FILE, position + 1, preferences, "file.preferences");
         return () -> {
-            unregisterShortcut.run();
-            file.remove(item);
+            itemRemover.run();
             file.remove(separator);
         };
     }
