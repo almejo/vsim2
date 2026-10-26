@@ -4,13 +4,13 @@ import cl.almejo.vsim.core.io.AtomicFiles;
 import cl.almejo.vsim.core.truthtable.TruthTable;
 import cl.almejo.vsim.core.truthtable.TruthTableText;
 import cl.almejo.vsim.ui.app.FileDialogs;
+import cl.almejo.vsim.ui.app.FileNames;
 import cl.almejo.vsim.ui.i18n.Messages;
 
 import javax.swing.filechooser.FileNameExtensionFilter;
 import java.awt.Component;
 import java.io.IOException;
 import java.nio.file.Path;
-import java.util.Locale;
 import java.util.Optional;
 
 /** «Exportar CSV…»: the suggested file name, the save dialog and the UTF-8 file (spec §5.2). */
@@ -23,14 +23,12 @@ public final class TruthTableExport {
 
     /** {@code <documento>-tabla.csv}, with characters file systems refuse replaced by {@code _}. */
     public static String suggestedName(String documentName) {
-        return documentName.replaceAll("[/\\\\:*?\"<>|]", "_") + "-" + Messages.text("truthTable.fileSuffix")
+        return FileNames.safeName(documentName) + "-" + Messages.text("truthTable.fileSuffix")
                 + EXTENSION;
     }
 
     public static Path withCsvExtension(Path path) {
-        String fileName = path.getFileName().toString();
-        return fileName.toLowerCase(Locale.ROOT).endsWith(EXTENSION) ? path
-                : path.resolveSibling(fileName + EXTENSION);
+        return FileNames.withExtension(path, EXTENSION);
     }
 
     /** Writes {@link TruthTableText#csv} as UTF-8, atomically. */

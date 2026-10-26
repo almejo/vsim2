@@ -23,6 +23,7 @@ import java.nio.file.attribute.PosixFilePermissions;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -67,6 +68,18 @@ class OpenDocumentTest {
         OpenDocument document = track(OpenDocument.createEmpty(registry));
         document.document().setName("a/b\\c:d*e?f\"g<h>i|j");
         assertThat(document.suggestedFileName()).isEqualTo("a_b_c_d_e_f_g_h_i_j.vsim");
+    }
+
+    @Test
+    void startDirectoryIsThePreferredFolderElseTheDocumentsFolderElseHome(@TempDir Path directory) throws Exception {
+        OpenDocument untitled = track(OpenDocument.createEmpty(registry));
+        assertThat(untitled.startDirectory(Optional.empty())).isEqualTo(Path.of(System.getProperty("user.home")));
+        assertThat(untitled.startDirectory(Optional.of(directory))).isEqualTo(directory);
+        Path file = directory.resolve("saved.vsim");
+        untitled.save(file);
+        assertThat(untitled.startDirectory(Optional.empty())).isEqualTo(directory);
+        Path other = Files.createDirectory(directory.resolve("other"));
+        assertThat(untitled.startDirectory(Optional.of(other))).isEqualTo(other);
     }
 
     @Test

@@ -16,13 +16,10 @@ import cl.almejo.vsim.ui.panels.TextChanges;
 import net.miginfocom.swing.MigLayout;
 
 import javax.swing.AbstractButton;
-import javax.swing.ButtonGroup;
 import javax.swing.JButton;
-import javax.swing.JCheckBox;
 import javax.swing.JDialog;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
-import javax.swing.JRadioButton;
 import javax.swing.JRootPane;
 import javax.swing.JScrollPane;
 import javax.swing.JSpinner;
@@ -44,11 +41,9 @@ import java.awt.Toolkit;
 import java.awt.Window;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.EnumMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.Callable;
@@ -150,10 +145,7 @@ public final class TableImportPanel extends JPanel {
     private final JButton next = new JButton(Messages.text("karnaugh.next"));
     private Page page = Page.DATA;
     private final Paragraph notice = new Paragraph("");
-    private final Map<WizardOptions.GateChoice, JRadioButton> gateButtons =
-            new EnumMap<>(WizardOptions.GateChoice.class);
-    private final Map<Minimization.Form, JRadioButton> formButtons = new EnumMap<>(Minimization.Form.class);
-    private final JCheckBox share = new JCheckBox(Messages.text("karnaugh.expression.share"));
+    private final OptionControls optionControls;
     private final JLabel summary = new JLabel(" ");
     /** «El circuito tendría 2 229 compuertas; el máximo es 2 000.» under the summary, when «Crear» is off for it. */
     private final Paragraph gateLimit = Paragraph.error();
@@ -240,21 +232,12 @@ public final class TableImportPanel extends JPanel {
         content.add(title, "growx 0, wmin 200");
         content.add(titleProblem, "skip 1, growx, wmin 100, hidemode 3");
 
-        ButtonGroup gates = new ButtonGroup();
-        JPanel gatesPanel = new JPanel(new MigLayout("insets 0"));
-        addGate(gates, gatesPanel, WizardOptions.GateChoice.AND_OR_NOT, "karnaugh.expression.gates.andOrNot");
-        addGate(gates, gatesPanel, WizardOptions.GateChoice.NAND_ONLY, "karnaugh.expression.gates.nandOnly");
-        addGate(gates, gatesPanel, WizardOptions.GateChoice.NOR_ONLY, "karnaugh.expression.gates.norOnly");
-        ButtonGroup forms = new ButtonGroup();
-        JPanel formsPanel = new JPanel(new MigLayout("insets 0"));
-        addForm(forms, formsPanel, Minimization.Form.SUM_OF_PRODUCTS, "karnaugh.expression.form.sop");
-        addForm(forms, formsPanel, Minimization.Form.PRODUCT_OF_SUMS, "karnaugh.expression.form.pos");
-        share.addActionListener(event -> model.setOptions(model.options().withShareTerms(share.isSelected())));
+        optionControls = new OptionControls(model::options, model::setOptions);
         content.add(new JLabel(Messages.text("karnaugh.expression.gates")));
-        content.add(gatesPanel);
+        content.add(optionControls.gatesPanel());
         content.add(new JLabel(Messages.text("karnaugh.expression.form")));
-        content.add(formsPanel);
-        content.add(share, "span 2");
+        content.add(optionControls.formsPanel());
+        content.add(optionControls.shareBox(), "span 2");
         summary.setFont(summary.getFont().deriveFont(Font.BOLD));
         content.add(summary, "span 2");
         content.add(gateLimit, "span 2, growx, wmin 100, hidemode 3");
@@ -319,22 +302,6 @@ public final class TableImportPanel extends JPanel {
         heading.setText(Messages.format("tableImport.page.heading", target.ordinal() + 1, Page.values().length,
                 target.title()));
         refreshButtons();
-    }
-
-    private void addGate(ButtonGroup group, JPanel panel, WizardOptions.GateChoice choice, String key) {
-        JRadioButton button = new JRadioButton(Messages.text(key));
-        button.addActionListener(event -> model.setOptions(model.options().withGates(choice)));
-        group.add(button);
-        panel.add(button);
-        gateButtons.put(choice, button);
-    }
-
-    private void addForm(ButtonGroup group, JPanel panel, Minimization.Form choice, String key) {
-        JRadioButton button = new JRadioButton(Messages.text(key));
-        button.addActionListener(event -> model.setOptions(model.options().withForm(choice)));
-        group.add(button);
-        panel.add(button);
-        formButtons.put(choice, button);
     }
 
     private void titleTyped() {
@@ -443,13 +410,7 @@ public final class TableImportPanel extends JPanel {
         Optional<String> missing = model.missingNotice();
         notice.setText(missing.orElse(""));
         notice.setVisible(missing.isPresent());
-        for (Map.Entry<WizardOptions.GateChoice, JRadioButton> entry : gateButtons.entrySet()) {
-            entry.getValue().setSelected(entry.getKey() == model.options().gates());
-        }
-        for (Map.Entry<Minimization.Form, JRadioButton> entry : formButtons.entrySet()) {
-            entry.getValue().setSelected(entry.getKey() == model.options().form());
-        }
-        share.setSelected(model.options().shareTerms());
+        optionControls.sync(model.options());
         form.proposeName(model.title());
         summarize();
         refreshButtons();
@@ -565,9 +526,8 @@ public final class TableImportPanel extends JPanel {
         close.setText(Messages.text(busy ? "karnaugh.cancel" : "karnaugh.close"));
         title.setEnabled(!busy && model.hasTable());
         inputCount.setEnabled(!busy && model.hasTable());
-        List<AbstractButton> optionButtons = new ArrayList<>(gateButtons.values());
-        optionButtons.addAll(formButtons.values());
-        optionButtons.add(share);
+        List<AbstractButton> optionButtons = new ArrayList<>(optionControls.radioButtons());
+        optionButtons.add(optionControls.shareBox());
         optionButtons.forEach(button -> button.setEnabled(!busy));
         wizard.setEnabled(!busy && model.canOpenInWizard());
         wizardHint.setVisible(model.dataReady() && model.splitFitsTheWizard());
@@ -720,7 +680,7 @@ public final class TableImportPanel extends JPanel {
     }
 
     AbstractButton gateButton(WizardOptions.GateChoice choice) {
-        return gateButtons.get(choice);
+        return optionControls.gateButton(choice);
     }
 
     /**
