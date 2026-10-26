@@ -1,14 +1,9 @@
 package cl.almejo.vsim.ui.wiring;
 
-import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
-import cl.almejo.vsim.core.library.ComponentLibrary;
+import cl.almejo.vsim.ui.EditorFixture;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.OpenDocument;
-import cl.almejo.vsim.ui.paint.Appearance;
-import cl.almejo.vsim.ui.paint.ColorScheme;
-import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.shortcuts.ShortcutCatalog;
-import cl.almejo.vsim.ui.window.EditorServices;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuId;
 import org.junit.jupiter.api.AfterEach;
@@ -22,7 +17,6 @@ import javax.swing.JMenuItem;
 import java.util.ArrayList;
 import java.util.List;
 
-import static cl.almejo.vsim.ui.UiTestSupport.NO_WINDOW;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class WiresFollowFeaturesTest {
@@ -30,6 +24,7 @@ class WiresFollowFeaturesTest {
     private static final String NAME = "Los cables siguen al mover";
     private final AppPreferences preferences = AppPreferences.inMemory();
     private OpenDocument openDocument;
+    private EditorFixture fixture;
     private EditorView view;
     private EditorView otherView;
     private WiresFollowFeatures features;
@@ -37,11 +32,10 @@ class WiresFollowFeaturesTest {
 
     @BeforeEach
     void create() {
-        openDocument = OpenDocument.createEmpty(StandardComponentTypes.registry());
-        EditorServices services = new EditorServices(PainterRegistry.standard(), new Appearance(ColorScheme.LIGHT),
-                preferences, new ComponentLibrary(), List.of());
-        view = new EditorView(openDocument, services, NO_WINDOW);
-        otherView = new EditorView(openDocument, services, NO_WINDOW);
+        fixture = EditorFixture.create(preferences);
+        openDocument = fixture.openDocument();
+        view = fixture.view();
+        otherView = fixture.otherView();
         features = new WiresFollowFeatures(view);
         otherFeatures = new WiresFollowFeatures(otherView);
     }
@@ -50,9 +44,7 @@ class WiresFollowFeaturesTest {
     void close() {
         features.dispose();
         otherFeatures.dispose();
-        view.dispose();
-        otherView.dispose();
-        openDocument.close();
+        fixture.close();
     }
 
     private static JCheckBoxMenuItem editItem(EditorView target) {

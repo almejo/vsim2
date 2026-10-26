@@ -5,14 +5,12 @@ import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
-import cl.almejo.vsim.core.library.ComponentLibrary;
+import cl.almejo.vsim.ui.EditorFixture;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.AppPreferences.GridStyle;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.export.CircuitImage;
 import cl.almejo.vsim.ui.export.ImageExport;
-import cl.almejo.vsim.ui.paint.Appearance;
-import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.paint.TextFont;
 import cl.almejo.vsim.ui.print.PageGeometry;
@@ -22,7 +20,6 @@ import cl.almejo.vsim.ui.print.PrintArea;
 import cl.almejo.vsim.ui.print.PrintInput;
 import cl.almejo.vsim.ui.print.PrintOptions;
 import cl.almejo.vsim.ui.print.PrintScopes;
-import cl.almejo.vsim.ui.window.EditorServices;
 import cl.almejo.vsim.ui.window.EditorView;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -43,7 +40,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
-import static cl.almejo.vsim.ui.UiTestSupport.NO_WINDOW;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** The grid of lines is editor chrome: PNG, SVG and a PDF sheet are the same with lines, dots or nothing. */
@@ -56,6 +52,7 @@ class GridLinesNeverOnPaperTest {
 
     private final AppPreferences preferences = AppPreferences.inMemory();
     private OpenDocument openDocument;
+    private EditorFixture fixture;
     private EditorView view;
     private GridFeatures features;
 
@@ -68,17 +65,15 @@ class GridLinesNeverOnPaperTest {
         openDocument.document().add(gate);
         openDocument.document().add(new Wire(openDocument.document().newWireId(), new GridPoint(0, 20),
                 new GridPoint(30, 20)));
-        EditorServices services = new EditorServices(PainterRegistry.standard(), new Appearance(ColorScheme.LIGHT),
-                preferences, new ComponentLibrary(), List.of());
-        view = new EditorView(openDocument, services, NO_WINDOW);
+        fixture = EditorFixture.around(openDocument, preferences);
+        view = fixture.view();
         features = new GridFeatures(view);
     }
 
     @AfterEach
     void close() {
         features.dispose();
-        view.dispose();
-        openDocument.close();
+        fixture.close();
     }
 
     private CircuitImage image() {

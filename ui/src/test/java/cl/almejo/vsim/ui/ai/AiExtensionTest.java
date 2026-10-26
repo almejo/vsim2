@@ -1,14 +1,9 @@
 package cl.almejo.vsim.ui.ai;
 
 import cl.almejo.vsim.automation.AutomationApi;
-import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
-import cl.almejo.vsim.core.library.ComponentLibrary;
+import cl.almejo.vsim.ui.EditorFixture;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.OpenDocument;
-import cl.almejo.vsim.ui.paint.Appearance;
-import cl.almejo.vsim.ui.paint.ColorScheme;
-import cl.almejo.vsim.ui.paint.PainterRegistry;
-import cl.almejo.vsim.ui.window.EditorServices;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuId;
 import org.junit.jupiter.api.AfterEach;
@@ -19,7 +14,6 @@ import javax.swing.JMenu;
 import java.util.ArrayList;
 import java.util.List;
 
-import static cl.almejo.vsim.ui.UiTestSupport.NO_WINDOW;
 import static cl.almejo.vsim.ui.UiTestSupport.texts;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -31,19 +25,19 @@ class AiExtensionTest {
             Runnable::run, Runnable::run);
     private final PreferenceProposals proposals = new PreferenceProposals(saved);
     private OpenDocument document;
+    private EditorFixture fixture;
     private EditorView view;
 
     @BeforeEach
     void create() {
-        document = OpenDocument.createEmpty(StandardComponentTypes.registry());
-        view = new EditorView(document, new EditorServices(PainterRegistry.standard(),
-                new Appearance(ColorScheme.LIGHT), saved.layered(), new ComponentLibrary(), List.of()), NO_WINDOW);
+        fixture = EditorFixture.create(saved.layered());
+        document = fixture.openDocument();
+        view = fixture.view();
     }
 
     @AfterEach
     void close() {
-        view.dispose();
-        document.close();
+        fixture.close();
     }
 
     @Test

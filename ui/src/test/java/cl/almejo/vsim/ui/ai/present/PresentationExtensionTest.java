@@ -3,15 +3,10 @@ package cl.almejo.vsim.ui.ai.present;
 import cl.almejo.vsim.automation.DocumentId;
 import cl.almejo.vsim.automation.TaskInfo;
 import cl.almejo.vsim.automation.edit.TaskStage;
-import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
-import cl.almejo.vsim.core.library.ComponentLibrary;
+import cl.almejo.vsim.ui.EditorFixture;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
-import cl.almejo.vsim.ui.paint.Appearance;
-import cl.almejo.vsim.ui.paint.ColorScheme;
-import cl.almejo.vsim.ui.paint.PainterRegistry;
-import cl.almejo.vsim.ui.window.EditorServices;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuId;
 import org.junit.jupiter.api.AfterEach;
@@ -31,7 +26,6 @@ import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.List;
 
-import static cl.almejo.vsim.ui.UiTestSupport.NO_WINDOW;
 import static cl.almejo.vsim.ui.UiTestSupport.layOut;
 import static cl.almejo.vsim.ui.UiTestSupport.texts;
 import static cl.almejo.vsim.ui.ai.present.FakePresentationEvents.step;
@@ -51,6 +45,7 @@ class PresentationExtensionTest {
     private final RecordingControls controls = new RecordingControls();
     private final Deque<Runnable> editorQueue = new ArrayDeque<>();
     private OpenDocument document;
+    private EditorFixture fixture;
     private EditorView view;
     private JRootPane root;
     private PresentationExtension extension;
@@ -58,9 +53,9 @@ class PresentationExtensionTest {
 
     @BeforeEach
     void create() {
-        document = OpenDocument.createEmpty(StandardComponentTypes.registry());
-        view = new EditorView(document, new EditorServices(PainterRegistry.standard(),
-                new Appearance(ColorScheme.LIGHT), saved.layered(), new ComponentLibrary(), List.of()), NO_WINDOW);
+        fixture = EditorFixture.create(saved.layered());
+        document = fixture.openDocument();
+        view = fixture.view();
         root = new JRootPane();
         root.getContentPane().add(view);
         root.setSize(1200, 800);
@@ -74,8 +69,7 @@ class PresentationExtensionTest {
         if (dispose != null) {
             dispose.run();
         }
-        view.dispose();
-        document.close();
+        fixture.close();
     }
 
     private PresentationFeatures features() {

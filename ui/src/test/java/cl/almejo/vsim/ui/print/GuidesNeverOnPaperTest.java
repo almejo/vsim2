@@ -7,17 +7,14 @@ import cl.almejo.vsim.core.document.Guide.Orientation;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
-import cl.almejo.vsim.core.library.ComponentLibrary;
+import cl.almejo.vsim.ui.EditorFixture;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.export.CircuitImage;
 import cl.almejo.vsim.ui.export.ImageExport;
 import cl.almejo.vsim.ui.guides.GuidesFeatures;
-import cl.almejo.vsim.ui.paint.Appearance;
-import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.paint.TextFont;
-import cl.almejo.vsim.ui.window.EditorServices;
 import cl.almejo.vsim.ui.window.EditorView;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -41,7 +38,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
-import static cl.almejo.vsim.ui.UiTestSupport.NO_WINDOW;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -57,6 +53,7 @@ class GuidesNeverOnPaperTest {
 
     private final AppPreferences preferences = AppPreferences.inMemory();
     private OpenDocument openDocument;
+    private EditorFixture fixture;
     private EditorView view;
     private GuidesFeatures features;
 
@@ -69,9 +66,8 @@ class GuidesNeverOnPaperTest {
         openDocument.document().add(gate);
         openDocument.document().add(new Wire(openDocument.document().newWireId(), new GridPoint(0, 20),
                 new GridPoint(30, 20)));
-        EditorServices services = new EditorServices(PainterRegistry.standard(), new Appearance(ColorScheme.LIGHT),
-                preferences, new ComponentLibrary(), List.of());
-        view = new EditorView(openDocument, services, NO_WINDOW);
+        fixture = EditorFixture.around(openDocument, preferences);
+        view = fixture.view();
         view.canvas().setSize(400, 300);
         features = new GuidesFeatures(view);
     }
@@ -79,8 +75,7 @@ class GuidesNeverOnPaperTest {
     @AfterEach
     void close() {
         features.dispose();
-        view.dispose();
-        openDocument.close();
+        fixture.close();
     }
 
     private CircuitImage image() {

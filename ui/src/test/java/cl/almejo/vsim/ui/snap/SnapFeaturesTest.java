@@ -2,17 +2,13 @@ package cl.almejo.vsim.ui.snap;
 
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Guide;
-import cl.almejo.vsim.core.library.ComponentLibrary;
+import cl.almejo.vsim.ui.EditorFixture;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.grid.GridFeatures;
 import cl.almejo.vsim.ui.icons.Icons;
-import cl.almejo.vsim.ui.paint.Appearance;
-import cl.almejo.vsim.ui.paint.ColorScheme;
-import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.tools.Tool;
 import cl.almejo.vsim.ui.tools.ToolContext;
-import cl.almejo.vsim.ui.window.EditorServices;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuId;
 import org.junit.jupiter.api.AfterEach;
@@ -29,7 +25,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-import static cl.almejo.vsim.ui.UiTestSupport.NO_WINDOW;
 import static cl.almejo.vsim.ui.UiTestSupport.place;
 import static cl.almejo.vsim.ui.UiTestSupport.texts;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -38,6 +33,7 @@ class SnapFeaturesTest {
 
     private final AppPreferences preferences = AppPreferences.inMemory();
     private OpenDocument openDocument;
+    private EditorFixture fixture;
     private EditorView view;
     private EditorView otherView;
     private GridFeatures grid;
@@ -46,11 +42,10 @@ class SnapFeaturesTest {
 
     @BeforeEach
     void create() {
-        openDocument = OpenDocument.createEmpty(StandardComponentTypes.registry());
-        EditorServices services = new EditorServices(PainterRegistry.standard(), new Appearance(ColorScheme.LIGHT),
-                preferences, new ComponentLibrary(), List.of());
-        view = new EditorView(openDocument, services, NO_WINDOW);
-        otherView = new EditorView(openDocument, services, NO_WINDOW);
+        fixture = EditorFixture.create(preferences);
+        openDocument = fixture.openDocument();
+        view = fixture.view();
+        otherView = fixture.otherView();
         grid = new GridFeatures(view);
         features = new SnapFeatures(view);
         otherFeatures = new SnapFeatures(otherView);
@@ -61,9 +56,7 @@ class SnapFeaturesTest {
         features.dispose();
         otherFeatures.dispose();
         grid.dispose();
-        view.dispose();
-        otherView.dispose();
-        openDocument.close();
+        fixture.close();
     }
 
     private static JMenu snapToMenu(EditorView target) {

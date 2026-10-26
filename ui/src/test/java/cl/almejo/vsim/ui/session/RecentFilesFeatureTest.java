@@ -1,14 +1,9 @@
 package cl.almejo.vsim.ui.session;
 
-import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
-import cl.almejo.vsim.core.library.ComponentLibrary;
+import cl.almejo.vsim.ui.EditorFixture;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.FileNames;
 import cl.almejo.vsim.ui.app.OpenDocument;
-import cl.almejo.vsim.ui.paint.Appearance;
-import cl.almejo.vsim.ui.paint.ColorScheme;
-import cl.almejo.vsim.ui.paint.PainterRegistry;
-import cl.almejo.vsim.ui.window.EditorServices;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuId;
 import org.junit.jupiter.api.AfterEach;
@@ -27,7 +22,6 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
-import static cl.almejo.vsim.ui.UiTestSupport.NO_WINDOW;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class RecentFilesFeatureTest {
@@ -39,20 +33,20 @@ class RecentFilesFeatureTest {
     private final List<Path> opened = new ArrayList<>();
     private final List<Path> missing = new ArrayList<>();
     private OpenDocument openDocument;
+    private EditorFixture fixture;
     private EditorView view;
 
     @BeforeEach
     void create() {
-        openDocument = OpenDocument.createEmpty(StandardComponentTypes.registry());
-        view = new EditorView(openDocument, new EditorServices(PainterRegistry.standard(),
-                new Appearance(ColorScheme.LIGHT), preferences, new ComponentLibrary(), List.of()), NO_WINDOW);
+        fixture = EditorFixture.create(preferences);
+        openDocument = fixture.openDocument();
+        view = fixture.view();
         view.setCircuitOpener(opened::addAll);
     }
 
     @AfterEach
     void close() {
-        view.dispose();
-        openDocument.close();
+        fixture.close();
     }
 
     private RecentFilesFeature feature() {

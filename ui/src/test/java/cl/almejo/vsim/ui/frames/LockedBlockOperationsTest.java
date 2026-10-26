@@ -10,16 +10,11 @@ import cl.almejo.vsim.core.document.FrameTint;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.io.CircuitFragment;
 import cl.almejo.vsim.core.io.FragmentFormat;
-import cl.almejo.vsim.core.library.ComponentLibrary;
+import cl.almejo.vsim.ui.EditorFixture;
 import cl.almejo.vsim.ui.actions.SelectionActions;
-import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.clipboard.FragmentClipboard;
-import cl.almejo.vsim.ui.paint.Appearance;
-import cl.almejo.vsim.ui.paint.ColorScheme;
-import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.tools.FloatingSelectionTool;
-import cl.almejo.vsim.ui.window.EditorServices;
 import cl.almejo.vsim.ui.window.EditorView;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -31,7 +26,6 @@ import java.awt.datatransfer.Clipboard;
 import java.util.List;
 import java.util.Map;
 
-import static cl.almejo.vsim.ui.UiTestSupport.NO_WINDOW;
 import static cl.almejo.vsim.ui.UiTestSupport.perform;
 import static cl.almejo.vsim.ui.UiTestSupport.place;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -44,16 +38,16 @@ class LockedBlockOperationsTest {
 
     private final FragmentClipboard clipboard = new FragmentClipboard(new Clipboard("test"));
     private OpenDocument openDocument;
+    private EditorFixture fixture;
     private EditorView view;
     private FramesFeatures features;
     private SelectionActions selectionActions;
 
     @BeforeEach
     void create() {
-        openDocument = OpenDocument.createEmpty(StandardComponentTypes.registry());
-        view = new EditorView(openDocument, new EditorServices(PainterRegistry.standard(),
-                new Appearance(ColorScheme.LIGHT), AppPreferences.inMemory(), new ComponentLibrary(), List.of()),
-                NO_WINDOW);
+        fixture = EditorFixture.create();
+        openDocument = fixture.openDocument();
+        view = fixture.view();
         view.canvas().setSize(400, 300);
         features = new FramesFeatures(view);
         selectionActions = new SelectionActions(openDocument, view::canvas, view.canvas().selection(), view.actions(),
@@ -63,8 +57,7 @@ class LockedBlockOperationsTest {
     @AfterEach
     void close() {
         features.dispose();
-        view.dispose();
-        openDocument.close();
+        fixture.close();
     }
 
     private Frame frame(boolean locked) {

@@ -3,16 +3,11 @@ package cl.almejo.vsim.ui.ai.present;
 import cl.almejo.vsim.automation.DocumentId;
 import cl.almejo.vsim.automation.TaskInfo;
 import cl.almejo.vsim.automation.edit.TaskStage;
-import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
-import cl.almejo.vsim.core.library.ComponentLibrary;
+import cl.almejo.vsim.ui.EditorFixture;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.i18n.Messages;
-import cl.almejo.vsim.ui.paint.Appearance;
-import cl.almejo.vsim.ui.paint.ColorScheme;
-import cl.almejo.vsim.ui.paint.PainterRegistry;
-import cl.almejo.vsim.ui.window.EditorServices;
 import cl.almejo.vsim.ui.window.EditorView;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -38,7 +33,6 @@ import java.util.ArrayList;
 import java.util.Deque;
 import java.util.List;
 
-import static cl.almejo.vsim.ui.UiTestSupport.NO_WINDOW;
 import static cl.almejo.vsim.ui.UiTestSupport.layOut;
 import static cl.almejo.vsim.ui.ai.present.FakePresentationEvents.step;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -66,6 +60,7 @@ class PresentationPanelLayoutTest {
     private final RecordingControls controls = new RecordingControls();
     private final Deque<Runnable> editorQueue = new ArrayDeque<>();
     private OpenDocument document;
+    private EditorFixture fixture;
     private EditorView view;
     private JRootPane root;
     private PresentationExtension extension;
@@ -74,9 +69,9 @@ class PresentationPanelLayoutTest {
     @BeforeEach
     void create() {
         Messages.initialize(java.util.Locale.ENGLISH);
-        document = OpenDocument.createEmpty(StandardComponentTypes.registry());
-        view = new EditorView(document, new EditorServices(PainterRegistry.standard(),
-                new Appearance(ColorScheme.LIGHT), saved.layered(), new ComponentLibrary(), List.of()), NO_WINDOW);
+        fixture = EditorFixture.create(saved.layered());
+        document = fixture.openDocument();
+        view = fixture.view();
         root = new JRootPane();
         root.getContentPane().add(view);
         resize(1200, 800);
@@ -94,8 +89,7 @@ class PresentationPanelLayoutTest {
         if (dispose != null) {
             dispose.run();
         }
-        view.dispose();
-        document.close();
+        fixture.close();
     }
 
     private PresentationFeatures features() {

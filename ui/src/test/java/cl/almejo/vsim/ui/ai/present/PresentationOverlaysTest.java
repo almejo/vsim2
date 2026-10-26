@@ -13,7 +13,7 @@ import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
-import cl.almejo.vsim.core.library.ComponentLibrary;
+import cl.almejo.vsim.ui.EditorFixture;
 import cl.almejo.vsim.ui.ai.AiColors;
 import cl.almejo.vsim.ui.ai.AiServerService;
 import cl.almejo.vsim.ui.ai.EditorAutomationHost;
@@ -23,12 +23,9 @@ import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.canvas.DrawnBounds;
 import cl.almejo.vsim.ui.canvas.ManualFrameTicker;
 import cl.almejo.vsim.ui.canvas.ViewState;
-import cl.almejo.vsim.ui.paint.Appearance;
 import cl.almejo.vsim.ui.paint.ColorScheme;
-import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.theme.AppThemes;
 import cl.almejo.vsim.ui.theme.ReadableColors;
-import cl.almejo.vsim.ui.window.EditorServices;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.panes.CanvasPanes;
 import org.junit.jupiter.api.AfterEach;
@@ -49,7 +46,6 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
-import static cl.almejo.vsim.ui.UiTestSupport.NO_WINDOW;
 import static cl.almejo.vsim.ui.UiTestSupport.place;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -72,6 +68,7 @@ class PresentationOverlaysTest {
     /** The floating panel's rectangle over each pane, in its pixels (none: no panel). */
     private final Map<CircuitCanvas, Rectangle> covered = new java.util.IdentityHashMap<>();
     private OpenDocument document;
+    private EditorFixture fixture;
     private EditorView view;
     private PresentationOverlays overlays;
     private ManualFrameTicker ticker;
@@ -80,10 +77,9 @@ class PresentationOverlaysTest {
     @BeforeEach
     void create() {
         preferences.setAnimateViewMoves(false);
-        document = OpenDocument.createEmpty(StandardComponentTypes.registry());
-        EditorServices services = new EditorServices(PainterRegistry.standard(), new Appearance(ColorScheme.LIGHT),
-                preferences, new ComponentLibrary(), List.of());
-        view = new EditorView(document, services, NO_WINDOW);
+        fixture = EditorFixture.create(preferences);
+        document = fixture.openDocument();
+        view = fixture.view();
         view.canvas().setSize(400, 300);
         view.canvas().applyViewState(new ViewState(1, 0, 0)); // shows x -25..25, y -18.75..18.75
         ticker = new ManualFrameTicker().drive(view.canvas());
@@ -112,8 +108,7 @@ class PresentationOverlaysTest {
     @AfterEach
     void close() {
         overlays.dispose();
-        view.dispose();
-        document.close();
+        fixture.close();
     }
 
     private PresentationListener presentation() {

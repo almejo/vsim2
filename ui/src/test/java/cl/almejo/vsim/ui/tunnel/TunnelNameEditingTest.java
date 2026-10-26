@@ -2,17 +2,12 @@ package cl.almejo.vsim.ui.tunnel;
 
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
-import cl.almejo.vsim.core.library.ComponentLibrary;
 import cl.almejo.vsim.core.tunnel.Tunnels;
+import cl.almejo.vsim.ui.EditorFixture;
 import cl.almejo.vsim.ui.actions.LabelActions;
-import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.inline.InlineTextEditor;
-import cl.almejo.vsim.ui.paint.Appearance;
-import cl.almejo.vsim.ui.paint.ColorScheme;
-import cl.almejo.vsim.ui.paint.PainterRegistry;
-import cl.almejo.vsim.ui.window.EditorServices;
 import cl.almejo.vsim.ui.window.EditorView;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -24,23 +19,23 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-import static cl.almejo.vsim.ui.UiTestSupport.NO_WINDOW;
 import static cl.almejo.vsim.ui.UiTestSupport.place;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** The name of a tunnel is edited in place (spec §7): validation, suggestions and the rename that carries salidas. */
 class TunnelNameEditingTest {
 
-    private final OpenDocument openDocument = OpenDocument.createEmpty(StandardComponentTypes.registry());
+    private OpenDocument openDocument;
+    private EditorFixture fixture;
     private EditorView view;
     private InlineTextEditor editor;
     private LabelActions actions;
 
     @BeforeEach
     void create() {
-        view = new EditorView(openDocument, new EditorServices(PainterRegistry.standard(),
-                new Appearance(ColorScheme.LIGHT), AppPreferences.inMemory(), new ComponentLibrary(), List.of()),
-                NO_WINDOW);
+        fixture = EditorFixture.create();
+        openDocument = fixture.openDocument();
+        view = fixture.view();
         view.canvas().setSize(800, 600);
         editor = view.inlineEditor();
         actions = view.labelFeatures().actions();
@@ -48,8 +43,7 @@ class TunnelNameEditingTest {
 
     @AfterEach
     void close() {
-        view.dispose();
-        openDocument.close();
+        fixture.close();
     }
 
     private Component entrance(String name, int y) {

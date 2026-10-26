@@ -2,17 +2,12 @@ package cl.almejo.vsim.ui.inline;
 
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
-import cl.almejo.vsim.core.library.ComponentLibrary;
-import cl.almejo.vsim.ui.app.AppPreferences;
+import cl.almejo.vsim.ui.EditorFixture;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
-import cl.almejo.vsim.ui.paint.Appearance;
-import cl.almejo.vsim.ui.paint.ColorScheme;
-import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.paint.TextFont;
 import cl.almejo.vsim.ui.paint.TextFonts;
 import cl.almejo.vsim.ui.shortcuts.ShortcutCatalog;
-import cl.almejo.vsim.ui.window.EditorServices;
 import cl.almejo.vsim.ui.window.EditorView;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -38,7 +33,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
 
-import static cl.almejo.vsim.ui.UiTestSupport.NO_WINDOW;
 import static cl.almejo.vsim.ui.UiTestSupport.place;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -50,6 +44,7 @@ class InlineTextEditorTest {
             text -> text.equals("bad") ? Optional.of("Mal") : Optional.empty();
 
     private OpenDocument openDocument;
+    private EditorFixture fixture;
     private EditorView view;
     private CircuitCanvas canvas;
     private InlineTextEditor editor;
@@ -57,10 +52,9 @@ class InlineTextEditorTest {
 
     @BeforeEach
     void create() {
-        openDocument = OpenDocument.createEmpty(StandardComponentTypes.registry());
-        view = new EditorView(openDocument, new EditorServices(PainterRegistry.standard(),
-                new Appearance(ColorScheme.LIGHT), AppPreferences.inMemory(), new ComponentLibrary(), List.of()),
-                NO_WINDOW);
+        fixture = EditorFixture.create();
+        openDocument = fixture.openDocument();
+        view = fixture.view();
         canvas = view.canvas();
         canvas.setSize(800, 600);
         editor = new InlineTextEditor(() -> canvas);
@@ -69,8 +63,7 @@ class InlineTextEditorTest {
     @AfterEach
     void close() {
         editor.dispose();
-        view.dispose();
-        openDocument.close();
+        fixture.close();
     }
 
     private InlineEditRequest request(String text) {

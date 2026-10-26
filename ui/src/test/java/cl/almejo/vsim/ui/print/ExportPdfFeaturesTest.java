@@ -2,7 +2,7 @@ package cl.almejo.vsim.ui.print;
 
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
-import cl.almejo.vsim.core.library.ComponentLibrary;
+import cl.almejo.vsim.ui.EditorFixture;
 import cl.almejo.vsim.ui.UiTestSupport;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.OpenDocument;
@@ -10,10 +10,6 @@ import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.export.ExportIcons;
 import cl.almejo.vsim.ui.export.ExportImageFeatures;
 import cl.almejo.vsim.ui.icons.Icons;
-import cl.almejo.vsim.ui.paint.Appearance;
-import cl.almejo.vsim.ui.paint.ColorScheme;
-import cl.almejo.vsim.ui.paint.PainterRegistry;
-import cl.almejo.vsim.ui.window.EditorServices;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuId;
 import cl.almejo.vsim.ui.window.panes.CanvasPanes.Orientation;
@@ -34,7 +30,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
-import static cl.almejo.vsim.ui.UiTestSupport.NO_WINDOW;
 import static cl.almejo.vsim.ui.UiTestSupport.perform;
 import static cl.almejo.vsim.ui.UiTestSupport.texts;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -50,16 +45,16 @@ class ExportPdfFeaturesTest {
     private final List<PdfExportDialog> presented = new ArrayList<>();
     private final List<java.awt.Component> parents = new ArrayList<>();
     private OpenDocument openDocument;
+    private EditorFixture fixture;
     private EditorView view;
     private ExportImageFeatures imageFeatures;
     private ExportPdfFeatures features;
 
     @BeforeEach
     void create() {
-        openDocument = OpenDocument.createEmpty(StandardComponentTypes.registry());
-        EditorServices services = new EditorServices(PainterRegistry.standard(), new Appearance(ColorScheme.LIGHT),
-                preferences, new ComponentLibrary(), List.of());
-        view = new EditorView(openDocument, services, NO_WINDOW);
+        fixture = EditorFixture.create(preferences);
+        openDocument = fixture.openDocument();
+        view = fixture.view();
         imageFeatures = new ExportImageFeatures(view, (parent, start, name, scale, background) -> Optional.empty(),
                 (parent, message) -> { });
         PdfExportDialog.Collaborators collaborators = new PdfExportDialog.Collaborators(
@@ -77,8 +72,7 @@ class ExportPdfFeaturesTest {
         presented.forEach(PdfExportDialog::dispose);
         features.dispose();
         imageFeatures.dispose();
-        view.dispose();
-        openDocument.close();
+        fixture.close();
     }
 
     @Test

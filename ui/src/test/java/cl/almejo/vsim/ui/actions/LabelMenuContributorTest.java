@@ -12,14 +12,9 @@ import cl.almejo.vsim.core.document.NoteStyle;
 import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
+import cl.almejo.vsim.ui.EditorFixture;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.Selection;
-import cl.almejo.vsim.core.library.ComponentLibrary;
-import cl.almejo.vsim.ui.app.AppPreferences;
-import cl.almejo.vsim.ui.paint.Appearance;
-import cl.almejo.vsim.ui.paint.ColorScheme;
-import cl.almejo.vsim.ui.paint.PainterRegistry;
-import cl.almejo.vsim.ui.window.EditorServices;
 import cl.almejo.vsim.ui.window.EditorView;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -34,14 +29,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-import static cl.almejo.vsim.ui.UiTestSupport.NO_WINDOW;
 import static cl.almejo.vsim.ui.UiTestSupport.place;
 import static cl.almejo.vsim.ui.UiTestSupport.texts;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class LabelMenuContributorTest {
 
-    private final OpenDocument openDocument = OpenDocument.createEmpty(StandardComponentTypes.registry());
+    private OpenDocument openDocument;
+    private EditorFixture fixture;
     private EditorView view;
     private Selection selection;
     private Point2D clickedAt = new Point2D.Double(7.8, 0.2);
@@ -49,9 +44,9 @@ class LabelMenuContributorTest {
 
     @BeforeEach
     void create() {
-        view = new EditorView(openDocument, new EditorServices(PainterRegistry.standard(),
-                new Appearance(ColorScheme.LIGHT), AppPreferences.inMemory(), new ComponentLibrary(), List.of()),
-                NO_WINDOW);
+        fixture = EditorFixture.create();
+        openDocument = fixture.openDocument();
+        view = fixture.view();
         view.canvas().setSize(800, 600);
         selection = view.canvas().selection();
         contributor = new LabelMenuContributor(view.labelFeatures().actions());
@@ -59,8 +54,7 @@ class LabelMenuContributorTest {
 
     @AfterEach
     void close() {
-        view.dispose();
-        openDocument.close();
+        fixture.close();
     }
 
     private JPopupMenu menuFor(Optional<DocumentElement> target) {

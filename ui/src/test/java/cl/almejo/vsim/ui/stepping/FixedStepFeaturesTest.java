@@ -1,12 +1,8 @@
 package cl.almejo.vsim.ui.stepping;
 
-import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
-import cl.almejo.vsim.core.library.ComponentLibrary;
+import cl.almejo.vsim.ui.EditorFixture;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.OpenDocument;
-import cl.almejo.vsim.ui.paint.Appearance;
-import cl.almejo.vsim.ui.paint.ColorScheme;
-import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.window.EditorServices;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuId;
@@ -46,23 +42,23 @@ class FixedStepFeaturesTest {
     };
     private EditorServices services;
     private OpenDocument openDocument;
+    private EditorFixture fixture;
     private EditorView view;
     private FixedStepFeatures features;
 
     @BeforeEach
     void create() {
-        openDocument = OpenDocument.createEmpty(StandardComponentTypes.registry());
-        services = new EditorServices(PainterRegistry.standard(), new Appearance(ColorScheme.LIGHT), preferences,
-                new ComponentLibrary(), List.of());
-        view = new EditorView(openDocument, services, NO_WINDOW);
+        fixture = EditorFixture.create(preferences);
+        openDocument = fixture.openDocument();
+        view = fixture.view();
+        services = fixture.services();
         features = new FixedStepFeatures(view, chooser);
     }
 
     @AfterEach
     void close() {
         features.dispose();
-        view.dispose();
-        openDocument.close();
+        fixture.close();
     }
 
     private static JMenuItem item(StepSizeButton button, String text) {

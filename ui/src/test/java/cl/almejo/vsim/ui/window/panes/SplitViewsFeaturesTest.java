@@ -1,18 +1,13 @@
 package cl.almejo.vsim.ui.window.panes;
 
-import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
-import cl.almejo.vsim.core.library.ComponentLibrary;
+import cl.almejo.vsim.ui.EditorFixture;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.canvas.edges.EdgeHandle;
-import cl.almejo.vsim.ui.paint.Appearance;
-import cl.almejo.vsim.ui.paint.ColorScheme;
-import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.tools.CanvasMouseEvent;
 import cl.almejo.vsim.ui.tools.Tool;
 import cl.almejo.vsim.ui.tools.ToolContext;
-import cl.almejo.vsim.ui.window.EditorServices;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuId;
 import cl.almejo.vsim.ui.window.panes.CanvasPanes.Orientation;
@@ -34,7 +29,6 @@ import java.awt.event.MouseMotionListener;
 import java.util.ArrayList;
 import java.util.List;
 
-import static cl.almejo.vsim.ui.UiTestSupport.NO_WINDOW;
 import static cl.almejo.vsim.ui.UiTestSupport.texts;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
@@ -50,16 +44,16 @@ class SplitViewsFeaturesTest {
 
     private final AppPreferences preferences = AppPreferences.inMemory();
     private OpenDocument openDocument;
+    private EditorFixture fixture;
     private EditorView view;
     private Runnable dispose;
     private final RecordingTool tool = new RecordingTool();
 
     @BeforeEach
     void create() {
-        EditorServices services = new EditorServices(PainterRegistry.standard(), new Appearance(ColorScheme.LIGHT),
-                preferences, new ComponentLibrary(), List.of());
-        openDocument = OpenDocument.createEmpty(StandardComponentTypes.registry());
-        view = new EditorView(openDocument, services, NO_WINDOW);
+        fixture = EditorFixture.create(preferences);
+        openDocument = fixture.openDocument();
+        view = fixture.view();
         view.setSize(1200, 800);
         view.doLayout();
         view.canvasPanes().setSize(WIDTH, HEIGHT);
@@ -73,8 +67,7 @@ class SplitViewsFeaturesTest {
         if (dispose != null) {
             dispose.run();
         }
-        view.dispose();
-        openDocument.close();
+        fixture.close();
     }
 
     private static final class RecordingTool implements Tool {

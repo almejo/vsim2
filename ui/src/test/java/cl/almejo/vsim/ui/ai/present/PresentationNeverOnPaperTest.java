@@ -9,7 +9,7 @@ import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
-import cl.almejo.vsim.core.library.ComponentLibrary;
+import cl.almejo.vsim.ui.EditorFixture;
 import cl.almejo.vsim.ui.ai.EditorAutomationHost;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.OpenDocument;
@@ -17,7 +17,6 @@ import cl.almejo.vsim.ui.canvas.DrawnBounds;
 import cl.almejo.vsim.ui.canvas.ViewState;
 import cl.almejo.vsim.ui.export.CircuitImage;
 import cl.almejo.vsim.ui.export.ImageExport;
-import cl.almejo.vsim.ui.paint.Appearance;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.paint.TextFont;
@@ -28,7 +27,6 @@ import cl.almejo.vsim.ui.print.PrintArea;
 import cl.almejo.vsim.ui.print.PrintInput;
 import cl.almejo.vsim.ui.print.PrintOptions;
 import cl.almejo.vsim.ui.print.PrintScopes;
-import cl.almejo.vsim.ui.window.EditorServices;
 import cl.almejo.vsim.ui.window.EditorView;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -50,7 +48,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
-import static cl.almejo.vsim.ui.UiTestSupport.NO_WINDOW;
 import static cl.almejo.vsim.ui.UiTestSupport.place;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -70,16 +67,16 @@ class PresentationNeverOnPaperTest {
     private final EditorAutomationHost host = new EditorAutomationHost(List::of);
     private final List<PresentationListener> listeners = new ArrayList<>();
     private OpenDocument openDocument;
+    private EditorFixture fixture;
     private EditorView view;
     private PresentationOverlays overlays;
 
     @BeforeEach
     void create() {
         preferences.setAnimateViewMoves(false);
-        openDocument = OpenDocument.createEmpty(StandardComponentTypes.registry());
-        EditorServices services = new EditorServices(PainterRegistry.standard(), new Appearance(ColorScheme.LIGHT),
-                preferences, new ComponentLibrary(), List.of());
-        view = new EditorView(openDocument, services, NO_WINDOW);
+        fixture = EditorFixture.create(preferences);
+        openDocument = fixture.openDocument();
+        view = fixture.view();
         view.canvas().setSize(400, 300);
         view.canvas().applyViewState(new ViewState(1, 0, 0));
         overlays = PresentationOverlays.install(view,
@@ -93,8 +90,7 @@ class PresentationNeverOnPaperTest {
     @AfterEach
     void close() {
         overlays.dispose();
-        view.dispose();
-        openDocument.close();
+        fixture.close();
     }
 
     private CircuitImage image() {

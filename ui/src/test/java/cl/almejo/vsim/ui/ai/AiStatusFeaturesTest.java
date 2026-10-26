@@ -11,16 +11,12 @@ import cl.almejo.vsim.automation.present.Question;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.ui.EditorFixture;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.DrawnBounds;
 import cl.almejo.vsim.ui.canvas.ManualFrameTicker;
 import cl.almejo.vsim.ui.canvas.ViewState;
-import cl.almejo.vsim.ui.paint.Appearance;
-import cl.almejo.vsim.ui.paint.ColorScheme;
-import cl.almejo.vsim.ui.paint.PainterRegistry;
-import cl.almejo.vsim.core.library.ComponentLibrary;
-import cl.almejo.vsim.ui.window.EditorServices;
 import cl.almejo.vsim.ui.window.EditorView;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -32,7 +28,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 
-import static cl.almejo.vsim.ui.UiTestSupport.NO_WINDOW;
 import static cl.almejo.vsim.ui.UiTestSupport.place;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -48,16 +43,16 @@ class AiStatusFeaturesTest {
     private final EditorAutomationHost host = new EditorAutomationHost(List::of);
     private final AtomicLong clock = new AtomicLong(1_000);
     private OpenDocument document;
+    private EditorFixture fixture;
     private EditorView view;
     private AiStatusFeatures features;
     private DocumentId thisCircuit;
 
     @BeforeEach
     void create() {
-        document = OpenDocument.createEmpty(StandardComponentTypes.registry());
-        EditorServices services = new EditorServices(PainterRegistry.standard(), new Appearance(ColorScheme.LIGHT),
-                windowPreferences, new ComponentLibrary(), List.of());
-        view = new EditorView(document, services, NO_WINDOW);
+        fixture = EditorFixture.create(windowPreferences);
+        document = fixture.openDocument();
+        view = fixture.view();
         features = new AiStatusFeatures(view, service, host::documentId, proposals, clock::get);
         thisCircuit = host.documentId(document);
     }
@@ -65,8 +60,7 @@ class AiStatusFeaturesTest {
     @AfterEach
     void close() {
         features.dispose();
-        view.dispose();
-        document.close();
+        fixture.close();
     }
 
     /** IA.3 Task 7: in working mode the AI's lines go only to the strip's tooltip, the last few, as plain text. */

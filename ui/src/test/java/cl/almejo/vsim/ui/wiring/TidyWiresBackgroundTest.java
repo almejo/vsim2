@@ -5,16 +5,11 @@ import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
-import cl.almejo.vsim.core.library.ComponentLibrary;
 import cl.almejo.vsim.core.wiring.TidyOptions;
 import cl.almejo.vsim.core.wiring.TidyPlan;
 import cl.almejo.vsim.core.wiring.WireTidy;
-import cl.almejo.vsim.ui.app.AppPreferences;
+import cl.almejo.vsim.ui.EditorFixture;
 import cl.almejo.vsim.ui.app.OpenDocument;
-import cl.almejo.vsim.ui.paint.Appearance;
-import cl.almejo.vsim.ui.paint.ColorScheme;
-import cl.almejo.vsim.ui.paint.PainterRegistry;
-import cl.almejo.vsim.ui.window.EditorServices;
 import cl.almejo.vsim.ui.window.EditorView;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -30,7 +25,6 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import static cl.almejo.vsim.ui.UiTestSupport.NO_WINDOW;
 import static cl.almejo.vsim.ui.UiTestSupport.perform;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -47,6 +41,7 @@ class TidyWiresBackgroundTest {
     private final CountDownLatch release = new CountDownLatch(1);
     private final List<Thread> threads = new ArrayList<>();
     private OpenDocument openDocument;
+    private EditorFixture fixture;
     private EditorView view;
     private TidyWiresFeatures features;
     private ElementId stub;
@@ -88,9 +83,8 @@ class TidyWiresBackgroundTest {
         addWire(new GridPoint(8, 0), new GridPoint(16, 0));
         stub = addWire(new GridPoint(8, 0), new GridPoint(8, 4));
         assertThat(left).isNotNull();
-        view = new EditorView(openDocument, new EditorServices(PainterRegistry.standard(),
-                new Appearance(ColorScheme.LIGHT), AppPreferences.inMemory(), new ComponentLibrary(), List.of()),
-                NO_WINDOW);
+        fixture = EditorFixture.around(openDocument);
+        view = fixture.view();
         features = new TidyWiresFeatures(view, (parent, hasSelection, initial, planner) -> Optional.empty(),
                 newRunner(), newRunner(), (milliseconds, task) -> {
                     assertThat(milliseconds).isEqualTo(2000);
@@ -117,8 +111,7 @@ class TidyWiresBackgroundTest {
     void close() {
         release.countDown();
         features.dispose();
-        view.dispose();
-        openDocument.close();
+        fixture.close();
     }
 
     private ElementId addWire(GridPoint start, GridPoint end) {

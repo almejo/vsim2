@@ -11,17 +11,12 @@ import cl.almejo.vsim.core.command.CreateFrameCommand;
 import cl.almejo.vsim.core.command.SetLabelCommand;
 import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.geometry.GridPoint;
+import cl.almejo.vsim.ui.EditorFixture;
 import cl.almejo.vsim.ui.canvas.LabelLayout;
-import cl.almejo.vsim.core.library.ComponentLibrary;
-import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.OpenDocument;
-import cl.almejo.vsim.ui.paint.Appearance;
-import cl.almejo.vsim.ui.paint.ColorScheme;
-import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.tools.CanvasMouseEvent;
 import cl.almejo.vsim.ui.tools.TestToolContext;
 import cl.almejo.vsim.ui.tools.Tool;
-import cl.almejo.vsim.ui.window.EditorServices;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuId;
 import org.junit.jupiter.api.AfterEach;
@@ -38,7 +33,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-import static cl.almejo.vsim.ui.UiTestSupport.NO_WINDOW;
 import static cl.almejo.vsim.ui.UiTestSupport.addWire;
 import static cl.almejo.vsim.ui.UiTestSupport.place;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -46,16 +40,16 @@ import static org.assertj.core.api.Assertions.assertThat;
 class FramesFeaturesTest {
 
     private OpenDocument openDocument;
+    private EditorFixture fixture;
     private EditorView view;
     private FramesFeatures features;
     private final List<Frame> titleEdited = new ArrayList<>();
 
     @BeforeEach
     void create() {
-        openDocument = OpenDocument.createEmpty(StandardComponentTypes.registry());
-        view = new EditorView(openDocument, new EditorServices(PainterRegistry.standard(),
-                new Appearance(ColorScheme.LIGHT), AppPreferences.inMemory(), new ComponentLibrary(), List.of()),
-                NO_WINDOW);
+        fixture = EditorFixture.create();
+        openDocument = fixture.openDocument();
+        view = fixture.view();
         features = new FramesFeatures(view);
         features.setTitleEditor(titleEdited::add);
     }
@@ -63,8 +57,7 @@ class FramesFeaturesTest {
     @AfterEach
     void close() {
         features.dispose();
-        view.dispose();
-        openDocument.close();
+        fixture.close();
     }
 
     private void frameSelection() {

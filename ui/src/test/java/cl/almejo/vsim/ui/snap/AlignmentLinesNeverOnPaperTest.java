@@ -6,12 +6,11 @@ import cl.almejo.vsim.core.document.Guide;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
-import cl.almejo.vsim.core.library.ComponentLibrary;
+import cl.almejo.vsim.ui.EditorFixture;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.export.CircuitImage;
 import cl.almejo.vsim.ui.export.ImageExport;
-import cl.almejo.vsim.ui.paint.Appearance;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.paint.TextFont;
@@ -24,7 +23,6 @@ import cl.almejo.vsim.ui.print.PrintOptions;
 import cl.almejo.vsim.ui.print.PrintScopes;
 import cl.almejo.vsim.ui.tools.TestToolContext;
 import cl.almejo.vsim.ui.tools.Tool;
-import cl.almejo.vsim.ui.window.EditorServices;
 import cl.almejo.vsim.ui.window.EditorView;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -45,7 +43,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
-import static cl.almejo.vsim.ui.UiTestSupport.NO_WINDOW;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -62,6 +59,7 @@ class AlignmentLinesNeverOnPaperTest {
 
     private final AppPreferences preferences = AppPreferences.inMemory();
     private OpenDocument openDocument;
+    private EditorFixture fixture;
     private EditorView view;
     private SnapFeatures features;
 
@@ -76,9 +74,8 @@ class AlignmentLinesNeverOnPaperTest {
         // under where the second gate's input lands when it is dragged eight units down
         openDocument.document().add(new Wire(openDocument.document().newWireId(), new GridPoint(20, 15),
                 new GridPoint(20, 25)));
-        EditorServices services = new EditorServices(PainterRegistry.standard(), new Appearance(ColorScheme.LIGHT),
-                preferences, new ComponentLibrary(), List.of());
-        view = new EditorView(openDocument, services, NO_WINDOW);
+        fixture = EditorFixture.around(openDocument, preferences);
+        view = fixture.view();
         view.canvas().setSize(400, 300);
         features = new SnapFeatures(view);
     }
@@ -86,8 +83,7 @@ class AlignmentLinesNeverOnPaperTest {
     @AfterEach
     void close() {
         features.dispose();
-        view.dispose();
-        openDocument.close();
+        fixture.close();
     }
 
     private CircuitImage image() {
