@@ -13,7 +13,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 import java.util.Map;
 
-import static cl.almejo.vsim.ui.UiTestSupport.wire;
+import static cl.almejo.vsim.core.DocumentFixtures.wire;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class WireCrossingsTest {

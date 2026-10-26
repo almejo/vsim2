@@ -174,18 +174,6 @@ public final class UiTestSupport {
         return scaled <= 0.03928 ? scaled / 12.92 : Math.pow((scaled + 0.055) / 1.055, 2.4);
     }
 
-    /** Adds a wire from (startX, startY) to (endX, endY) straight to {@code document} and returns it. */
-    public static Wire wire(CircuitDocument document, int startX, int startY, int endX, int endY) {
-        Wire wire = new Wire(document.newWireId(), new GridPoint(startX, startY), new GridPoint(endX, endY));
-        document.add(wire);
-        return wire;
-    }
-
-    /** Like {@link #wire}, but returns the wire's id. */
-    public static ElementId wireId(CircuitDocument document, int startX, int startY, int endX, int endY) {
-        return wire(document, startX, startY, endX, endY).id();
-    }
-
     /** Draws a wire from (startX, startY) to (endX, endY) through {@code document}'s undo history; returns it. */
     public static Wire addWire(OpenDocument document, int startX, int startY, int endX, int endY) {
         Wire wire = new Wire(document.document().newWireId(), new GridPoint(startX, startY),

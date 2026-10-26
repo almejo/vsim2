@@ -1,3 +1,8 @@
+// Test helpers other modules reuse (DocumentFixtures, ExampleDefinitions) live in src/testFixtures.
+plugins {
+    `java-test-fixtures`
+}
+
 dependencies {
     implementation(libs.jackson.databind)
     implementation(libs.slf4j.api)

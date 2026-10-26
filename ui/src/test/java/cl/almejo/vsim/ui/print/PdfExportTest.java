@@ -37,7 +37,7 @@ import java.util.concurrent.Executor;
 import java.util.function.IntPredicate;
 import java.util.stream.Stream;
 
-import static cl.almejo.vsim.ui.UiTestSupport.wire;
+import static cl.almejo.vsim.core.DocumentFixtures.wire;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.within;

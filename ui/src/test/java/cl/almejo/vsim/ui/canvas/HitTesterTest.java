@@ -15,7 +15,7 @@ import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 import java.util.Map;
 
-import static cl.almejo.vsim.ui.UiTestSupport.wire;
+import static cl.almejo.vsim.core.DocumentFixtures.wire;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class HitTesterTest {

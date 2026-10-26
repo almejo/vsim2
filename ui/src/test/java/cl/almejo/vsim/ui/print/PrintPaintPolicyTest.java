@@ -37,7 +37,7 @@ import java.util.Optional;
 import java.util.Set;
 
 import static cl.almejo.vsim.ui.UiTestSupport.frame;
-import static cl.almejo.vsim.ui.UiTestSupport.wire;
+import static cl.almejo.vsim.core.DocumentFixtures.wire;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
