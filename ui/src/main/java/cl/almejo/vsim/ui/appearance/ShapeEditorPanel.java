@@ -15,6 +15,7 @@ import cl.almejo.vsim.core.geometry.GridSize;
 import cl.almejo.vsim.core.library.DefinitionPin;
 import cl.almejo.vsim.ui.actions.Keys;
 import cl.almejo.vsim.ui.app.AppPreferences;
+import cl.almejo.vsim.ui.canvas.Viewport;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.i18n.NoteColorNames;
 import cl.almejo.vsim.ui.icons.Icons;
@@ -90,7 +91,6 @@ public final class ShapeEditorPanel extends JPanel {
     private static final int PREVIEW_HEIGHT = 150;
     private static final int LARGEST_BOX = 4096;
     private static final int SPINNER_COLUMNS = 3;
-    private static final double ZOOM_STEP = 1.25;
     /** A closed figure needs three nodes: a line of two cannot be closed. */
     private static final int CLOSABLE_NODES = 3;
 
@@ -456,9 +456,9 @@ public final class ShapeEditorPanel extends JPanel {
         actionButton("undo", icon("undo"), this::undo);
         actionButton("redo", icon("redo"), this::redo);
         toolbar.addSeparator();
-        actionButton("zoomOut", icon("zoom-out"), () -> canvas.setZoom(canvas.zoom() / ZOOM_STEP));
+        actionButton("zoomOut", icon("zoom-out"), () -> canvas.setZoom(canvas.zoom() / Viewport.ZOOM_STEP));
         addZoomValue();
-        actionButton("zoomIn", icon("zoom-in"), () -> canvas.setZoom(canvas.zoom() * ZOOM_STEP));
+        actionButton("zoomIn", icon("zoom-in"), () -> canvas.setZoom(canvas.zoom() * Viewport.ZOOM_STEP));
     }
 
     private void addTools(ButtonGroup group, ShapeTool... tools) {

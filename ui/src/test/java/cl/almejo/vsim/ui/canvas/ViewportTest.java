@@ -31,6 +31,19 @@ class ViewportTest {
     }
 
     @Test
+    void setOriginPutsTheGridOriginThereKeepingTheZoomAndTellsTheListeners() {
+        viewport.zoomAt(0, 0, 2.0);
+        int[] changes = {0};
+        viewport.addChangeListener(() -> changes[0]++);
+
+        viewport.setOrigin(70.5, -12);
+
+        assertThat(viewport.gridToScreen(0, 0)).isEqualTo(new Point2D.Double(70.5, -12));
+        assertThat(viewport.zoom()).isEqualTo(2.0);
+        assertThat(changes[0]).isEqualTo(1);
+    }
+
+    @Test
     void snapRoundsToTheNearestGridPointIncludingNegatives() {
         assertThat(viewport.snap(11, 13)).isEqualTo(new GridPoint(1, 2));
         assertThat(viewport.snap(-5, -3)).isEqualTo(new GridPoint(-1, 0));

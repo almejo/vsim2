@@ -23,6 +23,7 @@ import cl.almejo.vsim.core.geometry.GridSize;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.DefinitionPin;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
+import cl.almejo.vsim.ui.canvas.Viewport;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterSupport;
@@ -63,6 +64,7 @@ import java.awt.geom.Line2D;
 import java.awt.geom.Path2D;
 import java.awt.geom.Rectangle2D;
 import java.awt.geom.AffineTransform;
+import java.awt.geom.Point2D;
 import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -84,6 +86,9 @@ final class ShapeCanvas extends JPanel {
     private static final int FIT_VERTICAL_MARGIN = 64;
     /** About 32 px per grid unit: the box looks comfortable, as in the mockup, however small it is. */
     private static final double FIT_MAXIMUM_ZOOM = 4;
+    /** The view before the first fit (and in tests that never paint): zoom 2, the box's corner 70 px in. */
+    private static final double INITIAL_ZOOM = 2;
+    private static final double INITIAL_ORIGIN = 70;
     /** On open the box takes about this part of each side of the canvas. */
     private static final double FIT_BOX_SHARE = 0.6;
     /** Figure strokes and pin markers keep this size on screen whatever the zoom. */
@@ -115,9 +120,8 @@ final class ShapeCanvas extends JPanel {
     private final Runnable changed;
     private ShapeTool tool = ShapeTool.SELECT;
     private SnapMode snap = SnapMode.HALF_UNITS;
-    private double zoom = 2;
-    private double originX = 70;
-    private double originY = 70;
+    /** Zoom and pan, the main editor's: grid units of 8 px times the zoom, the box's corner at the grid origin. */
+    private final Viewport viewport = new Viewport();
     private Optional<ElementId> pin = Optional.empty();
     private int pathIndex = -1;
     private int nodeIndex = -1;
@@ -151,7 +155,6 @@ final class ShapeCanvas extends JPanel {
     private SymbolDraft dragging;
     private final List<SymbolPoint> pathNodes = new ArrayList<>();
     private final InlineTextEditor textEditor = InlineTextEditor.forHost(new ShapeHost());
-    private final List<Runnable> viewListeners = new ArrayList<>();
     private Optional<ElementId> hoveredPin = Optional.empty();
     private int hoveredText = -1;
     private int textIndex = -1;
@@ -182,6 +185,8 @@ final class ShapeCanvas extends JPanel {
         this.preview = preview;
         this.colors = colors;
         this.changed = changed;
+        viewport.zoomAt(0, 0, INITIAL_ZOOM);
+        viewport.setOrigin(INITIAL_ORIGIN, INITIAL_ORIGIN);
         setLayout(null);
         setFocusable(true);
         setToolTipText(Messages.text("shape.canvas.hint"));
@@ -225,11 +230,10 @@ final class ShapeCanvas extends JPanel {
             @Override
             public void mouseWheelMoved(MouseWheelEvent event) {
                 if (event.isControlDown() || event.isMetaDown()) {
-                    setZoom(zoom * Math.pow(1.15, -event.getPreciseWheelRotation()));
+                    setZoom(zoom() * Math.pow(1.15, -event.getPreciseWheelRotation()));
                 } else {
                     fitPending = false;
-                    originY -= event.getPreciseWheelRotation() * 24;
-                    viewChanged();
+                    viewport.panBy(0, -event.getPreciseWheelRotation() * 24);
                     repaint();
                 }
             }
@@ -284,8 +288,8 @@ final class ShapeCanvas extends JPanel {
 
     void setZoom(double value) {
         fitPending = false;
-        zoom = Math.clamp(value, 0.25, 6);
-        viewChanged();
+        Point2D origin = viewport.gridToScreen(0, 0);
+        viewport.zoomAt(origin.getX(), origin.getY(), value);
         changed.run();
         repaint();
     }
@@ -302,11 +306,11 @@ final class ShapeCanvas extends JPanel {
         double availableHeight = Math.max(1, getHeight() - 2.0 * FIT_VERTICAL_MARGIN);
         double sharedWidth = FIT_BOX_SHARE * getWidth() / boxWidth;
         double sharedHeight = FIT_BOX_SHARE * getHeight() / boxHeight;
-        zoom = Math.clamp(Math.min(Math.min(availableWidth / boxWidth, availableHeight / boxHeight),
-                Math.min(sharedWidth, sharedHeight)), 0.25, FIT_MAXIMUM_ZOOM);
-        originX = (getWidth() - boxWidth * zoom) / 2;
-        originY = (getHeight() - boxHeight * zoom) / 2;
-        viewChanged();
+        double fitted = Math.clamp(Math.min(Math.min(availableWidth / boxWidth, availableHeight / boxHeight),
+                Math.min(sharedWidth, sharedHeight)), Viewport.MINIMUM_ZOOM, FIT_MAXIMUM_ZOOM);
+        Point2D origin = viewport.gridToScreen(0, 0);
+        viewport.zoomAt(origin.getX(), origin.getY(), fitted);
+        viewport.setOrigin((getWidth() - boxWidth * zoom()) / 2, (getHeight() - boxHeight * zoom()) / 2);
         fittedWidth = getWidth();
         fittedHeight = getHeight();
         changed.run();
@@ -315,11 +319,13 @@ final class ShapeCanvas extends JPanel {
     /** The box rectangle in canvas pixels. */
     Rectangle2D boxOnScreen() {
         GridSize size = current.get().appearance().size();
-        return new Rectangle2D.Double(originX, originY, size.width() * UNIT * zoom, size.height() * UNIT * zoom);
+        Point2D corner = viewport.gridToScreen(0, 0);
+        return new Rectangle2D.Double(corner.getX(), corner.getY(), size.width() * viewport.pixelsPerUnit(),
+                size.height() * viewport.pixelsPerUnit());
     }
 
     double zoom() {
-        return zoom;
+        return viewport.zoom();
     }
 
     Optional<ElementId> selectedPin() {
@@ -816,9 +822,7 @@ final class ShapeCanvas extends JPanel {
         lastDragPoint = where;
         if (panning) {
             fitPending = false;
-            originX += where.x - pressed.x;
-            originY += where.y - pressed.y;
-            viewChanged();
+            viewport.panBy(where.x - pressed.x, where.y - pressed.y);
             pressed = where;
             repaint();
             return;
@@ -850,8 +854,8 @@ final class ShapeCanvas extends JPanel {
                     return;
                 }
                 pinDragActive = true;
-                GridPoint target = new GridPoint((int) Math.round((where.x - originX) / zoom / UNIT),
-                        (int) Math.round((where.y - originY) / zoom / UNIT));
+                Point2D grid = viewport.screenToGrid(where.x, where.y);
+                GridPoint target = new GridPoint((int) Math.round(grid.getX()), (int) Math.round(grid.getY()));
                 if (shift) {
                     GridPoint original = beforeDrag.appearance().pins().stream()
                             .filter(placement -> placement.source().equals(pin.get())).findFirst().orElseThrow().offset();
@@ -909,8 +913,10 @@ final class ShapeCanvas extends JPanel {
      * with that edge and the rest stays centred ({@link SymbolDraft#resizeBox}), never smaller than it allows.
      */
     private SymbolDraft resizedBox(Point where) {
-        int width = beforeDrag.appearance().size().width() + (int) Math.round((where.x - pressed.x) / zoom / UNIT);
-        int height = beforeDrag.appearance().size().height() + (int) Math.round((where.y - pressed.y) / zoom / UNIT);
+        int width = beforeDrag.appearance().size().width()
+                + (int) Math.round((where.x - pressed.x) / viewport.pixelsPerUnit());
+        int height = beforeDrag.appearance().size().height()
+                + (int) Math.round((where.y - pressed.y) / viewport.pixelsPerUnit());
         if (controlHeld) {
             return beforeDrag.scaleBox(new GridSize(Math.max(1, width), Math.max(1, height)));
         }
@@ -1201,8 +1207,7 @@ final class ShapeCanvas extends JPanel {
 
         @Override
         public Runnable addViewportListener(Runnable listener) {
-            viewListeners.add(listener);
-            return () -> viewListeners.remove(listener);
+            return viewport.addChangeListener(listener);
         }
 
         @Override
@@ -1212,17 +1217,13 @@ final class ShapeCanvas extends JPanel {
 
         @Override
         public AffineTransform documentTransform() {
-            return new AffineTransform(zoom, 0, 0, zoom, originX, originY);
+            return viewport.documentTransform();
         }
 
         @Override
         public double zoom() {
-            return zoom;
+            return viewport.zoom();
         }
-    }
-
-    private void viewChanged() {
-        new ArrayList<>(viewListeners).forEach(Runnable::run);
     }
 
     /** Chooses the node under the pointer, if any. */
@@ -1236,15 +1237,16 @@ final class ShapeCanvas extends JPanel {
     }
 
     private int hitFigure(Point at) {
-        double x = (at.x - originX) / zoom;
-        double y = (at.y - originY) / zoom;
+        double x = localX(at);
+        double y = localY(at);
         List<SymbolElement> elements = current.get().elements();
         for (int index = elements.size() - 1; index >= 0; index--) {
             SymbolElement element = elements.get(index);
             if (element instanceof SymbolPath path) {
                 Shape outline = SymbolPainter.path(path);
                 if (path.filled() && outline.contains(x, y)
-                        || new BasicStroke((float) (2 * HIT_RADIUS / zoom)).createStrokedShape(outline).contains(x, y)) {
+                        || new BasicStroke((float) (2 * HIT_RADIUS / zoom())).createStrokedShape(outline)
+                        .contains(x, y)) {
                     return index;
                 }
             } else if (element instanceof SymbolText text && paddedTextBlock(text).contains(x, y)) {
@@ -1257,7 +1259,7 @@ final class ShapeCanvas extends JPanel {
     /** The block a text paints, with a little padding: its selection rectangle and its click area (local pixels). */
     Rectangle2D paddedTextBlock(SymbolText text) {
         Rectangle2D block = SymbolPainter.textBlock(text, definition.name());
-        double padding = TEXT_BLOCK_PADDING / zoom;
+        double padding = TEXT_BLOCK_PADDING / zoom();
         return new Rectangle2D.Double(block.getX() - padding, block.getY() - padding, block.getWidth() + 2 * padding,
                 block.getHeight() + 2 * padding);
     }
@@ -1278,20 +1280,21 @@ final class ShapeCanvas extends JPanel {
 
     private int hitSegment(int index, Point at) {
         SymbolPath path = (SymbolPath) current.get().elements().get(index);
-        return ShapeSegments.find(List.of(path), localX(at), localY(at), HIT_RADIUS / zoom / UNIT * 8)
+        return ShapeSegments.find(List.of(path), localX(at), localY(at), HIT_RADIUS / zoom() / UNIT * 8)
                 .map(ShapeSegments.Hit::segmentIndex).orElse(-1);
     }
 
     private Optional<ShapeSegments.Hit> segmentAt(Point at) {
-        return ShapeSegments.find(current.get().elements(), localX(at), localY(at), HIT_RADIUS / zoom / UNIT * 8);
+        return ShapeSegments.find(current.get().elements(), localX(at), localY(at), HIT_RADIUS / zoom() / UNIT * 8);
     }
 
+    /** {@code point} in eighths of a grid unit, which are also the figure's local pixels ({@code UNIT} is 8). */
     private double localX(Point point) {
-        return (point.x - originX) / zoom / UNIT * 8;
+        return viewport.screenToGrid(point.x, point.y).getX() * 8;
     }
 
     private double localY(Point point) {
-        return (point.y - originY) / zoom / UNIT * 8;
+        return viewport.screenToGrid(point.x, point.y).getY() * 8;
     }
 
     private Optional<SymbolDraft.Handle> hitHandle(Point at) {
@@ -1432,12 +1435,11 @@ final class ShapeCanvas extends JPanel {
                 Math.clamp(raw.y(), 0, current.get().appearance().size().height() * 8));
     }
     private SymbolPoint rawPoint(Point at) {
-        return new SymbolPoint(snap.snap((int) Math.round((at.x - originX) / zoom / UNIT * 8)),
-                snap.snap((int) Math.round((at.y - originY) / zoom / UNIT * 8)));
+        return new SymbolPoint(snap.snap((int) Math.round(localX(at))), snap.snap((int) Math.round(localY(at))));
     }
     private Point screen(int x, int y) {
-        return new Point((int) Math.round(originX + x / 8.0 * UNIT * zoom),
-                (int) Math.round(originY + y / 8.0 * UNIT * zoom));
+        Point2D screen = viewport.gridToScreen(x / 8.0, y / 8.0);
+        return new Point((int) Math.round(screen.getX()), (int) Math.round(screen.getY()));
     }
 
     /** Pins that share their connection point, each with the name of another pin on the same point. */
@@ -1538,34 +1540,34 @@ final class ShapeCanvas extends JPanel {
             surface.setColor(scheme.background());
             surface.fillRect(0, 0, getWidth(), getHeight());
             surface.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-            double spacing = UNIT * zoom;
+            double spacing = viewport.pixelsPerUnit();
             if (spacing >= 4) {
                 surface.setColor(scheme.grid());
-                for (double x = originX % spacing; x < getWidth(); x += spacing) {
-                    for (double y = originY % spacing; y < getHeight(); y += spacing) {
+                Point2D origin = viewport.gridToScreen(0, 0);
+                for (double x = origin.getX() % spacing; x < getWidth(); x += spacing) {
+                    for (double y = origin.getY() % spacing; y < getHeight(); y += spacing) {
                         surface.fill(new Ellipse2D.Double(x - 0.8, y - 0.8, 1.6, 1.6));
                     }
                 }
             }
             ComponentAppearance appearance = current.get().appearance();
-            surface.translate(originX, originY);
-            surface.scale(zoom, zoom);
-            paintAppearance(surface, definition, appearance, scheme, true, (float) (SCREEN_STROKE_WIDTH / zoom),
-                    SCREEN_PIN_RADIUS / (PainterSupport.PIN_DOT_RADIUS * zoom));
+            surface.transform(viewport.documentTransform());
+            paintAppearance(surface, definition, appearance, scheme, true, (float) (SCREEN_STROKE_WIDTH / zoom()),
+                    SCREEN_PIN_RADIUS / (PainterSupport.PIN_DOT_RADIUS * zoom()));
             paintGuides(surface, scheme, appearance.size());
             surface.setColor(PainterSupport.withAlpha(scheme.text(), 130));
-            surface.setStroke(new BasicStroke((float) (1 / zoom), BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER,
-                    10, new float[]{(float) (5 / zoom)}, 0));
+            surface.setStroke(new BasicStroke((float) (1 / zoom()), BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER,
+                    10, new float[]{(float) (5 / zoom())}, 0));
             surface.draw(new Rectangle2D.Double(0, 0, appearance.size().width() * UNIT, appearance.size().height() * UNIT));
-            surface.setFont(TextFonts.labelFont().deriveFont((float) (10 / zoom)));
-            surface.drawString(Messages.text("shape.box.label"), 0, (float) (-10 / zoom));
+            surface.setFont(TextFonts.labelFont().deriveFont((float) (10 / zoom())));
+            surface.drawString(Messages.text("shape.box.label"), 0, (float) (-10 / zoom()));
             if (!current.get().pinsLocked()) {
                 double right = appearance.size().width() * UNIT;
                 double bottom = appearance.size().height() * UNIT;
-                double offset = BOX_HANDLE_OFFSET / zoom;
+                double offset = BOX_HANDLE_OFFSET / zoom();
                 surface.draw(new Line2D.Double(right, bottom, right + offset, bottom + offset));
-                surface.fill(new Ellipse2D.Double(right + offset - 3 / zoom,
-                        bottom + offset - 3 / zoom, 6 / zoom, 6 / zoom));
+                surface.fill(new Ellipse2D.Double(right + offset - 3 / zoom(),
+                        bottom + offset - 3 / zoom(), 6 / zoom(), 6 / zoom()));
             }
             surface.setColor(scheme.selection());
             if (tool == ShapeTool.SELECT) {
@@ -1580,10 +1582,10 @@ final class ShapeCanvas extends JPanel {
                 if (selected || hovered) {
                     surface.setColor(hovered && !selected ? PainterSupport.withAlpha(scheme.selection(), 200)
                             : scheme.selection());
-                    surface.setStroke(new BasicStroke((float) ((selected ? 2 : 1.5) / zoom)));
-                    surface.draw(new Ellipse2D.Double(placement.offset().x() * UNIT - PIN_RING_RADIUS / zoom,
-                            placement.offset().y() * UNIT - PIN_RING_RADIUS / zoom, 2 * PIN_RING_RADIUS / zoom,
-                            2 * PIN_RING_RADIUS / zoom));
+                    surface.setStroke(new BasicStroke((float) ((selected ? 2 : 1.5) / zoom())));
+                    surface.draw(new Ellipse2D.Double(placement.offset().x() * UNIT - PIN_RING_RADIUS / zoom(),
+                            placement.offset().y() * UNIT - PIN_RING_RADIUS / zoom(), 2 * PIN_RING_RADIUS / zoom(),
+                            2 * PIN_RING_RADIUS / zoom()));
                 }
             }
             surface.setColor(scheme.selection());
@@ -1669,8 +1671,9 @@ final class ShapeCanvas extends JPanel {
 
     /** The free point nearest to the pointer: where the pin would land. */
     Optional<GridPoint> nearestFreePinPoint() {
-        double pointerX = (pointer.x - originX) / zoom / UNIT;
-        double pointerY = (pointer.y - originY) / zoom / UNIT;
+        Point2D grid = viewport.screenToGrid(pointer.x, pointer.y);
+        double pointerX = grid.getX();
+        double pointerY = grid.getY();
         return freePinPoints().stream().min(Comparator.comparingDouble(
                 candidate -> Math.hypot(candidate.x() - pointerX, candidate.y() - pointerY)));
     }
@@ -1679,9 +1682,9 @@ final class ShapeCanvas extends JPanel {
     private void paintGuides(Graphics2D surface, ColorScheme scheme, GridSize size) {
         Graphics2D guide = (Graphics2D) surface.create();
         try {
-            guide.setStroke(new BasicStroke((float) (1.5 / zoom)));
+            guide.setStroke(new BasicStroke((float) (1.5 / zoom())));
             guide.setColor(PainterSupport.withAlpha(scheme.text(), 150));
-            double notch = NOTCH_LENGTH / zoom;
+            double notch = NOTCH_LENGTH / zoom();
             for (GridPoint point : edgeNotches()) {
                 double x = point.x() * UNIT;
                 double y = point.y() * UNIT;
@@ -1697,9 +1700,9 @@ final class ShapeCanvas extends JPanel {
             Optional<GridPoint> nearest = nearestFreePinPoint();
             for (GridPoint point : freePinPoints()) {
                 boolean strong = nearest.filter(point::equals).isPresent();
-                double radius = (strong ? 5 : 2) / zoom;
+                double radius = (strong ? 5 : 2) / zoom();
                 guide.setColor(strong ? scheme.selection() : PainterSupport.withAlpha(scheme.selection(), 140));
-                guide.setStroke(new BasicStroke((float) ((strong ? 2 : 1.2) / zoom)));
+                guide.setStroke(new BasicStroke((float) ((strong ? 2 : 1.2) / zoom())));
                 Ellipse2D ring = new Ellipse2D.Double(point.x() * UNIT - radius, point.y() * UNIT - radius,
                         2 * radius, 2 * radius);
                 if (strong) {
@@ -1709,8 +1712,8 @@ final class ShapeCanvas extends JPanel {
                 }
             }
             guide.setColor(scheme.wireConflict());
-            guide.setStroke(new BasicStroke((float) (1.5 / zoom)));
-            double radius = 5 / zoom;
+            guide.setStroke(new BasicStroke((float) (1.5 / zoom())));
+            double radius = 5 / zoom();
             double slash = radius * 0.7;
             for (GridPoint point : occupiedPinPoints()) {
                 double x = point.x() * UNIT;
@@ -1733,9 +1736,9 @@ final class ShapeCanvas extends JPanel {
             double x = found.offset().x() * UNIT;
             double y = found.offset().y() * UNIT;
             surface.setColor(scheme.wireConflict());
-            surface.setStroke(new BasicStroke((float) (1.5 / zoom)));
-            surface.draw(new Ellipse2D.Double(x - 8 / zoom, y - 8 / zoom, 16 / zoom, 16 / zoom));
-            surface.fill(new Ellipse2D.Double(x - 4 / zoom, y - 4 / zoom, 8 / zoom, 8 / zoom));
+            surface.setStroke(new BasicStroke((float) (1.5 / zoom())));
+            surface.draw(new Ellipse2D.Double(x - 8 / zoom(), y - 8 / zoom(), 16 / zoom(), 16 / zoom()));
+            surface.fill(new Ellipse2D.Double(x - 4 / zoom(), y - 4 / zoom(), 8 / zoom(), 8 / zoom()));
         }
     }
 
@@ -1748,11 +1751,11 @@ final class ShapeCanvas extends JPanel {
             }
         }
         surface.setColor(ReadableColors.warningText());
-        surface.setStroke(new BasicStroke((float) (1.5 / zoom)));
+        surface.setStroke(new BasicStroke((float) (1.5 / zoom())));
         for (PinPlacement placement : current.get().appearance().pins()) {
             if (offEdge.contains(pinName(placement.source()))) {
-                surface.draw(new Ellipse2D.Double(placement.offset().x() * UNIT - 9 / zoom,
-                        placement.offset().y() * UNIT - 9 / zoom, 18 / zoom, 18 / zoom));
+                surface.draw(new Ellipse2D.Double(placement.offset().x() * UNIT - 9 / zoom(),
+                        placement.offset().y() * UNIT - 9 / zoom(), 18 / zoom(), 18 / zoom()));
             }
         }
     }
@@ -1834,11 +1837,11 @@ final class ShapeCanvas extends JPanel {
         if (hoveredText >= 0 && hoveredText < elements.size() && !current.get().selection().contains(hoveredText)
                 && elements.get(hoveredText) instanceof SymbolText hovered) {
             surface.setColor(PainterSupport.withAlpha(scheme.selection(), 110));
-            surface.setStroke(new BasicStroke((float) (1.2 / zoom)));
+            surface.setStroke(new BasicStroke((float) (1.2 / zoom())));
             surface.draw(paddedTextBlock(hovered));
         }
         surface.setColor(scheme.selection());
-        surface.setStroke(new BasicStroke((float) (1.6 / zoom)));
+        surface.setStroke(new BasicStroke((float) (1.6 / zoom())));
         for (int index : current.get().selection()) {
             if (index < elements.size() && elements.get(index) instanceof SymbolText selected) {
                 surface.draw(paddedTextBlock(selected));
@@ -1851,8 +1854,8 @@ final class ShapeCanvas extends JPanel {
                 box.width() / 8.0 * UNIT, box.height() / 8.0 * UNIT));
         for (SymbolDraft.Handle handle : SymbolDraft.Handle.values()) {
             SymbolPoint point = handlePoint(handle, box);
-            surface.fill(new Rectangle2D.Double(point.x() / 8.0 * UNIT - 3 / zoom,
-                    point.y() / 8.0 * UNIT - 3 / zoom, 6 / zoom, 6 / zoom));
+            surface.fill(new Rectangle2D.Double(point.x() / 8.0 * UNIT - 3 / zoom(),
+                    point.y() / 8.0 * UNIT - 3 / zoom(), 6 / zoom(), 6 / zoom()));
         }
     }
 
@@ -1866,7 +1869,7 @@ final class ShapeCanvas extends JPanel {
         List<SymbolElement> elements = view.elements();
         List<HandleRef> handles = curveHandles();
         paintHandleLines(surface, handles);
-        surface.setStroke(new BasicStroke((float) (1.5 / zoom)));
+        surface.setStroke(new BasicStroke((float) (1.5 / zoom())));
         for (int index = 0; index < elements.size(); index++) {
             if (!(elements.get(index) instanceof SymbolPath path)) {
                 continue;
@@ -1880,7 +1883,7 @@ final class ShapeCanvas extends JPanel {
                 } else {
                     double x = point.x() / 8.0 * UNIT;
                     double y = point.y() / 8.0 * UNIT;
-                    Shape marker = new Ellipse2D.Double(x - 4 / zoom, y - 4 / zoom, 8 / zoom, 8 / zoom);
+                    Shape marker = new Ellipse2D.Double(x - 4 / zoom(), y - 4 / zoom(), 8 / zoom(), 8 / zoom());
                     surface.setColor(fill);
                     surface.fill(marker);
                     surface.setColor(colors.get().componentStroke());
@@ -1905,7 +1908,7 @@ final class ShapeCanvas extends JPanel {
     /** The thin line from a node to one of its handles, in the selection colour. */
     private void paintHandleLine(Graphics2D surface, SymbolPoint node, SymbolPoint handle) {
         surface.setColor(colors.get().selection());
-        surface.setStroke(new BasicStroke((float) (HANDLE_LINE_WIDTH / zoom)));
+        surface.setStroke(new BasicStroke((float) (HANDLE_LINE_WIDTH / zoom())));
         surface.draw(new Line2D.Double(node.x() / 8.0 * UNIT, node.y() / 8.0 * UNIT, handle.x() / 8.0 * UNIT,
                 handle.y() / 8.0 * UNIT));
     }
@@ -1915,13 +1918,13 @@ final class ShapeCanvas extends JPanel {
      * figure's stroke in both themes; larger under the pointer and while dragged.
      */
     private void paintHandle(Graphics2D surface, SymbolPoint handle, boolean active) {
-        double radius = (active ? ACTIVE_HANDLE_RADIUS : HANDLE_RADIUS) / zoom;
+        double radius = (active ? ACTIVE_HANDLE_RADIUS : HANDLE_RADIUS) / zoom();
         Shape dot = new Ellipse2D.Double(handle.x() / 8.0 * UNIT - radius, handle.y() / 8.0 * UNIT - radius,
                 2 * radius, 2 * radius);
         surface.setColor(colors.get().selection());
         surface.fill(dot);
         surface.setColor(colors.get().background());
-        surface.setStroke(new BasicStroke((float) (1 / zoom)));
+        surface.setStroke(new BasicStroke((float) (1 / zoom())));
         surface.draw(dot);
     }
 
@@ -1931,10 +1934,10 @@ final class ShapeCanvas extends JPanel {
             Shape segment = AffineTransform.getScaleInstance(UNIT / 8, UNIT / 8)
                     .createTransformedShape(ShapeSegments.shape(path, hit.segmentIndex()));
             surface.setColor(colors.get().selection());
-            surface.setStroke(new BasicStroke((float) (3 / zoom), BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+            surface.setStroke(new BasicStroke((float) (3 / zoom()), BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
             surface.draw(segment);
-            surface.fill(new Ellipse2D.Double(hit.point().x() / 8.0 * UNIT - 3 / zoom,
-                    hit.point().y() / 8.0 * UNIT - 3 / zoom, 6 / zoom, 6 / zoom));
+            surface.fill(new Ellipse2D.Double(hit.point().x() / 8.0 * UNIT - 3 / zoom(),
+                    hit.point().y() / 8.0 * UNIT - 3 / zoom(), 6 / zoom(), 6 / zoom()));
         });
     }
 
@@ -1952,15 +1955,15 @@ final class ShapeCanvas extends JPanel {
             placed.lineTo(node.x() / 8.0 * UNIT, node.y() / 8.0 * UNIT);
         }
         surface.setColor(scheme.componentStroke());
-        surface.setStroke(new BasicStroke((float) (SCREEN_STROKE_WIDTH / zoom), BasicStroke.CAP_ROUND,
+        surface.setStroke(new BasicStroke((float) (SCREEN_STROKE_WIDTH / zoom()), BasicStroke.CAP_ROUND,
                 BasicStroke.JOIN_ROUND));
         surface.draw(placed);
         boolean closing = closesOnFirstNode(pointer);
         SymbolPoint last = pathNodes.getLast();
         SymbolPoint target = closing ? pathNodes.getFirst() : point(pointer);
         surface.setColor(scheme.selection());
-        surface.setStroke(new BasicStroke((float) (1.2 / zoom), BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER, 10,
-                new float[]{(float) (4 / zoom), (float) (3 / zoom)}, 0));
+        surface.setStroke(new BasicStroke((float) (1.2 / zoom()), BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER, 10,
+                new float[]{(float) (4 / zoom()), (float) (3 / zoom())}, 0));
         surface.draw(new Line2D.Double(last.x() / 8.0 * UNIT, last.y() / 8.0 * UNIT, target.x() / 8.0 * UNIT,
                 target.y() / 8.0 * UNIT));
         if (tool == ShapeTool.POLYGON && pathNodes.size() >= 2 && !closing) {
@@ -1969,10 +1972,10 @@ final class ShapeCanvas extends JPanel {
             surface.draw(new Line2D.Double(target.x() / 8.0 * UNIT, target.y() / 8.0 * UNIT, first.x() / 8.0 * UNIT,
                     first.y() / 8.0 * UNIT));
         }
-        surface.setStroke(new BasicStroke((float) (1.5 / zoom)));
+        surface.setStroke(new BasicStroke((float) (1.5 / zoom())));
         for (SymbolPoint node : pathNodes) {
-            Shape marker = new Ellipse2D.Double(node.x() / 8.0 * UNIT - 3 / zoom, node.y() / 8.0 * UNIT - 3 / zoom,
-                    6 / zoom, 6 / zoom);
+            Shape marker = new Ellipse2D.Double(node.x() / 8.0 * UNIT - 3 / zoom(), node.y() / 8.0 * UNIT - 3 / zoom(),
+                    6 / zoom(), 6 / zoom());
             surface.setColor(scheme.background());
             surface.fill(marker);
             surface.setColor(scheme.componentStroke());
@@ -1981,9 +1984,9 @@ final class ShapeCanvas extends JPanel {
         if (closing) {
             SymbolPoint first = pathNodes.getFirst();
             surface.setColor(scheme.selection());
-            surface.setStroke(new BasicStroke((float) (2 / zoom)));
-            surface.draw(new Ellipse2D.Double(first.x() / 8.0 * UNIT - 7 / zoom, first.y() / 8.0 * UNIT - 7 / zoom,
-                    14 / zoom, 14 / zoom));
+            surface.setStroke(new BasicStroke((float) (2 / zoom())));
+            surface.draw(new Ellipse2D.Double(first.x() / 8.0 * UNIT - 7 / zoom(), first.y() / 8.0 * UNIT - 7 / zoom(),
+                    14 / zoom(), 14 / zoom()));
         }
     }
 
@@ -2000,7 +2003,7 @@ final class ShapeCanvas extends JPanel {
                 Shape segment = AffineTransform.getScaleInstance(UNIT / 8, UNIT / 8)
                         .createTransformedShape(ShapeSegments.shape(path, target.segment()));
                 surface.setColor(scheme.selection());
-                surface.setStroke(new BasicStroke((float) (3 / zoom), BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+                surface.setStroke(new BasicStroke((float) (3 / zoom()), BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
                 surface.draw(segment);
             });
         }
@@ -2014,10 +2017,10 @@ final class ShapeCanvas extends JPanel {
         double x = point.x() / 8.0 * UNIT;
         double y = point.y() / 8.0 * UNIT;
         Path2D diamond = new Path2D.Double();
-        diamond.moveTo(x, y - radius / zoom);
-        diamond.lineTo(x + radius / zoom, y);
-        diamond.lineTo(x, y + radius / zoom);
-        diamond.lineTo(x - radius / zoom, y);
+        diamond.moveTo(x, y - radius / zoom());
+        diamond.lineTo(x + radius / zoom(), y);
+        diamond.lineTo(x, y + radius / zoom());
+        diamond.lineTo(x - radius / zoom(), y);
         diamond.closePath();
         surface.setColor(fill);
         surface.fill(diamond);
@@ -2033,9 +2036,9 @@ final class ShapeCanvas extends JPanel {
             double x = point.x() / 8.0 * UNIT;
             double y = point.y() / 8.0 * UNIT;
             surface.setColor(scheme.wireConflict());
-            surface.setStroke(new BasicStroke((float) (1.5 / zoom)));
-            surface.fill(new Ellipse2D.Double(x - 5 / zoom, y - 5 / zoom, 10 / zoom, 10 / zoom));
-            surface.draw(new Ellipse2D.Double(x - 9 / zoom, y - 9 / zoom, 18 / zoom, 18 / zoom));
+            surface.setStroke(new BasicStroke((float) (1.5 / zoom())));
+            surface.fill(new Ellipse2D.Double(x - 5 / zoom(), y - 5 / zoom(), 10 / zoom(), 10 / zoom()));
+            surface.draw(new Ellipse2D.Double(x - 9 / zoom(), y - 9 / zoom(), 18 / zoom(), 18 / zoom()));
         });
     }
 

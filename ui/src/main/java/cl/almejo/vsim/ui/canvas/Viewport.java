@@ -62,6 +62,13 @@ public final class Viewport {
         changed();
     }
 
+    /** Puts the grid origin at screen point ({@code screenX}, {@code screenY}), keeping the zoom. */
+    public void setOrigin(double screenX, double screenY) {
+        originX = screenX;
+        originY = screenY;
+        changed();
+    }
+
     public void zoomAt(double screenX, double screenY, double requestedZoom) {
         if (!Double.isFinite(screenX) || !Double.isFinite(screenY) || !Double.isFinite(requestedZoom)) {
             return;

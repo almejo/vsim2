@@ -53,6 +53,7 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 
 ### Cambiado
 
+- En el editor de formas, el zoom va de 25 % a 400 %, como en el editor principal (antes llegaba a 600 %).
 - En el editor de formas, las manijas de todos los tramos curvos se ven siempre con Nodos y con «Curvar tramo» y se
   toman directamente: ya no hay que pasar el mouse por el tramo ni elegir antes el nodo. Al curvar un tramo con
   «Curvar tramo» sus manijas quedan a la vista y se arrastran en seguida; arrastrar la curva sigue funcionando. Un nodo
