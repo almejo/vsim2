@@ -49,7 +49,7 @@ public final class ChangedSettingsSection extends JPanel {
     }
 
     /** Lists {@code changes}; the whole section is hidden when there are none. */
-    public void show(List<String> changes) {
+    public void showChanges(List<String> changes) {
         setVisible(!changes.isEmpty());
         header.setText(Messages.format("ai.panel.settings", Integer.toString(changes.size())));
         list.removeAll();

@@ -79,7 +79,7 @@ final class GroupsPanel extends JPanel implements WizardStep {
         super(new MigLayout("insets 12, fill, hidemode 3", "[grow, fill][400!, fill]",
                 model.practice().practising() ? "[][grow, fill]" : "[grow, fill]"));
         this.model = model;
-        this.optionControls = new OptionControls(model::options, model::setOptions);
+        this.optionControls = OptionControls.formsOnly(model::options, model::setOptions);
         this.hover = hover;
         this.tabs = new OutputTabs(model, hover, true);
         this.practicePanel = new PracticePanel(model,

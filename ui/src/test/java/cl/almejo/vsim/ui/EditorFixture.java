@@ -16,10 +16,10 @@ import java.util.List;
 import static cl.almejo.vsim.ui.UiTestSupport.NO_WINDOW;
 
 /**
- * An open document, the standard editor services (standard painters, light scheme, an empty library, no extensions) and
- * an editor view on them, for the tests that need nothing special. {@link #close()} disposes the views in the order they
- * were created and then closes the document, which is what those tests did by hand; a test that has features of its own
- * disposes them first.
+ * An open document, the standard editor services (standard painters, light scheme, an empty library, no extensions)
+ * and an editor view on them, for the tests that need nothing special. {@link #close()} disposes the views in the
+ * order they were created and then closes the document, which is what those tests did by hand; a test that has
+ * features of its own disposes them first.
  */
 public final class EditorFixture implements AutoCloseable {
 

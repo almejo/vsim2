@@ -44,15 +44,14 @@ class ShapeViewportTest {
     }
 
     @Test
-    void metaAndTheWheelZoomOutAroundTheCursorToo() {
+    void metaAndTheWheelPanInsteadOfZoomingJustLikeTheMainEditor() {
         ShapeCanvas canvas = canvas();
-        Point2D before = designPoint(canvas, 120, 90);
+        double top = canvas.boxOnScreen().getMinY();
 
         canvas.dispatchEvent(wheel(canvas, InputEvent.META_DOWN_MASK, 120, 90, 2));
 
-        assertThat(canvas.zoom()).isCloseTo(1 / (Viewport.ZOOM_STEP * Viewport.ZOOM_STEP), within(1e-9));
-        assertThat(designPoint(canvas, 120, 90).getX()).isCloseTo(before.getX(), within(1e-9));
-        assertThat(designPoint(canvas, 120, 90).getY()).isCloseTo(before.getY(), within(1e-9));
+        assertThat(canvas.zoom()).isEqualTo(1);
+        assertThat(canvas.boxOnScreen().getMinY()).isEqualTo(top - 48);
     }
 
     @Test

@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.ai.present;
 
+import cl.almejo.vsim.automation.present.PresentationSettings;
 import cl.almejo.vsim.ui.i18n.Messages;
 
 import javax.swing.ButtonGroup;

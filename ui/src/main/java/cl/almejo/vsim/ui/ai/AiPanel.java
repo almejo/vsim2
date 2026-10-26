@@ -260,7 +260,7 @@ public final class AiPanel extends JPanel {
         Optional<SettingsOverride> override = circuitOverride.get();
         follow(override.map(SettingsOverride::windowPreferences).orElse(null));
         List<SettingsOverride.Change> changes = override.map(SettingsOverride::changes).orElse(List.of());
-        settingsSection.show(changes.stream().map(change -> Messages.format("ai.setting.change",
+        settingsSection.showChanges(changes.stream().map(change -> Messages.format("ai.setting.change",
                 settingName(change.setting()), valueText(change.value()))).toList());
         revalidate();
         repaint();

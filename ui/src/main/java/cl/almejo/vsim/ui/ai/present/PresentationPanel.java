@@ -2,7 +2,6 @@ package cl.almejo.vsim.ui.ai.present;
 
 import cl.almejo.vsim.automation.StageUndoOutcome;
 import cl.almejo.vsim.automation.present.PresentationPace;
-import cl.almejo.vsim.automation.present.PresentationSettings;
 import cl.almejo.vsim.automation.present.Question;
 import cl.almejo.vsim.automation.present.StepStatus;
 import cl.almejo.vsim.ui.ai.AiIcons;
@@ -404,7 +403,7 @@ final class PresentationPanel extends JPanel {
 
     private void refreshSettings() {
         List<SettingsOverride.Change> changes = override.map(SettingsOverride::changes).orElse(List.of());
-        settingsSection.show(changes.stream().map(change -> Messages.format("ai.setting.change",
+        settingsSection.showChanges(changes.stream().map(change -> Messages.format("ai.setting.change",
                 AiPanel.settingName(change.setting()), AiPanel.valueText(change.value()))).toList());
     }
 

@@ -1,13 +1,9 @@
 package cl.almejo.vsim.ui.ai;
 
 import cl.almejo.vsim.automation.AutomationApi;
-import cl.almejo.vsim.automation.DocumentId;
 import cl.almejo.vsim.automation.EditorSetting;
 import cl.almejo.vsim.automation.ProposalAnswer;
 import cl.almejo.vsim.automation.ProposedPreference;
-import cl.almejo.vsim.mcp.McpServerSettings;
-import cl.almejo.vsim.mcp.RunningServer;
-import cl.almejo.vsim.mcp.VsimMcpServer;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.theme.AppThemes;
 import cl.almejo.vsim.ui.theme.ReadableColors;

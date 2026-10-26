@@ -38,7 +38,7 @@ class AiServerStatesTest {
     private List<String> heard;
 
     @BeforeEach
-    void spanish() throws IOException {
+    void listen() throws IOException {
         preferences.setAiPort(freePort());
         heard = AiTestSupport.recordStates(service, AiServerState::text);
     }

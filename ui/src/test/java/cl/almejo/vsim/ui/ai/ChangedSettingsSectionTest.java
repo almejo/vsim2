@@ -16,10 +16,10 @@ class ChangedSettingsSectionTest {
 
     @Test
     void isHiddenWithoutChangesAndShowsTheCountInItsHeader() {
-        section.show(List.of());
+        section.showChanges(List.of());
         assertThat(section.isVisible()).isFalse();
 
-        section.show(List.of("Cuadrícula: líneas", "Mostrar guías: no"));
+        section.showChanges(List.of("Cuadrícula: líneas", "Mostrar guías: no"));
 
         assertThat(section.isVisible()).isTrue();
         assertThat(section.header().getText()).contains("2");
@@ -29,8 +29,8 @@ class ChangedSettingsSectionTest {
 
     @Test
     void showReplacesTheListInsteadOfAppendingToIt() {
-        section.show(List.of("uno", "dos"));
-        section.show(List.of("tres"));
+        section.showChanges(List.of("uno", "dos"));
+        section.showChanges(List.of("tres"));
 
         assertThat(section.texts()).containsExactly("tres");
         assertThat(section.changesList().getComponentCount()).isEqualTo(1);
@@ -38,7 +38,7 @@ class ChangedSettingsSectionTest {
 
     @Test
     void theListStartsFoldedAndTheHeaderTogglesItAndTellsTheOwner() {
-        section.show(List.of("uno"));
+        section.showChanges(List.of("uno"));
         assertThat(section.changesList().isVisible()).isFalse();
 
         section.header().doClick();

@@ -15,10 +15,13 @@ public final class FileNames {
         return withExtension(path, EXTENSION);
     }
 
-    /** {@code path}, with {@code extension} (dot included, like «.pdf») added unless it already ends in it (any case). */
+    /**
+     * {@code path}, with {@code extension} (dot included, like «.pdf») added unless it already ends in it, whatever the
+     * case of either.
+     */
     public static Path withExtension(Path path, String extension) {
         String fileName = path.getFileName().toString();
-        return fileName.toLowerCase(Locale.ROOT).endsWith(extension) ? path
+        return fileName.toLowerCase(Locale.ROOT).endsWith(extension.toLowerCase(Locale.ROOT)) ? path
                 : path.resolveSibling(fileName + extension);
     }
 

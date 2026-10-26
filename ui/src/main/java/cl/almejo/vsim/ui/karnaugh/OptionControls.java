@@ -25,24 +25,40 @@ final class OptionControls {
 
     private final Supplier<WizardOptions> options;
     private final Consumer<WizardOptions> setOptions;
-    private final JPanel gatesPanel = new JPanel(new MigLayout("insets 0"));
+    private final JPanel gatesPanel;
     private final JPanel formsPanel = new JPanel(new MigLayout("insets 0"));
     private final Map<WizardOptions.GateChoice, JRadioButton> gateButtons =
             new EnumMap<>(WizardOptions.GateChoice.class);
     private final Map<Minimization.Form, JRadioButton> formButtons = new EnumMap<>(Minimization.Form.class);
-    private final JCheckBox share = new JCheckBox(Messages.text("karnaugh.expression.share"));
+    private final JCheckBox share;
 
     OptionControls(Supplier<WizardOptions> options, Consumer<WizardOptions> setOptions) {
+        this(options, setOptions, true);
+    }
+
+    /** Only the form radios, for the panel that shows nothing else; there are no gate radios or box then. */
+    static OptionControls formsOnly(Supplier<WizardOptions> options, Consumer<WizardOptions> setOptions) {
+        return new OptionControls(options, setOptions, false);
+    }
+
+    private OptionControls(Supplier<WizardOptions> options, Consumer<WizardOptions> setOptions, boolean withGates) {
         this.options = options;
         this.setOptions = setOptions;
-        ButtonGroup gates = new ButtonGroup();
-        addGate(gates, WizardOptions.GateChoice.AND_OR_NOT, "karnaugh.expression.gates.andOrNot");
-        addGate(gates, WizardOptions.GateChoice.NAND_ONLY, "karnaugh.expression.gates.nandOnly");
-        addGate(gates, WizardOptions.GateChoice.NOR_ONLY, "karnaugh.expression.gates.norOnly");
         ButtonGroup forms = new ButtonGroup();
+        if (withGates) {
+            gatesPanel = new JPanel(new MigLayout("insets 0"));
+            share = new JCheckBox(Messages.text("karnaugh.expression.share"));
+            ButtonGroup gates = new ButtonGroup();
+            addGate(gates, WizardOptions.GateChoice.AND_OR_NOT, "karnaugh.expression.gates.andOrNot");
+            addGate(gates, WizardOptions.GateChoice.NAND_ONLY, "karnaugh.expression.gates.nandOnly");
+            addGate(gates, WizardOptions.GateChoice.NOR_ONLY, "karnaugh.expression.gates.norOnly");
+            share.addActionListener(event -> setOptions.accept(options.get().withShareTerms(share.isSelected())));
+        } else {
+            gatesPanel = null;
+            share = null;
+        }
         addForm(forms, Minimization.Form.SUM_OF_PRODUCTS, "karnaugh.expression.form.sop");
         addForm(forms, Minimization.Form.PRODUCT_OF_SUMS, "karnaugh.expression.form.pos");
-        share.addActionListener(event -> setOptions.accept(options.get().withShareTerms(share.isSelected())));
     }
 
     private void addGate(ButtonGroup group, WizardOptions.GateChoice choice, String key) {
