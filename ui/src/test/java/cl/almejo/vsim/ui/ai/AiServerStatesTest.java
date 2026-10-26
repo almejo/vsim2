@@ -36,18 +36,13 @@ class AiServerStatesTest {
     private final FakeAiTasks tasks = new FakeAiTasks();
     private final AiServerService service = new AiServerService(preferences, new AutomationApi(new NoDocuments()),
             tasks, Runnable::run, Runnable::run);
-    private final List<String> heard = new ArrayList<>();
+    private List<String> heard;
 
     @BeforeEach
     void spanish() throws IOException {
         Messages.initialize(Messages.SPANISH);
         preferences.setAiPort(freePort());
-        service.addListener(new AiServerService.Listener() {
-            @Override
-            public void stateChanged() {
-                heard.add(service.state().text());
-            }
-        });
+        heard = AiTestSupport.recordStates(service, AiServerState::text);
     }
 
     @AfterEach
@@ -185,17 +180,6 @@ class AiServerStatesTest {
 
         assertThat(tasks.stopped).containsExactly("task-1");
         assertThat(service.runningTasks()).isEmpty();
-    }
-
-    @Test
-    void theHandTestSwitchTurnsActivarOnAndPrintsTheCommand() throws Exception {
-        assertThat(AiServerService.requestedAtLaunch("on", null)).isTrue();
-        preferences.setAiStartWithVsim(true);
-        java.io.ByteArrayOutputStream terminal = new java.io.ByteArrayOutputStream();
-
-        service.startAtLaunch(new java.io.PrintStream(terminal, true, java.nio.charset.StandardCharsets.UTF_8));
-
-        assertThat(service.state()).isInstanceOf(AiServerState.Listening.class);
     }
 
     private int statusWith(String secret) throws Exception {

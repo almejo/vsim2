@@ -99,6 +99,7 @@ class AiPanelStatesTest {
 
         service.requestServed();
         assertThat(panel.titleLabel().getText()).isEqualTo("Conectado");
+        assertThat(panel.stateLabel().getText()).isEqualTo("Claude Code conectado");
         assertThat(panel.detailsLabel().getText()).endsWith("· 1 pedido");
         service.requestServed();
         assertThat(panel.detailsLabel().getText()).as("counted while the state stays").endsWith("· 2 pedidos");
@@ -107,6 +108,10 @@ class AiPanelStatesTest {
         tasks.start(FakeAiTasks.task("task-1", new DocumentId("circuit-1"), "Flip-flop D"));
         assertThat(panel.titleLabel().getText()).isEqualTo("Trabajando");
         assertThat(panel.stateLabel().getText()).isEqualTo("IA trabajando: Flip-flop D");
+
+        panel.toggleButton().doClick();
+        assertThat(panel.stateLabel().getText()).isEqualTo("Apagada");
+        assertThat(service.isRunning()).isFalse();
     }
 
     @Test
@@ -159,6 +164,7 @@ class AiPanelStatesTest {
 
             serverWork.removeFirst().run();
             assertThat(startingPanel.titleLabel().getText()).isEqualTo("Escuchando");
+            assertThat(starting.state()).isEqualTo(new AiServerState.Listening(port));
             assertThat(startingPanel.restartButton().isEnabled()).isTrue();
         } finally {
             serverWork.forEach(Runnable::run);
@@ -194,6 +200,8 @@ class AiPanelStatesTest {
 
             assertThat(panel.helpLabel().getText()).isEqualTo("Otro VSim escucha en el puerto " + otherVsim.port()
                     + ": ciérralo y vuelve a encender esta, o trabaja con ese VSim");
+            assertThat(panel.stateLabel().getText())
+                    .isEqualTo("Otro VSim ya tiene la IA conectada; ciérralo o usa ese");
             assertThat(panel.nextFreePortButton().isVisible()).isFalse();
         } finally {
             otherVsim.stop();
@@ -276,18 +284,6 @@ class AiPanelStatesTest {
         }
         assertThat(firstWindow.listenerCount()).as("disposing stops hearing the other window")
                 .isEqualTo(listenersBefore);
-    }
-
-    @Test
-    void disposingTakesBackEveryListener() {
-        int serviceListeners = service.listenerCount();
-        int preferenceListeners = windowPreferences.listenerCount();
-        AiPanel another = new AiPanel(service, windowPreferences, proposals, copied::add);
-
-        another.dispose();
-
-        assertThat(service.listenerCount()).isEqualTo(serviceListeners);
-        assertThat(windowPreferences.listenerCount()).isEqualTo(preferenceListeners);
     }
 
     private static int drawnPixels(BufferedImage image) {

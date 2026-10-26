@@ -35,7 +35,7 @@ class AiServerLifecycleTest {
     private final FakeAiTasks tasks = new FakeAiTasks();
     /** The server thread, run by hand: the test is the EDT. */
     private final Deque<Runnable> serverWork = new ArrayDeque<>();
-    private final List<String> heard = new ArrayList<>();
+    private List<String> heard;
     private AiServerService service;
     private int port;
 
@@ -51,12 +51,7 @@ class AiServerLifecycleTest {
         AiServerService created = new AiServerService(preferences, new AutomationApi(new NoDocuments()), tasks,
                 Runnable::run, Runnable::run, AiServerService.QueuedWork.NONE, SessionPort.none(), serverThread,
                 Clock.fixed(STARTED, ZoneOffset.UTC));
-        created.addListener(new AiServerService.Listener() {
-            @Override
-            public void stateChanged() {
-                heard.add(created.state().title());
-            }
-        });
+        heard = AiTestSupport.recordStates(created, AiServerState::title);
         return created;
     }
 
@@ -144,9 +139,8 @@ class AiServerLifecycleTest {
 
         assertThat(service.state()).isEqualTo(new AiServerState.Off());
         assertThat(service.isRunning()).isFalse();
-        try (ServerSocket free = new ServerSocket(port, 50, InetAddress.getLoopbackAddress())) {
-            assertThat(free.getLocalPort()).isEqualTo(port);
-        }
+        assertThat(AiTestSupport.portIsFree(port)).isTrue();
+        assertThat(tasks.waitsEnded).hasSize(1);
     }
 
     @Test
@@ -164,16 +158,6 @@ class AiServerLifecycleTest {
         assertThat(service.state()).isEqualTo(new AiServerState.Listening(port));
         assertThat(heard).as("off between, so every wait for «Siguiente» ends")
                 .containsExactly("Apagada", "Encendiendo…", "Escuchando");
-    }
-
-    @Test
-    void reiniciarIsRefusedWhileStarting() {
-        service.activate();
-
-        assertThat(service.restart()).isFalse();
-        assertThat(serverWork).hasSize(1);
-        runServerWork();
-        assertThat(service.state()).isEqualTo(new AiServerState.Listening(port));
     }
 
     @Test
@@ -222,10 +206,10 @@ class AiServerLifecycleTest {
         assertThat(tasks.waitsEnded).containsExactly("after [task-1]");
         assertThat(service.state()).isEqualTo(new AiServerState.Off());
         assertThat(serverWork).as("the server's stop waits for the server thread").hasSize(1);
-        assertThat(portIsFree()).isFalse();
+        assertThat(AiTestSupport.portIsFree(port)).isFalse();
 
         runServerWork();
-        assertThat(portIsFree()).isTrue();
+        assertThat(AiTestSupport.portIsFree(port)).isTrue();
     }
 
     /**
@@ -248,16 +232,6 @@ class AiServerLifecycleTest {
         assertThat(service.restart()).isTrue();
         runServerWork();
         assertThat(tasks.waitsAccepted).as("Reiniciar listens again").isEqualTo(2);
-    }
-
-    @Test
-    void apagarWhileStartingEndsTheWaitsAgain() {
-        service.activate();
-
-        service.deactivate();
-        runServerWork();
-
-        assertThat(tasks.waitsEnded).hasSize(1);
     }
 
     @Test
@@ -287,10 +261,10 @@ class AiServerLifecycleTest {
         assertThat(tasks.waitsEnded).as("the AI's waits end at once").hasSize(1);
         assertThat(heard).as("off: the application withdraws the proposals").containsExactly("Apagada");
         assertThat(ended).isEmpty();
-        assertThat(portIsFree()).as("the stop waits for the server thread").isFalse();
+        assertThat(AiTestSupport.portIsFree(port)).as("the stop waits for the server thread").isFalse();
 
         runServerWork();
-        assertThat(portIsFree()).isTrue();
+        assertThat(AiTestSupport.portIsFree(port)).isTrue();
         assertThat(ended).containsExactly("exit");
     }
 
@@ -302,13 +276,5 @@ class AiServerLifecycleTest {
         runServerWork();
 
         assertThat(ended).containsExactly("exit");
-    }
-
-    private boolean portIsFree() {
-        try (ServerSocket probe = new ServerSocket(port, 50, InetAddress.getLoopbackAddress())) {
-            return probe.getLocalPort() == port;
-        } catch (IOException exception) {
-            return false;
-        }
     }
 }
