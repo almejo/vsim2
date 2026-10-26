@@ -59,9 +59,12 @@ public final class ReadableColors {
     /** True when the current theme's panel background is dark: the bright variant of a colour reads there. */
     public static boolean dark() {
         Color background = panelBackground();
-        double luminance = (0.2126 * background.getRed() + 0.7152 * background.getGreen()
-                + 0.0722 * background.getBlue()) / 255;
-        return luminance < 0.5;
+        return perceivedBrightness(background) < 0.5;
+    }
+
+    /** The simple brightness of {@code color}, 0 (black) to 1 (white): weighted sRGB channels, no gamma. */
+    public static double perceivedBrightness(Color color) {
+        return (0.2126 * color.getRed() + 0.7152 * color.getGreen() + 0.0722 * color.getBlue()) / 255;
     }
 
     /** The WCAG contrast ratio between two opaque colours (1 to 21). */
@@ -83,7 +86,8 @@ public final class ReadableColors {
         return (int) Math.round(top * share + bottom * (1 - share));
     }
 
-    private static double luminance(Color color) {
+    /** The WCAG relative luminance of {@code color} (linear light), 0 to 1. */
+    public static double luminance(Color color) {
         return 0.2126 * linear(color.getRed()) + 0.7152 * linear(color.getGreen()) + 0.0722 * linear(color.getBlue());
     }
 

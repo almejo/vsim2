@@ -157,9 +157,7 @@ final class NotePalette {
 
     /** The same rule as {@link ColorScheme#isDark}: a board under half luminance is dark. */
     private static boolean isDark(Color surface) {
-        double luminance = (0.2126 * surface.getRed() + 0.7152 * surface.getGreen() + 0.0722 * surface.getBlue())
-                / 255;
-        return luminance < 0.5;
+        return ReadableColors.perceivedBrightness(surface) < 0.5;
     }
 
     private static Color mix(Color color, Color towards, double share) {

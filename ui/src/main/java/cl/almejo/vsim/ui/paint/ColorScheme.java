@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.paint;
 import cl.almejo.vsim.core.document.FrameTint;
 import cl.almejo.vsim.core.document.NoteColor;
 import cl.almejo.vsim.core.document.NoteStyle;
+import cl.almejo.vsim.ui.theme.ReadableColors;
 
 import java.awt.Color;
 import java.util.Optional;
@@ -88,9 +89,7 @@ public record ColorScheme(Color background, Color grid, Color gridLine, Color wi
 
     /** True when the board is dark, which picks the dark variant of the frame tints. */
     public boolean isDark() {
-        double luminance = (0.2126 * background.getRed() + 0.7152 * background.getGreen()
-                + 0.0722 * background.getBlue()) / 255;
-        return luminance < 0.5;
+        return ReadableColors.perceivedBrightness(background) < 0.5;
     }
 
     /**

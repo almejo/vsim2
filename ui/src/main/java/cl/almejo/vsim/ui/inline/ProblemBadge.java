@@ -1,5 +1,7 @@
 package cl.almejo.vsim.ui.inline;
 
+import cl.almejo.vsim.ui.theme.ReadableColors;
+
 import javax.swing.JLabel;
 import javax.swing.UIManager;
 import javax.swing.border.EmptyBorder;
@@ -61,15 +63,6 @@ public final class ProblemBadge extends JLabel {
     }
 
     private static double contrastWithWhite(Color color) {
-        return 1.05 / (relativeLuminance(color) + 0.05);
-    }
-
-    private static double relativeLuminance(Color color) {
-        return 0.2126 * linear(color.getRed()) + 0.7152 * linear(color.getGreen()) + 0.0722 * linear(color.getBlue());
-    }
-
-    private static double linear(int channel) {
-        double fraction = channel / 255.0;
-        return fraction <= 0.03928 ? fraction / 12.92 : Math.pow((fraction + 0.055) / 1.055, 2.4);
+        return 1.05 / (ReadableColors.luminance(color) + 0.05);
     }
 }
