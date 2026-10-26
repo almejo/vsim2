@@ -14,7 +14,6 @@ import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.frames.FrameGestures;
 import cl.almejo.vsim.ui.frames.FrameTool;
-import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.library.LibraryService;
 import cl.almejo.vsim.ui.library.SwingLibraryDialogs;
 import cl.almejo.vsim.ui.paint.Appearance;
@@ -89,7 +88,6 @@ class EveryExtensionInEveryPaneTest {
 
     @BeforeEach
     void create() {
-        Messages.initialize(Messages.SPANISH);
         preferences.setLibraryDirectory(Optional.of(directory.resolve("library")));
         preferences.setShowGuides(true);
         preferences.setGridStyle(GridStyle.LINES);

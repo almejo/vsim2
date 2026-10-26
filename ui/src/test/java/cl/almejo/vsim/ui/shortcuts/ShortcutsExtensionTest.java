@@ -3,7 +3,6 @@ package cl.almejo.vsim.ui.shortcuts;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.OpenDocument;
-import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.icons.ActionIcons;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
@@ -45,7 +44,6 @@ class ShortcutsExtensionTest {
 
     @BeforeEach
     void create() {
-        Messages.initialize(Messages.SPANISH);
         openDocument = OpenDocument.createEmpty(StandardComponentTypes.registry());
         services = EditorServices.of(PainterRegistry.standard(), ColorScheme.LIGHT)
                 .withExtensions(List.of(new PreferencesFeature(), new ShortcutsExtension()));

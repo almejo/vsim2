@@ -7,7 +7,6 @@ import cl.almejo.vsim.core.netlist.PinRef;
 import cl.almejo.vsim.core.simulation.StepReport;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.core.value.Value;
-import cl.almejo.vsim.ui.i18n.Messages;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -26,7 +25,6 @@ class OpenDocumentStepTest {
 
     @BeforeEach
     void create() {
-        Messages.initialize(Messages.SPANISH);
         document = OpenDocument.createEmpty(StandardComponentTypes.registry());
     }
 

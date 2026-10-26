@@ -17,7 +17,6 @@ import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.DrawnBounds;
 import cl.almejo.vsim.ui.canvas.ManualFrameTicker;
-import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.Appearance;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
@@ -58,7 +57,6 @@ class FindFeaturesTest {
 
     @BeforeEach
     void create() {
-        Messages.initialize(Messages.SPANISH);
         view = newView();
         features = new FindFeatures(view, () -> focusOwner, focused::add);
     }

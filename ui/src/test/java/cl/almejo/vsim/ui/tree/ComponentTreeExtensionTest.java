@@ -3,7 +3,6 @@ package cl.almejo.vsim.ui.tree;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.ui.app.OpenDocument;
-import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.window.EditorServices;
@@ -40,7 +39,6 @@ class ComponentTreeExtensionTest {
 
     @Test
     void theExtensionAddsTheComponentsTabAndStopsListeningWhenTheViewCloses() {
-        Messages.initialize(Messages.SPANISH);
         try (OpenDocument openDocument = OpenDocument.createEmpty(StandardComponentTypes.registry())) {
             EditorServices services = EditorServices.of(PainterRegistry.standard(), ColorScheme.LIGHT)
                     .withExtensions(List.of(new ComponentTreeExtension()));
@@ -63,7 +61,6 @@ class ComponentTreeExtensionTest {
 
     @Test
     void disposingTheViewRemovesEveryListenerTheTabAdded() throws ReflectiveOperationException {
-        Messages.initialize(Messages.SPANISH);
         try (OpenDocument openDocument = OpenDocument.createEmpty(StandardComponentTypes.registry())) {
             int documentListenersBefore = listenerCount(openDocument, "changeListeners");
             EditorServices withoutTree = EditorServices.of(PainterRegistry.standard(), ColorScheme.LIGHT);

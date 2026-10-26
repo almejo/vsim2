@@ -12,7 +12,6 @@ import cl.almejo.vsim.core.library.DefinitionBundle;
 import cl.almejo.vsim.core.library.ExampleDefinitions;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.ui.app.OpenDocument;
-import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.panels.PalettePanelAccess;
@@ -62,7 +61,6 @@ class DragBetweenViewsTest {
 
     @BeforeEach
     void open() {
-        Messages.initialize(Messages.SPANISH);
         first = OpenDocument.createEmpty(StandardComponentTypes.registry());
         second = OpenDocument.createEmpty(StandardComponentTypes.registry());
         firstView = viewOf(first);

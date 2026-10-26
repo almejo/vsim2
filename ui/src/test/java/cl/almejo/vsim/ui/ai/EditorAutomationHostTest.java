@@ -7,9 +7,7 @@ import cl.almejo.vsim.automation.EditorAccess;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.ui.app.OpenDocument;
-import cl.almejo.vsim.ui.i18n.Messages;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import javax.swing.SwingUtilities;
@@ -27,11 +25,6 @@ class EditorAutomationHostTest {
 
     private final List<OpenDocument> open = new ArrayList<>();
     private final EditorAutomationHost host = new EditorAutomationHost(() -> List.copyOf(open));
-
-    @BeforeEach
-    void spanish() {
-        Messages.initialize(Messages.SPANISH);
-    }
 
     @AfterEach
     void closeDocuments() {

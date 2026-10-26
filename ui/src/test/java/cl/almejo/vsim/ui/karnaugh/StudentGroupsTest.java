@@ -37,7 +37,6 @@ class StudentGroupsTest {
     /** F(A, B, C) = A'B + AC (rows 2, 3, 5, 7). */
     @BeforeEach
     void create() {
-        Messages.initialize(Messages.SPANISH);
         model = new KarnaughModel();
         for (int row : new int[] {2, 3, 5, 7}) {
             model.setValue(0, row, LogicValue.ONE);

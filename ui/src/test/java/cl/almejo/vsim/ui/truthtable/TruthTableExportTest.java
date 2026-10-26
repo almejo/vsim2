@@ -4,8 +4,6 @@ import cl.almejo.vsim.core.truthtable.Column;
 import cl.almejo.vsim.core.truthtable.Row;
 import cl.almejo.vsim.core.truthtable.TruthTable;
 import cl.almejo.vsim.core.value.Value;
-import cl.almejo.vsim.ui.i18n.Messages;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -21,11 +19,6 @@ class TruthTableExportTest {
 
     @TempDir
     Path directory;
-
-    @BeforeEach
-    void spanish() {
-        Messages.initialize(Messages.SPANISH);
-    }
 
     @Test
     void theSuggestedNameIsTheDocumentNameWithTablaAndCsv() {

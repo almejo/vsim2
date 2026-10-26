@@ -15,7 +15,6 @@ import cl.almejo.vsim.core.logic.TableCircuits;
 import cl.almejo.vsim.core.logic.TruthTableSpec;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.OpenDocument;
-import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.library.LibraryService;
 import cl.almejo.vsim.ui.paint.Appearance;
 import cl.almejo.vsim.ui.paint.ColorScheme;
@@ -66,7 +65,6 @@ class ViewCreationTargetTest {
 
     @BeforeEach
     void create() {
-        Messages.initialize(Messages.SPANISH);
         AppPreferences preferences = AppPreferences.inMemory();
         preferences.setLibraryDirectory(Optional.of(libraryDirectory));
         ComponentLibrary library = new ComponentLibrary();

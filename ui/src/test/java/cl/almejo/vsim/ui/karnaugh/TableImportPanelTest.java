@@ -64,7 +64,6 @@ class TableImportPanelTest {
 
     @BeforeEach
     void create() {
-        Messages.initialize(Messages.SPANISH);
         open(Background.inline());
     }
 

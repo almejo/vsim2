@@ -30,7 +30,6 @@ import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.window.EditorServices;
 import cl.almejo.vsim.ui.window.EditorView;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import javax.imageio.ImageIO;
@@ -63,11 +62,6 @@ class EditorAutomationHostReadTest {
     private final EditorAutomationHost host = new EditorAutomationHost(() -> List.copyOf(open),
             document -> windows.stream().filter(window -> window.view().openDocument() == document).toList());
     private final AutomationApi api = new AutomationApi(host);
-
-    @BeforeEach
-    void spanish() {
-        Messages.initialize(Messages.SPANISH);
-    }
 
     @AfterEach
     void close() throws Exception {

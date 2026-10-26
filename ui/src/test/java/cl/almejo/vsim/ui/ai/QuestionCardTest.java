@@ -3,8 +3,6 @@ package cl.almejo.vsim.ui.ai;
 import cl.almejo.vsim.automation.DocumentId;
 import cl.almejo.vsim.automation.present.Question;
 import cl.almejo.vsim.automation.present.QuestionAnswer;
-import cl.almejo.vsim.ui.i18n.Messages;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import javax.swing.JButton;
@@ -19,11 +17,6 @@ class QuestionCardTest {
     private static final DocumentId CIRCUIT = new DocumentId("circuit-1");
 
     private final List<QuestionAnswer> answers = new ArrayList<>();
-
-    @BeforeEach
-    void spanish() {
-        Messages.initialize(Messages.SPANISH);
-    }
 
     private QuestionCard card(List<String> choices, boolean allowText) {
         return new QuestionCard(new Question("question-1", "task-1", CIRCUIT, "¿De cuántos bits hago el contador?",

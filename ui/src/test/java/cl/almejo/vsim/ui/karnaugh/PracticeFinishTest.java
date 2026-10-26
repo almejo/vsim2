@@ -5,7 +5,6 @@ import cl.almejo.vsim.core.logic.KarnaughGroup;
 import cl.almejo.vsim.core.logic.KarnaughLayout;
 import cl.almejo.vsim.core.logic.LogicValue;
 import cl.almejo.vsim.core.logic.Term;
-import cl.almejo.vsim.ui.i18n.Messages;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -43,7 +42,6 @@ class PracticeFinishTest {
     /** F = A'B + AC (rows 2, 3, 5, 7), G = C (rows 1, 3, 5, 7), H = A (rows 4..7); three inputs. */
     @BeforeEach
     void create() {
-        Messages.initialize(Messages.SPANISH);
         model = new KarnaughModel();
         model.setOutputCount(3);
         for (int row : new int[] {2, 3, 5, 7}) {

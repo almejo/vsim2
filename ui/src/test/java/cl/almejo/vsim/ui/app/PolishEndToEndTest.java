@@ -5,7 +5,6 @@ import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.library.ComponentLibrary;
-import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.library.LibraryService;
 import cl.almejo.vsim.ui.library.SwingLibraryDialogs;
 import cl.almejo.vsim.ui.paint.Appearance;
@@ -59,7 +58,6 @@ class PolishEndToEndTest {
 
     @BeforeEach
     void create() {
-        Messages.initialize(Messages.SPANISH);
         preferences.setLibraryDirectory(Optional.of(directory.resolve("library")));
         ComponentLibrary library = new ComponentLibrary();
         service = new LibraryService(preferences, library, registry, Runnable::run);

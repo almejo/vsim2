@@ -2,10 +2,8 @@ package cl.almejo.vsim.ui.frames;
 
 import cl.almejo.vsim.core.document.Frame;
 import cl.almejo.vsim.core.geometry.GridPoint;
-import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.tools.TestToolContext;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.awt.Graphics2D;
@@ -19,11 +17,6 @@ class FrameToolTest {
 
     private final TestToolContext context = TestToolContext.withNewDocument();
     private final FrameTool tool = new FrameTool();
-
-    @BeforeEach
-    void language() {
-        Messages.initialize(Messages.SPANISH);
-    }
 
     @AfterEach
     void close() {

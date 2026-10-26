@@ -9,7 +9,6 @@ import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.canvas.CircuitRenderer;
 import cl.almejo.vsim.ui.canvas.Selection;
 import cl.almejo.vsim.ui.canvas.ViewState;
-import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.window.panes.CanvasPanes.Orientation;
@@ -40,7 +39,6 @@ class CanvasPanesTest {
 
     @BeforeEach
     void create() {
-        Messages.initialize(Messages.SPANISH);
         first = newCanvas();
         panes = new CanvasPanes(this::newCanvas, first);
         panes.setSize(800, 600);

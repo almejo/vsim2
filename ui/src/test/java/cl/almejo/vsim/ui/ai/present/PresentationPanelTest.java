@@ -11,7 +11,6 @@ import cl.almejo.vsim.automation.present.StepStatus;
 import cl.almejo.vsim.automation.present.StoryboardState;
 import cl.almejo.vsim.ui.ai.SettingsOverride;
 import cl.almejo.vsim.ui.app.AppPreferences;
-import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.theme.AppThemes;
 import cl.almejo.vsim.ui.theme.ReadableColors;
 import cl.almejo.vsim.ui.theme.SegmentedSwitch;
@@ -53,7 +52,6 @@ class PresentationPanelTest {
 
     @BeforeEach
     void create() {
-        Messages.initialize(Messages.SPANISH);
         panel = new PresentationPanel(windowPreferences, controls, () -> closed++);
         task.planChanged(STAGES, 1, 1);
         task.stageChecked(0, true, "cumple la tabla");

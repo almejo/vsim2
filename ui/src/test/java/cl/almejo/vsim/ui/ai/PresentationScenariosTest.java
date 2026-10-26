@@ -119,7 +119,6 @@ class PresentationScenariosTest {
 
     @BeforeEach
     void connect() throws Exception {
-        Messages.initialize(Messages.SPANISH);
         preferences.setAnimateViewMoves(false); // travels jump, so the test sees where the view went
         CircuitDocument empty = new CircuitDocument();
         empty.setName("Sumador");

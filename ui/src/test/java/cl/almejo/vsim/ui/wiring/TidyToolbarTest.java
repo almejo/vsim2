@@ -4,7 +4,6 @@ import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.export.ExportIcons;
 import cl.almejo.vsim.ui.export.ExportImageExtension;
-import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.icons.ActionIcons;
 import cl.almejo.vsim.ui.icons.Icons;
 import cl.almejo.vsim.ui.paint.ColorScheme;
@@ -35,7 +34,6 @@ class TidyToolbarTest {
 
     @BeforeEach
     void create() {
-        Messages.initialize(Messages.SPANISH);
         openDocument = OpenDocument.createEmpty(StandardComponentTypes.registry());
         EditorServices services = EditorServices.of(PainterRegistry.standard(), ColorScheme.LIGHT)
                 .withExtensions(List.of(new ExportImageExtension(), new TidyWiresExtension(), new ActionIcons(),

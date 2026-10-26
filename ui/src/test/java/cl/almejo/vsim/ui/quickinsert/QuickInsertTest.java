@@ -15,7 +15,6 @@ import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.canvas.LabelLayout;
 import cl.almejo.vsim.ui.favorites.PaletteFavorites;
-import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.library.PlaceDefinitionTool;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
@@ -54,7 +53,6 @@ class QuickInsertTest {
 
     @BeforeEach
     void create() {
-        Messages.initialize(Messages.SPANISH);
         document = OpenDocument.createEmpty(StandardComponentTypes.registry());
         view = new EditorView(document, PainterRegistry.standard(), ColorScheme.LIGHT, NO_WINDOW);
         view.canvas().setSize(800, 600);

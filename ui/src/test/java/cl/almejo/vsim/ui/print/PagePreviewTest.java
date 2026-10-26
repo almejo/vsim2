@@ -3,7 +3,6 @@ package cl.almejo.vsim.ui.print;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.ui.UiTestSupport;
 import cl.almejo.vsim.ui.app.OpenDocument;
-import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.TextFont;
 import org.junit.jupiter.api.AfterEach;
@@ -35,7 +34,6 @@ class PagePreviewTest {
 
     @BeforeEach
     void tiledCircuit() {
-        Messages.initialize(Messages.SPANISH);
         UiTestSupport.place(openDocument, StandardComponentTypes.SWITCH, 0, 0, Map.of());
         UiTestSupport.place(openDocument, StandardComponentTypes.SWITCH, 120, 160, Map.of());
         PrintInput input = PrintInput.capture(openDocument, Set.of(), ColorScheme.LIGHT, TextFont.DEFAULT, CLOCK);

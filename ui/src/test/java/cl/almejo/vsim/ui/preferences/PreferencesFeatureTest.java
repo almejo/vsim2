@@ -32,7 +32,6 @@ class PreferencesFeatureTest {
 
     @BeforeEach
     void create() {
-        Messages.initialize(Messages.SPANISH);
         openDocument = OpenDocument.createEmpty(StandardComponentTypes.registry());
         view = new EditorView(openDocument, EditorServices.of(PainterRegistry.standard(), ColorScheme.LIGHT),
                 NO_WINDOW);

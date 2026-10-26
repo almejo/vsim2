@@ -7,7 +7,6 @@ import cl.almejo.vsim.core.logic.Minimizer;
 import cl.almejo.vsim.core.logic.Term;
 import cl.almejo.vsim.core.logic.TruthTableSpec;
 import cl.almejo.vsim.ui.i18n.Messages;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
@@ -19,11 +18,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 class KarnaughTextsTest {
 
     private final TruthTableSpec bcd = KarnaughModelTest.bcd();
-
-    @BeforeEach
-    void create() {
-        Messages.initialize(Messages.SPANISH);
-    }
 
     @Test
     void theGroupOfTheTalkSaysWhichVariablesStayAndWhichGo() {

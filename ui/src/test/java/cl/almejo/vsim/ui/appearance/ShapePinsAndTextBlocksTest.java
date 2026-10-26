@@ -10,7 +10,6 @@ import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.ColorSchemes;
 import cl.almejo.vsim.ui.paint.SymbolPainter;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.awt.Cursor;
@@ -30,11 +29,6 @@ import static org.assertj.core.api.Assertions.within;
 class ShapePinsAndTextBlocksTest {
     private final ComponentDefinition definition = ShapeEditorPanelTest.definition();
     private final AtomicReference<SymbolDraft> draft = new AtomicReference<>();
-
-    @BeforeEach
-    void language() {
-        Messages.initialize(Messages.SPANISH);
-    }
 
     @Test
     void aPinIsDrawnLargerThanAFigureNode() {

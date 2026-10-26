@@ -15,7 +15,6 @@ import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.core.netlist.PinRef;
 import cl.almejo.vsim.core.value.Value;
 import cl.almejo.vsim.core.waveform.WaveformSnapshot;
-import cl.almejo.vsim.ui.i18n.Messages;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -39,7 +38,6 @@ class OpenDocumentWaveformsTest {
 
     @BeforeEach
     void create() {
-        Messages.initialize(Messages.SPANISH);
         document = OpenDocument.createEmpty(StandardComponentTypes.registry());
     }
 

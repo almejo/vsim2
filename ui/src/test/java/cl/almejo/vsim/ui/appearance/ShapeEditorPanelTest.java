@@ -24,7 +24,6 @@ import cl.almejo.vsim.ui.shortcuts.KeyBindings;
 import cl.almejo.vsim.ui.shortcuts.ShortcutCatalog;
 import java.util.Optional;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import javax.swing.AbstractButton;
@@ -54,9 +53,6 @@ class ShapeEditorPanelTest {
     private static final ElementId INPUT = new ElementId("input");
     private static final ElementId SECOND_INPUT = new ElementId("second");
     private static final ElementId OUTPUT = new ElementId("output");
-
-    @BeforeEach
-    void spanish() { Messages.initialize(Messages.SPANISH); }
 
     @AfterEach
     void restoreSpanish() { Messages.initialize(Messages.SPANISH); }

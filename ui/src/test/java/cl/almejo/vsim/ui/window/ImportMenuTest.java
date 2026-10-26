@@ -1,6 +1,5 @@
 package cl.almejo.vsim.ui.window;
 
-import cl.almejo.vsim.ui.i18n.Messages;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -17,7 +16,6 @@ class ImportMenuTest {
 
     @BeforeEach
     void create() {
-        Messages.initialize(Messages.SPANISH);
         file.add(new JMenuItem("Guardar"));
         file.addSeparator();
         file.add(new JMenuItem("Salir"));

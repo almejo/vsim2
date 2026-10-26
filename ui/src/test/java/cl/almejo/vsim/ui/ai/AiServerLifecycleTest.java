@@ -3,7 +3,6 @@ package cl.almejo.vsim.ui.ai;
 import cl.almejo.vsim.automation.AutomationApi;
 import cl.almejo.vsim.automation.DocumentId;
 import cl.almejo.vsim.ui.app.AppPreferences;
-import cl.almejo.vsim.ui.i18n.Messages;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -41,7 +40,6 @@ class AiServerLifecycleTest {
 
     @BeforeEach
     void create() throws IOException {
-        Messages.initialize(Messages.SPANISH);
         port = freePort();
         preferences.setAiPort(port);
         service = serviceOn(serverWork::add);

@@ -2,8 +2,6 @@ package cl.almejo.vsim.ui.karnaugh;
 
 import cl.almejo.vsim.core.logic.Minimization;
 import cl.almejo.vsim.core.logic.Minimizer;
-import cl.almejo.vsim.ui.i18n.Messages;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.Map;
@@ -11,11 +9,6 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class CostLineTest {
-
-    @BeforeEach
-    void create() {
-        Messages.initialize(Messages.SPANISH);
-    }
 
     @Test
     void theCostLineCountsFamiliesInAFixedOrderAndSaysWhenThereAreNoGates() {

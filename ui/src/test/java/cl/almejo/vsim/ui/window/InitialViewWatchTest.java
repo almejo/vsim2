@@ -3,7 +3,6 @@ package cl.almejo.vsim.ui.window;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
-import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.window.panes.CanvasPanes.Orientation;
@@ -33,7 +32,6 @@ class InitialViewWatchTest {
 
     @BeforeEach
     void create() throws Exception {
-        Messages.initialize(Messages.SPANISH);
         document = OpenDocument.createEmpty(StandardComponentTypes.registry());
         SwingUtilities.invokeAndWait(() -> {
             view = new EditorView(document, PainterRegistry.standard(), ColorScheme.LIGHT, NO_WINDOW);

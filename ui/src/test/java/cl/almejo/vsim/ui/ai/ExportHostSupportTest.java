@@ -16,7 +16,6 @@ import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.library.ComponentLibrary;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.OpenDocument;
-import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.Appearance;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
@@ -84,7 +83,6 @@ class ExportHostSupportTest {
 
     @BeforeEach
     void aCircuitInAWindow() throws Exception {
-        Messages.initialize(Messages.SPANISH);
         CircuitDocument circuit = new CircuitDocument();
         circuit.setName("Sumador.vsim");
         document = new OpenDocument(circuit, StandardComponentTypes.registry(), null, false);

@@ -20,7 +20,6 @@ class ShortcutsPanelTest {
 
     @BeforeEach
     void create() {
-        Messages.initialize(Messages.SPANISH);
         panel = new ShortcutsPanel(bindings);
     }
 

@@ -2,10 +2,8 @@ package cl.almejo.vsim.ui.karnaugh;
 
 import cl.almejo.vsim.core.logic.ImportedGrid;
 import cl.almejo.vsim.core.logic.TableImport;
-import cl.almejo.vsim.ui.i18n.Messages;
 import com.formdev.flatlaf.FlatDarkLaf;
 import com.formdev.flatlaf.FlatLightLaf;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import javax.swing.LookAndFeel;
@@ -19,11 +17,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 class TablePreviewModelTest {
 
     private final TablePreviewModel preview = new TablePreviewModel();
-
-    @BeforeEach
-    void spanish() {
-        Messages.initialize(Messages.SPANISH);
-    }
 
     private void show(String text, int inputCount) {
         ImportedGrid grid = TableImport.readCsv(text);

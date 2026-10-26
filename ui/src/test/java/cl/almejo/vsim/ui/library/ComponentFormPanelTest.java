@@ -7,10 +7,8 @@ import cl.almejo.vsim.core.library.ConvertedSelection;
 import cl.almejo.vsim.core.library.ExampleDefinitions;
 import cl.almejo.vsim.core.library.PinOrder;
 import cl.almejo.vsim.core.library.TestParts;
-import cl.almejo.vsim.ui.i18n.Messages;
 import java.awt.Color;
 import javax.swing.JComponent;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import javax.swing.JCheckBox;
@@ -34,11 +32,6 @@ class ComponentFormPanelTest {
     private final ElementId output = new ElementId("c3");
     private final PinOrder order = new PinOrder(List.of(first, second), List.of(output));
     private final Map<ElementId, String> names = Map.of(first, "a", second, "b", output, "y");
-
-    @BeforeEach
-    void spanish() {
-        Messages.initialize(Messages.SPANISH);
-    }
 
     private static List<String> items(JTable table) {
         List<String> items = new ArrayList<>();

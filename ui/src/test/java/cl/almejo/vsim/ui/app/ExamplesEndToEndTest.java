@@ -65,7 +65,6 @@ class ExamplesEndToEndTest {
 
     @BeforeEach
     void create() {
-        Messages.initialize(Messages.SPANISH);
         preferences.setLibraryDirectory(Optional.of(directory.resolve("library")));
         service = new LibraryService(preferences, library, registry, Runnable::run);
         services = new EditorServices(PainterRegistry.standard(), new Appearance(ColorScheme.LIGHT), preferences,

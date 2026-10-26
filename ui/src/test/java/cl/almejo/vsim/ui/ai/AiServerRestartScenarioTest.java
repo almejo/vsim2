@@ -11,7 +11,6 @@ import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.OpenDocument;
-import cl.almejo.vsim.ui.i18n.Messages;
 import io.modelcontextprotocol.client.McpClient;
 import io.modelcontextprotocol.client.McpSyncClient;
 import io.modelcontextprotocol.client.transport.HttpClientStreamableHttpTransport;
@@ -66,7 +65,6 @@ class AiServerRestartScenarioTest {
 
     @BeforeEach
     void open() {
-        Messages.initialize(Messages.SPANISH);
         CircuitDocument empty = new CircuitDocument();
         empty.setName("Luces");
         circuit = new OpenDocument(empty, StandardComponentTypes.registry(), null, false);

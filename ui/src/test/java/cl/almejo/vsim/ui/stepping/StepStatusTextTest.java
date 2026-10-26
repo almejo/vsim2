@@ -4,7 +4,6 @@ import cl.almejo.vsim.core.simulation.StepReport;
 import cl.almejo.vsim.core.simulation.StepResult;
 import cl.almejo.vsim.ui.i18n.Messages;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.Locale;
@@ -15,11 +14,6 @@ import java.util.Set;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class StepStatusTextTest {
-
-    @BeforeEach
-    void spanish() {
-        Messages.initialize(Messages.SPANISH);
-    }
 
     @AfterEach
     void restoreSpanish() {

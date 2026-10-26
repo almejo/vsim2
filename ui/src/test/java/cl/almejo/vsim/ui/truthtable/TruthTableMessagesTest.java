@@ -6,7 +6,6 @@ import cl.almejo.vsim.core.truthtable.Row;
 import cl.almejo.vsim.core.truthtable.TruthTable;
 import cl.almejo.vsim.ui.i18n.Messages;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
@@ -16,11 +15,6 @@ import java.util.Locale;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class TruthTableMessagesTest {
-
-    @BeforeEach
-    void spanish() {
-        Messages.initialize(Messages.SPANISH);
-    }
 
     @AfterEach
     void restore() {

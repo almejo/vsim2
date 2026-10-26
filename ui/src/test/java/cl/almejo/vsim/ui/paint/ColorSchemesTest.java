@@ -3,7 +3,6 @@ package cl.almejo.vsim.ui.paint;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.core.document.FrameTint;
 import cl.almejo.vsim.core.tunnel.Tunnels;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.awt.Color;
@@ -49,11 +48,6 @@ class ColorSchemesTest {
             ColorSchemes.TWILIGHT);
     private static final List<Function<ColorScheme, Color>> WIRE_STATES = List.of(ColorScheme::wireZero,
             ColorScheme::wireOne, ColorScheme::wireHighImpedance, ColorScheme::wireConflict, ColorScheme::wireUnknown);
-
-    @BeforeEach
-    void spanish() {
-        Messages.initialize(Messages.SPANISH);
-    }
 
     @Test
     void schemesAreFoundByIdInMenuOrder() {

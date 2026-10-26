@@ -49,7 +49,6 @@ class PalettePanelTest {
 
     @BeforeEach
     void create() {
-        Messages.initialize(Messages.SPANISH);
         palette = new PalettePanel(registry, PainterRegistry.standard(), ColorScheme.LIGHT,
                 type -> chosen.add(type.id()));
     }

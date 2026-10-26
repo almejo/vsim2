@@ -4,10 +4,8 @@ import cl.almejo.vsim.core.simulation.DriverRef;
 import cl.almejo.vsim.core.simulation.ShortCircuit;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.core.value.Value;
-import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.theme.FlatLafInstaller;
 import cl.almejo.vsim.ui.theme.ReadableColors;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import javax.swing.AbstractAction;
@@ -29,11 +27,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 class StatusBarTest {
 
     private final StatusBar statusBar = new StatusBar();
-
-    @BeforeEach
-    void spanish() {
-        Messages.initialize(Messages.SPANISH);
-    }
 
     private static SimulationSnapshot snapshot(boolean running, int shorts, Optional<String> failure) {
         List<ShortCircuit> problems = java.util.stream.IntStream.range(0, shorts)

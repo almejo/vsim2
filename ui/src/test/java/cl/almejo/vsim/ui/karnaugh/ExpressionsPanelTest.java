@@ -50,7 +50,6 @@ class ExpressionsPanelTest {
 
     @BeforeEach
     void create() {
-        Messages.initialize(Messages.SPANISH);
         open(Background.inline());
     }
 

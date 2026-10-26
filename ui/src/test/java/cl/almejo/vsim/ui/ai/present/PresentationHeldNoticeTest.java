@@ -5,7 +5,6 @@ import cl.almejo.vsim.automation.TaskInfo;
 import cl.almejo.vsim.automation.edit.TaskStage;
 import cl.almejo.vsim.automation.present.PresentationPace;
 import cl.almejo.vsim.ui.app.AppPreferences;
-import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.theme.AppThemes;
 import cl.almejo.vsim.ui.theme.ReadableColors;
 import org.junit.jupiter.api.AfterEach;
@@ -40,7 +39,6 @@ class PresentationHeldNoticeTest {
 
     @BeforeEach
     void create() {
-        Messages.initialize(Messages.SPANISH);
         windowPreferences.setAiPace(PresentationPace.CONTINUOUS);
         panel = new PresentationPanel(windowPreferences, controls, () -> { });
         task.planChanged(STAGES, 0, 2);

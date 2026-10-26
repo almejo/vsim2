@@ -6,7 +6,6 @@ import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.canvas.edges.EdgeHandle;
-import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.Appearance;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
@@ -57,7 +56,6 @@ class SplitViewsFeaturesTest {
 
     @BeforeEach
     void create() {
-        Messages.initialize(Messages.SPANISH);
         EditorServices services = new EditorServices(PainterRegistry.standard(), new Appearance(ColorScheme.LIGHT),
                 preferences, new ComponentLibrary(), List.of());
         openDocument = OpenDocument.createEmpty(StandardComponentTypes.registry());

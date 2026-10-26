@@ -5,7 +5,6 @@ import cl.almejo.vsim.core.logic.KarnaughLayout;
 import cl.almejo.vsim.core.logic.LogicValue;
 import cl.almejo.vsim.core.logic.Minimization;
 import cl.almejo.vsim.ui.canvas.ManualFrameTicker;
-import cl.almejo.vsim.ui.i18n.Messages;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -38,7 +37,6 @@ class KarnaughMapViewPracticeTest {
 
     @BeforeEach
     void create() {
-        Messages.initialize(Messages.SPANISH);
         model = new KarnaughModel();
         practice = model.practice();
         withInputs(4);

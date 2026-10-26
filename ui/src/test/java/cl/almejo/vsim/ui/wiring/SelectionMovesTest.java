@@ -11,7 +11,6 @@ import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.Selection;
-import cl.almejo.vsim.ui.i18n.Messages;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -36,7 +35,6 @@ class SelectionMovesTest {
 
     @BeforeEach
     void create() {
-        Messages.initialize(Messages.SPANISH);
         gate = place(openDocument, StandardComponentTypes.NOT, 10, 10, Map.of());
         addWire(openDocument, 14, 12, 30, 12);
         place(openDocument, StandardComponentTypes.LED, 29, 9, Map.of());

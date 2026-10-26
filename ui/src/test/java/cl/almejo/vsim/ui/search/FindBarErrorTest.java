@@ -5,7 +5,6 @@ import cl.almejo.vsim.ui.inline.ProblemBadge;
 import com.formdev.flatlaf.FlatDarkLaf;
 import com.formdev.flatlaf.FlatLightLaf;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import javax.swing.JLabel;
@@ -27,11 +26,6 @@ class FindBarErrorTest {
     private static final double MINIMUM_CONTRAST = 4.5;
 
     private final LookAndFeel previous = UIManager.getLookAndFeel();
-
-    @BeforeEach
-    void spanish() {
-        Messages.initialize(Messages.SPANISH);
-    }
 
     @AfterEach
     void restoreTheLookAndFeel() throws UnsupportedLookAndFeelException {

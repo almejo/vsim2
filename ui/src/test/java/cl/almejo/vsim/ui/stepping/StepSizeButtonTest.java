@@ -1,8 +1,6 @@
 package cl.almejo.vsim.ui.stepping;
 
-import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.icons.Icons;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import javax.swing.JMenuItem;
@@ -16,11 +14,6 @@ class StepSizeButtonTest {
 
     private final List<Long> chosen = new ArrayList<>();
     private final AtomicInteger others = new AtomicInteger();
-
-    @BeforeEach
-    void spanish() {
-        Messages.initialize(Messages.SPANISH);
-    }
 
     private static List<String> texts(StepSizeButton button) {
         List<String> texts = new ArrayList<>();

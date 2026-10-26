@@ -19,7 +19,6 @@ import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.core.value.Value;
 import cl.almejo.vsim.ui.i18n.Messages;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -35,11 +34,6 @@ class ComponentTreeModelTest {
 
     ComponentTreeModelTest() {
         registry.addResolver(SubcircuitTypes.resolverFor(document));
-    }
-
-    @BeforeEach
-    void spanish() {
-        Messages.initialize(Messages.SPANISH);
     }
 
     @AfterEach

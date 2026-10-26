@@ -9,9 +9,7 @@ import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.netlist.PinRef;
 import cl.almejo.vsim.core.value.Value;
-import cl.almejo.vsim.ui.i18n.Messages;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -37,11 +35,6 @@ class OpenDocumentTest {
 
     private final ComponentTypeRegistry registry = StandardComponentTypes.registry();
     private final List<OpenDocument> opened = new ArrayList<>();
-
-    @BeforeEach
-    void spanish() {
-        Messages.initialize(Messages.SPANISH);
-    }
 
     @AfterEach
     void closeAll() {

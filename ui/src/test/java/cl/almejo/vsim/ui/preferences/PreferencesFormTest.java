@@ -10,7 +10,6 @@ import cl.almejo.vsim.ui.paint.CustomColorSchemes;
 import cl.almejo.vsim.ui.paint.NamedColorScheme;
 import cl.almejo.vsim.ui.paint.TextFont;
 import cl.almejo.vsim.ui.theme.ThemeManager;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -34,11 +33,6 @@ class PreferencesFormTest {
     private final AppPreferences preferences = AppPreferences.inMemory();
     private final List<Path> offeredDirectories = new ArrayList<>();
     private Optional<Path> chooserAnswer = Optional.empty();
-
-    @BeforeEach
-    void spanish() {
-        Messages.initialize(Messages.SPANISH);
-    }
 
     private PreferencesForm form() {
         return new PreferencesForm(preferences, (parent, current) -> {

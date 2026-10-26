@@ -17,7 +17,6 @@ import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.ui.clipboard.FragmentTransferable;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
-import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.library.PlaceDefinitionTool;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
@@ -54,7 +53,6 @@ class RecentComponentsExtensionTest {
 
     @BeforeEach
     void create() {
-        Messages.initialize(Messages.SPANISH);
         document = OpenDocument.createEmpty(StandardComponentTypes.registry());
         view = newView();
     }

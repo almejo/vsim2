@@ -38,7 +38,6 @@ class TunnelNameEditingTest {
 
     @BeforeEach
     void create() {
-        Messages.initialize(Messages.SPANISH);
         view = new EditorView(openDocument, new EditorServices(PainterRegistry.standard(),
                 new Appearance(ColorScheme.LIGHT), AppPreferences.inMemory(), new ComponentLibrary(), List.of()),
                 NO_WINDOW);

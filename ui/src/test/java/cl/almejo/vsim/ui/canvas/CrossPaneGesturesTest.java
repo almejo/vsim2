@@ -13,7 +13,6 @@ import cl.almejo.vsim.core.geometry.SnapResult;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.frames.FrameTool;
 import cl.almejo.vsim.ui.frames.FramesExtension;
-import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.snap.MovingSet;
@@ -63,7 +62,6 @@ class CrossPaneGesturesTest {
 
     @BeforeEach
     void open() {
-        Messages.initialize(Messages.SPANISH);
         openDocument = OpenDocument.createEmpty(StandardComponentTypes.registry());
         EditorServices services = EditorServices.of(PainterRegistry.standard(), ColorScheme.LIGHT)
                 .withExtensions(List.of(new FramesExtension()));

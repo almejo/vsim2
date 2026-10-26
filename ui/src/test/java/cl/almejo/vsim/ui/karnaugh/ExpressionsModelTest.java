@@ -4,7 +4,6 @@ import cl.almejo.vsim.core.logic.ExpressionParser;
 import cl.almejo.vsim.core.logic.Minimization;
 import cl.almejo.vsim.core.logic.Minimizer;
 import cl.almejo.vsim.core.logic.TruthTableSpec;
-import cl.almejo.vsim.ui.i18n.Messages;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -18,7 +17,6 @@ class ExpressionsModelTest {
 
     @BeforeEach
     void create() {
-        Messages.initialize(Messages.SPANISH);
         model = new ExpressionsModel(true);
     }
 

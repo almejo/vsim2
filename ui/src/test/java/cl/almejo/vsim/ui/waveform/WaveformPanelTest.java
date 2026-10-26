@@ -10,7 +10,6 @@ import cl.almejo.vsim.core.waveform.Trace;
 import cl.almejo.vsim.core.waveform.WaveformSnapshot;
 import cl.almejo.vsim.ui.actions.TextPrompt;
 import cl.almejo.vsim.ui.app.OpenDocument;
-import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.icons.Icons;
 import cl.almejo.vsim.ui.problems.Blink;
 import cl.almejo.vsim.ui.paint.ColorScheme;
@@ -54,7 +53,6 @@ class WaveformPanelTest {
 
     @BeforeEach
     void create() {
-        Messages.initialize(Messages.SPANISH);
         openDocument = OpenDocument.createEmpty(StandardComponentTypes.registry());
         actions = new ProbeActions(openDocument);
         TextPrompt prompt = (parent, title, message, initialText) -> {

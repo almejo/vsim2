@@ -17,7 +17,6 @@ import cl.almejo.vsim.ui.canvas.DrawnBounds;
 import cl.almejo.vsim.ui.canvas.ViewState;
 import cl.almejo.vsim.ui.export.CircuitImage;
 import cl.almejo.vsim.ui.export.ImageExport;
-import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.Appearance;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
@@ -76,7 +75,6 @@ class PresentationNeverOnPaperTest {
 
     @BeforeEach
     void create() {
-        Messages.initialize(Messages.SPANISH);
         preferences.setAnimateViewMoves(false);
         openDocument = OpenDocument.createEmpty(StandardComponentTypes.registry());
         EditorServices services = new EditorServices(PainterRegistry.standard(), new Appearance(ColorScheme.LIGHT),

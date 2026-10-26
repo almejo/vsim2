@@ -5,7 +5,6 @@ import cl.almejo.vsim.automation.AutomationException;
 import cl.almejo.vsim.automation.ProposalAnswer;
 import cl.almejo.vsim.automation.ProposedPreference;
 import cl.almejo.vsim.ui.app.AppPreferences;
-import cl.almejo.vsim.ui.i18n.Messages;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -23,7 +22,6 @@ class PreferenceProposalsTest {
 
     @BeforeEach
     void spanish() {
-        Messages.initialize(Messages.SPANISH);
         preferences.setTheme(AppPreferences.Theme.LIGHT);
     }
 

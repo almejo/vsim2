@@ -14,7 +14,6 @@ import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.core.netlist.Netlist;
 import cl.almejo.vsim.core.netlist.NetlistCompiler;
 import cl.almejo.vsim.core.netlist.PinRef;
-import cl.almejo.vsim.ui.i18n.Messages;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -37,7 +36,6 @@ class RenamePinsCreationTest {
 
     @BeforeEach
     void create() {
-        Messages.initialize(Messages.SPANISH);
         fixture = new TemplateFixture(directory.resolve("library"));
     }
 

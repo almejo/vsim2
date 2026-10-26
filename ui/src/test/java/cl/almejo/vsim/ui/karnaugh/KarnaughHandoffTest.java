@@ -6,8 +6,6 @@ import cl.almejo.vsim.core.truthtable.Column;
 import cl.almejo.vsim.core.truthtable.Row;
 import cl.almejo.vsim.core.truthtable.TruthTable;
 import cl.almejo.vsim.core.value.Value;
-import cl.almejo.vsim.ui.i18n.Messages;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -17,11 +15,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class KarnaughHandoffTest {
-
-    @BeforeEach
-    void create() {
-        Messages.initialize(Messages.SPANISH);
-    }
 
     /** {@code inputs} one-bit inputs (or one {@code width}-bit input) and {@code outputs} one-bit outputs, all 0. */
     private static TruthTable table(int inputs, int inputWidth, int outputs, int outputWidth) {

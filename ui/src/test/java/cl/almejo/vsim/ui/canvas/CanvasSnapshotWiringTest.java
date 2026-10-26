@@ -3,7 +3,6 @@ package cl.almejo.vsim.ui.canvas;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.ui.app.OpenDocument;
-import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.window.EditorView;
@@ -30,7 +29,6 @@ class CanvasSnapshotWiringTest {
 
     @BeforeEach
     void open() throws Exception {
-        Messages.initialize(Messages.SPANISH);
         openDocument = OpenDocument.open(SHORT_CIRCUIT, StandardComponentTypes.registry());
         view = new EditorView(openDocument, PainterRegistry.standard(), ColorScheme.LIGHT, NO_WINDOW);
         view.canvas().setSize(800, 600);

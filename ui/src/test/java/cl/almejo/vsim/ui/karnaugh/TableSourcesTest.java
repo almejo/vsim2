@@ -1,7 +1,5 @@
 package cl.almejo.vsim.ui.karnaugh;
 
-import cl.almejo.vsim.ui.i18n.Messages;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -20,11 +18,6 @@ class TableSourcesTest {
     @TempDir
     Path directory;
     private final List<Path> remembered = new ArrayList<>();
-
-    @BeforeEach
-    void messages() {
-        Messages.initialize(Messages.SPANISH);
-    }
 
     @Test
     void theChooserStartsInTheSharedFolderAndRemembersTheChosenFile() throws Exception {

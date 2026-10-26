@@ -3,7 +3,6 @@ package cl.almejo.vsim.ui.icons;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.ui.actions.EditorActions;
 import cl.almejo.vsim.ui.app.OpenDocument;
-import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.library.TemplateIcons;
 import cl.almejo.vsim.ui.stepping.StepIcons;
 import cl.almejo.vsim.ui.export.ExportIcons;
@@ -37,7 +36,6 @@ class ActionIconsTest {
 
     @BeforeEach
     void create() {
-        Messages.initialize(Messages.SPANISH);
         openDocument = OpenDocument.createEmpty(StandardComponentTypes.registry());
         EditorServices services = EditorServices.of(PainterRegistry.standard(), ColorScheme.LIGHT)
                 .withExtensions(List.of(new ActionIcons()));

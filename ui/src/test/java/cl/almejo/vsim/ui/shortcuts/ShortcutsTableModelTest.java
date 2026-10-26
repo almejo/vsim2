@@ -22,7 +22,6 @@ class ShortcutsTableModelTest {
 
     @BeforeEach
     void create() {
-        Messages.initialize(Messages.SPANISH);
         model = new ShortcutsTableModel(bindings);
     }
 

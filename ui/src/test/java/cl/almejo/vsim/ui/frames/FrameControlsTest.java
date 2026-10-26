@@ -8,7 +8,6 @@ import cl.almejo.vsim.core.document.FrameTint;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.RenderState;
-import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.tools.CanvasCursor;
 import cl.almejo.vsim.ui.tools.SelectTool;
 import cl.almejo.vsim.ui.tools.TestToolContext;
@@ -45,7 +44,6 @@ class FrameControlsTest {
 
     @BeforeEach
     void create() {
-        Messages.initialize(Messages.SPANISH);
         tool.addDelegate(gestures);
     }
 

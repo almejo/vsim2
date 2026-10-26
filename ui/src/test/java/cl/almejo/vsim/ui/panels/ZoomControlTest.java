@@ -1,6 +1,5 @@
 package cl.almejo.vsim.ui.panels;
 
-import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.theme.ReadableColors;
 import com.formdev.flatlaf.FlatDarkLaf;
 import com.formdev.flatlaf.FlatLightLaf;
@@ -81,7 +80,6 @@ class ZoomControlTest {
 
     @BeforeEach
     void create() {
-        Messages.initialize(Messages.SPANISH);
         zoomToFit.putValue(Action.SHORT_DESCRIPTION, "Ver todo el circuito");
         control = new ZoomControl(pane,
                 new ZoomControl.Actions(zoomOut, zoomIn, zoomReset, zoomToFit, zoomToSelection));

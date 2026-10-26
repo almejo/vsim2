@@ -14,7 +14,6 @@ import cl.almejo.vsim.mcp.VsimServerInstructions;
 import cl.almejo.vsim.ui.UiTestSupport;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.OpenDocument;
-import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.Appearance;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
@@ -77,7 +76,6 @@ class EndToEndScenariosTest {
 
     @BeforeEach
     void connect() throws Exception {
-        Messages.initialize(Messages.SPANISH);
         server = VsimMcpServer.start(new AutomationApi(host), new McpServerSettings(0, SECRET));
         client = McpClient.sync(HttpClientStreamableHttpTransport.builder("http://127.0.0.1:" + server.port())
                         .endpoint("/mcp")

@@ -30,7 +30,6 @@ class ProbeActionsTest {
 
     @BeforeEach
     void create() {
-        Messages.initialize(Messages.SPANISH);
         openDocument = OpenDocument.createEmpty(StandardComponentTypes.registry());
         actions = new ProbeActions(openDocument);
     }
