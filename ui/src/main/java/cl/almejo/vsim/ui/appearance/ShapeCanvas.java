@@ -29,6 +29,9 @@ import cl.almejo.vsim.ui.paint.PainterSupport;
 import cl.almejo.vsim.ui.paint.SubcircuitPainter;
 import cl.almejo.vsim.ui.paint.SymbolPainter;
 import cl.almejo.vsim.ui.paint.TextFonts;
+import cl.almejo.vsim.ui.inline.InlineTextEditor;
+import cl.almejo.vsim.ui.inline.InlineHost;
+import cl.almejo.vsim.ui.inline.InlineEditRequest;
 import cl.almejo.vsim.ui.theme.ReadableColors;
 
 import java.util.Comparator;
@@ -36,16 +39,9 @@ import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Locale;
-import javax.swing.AbstractAction;
 import javax.swing.JComponent;
 import javax.swing.JPanel;
-import javax.swing.JTextArea;
-import javax.swing.event.DocumentEvent;
-import javax.swing.event.DocumentListener;
-import javax.swing.text.JTextComponent;
-import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
-import javax.swing.undo.UndoManager;
 import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Cursor;
@@ -53,13 +49,10 @@ import java.awt.Font;
 import java.awt.FontMetrics;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
-import java.awt.Insets;
 import java.awt.Point;
+import java.awt.Rectangle;
 import java.awt.RenderingHints;
 import java.awt.Shape;
-import java.awt.event.ActionEvent;
-import java.awt.event.FocusAdapter;
-import java.awt.event.FocusEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
@@ -96,7 +89,11 @@ final class ShapeCanvas extends JPanel {
     private static final double FIT_BOX_SHARE = 0.6;
     /** Figure strokes and pin markers keep this size on screen whatever the zoom. */
     private static final float SCREEN_STROKE_WIDTH = 1.6f;
-    private static final double SCREEN_PIN_RADIUS = 3;
+    /** Pins are drawn larger than the figure's nodes (round, 4 px) and the edge notches, so they are never mistaken. */
+    private static final double SCREEN_PIN_RADIUS = 6;
+    private static final double PIN_RING_RADIUS = 10;
+    /** What a text's selection and click area add around its painted block, in screen pixels. */
+    private static final double TEXT_BLOCK_PADDING = 4;
     private static final int NOTCH_LENGTH = 4;
     /** Shift and an arrow moves this many grid units, as in the main editor. */
     private static final int FAR_STEP = 5;
@@ -154,11 +151,10 @@ final class ShapeCanvas extends JPanel {
     private SymbolDraft committedBeforeDrag;
     private SymbolDraft dragging;
     private final List<SymbolPoint> pathNodes = new ArrayList<>();
-    /** What a text line adds to the clickable area of a text, in document pixels. */
-    private static final double TEXT_LINE_HIT_HEIGHT = 20;
-    private static final int TEXT_AREA_WIDTH = 180;
-    private static final int TEXT_AREA_MARGIN = 3;
-    private JTextArea textArea;
+    private final InlineTextEditor textEditor = InlineTextEditor.forHost(new ShapeHost());
+    private final List<Runnable> viewListeners = new ArrayList<>();
+    private Optional<ElementId> hoveredPin = Optional.empty();
+    private int hoveredText = -1;
     private int textIndex = -1;
     private boolean fitPending = true;
     private int fittedWidth = -1;
@@ -215,6 +211,8 @@ final class ShapeCanvas extends JPanel {
 
             @Override
             public void mouseExited(MouseEvent event) {
+                hoveredPin = Optional.empty();
+                hoveredText = -1;
                 insertion = Optional.empty();
                 removal = Optional.empty();
                 curveTarget = Optional.empty();
@@ -228,6 +226,7 @@ final class ShapeCanvas extends JPanel {
                 } else {
                     fitPending = false;
                     originY -= event.getPreciseWheelRotation() * 24;
+                    viewChanged();
                     repaint();
                 }
             }
@@ -283,6 +282,7 @@ final class ShapeCanvas extends JPanel {
     void setZoom(double value) {
         fitPending = false;
         zoom = Math.clamp(value, 0.25, 6);
+        viewChanged();
         changed.run();
         repaint();
     }
@@ -303,6 +303,7 @@ final class ShapeCanvas extends JPanel {
                 Math.min(sharedWidth, sharedHeight)), 0.25, FIT_MAXIMUM_ZOOM);
         originX = (getWidth() - boxWidth * zoom) / 2;
         originY = (getHeight() - boxHeight * zoom) / 2;
+        viewChanged();
         fittedWidth = getWidth();
         fittedHeight = getHeight();
         changed.run();
@@ -336,7 +337,7 @@ final class ShapeCanvas extends JPanel {
     }
 
     boolean operationActive() {
-        return pressed != null || !pathNodes.isEmpty() || textArea != null;
+        return pressed != null || !pathNodes.isEmpty() || textEditor.isOpen();
     }
 
     boolean hasSelection() {
@@ -356,11 +357,8 @@ final class ShapeCanvas extends JPanel {
     void draftChanged() {
         insertion = Optional.empty();
         // A text being typed was started on an earlier draft: its element may no longer exist (undo, toolbar edit).
-        if (textArea != null) {
-            remove(textArea);
-            textArea = null;
-            textIndex = -1;
-        }
+        textEditor.cancel();
+        textIndex = -1;
         if (pathIndex < 0 || pathIndex >= current.get().elements().size()
                 || !current.get().selection().contains(pathIndex)
                 || !(current.get().elements().get(pathIndex) instanceof SymbolPath path)
@@ -393,20 +391,14 @@ final class ShapeCanvas extends JPanel {
         handleDrag = Optional.empty();
         curving = Optional.empty();
         dragTip = Optional.empty();
-        if (textArea != null && textArea.getText().isBlank()) {
-            finishText();
-        }
-        if (textArea != null) {
-            remove(textArea);
-            textArea = null;
-        }
+        textEditor.cancel();
         repaint();
     }
 
     /** Enter: the text being typed is done; a multiline or polygon being drawn is finished (or dropped if too short). */
     void finishOperation() {
-        if (textArea != null) {
-            finishText();
+        if (textEditor.isOpen()) {
+            textEditor.confirmOrCancel();
             return;
         }
         if (!pathNodes.isEmpty()) {
@@ -550,9 +542,7 @@ final class ShapeCanvas extends JPanel {
     }
 
     private void press(MouseEvent event) {
-        if (textArea != null) {
-            finishText();
-        }
+        textEditor.confirmOrCancel();
         pointer = event.getPoint();
         dragTip = Optional.empty();
         requestFocusInWindow();
@@ -594,9 +584,7 @@ final class ShapeCanvas extends JPanel {
             if (handle.isPresent() || resizingBox) {
                 return;
             }
-            pin = current.get().appearance().pins().stream().filter(placement ->
-                    screen(placement.offset().x() * 8, placement.offset().y() * 8).distance(event.getPoint()) < HIT_RADIUS)
-                    .map(PinPlacement::source).findFirst();
+            pin = pinAt(event.getPoint());
             if (pin.isPresent()) {
                 changed.run();
                 repaint();
@@ -788,6 +776,7 @@ final class ShapeCanvas extends JPanel {
             fitPending = false;
             originX += where.x - pressed.x;
             originY += where.y - pressed.y;
+            viewChanged();
             pressed = where;
             repaint();
             return;
@@ -1099,109 +1088,31 @@ final class ShapeCanvas extends JPanel {
         setToolTipText(Messages.text(adds ? "shape.nodeAdd.hint" : "shape.nodeRemove.hint"));
     }
 
+    /** Opens the shared inline editor over the text (or where a new one goes); a blank text on confirm is no text. */
     private void beginText(Point location, int index) {
         SymbolText existing = index >= 0 && current.get().elements().get(index) instanceof SymbolText found ? found : null;
         textIndex = existing == null ? -1 : index;
-        textArea = new JTextArea(existing == null ? "" : existing.text().orElse(""));
-        textArea.putClientProperty("shape.anchor", existing == null ? point(location) : existing.anchor());
-        textArea.setMargin(new Insets(TEXT_AREA_MARGIN, TEXT_AREA_MARGIN, TEXT_AREA_MARGIN, TEXT_AREA_MARGIN));
-        fitTextArea(location);
-        textArea.getDocument().addDocumentListener(new DocumentListener() {
-            @Override
-            public void insertUpdate(DocumentEvent event) {
-                fitTextArea(location);
-            }
-
-            @Override
-            public void removeUpdate(DocumentEvent event) {
-                fitTextArea(location);
-            }
-
-            @Override
-            public void changedUpdate(DocumentEvent event) {
-                fitTextArea(location);
-            }
-        });
-        textArea.addFocusListener(new FocusAdapter() {
-            @Override
-            public void focusLost(FocusEvent event) {
-                if (!event.isTemporary()) {
-                    finishText();
-                }
-            }
-        });
-        bindTextCommit(textArea);
-        bindTextUndo(textArea);
-        add(textArea);
-        textArea.requestFocusInWindow();
-        textArea.selectAll();
+        SymbolPoint anchor = existing == null ? point(location) : existing.anchor();
+        TextSize size = existing == null ? TextSize.MEDIUM : existing.size();
+        Rectangle2D area = existing == null ? newTextArea(anchor, size) : SymbolPainter.textBlock(existing,
+                definition.name());
+        Font font = TextFonts.labelFont().deriveFont(Font.BOLD, SymbolPainter.sizeOf(size));
+        textEditor.open(InlineEditRequest.multiLine(area, font, existing == null ? "" : existing.text().orElse(""),
+                entered -> Optional.empty(), entered -> commitText(anchor, index, entered)));
         repaint();
     }
 
-    /** The area is as tall as its lines (Enter adds a line), so a text of several lines is never cut. */
-    private void fitTextArea(Point location) {
-        if (textArea == null) {
-            return;
-        }
-        int lines = Math.max(1, textArea.getLineCount());
-        int height = lines * textArea.getFontMetrics(textArea.getFont()).getHeight() + 2 * TEXT_AREA_MARGIN + 4;
-        textArea.setBounds(location.x, location.y - height / 2, TEXT_AREA_WIDTH, height);
+    /** Where a new text will be written: a line tall, at the anchor. */
+    private static Rectangle2D newTextArea(SymbolPoint anchor, TextSize size) {
+        double height = SymbolPainter.lineHeight(size);
+        return new Rectangle2D.Double(anchor.x() / 8.0 * UNIT, anchor.y() / 8.0 * UNIT - height / 2, 0, height);
     }
 
-    /** Enter is a new line inside the text; Ctrl/Cmd+Enter says it is done (so do a click elsewhere and «Aceptar»). */
-    private void bindTextCommit(JTextComponent field) {
-        for (String modifier : new String[]{"ctrl", "meta"}) {
-            bindText(field, modifier + " ENTER", "commit", this::finishText);
-        }
-    }
-
-    /**
-     * Ctrl/Cmd+Z, Y and D belong to the text while it is being typed: the dialog binds them on an ancestor, which would
-     * otherwise undo or duplicate the draft under the field.
-     */
-    private static void bindTextUndo(JTextComponent field) {
-        UndoManager history = new UndoManager();
-        field.getDocument().addUndoableEditListener(history);
-        for (String modifier : new String[]{"ctrl", "meta"}) {
-            bindText(field, modifier + " Z", "undo", () -> {
-                if (history.canUndo()) {
-                    history.undo();
-                }
-            });
-            bindText(field, modifier + " shift Z", "redo", () -> redo(history));
-            bindText(field, modifier + " Y", "redo", () -> redo(history));
-            bindText(field, modifier + " D", "swallow", () -> { });
-        }
-    }
-
-    private static void redo(UndoManager history) {
-        if (history.canRedo()) {
-            history.redo();
-        }
-    }
-
-    private static void bindText(JTextComponent field, String key, String name, Runnable action) {
-        String binding = "shape.text." + name + "." + key;
-        field.getInputMap(JComponent.WHEN_FOCUSED).put(KeyStroke.getKeyStroke(key), binding);
-        field.getActionMap().put(binding, new AbstractAction() {
-            @Override
-            public void actionPerformed(ActionEvent event) {
-                action.run();
-            }
-        });
-    }
-
-    private void finishText() {
-        if (textArea == null) {
-            return;
-        }
-        SymbolPoint anchor = (SymbolPoint) textArea.getClientProperty("shape.anchor");
-        SymbolText existing = textIndex >= 0 && textIndex < current.get().elements().size()
-                && current.get().elements().get(textIndex) instanceof SymbolText found ? found : null;
-        int index = existing == null ? -1 : textIndex;
-        String entered = textArea.getText();
-        remove(textArea);
-        textArea = null;
+    private void commitText(SymbolPoint anchor, int requestedIndex, String entered) {
+        SymbolText existing = requestedIndex >= 0 && requestedIndex < current.get().elements().size()
+                && current.get().elements().get(requestedIndex) instanceof SymbolText found ? found : null;
+        int index = existing == null ? -1 : requestedIndex;
+        textIndex = -1;
         boolean followsName = existing != null && existing.text().isEmpty() && entered.isEmpty();
         if (entered.isBlank() && !followsName) {
             // A text left blank is no text: a new one is never added, an old one goes with this same edit.
@@ -1221,6 +1132,55 @@ final class ShapeCanvas extends JPanel {
         publish.accept(index >= 0 ? current.get().editText(index, text) : current.get().addText(text));
         requestFocusInWindow();
         repaint();
+    }
+
+    /** The inline editor of this canvas (its text field is the area of a request of several lines). */
+    InlineTextEditor textEditor() {
+        return textEditor;
+    }
+
+    /** What the shared inline editor needs of this canvas: where it floats and how the figure is mapped to pixels. */
+    private final class ShapeHost implements InlineHost {
+        @Override
+        public JComponent component() {
+            return ShapeCanvas.this;
+        }
+
+        @Override
+        public Runnable addFloatingComponent(JComponent editor) {
+            add(editor, 0);
+            repaint();
+            return () -> {
+                Rectangle last = editor.getBounds();
+                remove(editor);
+                repaint(last);
+            };
+        }
+
+        @Override
+        public Runnable addViewportListener(Runnable listener) {
+            viewListeners.add(listener);
+            return () -> viewListeners.remove(listener);
+        }
+
+        @Override
+        public Runnable addChangeListener(Runnable listener) {
+            return () -> { };
+        }
+
+        @Override
+        public AffineTransform documentTransform() {
+            return new AffineTransform(zoom, 0, 0, zoom, originX, originY);
+        }
+
+        @Override
+        public double zoom() {
+            return zoom;
+        }
+    }
+
+    private void viewChanged() {
+        new ArrayList<>(viewListeners).forEach(Runnable::run);
     }
 
     /** Chooses the node under the pointer, if any, and shows its handles. */
@@ -1246,16 +1206,33 @@ final class ShapeCanvas extends JPanel {
                         || new BasicStroke((float) (2 * HIT_RADIUS / zoom)).createStrokedShape(outline).contains(x, y)) {
                     return index;
                 }
-            } else if (element instanceof SymbolText text) {
-                Point anchor = screen(text.anchor().x(), text.anchor().y());
-                double halfHeight = TEXT_LINE_HIT_HEIGHT * text.lines().size() / 2;
-                if (new Rectangle2D.Double(anchor.x - 40 * zoom, anchor.y - halfHeight * zoom,
-                        80 * zoom, 2 * halfHeight * zoom).contains(at)) {
-                            return index;
-                        }
+            } else if (element instanceof SymbolText text && paddedTextBlock(text).contains(x, y)) {
+                return index;
             }
         }
         return -1;
+    }
+
+    /** The block a text paints, with a little padding: its selection rectangle and its click area (local pixels). */
+    Rectangle2D paddedTextBlock(SymbolText text) {
+        Rectangle2D block = SymbolPainter.textBlock(text, definition.name());
+        double padding = TEXT_BLOCK_PADDING / zoom;
+        return new Rectangle2D.Double(block.getX() - padding, block.getY() - padding, block.getWidth() + 2 * padding,
+                block.getHeight() + 2 * padding);
+    }
+
+    /** The pin under {@code at}, if any. */
+    private Optional<ElementId> pinAt(Point at) {
+        return current.get().appearance().pins().stream().filter(placement ->
+                screen(placement.offset().x() * 8, placement.offset().y() * 8).distance(at) < HIT_RADIUS)
+                .map(PinPlacement::source).findFirst();
+    }
+
+    /** True when every selected element is a text: its selection is its block, not a box with handles. */
+    private boolean onlyTextsSelected() {
+        SymbolDraft view = current.get();
+        return !view.selection().isEmpty() && view.selection().stream()
+                .allMatch(index -> index < view.elements().size() && view.elements().get(index) instanceof SymbolText);
     }
 
     private int hitSegment(int index, Point at) {
@@ -1277,6 +1254,9 @@ final class ShapeCanvas extends JPanel {
     }
 
     private Optional<SymbolDraft.Handle> hitHandle(Point at) {
+        if (onlyTextsSelected()) {
+            return Optional.empty();
+        }
         return current.get().selectionBounds().flatMap(box -> {
             for (SymbolDraft.Handle handle : SymbolDraft.Handle.values()) {
                 SymbolPoint point = handlePoint(handle, box);
@@ -1303,6 +1283,13 @@ final class ShapeCanvas extends JPanel {
         if (overBoxHandle != wasOverBoxHandle) {
             changed.run();
         }
+        Optional<ElementId> wasHoveredPin = hoveredPin;
+        int wasHoveredText = hoveredText;
+        hoveredPin = tool == ShapeTool.SELECT ? pinAt(event.getPoint()) : Optional.empty();
+        hoveredText = tool == ShapeTool.SELECT && hoveredPin.isEmpty() ? hoveredTextAt(event.getPoint()) : -1;
+        if (!hoveredPin.equals(wasHoveredPin) || hoveredText != wasHoveredText) {
+            repaint();
+        }
         if (isNodeTool()) {
             controlHeld = event.isControlDown();
             hoverNodeTool(event.getPoint());
@@ -1325,6 +1312,10 @@ final class ShapeCanvas extends JPanel {
                 refusal = Optional.empty();
                 changed.run();
             }
+        } else if (hoveredPin.isPresent()) {
+            setCursor(Cursor.getPredefinedCursor(current.get().pinsLocked() ? Cursor.DEFAULT_CURSOR
+                    : Cursor.MOVE_CURSOR));
+            setToolTipText(pinHover(hoveredPin.get()));
         } else if (tool == ShapeTool.SELECT && hitHandle(event.getPoint()).isPresent()) {
             setCursor(Cursor.getPredefinedCursor(Cursor.SE_RESIZE_CURSOR));
             setToolTipText(Messages.text("shape.figureResize.hint"));
@@ -1335,6 +1326,24 @@ final class ShapeCanvas extends JPanel {
             setCursor(Cursor.getDefaultCursor());
             setToolTipText(Messages.text("shape.canvas.hint"));
         }
+    }
+
+    private int hoveredTextAt(Point at) {
+        int figure = hitFigure(at);
+        return figure >= 0 && current.get().elements().get(figure) instanceof SymbolText ? figure : -1;
+    }
+
+    /** «A · entrada»: the pin's name and its direction. */
+    String pinHover(ElementId source) {
+        String direction = definition.pinout().stream().filter(candidate -> candidate.source().equals(source))
+                .findFirst().map(found -> Messages.text(MESSAGE_PREFIX + "direction."
+                        + found.spec().direction().name().toLowerCase(Locale.ROOT))).orElse("");
+        return Messages.format("shape.pin.hover", pinName(source), direction);
+    }
+
+    /** The pin under the pointer, when the select tool is hovering one. */
+    Optional<ElementId> hoveredPin() {
+        return hoveredPin;
     }
 
     /** The segment under the pointer lights up and shows its handles if it is curved; the hand offers a click. */
@@ -1504,14 +1513,24 @@ final class ShapeCanvas extends JPanel {
             }
             surface.setColor(scheme.selection());
             if (tool == ShapeTool.SELECT) {
-                current.get().selectionBounds().ifPresent(box -> paintSelection(surface, box));
+                if (!onlyTextsSelected()) {
+                    current.get().selectionBounds().ifPresent(box -> paintSelection(surface, box));
+                }
+                paintTextBlocks(surface, scheme);
             }
             for (PinPlacement placement : appearance.pins()) {
-                if (pin.filter(placement.source()::equals).isPresent()) {
-                    surface.draw(new Ellipse2D.Double(placement.offset().x() * UNIT - 5 / zoom,
-                            placement.offset().y() * UNIT - 5 / zoom, 10 / zoom, 10 / zoom));
+                boolean selected = pin.filter(placement.source()::equals).isPresent();
+                boolean hovered = hoveredPin.filter(placement.source()::equals).isPresent();
+                if (selected || hovered) {
+                    surface.setColor(hovered && !selected ? PainterSupport.withAlpha(scheme.selection(), 200)
+                            : scheme.selection());
+                    surface.setStroke(new BasicStroke((float) ((selected ? 2 : 1.5) / zoom)));
+                    surface.draw(new Ellipse2D.Double(placement.offset().x() * UNIT - PIN_RING_RADIUS / zoom,
+                            placement.offset().y() * UNIT - PIN_RING_RADIUS / zoom, 2 * PIN_RING_RADIUS / zoom,
+                            2 * PIN_RING_RADIUS / zoom));
                 }
             }
+            surface.setColor(scheme.selection());
             paintCoincidences(surface, scheme);
             paintOffEdgePins(surface);
             if (tool == ShapeTool.NODES || isNodeTool()) {
@@ -1676,8 +1695,8 @@ final class ShapeCanvas extends JPanel {
         surface.setStroke(new BasicStroke((float) (1.5 / zoom)));
         for (PinPlacement placement : current.get().appearance().pins()) {
             if (offEdge.contains(pinName(placement.source()))) {
-                surface.draw(new Ellipse2D.Double(placement.offset().x() * UNIT - 7 / zoom,
-                        placement.offset().y() * UNIT - 7 / zoom, 14 / zoom, 14 / zoom));
+                surface.draw(new Ellipse2D.Double(placement.offset().x() * UNIT - 9 / zoom,
+                        placement.offset().y() * UNIT - 9 / zoom, 18 / zoom, 18 / zoom));
             }
         }
     }
@@ -1750,6 +1769,24 @@ final class ShapeCanvas extends JPanel {
     private static Color readableOn(Color fill) {
         double luminance = (0.2126 * fill.getRed() + 0.7152 * fill.getGreen() + 0.0722 * fill.getBlue()) / 255;
         return luminance < 0.6 ? Color.WHITE : Color.BLACK;
+    }
+
+    /** Every selected text in a rectangle around its whole block; the hovered one in a lighter outline. */
+    private void paintTextBlocks(Graphics2D surface, ColorScheme scheme) {
+        List<SymbolElement> elements = current.get().elements();
+        if (hoveredText >= 0 && hoveredText < elements.size() && !current.get().selection().contains(hoveredText)
+                && elements.get(hoveredText) instanceof SymbolText hovered) {
+            surface.setColor(PainterSupport.withAlpha(scheme.selection(), 110));
+            surface.setStroke(new BasicStroke((float) (1.2 / zoom)));
+            surface.draw(paddedTextBlock(hovered));
+        }
+        surface.setColor(scheme.selection());
+        surface.setStroke(new BasicStroke((float) (1.6 / zoom)));
+        for (int index : current.get().selection()) {
+            if (index < elements.size() && elements.get(index) instanceof SymbolText selected) {
+                surface.draw(paddedTextBlock(selected));
+            }
+        }
     }
 
     private void paintSelection(Graphics2D surface, SymbolDraft.Box box) {

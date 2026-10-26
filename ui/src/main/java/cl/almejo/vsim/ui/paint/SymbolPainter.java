@@ -10,6 +10,7 @@ import cl.almejo.vsim.core.component.appearance.SymbolPath;
 import cl.almejo.vsim.core.component.appearance.SymbolPoint;
 import cl.almejo.vsim.core.component.appearance.SymbolText;
 import cl.almejo.vsim.core.component.appearance.TextAlignment;
+import cl.almejo.vsim.core.component.appearance.TextSize;
 import cl.almejo.vsim.core.document.NoteColor;
 import cl.almejo.vsim.core.document.NoteStyle;
 import cl.almejo.vsim.core.geometry.GridPoint;
@@ -19,6 +20,7 @@ import java.awt.Color;
 import java.awt.Font;
 import java.awt.FontMetrics;
 import java.awt.Graphics2D;
+import java.awt.RenderingHints;
 import java.awt.Shape;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.Area;
@@ -26,6 +28,7 @@ import java.awt.geom.Line2D;
 import java.awt.geom.Path2D;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
+import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -44,7 +47,7 @@ public final class SymbolPainter {
     private static final double NAME_INSET = 4;
     /** The space between the box edge and a pin name drawn outside it. */
     private static final double OUTSIDE_GAP = 2;
-    private static final float[] NAME_SIZE_STEPS = {13f, 9f, 6f, 5f};
+    private static final float[] NAME_SIZE_STEPS = {14f, 9f, 6f, 5f};
     private static final String ELLIPSIS = "\u2026";
 
     private SymbolPainter() { }
@@ -171,24 +174,50 @@ public final class SymbolPainter {
             return;
         }
         List<String> lines = text.lines();
-        float size = switch (text.size()) {
-            case SMALL -> 6f;
-            case MEDIUM -> 9f;
-            case LARGE -> 13f;
-        };
         double anchorX = text.anchor().x() * COORDINATE_SCALE;
         double anchorY = text.anchor().y() * COORDINATE_SCALE;
-        boolean sideways = PainterSupport.turnedSideways(graphics);
-        double available = (sideways ? drawing.size().height() : drawing.size().width()) * UNIT - 2;
-        Font font = TextFonts.labelFont().deriveFont(Font.BOLD);
-        FontMetrics metrics = graphics.getFontMetrics(font.deriveFont(size));
-        int widest = lines.stream().mapToInt(metrics::stringWidth).max().orElse(0);
-        if (widest > available) {
-            size = (float) Math.max(3, size * available / Math.max(1, widest));
+        // an explicit text keeps its chosen size whatever the figure or its own length: it may overflow the figure
+        PainterSupport.uprightLines(graphics, lines, TextFonts.labelFont().deriveFont(Font.BOLD),
+                new PainterSupport.TextPlace(anchorX, anchorY, sizeOf(text.size()), anchorFraction(text.alignment())),
+                look.letters(), look.border(), strokeWidth);
+    }
+
+    /** The height of one line of a lettering size, in local pixels. */
+    public static double lineHeight(TextSize size) {
+        return sizeOf(size) * PainterSupport.LINE_HEIGHT;
+    }
+
+    /** The pixel size of a lettering size: 6, 9 and 14. */
+    public static float sizeOf(TextSize size) {
+        return switch (size) {
+            case SMALL -> 6f;
+            case MEDIUM -> 9f;
+            case LARGE -> 14f;
+        };
+    }
+
+    /**
+     * The local rectangle the lines of {@code text} take when painted upright (no rotation): all its lines at their
+     * painted size, aligned on the anchor. For the component-name text, whose size is fitted when painting, the
+     * nominal size is used.
+     */
+    public static Rectangle2D textBlock(SymbolText text, String componentName) {
+        List<String> lines = text.text().isPresent() ? text.lines() : List.of(componentName);
+        float size = sizeOf(text.size());
+        Graphics2D scratch = new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB).createGraphics();
+        try {
+            scratch.setRenderingHint(RenderingHints.KEY_FRACTIONALMETRICS, RenderingHints.VALUE_FRACTIONALMETRICS_ON);
+            FontMetrics metrics = scratch.getFontMetrics(TextFonts.labelFont().deriveFont(Font.BOLD).deriveFont(size));
+            double widest = lines.stream().mapToDouble(line -> metrics.getStringBounds(line, scratch).getWidth())
+                    .max().orElse(0);
+            double height = lines.size() * size * PainterSupport.LINE_HEIGHT;
+            double anchorX = text.anchor().x() * COORDINATE_SCALE;
+            double anchorY = text.anchor().y() * COORDINATE_SCALE;
+            return new Rectangle2D.Double(anchorX - widest * anchorFraction(text.alignment()), anchorY - height / 2,
+                    widest, height);
+        } finally {
+            scratch.dispose();
         }
-        uprightBlock(graphics, lines, font, new PainterSupport.TextPlace(anchorX, anchorY, size, anchorFraction(text.alignment())), look,
-                strokeWidth, new Rectangle2D.Double(0, 0, drawing.size().width() * UNIT,
-                        drawing.size().height() * UNIT));
     }
 
     /**
@@ -219,11 +248,7 @@ public final class SymbolPainter {
                 obstacles.add(pinNameArea(graphics, pin, type.pins(), drawing, strokeWidth));
             }
         }
-        float nominal = switch (text.size()) {
-            case SMALL -> 6f;
-            case MEDIUM -> 9f;
-            case LARGE -> 13f;
-        };
+        float nominal = sizeOf(text.size());
         float smallest = nominal;
         for (float step : NAME_SIZE_STEPS) {
             if (step > nominal) {

@@ -74,8 +74,7 @@ class ShapeEditorPanelTest {
         ShapeCanvas canvas = panel.canvas();
         canvas.setTool(ShapeTool.TEXT);
         canvas.dispatchEvent(new MouseEvent(canvas, MouseEvent.MOUSE_CLICKED, 0, 0, 90, 90, 1, false, MouseEvent.BUTTON1));
-        JTextArea field = Arrays.stream(canvas.getComponents()).filter(JTextArea.class::isInstance)
-                .map(JTextArea.class::cast).findFirst().orElseThrow();
+        JTextArea field = canvas.textEditor().area();
         field.setText("Registro");
         assertThat(panel.hasChanges()).isTrue();
         assertThat(panel.acceptButton().isEnabled()).as("Aceptar counts the open text as a change").isTrue();

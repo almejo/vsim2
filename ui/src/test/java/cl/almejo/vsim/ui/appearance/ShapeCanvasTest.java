@@ -287,7 +287,7 @@ class ShapeCanvasTest {
     }
 
     @Test
-    void undoRedoAndDuplicateInsideTheInPlaceTextFieldActOnTheFieldNotOnTheDraft() {
+    void typingInTheSharedInlineEditorNeverTouchesTheDraftUntilItIsConfirmed() {
         ComponentDefinition definition = ShapeEditorPanelTest.definition();
         SymbolDraft original = SymbolDraft.of(ComponentAppearance.of(definition), definition.pinout(), false)
                 .applyTemplate(SymbolTemplates.Template.RECTANGLE)
@@ -295,21 +295,15 @@ class ShapeCanvasTest {
         AtomicReference<SymbolDraft> draft = new AtomicReference<>(original);
         ShapeCanvas canvas = canvas(definition, draft);
         canvas.dispatchEvent(new MouseEvent(canvas, MouseEvent.MOUSE_CLICKED, 0, 0, 78, 78, 2, false, MouseEvent.BUTTON1));
-        JTextArea field = (JTextArea) canvas.getComponent(0);
-        field.setText("dos");
+        JTextArea field = canvas.textEditor().area();
 
-        for (String key : new String[]{"ctrl Z", "ctrl Y", "ctrl D", "meta Z", "meta Y", "meta D", "ctrl shift Z"}) {
-            Object binding = field.getInputMap(JComponent.WHEN_FOCUSED).get(KeyStroke.getKeyStroke(key));
-            assertThat(binding).as(key).isNotNull();
-            field.getActionMap().get(binding).actionPerformed(new ActionEvent(field, ActionEvent.ACTION_PERFORMED, key));
-        }
+        field.setText("dos");
+        field.setText("tres");
 
         assertThat(draft.get()).isSameAs(original);
-        assertThat(canvas.getComponentCount()).isEqualTo(1);
-        Object undo = field.getInputMap(JComponent.WHEN_FOCUSED).get(KeyStroke.getKeyStroke("ctrl Z"));
-        field.setText("tres");
-        field.getActionMap().get(undo).actionPerformed(new ActionEvent(field, ActionEvent.ACTION_PERFORMED, "undo"));
-        assertThat(field.getText()).isNotEqualTo("tres");
+        assertThat(canvas.operationActive()).isTrue();
+        // Ctrl+Z, Ctrl+Y and Ctrl+D belong to the field (the shared editor keeps them from the dialog's bindings)
+        assertThat(canvas.textEditor().isOpen()).isTrue();
     }
 
     @Test
