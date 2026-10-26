@@ -38,6 +38,7 @@ import java.awt.Point;
 import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
+import java.awt.geom.Rectangle2D;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
@@ -47,6 +48,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import static cl.almejo.vsim.ui.UiTestSupport.layOut;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.within;
 
 class ShapeEditorPanelTest {
     private static final ElementId INPUT = new ElementId("input");
@@ -176,6 +178,28 @@ class ShapeEditorPanelTest {
         assertThat(panel.zoomValueButton().getText()).isEqualTo("150 %");
         panel.zoomValueButton().doClick(0);
         assertThat(panel.zoomValueButton().getText()).isEqualTo("100 %");
+    }
+
+    @Test
+    void theToolbarZoomButtonsZoomAboutTheMiddleOfTheCanvas() {
+        ShapeEditorPanel panel = panel(definition(), false);
+        ShapeCanvas canvas = panel.canvas();
+        canvas.setZoom(1);
+        canvas.setSize(400, 300);
+        Rectangle2D before = canvas.boxOnScreen();
+
+        button(panel, "shape.zoomIn").doClick(0);
+        Rectangle2D zoomed = canvas.boxOnScreen();
+        assertThat((200 - zoomed.getMinX()) / zoomed.getWidth())
+                .isCloseTo((200 - before.getMinX()) / before.getWidth(), within(1e-9));
+        assertThat((150 - zoomed.getMinY()) / zoomed.getHeight())
+                .isCloseTo((150 - before.getMinY()) / before.getHeight(), within(1e-9));
+
+        button(panel, "shape.zoomOut").doClick(0);
+        panel.zoomValueButton().doClick(0);
+        Rectangle2D reset = canvas.boxOnScreen();
+        assertThat(reset.getMinX()).isCloseTo(before.getMinX(), within(1e-9));
+        assertThat(reset.getMinY()).isCloseTo(before.getMinY(), within(1e-9));
     }
 
     @Test

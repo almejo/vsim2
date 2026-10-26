@@ -230,7 +230,9 @@ final class ShapeCanvas extends JPanel {
             @Override
             public void mouseWheelMoved(MouseWheelEvent event) {
                 if (event.isControlDown() || event.isMetaDown()) {
-                    setZoom(zoom() * Math.pow(1.15, -event.getPreciseWheelRotation()));
+                    // The main editor's wheel zoom: one step per notch, the point under the cursor stays put.
+                    zoomAt(event.getX(), event.getY(),
+                            zoom() * Math.pow(Viewport.ZOOM_STEP, -event.getPreciseWheelRotation()));
                 } else {
                     fitPending = false;
                     viewport.panBy(0, -event.getPreciseWheelRotation() * 24);
@@ -286,10 +288,21 @@ final class ShapeCanvas extends JPanel {
         snap = enabled ? SnapMode.HALF_UNITS : SnapMode.FREE;
     }
 
+    /** Sets the zoom keeping the box's corner where it is on screen (what tests and the first view rely on). */
     void setZoom(double value) {
-        fitPending = false;
         Point2D origin = viewport.gridToScreen(0, 0);
-        viewport.zoomAt(origin.getX(), origin.getY(), value);
+        zoomAt(origin.getX(), origin.getY(), value);
+    }
+
+    /** The toolbar's zoom, like the main editor's zoom control: the middle of the canvas stays put. */
+    void zoomAroundCenter(double value) {
+        zoomAt(getWidth() / 2.0, getHeight() / 2.0, value);
+    }
+
+    /** A zoom the user chose, clamped to the main editor's range, keeping screen point ({@code x}, {@code y}) put. */
+    private void zoomAt(double x, double y, double value) {
+        fitPending = false;
+        viewport.zoomAt(x, y, value);
         changed.run();
         repaint();
     }

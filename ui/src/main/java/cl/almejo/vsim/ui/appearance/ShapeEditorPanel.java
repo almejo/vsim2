@@ -456,9 +456,9 @@ public final class ShapeEditorPanel extends JPanel {
         actionButton("undo", icon("undo"), this::undo);
         actionButton("redo", icon("redo"), this::redo);
         toolbar.addSeparator();
-        actionButton("zoomOut", icon("zoom-out"), () -> canvas.setZoom(canvas.zoom() / Viewport.ZOOM_STEP));
+        actionButton("zoomOut", icon("zoom-out"), () -> canvas.zoomAroundCenter(canvas.zoom() / Viewport.ZOOM_STEP));
         addZoomValue();
-        actionButton("zoomIn", icon("zoom-in"), () -> canvas.setZoom(canvas.zoom() * Viewport.ZOOM_STEP));
+        actionButton("zoomIn", icon("zoom-in"), () -> canvas.zoomAroundCenter(canvas.zoom() * Viewport.ZOOM_STEP));
     }
 
     private void addTools(ButtonGroup group, ShapeTool... tools) {
@@ -505,7 +505,7 @@ public final class ShapeEditorPanel extends JPanel {
         zoomValue.getAccessibleContext().setAccessibleName(Messages.text("shape.zoomReset"));
         zoomValue.setFocusable(false);
         zoomValue.addActionListener(event -> {
-            canvas.setZoom(1);
+            canvas.zoomAroundCenter(1);
             canvas.requestFocusInWindow();
         });
         toolbar.add(zoomValue);
