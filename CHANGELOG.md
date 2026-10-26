@@ -39,7 +39,7 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 - En el editor de formas, «Quitar nodo» (Q) es una herramienta, como «Agregar nodo» (A): el nodo bajo el cursor se marca en rojo y un clic lo quita, sin elegirlo antes. El cursor lleva un «+» o un «−», y con Ctrl apretado cada una hace lo de la otra. Una figura no baja de 2 nodos (3 si es cerrada) y la línea de ayuda dice por qué.
 - En el editor de formas, Multilínea (K) dibuja una línea abierta de varios tramos y Polígono (P) una figura siempre cerrada: un clic por nodo; doble clic, Enter o Esc terminan (Esc conserva los nodos puestos) y un clic en el primer nodo cierra la figura. Ctrl+Z mientras dibujas quita el último nodo. «Cerrar / Abrir figura» convierte una figura elegida de abierta a cerrada y al revés.
 - En el editor de formas, «Curvar tramo» (C) reemplaza al botón «Recto / Curvo»: resalta el tramo bajo el cursor, un clic en un tramo recto lo curva y, al arrastrar la curva desde cualquier punto, ese punto sigue al cursor. Ctrl+clic lo deja recto.
-- En el editor de formas, cada tramo curvo tiene dos manijas y los nodos son suaves o esquinas: al elegir un nodo con Nodos se ven sus manijas unidas por una línea que pasa por él; en un nodo suave, arrastrar una manija gira la otra al lado opuesto con el mismo largo, y con Alt se mueve sola (el nodo queda en esquina). Doble clic en el nodo cambia entre suave y esquina. Los tramos curvos se guardan como curvas cúbicas (`C`); los archivos con curvas anteriores (`Q`) se abren igual.
+- En el editor de formas, cada tramo curvo tiene dos manijas y los nodos son suaves o esquinas: con Nodos se ven las manijas, unidas a su nodo por una línea; en un nodo suave, arrastrar una manija gira la otra al lado opuesto con el mismo largo, y con Alt se mueve sola (el nodo queda en esquina). Doble clic en el nodo cambia entre suave y esquina. Los tramos curvos se guardan como curvas cúbicas (`C`); los archivos con curvas anteriores (`Q`) se abren igual.
 - En el editor de formas, Ctrl mientras arrastras el control de la caja escala todo el dibujo con ella (y los pines, en la cuadrícula).
 - Los cables siguen a los pines que cambian de lugar al cambiar la forma o al «Actualizar componente…» / «Actualizar desde la librería». Si un cable no puede seguir sin tocar otra red, una hoja lo explica y solo «Aplicar y conectar a mano» sigue adelante; los pines sueltos quedan marcados y en Problemas.
 - Avisos de conexiones pendientes dentro de los componentes propios: la pieza rota por dentro brilla en rojo y Problemas da la ruta completa hasta el pin suelto («A2 › A1 › AND: la entrada «B» está desconectada»); el terminal exterior cuyo pin de interfaz está suelto por dentro se marca en rojo. Se actualizan al editar, deshacer y reabrir, y no impiden guardar ni simular.
@@ -48,6 +48,10 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 
 ### Cambiado
 
+- En el editor de formas, las manijas de todos los tramos curvos se ven siempre con Nodos y con «Curvar tramo» y se
+  toman directamente: ya no hay que pasar el mouse por el tramo ni elegir antes el nodo. Al curvar un tramo con
+  «Curvar tramo» sus manijas quedan a la vista y se arrastran en seguida; arrastrar la curva sigue funcionando. Un nodo
+  agregado en una curva nace siempre suave, con sus dos manijas.
 - En el editor de formas, Enter dentro de un texto agrega una línea (antes lo confirmaba); se confirma con Ctrl+Enter,
   un clic fuera o «Aceptar».
 - Un componente propio solo queda con los pines bloqueados (y su actualización se rechaza) si una pieza colocada usa a otro componente que lo contiene; una copia sobrante de ese otro componente en el circuito, que nada usa, ya no bloquea ni dice «usado dentro de…».

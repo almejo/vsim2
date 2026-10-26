@@ -210,6 +210,31 @@ class SmoothNodesTest {
     }
 
     @Test
+    void aNodeInsertedAnywhereOnACurveIsBornSmoothWithItsTwoHandles() {
+        SymbolDraft arch = draft("M 0 32 C 3 25 5 31 9 27 L 46 32");
+        SymbolPath before = firstPath(arch);
+
+        for (int step = 1; step < 40; step++) {
+            CurvePoint target = before.pointAt(0, step / 40.0);
+            SymbolDraft split = arch.insertNode(0, 0,
+                    new SymbolPoint((int) Math.round(target.x()), (int) Math.round(target.y())));
+
+            assertThat(firstPath(split).hasTwoHandles(1)).as("split at %d/40", step).isTrue();
+            assertThat(split.smooth(0, 1)).as("split at %d/40", step).isTrue();
+        }
+    }
+
+    @Test
+    void aNodeInsertedOnAQuadraticIsBornSmooth() {
+        SymbolDraft arch = draft("M 0 32 Q 16 0 32 32");
+
+        SymbolDraft split = arch.insertNode(0, 0, new SymbolPoint(9, 20));
+
+        assertThat(firstPath(split).hasTwoHandles(1)).isTrue();
+        assertThat(split.smooth(0, 1)).isTrue();
+    }
+
+    @Test
     void aCornerChoiceFollowsItsNodeWhenAnEarlierNodeIsInserted() {
         SymbolDraft corner = draft(SMOOTH_ARCH).toggleSmooth(0, ARCH_NODE);
 

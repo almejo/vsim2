@@ -43,7 +43,7 @@ class ShapeSmoothNodesTest {
 
         click(canvas, 86, 86, 0);
 
-        assertThat(canvas.visibleHandles()).containsExactly(new SymbolPoint(8, 16), new SymbolPoint(24, 16));
+        assertThat(canvas.visibleHandles()).contains(new SymbolPoint(8, 16), new SymbolPoint(24, 16));
         assertThat(paint(canvas).getRGB(78, 86)).isEqualTo(ColorSchemes.LIGHT.selection().getRGB());
         assertThat(paint(canvas).getRGB(94, 86)).isEqualTo(ColorSchemes.LIGHT.selection().getRGB());
         assertThat(canvas.nodeLabel().orElseThrow()).endsWith(Messages.text("shape.node.smooth"));

@@ -364,7 +364,9 @@ public final class SymbolDraft {
 
     /**
      * A node on segment {@code segment}: at {@code at} on a straight segment; on a curve, at its point nearest to
-     * {@code at}, splitting it so the outline stays the same (a split cubic gives a smooth node).
+     * {@code at}, splitting it so the outline stays the same. A node on a curve is born smooth, with its two handles
+     * on one line: the split keeps the tangent, and it is chosen explicitly because rounding to the eighth can bend a
+     * short handle off that line.
      */
     public SymbolDraft insertNode(int pathIndex, int segment, SymbolPoint at) {
         SymbolPath path = path(pathIndex);
@@ -386,8 +388,9 @@ public final class SymbolDraft {
             changed.set(segment, cubicNode(halves.getFirst()));
             changed.add(segment + 1, cubicNode(halves.getLast()));
         }
-        return replacePath(pathIndex, path, changed)
+        SymbolDraft inserted = replacePath(pathIndex, path, changed)
                 .withSmoothChoices(choicesForNodes(pathIndex, node -> node > segment ? node + 1 : node));
+        return start.curved() ? inserted.choose(pathIndex, segment + 1, true) : inserted;
     }
 
     public SymbolDraft deleteNode(int pathIndex, int nodeIndex) {
