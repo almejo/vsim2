@@ -41,47 +41,47 @@ public final class AppPreferences {
 
     /** «Ajustar»: the magnet as a whole; on unless the user turned it off. */
     public boolean snapToAlignments() {
-        return !"false".equals(read(SNAP_TO_ALIGNMENTS, "true"));
+        return flag(SNAP_TO_ALIGNMENTS, true);
     }
 
     public void setSnapToAlignments(boolean snap) {
-        put(SNAP_TO_ALIGNMENTS, Boolean.toString(snap));
+        putFlag(SNAP_TO_ALIGNMENTS, snap);
     }
 
     /** «Ajustar a ▸ Piezas»: edges and centres of other parts; on by default. */
     public boolean snapToParts() {
-        return !"false".equals(read(SNAP_TO_PARTS, "true"));
+        return flag(SNAP_TO_PARTS, true);
     }
 
     public void setSnapToParts(boolean snap) {
-        put(SNAP_TO_PARTS, Boolean.toString(snap));
+        putFlag(SNAP_TO_PARTS, snap);
     }
 
     /** «Ajustar a ▸ Guías»; on by default. */
     public boolean snapToGuides() {
-        return !"false".equals(read(SNAP_TO_GUIDES, "true"));
+        return flag(SNAP_TO_GUIDES, true);
     }
 
     public void setSnapToGuides(boolean snap) {
-        put(SNAP_TO_GUIDES, Boolean.toString(snap));
+        putFlag(SNAP_TO_GUIDES, snap);
     }
 
     /** «Ajustar a ▸ Líneas de la cuadrícula»; off by default. */
     public boolean snapToGridLines() {
-        return "true".equals(read(SNAP_TO_GRID_LINES, "false"));
+        return flag(SNAP_TO_GRID_LINES, false);
     }
 
     public void setSnapToGridLines(boolean snap) {
-        put(SNAP_TO_GRID_LINES, Boolean.toString(snap));
+        putFlag(SNAP_TO_GRID_LINES, snap);
     }
 
     /** «Mostrar guías»: the rulers and the guides; on by default. */
     public boolean showGuides() {
-        return !"false".equals(read(SHOW_GUIDES, "true"));
+        return flag(SHOW_GUIDES, true);
     }
 
     public void setShowGuides(boolean show) {
-        put(SHOW_GUIDES, Boolean.toString(show));
+        putFlag(SHOW_GUIDES, show);
     }
 
     /** «Cuadrícula ▸»: dots unless the user chose otherwise (or the stored value is unreadable). */
@@ -243,12 +243,7 @@ public final class AppPreferences {
     }
 
     public Theme theme() {
-        String stored = read(THEME, Theme.SYSTEM.name());
-        try {
-            return Theme.valueOf(stored);
-        } catch (IllegalArgumentException exception) {
-            return Theme.SYSTEM;
-        }
+        return enumValue(THEME, Theme.class, Theme.SYSTEM);
     }
 
     public void setTheme(Theme theme) {
@@ -405,11 +400,11 @@ public final class AppPreferences {
 
     /** «Fondo blanco para imprimir»: on unless the user turned it off. */
     public boolean exportPrintBackground() {
-        return !"false".equals(read(EXPORT_PRINT_BACKGROUND, "true"));
+        return flag(EXPORT_PRINT_BACKGROUND, true);
     }
 
     public void setExportPrintBackground(boolean enabled) {
-        put(EXPORT_PRINT_BACKGROUND, Boolean.toString(enabled));
+        putFlag(EXPORT_PRINT_BACKGROUND, enabled);
     }
 
     // --- Exportar a PDF e imprimir ---
@@ -425,9 +420,9 @@ public final class AppPreferences {
                 enumValue(PRINT_PAPER, Paper.class, defaults.paper()),
                 enumValue(PRINT_ORIENTATION, PageOrientation.class, defaults.orientation()),
                 printScale(defaults.scaleMode()),
-                !"false".equals(read(PRINT_WITH_VALUES, "true")),
-                "true".equals(read(PRINT_BLACK_AND_WHITE, "false")),
-                "true".equals(read(PRINT_HEADER_FOOTER, "false")),
+                flag(PRINT_WITH_VALUES, true),
+                flag(PRINT_BLACK_AND_WHITE, false),
+                flag(PRINT_HEADER_FOOTER, false),
                 title);
     }
 
@@ -443,6 +438,15 @@ public final class AppPreferences {
         } catch (NumberFormatException exception) {
             return fallback;
         }
+    }
+
+    /** A stored flag: with a default of true only "false" turns it off, with false only "true" turns it on. */
+    private boolean flag(String key, boolean defaultValue) {
+        return defaultValue ? !"false".equals(read(key, "true")) : "true".equals(read(key, "false"));
+    }
+
+    private void putFlag(String key, boolean value) {
+        put(key, Boolean.toString(value));
     }
 
     private <E extends Enum<E>> E enumValue(String key, Class<E> type, E fallback) {
@@ -462,9 +466,9 @@ public final class AppPreferences {
             case ScaleMode.FitToOnePage fit -> PRINT_FIT;
             case ScaleMode.Percentage percentage -> Integer.toString(percentage.percent());
         });
-        put(PRINT_WITH_VALUES, Boolean.toString(options.withValues()));
-        put(PRINT_BLACK_AND_WHITE, Boolean.toString(options.blackAndWhite()));
-        put(PRINT_HEADER_FOOTER, Boolean.toString(options.headerFooter()));
+        putFlag(PRINT_WITH_VALUES, options.withValues());
+        putFlag(PRINT_BLACK_AND_WHITE, options.blackAndWhite());
+        putFlag(PRINT_HEADER_FOOTER, options.headerFooter());
     }
 
     /** The folder of the last saved PDF; empty until the first one. */
@@ -488,36 +492,32 @@ public final class AppPreferences {
 
     /** The options of Editar ▸ Ordenar cables: stubs and merges on, detours off until the user turns them on. */
     public TidyOptions tidyOptions() {
-        return new TidyOptions(!"false".equals(read(TIDY_REMOVE_STUBS, "true")),
-                !"false".equals(read(TIDY_MERGE_SEGMENTS, "true")),
-                "true".equals(read(TIDY_FLATTEN_DETOURS, "false")));
+        return new TidyOptions(flag(TIDY_REMOVE_STUBS, true),
+                flag(TIDY_MERGE_SEGMENTS, true),
+                flag(TIDY_FLATTEN_DETOURS, false));
     }
 
     public void setTidyOptions(TidyOptions options) {
         Objects.requireNonNull(options, "options");
-        put(TIDY_REMOVE_STUBS, Boolean.toString(options.removeStubs()));
-        put(TIDY_MERGE_SEGMENTS, Boolean.toString(options.mergeSegments()));
-        put(TIDY_FLATTEN_DETOURS, Boolean.toString(options.flattenDetours()));
+        putFlag(TIDY_REMOVE_STUBS, options.removeStubs());
+        putFlag(TIDY_MERGE_SEGMENTS, options.mergeSegments());
+        putFlag(TIDY_FLATTEN_DETOURS, options.flattenDetours());
     }
 
     // --- M6.7 wires follow moves ---
 
     /** «Los cables siguen al mover»: on unless the user turned it off. */
     public boolean wiresFollow() {
-        return !"false".equals(read(WIRES_FOLLOW, "true"));
+        return flag(WIRES_FOLLOW, true);
     }
 
     public void setWiresFollow(boolean follow) {
-        put(WIRES_FOLLOW, Boolean.toString(follow));
+        putFlag(WIRES_FOLLOW, follow);
     }
 
     /** The key that inverts the follow mode while dragging; Shift when unset or unreadable. */
     public InvertModifier invertModifier() {
-        try {
-            return InvertModifier.valueOf(read(INVERT_MODIFIER, InvertModifier.SHIFT.name()));
-        } catch (IllegalArgumentException exception) {
-            return InvertModifier.SHIFT;
-        }
+        return enumValue(INVERT_MODIFIER, InvertModifier.class, InvertModifier.SHIFT);
     }
 
     public void setInvertModifier(InvertModifier modifier) {
@@ -543,7 +543,7 @@ public final class AppPreferences {
         if (animateViewMoves() == animate) {
             return;
         }
-        put(ANIMATE_VIEW_MOVES, Boolean.toString(animate));
+        putFlag(ANIMATE_VIEW_MOVES, animate);
     }
 
     // --- Buscar en el circuito: match options ---
@@ -557,7 +557,7 @@ public final class AppPreferences {
         if (findMatchCase() == matchCase) {
             return;
         }
-        put(FIND_MATCH_CASE, Boolean.toString(matchCase));
+        putFlag(FIND_MATCH_CASE, matchCase);
     }
 
     /** «.*» of the find bar and the component tree's filter: the text is a regular expression. Off by default. */
@@ -569,7 +569,7 @@ public final class AppPreferences {
         if (findRegex() == regex) {
             return;
         }
-        put(FIND_REGEX, Boolean.toString(regex));
+        putFlag(FIND_REGEX, regex);
     }
 
     // --- Circuito desde expresiones ---
@@ -583,7 +583,7 @@ public final class AppPreferences {
         if (simplifyExpressions() == simplify) {
             return;
         }
-        put(SIMPLIFY_EXPRESSIONS, Boolean.toString(simplify));
+        putFlag(SIMPLIFY_EXPRESSIONS, simplify);
     }
 
     // --- M6.8 text font ---
@@ -630,14 +630,14 @@ public final class AppPreferences {
 
     /** «Al iniciar, abrir los circuitos de la última sesión» (M6-B): on unless the user turned it off. */
     public boolean restoreSession() {
-        return !"false".equals(read(RESTORE_SESSION, "true"));
+        return flag(RESTORE_SESSION, true);
     }
 
     public void setRestoreSession(boolean enabled) {
         if (restoreSession() == enabled) {
             return;
         }
-        put(RESTORE_SESSION, Boolean.toString(enabled));
+        putFlag(RESTORE_SESSION, enabled);
     }
 
     /** The last session (M6-B): child node {@code session}, entries {@code session/<document>/<window>}. */
@@ -723,20 +723,20 @@ public final class AppPreferences {
 
     /** Whether the AI server starts with VSim; off by default (spec §9.1). */
     public boolean aiStartWithVsim() {
-        return "true".equals(read(AI_START_WITH_VSIM, "false"));
+        return flag(AI_START_WITH_VSIM, false);
     }
 
     public void setAiStartWithVsim(boolean start) {
-        put(AI_START_WITH_VSIM, Boolean.toString(start));
+        putFlag(AI_START_WITH_VSIM, start);
     }
 
     /** Whether the AI presents its work («Presentar», spec §4); off by default. */
     public boolean aiPresenting() {
-        return "true".equals(read(AI_PRESENTING, "false"));
+        return flag(AI_PRESENTING, false);
     }
 
     public void setAiPresenting(boolean presenting) {
-        put(AI_PRESENTING, Boolean.toString(presenting));
+        putFlag(AI_PRESENTING, presenting);
     }
 
     /** «Paso a paso» by default (spec §5). */
@@ -783,7 +783,7 @@ public final class AppPreferences {
     }
 
     public void setShapeEditorSnap(boolean enabled) {
-        put("shapeEditor.snap", Boolean.toString(enabled));
+        putFlag("shapeEditor.snap", enabled);
     }
 
     /** The shape editor's last bounds, kept separately from the circuit viewport; none before its first use. */
