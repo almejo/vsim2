@@ -31,7 +31,6 @@ import javax.swing.JToolBar;
 import java.awt.event.HierarchyEvent;
 import java.awt.event.HierarchyListener;
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -64,7 +63,7 @@ final class PresentationFeatures {
             Messages.text("ai.present.continuous"));
     private final JRadioButtonMenuItem stepByStepItem = new JRadioButtonMenuItem(
             Messages.text("ai.present.stepByStep"));
-    private final List<JRadioButtonMenuItem> pauseItems = new ArrayList<>();
+    private final PauseMenu pauseMenu;
     private final JToolBar.Separator toolbarSeparator = new JToolBar.Separator();
     private final JToggleButton toolbarButton;
     private final Runnable removeShortcut;
@@ -98,6 +97,7 @@ final class PresentationFeatures {
         this.view = Objects.requireNonNull(view, "view");
         this.thinking = new ThinkingWatch(nanoClock, this::quiet, this::thinkingChanged);
         this.preferences = view.services().preferences();
+        this.pauseMenu = new PauseMenu(millis -> preferences.setAiPauseMillis(millis));
         this.ids = Objects.requireNonNull(ids, "ids");
         this.editorThread = Objects.requireNonNull(editorThread, "editorThread");
         this.toggle = Actions.of(Messages.text("action.aiPresent"),
@@ -150,27 +150,14 @@ final class PresentationFeatures {
         paceMenu.add(continuousItem);
         paceMenu.add(stepByStepItem);
         paceMenu.addSeparator();
-        JMenu pause = new JMenu(Messages.text("ai.present.pause"));
-        ButtonGroup pauses = new ButtonGroup();
-        for (int millis : PresentationPanel.PAUSE_CHOICES_MILLIS) {
-            JRadioButtonMenuItem item = new JRadioButtonMenuItem(
-                    Messages.format("ai.present.pause.seconds", millis / 1000.0));
-            item.addActionListener(event -> preferences.setAiPauseMillis(millis));
-            pauses.add(item);
-            pauseItems.add(item);
-            pause.add(item);
-        }
-        paceMenu.add(pause);
+        paceMenu.add(pauseMenu);
     }
 
     private void followPace() {
         PresentationPace pace = preferences.aiPace();
         continuousItem.setSelected(pace == PresentationPace.CONTINUOUS);
         stepByStepItem.setSelected(pace == PresentationPace.STEP_BY_STEP);
-        int pause = preferences.aiPauseMillis();
-        for (int index = 0; index < pauseItems.size(); index++) {
-            pauseItems.get(index).setSelected(PresentationPanel.PAUSE_CHOICES_MILLIS.get(index) == pause);
-        }
+        pauseMenu.select(preferences.aiPauseMillis());
     }
 
     private boolean isThisCircuit(TaskInfo info) {

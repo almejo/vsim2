@@ -16,7 +16,6 @@ import net.miginfocom.swing.MigLayout;
 
 import javax.swing.AbstractAction;
 import javax.swing.BorderFactory;
-import javax.swing.ButtonGroup;
 import javax.swing.JButton;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
@@ -24,7 +23,6 @@ import javax.swing.JMenu;
 import javax.swing.JMenuItem;
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
-import javax.swing.JRadioButtonMenuItem;
 import javax.swing.JScrollPane;
 import javax.swing.JToggleButton;
 import javax.swing.KeyStroke;
@@ -63,8 +61,6 @@ final class PresentationPanel extends JPanel {
     static final int PREFERRED_WIDTH = 340;
     /** The stage cards keep at least this height, scrolling, when the pane is short. */
     static final int MINIMUM_CARDS_HEIGHT = 48;
-    /** The pauses the menu offers, within {@link PresentationSettings#MINIMUM_PAUSE} … {@code MAXIMUM_PAUSE}. */
-    static final List<Integer> PAUSE_CHOICES_MILLIS = List.of(300, 500, 1000, 2000, 3000, 5000);
     private static final String NEXT_KEY = "ai.present.next";
     private static final String FOLD_MARK = "▾";
     private static final String UNFOLD_MARK = "▸";
@@ -108,7 +104,7 @@ final class PresentationPanel extends JPanel {
     private final JToggleButton settingsHeader = new JToggleButton();
     private final JPanel settingsList = new JPanel(new MigLayout("insets 0 12 0 0, wrap 1, gap 0 2"));
     private final JPopupMenu menu = new JPopupMenu();
-    private final List<JMenuItem> pauseItems = new ArrayList<>();
+    private final PauseMenu pauseMenu;
     private final List<JMenuItem> moveItems = new ArrayList<>();
     private final List<StageCard> cards = new ArrayList<>();
     private final List<JLabel> settingLabels = new ArrayList<>();
@@ -125,6 +121,7 @@ final class PresentationPanel extends JPanel {
     PresentationPanel(AppPreferences windowPreferences, PresentationControls controls, Runnable close) {
         super(new StackLayout(6));
         this.windowPreferences = Objects.requireNonNull(windowPreferences, "windowPreferences");
+        this.pauseMenu = new PauseMenu(millis -> windowPreferences.setAiPauseMillis(millis));
         this.controls = Objects.requireNonNull(controls, "controls");
         this.override = SettingsOverride.of(windowPreferences);
         Objects.requireNonNull(close, "close");
@@ -222,17 +219,7 @@ final class PresentationPanel extends JPanel {
     }
 
     private void buildMenu() {
-        JMenu pause = new JMenu(Messages.text("ai.present.pause"));
-        ButtonGroup pauses = new ButtonGroup();
-        for (int millis : PAUSE_CHOICES_MILLIS) {
-            JRadioButtonMenuItem item = new JRadioButtonMenuItem(
-                    Messages.format("ai.present.pause.seconds", millis / 1000.0));
-            item.addActionListener(event -> windowPreferences.setAiPauseMillis(millis));
-            pauses.add(item);
-            pauseItems.add(item);
-            pause.add(item);
-        }
-        menu.add(pause);
+        menu.add(pauseMenu);
         JMenu move = new JMenu(Messages.text("ai.present.moveTo"));
         for (FloatingPlacement.Corner corner : FloatingPlacement.Corner.values()) {
             JMenuItem item = new JMenuItem(Messages.text(corner.messageKey()));
@@ -418,10 +405,7 @@ final class PresentationPanel extends JPanel {
         PresentationPace pace = windowPreferences.aiPace();
         continuousButton.setSelected(pace == PresentationPace.CONTINUOUS);
         stepByStepButton.setSelected(pace == PresentationPace.STEP_BY_STEP);
-        int pause = windowPreferences.aiPauseMillis();
-        for (int index = 0; index < pauseItems.size(); index++) {
-            pauseItems.get(index).setSelected(PAUSE_CHOICES_MILLIS.get(index) == pause);
-        }
+        pauseMenu.select(windowPreferences.aiPauseMillis());
         refreshSettings();
         refreshButtons();
         relayout();
@@ -587,7 +571,7 @@ final class PresentationPanel extends JPanel {
     }
 
     List<JMenuItem> pauseItems() {
-        return List.copyOf(pauseItems);
+        return pauseMenu.items();
     }
 
     List<JMenuItem> moveItems() {
