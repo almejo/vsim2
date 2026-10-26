@@ -38,7 +38,7 @@ class AutomationApiSettingsTest {
                     assertThat(refusal.getMessage()).contains("vsim_begin_task");
                 });
         TaskInfo task = api.beginTask(new DocumentId("circuit-9"), "Grilla", List.of());
-        api.endTask(task.taskId());
+        api.endTask(task.taskId(), false).task();
         assertThatThrownBy(() -> api.setEditorSetting(new DocumentId("circuit-9"), EditorSetting.GRID_STYLE,
                 "LINES")).isInstanceOf(AutomationException.class);
         assertThat(host.calls).isEmpty();
@@ -82,7 +82,7 @@ class AutomationApiSettingsTest {
     }
 
     /** Records which settings calls ran inside {@link #onEditorThread}. */
-    private static final class SettingsFakeHost implements AutomationHost {
+    private static final class SettingsFakeHost extends FakeAutomationHost {
         final List<String> calls = new ArrayList<>();
         final CompletableFuture<ProposalAnswer> answer = new CompletableFuture<>();
         private boolean onEditorThread;
@@ -91,7 +91,7 @@ class AutomationApiSettingsTest {
         public <T> CompletableFuture<T> onEditorThread(Function<EditorAccess, T> work) {
             onEditorThread = true;
             try {
-                return CompletableFuture.completedFuture(work.apply(List::of));
+                return super.onEditorThread(work);
             } finally {
                 onEditorThread = false;
             }

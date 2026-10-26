@@ -104,7 +104,8 @@ class ContactProbeTest {
         wire(document, 5, 4, 9, 4);
         wire(document, 3, 8, 8, 8);
         assertThat(moving(5, 0, moved)).containsExactly(
-                NewContact.betweenWires(new GridPoint(5, 4)));
+                new NewContact(new GridPoint(5, 4), Optional.empty(),
+                        Optional.empty(), Optional.empty(), Optional.empty()));
     }
 
     @Test

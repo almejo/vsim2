@@ -29,7 +29,8 @@ class ContactDotsTest {
 
     private static final NewContact NAMED = new NewContact(new GridPoint(10, 10), Optional.of(new ElementId("c1")),
             Optional.of("in"), Optional.of("in"), Optional.empty());
-    private static final NewContact BETWEEN_WIRES = NewContact.betweenWires(new GridPoint(20, 10));
+    private static final NewContact BETWEEN_WIRES = new NewContact(new GridPoint(20, 10), Optional.empty(),
+            Optional.empty(), Optional.empty(), Optional.empty());
 
     private static NewContact meeting(int x, String moving, String met) {
         return new NewContact(new GridPoint(x, 10), Optional.of(new ElementId("c2")), Optional.of(met),

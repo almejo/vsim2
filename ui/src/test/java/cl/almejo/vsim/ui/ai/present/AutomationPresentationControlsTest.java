@@ -85,7 +85,7 @@ class AutomationPresentationControlsTest {
 
     @Test
     void siguienteAppliesTheProposedStep() throws Exception {
-        PresentedEdit edit = api.editStep(request("op-1"));
+        PresentedEdit edit = api.editStep(request("op-1"), Optional.empty());
         assertThat(edit.status()).contains(StepStatus.PROPOSED);
         assertThat(componentCount()).isZero();
 
@@ -97,7 +97,7 @@ class AutomationPresentationControlsTest {
 
     @Test
     void hastaFinDeEtapaAppliesThePendingStepToo() throws Exception {
-        api.editStep(request("op-1"));
+        api.editStep(request("op-1"), Optional.empty());
 
         controls.toStageEnd(task.taskId());
 
@@ -106,7 +106,7 @@ class AutomationPresentationControlsTest {
 
     @Test
     void detenerDropsTheStep() throws Exception {
-        api.editStep(request("op-1"));
+        api.editStep(request("op-1"), Optional.empty());
 
         controls.stop(task.taskId());
 
@@ -119,9 +119,9 @@ class AutomationPresentationControlsTest {
     @Test
     void deshacerEtapaUndoesTheStagesStepsAndItsFrame() throws Exception {
         TaskInfo story = twoStages();
-        api.beginStage(story.taskId(), 0);
+        api.beginStage(story.taskId(), 0, Optional.empty());
         placeAndApply(story, "Compuertas", "op-1", 0);
-        api.beginStage(story.taskId(), 1); // the first stage gets its frame
+        api.beginStage(story.taskId(), 1, Optional.empty()); // the first stage gets its frame
         assertThat(frameCount()).isEqualTo(1);
 
         List<StageUndoOutcome> outcomes = new ArrayList<>();
@@ -137,11 +137,11 @@ class AutomationPresentationControlsTest {
     @Test
     void deshacerEtapaGoesBackStageByStage() throws Exception {
         TaskInfo story = twoStages();
-        api.beginStage(story.taskId(), 0);
+        api.beginStage(story.taskId(), 0, Optional.empty());
         placeAndApply(story, "Compuertas", "op-1", 0);
-        StageOrigin second = api.beginStage(story.taskId(), 1);
+        StageOrigin second = api.beginStage(story.taskId(), 1, Optional.empty());
         placeAndApply(story, "Salida", "op-2", second.x());
-        api.endTask(story.taskId());
+        api.endTask(story.taskId(), false).task();
         List<StageUndoOutcome> outcomes = new ArrayList<>();
         List<StoryboardState> states = new ArrayList<>();
 
@@ -158,11 +158,11 @@ class AutomationPresentationControlsTest {
     @Test
     void dejarSoloElResultadoKeepsTheLastStageAsOneUndoStep() throws Exception {
         TaskInfo story = twoStages();
-        api.beginStage(story.taskId(), 0);
+        api.beginStage(story.taskId(), 0, Optional.empty());
         placeAndApply(story, "Compuertas", "op-1", 0);
-        StageOrigin second = api.beginStage(story.taskId(), 1);
+        StageOrigin second = api.beginStage(story.taskId(), 1, Optional.empty());
         placeAndApply(story, "Salida", "op-2", second.x());
-        api.endTask(story.taskId());
+        api.endTask(story.taskId(), false).task();
         assertThat(frameCount()).isEqualTo(2);
 
         List<Boolean> kept = new ArrayList<>();
@@ -181,7 +181,7 @@ class AutomationPresentationControlsTest {
     void aStageThatBeginsInPresentarTakesTheWindowsToItsOrigin() {
         TaskInfo story = twoStages();
 
-        StageOrigin origin = api.beginStage(story.taskId(), 0);
+        StageOrigin origin = api.beginStage(story.taskId(), 0, Optional.empty());
 
         assertThat(travels).containsExactly(new GridPoint(origin.x(), origin.y()));
     }
@@ -196,7 +196,7 @@ class AutomationPresentationControlsTest {
         api.editStep(new EditRequest(id, new DocumentVersion(version), operationId,
                 Optional.of(new TaskStep(story.taskId(), stage, "Coloco la NAND", "Coloco la NAND")),
                 List.of(new EditOperation.PlacePart(Optional.empty(), "nand2", x, 4, Rotation.R0, Map.of(), "")),
-                false));
+                false), Optional.empty());
         controls.next(story.taskId());
         assertThat(api.awaitStep(story.taskId(), Duration.ofSeconds(5)).status()).isEqualTo(StepStatus.APPLIED);
     }

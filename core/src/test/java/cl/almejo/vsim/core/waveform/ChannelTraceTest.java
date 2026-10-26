@@ -51,14 +51,14 @@ class ChannelTraceTest {
         channel.append(0, Value.ZERO);
         channel.append(4, Value.ONE);
         channel.append(4, Value.HIGH_IMPEDANCE);
-        assertThat(channel.snapshot().edgesBetween(0, 10))
+        assertThat(TraceEdges.between(channel.snapshot(), 0, 10))
                 .containsExactly(TraceEvent.of(0, Value.ZERO), TraceEvent.of(4, Value.HIGH_IMPEDANCE));
 
         assertThat(channel.append(4, Value.ZERO)).as("back to the value before: the glitch disappears").isTrue();
-        assertThat(channel.snapshot().edgesBetween(0, 10)).containsExactly(TraceEvent.of(0, Value.ZERO));
+        assertThat(TraceEdges.between(channel.snapshot(), 0, 10)).containsExactly(TraceEvent.of(0, Value.ZERO));
 
         channel.append(4, Value.ONE);
-        assertThat(channel.snapshot().edgesBetween(0, 10))
+        assertThat(TraceEdges.between(channel.snapshot(), 0, 10))
                 .containsExactly(TraceEvent.of(0, Value.ZERO), TraceEvent.of(4, Value.ONE));
     }
 
@@ -77,9 +77,9 @@ class ChannelTraceTest {
         assertThat(trace.valueAt(6)).isEmpty();
         assertThat(trace.valueAt(8)).isEmpty();
         assertThat(trace.valueAt(9)).contains(Value.ONE);
-        assertThat(trace.edgesBetween(0, 9))
+        assertThat(TraceEdges.between(trace, 0, 9))
                 .containsExactly(TraceEvent.of(2, Value.ONE), TraceEvent.gap(6), TraceEvent.of(9, Value.ONE));
-        assertThat(trace.edgesBetween(0, 9).get(1).isGap()).isTrue();
+        assertThat(TraceEdges.between(trace, 0, 9).get(1).value()).isEmpty();
     }
 
     @Test
@@ -93,9 +93,9 @@ class ChannelTraceTest {
         assertThat(trace.nextEdge(boundary)).hasValue(boundary + 10);
         assertThat(trace.previousEdge(0)).isEmpty();
         assertThat(trace.nextEdge(trace.lastTime().getAsLong())).isEmpty();
-        assertThat(trace.edgesBetween(boundary - 15, boundary + 15)).extracting(TraceEvent::time)
+        assertThat(TraceEdges.between(trace, boundary - 15, boundary + 15)).extracting(TraceEvent::time)
                 .containsExactly(boundary - 10, boundary, boundary + 10);
-        assertThat(trace.edgesBetween(5, 4)).isEmpty();
+        assertThat(TraceEdges.between(trace, 5, 4)).isEmpty();
     }
 
     @Test

@@ -3,7 +3,6 @@ package cl.almejo.vsim.core.logic;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -18,23 +17,6 @@ public record GateCost(int gateCount, Map<String, Integer> gatesByType) {
 
     public GateCost {
         gatesByType = Collections.unmodifiableMap(new LinkedHashMap<>(gatesByType));
-    }
-
-    /**
-     * The counts per family («3 AND, 2 OR, 1 NOT»), keyed by the upper-case names of {@link #FAMILIES}, in that order;
-     * families without gates are left out.
-     */
-    public Map<String, Integer> familyCounts() {
-        Map<String, Integer> counts = new LinkedHashMap<>();
-        for (String family : FAMILIES) {
-            String prefix = family.toLowerCase(Locale.ROOT);
-            gatesByType.forEach((type, count) -> {
-                if (family(type).equals(prefix)) {
-                    counts.merge(family, count, Integer::sum);
-                }
-            });
-        }
-        return Collections.unmodifiableMap(counts);
     }
 
     /** {@code and3} → {@code and}: the type id without its number of inputs. */

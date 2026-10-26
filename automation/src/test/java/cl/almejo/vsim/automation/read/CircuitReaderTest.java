@@ -215,7 +215,7 @@ class CircuitReaderTest {
         assertThat(second.guides()).isEmpty();
         assertThat(first.parts().stream().map(PartView::id).toList())
                 .doesNotContainAnyElementsOf(second.parts().stream().map(PartView::id).toList());
-        assertThat(ReadFilter.SUMMARY.withPageSize(1000).pageSize()).isEqualTo(ReadFilter.MAXIMUM_PAGE_SIZE);
+        assertThat(summaryOfPageSize(1000).pageSize()).isEqualTo(ReadFilter.MAXIMUM_PAGE_SIZE);
     }
 
     @Test
@@ -223,10 +223,10 @@ class CircuitReaderTest {
         for (int index = 0; index < 5; index++) {
             fixture.place(StandardComponentTypes.NOT, index * 6, 0);
         }
-        CircuitView first = CircuitReader.read(fixture.source(), ReadFilter.SUMMARY.withPageSize(2), Optional.empty());
+        CircuitView first = CircuitReader.read(fixture.source(), summaryOfPageSize(2), Optional.empty());
         fixture.useVersion(8);
 
-        assertThatThrownBy(() -> CircuitReader.read(fixture.source(), ReadFilter.SUMMARY.withPageSize(2),
+        assertThatThrownBy(() -> CircuitReader.read(fixture.source(), summaryOfPageSize(2),
                 first.nextCursor()))
                 .isInstanceOfSatisfying(AutomationException.class, exception -> {
                     assertThat(exception.error()).isEqualTo(AutomationError.STALE_DOCUMENT);
@@ -243,12 +243,13 @@ class CircuitReaderTest {
         Component right = fixture.place(StandardComponentTypes.NOT, 40, 0);
         fixture.wire(fixture.pin(left, 1), new GridPoint(10, 2));
 
-        assertThat(CircuitReader.read(fixture.source(), ReadFilter.FULL.withKinds(Set.of(ElementKind.WIRE)),
-                Optional.empty()).parts()).isEmpty();
-        assertThat(CircuitReader.read(fixture.source(), ReadFilter.FULL.withElementIds(Set.of(right.id().value())),
-                Optional.empty()).parts()).extracting(PartView::id).containsExactly(right.id().value());
-        CircuitView region = CircuitReader.read(fixture.source(), ReadFilter.FULL.withRegion(new Bounds(-1, -1, 20, 10)),
-                Optional.empty());
+        assertThat(CircuitReader.read(fixture.source(),
+                fullFilter(Set.of(ElementKind.WIRE), Set.of(), Optional.empty()), Optional.empty()).parts()).isEmpty();
+        assertThat(CircuitReader.read(fixture.source(),
+                fullFilter(Set.of(), Set.of(right.id().value()), Optional.empty()), Optional.empty()).parts())
+                .extracting(PartView::id).containsExactly(right.id().value());
+        CircuitView region = CircuitReader.read(fixture.source(),
+                fullFilter(Set.of(), Set.of(), Optional.of(new Bounds(-1, -1, 20, 10))), Optional.empty());
         assertThat(region.parts()).extracting(PartView::id).containsExactly(left.id().value());
         assertThat(region.wires()).hasSize(1);
         assertThat(region.matchingElements()).isEqualTo(2);
@@ -267,6 +268,14 @@ class CircuitReaderTest {
 
         assertThat(fixture.document.revision()).isEqualTo(revision);
         assertThat(fixture.document.elements().toString()).isEqualTo(serializedBefore);
+    }
+
+    private static ReadFilter summaryOfPageSize(int pageSize) {
+        return new ReadFilter(ReadFilter.Detail.SUMMARY, Set.of(), Set.of(), Optional.empty(), pageSize);
+    }
+
+    private static ReadFilter fullFilter(Set<ElementKind> kinds, Set<String> elementIds, Optional<Bounds> region) {
+        return new ReadFilter(ReadFilter.Detail.FULL, kinds, elementIds, region, ReadFilter.MAXIMUM_PAGE_SIZE);
     }
 
     private static PartView part(CircuitView view, String id) {

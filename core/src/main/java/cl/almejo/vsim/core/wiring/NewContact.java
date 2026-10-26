@@ -23,9 +23,4 @@ public record NewContact(GridPoint point, Optional<ElementId> componentId, Optio
         Objects.requireNonNull(movingPinName, "movingPinName");
         Objects.requireNonNull(metPinName, "metPinName");
     }
-
-    /** A contact between wires only: no pin is there. */
-    public static NewContact betweenWires(GridPoint point) {
-        return new NewContact(point, Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty());
-    }
 }
