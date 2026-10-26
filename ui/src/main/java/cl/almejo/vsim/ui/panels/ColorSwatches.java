@@ -1,11 +1,11 @@
 package cl.almejo.vsim.ui.panels;
 
+import cl.almejo.vsim.ui.actions.Actions;
 import cl.almejo.vsim.ui.theme.ReadableColors;
 import net.miginfocom.swing.MigLayout;
 
 import javax.accessibility.AccessibleContext;
 import javax.accessibility.AccessibleRole;
-import javax.swing.AbstractAction;
 import javax.swing.AbstractButton;
 import javax.swing.ButtonGroup;
 import javax.swing.Icon;
@@ -24,7 +24,6 @@ import java.awt.Component;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
-import java.awt.event.ActionEvent;
 import java.awt.event.FocusAdapter;
 import java.awt.event.FocusEvent;
 import java.awt.event.KeyEvent;
@@ -180,21 +179,12 @@ public final class ColorSwatches<T> extends JPanel {
         keys.put(KeyStroke.getKeyStroke(KeyEvent.VK_UP, 0), PREVIOUS_ACTION);
         keys.put(KeyStroke.getKeyStroke(KeyEvent.VK_RIGHT, 0), NEXT_ACTION);
         keys.put(KeyStroke.getKeyStroke(KeyEvent.VK_DOWN, 0), NEXT_ACTION);
-        swatch.getActionMap().put(CHOOSE_ACTION, action(() -> {
+        swatch.getActionMap().put(CHOOSE_ACTION, Actions.unnamed(() -> {
             swatch.doClick();
             pressDefaultButton(swatch);
         }));
-        swatch.getActionMap().put(PREVIOUS_ACTION, action(() -> focusSwatch(index - 1)));
-        swatch.getActionMap().put(NEXT_ACTION, action(() -> focusSwatch(index + 1)));
-    }
-
-    private static AbstractAction action(Runnable body) {
-        return new AbstractAction() {
-            @Override
-            public void actionPerformed(ActionEvent event) {
-                body.run();
-            }
-        };
+        swatch.getActionMap().put(PREVIOUS_ACTION, Actions.unnamed(() -> focusSwatch(index - 1)));
+        swatch.getActionMap().put(NEXT_ACTION, Actions.unnamed(() -> focusSwatch(index + 1)));
     }
 
     /** The default button of the window holding {@code swatch} (a dialog's OK), pressed if there is one. */

@@ -1,12 +1,12 @@
 package cl.almejo.vsim.ui.inline;
 
+import cl.almejo.vsim.ui.actions.Actions;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.canvas.LabelLayout;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.icons.Icons;
 import cl.almejo.vsim.ui.paint.TextFonts;
 
-import javax.swing.AbstractAction;
 import javax.swing.DefaultListModel;
 import javax.swing.JButton;
 import javax.swing.JComponent;
@@ -36,7 +36,6 @@ import java.awt.Rectangle;
 import java.awt.Toolkit;
 import java.awt.Window;
 import java.awt.event.AWTEventListener;
-import java.awt.event.ActionEvent;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
@@ -164,18 +163,18 @@ public final class InlineTextEditor {
         field.getInputMap(JComponent.WHEN_FOCUSED).put(KeyStroke.getKeyStroke(KeyEvent.VK_DOWN, 0), NEXT_SUGGESTION);
         field.getInputMap(JComponent.WHEN_FOCUSED).put(KeyStroke.getKeyStroke(KeyEvent.VK_UP, 0),
                 PREVIOUS_SUGGESTION);
-        field.getActionMap().put(CONFIRM, action(this::confirmOrTakeSuggestion));
-        field.getActionMap().put(CANCEL, action(this::cancel));
-        field.getActionMap().put(NEXT_SUGGESTION, action(() -> moveSuggestion(1)));
-        field.getActionMap().put(PREVIOUS_SUGGESTION, action(() -> moveSuggestion(-1)));
+        field.getActionMap().put(CONFIRM, Actions.unnamed(this::confirmOrTakeSuggestion));
+        field.getActionMap().put(CANCEL, Actions.unnamed(this::cancel));
+        field.getActionMap().put(NEXT_SUGGESTION, Actions.unnamed(() -> moveSuggestion(1)));
+        field.getActionMap().put(PREVIOUS_SUGGESTION, Actions.unnamed(() -> moveSuggestion(-1)));
         area.getInputMap(JComponent.WHEN_FOCUSED).put(KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, 0), CONFIRM);
         area.getInputMap(JComponent.WHEN_FOCUSED).put(
                 KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, InputEvent.SHIFT_DOWN_MASK), DefaultEditorKit.insertBreakAction);
         area.getInputMap(JComponent.WHEN_FOCUSED).put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), CANCEL);
         area.getInputMap(JComponent.WHEN_FOCUSED).put(KeyStroke.getKeyStroke(KeyEvent.VK_TAB, 0), NOTHING);
-        area.getActionMap().put(CONFIRM, action(this::confirm));
-        area.getActionMap().put(CANCEL, action(this::cancel));
-        area.getActionMap().put(NOTHING, action(() -> { }));
+        area.getActionMap().put(CONFIRM, Actions.unnamed(this::confirm));
+        area.getActionMap().put(CANCEL, Actions.unnamed(this::cancel));
+        area.getActionMap().put(NOTHING, Actions.unnamed(() -> { }));
         javax.swing.event.DocumentListener typing = new javax.swing.event.DocumentListener() {
             @Override
             public void insertUpdate(DocumentEvent event) {
@@ -558,15 +557,6 @@ public final class InlineTextEditor {
         button.setMargin(new Insets(2, 2, 2, 2));
         button.addActionListener(event -> whenPressed.run());
         return button;
-    }
-
-    private static AbstractAction action(Runnable whenPerformed) {
-        return new AbstractAction() {
-            @Override
-            public void actionPerformed(ActionEvent event) {
-                whenPerformed.run();
-            }
-        };
     }
 
     /** White on the solid red badge of {@link #problemBackground()}. */

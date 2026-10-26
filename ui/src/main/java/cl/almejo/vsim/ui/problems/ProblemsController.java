@@ -17,6 +17,7 @@ import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.core.simulation.TunnelProblem;
 import cl.almejo.vsim.core.simulation.WidthMismatch;
 import cl.almejo.vsim.core.value.Value;
+import cl.almejo.vsim.ui.actions.Actions;
 import cl.almejo.vsim.ui.canvas.BusValueText;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
@@ -97,9 +98,9 @@ public final class ProblemsController {
         this.navigator = new ProblemNavigator(view::canvas, blink);
         this.panel = new ProblemsPanel(openDocument, navigator::navigateTo);
 
-        nextProblem = action(Messages.text("action.nextProblem"), navigator::next);
+        nextProblem = Actions.of(Messages.text("action.nextProblem"), navigator::next);
         nextProblem.putValue(Action.SHORT_DESCRIPTION, Messages.text("tooltip.nextProblem"));
-        previousProblem = action(Messages.text("action.previousProblem"), navigator::previous);
+        previousProblem = Actions.of(Messages.text("action.previousProblem"), navigator::previous);
         previousProblem.putValue(Action.SHORT_DESCRIPTION, Messages.text("tooltip.previousProblem"));
         pauseOnShortCircuit = new AbstractAction(Messages.text("action.pauseOnShortCircuit")) {
             @Override
@@ -437,14 +438,5 @@ public final class ProblemsController {
         return document.component(pin.componentId())
                 .map(component -> !openDocument.registry().typeOf(component).pin(pin.pinIndex()).isAdaptiveWidth())
                 .orElse(true);
-    }
-
-    private static Action action(String name, Runnable behavior) {
-        return new AbstractAction(name) {
-            @Override
-            public void actionPerformed(ActionEvent event) {
-                behavior.run();
-            }
-        };
     }
 }

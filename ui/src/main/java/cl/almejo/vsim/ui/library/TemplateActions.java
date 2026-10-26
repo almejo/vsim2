@@ -34,6 +34,7 @@ import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.core.tunnel.Tunnels;
 import cl.almejo.vsim.core.value.Value;
 import cl.almejo.vsim.core.wiring.ShapeChangePlan;
+import cl.almejo.vsim.ui.actions.Actions;
 import cl.almejo.vsim.ui.actions.ContextMenuContributor;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
@@ -84,8 +85,8 @@ public final class TemplateActions {
         this.canvas = canvas;
         this.service = service;
         this.dialogs = dialogs;
-        this.createComponent = action(Messages.text("action.createComponent"), this::createFromSelection);
-        this.updateComponent = action(Messages.text("action.updateComponent"), this::updateFromSelection);
+        this.createComponent = Actions.of(Messages.text("action.createComponent"), this::createFromSelection);
+        this.updateComponent = Actions.of(Messages.text("action.updateComponent"), this::updateFromSelection);
         Icons.install(createComponent, TemplateIcons.CREATE_COMPONENT);
         Icons.install(updateComponent, TemplateIcons.UPDATE_COMPONENT);
         canvas.get().selection().addListener(refresher); // one selection for every pane of the window
@@ -332,14 +333,14 @@ public final class TemplateActions {
 
     /** "Desarmar" for {@code instance}, with its icon. */
     Action disassembleAction(Component instance) {
-        Action action = action(Messages.text("action.disassemble"), () -> disassemble(instance));
+        Action action = Actions.of(Messages.text("action.disassemble"), () -> disassemble(instance));
         Icons.install(action, TemplateIcons.DISASSEMBLE);
         return action;
     }
 
     /** "Actualizar desde la librería" for {@code instance}, with its icon. */
     Action updateFromLibraryAction(Component instance) {
-        Action action = action(Messages.text("action.updateFromLibrary"), () -> updateFromLibrary(instance));
+        Action action = Actions.of(Messages.text("action.updateFromLibrary"), () -> updateFromLibrary(instance));
         Icons.install(action, TemplateIcons.UPDATE_FROM_LIBRARY);
         return action;
     }
@@ -512,14 +513,5 @@ public final class TemplateActions {
             LOGGER.warn("Could not write {} to the component library", bundle.root().id(), exception);
             dialogs.showError(canvas.get(), service.writeError(bundle.root().id(), exception));
         }
-    }
-
-    static Action action(String name, Runnable behavior) {
-        return new AbstractAction(name) {
-            @Override
-            public void actionPerformed(ActionEvent event) {
-                behavior.run();
-            }
-        };
     }
 }

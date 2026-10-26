@@ -8,6 +8,8 @@ import cl.almejo.vsim.core.search.CompiledQuery;
 import cl.almejo.vsim.core.search.SearchHit;
 import cl.almejo.vsim.core.search.SearchProblem;
 import cl.almejo.vsim.core.search.SearchQuery;
+import cl.almejo.vsim.ui.actions.Actions;
+import cl.almejo.vsim.ui.actions.Keys;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.DrawnBounds;
@@ -17,7 +19,6 @@ import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuId;
 import cl.almejo.vsim.ui.window.panes.EveryPane;
 
-import javax.swing.AbstractAction;
 import javax.swing.Action;
 import javax.swing.JComponent;
 import javax.swing.JMenu;
@@ -25,7 +26,6 @@ import javax.swing.JMenuItem;
 import javax.swing.JPopupMenu;
 import javax.swing.KeyStroke;
 import java.awt.KeyboardFocusManager;
-import java.awt.event.ActionEvent;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.util.ArrayList;
@@ -113,9 +113,9 @@ public final class FindFeatures {
         this.regex = preferences.findRegex();
         this.overlay = new FindHighlightOverlay(() -> view.canvas().scheme(), openDocument.registry(),
                 EveryPane.repaint(view));
-        this.findAction = action("action.find", this::find);
-        this.findNextAction = action("action.findNext", this::next);
-        this.findPreviousAction = action("action.findPrevious", this::previous);
+        this.findAction = Actions.of(Messages.text("action.find"), this::find);
+        this.findNextAction = Actions.of(Messages.text("action.findNext"), this::next);
+        this.findPreviousAction = Actions.of(Messages.text("action.findPrevious"), this::previous);
         Icons.install(findAction, FindIcons.FIND);
         this.editMenu = view.menu(MenuId.EDIT);
         addMenuEntries();
@@ -338,12 +338,12 @@ public final class FindFeatures {
     private void wireBar() {
         SearchField field = bar.field();
         field.onTextChange(() -> search(Reason.QUERY));
-        bind(field, KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, 0), "find.next", this::next);
-        bind(field, KeyStroke.getKeyStroke(KeyEvent.VK_DOWN, 0), "find.next", this::next);
-        bind(field, KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, InputEvent.SHIFT_DOWN_MASK), "find.previous",
+        Keys.bindWhenFocused(field, KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, 0), "find.next", this::next);
+        Keys.bindWhenFocused(field, KeyStroke.getKeyStroke(KeyEvent.VK_DOWN, 0), "find.next", this::next);
+        Keys.bindWhenFocused(field, KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, InputEvent.SHIFT_DOWN_MASK), "find.previous",
                 this::previous);
-        bind(field, KeyStroke.getKeyStroke(KeyEvent.VK_UP, 0), "find.previous", this::previous);
-        bind(field, KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "find.close", this::close);
+        Keys.bindWhenFocused(field, KeyStroke.getKeyStroke(KeyEvent.VK_UP, 0), "find.previous", this::previous);
+        Keys.bindWhenFocused(field, KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "find.close", this::close);
         bar.nextButton().addActionListener(event -> next());
         bar.previousButton().addActionListener(event -> previous());
         bar.closeButton().addActionListener(event -> close());
@@ -352,16 +352,6 @@ public final class FindFeatures {
         bar.regexToggle().addActionListener(event -> preferences.setFindRegex(bar.regexToggle().isSelected()));
         bar.animateToggle().addActionListener(event ->
                 preferences.setAnimateViewMoves(bar.animateToggle().isSelected()));
-    }
-
-    private static void bind(JComponent component, KeyStroke stroke, String name, Runnable whenPressed) {
-        component.getInputMap(JComponent.WHEN_FOCUSED).put(stroke, name);
-        component.getActionMap().put(name, new AbstractAction() {
-            @Override
-            public void actionPerformed(ActionEvent event) {
-                whenPressed.run();
-            }
-        });
     }
 
     /** The toggles follow the preferences (changed here, in another view or in Preferencias); new options search again. */
@@ -407,14 +397,5 @@ public final class FindFeatures {
             }
         }
         return Optional.empty();
-    }
-
-    private static Action action(String nameKey, Runnable whenPerformed) {
-        return new AbstractAction(Messages.text(nameKey)) {
-            @Override
-            public void actionPerformed(ActionEvent event) {
-                whenPerformed.run();
-            }
-        };
     }
 }

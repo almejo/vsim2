@@ -109,21 +109,21 @@ public final class EditorActions {
         this.openDocument = openDocument;
         this.activePane = activePane;
         this.selection = selection;
-        newDocument = action(Messages.text("action.new"), shortcut(KeyEvent.VK_N, 0), window::newDocument);
-        open = action(Messages.text("action.open"), shortcut(KeyEvent.VK_O, 0), window::open);
-        save = action(Messages.text("action.save"), shortcut(KeyEvent.VK_S, 0), window::save);
-        saveAs = action(Messages.text("action.saveAs"), shortcut(KeyEvent.VK_S, InputEvent.SHIFT_DOWN_MASK),
+        newDocument = Actions.of(Messages.text("action.new"), shortcut(KeyEvent.VK_N, 0), window::newDocument);
+        open = Actions.of(Messages.text("action.open"), shortcut(KeyEvent.VK_O, 0), window::open);
+        save = Actions.of(Messages.text("action.save"), shortcut(KeyEvent.VK_S, 0), window::save);
+        saveAs = Actions.of(Messages.text("action.saveAs"), shortcut(KeyEvent.VK_S, InputEvent.SHIFT_DOWN_MASK),
                 window::saveAs);
-        closeWindow = action(Messages.text("action.close"), shortcut(KeyEvent.VK_W, 0), window::closeWindow);
-        exit = action(Messages.text("action.exit"), shortcut(KeyEvent.VK_Q, 0), window::exit);
-        undo = action(Messages.text("action.undo"), shortcut(KeyEvent.VK_Z, 0), () -> openDocument.history().undo());
-        redo = action(Messages.text("action.redo"), shortcut(KeyEvent.VK_Z, InputEvent.SHIFT_DOWN_MASK),
+        closeWindow = Actions.of(Messages.text("action.close"), shortcut(KeyEvent.VK_W, 0), window::closeWindow);
+        exit = Actions.of(Messages.text("action.exit"), shortcut(KeyEvent.VK_Q, 0), window::exit);
+        undo = Actions.of(Messages.text("action.undo"), shortcut(KeyEvent.VK_Z, 0), () -> openDocument.history().undo());
+        redo = Actions.of(Messages.text("action.redo"), shortcut(KeyEvent.VK_Z, InputEvent.SHIFT_DOWN_MASK),
                 () -> openDocument.history().redo());
-        delete = action(Messages.text("action.delete"), null, this::deleteSelection);
+        delete = Actions.of(Messages.text("action.delete"), null, this::deleteSelection);
         delete.putValue(Action.SHORT_DESCRIPTION, Messages.text("tooltip.delete"));
-        rotateClockwise = action(Messages.text("action.rotateClockwise"), null, () -> rotateSelection(true));
+        rotateClockwise = Actions.of(Messages.text("action.rotateClockwise"), null, () -> rotateSelection(true));
         rotateClockwise.putValue(Action.SHORT_DESCRIPTION, Messages.text("tooltip.rotateClockwise"));
-        rotateCounterClockwise = action(Messages.text("action.rotateCounterClockwise"), null,
+        rotateCounterClockwise = Actions.of(Messages.text("action.rotateCounterClockwise"), null,
                 () -> rotateSelection(false));
         rotateCounterClockwise.putValue(Action.SHORT_DESCRIPTION, Messages.text("tooltip.rotateCounterClockwise"));
         addMoveActions("edit.moveLeft", "action.moveLeft", -1, 0);
@@ -131,27 +131,27 @@ public final class EditorActions {
         addMoveActions("edit.moveUp", "action.moveUp", 0, -1);
         addMoveActions("edit.moveDown", "action.moveDown", 0, 1);
         addFarMoveActions();
-        configure = action(Messages.text("action.configure"), null,
+        configure = Actions.of(Messages.text("action.configure"), null,
                 () -> singleConfigurable().ifPresent(this::configure));
-        selectTool = action(Messages.text("action.toolSelect"), null, toolChoice::useDefault);
-        wireTool = action(Messages.text("action.toolWire"), null, () -> toolChoice.choose(WireTool::new));
-        panTool = action(Messages.text("action.toolPan"), null, () -> toolChoice.choose(PanTool::new));
-        zoomTool = action(Messages.text("action.toolZoom"), null, () -> toolChoice.choose(ZoomTool::new));
+        selectTool = Actions.of(Messages.text("action.toolSelect"), null, toolChoice::useDefault);
+        wireTool = Actions.of(Messages.text("action.toolWire"), null, () -> toolChoice.choose(WireTool::new));
+        panTool = Actions.of(Messages.text("action.toolPan"), null, () -> toolChoice.choose(PanTool::new));
+        zoomTool = Actions.of(Messages.text("action.toolZoom"), null, () -> toolChoice.choose(ZoomTool::new));
         zoomTool.putValue(Action.SHORT_DESCRIPTION, Messages.text("tooltip.toolZoom"));
-        zoomIn = action(Messages.text("action.zoomIn"), shortcut(KeyEvent.VK_EQUALS, 0), 
+        zoomIn = Actions.of(Messages.text("action.zoomIn"), shortcut(KeyEvent.VK_EQUALS, 0), 
                 () -> activePane.get().zoomIn());
-        zoomOut = action(Messages.text("action.zoomOut"), shortcut(KeyEvent.VK_MINUS, 0),
+        zoomOut = Actions.of(Messages.text("action.zoomOut"), shortcut(KeyEvent.VK_MINUS, 0),
                 () -> activePane.get().zoomOut());
-        zoomReset = action(Messages.text("action.zoomReset"), shortcut(KeyEvent.VK_0, 0),
+        zoomReset = Actions.of(Messages.text("action.zoomReset"), shortcut(KeyEvent.VK_0, 0),
                 () -> activePane.get().resetZoom());
-        zoomToFit = action(Messages.text("action.zoomToFit"), null, this::zoomToCircuit);
+        zoomToFit = Actions.of(Messages.text("action.zoomToFit"), null, this::zoomToCircuit);
         zoomToFit.putValue(Action.SHORT_DESCRIPTION, Messages.text("tooltip.zoomToFit"));
-        zoomToSelection = action(Messages.text("action.zoomToSelection"), null, this::zoomToSelected);
+        zoomToSelection = Actions.of(Messages.text("action.zoomToSelection"), null, this::zoomToSelected);
         zoomToSelection.putValue(Action.SHORT_DESCRIPTION, Messages.text("tooltip.zoomToSelection"));
-        centerView = action(Messages.text("action.centerView"), null, () -> activePane.get().centerCircuit());
-        start = action(Messages.text("action.start"), null, openDocument::resume);
-        pause = action(Messages.text("action.pause"), null, openDocument::pause);
-        startOrPause = action(Messages.text("action.startOrPause"), KeyStroke.getKeyStroke(KeyEvent.VK_F5, 0),
+        centerView = Actions.of(Messages.text("action.centerView"), null, () -> activePane.get().centerCircuit());
+        start = Actions.of(Messages.text("action.start"), null, openDocument::resume);
+        pause = Actions.of(Messages.text("action.pause"), null, openDocument::pause);
+        startOrPause = Actions.of(Messages.text("action.startOrPause"), KeyStroke.getKeyStroke(KeyEvent.VK_F5, 0),
                 () -> {
                     if (pause.isEnabled()) {
                         openDocument.pause();
@@ -159,12 +159,12 @@ public final class EditorActions {
                         openDocument.resume();
                     }
                 });
-        restart = action(Messages.text("action.restart"), shortcut(KeyEvent.VK_F5, 0), openDocument::restart);
-        step = action(Messages.text("action.step"), KeyStroke.getKeyStroke(KeyEvent.VK_F6, 0),
+        restart = Actions.of(Messages.text("action.restart"), shortcut(KeyEvent.VK_F5, 0), openDocument::restart);
+        step = Actions.of(Messages.text("action.step"), KeyStroke.getKeyStroke(KeyEvent.VK_F6, 0),
                 () -> openDocument.step(stepUnits));
         setStepUnits(stepUnits);
-        newView = action(Messages.text("action.newWindow"), null, window::newView);
-        about = action(Messages.text("action.about"), null, () -> JOptionPane.showMessageDialog(activePane.get(),
+        newView = Actions.of(Messages.text("action.newWindow"), null, window::newView);
+        about = Actions.of(Messages.text("action.about"), null, () -> JOptionPane.showMessageDialog(activePane.get(),
                 Messages.text("dialog.about.message"), Messages.text("action.about"), JOptionPane.INFORMATION_MESSAGE));
 
         openDocument.history().addListener(historyListener);
@@ -369,7 +369,7 @@ public final class EditorActions {
     }
 
     private void addMoveActions(String id, String nameKey, int unitX, int unitY) {
-        moveActions.put(id, action(Messages.text(nameKey), null, () -> nudgeSelection(unitX, unitY)));
+        moveActions.put(id, Actions.of(Messages.text(nameKey), null, () -> nudgeSelection(unitX, unitY)));
     }
 
     private void addFarMoveActions() {
@@ -433,18 +433,5 @@ public final class EditorActions {
 
     private KeyStroke shortcut(int keyCode, int extraModifiers) {
         return KeyStroke.getKeyStroke(keyCode, menuMask | extraModifiers);
-    }
-
-    private static Action action(String name, KeyStroke accelerator, Runnable behavior) {
-        Action action = new AbstractAction(name) {
-            @Override
-            public void actionPerformed(ActionEvent event) {
-                behavior.run();
-            }
-        };
-        if (accelerator != null) {
-            action.putValue(Action.ACCELERATOR_KEY, accelerator);
-        }
-        return action;
     }
 }

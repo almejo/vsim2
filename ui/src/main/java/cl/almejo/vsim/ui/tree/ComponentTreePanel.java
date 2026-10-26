@@ -6,6 +6,7 @@ import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.simulation.InstancePath;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
+import cl.almejo.vsim.ui.actions.Keys;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.canvas.DrawnBounds;
@@ -24,7 +25,6 @@ import cl.almejo.vsim.ui.search.FindFeatures;
 import cl.almejo.vsim.ui.search.SearchField;
 import net.miginfocom.swing.MigLayout;
 
-import javax.swing.AbstractAction;
 import javax.swing.Icon;
 import javax.swing.JComponent;
 import javax.swing.KeyStroke;
@@ -39,7 +39,6 @@ import javax.swing.tree.TreePath;
 import javax.swing.tree.TreeSelectionModel;
 import java.awt.BorderLayout;
 import java.awt.Component;
-import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
 import java.util.ArrayList;
 import java.util.List;
@@ -267,18 +266,8 @@ public final class ComponentTreePanel extends JPanel {
     /** Esc in a filter with text clears it; an empty filter lets Esc go on (to the canvas tool). */
     private void bindEscapeToClearTheFilter() {
         String actionKey = "tree.clearFilter";
-        filterField.getInputMap(JComponent.WHEN_FOCUSED).put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), actionKey);
-        filterField.getActionMap().put(actionKey, new AbstractAction() {
-            @Override
-            public boolean isEnabled() {
-                return !filterField.getText().isEmpty();
-            }
-
-            @Override
-            public void actionPerformed(ActionEvent event) {
-                filterField.setText("");
-            }
-        });
+        Keys.bind(filterField, JComponent.WHEN_FOCUSED, KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), actionKey,
+                () -> !filterField.getText().isEmpty(), () -> filterField.setText(""));
     }
 
     /** Takes the values of a new snapshot; repaints only the rows whose value changed. */

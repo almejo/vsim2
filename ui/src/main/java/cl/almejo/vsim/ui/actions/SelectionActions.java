@@ -71,13 +71,13 @@ public final class SelectionActions {
         this.clipboard = clipboard;
         this.format = new FragmentFormat(openDocument.registry());
         int menuMask = ShortcutCatalog.menuMask();
-        cut = action(Messages.text("action.cut"), KeyStroke.getKeyStroke(KeyEvent.VK_X, menuMask), this::cutSelection);
-        copy = action(Messages.text("action.copy"), KeyStroke.getKeyStroke(KeyEvent.VK_C, menuMask), this::copySelection);
-        paste = action(Messages.text("action.paste"), KeyStroke.getKeyStroke(KeyEvent.VK_V, menuMask),
+        cut = Actions.of(Messages.text("action.cut"), KeyStroke.getKeyStroke(KeyEvent.VK_X, menuMask), this::cutSelection);
+        copy = Actions.of(Messages.text("action.copy"), KeyStroke.getKeyStroke(KeyEvent.VK_C, menuMask), this::copySelection);
+        paste = Actions.of(Messages.text("action.paste"), KeyStroke.getKeyStroke(KeyEvent.VK_V, menuMask),
                 () -> pasteAt(activePane.get().mouseGridPoint()));
-        duplicate = action(Messages.text("action.duplicate"), KeyStroke.getKeyStroke(KeyEvent.VK_D, menuMask),
+        duplicate = Actions.of(Messages.text("action.duplicate"), KeyStroke.getKeyStroke(KeyEvent.VK_D, menuMask),
                 this::duplicateSelection);
-        selectAll = action(Messages.text("action.selectAll"), KeyStroke.getKeyStroke(KeyEvent.VK_A, menuMask),
+        selectAll = Actions.of(Messages.text("action.selectAll"), KeyStroke.getKeyStroke(KeyEvent.VK_A, menuMask),
                 () -> selection.selectAll(openDocument.document()));
         selection.addListener(this::refresh);
         refresh();
@@ -139,7 +139,7 @@ public final class SelectionActions {
                 Optional<GridPoint> openedAt = Optional.of(new GridPoint(
                         (int) Math.round(gridPosition.getX()), (int) Math.round(gridPosition.getY())));
                 menu.add(ContextMenuEntry.PASTE.tag(
-                        new JMenuItem(action(Messages.text("action.paste"), null, () -> pasteAt(openedAt)))));
+                        new JMenuItem(Actions.of(Messages.text("action.paste"), null, () -> pasteAt(openedAt)))));
                 addOnce(menu, selectAll, ContextMenuEntry.SELECT_ALL);
                 return;
             }
@@ -215,18 +215,5 @@ public final class SelectionActions {
         CircuitCanvas canvas = activePane.get();
         canvas.setTool(new FloatingSelectionTool(fragment, position));
         canvas.requestFocusInWindow();
-    }
-
-    private static Action action(String name, KeyStroke accelerator, Runnable behavior) {
-        Action action = new AbstractAction(name) {
-            @Override
-            public void actionPerformed(ActionEvent event) {
-                behavior.run();
-            }
-        };
-        if (accelerator != null) {
-            action.putValue(Action.ACCELERATOR_KEY, accelerator);
-        }
-        return action;
     }
 }
