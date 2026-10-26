@@ -83,61 +83,43 @@ final class SimulationHostSupport {
     }
 
     CompletableFuture<SimulationReceipt> simulate(SimulationRequest request) {
-        CompletableFuture<SimulationReceipt> result = queue.track(new CompletableFuture<>());
-        editorThread.execute(() -> {
-            if (EditorQueue.skips(result)) {
-                return;
-            }
-            try {
-                OpenDocument document = document(request.document());
-                DocumentVersion version = versionOf(document);
-                long netlistToken = document.netlistToken();
-                Started started = start(document, version, request);
-                started.report().whenComplete((report, failure) -> editorThread.execute(() -> {
-                    if (failure != null) {
-                        result.completeExceptionally(closedOr(failure, request.document()));
-                        return;
-                    }
-                    try {
-                        result.complete(SimulationReceipt.of(request.document(), version, versionOf(document),
-                                netlistToken, started.eventBudget(), report, started.asked(), started.observed()));
-                    } catch (RuntimeException exception) {
-                        result.completeExceptionally(exception);
-                    }
-                }));
-            } catch (RuntimeException | Error failure) {
-                result.completeExceptionally(failure);
-            }
+        return queue.submitAsync(editorThread, result -> {
+            OpenDocument document = document(request.document());
+            DocumentVersion version = versionOf(document);
+            long netlistToken = document.netlistToken();
+            Started started = start(document, version, request);
+            started.report().whenComplete((report, failure) -> editorThread.execute(() -> {
+                if (failure != null) {
+                    result.completeExceptionally(closedOr(failure, request.document()));
+                    return;
+                }
+                try {
+                    result.complete(SimulationReceipt.of(request.document(), version, versionOf(document),
+                            netlistToken, started.eventBudget(), report, started.asked(), started.observed()));
+                } catch (RuntimeException exception) {
+                    result.completeExceptionally(exception);
+                }
+            }));
         });
-        return result;
     }
 
     CompletableFuture<PreparedTruthTable> prepareTruthTable(TruthTableRequest request) {
-        CompletableFuture<PreparedTruthTable> result = queue.track(new CompletableFuture<>());
-        editorThread.execute(() -> {
-            if (EditorQueue.skips(result)) {
-                return;
-            }
-            try {
-                OpenDocument document = document(request.document());
-                Set<ElementId> scope = new HashSet<>();
-                for (String elementId : request.elementIds()) {
-                    ElementId id = elementId(elementId);
-                    if (document.document().element(id).isEmpty()) {
-                        throw unknownElement(elementId);
-                    }
-                    scope.add(id);
+        return queue.submit(editorThread, () -> {
+            OpenDocument document = document(request.document());
+            Set<ElementId> scope = new HashSet<>();
+            for (String elementId : request.elementIds()) {
+                ElementId id = elementId(elementId);
+                if (document.document().element(id).isEmpty()) {
+                    throw unknownElement(elementId);
                 }
-                // Parts named by the AI take the wires between them along (InnerWires, Task 7).
-                Set<ElementId> withWires = scope.isEmpty() ? scope
-                        : InnerWires.of(document.document(), document.registry(), scope).elements();
-                result.complete(new PreparedTruthTable(versionOf(document),
-                        TruthTableScope.prepare(document.document(), withWires, document.registry())));
-            } catch (RuntimeException | Error failure) {
-                result.completeExceptionally(failure);
+                scope.add(id);
             }
+            // Parts named by the AI take the wires between them along (InnerWires, Task 7).
+            Set<ElementId> withWires = scope.isEmpty() ? scope
+                    : InnerWires.of(document.document(), document.registry(), scope).elements();
+            return new PreparedTruthTable(versionOf(document),
+                    TruthTableScope.prepare(document.document(), withWires, document.registry()));
         });
-        return result;
     }
 
     private Started start(OpenDocument document, DocumentVersion version, SimulationRequest request) {

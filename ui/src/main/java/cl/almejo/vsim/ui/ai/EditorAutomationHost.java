@@ -232,18 +232,7 @@ public final class EditorAutomationHost implements AutomationHost {
     @Override
     public <T> CompletableFuture<T> onEditorThread(Function<EditorAccess, T> work) {
         requestListeners.forEach(Runnable::run);
-        CompletableFuture<T> result = queue.track(new CompletableFuture<>());
-        SwingUtilities.invokeLater(() -> {
-            if (EditorQueue.skips(result)) {
-                return;
-            }
-            try {
-                result.complete(work.apply(new Access()));
-            } catch (RuntimeException | Error failure) {
-                result.completeExceptionally(failure);
-            }
-        });
-        return result;
+        return queue.submit(SwingUtilities::invokeLater, () -> work.apply(new Access()));
     }
 
     @Override
