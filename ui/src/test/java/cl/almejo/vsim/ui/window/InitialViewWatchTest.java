@@ -17,6 +17,7 @@ import java.awt.event.ComponentEvent;
 import java.awt.event.MouseEvent;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static cl.almejo.vsim.ui.UiTestSupport.NO_WINDOW;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -24,16 +25,6 @@ import static org.assertj.core.api.Assertions.assertThat;
  * maximized size; the resizes of the panes the split made do not use up that wait.
  */
 class InitialViewWatchTest {
-
-    private static final WindowCommands WINDOW = new WindowCommands() {
-        @Override public void newDocument() { }
-        @Override public void open() { }
-        @Override public void save() { }
-        @Override public void saveAs() { }
-        @Override public void closeWindow() { }
-        @Override public void exit() { }
-        @Override public void newView() { }
-    };
 
     private final AtomicInteger applied = new AtomicInteger();
     private OpenDocument document;
@@ -45,7 +36,7 @@ class InitialViewWatchTest {
         Messages.initialize(Messages.SPANISH);
         document = OpenDocument.createEmpty(StandardComponentTypes.registry());
         SwingUtilities.invokeAndWait(() -> {
-            view = new EditorView(document, PainterRegistry.standard(), ColorScheme.LIGHT, WINDOW);
+            view = new EditorView(document, PainterRegistry.standard(), ColorScheme.LIGHT, NO_WINDOW);
             view.setSize(1200, 800);
             view.doLayout();
             view.canvasPanes().setSize(800, 600);

@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 
+import static cl.almejo.vsim.ui.UiTestSupport.NO_WINDOW;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class LibraryProblemsTest {
@@ -124,7 +125,7 @@ class LibraryProblemsTest {
 
     @Test
     void disposingTheFeaturesLeavesNoListener() {
-        EditorView secondView = new EditorView(fixture.openDocument, fixture.services(), TemplateFixture.NO_WINDOW);
+        EditorView secondView = new EditorView(fixture.openDocument, fixture.services(), NO_WINDOW);
         ComponentLibrary library = fixture.library;
         int libraryListeners = library.listenerCount();
         int problemsListeners = fixture.service.problemsListenerCount();

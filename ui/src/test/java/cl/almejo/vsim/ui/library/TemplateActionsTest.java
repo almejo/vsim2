@@ -37,6 +37,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import static cl.almejo.vsim.ui.UiTestSupport.NO_WINDOW;
 import static cl.almejo.vsim.ui.UiTestSupport.waitUntil;
 import static cl.almejo.vsim.ui.library.TemplateFixture.perform;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -331,7 +332,7 @@ class TemplateActionsTest {
         try (OpenDocument other = OpenDocument.createEmpty(StandardComponentTypes.registry())) {
             EditorView extended = new EditorView(other, fixture.services()
                     .withExtensions(List.of(new TemplatesExtension(fixture.service, fixture.dialogs))),
-                    TemplateFixture.NO_WINDOW);
+                    NO_WINDOW);
             assertThat(texts(extended.menu(MenuId.EDIT))).contains("Crear componente desde selección…");
             extended.dispose();
         }

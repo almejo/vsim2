@@ -11,7 +11,6 @@ import cl.almejo.vsim.ui.preferences.PreferencesFeature;
 import cl.almejo.vsim.ui.window.EditorServices;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuId;
-import cl.almejo.vsim.ui.window.WindowCommands;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -30,21 +29,13 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
+import static cl.almejo.vsim.ui.UiTestSupport.NO_WINDOW;
 import static cl.almejo.vsim.ui.UiTestSupport.place;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class ShortcutsExtensionTest {
 
     private static final int CONTROL = InputEvent.CTRL_DOWN_MASK;
-    private static final WindowCommands WINDOW = new WindowCommands() {
-        @Override public void newDocument() { }
-        @Override public void open() { }
-        @Override public void save() { }
-        @Override public void saveAs() { }
-        @Override public void closeWindow() { }
-        @Override public void exit() { }
-    };
-
     private final List<EditorView> views = new ArrayList<>();
     private OpenDocument openDocument;
     private EditorServices services;
@@ -70,7 +61,7 @@ class ShortcutsExtensionTest {
     }
 
     private EditorView newView() {
-        EditorView created = new EditorView(openDocument, services, WINDOW);
+        EditorView created = new EditorView(openDocument, services, NO_WINDOW);
         views.add(created);
         return created;
     }
@@ -225,7 +216,7 @@ class ShortcutsExtensionTest {
     private EditorView iconView() {
         EditorView created = new EditorView(openDocument,
                 services.withExtensions(List.of(new ActionIcons(), new PreferencesFeature(), new ShortcutsExtension())),
-                WINDOW);
+                NO_WINDOW);
         views.add(created);
         return created;
     }
@@ -265,7 +256,7 @@ class ShortcutsExtensionTest {
     @Test
     void disposingStopsFollowingTheToolbar() {
         EditorView plain = new EditorView(openDocument,
-                EditorServices.of(PainterRegistry.standard(), ColorScheme.LIGHT), WINDOW);
+                EditorServices.of(PainterRegistry.standard(), ColorScheme.LIGHT), NO_WINDOW);
         views.add(plain);
         Runnable removal = new ShortcutsExtension().install(plain);
         AbstractButton center = toolbarButton(plain, plain.actions().start());

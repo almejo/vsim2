@@ -17,7 +17,6 @@ import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.window.EditorServices;
 import cl.almejo.vsim.ui.window.EditorView;
-import cl.almejo.vsim.ui.window.WindowCommands;
 
 import javax.swing.Action;
 import java.awt.event.ActionEvent;
@@ -27,20 +26,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import static cl.almejo.vsim.ui.UiTestSupport.NO_WINDOW;
+
 /**
  * One editor view of {@code openDocument} with the M4-A features installed over a library kept in
  * {@code libraryDirectory}. The library service is not started (no watcher thread); call {@code service.reload()}.
  */
 final class TemplateFixture implements AutoCloseable {
-
-    static final WindowCommands NO_WINDOW = new WindowCommands() {
-        @Override public void newDocument() { }
-        @Override public void open() { }
-        @Override public void save() { }
-        @Override public void saveAs() { }
-        @Override public void closeWindow() { }
-        @Override public void exit() { }
-    };
 
     final AppPreferences preferences;
     final ComponentLibrary library;

@@ -7,6 +7,7 @@ import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.ui.app.OpenDocument;
+import cl.almejo.vsim.ui.window.WindowCommands;
 
 import java.util.List;
 import java.util.Map;
@@ -19,6 +20,16 @@ public final class UiTestSupport {
 
     private static final long TIMEOUT_NANOS = TimeUnit.SECONDS.toNanos(5);
     private static final long SIMULATION_TIMEOUT_SECONDS = 30;
+
+    /** A window that does nothing: for editors under test that never open, save or close anything. */
+    public static final WindowCommands NO_WINDOW = new WindowCommands() {
+        @Override public void newDocument() { }
+        @Override public void open() { }
+        @Override public void save() { }
+        @Override public void saveAs() { }
+        @Override public void closeWindow() { }
+        @Override public void exit() { }
+    };
 
     private UiTestSupport() {
     }

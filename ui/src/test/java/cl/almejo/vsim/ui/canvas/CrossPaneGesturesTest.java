@@ -24,7 +24,6 @@ import cl.almejo.vsim.ui.tools.ToolContext;
 import cl.almejo.vsim.ui.tools.WireTool;
 import cl.almejo.vsim.ui.window.EditorServices;
 import cl.almejo.vsim.ui.window.EditorView;
-import cl.almejo.vsim.ui.window.WindowCommands;
 import cl.almejo.vsim.ui.window.panes.CanvasPanes;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -43,6 +42,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import static cl.almejo.vsim.ui.UiTestSupport.NO_WINDOW;
 import static cl.almejo.vsim.ui.UiTestSupport.place;
 import static cl.almejo.vsim.ui.canvas.CanvasDragSupport.differingPixels;
 import static cl.almejo.vsim.ui.canvas.CanvasDragSupport.paint;
@@ -56,15 +56,6 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class CrossPaneGesturesTest {
 
-    private static final WindowCommands WINDOW = new WindowCommands() {
-        @Override public void newDocument() { }
-        @Override public void open() { }
-        @Override public void save() { }
-        @Override public void saveAs() { }
-        @Override public void closeWindow() { }
-        @Override public void exit() { }
-    };
-
     private OpenDocument openDocument;
     private EditorView view;
     private CircuitCanvas left;
@@ -76,7 +67,7 @@ class CrossPaneGesturesTest {
         openDocument = OpenDocument.createEmpty(StandardComponentTypes.registry());
         EditorServices services = EditorServices.of(PainterRegistry.standard(), ColorScheme.LIGHT)
                 .withExtensions(List.of(new FramesExtension()));
-        view = new EditorView(openDocument, services, WINDOW);
+        view = new EditorView(openDocument, services, NO_WINDOW);
         CanvasPanes panes = view.canvasPanes();
         panes.setSize(800, 300);
         panes.split(CanvasPanes.Orientation.VERTICAL, 0.5);

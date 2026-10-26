@@ -22,7 +22,6 @@ import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.ColorSchemes;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.window.EditorView;
-import cl.almejo.vsim.ui.window.WindowCommands;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -34,6 +33,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 
+import static cl.almejo.vsim.ui.UiTestSupport.NO_WINDOW;
 import static cl.almejo.vsim.ui.UiTestSupport.place;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -59,14 +59,7 @@ class ConnectivityProblemsTest {
         openDocument.document().putDefinition(new ComponentDefinition("parent", "Padre", "", new GridSize(4, 4),
                 List.of(), new CircuitFragment(List.of(child), List.of(), List.of())));
         outer = place(openDocument, SubcircuitTypes.typeIdOf("parent"), 10, 10, Map.of());
-        view = new EditorView(openDocument, PainterRegistry.standard(), ColorScheme.LIGHT, new WindowCommands() {
-            @Override public void newDocument() { }
-            @Override public void open() { }
-            @Override public void save() { }
-            @Override public void saveAs() { }
-            @Override public void closeWindow() { }
-            @Override public void exit() { }
-        });
+        view = new EditorView(openDocument, PainterRegistry.standard(), ColorScheme.LIGHT, NO_WINDOW);
     }
 
     @AfterEach

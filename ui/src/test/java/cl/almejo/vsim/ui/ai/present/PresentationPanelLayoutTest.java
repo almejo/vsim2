@@ -14,7 +14,6 @@ import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.window.EditorServices;
 import cl.almejo.vsim.ui.window.EditorView;
-import cl.almejo.vsim.ui.window.WindowCommands;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -40,6 +39,7 @@ import java.util.ArrayList;
 import java.util.Deque;
 import java.util.List;
 
+import static cl.almejo.vsim.ui.UiTestSupport.NO_WINDOW;
 import static cl.almejo.vsim.ui.ai.present.FakePresentationEvents.step;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -49,14 +49,6 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class PresentationPanelLayoutTest {
 
-    private static final WindowCommands NO_WINDOW = new WindowCommands() {
-        @Override public void newDocument() { }
-        @Override public void open() { }
-        @Override public void save() { }
-        @Override public void saveAs() { }
-        @Override public void closeWindow() { }
-        @Override public void exit() { }
-    };
     private static final DocumentId THIS_CIRCUIT = new DocumentId("this");
     private static final TaskInfo TASK = new TaskInfo("t1", THIS_CIRCUIT,
             "Sumador de 4 bits paso a paso con acarreo en cascada y nota de prueba");

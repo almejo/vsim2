@@ -8,7 +8,6 @@ import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.window.EditorServices;
 import cl.almejo.vsim.ui.window.EditorView;
-import cl.almejo.vsim.ui.window.WindowCommands;
 import org.junit.jupiter.api.Test;
 
 import java.awt.Container;
@@ -18,19 +17,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import static cl.almejo.vsim.ui.UiTestSupport.NO_WINDOW;
 import static cl.almejo.vsim.ui.UiTestSupport.place;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class ComponentTreeExtensionTest {
-
-    private static final WindowCommands WINDOW = new WindowCommands() {
-        @Override public void newDocument() { }
-        @Override public void open() { }
-        @Override public void save() { }
-        @Override public void saveAs() { }
-        @Override public void closeWindow() { }
-        @Override public void exit() { }
-    };
 
     private static Optional<ComponentTreePanel> findPanel(Container container) {
         for (java.awt.Component child : container.getComponents()) {
@@ -53,7 +44,7 @@ class ComponentTreeExtensionTest {
         try (OpenDocument openDocument = OpenDocument.createEmpty(StandardComponentTypes.registry())) {
             EditorServices services = EditorServices.of(PainterRegistry.standard(), ColorScheme.LIGHT)
                     .withExtensions(List.of(new ComponentTreeExtension()));
-            EditorView view = new EditorView(openDocument, services, WINDOW);
+            EditorView view = new EditorView(openDocument, services, NO_WINDOW);
             try {
                 view.inspector().showTab("Componentes");
                 assertThat(view.inspector().selectedTab()).contains("Componentes");
@@ -76,14 +67,14 @@ class ComponentTreeExtensionTest {
         try (OpenDocument openDocument = OpenDocument.createEmpty(StandardComponentTypes.registry())) {
             int documentListenersBefore = listenerCount(openDocument, "changeListeners");
             EditorServices withoutTree = EditorServices.of(PainterRegistry.standard(), ColorScheme.LIGHT);
-            EditorView plainView = new EditorView(openDocument, withoutTree, WINDOW);
+            EditorView plainView = new EditorView(openDocument, withoutTree, NO_WINDOW);
             int documentListenersPlain = listenerCount(openDocument, "changeListeners");
             int canvasListenersPlain = listenerCount(plainView.canvas(), "snapshotListeners");
             plainView.dispose();
             int canvasListenersPlainDisposed = listenerCount(plainView.canvas(), "snapshotListeners");
 
             EditorServices services = withoutTree.withExtensions(List.of(new ComponentTreeExtension()));
-            EditorView view = new EditorView(openDocument, services, WINDOW);
+            EditorView view = new EditorView(openDocument, services, NO_WINDOW);
             try {
                 assertThat(listenerCount(openDocument, "changeListeners")).isEqualTo(documentListenersPlain + 1);
                 assertThat(listenerCount(view.canvas(), "snapshotListeners")).isEqualTo(canvasListenersPlain + 1);
