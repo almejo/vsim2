@@ -5,17 +5,16 @@ import cl.almejo.vsim.core.io.DefinitionFormat;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.DefinitionBundle;
 import cl.almejo.vsim.core.library.DefinitionNames;
+import cl.almejo.vsim.ui.actions.Actions;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.panels.PalettePanel;
 import cl.almejo.vsim.ui.window.EditorView;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.swing.AbstractAction;
 import javax.swing.Action;
 import javax.swing.JMenuItem;
 import javax.swing.JPopupMenu;
-import java.awt.event.ActionEvent;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -192,11 +191,6 @@ public final class LibraryPalette {
     }
 
     private static JMenuItem item(String text, Runnable behavior) {
-        return new JMenuItem(new AbstractAction(text) {
-            @Override
-            public void actionPerformed(ActionEvent event) {
-                behavior.run();
-            }
-        });
+        return new JMenuItem(Actions.of(text, behavior));
     }
 }

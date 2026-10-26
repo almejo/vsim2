@@ -2,6 +2,7 @@ package cl.almejo.vsim.ui.ai;
 
 import cl.almejo.vsim.automation.AutomationApi;
 import cl.almejo.vsim.automation.DocumentId;
+import cl.almejo.vsim.ui.actions.Actions;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.i18n.Messages;
@@ -9,7 +10,6 @@ import cl.almejo.vsim.ui.window.EditorExtension;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuId;
 
-import javax.swing.AbstractAction;
 import javax.swing.Action;
 import javax.swing.JDialog;
 import javax.swing.JMenu;
@@ -18,7 +18,6 @@ import javax.swing.JPopupMenu;
 import javax.swing.JSeparator;
 import javax.swing.SwingUtilities;
 import java.awt.Window;
-import java.awt.event.ActionEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.util.List;
@@ -85,12 +84,7 @@ public final class AiExtension implements EditorExtension {
     public Runnable install(EditorView view) {
         AiStatusFeatures status = new AiStatusFeatures(view, service, ids, proposals, System::nanoTime);
         PanelWindow panelWindow = new PanelWindow(view);
-        Action open = new AbstractAction(Messages.text("action.aiPanel")) {
-            @Override
-            public void actionPerformed(ActionEvent event) {
-                panelWindow.show();
-            }
-        };
+        Action open = Actions.of(Messages.text("action.aiPanel"), () -> panelWindow.show());
         JMenu tools = view.menu(MenuId.TOOLS);
         JSeparator separator = new JPopupMenu.Separator();
         JMenuItem item = new JMenuItem(open);

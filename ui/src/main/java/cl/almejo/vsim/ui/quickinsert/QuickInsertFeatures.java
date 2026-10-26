@@ -4,6 +4,7 @@ import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.geometry.GridPoint;
+import cl.almejo.vsim.ui.actions.Actions;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.canvas.ConnectionPoints;
 import cl.almejo.vsim.ui.canvas.LabelLayout;
@@ -17,14 +18,12 @@ import cl.almejo.vsim.ui.tools.SelectToolDelegate;
 import cl.almejo.vsim.ui.tools.ToolContext;
 import cl.almejo.vsim.ui.window.EditorView;
 
-import javax.swing.AbstractAction;
 import javax.swing.JPopupMenu;
 import javax.swing.SwingUtilities;
 import javax.swing.event.PopupMenuEvent;
 import javax.swing.event.PopupMenuListener;
 import java.awt.GraphicsEnvironment;
 import java.awt.Point;
-import java.awt.event.ActionEvent;
 import java.awt.geom.Point2D;
 import java.util.Optional;
 
@@ -60,9 +59,7 @@ final class QuickInsertFeatures {
         this.view = view;
         this.opener = opener;
         removeShortcut = view.registerShortcutAction("edit.quickInsert",
-                new AbstractAction(Messages.text("action.quickInsert")) {
-                    @Override public void actionPerformed(ActionEvent event) { openFromShortcut(); }
-                });
+                Actions.of(Messages.text("action.quickInsert"), () -> openFromShortcut()));
         removeDelegates = view.forEachPane(canvas -> {
             if (!(canvas.defaultTool() instanceof SelectTool selectTool)) {
                 return () -> {

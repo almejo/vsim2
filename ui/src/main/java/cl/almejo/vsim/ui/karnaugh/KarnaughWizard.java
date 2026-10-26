@@ -1,11 +1,11 @@
 package cl.almejo.vsim.ui.karnaugh;
 
 import cl.almejo.vsim.core.logic.Minimization;
+import cl.almejo.vsim.ui.actions.Actions;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.theme.ErrorTextLabel;
 import net.miginfocom.swing.MigLayout;
 
-import javax.swing.AbstractAction;
 import javax.swing.AbstractButton;
 import javax.swing.Action;
 import javax.swing.ButtonGroup;
@@ -20,7 +20,6 @@ import java.awt.BorderLayout;
 import java.awt.CardLayout;
 import java.awt.Component;
 import java.awt.Dimension;
-import java.awt.event.ActionEvent;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
@@ -180,24 +179,9 @@ public final class KarnaughWizard extends JPanel {
         panels.put(Step.EXPRESSION, expressionPanel);
         panels.put(Step.CREATE, createPanel);
 
-        backAction = new AbstractAction(Messages.text("karnaugh.back")) {
-            @Override
-            public void actionPerformed(ActionEvent event) {
-                back();
-            }
-        };
-        nextAction = new AbstractAction(Messages.text("karnaugh.next")) {
-            @Override
-            public void actionPerformed(ActionEvent event) {
-                next();
-            }
-        };
-        closeAction = new AbstractAction(Messages.text("karnaugh.close")) {
-            @Override
-            public void actionPerformed(ActionEvent event) {
-                requestClose();
-            }
-        };
+        backAction = Actions.of(Messages.text("karnaugh.back"), () -> back());
+        nextAction = Actions.of(Messages.text("karnaugh.next"), () -> next());
+        closeAction = Actions.of(Messages.text("karnaugh.close"), () -> requestClose());
 
         JPanel bar = new JPanel(new MigLayout("insets 8 12 4 12, gap 4"));
         ButtonGroup barGroup = new ButtonGroup();

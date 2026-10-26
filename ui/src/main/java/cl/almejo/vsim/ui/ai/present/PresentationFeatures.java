@@ -11,6 +11,7 @@ import cl.almejo.vsim.automation.present.PresentationListener;
 import cl.almejo.vsim.automation.present.PresentationPace;
 import cl.almejo.vsim.automation.present.StepPreview;
 import cl.almejo.vsim.automation.present.StepStatus;
+import cl.almejo.vsim.ui.actions.Actions;
 import cl.almejo.vsim.ui.ai.ThinkingWatch;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.OpenDocument;
@@ -19,7 +20,6 @@ import cl.almejo.vsim.ui.icons.Icons;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuId;
 
-import javax.swing.AbstractAction;
 import javax.swing.Action;
 import javax.swing.JCheckBoxMenuItem;
 import javax.swing.ButtonGroup;
@@ -28,7 +28,6 @@ import javax.swing.JPopupMenu;
 import javax.swing.JRadioButtonMenuItem;
 import javax.swing.JToggleButton;
 import javax.swing.JToolBar;
-import java.awt.event.ActionEvent;
 import java.awt.event.HierarchyEvent;
 import java.awt.event.HierarchyListener;
 import java.time.Duration;
@@ -101,12 +100,8 @@ final class PresentationFeatures {
         this.preferences = view.services().preferences();
         this.ids = Objects.requireNonNull(ids, "ids");
         this.editorThread = Objects.requireNonNull(editorThread, "editorThread");
-        this.toggle = new AbstractAction(Messages.text("action.aiPresent")) {
-            @Override
-            public void actionPerformed(ActionEvent event) {
-                preferences.setAiPresenting(!preferences.aiPresenting());
-            }
-        };
+        this.toggle = Actions.of(Messages.text("action.aiPresent"),
+                () -> preferences.setAiPresenting(!preferences.aiPresenting()));
         Icons.install(toggle, PresentationIcons.PRESENT);
 
         this.viewMenu = view.menu(MenuId.VIEW);

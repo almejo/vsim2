@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.preferences;
 
+import cl.almejo.vsim.ui.actions.Actions;
 import cl.almejo.vsim.ui.ai.AiServerService;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.i18n.Messages;
@@ -8,14 +9,12 @@ import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuId;
 import cl.almejo.vsim.ui.window.Menus;
 
-import javax.swing.AbstractAction;
 import javax.swing.Action;
 import javax.swing.JMenu;
 import javax.swing.JMenuItem;
 import javax.swing.JPopupMenu;
 import javax.swing.JSeparator;
 import java.awt.Component;
-import java.awt.event.ActionEvent;
 import java.util.function.BiConsumer;
 
 /** Archivo ▸ Preferencias…, placed in its own group just before "Cerrar ventana". */
@@ -39,12 +38,8 @@ public final class PreferencesFeature implements EditorExtension {
     @Override
     public Runnable install(EditorView view) {
         JMenu file = view.menu(MenuId.FILE);
-        Action preferences = new AbstractAction(Messages.text("action.preferences")) {
-            @Override
-            public void actionPerformed(ActionEvent event) {
-                opener.accept(view, view.services().preferences());
-            }
-        };
+        Action preferences = Actions.of(Messages.text("action.preferences"),
+                () -> opener.accept(view, view.services().preferences()));
         JMenuItem item = new JMenuItem(preferences);
         Runnable unregisterShortcut = view.registerShortcutAction("file.preferences", preferences);
         JSeparator separator = new JPopupMenu.Separator();

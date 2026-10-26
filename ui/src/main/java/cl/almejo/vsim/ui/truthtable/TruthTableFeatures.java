@@ -10,6 +10,7 @@ import cl.almejo.vsim.core.truthtable.Preparation;
 import cl.almejo.vsim.core.truthtable.TruthTable;
 import cl.almejo.vsim.core.truthtable.TruthTableScope;
 import cl.almejo.vsim.core.value.Value;
+import cl.almejo.vsim.ui.actions.Actions;
 import cl.almejo.vsim.ui.actions.ContextMenuContributor;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.Selection;
@@ -19,7 +20,6 @@ import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuId;
 import cl.almejo.vsim.ui.window.panes.EveryPane;
 
-import javax.swing.AbstractAction;
 import javax.swing.Action;
 import javax.swing.JMenu;
 import javax.swing.JMenuItem;
@@ -27,7 +27,6 @@ import javax.swing.JOptionPane;
 import javax.swing.JPopupMenu;
 import javax.swing.Timer;
 import java.awt.Component;
-import java.awt.event.ActionEvent;
 import java.awt.geom.Point2D;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -122,12 +121,7 @@ public final class TruthTableFeatures {
         this.confirmation = confirmation;
         this.runner = runner;
         this.delay = delay;
-        this.action = new AbstractAction(Messages.text("action.truthTable")) {
-            @Override
-            public void actionPerformed(ActionEvent event) {
-                open(view.selection().ids());
-            }
-        };
+        this.action = Actions.of(Messages.text("action.truthTable"), () -> open(view.selection().ids()));
         this.simulationMenu = view.menu(MenuId.SIMULATION);
         simulationMenu.addSeparator();
         this.separator = simulationMenu.getMenuComponent(simulationMenu.getMenuComponentCount() - 1);
@@ -451,12 +445,7 @@ public final class TruthTableFeatures {
             String text = instance
                     .map(definition -> TruthTableMessages.instanceMenuText(definition.name()))
                     .orElseGet(() -> Messages.text("action.truthTable"));
-            menu.add(new JMenuItem(new AbstractAction(text) {
-                @Override
-                public void actionPerformed(ActionEvent event) {
-                    open(scope);
-                }
-            }));
+            menu.add(new JMenuItem(Actions.of(text, () -> open(scope))));
         }
     }
 }

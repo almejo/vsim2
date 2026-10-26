@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.stepping;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.core.simulation.StepReport;
 import cl.almejo.vsim.core.simulation.StepResult;
+import cl.almejo.vsim.ui.actions.Actions;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.icons.Icons;
@@ -11,7 +12,6 @@ import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuId;
 import cl.almejo.vsim.ui.window.panes.EveryPane;
 
-import javax.swing.AbstractAction;
 import javax.swing.AbstractButton;
 import javax.swing.BorderFactory;
 import javax.swing.Action;
@@ -24,7 +24,6 @@ import javax.swing.JMenuItem;
 import javax.swing.JToggleButton;
 import javax.swing.JToolBar;
 import java.awt.Component;
-import java.awt.event.ActionEvent;
 import java.util.List;
 import java.util.Optional;
 import java.util.OptionalLong;
@@ -70,24 +69,11 @@ public final class StepModeFeatures {
         this.view = view;
         this.openDocument = view.openDocument();
         this.nanoClock = nanoClock;
-        this.stepModeAction = new AbstractAction(Messages.text("action.stepMode")) {
-            @Override
-            public void actionPerformed(ActionEvent event) {
-                openDocument.setStepMode(!openDocument.stepMode());
-            }
-        };
-        this.advanceAction = new AbstractAction(Messages.text("action.advance")) {
-            @Override
-            public void actionPerformed(ActionEvent event) {
-                openDocument.advanceToNextEvent();
-            }
-        };
-        this.clockEdgeAction = new AbstractAction(Messages.text("action.advanceToClockEdge")) {
-            @Override
-            public void actionPerformed(ActionEvent event) {
-                openDocument.advanceToNextClockEdge();
-            }
-        };
+        this.stepModeAction = Actions.of(Messages.text("action.stepMode"),
+                () -> openDocument.setStepMode(!openDocument.stepMode()));
+        this.advanceAction = Actions.of(Messages.text("action.advance"), () -> openDocument.advanceToNextEvent());
+        this.clockEdgeAction = Actions.of(Messages.text("action.advanceToClockEdge"),
+                () -> openDocument.advanceToNextClockEdge());
         // 16 px in the menu, 24 px in the toolbar; ActionIcons (installed after this extension) hides the button
         // texts and uses the action names as tooltips, like the rest of the main toolbar
         Icons.install(stepModeAction, StepIcons.MODE);

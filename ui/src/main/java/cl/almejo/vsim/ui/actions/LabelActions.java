@@ -35,9 +35,7 @@ import cl.almejo.vsim.ui.paint.ConstantPainter;
 import cl.almejo.vsim.ui.paint.InterfacePinPainter;
 import cl.almejo.vsim.ui.tunnel.TunnelNameEditor;
 
-import javax.swing.AbstractAction;
 import javax.swing.Action;
-import java.awt.event.ActionEvent;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -65,12 +63,8 @@ public final class LabelActions {
         this.selection = selection;
         this.editor = editor;
         this.tunnelNames = new TunnelNameEditor(openDocument, editor);
-        editLabel = new AbstractAction(Messages.text("action.label")) {
-            @Override
-            public void actionPerformed(ActionEvent event) {
-                singleLabelled().ifPresent(LabelActions.this::editNameOrLabel);
-            }
-        };
+        editLabel = Actions.of(Messages.text("action.label"),
+                () -> singleLabelled().ifPresent(LabelActions.this::editNameOrLabel));
         editLabel.putValue(Action.SHORT_DESCRIPTION, Messages.text("tooltip.label"));
         selection.addListener(this::refresh);
         refresh();

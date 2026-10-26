@@ -1,11 +1,11 @@
 package cl.almejo.vsim.ui.stepping;
 
+import cl.almejo.vsim.ui.actions.Actions;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuId;
 
-import javax.swing.AbstractAction;
 import javax.swing.AbstractButton;
 import javax.swing.Action;
 import javax.swing.InputMap;
@@ -17,7 +17,6 @@ import javax.swing.JToolBar;
 import javax.swing.KeyStroke;
 import java.awt.Component;
 import java.awt.Container;
-import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
 import java.util.ArrayList;
 import java.util.List;
@@ -48,12 +47,7 @@ public final class FixedStepFeatures {
         this.view = view;
         this.preferences = view.services().preferences();
         this.chooser = chooser;
-        this.stepSizeAction = new AbstractAction(Messages.text("action.stepSize")) {
-            @Override
-            public void actionPerformed(ActionEvent event) {
-                askForASize();
-            }
-        };
+        this.stepSizeAction = Actions.of(Messages.text("action.stepSize"), () -> askForASize());
         this.stepSizeItem = new JMenuItem(stepSizeAction);
         stepSizeItem.putClientProperty(COMPANION, Boolean.TRUE);
         JMenu simulation = view.menu(MenuId.SIMULATION);

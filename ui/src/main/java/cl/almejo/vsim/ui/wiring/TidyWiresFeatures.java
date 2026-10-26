@@ -9,6 +9,7 @@ import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.wiring.TidyOptions;
 import cl.almejo.vsim.core.wiring.TidyPlan;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
+import cl.almejo.vsim.ui.actions.Actions;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.truthtable.TruthTableFeatures.Delay;
@@ -16,7 +17,6 @@ import cl.almejo.vsim.ui.icons.Icons;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuId;
 
-import javax.swing.AbstractAction;
 import javax.swing.AbstractButton;
 import javax.swing.Action;
 import javax.swing.JMenu;
@@ -25,7 +25,6 @@ import javax.swing.JMenuItem;
 import javax.swing.JPopupMenu;
 import javax.swing.JToolBar;
 import java.awt.Component;
-import java.awt.event.ActionEvent;
 import java.util.LinkedHashSet;
 import java.util.Optional;
 import java.util.Set;
@@ -84,18 +83,8 @@ public final class TidyWiresFeatures {
         this.previewRunner = previewRunner;
         this.delay = delay;
         this.progressFactory = progressFactory;
-        this.tidy = new AbstractAction(Messages.text("action.tidyWires")) {
-            @Override
-            public void actionPerformed(ActionEvent event) {
-                tidyNow();
-            }
-        };
-        this.tidyWithOptions = new AbstractAction(Messages.text("action.tidyWiresOptions")) {
-            @Override
-            public void actionPerformed(ActionEvent event) {
-                tidyWithDialog();
-            }
-        };
+        this.tidy = Actions.of(Messages.text("action.tidyWires"), () -> tidyNow());
+        this.tidyWithOptions = Actions.of(Messages.text("action.tidyWiresOptions"), () -> tidyWithDialog());
         // 16 px in the menu, 24 px in the toolbar; ActionIcons (installed after this extension) makes the button
         // icon-only with the action name as tooltip, and the shortcuts extension appends the shortcut
         Icons.install(tidy, TidyIcons.TIDY_WIRES);

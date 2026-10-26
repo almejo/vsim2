@@ -14,13 +14,11 @@ import cl.almejo.vsim.ui.canvas.Selection;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.i18n.NoteColorNames;
 
-import javax.swing.AbstractAction;
 import javax.swing.ButtonGroup;
 import javax.swing.JMenu;
 import javax.swing.JMenuItem;
 import javax.swing.JPopupMenu;
 import javax.swing.JRadioButtonMenuItem;
-import java.awt.event.ActionEvent;
 import java.awt.geom.Point2D;
 import java.util.List;
 import java.util.Optional;
@@ -101,11 +99,6 @@ public final class LabelMenuContributor implements ContextMenuContributor {
     }
 
     private static JMenuItem item(String text, Runnable behavior) {
-        return new JMenuItem(new AbstractAction(text) {
-            @Override
-            public void actionPerformed(ActionEvent event) {
-                behavior.run();
-            }
-        });
+        return new JMenuItem(Actions.of(text, behavior));
     }
 }

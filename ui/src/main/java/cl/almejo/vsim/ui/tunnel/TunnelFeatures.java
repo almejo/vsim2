@@ -8,6 +8,7 @@ import cl.almejo.vsim.core.document.DocumentListener;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.tunnel.TunnelKind;
 import cl.almejo.vsim.core.tunnel.Tunnels;
+import cl.almejo.vsim.ui.actions.Actions;
 import cl.almejo.vsim.ui.actions.ContextMenuContributor;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.CanvasOverlay;
@@ -21,12 +22,10 @@ import cl.almejo.vsim.ui.paint.TunnelPainter;
 import cl.almejo.vsim.ui.panels.StatusBar;
 import cl.almejo.vsim.ui.window.EditorView;
 
-import javax.swing.AbstractAction;
 import javax.swing.JMenuItem;
 import javax.swing.JPopupMenu;
 import java.awt.BasicStroke;
 import java.awt.Graphics2D;
-import java.awt.event.ActionEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.geom.Point2D;
@@ -234,11 +233,6 @@ public final class TunnelFeatures {
     }
 
     private static JMenuItem item(String key, Runnable behavior) {
-        return new JMenuItem(new AbstractAction(Messages.text(key)) {
-            @Override
-            public void actionPerformed(ActionEvent event) {
-                behavior.run();
-            }
-        });
+        return new JMenuItem(Actions.of(Messages.text(key), behavior));
     }
 }
