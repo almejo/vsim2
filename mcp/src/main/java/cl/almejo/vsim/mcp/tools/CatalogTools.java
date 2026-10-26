@@ -30,13 +30,13 @@ final class CatalogTools {
                         + "(the user's «Mis componentes»; placing it brings it into the circuit)",
                         List.of("BUILT_IN", "CIRCUIT", "LIBRARY")))
                 .property("parameters", Schema.array("Its parameters: name, kind, default, minimum/maximum or "
-                        + "choices", Schema.result("").build()))
+                        + "choices", Schema.anyObject()))
                 .property("parameterValues", Schema.result("The values these pins are for").build())
                 .property("width", Schema.integer("Body width in grid units, unrotated"))
                 .property("height", Schema.integer("Body height in grid units, unrotated"))
                 .property("pins", Schema.array("Its pins for these parameters: index (place among the part's pins), "
                         + "name, direction, width in bits (0: takes the width of what it touches) and position "
-                        + "relative to the part's origin, unrotated", Schema.result("").build()))
+                        + "relative to the part's origin, unrotated", Schema.anyObject()))
                 .required("typeId", "category", "userComponent", "origin", "pins")
                 .build();
     }

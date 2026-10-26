@@ -54,8 +54,8 @@ final class Common {
                 .property("running", Schema.bool("Whether the simulation runs on by itself after this call"))
                 .property("failure", Schema.string("Why the simulation failed, if it did"))
                 .property("inputs", Schema.array("For vsim_set_inputs: each value, accepted or not, in order",
-                        Schema.result("").build()))
-                .property("signals", Schema.array("Pins read", Schema.result("").build()))
+                        Schema.anyObject()))
+                .property("signals", Schema.array("Pins read", Schema.anyObject()))
                 .required("outcome", "time", "eventsProcessed", "running")
                 .build();
     }

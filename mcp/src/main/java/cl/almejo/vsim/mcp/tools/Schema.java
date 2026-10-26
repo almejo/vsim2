@@ -128,6 +128,11 @@ final class Schema {
         return new ObjectSchema(description).open();
     }
 
+    /** An open object (results only): any properties pass. */
+    static Map<String, Object> anyObject() {
+        return result("").build();
+    }
+
     private static Map<String, Object> with(Map<String, Object> schema, String description) {
         if (description == null || description.isEmpty()) {
             return schema;

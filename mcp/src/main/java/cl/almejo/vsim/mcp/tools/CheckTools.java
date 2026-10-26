@@ -115,7 +115,7 @@ final class CheckTools {
                                         .property("status", Schema.enumeration("", List.of("PASSED", "FAILED",
                                                 "NOT_FINISHED")))
                                         .property("summary", Schema.string(""))
-                                        .property("details", Schema.result("").build())
+                                        .property("details", Schema.anyObject())
                                         .required("kind", "status", "summary").build()))
                         .property("passed", Schema.bool("True only when every check PASSED on one version"))
                         .property("continuousStops", Schema.bool("True when «De corrido» stops at this stage's end "

@@ -451,12 +451,7 @@ public final class AutomationApi {
                     + ": «Presentar» stays on until it ends (end the task first; the user can switch it off in VSim)",
                     Map.of("document", document.value()));
         }
-        PresentationSettings settings = onEditorThread(access -> {
-            host.setPresenting(document, presenting);
-            return host.presentationSettings(document);
-        });
-        presentation.settingsChanged(document, settings);
-        return settings;
+        return switchPresentation(document, presenting, Optional.empty(), Optional.empty());
     }
 
     /**
@@ -493,9 +488,17 @@ public final class AutomationApi {
                     + ": «Presentar» stays on until it ends; a pace or pause goes with presenting true",
                     Map.of("document", document.value()));
         }
+        return switchPresentation(document, true, pace, pause);
+    }
+
+    /** Sets «Presentar» (and, when given, the task's pace and pause) on the editor thread; announces the settings. */
+    private PresentationSettings switchPresentation(DocumentId document, boolean presenting,
+                                                    Optional<PresentationPace> pace, Optional<Duration> pause) {
         PresentationSettings settings = onEditorThread(access -> {
-            host.setPresenting(document, true);
-            host.layerPresentation(document, pace, pause);
+            host.setPresenting(document, presenting);
+            if (pace.isPresent() || pause.isPresent()) {
+                host.layerPresentation(document, pace, pause);
+            }
             return host.presentationSettings(document);
         });
         presentation.settingsChanged(document, settings);

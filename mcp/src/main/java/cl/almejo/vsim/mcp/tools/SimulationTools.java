@@ -136,7 +136,7 @@ final class SimulationTools {
                         .property("running", Schema.bool("The simulation goes on after this instant"))
                         .property("stale", Schema.bool("The circuit changed before the answer"))
                         .property("signals", Schema.array("One per pin asked: pin, width, bits, hex, "
-                                + "highImpedanceMask, conflict", Schema.result("").build()))
+                                + "highImpedanceMask, conflict", Schema.anyObject()))
                         .required("time", "signals").build(),
                 Tool.Hints.READS,
                 List.of(Map.of("document", "circuit-1", "pins",
@@ -167,12 +167,12 @@ final class SimulationTools {
                         .property("eventBudget", eventBudget())
                         .required("document").build(),
                 Common.versionedResult("The table")
-                        .property("inputs", Schema.array("Columns: name, elementId, width", Schema.result("").build()))
+                        .property("inputs", Schema.array("Columns: name, elementId, width", Schema.anyObject()))
                         .property("outputs", Schema.array("Columns: name, elementId, width",
-                                Schema.result("").build()))
+                                Schema.anyObject()))
                         .property("rows", Schema.array("inputs, outputs, settled, cutShort (the row ran out of "
                                 + "its share of the events before settling: its outputs are not known)",
-                                Schema.result("").build()))
+                                Schema.anyObject()))
                         .property("totalRows", Schema.integer("Rows the full table has"))
                         .property("truncated", Schema.bool("The row limit cut it"))
                         .property("budgetExceeded", Schema.bool("Some rows are cutShort (rows never reached are a "

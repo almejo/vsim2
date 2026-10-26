@@ -149,8 +149,12 @@ final class Arguments {
         if (!(value instanceof Map<?, ?> map)) {
             throw invalid(name, "must be an object");
         }
+        return copyOf(map);
+    }
+
+    private static Map<String, Object> copyOf(Map<?, ?> source) {
         Map<String, Object> copy = new LinkedHashMap<>();
-        map.forEach((key, element) -> copy.put(String.valueOf(key), element));
+        source.forEach((key, element) -> copy.put(String.valueOf(key), element));
         return copy;
     }
 
@@ -194,9 +198,7 @@ final class Arguments {
             if (!(list.get(index) instanceof Map<?, ?> element)) {
                 throw invalid(name + "[" + index + "]", "must be an object");
             }
-            Map<String, Object> copy = new LinkedHashMap<>();
-            element.forEach((key, item) -> copy.put(String.valueOf(key), item));
-            objects.add(new Arguments(copy, qualified(name + "[" + index + "]")));
+            objects.add(new Arguments(copyOf(element), qualified(name + "[" + index + "]")));
         }
         return objects;
     }

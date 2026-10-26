@@ -53,13 +53,13 @@ final class CircuitTools {
                         .property("summary", Schema.result("The whole circuit in numbers: parts, wires, frames, "
                                 + "notes, guides, nets, bounds, parts by type, user components").build())
                         .property("parts", Schema.array("Placed parts: id, typeId, label, position, rotation, "
-                                + "parameters, bounds and (FULL) pins", Schema.result("").build()))
-                        .property("wires", Schema.array("Wires: id, start, end, net", Schema.result("").build()))
-                        .property("frames", Schema.array("Frames", Schema.result("").build()))
-                        .property("notes", Schema.array("Free texts", Schema.result("").build()))
+                                + "parameters, bounds and (FULL) pins", Schema.anyObject()))
+                        .property("wires", Schema.array("Wires: id, start, end, net", Schema.anyObject()))
+                        .property("frames", Schema.array("Frames", Schema.anyObject()))
+                        .property("notes", Schema.array("Free texts", Schema.anyObject()))
                         .property("guides", Schema.array("Alignment guides (first page only)",
-                                Schema.result("").build()))
-                        .property("nets", Schema.array("Nets as lists of pins and wires", Schema.result("").build()))
+                                Schema.anyObject()))
+                        .property("nets", Schema.array("Nets as lists of pins and wires", Schema.anyObject()))
                         .property("matchingElements", Schema.integer("Elements the filter keeps, over all pages"))
                         .property("nextCursor", Schema.string("Read the next page with it; absent on the last"))
                         .required("summary", "parts", "matchingElements").build(),
@@ -91,7 +91,7 @@ final class CircuitTools {
                         .property("simulationTime", Schema.string("When the simulation found them"))
                         .property("upToDate", Schema.bool("Whether the simulation has caught up with the circuit"))
                         .property("problems", Schema.array("kind, warning, message, elementIds, pins, insidePaths",
-                                Schema.result("").build()))
+                                Schema.anyObject()))
                         .required("upToDate", "problems").build(),
                 Tool.Hints.READS, List.of(Map.of("document", "circuit-1")),
                 arguments -> Tool.Output.of(api.readProblems(arguments.document())));

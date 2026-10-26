@@ -353,9 +353,9 @@ final class EditTools {
                 .property("aliases", Schema.result("alias → real id").build())
                 .property("connections", Schema.array("Per Connect: its operation, from, to, wireIds; joinedNets "
                         + "when it joined more than its two pins; alreadyConnected when it added nothing",
-                        Schema.result("").build()))
+                        Schema.anyObject()))
                 .property("components", Schema.array("Components created: id, name and pins",
-                        Schema.result("").build()))
+                        Schema.anyObject()))
                 .property("changes", Schema.result("Element ids added, changed and removed (wires merge: an id "
                         + "may give way to another)").build())
                 .property("warnings", Schema.array("Things to look at", Schema.string("")))
