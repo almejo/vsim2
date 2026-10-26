@@ -6,6 +6,7 @@ import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
+import cl.almejo.vsim.core.geometry.WireLines;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.InterfacePins;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
@@ -25,7 +26,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
-import java.util.TreeMap;
 
 /** Checks geometry at every instance level, independently of signal values and simulation state. */
 public final class ConnectivityChecks {
@@ -158,20 +158,15 @@ public final class ConnectivityChecks {
         /** Distinct rays distinguish a real corner/junction from overlapping wires ending on the same side. */
         private Map<GridPoint, Set<GridPoint>> wireDirections(List<Wire> wires) {
             Map<GridPoint, Set<GridPoint>> directions = new HashMap<>();
-            Map<Integer, TreeMap<Integer, GridPoint>> rows = new HashMap<>();
-            Map<Integer, TreeMap<Integer, GridPoint>> columns = new HashMap<>();
+            WireLines wireLines = new WireLines();
             for (Wire wire : wires) {
                 for (GridPoint point : List.of(wire.start(), wire.end())) {
                     directions.computeIfAbsent(point, unused -> new HashSet<>());
-                    rows.computeIfAbsent(point.y(), unused -> new TreeMap<>()).put(point.x(), point);
-                    columns.computeIfAbsent(point.x(), unused -> new TreeMap<>()).put(point.y(), point);
+                    wireLines.add(point);
                 }
             }
             for (Wire wire : wires) {
-                Map<Integer, GridPoint> contained = wire.isHorizontal()
-                        ? rows.get(wire.start().y()).subMap(wire.start().x(), true, wire.end().x(), true)
-                        : columns.get(wire.start().x()).subMap(wire.start().y(), true, wire.end().y(), true);
-                for (GridPoint point : contained.values()) {
+                for (GridPoint point : wireLines.pointsOn(wire)) {
                     addDirection(directions.get(point), point, wire.start());
                     addDirection(directions.get(point), point, wire.end());
                 }
