@@ -17,13 +17,13 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import java.awt.event.MouseEvent;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
 import static cl.almejo.vsim.ui.UiTestSupport.NO_WINDOW;
 import static cl.almejo.vsim.ui.UiTestSupport.place;
+import static cl.almejo.vsim.ui.UiTestSupport.press;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
 
@@ -48,14 +48,6 @@ class EditorViewPanesTest {
     void close() {
         view.dispose();
         openDocument.close();
-    }
-
-    private static void press(CircuitCanvas canvas) {
-        MouseEvent event = new MouseEvent(canvas, MouseEvent.MOUSE_PRESSED, 0, 0, 20, 20, 1, false,
-                MouseEvent.BUTTON1);
-        for (var listener : canvas.getMouseListeners()) {
-            listener.mousePressed(event);
-        }
     }
 
     /** A tool that records the presses it gets. */

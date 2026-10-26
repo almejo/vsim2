@@ -32,6 +32,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static cl.almejo.vsim.ui.UiTestSupport.NO_WINDOW;
+import static cl.almejo.vsim.ui.UiTestSupport.perform;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tidying off the EDT: the 2 s progress window, Cancelar, a document that changed meanwhile and the dialog summary. */
@@ -136,10 +137,6 @@ class TidyWiresBackgroundTest {
         while (!edtQueue.isEmpty()) {
             edtQueue.poll().run();
         }
-    }
-
-    private static void perform(javax.swing.Action action) {
-        action.actionPerformed(new java.awt.event.ActionEvent(action, java.awt.event.ActionEvent.ACTION_PERFORMED, ""));
     }
 
     @Test

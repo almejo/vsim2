@@ -51,6 +51,7 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static cl.almejo.vsim.ui.UiTestSupport.NO_WINDOW;
+import static cl.almejo.vsim.ui.UiTestSupport.onEditor;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -235,21 +236,5 @@ class EditorAutomationHostToolsTest {
 
     private DocumentId idOf(OpenDocument document) {
         return api.listDocuments().get(open.indexOf(document)).id();
-    }
-
-    private static <T> T onEditor(java.util.concurrent.Callable<T> work) throws Exception {
-        AtomicReference<T> result = new AtomicReference<>();
-        AtomicReference<Exception> failure = new AtomicReference<>();
-        SwingUtilities.invokeAndWait(() -> {
-            try {
-                result.set(work.call());
-            } catch (Exception exception) {
-                failure.set(exception);
-            }
-        });
-        if (failure.get() != null) {
-            throw failure.get();
-        }
-        return result.get();
     }
 }

@@ -34,13 +34,13 @@ import java.awt.event.InputEvent;
 import java.awt.event.MouseEvent;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
 import static cl.almejo.vsim.ui.UiTestSupport.NO_WINDOW;
 import static cl.almejo.vsim.ui.UiTestSupport.place;
+import static cl.almejo.vsim.ui.UiTestSupport.texts;
 import static cl.almejo.vsim.ui.UiTestSupport.waitUntil;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -288,13 +288,5 @@ class BusInputValueEditorTest {
         JPopupMenu menu = new JPopupMenu();
         contributor.contribute(menu, Optional.of(target), view.canvas().selection(), new Point2D.Double(0, 0));
         return menu;
-    }
-
-    private static List<String> texts(JPopupMenu menu) {
-        List<String> texts = new ArrayList<>();
-        for (java.awt.Component child : menu.getComponents()) {
-            texts.add(child instanceof JMenuItem item ? item.getText() : "---");
-        }
-        return texts;
     }
 }

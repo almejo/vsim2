@@ -1,9 +1,7 @@
 package cl.almejo.vsim.ui.ai;
 
 import cl.almejo.vsim.automation.AutomationApi;
-import cl.almejo.vsim.automation.AutomationHost;
 import cl.almejo.vsim.automation.DocumentId;
-import cl.almejo.vsim.automation.EditorAccess;
 import cl.almejo.vsim.automation.TaskInfo;
 import cl.almejo.vsim.automation.UndoOutcome;
 import cl.almejo.vsim.mcp.McpServerSettings;
@@ -25,9 +23,8 @@ import java.net.http.HttpResponse;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
-import java.util.function.Function;
 
+import static cl.almejo.vsim.ui.UiTestSupport.freePort;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** The server's states as the panel says them (spec §2, §9.1) and the tasks it follows, with a fake automation. */
@@ -210,19 +207,6 @@ class AiServerStatesTest {
                 .build();
         try (HttpClient client = HttpClient.newHttpClient()) {
             return client.send(request, HttpResponse.BodyHandlers.discarding()).statusCode();
-        }
-    }
-
-    private static int freePort() throws IOException {
-        try (ServerSocket probe = new ServerSocket(0, 50, InetAddress.getLoopbackAddress())) {
-            return probe.getLocalPort();
-        }
-    }
-
-    private static final class NoDocuments implements AutomationHost {
-        @Override
-        public <T> CompletableFuture<T> onEditorThread(Function<EditorAccess, T> work) {
-            return CompletableFuture.completedFuture(work.apply(List::of));
         }
     }
 }

@@ -24,19 +24,19 @@ import javax.swing.Action;
 import javax.swing.JMenuItem;
 import javax.swing.JPopupMenu;
 import java.awt.geom.Point2D;
-import java.util.ArrayList;
 import java.util.Optional;
 import java.awt.datatransfer.Clipboard;
 import java.awt.datatransfer.DataFlavor;
 import java.awt.datatransfer.StringSelection;
-import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
 import java.util.List;
 import java.util.Map;
 
 import static cl.almejo.vsim.ui.UiTestSupport.NO_WINDOW;
+import static cl.almejo.vsim.ui.UiTestSupport.perform;
 import static cl.almejo.vsim.ui.UiTestSupport.place;
+import static cl.almejo.vsim.ui.UiTestSupport.texts;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class SelectionActionsTest {
@@ -65,10 +65,6 @@ class SelectionActionsTest {
 
     private Component gateAt(int x, int y) {
         return place(openDocument, StandardComponentTypes.NOT, x, y, Map.of());
-    }
-
-    private static void perform(Action action) {
-        action.actionPerformed(new ActionEvent(new Object(), ActionEvent.ACTION_PERFORMED, ""));
     }
 
     private void moveMouseTo(int screenX, int screenY) {
@@ -284,14 +280,6 @@ class SelectionActionsTest {
         openDocument.execute(new AddWireCommand(wire));
         perform(actions.selectAll());
         assertThat(view.canvas().selection().ids()).containsExactlyInAnyOrder(first.id(), second.id(), wire.id());
-    }
-
-    private static List<String> texts(JPopupMenu menu) {
-        List<String> texts = new ArrayList<>();
-        for (java.awt.Component child : menu.getComponents()) {
-            texts.add(child instanceof JMenuItem item ? item.getText() : "---");
-        }
-        return texts;
     }
 
     private JPopupMenu contribute(JPopupMenu menu, Optional<DocumentElement> target) {

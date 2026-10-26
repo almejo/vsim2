@@ -27,6 +27,7 @@ import java.util.Locale;
 import java.util.Optional;
 import java.util.ResourceBundle;
 
+import static cl.almejo.vsim.ui.UiTestSupport.texts;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class ExamplesFeatureTest {
@@ -66,14 +67,6 @@ class ExamplesFeatureTest {
     private ExamplesFeature feature() {
         return new ExamplesFeature(id -> BundledExamples.open(id, StandardComponentTypes.registry()),
                 component -> Optional.of(window), (parent, name) -> failures.add(name));
-    }
-
-    private static List<String> texts(JMenu menu) {
-        List<String> texts = new ArrayList<>();
-        for (Component child : menu.getMenuComponents()) {
-            texts.add(child instanceof JMenuItem item ? item.getText() : "---");
-        }
-        return texts;
     }
 
     private static JMenu examplesMenu(JMenu file) {

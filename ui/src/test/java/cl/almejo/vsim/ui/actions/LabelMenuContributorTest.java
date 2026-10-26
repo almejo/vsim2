@@ -31,13 +31,13 @@ import javax.swing.JMenuItem;
 import javax.swing.JPopupMenu;
 import java.awt.event.ActionEvent;
 import java.awt.geom.Point2D;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
 import static cl.almejo.vsim.ui.UiTestSupport.NO_WINDOW;
 import static cl.almejo.vsim.ui.UiTestSupport.place;
+import static cl.almejo.vsim.ui.UiTestSupport.texts;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class LabelMenuContributorTest {
@@ -69,14 +69,6 @@ class LabelMenuContributorTest {
         JPopupMenu menu = new JPopupMenu();
         contributor.contribute(menu, target, selection, clickedAt);
         return menu;
-    }
-
-    private static List<String> texts(JPopupMenu menu) {
-        List<String> texts = new ArrayList<>();
-        for (java.awt.Component child : menu.getComponents()) {
-            texts.add(child instanceof JMenuItem item ? item.getText() : "---");
-        }
-        return texts;
     }
 
     private static void choose(JPopupMenu menu, int index) {
@@ -163,14 +155,6 @@ class LabelMenuContributorTest {
         openDocument.history().undo();
         assertThat(openDocument.document().labels()).extracting(TextLabel::style)
                 .containsOnly(NoteStyle.PLAIN);
-    }
-
-    private static List<String> texts(JMenu menu) {
-        List<String> texts = new ArrayList<>();
-        for (java.awt.Component child : menu.getMenuComponents()) {
-            texts.add(child instanceof JMenuItem item ? item.getText() : "---");
-        }
-        return texts;
     }
 
     @Test

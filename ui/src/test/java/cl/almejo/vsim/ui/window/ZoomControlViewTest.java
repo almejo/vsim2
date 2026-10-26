@@ -19,12 +19,12 @@ import org.junit.jupiter.api.Test;
 
 import javax.swing.JMenuItem;
 import javax.swing.JTextField;
-import java.awt.event.MouseEvent;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
 import static cl.almejo.vsim.ui.UiTestSupport.NO_WINDOW;
+import static cl.almejo.vsim.ui.UiTestSupport.press;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
 
@@ -53,14 +53,6 @@ class ZoomControlViewTest {
 
     private ZoomControl control() {
         return view.zoomControl();
-    }
-
-    private static void press(CircuitCanvas canvas) {
-        MouseEvent event = new MouseEvent(canvas, MouseEvent.MOUSE_PRESSED, 0, 0, 20, 20, 1, false,
-                MouseEvent.BUTTON1);
-        for (var listener : canvas.getMouseListeners()) {
-            listener.mousePressed(event);
-        }
     }
 
     @Test

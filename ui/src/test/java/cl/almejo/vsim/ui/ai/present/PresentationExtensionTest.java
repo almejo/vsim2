@@ -26,16 +26,15 @@ import javax.swing.JMenu;
 import javax.swing.JMenuItem;
 import javax.swing.JRootPane;
 import javax.swing.SwingUtilities;
-import java.awt.Component;
-import java.awt.Container;
 import java.awt.Point;
 import java.awt.Rectangle;
 import java.util.ArrayDeque;
-import java.util.ArrayList;
 import java.util.Deque;
 import java.util.List;
 
 import static cl.almejo.vsim.ui.UiTestSupport.NO_WINDOW;
+import static cl.almejo.vsim.ui.UiTestSupport.layOut;
+import static cl.almejo.vsim.ui.UiTestSupport.texts;
 import static cl.almejo.vsim.ui.ai.present.FakePresentationEvents.step;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -311,22 +310,5 @@ class PresentationExtensionTest {
 
         assertThat(panel.getParent()).isNull();
         assertThat(panel.nextButton().isEnabled()).isFalse();
-    }
-
-    private static List<String> texts(JMenu menu) {
-        List<String> texts = new ArrayList<>();
-        for (Component child : menu.getMenuComponents()) {
-            texts.add(child instanceof JMenuItem item ? item.getText() : "---");
-        }
-        return texts;
-    }
-
-    private static void layOut(Container container) {
-        container.doLayout();
-        for (Component child : container.getComponents()) {
-            if (child instanceof Container inner) {
-                layOut(inner);
-            }
-        }
     }
 }

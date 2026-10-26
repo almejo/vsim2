@@ -32,6 +32,7 @@ import java.util.Map;
 
 import static cl.almejo.vsim.ui.UiTestSupport.NO_WINDOW;
 import static cl.almejo.vsim.ui.UiTestSupport.place;
+import static cl.almejo.vsim.ui.UiTestSupport.texts;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class SnapFeaturesTest {
@@ -65,14 +66,6 @@ class SnapFeaturesTest {
         view.dispose();
         otherView.dispose();
         openDocument.close();
-    }
-
-    private static List<String> texts(JMenu menu) {
-        List<String> texts = new ArrayList<>();
-        for (java.awt.Component child : menu.getMenuComponents()) {
-            texts.add(child instanceof JMenuItem item ? item.getText() : "---");
-        }
-        return texts;
     }
 
     private static JMenu snapToMenu(EditorView target) {

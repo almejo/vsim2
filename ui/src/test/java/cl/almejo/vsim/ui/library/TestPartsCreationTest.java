@@ -28,8 +28,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static cl.almejo.vsim.ui.UiTestSupport.perform;
 import static cl.almejo.vsim.ui.UiTestSupport.waitUntil;
-import static cl.almejo.vsim.ui.library.TemplateFixture.perform;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** «Crear componente» with test parts in the selection (followups 2026-10-12 and 2026-10-18). */

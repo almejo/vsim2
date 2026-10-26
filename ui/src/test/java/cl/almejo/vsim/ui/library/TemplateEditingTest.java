@@ -50,9 +50,9 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
+import static cl.almejo.vsim.ui.UiTestSupport.perform;
 import static cl.almejo.vsim.ui.UiTestSupport.waitUntil;
 import static cl.almejo.vsim.ui.library.TemplateActionsTest.texts;
-import static cl.almejo.vsim.ui.library.TemplateFixture.perform;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
 

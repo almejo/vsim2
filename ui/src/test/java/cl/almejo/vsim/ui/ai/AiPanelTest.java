@@ -1,9 +1,7 @@
 package cl.almejo.vsim.ui.ai;
 
 import cl.almejo.vsim.automation.AutomationApi;
-import cl.almejo.vsim.automation.AutomationHost;
 import cl.almejo.vsim.automation.DocumentId;
-import cl.almejo.vsim.automation.EditorAccess;
 import cl.almejo.vsim.automation.EditorSetting;
 import cl.almejo.vsim.automation.ProposalAnswer;
 import cl.almejo.vsim.automation.ProposedPreference;
@@ -25,9 +23,8 @@ import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import java.util.function.Function;
 
+import static cl.almejo.vsim.ui.UiTestSupport.freePort;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Herramientas ▸ «IA (MCP)…»: the live state in words and colour, and what the user does there (spec §2, §7). */
@@ -237,19 +234,6 @@ class AiPanelTest {
         } finally {
             sessionPanel.dispose();
             session.stop();
-        }
-    }
-
-    private static int freePort() throws IOException {
-        try (ServerSocket probe = new ServerSocket(0, 50, InetAddress.getLoopbackAddress())) {
-            return probe.getLocalPort();
-        }
-    }
-
-    private static final class NoDocuments implements AutomationHost {
-        @Override
-        public <T> CompletableFuture<T> onEditorThread(Function<EditorAccess, T> work) {
-            return CompletableFuture.completedFuture(work.apply(List::of));
         }
     }
 }

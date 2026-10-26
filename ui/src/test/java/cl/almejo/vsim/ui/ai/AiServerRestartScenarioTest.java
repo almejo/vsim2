@@ -21,7 +21,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import javax.swing.SwingUtilities;
-import java.io.IOException;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.http.HttpRequest;
@@ -32,14 +31,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.Callable;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
 
+import static cl.almejo.vsim.ui.UiTestSupport.freePort;
+import static cl.almejo.vsim.ui.UiTestSupport.onEditor;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -357,28 +356,6 @@ class AiServerRestartScenarioTest {
     @SuppressWarnings("unchecked")
     private static List<Map<String, Object>> list(Map<String, Object> object, String key) {
         return (List<Map<String, Object>>) object.get(key);
-    }
-
-    private static <T> T onEditor(Callable<T> work) throws Exception {
-        AtomicReference<T> result = new AtomicReference<>();
-        AtomicReference<Exception> failure = new AtomicReference<>();
-        SwingUtilities.invokeAndWait(() -> {
-            try {
-                result.set(work.call());
-            } catch (Exception exception) {
-                failure.set(exception);
-            }
-        });
-        if (failure.get() != null) {
-            throw failure.get();
-        }
-        return result.get();
-    }
-
-    private static int freePort() throws IOException {
-        try (ServerSocket probe = new ServerSocket(0, 50, InetAddress.getLoopbackAddress())) {
-            return probe.getLocalPort();
-        }
     }
 
     private final class Heard implements PresentationListener {

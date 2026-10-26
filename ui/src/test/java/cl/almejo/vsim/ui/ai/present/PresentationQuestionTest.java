@@ -31,6 +31,7 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static cl.almejo.vsim.ui.UiTestSupport.NO_WINDOW;
+import static cl.almejo.vsim.ui.UiTestSupport.layOut;
 import static cl.almejo.vsim.ui.ai.present.FakePresentationEvents.step;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -248,14 +249,5 @@ class PresentationQuestionTest {
             }
         }
         return null;
-    }
-
-    private static void layOut(Container container) {
-        container.doLayout();
-        for (Component child : container.getComponents()) {
-            if (child instanceof Container inner) {
-                layOut(inner);
-            }
-        }
     }
 }

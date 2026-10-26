@@ -48,6 +48,8 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static cl.almejo.vsim.ui.UiTestSupport.NO_WINDOW;
+import static cl.almejo.vsim.ui.UiTestSupport.layOut;
+import static cl.almejo.vsim.ui.UiTestSupport.onEditor;
 import static cl.almejo.vsim.ui.UiTestSupport.place;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -282,35 +284,9 @@ class EditorAutomationHostReadTest {
         return created.get();
     }
 
-    /** Lays {@code container} out all the way down, as showing a window would. */
-    private static void layOut(java.awt.Container container) {
-        container.doLayout();
-        for (java.awt.Component child : container.getComponents()) {
-            if (child instanceof java.awt.Container nested) {
-                layOut(nested);
-            }
-        }
-    }
-
     private DocumentId idOf(OpenDocument document) {
         int index = open.indexOf(document);
         return api.listDocuments().get(index).id();
-    }
-
-    private static <T> T onEditor(java.util.concurrent.Callable<T> work) throws Exception {
-        AtomicReference<T> result = new AtomicReference<>();
-        AtomicReference<Exception> failure = new AtomicReference<>();
-        SwingUtilities.invokeAndWait(() -> {
-            try {
-                result.set(work.call());
-            } catch (Exception exception) {
-                failure.set(exception);
-            }
-        });
-        if (failure.get() != null) {
-            throw failure.get();
-        }
-        return result.get();
     }
 
     private static BufferedImage decode(byte[] png) throws IOException {

@@ -45,6 +45,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import static cl.almejo.vsim.ui.UiTestSupport.layOut;
 import static cl.almejo.vsim.ui.UiTestSupport.place;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -692,15 +693,6 @@ class PropertiesPanelTest {
         List<java.awt.Rectangle[]> rows = new java.util.ArrayList<>();
         collectRows(panel, rows);
         return rows;
-    }
-
-    private static void layOut(java.awt.Container container) {
-        container.doLayout();
-        for (java.awt.Component child : container.getComponents()) {
-            if (child instanceof java.awt.Container inner) {
-                layOut(inner);
-            }
-        }
     }
 
     private void collectRows(java.awt.Container container, List<java.awt.Rectangle[]> rows) {

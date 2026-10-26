@@ -24,7 +24,7 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.Set;
 
-import static cl.almejo.vsim.ui.library.TemplateFixture.perform;
+import static cl.almejo.vsim.ui.UiTestSupport.perform;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Renaming the pins in the «Crear componente» dialog (agreed with the user 2026-10-18). */

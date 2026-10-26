@@ -1,24 +1,19 @@
 package cl.almejo.vsim.ui.ai;
 
 import cl.almejo.vsim.automation.AutomationApi;
-import cl.almejo.vsim.automation.AutomationHost;
-import cl.almejo.vsim.automation.EditorAccess;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.i18n.Messages;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
-import java.net.InetAddress;
-import java.net.ServerSocket;
 import java.time.Clock;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.OptionalInt;
-import java.util.concurrent.CompletableFuture;
-import java.util.function.Function;
 
+import static cl.almejo.vsim.ui.UiTestSupport.freePort;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Preferencias ▸ «IA» (spec §2): every change is stored at once. */
@@ -199,21 +194,8 @@ class AiPreferencesPanelTest {
         panel.dispose();
     }
 
-    private static int freePort() throws IOException {
-        try (ServerSocket probe = new ServerSocket(0, 50, InetAddress.getLoopbackAddress())) {
-            return probe.getLocalPort();
-        }
-    }
-
     private AiServerService sessionService(SessionPort sessionPort) {
         return new AiServerService(preferences, new AutomationApi(new NoDocuments()), new FakeAiTasks(),
                 Runnable::run, Runnable::run, AiServerService.QueuedWork.NONE, sessionPort);
-    }
-
-    private static final class NoDocuments implements AutomationHost {
-        @Override
-        public <T> CompletableFuture<T> onEditorThread(Function<EditorAccess, T> work) {
-            return CompletableFuture.completedFuture(work.apply(List::of));
-        }
     }
 }

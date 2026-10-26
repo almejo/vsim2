@@ -34,7 +34,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static cl.almejo.vsim.ui.library.TemplateFixture.perform;
+import static cl.almejo.vsim.ui.UiTestSupport.perform;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class AppearanceEndToEndTest {

@@ -24,10 +24,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import javax.swing.Action;
-import javax.swing.JMenu;
-import javax.swing.JMenuItem;
 import javax.swing.Timer;
-import java.awt.event.ActionEvent;
 import java.nio.file.Path;
 import java.time.Clock;
 import java.time.Instant;
@@ -39,6 +36,8 @@ import java.util.Optional;
 import java.util.Set;
 
 import static cl.almejo.vsim.ui.UiTestSupport.NO_WINDOW;
+import static cl.almejo.vsim.ui.UiTestSupport.perform;
+import static cl.almejo.vsim.ui.UiTestSupport.texts;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class ExportPdfFeaturesTest {
@@ -82,18 +81,6 @@ class ExportPdfFeaturesTest {
         imageFeatures.dispose();
         view.dispose();
         openDocument.close();
-    }
-
-    private static void perform(Action action) {
-        action.actionPerformed(new ActionEvent(action, ActionEvent.ACTION_PERFORMED, ""));
-    }
-
-    private static List<String> texts(JMenu menu) {
-        List<String> texts = new ArrayList<>();
-        for (java.awt.Component child : menu.getMenuComponents()) {
-            texts.add(child instanceof JMenuItem item ? item.getText() : "---");
-        }
-        return texts;
     }
 
     @Test

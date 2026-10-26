@@ -1,9 +1,7 @@
 package cl.almejo.vsim.ui.ai;
 
 import cl.almejo.vsim.automation.AutomationApi;
-import cl.almejo.vsim.automation.AutomationHost;
 import cl.almejo.vsim.automation.DocumentId;
-import cl.almejo.vsim.automation.EditorAccess;
 import cl.almejo.vsim.automation.EditorSetting;
 import cl.almejo.vsim.automation.UndoOutcome;
 import cl.almejo.vsim.mcp.McpServerSettings;
@@ -34,9 +32,8 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
-import java.util.function.Function;
 
+import static cl.almejo.vsim.ui.UiTestSupport.freePort;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** The rebuilt panel (IA.3): the state header, Encender / Apagar / Reiniciar, what to do on errors, tasks, icons. */
@@ -303,18 +300,5 @@ class AiPanelStatesTest {
             }
         }
         return drawn;
-    }
-
-    private static int freePort() throws IOException {
-        try (ServerSocket probe = new ServerSocket(0, 50, InetAddress.getLoopbackAddress())) {
-            return probe.getLocalPort();
-        }
-    }
-
-    private static final class NoDocuments implements AutomationHost {
-        @Override
-        public <T> CompletableFuture<T> onEditorThread(Function<EditorAccess, T> work) {
-            return CompletableFuture.completedFuture(work.apply(List::of));
-        }
     }
 }

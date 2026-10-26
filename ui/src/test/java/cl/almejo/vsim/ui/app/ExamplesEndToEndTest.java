@@ -32,7 +32,6 @@ import org.junit.jupiter.api.io.TempDir;
 
 import javax.swing.Action;
 import javax.swing.JMenu;
-import javax.swing.JMenuItem;
 import javax.swing.KeyStroke;
 import java.awt.event.KeyEvent;
 import java.nio.file.Path;
@@ -44,6 +43,7 @@ import java.util.Optional;
 import java.util.Set;
 
 import static cl.almejo.vsim.ui.UiTestSupport.NO_WINDOW;
+import static cl.almejo.vsim.ui.UiTestSupport.texts;
 import static cl.almejo.vsim.ui.UiTestSupport.waitUntil;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -124,14 +124,6 @@ class ExamplesEndToEndTest {
     private static StepReport nextReport(OpenDocument document, long afterSequence) {
         waitUntil(() -> document.latestStep().map(report -> report.sequence() > afterSequence).orElse(false));
         return document.latestStep().orElseThrow();
-    }
-
-    private static List<String> texts(JMenu menu) {
-        List<String> texts = new ArrayList<>();
-        for (java.awt.Component child : menu.getMenuComponents()) {
-            texts.add(child instanceof JMenuItem item ? item.getText() : "---");
-        }
-        return texts;
     }
 
     private static JMenu examplesMenu(EditorView view) {

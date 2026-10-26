@@ -1,9 +1,7 @@
 package cl.almejo.vsim.ui.ai;
 
 import cl.almejo.vsim.automation.AutomationApi;
-import cl.almejo.vsim.automation.AutomationHost;
 import cl.almejo.vsim.automation.DocumentId;
-import cl.almejo.vsim.automation.EditorAccess;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.theme.FlatLafInstaller;
@@ -22,10 +20,9 @@ import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.time.Clock;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Function;
 
+import static cl.almejo.vsim.ui.UiTestSupport.freePort;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** The AI's state in every window's status bar (Pulido T3): «IA: escuchando», a coloured dot, a click to the panel. */
@@ -161,19 +158,6 @@ class AiStatusIndicatorTest {
         MouseEvent click = new MouseEvent(indicator, MouseEvent.MOUSE_CLICKED, 0, 0, 2, 2, 1, false, button);
         for (MouseListener listener : indicator.getMouseListeners()) {
             listener.mouseClicked(click);
-        }
-    }
-
-    private static int freePort() throws IOException {
-        try (ServerSocket probe = new ServerSocket(0, 50, InetAddress.getLoopbackAddress())) {
-            return probe.getLocalPort();
-        }
-    }
-
-    private static final class NoDocuments implements AutomationHost {
-        @Override
-        public <T> CompletableFuture<T> onEditorThread(Function<EditorAccess, T> work) {
-            return CompletableFuture.completedFuture(work.apply(List::of));
         }
     }
 }

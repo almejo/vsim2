@@ -20,8 +20,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import javax.swing.JRootPane;
-import java.awt.Component;
-import java.awt.Container;
 import java.awt.Font;
 import java.awt.Graphics2D;
 import java.awt.Rectangle;
@@ -32,6 +30,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static cl.almejo.vsim.ui.UiTestSupport.NO_WINDOW;
+import static cl.almejo.vsim.ui.UiTestSupport.layOut;
 import static cl.almejo.vsim.ui.ai.present.FakePresentationEvents.step;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -205,14 +204,5 @@ class PresentationNarrationTest {
 
         assertThat(caption.text()).isEmpty();
         assertThat(events.presentationListeners).isEmpty();
-    }
-
-    private static void layOut(Container container) {
-        container.doLayout();
-        for (Component child : container.getComponents()) {
-            if (child instanceof Container inner) {
-                layOut(inner);
-            }
-        }
     }
 }

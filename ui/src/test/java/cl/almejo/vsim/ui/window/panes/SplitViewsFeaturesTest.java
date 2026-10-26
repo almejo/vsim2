@@ -23,7 +23,6 @@ import org.junit.jupiter.api.Test;
 
 import javax.swing.Action;
 import javax.swing.JMenu;
-import javax.swing.JMenuItem;
 import java.awt.Cursor;
 import java.awt.Rectangle;
 import java.awt.event.ActionEvent;
@@ -37,6 +36,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static cl.almejo.vsim.ui.UiTestSupport.NO_WINDOW;
+import static cl.almejo.vsim.ui.UiTestSupport.texts;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
 
@@ -342,14 +342,6 @@ class SplitViewsFeaturesTest {
     }
 
     // --- menu ----------------------------------------------------------------------------------------------------------
-
-    private static List<String> texts(JMenu menu) {
-        List<String> texts = new ArrayList<>();
-        for (java.awt.Component child : menu.getMenuComponents()) {
-            texts.add(child instanceof JMenuItem item ? item.getText() : "---");
-        }
-        return texts;
-    }
 
     private JMenu splitMenu() {
         return (JMenu) view.menu(MenuId.WINDOW).getMenuComponent(1);

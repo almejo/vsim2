@@ -32,7 +32,6 @@ import org.junit.jupiter.api.io.TempDir;
 import javax.imageio.ImageIO;
 import javax.swing.JRootPane;
 import javax.swing.SwingUtilities;
-import java.awt.Container;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.net.http.HttpRequest;
@@ -46,11 +45,12 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.Callable;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static cl.almejo.vsim.ui.UiTestSupport.NO_WINDOW;
+import static cl.almejo.vsim.ui.UiTestSupport.layOut;
+import static cl.almejo.vsim.ui.UiTestSupport.onEditor;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -612,31 +612,6 @@ class EndToEndScenariosTest {
             created.set(view);
         });
         return created.get();
-    }
-
-    private static void layOut(Container container) {
-        container.doLayout();
-        for (java.awt.Component child : container.getComponents()) {
-            if (child instanceof Container nested) {
-                layOut(nested);
-            }
-        }
-    }
-
-    private static <T> T onEditor(Callable<T> work) throws Exception {
-        AtomicReference<T> result = new AtomicReference<>();
-        AtomicReference<Exception> failure = new AtomicReference<>();
-        SwingUtilities.invokeAndWait(() -> {
-            try {
-                result.set(work.call());
-            } catch (Exception exception) {
-                failure.set(exception);
-            }
-        });
-        if (failure.get() != null) {
-            throw failure.get();
-        }
-        return result.get();
     }
 
     /** A read without its version fields, to compare the circuit's contents at two versions. */

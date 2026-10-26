@@ -25,7 +25,6 @@ import org.junit.jupiter.api.Test;
 import javax.swing.JMenu;
 import javax.swing.JMenuItem;
 import javax.swing.KeyStroke;
-import java.awt.event.ActionEvent;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.util.ArrayList;
@@ -34,7 +33,9 @@ import java.util.Map;
 import java.util.Optional;
 
 import static cl.almejo.vsim.ui.UiTestSupport.NO_WINDOW;
+import static cl.almejo.vsim.ui.UiTestSupport.perform;
 import static cl.almejo.vsim.ui.UiTestSupport.place;
+import static cl.almejo.vsim.ui.UiTestSupport.texts;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class TidyWiresFeaturesTest {
@@ -93,10 +94,6 @@ class TidyWiresFeaturesTest {
         openDocument.close();
     }
 
-    private static void perform(javax.swing.Action action) {
-        action.actionPerformed(new ActionEvent(action, ActionEvent.ACTION_PERFORMED, ""));
-    }
-
     private static List<JMenuItem> items(JMenu menu) {
         List<JMenuItem> items = new ArrayList<>();
         for (java.awt.Component child : menu.getMenuComponents()) {
@@ -105,14 +102,6 @@ class TidyWiresFeaturesTest {
             }
         }
         return items;
-    }
-
-    private static List<String> texts(JMenu menu) {
-        List<String> texts = new ArrayList<>();
-        for (java.awt.Component child : menu.getMenuComponents()) {
-            texts.add(child instanceof JMenuItem item ? item.getText() : "---");
-        }
-        return texts;
     }
 
     @Test

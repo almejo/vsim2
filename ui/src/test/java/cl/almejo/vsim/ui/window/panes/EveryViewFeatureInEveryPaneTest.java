@@ -49,7 +49,6 @@ import javax.swing.Action;
 import javax.swing.JComponent;
 import javax.swing.KeyStroke;
 import java.awt.Container;
-import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
 import java.awt.image.BufferedImage;
@@ -64,6 +63,7 @@ import java.util.function.Function;
 import java.util.stream.Stream;
 
 import static cl.almejo.vsim.ui.UiTestSupport.NO_WINDOW;
+import static cl.almejo.vsim.ui.UiTestSupport.perform;
 import static cl.almejo.vsim.ui.UiTestSupport.place;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -322,10 +322,6 @@ class EveryViewFeatureInEveryPaneTest {
             }
         }
         return Optional.empty();
-    }
-
-    private static void perform(Action action) {
-        action.actionPerformed(new ActionEvent(action, ActionEvent.ACTION_PERFORMED, ""));
     }
 
     /** A press on {@code pane} makes it the active one (the tool sees an empty spot). */

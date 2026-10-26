@@ -26,15 +26,14 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import javax.swing.Action;
 import javax.swing.JMenuItem;
 import javax.swing.JPopupMenu;
 import java.awt.datatransfer.Clipboard;
-import java.awt.event.ActionEvent;
 import java.util.List;
 import java.util.Map;
 
 import static cl.almejo.vsim.ui.UiTestSupport.NO_WINDOW;
+import static cl.almejo.vsim.ui.UiTestSupport.perform;
 import static cl.almejo.vsim.ui.UiTestSupport.place;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -79,10 +78,6 @@ class LockedBlockOperationsTest {
 
     private Component gate(int x, int y) {
         return place(openDocument, StandardComponentTypes.NOT, x, y, Map.of());
-    }
-
-    private static void perform(Action action) {
-        action.actionPerformed(new ActionEvent(new Object(), ActionEvent.ACTION_PERFORMED, ""));
     }
 
     private CircuitFragment copied() throws Exception {

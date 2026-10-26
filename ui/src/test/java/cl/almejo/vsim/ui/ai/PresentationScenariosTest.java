@@ -72,6 +72,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
 
 import static cl.almejo.vsim.ui.UiTestSupport.NO_WINDOW;
+import static cl.almejo.vsim.ui.UiTestSupport.layOut;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -1024,15 +1025,6 @@ class PresentationScenariosTest {
             operation.put("via", via);
         }
         return operation;
-    }
-
-    private static void layOut(Container container) {
-        container.doLayout();
-        for (Component child : container.getComponents()) {
-            if (child instanceof Container nested) {
-                layOut(nested);
-            }
-        }
     }
 
     private static <T> T onEditor(Callable<T> work) throws Exception {
