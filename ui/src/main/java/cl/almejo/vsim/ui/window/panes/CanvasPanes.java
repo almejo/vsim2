@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.window.panes;
 
+import cl.almejo.vsim.ui.app.Listeners;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.canvas.ViewState;
 
@@ -27,7 +28,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalDouble;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
@@ -61,9 +61,9 @@ public final class CanvasPanes extends JComponent {
     private final Map<CircuitCanvas, Runnable> paneListenerRemovals = new IdentityHashMap<>();
     /** Views to show in panes that have no size yet (or must be shown again at their new size). */
     private final Map<CircuitCanvas, ViewState> pendingViews = new IdentityHashMap<>();
-    private final List<Consumer<List<CircuitCanvas>>> panesListeners = new CopyOnWriteArrayList<>();
-    private final List<Consumer<CircuitCanvas>> activeListeners = new CopyOnWriteArrayList<>();
-    private final List<Runnable> layoutListeners = new CopyOnWriteArrayList<>();
+    private final Listeners<Consumer<List<CircuitCanvas>>> panesListeners = new Listeners<>();
+    private final Listeners<Consumer<CircuitCanvas>> activeListeners = new Listeners<>();
+    private final Listeners<Runnable> layoutListeners = new Listeners<>();
     private final PaneDivider horizontalDivider = new PaneDivider(Orientation.HORIZONTAL);
     private final PaneDivider verticalDivider = new PaneDivider(Orientation.VERTICAL);
     private OptionalDouble horizontalFraction = OptionalDouble.empty();
@@ -121,7 +121,7 @@ public final class CanvasPanes extends JComponent {
         }
         active = pane;
         updateBorders();
-        activeListeners.forEach(listener -> listener.accept(pane));
+        activeListeners.fire(listener -> listener.accept(pane));
     }
 
     /**
@@ -209,7 +209,7 @@ public final class CanvasPanes extends JComponent {
         }
         setFraction(orientation, OptionalDouble.of(fraction));
         layOutNow();
-        layoutListeners.forEach(Runnable::run);
+        layoutListeners.fire(Runnable::run);
     }
 
     /** The dividers and the view of every pane, in reading order. */
@@ -252,20 +252,17 @@ public final class CanvasPanes extends JComponent {
 
     /** Heard with the new list of panes whenever panes are added or removed. Returns its removal. */
     public Runnable addPanesListener(Consumer<List<CircuitCanvas>> listener) {
-        panesListeners.add(listener);
-        return () -> panesListeners.remove(listener);
+        return panesListeners.add(listener);
     }
 
     /** Heard with the new active pane whenever another pane becomes active. Returns its removal. */
     public Runnable addActiveListener(Consumer<CircuitCanvas> listener) {
-        activeListeners.add(listener);
-        return () -> activeListeners.remove(listener);
+        return activeListeners.add(listener);
     }
 
     /** Heard whenever the split changes: panes added or removed, a divider moved. Returns its removal. */
     public Runnable addLayoutListener(Runnable listener) {
-        layoutListeners.add(listener);
-        return () -> layoutListeners.remove(listener);
+        return layoutListeners.add(listener);
     }
 
     /** Disposes every pane; the area is not used afterwards. Calling it again does nothing. */
@@ -508,11 +505,11 @@ public final class CanvasPanes extends JComponent {
         updateBorders();
         if (activeChanged) {
             CircuitCanvas now = active;
-            activeListeners.forEach(listener -> listener.accept(now));
+            activeListeners.fire(listener -> listener.accept(now));
         }
-        layoutListeners.forEach(Runnable::run);
+        layoutListeners.fire(Runnable::run);
         List<CircuitCanvas> panes = panes();
-        panesListeners.forEach(listener -> listener.accept(panes));
+        panesListeners.fire(listener -> listener.accept(panes));
         removed.forEach(CircuitCanvas::dispose);
         if (hadFocus) {
             active.requestFocusInWindow();
