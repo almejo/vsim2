@@ -1,7 +1,3 @@
-plugins {
-    application
-}
-
 dependencies {
     implementation(libs.jackson.databind)
     implementation(libs.slf4j.api)
@@ -11,10 +7,6 @@ dependencies {
     testImplementation(libs.junit.jupiter)
     testImplementation(libs.assertj.core)
     testRuntimeOnly(libs.junit.launcher)
-}
-
-application {
-    mainClass.set("cl.almejo.vsim.core.tools.SimulateCommandLine")
 }
 
 // The app version (from the root build) as a resource, so a saved file can say which VSim wrote it.

@@ -151,10 +151,6 @@ Jar ejecutable, con todas las dependencias adentro:
 
 `./gradlew check` construye el jar y verifica su manifiesto y contenido (`:ui:executableJarTest`).
 
-Demo de consola (simula un circuito sin interfaz):
-
-    ./gradlew :core:run --args="../examples/vsim1-sumador-4-bits.json"
-
 ### Pruebas
 
     ./gradlew test                            # todas las pruebas (core, automation, mcp y ui)
