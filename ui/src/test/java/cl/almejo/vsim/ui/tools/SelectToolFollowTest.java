@@ -1,6 +1,5 @@
 package cl.almejo.vsim.ui.tools;
 
-import cl.almejo.vsim.core.command.AddWireCommand;
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
@@ -22,6 +21,7 @@ import java.awt.image.BufferedImage;
 import java.util.Map;
 import java.util.Optional;
 
+import static cl.almejo.vsim.ui.UiTestSupport.addWire;
 import static cl.almejo.vsim.ui.UiTestSupport.place;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
@@ -44,19 +44,12 @@ class SelectToolFollowTest {
         Messages.initialize(Messages.SPANISH);
         gate = place(context.openDocument(), StandardComponentTypes.NOT, 10, 10, Map.of());
         lamp = place(context.openDocument(), StandardComponentTypes.LED, 29, 9, Map.of());
-        wire = addWire(14, 12, 30, 12);
+        wire = addWire(context.openDocument(), 14, 12, 30, 12);
     }
 
     @AfterEach
     void close() {
         context.close();
-    }
-
-    private Wire addWire(int startX, int startY, int endX, int endY) {
-        Wire added = new Wire(context.openDocument().document().newWireId(), new GridPoint(startX, startY),
-                new GridPoint(endX, endY));
-        context.openDocument().execute(new AddWireCommand(added));
-        return added;
     }
 
     private GridPoint positionOf(Component component) {
@@ -96,8 +89,8 @@ class SelectToolFollowTest {
 
     @Test
     void aDraggedWireTheCleanUpMergesIntoAnEarlierWireLeavesTheSurvivorSelected() {
-        Wire earlier = addWire(40, 20, 44, 20);
-        Wire moved = addWire(44, 23, 49, 23);
+        Wire earlier = addWire(context.openDocument(), 40, 20, 44, 20);
+        Wire moved = addWire(context.openDocument(), 44, 23, 49, 23);
         context.selection.set(java.util.List.of(gate.id(), moved.id()));
         context.drag(tool, 46, 23, 46, 20);
         assertThat(context.openDocument().document().wire(moved.id())).isEmpty();
@@ -223,7 +216,7 @@ class SelectToolFollowTest {
 
     @Test
     void aNewContactIsARedDotDuringTheDragAndANoticeAfterTheDrop() {
-        Wire crossing = addWire(10, 15, 10, 25);
+        Wire crossing = addWire(context.openDocument(), 10, 15, 10, 25);
         tool.mousePressed(context, TestToolContext.at(12, 12));
         tool.mouseDragged(context, TestToolContext.at(12, 20));
         BufferedImage image = new BufferedImage(400, 300, BufferedImage.TYPE_INT_ARGB);
@@ -240,7 +233,7 @@ class SelectToolFollowTest {
 
     @Test
     void severalNewContactsAreCounted() {
-        addWire(5, 20, 40, 20);
+        addWire(context.openDocument(), 5, 20, 40, 20);
         context.drag(tool, 12, 12, 12, 20);
         assertThat(context.notices).containsExactly("El movimiento dejó 2 contactos nuevos");
     }

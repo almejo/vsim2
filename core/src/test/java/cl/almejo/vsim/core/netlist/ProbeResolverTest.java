@@ -15,6 +15,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 import java.util.Map;
 
+import static cl.almejo.vsim.core.DocumentFixtures.wire;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.entry;
 
@@ -28,12 +29,6 @@ class ProbeResolverTest {
                 Rotation.R0, Map.of(), "");
         document.add(component);
         return component;
-    }
-
-    private Wire wire(int x1, int y1, int x2, int y2) {
-        Wire wire = new Wire(document.newWireId(), new GridPoint(x1, y1), new GridPoint(x2, y2));
-        document.add(wire);
-        return wire;
     }
 
     private Netlist netlist() {
@@ -58,7 +53,7 @@ class ProbeResolverTest {
     void aWireProbeAnchorsToADriverPinOfItsNetFirst() {
         add(StandardComponentTypes.LED, 7, -2);                        // c1, input at (8,1)
         Component toggle = add(StandardComponentTypes.SWITCH, 0, 0);   // c2, output at (4,1)
-        Wire wire = wire(4, 1, 8, 1);
+        Wire wire = wire(document, 4, 1, 8, 1);
 
         assertThat(ProbeResolver.anchor(wire.id(), document, netlist(), registry))
                 .contains(new ProbeTarget.PinTarget(toggle.id(), 0));
@@ -68,7 +63,7 @@ class ProbeResolverTest {
     void withoutADriverAWireProbeAnchorsToTheFirstPinInDocumentOrder() {
         Component gate = add(StandardComponentTypes.NOT, 4, -1);   // c1, input at (4,1), output at (8,1)
         add(StandardComponentTypes.LED, 3, 2);                     // c2, input at (4,5)
-        Wire wire = wire(4, 1, 4, 5);
+        Wire wire = wire(document, 4, 1, 4, 5);
 
         assertThat(ProbeResolver.anchor(wire.id(), document, netlist(), registry))
                 .contains(new ProbeTarget.PinTarget(gate.id(), 0));
@@ -76,7 +71,7 @@ class ProbeResolverTest {
 
     @Test
     void aWireOfANetWithoutPinsStaysAWireProbeAndResolvesThroughTheWire() {
-        Wire wire = wire(20, 20, 24, 20);
+        Wire wire = wire(document, 20, 20, 24, 20);
         Netlist netlist = netlist();
 
         ProbeTarget target = ProbeResolver.anchor(wire.id(), document, netlist, registry).orElseThrow();

@@ -1,8 +1,14 @@
 package cl.almejo.vsim.ui;
 
 import cl.almejo.vsim.core.command.AddElementsCommand;
+import cl.almejo.vsim.core.command.AddWireCommand;
 import cl.almejo.vsim.core.component.ComponentType;
+import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
+import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.core.document.Frame;
+import cl.almejo.vsim.core.document.FrameTint;
+import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
@@ -166,5 +172,33 @@ public final class UiTestSupport {
     private static double channel(int value) {
         double scaled = value / 255.0;
         return scaled <= 0.03928 ? scaled / 12.92 : Math.pow((scaled + 0.055) / 1.055, 2.4);
+    }
+
+    /** Adds a wire from (startX, startY) to (endX, endY) straight to {@code document} and returns it. */
+    public static Wire wire(CircuitDocument document, int startX, int startY, int endX, int endY) {
+        Wire wire = new Wire(document.newWireId(), new GridPoint(startX, startY), new GridPoint(endX, endY));
+        document.add(wire);
+        return wire;
+    }
+
+    /** Like {@link #wire}, but returns the wire's id. */
+    public static ElementId wireId(CircuitDocument document, int startX, int startY, int endX, int endY) {
+        return wire(document, startX, startY, endX, endY).id();
+    }
+
+    /** Draws a wire from (startX, startY) to (endX, endY) through {@code document}'s undo history; returns it. */
+    public static Wire addWire(OpenDocument document, int startX, int startY, int endX, int endY) {
+        Wire wire = new Wire(document.document().newWireId(), new GridPoint(startX, startY),
+                new GridPoint(endX, endY));
+        document.execute(new AddWireCommand(wire));
+        return wire;
+    }
+
+    /** Adds an unlocked frame to {@code document} straight away and returns it. */
+    public static Frame frame(CircuitDocument document, int x, int y, int width, int height, String title,
+                              FrameTint tint) {
+        Frame frame = new Frame(document.newFrameId(), new GridPoint(x, y), width, height, title, tint, false);
+        document.add(frame);
+        return frame;
     }
 }

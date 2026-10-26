@@ -1,10 +1,8 @@
 package cl.almejo.vsim.ui.tools;
 
-import cl.almejo.vsim.core.command.AddWireCommand;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
-import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
 import cl.almejo.vsim.core.io.CircuitFragment;
@@ -26,6 +24,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
+import static cl.almejo.vsim.ui.UiTestSupport.addWire;
 import static cl.almejo.vsim.ui.UiTestSupport.place;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -49,18 +48,13 @@ class DragContactsTest {
         Messages.initialize(Messages.SPANISH);
         gate = place(context.openDocument(), StandardComponentTypes.NOT, 10, 10, Map.of());
         lamp = place(context.openDocument(), StandardComponentTypes.LED, 29, 9, Map.of());
-        addWire(14, 12, 30, 12);
-        addWire(10, 15, 10, 25);
+        addWire(context.openDocument(), 14, 12, 30, 12);
+        addWire(context.openDocument(), 10, 15, 10, 25);
     }
 
     @AfterEach
     void close() {
         context.close();
-    }
-
-    private void addWire(int startX, int startY, int endX, int endY) {
-        context.openDocument().execute(new AddWireCommand(new Wire(context.openDocument().document().newWireId(),
-                new GridPoint(startX, startY), new GridPoint(endX, endY))));
     }
 
     private static List<GridPoint> points(List<NewContact> contacts) {
@@ -118,8 +112,8 @@ class DragContactsTest {
     @Test
     void whenTheWiresFollowTheContactsTheirNewPiecesMakeAreShownToo() {
         // wire ends of other nets on both routes the output wire could take: it runs down from (14, 12) over one
-        addWire(22, 20, 22, 30);
-        addWire(5, 16, 14, 16);
+        addWire(context.openDocument(), 22, 20, 22, 30);
+        addWire(context.openDocument(), 5, 16, 14, 16);
         List<NewContact> leftBehind = dragGateTo(12, 20, false);
         tool.keyPressed(context, KeyEvent.VK_ESCAPE, false);
         List<NewContact> following = dragGateTo(12, 20, true);

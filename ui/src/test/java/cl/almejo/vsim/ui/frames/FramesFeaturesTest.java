@@ -6,7 +6,6 @@ import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.Frame;
 import cl.almejo.vsim.core.document.FrameTint;
 import cl.almejo.vsim.core.document.Wire;
-import cl.almejo.vsim.core.command.AddWireCommand;
 import cl.almejo.vsim.core.command.ChangeFrameCommand;
 import cl.almejo.vsim.core.command.CreateFrameCommand;
 import cl.almejo.vsim.core.command.SetLabelCommand;
@@ -41,6 +40,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import static cl.almejo.vsim.ui.UiTestSupport.NO_WINDOW;
+import static cl.almejo.vsim.ui.UiTestSupport.addWire;
 import static cl.almejo.vsim.ui.UiTestSupport.place;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -316,20 +316,13 @@ class FramesFeaturesTest {
         assertThat(view.canvas().selection().effectiveIds()).containsExactly(frame.id());
     }
 
-    private Wire addWire(int startX, int startY, int endX, int endY) {
-        Wire added = new Wire(openDocument.document().newWireId(), new GridPoint(startX, startY),
-                new GridPoint(endX, endY));
-        openDocument.execute(new AddWireCommand(added));
-        return added;
-    }
-
     @Test
     void aDoubleClickOnAWireInsideALockedFrameSelectsOnlyItsStretchWithTheFrameGesturesInstalled() {
         Frame frame = addFrame(true);
         Component inside = place(openDocument, StandardComponentTypes.NOT, 14, 4, Map.of());
-        Wire first = addWire(2, 6, 8, 6);
-        Wire second = addWire(8, 6, 8, 10);
-        Wire apart = addWire(10, 10, 12, 10);
+        Wire first = addWire(openDocument, 2, 6, 8, 6);
+        Wire second = addWire(openDocument, 8, 6, 8, 10);
+        Wire apart = addWire(openDocument, 10, 10, 12, 10);
         Tool select = view.canvas().defaultTool();
         for (int clickCount = 1; clickCount <= 2; clickCount++) {
             select.mousePressed(view.canvas(),

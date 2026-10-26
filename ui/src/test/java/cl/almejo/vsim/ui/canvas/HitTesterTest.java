@@ -15,6 +15,7 @@ import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 import java.util.Map;
 
+import static cl.almejo.vsim.ui.UiTestSupport.wire;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class HitTesterTest {
@@ -28,12 +29,6 @@ class HitTesterTest {
                 .newComponent(document.newComponentId(), new GridPoint(x, y), rotation, Map.of(), "");
         document.add(component);
         return component;
-    }
-
-    private Wire wire(int startX, int startY, int endX, int endY) {
-        Wire wire = new Wire(document.newWireId(), new GridPoint(startX, startY), new GridPoint(endX, endY));
-        document.add(wire);
-        return wire;
     }
 
     private DocumentElement at(double x, double y) {
@@ -64,8 +59,8 @@ class HitTesterTest {
 
     @Test
     void findsTheClosestWireWithinTolerance() {
-        Wire horizontal = wire(0, 0, 10, 0);
-        Wire vertical = wire(5, 1, 5, 10);
+        Wire horizontal = wire(document, 0, 0, 10, 0);
+        Wire vertical = wire(document, 5, 1, 5, 10);
         assertThat(at(3, 0.3)).isEqualTo(horizontal);
         assertThat(at(5.2, 0.9)).isEqualTo(vertical);
         assertThat(at(3, 0.6)).isNull();
@@ -74,7 +69,7 @@ class HitTesterTest {
     @Test
     void componentsWinOverWires() {
         Component gate = place(StandardComponentTypes.AND2, 0, 0, Rotation.R0);
-        wire(0, 2, 10, 2);
+        wire(document, 0, 2, 10, 2);
         assertThat(at(2, 2)).isEqualTo(gate);
     }
 

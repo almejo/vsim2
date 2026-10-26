@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import static cl.almejo.vsim.ui.UiTestSupport.addWire;
 import static cl.almejo.vsim.ui.UiTestSupport.place;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -37,18 +38,13 @@ class SelectionMovesTest {
     void create() {
         Messages.initialize(Messages.SPANISH);
         gate = place(openDocument, StandardComponentTypes.NOT, 10, 10, Map.of());
-        addWire(14, 12, 30, 12);
+        addWire(openDocument, 14, 12, 30, 12);
         place(openDocument, StandardComponentTypes.LED, 29, 9, Map.of());
     }
 
     @AfterEach
     void close() {
         openDocument.close();
-    }
-
-    private void addWire(int startX, int startY, int endX, int endY) {
-        openDocument.execute(new AddWireCommand(new Wire(openDocument.document().newWireId(),
-                new GridPoint(startX, startY), new GridPoint(endX, endY))));
     }
 
     @Test
@@ -62,7 +58,7 @@ class SelectionMovesTest {
     @Test
     void theContactNoticeNamesALabelledComponentByTypeAndLabel() {
         openDocument.execute(new SetLabelCommand(gate.id(), "U1"));
-        addWire(10, 15, 10, 25);
+        addWire(openDocument, 10, 15, 10, 25);
         moves.move(openDocument, Set.of(gate.id()), 0, 8, true);
         assertThat(notices).containsExactly("El cable quedó tocando el pin «in» de «NOT U1»");
     }
@@ -71,7 +67,7 @@ class SelectionMovesTest {
     void aContactBetweenWiresOnlySaysSo() {
         Wire lone = new Wire(openDocument.document().newWireId(), new GridPoint(40, 0), new GridPoint(40, 10));
         openDocument.execute(new AddWireCommand(lone));
-        addWire(35, 20, 45, 20);
+        addWire(openDocument, 35, 20, 45, 20);
         moves.move(openDocument, Set.of(lone.id()), 0, 10, true);
         assertThat(notices).containsExactly("El cable quedó tocando otro cable");
     }
@@ -102,7 +98,7 @@ class SelectionMovesTest {
 
     @Test
     void aNudgeFollowsTheModeAndReportsTheMergedRun() {
-        addWire(10, 15, 10, 25);
+        addWire(openDocument, 10, 15, 10, 25);
         for (int step = 0; step < 8; step++) {
             moves.nudge(openDocument, Set.of(gate.id()), 0, 1);
         }
@@ -114,7 +110,7 @@ class SelectionMovesTest {
 
     @Test
     void aNudgeRunThatComesBackReportsNothingAboutTheStepBelowIt() {
-        addWire(10, 15, 10, 25);
+        addWire(openDocument, 10, 15, 10, 25);
         moves.move(openDocument, Set.of(gate.id()), 0, 8, true);
         assertThat(notices).containsExactly("El cable quedó tocando el pin «in» de «NOT»");
         moves.nudge(openDocument, Set.of(gate.id()), 1, 0);

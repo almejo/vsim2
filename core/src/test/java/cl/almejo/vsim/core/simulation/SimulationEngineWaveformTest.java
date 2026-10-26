@@ -32,6 +32,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 import java.util.Map;
 
+import static cl.almejo.vsim.core.DocumentFixtures.wire;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -48,10 +49,6 @@ class SimulationEngineWaveformTest {
         ElementId id = document.newComponentId();
         document.add(new Component(id, typeId, new GridPoint(x, y), Rotation.R0, parameters, ""));
         return id;
-    }
-
-    private void wire(int x1, int y1, int x2, int y2) {
-        document.add(new Wire(document.newWireId(), new GridPoint(x1, y1), new GridPoint(x2, y2)));
     }
 
     private void synchronize() {
@@ -116,7 +113,7 @@ class SimulationEngineWaveformTest {
         engine.setProbes(Map.of("in", inputNet));
         engine.advance(5);
 
-        wire(2, 1, 4, 1);
+        wire(document, 2, 1, 4, 1);
         synchronize();
         String mergedNet = netOf(inverter, 0);
         assertThat(mergedNet).isNotEqualTo(inputNet);
@@ -254,7 +251,7 @@ class SimulationEngineWaveformTest {
         engine.update(flattener.flatten(document, netlist), Map.of("in", netOf(inverter, 0)));
         engine.advance(5);
 
-        wire(2, 1, 4, 1);
+        wire(document, 2, 1, 4, 1);
         netlist = compiler.compile(document);
         int before = engine.waveformRebinds();
         engine.update(flattener.flatten(document, netlist), Map.of("in", netOf(inverter, 0)));

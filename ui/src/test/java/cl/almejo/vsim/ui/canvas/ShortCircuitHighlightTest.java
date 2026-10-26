@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import static cl.almejo.vsim.ui.UiTestSupport.wire;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class ShortCircuitHighlightTest {
@@ -33,7 +34,7 @@ class ShortCircuitHighlightTest {
     private final CircuitDocument document = new CircuitDocument();
     private final Component high = place(0, 0, "1");
     private final Component low = place(0, 6, "0");
-    private final Wire joint = wire(4, 1, 4, 7);
+    private final Wire joint = wire(document, 4, 1, 4, 7);
     private final Netlist netlist = new NetlistCompiler(registry).compile(document);
     private final Net shorted = netlist.netForPin(new PinRef(high.id(), 0)).orElseThrow();
 
@@ -42,12 +43,6 @@ class ShortCircuitHighlightTest {
                 .newComponent(document.newComponentId(), new GridPoint(x, y), Rotation.R0, Map.of("value", value), "");
         document.add(component);
         return component;
-    }
-
-    private Wire wire(int startX, int startY, int endX, int endY) {
-        Wire wire = new Wire(document.newWireId(), new GridPoint(startX, startY), new GridPoint(endX, endY));
-        document.add(wire);
-        return wire;
     }
 
     private SimulationSnapshot snapshotWithShort(long token) {

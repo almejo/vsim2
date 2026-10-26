@@ -4,14 +4,15 @@ import cl.almejo.vsim.core.command.ChangeFrameCommand;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.geometry.GridPoint;
-import cl.almejo.vsim.core.geometry.Rotation;
 import cl.almejo.vsim.core.netlist.Netlist;
 import cl.almejo.vsim.core.netlist.NetlistCompiler;
 import org.junit.jupiter.api.Test;
 
-import java.util.Map;
 import java.util.Set;
 
+import static cl.almejo.vsim.core.DocumentFixtures.frame;
+import static cl.almejo.vsim.core.DocumentFixtures.gate;
+import static cl.almejo.vsim.core.DocumentFixtures.wire;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -19,27 +20,6 @@ class FrameTest {
 
     private final ComponentTypeRegistry registry = StandardComponentTypes.registry();
     private final CircuitDocument document = new CircuitDocument();
-
-    /** NOT gate: 4x4. */
-    private Component gate(int x, int y) {
-        Component component = registry.require(StandardComponentTypes.NOT).newComponent(document.newComponentId(),
-                new GridPoint(x, y), Rotation.R0, Map.of(), "");
-        document.add(component);
-        return component;
-    }
-
-    private Wire wire(int startX, int startY, int endX, int endY) {
-        Wire wire = new Wire(document.newWireId(), new GridPoint(startX, startY), new GridPoint(endX, endY));
-        document.add(wire);
-        return wire;
-    }
-
-    private Frame frame(int x, int y, int width, int height) {
-        Frame frame = new Frame(document.newFrameId(), new GridPoint(x, y), width, height, "Block",
-                FrameTint.NONE, false);
-        document.add(frame);
-        return frame;
-    }
 
     @Test
     void aFrameSmallerThanTheMinimumIsRejected() {
@@ -68,7 +48,7 @@ class FrameTest {
 
     @Test
     void theDocumentKeepsFramesAndReplacesThemInPlace() {
-        Frame frame = frame(0, 0, 10, 10);
+        Frame frame = frame(document, 0, 0, 10, 10);
         assertThat(document.frames()).containsExactly(frame);
         assertThat(document.frame(frame.id())).contains(frame);
         assertThat(document.elements()).contains(frame);
@@ -84,16 +64,16 @@ class FrameTest {
 
     @Test
     void contentsAreWhatLiesCompletelyInside() {
-        Component inside = gate(2, 2);
-        Component half = gate(18, 2);
-        Component outside = gate(40, 40);
-        Wire wireInside = wire(2, 8, 8, 8);
-        Wire wireCrossing = wire(10, 8, 30, 8);
+        Component inside = gate(registry, document, 2, 2);
+        Component half = gate(registry, document, 18, 2);
+        Component outside = gate(registry, document, 40, 40);
+        Wire wireInside = wire(document, 2, 8, 8, 8);
+        Wire wireCrossing = wire(document, 10, 8, 30, 8);
         TextLabel labelInside = new TextLabel(document.newLabelId(), new GridPoint(5, 9), "x");
         TextLabel labelOutside = new TextLabel(document.newLabelId(), new GridPoint(25, 9), "y");
         document.add(labelInside);
         document.add(labelOutside);
-        Frame frame = frame(0, 0, 20, 12);
+        Frame frame = frame(document, 0, 0, 20, 12);
         assertThat(FrameContents.of(document, registry, frame)).containsExactlyInAnyOrder(
                 inside.id(), wireInside.id(), labelInside.id());
         assertThat(FrameContents.of(document, registry, frame)).doesNotContain(
@@ -105,16 +85,16 @@ class FrameTest {
     void aLabelAnchorOnTheBorderCountsAsInside() {
         TextLabel label = new TextLabel(document.newLabelId(), new GridPoint(20, 12), "edge");
         document.add(label);
-        Frame frame = frame(0, 0, 20, 12);
+        Frame frame = frame(document, 0, 0, 20, 12);
         assertThat(FrameContents.of(document, registry, frame)).containsExactly(label.id());
     }
 
     @Test
     void nestedFramesAndTheirContentsAreCountedOnce() {
-        Component deep = gate(4, 4);
-        Frame inner = frame(2, 2, 10, 10);
-        Frame outer = frame(0, 0, 30, 30);
-        Frame sibling = frame(40, 40, 10, 10);
+        Component deep = gate(registry, document, 4, 4);
+        Frame inner = frame(document, 2, 2, 10, 10);
+        Frame outer = frame(document, 0, 0, 30, 30);
+        Frame sibling = frame(document, 40, 40, 10, 10);
         assertThat(FrameContents.of(document, registry, outer)).containsExactlyInAnyOrder(inner.id(), deep.id());
         assertThat(FrameContents.of(document, registry, inner)).containsExactly(deep.id());
         assertThat(FrameContents.of(document, registry, sibling)).isEmpty();
@@ -122,12 +102,12 @@ class FrameTest {
 
     @Test
     void lockedBlocksAddTheContentsOfEveryLockedFrameOnceAndLeaveUnlockedFramesAlone() {
-        Component deep = gate(4, 4);
-        Frame inner = locked(frame(2, 2, 10, 10));
-        Frame outer = locked(frame(0, 0, 30, 30));
-        Component inUnlocked = gate(44, 44);
-        Frame unlocked = frame(40, 40, 15, 15);
-        Component loose = gate(70, 70);
+        Component deep = gate(registry, document, 4, 4);
+        Frame inner = locked(frame(document, 2, 2, 10, 10));
+        Frame outer = locked(frame(document, 0, 0, 30, 30));
+        Component inUnlocked = gate(registry, document, 44, 44);
+        Frame unlocked = frame(document, 40, 40, 15, 15);
+        Component loose = gate(registry, document, 70, 70);
         assertThat(FrameContents.withLockedBlocks(document, registry, Set.of(outer.id(), inner.id(), loose.id())))
                 .containsExactlyInAnyOrder(outer.id(), inner.id(), deep.id(), loose.id());
         assertThat(FrameContents.withLockedBlocks(document, registry, Set.of(unlocked.id())))
@@ -144,15 +124,15 @@ class FrameTest {
 
     @Test
     void framesWithTheSameRectangleDoNotLoopForever() {
-        Frame first = frame(0, 0, 10, 10);
-        Frame second = frame(0, 0, 10, 10);
+        Frame first = frame(document, 0, 0, 10, 10);
+        Frame second = frame(document, 0, 0, 10, 10);
         assertThat(FrameContents.of(document, registry, first)).containsExactly(second.id());
     }
 
     @Test
     void changeFrameCommandAppliesAndRevertsExactly() {
-        Frame frame = frame(0, 0, 10, 10);
-        Wire after = wire(1, 1, 3, 1);
+        Frame frame = frame(document, 0, 0, 10, 10);
+        Wire after = wire(document, 1, 1, 3, 1);
         Frame moved = frame.withRectangle(new GridPoint(5, 5), 12, 8);
         ChangeFrameCommand command = new ChangeFrameCommand(frame, moved);
         command.apply(document);
@@ -179,12 +159,12 @@ class FrameTest {
 
     @Test
     void theNetlistIgnoresFrames() {
-        Component first = gate(0, 0);
-        gate(10, 0);
-        wire(4, 2, 10, 2);
+        Component first = gate(registry, document, 0, 0);
+        gate(registry, document, 10, 0);
+        wire(document, 4, 2, 10, 2);
         NetlistCompiler compiler = new NetlistCompiler(registry);
         Netlist without = compiler.compile(document);
-        frame(-2, -2, 30, 12);
+        frame(document, -2, -2, 30, 12);
         Netlist with = compiler.compile(document);
         assertThat(with).isEqualTo(without);
         assertThat(with.nets()).isNotEmpty();

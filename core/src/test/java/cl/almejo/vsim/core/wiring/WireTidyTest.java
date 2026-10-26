@@ -21,18 +21,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import static cl.almejo.vsim.core.DocumentFixtures.wireId;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class WireTidyTest {
 
     private final ComponentTypeRegistry registry = TestComponentTypes.registry();
     private final CircuitDocument document = new CircuitDocument();
-
-    private ElementId wire(int startX, int startY, int endX, int endY) {
-        ElementId id = document.newWireId();
-        document.add(new Wire(id, new GridPoint(startX, startY), new GridPoint(endX, endY)));
-        return id;
-    }
 
     /** Buffer at (x,y): input pin at (x, y+1), output pin at (x+2, y+1). */
     private ElementId buffer(int x, int y) {
@@ -79,8 +74,8 @@ class WireTidyTest {
     void aStubOffATIsRemoved() {
         buffer(0, 0);
         buffer(10, 0);
-        wire(2, 1, 10, 1);
-        ElementId stub = wire(6, 1, 6, 5);
+        wireId(document, 2, 1, 10, 1);
+        ElementId stub = wireId(document, 6, 1, 6, 5);
         TidyPlan plan = plan();
         assertThat(plan.removed()).extracting(Wire::id).containsExactly(stub);
         assertThat(plan.added()).isEmpty();
@@ -92,7 +87,7 @@ class WireTidyTest {
     void aStubWhoseInteriorHasAPinIsTrimmedToThePinNotRemoved() {
         buffer(0, 0);
         buffer(5, 0);
-        ElementId through = wire(2, 1, 9, 1);
+        ElementId through = wireId(document, 2, 1, 9, 1);
         TidyPlan plan = plan();
         assertThat(plan.removed()).extracting(Wire::id).containsExactly(through);
         assertThat(plan.added()).containsExactly(new Wire(through, new GridPoint(2, 1), new GridPoint(7, 1)));
@@ -102,7 +97,7 @@ class WireTidyTest {
     @Test
     void aWireFromAPinToNowhereIsRemoved() {
         buffer(0, 0);
-        ElementId dangling = wire(2, 1, 8, 1);
+        ElementId dangling = wireId(document, 2, 1, 8, 1);
         TidyPlan plan = plan();
         assertThat(plan.removed()).extracting(Wire::id).containsExactly(dangling);
         assertThat(plan.added()).isEmpty();
@@ -110,9 +105,9 @@ class WireTidyTest {
 
     @Test
     void aFloatingNetworkDisappearsUnlessAProbeWatchesIt() {
-        ElementId first = wire(0, 10, 6, 10);
-        ElementId second = wire(6, 10, 6, 14);
-        wire(6, 14, 12, 14);
+        ElementId first = wireId(document, 0, 10, 6, 10);
+        ElementId second = wireId(document, 6, 10, 6, 14);
+        wireId(document, 6, 14, 12, 14);
         TidyPlan plan = plan();
         assertThat(plan.removed()).hasSize(3);
         assertThat(plan.added()).isEmpty();
@@ -125,10 +120,10 @@ class WireTidyTest {
 
     @Test
     void aFloatingLoopDisappearsToo() {
-        wire(0, 0, 4, 0);
-        wire(4, 0, 4, 4);
-        wire(0, 4, 4, 4);
-        wire(0, 0, 0, 4);
+        wireId(document, 0, 0, 4, 0);
+        wireId(document, 4, 0, 4, 4);
+        wireId(document, 0, 4, 4, 4);
+        wireId(document, 0, 0, 0, 4);
         assertThat(plan().removed()).hasSize(4);
     }
 
@@ -136,8 +131,8 @@ class WireTidyTest {
     void twoCollinearWiresSharingAnEndpointMerge() {
         buffer(0, 0);
         buffer(10, 0);
-        ElementId left = wire(2, 1, 6, 1);
-        wire(6, 1, 10, 1);
+        ElementId left = wireId(document, 2, 1, 6, 1);
+        wireId(document, 6, 1, 10, 1);
         TidyPlan plan = plan();
         assertThat(plan.removed()).hasSize(2);
         assertThat(plan.added()).containsExactly(new Wire(left, new GridPoint(2, 1), new GridPoint(10, 1)));
@@ -148,9 +143,9 @@ class WireTidyTest {
     void threeInARowMergeIntoOneInOnePlan() {
         buffer(0, 0);
         buffer(14, 0);
-        ElementId first = wire(2, 1, 5, 1);
-        wire(5, 1, 9, 1);
-        wire(9, 1, 14, 1);
+        ElementId first = wireId(document, 2, 1, 5, 1);
+        wireId(document, 5, 1, 9, 1);
+        wireId(document, 9, 1, 14, 1);
         TidyPlan plan = plan();
         assertThat(plan.removed()).hasSize(3);
         assertThat(plan.added()).containsExactly(new Wire(first, new GridPoint(2, 1), new GridPoint(14, 1)));
@@ -161,8 +156,8 @@ class WireTidyTest {
     void overlappingCollinearWiresMerge() {
         buffer(0, 0);
         buffer(14, 0);
-        wire(2, 1, 8, 1);
-        wire(6, 1, 14, 1);
+        wireId(document, 2, 1, 8, 1);
+        wireId(document, 6, 1, 14, 1);
         TidyPlan plan = plan();
         assertThat(plan.added()).extracting(Wire::start, Wire::end)
                 .containsExactly(org.assertj.core.groups.Tuple.tuple(new GridPoint(2, 1), new GridPoint(14, 1)));
@@ -174,9 +169,9 @@ class WireTidyTest {
         buffer(10, 0);
         buffer(4, -5);
         buffer(4, 5);
-        wire(2, 1, 6, 1);
-        wire(6, 1, 10, 1);
-        wire(6, -4, 6, 6);
+        wireId(document, 2, 1, 6, 1);
+        wireId(document, 6, 1, 10, 1);
+        wireId(document, 6, -4, 6, 6);
         assertThat(plan().isEmpty()).isTrue();
     }
 
@@ -185,9 +180,9 @@ class WireTidyTest {
         buffer(0, 0);
         buffer(10, 0);
         buffer(4, 6);
-        wire(2, 1, 6, 1);
-        wire(6, 1, 10, 1);
-        wire(6, 1, 6, 7);
+        wireId(document, 2, 1, 6, 1);
+        wireId(document, 6, 1, 10, 1);
+        wireId(document, 6, 1, 6, 7);
         TidyPlan plan = plan();
         assertThat(plan.segmentsMerged()).isEqualTo(1);
         assertThat(plan.removed()).hasSize(2);
@@ -197,8 +192,8 @@ class WireTidyTest {
     void aPinAtTheSharedPointDoesNotBlockTheMerge() {
         buffer(0, 0);
         buffer(6, 0);
-        wire(2, 1, 6, 1);
-        wire(6, 1, 12, 1);
+        wireId(document, 2, 1, 6, 1);
+        wireId(document, 6, 1, 12, 1);
         buffer(12, 0);
         assertThat(plan().segmentsMerged()).isEqualTo(1);
     }
@@ -208,8 +203,8 @@ class WireTidyTest {
         document.setProbes(List.of());
         buffer(0, 0);
         buffer(10, 0);
-        ElementId left = wire(2, 1, 6, 1);
-        ElementId right = wire(6, 1, 10, 1);
+        ElementId left = wireId(document, 2, 1, 6, 1);
+        ElementId right = wireId(document, 6, 1, 10, 1);
         document.setProbes(List.of(new Probe("p1", new ProbeTarget.WireTarget(right), "x")));
         TidyPlan plan = plan();
         assertThat(plan.probeRetargets()).containsExactly(Map.entry(right, left));
@@ -219,8 +214,8 @@ class WireTidyTest {
     void aScopeThatExcludesOneOfTwoMergeableWiresMergesNothing() {
         buffer(0, 0);
         buffer(10, 0);
-        ElementId left = wire(2, 1, 6, 1);
-        wire(6, 1, 10, 1);
+        ElementId left = wireId(document, 2, 1, 6, 1);
+        wireId(document, 6, 1, 10, 1);
         assertThat(plan(Set.of(left), TidyOptions.DEFAULTS).isEmpty()).isTrue();
     }
 
@@ -228,9 +223,9 @@ class WireTidyTest {
     void aScopeLimitsStubRemovalToSelectedWiresButStillSeesTheWholeCircuit() {
         buffer(0, 0);
         buffer(10, 0);
-        wire(2, 1, 10, 1);
-        ElementId selectedStub = wire(6, 1, 6, 5);
-        ElementId otherStub = wire(8, 1, 8, 5);
+        wireId(document, 2, 1, 10, 1);
+        ElementId selectedStub = wireId(document, 6, 1, 6, 5);
+        ElementId otherStub = wireId(document, 8, 1, 8, 5);
         TidyPlan plan = plan(Set.of(selectedStub), TidyOptions.DEFAULTS);
         assertThat(plan.removed()).extracting(Wire::id).containsExactly(selectedStub);
         assertThat(otherStub).isNotNull();
@@ -240,9 +235,9 @@ class WireTidyTest {
     void optionsTurnTheRulesOffIndependently() {
         buffer(0, 0);
         buffer(10, 0);
-        wire(2, 1, 6, 1);
-        wire(6, 1, 10, 1);
-        wire(8, 1, 8, 5);
+        wireId(document, 2, 1, 6, 1);
+        wireId(document, 6, 1, 10, 1);
+        wireId(document, 8, 1, 8, 5);
         assertThat(plan(allWires(), new TidyOptions(false, true, false)).stubsRemoved()).isZero();
         assertThat(plan(allWires(), new TidyOptions(false, true, false)).segmentsMerged()).isEqualTo(1);
         assertThat(plan(allWires(), new TidyOptions(true, false, false)).segmentsMerged()).isZero();
@@ -253,9 +248,9 @@ class WireTidyTest {
     void thePlanReachesAFixedPointAcrossRounds() {
         buffer(0, 0);
         buffer(14, 0);
-        wire(2, 1, 14, 1);
-        wire(6, 1, 6, 4);
-        wire(6, 4, 9, 4);
+        wireId(document, 2, 1, 14, 1);
+        wireId(document, 6, 1, 6, 4);
+        wireId(document, 6, 4, 9, 4);
         TidyPlan plan = plan();
         assertThat(plan.removed()).hasSize(2);
         assertThat(plan.added()).isEmpty();
@@ -269,7 +264,7 @@ class WireTidyTest {
     @Test
     void planningNeverMutatesTheDocument() {
         buffer(0, 0);
-        wire(2, 1, 8, 1);
+        wireId(document, 2, 1, 8, 1);
         long revision = document.revision();
         List<Wire> before = document.wires();
         plan();
@@ -281,7 +276,7 @@ class WireTidyTest {
     void theDetourOptionLeavesAStraightWireAlone() {
         buffer(0, 0);
         buffer(10, 0);
-        wire(2, 1, 10, 1);
+        wireId(document, 2, 1, 10, 1);
         assertThat(plan(allWires(), new TidyOptions(true, true, true)).isEmpty()).isTrue();
     }
 
@@ -308,7 +303,7 @@ class WireTidyTest {
     void aCleanCircuitGivesAnEmptyPlan() {
         buffer(0, 0);
         buffer(10, 0);
-        wire(2, 1, 10, 1);
+        wireId(document, 2, 1, 10, 1);
         assertThat(plan().isEmpty()).isTrue();
         assertThat(plan()).isEqualTo(TidyPlan.EMPTY);
     }

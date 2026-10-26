@@ -22,6 +22,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
+import static cl.almejo.vsim.ui.UiTestSupport.wire;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class HighlightCacheTest {
@@ -29,12 +30,6 @@ class HighlightCacheTest {
     private final ComponentTypeRegistry registry = StandardComponentTypes.registry();
     private final CircuitDocument document = new CircuitDocument();
     private final HighlightCache cache = new HighlightCache(registry);
-
-    private Wire wire(int startX, int startY, int endX, int endY) {
-        Wire wire = new Wire(document.newWireId(), new GridPoint(startX, startY), new GridPoint(endX, endY));
-        document.add(wire);
-        return wire;
-    }
 
     private SimulationSnapshot shortedSnapshot(Netlist netlist, Component driver, Wire wire) {
         String netId = netlist.netForWire(wire.id()).orElseThrow().id().value();
@@ -53,7 +48,7 @@ class HighlightCacheTest {
     @Test
     void theSameFrameReusesItsHighlightsAndANewSnapshotOrNetlistRecomputesThem() {
         Component high = highSwitch();
-        Wire wire = wire(4, 1, 10, 1);
+        Wire wire = wire(document, 4, 1, 10, 1);
         Netlist netlist = new NetlistCompiler(registry).compile(document);
         SimulationSnapshot shorted = shortedSnapshot(netlist, high, wire);
 
@@ -71,7 +66,7 @@ class HighlightCacheTest {
                 .isEqualTo(ShortCircuitHighlight.NONE);
         assertThat(cache.computations()).isEqualTo(2);
 
-        wire(10, 1, 10, 5);
+        wire(document, 10, 1, 10, 5);
         Netlist next = new NetlistCompiler(registry).compile(document);
         // the short belongs to the old netlist: stale for the new one
         assertThat(cache.shortCircuits(document, next, document.revision(), shorted))
@@ -82,7 +77,7 @@ class HighlightCacheTest {
     @Test
     void eachHighlightIsWorkedOutOnlyWhenAskedAndTheMergedNetsOncePerNetlist() {
         Component high = highSwitch();
-        Wire wire = wire(4, 1, 10, 1);
+        Wire wire = wire(document, 4, 1, 10, 1);
         Netlist netlist = new NetlistCompiler(registry).compile(document);
         SimulationSnapshot shorted = shortedSnapshot(netlist, high, wire);
         SimulationSnapshot again = shortedSnapshot(netlist, high, wire);
@@ -100,7 +95,7 @@ class HighlightCacheTest {
     @Test
     void newSnapshotsWithTheSameProblemsKeepTheFrameWhileNewProblemsOrEditsRecomputeIt() {
         Component high = highSwitch();
-        Wire wire = wire(4, 1, 10, 1);
+        Wire wire = wire(document, 4, 1, 10, 1);
         Netlist netlist = new NetlistCompiler(registry).compile(document);
         SimulationSnapshot shorted = shortedSnapshot(netlist, high, wire);
         ShortCircuitHighlight first = cache.shortCircuits(document, netlist, document.revision(), shorted);
@@ -131,7 +126,7 @@ class HighlightCacheTest {
     private String busOfFourBits() {
         document.add(registry.require(StandardComponentTypes.BUS_SPLITTER).newComponent(new ElementId("c1"),
                 new GridPoint(10, 0), Rotation.R0, Map.of(StandardComponentTypes.WIDTH, 4), ""));
-        Wire bus = wire(0, 0, 10, 0);
+        Wire bus = wire(document, 0, 0, 10, 0);
         return new NetlistCompiler(registry).compile(document).netForWire(bus.id()).orElseThrow().id().value();
     }
 
@@ -154,7 +149,7 @@ class HighlightCacheTest {
                 .satisfies(label -> assertThat(label.text()).isEqualTo("0xA"));
         assertThat(cache.busAnchorComputations()).isEqualTo(1);
 
-        Wire longer = wire(0, 0, 0, 30);
+        Wire longer = wire(document, 0, 0, 0, 30);
         Netlist next = new NetlistCompiler(registry).compile(document);
         String nextBus = next.netForWire(longer.id()).orElseThrow().id().value();
         RenderState edited = state(next, Map.of(nextBus, Value.of(4, 0x5)));
@@ -175,7 +170,7 @@ class HighlightCacheTest {
         assertThat(cache.busPoints(plain)).isSameAs(before);
         assertThat(before).doesNotContain(new GridPoint(0, 0));
 
-        wire(0, 0, 10, 0);
+        wire(document, 0, 0, 10, 0);
         Netlist withBus = new NetlistCompiler(registry).compile(document);
 
         assertThat(cache.busPoints(withBus)).contains(new GridPoint(0, 0), new GridPoint(10, 0));
