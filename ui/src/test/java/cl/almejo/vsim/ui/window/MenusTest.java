@@ -17,6 +17,7 @@ import java.awt.event.ActionEvent;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class MenusTest {
 
@@ -72,6 +73,23 @@ class MenusTest {
         firstRemover.run();
         assertThat(menu.getMenuComponentCount()).isEqualTo(before);
         assertThat(view.shortcutActions()).doesNotContainKeys("test.first", "test.second");
+        view.dispose();
+    }
+
+    @Test
+    void aFailedInstallLeavesTheMenuAsItWas() {
+        Messages.initialize(Messages.SPANISH);
+        EditorView view = new EditorView(OpenDocument.createEmpty(StandardComponentTypes.registry()),
+                PainterRegistry.standard(), ColorScheme.LIGHT, UiTestSupport.NO_WINDOW);
+        JMenu menu = view.menu(MenuId.TOOLS);
+        Action first = action("Primera");
+        Runnable firstRemover = Menus.install(view, MenuId.TOOLS, -1, first, "test.first");
+        int before = menu.getMenuComponentCount();
+        assertThatThrownBy(() -> Menus.install(view, MenuId.TOOLS, 0, action("Repetida"), "test.first"))
+                .isInstanceOf(RuntimeException.class);
+        assertThat(menu.getMenuComponentCount()).isEqualTo(before);
+        assertThat(view.shortcutActions()).containsEntry("test.first", first);
+        firstRemover.run();
         view.dispose();
     }
 }

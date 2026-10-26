@@ -24,18 +24,23 @@ public final class Menus {
 
     /**
      * Adds a plain item of {@code action} to {@code menu} at {@code index} (a negative index appends it) and offers
-     * the action to the shortcut editor under {@code shortcutId}. Returns one remover that undoes both, the shortcut
-     * first and then the item.
+     * the action to the shortcut editor under {@code shortcutId}. When either step fails, nothing stays behind.
+     * Returns one remover that undoes both, the shortcut first and then the item.
      */
     public static Runnable install(EditorView view, MenuId menu, int index, Action action, String shortcutId) {
         JMenu target = view.menu(menu);
         JMenuItem item = new JMenuItem(action);
-        if (index < 0) {
-            target.add(item);
-        } else {
-            target.insert(item, index);
-        }
         Runnable shortcutRemover = view.registerShortcutAction(shortcutId, action);
+        try {
+            if (index < 0) {
+                target.add(item);
+            } else {
+                target.add(item, index);
+            }
+        } catch (RuntimeException failure) {
+            shortcutRemover.run();
+            throw failure;
+        }
         return () -> {
             shortcutRemover.run();
             target.remove(item);
