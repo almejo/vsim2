@@ -1,5 +1,7 @@
 package cl.almejo.vsim.ui.library;
 
+import cl.almejo.vsim.ui.panels.TextChanges;
+
 import javax.swing.DefaultCellEditor;
 import javax.swing.JTable;
 import javax.swing.JTextField;
@@ -7,8 +9,6 @@ import javax.swing.ListSelectionModel;
 import javax.swing.UIManager;
 import javax.swing.event.CellEditorListener;
 import javax.swing.event.ChangeEvent;
-import javax.swing.event.DocumentEvent;
-import javax.swing.event.DocumentListener;
 import javax.swing.table.AbstractTableModel;
 import javax.swing.table.DefaultTableCellRenderer;
 import java.awt.Color;
@@ -77,22 +77,7 @@ final class PinNameTable extends JTable {
                 }
             }
         });
-        editorField.getDocument().addDocumentListener(new DocumentListener() {
-            @Override
-            public void insertUpdate(DocumentEvent event) {
-                typed();
-            }
-
-            @Override
-            public void removeUpdate(DocumentEvent event) {
-                typed();
-            }
-
-            @Override
-            public void changedUpdate(DocumentEvent event) {
-                typed();
-            }
-        });
+        TextChanges.onChange(editorField, this::typed);
         setDefaultEditor(Object.class, editor);
         setDefaultRenderer(Object.class, new DefaultTableCellRenderer() {
             @Override

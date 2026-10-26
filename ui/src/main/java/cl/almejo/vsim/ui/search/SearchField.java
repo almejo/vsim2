@@ -3,13 +3,12 @@ package cl.almejo.vsim.ui.search;
 import cl.almejo.vsim.ui.clipboard.FragmentRefusingTransferHandler;
 import cl.almejo.vsim.ui.icons.Icons;
 import cl.almejo.vsim.ui.inline.ProblemBadge;
+import cl.almejo.vsim.ui.panels.TextChanges;
 import cl.almejo.vsim.ui.shortcuts.ShortcutCatalog;
 
 import javax.swing.AbstractAction;
 import javax.swing.JTextField;
 import javax.swing.KeyStroke;
-import javax.swing.event.DocumentEvent;
-import javax.swing.event.DocumentListener;
 import java.awt.Color;
 import java.awt.event.ActionEvent;
 import java.awt.event.InputEvent;
@@ -31,22 +30,7 @@ public final class SearchField extends JTextField {
 
     /** Runs {@code listener} after every change of the text. */
     public void onTextChange(Runnable listener) {
-        getDocument().addDocumentListener(new DocumentListener() {
-            @Override
-            public void insertUpdate(DocumentEvent event) {
-                listener.run();
-            }
-
-            @Override
-            public void removeUpdate(DocumentEvent event) {
-                listener.run();
-            }
-
-            @Override
-            public void changedUpdate(DocumentEvent event) {
-                listener.run();
-            }
-        });
+        TextChanges.onChange(this, listener);
     }
 
     /** How much of the theme's error red tints the background of a field in error. */

@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.karnaugh;
 
+import cl.almejo.vsim.ui.actions.Actions;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.library.LibraryService;
 import cl.almejo.vsim.ui.window.EditorExtension;
@@ -7,11 +8,9 @@ import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.ImportMenu;
 import cl.almejo.vsim.ui.window.MenuId;
 
-import javax.swing.AbstractAction;
 import javax.swing.Action;
 import javax.swing.JMenu;
 import javax.swing.JMenuItem;
-import java.awt.event.ActionEvent;
 import java.nio.file.Path;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -71,23 +70,15 @@ public final class KarnaughExtension implements EditorExtension {
     @Override
     public Runnable install(EditorView view) {
         CreationTarget target = targets.apply(view);
-        Action action = new AbstractAction(Messages.text("action.circuitFromTruthTable")) {
-            @Override
-            public void actionPerformed(ActionEvent event) {
-                opener.open(view, new KarnaughWizard(new KarnaughModel(), cost, target, background));
-            }
-        };
+        Action action = Actions.of(Messages.text("action.circuitFromTruthTable"),
+                () -> opener.open(view, new KarnaughWizard(new KarnaughModel(), cost, target, background)));
         JMenu tools = view.menu(MenuId.TOOLS);
         JMenuItem item = new JMenuItem(action);
         tools.add(item);
         Runnable shortcutRemover = view.registerShortcutAction(SHORTCUT_ID, action);
-        Action practiceAction = new AbstractAction(Messages.text("action.karnaughPractice")) {
-            @Override
-            public void actionPerformed(ActionEvent event) {
-                opener.open(view, new KarnaughWizard(new KarnaughModel(), cost, target, background,
-                        KarnaughWizard.Mode.PRACTICE));
-            }
-        };
+        Action practiceAction = Actions.of(Messages.text("action.karnaughPractice"),
+                () -> opener.open(view, new KarnaughWizard(new KarnaughModel(), cost, target, background,
+                        KarnaughWizard.Mode.PRACTICE)));
         JMenuItem practiceItem = new JMenuItem(practiceAction);
         tools.add(practiceItem);
         Runnable practiceShortcutRemover = view.registerShortcutAction(PRACTICE_SHORTCUT_ID, practiceAction);
@@ -108,13 +99,9 @@ public final class KarnaughExtension implements EditorExtension {
             wizard.goTo(KarnaughWizard.Step.GROUPS);
             opener.open(owner, wizard);
         };
-        Action expressionsAction = new AbstractAction(Messages.text("action.circuitFromExpressions")) {
-            @Override
-            public void actionPerformed(ActionEvent event) {
-                expressionsOpener.open(view, new ExpressionsPanel(target, background,
-                        view.services().preferences(), cost, openInWizard));
-            }
-        };
+        Action expressionsAction = Actions.of(Messages.text("action.circuitFromExpressions"),
+                () -> expressionsOpener.open(view, new ExpressionsPanel(target, background,
+                        view.services().preferences(), cost, openInWizard)));
         JMenuItem expressionsItem = new JMenuItem(expressionsAction);
         tools.add(expressionsItem);
         Runnable expressionsShortcutRemover = view.registerShortcutAction(EXPRESSIONS_SHORTCUT_ID,
@@ -130,12 +117,8 @@ public final class KarnaughExtension implements EditorExtension {
             wizard.goTo(KarnaughWizard.Step.MAP);
             opener.open(view, wizard);
         };
-        Action importAction = new AbstractAction(Messages.text("action.importTruthTable")) {
-            @Override
-            public void actionPerformed(ActionEvent event) {
-                importOpener.open(view, new TableImportPanel(sources, target, background, importInWizard));
-            }
-        };
+        Action importAction = Actions.of(Messages.text("action.importTruthTable"),
+                () -> importOpener.open(view, new TableImportPanel(sources, target, background, importInWizard)));
         Runnable importItemRemover = ImportMenu.add(view.menu(MenuId.FILE), new JMenuItem(importAction));
         Runnable importShortcutRemover = view.registerShortcutAction(IMPORT_SHORTCUT_ID, importAction);
         return () -> {

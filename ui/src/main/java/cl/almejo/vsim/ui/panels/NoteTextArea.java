@@ -1,15 +1,14 @@
 package cl.almejo.vsim.ui.panels;
 
+import cl.almejo.vsim.ui.actions.Actions;
 import cl.almejo.vsim.ui.clipboard.FragmentRefusingTransferHandler;
 
-import javax.swing.AbstractAction;
 import javax.swing.JComponent;
 import javax.swing.JTextArea;
 import javax.swing.KeyStroke;
 import javax.swing.UIManager;
 import javax.swing.text.DefaultEditorKit;
 import java.awt.KeyboardFocusManager;
-import java.awt.event.ActionEvent;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.util.ArrayList;
@@ -30,12 +29,7 @@ final class NoteTextArea extends JTextArea {
         getInputMap(JComponent.WHEN_FOCUSED).put(KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, 0), CONFIRM);
         getInputMap(JComponent.WHEN_FOCUSED).put(KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, InputEvent.SHIFT_DOWN_MASK),
                 DefaultEditorKit.insertBreakAction);
-        getActionMap().put(CONFIRM, new AbstractAction() {
-            @Override
-            public void actionPerformed(ActionEvent event) {
-                confirm();
-            }
-        });
+        getActionMap().put(CONFIRM, Actions.unnamed(() -> confirm()));
         // Tab and Shift+Tab move the focus as in the other fields instead of typing a tab
         setFocusTraversalKeys(KeyboardFocusManager.FORWARD_TRAVERSAL_KEYS, null);
         setFocusTraversalKeys(KeyboardFocusManager.BACKWARD_TRAVERSAL_KEYS, null);

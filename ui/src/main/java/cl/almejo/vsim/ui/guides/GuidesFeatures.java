@@ -6,6 +6,7 @@ import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.Guide;
 import cl.almejo.vsim.core.document.Guide.Orientation;
 import cl.almejo.vsim.core.geometry.GridPoint;
+import cl.almejo.vsim.ui.actions.Actions;
 import cl.almejo.vsim.ui.actions.ContextMenuContributor;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.OpenDocument;
@@ -16,7 +17,6 @@ import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuId;
 
-import javax.swing.AbstractAction;
 import javax.swing.Action;
 import javax.swing.JCheckBoxMenuItem;
 import javax.swing.JMenu;
@@ -25,7 +25,6 @@ import javax.swing.JPopupMenu;
 import javax.swing.JSeparator;
 import java.awt.Component;
 import java.awt.Cursor;
-import java.awt.event.ActionEvent;
 import java.awt.geom.Point2D;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -86,12 +85,12 @@ public final class GuidesFeatures {
         this.openDocument = view.openDocument();
         this.preferences = view.services().preferences();
         this.menuShower = menuShower;
-        this.showGuides = action("action.showGuides", () -> preferences.setShowGuides(!preferences.showGuides()));
-        this.addHorizontal = action("action.addHorizontalGuide",
+        this.showGuides = Actions.of(Messages.text("action.showGuides"), () -> preferences.setShowGuides(!preferences.showGuides()));
+        this.addHorizontal = Actions.of(Messages.text("action.addHorizontalGuide"),
                 () -> addAtPoint(Orientation.HORIZONTAL, pointerOrMiddle()));
-        this.addVertical = action("action.addVerticalGuide",
+        this.addVertical = Actions.of(Messages.text("action.addVerticalGuide"),
                 () -> addAtPoint(Orientation.VERTICAL, pointerOrMiddle()));
-        this.clear = action("action.clearGuides",
+        this.clear = Actions.of(Messages.text("action.clearGuides"),
                 () -> SetGuidesCommand.clearing(document()).ifPresent(openDocument::execute));
         this.viewMenu = view.menu(MenuId.VIEW);
         insertMenuItems();
@@ -115,15 +114,6 @@ public final class GuidesFeatures {
         return () -> {
             panes.remove(pane);
             guides.dispose();
-        };
-    }
-
-    private static Action action(String nameKey, Runnable run) {
-        return new AbstractAction(Messages.text(nameKey)) {
-            @Override
-            public void actionPerformed(ActionEvent event) {
-                run.run();
-            }
         };
     }
 
@@ -196,9 +186,9 @@ public final class GuidesFeatures {
     /** The menu of the rulers' corner of {@code pane}: the guide items of Ver, the new guides in its middle. */
     void showCornerMenu(CircuitCanvas pane) {
         JPopupMenu menu = new JPopupMenu();
-        menu.add(new JMenuItem(action("action.addHorizontalGuide",
+        menu.add(new JMenuItem(Actions.of(Messages.text("action.addHorizontalGuide"),
                 () -> addAtPoint(Orientation.HORIZONTAL, middleOf(pane)))));
-        menu.add(new JMenuItem(action("action.addVerticalGuide",
+        menu.add(new JMenuItem(Actions.of(Messages.text("action.addVerticalGuide"),
                 () -> addAtPoint(Orientation.VERTICAL, middleOf(pane)))));
         menu.addSeparator();
         menu.add(new JCheckBoxMenuItem(showGuides));
@@ -221,14 +211,14 @@ public final class GuidesFeatures {
             Point2D screen = viewport.gridToScreen(gridPosition.getX(), gridPosition.getY());
             Optional<Guide> near = guideNear(document(), viewport, screen);
             if (near.isPresent()) {
-                menu.add(new JMenuItem(action("action.removeGuide", () -> removeGuide(near.get()))));
+                menu.add(new JMenuItem(Actions.of(Messages.text("action.removeGuide"), () -> removeGuide(near.get()))));
                 return;
             }
             GridPoint point = new GridPoint((int) Math.round(gridPosition.getX()),
                     (int) Math.round(gridPosition.getY()));
-            menu.add(new JMenuItem(action("action.addHorizontalGuideHere",
+            menu.add(new JMenuItem(Actions.of(Messages.text("action.addHorizontalGuideHere"),
                     () -> addAtPoint(Orientation.HORIZONTAL, point))));
-            menu.add(new JMenuItem(action("action.addVerticalGuideHere",
+            menu.add(new JMenuItem(Actions.of(Messages.text("action.addVerticalGuideHere"),
                     () -> addAtPoint(Orientation.VERTICAL, point))));
         }
     }

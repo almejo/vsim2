@@ -6,10 +6,10 @@ import cl.almejo.vsim.core.logic.KarnaughLayout;
 import cl.almejo.vsim.core.logic.LogicValue;
 import cl.almejo.vsim.core.logic.Minimization;
 import cl.almejo.vsim.core.logic.Term;
+import cl.almejo.vsim.ui.actions.Actions;
 import cl.almejo.vsim.ui.canvas.FrameTicker;
 import cl.almejo.vsim.ui.canvas.MarchingAnts;
 
-import javax.swing.AbstractAction;
 import javax.swing.JComponent;
 import javax.swing.KeyStroke;
 import java.awt.BasicStroke;
@@ -23,7 +23,6 @@ import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.RenderingHints;
 import java.awt.Shape;
-import java.awt.event.ActionEvent;
 import java.awt.event.FocusAdapter;
 import java.awt.event.FocusEvent;
 import java.awt.event.HierarchyEvent;
@@ -489,22 +488,15 @@ final class KarnaughMapView extends JComponent {
      * before: Escape still lets a pinned group go or closes the wizard.
      */
     private void putAction(String name, Runnable action, BooleanSupplier condition) {
-        getActionMap().put(name, new AbstractAction() {
-            @Override
-            public boolean isEnabled() {
-                return editable() && condition.getAsBoolean();
+        BooleanSupplier active = () -> editable() && condition.getAsBoolean();
+        getActionMap().put(name, Actions.unnamed(active, () -> {
+            if (active.getAsBoolean()) {
+                keyboardActive = true;
+                action.run();
+                updateAnimation();
+                repaint();
             }
-
-            @Override
-            public void actionPerformed(ActionEvent event) {
-                if (isEnabled()) {
-                    keyboardActive = true;
-                    action.run();
-                    updateAnimation();
-                    repaint();
-                }
-            }
-        });
+        }));
     }
 
     private void moveCursor(int rowDelta, int columnDelta) {

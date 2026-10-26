@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.print;
 
+import cl.almejo.vsim.ui.actions.Actions;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.export.ExportIcons;
 import cl.almejo.vsim.ui.i18n.Messages;
@@ -9,11 +10,9 @@ import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuId;
 import cl.almejo.vsim.ui.window.Menus;
 
-import javax.swing.AbstractAction;
 import javax.swing.Action;
 import javax.swing.JMenu;
 import javax.swing.JMenuItem;
-import java.awt.event.ActionEvent;
 import java.nio.file.Path;
 import java.time.Clock;
 import java.util.Objects;
@@ -45,12 +44,7 @@ public final class ExportPdfFeatures {
         this.collaborators = Objects.requireNonNull(collaborators, "collaborators");
         this.presenter = Objects.requireNonNull(presenter, "presenter");
         this.clock = Objects.requireNonNull(clock, "clock");
-        this.action = new AbstractAction(Messages.text("action.exportPdf")) {
-            @Override
-            public void actionPerformed(ActionEvent event) {
-                export();
-            }
-        };
+        this.action = Actions.of(Messages.text("action.exportPdf"), () -> export());
         Icons.install(action, ExportIcons.EXPORT_PDF);
         this.fileMenu = view.menu(MenuId.FILE);
         this.item = new JMenuItem(action);

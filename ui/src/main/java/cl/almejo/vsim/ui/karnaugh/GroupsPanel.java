@@ -4,10 +4,12 @@ import cl.almejo.vsim.core.logic.GroupExplanation;
 import cl.almejo.vsim.core.logic.Minimization;
 import cl.almejo.vsim.core.logic.Term;
 import cl.almejo.vsim.core.logic.TruthTableSpec;
+import cl.almejo.vsim.ui.actions.Actions;
+import cl.almejo.vsim.ui.actions.Keys;
 import cl.almejo.vsim.ui.i18n.Messages;
 import net.miginfocom.swing.MigLayout;
 
-import javax.swing.AbstractAction;
+import javax.swing.Action;
 import javax.swing.AbstractButton;
 import javax.swing.BorderFactory;
 import javax.swing.ButtonGroup;
@@ -24,7 +26,6 @@ import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
-import java.awt.event.ActionEvent;
 import java.awt.event.FocusAdapter;
 import java.awt.event.FocusEvent;
 import java.awt.event.KeyEvent;
@@ -141,19 +142,8 @@ final class GroupsPanel extends JPanel implements WizardStep {
 
     /** Esc lets a pinned group go; unpinned, the action is off so Esc reaches the window (which closes). */
     private void bindEscape() {
-        getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT)
-                .put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "unpinGroup");
-        getActionMap().put("unpinGroup", new AbstractAction() {
-            @Override
-            public boolean isEnabled() {
-                return hover.pinnedGroup() >= 0;
-            }
-
-            @Override
-            public void actionPerformed(ActionEvent event) {
-                hover.unpin();
-            }
-        });
+        Keys.bind(this, JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT, KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0),
+                "unpinGroup", () -> hover.pinnedGroup() >= 0, hover::unpin);
     }
 
     KarnaughMapView mapView(int output) {
@@ -412,15 +402,10 @@ final class GroupsPanel extends JPanel implements WizardStep {
         }
 
         private void bind(String name, Runnable action, int... keyCodes) {
+            Action keyAction = Actions.unnamed(action);
             for (int keyCode : keyCodes) {
-                getInputMap(JComponent.WHEN_FOCUSED).put(KeyStroke.getKeyStroke(keyCode, 0), name);
+                Keys.bind(this, JComponent.WHEN_FOCUSED, KeyStroke.getKeyStroke(keyCode, 0), name, keyAction);
             }
-            getActionMap().put(name, new AbstractAction() {
-                @Override
-                public void actionPerformed(ActionEvent event) {
-                    action.run();
-                }
-            });
         }
 
         /** The group's colour, read at paint time so a theme change recolours the legend. */

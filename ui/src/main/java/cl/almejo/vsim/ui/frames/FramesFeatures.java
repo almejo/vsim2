@@ -10,6 +10,7 @@ import cl.almejo.vsim.core.document.FrameContents;
 import cl.almejo.vsim.core.document.FrameTint;
 import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.geometry.GridPoint;
+import cl.almejo.vsim.ui.actions.Actions;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.canvas.DrawnBounds;
@@ -19,11 +20,9 @@ import cl.almejo.vsim.ui.tools.SelectTool;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuId;
 
-import javax.swing.AbstractAction;
 import javax.swing.Action;
 import javax.swing.JMenu;
 import javax.swing.JMenuItem;
-import java.awt.event.ActionEvent;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -70,12 +69,7 @@ public final class FramesFeatures {
 
     public FramesFeatures(EditorView view) {
         this.view = view;
-        this.frameSelection = new AbstractAction(Messages.text("action.frameSelection")) {
-            @Override
-            public void actionPerformed(ActionEvent event) {
-                frameSelectionNow();
-            }
-        };
+        this.frameSelection = Actions.of(Messages.text("action.frameSelection"), () -> frameSelectionNow());
         frameSelection.setEnabled(!view.selection().isEmpty());
         this.selectionListener = () -> frameSelection.setEnabled(!view.selection().isEmpty());
         view.selection().addListener(selectionListener);
@@ -84,12 +78,7 @@ public final class FramesFeatures {
         editMenu.insert(menuItem, indexAfterSelectAll());
         this.shortcutRemover = view.registerShortcutAction("edit.frameSelection", frameSelection);
         this.titleEditor = frame -> view.editLabel(frame);
-        this.frameTool = new AbstractAction(Messages.text("action.toolFrame")) {
-            @Override
-            public void actionPerformed(ActionEvent event) {
-                view.setToolOnEveryPane(FrameTool::new);
-            }
-        };
+        this.frameTool = Actions.of(Messages.text("action.toolFrame"), () -> view.setToolOnEveryPane(FrameTool::new));
         Icons.install(frameTool, FrameIcons.FRAME_TOOL);
         this.toolButtonRemover = view.addToolButton(frameTool, FrameTool.class);
         this.viewMenu = view.menu(MenuId.VIEW);

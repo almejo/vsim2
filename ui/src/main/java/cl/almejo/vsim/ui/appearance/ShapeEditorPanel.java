@@ -13,6 +13,7 @@ import cl.almejo.vsim.core.document.NoteStyle;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.GridSize;
 import cl.almejo.vsim.core.library.DefinitionPin;
+import cl.almejo.vsim.ui.actions.Keys;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.i18n.NoteColorNames;
@@ -26,7 +27,6 @@ import cl.almejo.vsim.ui.theme.ReadableColors;
 import cl.almejo.vsim.ui.theme.SegmentedSwitch;
 import net.miginfocom.swing.MigLayout;
 
-import javax.swing.AbstractAction;
 import javax.swing.AbstractButton;
 import javax.swing.BorderFactory;
 import javax.swing.ButtonGroup;
@@ -57,7 +57,6 @@ import java.awt.Insets;
 import java.awt.KeyboardFocusManager;
 import java.awt.LayoutManager;
 import java.awt.RenderingHints;
-import java.awt.event.ActionEvent;
 import java.awt.event.ContainerAdapter;
 import java.awt.event.ContainerEvent;
 import java.awt.event.InputEvent;
@@ -653,24 +652,11 @@ public final class ShapeEditorPanel extends JPanel {
     }
 
     private void bind(KeyStroke stroke, String name, Runnable action) {
-        getInputMap(WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(stroke, "shape." + name);
-        getActionMap().put("shape." + name, new AbstractAction() {
-            @Override
-            public void actionPerformed(ActionEvent event) {
-                action.run();
-            }
-        });
+        Keys.bind(this, WHEN_ANCESTOR_OF_FOCUSED_COMPONENT, stroke, "shape." + name, action);
     }
 
     private void bindCanvas(KeyStroke stroke, Runnable action) {
-        String name = "shape.canvas." + stroke;
-        canvas.getInputMap(WHEN_FOCUSED).put(stroke, name);
-        canvas.getActionMap().put(name, new AbstractAction() {
-            @Override
-            public void actionPerformed(ActionEvent event) {
-                action.run();
-            }
-        });
+        Keys.bind(canvas, WHEN_FOCUSED, stroke, "shape.canvas." + stroke, action);
     }
 
     // --- Edits --------------------------------------------------------------------------------------------------

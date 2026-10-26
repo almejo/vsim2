@@ -1,8 +1,8 @@
 package cl.almejo.vsim.ui.window.panes;
 
+import cl.almejo.vsim.ui.app.Delay;
 import cl.almejo.vsim.ui.app.FileNames;
 
-import javax.swing.Timer;
 import java.nio.file.Path;
 import java.util.Optional;
 import java.util.OptionalDouble;
@@ -22,22 +22,6 @@ public final class RememberedSplit {
     public static final int SAVE_DELAY_MILLISECONDS = 500;
     /** A remembered layout whose panes would be smaller than this (either side) does not fit and is not restored. */
     public static final int MINIMUM_PANE_SIZE = 24;
-
-    /** Runs {@code task} once after a delay, on the EDT; the returned runnable stops it if it has not run yet. */
-    @FunctionalInterface
-    public interface Delay {
-        Runnable after(int milliseconds, Runnable task);
-
-        /** A one-shot Swing {@link Timer}. */
-        static Delay swing() {
-            return (milliseconds, task) -> {
-                Timer timer = new Timer(milliseconds, event -> task.run());
-                timer.setRepeats(false);
-                timer.start();
-                return timer::stop;
-            };
-        }
-    }
 
     private final SplitLayoutStore store;
     private final CanvasPanes panes;

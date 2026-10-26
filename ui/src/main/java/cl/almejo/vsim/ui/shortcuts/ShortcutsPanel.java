@@ -1,6 +1,7 @@
 package cl.almejo.vsim.ui.shortcuts;
 
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.panels.TextChanges;
 import net.miginfocom.swing.MigLayout;
 
 import javax.swing.JButton;
@@ -11,8 +12,6 @@ import javax.swing.JTable;
 import javax.swing.JTextField;
 import javax.swing.KeyStroke;
 import javax.swing.ListSelectionModel;
-import javax.swing.event.DocumentEvent;
-import javax.swing.event.DocumentListener;
 import javax.swing.table.DefaultTableCellRenderer;
 import java.awt.Component;
 import java.awt.Font;
@@ -71,22 +70,7 @@ public final class ShortcutsPanel extends JPanel {
                 }
             }
         });
-        searchField.getDocument().addDocumentListener(new DocumentListener() {
-            @Override
-            public void insertUpdate(DocumentEvent event) {
-                filterChanged();
-            }
-
-            @Override
-            public void removeUpdate(DocumentEvent event) {
-                filterChanged();
-            }
-
-            @Override
-            public void changedUpdate(DocumentEvent event) {
-                filterChanged();
-            }
-        });
+        TextChanges.onChange(searchField, this::filterChanged);
         changeButton.addActionListener(event -> startCapture());
         clearButton.addActionListener(event -> selectedEntry().ifPresent(entry -> stopCaptureAnd(
                 () -> model.clear(entry.id()))));

@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.grid;
 
+import cl.almejo.vsim.ui.actions.Actions;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.AppPreferences.GridStyle;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
@@ -7,14 +8,12 @@ import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuId;
 
-import javax.swing.AbstractAction;
 import javax.swing.Action;
 import javax.swing.ButtonGroup;
 import javax.swing.JMenu;
 import javax.swing.JMenuItem;
 import javax.swing.JRadioButtonMenuItem;
 import java.awt.Component;
-import java.awt.event.ActionEvent;
 import java.util.EnumMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -55,12 +54,8 @@ public final class GridFeatures {
             gridMenu.add(item);
             items.put(style, item);
         }
-        this.cycle = new AbstractAction(Messages.text("action.cycleGrid")) {
-            @Override
-            public void actionPerformed(ActionEvent event) {
-                preferences.setGridStyle(next(preferences.gridStyle()));
-            }
-        };
+        this.cycle = Actions.of(Messages.text("action.cycleGrid"),
+                () -> preferences.setGridStyle(next(preferences.gridStyle())));
         gridMenu.addSeparator();
         gridMenu.add(spacingMenu());
         gridMenu.addSeparator();
@@ -98,12 +93,7 @@ public final class GridFeatures {
     }
 
     private Action choose(GridStyle style) {
-        return new AbstractAction(Messages.text(nameKey(style))) {
-            @Override
-            public void actionPerformed(ActionEvent event) {
-                preferences.setGridStyle(style);
-            }
-        };
+        return Actions.of(Messages.text(nameKey(style)), () -> preferences.setGridStyle(style));
     }
 
     /** «Separación ▸»: one radio item per spacing the preferences accept. */
@@ -120,12 +110,8 @@ public final class GridFeatures {
     }
 
     private Action chooseSpacing(int spacing) {
-        return new AbstractAction(Messages.format("grid.spacing.units", spacing)) {
-            @Override
-            public void actionPerformed(ActionEvent event) {
-                preferences.setGridLineSpacing(spacing);
-            }
-        };
+        return Actions.of(Messages.format("grid.spacing.units", spacing),
+                () -> preferences.setGridLineSpacing(spacing));
     }
 
     private static String nameKey(GridStyle style) {

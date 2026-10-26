@@ -1,17 +1,16 @@
 package cl.almejo.vsim.ui.window.panes;
 
+import cl.almejo.vsim.ui.actions.Actions;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuId;
 import cl.almejo.vsim.ui.window.panes.CanvasPanes.Orientation;
 
-import javax.swing.AbstractAction;
 import javax.swing.Action;
 import javax.swing.JMenu;
 import javax.swing.JMenuItem;
 import java.awt.Component;
-import java.awt.event.ActionEvent;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -46,10 +45,10 @@ public final class SplitViewsFeatures {
     public SplitViewsFeatures(EditorView view) {
         this.view = view;
         this.panes = view.canvasPanes();
-        this.splitHorizontal = action("action.splitHorizontal", () -> panes.split(Orientation.HORIZONTAL, MIDDLE));
-        this.splitVertical = action("action.splitVertical", () -> panes.split(Orientation.VERTICAL, MIDDLE));
-        this.removeSplit = action("action.removeSplit", panes::removeAll);
-        this.nextPane = action("action.nextPane", this::activateNextPane);
+        this.splitHorizontal = Actions.of(Messages.text("action.splitHorizontal"), () -> panes.split(Orientation.HORIZONTAL, MIDDLE));
+        this.splitVertical = Actions.of(Messages.text("action.splitVertical"), () -> panes.split(Orientation.VERTICAL, MIDDLE));
+        this.removeSplit = Actions.of(Messages.text("action.removeSplit"), panes::removeAll);
+        this.nextPane = Actions.of(Messages.text("action.nextPane"), this::activateNextPane);
         this.windowMenu = view.menu(MenuId.WINDOW);
         insertMenuItems();
         removers.add(view.registerShortcutAction(SPLIT_HORIZONTAL_SHORTCUT, splitHorizontal));
@@ -68,15 +67,6 @@ public final class SplitViewsFeatures {
         return () -> {
             horizontal.run();
             vertical.run();
-        };
-    }
-
-    private static Action action(String nameKey, Runnable run) {
-        return new AbstractAction(Messages.text(nameKey)) {
-            @Override
-            public void actionPerformed(ActionEvent event) {
-                run.run();
-            }
         };
     }
 
@@ -120,22 +110,6 @@ public final class SplitViewsFeatures {
         CircuitCanvas next = all.get((all.indexOf(panes.active()) + 1) % all.size());
         panes.activate(next);
         next.requestFocusInWindow();
-    }
-
-    public Action splitHorizontalAction() {
-        return splitHorizontal;
-    }
-
-    public Action splitVerticalAction() {
-        return splitVertical;
-    }
-
-    public Action removeSplitAction() {
-        return removeSplit;
-    }
-
-    public Action nextPaneAction() {
-        return nextPane;
     }
 
     public void dispose() {

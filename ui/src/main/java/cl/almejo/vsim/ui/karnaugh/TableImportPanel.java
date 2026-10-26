@@ -12,6 +12,7 @@ import cl.almejo.vsim.core.logic.Term;
 import cl.almejo.vsim.core.logic.TruthTableSpec;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.icons.Icons;
+import cl.almejo.vsim.ui.panels.TextChanges;
 import net.miginfocom.swing.MigLayout;
 
 import javax.swing.AbstractButton;
@@ -28,11 +29,8 @@ import javax.swing.JSpinner;
 import javax.swing.JTextField;
 import javax.swing.SpinnerNumberModel;
 import javax.swing.SwingUtilities;
-import javax.swing.event.DocumentEvent;
-import javax.swing.event.DocumentListener;
 import java.awt.BorderLayout;
 import java.awt.CardLayout;
-import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.Font;
@@ -122,18 +120,8 @@ public final class TableImportPanel extends JPanel {
     private final Paragraph help = new Paragraph(Messages.text("tableImport.help") + " "
             + Messages.format("tableImport.limits", String.valueOf(TruthTableSpec.MAXIMUM_INPUTS),
             String.valueOf(TruthTableSpec.MAXIMUM_OUTPUTS)));
-    private final Paragraph problems = new Paragraph("") {
-        @Override
-        public Color getForeground() {
-            return WizardColors.errorText();
-        }
-    };
-    private final Paragraph titleProblem = new Paragraph("") {
-        @Override
-        public Color getForeground() {
-            return WizardColors.errorText();
-        }
-    };
+    private final Paragraph problems = Paragraph.error();
+    private final Paragraph titleProblem = Paragraph.error();
     private final JButton hintButton = new JButton(Messages.text("tableImport.openInWizard"));
     private final Paragraph hintText = new Paragraph(Messages.text("tableImport.wizardHint"));
     /** Page «Datos»'s suggestion of the Karnaugh wizard, over the preview, for a table that fits it. */
@@ -168,12 +156,7 @@ public final class TableImportPanel extends JPanel {
     private final JCheckBox share = new JCheckBox(Messages.text("karnaugh.expression.share"));
     private final JLabel summary = new JLabel(" ");
     /** «El circuito tendría 2 229 compuertas; el máximo es 2 000.» under the summary, when «Crear» is off for it. */
-    private final Paragraph gateLimit = new Paragraph("") {
-        @Override
-        public Color getForeground() {
-            return WizardColors.errorText();
-        }
-    };
+    private final Paragraph gateLimit = Paragraph.error();
     private final JButton close = new JButton(Messages.text("karnaugh.close"));
     private final JButton wizard = new JButton(Messages.text("tableImport.openInWizard"));
     private final WizardOpener openInWizard;
@@ -302,22 +285,7 @@ public final class TableImportPanel extends JPanel {
         hintButton.addActionListener(event -> openWizard(Page.DATA));
         back.addActionListener(event -> goTo(Page.DATA));
         next.addActionListener(event -> goTo(Page.CREATE));
-        title.getDocument().addDocumentListener(new DocumentListener() {
-            @Override
-            public void insertUpdate(DocumentEvent event) {
-                titleTyped();
-            }
-
-            @Override
-            public void removeUpdate(DocumentEvent event) {
-                titleTyped();
-            }
-
-            @Override
-            public void changedUpdate(DocumentEvent event) {
-                titleTyped();
-            }
-        });
+        TextChanges.onChange(title, this::titleTyped);
         inputCount.addChangeListener(event -> {
             if (!syncing) {
                 model.setInputCount((Integer) inputCount.getValue());

@@ -13,7 +13,6 @@ import javax.swing.JCheckBox;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JRadioButton;
-import java.awt.Color;
 import java.awt.Font;
 import java.util.ArrayList;
 import java.util.EnumMap;
@@ -42,12 +41,7 @@ final class ExpressionPanel extends JPanel implements WizardStep {
     private final Map<Minimization.Form, JRadioButton> formButtons = new EnumMap<>(Minimization.Form.class);
     private final JCheckBox share = new JCheckBox(Messages.text("karnaugh.expression.share"));
     private final JCheckBox useMine = new JCheckBox(Messages.text("karnaugh.practice.useMine"));
-    private final JLabel useMineReason = new JLabel() {
-        @Override
-        public Color getForeground() {
-            return WizardColors.warning();
-        }
-    };
+    private final JLabel useMineReason = WizardColors.label("", WizardColors::warning);
     private final JLabel costLabel = new JLabel();
 
     ExpressionPanel(KarnaughModel model, KarnaughCost cost) {

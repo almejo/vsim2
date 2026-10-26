@@ -1,9 +1,9 @@
 package cl.almejo.vsim.ui.karnaugh;
 
 import cl.almejo.vsim.core.logic.LogicValue;
+import cl.almejo.vsim.ui.actions.Actions;
 import cl.almejo.vsim.ui.i18n.Messages;
 
-import javax.swing.AbstractAction;
 import javax.swing.JComponent;
 import javax.swing.JTable;
 import javax.swing.KeyStroke;
@@ -13,7 +13,6 @@ import javax.swing.table.AbstractTableModel;
 import javax.swing.table.DefaultTableCellRenderer;
 import java.awt.Component;
 import java.awt.Font;
-import java.awt.event.ActionEvent;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
@@ -124,16 +123,13 @@ final class WizardTable extends JTable {
             getInputMap(JComponent.WHEN_FOCUSED).put(stroke, name);
             boundKeys.add(stroke);
         }
-        getActionMap().put(name, new AbstractAction() {
-            @Override
-            public void actionPerformed(ActionEvent event) {
+        getActionMap().put(name, Actions.unnamed(() -> {
                 int row = getSelectedRow();
                 int output = outputOf(getSelectedColumn());
                 if (row >= 0 && output >= 0) {
                     edit.apply(output, row);
                 }
-            }
-        });
+        }));
     }
 
     /** A new shape rebuilds the columns; values and names keep the selection (for keyboard editing). */

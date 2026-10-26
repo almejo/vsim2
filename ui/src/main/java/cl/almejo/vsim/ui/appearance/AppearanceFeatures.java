@@ -15,6 +15,7 @@ import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.core.library.UnsafeDefinitionUpdateException;
 import cl.almejo.vsim.core.netlist.PinRef;
 import cl.almejo.vsim.core.wiring.ShapeChangePlan;
+import cl.almejo.vsim.ui.actions.Actions;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.library.LibraryDialogs;
 import cl.almejo.vsim.ui.library.LibraryService;
@@ -23,9 +24,7 @@ import cl.almejo.vsim.ui.window.panes.EveryPane;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.swing.AbstractAction;
 import javax.swing.JMenuItem;
-import java.awt.event.ActionEvent;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -274,11 +273,6 @@ final class AppearanceFeatures {
     }
 
     private JMenuItem item(String key, Runnable action) {
-        return new JMenuItem(new AbstractAction(Messages.text(key)) {
-            @Override
-            public void actionPerformed(ActionEvent event) {
-                action.run();
-            }
-        });
+        return new JMenuItem(Actions.of(Messages.text(key), action));
     }
 }

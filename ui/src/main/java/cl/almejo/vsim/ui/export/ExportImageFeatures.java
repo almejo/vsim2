@@ -1,6 +1,7 @@
 package cl.almejo.vsim.ui.export;
 
 import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.ui.actions.Actions;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.i18n.Messages;
@@ -11,12 +12,10 @@ import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.MenuId;
 import cl.almejo.vsim.ui.window.Menus;
 
-import javax.swing.AbstractAction;
 import javax.swing.Action;
 import javax.swing.JMenu;
 import javax.swing.JMenuItem;
 import java.awt.Component;
-import java.awt.event.ActionEvent;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Optional;
@@ -43,12 +42,7 @@ public final class ExportImageFeatures {
         this.view = view;
         this.chooser = chooser;
         this.messages = messages;
-        this.action = new AbstractAction(Messages.text("action.exportImage")) {
-            @Override
-            public void actionPerformed(ActionEvent event) {
-                export();
-            }
-        };
+        this.action = Actions.of(Messages.text("action.exportImage"), () -> export());
         Icons.install(action, ExportIcons.EXPORT_IMAGE);
         this.fileMenu = view.menu(MenuId.FILE);
         this.item = new JMenuItem(action);

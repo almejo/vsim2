@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.window;
 import cl.almejo.vsim.core.command.Command;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.ui.app.Application;
+import cl.almejo.vsim.ui.app.Delay;
 import cl.almejo.vsim.ui.app.DocumentWindows;
 import cl.almejo.vsim.ui.app.FileDialogs;
 import cl.almejo.vsim.ui.app.OpenDocument;
@@ -62,7 +63,7 @@ public final class CircuitWindow extends JFrame implements WindowCommands {
         this.recentFiles = new RecentFiles(services.preferences());
         this.view = new EditorView(openDocument, services, this);
         this.rememberedSplit = new RememberedSplit(new SplitLayoutStore(services.preferences()), view.canvasPanes(),
-                openDocument::path, RememberedSplit.Delay.swing());
+                openDocument::path, Delay.swing());
         setJMenuBar(view.menuBar());
         setContentPane(view);
         setIconImages(AppIcons.images());

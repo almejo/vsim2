@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.waveform;
 import cl.almejo.vsim.core.document.Probe;
 import cl.almejo.vsim.core.waveform.Trace;
 import cl.almejo.vsim.core.waveform.WaveformSnapshot;
+import cl.almejo.vsim.ui.actions.Actions;
 import cl.almejo.vsim.ui.actions.TextPrompt;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.i18n.Messages;
@@ -10,7 +11,6 @@ import cl.almejo.vsim.ui.icons.Icons;
 import cl.almejo.vsim.ui.problems.Blink;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 
-import javax.swing.AbstractAction;
 import javax.swing.AbstractButton;
 import javax.swing.Action;
 import javax.swing.BorderFactory;
@@ -28,7 +28,6 @@ import javax.swing.Timer;
 import java.awt.BorderLayout;
 import java.awt.Component;
 import java.awt.Rectangle;
-import java.awt.event.ActionEvent;
 import java.awt.event.HierarchyEvent;
 import java.util.ArrayList;
 import java.util.List;
@@ -372,15 +371,15 @@ public final class WaveformPanel extends JPanel {
     /** The right-click menu of a row (spec §3.2). */
     JPopupMenu rowMenu(String probeId) {
         JPopupMenu menu = new JPopupMenu();
-        menu.add(new JMenuItem(action("waveform.rename", () -> rename(probeId))));
+        menu.add(new JMenuItem(Actions.of(Messages.text("waveform.rename"), () -> rename(probeId))));
         menu.addSeparator();
-        menu.add(new JMenuItem(action("waveform.moveUp", () -> actions.moveUp(probeId))));
-        menu.add(new JMenuItem(action("waveform.moveDown", () -> actions.moveDown(probeId))));
+        menu.add(new JMenuItem(Actions.of(Messages.text("waveform.moveUp"), () -> actions.moveUp(probeId))));
+        menu.add(new JMenuItem(Actions.of(Messages.text("waveform.moveDown"), () -> actions.moveDown(probeId))));
         menu.addSeparator();
-        menu.add(new JMenuItem(action("waveform.remove", () -> actions.remove(probeId))));
-        menu.add(new JMenuItem(action("waveform.removeAll", actions::removeAll)));
+        menu.add(new JMenuItem(Actions.of(Messages.text("waveform.remove"), () -> actions.remove(probeId))));
+        menu.add(new JMenuItem(Actions.of(Messages.text("waveform.removeAll"), actions::removeAll)));
         menu.addSeparator();
-        menu.add(new JMenuItem(action("waveform.showInCircuit", () -> showInCircuit(probeId))));
+        menu.add(new JMenuItem(Actions.of(Messages.text("waveform.showInCircuit"), () -> showInCircuit(probeId))));
         return menu;
     }
 
@@ -539,20 +538,11 @@ public final class WaveformPanel extends JPanel {
      * the 16 px icon {@code iconName} is what the button shows.
      */
     private static Action toolAction(String key, String iconName, Runnable behavior) {
-        Action action = action(key, behavior);
+        Action action = Actions.of(Messages.text(key), behavior);
         Icon icon = Icons.get(iconName, Icons.MENU_SIZE);
         action.putValue(Action.SMALL_ICON, icon);
         action.putValue(Action.LARGE_ICON_KEY, icon);
         action.putValue(Action.SHORT_DESCRIPTION, Messages.text(key + "Tip"));
         return action;
-    }
-
-    private static Action action(String key, Runnable behavior) {
-        return new AbstractAction(Messages.text(key)) {
-            @Override
-            public void actionPerformed(ActionEvent event) {
-                behavior.run();
-            }
-        };
     }
 }

@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.library;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.TestParts;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.panels.TextChanges;
 import net.miginfocom.swing.MigLayout;
 
 import javax.swing.DefaultListCellRenderer;
@@ -16,8 +17,6 @@ import javax.swing.JScrollPane;
 import javax.swing.JTable;
 import javax.swing.JTextField;
 import javax.swing.UIManager;
-import javax.swing.event.DocumentEvent;
-import javax.swing.event.DocumentListener;
 import java.awt.Color;
 import java.awt.Font;
 import java.util.ArrayList;
@@ -98,22 +97,7 @@ public final class ComponentFormPanel extends JPanel {
         }
         add(new JLabel(Messages.text("template.dialog.name")), "span 2");
         name.setText(form.name());
-        name.getDocument().addDocumentListener(new DocumentListener() {
-            @Override
-            public void insertUpdate(DocumentEvent event) {
-                form.setName(name.getText());
-            }
-
-            @Override
-            public void removeUpdate(DocumentEvent event) {
-                form.setName(name.getText());
-            }
-
-            @Override
-            public void changedUpdate(DocumentEvent event) {
-                form.setName(name.getText());
-            }
-        });
+        TextChanges.onChange(name, () -> form.setName(name.getText()));
         add(name, "span 2");
         Color error = UIManager.getColor("Actions.Red");
         message.setForeground(error == null ? ERROR_FALLBACK : error);

@@ -1,6 +1,8 @@
 package cl.almejo.vsim.ui.waveform;
 
-import javax.swing.AbstractAction;
+import cl.almejo.vsim.ui.actions.Actions;
+import cl.almejo.vsim.ui.actions.Keys;
+
 import javax.swing.JComponent;
 import javax.swing.JViewport;
 import javax.swing.KeyStroke;
@@ -12,7 +14,6 @@ import java.awt.Dimension;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Rectangle;
-import java.awt.event.ActionEvent;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
 import java.awt.event.KeyEvent;
@@ -59,13 +60,8 @@ final class WaveformPlot extends JComponent implements Scrollable {
     }
 
     private void bindKey(int keyCode, String name, int direction) {
-        getInputMap(WHEN_FOCUSED).put(KeyStroke.getKeyStroke(keyCode, 0), name);
-        getActionMap().put(name, new AbstractAction(name) {
-            @Override
-            public void actionPerformed(ActionEvent event) {
-                panel.moveCursorToEdge(direction);
-            }
-        });
+        Keys.bind(this, WHEN_FOCUSED, KeyStroke.getKeyStroke(keyCode, 0), name,
+                Actions.of(name, () -> panel.moveCursorToEdge(direction)));
     }
 
     @Override

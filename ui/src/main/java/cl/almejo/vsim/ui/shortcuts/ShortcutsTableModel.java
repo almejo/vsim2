@@ -23,7 +23,6 @@ public final class ShortcutsTableModel extends AbstractTableModel {
     public enum Outcome { ASSIGNED, CONFLICT, REFUSED }
 
     static final int ACTION_COLUMN = 0;
-    static final int SHORTCUT_COLUMN = 1;
 
     private sealed interface Row permits GroupRow, ActionRow {
     }

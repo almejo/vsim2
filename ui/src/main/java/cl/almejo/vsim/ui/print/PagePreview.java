@@ -1,10 +1,10 @@
 package cl.almejo.vsim.ui.print;
 
 import cl.almejo.vsim.core.geometry.GridPoint;
+import cl.almejo.vsim.ui.actions.Actions;
 import cl.almejo.vsim.ui.i18n.Messages;
 import net.miginfocom.swing.MigLayout;
 
-import javax.swing.AbstractAction;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.JComponent;
@@ -22,7 +22,6 @@ import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Rectangle;
 import java.awt.RenderingHints;
-import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
@@ -207,12 +206,7 @@ final class PagePreview extends JPanel {
         private void bindKey(int keyCode) {
             String name = "sheet." + keyCode;
             getInputMap(WHEN_FOCUSED).put(KeyStroke.getKeyStroke(keyCode, 0), name);
-            getActionMap().put(name, new AbstractAction() {
-                @Override
-                public void actionPerformed(ActionEvent event) {
-                    key(keyCode);
-                }
-            });
+            getActionMap().put(name, Actions.unnamed(() -> key(keyCode)));
         }
 
         /** An arrow key: left and right move one sheet, up and down one row. */

@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.quickinsert;
 
+import cl.almejo.vsim.ui.actions.Keys;
 import cl.almejo.vsim.ui.clipboard.FragmentRefusingTransferHandler;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.panels.PaletteEntry;
@@ -8,13 +9,12 @@ import cl.almejo.vsim.ui.panels.PalettePanel;
 import cl.almejo.vsim.ui.paint.Appearance;
 import cl.almejo.vsim.ui.paint.ComponentIcon;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
+import cl.almejo.vsim.ui.panels.TextChanges;
 
-import javax.swing.AbstractAction;
 import javax.swing.BorderFactory;
 import javax.swing.DefaultListCellRenderer;
 import javax.swing.DefaultListModel;
 import javax.swing.DefaultListSelectionModel;
-import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JList;
 import javax.swing.JPanel;
@@ -23,12 +23,9 @@ import javax.swing.JTextField;
 import javax.swing.KeyStroke;
 import javax.swing.ListSelectionModel;
 import javax.swing.SwingUtilities;
-import javax.swing.event.DocumentEvent;
-import javax.swing.event.DocumentListener;
 import java.awt.BorderLayout;
 import java.awt.Component;
 import java.awt.Dimension;
-import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
@@ -78,11 +75,7 @@ final class QuickInsertPanel extends JPanel {
         search.getAccessibleContext().setAccessibleName(Messages.text("quickInsert.search"));
         search.putClientProperty("JTextField.showClearButton", true);
         FragmentRefusingTransferHandler.install(search);
-        search.getDocument().addDocumentListener(new DocumentListener() {
-            @Override public void insertUpdate(DocumentEvent event) { refresh(); }
-            @Override public void removeUpdate(DocumentEvent event) { refresh(); }
-            @Override public void changedUpdate(DocumentEvent event) { refresh(); }
-        });
+        TextChanges.onChange(search, this::refresh);
         search.addActionListener(event -> acceptSelection());
         list.setSelectionModel(new HeadingSkippingSelectionModel());
         list.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
@@ -118,11 +111,11 @@ final class QuickInsertPanel extends JPanel {
                 }
             }
         });
-        bind(search, KeyEvent.VK_DOWN, "next", () -> moveSelection(1));
-        bind(search, KeyEvent.VK_UP, "previous", () -> moveSelection(-1));
-        bind(search, KeyEvent.VK_ESCAPE, "cancel", this::cancel);
-        bind(list, KeyEvent.VK_ESCAPE, "cancel", this::cancel);
-        bind(list, KeyEvent.VK_ENTER, "choose", this::acceptSelection);
+        Keys.bindWhenFocused(search, KeyStroke.getKeyStroke(KeyEvent.VK_DOWN, 0), "next", () -> moveSelection(1));
+        Keys.bindWhenFocused(search, KeyStroke.getKeyStroke(KeyEvent.VK_UP, 0), "previous", () -> moveSelection(-1));
+        Keys.bindWhenFocused(search, KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "cancel", this::cancel);
+        Keys.bindWhenFocused(list, KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "cancel", this::cancel);
+        Keys.bindWhenFocused(list, KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, 0), "choose", this::acceptSelection);
         JPanel header = new JPanel(new BorderLayout(0, 4));
         JLabel title = new JLabel(Messages.text("quickInsert.title"));
         title.putClientProperty("FlatLaf.style", "font: bold");
@@ -137,13 +130,6 @@ final class QuickInsertPanel extends JPanel {
         add(results, BorderLayout.CENTER);
         add(hint, BorderLayout.SOUTH);
         refresh();
-    }
-
-    private static void bind(JComponent component, int key, String name, Runnable action) {
-        component.getInputMap().put(KeyStroke.getKeyStroke(key, 0), name);
-        component.getActionMap().put(name, new AbstractAction() {
-            @Override public void actionPerformed(ActionEvent event) { action.run(); }
-        });
     }
 
     void focusSearch() {
