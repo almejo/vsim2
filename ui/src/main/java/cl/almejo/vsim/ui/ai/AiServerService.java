@@ -717,6 +717,11 @@ public final class AiServerService {
         return listeners.size();
     }
 
+    /** Tells every listener on the EDT. */
+    private void onEditor(Consumer<Listener> notification) {
+        editorThread.execute(() -> listeners.forEach(notification));
+    }
+
     private void notifyStateChanged() {
         listeners.forEach(Listener::stateChanged);
     }
@@ -786,24 +791,22 @@ public final class AiServerService {
 
         @Override
         public void narrated(Narration narration) {
-            editorThread.execute(() -> listeners.forEach(listener -> listener.narrated(narration)));
+            onEditor(listener -> listener.narrated(narration));
         }
 
         @Override
         public void questionAsked(Question question) {
-            editorThread.execute(() -> listeners.forEach(listener -> listener.questionAsked(question)));
+            onEditor(listener -> listener.questionAsked(question));
         }
 
         @Override
         public void questionClosed(String taskId, String questionId, boolean answered) {
-            editorThread.execute(() -> listeners.forEach(listener -> listener.questionClosed(taskId, questionId,
-                    answered)));
+            onEditor(listener -> listener.questionClosed(taskId, questionId, answered));
         }
 
         @Override
         public void questionUnattended(String taskId, String questionId, Duration silentFor) {
-            editorThread.execute(() -> listeners.forEach(listener -> listener.questionUnattended(taskId, questionId,
-                    silentFor)));
+            onEditor(listener -> listener.questionUnattended(taskId, questionId, silentFor));
         }
     }
 

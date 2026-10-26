@@ -59,17 +59,10 @@ final class EditHostSupport {
     <T> CompletableFuture<T> onCircuit(DocumentId document, Function<EditableCircuit, T> work) {
         CompletableFuture<T> result = SwingUtilities.isEventDispatchThread() ? new CompletableFuture<>()
                 : queue.track(new CompletableFuture<>());
-        Runnable job = () -> {
-            if (EditorQueue.skips(result)) {
-                return;
-            }
-            try {
-                OpenDocument circuit = circuits.apply(document).orElseThrow(() -> closed(document));
-                result.complete(work.apply(new Circuit(circuit, library.get())));
-            } catch (RuntimeException | Error failure) {
-                result.completeExceptionally(failure);
-            }
-        };
+        Runnable job = EditorQueue.job(result, future -> {
+            OpenDocument circuit = circuits.apply(document).orElseThrow(() -> closed(document));
+            future.complete(work.apply(new Circuit(circuit, library.get())));
+        });
         if (SwingUtilities.isEventDispatchThread()) {
             job.run();
         } else {
