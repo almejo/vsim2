@@ -55,8 +55,9 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
   simulación ahora, hasta 256 palabras) y la operación `SetMemoryContents` de `vsim_edit` (palabras en hexadecimal,
   todo o nada, un solo paso de deshacer). Al leer el circuito, el contenido de una memoria sale como «N words set» y no
   entero, y el enlace solo como el nombre del archivo. No puede enlazar archivos ni escribir en una memoria enlazada.
-- Ejemplo nuevo en Archivo ▸ Ejemplos: «Programa en ROM» (un contador recorre una ROM de 16 palabras con Fibonacci y un
-  display las muestra en hexadecimal).
+- Ejemplos nuevos en Archivo ▸ Ejemplos: «Programa en ROM» (un contador recorre una ROM de 16 palabras con Fibonacci y un
+  display las muestra en hexadecimal) y «RAM que se llena» (un contador de direcciones y otro de pasadas escriben una
+  RAM de 16 palabras: la pasada 0 deja 00 en todas, la 1 deja 01 y así hasta FF, y vuelve a 00).
 
 ## Sin publicar — Notas adhesivas
 

@@ -45,4 +45,42 @@ class MemoryExamplesTest {
                     .isEqualTo(Value.of(8, FIBONACCI[edge % 16]));
         }
     }
+
+    @Test
+    void theRamFillExampleIsWiredAndExplainedCleanly() {
+        ExampleChecks.assertExample(MemoryExamples.ramFill());
+    }
+
+    private static long word(ExampleSimulation simulation, int address) {
+        Component ram = simulation.component("Datos", StandardComponentTypes.RAM);
+        return simulation.engine().memory(ram.id().value()).orElseThrow().liveWord(address);
+    }
+
+    @Test
+    void theRamStartsEmpty() {
+        ExampleSimulation simulation = new ExampleSimulation(MemoryExamples.ramFill(), Map.of());
+        simulation.runUntil(100);
+        for (int address = 0; address < 16; address++) {
+            assertThat(word(simulation, address)).as("word %d", address).isZero();
+        }
+    }
+
+    @Test
+    void everyFallingEdgeWritesThePassNumberAtTheAddressOfThatEdgeAndPassesWrapAfterFF() {
+        // Clock 500/500, low first: falling edges at 1000, 2000, … Edge n (from 1) writes address (n-1) % 16 with the
+        // pass number (n-1) / 16 % 256; the counters change a delay later, so the RAM samples this edge's values.
+        ExampleSimulation simulation = new ExampleSimulation(MemoryExamples.ramFill(), Map.of());
+        int edges = 16 * 258;
+        for (int edge = 1; edge <= edges; edge++) {
+            simulation.runUntil(1000L * edge + 100);
+            int pass = (edge - 1) / 16 % 256;
+            int written = (edge - 1) % 16;
+            // The words not reached yet in this pass hold the previous pass (all 0 before the first write).
+            int previous = edge <= 16 ? 0 : (pass + 255) % 256;
+            for (int address = 0; address < 16; address++) {
+                assertThat(word(simulation, address)).as("edge %d, word %d", edge, address)
+                        .isEqualTo(address <= written ? pass : previous);
+            }
+        }
+    }
 }

@@ -60,6 +60,7 @@ public final class ExampleChecks {
             StandardComponentTypes.REGISTER, Set.of("EN", "CLR"),
             StandardComponentTypes.COUNTER, Set.of("D", "LD", "EN", "CLR"),
             StandardComponentTypes.ROM, Set.of("CS"),
+            StandardComponentTypes.RAM, Set.of("CS"),
             StandardComponentTypes.SEVEN_SEGMENTS_DISPLAY, Set.of(StandardComponentTypes.DISPLAY_BUS_PIN),
             StandardComponentTypes.SEVEN_SEGMENTS_DISPLAY_DOUBLE, Set.of(StandardComponentTypes.DISPLAY_BUS_PIN));
 
