@@ -20,8 +20,6 @@ import javax.swing.JPanel;
 import javax.swing.JRootPane;
 import javax.swing.JScrollPane;
 import javax.swing.JTextField;
-import javax.swing.UIManager;
-import javax.swing.plaf.FontUIResource;
 import javax.swing.text.JTextComponent;
 import java.awt.BorderLayout;
 import java.awt.Component;
@@ -31,8 +29,6 @@ import java.awt.Graphics;
 import java.awt.GraphicsEnvironment;
 import java.awt.Insets;
 import java.awt.Rectangle;
-import java.awt.event.FocusAdapter;
-import java.awt.event.FocusEvent;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -80,9 +76,8 @@ public final class ExpressionsPanel extends JPanel {
     /** Below this the legend gives up width (its details wrap) so the lines keep room. */
     private static final int LEFT_MINIMUM = 520;
     private static final int LEGEND_MINIMUM = 300;
-    private static final float LINE_FONT_FACTOR = 1.2f;
 
-    private final ExpressionsModel model;
+    final ExpressionsModel model;
     private final Background background;
     private final AppPreferences preferences;
     private final KarnaughCost cost;
@@ -90,8 +85,8 @@ public final class ExpressionsPanel extends JPanel {
     private final CreationForm form;
     private final CreationControls controls;
     private final JTextField title = new JTextField(20);
-    private final JPanel linesPanel = new JPanel(new MigLayout("insets 0, fillx, wrap 1", "[grow, fill]", ""));
-    private final List<LineRow> rows = new ArrayList<>();
+    final JPanel linesPanel = new JPanel(new MigLayout("insets 0, fillx, wrap 1", "[grow, fill]", ""));
+    final List<ExpressionLineRow> rows = new ArrayList<>();
     private final JButton addLine = new JButton(Messages.text("expressions.addLine"));
     private final JLabel inputs = new JLabel(" ");
     private final Paragraph tableProblems = Paragraph.error();
@@ -112,7 +107,7 @@ public final class ExpressionsPanel extends JPanel {
     /** The lines as the dialog opened, or as «Crear» last created them: closing asks only when they differ. */
     private ExpressionsModel.Contents unchanged;
     /** The line the legend types into: the last one that had the focus. */
-    private int lastFocused;
+    int lastFocused;
     private boolean syncing;
     /**
      * Counts the previews asked for: only the latest one is shown, and one already stale when the worker reaches it is
@@ -227,7 +222,7 @@ public final class ExpressionsPanel extends JPanel {
     }
 
     /** Runs {@code action} when the user edits {@code component}, not while the panel syncs it from the model. */
-    private void onEdit(JTextComponent component, Runnable action) {
+    void onEdit(JTextComponent component, Runnable action) {
         TextChanges.onChange(component, () -> {
             if (!syncing) {
                 action.run();
@@ -274,7 +269,7 @@ public final class ExpressionsPanel extends JPanel {
      * Enter in a line: on to the next line, or a new one after the last (none past eight); «Crear» stays on its button,
      * so typing a line never builds the circuit by surprise.
      */
-    private void nextLine(int index) {
+    void nextLine(int index) {
         if (index < rows.size() - 1) {
             lastFocused = index + 1;
             JTextField field = rows.get(lastFocused).field;
@@ -346,7 +341,7 @@ public final class ExpressionsPanel extends JPanel {
             syncing = false;
         }
         for (int index = 0; index < rows.size(); index++) {
-            LineRow row = rows.get(index);
+            ExpressionLineRow row = rows.get(index);
             Optional<String> problem = model.lineProblem(index);
             row.problem.setText(problem.orElse(""));
             row.problem.setVisible(problem.isPresent());
@@ -372,7 +367,7 @@ public final class ExpressionsPanel extends JPanel {
             linesPanel.remove(rows.removeLast());
         }
         while (rows.size() < model.lineCount()) {
-            LineRow row = new LineRow();
+            ExpressionLineRow row = new ExpressionLineRow(this);
             rows.add(row);
             linesPanel.add(row);
         }
@@ -464,7 +459,7 @@ public final class ExpressionsPanel extends JPanel {
         boolean simplifying = model.simplify();
         close.setText(Messages.text(busy ? "karnaugh.cancel" : "karnaugh.close"));
         title.setEnabled(!busy);
-        for (LineRow row : rows) {
+        for (ExpressionLineRow row : rows) {
             row.field.setEnabled(!busy);
             row.remove.setEnabled(!busy && model.canRemoveLine());
             row.dismiss.setEnabled(!busy);
@@ -490,86 +485,6 @@ public final class ExpressionsPanel extends JPanel {
         }
     }
 
-    /** One line: its text field and ✕, its problem, the merged-letters warning with its ✕, and its preview. */
-    private final class LineRow extends JPanel {
-
-        final JTextField field = new JTextField(30) {
-            /** Monospaced and larger than the theme's text font, derived again when the theme or scale changes. */
-            @Override
-            public void updateUI() {
-                super.updateUI();
-                Font base = UIManager.getFont("TextField.font");
-                if (base != null) {
-                    // A UI resource, so the next theme replaces it and this derives it again.
-                    setFont(new FontUIResource(Font.MONOSPACED, Font.PLAIN,
-                            Math.round(base.getSize2D() * LINE_FONT_FACTOR)));
-                }
-            }
-        };
-        final JButton remove = new JButton("✕");
-        final JLabel problem = WizardColors.errorLabel(" ");
-        final JPanel warningRow = new JPanel(new MigLayout("insets 0", "[]4[]"));
-        final JLabel warning = WizardColors.label(" ", WizardColors::warning);
-        final JButton dismiss = new JButton("✕");
-        final JLabel preview = new JLabel(" ");
-        String mergedName;
-
-        LineRow() {
-            super(new MigLayout("insets 0, fillx, wrap 2, gapy 2", "[grow, fill][]", ""));
-            // Its columns are only a preferred width: the field fills the line's width and shrinks with it.
-            remove.setToolTipText(Messages.text("expressions.removeLine"));
-            dismiss.setToolTipText(Messages.text("expressions.merged.dismiss"));
-            dismiss.putClientProperty("JButton.buttonType", "borderless");
-            warningRow.add(warning);
-            warningRow.add(dismiss);
-            add(field, "wmin 0");
-            add(remove);
-            add(problem, "span 2, hidemode 3");
-            add(warningRow, "span 2, hidemode 3");
-            add(preview, "span 2, hidemode 3");
-            onEdit(field, () -> {
-                int index = rows.indexOf(this);
-                if (index >= 0) {
-                    model.setLine(index, field.getText());
-                }
-            });
-            field.addFocusListener(new FocusAdapter() {
-                @Override
-                public void focusGained(FocusEvent event) {
-                    int index = rows.indexOf(LineRow.this);
-                    if (index >= 0) {
-                        lastFocused = index;
-                    }
-                }
-            });
-            remove.addActionListener(event -> {
-                int index = rows.indexOf(this);
-                if (index >= 0 && model.canRemoveLine()) {
-                    // This row goes, so the others keep their fields; the legend follows the line it typed into.
-                    rows.remove(index);
-                    linesPanel.remove(this);
-                    if (index < lastFocused) {
-                        lastFocused--;
-                    }
-                    model.removeLine(index);
-                    linesPanel.revalidate();
-                    linesPanel.repaint();
-                }
-            });
-            field.addActionListener(event -> {
-                int index = rows.indexOf(this);
-                if (index >= 0) {
-                    nextLine(index);
-                }
-            });
-            dismiss.addActionListener(event -> {
-                if (mergedName != null) {
-                    model.dismissMerged(mergedName);
-                }
-            });
-        }
-    }
-
     ExpressionsModel model() {
         return model;
     }
@@ -591,17 +506,17 @@ public final class ExpressionsPanel extends JPanel {
     }
 
     String problemText(int index) {
-        LineRow row = rows.get(index);
+        ExpressionLineRow row = rows.get(index);
         return row.problem.isVisible() ? row.problem.getText() : "";
     }
 
     String warningText(int index) {
-        LineRow row = rows.get(index);
+        ExpressionLineRow row = rows.get(index);
         return row.warningRow.isVisible() ? row.warning.getText() : "";
     }
 
     String previewText(int index) {
-        LineRow row = rows.get(index);
+        ExpressionLineRow row = rows.get(index);
         return row.preview.isVisible() ? row.preview.getText() : "";
     }
 
