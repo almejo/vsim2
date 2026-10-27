@@ -169,4 +169,9 @@ final class CrossPaneContext implements ToolContext {
     public void editMemory(Component component) {
         owner.editMemory(component);
     }
+
+    @Override
+    public boolean memoryFoldToggleAt(Component component, Point2D gridPosition) {
+        return owner.memoryFoldToggleAt(component, gridPosition);
+    }
 }

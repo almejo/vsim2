@@ -14,9 +14,13 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
   pines `A`, `D`, `Q`, `WE`, `CS` y reloj. Lectura combinacional, escritura en el flanco de bajada del reloj (o «Sin
   reloj»), conexión por bus o con pines sueltos, «Un solo bus D», nombre y retardo. Cambiar el tamaño nunca corta el
   contenido. Una memoria vacía casi no ocupa espacio, ni siquiera de 16M × 64 bits.
-- En el lienzo, la memoria muestra su nombre, «RAM · 256 × 8», una luz de actividad (azul al leer, naranja al escribir)
-  y, con «Mostrar contenido», una ventana con las palabras alrededor de la dirección actual. Los colores de lectura y
-  escritura son dos roles nuevos de cada esquema de colores.
+- En el lienzo, la memoria muestra en su barra de título «RAM · 256 × 8», su nombre, una luz de actividad (azul al
+  leer, naranja al escribir) con la insignia `RD` o `WR`, o «CS = 0» cuando no está conectada, y un cuadrito ▾ / ▸ que
+  con un clic muestra u oculta la ventana de contenido. La ventana lista las palabras alrededor de la dirección actual
+  («dirección  palabra», letra de ancho fijo) con la palabra leída o escrita en un recuadro de su color y una palabra
+  escrita sin definir como «Z». Una memoria sin etiqueta se llama RAM1, RAM2, ROM1… (numeradas por tipo), igual en el
+  lienzo, el mapa, el editor y «Volcar…». Los colores de lectura y escritura son dos roles nuevos de cada esquema de
+  colores.
 - Editor de contenido: doble clic sobre la pieza (o «Editar contenido…» en el clic derecho) abre una grilla de
   direcciones y palabras que se escribe sobre las celdas, en hexadecimal, decimal o binario, con Ctrl+C y Ctrl+V de
   texto hexadecimal, Ctrl+Z y Ctrl+Y dentro del editor, «Llenar…», «Ir a…» (Ctrl+G), «Importar…», «Exportar…» y

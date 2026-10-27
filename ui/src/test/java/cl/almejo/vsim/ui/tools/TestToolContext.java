@@ -12,6 +12,7 @@ import cl.almejo.vsim.ui.canvas.Selection;
 import cl.almejo.vsim.ui.canvas.ViewState;
 import cl.almejo.vsim.ui.canvas.Viewport;
 import cl.almejo.vsim.ui.paint.ColorScheme;
+import cl.almejo.vsim.ui.paint.MemoryPainter;
 import cl.almejo.vsim.ui.snap.Snapper;
 import cl.almejo.vsim.ui.wiring.SelectionMoves;
 
@@ -220,6 +221,12 @@ public final class TestToolContext implements ToolContext, AutoCloseable {
     @Override
     public void editMemory(Component component) {
         memoryEdited = component;
+    }
+
+    /** As the editor answers: the square the memory painter draws. */
+    @Override
+    public boolean memoryFoldToggleAt(Component component, Point2D gridPosition) {
+        return MemoryPainter.isOnFoldToggle(openDocument.registry().typeOf(component), component, gridPosition);
     }
 
     @Override

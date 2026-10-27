@@ -9,11 +9,13 @@ import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
 import cl.almejo.vsim.core.memory.MemoryContents;
-import cl.almejo.vsim.core.memory.MemoryKind;
 import org.junit.jupiter.api.Test;
 
 import java.awt.Color;
 import java.awt.Graphics2D;
+import java.awt.geom.AffineTransform;
+import java.awt.geom.NoninvertibleTransformException;
+import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
 import java.util.HashMap;
@@ -29,6 +31,7 @@ class MemoryPainterTest {
     private static final Color WARNING = new Color(0x11DDEE);
     private static final int MARGIN = 8;
     private static final int IMAGE_SIZE = 700;
+    private static final double ZOOM = 3;
     private static final GridPoint ORIGIN = new GridPoint(10, 10);
 
     /** A scheme whose two activity colours and warning colour are found nowhere else on the drawing. */
@@ -84,15 +87,18 @@ class MemoryPainterTest {
         int count = 0;
         for (int x = 0; x < image.getWidth(); x++) {
             for (int y = 0; y < image.getHeight(); y++) {
-                Color pixel = new Color(image.getRGB(x, y));
-                if (Math.abs(pixel.getRed() - color.getRed()) <= tolerance
-                        && Math.abs(pixel.getGreen() - color.getGreen()) <= tolerance
-                        && Math.abs(pixel.getBlue() - color.getBlue()) <= tolerance) {
+                if (isNear(new Color(image.getRGB(x, y)), color, tolerance)) {
                     count++;
                 }
             }
         }
         return count;
+    }
+
+    private static boolean isNear(Color pixel, Color color, int tolerance) {
+        return Math.abs(pixel.getRed() - color.getRed()) <= tolerance
+                && Math.abs(pixel.getGreen() - color.getGreen()) <= tolerance
+                && Math.abs(pixel.getBlue() - color.getBlue()) <= tolerance;
     }
 
     @Test
@@ -234,12 +240,113 @@ class MemoryPainterTest {
         assertThat(MemoryPainter.addressText(0xABCDE, 24)).isEqualTo("0ABCDE");
     }
 
+    /** The local point of the image pixel ({@code x}, {@code y}) of a part drawn at {@link #ORIGIN}. */
+    private static Point2D localOf(Rotation rotation, int x, int y) {
+        AffineTransform placed = new AffineTransform();
+        placed.translate(ORIGIN.x() * PainterSupport.UNIT, ORIGIN.y() * PainterSupport.UNIT);
+        placed.rotate(rotation.quarterTurns() * Math.PI / 2);
+        try {
+            return placed.inverseTransform(new Point2D.Double(x + 0.5, y + 0.5), null);
+        } catch (NoninvertibleTransformException exception) {
+            throw new IllegalStateException(exception);
+        }
+    }
+
     @Test
-    void aMemoryWithoutALabelIsCalledByItsKindAndPlace() {
-        assertThat(MemoryPainter.displayName("", MemoryKind.RAM, 1)).isEqualTo("RAM1");
-        assertThat(MemoryPainter.displayName("  ", MemoryKind.ROM, 2)).isEqualTo("ROM2");
-        assertThat(MemoryPainter.displayName("Sprites", MemoryKind.ROM, 2)).isEqualTo("Sprites");
-        assertThat(MemoryPainter.displayName("", MemoryKind.ROM, 0)).isEqualTo("ROM");
+    void theFoldSquareIsDrawnInsideTheAreaAClickFoldsFrom() {
+        // Shown and folded differ in the window and in the square's ▾ / ▸; in the title bar only in the square.
+        Map<String, Object> folded = Map.of(MemoryTypes.SHOW_CONTENTS, MemoryTypes.SHOW_CONTENTS_NO);
+        ComponentType type = StandardComponentTypes.registry().require(StandardComponentTypes.RAM)
+                .specializedFor(Map.of());
+        for (Rotation rotation : List.of(Rotation.R0, Rotation.R180)) {
+            Rectangle2D area = MemoryPainter.foldToggleArea(type, rotation).orElseThrow();
+            Rectangle2D tolerated = new Rectangle2D.Double(area.getX() - 1, area.getY() - 1, area.getWidth() + 2,
+                    area.getHeight() + 2);
+            Rectangle2D titleBar = MemoryPainter.titleBar(type);
+            BufferedImage shown = draw(StandardComponentTypes.RAM, rotation, Map.of(), VisibleState.NONE, SCHEME);
+            BufferedImage hidden = draw(StandardComponentTypes.RAM, rotation, folded, VisibleState.NONE, SCHEME);
+            int inTitle = 0;
+            for (int x = 0; x < IMAGE_SIZE; x++) {
+                for (int y = 0; y < IMAGE_SIZE; y++) {
+                    Point2D local = localOf(rotation, x, y);
+                    if (shown.getRGB(x, y) != hidden.getRGB(x, y) && titleBar.contains(local)) {
+                        inTitle++;
+                        assertThat(tolerated.contains(local)).as(rotation + " pixel " + x + "," + y).isTrue();
+                    }
+                }
+            }
+            assertThat(inTitle).as(rotation + " the glyph changes").isGreaterThan(3);
+        }
+    }
+
+    @Test
+    void aMemoryTurnedSidewaysHasNoFoldSquare() {
+        ComponentType type = StandardComponentTypes.registry().require(StandardComponentTypes.ROM)
+                .specializedFor(Map.of());
+        assertThat(MemoryPainter.foldToggleArea(type, Rotation.R90)).isEmpty();
+        assertThat(MemoryPainter.foldToggleArea(type, Rotation.R270)).isEmpty();
+        assertThat(MemoryPainter.foldToggleArea(type, Rotation.R0)).isPresent();
+    }
+
+    @Test
+    void theBadgeSitsInTheTitleBarAndTheAccessedWordIsOutlinedInTheWindow() {
+        ComponentType type = StandardComponentTypes.registry().require(StandardComponentTypes.RAM)
+                .specializedFor(Map.of());
+        Rectangle2D titleBar = MemoryPainter.titleBar(type);
+        Component component = type.newComponent(new ElementId("m1"), GridPoint.ORIGIN, Rotation.R0, Map.of(), "");
+        for (Map.Entry<VisibleState, Color> access : Map.of(READING, READ, WRITING, WRITE).entrySet()) {
+            // drawn three times larger, so the thin outline has pixels of its exact colour
+            BufferedImage image = PaintersTest.blankImage(IMAGE_SIZE, IMAGE_SIZE);
+            Graphics2D graphics = image.createGraphics();
+            graphics.scale(ZOOM, ZOOM);
+            ComponentDrawing.paint(graphics, type, component, access.getKey(), SCHEME, painters);
+            graphics.dispose();
+            int inTitle = 0;
+            int below = 0;
+            for (int x = 0; x < IMAGE_SIZE; x++) {
+                for (int y = 0; y < IMAGE_SIZE; y++) {
+                    if (image.getRGB(x, y) != access.getValue().getRGB()) {
+                        continue;
+                    }
+                    if (titleBar.contains((x + 0.5) / ZOOM, (y + 0.5) / ZOOM)) {
+                        inTitle++;
+                    } else {
+                        below++;
+                    }
+                }
+            }
+            assertThat(inTitle).as(access.getKey() + ": the light and the RD / WR pill").isGreaterThan(300);
+            assertThat(below).as(access.getKey() + ": the outline of the accessed word").isGreaterThan(300);
+        }
+    }
+
+    @Test
+    void aDeselectedMemorySaysCsIsZeroInItsTitle() {
+        VisibleState idle = new VisibleState.MemoryState(true, VisibleState.MemoryAccess.NONE, 2, 0,
+                List.of(0x11L, 0x22L, 0x33L, 0x44L, 0x55L));
+        VisibleState deselected = new VisibleState.MemoryState(false, VisibleState.MemoryAccess.NONE, 2, 0,
+                List.of(0x11L, 0x22L, 0x33L, 0x44L, 0x55L));
+        Map<String, Object> folded = Map.of(MemoryTypes.SHOW_CONTENTS, MemoryTypes.SHOW_CONTENTS_NO);
+
+        BufferedImage on = draw(StandardComponentTypes.RAM, Rotation.R0, folded, idle, SCHEME);
+        BufferedImage off = draw(StandardComponentTypes.RAM, Rotation.R0, folded, deselected, SCHEME);
+
+        assertThat(countDifferences(on, off)).as("«CS = 0» in the title of a folded memory").isGreaterThan(20);
+    }
+
+    @Test
+    void aWordWrittenUndefinedShowsZInTheWindow() {
+        VisibleState zero = new VisibleState.MemoryState(true, VisibleState.MemoryAccess.WRITE, 2, 0,
+                List.of(0x11L, 0x22L, 0L, 0x44L, 0x55L));
+        VisibleState undefined = new VisibleState.MemoryState(true, VisibleState.MemoryAccess.WRITE, 2, 0,
+                List.of(0x11L, 0x22L, 0L, 0x44L, 0x55L), 1L << 2);
+
+        BufferedImage asZero = draw(StandardComponentTypes.RAM, Rotation.R0, Map.of(), zero, SCHEME);
+        BufferedImage asZ = draw(StandardComponentTypes.RAM, Rotation.R0, Map.of(), undefined, SCHEME);
+
+        assertThat(countDifferences(asZero, asZ)).isGreaterThan(5);
+        assertThat(MemoryPainter.wordText(0, 2, true)).isEqualTo("Z");
+        assertThat(MemoryPainter.wordText(0x7, 2, false)).isEqualTo("07");
     }
 
     @Test

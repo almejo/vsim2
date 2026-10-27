@@ -159,6 +159,24 @@ class RamBehaviorTest {
     }
 
     @Test
+    void theWindowMarksAWordWrittenUndefinedUntilItIsWrittenAgain() {
+        BlockHarness harness = selected(with(ram(16, 8), MemoryTypes.CONTENTS, "@4 5"));
+        harness.set(pin(harness, "A"), 4).release(pin(harness, "D")).set(pin(harness, "WE"), 1);
+        harness.set(pin(harness, "CLK"), 1).settle().set(pin(harness, "CLK"), 0).settle();
+
+        MemoryState undefined = (MemoryState) harness.state();
+        assertThat(undefined.firstWindowAddress()).isEqualTo(2);
+        assertThat(undefined.undefinedAt(2)).as("address 4 is the third row").isTrue();
+        assertThat(undefined.undefinedAt(1)).isFalse();
+        assertThat(undefined.undefinedAt(3)).isFalse();
+
+        write(harness, 4, 6);
+        MemoryState written = (MemoryState) harness.state();
+        assertThat(written.undefinedAt(2)).isFalse();
+        assertThat(written.window().get(2)).isEqualTo(6L);
+    }
+
+    @Test
     void wordsBeyondTheSizeAreNotAddressedButSurvive() {
         String contents = "@3 1 @10 2 @11 1FF";
         Map<String, Object> parameters = with(ram(16, 8), MemoryTypes.CONTENTS, contents);

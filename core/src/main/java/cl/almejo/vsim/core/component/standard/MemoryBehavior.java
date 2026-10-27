@@ -313,9 +313,13 @@ public final class MemoryBehavior implements Behavior {
         long center = Math.max(0, lastAddress);
         long first = Math.max(0, Math.min(center - WINDOW_WORDS / 2, words - shown));
         List<Long> window = new ArrayList<>(shown);
+        long undefinedRows = 0;
         for (int offset = 0; offset < shown; offset++) {
             window.add(live.word(first + offset));
+            if (undefinedWords.contains(first + offset)) {
+                undefinedRows |= 1L << offset;
+            }
         }
-        return new VisibleState.MemoryState(enabled, lastAccess, lastAddress, first, window);
+        return new VisibleState.MemoryState(enabled, lastAccess, lastAddress, first, window, undefinedRows);
     }
 }

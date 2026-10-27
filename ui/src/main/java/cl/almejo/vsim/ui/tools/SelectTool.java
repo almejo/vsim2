@@ -1,7 +1,10 @@
 package cl.almejo.vsim.ui.tools;
 
+import cl.almejo.vsim.core.command.ChangeParametersCommand;
+import cl.almejo.vsim.core.command.CompositeCommand;
 import cl.almejo.vsim.core.command.PasteCommand;
 import cl.almejo.vsim.core.command.SetLabelOffsetCommand;
+import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.ElementBounds;
 import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.component.standard.MemoryTypes;
@@ -93,6 +96,8 @@ import java.util.concurrent.CopyOnWriteArrayList;
  */
 public final class SelectTool implements Tool {
 
+    /** The undo step of a click on a memory's fold square. */
+    static final String TOGGLE_MEMORY_CONTENTS = "command.toggleMemoryContents";
     private static final double HOVER_RING_RADIUS = 4.5;
     private static final BasicStroke HOVER_RING = new BasicStroke(1.5f);
     private static final double HOVER_TAG_OFFSET = 7;
@@ -126,6 +131,8 @@ public final class SelectTool implements Tool {
      */
     private ToggledBusInput lastBusInputToggle;
     private boolean narrowOnRelease;
+    /** The press was on a memory's ▾ / ▸ square: a release without moving folds or unfolds its window. */
+    private boolean foldOnRelease;
     /** The press was a Shift click on an element: a release without moving only adjusts the selection. */
     private boolean selectionClick;
     /** That Shift click was on an element already selected: a release without moving takes it out. */
@@ -319,7 +326,9 @@ public final class SelectTool implements Tool {
             selectWireGroup(context, event, clickedWire);
             return true;
         }
-        if (event.clickCount() >= 2 && continuesOwnClick && hit.isPresent()) {
+        // a second click on a memory's fold square is one more click on it, never the content editor
+        if (event.clickCount() >= 2 && continuesOwnClick && hit.isPresent()
+                && !(hit.get() instanceof Component pressed && onFoldToggle(context, pressed, event))) {
             if (hit.get() instanceof Component component) {
                 context.selection().select(component.id());
                 if (toggledByFirstClick != null && toggledByFirstClick.id().equals(component.id())
@@ -389,6 +398,7 @@ public final class SelectTool implements Tool {
 
     /** A plain press on an element: selects it, or keeps a selection that holds it (to move it or narrow it). */
     private void pressElement(ToolContext context, CanvasMouseEvent event, DocumentElement element) {
+        foldOnRelease = element instanceof Component component && onFoldToggle(context, component, event);
         if (context.selection().contains(element.id())) {
             narrowOnRelease = context.selection().size() > 1;
         } else {
@@ -483,7 +493,11 @@ public final class SelectTool implements Tool {
             if (narrowOnRelease) {
                 context.selection().select(pressedElement.id());
             }
-            toggleIfInteractive(context);
+            if (foldOnRelease) {
+                toggleMemoryContents(context, (Component) pressedElement);
+            } else {
+                toggleIfInteractive(context);
+            }
         }
     }
 
@@ -651,7 +665,8 @@ public final class SelectTool implements Tool {
         if (sliding.isPresent()) {
             return slideCursor(sliding.get());
         }
-        if (element instanceof Component component && isInteractive(context, component)) {
+        if (element instanceof Component component
+                && (isInteractive(context, component) || onFoldToggle(context, component, event))) {
             return CanvasCursor.HAND;
         }
         return selected ? CanvasCursor.MOVE : CanvasCursor.DEFAULT;
@@ -1023,6 +1038,22 @@ public final class SelectTool implements Tool {
         }
     }
 
+    /** Whether {@code event} is on the ▾ / ▸ square of {@code component}, a RAM or ROM. */
+    private static boolean onFoldToggle(ToolContext context, Component component, CanvasMouseEvent event) {
+        return MemoryTypes.kindOf(component.typeId()).isPresent()
+                && context.memoryFoldToggleAt(component, event.gridPosition());
+    }
+
+    /** Folds or unfolds the content window of {@code memory} («Mostrar contenido»): one undo step. */
+    private static void toggleMemoryContents(ToolContext context, Component memory) {
+        ComponentType type = context.openDocument().registry().typeOf(memory);
+        Map<String, Object> parameters = new HashMap<>(type.resolveParameters(memory.parameters()));
+        boolean shown = !MemoryTypes.SHOW_CONTENTS_NO.equals(parameters.get(MemoryTypes.SHOW_CONTENTS));
+        parameters.put(MemoryTypes.SHOW_CONTENTS, shown ? MemoryTypes.SHOW_CONTENTS_NO : MemoryTypes.SHOW_CONTENTS_YES);
+        context.openDocument().execute(new CompositeCommand(TOGGLE_MEMORY_CONTENTS,
+                List.of(new ChangeParametersCommand(memory.id(), type, parameters))));
+    }
+
     /** A bus input pin a click toggled, with the value it showed before. */
     private record ToggledBusInput(ElementId id, Value valueBefore) {
     }
@@ -1169,6 +1200,7 @@ public final class SelectTool implements Tool {
         pressedElement = null;
         pressPoint = null;
         narrowOnRelease = false;
+        foldOnRelease = false;
         selectionClick = false;
         removeOnRelease = false;
         wire = null;

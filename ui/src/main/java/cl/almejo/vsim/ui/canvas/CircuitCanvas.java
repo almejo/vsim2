@@ -1295,6 +1295,11 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         host.editMemory(component);
     }
 
+    @Override
+    public boolean memoryFoldToggleAt(Component component, Point2D gridPosition) {
+        return host.memoryFoldToggleAt(component, gridPosition);
+    }
+
     // Painting and snapshots
 
     @Override

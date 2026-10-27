@@ -49,12 +49,24 @@ public sealed interface VisibleState {
      * A RAM or ROM as its painter shows it: whether it is selected ({@code CS} = 1), its last access and that access's
      * address ({@code -1} before the first one), and the content window: the words from {@code firstWindowAddress} on
      * (five, or every word of a smaller memory), placed around the last address and kept inside the memory. A word the
-     * simulation stored as undefined shows as 0 here.
+     * simulation stored as undefined (all Z) is 0 in {@code window} and has its bit set in {@code undefinedWindowWords}
+     * (bit {@code row} for {@code window.get(row)}), so the painter shows it as «Z».
      */
     record MemoryState(boolean enabled, MemoryAccess lastAccess, long lastAddress, long firstWindowAddress,
-                       List<Long> window) implements VisibleState {
+                       List<Long> window, long undefinedWindowWords) implements VisibleState {
         public MemoryState {
             window = List.copyOf(window);
+        }
+
+        /** A state whose window words are all defined. */
+        public MemoryState(boolean enabled, MemoryAccess lastAccess, long lastAddress, long firstWindowAddress,
+                           List<Long> window) {
+            this(enabled, lastAccess, lastAddress, firstWindowAddress, window, 0);
+        }
+
+        /** Whether the word in window row {@code row} was written undefined. */
+        public boolean undefinedAt(int row) {
+            return row >= 0 && row < Long.SIZE && (undefinedWindowWords >>> row & 1L) != 0;
         }
     }
 }

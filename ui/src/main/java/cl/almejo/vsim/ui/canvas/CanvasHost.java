@@ -37,6 +37,14 @@ public interface CanvasHost {
         configure(component);
     }
 
+    /**
+     * Whether {@code gridPosition} is on the ▾ / ▸ square of the memory {@code component} (a click there folds or
+     * unfolds its content window); never in hosts without memories.
+     */
+    default boolean memoryFoldToggleAt(Component component, Point2D gridPosition) {
+        return false;
+    }
+
     /** M7: edits a bus input pin's value starting from {@code startingValue}; by default as {@link #editValue}. */
     default void editValue(Component component, Value startingValue) {
         editValue(component);

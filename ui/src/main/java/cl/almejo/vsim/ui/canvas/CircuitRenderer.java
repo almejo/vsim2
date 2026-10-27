@@ -3,9 +3,7 @@ package cl.almejo.vsim.ui.canvas;
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.VisibleState;
-import cl.almejo.vsim.core.component.standard.MemoryTypes;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
-import cl.almejo.vsim.core.memory.MemoryKind;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.ElementId;
@@ -20,6 +18,7 @@ import cl.almejo.vsim.core.tunnel.Tunnels;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.AppPreferences.GridStyle;
 import cl.almejo.vsim.ui.frames.FramePainter;
+import cl.almejo.vsim.ui.memory.MemoryNames;
 import cl.almejo.vsim.ui.paint.Appearance;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.ComponentDrawing;
@@ -342,7 +341,7 @@ public final class CircuitRenderer {
     private void paintComponents(Graphics2D graphics, RenderState state, ColorScheme scheme,
                                  ShortCircuitHighlight highlight) {
         Map<String, Integer> tunnelColors = Tunnels.colorsByName(state.document());
-        int memoryOrdinal = 0;
+        MemoryNames.Numbering memoryNames = new MemoryNames.Numbering();
         for (Component component : state.document().components()) {
             ComponentType type = registry.typeOf(component);
             if (painters.painterFor(type.id()) instanceof TunnelPainter tunnelPainter) {
@@ -350,10 +349,8 @@ public final class CircuitRenderer {
                 ComponentDrawing.paintPlaced(graphics, component,
                         local -> tunnelPainter.paint(local, component, look, scheme));
             } else if (painters.painterFor(type.id()) instanceof MemoryPainter memoryPainter) {
-                // The name sits in the memory's title bar (RAM1, ROM2... by order when it has no label).
-                memoryOrdinal++;
-                String name = MemoryPainter.displayName(component.label(),
-                        MemoryTypes.kindOf(type.id()).orElse(MemoryKind.RAM), memoryOrdinal);
+                // The name sits in the memory's title bar (RAM1, ROM1... per kind when it has no label).
+                String name = memoryNames.nameOf(component);
                 VisibleState memoryState = state.snapshot().componentState(component.id().value());
                 ComponentDrawing.paintPlaced(graphics, component, local -> memoryPainter.paintWithLabel(local, type,
                         component.parameters(), memoryState, scheme, name));
