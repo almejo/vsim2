@@ -93,6 +93,14 @@ public final class MemoryBehavior implements Behavior {
         return live.snapshot();
     }
 
+    /**
+     * The word at {@code address} now (an undefined word, or one past the last address, as 0), for the memory map:
+     * one lookup, no copy. Simulation thread only.
+     */
+    public long liveWord(long address) {
+        return address < 0 || address >= words ? 0 : live.word(address);
+    }
+
     @Override
     public void initialize(BehaviorContext context) {
         if (pinout.clocked()) {

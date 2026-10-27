@@ -6,6 +6,15 @@ Los cambios de VSim 2 que se notan al usarlo, del más nuevo al más antiguo. El
 funciones, con las fechas en que se hizo. El detalle de cada función está en
 [docs/funciones.md](docs/funciones.md).
 
+## Sin publicar — Memoria (RAM y ROM)
+
+### Agregado
+
+- Pestaña «Mapa de memoria»: la RAM o ROM seleccionada completa como una matriz que muestra en vivo cada lectura
+  (azul) y escritura (naranja); en pausa queda encendido lo que tocó el último paso. También un mapa de calor de
+  accesos desde que partió la simulación y los valores de cada palabra, zoom con la rueda en memorias grandes, una
+  ayuda con dirección, lecturas, escrituras y valor, y «Restaurar» para volver una RAM a su contenido inicial.
+
 ## Sin publicar — Notas adhesivas
 
 ### Agregado

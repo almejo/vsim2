@@ -29,6 +29,7 @@ import cl.almejo.vsim.ui.ai.present.PresentationExtension;
 import cl.almejo.vsim.ui.appearance.AppearanceExtension;
 import cl.almejo.vsim.ui.examples.ExamplesFeature;
 import cl.almejo.vsim.ui.export.ExportImageExtension;
+import cl.almejo.vsim.ui.memory.MemoryMapExtension;
 import cl.almejo.vsim.ui.print.ExportPdfExtension;
 import cl.almejo.vsim.ui.favorites.FavoritesExtension;
 import cl.almejo.vsim.ui.frames.FramesExtension;
@@ -227,6 +228,7 @@ public final class Application {
         editorExtensions.add(new StickyNotesExtension());
         editorExtensions.add(new FramesExtension());
         editorExtensions.add(new StickyNotesTabExtension());
+        editorExtensions.add(new MemoryMapExtension()); // the «Mapa de memoria» tab after «Notas»
         editorExtensions.add(new WiresFollowExtension());
         editorExtensions.add(new GridExtension());
         editorExtensions.add(new SnapExtension());
