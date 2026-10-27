@@ -31,7 +31,6 @@ import cl.almejo.vsim.ui.panels.PaletteTransfer;
 import cl.almejo.vsim.ui.tools.CanvasCursor;
 import cl.almejo.vsim.ui.tools.CanvasMouseEvent;
 import cl.almejo.vsim.ui.tools.ComponentPlacement;
-import cl.almejo.vsim.ui.snap.ContactDots;
 import cl.almejo.vsim.ui.snap.SnappedMove;
 import cl.almejo.vsim.ui.snap.SnappedPlacement;
 import cl.almejo.vsim.ui.snap.Snapper;
@@ -39,7 +38,6 @@ import cl.almejo.vsim.ui.tools.FloatingSelectionTool;
 import cl.almejo.vsim.ui.tools.SelectTool;
 import cl.almejo.vsim.ui.tools.Tool;
 import cl.almejo.vsim.ui.tools.ToolContext;
-import cl.almejo.vsim.ui.wiring.MovePreview;
 import cl.almejo.vsim.ui.wiring.SelectionMoves;
 
 import javax.swing.Action;
@@ -57,10 +55,6 @@ import java.awt.Graphics2D;
 import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.Window;
-import java.awt.dnd.DropTarget;
-import java.awt.dnd.DropTargetAdapter;
-import java.awt.dnd.DropTargetDropEvent;
-import java.awt.dnd.DropTargetEvent;
 import java.awt.event.FocusAdapter;
 import java.awt.event.FocusEvent;
 import java.awt.event.HierarchyEvent;
@@ -82,7 +76,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
-import java.util.TooManyListenersException;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
@@ -94,9 +87,8 @@ import java.util.function.Supplier;
 /** The drawing surface of one window. Mouse input goes to the current {@link Tool}. */
 public final class CircuitCanvas extends JComponent implements ToolContext {
 
-    private static final int FRAME_MILLISECONDS = 16;
+    static final int FRAME_MILLISECONDS = 16;
     private static final int ANTS_MILLISECONDS = 90;
-    private static final int AUTOSCROLL_MILLISECONDS = 30;
     private static final double WHEEL_SCROLL_PIXELS = 40;
     /**
      * A touchpad's sideways swipe reaches Swing on Linux as presses of these extra mouse buttons (X11 buttons 6 and 7),
@@ -104,7 +96,6 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
      */
     private static final int SCROLL_LEFT_BUTTON = 4;
     private static final int SCROLL_RIGHT_BUTTON = 5;
-    private static final double FIT_FRACTION = 0.9;
 
     private final OpenDocument openDocument;
     private final CircuitRenderer renderer;
@@ -123,7 +114,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     private final Timer antsTimer;
     private final ProblemPulse problemPulse = new ProblemPulse();
     private final Timer problemPulseTimer;
-    private final Timer autoscrollTimer;
+    private final CanvasAutoscroll autoscroll = new CanvasAutoscroll(this);
     private final List<Consumer<Tool>> toolListeners = new CopyOnWriteArrayList<>();
     private final List<Consumer<SimulationSnapshot>> snapshotListeners = new CopyOnWriteArrayList<>();
     private final List<Runnable> viewListeners = new CopyOnWriteArrayList<>();
@@ -139,12 +130,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     private final SelectionMoves selectionMoves;
     private Consumer<List<Path>> fileDropHandler = files -> {
     };
-    private DragOrigin dragOut;
-    private String dragOutJson;
-    private GridPoint dragOutPreview;
-    /** The contacts of the move a drag out brought back previews, and where the pointer is (grid units). */
-    private final MovePreview dragOutMoves = new MovePreview();
-    private Point2D dragOutPointer;
+    private final CanvasDragOut canvasDragOut = new CanvasDragOut(this);
     private Function<Point2D, Optional<String>> toolTipProvider = gridPoint -> Optional.empty();
     private boolean toolTipProviderSet;
     private boolean pressIntercepted;
@@ -165,34 +151,22 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     private final WindowAdapter windowDeactivationListener = new WindowAdapter() {
         @Override
         public void windowDeactivated(WindowEvent event) {
-            stopAutoscroll(); // the release may never reach this canvas
+            autoscroll.stopAutoscroll(); // the release may never reach this canvas
         }
     };
     private Window watchedWindow;
-    private MouseEvent autoscrollEvent;
-    private boolean automaticAutoscrollClock = true;
-    private Predicate<Point> overAnotherWindow = this::isOverAnotherWindow;
     private boolean spaceDown;
     private Point panAnchor;
     private GridPoint mousePoint;
     /** The pointer is over an edge handle and the tool was already told it left. */
     private boolean toolSeesPointerGone;
     private Cursor toolCursor = Cursor.getDefaultCursor();
-    private BooleanSupplier animateViewMoves = () -> false;
-    /** True while the view moves in a way that must not stop a travel (a travel frame, a layout compensation). */
-    private boolean movingWithTheTravel;
-    /**
-     * The zoom the user chose (wheel, buttons, a restored view): where {@link #travelTo} rests, even after a travel
-     * that zoomed out for its target to fit. Moves made by travels never change it.
-     */
-    private double userZoom = 1;
     private boolean disposed;
     /** {@link #tunnelColors()} as last worked out, and the document and revision it was worked out for. */
     private Map<String, Integer> tunnelColorsCache = Map.of();
     private CircuitDocument tunnelColorsDocument;
     private long tunnelColorsRevision = -1;
-    private final ViewAnimator viewAnimator = new ViewAnimator(FrameTicker.swing(FRAME_MILLISECONDS),
-            () -> System.nanoTime() / 1_000_000, this::showTravelFrame, () -> animateViewMoves.getAsBoolean());
+    private final CanvasViewTravel viewTravel = new CanvasViewTravel(this, viewport, viewTakenListeners);
 
     /** A canvas with a selection of its own (a window that is not split, a canvas outside a window). */
     public CircuitCanvas(OpenDocument openDocument, CircuitRenderer renderer, CanvasHost host) {
@@ -229,11 +203,11 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
                 spaceDown = false;
                 panAnchor = null;
                 showCursor();
-                stopAutoscroll(); // a modal dialog or another window took the release
+                autoscroll.stopAutoscroll(); // a modal dialog or another window took the release
             }
         });
         setTransferHandler(new CanvasTransferHandler(this));
-        listenForDragExit();
+        canvasDragOut.listenForDragExit();
         addHierarchyListener(event -> {
             if ((event.getChangeFlags() & HierarchyEvent.SHOWING_CHANGED) != 0) {
                 updateAnimation();
@@ -242,14 +216,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         frameTimer = new Timer(FRAME_MILLISECONDS, event -> refreshSnapshot());
         antsTimer = new Timer(ANTS_MILLISECONDS, event -> animationTick());
         problemPulseTimer = new Timer(ProblemPulse.TICK_MILLISECONDS, event -> problemPulseTick());
-        autoscrollTimer = new Timer(AUTOSCROLL_MILLISECONDS, event -> autoscrollTick());
-        viewport.addChangeListener(() -> {
-            if (!movingWithTheTravel) {
-                viewAnimator.stop(); // the user (or another move) took the view: it stays where it is
-                userZoom = viewport.zoom();
-                viewTakenListeners.forEach(Runnable::run);
-            }
-        });
+        viewTravel.listenForUserMoves();
     }
 
     /** Places the palette entry encoded in {@code transferText} at {@code screenPoint}; false when it is not one. */
@@ -300,7 +267,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     boolean dropFragment(String fragmentJson, Optional<DragOrigin> origin, Point screenPoint, boolean copyRequested,
                          Optional<String> paletteTypeId) {
         GridPoint at = viewport.snap(screenPoint.x, screenPoint.y);
-        Optional<DragOrigin> source = origin.or(() -> Optional.ofNullable(dragOut));
+        Optional<DragOrigin> source = origin.or(canvasDragOut::dragOrigin);
         if (source.isPresent() && !copyRequested && source.get().canvas().openDocument() == openDocument) {
             moveHere(source.get(), at);
             return true;
@@ -354,69 +321,34 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
      * nothing is moving or the selection gives no fragment to transfer.
      */
     boolean beginDragOut() {
-        if (!(tool instanceof SelectTool select) || selection.isEmpty()) {
-            return false;
-        }
-        Optional<GridPoint> pressed = select.movingFrom();
-        if (pressed.isEmpty()) {
-            return false;
-        }
-        Optional<String> fragmentJson = selectionFragmentJson();
-        Optional<GridPoint> topLeft = SelectionBounds.topLeft(openDocument, selection.effectiveIds());
-        if (fragmentJson.isEmpty() || topLeft.isEmpty()) {
-            return false;
-        }
-        select.cancelMove(this);
-        GridPoint pressPoint = pressed.get();
-        dragOut = new DragOrigin(this, selection.effectiveIds(), pressPoint,
-                new GridPoint(pressPoint.x() - topLeft.get().x(), pressPoint.y() - topLeft.get().y()));
-        dragOutJson = fragmentJson.get();
-        return true;
+        return canvasDragOut.beginDragOut();
     }
 
     void endDragOut() {
-        dragOut = null;
-        dragOutJson = null;
-        dragOutLeft();
+        canvasDragOut.endDragOut();
     }
 
     Optional<DragOrigin> dragOrigin() {
-        return Optional.ofNullable(dragOut);
+        return canvasDragOut.dragOrigin();
     }
 
     /** What a drag out carries: the fragment taken when it began, or the current selection otherwise. */
     Optional<String> transferFragmentJson() {
-        return dragOutJson != null ? Optional.of(dragOutJson) : selectionFragmentJson();
+        return canvasDragOut.transferFragmentJson();
     }
 
     boolean isDraggingOut() {
-        return dragOut != null;
+        return canvasDragOut.isDraggingOut();
     }
 
     /** The drag out is over this canvas again at {@code point} (canvas pixels): preview the move it would make. */
     void dragOutOver(Point point) {
-        if (dragOut == null) {
-            return;
-        }
-        GridPoint at = viewport.snap(point.x, point.y);
-        dragOutPointer = viewport.screenToGrid(point.x, point.y);
-        SnappedMove snapped = SnappedMove.of(this, dragOut.ids(), false, at.x() - dragOut.pressPoint().x(),
-                at.y() - dragOut.pressPoint().y());
-        GridPoint delta = new GridPoint(snapped.deltaX(), snapped.deltaY());
-        if (!delta.equals(dragOutPreview)) {
-            dragOutPreview = delta;
-            repaint();
-        }
+        canvasDragOut.dragOutOver(point);
     }
 
     /** The drag out left this canvas (or ended): no preview. */
     void dragOutLeft() {
-        dragOutMoves.clear();
-        dragOutPointer = null;
-        if (dragOutPreview != null) {
-            dragOutPreview = null;
-            repaint();
-        }
+        canvasDragOut.dragOutLeft();
     }
 
     /**
@@ -424,16 +356,12 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
      * none when no move is previewed.
      */
     List<NewContact> dragOutContacts() {
-        if (dragOut == null || dragOutPreview == null) {
-            return List.of();
-        }
-        return dragOutMoves.contacts(this, dragOut.ids(), dragOutPreview.x(), dragOutPreview.y(),
-                selectionMoves.followMode(), false);
+        return canvasDragOut.dragOutContacts();
     }
 
     /** The move being previewed, as a delta in grid units. */
     Optional<GridPoint> dragOutPreview() {
-        return Optional.ofNullable(dragOutPreview);
+        return canvasDragOut.dragOutPreview();
     }
 
     /**
@@ -527,85 +455,22 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
 
     /** True while a move or a rubber band is held at the edge and the view scrolls under it. */
     boolean isAutoscrolling() {
-        return autoscrollEvent != null;
+        return autoscroll.isAutoscrolling();
     }
 
     /** Tests call {@link #autoscrollTick()} themselves instead of the Swing timer, so positions are exact. */
     void useManualAutoscrollClock() {
-        automaticAutoscrollClock = false;
-        autoscrollTimer.stop();
+        autoscroll.useManualAutoscrollClock();
     }
 
     /** Replaces the "this point (canvas coordinates) is over another window" check, for headless tests. */
     void overrideWindowProbe(Predicate<Point> check) {
-        overAnotherWindow = check;
+        canvasDragOut.overrideWindowProbe(check);
     }
 
     /** One autoscroll step: scrolls the view and replays the last drag, so the move or the band follows the pointer. */
     void autoscrollTick() {
-        if (autoscrollEvent == null || !(tool instanceof SelectTool select) || !select.autoscrolls()) {
-            stopAutoscroll();
-            return;
-        }
-        Point step = EdgeAutoscroll.step(getWidth(), getHeight(), autoscrollEvent.getPoint());
-        if (step.x == 0 && step.y == 0) {
-            stopAutoscroll();
-            return;
-        }
-        viewport.panBy(step.x, step.y);
-        tool.mouseDragged(this, convert(autoscrollEvent));
-        repaint();
-    }
-
-    /** Starts or stops the autoscroll after a drag to {@code event}. */
-    private void followEdge(MouseEvent event) {
-        Point step = EdgeAutoscroll.step(getWidth(), getHeight(), event.getPoint());
-        boolean wanted = tool instanceof SelectTool select && select.autoscrolls() && (step.x != 0 || step.y != 0);
-        if (!wanted) {
-            stopAutoscroll();
-            return;
-        }
-        autoscrollEvent = event;
-        if (automaticAutoscrollClock && !autoscrollTimer.isRunning()) {
-            autoscrollTimer.start();
-        }
-    }
-
-    private void stopAutoscroll() {
-        autoscrollEvent = null;
-        autoscrollTimer.stop();
-    }
-
-    /**
-     * The point is over a showing window of this application that is neither this canvas's window nor owned by it
-     * (popups, tooltips). Windows of other programs are invisible here, so dragging over them keeps the move. A VSim
-     * window overlapping this canvas's own frame is not detected there: AWT gives no z-order between windows.
-     */
-    private boolean isOverAnotherWindow(Point canvasPoint) {
-        if (!isShowing()) {
-            return false;
-        }
-        Point screenPoint = new Point(canvasPoint);
-        SwingUtilities.convertPointToScreen(screenPoint, this);
-        Window own = SwingUtilities.getWindowAncestor(this);
-        if (own == null || own.getBounds().contains(screenPoint)) {
-            return false;
-        }
-        for (Window window : Window.getWindows()) {
-            if (window.isShowing() && !isOwnedBy(window, own) && window.getBounds().contains(screenPoint)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private static boolean isOwnedBy(Window window, Window own) {
-        for (Window current = window; current != null; current = current.getOwner()) {
-            if (current == own) {
-                return true;
-            }
-        }
-        return false;
+        autoscroll.autoscrollTick();
     }
 
     Optional<String> selectionFragmentJson() {
@@ -639,40 +504,6 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         requestFocusInWindow();
     }
 
-    private void paintDragOutPreview(Graphics2D graphics) {
-        if (dragOut == null || dragOutPreview == null || dragOutPreview.equals(GridPoint.ORIGIN)) {
-            return;
-        }
-        for (ElementId id : dragOut.ids()) {
-            openDocument.document().element(id).ifPresent(element ->
-                    paintGhost(graphics, element.translate(dragOutPreview.x(), dragOutPreview.y())));
-        }
-        ContactDots.paint(graphics, this, dragOutContacts(), Optional.ofNullable(dragOutPointer));
-    }
-
-    /** Hides the preview when the drag leaves the canvas; Swing's drop target takes extra listeners. */
-    private void listenForDragExit() {
-        DropTarget dropTarget = getDropTarget();
-        if (dropTarget == null) {
-            return; // headless: there is no drop target and no drag ever enters
-        }
-        try {
-            dropTarget.addDropTargetListener(new DropTargetAdapter() {
-                @Override
-                public void dragExit(DropTargetEvent event) {
-                    dragOutLeft();
-                }
-
-                @Override
-                public void drop(DropTargetDropEvent event) {
-                    // The transfer handler takes the drop.
-                }
-            });
-        } catch (TooManyListenersException exception) {
-            // A plain DropTarget takes one listener only; the preview then stays until the drag ends.
-        }
-    }
-
     @Override
     public void addNotify() {
         super.addNotify();
@@ -684,21 +515,21 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
 
     @Override
     public void removeNotify() {
-        stopAutoscroll();
+        autoscroll.stopAutoscroll();
         frameTimer.stop();
         animationSuspended = true;
         antsTimer.stop();
         problemPulseTimer.stop();
         watchWindow(null);
-        viewAnimator.finish();
+        viewTravel.finish();
         super.removeNotify();
     }
 
     public void dispose() {
         disposed = true;
         edgeController.cancel(); // the pane closes: a guide being pulled goes with it
-        viewAnimator.stop();
-        stopAutoscroll();
+        viewTravel.stop();
+        autoscroll.stopAutoscroll();
         frameTimer.stop();
         animationSuspended = true;
         antsTimer.stop();
@@ -852,19 +683,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
      * left free by something floating over it) and zooming out only as far as needed for them to fit there.
      */
     public void travelTo(Bounds bounds, Rectangle2D within) {
-        int width = getWidth();
-        int height = getHeight();
-        double zoom = Math.min(userZoom, ZoomTargets.fitting(bounds, (int) Math.round(within.getWidth()),
-                (int) Math.round(within.getHeight()), FIT_FRACTION, userZoom).zoom());
-        double pixels = GridPoint.PIXELS_PER_UNIT * zoom;
-        ViewState target = new ViewState(zoom,
-                bounds.x() + bounds.width() / 2.0 - (within.getCenterX() - width / 2.0) / pixels,
-                bounds.y() + bounds.height() / 2.0 - (within.getCenterY() - height / 2.0) / pixels);
-        if (canAnimateViewMoves()) {
-            viewAnimator.travel(viewState(), target, width, height);
-        } else {
-            jumpTo(target);
-        }
+        viewTravel.travelTo(bounds, within);
     }
 
     /**
@@ -876,14 +695,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
      */
     @Override
     public void zoomTo(ViewState target) {
-        ViewState clamped = ZoomTargets.atZoom(Objects.requireNonNull(target, "target"), target.zoom());
-        userZoom = clamped.zoom(); // a travel frame never touches the user's zoom: set it now
-        viewTakenListeners.forEach(Runnable::run);
-        if (canAnimateViewMoves() && onScreen.getAsBoolean()) {
-            viewAnimator.travel(viewState(), clamped, getWidth(), getHeight());
-        } else {
-            jumpTo(clamped);
-        }
+        viewTravel.zoomTo(target);
     }
 
     /**
@@ -901,7 +713,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
      * {@link #travelTo}, which never zooms in.
      */
     public void zoomToFit(Bounds bounds) {
-        zoomTo(ZoomTargets.fitting(bounds, getWidth(), getHeight(), FIT_FRACTION, viewport.zoom()));
+        viewTravel.zoomToFit(bounds);
     }
 
     /** An instant zoom around a point of this pane (the zoom tool's click): the status bar follows. */
@@ -917,21 +729,9 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         return getSize();
     }
 
-    /** True when a move of the view may travel: animations on, the canvas sized and not disposed. */
-    private boolean canAnimateViewMoves() {
-        return !disposed && getWidth() > 0 && getHeight() > 0 && animateViewMoves.getAsBoolean();
-    }
-
-    /** Shows {@code target} at once, stopping any travel; like a travel's frame, it does not change the user's zoom. */
-    private void jumpTo(ViewState target) {
-        viewAnimator.stop();
-        movingWithTheTravel = true;
-        try {
-            viewport.showAt(target.zoom(), target.centerX(), target.centerY(), getWidth(), getHeight());
-        } finally {
-            movingWithTheTravel = false;
-        }
-        viewChanged();
+    /** True once {@link #dispose()} ran: a move of the view no longer travels. */
+    boolean isDisposed() {
+        return disposed;
     }
 
     /** True when the whole of {@code bounds} (grid units) is on screen now; false before the canvas has a size. */
@@ -945,44 +745,28 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
                 && bounds.maximumX() <= end.getX() && bounds.maximumY() <= end.getY();
     }
 
-    private void showTravelFrame(ViewState state) {
-        movingWithTheTravel = true;
-        try {
-            viewport.showAt(state.zoom(), state.centerX(), state.centerY(), getWidth(), getHeight());
-        } finally {
-            movingWithTheTravel = false;
-        }
-        viewChanged();
-    }
-
     /**
      * Pans the view by ({@code deltaX}, {@code deltaY}) pixels because the canvas itself moved in its window (a header
      * above it showed or went), so the circuit stays where it was on screen. It is not a user move: a travel in
      * progress goes on (its frames derive the view from the centre and the current size).
      */
     public void compensateCanvasMove(double deltaX, double deltaY) {
-        movingWithTheTravel = true;
-        try {
-            viewport.panBy(deltaX, deltaY);
-        } finally {
-            movingWithTheTravel = false;
-        }
-        viewChanged();
+        viewTravel.compensateCanvasMove(deltaX, deltaY);
     }
 
     /** Whether {@link #travelTo} animates; read at each call and each frame (the preference can change mid-flight). */
     public void setAnimateViewMoves(BooleanSupplier animate) {
-        animateViewMoves = animate;
+        viewTravel.setAnimateViewMoves(animate);
     }
 
     /** True while the view travels to a target. */
     public boolean isTravelling() {
-        return viewAnimator.isTravelling();
+        return viewTravel.isTravelling();
     }
 
     /** Drives the travels with {@code ticker} and {@code clock} (milliseconds) instead of a Swing timer: for tests. */
     public void useViewTicker(FrameTicker ticker, LongSupplier clock) {
-        viewAnimator.use(ticker, clock);
+        viewTravel.useViewTicker(ticker, clock);
     }
 
     public void addOverlay(CanvasOverlay overlay) {
@@ -1199,6 +983,11 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     void overrideOnScreen(BooleanSupplier check) {
         onScreen = check;
         updateAnimation();
+    }
+
+    /** The on-screen check now (see {@link #overrideOnScreen}): a zoom travels only on screen. */
+    boolean onScreen() {
+        return onScreen.getAsBoolean();
     }
 
     /** Showing, and its window is not minimized: only then are the marching ants worth a repaint. */
@@ -1504,7 +1293,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
             for (CanvasOverlay overlay : overlays) {
                 overlay.paint(local, state);
             }
-            paintDragOutPreview(local);
+            canvasDragOut.paintDragOutPreview(local);
             tool.paintOverlay(local, this);
             for (CircuitCanvas owner : sharing) {
                 owner.tool.paintOverlay(local, new CrossPaneContext(owner, this));
@@ -1565,12 +1354,12 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         repaint();
     }
 
-    private void viewChanged() {
+    void viewChanged() {
         viewListeners.forEach(Runnable::run);
         repaint();
     }
 
-    private CanvasMouseEvent convert(MouseEvent event) {
+    CanvasMouseEvent convert(MouseEvent event) {
         return convert(event, event.getX(), event.getY());
     }
 
@@ -1647,14 +1436,14 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
                 return;
             }
             pointerPaneContext = null;
-            if (!CircuitCanvas.this.contains(event.getPoint()) && overAnotherWindow.test(event.getPoint())
+            if (!CircuitCanvas.this.contains(event.getPoint()) && canvasDragOut.overAnotherWindow(event.getPoint())
                     && beginDragOut()) {
-                stopAutoscroll();
+                autoscroll.stopAutoscroll();
                 getTransferHandler().exportAsDrag(CircuitCanvas.this, event, TransferHandler.MOVE);
                 return;
             }
             tool.mouseDragged(CircuitCanvas.this, convert(event));
-            followEdge(event);
+            autoscroll.followEdge(event);
             if (sharesGesture()) {
                 repaintOtherPanes();
             }
@@ -1666,7 +1455,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
          * point as that pane sees it, with that pane's view and snapping.
          */
         private void dragOver(CircuitCanvas pane, MouseEvent event) {
-            stopAutoscroll();
+            autoscroll.stopAutoscroll();
             if (pointerPaneContext == null || pointerPaneContext.over() != pane) {
                 pointerPaneContext = new CrossPaneContext(CircuitCanvas.this, pane);
             }
@@ -1681,7 +1470,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
             if (isExtraButton(event)) {
                 return;
             }
-            stopAutoscroll();
+            autoscroll.stopAutoscroll();
             if (panAnchor != null) {
                 panAnchor = null;
                 showCursor();
