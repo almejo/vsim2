@@ -3,6 +3,7 @@ package cl.almejo.vsim.core.library;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.ElementBounds;
 import cl.almejo.vsim.core.component.PinSpec;
+import cl.almejo.vsim.core.component.standard.MemoryTypes;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
@@ -131,6 +132,30 @@ public final class DefinitionBuilder {
      * The definition made of the selected elements (body moved to the origin), with the definitions its nested
      * instances need as dependencies. {@code pinOrder} must list each selected interface pin once, on its side.
      */
+    /**
+     * The memories among {@code ids} linked to a file, in document order: a definition has no folder for the link to
+     * be relative to, so building one keeps their contents and drops the link (memory spec, Task 5), and the user is
+     * told which files stay behind.
+     */
+    public static List<Component> linkedMemories(CircuitDocument document, Collection<ElementId> ids) {
+        return selectedComponents(document, ids).stream().filter(DefinitionBuilder::isLinkedMemory).toList();
+    }
+
+    private static boolean isLinkedMemory(Component component) {
+        return MemoryTypes.kindOf(component.typeId()).isPresent()
+                && !String.valueOf(component.parameters().getOrDefault(MemoryTypes.LINK, "")).isBlank();
+    }
+
+    /** {@code component} without its memory link (its contents stay); any other component as it is. */
+    private static Component withoutMemoryLink(Component component) {
+        if (!isLinkedMemory(component)) {
+            return component;
+        }
+        Map<String, Object> parameters = new HashMap<>(component.parameters());
+        parameters.put(MemoryTypes.LINK, "");
+        return component.withParameters(parameters);
+    }
+
     public static DefinitionBundle fromSelection(CircuitDocument document, Collection<ElementId> ids, String id,
                                                  String name, PinOrder pinOrder, ComponentTypeRegistry registry) {
         return fromSelection(document, ids, id, name, pinOrder, Map.of(), registry);
@@ -189,6 +214,7 @@ public final class DefinitionBuilder {
         List<Component> components = selected.components().stream()
                 .map(component -> relabels.containsKey(component.id())
                         ? component.withLabel(relabels.get(component.id())) : component)
+                .map(DefinitionBuilder::withoutMemoryLink)
                 .toList();
         CircuitFragment body = new CircuitFragment(components, selected.wires(), selected.labels());
         ComponentDefinition definition = new ComponentDefinition(id, name, "",

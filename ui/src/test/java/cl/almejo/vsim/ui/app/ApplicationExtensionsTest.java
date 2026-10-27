@@ -115,7 +115,8 @@ class ApplicationExtensionsTest {
                     "Preferencias…", "---",
                     "Cerrar ventana", "Salir");
             JMenu importMenu = ImportMenu.find(view.menu(MenuId.FILE)).orElseThrow();
-            assertThat(texts(importMenu)).containsExactly("Componente…", "Tabla de verdad desde Excel/CSV…");
+            assertThat(texts(importMenu)).containsExactly("Componente…", "Tabla de verdad desde Excel/CSV…",
+                    "Memoria desde archivo…");
             assertThat(view.shortcutActions().get("file.importTruthTable"))
                     .isSameAs(importMenu.getItem(1).getAction());
             assertThat(texts(view.menu(MenuId.EDIT))).containsSubsequence("Deshacer", "Rehacer", "Cortar", "Copiar",

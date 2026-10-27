@@ -44,6 +44,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.function.Function;
+import java.util.function.UnaryOperator;
 
 import static cl.almejo.vsim.core.io.CircuitFormatException.invalid;
 
@@ -235,6 +236,15 @@ public final class CircuitFormat {
      * nothing, when a used definition is missing from the document: such a file could not be reopened.
      */
     public String write(CircuitDocument document) {
+        return write(document, UnaryOperator.identity());
+    }
+
+    /**
+     * Like {@link #write(CircuitDocument)}, with each of the circuit's own components written as {@code written}
+     * gives it (the document is not touched): the editor writes a memory's linked file relative to where the circuit
+     * is saved.
+     */
+    public String write(CircuitDocument document, UnaryOperator<Component> written) {
         List<ComponentDefinition> used;
         try {
             used = DefinitionGraph.closure(SubcircuitTypes.definitionIds(document.components()), document::definition);
@@ -243,7 +253,7 @@ public final class CircuitFormat {
         }
         CircuitFile file = new CircuitFile(FileHeader.FORMAT, FileHeader.savedWith(), FORMAT_VERSION, KIND_CIRCUIT,
                 document.name(),
-                document.components().stream().map(CircuitFormat::componentEntry).toList(),
+                document.components().stream().map(written).map(CircuitFormat::componentEntry).toList(),
                 document.wires().stream().map(CircuitFormat::wireEntry).toList(),
                 document.labels().stream().map(CircuitFormat::labelEntry).toList(),
                 used.stream().map(DefinitionEntries::entry).toList(),

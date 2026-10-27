@@ -8,8 +8,8 @@ import java.util.OptionalLong;
 
 /**
  * Opens the content editor of a memory over an editor window: from a double click, the context menu, the inspector
- * (later) and the memory map (a click on a cell passes its address). The link actions are the application's
- * ({@link MemoryLinkActions#NONE} until the linked files exist).
+ * and the memory map (a click on a cell passes its address). The link actions are the application's
+ * {@link MemoryLinks}.
  */
 public class MemoryEditorLauncher {
 

@@ -20,6 +20,8 @@ import javax.swing.JSpinner;
 import javax.swing.JTextField;
 import javax.swing.SpinnerNumberModel;
 import java.awt.Component;
+import java.awt.event.FocusAdapter;
+import java.awt.event.FocusEvent;
 import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -69,6 +71,7 @@ public final class PreferencesForm extends JPanel {
     private final JComboBox<Choice<Optional<String>>> languageChoice = new JComboBox<>();
     private final JComboBox<Choice<AppPreferences.InvertModifier>> invertModifierChoice = new JComboBox<>();
     private final JTextField libraryField = new JTextField(32);
+    private final JTextField externalEditorField = new JTextField(32);
     private final JButton chooseLibraryButton = new JButton(Messages.text("preferences.library.choose"));
     private final JButton restoreLibraryButton = new JButton(Messages.text("preferences.library.restore"));
     private final JCheckBox restoreSessionBox = new JCheckBox(Messages.text("preferences.restoreSession"));
@@ -167,11 +170,34 @@ public final class PreferencesForm extends JPanel {
         add(libraryField);
         add(chooseLibraryButton, "skip 1, split 2, growx 0");
         add(restoreLibraryButton, "growx 0");
+        addExternalEditorRow();
         add(restoreSessionBox, "skip 1, gaptop 12");
         add(animateViewMovesBox, "skip 1");
         add(new JLabel(Messages.text("preferences.invertModifier")), "gaptop 12");
         add(invertModifierChoice, "gaptop 12");
         addTextFontRows();
+    }
+
+    /**
+     * «Editor externo» (memory spec §8.2): the command that opens a memory's linked file, stored on Enter and when the
+     * field loses the focus; empty means the system's editor.
+     */
+    private void addExternalEditorRow() {
+        externalEditorField.setText(preferences.externalEditor().orElse(""));
+        Runnable store = () -> preferences.setExternalEditor(Optional.of(externalEditorField.getText().strip())
+                .filter(command -> !command.isEmpty()));
+        externalEditorField.addActionListener(event -> store.run());
+        externalEditorField.addFocusListener(new FocusAdapter() {
+            @Override
+            public void focusLost(FocusEvent event) {
+                store.run();
+            }
+        });
+        JLabel caption = new JLabel(Messages.text("preferences.externalEditor"));
+        caption.setLabelFor(externalEditorField);
+        add(caption, "gaptop 12");
+        add(externalEditorField, "gaptop 12");
+        add(new JLabel(Messages.text("preferences.externalEditor.note")), "skip 1");
     }
 
     /**
@@ -316,6 +342,10 @@ public final class PreferencesForm extends JPanel {
 
     JComboBox<Choice<AppPreferences.InvertModifier>> invertModifierChoice() {
         return invertModifierChoice;
+    }
+
+    JTextField externalEditorField() {
+        return externalEditorField;
     }
 
     JTextField libraryField() {

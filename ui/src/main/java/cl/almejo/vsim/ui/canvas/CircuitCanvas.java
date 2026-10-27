@@ -128,7 +128,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     private final EdgeController edgeController = new EdgeController(this::getSize);
     private final DocumentListener documentListener;
     private final SelectionMoves selectionMoves;
-    private Consumer<List<Path>> fileDropHandler = files -> {
+    private FileDropTarget fileDropTarget = (files, gridPosition) -> {
     };
     private final CanvasDragOut canvasDragOut = new CanvasDragOut(this);
     private Function<Point2D, Optional<String>> toolTipProvider = gridPoint -> Optional.empty();
@@ -307,13 +307,26 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         }
     }
 
-    /** Where dropped circuit files go (the window opens them). */
-    public void setFileDropHandler(Consumer<List<Path>> handler) {
-        fileDropHandler = handler;
+    /** Where files dropped on the canvas go, with the grid point they were dropped on (a memory file lands there). */
+    public interface FileDropTarget {
+        void drop(List<Path> files, GridPoint gridPosition);
     }
 
-    Consumer<List<Path>> fileDropHandler() {
-        return fileDropHandler;
+    /** Where dropped files go, with their drop point (pasted files: the middle of the canvas). */
+    public void setFileDropTarget(FileDropTarget target) {
+        fileDropTarget = Objects.requireNonNull(target, "target");
+    }
+
+    /** Where dropped circuit files go (the window opens them), when the drop point does not matter. */
+    public void setFileDropHandler(Consumer<List<Path>> handler) {
+        Objects.requireNonNull(handler, "handler");
+        setFileDropTarget((files, gridPosition) -> handler.accept(files));
+    }
+
+    /** The files dropped at {@code screenPoint} (canvas pixels) go to the drop target with its grid point. */
+    Consumer<List<Path>> fileDropHandler(Point screenPoint) {
+        GridPoint gridPosition = viewport.snap(screenPoint.x, screenPoint.y);
+        return files -> fileDropTarget.drop(files, gridPosition);
     }
 
     /**

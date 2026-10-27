@@ -46,7 +46,8 @@ class MemoryEditorExtensionTest {
 
     private EditorView view() {
         EditorServices services = new EditorServices(PainterRegistry.standard(), new Appearance(ColorScheme.LIGHT),
-                AppPreferences.inMemory(), new ComponentLibrary(), List.of(new MemoryEditorExtension(launcher)));
+                AppPreferences.inMemory(), new ComponentLibrary(), List.of(new MemoryEditorExtension(launcher,
+                new MemoryLinks(new FakeLinkPrompts(), (file, command) -> true, MemoryLinks.PollScheduler.MANUAL))));
         return new EditorView(document, services, NO_WINDOW);
     }
 

@@ -2,6 +2,7 @@ package cl.almejo.vsim.core.library;
 
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.PinSpec;
+import cl.almejo.vsim.core.component.standard.MemoryTypes;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
@@ -82,6 +83,26 @@ class DefinitionBuilderTest {
         assertThat(definition.body().definitions()).isEmpty();
         assertThat(bundle.dependencies()).isEmpty();
         assertThat(DefinitionBuilder.origin(document, selection, registry)).isEqualTo(new GridPoint(10, 10));
+    }
+
+    @Test
+    void aLinkedMemoryKeepsItsContentsInTheDefinitionButNotItsLink() {
+        Component input = place(registry, document, InterfacePins.INPUT_PIN, 0, 1, "a");
+        Component output = place(registry, document, InterfacePins.OUTPUT_PIN, 40, 1, "y");
+        Component ram = registry.require(StandardComponentTypes.RAM).newComponent(document.newComponentId(),
+                new GridPoint(10, 0), Rotation.R0, Map.of(MemoryTypes.CONTENTS, "@0 3A", MemoryTypes.LINK,
+                        "/home/student/programa.hex"), "");
+        document.add(ram);
+        List<ElementId> selection = ids(input, ram, output);
+
+        DefinitionBundle bundle = DefinitionBuilder.fromSelection(document, selection, "cpu", "CPU",
+                DefinitionBuilder.defaultPinOrder(document, selection), registry);
+
+        Component inner = bundle.root().body().components().stream()
+                .filter(component -> component.typeId().equals(StandardComponentTypes.RAM)).findFirst().orElseThrow();
+        assertThat(inner.parameters().get(MemoryTypes.LINK)).isEqualTo("");
+        assertThat(inner.parameters().get(MemoryTypes.CONTENTS)).isEqualTo(ram.parameters().get(MemoryTypes.CONTENTS));
+        assertThat(DefinitionBuilder.linkedMemories(document, selection)).containsExactly(ram);
     }
 
     @Test
