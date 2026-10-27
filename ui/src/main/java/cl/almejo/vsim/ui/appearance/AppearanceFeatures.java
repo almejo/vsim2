@@ -106,17 +106,8 @@ final class AppearanceFeatures {
         while (true) {
             boolean appliesToCircuit = !libraryScope || librarySnapshot.filter(this::matchesCircuitBundle).isPresent();
             List<String> parents = appliesToCircuit ? DefinitionUpdateSafety.containingNames(document(), definitionId) : List.of();
-            int count = (int) document().components().stream()
-                    .filter(piece -> piece.typeId().equals(SubcircuitTypes.typeIdOf(definitionId)))
-                    .filter(piece -> piece.appearance().isEmpty()).count();
-            String instanceName = instance.map(piece -> piece.label().isBlank() ? piece.id().value() : piece.label()).orElse("");
-            boolean savesToLibrary = !libraryScope
-                    && library.library().find(definitionId).filter(this::matchesCircuitBundle).isPresent();
-            boolean circuitUsesOtherVersion = libraryScope && !appliesToCircuit
-                    && document().definition(definitionId).isPresent();
-            ShapeEditRequest request = new ShapeEditRequest(starting, draft, scope, instanceId.isPresent(),
-                    !parents.isEmpty(), String.join(", ", parents), count, instanceName, savesToLibrary,
-                    circuitUsesOtherVersion);
+            ShapeEditRequest request = buildRequest(starting, draft, scope, instanceId, instance, definitionId,
+                    libraryScope, appliesToCircuit, parents);
             Optional<ShapeEditResult> result = editor.edit(view, request);
             if (result.isEmpty()) {
                 return;
@@ -150,45 +141,67 @@ final class AppearanceFeatures {
                     || scope != ShapeEditScope.INSTANCE && draft.equals(ComponentAppearance.of(starting))) {
                         return;
                     }
-            boolean writesLibrary = scope == ShapeEditScope.LIBRARY_DEFINITION || scope == ShapeEditScope.CIRCUIT_DEFINITION
-                    && latestBundle.filter(this::matchesCircuitBundle).isPresent();
-            Optional<DefinitionBundle> expectedLibrary = library.library().find(definitionId);
             try {
-                if (scope == ShapeEditScope.LIBRARY_DEFINITION && !appliesToCircuit) {
-                    ComponentDefinition changed = withAppearance(starting, draft);
-                    DefinitionBundle preserved = new DefinitionBundle(changed, expectedLibrary.orElseThrow().dependencies());
-                    if (saveLibrary(preserved,
-                            false, expectedLibrary)) {
-                        return;
-                    }
-                    continue;
+                if (apply(scope, draft, starting, instanceId, definitionId, appliesToCircuit, latestBundle)) {
+                    return;
                 }
-                ChangeAppearanceCommand command = scope == ShapeEditScope.INSTANCE
-                        ? ChangeAppearanceCommand.forInstance(document(), view.openDocument().registry(), instanceId.orElseThrow(), Optional.of(draft))
-                        : ChangeAppearanceCommand.forDefinition(document(), view.openDocument().registry(), definitionId, draft);
-                if (!confirm(command.plan(), scope == ShapeEditScope.INSTANCE)) {
-                    continue;
-                }
-                if (command.isStale(document())) {
-                    continue;
-                }
-                if (writesLibrary && !library.library().find(definitionId).equals(expectedLibrary)) {
-                    continue;
-                }
-                view.openDocument().execute(command);
-                if (writesLibrary) {
-                    ComponentDefinition changed = document().definition(definitionId).orElseThrow();
-                    saveLibrary(DefinitionBundle.of(changed, document()::definition), true, expectedLibrary);
-                }
-                if (!command.plan().disconnected().isEmpty()) {
-                    view.statusBar().showNotice(Messages.format("shape.connections.notice", command.plan().disconnected().size()));
-                }
-                return;
             } catch (UnsafeDefinitionUpdateException exception) {
                 dialogs.showMessage(view, Messages.format(exception.messageKey(),
                         String.join(", ", exception.containingNames())));
             }
         }
+    }
+
+    private ShapeEditRequest buildRequest(ComponentDefinition starting, ComponentAppearance draft, ShapeEditScope scope,
+                                          Optional<ElementId> instanceId, Optional<Component> instance,
+                                          String definitionId, boolean libraryScope, boolean appliesToCircuit,
+                                          List<String> parents) {
+        int count = (int) document().components().stream()
+                .filter(piece -> piece.typeId().equals(SubcircuitTypes.typeIdOf(definitionId)))
+                .filter(piece -> piece.appearance().isEmpty()).count();
+        String instanceName = instance.map(piece -> piece.label().isBlank() ? piece.id().value() : piece.label()).orElse("");
+        boolean savesToLibrary = !libraryScope
+                && library.library().find(definitionId).filter(this::matchesCircuitBundle).isPresent();
+        boolean circuitUsesOtherVersion = libraryScope && !appliesToCircuit
+                && document().definition(definitionId).isPresent();
+        return new ShapeEditRequest(starting, draft, scope, instanceId.isPresent(),
+                !parents.isEmpty(), String.join(", ", parents), count, instanceName, savesToLibrary,
+                circuitUsesOtherVersion);
+    }
+
+    /** Applies the accepted draft; true when {@code edit} is done, false when it must reopen the editor. */
+    private boolean apply(ShapeEditScope scope, ComponentAppearance draft, ComponentDefinition starting,
+                          Optional<ElementId> instanceId, String definitionId, boolean appliesToCircuit,
+                          Optional<DefinitionBundle> latestBundle) {
+        boolean writesLibrary = scope == ShapeEditScope.LIBRARY_DEFINITION || scope == ShapeEditScope.CIRCUIT_DEFINITION
+                && latestBundle.filter(this::matchesCircuitBundle).isPresent();
+        Optional<DefinitionBundle> expectedLibrary = library.library().find(definitionId);
+        if (scope == ShapeEditScope.LIBRARY_DEFINITION && !appliesToCircuit) {
+            ComponentDefinition changed = withAppearance(starting, draft);
+            DefinitionBundle preserved = new DefinitionBundle(changed, expectedLibrary.orElseThrow().dependencies());
+            return saveLibrary(preserved, false, expectedLibrary);
+        }
+        ChangeAppearanceCommand command = scope == ShapeEditScope.INSTANCE
+                ? ChangeAppearanceCommand.forInstance(document(), view.openDocument().registry(), instanceId.orElseThrow(), Optional.of(draft))
+                : ChangeAppearanceCommand.forDefinition(document(), view.openDocument().registry(), definitionId, draft);
+        if (!confirm(command.plan(), scope == ShapeEditScope.INSTANCE)) {
+            return false;
+        }
+        if (command.isStale(document())) {
+            return false;
+        }
+        if (writesLibrary && !library.library().find(definitionId).equals(expectedLibrary)) {
+            return false;
+        }
+        view.openDocument().execute(command);
+        if (writesLibrary) {
+            ComponentDefinition changed = document().definition(definitionId).orElseThrow();
+            saveLibrary(DefinitionBundle.of(changed, document()::definition), true, expectedLibrary);
+        }
+        if (!command.plan().disconnected().isEmpty()) {
+            view.statusBar().showNotice(Messages.format("shape.connections.notice", command.plan().disconnected().size()));
+        }
+        return true;
     }
 
     private Optional<ComponentDefinition> source(String id, boolean libraryScope) {
