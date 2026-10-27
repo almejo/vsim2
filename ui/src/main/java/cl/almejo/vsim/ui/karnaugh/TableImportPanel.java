@@ -11,7 +11,6 @@ import cl.almejo.vsim.core.logic.TableImportException;
 import cl.almejo.vsim.core.logic.Term;
 import cl.almejo.vsim.core.logic.TruthTableSpec;
 import cl.almejo.vsim.ui.i18n.Messages;
-import cl.almejo.vsim.ui.icons.Icons;
 import cl.almejo.vsim.ui.panels.TextChanges;
 import net.miginfocom.swing.MigLayout;
 
@@ -100,27 +99,27 @@ public final class TableImportPanel extends JPanel {
     /** The dialog is never smaller than this when it fits itself to its content (page «Crear» needs about that). */
     static final Dimension MINIMUM_DIALOG_SIZE = new Dimension(640, 440);
 
-    private final TableImportModel model = new TableImportModel();
+    final TableImportModel model = new TableImportModel();
     private final TableSources sources;
     private final Background background;
     private final CreationForm form;
-    private final CreationControls controls;
-    private final JButton openFile = new JButton(Messages.text("tableImport.openFile"));
-    private final JButton paste = new JButton(Messages.text("tableImport.paste"));
-    private final JLabel sourceLabel = new JLabel(Messages.text("tableImport.noTable"));
-    private final JTextField title = new JTextField(20);
-    private final JSpinner inputCount = new JSpinner(new SpinnerNumberModel(1, 1, 1, 1));
-    private final JLabel columns = new JLabel(" ");
+    final CreationControls controls;
+    final JButton openFile = new JButton(Messages.text("tableImport.openFile"));
+    final JButton paste = new JButton(Messages.text("tableImport.paste"));
+    final JLabel sourceLabel = new JLabel(Messages.text("tableImport.noTable"));
+    final JTextField title = new JTextField(20);
+    final JSpinner inputCount = new JSpinner(new SpinnerNumberModel(1, 1, 1, 1));
+    final JLabel columns = new JLabel(" ");
     /** How the file must look, and the limits («Hasta 10 entradas y 16 salidas.»). */
-    private final Paragraph help = new Paragraph(Messages.text("tableImport.help") + " "
+    final Paragraph help = new Paragraph(Messages.text("tableImport.help") + " "
             + Messages.format("tableImport.limits", String.valueOf(TruthTableSpec.MAXIMUM_INPUTS),
             String.valueOf(TruthTableSpec.MAXIMUM_OUTPUTS)));
-    private final Paragraph problems = Paragraph.error();
-    private final Paragraph titleProblem = Paragraph.error();
-    private final JButton hintButton = new JButton(Messages.text("tableImport.openInWizard"));
-    private final Paragraph hintText = new Paragraph(Messages.text("tableImport.wizardHint"));
+    final Paragraph problems = Paragraph.error();
+    final Paragraph titleProblem = Paragraph.error();
+    final JButton hintButton = new JButton(Messages.text("tableImport.openInWizard"));
+    final Paragraph hintText = new Paragraph(Messages.text("tableImport.wizardHint"));
     /** Page «Datos»'s suggestion of the Karnaugh wizard, over the preview, for a table that fits it. */
-    private final JPanel wizardHint = new JPanel(new MigLayout("insets 6 10 6 8", "[]8[grow, fill]12[]", "[center]")) {
+    final JPanel wizardHint = new JPanel(new MigLayout("insets 6 10 6 8", "[]8[grow, fill]12[]", "[center]")) {
         @Override
         protected void paintComponent(Graphics graphics) {
             Graphics2D graphics2D = (Graphics2D) graphics.create();
@@ -136,7 +135,7 @@ public final class TableImportPanel extends JPanel {
         }
     };
     private final TablePreviewModel previewModel = new TablePreviewModel();
-    private final TablePreview preview = new TablePreview(previewModel);
+    final TablePreview preview = new TablePreview(previewModel);
     private final CardLayout pages = new CardLayout();
     private final JPanel pageCards = new JPanel(pages);
     /** «Paso 1 de 2 · Datos»: two pages need no tabs, «Siguiente» and «Atrás» move between them. */
@@ -144,11 +143,11 @@ public final class TableImportPanel extends JPanel {
     private final JButton back = new JButton(Messages.text("karnaugh.back"));
     private final JButton next = new JButton(Messages.text("karnaugh.next"));
     private Page page = Page.DATA;
-    private final Paragraph notice = new Paragraph("");
-    private final OptionControls optionControls;
-    private final JLabel summary = new JLabel(" ");
+    final Paragraph notice = new Paragraph("");
+    final OptionControls optionControls;
+    final JLabel summary = new JLabel(" ");
     /** «El circuito tendría 2 229 compuertas; el máximo es 2 000.» under the summary, when «Crear» is off for it. */
-    private final Paragraph gateLimit = Paragraph.error();
+    final Paragraph gateLimit = Paragraph.error();
     private final JButton close = new JButton(Messages.text("karnaugh.close"));
     private final JButton wizard = new JButton(Messages.text("tableImport.openInWizard"));
     private final WizardOpener openInWizard;
@@ -185,63 +184,9 @@ public final class TableImportPanel extends JPanel {
                 model::options, () -> onClose.run(), this::refreshButtons,
                 () -> !reading && page == Page.CREATE && sizeKnownAndAllowed());
 
-        JPanel data = new JPanel(new MigLayout("insets 12 16 8 16, fill, wrap 1, hidemode 3", "[grow, fill]",
-                "[][]8[][][][][grow]"));
-        JPanel sourceRow = new JPanel(new MigLayout("insets 0", "[][]12[grow]"));
-        sourceRow.add(openFile);
-        sourceRow.add(paste);
-        sourceRow.add(sourceLabel);
-        data.add(sourceRow);
-        // The format help in a soft box, so it reads as instructions and not as part of the form.
-        JPanel helpBox = new JPanel(new MigLayout("insets 8 12 8 12, fill", "[grow, fill]")) {
-            @Override
-            protected void paintComponent(Graphics graphics) {
-                Graphics2D graphics2D = (Graphics2D) graphics.create();
-                try {
-                    graphics2D.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                    graphics2D.setColor(WizardColors.sidePanel());
-                    graphics2D.fillRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 8, 8);
-                    graphics2D.setColor(WizardColors.sidePanelEdge());
-                    graphics2D.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 8, 8);
-                } finally {
-                    graphics2D.dispose();
-                }
-            }
-        };
-        helpBox.setOpaque(false);
-        helpBox.add(help, "wmin 100");
-        data.add(helpBox, "wmin 100");
-        JPanel inputsRow = new JPanel(new MigLayout("insets 0", "[][]12[grow]"));
-        inputsRow.add(new JLabel(Messages.text("tableImport.inputCount")));
-        inputsRow.add(inputCount);
-        inputsRow.add(columns);
-        data.add(inputsRow);
-        data.add(problems, "wmin 100");
-        data.add(notice, "wmin 100");
-        wizardHint.setOpaque(false);
-        // A drawn bulb: the fonts Java finds rarely have the emoji 💡, which would show as an empty box or nothing.
-        wizardHint.add(new JLabel(Icons.get(HINT_ICON, Icons.MENU_SIZE)));
-        wizardHint.add(hintText, "wmin 100");
-        wizardHint.add(hintButton);
-        data.add(wizardHint, "wmin 100");
-        data.add(preview, "grow, push, align left top");
-
-        JPanel content = new JPanel(new MigLayout("insets 16, fillx, wrap 2", "[][grow, fill]",
-                "[][]12[][][]12[]12[]"));
-        content.add(new JLabel(Messages.text("karnaugh.table.titleLabel")));
-        content.add(title, "growx 0, wmin 200");
-        content.add(titleProblem, "skip 1, growx, wmin 100, hidemode 3");
-
+        JPanel data = TableImportPages.dataPage(this);
         optionControls = new OptionControls(model::options, model::setOptions);
-        content.add(new JLabel(Messages.text("karnaugh.expression.gates")));
-        content.add(optionControls.gatesPanel());
-        content.add(new JLabel(Messages.text("karnaugh.expression.form")));
-        content.add(optionControls.formsPanel());
-        content.add(optionControls.shareBox(), "span 2");
-        summary.setFont(summary.getFont().deriveFont(Font.BOLD));
-        content.add(summary, "span 2");
-        content.add(gateLimit, "span 2, growx, wmin 100, hidemode 3");
-        content.add(controls, "span 2, growx");
+        JPanel content = TableImportPages.createPage(this);
 
         pageCards.add(data, Page.DATA.name());
         pageCards.add(new JScrollPane(content), Page.CREATE.name());
