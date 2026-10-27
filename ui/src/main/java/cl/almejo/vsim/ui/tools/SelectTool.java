@@ -232,12 +232,7 @@ public final class SelectTool implements Tool {
         Optional<DocumentElement> hit = context.hitTester()
                 .elementAt(context.openDocument().document(), event.gridPosition());
         if (event.button() == CanvasMouseEvent.SECONDARY) {
-            hit.ifPresentOrElse(element -> {
-                if (!context.selection().contains(element.id())) {
-                    context.selection().select(element.id());
-                }
-            }, () -> context.selection().clear());
-            context.showContextMenu(hit, event.screenPosition());
+            pressSecondary(context, event, hit);
             return;
         }
         if (event.button() != CanvasMouseEvent.PRIMARY) {
@@ -248,13 +243,64 @@ public final class SelectTool implements Tool {
         ownPressSeen = true;
         ToggledBusInput toggledByFirstClick = lastBusInputToggle;
         lastBusInputToggle = null;
+        if (pressRepeatedClick(context, event, hit, continuesOwnClick, toggledByFirstClick)) {
+            return;
+        }
+        // A free text is drawn on top of everything, so a press on it never reaches a pin underneath.
+        Optional<ConnectionPoints.PinHit> pin = hit.isPresent() && hit.get() instanceof TextLabel
+                ? Optional.empty()
+                : pinNear(context, event.gridPosition());
+        if (!event.shiftDown() && !event.controlDown() && pin.isEmpty()) {
+            Optional<Component> labelled = labelPressedAt(context, event.gridPosition(), hit);
+            if (labelled.isPresent()) {
+                pressLabel(context, event, labelled.get());
+                return;
+            }
+        }
+        if (event.shiftDown() || event.controlDown()) {
+            pressWithModifier(context, event, hit, pin);
+            return;
+        }
+        if (pin.isPresent()) {
+            pressPin(context, event, pin.get());
+            return;
+        }
+        pressedElement = hit.orElse(null);
+        if (hit.isPresent() && hit.get() instanceof Wire pressedWire
+                && !context.selection().contains(pressedWire.id())) {
+            pressWire(event, pressedWire);
+            return;
+        }
+        if (hit.isEmpty()) {
+            startBand(event, BandMode.REPLACE);
+            return;
+        }
+        pressElement(context, event, hit.get());
+    }
+
+    /** A secondary press selects what it hit (or clears the selection on empty canvas) and opens the context menu. */
+    private void pressSecondary(ToolContext context, CanvasMouseEvent event, Optional<DocumentElement> hit) {
+        hit.ifPresentOrElse(element -> {
+            if (!context.selection().contains(element.id())) {
+                context.selection().select(element.id());
+            }
+        }, () -> context.selection().clear());
+        context.showContextMenu(hit, event.screenPosition());
+    }
+
+    /**
+     * The second (or third) click of the tool's own click: edits a label or a value, selects a wire's stretch or
+     * group, or configures a component. True when it took the press.
+     */
+    private boolean pressRepeatedClick(ToolContext context, CanvasMouseEvent event, Optional<DocumentElement> hit,
+                                       boolean continuesOwnClick, ToggledBusInput toggledByFirstClick) {
         // a label beats a wire under it, as in a single press, so both clicks of a double click agree
         if (event.clickCount() >= 2 && continuesOwnClick) {
             Optional<Component> labelled = labelPressedAt(context, event.gridPosition(), hit);
             if (labelled.isPresent()) {
                 context.selection().select(labelled.get().id());
                 context.editLabel(labelled.get());
-                return;
+                return true;
             }
         }
         if (event.clickCount() >= 2 && continuesOwnClick && (hit.isEmpty() || hit.get() instanceof Wire)) {
@@ -264,13 +310,13 @@ public final class SelectTool implements Tool {
             if (pinOfBox.isPresent()) {
                 context.selection().select(pinOfBox.get().id());
                 context.editValue(pinOfBox.get());
-                return;
+                return true;
             }
         }
         if (event.clickCount() >= 2 && continuesOwnClick && !event.controlDown()
                 && hit.isPresent() && hit.get() instanceof Wire clickedWire) {
             selectWireGroup(context, event, clickedWire);
-            return;
+            return true;
         }
         if (event.clickCount() >= 2 && continuesOwnClick && hit.isPresent()) {
             if (hit.get() instanceof Component component) {
@@ -286,72 +332,64 @@ public final class SelectTool implements Tool {
                 } else {
                     context.configure(component);
                 }
-                return;
+                return true;
             }
             if (hit.get() instanceof TextLabel label) {
                 context.selection().select(label.id());
                 context.editLabel(label);
-                return;
+                return true;
             }
         }
-        // A free text is drawn on top of everything, so a press on it never reaches a pin underneath.
-        Optional<ConnectionPoints.PinHit> pin = hit.isPresent() && hit.get() instanceof TextLabel
-                ? Optional.empty()
-                : pinNear(context, event.gridPosition());
-        if (!event.shiftDown() && !event.controlDown() && pin.isEmpty()) {
-            Optional<Component> labelled = labelPressedAt(context, event.gridPosition(), hit);
-            if (labelled.isPresent()) {
-                pressLabel(context, event, labelled.get());
-                return;
-            }
-        }
-        if (event.shiftDown() || event.controlDown()) {
-            Optional<DocumentElement> target = pin.<DocumentElement>map(ConnectionPoints.PinHit::component).or(() -> hit);
-            if (target.isPresent() && !event.controlDown()) {
-                // Shift+click toggles the element; Shift+drag moves the selection with it (the key inverts the mode)
-                pressedElement = target.get();
-                selectionClick = true;
-                if (context.selection().contains(target.get().id())) {
-                    removeOnRelease = true;
-                } else {
-                    context.selection().add(target.get().id());
-                }
-                pressPoint = event.snapped();
-                return;
-            }
-            if (target.isPresent()) {
-                context.selection().toggle(target.get().id());
+        return false;
+    }
+
+    /** A press with Shift or Ctrl held: toggles the pin's component or the element, or starts a band when empty. */
+    private void pressWithModifier(ToolContext context, CanvasMouseEvent event, Optional<DocumentElement> hit,
+                                   Optional<ConnectionPoints.PinHit> pin) {
+        Optional<DocumentElement> target = pin.<DocumentElement>map(ConnectionPoints.PinHit::component).or(() -> hit);
+        if (target.isPresent() && !event.controlDown()) {
+            // Shift+click toggles the element; Shift+drag moves the selection with it (the key inverts the mode)
+            pressedElement = target.get();
+            selectionClick = true;
+            if (context.selection().contains(target.get().id())) {
+                removeOnRelease = true;
             } else {
-                startBand(event, event.shiftDown() && event.controlDown() ? BandMode.REMOVE : BandMode.ADD);
+                context.selection().add(target.get().id());
             }
+            pressPoint = event.snapped();
             return;
         }
-        if (pin.isPresent()) {
-            pressedElement = pin.get().component();
-            if (grabsSelection(context, pin.get().component())) {
-                pressPoint = event.snapped();
-                narrowOnRelease = true;
-            } else {
-                wire = new WireDrawing(pin.get().point(), event.gridPosition(),
-                        widthAt(context, pin.get().point()));
-            }
-            return;
+        if (target.isPresent()) {
+            context.selection().toggle(target.get().id());
+        } else {
+            startBand(event, event.shiftDown() && event.controlDown() ? BandMode.REMOVE : BandMode.ADD);
         }
-        pressedElement = hit.orElse(null);
-        if (hit.isPresent() && hit.get() instanceof Wire pressedWire
-                && !context.selection().contains(pressedWire.id())) {
-            wire = new WireDrawing(ConnectionPoints.pointOnWire(pressedWire, event.gridPosition()),
-                    event.gridPosition());
-            return;
+    }
+
+    /** A plain press on a pin: grabs the selection (see {@link #grabsSelection}) or starts a wire from it. */
+    private void pressPin(ToolContext context, CanvasMouseEvent event, ConnectionPoints.PinHit pin) {
+        pressedElement = pin.component();
+        if (grabsSelection(context, pin.component())) {
+            pressPoint = event.snapped();
+            narrowOnRelease = true;
+        } else {
+            wire = new WireDrawing(pin.point(), event.gridPosition(),
+                    widthAt(context, pin.point()));
         }
-        if (hit.isEmpty()) {
-            startBand(event, BandMode.REPLACE);
-            return;
-        }
-        if (context.selection().contains(hit.get().id())) {
+    }
+
+    /** A plain press on an unselected wire starts a new wire at the pressed point on it. */
+    private void pressWire(CanvasMouseEvent event, Wire pressedWire) {
+        wire = new WireDrawing(ConnectionPoints.pointOnWire(pressedWire, event.gridPosition()),
+                event.gridPosition());
+    }
+
+    /** A plain press on an element: selects it, or keeps a selection that holds it (to move it or narrow it). */
+    private void pressElement(ToolContext context, CanvasMouseEvent event, DocumentElement element) {
+        if (context.selection().contains(element.id())) {
             narrowOnRelease = context.selection().size() > 1;
         } else {
-            context.selection().select(hit.get().id());
+            context.selection().select(element.id());
         }
         pressPoint = event.snapped();
     }
@@ -407,44 +445,62 @@ public final class SelectTool implements Tool {
         } else if (labelComponent != null) {
             releaseLabel(context);
         } else if (wire != null) {
-            boolean added = wire.hasMoved() && wire.commit(context, event.snapped());
-            if (!added) {
-                click(context);
-            }
+            releaseWire(context, event);
         } else if (pressPoint != null) {
-            boolean pointerMoved = pointerDeltaX != 0 || pointerDeltaY != 0;
-            if (deltaX != 0 || deltaY != 0 || copyDeltaX != 0 || copyDeltaY != 0) {
-                if (segmentWire(context).isPresent()) {
-                    dragTo(context, event); // the segment key at the release decides the direction
-                }
-                if (!context.selection().isEmpty()) {
-                    if (event.controlDown()) {
-                        copySelection(context);
-                    } else if (segmentDrag) {
-                        context.selectionMoves().moveSegment(context.openDocument(), context.selection(),
-                                pressedElement.id(), deltaX, deltaY);
-                    } else {
-                        context.selectionMoves().move(context.openDocument(), context.selection(),
-                                context.selection().effectiveIds(), deltaX, deltaY,
-                                context.selectionMoves().follows(event.shiftDown(), event.altDown()));
-                    }
-                }
-            } else if (pointerMoved) {
-                // the magnet (or a locked frame's wall) pulled the drag back to where it started: nothing to do
-            } else if (selectionClick) {
-                if (removeOnRelease) {
-                    context.selection().remove(pressedElement.id());
-                }
-            } else {
-                if (narrowOnRelease) {
-                    context.selection().select(pressedElement.id());
-                }
-                toggleIfInteractive(context);
-            }
+            releaseMove(context, event);
         }
         reset();
         updateHover(context, event);
         context.repaint();
+    }
+
+    /** The release of a wire drawing: adds the wire, or (it never moved, or added nothing) is a plain click. */
+    private void releaseWire(ToolContext context, CanvasMouseEvent event) {
+        boolean added = wire.hasMoved() && wire.commit(context, event.snapped());
+        if (!added) {
+            click(context);
+        }
+    }
+
+    /**
+     * The release of a press that may move the selection: moves, slides or copies it when the drag has a delta;
+     * otherwise a click that adjusts the selection or toggles a switch (unless the magnet pulled the drag back).
+     */
+    private void releaseMove(ToolContext context, CanvasMouseEvent event) {
+        boolean pointerMoved = pointerDeltaX != 0 || pointerDeltaY != 0;
+        if (deltaX != 0 || deltaY != 0 || copyDeltaX != 0 || copyDeltaY != 0) {
+            commitMove(context, event);
+        } else if (pointerMoved) {
+            // the magnet (or a locked frame's wall) pulled the drag back to where it started: nothing to do
+        } else if (selectionClick) {
+            if (removeOnRelease) {
+                context.selection().remove(pressedElement.id());
+            }
+        } else {
+            if (narrowOnRelease) {
+                context.selection().select(pressedElement.id());
+            }
+            toggleIfInteractive(context);
+        }
+    }
+
+    /** A drag released with a delta: a Ctrl copy, a segment slide or a move of the selection (one undo step). */
+    private void commitMove(ToolContext context, CanvasMouseEvent event) {
+        if (segmentWire(context).isPresent()) {
+            dragTo(context, event); // the segment key at the release decides the direction
+        }
+        if (!context.selection().isEmpty()) {
+            if (event.controlDown()) {
+                copySelection(context);
+            } else if (segmentDrag) {
+                context.selectionMoves().moveSegment(context.openDocument(), context.selection(),
+                        pressedElement.id(), deltaX, deltaY);
+            } else {
+                context.selectionMoves().move(context.openDocument(), context.selection(),
+                        context.selection().effectiveIds(), deltaX, deltaY,
+                        context.selectionMoves().follows(event.shiftDown(), event.altDown()));
+            }
+        }
     }
 
     /**
@@ -550,19 +606,7 @@ public final class SelectTool implements Tool {
                 ? Optional.empty()
                 : nearestPin;
         if (event.shiftDown() || event.controlDown()) {
-            Optional<CanvasCursor> slide = hit.filter(element -> !event.controlDown())
-                    .flatMap(element -> slidingWire(context, element, event)).map(SelectTool::slideCursor);
-            if (slide.isPresent()) {
-                return slide.get(); // the segment key is Shift (Alt inverts the follow mode): a drag slides the wire
-            }
-            // the press toggles the pin's component or the element, or bands on empty canvas (Ctrl+Shift subtracts)
-            Optional<DocumentElement> target = pin.<DocumentElement>map(ConnectionPoints.PinHit::component).or(() -> hit);
-            if (target.isEmpty()) {
-                return event.shiftDown() && event.controlDown() ? CanvasCursor.REMOVE_FROM_SELECTION
-                        : CanvasCursor.ADD_TO_SELECTION;
-            }
-            return context.selection().contains(target.get().id()) ? CanvasCursor.REMOVE_FROM_SELECTION
-                    : CanvasCursor.ADD_TO_SELECTION;
+            return cursorWithModifier(context, hit, pin, event);
         }
         if (pin.isPresent()) {
             return grabsSelection(context, pin.get().component()) ? CanvasCursor.MOVE : CanvasCursor.CROSSHAIR;
@@ -573,7 +617,29 @@ public final class SelectTool implements Tool {
         if (hit.isEmpty()) {
             return CanvasCursor.DEFAULT;
         }
-        DocumentElement element = hit.get();
+        return cursorOnElement(context, hit.get(), event);
+    }
+
+    /** The cursor with Shift or Ctrl held: a slide of the one selected wire, or what a press does to the selection. */
+    private CanvasCursor cursorWithModifier(ToolContext context, Optional<DocumentElement> hit,
+                                            Optional<ConnectionPoints.PinHit> pin, CanvasMouseEvent event) {
+        Optional<CanvasCursor> slide = hit.filter(element -> !event.controlDown())
+                .flatMap(element -> slidingWire(context, element, event)).map(SelectTool::slideCursor);
+        if (slide.isPresent()) {
+            return slide.get(); // the segment key is Shift (Alt inverts the follow mode): a drag slides the wire
+        }
+        // the press toggles the pin's component or the element, or bands on empty canvas (Ctrl+Shift subtracts)
+        Optional<DocumentElement> target = pin.<DocumentElement>map(ConnectionPoints.PinHit::component).or(() -> hit);
+        if (target.isEmpty()) {
+            return event.shiftDown() && event.controlDown() ? CanvasCursor.REMOVE_FROM_SELECTION
+                    : CanvasCursor.ADD_TO_SELECTION;
+        }
+        return context.selection().contains(target.get().id()) ? CanvasCursor.REMOVE_FROM_SELECTION
+                : CanvasCursor.ADD_TO_SELECTION;
+    }
+
+    /** The cursor of a plain press on {@code element} (no pin, no label in the way). */
+    private CanvasCursor cursorOnElement(ToolContext context, DocumentElement element, CanvasMouseEvent event) {
         boolean selected = context.selection().contains(element.id());
         if (element instanceof Wire && !selected) {
             return CanvasCursor.CROSSHAIR;
