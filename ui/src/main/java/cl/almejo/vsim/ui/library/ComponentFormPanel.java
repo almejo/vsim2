@@ -71,6 +71,24 @@ public final class ComponentFormPanel extends JPanel {
         this.inputs = new PinNameTable(form::inputNames, form::renameInput, form::inputProblem);
         this.outputs = new PinNameTable(form::outputNames, form::renameOutput, form::outputProblem);
         add(pinsHelp, "span 2, gapbottom 6");
+        addTargetChooser();
+        addNameAndMessage();
+        if (!form.testParts().isEmpty()) {
+            addTestParts();
+        }
+        add(new JLabel(Messages.text("template.dialog.inputs")));
+        add(new JLabel(Messages.text("template.dialog.outputs")));
+        add(new JScrollPane(inputs), "h 80:120");
+        add(new JScrollPane(outputs), "h 80:120");
+        add(buttons(inputs, inputUp, inputDown, form::moveInput));
+        add(buttons(outputs, outputUp, outputDown, form::moveOutput));
+        add(renameHelp, "span 2");
+        addNotesAndReplace();
+        form.addListener(refresher);
+        refresh();
+    }
+
+    private void addTargetChooser() {
         if (form.mode() == ComponentForm.Mode.UPDATE) {
             form.targets().forEach(target::addItem);
             target.setSelectedItem(form.target().orElse(null));
@@ -95,6 +113,9 @@ public final class ComponentFormPanel extends JPanel {
             add(new JLabel(Messages.text("template.dialog.target")), "span 2");
             add(target, "span 2");
         }
+    }
+
+    private void addNameAndMessage() {
         add(new JLabel(Messages.text("template.dialog.name")), "span 2");
         name.setText(form.name());
         TextChanges.onChange(name, () -> form.setName(name.getText()));
@@ -102,16 +123,9 @@ public final class ComponentFormPanel extends JPanel {
         Color error = UIManager.getColor("Actions.Red");
         message.setForeground(error == null ? ERROR_FALLBACK : error);
         add(message, "span 2");
-        if (!form.testParts().isEmpty()) {
-            addTestParts();
-        }
-        add(new JLabel(Messages.text("template.dialog.inputs")));
-        add(new JLabel(Messages.text("template.dialog.outputs")));
-        add(new JScrollPane(inputs), "h 80:120");
-        add(new JScrollPane(outputs), "h 80:120");
-        add(buttons(inputs, inputUp, inputDown, form::moveInput));
-        add(buttons(outputs, outputUp, outputDown, form::moveOutput));
-        add(renameHelp, "span 2");
+    }
+
+    private void addNotesAndReplace() {
         if (form.mode() == ComponentForm.Mode.UPDATE) {
             updateNote = new JLabel("<html><body style='width:" + NOTE_WIDTH + "px'>"
                     + Messages.text("template.dialog.updateKeepsPlaces") + "</body></html>");
@@ -122,8 +136,6 @@ public final class ComponentFormPanel extends JPanel {
             replace.addActionListener(event -> form.setReplaceSelection(replace.isSelected()));
             add(replace, "span 2");
         }
-        form.addListener(refresher);
-        refresh();
     }
 
     /**
