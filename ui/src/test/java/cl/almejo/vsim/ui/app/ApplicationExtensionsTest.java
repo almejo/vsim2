@@ -4,7 +4,9 @@ import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.library.ComponentLibrary;
+import cl.almejo.vsim.ui.icons.ActionIcons;
 import cl.almejo.vsim.ui.icons.Icons;
+import cl.almejo.vsim.ui.memory.MemoryEditorExtension;
 import cl.almejo.vsim.ui.library.LibraryService;
 import cl.almejo.vsim.ui.library.SwingLibraryDialogs;
 import cl.almejo.vsim.ui.paint.Appearance;
@@ -14,6 +16,7 @@ import cl.almejo.vsim.ui.shortcuts.Scope;
 import cl.almejo.vsim.ui.shortcuts.ShortcutCatalog;
 import cl.almejo.vsim.ui.stepping.StepIcons;
 import cl.almejo.vsim.ui.tools.CanvasMouseEvent;
+import cl.almejo.vsim.ui.window.EditorExtension;
 import cl.almejo.vsim.ui.window.EditorServices;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.ImportMenu;
@@ -85,6 +88,22 @@ class ApplicationExtensionsTest {
     private Counts counts() {
         return new Counts(library.listenerCount(), service.problemsListenerCount(), preferences.listenerCount(),
                 appearance.listenerCount(), openDocument.changeListenerCount());
+    }
+
+    @Test
+    void theMemoryContentEditorIsAmongTheExtensionsBeforeTheIcons() {
+        List<EditorExtension> extensions = Application.editorExtensions(service, SwingLibraryDialogs.INSTANCE);
+        int editor = -1;
+        int icons = -1;
+        for (int index = 0; index < extensions.size(); index++) {
+            if (extensions.get(index) instanceof MemoryEditorExtension) {
+                editor = index;
+            }
+            if (extensions.get(index) instanceof ActionIcons) {
+                icons = index;
+            }
+        }
+        assertThat(editor).isNotNegative().isLessThan(icons);
     }
 
     @Test

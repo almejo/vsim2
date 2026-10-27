@@ -38,6 +38,8 @@ public final class TestToolContext implements ToolContext, AutoCloseable {
     public Component configured;
     public DocumentElement editedLabel;
     public Component valueEdited;
+    /** The memory whose content editor a double click asked for ({@link #editMemory}). */
+    public Component memoryEdited;
     public int repaints;
     public double selectionDashPhase;
     public final List<CanvasCursor> cursors = new ArrayList<>();
@@ -213,6 +215,11 @@ public final class TestToolContext implements ToolContext, AutoCloseable {
     @Override
     public void editValue(Component component) {
         valueEdited = component;
+    }
+
+    @Override
+    public void editMemory(Component component) {
+        memoryEdited = component;
     }
 
     @Override

@@ -32,6 +32,11 @@ public interface CanvasHost {
         configure(component);
     }
 
+    /** Opens the content editor of a RAM or ROM; hosts without one open the configure dialog. */
+    default void editMemory(Component component) {
+        configure(component);
+    }
+
     /** M7: edits a bus input pin's value starting from {@code startingValue}; by default as {@link #editValue}. */
     default void editValue(Component component, Value startingValue) {
         editValue(component);

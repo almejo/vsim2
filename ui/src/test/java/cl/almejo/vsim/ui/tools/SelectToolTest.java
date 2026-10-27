@@ -175,6 +175,15 @@ class SelectToolTest {
         assertThat(context.configured).isNull();
     }
 
+    @Test
+    void doubleClickOnAMemoryOpensItsContentEditorInsteadOfConfiguring() {
+        Component memory = place(context.openDocument(), StandardComponentTypes.RAM, 0, 0, Map.of());
+        doubleClick(6, 6);
+        assertThat(context.memoryEdited).isEqualTo(memory);
+        assertThat(context.configured).isNull();
+        assertThat(context.selection.ids()).containsExactly(memory.id());
+    }
+
     private void doubleClick(double x, double y) {
         tool.mousePressed(context, TestToolContext.at(x, y));
         tool.mouseReleased(context, TestToolContext.at(x, y));
