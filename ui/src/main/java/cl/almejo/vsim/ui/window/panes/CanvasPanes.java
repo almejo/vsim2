@@ -5,21 +5,13 @@ import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.canvas.ViewState;
 
 import javax.swing.JComponent;
-import javax.swing.SwingUtilities;
-import javax.swing.UIManager;
 import javax.swing.border.Border;
-import java.awt.Color;
-import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
-import java.awt.Insets;
-import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.event.FocusAdapter;
 import java.awt.event.FocusEvent;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.IdentityHashMap;
@@ -84,7 +76,7 @@ public final class CanvasPanes extends JComponent {
         add(first);
         attach(first);
         for (PaneDivider divider : List.of(horizontalDivider, verticalDivider)) {
-            DividerDrag drag = new DividerDrag(divider);
+            DividerDrag drag = new DividerDrag(this, divider);
             divider.addMouseListener(drag);
             divider.addMouseMotionListener(drag);
         }
@@ -342,96 +334,6 @@ public final class CanvasPanes extends JComponent {
         }
     }
 
-    /**
-     * Drags a divider (canvas-edges §1, spec §2): continuously, the panes follow; at the crossing point both dividers
-     * move; released within {@link #EDGE_MARGIN} of an edge the divider goes, closing the panes on that side; a
-     * double-click removes it (both at the crossing point), closing the panes after it.
-     */
-    private final class DividerDrag extends MouseAdapter {
-
-        private final PaneDivider divider;
-        /** The dividers being dragged, and how far from each one's middle the pointer took it. */
-        private final Map<Orientation, Integer> grabOffsets = new EnumMap<>(Orientation.class);
-
-        DividerDrag(PaneDivider divider) {
-            this.divider = divider;
-        }
-
-        /** {@code event}'s point in the area. */
-        private Point inArea(MouseEvent event) {
-            return new Point(divider.getX() + event.getX(), divider.getY() + event.getY());
-        }
-
-        private int along(Orientation orientation, Point point) {
-            return orientation == Orientation.HORIZONTAL ? point.y : point.x;
-        }
-
-        /** The dividers under {@code point}: this one, and the other one too at the crossing point. */
-        private List<Orientation> dividersAt(Point point) {
-            Orientation other = divider.orientation() == Orientation.HORIZONTAL
-                    ? Orientation.VERTICAL : Orientation.HORIZONTAL;
-            boolean crossing = divider(other).filter(found -> found.getBounds().contains(point)).isPresent();
-            return crossing ? List.of(divider.orientation(), other) : List.of(divider.orientation());
-        }
-
-        private int middleOf(Orientation orientation) {
-            Rectangle bounds = dividerOf(orientation).getBounds();
-            return orientation == Orientation.HORIZONTAL ? bounds.y + bounds.height / 2 : bounds.x + bounds.width / 2;
-        }
-
-        @Override
-        public void mouseMoved(MouseEvent event) {
-            divider.setCursor(dividersAt(inArea(event)).size() > 1
-                    ? Cursor.getPredefinedCursor(Cursor.MOVE_CURSOR) : PaneDivider.resizeCursor(divider.orientation()));
-        }
-
-        @Override
-        public void mousePressed(MouseEvent event) {
-            grabOffsets.clear();
-            if (!SwingUtilities.isLeftMouseButton(event) || divider.getParent() != CanvasPanes.this) {
-                return;
-            }
-            Point point = inArea(event);
-            for (Orientation orientation : dividersAt(point)) {
-                grabOffsets.put(orientation, along(orientation, point) - middleOf(orientation));
-            }
-        }
-
-        @Override
-        public void mouseDragged(MouseEvent event) {
-            Point point = inArea(event);
-            grabOffsets.forEach((orientation, offset) -> {
-                if (dividerFraction(orientation).isPresent()) {
-                    moveDivider(orientation, fractionFor(orientation, along(orientation, point) - offset));
-                }
-            });
-        }
-
-        @Override
-        public void mouseReleased(MouseEvent event) {
-            if (grabOffsets.isEmpty()) {
-                return;
-            }
-            Point point = inArea(event);
-            List<Orientation> dragged = List.copyOf(grabOffsets.keySet());
-            grabOffsets.clear();
-            for (Orientation orientation : dragged) {
-                int position = along(orientation, point);
-                if (dividerFraction(orientation).isPresent() && isNearAnEdge(orientation, position)) {
-                    removeDivider(orientation, position < EDGE_MARGIN ? Side.BEFORE : Side.AFTER);
-                }
-            }
-        }
-
-        @Override
-        public void mouseClicked(MouseEvent event) {
-            if (event.getClickCount() == 2 && event.getButton() == MouseEvent.BUTTON1
-                    && divider.getParent() == CanvasPanes.this) {
-                dividersAt(inArea(event)).forEach(CanvasPanes.this::removeDivider);
-            }
-        }
-    }
-
     @Override
     public Dimension getPreferredSize() {
         if (isPreferredSizeSet()) {
@@ -574,7 +476,7 @@ public final class CanvasPanes extends JComponent {
         }
     }
 
-    private PaneDivider dividerOf(Orientation orientation) {
+    PaneDivider dividerOf(Orientation orientation) {
         return orientation == Orientation.HORIZONTAL ? horizontalDivider : verticalDivider;
     }
 
@@ -621,30 +523,6 @@ public final class CanvasPanes extends JComponent {
     private static void checkFraction(double fraction) {
         if (!(fraction > 0 && fraction < 1)) {
             throw new IllegalArgumentException("a divider sits strictly inside the area: " + fraction);
-        }
-    }
-
-    /** One pixel in FlatLaf's focus colour around the active pane, read at paint time (the theme changes live). */
-    private static final class ActivePaneBorder implements Border {
-
-        private static final Insets NONE = new Insets(0, 0, 0, 0);
-
-        @Override
-        public void paintBorder(java.awt.Component component, Graphics graphics, int x, int y, int width,
-                                int height) {
-            Color color = UIManager.getColor("Component.focusColor");
-            graphics.setColor(color != null ? color : new Color(0x1E88E5));
-            graphics.drawRect(x, y, width - 1, height - 1);
-        }
-
-        @Override
-        public Insets getBorderInsets(java.awt.Component component) {
-            return (Insets) NONE.clone();
-        }
-
-        @Override
-        public boolean isBorderOpaque() {
-            return false;
         }
     }
 }

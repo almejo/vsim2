@@ -242,6 +242,16 @@ public final class PdfExportDialog extends JPanel {
 
     private void build() {
         JPanel options = new JPanel(new MigLayout("wrap 2, insets 0, gap 6 4", "[][grow, fill]"));
+        buildScope(options);
+        buildPaper(options);
+        buildScale(options);
+        buildOptions(options);
+        add(options, "aligny top");
+        buildPreviewColumn();
+    }
+
+    /** The «scope» section: whole circuit, selection or one frame. */
+    private void buildScope(JPanel options) {
         options.add(section("print.section.scope"), "span 2, gaptop 0");
         ButtonGroup scopes = new ButtonGroup();
         scopes.add(scopeWhole);
@@ -263,7 +273,10 @@ public final class PdfExportDialog extends JPanel {
             }
         });
         frameChoice.getAccessibleContext().setAccessibleName(Messages.text("print.scope.frame"));
+    }
 
+    /** The «paper» section: paper size and orientation. */
+    private void buildPaper(JPanel options) {
         options.add(section("print.section.paper"), "span 2, gaptop 12");
         JLabel paperLabel = new JLabel(Messages.text("print.paper"));
         paperLabel.setLabelFor(paperChoice);
@@ -288,6 +301,10 @@ public final class PdfExportDialog extends JPanel {
         orientationRow.add(portrait);
         orientationRow.add(landscape);
         options.add(orientationRow);
+    }
+
+    /** The scale row of the paper section: a choice plus the custom percentage. */
+    private void buildScale(JPanel options) {
         JLabel scaleLabel = new JLabel(Messages.text("print.scale"));
         scaleLabel.setLabelFor(scaleChoice);
         options.add(scaleLabel);
@@ -296,7 +313,10 @@ public final class PdfExportDialog extends JPanel {
         scaleRow.add(percentSpinner);
         percentSpinner.getAccessibleContext().setAccessibleName(Messages.text("print.scale.other"));
         options.add(scaleRow);
+    }
 
+    /** The «appearance» section and the refresh button. */
+    private void buildOptions(JPanel options) {
         options.add(section("print.section.appearance"), "span 2, gaptop 12");
         options.add(withValues, "span 2");
         hinted(valuesProblem);
@@ -309,8 +329,10 @@ public final class PdfExportDialog extends JPanel {
         options.add(titleField);
         options.add(refresh, "span 2, gaptop 12, growx 0");
         refresh.setToolTipText(Messages.text("print.refresh.tip"));
-        add(options, "aligny top");
+    }
 
+    /** The preview column, the progress bar and the bottom button row. */
+    private void buildPreviewColumn() {
         JPanel right = new JPanel(new MigLayout("wrap 1, insets 0, gap 4", "[grow, fill]", "[grow, fill][][][]"));
         right.add(preview);
         right.add(status);
@@ -420,18 +442,8 @@ public final class PdfExportDialog extends JPanel {
             return;
         }
         boolean idle = !exporting;
-        scopeSelection.setEnabled(idle && !input.selection().isEmpty());
-        scopeFrame.setEnabled(idle && !input.frames().isEmpty());
-        frameChoice.setEnabled(idle && scopeFrame.isSelected() && !input.frames().isEmpty());
-        percentSpinner.setEnabled(idle && scaleChoice.getSelectedItem() == ScaleChoice.OTHER);
-        titleField.setEnabled(idle && headerFooter.isSelected());
-        List.<JComponent>of(scopeWhole, paperChoice, portrait, landscape, scaleChoice, withValues, blackAndWhite,
-                headerFooter, refresh, split).forEach(control -> control.setEnabled(idle));
-        Optional<String> problem = withValues.isSelected() ? input.valuesProblem() : Optional.empty();
-        valuesProblem.setText(problem.map(text -> "<html><body style='width: 240px'>" + escape(text)
-                + "</body></html>").orElse(""));
-        valuesProblem.setVisible(problem.isPresent());
-        valuesProblemText = problem.orElse("");
+        enableControls(idle);
+        showValuesProblem();
 
         PrintOptions options = options();
         Optional<PrintArea> area = area(options.scope());
@@ -463,6 +475,26 @@ public final class PdfExportDialog extends JPanel {
                 tooMany ? Messages.format("print.tooManyPages", PdfExport.REFUSE_ABOVE_PAGES) : "");
         save.setEnabled(idle && !tooMany);
         previewTimer.restart();
+    }
+
+    /** Enables each control by whether an export is running and by what the circuit and the choices allow. */
+    private void enableControls(boolean idle) {
+        scopeSelection.setEnabled(idle && !input.selection().isEmpty());
+        scopeFrame.setEnabled(idle && !input.frames().isEmpty());
+        frameChoice.setEnabled(idle && scopeFrame.isSelected() && !input.frames().isEmpty());
+        percentSpinner.setEnabled(idle && scaleChoice.getSelectedItem() == ScaleChoice.OTHER);
+        titleField.setEnabled(idle && headerFooter.isSelected());
+        List.<JComponent>of(scopeWhole, paperChoice, portrait, landscape, scaleChoice, withValues, blackAndWhite,
+                headerFooter, refresh, split).forEach(control -> control.setEnabled(idle));
+    }
+
+    /** Shows (or hides) why the values cannot be printed, when «with values» is on. */
+    private void showValuesProblem() {
+        Optional<String> problem = withValues.isSelected() ? input.valuesProblem() : Optional.empty();
+        valuesProblem.setText(problem.map(text -> "<html><body style='width: 240px'>" + escape(text)
+                + "</body></html>").orElse(""));
+        valuesProblem.setVisible(problem.isPresent());
+        valuesProblemText = problem.orElse("");
     }
 
     /**
@@ -549,13 +581,26 @@ public final class PdfExportDialog extends JPanel {
         int total = painter.pages().size();
         exporting = true;
         cancelRequested = false;
+        showProgress(total);
+        update();
+        PdfExporter.ProgressListener listener = progressListener();
+        Path file = target.get();
+        collaborators.exporter().export(painter, file, listener).whenComplete((ignored, failure) ->
+                collaborators.edt().execute(() -> finished(chosen.options(), file, failure)));
+    }
+
+    /** Shows the progress bar at zero of {@code total} pages. */
+    private void showProgress(int total) {
         progress.setMinimum(0);
         progress.setMaximum(total);
         progress.setValue(0);
         progress.setString(Messages.format("print.progress", 0, total));
         progress.setVisible(true);
-        update();
-        PdfExporter.ProgressListener listener = new PdfExporter.ProgressListener() {
+    }
+
+    /** Reports each finished page on the EDT and answers whether the user asked to cancel. */
+    private PdfExporter.ProgressListener progressListener() {
+        return new PdfExporter.ProgressListener() {
             @Override
             public void pageDone(int done, int pages) {
                 collaborators.edt().execute(() -> {
@@ -571,9 +616,6 @@ public final class PdfExportDialog extends JPanel {
                 return cancelRequested;
             }
         };
-        Path file = target.get();
-        collaborators.exporter().export(painter, file, listener).whenComplete((ignored, failure) ->
-                collaborators.edt().execute(() -> finished(chosen.options(), file, failure)));
     }
 
     private void finished(PrintOptions options, Path file, Throwable failure) {
