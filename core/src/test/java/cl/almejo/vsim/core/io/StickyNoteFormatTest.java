@@ -149,6 +149,10 @@ class StickyNoteFormatTest {
 
     private void assertWrittenBackIdentically(Path file) throws IOException {
         String committed = Files.readString(file, StandardCharsets.UTF_8);
+        if (!committed.contains("\"formatVersion\" : " + CircuitFormat.FORMAT_VERSION + ",")) {
+            // an older format (the user's untracked circuits in examples/, say) is migrated on save by design
+            return;
+        }
         String written;
         try {
             written = circuitFormat.write(circuitFormat.read(committed));
