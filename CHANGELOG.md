@@ -6,7 +6,7 @@ Los cambios de VSim 2 que se notan al usarlo, del más nuevo al más antiguo. El
 funciones, con las fechas en que se hizo. El detalle de cada función está en
 [docs/funciones.md](docs/funciones.md).
 
-## Sin publicar — Favoritos
+## Versión 0.4 — 2026-10-26
 
 ### Agregado
 
@@ -21,11 +21,6 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
   sin texto muestra los favoritos y los recientes y al escribir busca en toda la paleta, incluidos los componentes
   propios. Desde el doble clic coloca lo elegido en ese punto (un solo paso de deshacer); desde Insert empieza la
   colocación flotante.
-
-## Sin publicar — Forma de los componentes propios
-
-### Agregado
-
 - Textos de varias líneas en el editor de formas, escritos en el mismo editor en el lugar del editor principal: Mayús+Enter
   agrega una línea, Enter (o un clic fuera) lo da por listo y Esc lo cancela; cada línea conserva la alineación y el
   editor crece con las líneas.

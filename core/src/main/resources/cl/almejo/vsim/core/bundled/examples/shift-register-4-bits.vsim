@@ -1,6 +1,6 @@
 {
   "format" : "vsim2",
-  "savedWith" : "0.3",
+  "savedWith" : "0.4",
   "formatVersion" : 3,
   "kind" : "circuit",
   "name" : "Registro de desplazamiento",
