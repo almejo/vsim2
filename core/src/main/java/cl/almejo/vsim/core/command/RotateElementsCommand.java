@@ -7,6 +7,7 @@ import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.Frame;
+import cl.almejo.vsim.core.document.StickyNote;
 import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.Bounds;
@@ -97,6 +98,8 @@ public final class RotateElementsCommand implements Command {
             case Wire wire -> wire.withEndpoints(around(wire.start(), pivot, turn), around(wire.end(), pivot, turn));
             case TextLabel label -> label.placed(label.id(), around(label.position(), pivot, turn));
             case Frame frame -> rotatedFrame(frame, pivot, turn);
+            // The paper keeps its shape; only its anchor moves, like a plain note.
+            case StickyNote note -> note.placed(note.id(), around(note.position(), pivot, turn));
         };
     }
 

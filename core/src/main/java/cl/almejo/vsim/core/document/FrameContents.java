@@ -126,6 +126,11 @@ public final class FrameContents {
                 contents.add(label.id());
             }
         }
+        for (StickyNote note : document.stickyNotes()) {
+            if (frame.contains(note.position())) {
+                contents.add(note.id());
+            }
+        }
         for (Frame nested : document.frames()) {
             boolean inside = frame.encloses(nested.topLeft().x(), nested.topLeft().y(),
                     nested.topLeft().x() + nested.width(), nested.topLeft().y() + nested.height());

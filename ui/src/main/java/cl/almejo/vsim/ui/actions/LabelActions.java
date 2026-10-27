@@ -16,6 +16,7 @@ import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.Frame;
 import cl.almejo.vsim.core.document.NoteColor;
 import cl.almejo.vsim.core.document.NoteStyle;
+import cl.almejo.vsim.core.document.StickyNote;
 import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
@@ -122,6 +123,9 @@ public final class LabelActions {
                     LabelLayout.font(), label.text(), InlineValidators.anyText(),
                     text -> setLabelIfChanged(id, text.strip(), true)), stillThere);
             case Wire wire -> {
+            }
+            case StickyNote ignored -> {
+                // edited in place once sticky notes have their own tool
             }
             case Frame frame -> editor.open(new InlineEditRequest(FramePainter.titleTextBounds(frame),
                     FramePainter.titleFont(), frame.title(), InlineValidators.anyText(),

@@ -21,6 +21,7 @@ import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.Frame;
+import cl.almejo.vsim.core.document.StickyNote;
 import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.Bounds;
@@ -60,7 +61,7 @@ public final class CircuitReader {
     public static CircuitView read(ReadSource source, ReadFilter filter, Optional<String> cursor) {
         int offset = cursor.map(text -> offsetOf(text, source)).orElse(0);
         List<DocumentElement> matching = source.document().elements().stream()
-                .filter(element -> keeps(filter, element, source))
+                .filter(element -> !(element instanceof StickyNote) && keeps(filter, element, source))
                 .toList();
         List<DocumentElement> page = matching.subList(Math.min(offset, matching.size()),
                 Math.min(offset + filter.pageSize(), matching.size()));
@@ -78,6 +79,7 @@ public final class CircuitReader {
                         new Bounds(frame.topLeft().x(), frame.topLeft().y(), frame.width(), frame.height()),
                         frame.tint().name(), frame.locked()));
                 case TextLabel label -> notes.add(NoteView.of(label));
+                case StickyNote ignored -> throw new IllegalStateException("sticky notes are filtered out above");
             }
         }
         List<GuideView> guides = offset == 0
@@ -136,6 +138,7 @@ public final class CircuitReader {
             case Wire wire -> ElementKind.WIRE;
             case Frame frame -> ElementKind.FRAME;
             case TextLabel label -> ElementKind.NOTE;
+            case StickyNote ignored -> throw new IllegalStateException("sticky notes are not listed yet");
         };
     }
 

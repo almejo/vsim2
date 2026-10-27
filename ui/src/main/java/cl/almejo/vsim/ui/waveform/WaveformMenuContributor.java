@@ -4,6 +4,7 @@ import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.Frame;
+import cl.almejo.vsim.core.document.StickyNote;
 import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.ui.actions.Actions;
@@ -55,6 +56,8 @@ public final class WaveformMenuContributor implements ContextMenuContributor {
             case TextLabel label -> {
             }
             case Frame frame -> {
+            }
+            case StickyNote note -> {
             }
         }
     }

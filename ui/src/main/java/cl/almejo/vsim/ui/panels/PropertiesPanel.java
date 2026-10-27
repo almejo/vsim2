@@ -17,6 +17,7 @@ import cl.almejo.vsim.core.document.FrameContents;
 import cl.almejo.vsim.core.document.FrameTint;
 import cl.almejo.vsim.core.document.NoteColor;
 import cl.almejo.vsim.core.document.NoteStyle;
+import cl.almejo.vsim.core.document.StickyNote;
 import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.ui.app.OpenDocument;
@@ -189,6 +190,7 @@ public final class PropertiesPanel extends JPanel {
             case TextLabel label -> showText(label);
             case Wire wire -> heading.setText(Messages.format("properties.wire", length(wire)));
             case Frame frame -> showFrame(frame);
+            case StickyNote note -> heading.setText(Messages.text("properties.none"));
         }
     }
 
@@ -436,6 +438,7 @@ public final class PropertiesPanel extends JPanel {
             case TextLabel label -> label.text();
             case Wire wire -> text;
             case Frame frame -> text;
+            case StickyNote note -> text;
         };
         if (element.get() instanceof TextLabel && text.isEmpty()) {
             error.setText(Messages.text("properties.emptyText"));

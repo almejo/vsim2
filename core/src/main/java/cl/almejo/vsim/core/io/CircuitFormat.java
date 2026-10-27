@@ -15,6 +15,12 @@ import cl.almejo.vsim.core.document.NoteColor;
 import cl.almejo.vsim.core.document.NoteStyle;
 import cl.almejo.vsim.core.document.Probe;
 import cl.almejo.vsim.core.document.ProbeTarget;
+import cl.almejo.vsim.core.document.StickyChecklist;
+import cl.almejo.vsim.core.document.StickyColor;
+import cl.almejo.vsim.core.document.StickyContent;
+import cl.almejo.vsim.core.document.StickyItem;
+import cl.almejo.vsim.core.document.StickyNote;
+import cl.almejo.vsim.core.document.StickyText;
 import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
@@ -46,6 +52,8 @@ public final class CircuitFormat {
 
     public static final int FORMAT_VERSION = 3;
     static final String KIND_CIRCUIT = "circuit";
+    private static final String STICKY_KIND_TEXT = "text";
+    private static final String STICKY_KIND_LIST = "list";
 
     /** A component; {@code labelOffset} is written only when the user moved the label (M6.8). */
     record ComponentEntry(String id, String type, int x, int y, int rotation, String label,
@@ -95,6 +103,53 @@ public final class CircuitFormat {
         return new Frame(new ElementId(entry.id()), new GridPoint(entry.x(), entry.y()),
                 Math.max(Frame.MINIMUM_WIDTH, entry.width()), Math.max(Frame.MINIMUM_HEIGHT, entry.height()),
                 entry.title(), tint, entry.locked());
+    }
+
+    /**
+     * A sticky note; {@code kind} is {@code "text"} (then {@code text} is set) or {@code "list"} (then {@code items}
+     * is set). {@code folded} is written only when true, so a note nobody folded keeps its bytes. An unknown colour
+     * reads as yellow and a size under the minimum as the minimum.
+     */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    record StickyNoteEntry(String id, int x, int y, int width, int height, String color, String kind, String text,
+                           List<StickyItemEntry> items, Boolean folded) {
+    }
+
+    record StickyItemEntry(String text, boolean done) {
+    }
+
+    static StickyNoteEntry stickyNoteEntry(StickyNote note) {
+        Boolean folded = note.folded() ? Boolean.TRUE : null;
+        return switch (note.content()) {
+            case StickyText content -> new StickyNoteEntry(note.id().value(), note.position().x(),
+                    note.position().y(), note.width(), note.height(), note.color().name(), STICKY_KIND_TEXT,
+                    content.text(), null, folded);
+            case StickyChecklist content -> new StickyNoteEntry(note.id().value(), note.position().x(),
+                    note.position().y(), note.width(), note.height(), note.color().name(), STICKY_KIND_LIST, null,
+                    content.items().stream().map(item -> new StickyItemEntry(item.text(), item.done())).toList(),
+                    folded);
+        };
+    }
+
+    static StickyNote stickyNote(StickyNoteEntry entry) {
+        StickyColor color = StickyColor.YELLOW;
+        if (entry.color() != null) {
+            try {
+                color = StickyColor.valueOf(entry.color());
+            } catch (IllegalArgumentException exception) {
+                color = StickyColor.YELLOW;
+            }
+        }
+        return new StickyNote(new ElementId(entry.id()), new GridPoint(entry.x(), entry.y()), entry.width(),
+                entry.height(), color, stickyContent(entry), Boolean.TRUE.equals(entry.folded()));
+    }
+
+    private static StickyContent stickyContent(StickyNoteEntry entry) {
+        if (STICKY_KIND_LIST.equals(entry.kind())) {
+            return new StickyChecklist(entries(entry.items()).stream()
+                    .map(item -> new StickyItem(item.text(), item.done())).toList());
+        }
+        return new StickyText(entry.text());
     }
 
     static ComponentEntry componentEntry(Component component) {
@@ -162,7 +217,8 @@ public final class CircuitFormat {
                        @JsonInclude(JsonInclude.Include.NON_EMPTY) List<DefinitionEntries.DefinitionEntry> definitions,
                        @JsonInclude(JsonInclude.Include.NON_EMPTY) List<ProbeEntry> probes,
                        @JsonInclude(JsonInclude.Include.NON_EMPTY) List<FrameEntry> frames,
-                       @JsonInclude(JsonInclude.Include.NON_EMPTY) List<GuideEntries.GuideEntry> guides) {
+                       @JsonInclude(JsonInclude.Include.NON_EMPTY) List<GuideEntries.GuideEntry> guides,
+                       @JsonInclude(JsonInclude.Include.NON_EMPTY) List<StickyNoteEntry> stickyNotes) {
     }
 
     private final ComponentTypeRegistry registry;
@@ -193,7 +249,8 @@ public final class CircuitFormat {
                 used.stream().map(DefinitionEntries::entry).toList(),
                 document.probes().stream().map(CircuitFormat::probeEntry).toList(),
                 document.frames().stream().map(CircuitFormat::frameEntry).toList(),
-                document.guides().stream().map(GuideEntries::entry).toList());
+                document.guides().stream().map(GuideEntries::entry).toList(),
+                document.stickyNotes().stream().map(CircuitFormat::stickyNoteEntry).toList());
         try {
             return mapper.writeValueAsString(file);
         } catch (JsonProcessingException exception) {
@@ -238,6 +295,10 @@ public final class CircuitFormat {
         for (FrameEntry entry : entries(file.frames())) {
             requireEntry(entry, "frames");
             add(document, () -> frame(entry));
+        }
+        for (StickyNoteEntry entry : entries(file.stickyNotes())) {
+            requireEntry(entry, "stickyNotes");
+            add(document, () -> stickyNote(entry));
         }
         document.setProbes(probes(entries(file.probes())));
         document.setGuides(guides);

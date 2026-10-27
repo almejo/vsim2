@@ -65,6 +65,9 @@ public final class LockedFrameWalls {
         if (element instanceof TextLabel label) {
             return Bounds.of(label.position(), label.position());
         }
+        if (element instanceof StickyNote note) {
+            return Bounds.of(note.position(), note.position());
+        }
         if (element instanceof Frame nested) {
             return Bounds.of(nested.topLeft(),
                     nested.topLeft().translate(nested.width(), nested.height()));

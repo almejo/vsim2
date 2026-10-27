@@ -97,12 +97,13 @@ public final class ConvertedSelection {
     public static ConvertedSelection of(CircuitDocument document, Collection<ElementId> ids,
                                         Set<ElementId> convertedParts, Map<ElementId, Value> currentValues,
                                         ComponentTypeRegistry registry) {
-        List<Component> parts = TestParts.components(document, ids);
+        Set<ElementId> withoutNotes = DefinitionBuilder.withoutStickyNotes(document, ids);
+        List<Component> parts = TestParts.components(document, withoutNotes);
         if (parts.isEmpty()) {
-            return new ConvertedSelection(document, document, ids, new LinkedHashSet<>(ids), Set.of(), Map.of(),
-                    Set.of());
+            return new ConvertedSelection(document, document, withoutNotes, new LinkedHashSet<>(withoutNotes),
+                    Set.of(), Map.of(), Set.of());
         }
-        return new Conversion(document, ids, registry).run(parts, convertedParts, currentValues);
+        return new Conversion(document, withoutNotes, registry).run(parts, convertedParts, currentValues);
     }
 
     /** The document the definition is made from: the user's one, or a converted copy of it. */

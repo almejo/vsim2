@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.actions;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.Frame;
+import cl.almejo.vsim.core.document.StickyNote;
 import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.ui.canvas.Selection;
@@ -113,6 +114,7 @@ public final class ContextMenuFactory {
             }
             case TextLabel label -> menu.add(new JMenuItem(actions.delete()));
             case Frame frame -> menu.add(new JMenuItem(actions.delete()));
+            case StickyNote note -> menu.add(new JMenuItem(actions.delete()));
         }
     }
 

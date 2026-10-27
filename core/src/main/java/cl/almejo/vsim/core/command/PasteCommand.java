@@ -5,6 +5,7 @@ import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.Frame;
+import cl.almejo.vsim.core.document.StickyNote;
 import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
@@ -78,6 +79,11 @@ public final class PasteCommand implements Command {
         for (Frame frame : fragment.frames()) {
             Frame placed = new Frame(document.newFrameId(), frame.topLeft().plus(at), frame.width(), frame.height(),
                     frame.title(), frame.tint(), frame.locked());
+            elements.add(placed);
+            ids.add(placed.id());
+        }
+        for (StickyNote note : fragment.stickyNotes()) {
+            StickyNote placed = note.placed(document.newStickyNoteId(), note.position().plus(at));
             elements.add(placed);
             ids.add(placed.id());
         }

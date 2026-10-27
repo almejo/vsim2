@@ -17,6 +17,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -117,7 +118,7 @@ public final class DefinitionBuilder {
 
     /** Top-left of the selection's bounds: where the replacing instance goes. */
     public static GridPoint origin(CircuitDocument document, Collection<ElementId> ids, ComponentTypeRegistry registry) {
-        Set<ElementId> wanted = Set.copyOf(ids);
+        Set<ElementId> wanted = withoutStickyNotes(document, ids);
         List<DocumentElement> selected = document.elements().stream()
                 .filter(element -> wanted.contains(element.id()))
                 .toList();
@@ -184,7 +185,7 @@ public final class DefinitionBuilder {
             pinout.add(new DefinitionPin(PinSpec.output(names.get(source), BOX_WIDTH,
                     FIRST_PIN_Y + PIN_SPACING * index, widthOf(document, source)), source));
         }
-        CircuitFragment selected = CircuitFragment.of(document, ids, registry);
+        CircuitFragment selected = CircuitFragment.of(document, withoutStickyNotes(document, ids), registry);
         List<Component> components = selected.components().stream()
                 .map(component -> relabels.containsKey(component.id())
                         ? component.withLabel(relabels.get(component.id())) : component)
@@ -193,6 +194,16 @@ public final class DefinitionBuilder {
         ComponentDefinition definition = new ComponentDefinition(id, name, "",
                 boxSize(pinOrder.inputs().size(), pinOrder.outputs().size()), pinout, body);
         return new DefinitionBundle(definition, selected.definitions());
+    }
+
+    /**
+     * {@code ids} without the sticky notes: a note stays on the canvas when a selection becomes a component, and
+     * never takes part in the body's bounds or in the origin of the replacing instance.
+     */
+    static Set<ElementId> withoutStickyNotes(CircuitDocument document, Collection<ElementId> ids) {
+        Set<ElementId> kept = new LinkedHashSet<>(ids);
+        kept.removeIf(id -> document.stickyNote(id).isPresent());
+        return kept;
     }
 
     /** True when {@code given} lists each pin of {@code expected} once, on the same side. */

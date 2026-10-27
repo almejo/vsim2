@@ -7,6 +7,11 @@ import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.Frame;
 import cl.almejo.vsim.core.document.FrameTint;
+import cl.almejo.vsim.core.document.StickyChecklist;
+import cl.almejo.vsim.core.document.StickyColor;
+import cl.almejo.vsim.core.document.StickyItem;
+import cl.almejo.vsim.core.document.StickyNote;
+import cl.almejo.vsim.core.document.StickyText;
 import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
@@ -106,6 +111,21 @@ class CircuitSearchTest {
         assertThat(find("prueba")).containsExactly(
                 new SearchHit(note.id(), List.of(), List.of(), SearchHit.Field.TEXT, "Sumador de prueba"),
                 new SearchHit(frame.id(), List.of(), List.of(), SearchHit.Field.FRAME_TITLE, "Etapa de prueba"));
+    }
+
+    @Test
+    void findsAWordInATextStickyNoteAndInAChecklistItem() {
+        StickyNote textNote = new StickyNote(document.newStickyNoteId(), new GridPoint(0, 0), 8, 6,
+                StickyColor.YELLOW, new StickyText("Falta probar Cin"), false);
+        StickyNote listNote = new StickyNote(document.newStickyNoteId(), new GridPoint(0, 20), 8, 6,
+                StickyColor.PINK, new StickyChecklist(List.of(new StickyItem("poner reloj", false),
+                new StickyItem("probar Cout", true))), false);
+        document.add(textNote);
+        document.add(listNote);
+
+        assertThat(find("cin")).extracting(SearchHit::elementId).containsExactly(textNote.id());
+        assertThat(find("cout")).extracting(SearchHit::elementId).containsExactly(listNote.id());
+        assertThat(find("probar")).extracting(SearchHit::elementId).containsExactly(textNote.id(), listNote.id());
     }
 
     @Test

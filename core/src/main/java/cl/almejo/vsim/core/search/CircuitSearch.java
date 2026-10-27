@@ -6,6 +6,7 @@ import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.Frame;
+import cl.almejo.vsim.core.document.StickyNote;
 import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.library.ComponentDefinition;
@@ -50,6 +51,7 @@ public final class CircuitSearch {
         elements.addAll(document.components());
         elements.addAll(document.labels());
         elements.addAll(document.frames());
+        elements.addAll(document.stickyNotes());
         elements.sort(Comparator.<DocumentElement>comparingInt(element -> topLeft(element, registry).y())
                 .thenComparingInt(element -> topLeft(element, registry).x())
                 .thenComparingLong(element -> document.orderOf(element.id())));
@@ -81,6 +83,12 @@ public final class CircuitSearch {
                 case Frame frame -> {
                     if (query.matches(frame.title())) {
                         hits.add(new SearchHit(frame.id(), List.of(), List.of(), SearchHit.Field.FRAME_TITLE, frame.title()));
+                    }
+                }
+                case StickyNote note -> {
+                    String text = note.content().searchableText();
+                    if (query.matches(text)) {
+                        hits.add(new SearchHit(note.id(), List.of(), List.of(), SearchHit.Field.TEXT, text));
                     }
                 }
                 default -> {
@@ -142,6 +150,7 @@ public final class CircuitSearch {
                     .orElse(component.position());
             case TextLabel label -> label.position();
             case Frame frame -> frame.topLeft();
+            case StickyNote note -> note.position();
             default -> GridPoint.ORIGIN;
         };
     }

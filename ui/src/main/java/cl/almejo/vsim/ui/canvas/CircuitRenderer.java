@@ -8,6 +8,7 @@ import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.Frame;
+import cl.almejo.vsim.core.document.StickyNote;
 import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
@@ -539,6 +540,9 @@ public final class CircuitRenderer {
                 }
                 case TextLabel label -> paintNoteGhost(graphics, label, scheme);
                 case Frame frame -> FramePainter.paint(graphics, frame, scheme, Double.MAX_VALUE);
+                case StickyNote ignored -> {
+                    // painted once the sticky note painter exists
+                }
             }
         } finally {
             graphics.setComposite(previous);

@@ -6,6 +6,9 @@ import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.core.document.StickyColor;
+import cl.almejo.vsim.core.document.StickyNote;
+import cl.almejo.vsim.core.document.StickyText;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.GridSize;
 import cl.almejo.vsim.core.geometry.Rotation;
@@ -79,6 +82,27 @@ class DefinitionBuilderTest {
         assertThat(definition.body().definitions()).isEmpty();
         assertThat(bundle.dependencies()).isEmpty();
         assertThat(DefinitionBuilder.origin(document, selection, registry)).isEqualTo(new GridPoint(10, 10));
+    }
+
+    @Test
+    void aStickyNoteInTheSelectionStaysOutOfTheDefinitionAndItsBounds() {
+        Component input = place(registry, document, InterfacePins.INPUT_PIN, 10, 11, "a");
+        Component gate = place(registry, document, StandardComponentTypes.NOT, 12, 10, "");
+        Component output = place(registry, document, InterfacePins.OUTPUT_PIN, 16, 11, "y");
+        List<ElementId> selection = ids(input, gate, output);
+        DefinitionBundle without = DefinitionBuilder.fromSelection(document, selection, "negador", "Negador",
+                DefinitionBuilder.defaultPinOrder(document, selection), registry);
+        StickyNote note = new StickyNote(document.newStickyNoteId(), new GridPoint(0, 0), 8, 6, StickyColor.BLUE,
+                new StickyText("recordar"), false);
+        document.add(note);
+        List<ElementId> withNote = new java.util.ArrayList<>(selection);
+        withNote.add(note.id());
+
+        DefinitionBundle with = DefinitionBuilder.fromSelection(document, withNote, "negador", "Negador",
+                DefinitionBuilder.defaultPinOrder(document, withNote), registry);
+
+        assertThat(with).isEqualTo(without);
+        assertThat(DefinitionBuilder.origin(document, withNote, registry)).isEqualTo(new GridPoint(10, 10));
     }
 
     @Test
