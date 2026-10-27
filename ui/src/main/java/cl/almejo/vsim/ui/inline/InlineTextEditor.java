@@ -223,6 +223,8 @@ public final class InlineTextEditor {
         area.setBorder(UIManager.getBorder("TextField.border"));
         field.setVisible(!newRequest.multiLine());
         area.setVisible(newRequest.multiLine());
+        area.setLineWrap(newRequest.wraps());
+        area.setWrapStyleWord(newRequest.wraps());
         JTextComponent text = textComponent();
         text.setText(newRequest.initialText());
         text.selectAll();
@@ -538,8 +540,10 @@ public final class InlineTextEditor {
             textWidth = Math.max(textWidth, metrics.stringWidth(line));
         }
         textWidth += CARET_ROOM;
-        int fieldWidth = Math.min(MAXIMUM_WIDTH,
-                Math.max(Math.max(areaWidth, MINIMUM_TEXT_WIDTH), textWidth) + horizontalInsets);
+        // a wrapping text keeps the width it is painted at (a sticky note's paper); the others grow with the text
+        int fieldWidth = request.wraps() ? Math.max(areaWidth, MINIMUM_TEXT_WIDTH) + horizontalInsets
+                : Math.min(MAXIMUM_WIDTH, Math.max(Math.max(areaWidth, MINIMUM_TEXT_WIDTH), textWidth)
+                + horizontalInsets);
         int fittedHeight = areaHeight + verticalInsets;
         int fieldHeight = Math.max(fittedHeight, text.getPreferredSize().height);
         int fieldX = switch (request.anchor()) {

@@ -32,6 +32,7 @@ import cl.almejo.vsim.ui.export.ExportImageExtension;
 import cl.almejo.vsim.ui.print.ExportPdfExtension;
 import cl.almejo.vsim.ui.favorites.FavoritesExtension;
 import cl.almejo.vsim.ui.frames.FramesExtension;
+import cl.almejo.vsim.ui.sticky.StickyNotesExtension;
 import cl.almejo.vsim.ui.grid.GridExtension;
 import cl.almejo.vsim.ui.guides.GuidesExtension;
 import cl.almejo.vsim.ui.snap.SnapExtension;
@@ -221,6 +222,8 @@ public final class Application {
         editorExtensions.add(new ExportImageExtension());
         editorExtensions.add(new ExportPdfExtension());
         editorExtensions.add(new TidyWiresExtension());
+        // sticky notes before frames: their tool lands after «Marco» and their gestures are asked first (on top)
+        editorExtensions.add(new StickyNotesExtension());
         editorExtensions.add(new FramesExtension());
         editorExtensions.add(new WiresFollowExtension());
         editorExtensions.add(new GridExtension());

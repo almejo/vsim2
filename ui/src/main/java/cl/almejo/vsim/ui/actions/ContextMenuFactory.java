@@ -114,7 +114,9 @@ public final class ContextMenuFactory {
             }
             case TextLabel label -> menu.add(new JMenuItem(actions.delete()));
             case Frame frame -> menu.add(new JMenuItem(actions.delete()));
-            case StickyNote note -> menu.add(new JMenuItem(actions.delete()));
+            case StickyNote note -> {
+                // its own «Despegar…» (StickyNoteMenu) removes it; the Delete key still does, without asking
+            }
         }
     }
 
