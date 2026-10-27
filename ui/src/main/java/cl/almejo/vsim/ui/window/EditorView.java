@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.window;
 
+import cl.almejo.vsim.core.component.standard.MemoryTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.value.Value;
 import cl.almejo.vsim.core.document.DocumentElement;
@@ -22,6 +23,7 @@ import cl.almejo.vsim.ui.clipboard.FragmentClipboard;
 import cl.almejo.vsim.ui.inline.InlineTextEditor;
 import cl.almejo.vsim.ui.library.TemplateActions;
 import cl.almejo.vsim.ui.paint.ColorScheme;
+import cl.almejo.vsim.ui.paint.MemoryPainter;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.paint.TextFonts;
 import cl.almejo.vsim.ui.panels.PalettePanel;
@@ -536,6 +538,13 @@ public final class EditorView extends JPanel implements CanvasHost {
         } else {
             memoryEditor.accept(component);
         }
+    }
+
+    /** The square the memory painter draws in the title bar of a RAM or ROM. */
+    @Override
+    public boolean memoryFoldToggleAt(Component component, Point2D gridPosition) {
+        return MemoryTypes.kindOf(component.typeId()).isPresent() && MemoryPainter.isOnFoldToggle(
+                openDocument.registry().typeOf(component), component, gridPosition);
     }
 
     @Override

@@ -114,7 +114,7 @@ public final class MemoryEditorDialog {
         int width = (Integer) resolved.get(MemoryTypes.WIDTH);
         MemoryContents initialContents = MemoryContents.decode((String) resolved.get(MemoryTypes.CONTENTS));
         this.model = new MemoryGridModel(initialContents, width, words, MemoryRadix.HEX);
-        this.name = nameOf(component);
+        this.name = MemoryNames.displayName(document.document(), component);
 
         table = new JTable(model) {
             @Override
@@ -176,10 +176,6 @@ public final class MemoryEditorDialog {
 
     public JLabel status() {
         return status;
-    }
-
-    private static String nameOf(Component component) {
-        return component.label().isBlank() ? Messages.componentName(component.typeId()) : component.label();
     }
 
     /** «RAM · 1K × 16». */

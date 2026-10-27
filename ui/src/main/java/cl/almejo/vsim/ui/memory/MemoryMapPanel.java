@@ -281,7 +281,7 @@ public final class MemoryMapPanel extends JPanel {
             wordsPerCell = maximumWordsPerCell();
             firstAddress = 0;
         }
-        titleLabel.setText(Messages.format("memory.map.title", displayName(memory), Messages.componentName(kind.id()),
+        titleLabel.setText(Messages.format("memory.map.title", MemoryNames.displayName(document.document(), memory), Messages.componentName(kind.id()),
                 Messages.choiceName(MemoryTypes.WORDS, String.valueOf(words)), width));
         boolean ram = kind == MemoryKind.RAM;
         restoreButton.setVisible(ram);
@@ -290,23 +290,6 @@ public final class MemoryMapPanel extends JPanel {
         cards.show((JPanel) getComponent(0), MAP_CARD);
         setRequest(new MemoryMapRequest(followed.value(), firstAddress, wordsPerCell, cells));
         updateLegend();
-    }
-
-    /** The name in the title: the label, or RAM1, ROM2… by order of placement among the memories of its kind. */
-    private String displayName(Component memory) {
-        if (!memory.label().isBlank()) {
-            return memory.label();
-        }
-        int ordinal = 0;
-        for (Component each : document.document().components()) {
-            if (each.typeId().equals(memory.typeId())) {
-                ordinal++;
-            }
-            if (each.id().equals(memory.id())) {
-                break;
-            }
-        }
-        return Messages.componentName(memory.typeId()) + ordinal;
     }
 
     private long maximumWordsPerCell() {
