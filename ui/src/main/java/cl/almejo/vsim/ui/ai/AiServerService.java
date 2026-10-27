@@ -1,17 +1,12 @@
 package cl.almejo.vsim.ui.ai;
 
 import cl.almejo.vsim.automation.AutomationApi;
-import cl.almejo.vsim.automation.AutomationListener;
 import cl.almejo.vsim.automation.TaskInfo;
 import cl.almejo.vsim.automation.TaskStopReason;
 import cl.almejo.vsim.automation.UndoOutcome;
-import cl.almejo.vsim.automation.edit.TaskStage;
 import cl.almejo.vsim.automation.present.Narration;
-import cl.almejo.vsim.automation.present.PresentationListener;
 import cl.almejo.vsim.automation.present.Question;
 import cl.almejo.vsim.automation.present.QuestionAnswer;
-import cl.almejo.vsim.automation.present.StepPreview;
-import cl.almejo.vsim.automation.present.StepStatus;
 import cl.almejo.vsim.mcp.McpServerSettings;
 import cl.almejo.vsim.mcp.PortInUseException;
 import cl.almejo.vsim.mcp.RunningServer;
@@ -226,8 +221,8 @@ public final class AiServerService {
         this.queuedWork = Objects.requireNonNull(queuedWork, "queuedWork");
         // Both live as long as the application, like this service.
         preferences.addListener(this::followPreferences);
-        tasks.addListener(new TaskEvents());
-        tasks.addPresentationListener(new WhatTheAiSays());
+        tasks.addListener(new TaskEvents(editorThread, runningTasks, listeners, this::notifyStateChanged));
+        tasks.addPresentationListener(new WhatTheAiSays(this::onEditor));
     }
 
     private static Executor daemonThread(String name) {
@@ -724,90 +719,6 @@ public final class AiServerService {
 
     private void notifyStateChanged() {
         listeners.forEach(Listener::stateChanged);
-    }
-
-    /** The automation layer's events, off the EDT: moved to the EDT. */
-    private final class TaskEvents implements AutomationListener {
-
-        @Override
-        public void taskStarted(TaskInfo task) {
-            editorThread.execute(() -> {
-                runningTasks.put(task.taskId(), task);
-                listeners.forEach(listener -> listener.taskStarted(task));
-                notifyStateChanged();
-            });
-        }
-
-        @Override
-        public void taskEnded(TaskInfo task, Set<String> changedElementIds) {
-            Set<String> changed = Set.copyOf(changedElementIds);
-            editorThread.execute(() -> {
-                runningTasks.remove(task.taskId());
-                listeners.forEach(listener -> listener.taskEnded(task, changed));
-                notifyStateChanged();
-            });
-        }
-
-        @Override
-        public void taskStopped(TaskInfo task) {
-            taskStopped(task, TaskStopReason.USER);
-        }
-
-        @Override
-        public void taskStopped(TaskInfo task, TaskStopReason reason) {
-            editorThread.execute(() -> {
-                runningTasks.remove(task.taskId());
-                listeners.forEach(listener -> listener.taskStopped(task, reason));
-                notifyStateChanged();
-            });
-        }
-    }
-
-    /**
-     * What the AI says and asks (IA.3), moved to the EDT for the status lines; the rest of «Presentar» is the
-     * panel's.
-     */
-    private final class WhatTheAiSays implements PresentationListener {
-
-        @Override
-        public void planChanged(TaskInfo task, List<TaskStage> stages, int currentStage, int currentStep) {
-        }
-
-        @Override
-        public void stepProposed(StepPreview preview) {
-        }
-
-        @Override
-        public void stepApplied(StepPreview preview) {
-        }
-
-        @Override
-        public void stepDiscarded(String taskId, StepStatus why) {
-        }
-
-        @Override
-        public void stageChecked(String taskId, int stageIndex, boolean passed, String summary) {
-        }
-
-        @Override
-        public void narrated(Narration narration) {
-            onEditor(listener -> listener.narrated(narration));
-        }
-
-        @Override
-        public void questionAsked(Question question) {
-            onEditor(listener -> listener.questionAsked(question));
-        }
-
-        @Override
-        public void questionClosed(String taskId, String questionId, boolean answered) {
-            onEditor(listener -> listener.questionClosed(taskId, questionId, answered));
-        }
-
-        @Override
-        public void questionUnattended(String taskId, String questionId, Duration silentFor) {
-            onEditor(listener -> listener.questionUnattended(taskId, questionId, silentFor));
-        }
     }
 
     // --- Launch ---
