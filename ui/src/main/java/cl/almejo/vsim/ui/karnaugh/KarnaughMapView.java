@@ -4,35 +4,22 @@ import cl.almejo.vsim.core.logic.DrawnGroup;
 import cl.almejo.vsim.core.logic.KarnaughGroup;
 import cl.almejo.vsim.core.logic.KarnaughLayout;
 import cl.almejo.vsim.core.logic.LogicValue;
-import cl.almejo.vsim.core.logic.Minimization;
 import cl.almejo.vsim.core.logic.Term;
-import cl.almejo.vsim.ui.actions.Actions;
 import cl.almejo.vsim.ui.canvas.FrameTicker;
 import cl.almejo.vsim.ui.canvas.MarchingAnts;
 
 import javax.swing.JComponent;
-import javax.swing.KeyStroke;
-import java.awt.BasicStroke;
-import java.awt.Color;
 import java.awt.Dimension;
-import java.awt.Font;
-import java.awt.FontMetrics;
 import java.awt.Graphics;
-import java.awt.Graphics2D;
 import java.awt.Point;
 import java.awt.Rectangle;
-import java.awt.RenderingHints;
-import java.awt.Shape;
 import java.awt.event.FocusAdapter;
 import java.awt.event.FocusEvent;
 import java.awt.event.HierarchyEvent;
 import java.awt.event.InputEvent;
-import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.awt.geom.Ellipse2D;
 import java.awt.geom.Rectangle2D;
-import java.awt.geom.RoundRectangle2D;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -66,32 +53,31 @@ final class KarnaughMapView extends JComponent {
     static final int MAXIMUM_CELL = 72;
     private static final int MARGIN = 8;
     private static final int HEADER = 46;
-    private static final int BASE_INSET = 4;
+    static final int BASE_INSET = 4;
     private static final int INSET_STEP = 4;
     /** How often the ants step, like the canvas selection's. */
     private static final int ANTS_MILLISECONDS = 90;
-    /** The same width as the canvas selection outline. */
-    private static final float ANTS_WIDTH = 1.5f;
-    private static final double RING_INSET = 0.18;
 
-    private final KarnaughModel model;
+    final KarnaughModel model;
     private final HoverState hover;
-    private final int output;
-    private final boolean showGroups;
+    final int output;
+    final boolean showGroups;
     private boolean followsPractice = true;
     private boolean compact;
     private final MarchingAnts ants = new MarchingAnts();
+    private final KarnaughMapPainter painter = new KarnaughMapPainter(this);
+    private final PracticeKeyboard keyboard = new PracticeKeyboard(this);
     private FrameTicker ticker = FrameTicker.swing(ANTS_MILLISECONDS);
     private BooleanSupplier showing = this::isShowing;
     /** The cell a mouse press started on (in practice), or null. */
     private KarnaughLayout.GridCell anchor;
     private boolean dragged;
     private DrawnGroup dragRectangle;
-    private KarnaughLayout.GridCell cursor = new KarnaughLayout.GridCell(0, 0);
+    KarnaughLayout.GridCell cursor = new KarnaughLayout.GridCell(0, 0);
     /** How far Shift+arrows stretched the rectangle from the cursor (rows, columns), or null when none is. */
-    private int[] stretch;
+    int[] stretch;
     /** Whether the keyboard is in use (the cursor is outlined) since the last mouse press. */
-    private boolean keyboardActive;
+    boolean keyboardActive;
 
     KarnaughMapView(KarnaughModel model, HoverState hover, int output, boolean showGroups) {
         this.model = model;
@@ -144,7 +130,7 @@ final class KarnaughMapView extends JComponent {
                 updateAnimation();
             }
         });
-        bindKeys();
+        keyboard.bindKeys();
         setOpaque(false);
         setFocusable(false);
     }
@@ -153,7 +139,7 @@ final class KarnaughMapView extends JComponent {
         return output;
     }
 
-    private KarnaughLayout karnaughLayout() {
+    KarnaughLayout karnaughLayout() {
         return KarnaughLayout.of(model.inputCount());
     }
 
@@ -199,7 +185,7 @@ final class KarnaughMapView extends JComponent {
      * progress ends when that stops, and the ants run or stop.
      */
     void refreshPractice() {
-        fitCursor();
+        keyboard.fitCursor();
         boolean editable = editable();
         setFocusable(editable);
         if (!editable) {
@@ -241,7 +227,7 @@ final class KarnaughMapView extends JComponent {
         if (dragRectangle != null) {
             return Optional.of(dragRectangle);
         }
-        fitCursor();
+        keyboard.fitCursor();
         if (stretch != null) {
             return Optional.of(rectangle(cursor, cursor.row() + stretch[0], cursor.column() + stretch[1]));
         }
@@ -343,7 +329,7 @@ final class KarnaughMapView extends JComponent {
     }
 
     /** Group indices in painting order: largest first, ties by index. */
-    private static List<Integer> paintOrder(List<DrawnGroup> groups) {
+    static List<Integer> paintOrder(List<DrawnGroup> groups) {
         List<Integer> order = new ArrayList<>();
         for (int index = 0; index < groups.size(); index++) {
             order.add(index);
@@ -421,7 +407,7 @@ final class KarnaughMapView extends JComponent {
     }
 
     /** Adds a group of this map's output in the chosen form; the selection goes (the new group is not selected). */
-    private void addGroup(DrawnGroup group) {
+    void addGroup(DrawnGroup group) {
         PracticeModel practice = model.practice();
         practice.clearSelection();
         practice.add(output, model.options().form(), group);
@@ -452,107 +438,6 @@ final class KarnaughMapView extends JComponent {
         return new int[]{span == size ? 0 : first, span};
     }
 
-    private void bindKeys() {
-        bind("practiceUp", () -> moveCursor(-1, 0), KeyEvent.VK_UP, 0);
-        bind("practiceDown", () -> moveCursor(1, 0), KeyEvent.VK_DOWN, 0);
-        bind("practiceLeft", () -> moveCursor(0, -1), KeyEvent.VK_LEFT, 0);
-        bind("practiceRight", () -> moveCursor(0, 1), KeyEvent.VK_RIGHT, 0);
-        bind("practiceStretchUp", () -> stretchRectangle(-1, 0), KeyEvent.VK_UP, InputEvent.SHIFT_DOWN_MASK);
-        bind("practiceStretchDown", () -> stretchRectangle(1, 0), KeyEvent.VK_DOWN, InputEvent.SHIFT_DOWN_MASK);
-        bind("practiceStretchLeft", () -> stretchRectangle(0, -1), KeyEvent.VK_LEFT, InputEvent.SHIFT_DOWN_MASK);
-        bind("practiceStretchRight", () -> stretchRectangle(0, 1), KeyEvent.VK_RIGHT, InputEvent.SHIFT_DOWN_MASK);
-        // Enter adds only while the keyboard is in use (the cursor shows); after a click it reaches «Siguiente».
-        bindKeys("practiceAdd", this::addKeyboardRectangle, () -> keyboardActive || stretch != null,
-                KeyEvent.VK_ENTER);
-        bindKeys("practiceDelete", this::deleteSelected, () -> model.practice().selected().isPresent(),
-                KeyEvent.VK_DELETE, KeyEvent.VK_BACK_SPACE);
-        bindKeys("practiceCancel", this::cancelKeyboardRectangle,
-                () -> stretch != null || model.practice().selected().isPresent(), KeyEvent.VK_ESCAPE);
-    }
-
-    private void bind(String name, Runnable action, int keyCode, int modifiers) {
-        getInputMap(JComponent.WHEN_FOCUSED).put(KeyStroke.getKeyStroke(keyCode, modifiers), name);
-        putAction(name, action, () -> true);
-    }
-
-    /** Binds {@code keyCodes} (no modifiers) to {@code action}, on only while practising and {@code condition}. */
-    private void bindKeys(String name, Runnable action, BooleanSupplier condition, int... keyCodes) {
-        for (int keyCode : keyCodes) {
-            getInputMap(JComponent.WHEN_FOCUSED).put(KeyStroke.getKeyStroke(keyCode, 0), name);
-        }
-        putAction(name, action, condition);
-    }
-
-    /**
-     * Off outside the practice mode (and when there is nothing to do), so the keys reach the step and the window as
-     * before: Escape still lets a pinned group go or closes the wizard.
-     */
-    private void putAction(String name, Runnable action, BooleanSupplier condition) {
-        BooleanSupplier active = () -> editable() && condition.getAsBoolean();
-        getActionMap().put(name, Actions.unnamed(active, () -> {
-            if (active.getAsBoolean()) {
-                keyboardActive = true;
-                action.run();
-                updateAnimation();
-                repaint();
-            }
-        }));
-    }
-
-    private void moveCursor(int rowDelta, int columnDelta) {
-        fitCursor();
-        KarnaughLayout layout = karnaughLayout();
-        stretch = null;
-        cursor = new KarnaughLayout.GridCell(Math.floorMod(cursor.row() + rowDelta, layout.rows()),
-                Math.floorMod(cursor.column() + columnDelta, layout.columns()));
-    }
-
-    private void stretchRectangle(int rowDelta, int columnDelta) {
-        fitCursor();
-        KarnaughLayout layout = karnaughLayout();
-        if (stretch == null) {
-            stretch = new int[2];
-        }
-        stretch[0] = Math.clamp(stretch[0] + rowDelta, 1 - layout.rows(), layout.rows() - 1);
-        stretch[1] = Math.clamp(stretch[1] + columnDelta, 1 - layout.columns(), layout.columns() - 1);
-    }
-
-    /** Enter: adds the stretched rectangle, or the cursor's cell when none is stretched. */
-    private void addKeyboardRectangle() {
-        DrawnGroup group = pendingRectangle()
-                .orElse(karnaughLayout().drawn(cursor.row(), cursor.column(), 1, 1));
-        stretch = null;
-        addGroup(group);
-    }
-
-    /** Esc: drops the stretched rectangle, else lets the selected group go (only then Esc reaches the window). */
-    private void cancelKeyboardRectangle() {
-        if (stretch != null) {
-            stretch = null;
-        } else {
-            model.practice().clearSelection();
-        }
-    }
-
-    /**
-     * Fewer inputs make a smaller map while this view stays: a cursor left outside it goes back to the first cell and
-     * the stretched rectangle goes.
-     */
-    private void fitCursor() {
-        KarnaughLayout layout = karnaughLayout();
-        if (cursor.row() >= layout.rows() || cursor.column() >= layout.columns()) {
-            cursor = new KarnaughLayout.GridCell(0, 0);
-            stretch = null;
-        }
-    }
-
-    private void deleteSelected() {
-        OptionalInt selected = model.practice().selected();
-        if (selected.isPresent()) {
-            model.practice().remove(output, model.options().form(), selected.getAsInt());
-        }
-    }
-
     /** Whether the ants have something to outline: the selected group, a rectangle being drawn or the cursor. */
     private boolean outlining() {
         if (!editable()) {
@@ -562,7 +447,7 @@ final class KarnaughMapView extends JComponent {
     }
 
     /** The selected group, when this map's output is the one shown (the selection belongs to it). */
-    private OptionalInt selectedHere() {
+    OptionalInt selectedHere() {
         if (model.selectedOutput() != output) {
             return OptionalInt.empty();
         }
@@ -574,7 +459,7 @@ final class KarnaughMapView extends JComponent {
     }
 
     /** Starts the ants when something is outlined on a showing map, stops them otherwise. */
-    private void updateAnimation() {
+    void updateAnimation() {
         boolean wanted = outlining() && showing.getAsBoolean();
         if (wanted && !ticker.isRunning()) {
             ticker.start(this::antsTick);
@@ -592,223 +477,21 @@ final class KarnaughMapView extends JComponent {
     }
 
     /** Overlapping groups sit at different insets so every outline stays visible. */
-    private static int inset(int paintPosition) {
+    static int inset(int paintPosition) {
         return BASE_INSET + (paintPosition % 3) * INSET_STEP;
     }
 
     @Override
     protected void paintComponent(Graphics graphics) {
-        Graphics2D graphics2D = (Graphics2D) graphics.create();
-        try {
-            graphics2D.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-            graphics2D.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING,
-                    RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
-            MapGeometry geometry = geometry();
-            paintHeaders(graphics2D, geometry);
-            paintCellBackgrounds(graphics2D, geometry);
-            if (showGroups) {
-                paintGroups(graphics2D, geometry);
-            }
-            paintCellTexts(graphics2D, geometry);
-            if (practising() && model.problem().isEmpty()) {
-                paintPracticeOverlays(graphics2D, geometry);
-            }
-            paintHighlight(graphics2D, geometry);
-        } finally {
-            graphics2D.dispose();
-        }
-    }
-
-    private void paintHeaders(Graphics2D graphics, MapGeometry geometry) {
-        KarnaughLayout layout = karnaughLayout();
-        Rectangle grid = geometry.grid();
-        int cell = geometry.cellSize();
-        Font base = getFont() != null ? getFont() : new Font(Font.DIALOG, Font.PLAIN, 12);
-        Font codes = base.deriveFont(Font.PLAIN, base.getSize2D());
-        Font names = base.deriveFont(Font.BOLD, base.getSize2D());
-        graphics.setColor(WizardColors.muted());
-        graphics.setFont(codes);
-        List<String> columnCodes = layout.columnCodes();
-        for (int column = 0; column < columnCodes.size(); column++) {
-            centered(graphics, columnCodes.get(column),
-                    new Rectangle(grid.x + column * cell, grid.y - 20, cell, 18));
-        }
-        List<String> rowCodes = layout.rowCodes();
-        for (int row = 0; row < rowCodes.size(); row++) {
-            centered(graphics, rowCodes.get(row), new Rectangle(grid.x - 24, grid.y + row * cell, 22, cell));
-        }
-        // The corner: the column variables above the diagonal, the row variables below it.
-        graphics.setColor(WizardColors.gridLine());
-        graphics.drawLine(grid.x - 44, grid.y - 44, grid.x, grid.y);
-        graphics.setColor(WizardColors.foreground());
-        graphics.setFont(names);
-        centered(graphics, variables(layout.columnVariables()), new Rectangle(grid.x - 22, grid.y - 44, 40, 20));
-        centered(graphics, variables(layout.rowVariables()), new Rectangle(grid.x - 50, grid.y - 24, 28, 20));
-    }
-
-    private String variables(List<Integer> inputs) {
-        List<String> names = new ArrayList<>();
-        boolean allShort = true;
-        for (int input : inputs) {
-            String name = model.inputNames().get(input).strip();
-            names.add(name);
-            allShort &= name.length() <= 1;
-        }
-        return String.join(allShort ? "" : ",", names);
-    }
-
-    private void paintCellBackgrounds(Graphics2D graphics, MapGeometry geometry) {
-        KarnaughLayout layout = karnaughLayout();
-        for (int row = 0; row < layout.rows(); row++) {
-            for (int column = 0; column < layout.columns(); column++) {
-                Rectangle cell = geometry.cell(row, column);
-                graphics.setColor(WizardColors.cellBackground());
-                graphics.fill(cell);
-                graphics.setColor(WizardColors.gridLine());
-                graphics.draw(cell);
-            }
-        }
-    }
-
-    /** The values over the groups, so they stay readable; with groups, the values never grouped are muted. */
-    private void paintCellTexts(Graphics2D graphics, MapGeometry geometry) {
-        KarnaughLayout layout = karnaughLayout();
-        boolean sumOfProducts = model.options().form() == Minimization.Form.SUM_OF_PRODUCTS;
-        LogicValue neverGrouped = sumOfProducts ? LogicValue.ZERO : LogicValue.ONE;
-        Font base = getFont() != null ? getFont() : new Font(Font.DIALOG, Font.PLAIN, 12);
-        Font value = base.deriveFont(Font.BOLD, geometry.cellSize() * 0.38f);
-        Font small = base.deriveFont(Font.PLAIN, Math.max(9f, geometry.cellSize() * 0.2f));
-        for (int row = 0; row < layout.rows(); row++) {
-            for (int column = 0; column < layout.columns(); column++) {
-                Rectangle cell = geometry.cell(row, column);
-                int tableRow = layout.tableRow(row, column);
-                LogicValue cellValue = model.value(output, tableRow);
-                graphics.setColor(showGroups && cellValue == neverGrouped ? WizardColors.muted()
-                        : WizardColors.foreground());
-                graphics.setFont(value);
-                centered(graphics, valueText(cellValue), cell);
-                graphics.setColor(WizardColors.muted());
-                graphics.setFont(small);
-                graphics.drawString(String.valueOf(tableRow), cell.x + 4, cell.y + 3
-                        + graphics.getFontMetrics().getAscent());
-            }
-        }
+        painter.paint(graphics);
     }
 
     static String valueText(LogicValue value) {
-        return switch (value) {
-            case ZERO -> "0";
-            case ONE -> "1";
-            case DONT_CARE -> "X";
-        };
-    }
-
-    /**
-     * The groups: VSim's (the explained one stronger, colours shared between maps like the legend's), or while
-     * practising the student's in drawing-order colours (the selected one stronger).
-     */
-    private void paintGroups(Graphics2D graphics, MapGeometry geometry) {
-        boolean practice = practising();
-        List<DrawnGroup> groups = drawnGroups();
-        OptionalInt selected = practice ? selectedHere() : OptionalInt.empty();
-        List<Integer> order = paintOrder(groups);
-        boolean dark = WizardColors.dark();
-        Shape clip = graphics.getClip();
-        graphics.clip(geometry.grid());
-        float arc = geometry.cellSize() * 0.45f;
-        for (int position = 0; position < order.size(); position++) {
-            int index = order.get(position);
-            boolean explained = practice ? selected.isPresent() && selected.getAsInt() == index
-                    : explainedGroup().equals(OptionalInt.of(index));
-            int colour = practice ? index : model.colorIndex(output, index);
-            for (Rectangle2D piece : geometry.pieces(groups.get(index), inset(position))) {
-                RoundRectangle2D shape = new RoundRectangle2D.Double(piece.getX(), piece.getY(), piece.getWidth(),
-                        piece.getHeight(), arc, arc);
-                graphics.setColor(GroupPalette.fill(colour, dark, explained));
-                graphics.fill(shape);
-                graphics.setColor(GroupPalette.color(colour, dark));
-                graphics.setStroke(new BasicStroke(explained ? 3.5f : 2f));
-                graphics.draw(shape);
-            }
-        }
-        graphics.setClip(clip);
-    }
-
-    /**
-     * The practice marks over the values: a dotted ring on each cell the form still needs, a strong ring on the hinted
-     * cell and a dashed outline around the hinted group (shown output only), then the ants around the selected group,
-     * the rectangle being drawn and the keyboard cursor.
-     */
-    private void paintPracticeOverlays(Graphics2D graphics, MapGeometry geometry) {
-        KarnaughLayout layout = karnaughLayout();
-        PracticeModel practice = model.practice();
-        graphics.setColor(WizardColors.uncoveredRing());
-        graphics.setStroke(new BasicStroke(1.5f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND, 10f,
-                new float[]{1.5f, 3.5f}, 0f));
-        for (int tableRow : practice.result(output, model.options().form()).uncoveredRows()) {
-            graphics.draw(ring(geometry, layout.cell(tableRow)));
-        }
-        if (model.selectedOutput() == output) {
-            OptionalInt hintRow = practice.hintRow();
-            if (hintRow.isPresent()) {
-                graphics.setColor(WizardColors.hintRing());
-                graphics.setStroke(new BasicStroke(3f));
-                graphics.draw(ring(geometry, layout.cell(hintRow.getAsInt())));
-            }
-            Optional<Term> hintGroup = practice.hintGroup();
-            if (hintGroup.isPresent()) {
-                graphics.setColor(WizardColors.hintRing());
-                graphics.setStroke(new BasicStroke(2f, BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER, 10f,
-                        new float[]{7f, 4f}, 0f));
-                graphics.draw(geometry.closedSides(layout.group(hintGroup.get()).rectangles(), BASE_INSET));
-            }
-        }
-        Color antsColour = WizardColors.highlight();
-        OptionalInt selected = selectedHere();
-        if (selected.isPresent()) {
-            List<DrawnGroup> groups = drawnGroups();
-            int position = paintOrder(groups).indexOf(selected.getAsInt());
-            MarchingAnts.draw(graphics, geometry.closedSides(groups.get(selected.getAsInt()).rectangles(),
-                    inset(position)), antsColour, ANTS_WIDTH, ants.phase());
-        }
-        Optional<DrawnGroup> pending = pendingRectangle();
-        if (pending.isPresent()) {
-            MarchingAnts.draw(graphics, geometry.closedSides(pending.get().rectangles(), BASE_INSET), antsColour,
-                    ANTS_WIDTH, ants.phase());
-        } else if (keyboardActive) {
-            Rectangle cell = geometry.cell(cursor.row(), cursor.column());
-            MarchingAnts.draw(graphics, new Rectangle(cell.x + 2, cell.y + 2, cell.width - 4, cell.height - 4),
-                    antsColour, ANTS_WIDTH, ants.phase());
-        }
-    }
-
-    private static Ellipse2D ring(MapGeometry geometry, KarnaughLayout.GridCell cell) {
-        Rectangle bounds = ringBounds(geometry.cell(cell.row(), cell.column()));
-        return new Ellipse2D.Double(bounds.x, bounds.y, bounds.width, bounds.height);
+        return KarnaughMapPainter.valueText(value);
     }
 
     /** Where the ring of an uncovered or hinted cell goes: a circle inside the cell. */
     static Rectangle ringBounds(Rectangle cell) {
-        int inset = (int) Math.round(cell.width * RING_INSET);
-        return new Rectangle(cell.x + inset, cell.y + inset, cell.width - 2 * inset, cell.height - 2 * inset);
-    }
-
-    private void paintHighlight(Graphics2D graphics, MapGeometry geometry) {
-        OptionalInt row = highlightedRow();
-        if (row.isEmpty()) {
-            return;
-        }
-        KarnaughLayout.GridCell gridCell = karnaughLayout().cell(row.getAsInt());
-        Rectangle cell = geometry.cell(gridCell.row(), gridCell.column());
-        graphics.setColor(WizardColors.highlight());
-        graphics.setStroke(new BasicStroke(3f));
-        graphics.drawRect(cell.x + 1, cell.y + 1, cell.width - 2, cell.height - 2);
-    }
-
-    private static void centered(Graphics2D graphics, String text, Rectangle area) {
-        FontMetrics metrics = graphics.getFontMetrics();
-        int x = area.x + (area.width - metrics.stringWidth(text)) / 2;
-        int y = area.y + (area.height - metrics.getHeight()) / 2 + metrics.getAscent();
-        graphics.drawString(text, x, y);
+        return KarnaughMapPainter.ringBounds(cell);
     }
 }
