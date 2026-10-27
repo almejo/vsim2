@@ -98,7 +98,7 @@ public final class EditorView extends JPanel implements CanvasHost {
     private final Map<MenuId, JMenu> menus = new EnumMap<>(MenuId.class);
     private final List<ContextMenuContributor> contextMenuContributors = new CopyOnWriteArrayList<>();
     private final Map<String, Action> shortcutActions = new LinkedHashMap<>();
-    private final EditorToolBar toolBarBuilder;
+    private final EditorToolBar editorToolBar;
     private final JToolBar toolBar;
     private final LabelFeatures labelFeatures;
     private final InlineTextEditor inlineEditor;
@@ -147,8 +147,8 @@ public final class EditorView extends JPanel implements CanvasHost {
         this.zoomControl = new ZoomControl(new ActivePaneZoom(), new ZoomControl.Actions(actions.zoomOut(),
                 actions.zoomIn(), actions.zoomReset(), actions.zoomToFit(), actions.zoomToSelection()));
         addAfter(menu(MenuId.VIEW), actions.zoomToSelection(), zoomControl.typeZoomAction());
-        toolBarBuilder = new EditorToolBar(actions);
-        toolBar = toolBarBuilder.toolBar();
+        editorToolBar = new EditorToolBar(actions);
+        toolBar = editorToolBar.toolBar();
 
         this.canvasArea = new CanvasArea(canvasPanes);
         this.bottomDock = new BottomDock(canvasArea);
@@ -579,7 +579,7 @@ public final class EditorView extends JPanel implements CanvasHost {
      * {@code toolType} is active. Returns what takes the button back.
      */
     public Runnable addToolButton(Action action, Class<? extends Tool> toolType) {
-        return toolBarBuilder.addToolButton(action, toolType);
+        return editorToolBar.addToolButton(action, toolType);
     }
 
     /**
@@ -587,12 +587,12 @@ public final class EditorView extends JPanel implements CanvasHost {
      * Zoom. Returns what takes it back.
      */
     public Runnable addToolbarToggleAfterTools(JToggleButton button) {
-        return toolBarBuilder.addToolbarToggleAfterTools(button);
+        return editorToolBar.addToolbarToggleAfterTools(button);
     }
 
     /** The toolbar's button for tools of {@code toolType} added with {@link #addToolButton}, if any. */
     public Optional<JToggleButton> toolButton(Class<? extends Tool> toolType) {
-        return toolBarBuilder.toolButton(toolType);
+        return editorToolBar.toolButton(toolType);
     }
 
     /**
@@ -756,7 +756,7 @@ public final class EditorView extends JPanel implements CanvasHost {
     }
 
     private void toolChanged(Tool tool) {
-        toolBarBuilder.showTool(tool);
+        editorToolBar.showTool(tool);
         if (!tool.placesFromPalette()) {
             palette.clearSelection();
         }

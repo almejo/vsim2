@@ -13,10 +13,10 @@ import javax.swing.tree.DefaultTreeCellRenderer;
 import java.awt.Component;
 
 /** Draws the palette rows: component icon and name, the section headers and the favourite stars. */
-final class Renderer extends DefaultTreeCellRenderer {
+final class PaletteRowRenderer extends DefaultTreeCellRenderer {
     private final PalettePanel panel;
 
-    Renderer(PalettePanel panel) {
+    PaletteRowRenderer(PalettePanel panel) {
         this.panel = panel;
     }
 

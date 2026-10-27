@@ -24,6 +24,10 @@ import java.util.List;
 import java.util.Optional;
 import java.util.OptionalInt;
 
+import static cl.almejo.vsim.ui.karnaugh.KarnaughMapView.BASE_INSET;
+import static cl.almejo.vsim.ui.karnaugh.KarnaughMapView.inset;
+import static cl.almejo.vsim.ui.karnaugh.KarnaughMapView.paintOrder;
+
 /**
  * Paints a {@link KarnaughMapView}: headers, cells, groups, practice overlays and highlight, reading the view's live
  * state.
@@ -154,7 +158,7 @@ final class KarnaughMapPainter {
         boolean practice = view.practising();
         List<DrawnGroup> groups = view.drawnGroups();
         OptionalInt selected = practice ? view.selectedHere() : OptionalInt.empty();
-        List<Integer> order = KarnaughMapView.paintOrder(groups);
+        List<Integer> order = paintOrder(groups);
         boolean dark = WizardColors.dark();
         Shape clip = graphics.getClip();
         graphics.clip(geometry.grid());
@@ -164,7 +168,7 @@ final class KarnaughMapPainter {
             boolean explained = practice ? selected.isPresent() && selected.getAsInt() == index
                     : view.explainedGroup().equals(OptionalInt.of(index));
             int colour = practice ? index : view.model.colorIndex(view.output, index);
-            for (Rectangle2D piece : geometry.pieces(groups.get(index), KarnaughMapView.inset(position))) {
+            for (Rectangle2D piece : geometry.pieces(groups.get(index), inset(position))) {
                 RoundRectangle2D shape = new RoundRectangle2D.Double(piece.getX(), piece.getY(), piece.getWidth(),
                         piece.getHeight(), arc, arc);
                 graphics.setColor(GroupPalette.fill(colour, dark, explained));
@@ -203,20 +207,20 @@ final class KarnaughMapPainter {
                 graphics.setColor(WizardColors.hintRing());
                 graphics.setStroke(new BasicStroke(2f, BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER, 10f,
                         new float[]{7f, 4f}, 0f));
-                graphics.draw(geometry.closedSides(layout.group(hintGroup.get()).rectangles(), KarnaughMapView.BASE_INSET));
+                graphics.draw(geometry.closedSides(layout.group(hintGroup.get()).rectangles(), BASE_INSET));
             }
         }
         Color antsColour = WizardColors.highlight();
         OptionalInt selected = view.selectedHere();
         if (selected.isPresent()) {
             List<DrawnGroup> groups = view.drawnGroups();
-            int position = KarnaughMapView.paintOrder(groups).indexOf(selected.getAsInt());
+            int position = paintOrder(groups).indexOf(selected.getAsInt());
             MarchingAnts.draw(graphics, geometry.closedSides(groups.get(selected.getAsInt()).rectangles(),
-                    KarnaughMapView.inset(position)), antsColour, ANTS_WIDTH, view.antsPhase());
+                    inset(position)), antsColour, ANTS_WIDTH, view.antsPhase());
         }
         Optional<DrawnGroup> pending = view.pendingRectangle();
         if (pending.isPresent()) {
-            MarchingAnts.draw(graphics, geometry.closedSides(pending.get().rectangles(), KarnaughMapView.BASE_INSET), antsColour,
+            MarchingAnts.draw(graphics, geometry.closedSides(pending.get().rectangles(), BASE_INSET), antsColour,
                     ANTS_WIDTH, view.antsPhase());
         } else if (view.keyboardActive) {
             Rectangle cell = geometry.cell(view.cursor.row(), view.cursor.column());

@@ -2,7 +2,6 @@ package cl.almejo.vsim.ui.appearance;
 
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.PinSpec;
-import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.component.appearance.ComponentAppearance;
 import cl.almejo.vsim.core.component.appearance.HandleSide;
 import cl.almejo.vsim.core.component.appearance.PinPlacement;

@@ -349,7 +349,7 @@ public final class PalettePanel extends JPanel {
         tree.setRootVisible(false);
         tree.setShowsRootHandles(true);
         tree.setRowHeight(ICON_SIZE + 4);
-        tree.setCellRenderer(new Renderer(this));
+        tree.setCellRenderer(new PaletteRowRenderer(this));
         ToolTipManager.sharedInstance().registerComponent(tree);
         tree.setSelectionModel(new HintSkippingSelectionModel(tree));
         tree.getSelectionModel().setSelectionMode(TreeSelectionModel.SINGLE_TREE_SELECTION);

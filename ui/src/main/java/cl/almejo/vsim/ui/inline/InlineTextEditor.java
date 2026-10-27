@@ -491,7 +491,8 @@ public final class InlineTextEditor {
         Rectangle fieldBounds = fieldBoundsOver(area, text, metrics);
         int fieldWidth = fieldBounds.width;
         int fieldHeight = fieldBounds.height;
-        int verticalInsets = text.getInsets().top + text.getInsets().bottom;
+        Insets textInsets = text.getInsets();
+        int verticalInsets = textInsets.top + textInsets.bottom;
 
         Dimension buttonSize = confirmButton.getPreferredSize();
         int side = Math.max(buttonSize.width, buttonSize.height);
@@ -549,8 +550,7 @@ public final class InlineTextEditor {
         // a note keeps its top as it grows down with every line; a one-line field is centred on the painted text
         int fieldY = request.multiLine() ? areaY - insets.top
                 : areaY - insets.top - (fieldHeight - fittedHeight) / 2;
-        Rectangle fieldBounds = new Rectangle(fieldX, fieldY, fieldWidth, fieldHeight);
-        return fieldBounds;
+        return new Rectangle(fieldX, fieldY, fieldWidth, fieldHeight);
     }
 
     private static Rectangle relative(Rectangle bounds, Rectangle origin) {

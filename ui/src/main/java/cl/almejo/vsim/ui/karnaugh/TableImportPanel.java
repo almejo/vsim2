@@ -99,7 +99,7 @@ public final class TableImportPanel extends JPanel {
     /** The dialog is never smaller than this when it fits itself to its content (page «Crear» needs about that). */
     static final Dimension MINIMUM_DIALOG_SIZE = new Dimension(640, 440);
 
-    final TableImportModel model = new TableImportModel();
+    private final TableImportModel model = new TableImportModel();
     private final TableSources sources;
     private final Background background;
     private final CreationForm form;
