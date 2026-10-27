@@ -1,6 +1,5 @@
 package cl.almejo.vsim.ui.sticky;
 
-import cl.almejo.vsim.core.command.ChangeStickyNoteCommand;
 import cl.almejo.vsim.core.document.StickyNote;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
@@ -143,11 +142,11 @@ public final class StickyNotesPanel extends JPanel {
         if (found.isEmpty()) {
             return;
         }
-        StickyNote note = found.get();
-        if (note.folded()) {
-            note = note.withFolded(false);
-            openDocument.execute(new ChangeStickyNoteCommand(found.get(), note));
+        if (found.get().folded()) {
+            // refused inside a locked frame, like every other edit of a note: it is then only selected and shown
+            new StickyNoteEdits(openDocument).setFolded(row.id(), false);
         }
+        StickyNote note = openDocument.document().stickyNote(row.id()).orElse(found.get());
         CircuitCanvas target = canvas.get();
         target.selection().select(note.id());
         target.travelTo(DrawnBounds.of(note, openDocument.registry()));

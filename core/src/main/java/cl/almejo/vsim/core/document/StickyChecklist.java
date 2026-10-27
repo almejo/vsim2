@@ -38,14 +38,14 @@ public record StickyChecklist(List<StickyItem> items) implements StickyContent {
     }
 
     /**
-     * The list after the user edited its lines: empty lines are dropped; a line equal to the next unmatched old item
+     * The list after the user edited its lines: empty and blank lines are dropped; a line equal to the next unmatched old item
      * (matched in order) keeps that item's done state, the others start not done.
      */
     public StickyChecklist edited(List<String> lines) {
         List<StickyItem> result = new ArrayList<>();
         int nextOld = 0;
         for (String line : lines) {
-            if (line.isEmpty()) {
+            if (line.isBlank()) {
                 continue;
             }
             int match = indexOfText(line, nextOld);

@@ -68,6 +68,12 @@ class StickyNoteTest {
     }
 
     @Test
+    void editedDropsBlankLinesToo() {
+        assertThat(list("a").edited(List.of("a", "   ", "\t", "b")).items())
+                .containsExactly(new StickyItem("a", false), new StickyItem("b", false));
+    }
+
+    @Test
     void toggledFlipsOneItemAndDoneCountCountsThem() {
         StickyChecklist toggled = list("a", "b", "c").toggled(1).toggled(2);
 

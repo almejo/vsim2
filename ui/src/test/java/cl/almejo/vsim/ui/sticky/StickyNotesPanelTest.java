@@ -2,8 +2,11 @@ package cl.almejo.vsim.ui.sticky;
 
 import cl.almejo.vsim.core.command.AddElementsCommand;
 import cl.almejo.vsim.core.command.ChangeStickyNoteCommand;
+import cl.almejo.vsim.core.command.CreateFrameCommand;
 import cl.almejo.vsim.core.command.RemoveElementsCommand;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
+import cl.almejo.vsim.core.document.Frame;
+import cl.almejo.vsim.core.document.FrameTint;
 import cl.almejo.vsim.core.document.StickyChecklist;
 import cl.almejo.vsim.core.document.StickyColor;
 import cl.almejo.vsim.core.document.StickyContent;
@@ -153,6 +156,20 @@ class StickyNotesPanelTest {
         openDocument.history().undo();
         assertThat(openDocument.history().undoCommand()).isEqualTo(undoBefore);
         assertThat(openDocument.document().stickyNote(folded.id()).orElseThrow().folded()).isTrue();
+    }
+
+    @Test
+    void choosingAFoldedNoteInsideALockedFrameSelectsAndTravelsButLeavesItFolded() {
+        StickyNote folded = add(10, 10, new StickyText("inside"), true);
+        openDocument.execute(new CreateFrameCommand(new Frame(openDocument.document().newFrameId(),
+                new GridPoint(5, 5), 30, 20, "Bloque", FrameTint.NONE, true)));
+        Optional<cl.almejo.vsim.core.command.Command> undoBefore = openDocument.history().undoCommand();
+
+        panel.activate(panel.rows().getFirst());
+
+        assertThat(openDocument.document().stickyNote(folded.id()).orElseThrow().folded()).isTrue();
+        assertThat(view.canvas().selection().ids()).containsExactly(folded.id());
+        assertThat(openDocument.history().undoCommand()).isEqualTo(undoBefore);
     }
 
     @Test

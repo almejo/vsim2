@@ -61,6 +61,19 @@ class ContextMenuFactoryTest {
     }
 
     @Test
+    void aStickyNoteInsideAMultiSelectionKeepsTheDeleteEntry() {
+        Component gate = place(openDocument, StandardComponentTypes.NOT, 0, 0, Map.of());
+        cl.almejo.vsim.core.document.StickyNote note = new cl.almejo.vsim.core.document.StickyNote(
+                openDocument.document().newStickyNoteId(), new GridPoint(10, 10), 8, 6,
+                cl.almejo.vsim.core.document.StickyColor.YELLOW, new cl.almejo.vsim.core.document.StickyText("x"),
+                false);
+        openDocument.execute(new cl.almejo.vsim.core.command.AddElementsCommand(List.of(note)));
+        view.canvas().selection().select(gate.id());
+        view.canvas().selection().add(note.id());
+        assertThat(texts(contextMenu(Optional.of(note), CLICK))).containsExactly("Borrar");
+    }
+
+    @Test
     void wireMenuOffersDeleteWire() {
         Wire wire = new Wire(new ElementId("w9"), GridPoint.ORIGIN, new GridPoint(3, 0));
         assertThat(texts(contextMenu(Optional.of(wire), CLICK))).containsExactly("Borrar cable");

@@ -59,6 +59,9 @@ public final class ContextMenuFactory {
                 && selection.contains(target.get().id());
         if (!multiSelectionTarget) {
             addBasicEntries(menu, target, actions);
+        } else if (target.get() instanceof StickyNote) {
+            // the other kinds get their Borrar from the contributors; a note's own menu only has its own items
+            menu.add(new JMenuItem(actions.delete()));
         }
         for (ContextMenuContributor contributor : contributors) {
             int before = menu.getComponentCount();
