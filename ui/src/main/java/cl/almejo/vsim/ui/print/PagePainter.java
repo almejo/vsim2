@@ -110,9 +110,11 @@ public final class PagePainter {
             throw new IllegalArgumentException("a header and footer need a band in the page geometry");
         }
         this.showsValues = options.withValues() && input.hasValues();
-        this.policy = PaintPolicy.print(options.blackAndWhite()).atPageScale(layout.scale());
+        this.policy = PaintPolicy.print(options.blackAndWhite()).withStickyNotes(options.includeStickyNotes())
+                .atPageScale(layout.scale());
         // the circuit's bounds depend on the label font: measure them with the frozen one
-        this.image = TextFonts.withFont(input.textFont(), () -> circuitImage(input, area, showsValues));
+        this.image = TextFonts.withFont(input.textFont(), () -> circuitImage(input, area, showsValues,
+                options.includeStickyNotes()));
         this.drawnBounds = image.map(present -> TextFonts.withFont(input.textFont(), present::drawnBounds))
                 .orElse(Map.of());
         this.busWires = busWires(input);
@@ -125,13 +127,14 @@ public final class PagePainter {
                 .format(input.date());
     }
 
-    private static Optional<CircuitImage> circuitImage(PrintInput input, PrintArea area, boolean showsValues) {
+    private static Optional<CircuitImage> circuitImage(PrintInput input, PrintArea area, boolean showsValues,
+                                                       boolean includeStickyNotes) {
         Set<ElementId> elements = area.elements();
         Optional<Set<ElementId>> only = elements.size() == input.document().elements().size()
                 ? Optional.empty() : Optional.of(elements);
         SimulationSnapshot snapshot = showsValues ? input.snapshot() : withoutValues(input.netlistToken());
         return CircuitImage.of(input.document(), input.netlist(), input.netlistToken(), snapshot, input.registry(),
-                PainterRegistry.standard(), paperScheme(input.scheme()), only);
+                PainterRegistry.standard(), paperScheme(input.scheme()), only, includeStickyNotes);
     }
 
     /**
@@ -142,9 +145,9 @@ public final class PagePainter {
      */
     static OptionalDouble smallestTextPixels(PrintInput input, PrintArea area, PrintOptions options) {
         boolean showsValues = options.withValues() && input.hasValues();
-        PaintPolicy policy = PaintPolicy.print(options.blackAndWhite());
+        PaintPolicy policy = PaintPolicy.print(options.blackAndWhite()).withStickyNotes(options.includeStickyNotes());
         return TextFonts.withFont(input.textFont(), () -> {
-            Optional<CircuitImage> circuit = circuitImage(input, area, showsValues);
+            Optional<CircuitImage> circuit = circuitImage(input, area, showsValues, options.includeStickyNotes());
             if (circuit.isEmpty()) {
                 return OptionalDouble.empty();
             }

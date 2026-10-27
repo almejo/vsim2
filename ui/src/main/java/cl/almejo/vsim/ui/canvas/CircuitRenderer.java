@@ -26,6 +26,8 @@ import cl.almejo.vsim.ui.paint.PainterSupport;
 import cl.almejo.vsim.ui.paint.TextFonts;
 import cl.almejo.vsim.ui.paint.SignalColors;
 import cl.almejo.vsim.ui.paint.TunnelPainter;
+import cl.almejo.vsim.ui.sticky.StickyNoteLayout;
+import cl.almejo.vsim.ui.sticky.StickyNotePainter;
 import cl.almejo.vsim.ui.paint.WireState;
 import cl.almejo.vsim.ui.paint.MonochromeGraphics;
 import cl.almejo.vsim.ui.paint.MonochromeScheme;
@@ -232,6 +234,25 @@ public final class CircuitRenderer {
         paintDriverPinHalos(graphics, scheme, highlight);
         paintPinWidths(graphics, mismatches, scheme);
         paintOpenPins(graphics, state, scheme);
+        paintStickyNotes(graphics, state, scheme);
+    }
+
+    /** The user's sticky notes, the last pass: paper on top of everything, in document order. */
+    private void paintStickyNotes(Graphics2D graphics, RenderState state, ColorScheme scheme) {
+        if (!state.policy().paintStickyNotes()) {
+            return;
+        }
+        double pixelsPerGrid = UNIT * graphics.getTransform().getScaleX();
+        for (StickyNote note : state.document().stickyNotes()) {
+            StickyNotePainter.paint(graphics, note, scheme, pixelsPerGrid, state.policy());
+            if (state.selection().contains(note.id())) {
+                Rectangle2D bounds = StickyNoteLayout.paperOf(note);
+                MarchingAnts.draw(graphics, new Rectangle2D.Double(bounds.getX() - OUTLINE_GAP,
+                        bounds.getY() - OUTLINE_GAP, bounds.getWidth() + 2 * OUTLINE_GAP,
+                        bounds.getHeight() + 2 * OUTLINE_GAP), scheme.selection(), SELECTION_OUTLINE_WIDTH,
+                        state.selectionDashPhase());
+            }
+        }
     }
 
     /** Halo and marching ants under each selected, visible wire. */
@@ -540,9 +561,7 @@ public final class CircuitRenderer {
                 }
                 case TextLabel label -> paintNoteGhost(graphics, label, scheme);
                 case Frame frame -> FramePainter.paint(graphics, frame, scheme, Double.MAX_VALUE);
-                case StickyNote ignored -> {
-                    // painted once the sticky note painter exists
-                }
+                case StickyNote note -> StickyNotePainter.paintGhost(graphics, note, scheme.preview());
             }
         } finally {
             graphics.setComposite(previous);

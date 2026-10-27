@@ -55,7 +55,7 @@ class ExportPdfFeaturesTest {
         fixture = EditorFixture.create(preferences);
         openDocument = fixture.openDocument();
         view = fixture.view();
-        imageFeatures = new ExportImageFeatures(view, (parent, start, name, scale, background) -> Optional.empty(),
+        imageFeatures = new ExportImageFeatures(view, (parent, start, name, scale, background, stickyNotes) -> Optional.empty(),
                 (parent, message) -> { });
         PdfExportDialog.Collaborators collaborators = new PdfExportDialog.Collaborators(
                 new PdfExportDialogTest.FakeExporter(), (parent, start, name) -> Optional.empty(),

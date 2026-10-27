@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.paint;
 import cl.almejo.vsim.core.document.FrameTint;
 import cl.almejo.vsim.core.document.NoteColor;
 import cl.almejo.vsim.core.document.NoteStyle;
+import cl.almejo.vsim.core.document.StickyColor;
 import cl.almejo.vsim.ui.theme.ReadableColors;
 
 import java.awt.Color;
@@ -64,6 +65,9 @@ public record ColorScheme(Color background, Color grid, Color gridLine, Color wi
     /** The ten-unit line is the grid line at about twice its alpha. */
     private static final int MAJOR_GRID_LINE_FACTOR = 2;
     private static final int GUIDE_ALPHA = 220;
+    private static final double STICKY_FOLD_SHARE = 0.18;
+    private static final int STICKY_LIGHT_SHADOW_ALPHA = 60;
+    private static final int STICKY_DARK_SHADOW_ALPHA = 130;
     private static final int LIGHT_ALIGNMENT_GUIDE = 0xB4008C;
     private static final int DARK_ALIGNMENT_GUIDE = 0xFF66E0;
 
@@ -148,6 +152,43 @@ public record ColorScheme(Color background, Color grid, Color gridLine, Color wi
      */
     public Optional<Color> noteOutline(NoteStyle style) {
         return NotePalette.outline(style, background);
+    }
+
+    /**
+     * The paper of a sticky note of that colour: a pale paper on a light board, a deep muted one on a dark board
+     * (like the frame tints, derived from {@link #isDark}, so every built-in scheme and the user's own get both).
+     */
+    public Color stickyPaper(StickyColor color) {
+        boolean dark = isDark();
+        return new Color(switch (color) {
+            case YELLOW -> dark ? 0x6B5A12 : 0xFFF59D;
+            case PINK -> dark ? 0x6B2F45 : 0xF8BBD0;
+            case BLUE -> dark ? 0x1F4468 : 0xBBDEFB;
+            case GREEN -> dark ? 0x2C5A33 : 0xC8E6C9;
+            case ORANGE -> dark ? 0x724315 : 0xFFCC80;
+        });
+    }
+
+    /** The folded corner of a sticky note: its paper in a darker shade on a light board, a lighter one on a dark one. */
+    public Color stickyFold(StickyColor color) {
+        Color paper = stickyPaper(color);
+        return isDark() ? mixWith(paper, Color.WHITE, STICKY_FOLD_SHARE) : mixWith(paper, Color.BLACK, STICKY_FOLD_SHARE);
+    }
+
+    /** The text of a sticky note: near black on a light paper, near white on a dark one; at least 4.5:1 on it. */
+    public Color stickyText(StickyColor color) {
+        return new Color(isDark() ? 0xF5F5F5 : 0x1F1F1F);
+    }
+
+    /** The soft shadow under a sticky note: translucent black, stronger on a dark board. */
+    public Color stickyShadow() {
+        return new Color(0, 0, 0, isDark() ? STICKY_DARK_SHADOW_ALPHA : STICKY_LIGHT_SHADOW_ALPHA);
+    }
+
+    private static Color mixWith(Color color, Color towards, double share) {
+        return new Color((int) Math.round(color.getRed() + (towards.getRed() - color.getRed()) * share),
+                (int) Math.round(color.getGreen() + (towards.getGreen() - color.getGreen()) * share),
+                (int) Math.round(color.getBlue() + (towards.getBlue() - color.getBlue()) * share));
     }
 
     /**

@@ -137,6 +137,7 @@ public final class AppPreferences {
     static final String EXPORT_DIRECTORY = "export.directory";
     static final String EXPORT_SCALE = "export.scale";
     static final String EXPORT_PRINT_BACKGROUND = "export.printBackground";
+    static final String EXPORT_INCLUDE_STICKY_NOTES = "export.includeStickyNotes";
     static final String TIDY_REMOVE_STUBS = "tidyRemoveStubs";
     static final String TIDY_MERGE_SEGMENTS = "tidyMergeSegments";
     static final String TIDY_FLATTEN_DETOURS = "tidyFlattenDetours";
@@ -163,6 +164,7 @@ public final class AppPreferences {
     static final String PRINT_WITH_VALUES = "print.withValues";
     static final String PRINT_BLACK_AND_WHITE = "print.blackAndWhite";
     static final String PRINT_HEADER_FOOTER = "print.headerFooter";
+    static final String PRINT_INCLUDE_STICKY_NOTES = "print.includeStickyNotes";
     static final String PRINT_DIRECTORY = "print.directory";
     private static final String PRINT_FIT = "fit";
     static final String AI_PORT = "ai.port";
@@ -405,7 +407,25 @@ public final class AppPreferences {
         putFlag(EXPORT_PRINT_BACKGROUND, enabled);
     }
 
+    /** «Incluir notas adhesivas» in the image export: off unless the user turned it on. */
+    public boolean exportIncludeStickyNotes() {
+        return flag(EXPORT_INCLUDE_STICKY_NOTES, false);
+    }
+
+    public void setExportIncludeStickyNotes(boolean enabled) {
+        putFlag(EXPORT_INCLUDE_STICKY_NOTES, enabled);
+    }
+
     // --- Exportar a PDF e imprimir ---
+
+    /** «Incluir notas adhesivas» in the PDF: off unless the user turned it on. */
+    public boolean printIncludeStickyNotes() {
+        return flag(PRINT_INCLUDE_STICKY_NOTES, false);
+    }
+
+    public void setPrintIncludeStickyNotes(boolean enabled) {
+        putFlag(PRINT_INCLUDE_STICKY_NOTES, enabled);
+    }
 
     /**
      * The options «Exportar a PDF…» opens with: the remembered paper, orientation, scale and appearance switches, the
@@ -421,7 +441,8 @@ public final class AppPreferences {
                 flag(PRINT_WITH_VALUES, true),
                 flag(PRINT_BLACK_AND_WHITE, false),
                 flag(PRINT_HEADER_FOOTER, false),
-                title);
+                title,
+                flag(PRINT_INCLUDE_STICKY_NOTES, false));
     }
 
     private ScaleMode printScale(ScaleMode fallback) {
@@ -467,6 +488,7 @@ public final class AppPreferences {
         putFlag(PRINT_WITH_VALUES, options.withValues());
         putFlag(PRINT_BLACK_AND_WHITE, options.blackAndWhite());
         putFlag(PRINT_HEADER_FOOTER, options.headerFooter());
+        putFlag(PRINT_INCLUDE_STICKY_NOTES, options.includeStickyNotes());
     }
 
     /** The folder of the last saved PDF; empty until the first one. */

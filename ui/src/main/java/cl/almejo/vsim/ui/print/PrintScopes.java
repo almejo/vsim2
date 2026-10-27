@@ -5,6 +5,7 @@ import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.Frame;
 import cl.almejo.vsim.core.document.FrameContents;
+import cl.almejo.vsim.core.document.StickyNote;
 import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.ui.canvas.CircuitBounds;
@@ -33,29 +34,44 @@ public final class PrintScopes {
     private PrintScopes() {
     }
 
-    /** Empty when the scope has nothing to paint (an empty circuit or selection, a frame that is gone). */
+    /** The area of {@code scope} without the user's sticky notes (see the overload that includes them). */
     public static Optional<PrintArea> area(PrintInput input, PrintScope scope) {
+        return area(input, scope, false);
+    }
+
+    /**
+     * Empty when the scope has nothing to paint (an empty circuit or selection, a frame that is gone). Sticky notes
+     * are part of the area, and of what a sheet paints, only when {@code includeStickyNotes}.
+     */
+    public static Optional<PrintArea> area(PrintInput input, PrintScope scope, boolean includeStickyNotes) {
         return switch (scope) {
-            case PrintScope.WholeCircuit wholeCircuit -> wholeCircuit(input);
-            case PrintScope.Selection selection -> selection(input, selection.ids());
-            case PrintScope.Frame frame -> frame(input, frame.frameId());
+            case PrintScope.WholeCircuit wholeCircuit -> wholeCircuit(input, includeStickyNotes);
+            case PrintScope.Selection selection -> selection(input, selection.ids(), includeStickyNotes);
+            case PrintScope.Frame frame -> frame(input, frame.frameId(), includeStickyNotes);
         };
     }
 
-    private static Optional<PrintArea> wholeCircuit(PrintInput input) {
+    private static boolean counts(DocumentElement element, boolean includeStickyNotes) {
+        return includeStickyNotes || !(element instanceof StickyNote);
+    }
+
+    private static Optional<PrintArea> wholeCircuit(PrintInput input, boolean includeStickyNotes) {
         CircuitDocument document = input.document();
+        List<DocumentElement> counted = document.elements().stream()
+                .filter(element -> counts(element, includeStickyNotes)).toList();
         Set<ElementId> everything = new LinkedHashSet<>();
-        document.elements().forEach(element -> everything.add(element.id()));
-        return CircuitBounds.of(document, input.registry())
+        counted.forEach(element -> everything.add(element.id()));
+        return DrawnBounds.of(counted, input.registry())
                 .map(bounds -> new PrintArea(withMargin(bounds), everything, Optional.empty()));
     }
 
-    private static Optional<PrintArea> selection(PrintInput input, Set<ElementId> ids) {
+    private static Optional<PrintArea> selection(PrintInput input, Set<ElementId> ids,
+                                                  boolean includeStickyNotes) {
         CircuitDocument document = input.document();
         List<ElementId> present = ids.stream().filter(id -> document.element(id).isPresent()).toList();
         Set<ElementId> expanded = FrameContents.withLockedBlocks(document, input.registry(), present);
         List<DocumentElement> painted = document.elements().stream()
-                .filter(element -> expanded.contains(element.id()))
+                .filter(element -> expanded.contains(element.id()) && counts(element, includeStickyNotes))
                 .toList();
         Set<ElementId> inDocumentOrder = new LinkedHashSet<>();
         painted.forEach(element -> inDocumentOrder.add(element.id()));
@@ -63,16 +79,18 @@ public final class PrintScopes {
                 .map(bounds -> new PrintArea(withMargin(bounds), inDocumentOrder, Optional.empty()));
     }
 
-    private static Optional<PrintArea> frame(PrintInput input, ElementId frameId) {
-        return input.document().frame(frameId).map(frame -> crop(input, frame));
+    private static Optional<PrintArea> frame(PrintInput input, ElementId frameId,
+                                              boolean includeStickyNotes) {
+        return input.document().frame(frameId).map(frame -> crop(input, frame, includeStickyNotes));
     }
 
     /** Every element drawn on the frame's rectangle, touching its border included; the clip cuts what sticks out. */
-    private static PrintArea crop(PrintInput input, Frame frame) {
+    private static PrintArea crop(PrintInput input, Frame frame, boolean includeStickyNotes) {
         Bounds rectangle = new Bounds(frame.topLeft().x(), frame.topLeft().y(), frame.width(), frame.height());
         Set<ElementId> drawnInside = new LinkedHashSet<>();
         for (DocumentElement element : input.document().elements()) {
-            if (DrawnBounds.of(element, input.registry()).intersects(rectangle)) {
+            if (counts(element, includeStickyNotes)
+                    && DrawnBounds.of(element, input.registry()).intersects(rectangle)) {
                 drawnInside.add(element.id());
             }
         }

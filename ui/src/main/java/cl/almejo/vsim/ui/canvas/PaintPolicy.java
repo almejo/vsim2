@@ -9,16 +9,24 @@ import java.awt.BasicStroke;
  * canvas leaves them out below 3 px, {@code FramePainter.showsDetails}); {@code paintFrameButtons} false lets the
  * title use the room the padlock and ⋯ buttons would keep; {@code monochrome} is «Blanco y negro» (every colour grey,
  * frames without fill, wire states by grey level and dash pattern); {@code minimumStrokePixels} is the thinnest
- * stroke of wires and frame borders, in document pixels (the renderer's own units, 8 per grid unit), 0 for none.
+ * stroke of wires and frame borders, in document pixels (the renderer's own units, 8 per grid unit), 0 for none;
+ * {@code paintStickyNotes} false leaves the user's sticky notes out (paper: they are reminders, not part of the
+ * figure, unless the user asks for them).
  */
 public record PaintPolicy(boolean alwaysShowFrameTitles, boolean paintFrameButtons, boolean monochrome,
-                          double minimumStrokePixels) {
+                          double minimumStrokePixels, boolean paintStickyNotes) {
 
     /** The canvas, and the PNG/SVG image export: what VSim always painted. */
-    public static final PaintPolicy CANVAS = new PaintPolicy(false, true, false, 0);
+    public static final PaintPolicy CANVAS = new PaintPolicy(false, true, false, 0, true);
 
     /** The thinnest wire or frame border on paper, in points: about 0.18 mm, still visible on any printer. */
     public static final double PAPER_MINIMUM_STROKE_POINTS = 0.5;
+
+    /** A policy that paints sticky notes (every policy before sticky notes existed). */
+    public PaintPolicy(boolean alwaysShowFrameTitles, boolean paintFrameButtons, boolean monochrome,
+                       double minimumStrokePixels) {
+        this(alwaysShowFrameTitles, paintFrameButtons, monochrome, minimumStrokePixels, true);
+    }
 
     public PaintPolicy {
         if (!(minimumStrokePixels >= 0) || Double.isInfinite(minimumStrokePixels)) {
@@ -28,11 +36,11 @@ public record PaintPolicy(boolean alwaysShowFrameTitles, boolean paintFrameButto
     }
 
     /**
-     * Paper: titles always, no buttons, and a minimum stroke of {@link #PAPER_MINIMUM_STROKE_POINTS} at 100 % (one
+     * Paper: titles always, no buttons, no sticky notes, and a minimum stroke of {@link #PAPER_MINIMUM_STROKE_POINTS} at 100 % (one
      * document pixel is one point); a page painted at another scale uses {@link #atPageScale}.
      */
     public static PaintPolicy print(boolean monochrome) {
-        return new PaintPolicy(true, false, monochrome, PAPER_MINIMUM_STROKE_POINTS);
+        return new PaintPolicy(true, false, monochrome, PAPER_MINIMUM_STROKE_POINTS, false);
     }
 
     /**
@@ -45,7 +53,12 @@ public record PaintPolicy(boolean alwaysShowFrameTitles, boolean paintFrameButto
             throw new IllegalArgumentException("pointsPerDocumentPixel must be positive: " + pointsPerDocumentPixel);
         }
         return new PaintPolicy(alwaysShowFrameTitles, paintFrameButtons, monochrome,
-                minimumStrokePixels / pointsPerDocumentPixel);
+                minimumStrokePixels / pointsPerDocumentPixel, paintStickyNotes);
+    }
+
+    /** This policy with sticky notes painted or left out. */
+    public PaintPolicy withStickyNotes(boolean paint) {
+        return new PaintPolicy(alwaysShowFrameTitles, paintFrameButtons, monochrome, minimumStrokePixels, paint);
     }
 
     /** {@code stroke}, or the same stroke at {@link #minimumStrokePixels} wide when it is thinner than that. */

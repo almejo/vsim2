@@ -275,7 +275,7 @@ class EveryViewFeatureInEveryPaneTest {
         List<java.awt.Component> parents = new ArrayList<>();
         List<Path> answers = new ArrayList<>(List.of(directory.resolve("split.png"), directory.resolve("whole.png"),
                 directory.resolve("single.png")));
-        ExportImageFeatures features = new ExportImageFeatures(view, (parent, start, name, scale, background) -> {
+        ExportImageFeatures features = new ExportImageFeatures(view, (parent, start, name, scale, background, stickyNotes) -> {
             parents.add(parent);
             return Optional.of(new ExportChoice(answers.removeFirst(), ExportChoice.Format.PNG, 1, true));
         }, (parent, message) -> { });

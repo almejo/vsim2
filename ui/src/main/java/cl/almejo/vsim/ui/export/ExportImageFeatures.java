@@ -42,13 +42,15 @@ public final class ExportImageFeatures extends FileExportFeatures {
         OpenDocument openDocument = view.openDocument();
         AppPreferences preferences = view.services().preferences();
         Optional<ExportChoice> choice = chooser.choose(view, startDirectory(preferences.exportDirectory()),
-                suggestedName(openDocument), preferences.exportScale(), preferences.exportPrintBackground());
+                suggestedName(openDocument), preferences.exportScale(), preferences.exportPrintBackground(),
+                preferences.exportIncludeStickyNotes());
         if (choice.isEmpty()) {
             return;
         }
         ExportChoice chosen = choice.get();
         preferences.setExportScale(chosen.scale());
         preferences.setExportPrintBackground(chosen.printBackground());
+        preferences.setExportIncludeStickyNotes(chosen.includeStickyNotes());
         Path folder = chosen.path().toAbsolutePath().getParent();
         if (folder != null) {
             preferences.setExportDirectory(folder);
@@ -59,7 +61,7 @@ public final class ExportImageFeatures extends FileExportFeatures {
         Optional<CircuitImage> image = CircuitImage.of(openDocument.document(), openDocument.netlist(),
                 openDocument.netlistToken(), openDocument.latestSnapshot(), openDocument.registry(),
                 PainterRegistry.standard(), scheme, selection.isEmpty() ? Optional.empty()
-                        : Optional.of(Set.copyOf(selection)));
+                        : Optional.of(Set.copyOf(selection)), chosen.includeStickyNotes());
         if (image.isEmpty()) {
             return;
         }

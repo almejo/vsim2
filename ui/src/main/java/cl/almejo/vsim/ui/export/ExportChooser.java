@@ -9,5 +9,5 @@ import java.util.Optional;
 public interface ExportChooser {
 
     Optional<ExportChoice> choose(Component parent, Path directory, String suggestedName, int scale,
-                                  boolean printBackground);
+                                  boolean printBackground, boolean includeStickyNotes);
 }

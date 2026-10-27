@@ -6,6 +6,7 @@ import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.core.document.StickyNote;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.netlist.Netlist;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
@@ -21,6 +22,7 @@ import cl.almejo.vsim.ui.paint.PainterRegistry;
 import java.awt.Color;
 import java.awt.Graphics2D;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -57,19 +59,35 @@ public final class CircuitImage {
     }
 
     /**
-     * The image of {@code only} (empty: everything); the netlist and snapshot are the full circuit's, so values are
-     * what the canvas shows. Empty when there is nothing to paint.
+     * The image of {@code only} (empty: everything) without the user's sticky notes; see the overload that takes
+     * {@code includeStickyNotes}.
      */
     public static Optional<CircuitImage> of(CircuitDocument document, Netlist netlist, long netlistToken,
                                             SimulationSnapshot snapshot, ComponentTypeRegistry registry,
                                             PainterRegistry painters, ColorScheme scheme,
                                             Optional<Set<ElementId>> only) {
-        if (only.isEmpty()) {
+        return of(document, netlist, netlistToken, snapshot, registry, painters, scheme, only, false);
+    }
+
+    /**
+     * The image of {@code only} (empty: everything); the netlist and snapshot are the full circuit's, so values are
+     * what the canvas shows. Sticky notes are reminders, not part of the figure: they are left out (and do not grow
+     * the bounds) unless {@code includeStickyNotes}. Empty when there is nothing to paint.
+     */
+    public static Optional<CircuitImage> of(CircuitDocument document, Netlist netlist, long netlistToken,
+                                            SimulationSnapshot snapshot, ComponentTypeRegistry registry,
+                                            PainterRegistry painters, ColorScheme scheme,
+                                            Optional<Set<ElementId>> only, boolean includeStickyNotes) {
+        Optional<Set<ElementId>> wanted = only;
+        if (!includeStickyNotes && !document.stickyNotes().isEmpty()) {
+            wanted = Optional.of(withoutStickyNotes(document, only));
+        }
+        if (wanted.isEmpty()) {
             return CircuitBounds.of(document, registry).map(bounds ->
                     new CircuitImage(document, netlist, netlistToken, snapshot, registry, painters, scheme,
                             withMargin(bounds)));
         }
-        CircuitDocument copy = filtered(document, only.get());
+        CircuitDocument copy = filtered(document, wanted.get());
         long copyToken = copyToken(copy, document, netlistToken);
         SimulationSnapshot copySnapshot = copySnapshot(snapshot, copyToken, netlistToken);
         return CircuitBounds.of(copy, registry).map(bounds ->
@@ -77,14 +95,39 @@ public final class CircuitImage {
                         withMargin(bounds)));
     }
 
+    /** The ids of {@code only} (empty: every element) that are not sticky notes. */
+    private static Set<ElementId> withoutStickyNotes(CircuitDocument document, Optional<Set<ElementId>> only) {
+        Set<ElementId> kept = new LinkedHashSet<>();
+        for (DocumentElement element : document.elements()) {
+            if (!(element instanceof StickyNote) && only.map(ids -> ids.contains(element.id())).orElse(true)) {
+                kept.add(element.id());
+            }
+        }
+        return kept;
+    }
+
     /**
-     * The image of exactly {@code region} (grid units, no margin added) of the whole circuit, empty or not: what lies
-     * outside the region is cut off (the AI's region pictures, spec §6).
+     * The image of exactly {@code region} (grid units, no margin added) of the whole circuit, empty or not, without
+     * sticky notes: what lies outside the region is cut off (the AI's region pictures, spec §6).
      */
     public static CircuitImage ofRegion(CircuitDocument document, Netlist netlist, long netlistToken,
                                         SimulationSnapshot snapshot, ComponentTypeRegistry registry,
                                         PainterRegistry painters, ColorScheme scheme, Bounds region) {
-        return new CircuitImage(document, netlist, netlistToken, snapshot, registry, painters, scheme, region);
+        return ofRegion(document, netlist, netlistToken, snapshot, registry, painters, scheme, region, false);
+    }
+
+    /** Like {@link #ofRegion} with the user's sticky notes painted when {@code includeStickyNotes}. */
+    public static CircuitImage ofRegion(CircuitDocument document, Netlist netlist, long netlistToken,
+                                        SimulationSnapshot snapshot, ComponentTypeRegistry registry,
+                                        PainterRegistry painters, ColorScheme scheme, Bounds region,
+                                        boolean includeStickyNotes) {
+        if (includeStickyNotes || document.stickyNotes().isEmpty()) {
+            return new CircuitImage(document, netlist, netlistToken, snapshot, registry, painters, scheme, region);
+        }
+        CircuitDocument copy = filtered(document, withoutStickyNotes(document, Optional.empty()));
+        long copyToken = copyToken(copy, document, netlistToken);
+        return new CircuitImage(copy, netlist, copyToken, copySnapshot(snapshot, copyToken, netlistToken), registry,
+                painters, scheme, region);
     }
 
     /**

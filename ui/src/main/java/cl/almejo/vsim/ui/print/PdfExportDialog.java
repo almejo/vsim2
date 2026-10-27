@@ -175,7 +175,7 @@ public final class PdfExportDialog extends JPanel {
     private final String suggestedName;
     private final Collaborators collaborators;
     private final Timer previewTimer;
-    private final Map<PrintScope, Optional<PrintArea>> areas = new HashMap<>();
+    private final Map<AreaKey, Optional<PrintArea>> areas = new HashMap<>();
     private PrintInput input;
     private Optional<Plan> plan = Optional.empty();
     private TextSizeKey textSizeKey;
@@ -200,6 +200,7 @@ public final class PdfExportDialog extends JPanel {
     private final JCheckBox withValues = new JCheckBox(Messages.text("print.withValues"));
     private final JLabel valuesProblem = new JLabel();
     private final JCheckBox blackAndWhite = new JCheckBox(Messages.text("print.blackAndWhite"));
+    private final JCheckBox includeStickyNotes = new JCheckBox(Messages.text("print.includeStickyNotes"));
     private final JCheckBox headerFooter = new JCheckBox(Messages.text("print.headerFooter"));
     private final JTextField titleField = new JTextField(18);
     private final JButton refresh = new JButton(Messages.text("print.refresh"));
@@ -322,6 +323,7 @@ public final class PdfExportDialog extends JPanel {
         hinted(valuesProblem);
         options.add(valuesProblem, "span 2, gapleft 20, hidemode 3");
         options.add(blackAndWhite, "span 2");
+        options.add(includeStickyNotes, "span 2");
         options.add(headerFooter, "span 2");
         JLabel titleLabel = new JLabel(Messages.text("print.headerTitle"));
         titleLabel.setLabelFor(titleField);
@@ -378,6 +380,7 @@ public final class PdfExportDialog extends JPanel {
         }
         withValues.setSelected(remembered.withValues());
         blackAndWhite.setSelected(remembered.blackAndWhite());
+        includeStickyNotes.setSelected(remembered.includeStickyNotes());
         headerFooter.setSelected(remembered.headerFooter());
         titleField.setText(remembered.title());
     }
@@ -400,7 +403,7 @@ public final class PdfExportDialog extends JPanel {
 
     private void listen() {
         List.of(scopeWhole, scopeSelection, scopeFrame, portrait, landscape, withValues, blackAndWhite,
-                headerFooter).forEach(button -> button.addActionListener(event -> update()));
+                includeStickyNotes, headerFooter).forEach(button -> button.addActionListener(event -> update()));
         frameChoice.addActionListener(event -> update());
         paperChoice.addActionListener(event -> update());
         scaleChoice.addActionListener(event -> update());
@@ -428,13 +431,19 @@ public final class PdfExportDialog extends JPanel {
         };
         return new PrintOptions(scope, (Paper) paperChoice.getSelectedItem(),
                 landscape.isSelected() ? PageOrientation.LANDSCAPE : PageOrientation.PORTRAIT, mode,
-                withValues.isSelected(), blackAndWhite.isSelected(), headerFooter.isSelected(), titleField.getText());
+                withValues.isSelected(), blackAndWhite.isSelected(), headerFooter.isSelected(), titleField.getText(),
+                includeStickyNotes.isSelected());
     }
 
     /** The area of {@code scope}, measured with the frozen font (labels change the bounds). */
     private Optional<PrintArea> area(PrintScope scope) {
-        return areas.computeIfAbsent(scope, key -> TextFonts.withFont(input.textFont(),
-                () -> PrintScopes.area(input, key)));
+        boolean includeStickyNotes = this.includeStickyNotes.isSelected();
+        return areas.computeIfAbsent(new AreaKey(scope, includeStickyNotes), key -> TextFonts.withFont(
+                input.textFont(), () -> PrintScopes.area(input, key.scope(), key.includeStickyNotes())));
+    }
+
+    /** What an area depends on: the scope, and whether the sticky notes count. */
+    private record AreaKey(PrintScope scope, boolean includeStickyNotes) {
     }
 
     private void update() {
@@ -485,7 +494,7 @@ public final class PdfExportDialog extends JPanel {
         percentSpinner.setEnabled(idle && scaleChoice.getSelectedItem() == ScaleChoice.OTHER);
         titleField.setEnabled(idle && headerFooter.isSelected());
         List.<JComponent>of(scopeWhole, paperChoice, portrait, landscape, scaleChoice, withValues, blackAndWhite,
-                headerFooter, refresh, split).forEach(control -> control.setEnabled(idle));
+                includeStickyNotes, headerFooter, refresh, split).forEach(control -> control.setEnabled(idle));
     }
 
     /** Shows (or hides) why the values cannot be printed, when «with values» is on. */
@@ -502,7 +511,8 @@ public final class PdfExportDialog extends JPanel {
      * font's size when it paints none; remembered for the last copy, area and look, since only those change it.
      */
     private double smallestTextPixels(PrintArea area, PrintOptions options) {
-        TextSizeKey key = new TextSizeKey(input, area, options.withValues(), options.blackAndWhite());
+        TextSizeKey key = new TextSizeKey(input, area, options.withValues(), options.blackAndWhite(),
+                options.includeStickyNotes());
         if (!key.equals(textSizeKey)) {
             textSizeKey = key;
             smallestText = PagePainter.smallestTextPixels(input, area, options).orElse(input.textFont().size());
@@ -510,7 +520,8 @@ public final class PdfExportDialog extends JPanel {
         return smallestText;
     }
 
-    private record TextSizeKey(PrintInput input, PrintArea area, boolean withValues, boolean blackAndWhite) {
+    private record TextSizeKey(PrintInput input, PrintArea area, boolean withValues, boolean blackAndWhite,
+                               boolean includeStickyNotes) {
     }
 
     private static String escape(String text) {
@@ -735,6 +746,10 @@ public final class PdfExportDialog extends JPanel {
 
     JCheckBox withValues() {
         return withValues;
+    }
+
+    JCheckBox includeStickyNotes() {
+        return includeStickyNotes;
     }
 
     JCheckBox blackAndWhite() {

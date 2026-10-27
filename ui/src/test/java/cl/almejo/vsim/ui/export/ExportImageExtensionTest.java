@@ -55,7 +55,7 @@ class ExportImageExtensionTest {
         EditorServices services = new EditorServices(PainterRegistry.standard(), new Appearance(ColorScheme.LIGHT),
                 preferences, new ComponentLibrary(), List.of());
         view = new EditorView(openDocument, services, NO_WINDOW);
-        features = new ExportImageFeatures(view, (parent, startDirectory, suggestedName, scale, printBackground) -> {
+        features = new ExportImageFeatures(view, (parent, startDirectory, suggestedName, scale, printBackground, stickyNotes) -> {
             chooserCalls.add(startDirectory + "|" + suggestedName + "|" + scale + "|" + printBackground);
             return answer;
         }, (parent, message) -> messages.add(message));
@@ -221,7 +221,7 @@ class ExportImageExtensionTest {
                         new ComponentLibrary(), List.of()), NO_WINDOW);
         List<String> before = texts(bare.menu(MenuId.FILE));
         int listeners = bare.openDocument().changeListenerCount();
-        ExportImageFeatures extra = new ExportImageFeatures(bare, (parent, start, name, scale, print) -> Optional.empty(),
+        ExportImageFeatures extra = new ExportImageFeatures(bare, (parent, start, name, scale, print, stickyNotes) -> Optional.empty(),
                 (parent, message) -> { });
         assertThat(bare.shortcutActions()).containsKey("file.exportImage");
         extra.dispose();
