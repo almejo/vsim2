@@ -108,6 +108,7 @@ public final class EditorView extends JPanel implements CanvasHost {
     private final Runnable textFontListener;
     private final List<Runnable> extensionDisposers = new ArrayList<>();
     private Consumer<List<Path>> componentFileImporter;
+    private Consumer<Component> memoryEditor;
     private final WindowCommands windowCommands;
     private Consumer<TruthTableSpec> tableWizard;
     private Consumer<List<Path>> circuitOpener = files -> {
@@ -478,6 +479,25 @@ public final class EditorView extends JPanel implements CanvasHost {
     @Override
     public void editValue(Component component) {
         labelFeatures.actions().editValue(component);
+    }
+
+    /** Where the memory content editor extension plugs in: what a double click on a RAM or ROM opens. */
+    public void setMemoryEditor(Consumer<Component> memoryEditor) {
+        this.memoryEditor = Objects.requireNonNull(memoryEditor);
+    }
+
+    /** Undoes {@link #setMemoryEditor}: a double click on a memory configures it again. */
+    public void clearMemoryEditor() {
+        this.memoryEditor = null;
+    }
+
+    @Override
+    public void editMemory(Component component) {
+        if (memoryEditor == null) {
+            configure(component);
+        } else {
+            memoryEditor.accept(component);
+        }
     }
 
     @Override

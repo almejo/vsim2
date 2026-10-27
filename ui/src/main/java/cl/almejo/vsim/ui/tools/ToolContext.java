@@ -114,6 +114,11 @@ public interface ToolContext {
         configure(component);
     }
 
+    /** Opens the content editor of a RAM or ROM; by default (hosts without one) the configure dialog. */
+    default void editMemory(Component component) {
+        configure(component);
+    }
+
     /**
      * M7: edits the value of a bus input pin starting from {@code startingValue} instead of the live one (a double
      * click puts back the value its first click toggled).

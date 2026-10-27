@@ -6,6 +6,18 @@ Los cambios de VSim 2 que se notan al usarlo, del más nuevo al más antiguo. El
 funciones, con las fechas en que se hizo. El detalle de cada función está en
 [docs/funciones.md](docs/funciones.md).
 
+## Sin publicar — Memoria (RAM y ROM)
+
+### Agregado
+
+- Editor de contenido de la RAM y la ROM: doble clic sobre la pieza (o «Editar contenido…» en el clic derecho) abre una
+  grilla de direcciones y palabras que se escribe sobre las celdas, en hexadecimal, decimal o binario, con Ctrl+C y
+  Ctrl+V de texto hexadecimal, Ctrl+Z y Ctrl+Y dentro del editor, «Llenar…», «Ir a…» (Ctrl+G), «Importar…», «Exportar…»
+  y «Volcar…» (RAM) en el formato de VSim y en el de Logisim (v2.0 raw). Aceptar es un solo paso de deshacer. Una
+  memoria enlazada a un archivo se ve de solo lectura, con la barra «Enlazada a …: se edita en el editor externo»; con
+  la simulación corriendo, la RAM muestra sus valores vivos y su última lectura (azul) y escritura (naranja).
+  «Restaurar contenido inicial» y «Volcar…» también están en el clic derecho de la RAM.
+
 ## Sin publicar — Notas adhesivas
 
 ### Agregado

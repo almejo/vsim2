@@ -4,6 +4,7 @@ import cl.almejo.vsim.core.command.PasteCommand;
 import cl.almejo.vsim.core.command.SetLabelOffsetCommand;
 import cl.almejo.vsim.core.component.ElementBounds;
 import cl.almejo.vsim.core.component.VisibleState;
+import cl.almejo.vsim.core.component.standard.MemoryTypes;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
@@ -326,6 +327,8 @@ public final class SelectTool implements Tool {
                     // the first click toggled the pin: put its value back, then edit that value
                     context.openDocument().setInputValue(component.id(), toggledByFirstClick.valueBefore());
                     context.editValue(component, toggledByFirstClick.valueBefore());
+                } else if (MemoryTypes.kindOf(component.typeId()).isPresent()) {
+                    context.editMemory(component);
                 } else if (component.typeId().equals(StandardComponentTypes.CONSTANT)
                         || InterfacePins.isBusInput(component) || Tunnels.isTunnel(component.typeId())) {
                     context.editValue(component);

@@ -14,6 +14,7 @@ import cl.almejo.vsim.core.io.CircuitFormatException;
 import cl.almejo.vsim.core.io.CircuitReader;
 import cl.almejo.vsim.core.io.OpenedCircuit;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
+import cl.almejo.vsim.core.memory.MemoryContents;
 import cl.almejo.vsim.core.netlist.Netlist;
 import cl.almejo.vsim.core.netlist.NetlistCompiler;
 import cl.almejo.vsim.core.netlist.PinRef;
@@ -343,6 +344,22 @@ public final class OpenDocument implements AutoCloseable {
 
     public void interact(ElementId componentId) {
         simulation.interact(componentId.value());
+    }
+
+    /**
+     * «Restaurar contenido inicial»: queues a request putting the RAM {@code componentId} back to its initial
+     * contents without restarting the rest of the simulation. Not a document change, no undo step.
+     */
+    public void restoreMemory(ElementId componentId) {
+        simulation.restoreMemory(componentId.value());
+    }
+
+    /**
+     * The words the memory {@code componentId} holds now in the simulation (for «Volcar» and the editor's live grid):
+     * completed on the simulation thread, empty when the engine has no such memory. Never wait for it on the EDT.
+     */
+    public CompletableFuture<Optional<MemoryContents>> requestMemoryContents(ElementId componentId) {
+        return simulation.requestMemoryContents(componentId.value());
     }
 
     /**
