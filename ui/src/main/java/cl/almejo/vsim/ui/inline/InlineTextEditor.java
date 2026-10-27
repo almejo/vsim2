@@ -125,6 +125,23 @@ public final class InlineTextEditor {
     private InlineTextEditor(Hosts hosts) {
         this.paneForNewEdits = hosts.supplier();
         this.canvas = paneForNewEdits.get();
+        configureFieldAndArea();
+        confirmButton = iconButton(InlineIcons.CONFIRM, "inline.confirm", this::confirm);
+        cancelButton = iconButton(InlineIcons.CANCEL, "inline.cancel", this::cancel);
+        configureSuggestionsAndProblem();
+        panel.add(field);
+        panel.add(area);
+        panel.add(confirmButton);
+        panel.add(cancelButton);
+        panel.add(suggestionList);
+        panel.add(problemText);
+        installFieldKeys();
+        installAreaKeys();
+        TextChanges.onChange(field, this::textChanged);
+        TextChanges.onChange(area, this::textChanged);
+    }
+
+    private void configureFieldAndArea() {
         panel.setOpaque(false);
         // a press on the empty parts of the editor stops here instead of reaching the canvas tool, and the
         // canvas tool's cursor (a resize arrow on a frame's edge) never shows through
@@ -136,8 +153,9 @@ public final class InlineTextEditor {
         area.setCursor(Cursor.getPredefinedCursor(Cursor.TEXT_CURSOR));
         area.setFocusTraversalKeysEnabled(false);
         area.setVisible(false);
-        confirmButton = iconButton(InlineIcons.CONFIRM, "inline.confirm", this::confirm);
-        cancelButton = iconButton(InlineIcons.CANCEL, "inline.cancel", this::cancel);
+    }
+
+    private void configureSuggestionsAndProblem() {
         problemText.setVisible(false);
         suggestionList.setVisible(false);
         suggestionList.setFocusable(false); // the field keeps the focus, and its keys
@@ -152,12 +170,9 @@ public final class InlineTextEditor {
                 }
             }
         });
-        panel.add(field);
-        panel.add(area);
-        panel.add(confirmButton);
-        panel.add(cancelButton);
-        panel.add(suggestionList);
-        panel.add(problemText);
+    }
+
+    private void installFieldKeys() {
         field.getInputMap(JComponent.WHEN_FOCUSED).put(KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, 0), CONFIRM);
         field.getInputMap(JComponent.WHEN_FOCUSED).put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), CANCEL);
         field.getInputMap(JComponent.WHEN_FOCUSED).put(KeyStroke.getKeyStroke(KeyEvent.VK_DOWN, 0), NEXT_SUGGESTION);
@@ -167,6 +182,9 @@ public final class InlineTextEditor {
         field.getActionMap().put(CANCEL, Actions.unnamed(this::cancel));
         field.getActionMap().put(NEXT_SUGGESTION, Actions.unnamed(() -> moveSuggestion(1)));
         field.getActionMap().put(PREVIOUS_SUGGESTION, Actions.unnamed(() -> moveSuggestion(-1)));
+    }
+
+    private void installAreaKeys() {
         area.getInputMap(JComponent.WHEN_FOCUSED).put(KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, 0), CONFIRM);
         area.getInputMap(JComponent.WHEN_FOCUSED).put(
                 KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, InputEvent.SHIFT_DOWN_MASK), DefaultEditorKit.insertBreakAction);
@@ -175,8 +193,6 @@ public final class InlineTextEditor {
         area.getActionMap().put(CONFIRM, Actions.unnamed(this::confirm));
         area.getActionMap().put(CANCEL, Actions.unnamed(this::cancel));
         area.getActionMap().put(NOTHING, Actions.unnamed(() -> { }));
-        TextChanges.onChange(field, this::textChanged);
-        TextChanges.onChange(area, this::textChanged);
     }
 
     /** Opens {@code newRequest}; the editor stays open whatever happens to the document. */
@@ -471,32 +487,11 @@ public final class InlineTextEditor {
         if (!font.equals(text.getFont())) {
             text.setFont(font);
         }
-        Insets insets = text.getInsets();
-        int horizontalInsets = insets.left + insets.right;
-        int verticalInsets = insets.top + insets.bottom;
-        int areaX = (int) Math.round(area.getX());
-        int areaY = (int) Math.round(area.getY());
-        int areaWidth = (int) Math.round(area.getWidth());
-        int areaHeight = (int) Math.round(area.getHeight());
         FontMetrics metrics = text.getFontMetrics(font);
-        int textWidth = 0;
-        for (String line : request.multiLine() ? LabelLayout.noteLines(text.getText()) : List.of(text.getText())) {
-            textWidth = Math.max(textWidth, metrics.stringWidth(line));
-        }
-        textWidth += CARET_ROOM;
-        int fieldWidth = Math.min(MAXIMUM_WIDTH,
-                Math.max(Math.max(areaWidth, MINIMUM_TEXT_WIDTH), textWidth) + horizontalInsets);
-        int fittedHeight = areaHeight + verticalInsets;
-        int fieldHeight = Math.max(fittedHeight, text.getPreferredSize().height);
-        int fieldX = switch (request.anchor()) {
-            case LEFT -> areaX - insets.left;
-            case CENTER -> (int) Math.round(area.getCenterX() - fieldWidth / 2.0);
-            case RIGHT -> areaX + areaWidth + insets.right - fieldWidth;
-        };
-        // a note keeps its top as it grows down with every line; a one-line field is centred on the painted text
-        int fieldY = request.multiLine() ? areaY - insets.top
-                : areaY - insets.top - (fieldHeight - fittedHeight) / 2;
-        Rectangle fieldBounds = new Rectangle(fieldX, fieldY, fieldWidth, fieldHeight);
+        Rectangle fieldBounds = fieldBoundsOver(area, text, metrics);
+        int fieldWidth = fieldBounds.width;
+        int fieldHeight = fieldBounds.height;
+        int verticalInsets = text.getInsets().top + text.getInsets().bottom;
 
         Dimension buttonSize = confirmButton.getPreferredSize();
         int side = Math.max(buttonSize.width, buttonSize.height);
@@ -526,6 +521,36 @@ public final class InlineTextEditor {
         problemText.setBounds(relative(problemBounds, all));
         panel.revalidate();
         panel.repaint();
+    }
+
+    /** The field's bounds over the painted text in {@code area}, wide enough for what is typed. */
+    private Rectangle fieldBoundsOver(Rectangle2D area, JTextComponent text, FontMetrics metrics) {
+        Insets insets = text.getInsets();
+        int horizontalInsets = insets.left + insets.right;
+        int verticalInsets = insets.top + insets.bottom;
+        int areaX = (int) Math.round(area.getX());
+        int areaY = (int) Math.round(area.getY());
+        int areaWidth = (int) Math.round(area.getWidth());
+        int areaHeight = (int) Math.round(area.getHeight());
+        int textWidth = 0;
+        for (String line : request.multiLine() ? LabelLayout.noteLines(text.getText()) : List.of(text.getText())) {
+            textWidth = Math.max(textWidth, metrics.stringWidth(line));
+        }
+        textWidth += CARET_ROOM;
+        int fieldWidth = Math.min(MAXIMUM_WIDTH,
+                Math.max(Math.max(areaWidth, MINIMUM_TEXT_WIDTH), textWidth) + horizontalInsets);
+        int fittedHeight = areaHeight + verticalInsets;
+        int fieldHeight = Math.max(fittedHeight, text.getPreferredSize().height);
+        int fieldX = switch (request.anchor()) {
+            case LEFT -> areaX - insets.left;
+            case CENTER -> (int) Math.round(area.getCenterX() - fieldWidth / 2.0);
+            case RIGHT -> areaX + areaWidth + insets.right - fieldWidth;
+        };
+        // a note keeps its top as it grows down with every line; a one-line field is centred on the painted text
+        int fieldY = request.multiLine() ? areaY - insets.top
+                : areaY - insets.top - (fieldHeight - fittedHeight) / 2;
+        Rectangle fieldBounds = new Rectangle(fieldX, fieldY, fieldWidth, fieldHeight);
+        return fieldBounds;
     }
 
     private static Rectangle relative(Rectangle bounds, Rectangle origin) {
