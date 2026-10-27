@@ -35,6 +35,15 @@ public final class InspectorPanel extends JPanel {
         revalidate();
     }
 
+    /** Renames the tab holding {@code content} (a count in the title, for instance). */
+    public void setTitle(JComponent content, String title) {
+        int index = tabs.indexOfComponent(content);
+        if (index < 0) {
+            throw new IllegalArgumentException("no inspector tab holds that content");
+        }
+        tabs.setTitleAt(index, title);
+    }
+
     /** Selects the tab named {@code title}, re-opening the panel if it has no width (collapsed). */
     public void showTab(String title) {
         int index = tabs.indexOfTab(title);
