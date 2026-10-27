@@ -18,6 +18,7 @@ import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.ParameterSpec;
 import cl.almejo.vsim.core.component.standard.MemoryTypes;
 import cl.almejo.vsim.core.memory.MemoryContents;
+import cl.almejo.vsim.core.memory.MemoryLinkPaths;
 import cl.almejo.vsim.core.component.ElementBounds;
 import cl.almejo.vsim.core.component.PinSpec;
 import cl.almejo.vsim.core.document.CircuitDocument;
@@ -180,7 +181,7 @@ public final class CircuitReader {
 
     /**
      * Hidden parameters (a memory's contents) are not shown whole: they could be megabytes. The contents become a
-     * count of the words set; the others keep their value (a link is only a path).
+     * count of the words set, and a link only its file name (the AI never sees a user's folders).
      */
     private static Map<String, Object> withoutHiddenValues(ComponentType type, Map<String, Object> parameters) {
         if (type.parameters().stream().noneMatch(ParameterSpec::hidden)) {
@@ -190,6 +191,9 @@ public final class CircuitReader {
         if (parameters.get(MemoryTypes.CONTENTS) instanceof String text) {
             long count = MemoryContents.decode(text).count();
             shown.put(MemoryTypes.CONTENTS, count + (count == 1 ? " word set" : " words set"));
+        }
+        if (parameters.get(MemoryTypes.LINK) instanceof String link && !link.isEmpty()) {
+            shown.put(MemoryTypes.LINK, MemoryLinkPaths.fileName(link));
         }
         return shown;
     }

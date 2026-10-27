@@ -28,13 +28,12 @@ import cl.almejo.vsim.core.simulation.MemoryMapRequest;
 import cl.almejo.vsim.core.simulation.RequestReport;
 import cl.almejo.vsim.core.simulation.SimulationEngine;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
-import cl.almejo.vsim.core.memory.MemoryContents;
 import cl.almejo.vsim.core.simulation.SimulationThread;
 import cl.almejo.vsim.core.simulation.StepReport;
 import cl.almejo.vsim.core.value.Value;
 import cl.almejo.vsim.core.waveform.WaveformSnapshot;
 import cl.almejo.vsim.ui.i18n.Messages;
-import cl.almejo.vsim.ui.memory.MemoryLinks;
+import cl.almejo.vsim.core.memory.MemoryLinkPaths;
 import cl.almejo.vsim.ui.waveform.ProbeNames;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -103,7 +102,7 @@ public final class OpenDocument implements AutoCloseable {
         this.path = path == null ? null : path.toAbsolutePath();
         this.importedFromVsim1 = importedFromVsim1;
         // memory links are absolute while the circuit is open, relative to its folder in the file (Task 5)
-        MemoryLinks.absoluteLinks(document, Optional.ofNullable(this.path));
+        MemoryLinkPaths.absoluteLinks(document, Optional.ofNullable(this.path));
         this.history = new History(document);
         this.compiler = new NetlistCompiler(this.registry);
         this.flattener = new CircuitFlattener(this.registry);
@@ -575,11 +574,6 @@ public final class OpenDocument implements AutoCloseable {
         }
     }
 
-    /** The words memory {@code componentId} holds in the simulation now; empty when it has no such memory. */
-    public CompletableFuture<Optional<MemoryContents>> requestMemoryContents(String componentId) {
-        return simulation.requestMemoryContents(componentId);
-    }
-
     /** A receipt of the simulation once every request made so far has run (nothing runs). */
     public CompletableFuture<RequestReport> simulationReport() {
         return simulation.report();
@@ -602,7 +596,7 @@ public final class OpenDocument implements AutoCloseable {
 
     /** The format v2 text of the document saved as {@code target}: memory links relative to its folder. */
     private String serializedFor(Optional<Path> target) {
-        return new CircuitFormat(registry).write(document, MemoryLinks.relativeLinks(target));
+        return new CircuitFormat(registry).write(document, MemoryLinkPaths.relativeLinks(target));
     }
 
     /**

@@ -5,10 +5,10 @@ import cl.almejo.vsim.core.command.Command;
 import cl.almejo.vsim.core.command.CompositeCommand;
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.standard.MemoryTypes;
-import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.memory.MemoryFile;
+import cl.almejo.vsim.core.memory.MemoryLinkPaths;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.window.EditorView;
@@ -17,16 +17,13 @@ import javax.swing.SwingUtilities;
 import javax.swing.Timer;
 import java.awt.KeyboardFocusManager;
 import java.beans.PropertyChangeListener;
-import java.io.IOException;
 import java.nio.file.Files;
-import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.function.UnaryOperator;
 
 /**
  * Memories linked to a text file (memory spec §8.2): «Enlazar…», «Desenlazar…» and «Abrir en editor externo» for the
@@ -133,14 +130,14 @@ public final class MemoryLinks implements MemoryLinkActions {
             return Optional.of(problem.getMessage());
         }
         document.execute(changing(document, component.get(), Map.of(MemoryTypes.CONTENTS, read.contents().encode(),
-                MemoryTypes.LINK, storedLinkPath(file, Optional.empty())), "command.linkMemory"));
+                MemoryTypes.LINK, MemoryLinkPaths.storedLinkPath(file, Optional.empty())), "command.linkMemory"));
         return Optional.empty();
     }
 
     /** The content editor asked first: the link goes, the contents stay in the circuit. One undo step. */
     @Override
     public void unlink(EditorView view, ElementId componentId) {
-        memory(view.openDocument(), componentId).filter(component -> !linkOf(component).isEmpty())
+        memory(view.openDocument(), componentId).filter(component -> !MemoryLinkPaths.linkOf(component).isEmpty())
                 .ifPresent(component -> view.openDocument().execute(changing(view.openDocument(), component,
                         Map.of(MemoryTypes.LINK, ""), "command.unlinkMemory")));
     }
@@ -148,11 +145,11 @@ public final class MemoryLinks implements MemoryLinkActions {
     @Override
     public void openExternal(EditorView view, ElementId componentId) {
         Optional<Component> component = memory(view.openDocument(), componentId);
-        Optional<Path> file = component.flatMap(memory -> linkedFile(memory, view.openDocument().path()));
+        Optional<Path> file = component.flatMap(memory -> MemoryLinkPaths.linkedFile(memory, view.openDocument().path()));
         if (file.isEmpty()) {
             return;
         }
-        String shown = displayPath(linkOf(component.get()), view.openDocument().path());
+        String shown = MemoryLinkPaths.displayPath(MemoryLinkPaths.linkOf(component.get()), view.openDocument().path());
         if (!Files.isRegularFile(file.get())) {
             prompts.inform(view, Messages.format("memory.link.missing", shown));
             return;
@@ -188,113 +185,21 @@ public final class MemoryLinks implements MemoryLinkActions {
         return Optional.ofNullable(watched.get(document)).map(entry -> entry.watcher);
     }
 
-    // Paths
-
-    /**
-     * How a link to {@code file} is written: relative to the folder of {@code circuitFile} with {@code /} between
-     * names («programas/rom.hex», «../datos/rom.hex»); absolute when the circuit is unsaved or the file is on another
-     * drive.
-     */
-    public static String storedLinkPath(Path file, Optional<Path> circuitFile) {
-        Path absolute = file.toAbsolutePath().normalize();
-        Optional<Path> folder = circuitFile.map(circuit -> circuit.toAbsolutePath().normalize().getParent());
-        if (folder.isPresent() && folder.get() != null) {
-            try {
-                return slashes(folder.get().relativize(absolute));
-            } catch (IllegalArgumentException otherDrive) {
-                return slashes(absolute);
-            }
-        }
-        return slashes(absolute);
-    }
-
-    /** The file a stored link points at: {@code stored} against the folder of {@code circuitFile} when relative. */
-    public static Path resolve(String stored, Optional<Path> circuitFile) {
-        Path path = Path.of(stored);
-        if (path.isAbsolute()) {
-            return path.normalize();
-        }
-        Optional<Path> folder = circuitFile.map(circuit -> circuit.toAbsolutePath().normalize().getParent());
-        return (folder.isPresent() && folder.get() != null ? folder.get().resolve(path) : path.toAbsolutePath())
-                .normalize();
-    }
-
-    /** The link as the user reads it: relative to the circuit when it is saved («programas/rom.hex»). */
-    public static String displayPath(String stored, Optional<Path> circuitFile) {
-        try {
-            return storedLinkPath(resolve(stored, circuitFile), circuitFile);
-        } catch (InvalidPathException unusable) {
-            return stored;
-        }
-    }
-
-    /** The file {@code memory} is linked to, empty when it is not linked (or the link is not a path here). */
-    public static Optional<Path> linkedFile(Component memory, Optional<Path> circuitFile) {
-        String link = linkOf(memory);
-        if (link.isBlank()) {
-            return Optional.empty();
-        }
-        try {
-            return Optional.of(resolve(link, circuitFile));
-        } catch (InvalidPathException unusable) {
-            return Optional.empty();
-        }
-    }
-
     /** Whether any memory of {@code document} is linked to {@code file}: VSim never writes such a file. */
     public static boolean isLinkedByAny(OpenDocument document, Path file) {
         for (Component component : List.copyOf(document.document().components())) {
-            if (isMemory(component) && linkedFile(component, document.path())
-                    .filter(linked -> isSameFile(linked, file)).isPresent()) {
+            if (MemoryLinkPaths.isMemory(component) && MemoryLinkPaths.linkedFile(component, document.path())
+                    .filter(linked -> MemoryLinkPaths.isSameFile(linked, file)).isPresent()) {
                 return true;
             }
         }
         return false;
     }
 
-    /** Whether {@code first} and {@code second} name the same file (also through links, when both exist). */
-    public static boolean isSameFile(Path first, Path second) {
-        Path firstAbsolute = first.toAbsolutePath().normalize();
-        Path secondAbsolute = second.toAbsolutePath().normalize();
-        if (firstAbsolute.equals(secondAbsolute)) {
-            return true;
-        }
-        try {
-            return Files.exists(firstAbsolute) && Files.exists(secondAbsolute)
-                    && Files.isSameFile(firstAbsolute, secondAbsolute);
-        } catch (IOException exception) {
-            return false;
-        }
-    }
-
-    /**
-     * Makes every link of {@code document}'s memories absolute against {@code circuitFile} (a circuit just read; not
-     * an edit: no undo step, the document stays unmodified).
-     */
-    public static void absoluteLinks(CircuitDocument document, Optional<Path> circuitFile) {
-        for (Component component : List.copyOf(document.components())) {
-            Optional<Path> file = isMemory(component) ? linkedFile(component, circuitFile) : Optional.empty();
-            if (file.isPresent()) {
-                String absolute = storedLinkPath(file.get(), Optional.empty());
-                if (!absolute.equals(linkOf(component))) {
-                    document.replace(withLink(component, absolute));
-                }
-            }
-        }
-    }
-
-    /** What {@link cl.almejo.vsim.core.io.CircuitFormat} writes for each component: links relative to the circuit. */
-    public static UnaryOperator<Component> relativeLinks(Optional<Path> circuitFile) {
-        return component -> {
-            Optional<Path> file = isMemory(component) ? linkedFile(component, Optional.empty()) : Optional.empty();
-            return file.map(path -> withLink(component, storedLinkPath(path, circuitFile))).orElse(component);
-        };
-    }
-
     // Helpers shared by the memory package
 
     static String linkOf(Component component) {
-        return String.valueOf(component.parameters().getOrDefault(MemoryTypes.LINK, ""));
+        return MemoryLinkPaths.linkOf(component);
     }
 
     /**
@@ -311,20 +216,6 @@ public final class MemoryLinks implements MemoryLinkActions {
     }
 
     static Optional<Component> memory(OpenDocument document, ElementId componentId) {
-        return document.document().component(componentId).filter(MemoryLinks::isMemory);
-    }
-
-    private static boolean isMemory(Component component) {
-        return MemoryTypes.kindOf(component.typeId()).isPresent();
-    }
-
-    private static Component withLink(Component component, String link) {
-        Map<String, Object> parameters = new HashMap<>(component.parameters());
-        parameters.put(MemoryTypes.LINK, link);
-        return component.withParameters(parameters);
-    }
-
-    private static String slashes(Path path) {
-        return path.toString().replace('\\', '/');
+        return document.document().component(componentId).filter(MemoryLinkPaths::isMemory);
     }
 }

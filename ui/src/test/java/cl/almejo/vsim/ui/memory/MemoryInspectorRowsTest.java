@@ -88,6 +88,65 @@ class MemoryInspectorRowsTest {
                 .get(MemoryTypes.WORDS);
     }
 
+    private static void layOut(Container container) {
+        container.doLayout();
+        for (java.awt.Component child : container.getComponents()) {
+            if (child instanceof Container nested) {
+                layOut(nested);
+            }
+        }
+    }
+
+    private static void collectOutside(Container root, Container container, int width, List<String> outside) {
+        for (java.awt.Component child : container.getComponents()) {
+            java.awt.Rectangle inRoot = javax.swing.SwingUtilities.convertRectangle(container, child.getBounds(), root);
+            if (inRoot.x + inRoot.width > width || (child instanceof javax.swing.JComponent && child.isVisible() && inRoot.width <= 0 && !(child instanceof JLabel label && label.getText().isEmpty()))) {
+                outside.add(child.getClass().getSimpleName() + " " + child.getName() + " " + inRoot);
+            }
+            if (child instanceof Container nested) {
+                collectOutside(root, nested, width, outside);
+            }
+        }
+    }
+
+    @Test
+    void theMemoryRowsFitTheDefaultSidebarWidth() {
+        for (String type : List.of(StandardComponentTypes.RAM, StandardComponentTypes.ROM)) {
+            Component memory = place(document, type, 0, 0, Map.of());
+            Container inspector = inspectorShowing(memory);
+            int width = cl.almejo.vsim.ui.window.InspectorPanel.PREFERRED_WIDTH;
+            inspector.setSize(width, 900);
+            layOut(inspector);
+
+            List<String> outside = new ArrayList<>();
+            collectOutside(inspector, inspector, width, outside);
+            assertThat(outside).as(type).isEmpty();
+            assertThat(inspector.getMinimumSize().width).as(type).isLessThanOrEqualTo(width);
+            for (String parameter : List.of(MemoryTypes.WIDTH, "delay")) {
+                assertThat(named(inspector, parameter, javax.swing.JComponent.class).getWidth())
+                        .as(type + " " + parameter).isGreaterThan(20);
+            }
+            view.dispose();
+            view = null;
+        }
+    }
+
+    @Test
+    void theWarningsAndTheirButtonsFitTheDefaultSidebarWidthToo() {
+        MemoryContents contents = MemoryContents.empty().with(0, 1).with(299, 0x3FF);
+        Component rom = place(document, StandardComponentTypes.ROM, 0, 0,
+                Map.of(MemoryTypes.WORDS, "256", MemoryTypes.CONTENTS, contents.encode()));
+        Container inspector = inspectorShowing(rom);
+        int width = cl.almejo.vsim.ui.window.InspectorPanel.PREFERRED_WIDTH;
+        inspector.setSize(width, 900);
+        layOut(inspector);
+
+        List<String> outside = new ArrayList<>();
+        collectOutside(inspector, inspector, width, outside);
+        assertThat(outside).isEmpty();
+        assertThat(named(inspector, "memory.inspector.hidden", javax.swing.text.JTextComponent.class)).isNotNull();
+    }
+
     @Test
     void aMemoryInTheCircuitSaysSoAndOpensItsEditor() {
         Component ram = place(document, StandardComponentTypes.RAM, 0, 0, Map.of());
@@ -97,7 +156,7 @@ class MemoryInspectorRowsTest {
         assertThat(named(inspector, "memory.inspector.external", AbstractButton.class).isEnabled()).isFalse();
         named(inspector, "memory.inspector.edit", AbstractButton.class).doClick();
         assertThat(launched).containsExactly(ram.id().value() + OptionalLong.empty());
-        assertThat(named(inspector, "memory.inspector.hidden", JLabel.class)).isNull();
+        assertThat(named(inspector, "memory.inspector.hidden", javax.swing.text.JTextComponent.class)).isNull();
     }
 
     @Test
@@ -124,7 +183,7 @@ class MemoryInspectorRowsTest {
         Container inspector = inspectorShowing(rom);
         links.watcherOf(document).orElseThrow().poll();
 
-        assertThat(named(inspector, "memory.inspector.problem", JLabel.class).getText()).startsWith("No se encuentra");
+        assertThat(named(inspector, "memory.inspector.problem", javax.swing.text.JTextComponent.class).getText()).startsWith("No se encuentra");
     }
 
     @Test
@@ -134,7 +193,7 @@ class MemoryInspectorRowsTest {
                 Map.of(MemoryTypes.WORDS, "256", MemoryTypes.CONTENTS, contents.encode()));
         Container inspector = inspectorShowing(rom);
 
-        assertThat(named(inspector, "memory.inspector.hidden", JLabel.class).getText())
+        assertThat(named(inspector, "memory.inspector.hidden", javax.swing.text.JTextComponent.class).getText())
                 .isEqualTo("⚠ El contenido tiene 300 palabras y la memoria 256. Las 44 últimas no se ven.");
         AbstractButton grow = named(inspector, "memory.inspector.grow", AbstractButton.class);
         assertThat(grow.getText()).isEqualTo("Agrandar a 512");
@@ -142,7 +201,7 @@ class MemoryInspectorRowsTest {
         grow.doClick();
         assertThat(words(rom)).isEqualTo("512");
         assertThat(document.changeCount()).isEqualTo(changes + 1);
-        assertThat(named(view.labelFeatures().properties(), "memory.inspector.hidden", JLabel.class)).isNull();
+        assertThat(named(view.labelFeatures().properties(), "memory.inspector.hidden", javax.swing.text.JTextComponent.class)).isNull();
         document.history().undo();
         assertThat(words(rom)).isEqualTo("256");
     }
@@ -161,7 +220,7 @@ class MemoryInspectorRowsTest {
                 Map.of(MemoryTypes.WIDTH, 8, MemoryTypes.CONTENTS, MemoryContents.empty().with(0, 0x3FF).encode()));
         Container inspector = inspectorShowing(rom);
 
-        assertThat(named(inspector, "memory.inspector.hiddenBits", JLabel.class).getText())
+        assertThat(named(inspector, "memory.inspector.hiddenBits", javax.swing.text.JTextComponent.class).getText())
                 .isEqualTo("⚠ El contenido tiene valores de 10 bits y la palabra es de 8: los bits de más no se ven.");
         named(inspector, "memory.inspector.widen", AbstractButton.class).doClick();
         assertThat(document.document().component(rom.id()).orElseThrow().parameters().get(MemoryTypes.WIDTH))

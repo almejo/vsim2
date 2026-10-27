@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.memory;
 
+import cl.almejo.vsim.core.memory.MemoryLinkPaths;
 import cl.almejo.vsim.core.command.AddElementsCommand;
 import cl.almejo.vsim.core.command.CompositeCommand;
 import cl.almejo.vsim.core.component.ComponentType;
@@ -136,7 +137,7 @@ public final class MemoryFileImport {
         ComponentType type = view.openDocument().registry().require(proposal.kind().id());
         Map<String, Object> parameters = Map.of(MemoryTypes.WORDS, String.valueOf(proposal.words()),
                 MemoryTypes.WIDTH, proposal.width(), MemoryTypes.CONTENTS, contents.encode(),
-                MemoryTypes.LINK, MemoryLinks.storedLinkPath(file, Optional.empty()));
+                MemoryTypes.LINK, MemoryLinkPaths.storedLinkPath(file, Optional.empty()));
         Component component = type.newComponent(view.openDocument().document().newComponentId(), position,
                 Rotation.R0, parameters, proposal.name().strip());
         view.openDocument().execute(new CompositeCommand("command.importMemory",

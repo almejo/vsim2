@@ -83,6 +83,12 @@ class SetMemoryContentsTest {
     }
 
     @Test
+    void anAddressNearTheLongLimitDoesNotOverflowIntoARange() {
+        assertThat(refused(new SetMemoryContents(memoryId, Long.MAX_VALUE, List.of("01", "02"))).error())
+                .isEqualTo(AutomationError.INVALID_PARAMETER);
+    }
+
+    @Test
     void aLinkedMemoryIsRefusedWithAMessageForTheUser() {
         Component memory = circuit.document().component(new ElementId(memoryId)).orElseThrow();
         Map<String, Object> parameters = new HashMap<>(memory.parameters());

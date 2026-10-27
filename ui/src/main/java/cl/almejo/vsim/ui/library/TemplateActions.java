@@ -40,7 +40,7 @@ import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.icons.Icons;
-import cl.almejo.vsim.ui.memory.MemoryLinks;
+import cl.almejo.vsim.core.memory.MemoryLinkPaths;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -420,7 +420,7 @@ public final class TemplateActions {
     private String withDroppedLinks(String message, List<Component> linkedMemories) {
         String result = message;
         for (Component memory : linkedMemories) {
-            String fileName = MemoryLinks.linkedFile(memory, openDocument.path())
+            String fileName = MemoryLinkPaths.linkedFile(memory, openDocument.path())
                     .map(file -> String.valueOf(file.getFileName())).orElse("");
             String dropped = Messages.format("template.memoryLinkDropped", fileName);
             result = result == null ? dropped : result + "\n" + dropped;

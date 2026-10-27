@@ -45,8 +45,12 @@ import javax.swing.JSpinner;
 import javax.swing.SpinnerNumberModel;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
+import javax.swing.SwingUtilities;
 import javax.swing.text.JTextComponent;
 import java.awt.Color;
+import java.awt.KeyboardFocusManager;
+import java.beans.PropertyChangeEvent;
+import java.beans.PropertyChangeListener;
 import java.awt.event.FocusAdapter;
 import java.awt.event.FocusEvent;
 import java.util.ArrayList;
@@ -56,6 +60,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
 import java.util.stream.Stream;
@@ -87,6 +92,8 @@ public final class PropertiesPanel extends JPanel {
     private int generation;
     private boolean applying;
     private boolean disposed;
+    private boolean refreshPending;
+    private BooleanSupplier typingProbe = this::focusInside;
 
     public PropertiesPanel(OpenDocument openDocument, Selection selection) {
         this(openDocument, selection, SelectionMoves.detached());
@@ -100,7 +107,7 @@ public final class PropertiesPanel extends JPanel {
     /** {@code scheme} gives the colours the canvas paints with now: the colour swatches show the same ones. */
     public PropertiesPanel(OpenDocument openDocument, Selection selection, SelectionMoves selectionMoves,
                            Supplier<ColorScheme> scheme) {
-        super(new MigLayout("wrap 2, insets dialog", "[right][grow, fill]"));
+        super(new MigLayout("wrap 2, insets dialog", "[right][grow, fill, 60::]"));
         this.scheme = scheme;
         this.openDocument = openDocument;
         this.selection = selection;
@@ -146,8 +153,42 @@ public final class PropertiesPanel extends JPanel {
         if (disposed) {
             return;
         }
-        commitEdits();
+        if (typingProbe.getAsBoolean()) {
+            // Never commit or lose half-typed input because a file went missing: show the news once the focus leaves.
+            refreshWhenFocusLeaves();
+            return;
+        }
         rebuild();
+    }
+
+    private void refreshWhenFocusLeaves() {
+        if (refreshPending) {
+            return;
+        }
+        refreshPending = true;
+        KeyboardFocusManager manager = KeyboardFocusManager.getCurrentKeyboardFocusManager();
+        PropertyChangeListener listener = new PropertyChangeListener() {
+            @Override
+            public void propertyChange(PropertyChangeEvent event) {
+                if (!typingProbe.getAsBoolean()) {
+                    manager.removePropertyChangeListener("permanentFocusOwner", this);
+                    refreshPending = false;
+                    SwingUtilities.invokeLater(PropertiesPanel.this::refresh);
+                }
+            }
+        };
+        manager.addPropertyChangeListener("permanentFocusOwner", listener);
+    }
+
+    /** Whether the user has the cursor in one of this panel's fields. */
+    private boolean focusInside() {
+        java.awt.Component owner = KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner();
+        return owner instanceof JTextComponent && SwingUtilities.isDescendingFrom(owner, this);
+    }
+
+    /** Replaces the test for «the user is typing here» (tests have no focus). */
+    void typingProbe(BooleanSupplier probe) {
+        typingProbe = probe;
     }
 
     /** Stops following the document and the selection. The selection has no removal, so the listener goes inert. */
@@ -285,7 +326,7 @@ public final class PropertiesPanel extends JPanel {
 
             @Override
             public void addWide(java.awt.Component content) {
-                PropertiesPanel.this.add(content, "span 2, growx");
+                PropertiesPanel.this.add(content, "span 2, growx, wmin 0");
             }
         };
         for (ComponentRows contributor : List.copyOf(componentRows)) {

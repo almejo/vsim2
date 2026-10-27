@@ -4,10 +4,11 @@ import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.standard.MemoryTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.core.memory.MemoryLinkPaths;
 import cl.almejo.vsim.core.memory.MemoryContents;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.panels.PropertiesPanel;
-import cl.almejo.vsim.ui.theme.ErrorTextLabel;
+import cl.almejo.vsim.ui.theme.WrappedErrorText;
 import cl.almejo.vsim.ui.window.EditorView;
 import net.miginfocom.swing.MigLayout;
 
@@ -53,7 +54,7 @@ final class MemoryInspectorRows implements PropertiesPanel.ComponentRows {
         MemoryContents contents = MemoryContents.decode((String) resolved.get(MemoryTypes.CONTENTS));
         addContentRows(component, rows);
         watcher.problem(component.id()).ifPresent(problem ->
-                rows.addWide(named(new ErrorTextLabel(problem), "memory.inspector.problem")));
+                rows.addWide(named(new WrappedErrorText(problem), "memory.inspector.problem")));
         if (contents.highestAddress() >= words) {
             addHiddenWordsRows(component, contents, words, rows);
         }
@@ -63,10 +64,10 @@ final class MemoryInspectorRows implements PropertiesPanel.ComponentRows {
     }
 
     private void addContentRows(Component component, PropertiesPanel.Rows rows) {
-        String link = MemoryLinks.linkOf(component);
+        String link = MemoryLinkPaths.linkOf(component);
         boolean linked = !link.isBlank();
         String where = linked
-                ? Messages.format("memory.inspector.linked", MemoryLinks.displayPath(link, view.openDocument().path()))
+                ? Messages.format("memory.inspector.linked", MemoryLinkPaths.displayPath(link, view.openDocument().path()))
                 : Messages.text("memory.inspector.inCircuit");
         rows.add(Messages.text("memory.inspector.contents"), named(new JLabel(where), "memory.inspector.contents"));
         ElementId id = component.id();
@@ -81,7 +82,7 @@ final class MemoryInspectorRows implements PropertiesPanel.ComponentRows {
     private void addHiddenWordsRows(Component component, MemoryContents contents, long words,
                                     PropertiesPanel.Rows rows) {
         long stored = contents.highestAddress() + 1;
-        rows.addWide(named(new ErrorTextLabel(Messages.format("memory.inspector.hiddenWords",
+        rows.addWide(named(new WrappedErrorText(Messages.format("memory.inspector.hiddenWords",
                 String.valueOf(stored), String.valueOf(words), String.valueOf(stored - words))),
                 "memory.inspector.hidden"));
         ElementId id = component.id();
@@ -102,7 +103,7 @@ final class MemoryInspectorRows implements PropertiesPanel.ComponentRows {
     private void addHiddenBitsRows(Component component, MemoryContents contents, int width,
                                    PropertiesPanel.Rows rows) {
         int widest = Math.min(MemoryTypes.MAXIMUM_WIDTH, contents.widestBits());
-        rows.addWide(named(new ErrorTextLabel(Messages.format("memory.inspector.hiddenBits", widest, width)),
+        rows.addWide(named(new WrappedErrorText(Messages.format("memory.inspector.hiddenBits", widest, width)),
                 "memory.inspector.hiddenBits"));
         ElementId id = component.id();
         rows.add("", line(button("memory.inspector.widen", Messages.format("memory.inspector.widen", widest),
@@ -127,10 +128,11 @@ final class MemoryInspectorRows implements PropertiesPanel.ComponentRows {
     }
 
     private static JPanel line(JButton... buttons) {
-        JPanel line = new JPanel(new MigLayout("insets 0"));
+        JPanel line = new JPanel(new MigLayout("insets 0, wrap 1, gapy 4", "[grow, fill]"));
         line.setOpaque(false);
         for (JButton button : buttons) {
-            line.add(button);
+            button.setToolTipText(button.getText());
+            line.add(button, "growx, wmin 0");
         }
         return line;
     }

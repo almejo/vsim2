@@ -6,6 +6,9 @@ import java.util.List;
 /** Logisim's {@code v2.0 raw} memory image: a signature line, then hex words, with {@code count*word} runs. */
 public final class LogisimRawFormat implements MemoryFileFormat {
 
+    /** The byte order mark some editors put in front of a text file. */
+    private static final char BYTE_ORDER_MARK = '\uFEFF';
+
     public static final String ID = "logisim";
     static final String SIGNATURE = "v2.0 raw";
     private static final int MINIMUM_RUN = 4;
@@ -20,7 +23,7 @@ public final class LogisimRawFormat implements MemoryFileFormat {
     @Override
     public boolean canRead(String fileName, String firstLine) {
         String first = firstLine == null ? "" : firstLine.strip();
-        if (first.startsWith("﻿")) {
+        if (!first.isEmpty() && first.charAt(0) == BYTE_ORDER_MARK) {
             first = first.substring(1).strip();
         }
         return first.equals(SIGNATURE);

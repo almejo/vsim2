@@ -107,4 +107,16 @@ class ReadMemoryTest {
         assertThat(parameters).containsEntry("contents", "1 word set").containsKey("link");
         assertThat(parameters.toString().length()).isLessThan(400);
     }
+
+    @Test
+    void theAiSeesOnlyTheNameOfTheLinkedFileNotTheUsersPath() {
+        Component rom = fixture.place(StandardComponentTypes.ROM, 0, 20, Rotation.R0,
+                Map.of("link", "/home/maria/cursos/arquitectura/rom.hex", "contents", "@0 5"), "");
+
+        CircuitView view = CircuitReader.read(fixture.source(), ReadFilter.FULL, Optional.empty());
+
+        Map<String, Object> parameters = view.parts().stream()
+                .filter(part -> part.id().equals(rom.id().value())).findFirst().orElseThrow().parameters();
+        assertThat(parameters).containsEntry("link", "rom.hex");
+    }
 }

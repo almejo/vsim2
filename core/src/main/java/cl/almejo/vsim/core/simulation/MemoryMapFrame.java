@@ -10,12 +10,19 @@ import java.util.Objects;
 /**
  * One picture of a memory for the «Mapa de memoria» (spec §6), answering a {@link MemoryMapRequest}: per cell, how
  * many times its words were read and written since the memory started simulating and the current value of its first
- * word; plus the accesses since the previous frame ({@code recent}, oldest first) and the simulation time. Immutable:
+ * word ({@code wordsPerCounter} words share one count above 64K words: a cell narrower than that shows its block's
+ * counts); plus the accesses since the previous frame ({@code recent}, oldest first) and the simulation time. Immutable:
  * the arrays are copies, and the accessors of the arrays return copies too (read single cells with
  * {@link #readsAt}, {@link #writesAt}, {@link #valueAt}, which allocate nothing).
  */
 public record MemoryMapFrame(MemoryMapRequest request, long[] reads, long[] writes, long[] values,
-                             List<MemoryEvent> recent, long time) {
+                             List<MemoryEvent> recent, long time, long wordsPerCounter) {
+
+    /** A frame whose counters are per word (a memory of at most 64K words). */
+    public MemoryMapFrame(MemoryMapRequest request, long[] reads, long[] writes, long[] values,
+                          List<MemoryEvent> recent, long time) {
+        this(request, reads, writes, values, recent, time, 1);
+    }
 
     public MemoryMapFrame {
         Objects.requireNonNull(request, "request");
@@ -27,6 +34,9 @@ public record MemoryMapFrame(MemoryMapRequest request, long[] reads, long[] writ
         writes = writes.clone();
         values = values.clone();
         recent = List.copyOf(recent);
+        if (wordsPerCounter < 1) {
+            throw new IllegalArgumentException("words per counter " + wordsPerCounter);
+        }
     }
 
     /**
@@ -43,7 +53,8 @@ public record MemoryMapFrame(MemoryMapRequest request, long[] reads, long[] writ
             values[cell] = memory.liveWord(first + cell * wordsPerCell);
         }
         return new MemoryMapFrame(request, memory.accessLog().readsPerCell(first, wordsPerCell, cells),
-                memory.accessLog().writesPerCell(first, wordsPerCell, cells), values, recent, time);
+                memory.accessLog().writesPerCell(first, wordsPerCell, cells), values, recent, time,
+                memory.accessLog().wordsPerCounter());
     }
 
     public int cells() {
@@ -80,13 +91,14 @@ public record MemoryMapFrame(MemoryMapRequest request, long[] reads, long[] writ
     @Override
     public boolean equals(Object other) {
         return other instanceof MemoryMapFrame frame && request.equals(frame.request) && time == frame.time
+                && wordsPerCounter == frame.wordsPerCounter
                 && Arrays.equals(reads, frame.reads) && Arrays.equals(writes, frame.writes)
                 && Arrays.equals(values, frame.values) && recent.equals(frame.recent);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(request, time, Arrays.hashCode(reads), Arrays.hashCode(writes), Arrays.hashCode(values),
+        return Objects.hash(request, time, wordsPerCounter, Arrays.hashCode(reads), Arrays.hashCode(writes), Arrays.hashCode(values),
                 recent);
     }
 

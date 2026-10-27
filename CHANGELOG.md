@@ -28,10 +28,11 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
   «Restaurar contenido inicial» y «Volcar…» también están en el clic derecho de la RAM.
 - El inspector de una RAM o una ROM dice dónde está su contenido («En el circuito» o «Enlazado: …»), con «Editar
   contenido…» y «Abrir en editor externo», y avisa cuando el contenido tiene más palabras (o bits) de las que se ven,
-  con «Agrandar a …» y «Ver en el editor».
+  con «Agrandar a …» y «Ver en el editor». Los botones y avisos se acomodan al ancho de la barra lateral sin
+  cortarse, y un aviso nuevo no toca lo que estás escribiendo en un campo.
 - Memorias enlazadas a un archivo de texto: «Enlazar…» en el editor de contenido; el circuito guarda la ruta relativa a
   su carpeta y una copia del contenido. VSim recarga el archivo cuando lo guardas en tu editor (un paso de deshacer),
-  avisa si falta o no se puede leer y sigue con la copia, y nunca lo escribe. «Abrir en editor externo» usa el comando
+  espera a que termine de guardarse, avisa si falta o no se puede leer y sigue con la copia, y nunca lo escribe. «Abrir en editor externo» usa el comando
   de Preferencias ▸ «Editor externo» o el editor del sistema.
 - Arrastrar un archivo `.hex` (u otro archivo de memoria) al lienzo, o Archivo ▸ Importar ▸ «Memoria desde archivo…»,
   crea una RAM o una ROM enlazada a ese archivo donde se soltó; con encabezado se crea de inmediato, sin él un diálogo
@@ -43,11 +44,13 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
   accesos desde que partió la simulación y los valores de cada palabra, zoom con la rueda en memorias grandes, una
   ayuda con dirección, lecturas, escrituras y valor, y «Restaurar» para volver una RAM a su contenido inicial. Un clic
   en un cuadrito abre el editor de contenido en esa dirección y «Volcar…» guarda lo que tiene la RAM. Los colores de
-  lectura y escritura son los del esquema activo, iguales en el mapa, el editor y el lienzo.
+  lectura y escritura son los del esquema activo, iguales en el mapa, el editor y el lienzo. En memorias de más de 64K
+  palabras, con el mapa acercado, la ayuda habla del bloque de 256 palabras y el cuadrito no se enciende por los
+  accesos de otras palabras del bloque.
 - La IA (MCP) lee y escribe el contenido de las memorias RAM y ROM: `vsim_read_memory` (contenido inicial o el de la
   simulación ahora, hasta 256 palabras) y la operación `SetMemoryContents` de `vsim_edit` (palabras en hexadecimal,
   todo o nada, un solo paso de deshacer). Al leer el circuito, el contenido de una memoria sale como «N words set» y no
-  entero. No puede enlazar archivos ni escribir en una memoria enlazada.
+  entero, y el enlace solo como el nombre del archivo. No puede enlazar archivos ni escribir en una memoria enlazada.
 - Ejemplo nuevo en Archivo ▸ Ejemplos: «Programa en ROM» (un contador recorre una ROM de 16 palabras con Fibonacci y un
   display las muestra en hexadecimal).
 

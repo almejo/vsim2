@@ -9,6 +9,7 @@ import cl.almejo.vsim.core.memory.MemoryContents;
 import cl.almejo.vsim.core.memory.MemoryFile;
 import cl.almejo.vsim.core.memory.MemoryHeader;
 import cl.almejo.vsim.core.memory.MemoryKind;
+import cl.almejo.vsim.core.memory.MemoryLinkPaths;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.ui.actions.Keys;
 import cl.almejo.vsim.ui.app.OpenDocument;
@@ -315,7 +316,7 @@ public final class MemoryEditorDialog {
 
     /** The link as the user reads it: relative to the circuit when it is saved. */
     private String shownLink() {
-        return link.isEmpty() ? "" : MemoryLinks.displayPath(link, document.path());
+        return link.isEmpty() ? "" : MemoryLinkPaths.displayPath(link, document.path());
     }
 
     /** «Enlazar…»: once linked, the grid shows the file's words (read-only). */
@@ -427,8 +428,8 @@ public final class MemoryEditorDialog {
     /** Why {@code file} must not be written (a memory of the document is linked to it), when so. */
     private Optional<String> linkedRefusal(Path file) {
         return MemoryLinks.isLinkedByAny(document, file)
-                ? Optional.of(Messages.format("memory.dump.linkedRefused", MemoryLinks.displayPath(
-                        MemoryLinks.storedLinkPath(file.toAbsolutePath(), Optional.empty()), document.path())))
+                ? Optional.of(Messages.format("memory.dump.linkedRefused", MemoryLinkPaths.displayPath(
+                        MemoryLinkPaths.storedLinkPath(file.toAbsolutePath(), Optional.empty()), document.path())))
                 : Optional.empty();
     }
 
