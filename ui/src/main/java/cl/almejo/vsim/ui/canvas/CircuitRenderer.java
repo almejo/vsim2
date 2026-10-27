@@ -220,6 +220,22 @@ public final class CircuitRenderer {
         WidthMismatchHighlight mismatches = highlights.widthMismatches(state);
 
         paintFrames(graphics, state, scheme);
+        paintSelectedWireHalos(graphics, state, scheme);
+        paintProblemGlow(graphics, state, scheme, highlight, mismatches);
+        paintWires(graphics, state, scheme, highlight, mismatches);
+        paintJunctions(graphics, state, scheme);
+        paintComponents(graphics, state, scheme, highlight);
+
+        paintComponentLabels(graphics, state, scheme);
+        paintTextLabels(graphics, state, scheme);
+        paintBusValues(graphics, state, scheme);
+        paintDriverPinHalos(graphics, scheme, highlight);
+        paintPinWidths(graphics, mismatches, scheme);
+        paintOpenPins(graphics, state, scheme);
+    }
+
+    /** Halo and marching ants under each selected, visible wire. */
+    private void paintSelectedWireHalos(Graphics2D graphics, RenderState state, ColorScheme scheme) {
         for (Wire wire : state.document().wires()) {
             if (state.selection().contains(wire.id()) && !state.hiddenWires().contains(wire.id())) {
                 Shape halo = SELECTED_WIRE.createStrokedShape(line(wire));
@@ -229,6 +245,11 @@ public final class CircuitRenderer {
                         state.selectionDashPhase());
             }
         }
+    }
+
+    /** The pulsing glow under wires with a short circuit or a width mismatch. */
+    private void paintProblemGlow(Graphics2D graphics, RenderState state, ColorScheme scheme,
+                                  ShortCircuitHighlight highlight, WidthMismatchHighlight mismatches) {
         if (state.paintsProblemGlow()) {
             // one path, so where problem wires meet the glow is not painted twice (and darker)
             Path2D.Double glow = new Path2D.Double();
@@ -243,6 +264,11 @@ public final class CircuitRenderer {
                     ProblemPulse.alpha(state.problemPulsePhase())));
             graphics.draw(glow);
         }
+    }
+
+    /** The wires themselves, with a gap where one crosses another. */
+    private void paintWires(Graphics2D graphics, RenderState state, ColorScheme scheme,
+                            ShortCircuitHighlight highlight, WidthMismatchHighlight mismatches) {
         // one net lookup and one stroke choice per wire. A gap's width depends on the stroke of each wire crossing it,
         // so when the document has crossings every look is worked out first and kept; without crossings (the common
         // circuit) nothing is kept and no map is made
@@ -268,12 +294,20 @@ public final class CircuitRenderer {
                 drawWithGaps(graphics, wire, crossings, looks, look.stroke());
             }
         }
+    }
+
+    /** The dots where wires join. */
+    private void paintJunctions(Graphics2D graphics, RenderState state, ColorScheme scheme) {
         Set<GridPoint> busPoints = highlights.busPoints(state.netlist());
         graphics.setColor(scheme.componentStroke());
         for (GridPoint junction : junctionCache.of(state.document())) {
             graphics.fill(circle(junction, busPoints.contains(junction) ? BUS_JUNCTION_RADIUS : JUNCTION_RADIUS));
         }
+    }
 
+    /** Every component, with its conflict and selection outlines. */
+    private void paintComponents(Graphics2D graphics, RenderState state, ColorScheme scheme,
+                                 ShortCircuitHighlight highlight) {
         Map<String, Integer> tunnelColors = Tunnels.colorsByName(state.document());
         for (Component component : state.document().components()) {
             ComponentType type = registry.typeOf(component);
@@ -295,11 +329,10 @@ public final class CircuitRenderer {
                         state.selectionDashPhase());
             }
         }
+    }
 
-        paintComponentLabels(graphics, state, scheme);
-        paintTextLabels(graphics, state, scheme);
-        paintBusValues(graphics, state, scheme);
-
+    /** A halo on each pin driving a conflicted net. */
+    private void paintDriverPinHalos(Graphics2D graphics, ColorScheme scheme, ShortCircuitHighlight highlight) {
         for (GridPoint pin : highlight.driverPins()) {
             graphics.setColor(PainterSupport.withAlpha(scheme.wireConflict(), 90));
             graphics.fill(circle(pin, HALO_RADIUS));
@@ -307,8 +340,6 @@ public final class CircuitRenderer {
             graphics.setColor(scheme.wireConflict());
             graphics.draw(circle(pin, HALO_RADIUS));
         }
-        paintPinWidths(graphics, mismatches, scheme);
-        paintOpenPins(graphics, state, scheme);
     }
 
     /**
