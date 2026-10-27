@@ -1,15 +1,43 @@
 package cl.almejo.vsim.ui.memory;
 
 import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.ui.window.EditorView;
+
+import java.util.OptionalLong;
 
 /**
  * What the «Mapa de memoria» asks of the rest of the editor, bound to one editor view: open the content editor at an
  * address (a click on a cell) and «Volcar…» a RAM. {@link #NONE} does neither (the cells do not open anything and
- * «Volcar…» is disabled) until the content editor is wired in.
+ * «Volcar…» is disabled) (the editor is wired in by {@link #of}).
  */
 public interface MemoryMapActions {
 
     MemoryMapActions NONE = new MemoryMapActions() { };
+
+    /** The live actions of {@code view}: cells open the content editor, «Volcar…» dumps through {@code launcher}. */
+    static MemoryMapActions of(EditorView view, MemoryEditorLauncher launcher) {
+        return new MemoryMapActions() {
+            @Override
+            public boolean canOpenEditor() {
+                return true;
+            }
+
+            @Override
+            public void openEditor(ElementId componentId, long address) {
+                launcher.open(view, componentId, OptionalLong.of(address));
+            }
+
+            @Override
+            public boolean canDump() {
+                return true;
+            }
+
+            @Override
+            public void dump(ElementId componentId) {
+                launcher.dump(view, componentId);
+            }
+        };
+    }
 
     default boolean canOpenEditor() {
         return false;

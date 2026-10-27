@@ -24,7 +24,9 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 - Pestaña «Mapa de memoria»: la RAM o ROM seleccionada completa como una matriz que muestra en vivo cada lectura
   (azul) y escritura (naranja); en pausa queda encendido lo que tocó el último paso. También un mapa de calor de
   accesos desde que partió la simulación y los valores de cada palabra, zoom con la rueda en memorias grandes, una
-  ayuda con dirección, lecturas, escrituras y valor, y «Restaurar» para volver una RAM a su contenido inicial.
+  ayuda con dirección, lecturas, escrituras y valor, y «Restaurar» para volver una RAM a su contenido inicial. Un clic en
+  un cuadrito abre el editor de contenido en esa dirección y «Volcar…» guarda lo que tiene la RAM. Los colores de
+  lectura y escritura son los del esquema activo, iguales en el mapa, el editor y el lienzo.
 - Memorias enlazadas a un archivo de texto: «Enlazar…» en el editor de contenido; el circuito guarda la ruta relativa a
   su carpeta y una copia del contenido. VSim recarga el archivo cuando lo guardas en tu editor (un paso de deshacer),
   avisa si falta o no se puede leer y sigue con la copia, y nunca lo escribe. «Abrir en editor externo» usa el comando

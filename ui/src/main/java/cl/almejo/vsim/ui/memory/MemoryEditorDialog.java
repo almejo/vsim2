@@ -13,6 +13,7 @@ import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.ui.actions.Keys;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.icons.Icons;
 import cl.almejo.vsim.ui.window.EditorView;
 
@@ -197,7 +198,7 @@ public final class MemoryEditorDialog {
         table.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
         table.getTableHeader().setReorderingAllowed(false);
         table.putClientProperty("terminateEditOnFocusLost", Boolean.TRUE);
-        table.setDefaultRenderer(Object.class, new MemoryCellRenderer(model));
+        table.setDefaultRenderer(Object.class, new MemoryCellRenderer(model, this::currentScheme));
         int digits = model.radix() == MemoryRadix.BINARY ? model.width() : Math.max(2, (model.width() + 3) / 4);
         int cellWidth = table.getFontMetrics(table.getFont()).charWidth('0') * digits + CELL_PADDING;
         for (int column = 0; column < model.getColumnCount(); column++) {
@@ -384,6 +385,11 @@ public final class MemoryEditorDialog {
                 prompts.inform(problem.getMessage());
             }
         });
+    }
+
+    /** The scheme of the editor window the dialog opened from (the light one without a window, in tests). */
+    private ColorScheme currentScheme() {
+        return view == null ? ColorScheme.LIGHT : view.services().appearance().scheme();
     }
 
     void dumpToFile() {

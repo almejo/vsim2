@@ -2,6 +2,8 @@ package cl.almejo.vsim.ui.memory;
 
 import cl.almejo.vsim.core.component.VisibleState;
 
+import cl.almejo.vsim.ui.paint.ColorScheme;
+
 import javax.swing.JLabel;
 import javax.swing.JTable;
 import javax.swing.UIManager;
@@ -9,21 +11,22 @@ import javax.swing.table.DefaultTableCellRenderer;
 import java.awt.Color;
 import java.awt.Font;
 import java.util.OptionalLong;
+import java.util.function.Supplier;
 
 /**
  * Paints the grid: monospaced cells, the address and ASCII columns dimmed, and the cell of the last read (blue) or
- * write (orange) tinted. Every colour is read from the look and feel when the cell is painted, never kept.
+ * write (orange) tinted. Every colour is read from the look and feel and the colour scheme when the cell is painted, never kept.
  */
 final class MemoryCellRenderer extends DefaultTableCellRenderer {
 
-    private static final Color READ_TINT = new Color(0x3C, 0xB4, 0xE5);
-    private static final Color WRITE_TINT = new Color(0xF0, 0x8A, 0x24);
     private static final float TINT_WEIGHT = 0.45f;
 
     private final MemoryGridModel model;
+    private final Supplier<ColorScheme> scheme;
 
-    MemoryCellRenderer(MemoryGridModel model) {
+    MemoryCellRenderer(MemoryGridModel model, Supplier<ColorScheme> scheme) {
         this.model = model;
+        this.scheme = scheme;
     }
 
     @Override
@@ -44,8 +47,9 @@ final class MemoryCellRenderer extends DefaultTableCellRenderer {
                 if (address.isPresent()) {
                     VisibleState.MemoryAccess access = model.accessAt(address.getAsLong());
                     if (access != VisibleState.MemoryAccess.NONE) {
-                        setBackground(blend(background,
-                                access == VisibleState.MemoryAccess.READ ? READ_TINT : WRITE_TINT));
+                        ColorScheme current = scheme.get();
+                        setBackground(blend(background, access == VisibleState.MemoryAccess.READ
+                                ? current.memoryRead() : current.memoryWrite()));
                     }
                 }
             }

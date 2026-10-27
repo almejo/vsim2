@@ -9,6 +9,7 @@ import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.simulation.MemoryMapFrame;
 import cl.almejo.vsim.core.simulation.MemoryMapRequest;
 import cl.almejo.vsim.ui.app.OpenDocument;
+import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.core.command.RemoveElementsCommand;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -35,7 +36,7 @@ class MemoryMapPanelTest {
     private final OpenDocument document = OpenDocument.createEmpty(StandardComponentTypes.registry());
     private final AtomicLong clock = new AtomicLong(100 * SECOND);
     private final RecordingActions actions = new RecordingActions();
-    private final MemoryMapPanel panel = new MemoryMapPanel(document, actions, clock::get, () -> true);
+    private final MemoryMapPanel panel = new MemoryMapPanel(document, actions, () -> ColorScheme.LIGHT, clock::get, () -> true);
 
     @AfterEach
     void close() {
@@ -301,8 +302,8 @@ class MemoryMapPanelTest {
         grid.paintComponent(graphics);
         graphics.dispose();
 
-        assertThat(image.getRGB(15, 5)).isEqualTo(MemoryMapPanel.accessColor(MemoryAccess.READ).getRGB());
-        assertThat(image.getRGB(25, 5)).isNotEqualTo(MemoryMapPanel.accessColor(MemoryAccess.READ).getRGB());
+        assertThat(image.getRGB(15, 5)).isEqualTo(MemoryMapPanel.accessColor(ColorScheme.LIGHT, MemoryAccess.READ).getRGB());
+        assertThat(image.getRGB(25, 5)).isNotEqualTo(MemoryMapPanel.accessColor(ColorScheme.LIGHT, MemoryAccess.READ).getRGB());
     }
 
     private static final class RecordingActions implements MemoryMapActions {

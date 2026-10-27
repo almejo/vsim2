@@ -10,6 +10,7 @@ import cl.almejo.vsim.core.simulation.MemoryMapFrame;
 import cl.almejo.vsim.core.simulation.MemoryMapRequest;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.paint.ColorScheme;
 import net.miginfocom.swing.MigLayout;
 
 import javax.swing.ButtonGroup;
@@ -39,6 +40,7 @@ import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.function.BooleanSupplier;
 import java.util.function.LongSupplier;
+import java.util.function.Supplier;
 
 /**
  * The «Mapa de memoria» tab (spec §6, mockup §4): the whole memory last selected as a square-ish grid, one cell per
@@ -72,6 +74,7 @@ public final class MemoryMapPanel extends JPanel {
 
     private final OpenDocument document;
     private final MemoryMapActions actions;
+    private final Supplier<ColorScheme> scheme;
     private final LongSupplier nanoClock;
     private final BooleanSupplier active;
 
@@ -120,13 +123,16 @@ public final class MemoryMapPanel extends JPanel {
     /** While paused, the wall time the fades stopped at. */
     private long frozenNanos;
 
-    public MemoryMapPanel(OpenDocument document, MemoryMapActions actions) {
-        this(document, actions, System::nanoTime, null);
+    /** {@code scheme} gives the colour scheme to paint with now (read at every paint, never kept). */
+    public MemoryMapPanel(OpenDocument document, MemoryMapActions actions, Supplier<ColorScheme> scheme) {
+        this(document, actions, scheme, System::nanoTime, null);
     }
 
     /** {@code active} tells whether frames are wanted (null: while the panel is showing). */
-    MemoryMapPanel(OpenDocument document, MemoryMapActions actions, LongSupplier nanoClock, BooleanSupplier active) {
+    MemoryMapPanel(OpenDocument document, MemoryMapActions actions, Supplier<ColorScheme> scheme,
+                   LongSupplier nanoClock, BooleanSupplier active) {
         super(new BorderLayout());
+        this.scheme = Objects.requireNonNull(scheme, "scheme");
         this.document = Objects.requireNonNull(document, "document");
         this.actions = Objects.requireNonNull(actions, "actions");
         this.nanoClock = Objects.requireNonNull(nanoClock, "nanoClock");
@@ -583,13 +589,8 @@ public final class MemoryMapPanel extends JPanel {
 
     // --- Colours, read at paint time ------------------------------------------------------------------------------------
 
-    static Color accessColor(MemoryAccess access) {
-        if (access == MemoryAccess.WRITE) {
-            // orange, between FlatLaf's action red and yellow
-            return blend(uiColor("Actions.Red", new Color(0xDB5860)), uiColor("Actions.Yellow", new Color(0xEDA200)),
-                    0.5);
-        }
-        return uiColor("Actions.Blue", new Color(0x389FD6));
+    static Color accessColor(ColorScheme scheme, MemoryAccess access) {
+        return access == MemoryAccess.WRITE ? scheme.memoryWrite() : scheme.memoryRead();
     }
 
     private static Color uiColor(String key, Color fallback) {
@@ -605,7 +606,7 @@ public final class MemoryMapPanel extends JPanel {
     }
 
     /** A small square of an access colour for the legend. */
-    private static final class Swatch implements Icon {
+    private final class Swatch implements Icon {
         private final MemoryAccess access;
 
         Swatch(MemoryAccess access) {
@@ -614,7 +615,7 @@ public final class MemoryMapPanel extends JPanel {
 
         @Override
         public void paintIcon(java.awt.Component component, Graphics graphics, int x, int y) {
-            graphics.setColor(accessColor(access));
+            graphics.setColor(accessColor(scheme.get(), access));
             graphics.fillRect(x, y + 1, 9, 9);
         }
 
@@ -705,8 +706,8 @@ public final class MemoryMapPanel extends JPanel {
             Color background = getBackground() != null ? getBackground() : uiColor("Panel.background", Color.WHITE);
             Color foreground = getForeground() != null ? getForeground() : uiColor("Label.foreground", Color.BLACK);
             Color empty = blend(background, foreground, 0.10);
-            Color[] readShades = shades(empty, accessColor(MemoryAccess.READ));
-            Color[] writeShades = shades(empty, accessColor(MemoryAccess.WRITE));
+            Color[] readShades = shades(empty, accessColor(scheme.get(), MemoryAccess.READ));
+            Color[] writeShades = shades(empty, accessColor(scheme.get(), MemoryAccess.WRITE));
             Color[] valueColors = mode == Mode.VALUES ? valueColors(background) : null;
             double logMaximum = Math.log1p(maximumCount);
             long now = fadeClock();

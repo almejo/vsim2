@@ -28,7 +28,8 @@ public final class MemoryMapExtension implements EditorExtension {
 
     @Override
     public Runnable install(EditorView view) {
-        MemoryMapPanel panel = new MemoryMapPanel(view.openDocument(), actions.apply(view));
+        MemoryMapPanel panel = new MemoryMapPanel(view.openDocument(), actions.apply(view),
+                () -> view.services().appearance().scheme());
         view.inspector().addTab(Messages.text("memory.map.tab"), panel);
         Runnable selectionListener = () -> panel.follow(view.selection().ids());
         view.selection().addListener(selectionListener);
