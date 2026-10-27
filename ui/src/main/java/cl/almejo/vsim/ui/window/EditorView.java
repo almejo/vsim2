@@ -18,7 +18,6 @@ import cl.almejo.vsim.ui.canvas.CircuitRenderer;
 import cl.almejo.vsim.ui.canvas.Selection;
 import cl.almejo.vsim.ui.canvas.ZoomTargets;
 import cl.almejo.vsim.ui.clipboard.FragmentClipboard;
-import cl.almejo.vsim.ui.icons.Icons;
 import cl.almejo.vsim.ui.inline.InlineTextEditor;
 import cl.almejo.vsim.ui.library.TemplateActions;
 import cl.almejo.vsim.ui.paint.ColorScheme;
@@ -29,21 +28,14 @@ import cl.almejo.vsim.ui.panels.StatusBar;
 import cl.almejo.vsim.ui.panels.ZoomControl;
 import cl.almejo.vsim.ui.problems.ProblemsController;
 import cl.almejo.vsim.ui.shortcuts.ShortcutCatalog;
-import cl.almejo.vsim.ui.tools.PanTool;
-import cl.almejo.vsim.ui.tools.ZoomTool;
 import cl.almejo.vsim.ui.tools.PlaceComponentTool;
-import cl.almejo.vsim.ui.tools.SelectTool;
 import cl.almejo.vsim.ui.tools.Tool;
-import cl.almejo.vsim.ui.tools.WireTool;
 import cl.almejo.vsim.ui.window.panes.CanvasPanes;
 import cl.almejo.vsim.ui.wiring.SelectionMoves;
 
 import javax.swing.AbstractAction;
 import javax.swing.Action;
-import javax.swing.ButtonGroup;
-import javax.swing.JComboBox;
 import javax.swing.JComponent;
-import javax.swing.JLabel;
 import javax.swing.JMenu;
 import javax.swing.JMenuBar;
 import javax.swing.JMenuItem;
@@ -106,13 +98,8 @@ public final class EditorView extends JPanel implements CanvasHost {
     private final Map<MenuId, JMenu> menus = new EnumMap<>(MenuId.class);
     private final List<ContextMenuContributor> contextMenuContributors = new CopyOnWriteArrayList<>();
     private final Map<String, Action> shortcutActions = new LinkedHashMap<>();
-    private final JToolBar toolBar = new JToolBar();
-    private final ButtonGroup toolButtons = new ButtonGroup();
-    private final JToggleButton selectButton;
-    private final JToggleButton wireButton;
-    private final JToggleButton panButton;
-    private final JToggleButton zoomButton;
-    private final Map<Class<? extends Tool>, JToggleButton> extraToolButtons = new LinkedHashMap<>();
+    private final EditorToolBar toolBarBuilder;
+    private final JToolBar toolBar;
     private final LabelFeatures labelFeatures;
     private final InlineTextEditor inlineEditor;
     private TemplateActions templateActions;
@@ -160,11 +147,8 @@ public final class EditorView extends JPanel implements CanvasHost {
         this.zoomControl = new ZoomControl(new ActivePaneZoom(), new ZoomControl.Actions(actions.zoomOut(),
                 actions.zoomIn(), actions.zoomReset(), actions.zoomToFit(), actions.zoomToSelection()));
         addAfter(menu(MenuId.VIEW), actions.zoomToSelection(), zoomControl.typeZoomAction());
-        selectButton = new JToggleButton(actions.selectTool());
-        wireButton = new JToggleButton(actions.wireTool());
-        panButton = new JToggleButton(actions.panTool());
-        zoomButton = new JToggleButton(actions.zoomTool());
-        buildToolBar();
+        toolBarBuilder = new EditorToolBar(actions);
+        toolBar = toolBarBuilder.toolBar();
 
         this.canvasArea = new CanvasArea(canvasPanes);
         this.bottomDock = new BottomDock(canvasArea);
@@ -595,17 +579,7 @@ public final class EditorView extends JPanel implements CanvasHost {
      * {@code toolType} is active. Returns what takes the button back.
      */
     public Runnable addToolButton(Action action, Class<? extends Tool> toolType) {
-        JToggleButton button = new JToggleButton(action);
-        toolButtons.add(button);
-        extraToolButtons.put(toolType, button);
-        toolBar.add(button, indexOfToolButton(wireButton) + 1);
-        toolBar.revalidate();
-        return () -> {
-            extraToolButtons.remove(toolType, button);
-            toolButtons.remove(button);
-            toolBar.remove(button);
-            toolBar.revalidate();
-        };
+        return toolBarBuilder.addToolButton(action, toolType);
     }
 
     /**
@@ -613,52 +587,12 @@ public final class EditorView extends JPanel implements CanvasHost {
      * Zoom. Returns what takes it back.
      */
     public Runnable addToolbarToggleAfterTools(JToggleButton button) {
-        toolBar.add(button, indexOfToolButton(zoomButton) + 1);
-        toolBar.revalidate();
-        return () -> {
-            toolBar.remove(button);
-            toolBar.revalidate();
-        };
+        return toolBarBuilder.addToolbarToggleAfterTools(button);
     }
 
     /** The toolbar's button for tools of {@code toolType} added with {@link #addToolButton}, if any. */
     public Optional<JToggleButton> toolButton(Class<? extends Tool> toolType) {
-        return Optional.ofNullable(extraToolButtons.get(toolType));
-    }
-
-    private int indexOfToolButton(JToggleButton button) {
-        for (int index = 0; index < toolBar.getComponentCount(); index++) {
-            if (toolBar.getComponent(index) == button) {
-                return index;
-            }
-        }
-        return toolBar.getComponentCount() - 1;
-    }
-
-    private void buildToolBar() {
-        toolBar.setFloatable(false);
-        toolBar.add(actions.newDocument());
-        toolBar.add(actions.open());
-        toolBar.add(actions.save());
-        toolBar.addSeparator();
-        toolBar.add(actions.undo());
-        toolBar.add(actions.redo());
-        toolBar.addSeparator();
-        for (JToggleButton button : new JToggleButton[]{selectButton, wireButton, panButton, zoomButton}) {
-            toolButtons.add(button);
-            toolBar.add(button);
-        }
-        toolBar.addSeparator();
-        toolBar.add(actions.start());
-        toolBar.add(actions.pause());
-        toolBar.add(actions.restart());
-        toolBar.add(actions.step());
-        JComboBox<Double> speed = actions.createSpeedSelector();
-        JLabel speedIcon = new JLabel(Icons.get(EditorActions.SPEED_ICON, Icons.MENU_SIZE));
-        speedIcon.setToolTipText(speed.getToolTipText());
-        speedIcon.setLabelFor(speed);
-        toolBar.add(speedIcon);
-        toolBar.add(speed);
+        return toolBarBuilder.toolButton(toolType);
     }
 
     /**
@@ -821,50 +755,8 @@ public final class EditorView extends JPanel implements CanvasHost {
         panes().forEach(CircuitCanvas::repaint);
     }
 
-    /** One {@link #forEachPane} registration and what undoes it on each pane it was installed on. */
-    private static final class PaneInstallation {
-
-        private final Function<CircuitCanvas, Runnable> install;
-        private final Map<CircuitCanvas, Runnable> undoByPane = new LinkedHashMap<>();
-
-        PaneInstallation(Function<CircuitCanvas, Runnable> install) {
-            this.install = install;
-        }
-
-        void installOn(CircuitCanvas pane) {
-            if (!undoByPane.containsKey(pane)) {
-                undoByPane.put(pane, Objects.requireNonNull(install.apply(pane), "what undoes the installation"));
-            }
-        }
-
-        void undoExcept(List<CircuitCanvas> kept) {
-            for (CircuitCanvas pane : List.copyOf(undoByPane.keySet())) {
-                if (!kept.contains(pane)) {
-                    undoByPane.remove(pane).run();
-                }
-            }
-        }
-
-        void undoAll() {
-            undoExcept(List.of());
-        }
-    }
-
     private void toolChanged(Tool tool) {
-        switch (tool) {
-            case SelectTool select -> selectButton.setSelected(true);
-            case WireTool wire -> wireButton.setSelected(true);
-            case PanTool pan -> panButton.setSelected(true);
-            case ZoomTool zoom -> zoomButton.setSelected(true);
-            default -> {
-                JToggleButton extra = extraToolButtons.get(tool.getClass());
-                if (extra != null) {
-                    extra.setSelected(true);
-                } else {
-                    toolButtons.clearSelection();
-                }
-            }
-        }
+        toolBarBuilder.showTool(tool);
         if (!tool.placesFromPalette()) {
             palette.clearSelection();
         }
