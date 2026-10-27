@@ -1,0 +1,48 @@
+package cl.almejo.vsim.core.bundled;
+
+import cl.almejo.vsim.core.component.standard.MemoryTypes;
+import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
+import cl.almejo.vsim.core.document.Component;
+import cl.almejo.vsim.core.memory.MemoryContents;
+import cl.almejo.vsim.core.value.Value;
+import org.junit.jupiter.api.Test;
+
+import java.util.Map;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+/** «Programa en ROM» is wired and explained cleanly and its display walks through the ROM's words. */
+class MemoryExamplesTest {
+
+    private static final int[] FIBONACCI = {0x00, 0x01, 0x01, 0x02, 0x03, 0x05, 0x08, 0x0D, 0x15, 0x22, 0x37, 0x59,
+            0x90, 0xE9, 0x79, 0x62};
+
+    @Test
+    void theRomExampleIsWiredAndExplainedCleanly() {
+        ExampleChecks.assertExample(MemoryExamples.romProgram());
+    }
+
+    @Test
+    void theRomHoldsSixteenWordsOfEightBitsWithTheProgram() {
+        Component rom = MemoryExamples.romProgram().document().components().stream()
+                .filter(component -> component.typeId().equals(StandardComponentTypes.ROM)).findFirst().orElseThrow();
+        assertThat(rom.parameters()).containsEntry(MemoryTypes.WORDS, "16").containsEntry(MemoryTypes.WIDTH, 8);
+        MemoryContents contents = MemoryContents.decode((String) rom.parameters().get(MemoryTypes.CONTENTS));
+        for (int address = 0; address < FIBONACCI.length; address++) {
+            assertThat(contents.word(address)).as("word %d", address).isEqualTo(FIBONACCI[address]);
+        }
+    }
+
+    @Test
+    void theDisplayShowsTheNextWordOnEveryFallingEdgeAndWrapsAroundAfterSixteen() {
+        // Clock 500/500, low first: falling edges at 1000, 2000, 3000, …
+        ExampleSimulation simulation = new ExampleSimulation(MemoryExamples.romProgram(), Map.of());
+        simulation.runUntil(100);
+        assertThat(simulation.display(0)).as("address 0").isEqualTo(Value.of(8, FIBONACCI[0]));
+        for (int edge = 1; edge <= 17; edge++) {
+            simulation.runUntil(1000L * edge + 100);
+            assertThat(simulation.display(0)).as("after %d edges", edge)
+                    .isEqualTo(Value.of(8, FIBONACCI[edge % 16]));
+        }
+    }
+}

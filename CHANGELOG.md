@@ -10,35 +10,43 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 
 ### Agregado
 
-- La IA (MCP) lee y escribe el contenido de las memorias RAM y ROM: `vsim_read_memory` (contenido inicial o el de la
-  simulación ahora, hasta 256 palabras) y la operación `SetMemoryContents` de `vsim_edit` (palabras en hexadecimal,
-  todo o nada, un solo paso de deshacer). Al leer el circuito, el contenido de una memoria sale como «N words set» y no
-  entero. No puede enlazar archivos ni escribir en una memoria enlazada.
-- Editor de contenido de la RAM y la ROM: doble clic sobre la pieza (o «Editar contenido…» en el clic derecho) abre una
-  grilla de direcciones y palabras que se escribe sobre las celdas, en hexadecimal, decimal o binario, con Ctrl+C y
-  Ctrl+V de texto hexadecimal, Ctrl+Z y Ctrl+Y dentro del editor, «Llenar…», «Ir a…» (Ctrl+G), «Importar…», «Exportar…»
-  y «Volcar…» (RAM) en el formato de VSim y en el de Logisim (v2.0 raw). Aceptar es un solo paso de deshacer. Una
-  memoria enlazada a un archivo se ve de solo lectura, con la barra «Enlazada a …: se edita en el editor externo»; con
-  la simulación corriendo, la RAM muestra sus valores vivos y su última lectura (azul) y escritura (naranja).
+- Dos piezas nuevas en la paleta, en la categoría «Memoria»: **RAM** y **ROM**, de 2 a 16M palabras de 1 a 64 bits, con
+  pines `A`, `D`, `Q`, `WE`, `CS` y reloj. Lectura combinacional, escritura en el flanco de bajada del reloj (o «Sin
+  reloj»), conexión por bus o con pines sueltos, «Un solo bus D», nombre y retardo. Cambiar el tamaño nunca corta el
+  contenido. Una memoria vacía casi no ocupa espacio, ni siquiera de 16M × 64 bits.
+- En el lienzo, la memoria muestra su nombre, «RAM · 256 × 8», una luz de actividad (azul al leer, naranja al escribir)
+  y, con «Mostrar contenido», una ventana con las palabras alrededor de la dirección actual. Los colores de lectura y
+  escritura son dos roles nuevos de cada esquema de colores.
+- Editor de contenido: doble clic sobre la pieza (o «Editar contenido…» en el clic derecho) abre una grilla de
+  direcciones y palabras que se escribe sobre las celdas, en hexadecimal, decimal o binario, con Ctrl+C y Ctrl+V de
+  texto hexadecimal, Ctrl+Z y Ctrl+Y dentro del editor, «Llenar…», «Ir a…» (Ctrl+G), «Importar…», «Exportar…» y
+  «Volcar…» (RAM) en el formato de VSim y en el de Logisim (v2.0 raw). Aceptar es un solo paso de deshacer. Con la
+  simulación corriendo, la RAM muestra sus valores vivos y su última lectura (azul) y escritura (naranja).
   «Restaurar contenido inicial» y «Volcar…» también están en el clic derecho de la RAM.
-- Pestaña «Mapa de memoria»: la RAM o ROM seleccionada completa como una matriz que muestra en vivo cada lectura
-  (azul) y escritura (naranja); en pausa queda encendido lo que tocó el último paso. También un mapa de calor de
-  accesos desde que partió la simulación y los valores de cada palabra, zoom con la rueda en memorias grandes, una
-  ayuda con dirección, lecturas, escrituras y valor, y «Restaurar» para volver una RAM a su contenido inicial. Un clic en
-  un cuadrito abre el editor de contenido en esa dirección y «Volcar…» guarda lo que tiene la RAM. Los colores de
-  lectura y escritura son los del esquema activo, iguales en el mapa, el editor y el lienzo.
+- El inspector de una RAM o una ROM dice dónde está su contenido («En el circuito» o «Enlazado: …»), con «Editar
+  contenido…» y «Abrir en editor externo», y avisa cuando el contenido tiene más palabras (o bits) de las que se ven,
+  con «Agrandar a …» y «Ver en el editor».
 - Memorias enlazadas a un archivo de texto: «Enlazar…» en el editor de contenido; el circuito guarda la ruta relativa a
   su carpeta y una copia del contenido. VSim recarga el archivo cuando lo guardas en tu editor (un paso de deshacer),
   avisa si falta o no se puede leer y sigue con la copia, y nunca lo escribe. «Abrir en editor externo» usa el comando
   de Preferencias ▸ «Editor externo» o el editor del sistema.
-- El inspector de una RAM o una ROM dice dónde está su contenido («En el circuito» o «Enlazado: …»), con «Editar
-  contenido…» y «Abrir en editor externo», y avisa cuando el contenido tiene más palabras (o bits) de las que se ven,
-  con «Agrandar a …» y «Ver en el editor».
 - Arrastrar un archivo `.hex` (u otro archivo de memoria) al lienzo, o Archivo ▸ Importar ▸ «Memoria desde archivo…»,
   crea una RAM o una ROM enlazada a ese archivo donde se soltó; con encabezado se crea de inmediato, sin él un diálogo
   pregunta RAM o ROM con los valores ya llenos.
 - Al crear un componente propio con una memoria enlazada, la memoria entra con su contenido pero sin el enlace, y un
   mensaje lo dice.
+- Pestaña «Mapa de memoria»: la RAM o ROM seleccionada completa como una matriz que muestra en vivo cada lectura
+  (azul) y escritura (naranja); en pausa queda encendido lo que tocó el último paso. También un mapa de calor de
+  accesos desde que partió la simulación y los valores de cada palabra, zoom con la rueda en memorias grandes, una
+  ayuda con dirección, lecturas, escrituras y valor, y «Restaurar» para volver una RAM a su contenido inicial. Un clic
+  en un cuadrito abre el editor de contenido en esa dirección y «Volcar…» guarda lo que tiene la RAM. Los colores de
+  lectura y escritura son los del esquema activo, iguales en el mapa, el editor y el lienzo.
+- La IA (MCP) lee y escribe el contenido de las memorias RAM y ROM: `vsim_read_memory` (contenido inicial o el de la
+  simulación ahora, hasta 256 palabras) y la operación `SetMemoryContents` de `vsim_edit` (palabras en hexadecimal,
+  todo o nada, un solo paso de deshacer). Al leer el circuito, el contenido de una memoria sale como «N words set» y no
+  entero. No puede enlazar archivos ni escribir en una memoria enlazada.
+- Ejemplo nuevo en Archivo ▸ Ejemplos: «Programa en ROM» (un contador recorre una ROM de 16 palabras con Fibonacci y un
+  display las muestra en hexadecimal).
 
 ## Sin publicar — Notas adhesivas
 

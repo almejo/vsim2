@@ -135,12 +135,12 @@ class ExamplesEndToEndTest {
     }
 
     @Test
-    void theExamplesMenuListsTheFourteenExamples() {
+    void theExamplesMenuListsTheFifteenExamples() {
         OpenDocument empty = track(OpenDocument.createEmpty(registry));
         EditorView view = new EditorView(empty, services, NO_WINDOW);
         try {
-            assertThat(texts(examplesMenu(view))).hasSize(14)
-                    .contains("Sumador de 4 bits", "ALU de 4 bits", "Mini ALU", "Acumulador");
+            assertThat(texts(examplesMenu(view))).hasSize(15)
+                    .contains("Sumador de 4 bits", "ALU de 4 bits", "Mini ALU", "Acumulador", "Programa en ROM");
         } finally {
             view.dispose();
         }

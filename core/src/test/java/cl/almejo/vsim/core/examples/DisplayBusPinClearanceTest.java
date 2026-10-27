@@ -87,7 +87,9 @@ class DisplayBusPinClearanceTest {
             String written = format.write(format.read(content));
             assertThat(SavedFiles.withoutSavedWith(written.stripTrailing())).as(file + " (the file ends with a newline)")
                     .isEqualTo(SavedFiles.withoutSavedWith(content.stripTrailing()));
-            assertThat(written).as(file).doesNotContain("\"" + StandardComponentTypes.DISPLAY_BUS_PIN + "\"");
+            // a memory's «Conexión» choice is also called "bus"; only a display pin named so would be a problem
+            assertThat(written.replace("\"connection\" : \"bus\"", "")).as(file)
+                    .doesNotContain("\"" + StandardComponentTypes.DISPLAY_BUS_PIN + "\"");
         }
         assertThat(withDisplays).isGreaterThanOrEqualTo(6);
     }
