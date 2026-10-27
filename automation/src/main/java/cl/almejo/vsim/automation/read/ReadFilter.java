@@ -26,7 +26,7 @@ public record ReadFilter(Detail detail, Set<ElementKind> kinds, Set<String> elem
 
     public enum Detail { SUMMARY, FULL }
 
-    public enum ElementKind { PART, WIRE, FRAME, NOTE }
+    public enum ElementKind { PART, WIRE, FRAME, NOTE, STICKY_NOTE }
 
     public ReadFilter {
         Objects.requireNonNull(detail, "detail");
@@ -45,6 +45,6 @@ public record ReadFilter(Detail detail, Set<ElementKind> kinds, Set<String> elem
             return kinds;
         }
         return detail == Detail.FULL ? Set.of(ElementKind.values())
-                : Set.of(ElementKind.PART, ElementKind.FRAME, ElementKind.NOTE);
+                : Set.of(ElementKind.PART, ElementKind.FRAME, ElementKind.NOTE, ElementKind.STICKY_NOTE);
     }
 }

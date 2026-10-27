@@ -9,6 +9,7 @@ import cl.almejo.vsim.automation.read.CircuitView.NetView;
 import cl.almejo.vsim.automation.read.CircuitView.NoteView;
 import cl.almejo.vsim.automation.read.CircuitView.PartView;
 import cl.almejo.vsim.automation.read.CircuitView.PinView;
+import cl.almejo.vsim.automation.read.CircuitView.StickyNoteView;
 import cl.almejo.vsim.automation.read.CircuitView.Summary;
 import cl.almejo.vsim.automation.read.CircuitView.WireView;
 import cl.almejo.vsim.automation.read.ReadFilter.Detail;
@@ -61,7 +62,7 @@ public final class CircuitReader {
     public static CircuitView read(ReadSource source, ReadFilter filter, Optional<String> cursor) {
         int offset = cursor.map(text -> offsetOf(text, source)).orElse(0);
         List<DocumentElement> matching = source.document().elements().stream()
-                .filter(element -> !(element instanceof StickyNote) && keeps(filter, element, source))
+                .filter(element -> keeps(filter, element, source))
                 .toList();
         List<DocumentElement> page = matching.subList(Math.min(offset, matching.size()),
                 Math.min(offset + filter.pageSize(), matching.size()));
@@ -70,6 +71,7 @@ public final class CircuitReader {
         List<WireView> wires = new ArrayList<>();
         List<FrameView> frames = new ArrayList<>();
         List<NoteView> notes = new ArrayList<>();
+        List<StickyNoteView> stickyNotes = new ArrayList<>();
         Map<NetId, Net> nets = new LinkedHashMap<>();
         for (DocumentElement element : page) {
             switch (element) {
@@ -79,7 +81,7 @@ public final class CircuitReader {
                         new Bounds(frame.topLeft().x(), frame.topLeft().y(), frame.width(), frame.height()),
                         frame.tint().name(), frame.locked()));
                 case TextLabel label -> notes.add(NoteView.of(label));
-                case StickyNote ignored -> throw new IllegalStateException("sticky notes are filtered out above");
+                case StickyNote stickyNote -> stickyNotes.add(StickyNoteView.of(stickyNote));
             }
         }
         List<GuideView> guides = offset == 0
@@ -94,7 +96,7 @@ public final class CircuitReader {
                 ? Optional.of(source.version().value() + CURSOR_SEPARATOR + next)
                 : Optional.empty();
         return new CircuitView(source.id(), source.version(), source.name(), summary(source), parts, wires, frames,
-                notes, guides, netViews, matching.size(), nextCursor);
+                notes, stickyNotes, guides, netViews, matching.size(), nextCursor);
     }
 
     private static int offsetOf(String cursor, ReadSource source) {
@@ -138,7 +140,7 @@ public final class CircuitReader {
             case Wire wire -> ElementKind.WIRE;
             case Frame frame -> ElementKind.FRAME;
             case TextLabel label -> ElementKind.NOTE;
-            case StickyNote ignored -> throw new IllegalStateException("sticky notes are not listed yet");
+            case StickyNote stickyNote -> ElementKind.STICKY_NOTE;
         };
     }
 
@@ -225,7 +227,7 @@ public final class CircuitReader {
             bounds = bounds == null ? elementBounds : bounds.union(elementBounds);
         }
         return new Summary(document.components().size(), document.wires().size(), document.frames().size(),
-                document.labels().size(), document.guides().size(), source.netlist().nets().size(),
+                document.labels().size(), document.stickyNotes().size(), document.guides().size(), source.netlist().nets().size(),
                 Optional.ofNullable(bounds), partsByType,
                 document.definitions().stream().map(ComponentDefinition::name).toList());
     }

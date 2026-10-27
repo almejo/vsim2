@@ -41,7 +41,7 @@ final class CircuitTools {
                         .property("detail", Schema.enumeration("SUMMARY (default) or FULL",
                                 List.of("SUMMARY", "FULL")))
                         .property("kinds", Schema.array("Only these kinds of element",
-                                Schema.enumeration("", List.of("PART", "WIRE", "FRAME", "NOTE"))))
+                                Schema.enumeration("", List.of("PART", "WIRE", "FRAME", "NOTE", "STICKY_NOTE"))))
                         .property("elementIds", Schema.array("Only these elements", Schema.string("")))
                         .property("region", Schema.bounds("Only elements whose box touches this region"))
                         .property("pageSize", Schema.integer("Elements per page (at most 200)", 1,
@@ -51,12 +51,15 @@ final class CircuitTools {
                 Common.versionedResult("One page of the circuit")
                         .property("name", Schema.string("The circuit's name"))
                         .property("summary", Schema.result("The whole circuit in numbers: parts, wires, frames, "
-                                + "notes, guides, nets, bounds, parts by type, user components").build())
+                                + "notes, sticky notes, guides, nets, bounds, parts by type, user components").build())
                         .property("parts", Schema.array("Placed parts: id, typeId, label, position, rotation, "
                                 + "parameters, bounds and (FULL) pins", Schema.anyObject()))
                         .property("wires", Schema.array("Wires: id, start, end, net", Schema.anyObject()))
                         .property("frames", Schema.array("Frames", Schema.anyObject()))
                         .property("notes", Schema.array("Free texts", Schema.anyObject()))
+                        .property("stickyNotes", Schema.array("The user's sticky notes: id, position, width, "
+                                + "height, color, kind TEXT (text) or CHECKLIST (items with done), folded",
+                                Schema.anyObject()))
                         .property("guides", Schema.array("Alignment guides (first page only)",
                                 Schema.anyObject()))
                         .property("nets", Schema.array("Nets as lists of pins and wires", Schema.anyObject()))

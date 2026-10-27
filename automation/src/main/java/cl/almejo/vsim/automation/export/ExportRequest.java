@@ -12,10 +12,16 @@ import java.util.Set;
  * «Exportar a PDF…», of the whole circuit, one frame or some elements, written only into the export folder VSim
  * remembers (none yet: the user's {@code VSim} folder) under a new name, never over an existing file. {@code fileName}
  * is the name without folder or extension (the circuit's name when empty); VSim adds {@code -2}, {@code -3}… when it is
- * taken.
+ * taken. {@code includeStickyNotes}: the user's sticky notes go in the file (left out by default, as in the menus).
  */
 public record ExportRequest(DocumentId document, Format format, Scope scope, Optional<String> fileName,
-                            ImageOptions image, PdfOptions pdf) {
+                            ImageOptions image, PdfOptions pdf, boolean includeStickyNotes) {
+
+    /** A request that leaves the sticky notes out. */
+    public ExportRequest(DocumentId document, Format format, Scope scope, Optional<String> fileName,
+                         ImageOptions image, PdfOptions pdf) {
+        this(document, format, scope, fileName, image, pdf, false);
+    }
 
     /** The file formats of the menus. */
     public enum Format {

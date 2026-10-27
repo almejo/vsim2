@@ -8,6 +8,7 @@ import cl.almejo.vsim.automation.check.MeasuredBounds;
 import cl.almejo.vsim.automation.check.TextMeasure;
 import cl.almejo.vsim.automation.edit.EditOperation.AddGuide;
 import cl.almejo.vsim.automation.edit.EditOperation.AddNote;
+import cl.almejo.vsim.automation.edit.EditOperation.AddStickyNote;
 import cl.almejo.vsim.automation.edit.EditOperation.AddWire;
 import cl.almejo.vsim.automation.edit.EditOperation.Connect;
 import cl.almejo.vsim.automation.edit.EditOperation.CreateComponent;
@@ -20,11 +21,13 @@ import cl.almejo.vsim.automation.edit.EditOperation.RemoveGuide;
 import cl.almejo.vsim.automation.edit.EditOperation.SetComponentShape;
 import cl.almejo.vsim.automation.edit.EditOperation.SetLabel;
 import cl.almejo.vsim.automation.edit.EditOperation.SetParameters;
+import cl.almejo.vsim.automation.edit.EditOperation.SetStickyItem;
 import cl.almejo.vsim.automation.edit.EditOperation.TidyWires;
 import cl.almejo.vsim.automation.edit.EditReceipt.ConnectionReport;
 import cl.almejo.vsim.automation.edit.EditReceipt.CreatedComponent;
 import cl.almejo.vsim.core.command.AddElementsCommand;
 import cl.almejo.vsim.core.command.AddWireCommand;
+import cl.almejo.vsim.core.command.ChangeStickyNoteCommand;
 import cl.almejo.vsim.core.command.ChangeAppearanceCommand;
 import cl.almejo.vsim.core.command.ChangeParametersCommand;
 import cl.almejo.vsim.core.command.CreateFrameCommand;
@@ -53,6 +56,12 @@ import cl.almejo.vsim.core.document.FrameContents;
 import cl.almejo.vsim.core.document.FrameTint;
 import cl.almejo.vsim.core.document.Guide;
 import cl.almejo.vsim.core.document.NoteStyle;
+import cl.almejo.vsim.core.document.StickyChecklist;
+import cl.almejo.vsim.core.document.StickyColor;
+import cl.almejo.vsim.core.document.StickyContent;
+import cl.almejo.vsim.core.document.StickyItem;
+import cl.almejo.vsim.core.document.StickyNote;
+import cl.almejo.vsim.core.document.StickyText;
 import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.Bounds;
@@ -202,6 +211,8 @@ final class EditPlanner {
                 case Delete delete -> delete(delete);
                 case MakeFrame makeFrame -> makeFrame(makeFrame);
                 case AddNote addNote -> addNote(addNote);
+                case AddStickyNote addStickyNote -> addStickyNote(addStickyNote);
+                case SetStickyItem setStickyItem -> setStickyItem(setStickyItem);
                 case AddGuide addGuide -> addGuide(addGuide);
                 case RemoveGuide removeGuide -> removeGuide(removeGuide);
                 case CreateComponent createComponent -> createComponent(createComponent);
@@ -223,6 +234,11 @@ final class EditPlanner {
             case SetLabel setLabel -> setLabel.text().ifPresent(text -> PlainText.require(text, "label"));
             case MakeFrame makeFrame -> PlainText.require(makeFrame.title(), "frame title");
             case AddNote addNote -> PlainText.require(addNote.text(), "note");
+            case AddStickyNote addStickyNote -> {
+                addStickyNote.text().ifPresent(text -> PlainText.require(text, "sticky note"));
+                addStickyNote.items().ifPresent(items -> items.forEach(item -> PlainText.require(item,
+                        "sticky note item")));
+            }
             case CreateComponent createComponent -> {
                 PlainText.require(createComponent.name(), "component name");
                 createComponent.pinNames().values().forEach(name -> PlainText.require(name, "pin name"));
@@ -579,6 +595,39 @@ final class EditPlanner {
                 operation.text(), operation.style());
         new AddElementsCommand(List.of(note)).apply(candidate);
         nameElement(alias, note.id());
+    }
+
+    private void addStickyNote(AddStickyNote operation) {
+        String alias = newAlias(operation.alias());
+        if (operation.text().isPresent() == operation.items().isPresent()) {
+            throw new AutomationException(AutomationError.INVALID_PARAMETER, "A sticky note takes either text or "
+                    + "items (a to-do list), not both and not neither");
+        }
+        StickyContent content = operation.text().<StickyContent>map(StickyText::new)
+                .orElseGet(() -> new StickyChecklist(operation.items().orElseThrow().stream()
+                        .map(item -> new StickyItem(item, false)).toList()));
+        StickyNote note = new StickyNote(candidate.newStickyNoteId(), new GridPoint(operation.x(), operation.y()),
+                operation.width().orElse(StickyNote.DEFAULT_WIDTH), operation.height().orElse(StickyNote.DEFAULT_HEIGHT),
+                operation.color().orElse(StickyColor.YELLOW), content, operation.folded());
+        new AddElementsCommand(List.of(note)).apply(candidate);
+        nameElement(alias, note.id());
+    }
+
+    private void setStickyItem(SetStickyItem operation) {
+        DocumentElement element = requireElement(operation.target());
+        if (!(element instanceof StickyNote note) || !(note.content() instanceof StickyChecklist checklist)) {
+            throw new AutomationException(AutomationError.INVALID_REFERENCE, element.id() + " is not a sticky note "
+                    + "with a to-do list");
+        }
+        if (operation.index() < 0 || operation.index() >= checklist.items().size()) {
+            throw new AutomationException(AutomationError.INVALID_PARAMETER, "The to-do list of " + element.id()
+                    + " has " + checklist.items().size() + " items: no item " + operation.index() + " (from 0)",
+                    Map.of("items", checklist.items().size()));
+        }
+        if (checklist.items().get(operation.index()).done() != operation.done()) {
+            new ChangeStickyNoteCommand(note, note.withContent(checklist.toggled(operation.index())))
+                    .apply(candidate);
+        }
     }
 
     private void addGuide(AddGuide operation) {

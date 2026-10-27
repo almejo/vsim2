@@ -57,6 +57,8 @@ final class ExportTools {
                         .property("fileName", Schema.string("The name without folder or extension (default: the "
                                 + "circuit's name)"))
                         .property("scale", Schema.integer("PNG: 1, 2 (default) or 4", 1, 4))
+                        .property("includeStickyNotes", Schema.bool("Put the user's sticky notes in the file "
+                                + "(default false: left out, as in the menus)"))
                         .property("printBackground", Schema.bool("PNG/SVG: «Fondo blanco para imprimir»"))
                         .property("paper", Schema.enumeration("PDF: the paper (default A4)", PdfOptions.PAPERS))
                         .property("orientation", Schema.enumeration("PDF: PORTRAIT (default) or LANDSCAPE",
@@ -92,7 +94,8 @@ final class ExportTools {
                             arguments.string("title", ""));
                     return Tool.Output.of(api.export(new ExportRequest(arguments.document(),
                             arguments.enumeration("format", ExportRequest.Format.class), scopeOf(arguments),
-                            arguments.optionalString("fileName").filter(name -> !name.isBlank()), image, pdf)));
+                            arguments.optionalString("fileName").filter(name -> !name.isBlank()), image, pdf,
+                            arguments.bool("includeStickyNotes", false))));
                 });
     }
 }

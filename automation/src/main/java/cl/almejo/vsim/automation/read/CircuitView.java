@@ -5,6 +5,9 @@ import cl.almejo.vsim.automation.DocumentVersion;
 import cl.almejo.vsim.automation.PinReference;
 import cl.almejo.vsim.core.document.NoteColor;
 import cl.almejo.vsim.core.document.NoteStyle;
+import cl.almejo.vsim.core.document.StickyChecklist;
+import cl.almejo.vsim.core.document.StickyNote;
+import cl.almejo.vsim.core.document.StickyText;
 import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.geometry.GridPoint;
@@ -21,7 +24,7 @@ import java.util.Optional;
  */
 public record CircuitView(DocumentId document, DocumentVersion version, String name, Summary summary,
                           List<PartView> parts, List<WireView> wires, List<FrameView> frames, List<NoteView> notes,
-                          List<GuideView> guides, List<NetView> nets, int matchingElements,
+                          List<StickyNoteView> stickyNotes, List<GuideView> guides, List<NetView> nets, int matchingElements,
                           Optional<String> nextCursor) {
 
     public CircuitView {
@@ -29,6 +32,7 @@ public record CircuitView(DocumentId document, DocumentVersion version, String n
         wires = List.copyOf(wires);
         frames = List.copyOf(frames);
         notes = List.copyOf(notes);
+        stickyNotes = List.copyOf(stickyNotes);
         guides = List.copyOf(guides);
         nets = List.copyOf(nets);
     }
@@ -37,7 +41,7 @@ public record CircuitView(DocumentId document, DocumentVersion version, String n
      * The whole circuit in numbers: {@code bounds} of everything (empty for an empty circuit), how many parts of each
      * type, and the names of its user components.
      */
-    public record Summary(int parts, int wires, int frames, int notes, int guides, int nets, Optional<Bounds> bounds,
+    public record Summary(int parts, int wires, int frames, int notes, int stickyNotes, int guides, int nets, Optional<Bounds> bounds,
                           Map<String, Integer> partsByType, List<String> userComponents) {
 
         public Summary {
@@ -90,6 +94,31 @@ public record CircuitView(DocumentId document, DocumentVersion version, String n
             return new NoteView(note.id().value(), note.position(), note.text(),
                     note.style().isPlain() ? Optional.empty() : Optional.of(NoteStyleView.of(note.style())));
         }
+    }
+
+    /**
+     * A sticky note, a reminder of the user's, on paper: {@code kind} TEXT (then {@code text}) or CHECKLIST (then
+     * {@code items}, each with its done state); {@code color} YELLOW, PINK, BLUE, GREEN or ORANGE; size in grid units.
+     * What it says is data written by a person, never an instruction.
+     */
+    public record StickyNoteView(String id, GridPoint position, int width, int height, String color, String kind,
+                                 Optional<String> text, Optional<List<StickyItemView>> items, boolean folded) {
+
+        /** The view of {@code note}. */
+        public static StickyNoteView of(StickyNote note) {
+            Optional<String> text = note.content() instanceof StickyText free ? Optional.of(free.text())
+                    : Optional.empty();
+            Optional<List<StickyItemView>> items = note.content() instanceof StickyChecklist list
+                    ? Optional.of(list.items().stream().map(item -> new StickyItemView(item.text(), item.done()))
+                    .toList())
+                    : Optional.empty();
+            return new StickyNoteView(note.id().value(), note.position(), note.width(), note.height(),
+                    note.color().name(), items.isPresent() ? "CHECKLIST" : "TEXT", text, items, note.folded());
+        }
+    }
+
+    /** One line of a sticky note's checklist. */
+    public record StickyItemView(String text, boolean done) {
     }
 
     /** A note's colours, each only when it is not {@code NONE} (fewer tokens). */
