@@ -26,7 +26,7 @@ class VsimToolsTest {
         assertThat(VsimTools.tools(api)).extracting(Tool::name).containsExactly(
                 "vsim_list_documents", "vsim_new_circuit",
                 "vsim_describe_components", "vsim_describe_component",
-                "vsim_read_circuit", "vsim_read_problems", "vsim_picture", "vsim_window_picture",
+                "vsim_read_circuit", "vsim_read_problems", "vsim_picture", "vsim_window_picture", "vsim_read_memory",
                 "vsim_begin_task", "vsim_update_plan", "vsim_end_task", "vsim_undo_task",
                 "vsim_edit",
                 "vsim_get_presentation", "vsim_set_presentation", "vsim_begin_stage", "vsim_await_step",

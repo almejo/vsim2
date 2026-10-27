@@ -6,6 +6,15 @@ Los cambios de VSim 2 que se notan al usarlo, del más nuevo al más antiguo. El
 funciones, con las fechas en que se hizo. El detalle de cada función está en
 [docs/funciones.md](docs/funciones.md).
 
+## Sin publicar — Memoria (RAM y ROM)
+
+### Agregado
+
+- La IA (MCP) lee y escribe el contenido de las memorias RAM y ROM: `vsim_read_memory` (contenido inicial o el de la
+  simulación ahora, hasta 256 palabras) y la operación `SetMemoryContents` de `vsim_edit` (palabras en hexadecimal,
+  todo o nada, un solo paso de deshacer). Al leer el circuito, el contenido de una memoria sale como «N words set» y no
+  entero. No puede enlazar archivos ni escribir en una memoria enlazada.
+
 ## Sin publicar — Notas adhesivas
 
 ### Agregado

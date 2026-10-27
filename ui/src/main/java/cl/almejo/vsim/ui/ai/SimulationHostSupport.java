@@ -17,6 +17,7 @@ import cl.almejo.vsim.core.component.PinSpec;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
+import cl.almejo.vsim.core.memory.MemoryContents;
 import cl.almejo.vsim.core.netlist.PinRef;
 import cl.almejo.vsim.core.simulation.InputAssignment;
 import cl.almejo.vsim.core.simulation.RequestReport;
@@ -101,6 +102,18 @@ final class SimulationHostSupport {
                 }
             }));
         });
+    }
+
+    /** The words of memory {@code component} in the simulation now, asked of its thread; the EDT never waits. */
+    CompletableFuture<Optional<MemoryContents>> currentMemory(DocumentId document, String component) {
+        return queue.submitAsync(editorThread, result -> document(document).requestMemoryContents(component)
+                .whenComplete((contents, failure) -> {
+                    if (failure != null) {
+                        result.completeExceptionally(closedOr(failure, document));
+                    } else {
+                        result.complete(contents);
+                    }
+                }));
     }
 
     CompletableFuture<PreparedTruthTable> prepareTruthTable(TruthTableRequest request) {

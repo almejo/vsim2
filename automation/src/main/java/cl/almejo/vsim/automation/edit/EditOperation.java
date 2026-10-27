@@ -223,6 +223,18 @@ public sealed interface EditOperation {
         }
     }
 
+    /**
+     * Writes {@code words} (hex, an optional {@code 0x} in front) from {@code firstAddress} on into the initial
+     * contents of RAM or ROM {@code component}; the other words stay. All or nothing: a word wider than the memory's
+     * width, an address past its last word or a linked memory (its file is the user's) refuses the call.
+     */
+    record SetMemoryContents(String component, long firstAddress, List<String> words) implements EditOperation {
+        public SetMemoryContents {
+            Objects.requireNonNull(component, "component");
+            words = List.copyOf(words);
+        }
+    }
+
     /** «Ordenar cables» on the targets' wires (every wire of the circuit when there are no targets). */
     record TidyWires(List<String> targets) implements EditOperation {
         public TidyWires {

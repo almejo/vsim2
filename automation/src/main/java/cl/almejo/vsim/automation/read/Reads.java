@@ -1,11 +1,14 @@
 package cl.almejo.vsim.automation.read;
 
+import cl.almejo.vsim.automation.AutomationError;
+import cl.almejo.vsim.automation.AutomationException;
 import cl.almejo.vsim.automation.DocumentId;
 import cl.almejo.vsim.automation.FutureWait;
 import cl.almejo.vsim.automation.ReadHost;
 import cl.almejo.vsim.automation.check.LayoutCheck;
 import cl.almejo.vsim.automation.check.StageCheck;
 import cl.almejo.vsim.core.geometry.Bounds;
+import cl.almejo.vsim.core.memory.MemoryContents;
 
 import java.time.Duration;
 import java.util.Map;
@@ -44,6 +47,25 @@ public final class Reads {
         Objects.requireNonNull(filter, "filter");
         Objects.requireNonNull(cursor, "cursor");
         return await(host.reading(document, source -> CircuitReader.read(source, filter, cursor)));
+    }
+
+    /**
+     * {@code count} words of memory {@code component} from {@code firstAddress}: the circuit's initial contents, or
+     * ({@code current}) the simulation's now (NOT_ALLOWED when the simulation does not have it).
+     */
+    public MemoryView readMemory(DocumentId document, String component, boolean current, long firstAddress,
+                                 int count) {
+        Objects.requireNonNull(component, "component");
+        MemoryReader.Described memory = await(host.reading(document,
+                source -> MemoryReader.describe(source, component)));
+        if (!current) {
+            return MemoryReader.window(memory, memory.initial(), "initial", firstAddress, count);
+        }
+        MemoryContents live = await(host.currentMemory(document, component)).orElseThrow(() ->
+                new AutomationException(AutomationError.NOT_ALLOWED, "The simulation has no state for " + component
+                        + " yet (the circuit changed and is not simulated, or the simulation is stopped); read the "
+                        + "initial contents or try again"));
+        return MemoryReader.window(memory, live, "current", firstAddress, count);
     }
 
     public ProblemsView readProblems(DocumentId document) {

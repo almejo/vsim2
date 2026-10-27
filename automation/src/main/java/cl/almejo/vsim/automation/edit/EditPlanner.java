@@ -19,6 +19,7 @@ import cl.almejo.vsim.automation.edit.EditOperation.PlaceInstance;
 import cl.almejo.vsim.automation.edit.EditOperation.PlacePart;
 import cl.almejo.vsim.automation.edit.EditOperation.RemoveGuide;
 import cl.almejo.vsim.automation.edit.EditOperation.SetComponentShape;
+import cl.almejo.vsim.automation.edit.EditOperation.SetMemoryContents;
 import cl.almejo.vsim.automation.edit.EditOperation.SetLabel;
 import cl.almejo.vsim.automation.edit.EditOperation.SetParameters;
 import cl.almejo.vsim.automation.edit.EditOperation.SetStickyItem;
@@ -26,6 +27,8 @@ import cl.almejo.vsim.automation.edit.EditOperation.TidyWires;
 import cl.almejo.vsim.automation.edit.EditReceipt.ConnectionReport;
 import cl.almejo.vsim.automation.edit.EditReceipt.CreatedComponent;
 import cl.almejo.vsim.core.command.AddElementsCommand;
+import cl.almejo.vsim.core.component.standard.MemoryTypes;
+import cl.almejo.vsim.core.memory.MemoryContents;
 import cl.almejo.vsim.core.command.AddWireCommand;
 import cl.almejo.vsim.core.command.ChangeStickyNoteCommand;
 import cl.almejo.vsim.core.command.ChangeAppearanceCommand;
@@ -101,6 +104,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.stream.IntStream;
 
 /**
@@ -198,6 +202,9 @@ final class EditPlanner {
                 planner.warnings, List.copyOf(planner.layoutGuides), planner.registry);
     }
 
+    /** The most words one SetMemoryContents writes. */
+    static final int MAXIMUM_MEMORY_WORDS = 4096;
+
     private void carryOut(EditOperation operation) {
         try {
             requirePlainTexts(operation);
@@ -218,6 +225,7 @@ final class EditPlanner {
                 case CreateComponent createComponent -> createComponent(createComponent);
                 case PlaceInstance placeInstance -> placeInstance(placeInstance);
                 case SetComponentShape setComponentShape -> setComponentShape(setComponentShape);
+                case SetMemoryContents setMemoryContents -> setMemoryContents(setMemoryContents);
                 case TidyWires tidyWires -> tidyWires(tidyWires);
             }
         } catch (AutomationException refusal) {
@@ -267,6 +275,7 @@ final class EditPlanner {
                 .orElseThrow(() -> new AutomationException(AutomationError.INVALID_REFERENCE, "There is no component "
                         + "type " + operation.typeId() + "; describe the components to see the types"));
         requireKnownParameters(type, operation.parameters());
+        requireNotMemoryFiles(type, operation.parameters());
         Component component = type.newComponent(candidate.newComponentId(),
                 new GridPoint(operation.x(), operation.y()), operation.rotation(), operation.parameters(),
                 operation.label());
@@ -308,9 +317,72 @@ final class EditPlanner {
         Component component = requireComponent(operation.target());
         ComponentType type = registry.require(component.typeId());
         requireKnownParameters(type, operation.parameters());
+        requireNotMemoryFiles(type, operation.parameters());
         Map<String, Object> merged = new HashMap<>(component.parameters());
         merged.putAll(operation.parameters());
         new ChangeParametersCommand(component.id(), type, merged).apply(candidate);
+    }
+
+    /** A memory's contents and link are the user's (spec §9): the AI writes words with SetMemoryContents only. */
+    private static void requireNotMemoryFiles(ComponentType type, Map<String, Object> parameters) {
+        if (MemoryTypes.kindOf(type.id()).isPresent() && (parameters.containsKey(MemoryTypes.CONTENTS)
+                || parameters.containsKey(MemoryTypes.LINK))) {
+            throw new AutomationException(AutomationError.NOT_ALLOWED, "The contents and the link of a memory are not "
+                    + "parameters the AI sets: write words with SetMemoryContents; linking a file is for the user "
+                    + "(ask the user to do it)");
+        }
+    }
+
+    private void setMemoryContents(SetMemoryContents operation) {
+        Component component = requireComponent(operation.component());
+        ComponentType type = registry.require(component.typeId());
+        if (MemoryTypes.kindOf(type.id()).isEmpty()) {
+            throw new AutomationException(AutomationError.INVALID_REFERENCE, operation.component() + " is a "
+                    + type.id() + ", not a ram or rom");
+        }
+        Map<String, Object> resolved = type.resolveParameters(component.parameters());
+        if (!((String) resolved.get(MemoryTypes.LINK)).isBlank()) {
+            throw new AutomationException(AutomationError.NOT_ALLOWED, operation.component() + " is linked to the file "
+                    + resolved.get(MemoryTypes.LINK) + ", which is the user's: ask the user to change the file or "
+                    + "to unlink the memory");
+        }
+        long words = MemoryTypes.words(resolved);
+        int width = ((Number) resolved.get(MemoryTypes.WIDTH)).intValue();
+        if (operation.words().isEmpty() || operation.words().size() > MAXIMUM_MEMORY_WORDS) {
+            throw new AutomationException(AutomationError.INVALID_PARAMETER, "Give between 1 and "
+                    + MAXIMUM_MEMORY_WORDS + " words per operation");
+        }
+        if (operation.firstAddress() < 0 || operation.firstAddress() + operation.words().size() > words) {
+            throw new AutomationException(AutomationError.INVALID_PARAMETER, "Words " + operation.firstAddress() + ".."
+                    + (operation.firstAddress() + operation.words().size() - 1) + " do not fit: the memory has "
+                    + words + " words (addresses 0.." + (words - 1) + ")");
+        }
+        TreeMap<Long, Long> values = new TreeMap<>();
+        long address = operation.firstAddress();
+        for (String text : operation.words()) {
+            values.put(address, wordOf(text, width, address));
+            address++;
+        }
+        MemoryContents contents = MemoryContents.decode((String) resolved.get(MemoryTypes.CONTENTS)).withAll(values);
+        Map<String, Object> merged = new HashMap<>(component.parameters());
+        merged.put(MemoryTypes.CONTENTS, contents.encode());
+        new ChangeParametersCommand(component.id(), type, merged).apply(candidate);
+    }
+
+    private static long wordOf(String text, int width, long address) {
+        String digits = text.trim().replaceFirst("^0[xX]", "");
+        long value;
+        try {
+            value = Long.parseUnsignedLong(digits, 16);
+        } catch (NumberFormatException invalid) {
+            throw new AutomationException(AutomationError.INVALID_PARAMETER, "Word at address " + address + " (\""
+                    + text + "\") is not hexadecimal of up to 16 digits");
+        }
+        if (width < Long.SIZE && Long.compareUnsigned(value, (1L << width) - 1) > 0) {
+            throw new AutomationException(AutomationError.INVALID_PARAMETER, "Word at address " + address + " (\""
+                    + text + "\") does not fit in " + width + " bits; nothing was written");
+        }
+        return value;
     }
 
     private static void requireKnownParameters(ComponentType type, Map<String, Object> parameters) {
