@@ -1,5 +1,7 @@
 package cl.almejo.vsim.core.simulation;
 
+import cl.almejo.vsim.core.component.standard.MemoryBehavior;
+import cl.almejo.vsim.core.memory.MemoryContents;
 import cl.almejo.vsim.core.value.Value;
 import cl.almejo.vsim.core.waveform.WaveformSnapshot;
 import org.slf4j.Logger;
@@ -41,6 +43,8 @@ public final class SimulationThread implements AutoCloseable {
     private final Queue<Runnable> requests = new ConcurrentLinkedQueue<>();
     /** The receipts of the budgeted requests not answered yet: failed with {@link ClosedException} on close. */
     private final Set<CompletableFuture<RequestReport>> waitingReports = ConcurrentHashMap.newKeySet();
+    /** The {@link #requestMemoryContents} answers not given yet: completed empty on close. */
+    private final Set<CompletableFuture<Optional<MemoryContents>>> waitingContents = ConcurrentHashMap.newKeySet();
     private volatile SimulationSnapshot latestSnapshot = SimulationSnapshot.EMPTY;
     private volatile WaveformSnapshot latestWaveforms = WaveformSnapshot.EMPTY;
     /** The last «Avanzar» or paused interaction (M6.1-B); null until the first one. */
@@ -213,6 +217,35 @@ public final class SimulationThread implements AutoCloseable {
                 LOGGER.debug("Input {} not set: {}", componentId, exception.getMessage());
             }
         }));
+    }
+
+    /**
+     * «Restaurar contenido inicial»: the memory simulated as {@code componentId} goes back to its initial contents;
+     * the time and every other part go on (see {@link SimulationEngine#restoreInitialState}). Not an edit of the
+     * document, so not an undo step.
+     */
+    public void restoreMemory(String componentId) {
+        requests.add(() -> engine.restoreInitialState(componentId));
+    }
+
+    /**
+     * The words the memory simulated as {@code componentId} holds now, writes included (for «Volcar», the editor's live
+     * grid and the AI): completed on the simulation thread once the earlier requests ran, empty when there is no such
+     * memory, and at once with empty when the thread is closed. Never wait for it on the EDT.
+     */
+    public CompletableFuture<Optional<MemoryContents>> requestMemoryContents(String componentId) {
+        CompletableFuture<Optional<MemoryContents>> future = new CompletableFuture<>();
+        if (stopRequested) {
+            future.complete(Optional.empty());
+            return future;
+        }
+        waitingContents.add(future);
+        future.whenComplete((contents, failure) -> waitingContents.remove(future));
+        requests.add(() -> future.complete(engine.memory(componentId).map(MemoryBehavior::liveContents)));
+        if (stopRequested) {
+            future.complete(Optional.empty());
+        }
+        return future;
     }
 
     public void resume() {
@@ -440,6 +473,9 @@ public final class SimulationThread implements AutoCloseable {
     private void failWaitingReports() {
         for (CompletableFuture<RequestReport> future : Set.copyOf(waitingReports)) {
             future.completeExceptionally(new ClosedException());
+        }
+        for (CompletableFuture<Optional<MemoryContents>> future : Set.copyOf(waitingContents)) {
+            future.complete(Optional.empty());
         }
     }
 

@@ -41,4 +41,20 @@ public sealed interface VisibleState {
             samples = List.copyOf(samples);
         }
     }
+
+    /** What a memory did last: nothing yet (or since its contents were restored), a read or a write. */
+    enum MemoryAccess { NONE, READ, WRITE }
+
+    /**
+     * A RAM or ROM as its painter shows it: whether it is selected ({@code CS} = 1), its last access and that access's
+     * address ({@code -1} before the first one), and the content window: the words from {@code firstWindowAddress} on
+     * (five, or every word of a smaller memory), placed around the last address and kept inside the memory. A word the
+     * simulation stored as undefined shows as 0 here.
+     */
+    record MemoryState(boolean enabled, MemoryAccess lastAccess, long lastAddress, long firstWindowAddress,
+                       List<Long> window) implements VisibleState {
+        public MemoryState {
+            window = List.copyOf(window);
+        }
+    }
 }

@@ -67,6 +67,10 @@ public final class StandardComponentTypes {
     public static final String DECODER = "decoder";
     public static final String REGISTER = "register";
     public static final String COUNTER = "counter";
+    /** «RAM» (see {@link MemoryTypes}). */
+    public static final String RAM = "ram";
+    /** «ROM» (see {@link MemoryTypes}). */
+    public static final String ROM = "rom";
     /** «Túnel (entrada)»: gives its wire's signal a name (see {@link Tunnels}). */
     public static final String TUNNEL_ENTRANCE = "tunnel-in";
     /** «Túnel (salida)»: puts the signal of its name on its wire. */
@@ -179,6 +183,7 @@ public final class StandardComponentTypes {
                     parameters -> TUNNEL_BEHAVIOR));
         }
         registerBlocks(registry);
+        MemoryTypes.register(registry);
     }
 
     /**

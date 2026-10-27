@@ -1,6 +1,7 @@
 package cl.almejo.vsim.core.memory;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Map;
 import java.util.SortedMap;
 import java.util.TreeMap;
@@ -25,7 +26,7 @@ public final class MemoryContents {
     private final long count;
     private final long highestAddress;
 
-    /** Takes ownership of {@code pages} (callers pass fresh copies). */
+    /** Takes ownership of {@code pages}; their arrays are never written again (see {@link MutableMemoryContents}). */
     MemoryContents(SortedMap<Long, long[]> pages) {
         this.pages = pages;
         long nonZero = 0;
@@ -155,12 +156,12 @@ public final class MemoryContents {
         return mutable.snapshot();
     }
 
-    SortedMap<Long, long[]> copyOfPages() {
-        TreeMap<Long, long[]> copy = new TreeMap<>();
-        for (Map.Entry<Long, long[]> entry : pages.entrySet()) {
-            copy.put(entry.getKey(), entry.getValue().clone());
-        }
-        return copy;
+    /**
+     * The pages themselves, for {@link MutableMemoryContents} to share: it never writes a page it did not create or
+     * copy, so these stay unchanged.
+     */
+    SortedMap<Long, long[]> sharedPages() {
+        return Collections.unmodifiableSortedMap(pages);
     }
 
     private static void requireAddress(long address) {

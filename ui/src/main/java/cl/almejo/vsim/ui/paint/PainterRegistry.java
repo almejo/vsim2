@@ -68,6 +68,9 @@ public final class PainterRegistry {
                 .withLiveText(PainterRegistry::storedValueText));
         registry.register(StandardComponentTypes.COUNTER, new BlockPainter("CNT", BlockPainter.Body.RECTANGLE)
                 .withLiveText(PainterRegistry::storedValueText));
+        // Plain boxes until the memories get their own painter (title, light and content window).
+        registry.register(StandardComponentTypes.RAM, new BlockPainter("RAM", BlockPainter.Body.RECTANGLE));
+        registry.register(StandardComponentTypes.ROM, new BlockPainter("ROM", BlockPainter.Body.RECTANGLE));
     }
 
     /**

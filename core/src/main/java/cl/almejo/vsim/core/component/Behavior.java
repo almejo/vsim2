@@ -32,4 +32,11 @@ public interface Behavior {
     default boolean setValue(BehaviorContext context, Value value) {
         return false;
     }
+
+    /**
+     * «Restaurar contenido inicial»: a part with contents (a RAM) goes back to the ones it started with, without
+     * restarting the rest of the simulation. Every other component ignores it.
+     */
+    default void restoreInitialState(BehaviorContext context) {
+    }
 }

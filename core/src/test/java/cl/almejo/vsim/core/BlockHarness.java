@@ -3,6 +3,7 @@ package cl.almejo.vsim.core;
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.PinSpec;
 import cl.almejo.vsim.core.component.VisibleState;
+import cl.almejo.vsim.core.component.standard.MemoryBehavior;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.library.InterfacePins;
 import cl.almejo.vsim.core.simulation.FlatCircuit;
@@ -96,6 +97,17 @@ public final class BlockHarness {
     /** The value on the net of pin {@code pinIndex} (inputs and outputs alike). */
     public Value output(int pinIndex) {
         return engine.snapshot().netValue("net" + pinIndex);
+    }
+
+    /** «Restaurar contenido inicial» on the block (a RAM); the rest of the circuit goes on. */
+    public BlockHarness restoreMemory() {
+        engine.restoreInitialState("dut");
+        return this;
+    }
+
+    /** The block as a memory (it must be a RAM or a ROM). */
+    public MemoryBehavior memory() {
+        return engine.memory("dut").orElseThrow();
     }
 
     public VisibleState state() {

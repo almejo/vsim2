@@ -233,8 +233,9 @@ class TruthTableScopeTest {
     }
 
     @Test
-    void registersAndCountersAreRefusedAsSequential() {
-        for (String sequential : List.of(StandardComponentTypes.REGISTER, StandardComponentTypes.COUNTER)) {
+    void registersCountersAndRamsAreRefusedAsSequential() {
+        for (String sequential : List.of(StandardComponentTypes.REGISTER, StandardComponentTypes.COUNTER,
+                StandardComponentTypes.RAM)) {
             TruthTableCircuits circuits = TruthTableCircuits.halfAdder();
             circuits.place(sequential, 40, 40, "");
 

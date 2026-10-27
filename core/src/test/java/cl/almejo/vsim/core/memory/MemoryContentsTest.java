@@ -121,4 +121,19 @@ class MemoryContentsTest {
         assertThat(mutable.word(1)).isZero();
         assertThat(mutable.snapshot()).isEqualTo(MemoryContents.empty().with(2, 7));
     }
+
+    @Test
+    void aSnapshotSharesPagesButNeverSeesLaterWrites() {
+        MutableMemoryContents mutable = new MutableMemoryContents(MemoryContents.decode("@0 1 2"));
+        MemoryContents first = mutable.snapshot();
+
+        mutable.set(1, 9);
+        mutable.set(0, 0);
+        MemoryContents second = mutable.snapshot();
+        mutable.set(1, 0);
+
+        assertThat(first).isEqualTo(MemoryContents.decode("@0 1 2"));
+        assertThat(second).isEqualTo(MemoryContents.decode("@1 9"));
+        assertThat(mutable.snapshot()).isEqualTo(MemoryContents.empty());
+    }
 }

@@ -204,8 +204,8 @@ class PalettePanelTest {
         palette.setUserComponentChooser(component -> chosenUser.add(component.bundle().root().id()));
         palette.setUserComponents(List.of(inverterBundle), List.of(doubleInverterBundle));
 
-        assertThat(palette.visibleSections()).containsExactly("Básicas", "Entrada/Salida", "Bloques", "Depuración",
-                "Pines de componente", "Mis componentes", "Componentes de este circuito");
+        assertThat(palette.visibleSections()).containsExactly("Básicas", "Entrada/Salida", "Bloques", "Memoria",
+                "Depuración", "Pines de componente", "Mis componentes", "Componentes de este circuito");
         assertThat(palette.visibleTypeIds()).endsWith("subcircuit:inverter", "subcircuit:double-inverter");
         palette.setFilter("inversor");
         assertThat(palette.visibleTypeIds()).containsExactly("subcircuit:inverter", "subcircuit:double-inverter");

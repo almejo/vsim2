@@ -1,5 +1,6 @@
 package cl.almejo.vsim.core.truthtable;
 
+import cl.almejo.vsim.core.component.standard.MemoryTypes;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.geometry.GridPoint;
@@ -157,5 +158,34 @@ class BlockTruthTableTest {
                     List.of(Value.of(2, first), Value.of(2, second), Value.of(3, code)),
                     List.of(Value.of(2, expected), Value.of(expected == 0)), true));
         }
+    }
+
+    /** A ROM is a lookup table: its truth table is its contents. */
+    @Test
+    void aRomBetweenInputsAndOutputsGivesItsContents() {
+        TruthTableCircuits circuits = new TruthTableCircuits();
+        StringBuilder contents = new StringBuilder("@0");
+        for (int address = 0; address < 16; address++) {
+            contents.append(' ').append(Integer.toHexString(romWord(address)));
+        }
+        Component rom = circuits.place(StandardComponentTypes.ROM, 20, 0, "", Map.of(MemoryTypes.WORDS, "16",
+                MemoryTypes.WIDTH, 4, MemoryTypes.CONTENTS, contents.toString()));
+        feedFromTheLeft(circuits, circuits.pin(rom, 0), 4, "A");
+        GridPoint dataPin = circuits.pin(rom, 2);
+        Component data = circuits.place(InterfacePins.OUTPUT_PIN, dataPin.x() + 4, dataPin.y() - 1, "Q",
+                Map.of(InterfacePins.WIDTH, 4));
+        circuits.wire(dataPin, circuits.pin(data, 0));
+
+        TruthTable table = tableOf(circuits);
+
+        assertThat(table.rows()).hasSize(16);
+        for (Row row : table.rows()) {
+            long address = bitsOf(table.inputs(), row.inputs(), "A");
+            assertThat(bitsOf(table.outputs(), row.outputs(), "Q")).as("%s", row).isEqualTo(romWord((int) address));
+        }
+    }
+
+    private static int romWord(int address) {
+        return (address * 7 + 3) & 0xF;
     }
 }
