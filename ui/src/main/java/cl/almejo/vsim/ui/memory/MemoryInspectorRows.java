@@ -74,7 +74,7 @@ final class MemoryInspectorRows implements PropertiesPanel.ComponentRows {
                 () -> launcher.open(view, id, OptionalLong.empty()));
         JButton external = button("memory.inspector.external", Messages.text("memory.inspector.external"),
                 () -> links.openExternal(view, id));
-        external.setEnabled(linked && links.available());
+        external.setEnabled(linked);
         rows.add("", line(edit, external));
     }
 

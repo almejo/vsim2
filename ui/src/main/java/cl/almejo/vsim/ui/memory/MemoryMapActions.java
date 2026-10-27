@@ -7,12 +7,10 @@ import java.util.OptionalLong;
 
 /**
  * What the «Mapa de memoria» asks of the rest of the editor, bound to one editor view: open the content editor at an
- * address (a click on a cell) and «Volcar…» a RAM. {@link #NONE} does neither (the cells do not open anything and
- * «Volcar…» is disabled) (the editor is wired in by {@link #of}).
+ * address (a click on a cell) and «Volcar…» a RAM. The defaults do neither (the cells open nothing and
+ * «Volcar…» is disabled); {@link #of} wires in the editor.
  */
 public interface MemoryMapActions {
-
-    MemoryMapActions NONE = new MemoryMapActions() { };
 
     /** The live actions of {@code view}: cells open the content editor, «Volcar…» dumps through {@code launcher}. */
     static MemoryMapActions of(EditorView view, MemoryEditorLauncher launcher) {

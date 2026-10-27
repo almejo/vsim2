@@ -51,6 +51,8 @@ class MemoryEditorDialogTest {
         final List<String> informed = new ArrayList<>();
         final List<String> confirmed = new ArrayList<>();
         String clipboard;
+        final List<String> fillDefaults = new ArrayList<>();
+        final List<String> saveTitles = new ArrayList<>();
 
         @Override
         public Optional<Path> chooseImport() {
@@ -58,12 +60,15 @@ class MemoryEditorDialogTest {
         }
 
         @Override
-        public Optional<SaveChoice> chooseSave(String suggestedName) {
+        public Optional<SaveChoice> chooseSave(String suggestedName, String titleKey,
+                                               java.util.function.Function<Path, Optional<String>> refusal) {
+            saveTitles.add(titleKey);
             return saveChoice;
         }
 
         @Override
         public Optional<FillRequest> askFill(String firstAddress, String lastAddress) {
+            fillDefaults.add(firstAddress + ".." + lastAddress);
             return fill;
         }
 
@@ -263,6 +268,99 @@ class MemoryEditorDialogTest {
     }
 
     @Test
+    void exportingToTheLinkedFileIsRefusedAndNothingIsWritten() throws IOException {
+        Path linked = folder.resolve("programa.hex");
+        Files.writeString(linked, "@0\n01\n");
+        Component component = rom(Map.of(MemoryTypes.WORDS, "16", MemoryTypes.LINK, linked.toString()));
+        MemoryEditorDialog dialog = dialogOn(component);
+        prompts.saveChoice = Optional.of(new MemoryEditorPrompts.SaveChoice(linked,
+                cl.almejo.vsim.core.memory.MemoryFormats.all().get(0)));
+        button(dialog.content(), "memory.export").doClick();
+        assertThat(prompts.informed).hasSize(1);
+        assertThat(Files.readString(linked)).isEqualTo("@0\n01\n");
+    }
+
+    @Test
+    void exportingAndDumpingOverAnotherMemorysLinkedFileIsRefused() throws Exception {
+        Path linked = folder.resolve("otra.hex");
+        Files.writeString(linked, "@0\n01\n");
+        rom(Map.of(MemoryTypes.WORDS, "16", MemoryTypes.LINK, linked.toString()));
+        Component ram = place(document, StandardComponentTypes.RAM, 10, 10, Map.of(MemoryTypes.WORDS, "16"));
+        MemoryEditorDialog dialog = dialogOn(ram);
+        prompts.saveChoice = Optional.of(new MemoryEditorPrompts.SaveChoice(linked,
+                cl.almejo.vsim.core.memory.MemoryFormats.all().get(0)));
+        button(dialog.content(), "memory.export").doClick();
+        button(dialog.content(), "memory.dump").doClick();
+        assertThat(prompts.informed).hasSize(2);
+        assertThat(Files.readString(linked)).isEqualTo("@0\n01\n");
+    }
+
+    @Test
+    void dumpAndExportAskWithTheirOwnTitle() {
+        MemoryEditorDialog dialog = dialogOn(ram(Map.of(MemoryTypes.WORDS, "16")));
+        button(dialog.content(), "memory.export").doClick();
+        button(dialog.content(), "memory.dump").doClick();
+        assertThat(prompts.saveTitles).containsExactly("memory.export.title", "memory.dump.title");
+    }
+
+    @Test
+    void everyToolbarButtonShowsTextAndAnIcon() {
+        MemoryEditorDialog dialog = dialogOn(ram(Map.of(MemoryTypes.WORDS, "16")));
+        for (String name : List.of("memory.import", "memory.export", "memory.dump", "memory.link", "memory.fill",
+                "memory.goTo", "memory.restore")) {
+            AbstractButton button = button(dialog.content(), name);
+            assertThat(button.getText()).as(name).isNotBlank().doesNotStartWith("!");
+            assertThat(button.getIcon()).as(name).isNotNull();
+            assertThat(button.getToolTipText()).as(name).isNotBlank();
+        }
+    }
+
+    @Test
+    void fillNeverDefaultsToTheWholeOfABigMemory() {
+        MemoryEditorDialog dialog = dialogOn(ram(Map.of(MemoryTypes.WORDS, "16777216")));
+        button(dialog.content(), "memory.fill").doClick();
+        String[] range = prompts.fillDefaults.get(0).split("\\.\\.");
+        assertThat(Long.parseLong(range[1], 16)).isLessThan(0xFFFFFF);
+        dialog.goTo(0x40);
+        button(dialog.content(), "memory.fill").doClick();
+        assertThat(prompts.fillDefaults.get(1)).isEqualTo("40..40");
+    }
+
+    @Test
+    void fillingMoreThan64KWordsAsksFirstNamingTheSize() {
+        MemoryEditorDialog dialog = dialogOn(ram(Map.of(MemoryTypes.WORDS, "1048576")));
+        prompts.fill = Optional.of(new MemoryEditorPrompts.FillRequest("0", "FFFFF", "0"));
+        prompts.confirmation = false;
+        button(dialog.content(), "memory.fill").doClick();
+        assertThat(prompts.confirmed).hasSize(1);
+        assertThat(prompts.confirmed.get(0)).contains("1048576");
+        prompts.confirmation = true;
+        prompts.fill = Optional.of(new MemoryEditorPrompts.FillRequest("0", "FFFFF", "1"));
+        button(dialog.content(), "memory.fill").doClick();
+        assertThat(prompts.confirmed).hasSize(2);
+        assertThat(dialog.model().edited().word(0xFFFFF)).isEqualTo(1);
+        prompts.fill = Optional.of(new MemoryEditorPrompts.FillRequest("0", "FF", "1"));
+        button(dialog.content(), "memory.fill").doClick();
+        assertThat(prompts.confirmed).hasSize(2);
+    }
+
+    @Test
+    void linkingAsksFirstWhenTheGridHasUnacceptedEditsAndDecliningLinksNothing() {
+        RecordingLinks links = new RecordingLinks();
+        MemoryEditorDialog dialog = dialogOn(rom(Map.of(MemoryTypes.WORDS, "16")), links);
+        button(dialog.content(), "memory.link").doClick();
+        assertThat(links.calls).containsExactly("link");
+        dialog.model().setCell(1, "2");
+        prompts.confirmation = false;
+        button(dialog.content(), "memory.link").doClick();
+        assertThat(prompts.confirmed).hasSize(1);
+        assertThat(links.calls).containsExactly("link");
+        prompts.confirmation = true;
+        button(dialog.content(), "memory.link").doClick();
+        assertThat(links.calls).containsExactly("link", "link");
+    }
+
+    @Test
     void dumpingWritesTheSimulationsWordsWithAHeader() throws Exception {
         Component component = ram(Map.of(MemoryTypes.WORDS, "16", MemoryTypes.CONTENTS, "@2 AB"));
         Path target = folder.resolve("copia.hex");
@@ -282,17 +380,6 @@ class MemoryEditorDialogTest {
         MemoryEditorDialog ram = dialogOn(ram(Map.of()));
         assertThat(button(ram.content(), "memory.dump")).isNotNull();
         assertThat(button(ram.content(), "memory.restore")).isNotNull();
-    }
-
-    @Test
-    void withNoLinkActionsTheLinkButtonsAreDisabled() {
-        MemoryEditorDialog dialog = dialogOn(rom(Map.of(MemoryTypes.LINK, "programa.hex")), MemoryLinkActions.NONE);
-        assertThat(button(dialog.content(), "memory.link").isEnabled()).isFalse();
-        assertThat(button(dialog.content(), "memory.external").isEnabled()).isFalse();
-        assertThat(button(dialog.content(), "memory.unlink").isEnabled()).isFalse();
-        MemoryEditorDialog withActions = dialogOn(rom(Map.of(MemoryTypes.LINK, "programa.hex")));
-        assertThat(button(withActions.content(), "memory.link").isEnabled()).isTrue();
-        assertThat(button(withActions.content(), "memory.external").isEnabled()).isTrue();
     }
 
     @Test
@@ -434,11 +521,17 @@ class MemoryEditorDialogTest {
     }
 
     @Test
-    void theLiveGridShowsTheSimulationsWordsAndStopsWhenItIsNotRunning() throws Exception {
+    void theLiveGridShowsTheSimulationsWordsAlsoWhilePausedAskingOncePerSnapshot() throws Exception {
         Component component = ram(Map.of(MemoryTypes.WORDS, "16", MemoryTypes.CONTENTS, "@0 5"));
         MemoryEditorDialog dialog = dialogOn(component);
         document.pause();
-        waitUntil(() -> !document.latestSnapshot().running());
+        waitUntil(() -> !document.latestSnapshot().running()
+                && document.latestSnapshot().componentState(component.id().value()) != null);
+        dialog.pollLive().get(10, TimeUnit.SECONDS);
+        assertThat(dialog.model().isShowingLive()).isTrue();
+        assertThat(dialog.model().valueAt(0)).isEqualTo(5);
+        // the same snapshot revision is not asked again while paused
+        dialog.model().hideLive();
         dialog.pollLive().get(10, TimeUnit.SECONDS);
         assertThat(dialog.model().isShowingLive()).isFalse();
         document.resume();
@@ -446,10 +539,6 @@ class MemoryEditorDialogTest {
                 && document.latestSnapshot().componentState(component.id().value()) != null);
         dialog.pollLive().get(10, TimeUnit.SECONDS);
         assertThat(dialog.model().valueAt(0)).isEqualTo(5);
-        document.pause();
-        waitUntil(() -> !document.latestSnapshot().running());
-        dialog.pollLive().get(10, TimeUnit.SECONDS);
-        assertThat(dialog.model().isShowingLive()).isFalse();
     }
 
     @Test

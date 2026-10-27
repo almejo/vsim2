@@ -229,4 +229,17 @@ class MemoryLinksTest {
         assertThat(ExternalEditor.SystemExternalEditor.words("\"C:\\Program Files\\Notepad++\\notepad++.exe\" -multiInst"))
                 .containsExactly("C:\\Program Files\\Notepad++\\notepad++.exe", "-multiInst");
     }
+
+    @Test
+    void anyMemoryOfTheDocumentLinkingAFileMakesItProtected() throws IOException {
+        OpenDocument document = newDocument();
+        Path linked = folder.resolve("a.hex");
+        Files.writeString(linked, "01\n");
+        place(document, StandardComponentTypes.ROM, 0, 0, Map.of(MemoryTypes.LINK, linked.toString()));
+        place(document, StandardComponentTypes.RAM, 10, 0, Map.of());
+        assertThat(MemoryLinks.isLinkedByAny(document, linked)).isTrue();
+        assertThat(MemoryLinks.isLinkedByAny(document, folder.resolve("." + java.io.File.separator + "a.hex")))
+                .isTrue();
+        assertThat(MemoryLinks.isLinkedByAny(document, folder.resolve("b.hex"))).isFalse();
+    }
 }

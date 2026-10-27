@@ -84,6 +84,8 @@ public final class MemoryEditorDialog {
     private final Timer liveTimer;
     private String link = "";
     private boolean livePending;
+    /** The snapshot revision whose words were last asked for (while paused, each revision is asked once). */
+    private long liveRevision = -1;
     private Runnable closer = () -> { };
 
     /** The editor with the real windows and clipboard for its questions. */
@@ -132,7 +134,6 @@ public final class MemoryEditorDialog {
         JButton barExternal = new JButton(Messages.text("memory.external"));
         barExternal.setName("memory.bar.external");
         barExternal.addActionListener(event -> openExternal());
-        barExternal.setEnabled(linkActions.available());
         linkBar.setName("memory.linkBar");
         linkBar.add(linkText);
         linkBar.add(barExternal);
@@ -273,7 +274,7 @@ public final class MemoryEditorDialog {
     }
 
     private JButton toolbarButton(String name, String key, Runnable behavior) {
-        JButton button = new JButton(Icons.get(MemoryIcons.of(name), Icons.MENU_SIZE));
+        JButton button = new JButton(Messages.text(key), Icons.get(MemoryIcons.of(name), Icons.MENU_SIZE));
         button.setName(name);
         button.setToolTipText(Messages.text(key + ".tooltip"));
         button.setFocusable(false);
@@ -309,10 +310,7 @@ public final class MemoryEditorDialog {
         model.setReadOnly(linked);
         linkBar.setVisible(linked);
         linkText.setText(Messages.format("memory.linkBar", shownLink()));
-        boolean available = linkActions.available();
-        linkButton.setEnabled(available);
-        externalButton.setEnabled(available && linked);
-        unlinkButton.setEnabled(available);
+        externalButton.setEnabled(linked);
     }
 
     /** The link as the user reads it: relative to the circuit when it is saved. */
@@ -322,6 +320,9 @@ public final class MemoryEditorDialog {
 
     /** «Enlazar…»: once linked, the grid shows the file's words (read-only). */
     private void linkFile() {
+        if (model.canUndo() && !prompts.confirm(Messages.text("memory.link.discardEdits"))) {
+            return;
+        }
         linkActions.link(view, componentId);
         refreshLink();
         if (!link.isEmpty()) {
@@ -348,8 +349,7 @@ public final class MemoryEditorDialog {
         if (link.isEmpty()) {
             return true;
         }
-        if (!linkActions.available()
-                || !prompts.confirm(Messages.format("memory.import.unlinkFirst", shownLink()))) {
+        if (!prompts.confirm(Messages.format("memory.import.unlinkFirst", shownLink()))) {
             return false;
         }
         linkActions.unlink(view, componentId);
@@ -377,10 +377,15 @@ public final class MemoryEditorDialog {
     }
 
     private void exportToFile() {
-        prompts.chooseSave(suggestedName()).ifPresent(choice -> {
+        prompts.chooseSave(suggestedName(), "memory.export.title", this::linkedRefusal).ifPresent(choice -> {
+            Path target = MemoryFileIo.withExtension(choice.path(), choice.format());
+            Optional<String> refusal = linkedRefusal(target);
+            if (refusal.isPresent()) {
+                prompts.inform(refusal.get());
+                return;
+            }
             try {
-                MemoryFileIo.write(MemoryFileIo.withExtension(choice.path(), choice.format()), choice.format(),
-                        new MemoryFile(header(), model.edited()), model.width());
+                MemoryFileIo.write(target, choice.format(), new MemoryFile(header(), model.edited()), model.width());
             } catch (MemoryFileIo.Unreadable problem) {
                 prompts.inform(problem.getMessage());
             }
@@ -393,18 +398,19 @@ public final class MemoryEditorDialog {
     }
 
     void dumpToFile() {
-        prompts.chooseSave(suggestedName()).ifPresent(this::dumpTo);
+        prompts.chooseSave(suggestedName(), "memory.dump.title", this::linkedRefusal).ifPresent(this::dumpTo);
     }
 
     /**
      * «Volcar»: writes the words the simulation holds now (the initial ones when it has none) with a header. Refuses
-     * the linked file: VSim never writes it. The words come through a queued request; the file is written off the
+     * any file a memory of the document is linked to: VSim never writes those. The words come through a queued request; the file is written off the
      * EDT and the future completes when it is done (or the user was told why not).
      */
     CompletableFuture<Void> dumpTo(MemoryEditorPrompts.SaveChoice choice) {
         Path target = MemoryFileIo.withExtension(choice.path(), choice.format());
-        if (isLinkedFile(target)) {
-            prompts.inform(Messages.format("memory.dump.linkedRefused", shownLink()));
+        Optional<String> refusal = linkedRefusal(target);
+        if (refusal.isPresent()) {
+            prompts.inform(refusal.get());
             return CompletableFuture.completedFuture(null);
         }
         return document.requestMemoryContents(componentId)
@@ -418,12 +424,12 @@ public final class MemoryEditorDialog {
                 }, ForkJoinPool.commonPool());
     }
 
-    /** Whether {@code file} is the file this memory is linked to. */
-    private boolean isLinkedFile(Path file) {
-        return document.document().component(componentId)
-                .flatMap(component -> MemoryLinks.linkedFile(component, document.path()))
-                .filter(linked -> MemoryLinks.isSameFile(linked, file))
-                .isPresent();
+    /** Why {@code file} must not be written (a memory of the document is linked to it), when so. */
+    private Optional<String> linkedRefusal(Path file) {
+        return MemoryLinks.isLinkedByAny(document, file)
+                ? Optional.of(Messages.format("memory.dump.linkedRefused", MemoryLinks.displayPath(
+                        MemoryLinks.storedLinkPath(file.toAbsolutePath(), Optional.empty()), document.path())))
+                : Optional.empty();
     }
 
     private MemoryHeader header() {
@@ -441,15 +447,15 @@ public final class MemoryEditorDialog {
         document.restoreMemory(componentId);
     }
 
+    /** Above this many words «Llenar…» asks before it fills. */
+    static final long FILL_CONFIRM_WORDS = 1L << 16;
+
     private void askFill() {
-        long first = 0;
-        long last = model.words() - 1;
-        long[] selected = selectedAddressRange();
-        if (selected != null) {
-            first = selected[0];
-            last = selected[1];
+        long[] range = selectedAddressRange();
+        if (range == null) {
+            range = visibleAddressRange();
         }
-        prompts.askFill(Long.toHexString(first).toUpperCase(), Long.toHexString(last).toUpperCase())
+        prompts.askFill(Long.toHexString(range[0]).toUpperCase(), Long.toHexString(range[1]).toUpperCase())
                 .ifPresent(request -> {
                     OptionalLong from = model.parseAddress(request.firstAddress());
                     OptionalLong to = model.parseAddress(request.lastAddress());
@@ -458,10 +464,31 @@ public final class MemoryEditorDialog {
                         prompts.inform(Messages.text(MemoryGridModel.OUT_OF_RANGE));
                         return;
                     }
+                    long count = to.getAsLong() - from.getAsLong() + 1;
+                    if (count > FILL_CONFIRM_WORDS && !prompts.confirm(
+                            Messages.format("memory.fill.large", String.valueOf(count)))) {
+                        return;
+                    }
                     Optional<String> refusal = model.fill(from.getAsLong(), to.getAsLong(), request.value());
                     updateStatus(refusal);
                     refusal.ifPresent(key -> prompts.inform(Messages.text(key)));
                 });
+    }
+
+    /** The addresses of the rows on screen (the first rows when nothing is laid out yet): never the whole memory. */
+    private long[] visibleAddressRange() {
+        int rowCount = table.getRowCount();
+        java.awt.Rectangle visible = table.getVisibleRect();
+        int firstRow = 0;
+        int lastRow = Math.min(rowCount, 16) - 1;
+        if (visible.height > 0) {
+            firstRow = Math.max(0, table.rowAtPoint(new java.awt.Point(0, visible.y)));
+            int bottom = table.rowAtPoint(new java.awt.Point(0, visible.y + visible.height - 1));
+            lastRow = bottom < 0 ? rowCount - 1 : bottom;
+        }
+        long first = (long) firstRow * model.columns();
+        long last = Math.min(model.words() - 1, (long) (lastRow + 1) * model.columns() - 1);
+        return new long[]{first, Math.max(first, last)};
     }
 
     /** First and last address of the selected value cells, or null when none is selected. */
@@ -570,30 +597,31 @@ public final class MemoryEditorDialog {
     // Live values
 
     /**
-     * One live refresh: the last access from the snapshot, and (for a RAM, only while the simulation runs) the words
-     * through a queued request, shown when the answer arrives on the EDT. The future completes then. Skipped while
-     * the previous request is still pending, so the engine is never flooded.
+     * One live refresh: the last access from the snapshot, and (for a RAM) the words through a queued request, shown
+     * when the answer arrives on the EDT. While the simulation runs it asks every time; paused or stepping, once per
+     * new snapshot revision. The future completes then. Skipped while the previous request is still pending, so
+     * the engine is never flooded.
      */
     CompletableFuture<Void> pollLive() {
         SimulationSnapshot snapshot = document.latestSnapshot();
-        if (!snapshot.running()) {
+        if (!(snapshot.componentState(componentId.value()) instanceof VisibleState.MemoryState state)) {
             model.hideLive();
             model.showAccess(VisibleState.MemoryAccess.NONE, -1);
             updateStatus(Optional.empty());
             return CompletableFuture.completedFuture(null);
         }
-        if (snapshot.componentState(componentId.value()) instanceof VisibleState.MemoryState state) {
-            showAccess(state);
-        }
-        if (kind != MemoryKind.RAM || livePending) {
+        showAccess(state);
+        if (kind != MemoryKind.RAM || livePending
+                || (!snapshot.running() && snapshot.revision() == liveRevision)) {
             return CompletableFuture.completedFuture(null);
         }
+        liveRevision = snapshot.revision();
         livePending = true;
         CompletableFuture<Void> done = new CompletableFuture<>();
         document.requestMemoryContents(componentId).whenComplete((contents, failure) ->
                 SwingUtilities.invokeLater(() -> {
                     livePending = false;
-                    if (document.latestSnapshot().running() && contents != null) {
+                    if (contents != null) {
                         contents.ifPresent(model::showLive);
                     }
                     done.complete(null);

@@ -32,7 +32,7 @@ class MemoryEditorExtensionTest {
 
     private final OpenDocument document = OpenDocument.createEmpty(StandardComponentTypes.registry());
     private final List<ElementId> opened = new ArrayList<>();
-    private final MemoryEditorLauncher launcher = new MemoryEditorLauncher(MemoryLinkActions.NONE) {
+    private final MemoryEditorLauncher launcher = new MemoryEditorLauncher(NoLinkActions.INSTANCE) {
         @Override
         public void open(EditorView view, ElementId componentId, OptionalLong address) {
             opened.add(componentId);

@@ -53,7 +53,7 @@ class MemoryMapExtensionTest {
             plainView.dispose();
             int snapshotListenersPlainDisposed = plainView.canvas().snapshotListenerCount();
 
-            EditorView view = new EditorView(openDocument, plain.withExtensions(List.of(new MemoryMapExtension())),
+            EditorView view = new EditorView(openDocument, plain.withExtensions(List.of(new MemoryMapExtension(mapView -> new MemoryMapActions() { }))),
                     NO_WINDOW);
             try {
                 view.inspector().showTab("Mapa de memoria");

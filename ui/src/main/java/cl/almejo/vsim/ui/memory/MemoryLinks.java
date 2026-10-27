@@ -241,6 +241,17 @@ public final class MemoryLinks implements MemoryLinkActions {
         }
     }
 
+    /** Whether any memory of {@code document} is linked to {@code file}: VSim never writes such a file. */
+    public static boolean isLinkedByAny(OpenDocument document, Path file) {
+        for (Component component : List.copyOf(document.document().components())) {
+            if (isMemory(component) && linkedFile(component, document.path())
+                    .filter(linked -> isSameFile(linked, file)).isPresent()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /** Whether {@code first} and {@code second} name the same file (also through links, when both exist). */
     public static boolean isSameFile(Path first, Path second) {
         Path firstAbsolute = first.toAbsolutePath().normalize();

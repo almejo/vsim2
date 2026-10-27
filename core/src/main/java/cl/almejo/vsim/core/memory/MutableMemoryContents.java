@@ -57,6 +57,41 @@ public final class MutableMemoryContents {
         }
     }
 
+    /**
+     * Sets every word of {@code first..last} (inclusive) to {@code value}, page by page: a zero drops whole pages
+     * instead of storing them, so clearing a huge range costs its page count, not its address count.
+     */
+    public void fill(long first, long last, long value) {
+        if (first < 0 || last < first) {
+            throw new IllegalArgumentException("bad range " + first + ".." + last);
+        }
+        long firstPage = first >>> MemoryContents.PAGE_BITS;
+        long lastPage = last >>> MemoryContents.PAGE_BITS;
+        if (value == 0) {
+            for (long pageIndex : new java.util.ArrayList<>(pages.subMap(firstPage, true, lastPage, true).keySet())) {
+                long pageFirst = pageIndex << MemoryContents.PAGE_BITS;
+                long pageLast = pageFirst + MemoryContents.PAGE_SIZE - 1;
+                if (first <= pageFirst && last >= pageLast) {
+                    pages.remove(pageIndex);
+                    ownedPages.remove(pageIndex);
+                } else {
+                    for (long address = Math.max(first, pageFirst); address <= Math.min(last, pageLast); address++) {
+                        set(address, 0);
+                    }
+                }
+            }
+            return;
+        }
+        for (long pageIndex = firstPage; pageIndex <= lastPage; pageIndex++) {
+            long pageFirst = pageIndex << MemoryContents.PAGE_BITS;
+            long from = Math.max(first, pageFirst);
+            long to = Math.min(last, pageFirst + MemoryContents.PAGE_SIZE - 1);
+            for (long address = from; address <= to; address++) {
+                set(address, value);
+            }
+        }
+    }
+
     /** An immutable view of the current words; later writes here copy the pages they touch first. */
     public MemoryContents snapshot() {
         ownedPages.clear();

@@ -20,8 +20,11 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 - Editor de contenido: doble clic sobre la pieza (o «Editar contenido…» en el clic derecho) abre una grilla de
   direcciones y palabras que se escribe sobre las celdas, en hexadecimal, decimal o binario, con Ctrl+C y Ctrl+V de
   texto hexadecimal, Ctrl+Z y Ctrl+Y dentro del editor, «Llenar…», «Ir a…» (Ctrl+G), «Importar…», «Exportar…» y
-  «Volcar…» (RAM) en el formato de VSim y en el de Logisim (v2.0 raw). Aceptar es un solo paso de deshacer. Con la
-  simulación corriendo, la RAM muestra sus valores vivos y su última lectura (azul) y escritura (naranja).
+  «Volcar…» (RAM) en el formato de VSim y en el de Logisim (v2.0 raw), con ícono y texto en cada botón. Aceptar es un
+  solo paso de deshacer. Con la simulación corriendo, o en pausa, la RAM muestra sus valores vivos y su última lectura
+  (azul) y escritura (naranja). «Exportar…» y «Volcar…» nunca escriben sobre un archivo enlazado de ninguna memoria del
+  circuito; «Llenar…» propone la selección o las filas que se ven, y pide confirmar sobre 65.536 palabras; «Enlazar…»
+  pregunta antes de descartar cambios sin aceptar.
   «Restaurar contenido inicial» y «Volcar…» también están en el clic derecho de la RAM.
 - El inspector de una RAM o una ROM dice dónde está su contenido («En el circuito» o «Enlazado: …»), con «Editar
   contenido…» y «Abrir en editor externo», y avisa cuando el contenido tiene más palabras (o bits) de las que se ven,

@@ -19,6 +19,7 @@ import java.io.File;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
 /** {@link MemoryEditorPrompts} with the real windows and the system clipboard, over {@code parent}. */
@@ -44,9 +45,10 @@ public final class SwingMemoryEditorPrompts implements MemoryEditorPrompts {
     }
 
     @Override
-    public Optional<SaveChoice> chooseSave(String suggestedName) {
+    public Optional<SaveChoice> chooseSave(String suggestedName, String titleKey,
+                                           Function<Path, Optional<String>> refusal) {
         JFileChooser chooser = new JFileChooser(lastFolder.toFile());
-        chooser.setDialogTitle(Messages.text("memory.export.title"));
+        chooser.setDialogTitle(Messages.text(titleKey));
         chooser.setAcceptAllFileFilterUsed(false);
         List<MemoryFileFormat> formats = MemoryFormats.all().stream().filter(MemoryFileFormat::canWrite).toList();
         for (MemoryFileFormat format : formats) {
@@ -60,6 +62,11 @@ public final class SwingMemoryEditorPrompts implements MemoryEditorPrompts {
         MemoryFileFormat format = formats.get(List.of(chooser.getChoosableFileFilters())
                 .indexOf(chooser.getFileFilter()));
         Path target = MemoryFileIo.withExtension(chooser.getSelectedFile().toPath(), format);
+        Optional<String> refused = refusal.apply(target);
+        if (refused.isPresent()) {
+            inform(refused.get());
+            return Optional.empty();
+        }
         if (!FileDialogs.confirmOverwrite(parent.get(), target)) {
             return Optional.empty();
         }

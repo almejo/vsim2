@@ -154,6 +154,33 @@ class MemoryGridModelTest {
     }
 
     @Test
+    void fillingTheWholeOfAHugeMemoryWithZeroIsInstantAndLeavesItEmpty() {
+        MemoryGridModel grid = model(16, 1L << 24);
+        grid.setCell(5, "1");
+        long start = System.nanoTime();
+        assertThat(grid.fill(0, (1L << 24) - 1, "0")).isEmpty();
+        assertThat((System.nanoTime() - start) / 1_000_000).isLessThan(500);
+        assertThat(grid.edited().count()).isZero();
+        grid.undo();
+        assertThat(grid.edited().word(5)).isEqualTo(1);
+    }
+
+    @Test
+    void fillingAPartialPageAndAcrossPagesKeepsTheRestOfTheWords() {
+        MemoryGridModel grid = model(8, 1024);
+        grid.setCell(0, "1");
+        grid.setCell(300, "2");
+        assertThat(grid.fill(10, 600, "0")).isEmpty();
+        assertThat(grid.edited().word(0)).isEqualTo(1);
+        assertThat(grid.edited().word(300)).isZero();
+        assertThat(grid.fill(250, 260, "AA")).isEmpty();
+        assertThat(grid.edited().word(249)).isZero();
+        assertThat(grid.edited().word(250)).isEqualTo(0xAA);
+        assertThat(grid.edited().word(260)).isEqualTo(0xAA);
+        assertThat(grid.edited().word(261)).isZero();
+    }
+
+    @Test
     void fillingARangeIsOneUndoStep() {
         MemoryGridModel grid = model(8, 256);
         assertThat(grid.fill(2, 5, "AA")).isEmpty();

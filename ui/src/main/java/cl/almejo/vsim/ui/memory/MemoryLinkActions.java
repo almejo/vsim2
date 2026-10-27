@@ -10,26 +10,6 @@ import cl.almejo.vsim.ui.window.EditorView;
  */
 public interface MemoryLinkActions {
 
-    /** Does nothing and tells the editor to disable the buttons that use it. */
-    MemoryLinkActions NONE = new MemoryLinkActions() {
-        @Override
-        public void link(EditorView view, ElementId componentId) {
-        }
-
-        @Override
-        public void unlink(EditorView view, ElementId componentId) {
-        }
-
-        @Override
-        public void openExternal(EditorView view, ElementId componentId) {
-        }
-
-        @Override
-        public boolean available() {
-            return false;
-        }
-    };
-
     /** Asks for a file and links the memory to it. */
     void link(EditorView view, ElementId componentId);
 
@@ -38,9 +18,4 @@ public interface MemoryLinkActions {
 
     /** Opens the linked file in the external editor. */
     void openExternal(EditorView view, ElementId componentId);
-
-    /** False when the actions do nothing ({@link #NONE}): the editor disables their buttons. */
-    default boolean available() {
-        return true;
-    }
 }

@@ -2,6 +2,7 @@ package cl.almejo.vsim.ui.memory;
 
 import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.memory.MemoryContents;
+import cl.almejo.vsim.core.memory.MutableMemoryContents;
 
 import javax.swing.table.AbstractTableModel;
 import java.util.ArrayDeque;
@@ -295,11 +296,9 @@ public final class MemoryGridModel extends AbstractTableModel {
         if (!fits(value.getAsLong())) {
             return Optional.of(TOO_WIDE);
         }
-        TreeMap<Long, Long> changes = new TreeMap<>();
-        for (long address = firstAddress; address <= lastAddress; address++) {
-            changes.put(address, value.getAsLong());
-        }
-        commit(contents.withAll(changes));
+        MutableMemoryContents filled = new MutableMemoryContents(contents);
+        filled.fill(firstAddress, lastAddress, value.getAsLong());
+        commit(filled.snapshot());
         return Optional.empty();
     }
 

@@ -16,11 +16,6 @@ public final class MemoryMapExtension implements EditorExtension {
 
     private final Function<EditorView, MemoryMapActions> actions;
 
-    /** Cells that open nothing and no «Volcar…» (until the content editor is wired in). */
-    public MemoryMapExtension() {
-        this(view -> MemoryMapActions.NONE);
-    }
-
     /** {@code actions} gives each view what a click on a cell and «Volcar…» do. */
     public MemoryMapExtension(Function<EditorView, MemoryMapActions> actions) {
         this.actions = Objects.requireNonNull(actions, "actions");
