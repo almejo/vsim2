@@ -36,6 +36,16 @@ class LabelLayoutTest {
         TextFonts.set(TextFont.DEFAULT);
     }
 
+    @Test
+    void aMemoryHasNoLabelAboveItBecauseItsNameIsInItsTitleBar() {
+        for (String typeId : List.of(StandardComponentTypes.RAM, StandardComponentTypes.ROM)) {
+            ComponentType memory = StandardComponentTypes.registry().require(typeId);
+            Component named = memory.newComponent(new ElementId("m1"), new GridPoint(10, 10), Rotation.R0, Map.of(),
+                    "Sprites");
+            assertThat(LabelLayout.componentLabel(memory, named)).as(typeId).isEmpty();
+        }
+    }
+
     private Component not(Rotation rotation, String label) {
         return type.newComponent(new ElementId("c1"), new GridPoint(10, 10), rotation, Map.of(), label);
     }

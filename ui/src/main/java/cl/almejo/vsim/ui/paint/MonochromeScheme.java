@@ -52,6 +52,9 @@ public final class MonochromeScheme {
             new Color(0, 0, 0, 22),
             new Color(0xF2F2F2),
             new Color(0, 0, 0, 40),
+            BLACK,
+            // no activity colour on paper: a memory's read and write lights are black like its outline
+            BLACK,
             BLACK);
 
     /** How a wire is drawn on paper: its grey and its stroke (solid, dashed or dotted). */

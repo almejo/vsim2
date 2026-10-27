@@ -62,6 +62,9 @@ public final class ParameterForm extends JPanel {
         this.type = type;
         this.initial = type.resolveParameters(currentParameters);
         for (ParameterSpec parameter : type.parameters()) {
+            if (parameter.hidden()) {
+                continue;
+            }
             JComponent editor = editorFor(type, parameter, initial.get(parameter.name()), scheme);
             editor.setName(parameter.name());
             editors.put(parameter.name(), editor);
@@ -103,10 +106,14 @@ public final class ParameterForm extends JPanel {
         return editors.get(parameterName);
     }
 
-    /** Current editor contents; invalid spinner text is returned as the typed string so validation can report it. */
+    /** Current editor contents (hidden parameters keep their value); invalid spinner text is returned as the typed string so validation can report it. */
     public Map<String, Object> rawValues() {
         Map<String, Object> values = new LinkedHashMap<>();
-        editors.forEach((name, editor) -> values.put(name, valueOf(editor)));
+        for (ParameterSpec parameter : type.parameters()) {
+            JComponent editor = editors.get(parameter.name());
+            // a hidden parameter (a memory's contents) has no field: it goes through as it was
+            values.put(parameter.name(), editor == null ? initial.get(parameter.name()) : valueOf(editor));
+        }
         return values;
     }
 

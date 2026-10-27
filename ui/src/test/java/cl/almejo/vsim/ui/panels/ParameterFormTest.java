@@ -5,6 +5,7 @@ import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.ParameterKind;
 import cl.almejo.vsim.core.component.ParameterSpec;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
+import cl.almejo.vsim.core.memory.MemoryContents;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.ColorSchemes;
 import cl.almejo.vsim.ui.paint.LedPainter;
@@ -227,5 +228,21 @@ class ParameterFormTest {
                 }
             }
         }
+    }
+
+    @Test
+    void hiddenParametersGetNoFieldAndTravelUnchanged() {
+        String contents = MemoryContents.empty().with(0, 5).with(1, 7).encode();
+        ParameterForm form = form(StandardComponentTypes.RAM, Map.of("contents", contents, "link", "/tmp/x.hex"));
+        assertThat(form.editor("contents")).isNull();
+        assertThat(form.editor("link")).isNull();
+        assertThat(form.editor("words")).isNotNull();
+        assertThat(form.rawValues()).containsKeys("contents", "link");
+        assertThat(form.rawValues().get("link")).isEqualTo("/tmp/x.hex");
+        assertThat(form.validationError()).isEmpty();
+        assertThat(form.hasChanges()).isFalse();
+        ((JComboBox<?>) form.editor("words")).setSelectedIndex(0);
+        assertThat(form.hasChanges()).isTrue();
+        assertThat(form.rawValues().get("contents")).isEqualTo(contents);
     }
 }

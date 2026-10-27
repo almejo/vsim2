@@ -65,8 +65,14 @@ public final class CustomColorSchemes {
                 .orElseGet(() -> role.get(ColorScheme.LIGHT)));
         ColorScheme withGridLine = parse(node.get(ColorRole.GRID_LINE.key(), "")).isPresent() ? stored
                 : stored.with(ColorRole.GRID_LINE, ColorScheme.derivedGridLine(stored.grid()));
-        ColorScheme scheme = parse(node.get(ColorRole.PAD.key(), "")).isPresent() ? withGridLine
+        ColorScheme withPad = parse(node.get(ColorRole.PAD.key(), "")).isPresent() ? withGridLine
                 : withGridLine.with(ColorRole.PAD, withGridLine.componentStroke());
+        // a scheme stored before the memory parts has no activity colours: the built-in pair that suits its board
+        ColorScheme memoryDefaults = withPad.isDark() ? ColorSchemes.DARK : ColorScheme.LIGHT;
+        ColorScheme withRead = parse(node.get(ColorRole.MEMORY_READ.key(), "")).isPresent() ? withPad
+                : withPad.with(ColorRole.MEMORY_READ, memoryDefaults.memoryRead());
+        ColorScheme scheme = parse(node.get(ColorRole.MEMORY_WRITE.key(), "")).isPresent() ? withRead
+                : withRead.with(ColorRole.MEMORY_WRITE, memoryDefaults.memoryWrite());
         return Optional.of(new NamedColorScheme(id, name.isBlank() ? id : name, scheme));
     }
 

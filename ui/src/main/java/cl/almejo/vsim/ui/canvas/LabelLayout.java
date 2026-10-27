@@ -1,6 +1,7 @@
 package cl.almejo.vsim.ui.canvas;
 
 import cl.almejo.vsim.core.component.ComponentType;
+import cl.almejo.vsim.core.component.standard.MemoryTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.LabelOffset;
 import cl.almejo.vsim.core.document.TextLabel;
@@ -99,9 +100,9 @@ public final class LabelLayout {
                 Math.max(UNIT, measured.width()));
     }
 
-    /** A component's label: above the body for R0/R180, left of it for R90/R270; empty for a blank label. */
+    /** A component's label: above the body for R0/R180, left of it for R90/R270; empty for a blank label and for a memory (its name is drawn in its own title bar). */
     public static Optional<PlacedText> componentLabel(ComponentType type, Component component) {
-        if (component.label().isBlank()) {
+        if (component.label().isBlank() || MemoryTypes.kindOf(type.id()).isPresent()) {
             return Optional.empty();
         }
         return Optional.of(componentLabelPlace(type, component, component.label()));
