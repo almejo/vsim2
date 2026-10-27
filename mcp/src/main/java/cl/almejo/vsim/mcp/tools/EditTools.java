@@ -14,6 +14,8 @@ import cl.almejo.vsim.core.component.appearance.SymbolTemplates;
 import cl.almejo.vsim.core.document.Guide;
 import cl.almejo.vsim.core.document.NoteColor;
 import cl.almejo.vsim.core.document.NoteStyle;
+import cl.almejo.vsim.core.document.StickyColor;
+import cl.almejo.vsim.core.document.StickyNote;
 import cl.almejo.vsim.core.geometry.Rotation;
 
 import java.util.ArrayList;
@@ -35,6 +37,8 @@ final class EditTools {
     private static final List<String> ORIENTATIONS = List.of("HORIZONTAL", "VERTICAL");
     private static final List<String> TEMPLATES = Arrays.stream(SymbolTemplates.Template.values())
             .map(SymbolTemplates.Template::name).toList();
+    private static final List<String> STICKY_COLORS = Arrays.stream(StickyColor.values()).map(StickyColor::name)
+            .toList();
     private static final List<String> NOTE_COLORS = Arrays.stream(NoteColor.values()).map(NoteColor::name).toList();
 
     private EditTools() {
@@ -152,6 +156,22 @@ final class EditTools {
                         .property("y", coordinate())
                         .property("style", noteStyle("Colours; NONE or left out: a plain note"))
                         .required("text", "x", "y").build(),
+                operation("AddStickyNote", "A reminder for the user, on paper; text or a to-do list")
+                        .property("alias", alias())
+                        .property("x", Schema.integer("Top-left corner"))
+                        .property("y", coordinate())
+                        .property("width", Schema.integer("Default 8", StickyNote.MINIMUM_WIDTH, 100))
+                        .property("height", Schema.integer("Default 6", StickyNote.MINIMUM_HEIGHT, 100))
+                        .property("color", Schema.enumeration("Default YELLOW", STICKY_COLORS))
+                        .property("text", Schema.nonEmptyString("Either text (\\n for a new line) or items"))
+                        .property("items", Schema.array("A to-do list", Schema.nonEmptyString(""), 1, 100))
+                        .property("folded", Schema.bool(""))
+                        .required("x", "y").build(),
+                operation("SetStickyItem", "Ticks or unticks an item of a sticky note's to-do list")
+                        .property("target", target(""))
+                        .property("index", Schema.integerFrom("From 0", 0))
+                        .property("done", Schema.bool(""))
+                        .required("target", "index", "done").build(),
                 operation("AddGuide", "An alignment guide; layoutOnly true: VSim removes it when the task ends")
                         .property("orientation", Schema.enumeration("HORIZONTAL (y = position) or VERTICAL "
                                 + "(x = position)", ORIENTATIONS))
@@ -227,6 +247,17 @@ final class EditTools {
             case "AddNote" -> new EditOperation.AddNote(operation.optionalString("alias"), operation.string("text"),
                     operation.integer("x"), operation.integer("y"), operation.optionalObject("style")
                     .map(style -> styleOf(style).applyTo(NoteStyle.PLAIN)).orElse(NoteStyle.PLAIN));
+            case "AddStickyNote" -> new EditOperation.AddStickyNote(operation.optionalString("alias"),
+                    operation.integer("x"), operation.integer("y"),
+                    operation.has("width") ? OptionalInt.of(operation.integer("width")) : OptionalInt.empty(),
+                    operation.has("height") ? OptionalInt.of(operation.integer("height")) : OptionalInt.empty(),
+                    operation.has("color") ? Optional.of(operation.enumeration("color", StickyColor.class))
+                            : Optional.empty(),
+                    operation.optionalString("text"),
+                    operation.has("items") ? Optional.of(operation.strings("items")) : Optional.empty(),
+                    operation.bool("folded", false));
+            case "SetStickyItem" -> new EditOperation.SetStickyItem(operation.string("target"),
+                    operation.integer("index"), operation.bool("done", true));
             case "AddGuide" -> new EditOperation.AddGuide(
                     operation.enumeration("orientation", Guide.Orientation.class), operation.integer("position"),
                     operation.bool("layoutOnly", false));
@@ -285,7 +316,7 @@ final class EditTools {
                         + "operationId and arguments returns the first receipt. The receipt gives the new version, "
                         + "the real ids of the aliases, each Connect's wires (joinedNets only when it joined more "
                         + "than its two pins) and warnings; empty and default fields are left out. validateOnly "
-                        + "changes nothing. A guide only to align: AddGuide layoutOnly true. At most "
+                        + "changes nothing. Never edit, tick or delete the user's sticky notes unless asked. A guide only to align: AddGuide layoutOnly true. At most "
                         + MAXIMUM_OPERATIONS + " operations; in a big circuit send fewer. In «Presentar» send one "
                         + "step per call with stage, step, text and reason: status APPLIED is in the circuit; "
                         + "PROPOSED is a ghost, nothing changed yet (the aliases already name the ids it will "

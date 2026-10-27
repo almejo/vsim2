@@ -3,6 +3,7 @@ package cl.almejo.vsim.automation.edit;
 import cl.almejo.vsim.core.component.appearance.SymbolTemplates;
 import cl.almejo.vsim.core.document.Guide;
 import cl.almejo.vsim.core.document.NoteStyle;
+import cl.almejo.vsim.core.document.StickyColor;
 import cl.almejo.vsim.core.geometry.Bounds;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
@@ -11,6 +12,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.OptionalInt;
 
 /**
  * One typed operation of an AI edit (spec §10). A call carries a list of them, applied all or nothing in order. A
@@ -116,6 +118,31 @@ public sealed interface EditOperation {
         /** A plain note. */
         public AddNote(Optional<String> alias, String text, int x, int y) {
             this(alias, text, x, y, NoteStyle.PLAIN);
+        }
+    }
+
+    /**
+     * A sticky note: a reminder for the user, on paper, with its top-left corner at ({@code x}, {@code y}). Exactly
+     * one of {@code text} and {@code items} (a to-do list, every item not done). Size, colour (yellow) and
+     * {@code folded} are optional.
+     */
+    record AddStickyNote(Optional<String> alias, int x, int y, OptionalInt width, OptionalInt height,
+                         Optional<StickyColor> color, Optional<String> text, Optional<List<String>> items,
+                         boolean folded) implements EditOperation {
+        public AddStickyNote {
+            Objects.requireNonNull(alias, "alias");
+            Objects.requireNonNull(width, "width");
+            Objects.requireNonNull(height, "height");
+            Objects.requireNonNull(color, "color");
+            Objects.requireNonNull(text, "text");
+            items = Objects.requireNonNull(items, "items").map(List::copyOf);
+        }
+    }
+
+    /** Ticks ({@code done} true) or unticks the item {@code index} (from 0) of a sticky note's checklist. */
+    record SetStickyItem(String target, int index, boolean done) implements EditOperation {
+        public SetStickyItem {
+            Objects.requireNonNull(target, "target");
         }
     }
 

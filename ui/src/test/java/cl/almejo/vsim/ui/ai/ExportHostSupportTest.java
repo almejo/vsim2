@@ -12,6 +12,9 @@ import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.Frame;
 import cl.almejo.vsim.core.document.FrameTint;
+import cl.almejo.vsim.core.document.StickyColor;
+import cl.almejo.vsim.core.document.StickyNote;
+import cl.almejo.vsim.core.document.StickyText;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.library.ComponentLibrary;
 import cl.almejo.vsim.ui.app.AppPreferences;
@@ -244,6 +247,25 @@ class ExportHostSupportTest {
                 new ExportRequest.Scope.Elements(Set.of(second.id().value()))));
 
         assertThat(one.width()).isLessThan(all.width());
+    }
+
+    /** Sticky notes stay out of the AI's exports unless it asks, as in the menus: a far-away note changes the size. */
+    @Test
+    void stickyNotesAreLeftOutOfTheImageUnlessTheRequestAsksForThem() throws Exception {
+        preferences.setExportDirectory(remembered);
+        onEditor(() -> {
+            document.execute(new AddElementsCommand(List.of(new StickyNote(document.document().newStickyNoteId(),
+                    new GridPoint(80, 60), 8, 6, StickyColor.YELLOW, new StickyText("lejos"), false))));
+            return null;
+        });
+
+        ExportReceipt without = export(request(ExportRequest.Format.PNG, new ExportRequest.Scope.WholeCircuit()));
+        ExportReceipt with = export(new ExportRequest(ID, ExportRequest.Format.PNG,
+                new ExportRequest.Scope.WholeCircuit(), Optional.empty(), ExportRequest.ImageOptions.DEFAULT,
+                ExportRequest.PdfOptions.DEFAULT, true));
+
+        assertThat(with.width()).isGreaterThan(without.width());
+        assertThat(with.height()).isGreaterThan(without.height());
     }
 
     private ExportRequest request(ExportRequest.Format format, ExportRequest.Scope scope) {

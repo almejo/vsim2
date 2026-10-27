@@ -180,6 +180,52 @@ class ToolCallsTest {
     }
 
     @Test
+    void aStickyNoteIsAddedTickedEditedAndReadBack() {
+        String task = beginTask();
+        Map<String, Object> receipt = call("vsim_edit", edit(task, 0, List.of(
+                Map.of("op", "AddStickyNote", "alias", "memo", "x", 2, "y", 3, "color", "PINK",
+                        "text", "Falta: probar con Cin = 1"),
+                Map.of("op", "AddStickyNote", "alias", "todo", "x", 20, "y", 3, "width", 10, "height", 7,
+                        "items", List.of("uno", "dos"), "folded", true))));
+        Map<String, Object> aliases = map(receipt, "aliases");
+
+        call("vsim_edit", edit(task, 1, List.of(
+                Map.of("op", "SetStickyItem", "target", aliases.get("todo"), "index", 1, "done", true),
+                Map.of("op", "SetLabel", "target", aliases.get("memo"), "text", "Ya probado"))));
+
+        List<Map<String, Object>> stickyNotes = list(call("vsim_read_circuit", Map.of("document", "circuit-1")),
+                "stickyNotes");
+        assertThat(stickyNotes).hasSize(2);
+        assertThat(stickyNotes.get(0)).containsEntry("kind", "TEXT").containsEntry("color", "PINK")
+                .containsEntry("text", "Ya probado").containsEntry("folded", false)
+                .doesNotContainKey("items");
+        assertThat(stickyNotes.get(1)).containsEntry("kind", "CHECKLIST").containsEntry("width", 10)
+                .containsEntry("folded", true).doesNotContainKey("text");
+        assertThat(list(stickyNotes.get(1), "items")).containsExactly(Map.of("text", "uno", "done", false),
+                Map.of("text", "dos", "done", true));
+    }
+
+    @Test
+    void aStickyNoteWithBothTextAndItemsIsRefused() {
+        assertThat(refusal("vsim_edit", edit(beginTask(), 0, List.of(Map.of("op", "AddStickyNote", "x", 0, "y", 0,
+                "text", "a", "items", List.of("b")))))).containsEntry("error", "INVALID_PARAMETER");
+    }
+
+    @Test
+    void aStickyNoteColourVsimDoesNotKnowIsRefusedByTheSchema() {
+        assertThat(refusal("vsim_edit", edit(beginTask(), 0, List.of(Map.of("op", "AddStickyNote", "x", 0, "y", 0,
+                "text", "a", "color", "RED"))))).containsEntry("error", "INVALID_PARAMETER");
+    }
+
+    @Test
+    void anExportLeavesStickyNotesOutUnlessTheFlagAsksForThem() {
+        call("vsim_export", Map.of("document", "circuit-1", "format", "PNG"));
+        call("vsim_export", Map.of("document", "circuit-1", "format", "SVG", "includeStickyNotes", true));
+
+        assertThat(host.exports).extracting(ExportRequest::includeStickyNotes).containsExactly(false, true);
+    }
+
+    @Test
     void aNoteColourVsimDoesNotKnowIsRefusedByTheSchema() {
         assertThat(refusal("vsim_edit", edit(beginTask(), 0, List.of(Map.of("op", "AddNote", "text", "x", "x", 0,
                 "y", 0, "style", Map.of("background", "PINK")))))).containsEntry("error", "INVALID_PARAMETER");

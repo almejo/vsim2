@@ -165,14 +165,16 @@ final class ExportHostSupport {
         CircuitImage image = switch (request.scope()) {
             case ExportRequest.Scope.WholeCircuit whole -> CircuitImage.of(document.document(), document.netlist(),
                     document.netlistToken(), document.latestSnapshot(), document.registry(),
-                    PainterRegistry.standard(), scheme, Optional.empty()).orElseThrow(ExportHostSupport::nothing);
+                    PainterRegistry.standard(), scheme, Optional.empty(), request.includeStickyNotes())
+                    .orElseThrow(ExportHostSupport::nothing);
             case ExportRequest.Scope.Elements elements -> CircuitImage.of(document.document(), document.netlist(),
                     document.netlistToken(), document.latestSnapshot(), document.registry(),
-                    PainterRegistry.standard(), scheme, Optional.of(elementIds(document, elements.elementIds())))
-                    .orElseThrow(ExportHostSupport::nothing);
+                    PainterRegistry.standard(), scheme, Optional.of(elementIds(document, elements.elementIds())),
+                    request.includeStickyNotes()).orElseThrow(ExportHostSupport::nothing);
             case ExportRequest.Scope.Frame frame -> CircuitImage.ofRegion(document.document(), document.netlist(),
                     document.netlistToken(), document.latestSnapshot(), document.registry(),
-                    PainterRegistry.standard(), scheme, frameBounds(document, frame.frameId()));
+                    PainterRegistry.standard(), scheme, frameBounds(document, frame.frameId()),
+                    request.includeStickyNotes());
         };
         if (request.format() == ExportRequest.Format.SVG) {
             String svg = ImageExport.svgDocument(image);
@@ -235,8 +237,8 @@ final class ExportHostSupport {
         String title = chosen.title().isBlank() ? withoutExtension(document.displayName()) : chosen.title();
         PrintOptions options = new PrintOptions(scope, Paper.valueOf(chosen.paper()),
                 PageOrientation.valueOf(chosen.orientation()), scaleMode, chosen.withValues(), chosen.blackAndWhite(),
-                chosen.headerFooter(), title);
-        PrintArea area = PrintScopes.area(input, scope).orElseThrow(ExportHostSupport::nothing);
+                chosen.headerFooter(), title, request.includeStickyNotes());
+        PrintArea area = PrintScopes.area(input, scope, request.includeStickyNotes()).orElseThrow(ExportHostSupport::nothing);
         PageLayout layout = PageLayout.of(area.gridArea(), PageGeometry.standard(options.paper(),
                 options.orientation(), options.headerFooter()), options.scaleMode());
         if (layout.problem().isPresent()) {

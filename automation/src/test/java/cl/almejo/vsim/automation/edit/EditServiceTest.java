@@ -10,6 +10,7 @@ import cl.almejo.vsim.automation.UndoOutcome;
 import cl.almejo.vsim.automation.check.TextMeasure;
 import cl.almejo.vsim.automation.edit.EditOperation.AddGuide;
 import cl.almejo.vsim.automation.edit.EditOperation.AddNote;
+import cl.almejo.vsim.automation.edit.EditOperation.AddStickyNote;
 import cl.almejo.vsim.automation.edit.EditOperation.AddWire;
 import cl.almejo.vsim.automation.edit.EditOperation.Connect;
 import cl.almejo.vsim.automation.edit.EditOperation.CreateComponent;
@@ -21,6 +22,7 @@ import cl.almejo.vsim.automation.edit.EditOperation.PlacePart;
 import cl.almejo.vsim.automation.edit.EditOperation.RemoveGuide;
 import cl.almejo.vsim.automation.edit.EditOperation.SetLabel;
 import cl.almejo.vsim.automation.edit.EditOperation.SetParameters;
+import cl.almejo.vsim.automation.edit.EditOperation.SetStickyItem;
 import cl.almejo.vsim.automation.edit.EditOperation.TidyWires;
 import cl.almejo.vsim.core.command.MoveElementsCommand;
 import cl.almejo.vsim.core.document.Component;
@@ -31,6 +33,11 @@ import cl.almejo.vsim.core.document.FrameContents;
 import cl.almejo.vsim.core.document.Guide;
 import cl.almejo.vsim.core.document.NoteColor;
 import cl.almejo.vsim.core.document.NoteStyle;
+import cl.almejo.vsim.core.document.StickyChecklist;
+import cl.almejo.vsim.core.document.StickyColor;
+import cl.almejo.vsim.core.document.StickyItem;
+import cl.almejo.vsim.core.document.StickyNote;
+import cl.almejo.vsim.core.document.StickyText;
 import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
@@ -50,6 +57,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 
@@ -203,6 +211,114 @@ class EditServiceTest {
 
         assertThat(circuit.document().label(new ElementId(receipt.aliases().get("note"))).orElseThrow().style())
                 .isEqualTo(style);
+    }
+
+    // --- sticky notes ---
+
+    @Test
+    void anAddStickyNoteWithTextOrItemsMakesTheNoteInOneAiStepThatUndoRemoves() {
+        EditReceipt receipt = service.edit(request(
+                new AddStickyNote(Optional.of("memo"), 4, 5, OptionalInt.empty(), OptionalInt.empty(),
+                        Optional.empty(), Optional.of("Falta: probar con Cin = 1"), Optional.empty(), false),
+                new AddStickyNote(Optional.of("todo"), 20, 5, OptionalInt.of(10), OptionalInt.of(7),
+                        Optional.of(StickyColor.GREEN), Optional.empty(), Optional.of(List.of("uno", "dos")), true)));
+
+        StickyNote memo = circuit.document().stickyNote(new ElementId(receipt.aliases().get("memo"))).orElseThrow();
+        StickyNote todo = circuit.document().stickyNote(new ElementId(receipt.aliases().get("todo"))).orElseThrow();
+        assertThat(memo.content()).isEqualTo(new StickyText("Falta: probar con Cin = 1"));
+        assertThat(memo.color()).isEqualTo(StickyColor.YELLOW);
+        assertThat(memo.width()).isEqualTo(StickyNote.DEFAULT_WIDTH);
+        assertThat(memo.position()).isEqualTo(new GridPoint(4, 5));
+        assertThat(todo.content()).isEqualTo(new StickyChecklist(List.of(new StickyItem("uno", false),
+                new StickyItem("dos", false))));
+        assertThat(todo.width()).isEqualTo(10);
+        assertThat(todo.folded()).isTrue();
+        assertThat(receipt.undoDescription()).isEqualTo(AiEditCommand.DESCRIPTION);
+
+        circuit.history().undo();
+
+        assertThat(circuit.document().stickyNotes()).isEmpty();
+        assertThat(circuit.history().canUndo()).isFalse();
+    }
+
+    @Test
+    void aStickyNoteWithBothOrNeitherOfTextAndItemsIsRefusedAndNothingChanges() {
+        assertRefused(request(new AddStickyNote(Optional.empty(), 0, 0, OptionalInt.empty(), OptionalInt.empty(),
+                Optional.empty(), Optional.of("a"), Optional.of(List.of("b")), false)),
+                AutomationError.INVALID_PARAMETER);
+        assertRefused(request(new AddStickyNote(Optional.empty(), 0, 0, OptionalInt.empty(), OptionalInt.empty(),
+                Optional.empty(), Optional.empty(), Optional.empty(), false)), AutomationError.INVALID_PARAMETER);
+        assertNothingChanged();
+    }
+
+    @Test
+    void aStickyNoteTextWithHtmlIsRefused() {
+        assertRefused(request(new AddStickyNote(Optional.empty(), 0, 0, OptionalInt.empty(), OptionalInt.empty(),
+                Optional.empty(), Optional.of("<html>x</html>"), Optional.empty(), false)),
+                AutomationError.INVALID_PARAMETER);
+    }
+
+    @Test
+    void setStickyItemTicksAndUnticksAndAnIndexOutOfRangeIsRefused() {
+        EditReceipt receipt = service.edit(request(new AddStickyNote(Optional.of("todo"), 0, 0, OptionalInt.empty(),
+                OptionalInt.empty(), Optional.empty(), Optional.empty(), Optional.of(List.of("uno", "dos")), false)));
+        String id = receipt.aliases().get("todo");
+
+        service.edit(request(new SetStickyItem(id, 1, true)));
+        assertThat(items(id)).containsExactly(new StickyItem("uno", false), new StickyItem("dos", true));
+
+        service.edit(request(new SetStickyItem(id, 1, false)));
+        assertThat(items(id)).containsExactly(new StickyItem("uno", false), new StickyItem("dos", false));
+
+        long version = circuit.version().value();
+        assertThat(assertRefused(request(new SetStickyItem(id, 2, true)), AutomationError.INVALID_PARAMETER)
+                .getMessage()).contains("2 items");
+        assertRefused(request(new SetStickyItem(id, -1, true)), AutomationError.INVALID_PARAMETER);
+        assertThat(circuit.version().value()).isEqualTo(version);
+    }
+
+    @Test
+    void setStickyItemOnATextNoteOrAPartIsRefused() {
+        Map<String, String> ids = inverterParts();
+        EditReceipt receipt = service.edit(request(new AddStickyNote(Optional.of("memo"), 0, 0, OptionalInt.empty(),
+                OptionalInt.empty(), Optional.empty(), Optional.of("texto"), Optional.empty(), false)));
+
+        assertRefused(request(new SetStickyItem(receipt.aliases().get("memo"), 0, true)),
+                AutomationError.INVALID_REFERENCE);
+        assertRefused(request(new SetStickyItem(ids.get("not"), 0, true)), AutomationError.INVALID_REFERENCE);
+    }
+
+    @Test
+    void setLabelOnAStickyNoteChangesTheTextOfATextNoteAndTheLinesOfAChecklistKeepingTicks() {
+        EditReceipt receipt = service.edit(request(
+                new AddStickyNote(Optional.of("memo"), 0, 0, OptionalInt.empty(), OptionalInt.empty(),
+                        Optional.empty(), Optional.of("viejo"), Optional.empty(), false),
+                new AddStickyNote(Optional.of("todo"), 20, 0, OptionalInt.empty(), OptionalInt.empty(),
+                        Optional.empty(), Optional.empty(), Optional.of(List.of("uno", "dos")), false)));
+        String memo = receipt.aliases().get("memo");
+        String todo = receipt.aliases().get("todo");
+        service.edit(request(new SetStickyItem(todo, 1, true)));
+
+        service.edit(request(new SetLabel(memo, "nuevo\nen dos líneas"), new SetLabel(todo, "uno\ndos\ntres")));
+
+        assertThat(circuit.document().stickyNote(new ElementId(memo)).orElseThrow().content())
+                .isEqualTo(new StickyText("nuevo\nen dos líneas"));
+        assertThat(items(todo)).containsExactly(new StickyItem("uno", false), new StickyItem("dos", true),
+                new StickyItem("tres", false));
+    }
+
+    @Test
+    void aStickyNoteGroupedInAnAiTaskUndoesWithTheTask() {
+        TaskInfo task = service.beginTask(new DocumentId(DOCUMENT), "Recordatorio", List.of());
+        service.edit(taskRequest(task, new AddStickyNote(Optional.empty(), 0, 0, OptionalInt.empty(),
+                OptionalInt.empty(), Optional.empty(), Optional.of("Falta probar"), Optional.empty(), false)));
+
+        assertThat(service.undoTask(task.taskId())).isEqualTo(new UndoOutcome(1, false));
+        assertThat(circuit.document().stickyNotes()).isEmpty();
+    }
+
+    private List<StickyItem> items(String id) {
+        return ((StickyChecklist) circuit.document().stickyNote(new ElementId(id)).orElseThrow().content()).items();
     }
 
     @Test

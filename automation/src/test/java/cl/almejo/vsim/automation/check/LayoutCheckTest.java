@@ -6,6 +6,9 @@ import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
+import cl.almejo.vsim.core.document.StickyColor;
+import cl.almejo.vsim.core.document.StickyNote;
+import cl.almejo.vsim.core.document.StickyText;
 import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.Bounds;
@@ -39,6 +42,20 @@ class LayoutCheckTest {
         Component first = place(StandardComponentTypes.NAND2, 0, 0, "");
         Bounds body = bounds(first);
         place(StandardComponentTypes.NAND2, body.maximumX(), 0, "");
+
+        assertThat(faults()).isEmpty();
+    }
+
+    @Test
+    void aStickyNoteOverPartsAndWiresReportsNothing() {
+        Component gate = place(StandardComponentTypes.NAND2, 0, 0, "");
+        Component other = place(StandardComponentTypes.NAND2, 12, 0, "");
+        connect(gate, 2, other, 0);
+        Bounds body = bounds(gate);
+        document.add(new StickyNote(document.newStickyNoteId(), new GridPoint(body.x(), body.y()), 20, 10,
+                StickyColor.YELLOW, new StickyText("Falta: probar"), false));
+        document.add(new StickyNote(document.newStickyNoteId(), new GridPoint(body.x(), body.y()), 20, 10,
+                StickyColor.BLUE, new StickyText("otra encima"), false));
 
         assertThat(faults()).isEmpty();
     }

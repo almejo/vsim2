@@ -15,6 +15,11 @@ import cl.almejo.vsim.core.document.FrameTint;
 import cl.almejo.vsim.core.document.Guide;
 import cl.almejo.vsim.core.document.NoteColor;
 import cl.almejo.vsim.core.document.NoteStyle;
+import cl.almejo.vsim.core.document.StickyChecklist;
+import cl.almejo.vsim.core.document.StickyColor;
+import cl.almejo.vsim.core.document.StickyItem;
+import cl.almejo.vsim.core.document.StickyNote;
+import cl.almejo.vsim.core.document.StickyText;
 import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.Bounds;
@@ -159,6 +164,48 @@ class CircuitReaderTest {
         assertThat(view.notes()).extracting(CircuitView.NoteView::style).containsExactly(Optional.empty(),
                 Optional.of(new CircuitView.NoteStyleView(Optional.of(NoteColor.YELLOW), Optional.empty(),
                         Optional.of(NoteColor.RED))));
+    }
+
+    @Test
+    void stickyNotesAreListedWithTheirFieldsAndTheirItemsDoneState() {
+        fixture.document.add(new StickyNote(fixture.document.newStickyNoteId(), new GridPoint(3, 4), 8, 6,
+                StickyColor.PINK, new StickyText("Falta: probar con Cin = 1"), false));
+        fixture.document.add(new StickyNote(fixture.document.newStickyNoteId(), new GridPoint(20, 4), 10, 7,
+                StickyColor.GREEN, new StickyChecklist(List.of(new StickyItem("uno", true),
+                new StickyItem("dos", false))), true));
+
+        CircuitView view = CircuitReader.read(fixture.source(), ReadFilter.SUMMARY, Optional.empty());
+
+        assertThat(view.stickyNotes()).extracting(CircuitView.StickyNoteView::position, CircuitView.StickyNoteView::width,
+                CircuitView.StickyNoteView::height, CircuitView.StickyNoteView::color, CircuitView.StickyNoteView::kind,
+                CircuitView.StickyNoteView::text, CircuitView.StickyNoteView::items,
+                CircuitView.StickyNoteView::folded).containsExactly(
+                org.assertj.core.groups.Tuple.tuple(new GridPoint(3, 4), 8, 6, "PINK", "TEXT",
+                        Optional.of("Falta: probar con Cin = 1"), Optional.empty(), false),
+                org.assertj.core.groups.Tuple.tuple(new GridPoint(20, 4), 10, 7, "GREEN", "CHECKLIST",
+                        Optional.empty(), Optional.of(List.of(new CircuitView.StickyItemView("uno", true),
+                        new CircuitView.StickyItemView("dos", false))), true));
+        assertThat(view.stickyNotes()).extracting(CircuitView.StickyNoteView::id).doesNotContainNull();
+        assertThat(view.summary().stickyNotes()).isEqualTo(2);
+        assertThat(view.matchingElements()).isEqualTo(2);
+        assertThat(view.notes()).isEmpty();
+    }
+
+    @Test
+    void theStickyNoteKindNarrowsTheReadingAndOtherKindsLeaveThemOut() {
+        fixture.place(StandardComponentTypes.NOT, 50, 10);
+        fixture.document.add(new StickyNote(fixture.document.newStickyNoteId(), new GridPoint(3, 4), 8, 6,
+                StickyColor.YELLOW, new StickyText("x"), false));
+
+        CircuitView onlyNotes = CircuitReader.read(fixture.source(), fullFilter(Set.of(ElementKind.STICKY_NOTE),
+                Set.of(), Optional.empty()), Optional.empty());
+        CircuitView onlyParts = CircuitReader.read(fixture.source(), fullFilter(Set.of(ElementKind.PART),
+                Set.of(), Optional.empty()), Optional.empty());
+
+        assertThat(onlyNotes.stickyNotes()).hasSize(1);
+        assertThat(onlyNotes.parts()).isEmpty();
+        assertThat(onlyParts.stickyNotes()).isEmpty();
+        assertThat(onlyParts.parts()).hasSize(1);
     }
 
     @Test
