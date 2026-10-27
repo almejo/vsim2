@@ -4,7 +4,6 @@ import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.PinSpec;
 import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.component.appearance.ComponentAppearance;
-import cl.almejo.vsim.core.component.appearance.DraftProblem;
 import cl.almejo.vsim.core.component.appearance.HandleSide;
 import cl.almejo.vsim.core.component.appearance.PinPlacement;
 import cl.almejo.vsim.core.component.appearance.SnapMode;
@@ -28,43 +27,31 @@ import cl.almejo.vsim.ui.canvas.MarchingAnts;
 import cl.almejo.vsim.ui.canvas.Viewport;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.ColorScheme;
-import cl.almejo.vsim.ui.paint.PainterSupport;
 import cl.almejo.vsim.ui.paint.SubcircuitPainter;
 import cl.almejo.vsim.ui.paint.SymbolPainter;
 import cl.almejo.vsim.ui.paint.TextFonts;
 import cl.almejo.vsim.ui.inline.InlineTextEditor;
 import cl.almejo.vsim.ui.inline.InlineHost;
 import cl.almejo.vsim.ui.inline.InlineEditRequest;
-import cl.almejo.vsim.ui.theme.ReadableColors;
-import cl.almejo.vsim.ui.tools.RubberBand;
 
 import java.util.Comparator;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Locale;
 import javax.swing.JComponent;
 import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
 import java.awt.BasicStroke;
-import java.awt.Color;
 import java.awt.Cursor;
 import java.awt.Font;
-import java.awt.FontMetrics;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Point;
 import java.awt.Rectangle;
-import java.awt.RenderingHints;
 import java.awt.Shape;
 import java.awt.event.MouseAdapter;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseWheelEvent;
-import java.awt.geom.Ellipse2D;
-import java.awt.geom.RoundRectangle2D;
-import java.awt.geom.Line2D;
-import java.awt.geom.Path2D;
 import java.awt.geom.Rectangle2D;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.Point2D;
@@ -72,7 +59,6 @@ import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Consumer;
@@ -81,10 +67,10 @@ import java.util.function.Supplier;
 /** Shape-editing gestures and paint; every completed gesture publishes one immutable draft. */
 @SuppressWarnings("serial")
 final class ShapeCanvas extends JPanel {
-    private static final double UNIT = GridPoint.PIXELS_PER_UNIT;
+    static final double UNIT = GridPoint.PIXELS_PER_UNIT;
     private static final String MESSAGE_PREFIX = "shape.";
-    private static final int HIT_RADIUS = 7;
-    private static final int BOX_HANDLE_OFFSET = 18;
+    static final int HIT_RADIUS = 7;
+    static final int BOX_HANDLE_OFFSET = 18;
     private static final int FIT_SIDE_MARGIN = 64;
     private static final int FIT_VERTICAL_MARGIN = 64;
     /** About 32 px per grid unit: the box looks comfortable, as in the mockup, however small it is. */
@@ -93,58 +79,46 @@ final class ShapeCanvas extends JPanel {
     private static final double INITIAL_ZOOM = 2;
     private static final double INITIAL_ORIGIN = 70;
     /** The selection band as the main editor's Selección draws it: fill alpha, ants width, ants pace. */
-    private static final int BAND_FILL_ALPHA = 40;
-    private static final float BAND_WIDTH = 1f;
+    static final int BAND_FILL_ALPHA = 40;
+    static final float BAND_WIDTH = 1f;
     private static final int ANTS_MILLISECONDS = 90;
     /** On open the box takes about this part of each side of the canvas. */
     private static final double FIT_BOX_SHARE = 0.6;
-    /** Figure strokes and pin markers keep this size on screen whatever the zoom. */
-    private static final float SCREEN_STROKE_WIDTH = 1.6f;
-    /** Pins are drawn larger than the figure's nodes (round, 4 px) and the edge notches, so they are never mistaken. */
-    private static final double SCREEN_PIN_RADIUS = 6;
-    private static final double PIN_RING_RADIUS = 10;
     /** What a text's selection and click area add around its painted block, in screen pixels. */
     private static final double TEXT_BLOCK_PADDING = 4;
-    private static final int NOTCH_LENGTH = 4;
     /** Shift and an arrow moves this many grid units, as in the main editor. */
     private static final int FAR_STEP = 5;
     /** The fewest nodes «Quitar nodo» leaves in a figure: the minimums {@link SymbolPath} checks. */
-    private static final int MINIMUM_OPEN_NODES = 2;
-    private static final int MINIMUM_CLOSED_NODES = 3;
+    static final int MINIMUM_OPEN_NODES = 2;
+    static final int MINIMUM_CLOSED_NODES = 3;
     /** A click curves a straight segment by a sixth of its length: visible, and gentle enough to drag from. */
     private static final double DEFAULT_BULGE_DIVISOR = 6;
-    /** Handles and their lines, in screen pixels: smaller than a node, so the node stays the thing to grab. */
-    private static final double HANDLE_RADIUS = 3.5;
-    private static final double ACTIVE_HANDLE_RADIUS = 4.5;
-    private static final double HANDLE_LINE_WIDTH = 1.2;
-    /** A corner node's diamond, in screen pixels to each tip: about the size of a round node. */
-    private static final double CORNER_MARKER_RADIUS = 5.5;
-    private final ComponentDefinition definition;
-    private final Supplier<SymbolDraft> current;
-    private final Consumer<SymbolDraft> publish;
+    final ComponentDefinition definition;
+    final Supplier<SymbolDraft> current;
+    final Consumer<SymbolDraft> publish;
     private final Consumer<SymbolDraft> preview;
-    private final Supplier<ColorScheme> colors;
-    private final Runnable changed;
-    private ShapeTool tool = ShapeTool.SELECT;
+    final Supplier<ColorScheme> colors;
+    final Runnable changed;
+    ShapeTool tool = ShapeTool.SELECT;
     private SnapMode snap = SnapMode.HALF_UNITS;
     /** Zoom and pan, the main editor's: grid units of 8 px times the zoom, the box's corner at the grid origin. */
-    private final Viewport viewport = new Viewport();
-    private final MarchingAnts marchingAnts = new MarchingAnts();
+    final Viewport viewport = new Viewport();
+    final MarchingAnts marchingAnts = new MarchingAnts();
     private FrameTicker antsTicker = FrameTicker.swing(ANTS_MILLISECONDS);
-    private Optional<ElementId> pin = Optional.empty();
-    private int pathIndex = -1;
-    private int nodeIndex = -1;
+    Optional<ElementId> pin = Optional.empty();
+    int pathIndex = -1;
+    int nodeIndex = -1;
     private boolean nodeDrag;
     /** Nodos or «Curvar tramo»: the curve handle being dragged; with Alt it moves alone. */
-    private Optional<HandleRef> grabbedHandle = Optional.empty();
+    Optional<HandleRef> grabbedHandle = Optional.empty();
     /** The curve handle under the still pointer: drawn larger, so the user sees it can be grabbed. */
-    private Optional<HandleRef> hoveredHandle = Optional.empty();
+    Optional<HandleRef> hoveredHandle = Optional.empty();
     private boolean handleAlone;
-    private Optional<ShapeSegments.Hit> insertion = Optional.empty();
-    private Optional<NodeHit> removal = Optional.empty();
+    Optional<ShapeSegments.Hit> insertion = Optional.empty();
+    Optional<NodeHit> removal = Optional.empty();
     /** «Curvar tramo»: the segment under the pointer, and the one being bent with where along it it was grabbed. */
-    private Optional<SegmentRef> curveTarget = Optional.empty();
-    private Optional<SegmentRef> curving = Optional.empty();
+    Optional<SegmentRef> curveTarget = Optional.empty();
+    Optional<SegmentRef> curving = Optional.empty();
     private double curvingParameter;
     private Optional<String> refusal = Optional.empty();
     private boolean controlHeld;
@@ -156,23 +130,24 @@ final class ShapeCanvas extends JPanel {
     private boolean pinDragActive;
     private boolean panning;
     private boolean rubberBand;
-    private SymbolPoint bandEnd;
+    SymbolPoint bandEnd;
     private Point pressed;
-    private SymbolPoint start;
+    SymbolPoint start;
     private SymbolDraft beforeDrag;
     private SymbolDraft committedBeforeDrag;
     private SymbolDraft dragging;
-    private final List<SymbolPoint> pathNodes = new ArrayList<>();
+    final ShapePathDrawing pathDrawing = new ShapePathDrawing(this);
+    private final ShapeCanvasPainter painter = new ShapeCanvasPainter(this);
     private final InlineTextEditor textEditor = InlineTextEditor.forHost(new ShapeHost());
-    private Optional<ElementId> hoveredPin = Optional.empty();
-    private int hoveredText = -1;
+    Optional<ElementId> hoveredPin = Optional.empty();
+    int hoveredText = -1;
     private int textIndex = -1;
     private boolean fitPending = true;
     private int fittedWidth = -1;
     private int fittedHeight = -1;
-    private Point pointer = new Point();
+    Point pointer = new Point();
     private Point lastDragPoint;
-    private Optional<String> dragTip = Optional.empty();
+    Optional<String> dragTip = Optional.empty();
 
     /** A node of a figure: its path and its place in it. */
     record NodeHit(int pathIndex, int nodeIndex) { }
@@ -275,8 +250,8 @@ final class ShapeCanvas extends JPanel {
 
     void setTool(ShapeTool selected) {
         // A figure being drawn is kept, as with Esc, rather than lost to the tool change.
-        if (!pathNodes.isEmpty()) {
-            finishOrDropPath();
+        if (!pathDrawing.pathNodes.isEmpty()) {
+            pathDrawing.finishOrDropPath();
         }
         cancelOperation();
         tool = selected;
@@ -378,7 +353,7 @@ final class ShapeCanvas extends JPanel {
     }
 
     boolean operationActive() {
-        return pressed != null || !pathNodes.isEmpty() || textEditor.isOpen();
+        return pressed != null || !pathDrawing.pathNodes.isEmpty() || textEditor.isOpen();
     }
 
     boolean hasSelection() {
@@ -428,7 +403,7 @@ final class ShapeCanvas extends JPanel {
         dragging = null;
         beforeDrag = null;
         committedBeforeDrag = null;
-        pathNodes.clear();
+        pathDrawing.pathNodes.clear();
         pinDragActive = false;
         grabbedHandle = Optional.empty();
         curving = Optional.empty();
@@ -446,8 +421,8 @@ final class ShapeCanvas extends JPanel {
             textEditor.confirmOrCancel();
             return;
         }
-        if (!pathNodes.isEmpty()) {
-            finishOrDropPath();
+        if (!pathDrawing.pathNodes.isEmpty()) {
+            pathDrawing.finishOrDropPath();
         }
     }
 
@@ -456,88 +431,31 @@ final class ShapeCanvas extends JPanel {
      * long as it has enough of them; any other operation is cancelled.
      */
     void escapeOperation() {
-        if (pathNodes.isEmpty()) {
+        if (pathDrawing.pathNodes.isEmpty()) {
             cancelOperation();
         } else {
-            finishOrDropPath();
+            pathDrawing.finishOrDropPath();
         }
     }
 
     /** Whether a multiline or a polygon is being drawn: Ctrl+Z takes back its last node instead of an edit. */
     boolean drawingPath() {
-        return !pathNodes.isEmpty();
+        return pathDrawing.drawingPath();
     }
 
     /** Ctrl+Z while drawing: the last placed node goes; with the first one, the drawing ends. */
     void removeLastNode() {
-        if (!pathNodes.isEmpty()) {
-            pathNodes.removeLast();
-            changed.run();
-            repaint();
-        }
+        pathDrawing.removeLastNode();
     }
 
     /** The nodes placed so far by Multilínea or Polígono, in eighths. */
     List<SymbolPoint> placedNodes() {
-        return List.copyOf(pathNodes);
+        return pathDrawing.placedNodes();
     }
 
     /** Multilínea (open) or Polígono (always closed): figures drawn a click per node. */
     private boolean isPathTool() {
         return tool == ShapeTool.MULTILINE || tool == ShapeTool.POLYGON;
-    }
-
-    /**
-     * A click places a node; on the first node (three or more placed) it closes the figure; the second click of a
-     * double-click finishes it (its first click already placed the last node).
-     */
-    private void clickPathTool(MouseEvent event) {
-        if (closesOnFirstNode(event.getPoint())) {
-            commitPath(true);
-        } else if (event.getClickCount() > 1) {
-            finishPath();
-        } else {
-            SymbolPoint at = point(event);
-            if (pathNodes.size() >= SymbolPath.MAXIMUM_NODES) {
-                refuse("shape.nodes.limit");
-            } else if (pathNodes.isEmpty() || !pathNodes.getLast().equals(at)) {
-                pathNodes.add(at);
-                changed.run();
-            }
-        }
-        repaint();
-    }
-
-    /** Whether the pointer is on the first placed node and there are enough nodes to close the figure there. */
-    private boolean closesOnFirstNode(Point at) {
-        return pathNodes.size() >= MINIMUM_CLOSED_NODES
-                && screen(pathNodes.getFirst().x(), pathNodes.getFirst().y()).distance(at) < HIT_RADIUS;
-    }
-
-    /** Finishes the figure being drawn if it has enough nodes; otherwise forgets it. */
-    private void finishOrDropPath() {
-        if (!finishPath()) {
-            pathNodes.clear();
-            changed.run();
-            repaint();
-        }
-    }
-
-    /** A multiline needs two nodes and stays open; a polygon needs three and closes. False when there are too few. */
-    private boolean finishPath() {
-        boolean closed = tool == ShapeTool.POLYGON;
-        if (pathNodes.size() < (closed ? MINIMUM_CLOSED_NODES : MINIMUM_OPEN_NODES)) {
-            return false;
-        }
-        commitPath(closed);
-        return true;
-    }
-
-    private void commitPath(boolean closed) {
-        List<SymbolPoint> nodes = List.copyOf(pathNodes);
-        pathNodes.clear();
-        publish.accept(current.get().addFigure(SymbolTemplates.polygon(nodes, closed)));
-        repaint();
     }
 
     void deleteSelection() {
@@ -578,7 +496,7 @@ final class ShapeCanvas extends JPanel {
         }
     }
 
-    private SymbolPoint chosenPoint(SymbolPath path) {
+    SymbolPoint chosenPoint(SymbolPath path) {
         return path.nodes().get(nodeIndex).point();
     }
 
@@ -622,52 +540,76 @@ final class ShapeCanvas extends JPanel {
             return;
         }
         if (tool == ShapeTool.SELECT) {
-            handle = hitHandle(event.getPoint());
-            resizingBox = handle.isEmpty() && !current.get().pinsLocked()
-                    && boxHandleLocation().distance(event.getPoint()) < HIT_RADIUS;
-            if (handle.isPresent() || resizingBox) {
-                return;
-            }
-            pin = pinAt(event.getPoint());
-            if (pin.isPresent()) {
-                changed.run();
-                repaint();
+            if (pressSelectHandleOrPin(event)) {
                 return;
             }
         }
         if (tool == ShapeTool.NODES) {
-            if (hitNode(event.getPoint())) {
-                nodeDrag = true;
-                beforeDrag = nodeDraft();
-                publish.accept(beforeDrag);
-                changed.run();
-                repaint();
+            if (pressNode(event)) {
                 return;
             }
         }
         if (tool == ShapeTool.SELECT || tool == ShapeTool.NODES) {
-            int hit = hitFigure(event.getPoint());
-            Set<Integer> selection = new LinkedHashSet<>(current.get().selection());
-            if (hit >= 0) {
-                if (event.isShiftDown()) {
-                    if (!selection.remove(hit)) {
-                        selection.add(hit);
-                    }
-                } else if (!selection.contains(hit)) {
-                    selection = new LinkedHashSet<>(Set.of(hit));
-                }
-            } else if (!event.isShiftDown()) {
-                selection.clear();
-            }
-            rubberBand = hit < 0;
-            bandEnd = start;
-            SymbolDraft view = current.get();
-            beforeDrag = view.select(selection);
+            pressFigure(event);
+        }
+    }
+
+    /** Selección: a press on a selection handle, the box's handle or a pin; true when it took the press. */
+    private boolean pressSelectHandleOrPin(MouseEvent event) {
+        handle = hitHandle(event.getPoint());
+        resizingBox = handle.isEmpty() && !current.get().pinsLocked()
+                && boxHandleLocation().distance(event.getPoint()) < HIT_RADIUS;
+        if (handle.isPresent() || resizingBox) {
+            return true;
+        }
+        pin = pinAt(event.getPoint());
+        if (pin.isPresent()) {
+            changed.run();
+            repaint();
+            return true;
+        }
+        return false;
+    }
+
+    /** Nodos: a press on a node chooses it and starts dragging it; true when there was a node there. */
+    private boolean pressNode(MouseEvent event) {
+        if (hitNode(event.getPoint())) {
+            nodeDrag = true;
+            beforeDrag = nodeDraft();
             publish.accept(beforeDrag);
-            if (tool == ShapeTool.NODES && hit >= 0 && view.elements().get(hit) instanceof SymbolPath) {
-                pathIndex = hit;
-                nodeIndex = hitSegment(hit, event.getPoint());
+            changed.run();
+            repaint();
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Selección or Nodos: a press on a figure selects it (Shift toggles it) ready to be moved; a press on empty space
+     * starts the rubber band.
+     */
+    private void pressFigure(MouseEvent event) {
+        int hit = hitFigure(event.getPoint());
+        Set<Integer> selection = new LinkedHashSet<>(current.get().selection());
+        if (hit >= 0) {
+            if (event.isShiftDown()) {
+                if (!selection.remove(hit)) {
+                    selection.add(hit);
+                }
+            } else if (!selection.contains(hit)) {
+                selection = new LinkedHashSet<>(Set.of(hit));
             }
+        } else if (!event.isShiftDown()) {
+            selection.clear();
+        }
+        rubberBand = hit < 0;
+        bandEnd = start;
+        SymbolDraft view = current.get();
+        beforeDrag = view.select(selection);
+        publish.accept(beforeDrag);
+        if (tool == ShapeTool.NODES && hit >= 0 && view.elements().get(hit) instanceof SymbolPath) {
+            pathIndex = hit;
+            nodeIndex = hitSegment(hit, event.getPoint());
         }
     }
 
@@ -727,7 +669,7 @@ final class ShapeCanvas extends JPanel {
      * Every handle of every curved segment, figure by figure and node by node (incoming first): with Nodos and
      * «Curvar tramo» they are all on view and can be grabbed, without hovering a segment or choosing a node first.
      */
-    private List<HandleRef> curveHandles() {
+    List<HandleRef> curveHandles() {
         if (tool != ShapeTool.NODES && tool != ShapeTool.CURVE) {
             return List.of();
         }
@@ -753,13 +695,13 @@ final class ShapeCanvas extends JPanel {
     }
 
     /** Where a handle is, in eighths. */
-    private SymbolPoint handleLocation(HandleRef reference) {
+    SymbolPoint handleLocation(HandleRef reference) {
         return ((SymbolPath) current.get().elements().get(reference.pathIndex()))
                 .handle(reference.nodeIndex(), reference.side()).orElseThrow();
     }
 
     /** The node a handle belongs to, in eighths. */
-    private SymbolPoint handleNode(HandleRef reference) {
+    SymbolPoint handleNode(HandleRef reference) {
         return ((SymbolPath) current.get().elements().get(reference.pathIndex())).nodes()
                 .get(reference.nodeIndex()).point();
     }
@@ -872,12 +814,7 @@ final class ShapeCanvas extends JPanel {
                 dragging = beforeDrag.bendSegment(curving.get().pathIndex(), curving.get().segment(),
                         curvingParameter, end, snap);
             } else if (grabbedHandle.isPresent()) {
-                HandleRef grabbed = grabbedHandle.get();
-                SymbolPoint original = ((SymbolPath) beforeDrag.elements().get(grabbed.pathIndex()))
-                        .handle(grabbed.nodeIndex(), grabbed.side()).orElseThrow();
-                dragging = beforeDrag.moveHandle(grabbed.pathIndex(), grabbed.nodeIndex(), grabbed.side(),
-                        shift ? axisLocked(original, end) : end, handleAlone, snap);
-                dragTip = Optional.of(Messages.text("shape.drag.handleAlone"));
+                dragCurveHandle(end, shift);
             } else if (resizingBox) {
                 dragging = resizedBox(where);
                 dragTip = Optional.of(boxTip(dragging));
@@ -888,53 +825,20 @@ final class ShapeCanvas extends JPanel {
                 if (beforeDrag.pinsLocked()) {
                     return;
                 }
-                pinDragActive = true;
-                Point2D grid = viewport.screenToGrid(where.x, where.y);
-                GridPoint target = new GridPoint((int) Math.round(grid.getX()), (int) Math.round(grid.getY()));
-                if (shift) {
-                    GridPoint original = beforeDrag.appearance().pins().stream()
-                            .filter(placement -> placement.source().equals(pin.get())).findFirst().orElseThrow().offset();
-                    boolean horizontal = Math.abs(target.x() - original.x()) >= Math.abs(target.y() - original.y());
-                    target = horizontal ? new GridPoint(target.x(), original.y()) : new GridPoint(original.x(), target.y());
-                }
-                dragging = beforeDrag.movePin(pin.get(), target);
-                dragTip = Optional.of(Messages.text("shape.drag.axis"));
+                dragPin(where, shift);
             } else if (tool == ShapeTool.NODES && nodeDrag && nodeIndex >= 0) {
                 SymbolPoint original = chosenPoint((SymbolPath) beforeDrag.elements().get(pathIndex));
                 SymbolPoint target = shift ? axisLocked(original, end) : end;
                 dragging = beforeDrag.moveNode(pathIndex, nodeIndex, target, snap);
                 dragTip = Optional.of(Messages.text("shape.drag.axis"));
             } else if (rubberBand) {
-                bandEnd = end;
-                updateAnts();
-                Rectangle2D band = new Rectangle2D.Double(Math.min(start.x(), end.x()) / 8.0 * UNIT,
-                        Math.min(start.y(), end.y()) / 8.0 * UNIT, Math.abs(start.x() - end.x()) / 8.0 * UNIT,
-                        Math.abs(start.y() - end.y()) / 8.0 * UNIT);
-                Set<Integer> selected = new LinkedHashSet<>(beforeDrag.selection());
-                for (int index = 0; index < beforeDrag.elements().size(); index++) {
-                    SymbolElement element = beforeDrag.elements().get(index);
-                    boolean hit = element instanceof SymbolPath path ? band.intersects(SymbolPainter.path(path).getBounds2D())
-                            : element instanceof SymbolText text && band.contains(text.anchor().x() / 8.0 * UNIT,
-                            text.anchor().y() / 8.0 * UNIT);
-                    if (hit) {
-                        selected.add(index);
-                    }
-                }
-                dragging = beforeDrag.select(selected);
+                dragBand(end);
             } else if (tool == ShapeTool.SELECT || tool == ShapeTool.NODES) {
                 SymbolPoint moved = shift ? axisLocked(start, end) : end;
                 dragging = beforeDrag.moveSelection(moved.x() - start.x(), moved.y() - start.y(), snap);
                 dragTip = Optional.of(Messages.text("shape.drag.axis"));
             } else {
-                SymbolPath figure = switch (tool) {
-                    case LINE -> SymbolTemplates.line(start, end, shift);
-                    case RECTANGLE -> SymbolTemplates.rectangle(start, end, shift);
-                    case ELLIPSE -> SymbolTemplates.ellipse(start, end, shift);
-                    case TRIANGLE -> SymbolTemplates.triangle(start, end, shift);
-                    default -> throw new IllegalStateException("Not a figure tool");
-                };
-                dragging = beforeDrag.addFigure(figure);
-                dragTip = figureTip(dragging);
+                dragNewFigure(end, shift);
             }
             preview.accept(dragging);
             repaint();
@@ -942,6 +846,64 @@ final class ShapeCanvas extends JPanel {
             // A constrained figure at the box edge can be invalid until the pointer returns inside.
             preview.accept(dragging == null ? beforeDrag : dragging);
         }
+    }
+
+    /** Nodos or «Curvar tramo»: the grabbed handle follows the pointer (along one axis with Shift). */
+    private void dragCurveHandle(SymbolPoint end, boolean shift) {
+        HandleRef grabbed = grabbedHandle.get();
+        SymbolPoint original = ((SymbolPath) beforeDrag.elements().get(grabbed.pathIndex()))
+                .handle(grabbed.nodeIndex(), grabbed.side()).orElseThrow();
+        dragging = beforeDrag.moveHandle(grabbed.pathIndex(), grabbed.nodeIndex(), grabbed.side(),
+                shift ? axisLocked(original, end) : end, handleAlone, snap);
+        dragTip = Optional.of(Messages.text("shape.drag.handleAlone"));
+    }
+
+    /** Selección: the selected pin follows the pointer to whole grid points (along one axis with Shift). */
+    private void dragPin(Point where, boolean shift) {
+        pinDragActive = true;
+        Point2D grid = viewport.screenToGrid(where.x, where.y);
+        GridPoint target = new GridPoint((int) Math.round(grid.getX()), (int) Math.round(grid.getY()));
+        if (shift) {
+            GridPoint original = beforeDrag.appearance().pins().stream()
+                    .filter(placement -> placement.source().equals(pin.get())).findFirst().orElseThrow().offset();
+            boolean horizontal = Math.abs(target.x() - original.x()) >= Math.abs(target.y() - original.y());
+            target = horizontal ? new GridPoint(target.x(), original.y()) : new GridPoint(original.x(), target.y());
+        }
+        dragging = beforeDrag.movePin(pin.get(), target);
+        dragTip = Optional.of(Messages.text("shape.drag.axis"));
+    }
+
+    /** The rubber band reaches {@code end}: what it touches joins the selection the press left. */
+    private void dragBand(SymbolPoint end) {
+        bandEnd = end;
+        updateAnts();
+        Rectangle2D band = new Rectangle2D.Double(Math.min(start.x(), end.x()) / 8.0 * UNIT,
+                Math.min(start.y(), end.y()) / 8.0 * UNIT, Math.abs(start.x() - end.x()) / 8.0 * UNIT,
+                Math.abs(start.y() - end.y()) / 8.0 * UNIT);
+        Set<Integer> selected = new LinkedHashSet<>(beforeDrag.selection());
+        for (int index = 0; index < beforeDrag.elements().size(); index++) {
+            SymbolElement element = beforeDrag.elements().get(index);
+            boolean hit = element instanceof SymbolPath path ? band.intersects(SymbolPainter.path(path).getBounds2D())
+                    : element instanceof SymbolText text && band.contains(text.anchor().x() / 8.0 * UNIT,
+                    text.anchor().y() / 8.0 * UNIT);
+            if (hit) {
+                selected.add(index);
+            }
+        }
+        dragging = beforeDrag.select(selected);
+    }
+
+    /** Línea, Rectángulo, Elipse or Triángulo: the new figure from the press to {@code end} (regular with Shift). */
+    private void dragNewFigure(SymbolPoint end, boolean shift) {
+        SymbolPath figure = switch (tool) {
+            case LINE -> SymbolTemplates.line(start, end, shift);
+            case RECTANGLE -> SymbolTemplates.rectangle(start, end, shift);
+            case ELLIPSE -> SymbolTemplates.ellipse(start, end, shift);
+            case TRIANGLE -> SymbolTemplates.triangle(start, end, shift);
+            default -> throw new IllegalStateException("Not a figure tool");
+        };
+        dragging = beforeDrag.addFigure(figure);
+        dragTip = figureTip(dragging);
     }
 
     /**
@@ -1005,7 +967,7 @@ final class ShapeCanvas extends JPanel {
         repaint();
     }
 
-    private boolean bandShown() {
+    boolean bandShown() {
         return pressed != null && rubberBand && bandEnd != null;
     }
 
@@ -1049,7 +1011,7 @@ final class ShapeCanvas extends JPanel {
             }
             repaint();
         } else if (isPathTool()) {
-            clickPathTool(event);
+            pathDrawing.clickPathTool(event);
         } else if (tool == ShapeTool.TEXT) {
             beginText(event.getPoint(), -1);
         }
@@ -1103,7 +1065,7 @@ final class ShapeCanvas extends JPanel {
     }
 
     /** «Agregar nodo» or «Quitar nodo»: the tools that act with one click on a segment or a node. */
-    private boolean isNodeTool() {
+    boolean isNodeTool() {
         return tool == ShapeTool.ADD_NODE || tool == ShapeTool.REMOVE_NODE;
     }
 
@@ -1144,7 +1106,7 @@ final class ShapeCanvas extends JPanel {
         publish.accept(editing.deleteNode(hit.pathIndex(), hit.nodeIndex()));
     }
 
-    private void refuse(String key) {
+    void refuse(String key) {
         refusal = Optional.of(Messages.text(key));
         changed.run();
     }
@@ -1338,7 +1300,7 @@ final class ShapeCanvas extends JPanel {
     }
 
     /** True when every selected element is a text: its selection is its block, not a box with handles. */
-    private boolean onlyTextsSelected() {
+    boolean onlyTextsSelected() {
         SymbolDraft view = current.get();
         return !view.selection().isEmpty() && view.selection().stream()
                 .allMatch(index -> index < view.elements().size() && view.elements().get(index) instanceof SymbolText);
@@ -1479,7 +1441,7 @@ final class ShapeCanvas extends JPanel {
         return under.isPresent();
     }
 
-    private static SymbolPoint handlePoint(SymbolDraft.Handle handle, SymbolDraft.Box box) {
+    static SymbolPoint handlePoint(SymbolDraft.Handle handle, SymbolDraft.Box box) {
         return new SymbolPoint(switch (handle) {
             case TOP_LEFT, LEFT, BOTTOM_LEFT -> box.left();
             case TOP_RIGHT, RIGHT, BOTTOM_RIGHT -> box.right();
@@ -1491,11 +1453,11 @@ final class ShapeCanvas extends JPanel {
         });
     }
 
-    private SymbolPoint point(MouseEvent event) {
+    SymbolPoint point(MouseEvent event) {
         return point(event.getPoint());
     }
 
-    private SymbolPoint point(Point at) {
+    SymbolPoint point(Point at) {
         SymbolPoint raw = rawPoint(at);
         return new SymbolPoint(Math.clamp(raw.x(), 0, current.get().appearance().size().width() * 8),
                 Math.clamp(raw.y(), 0, current.get().appearance().size().height() * 8));
@@ -1503,7 +1465,7 @@ final class ShapeCanvas extends JPanel {
     private SymbolPoint rawPoint(Point at) {
         return new SymbolPoint(snap.snap((int) Math.round(localX(at))), snap.snap((int) Math.round(localY(at))));
     }
-    private Point screen(int x, int y) {
+    Point screen(int x, int y) {
         Point2D screen = viewport.gridToScreen(x / 8.0, y / 8.0);
         return new Point((int) Math.round(screen.getX()), (int) Math.round(screen.getY()));
     }
@@ -1560,7 +1522,7 @@ final class ShapeCanvas extends JPanel {
         return Optional.of(Messages.format("shape.node.label", coordinates, kind));
     }
 
-    private String pinName(ElementId source) {
+    String pinName(ElementId source) {
         return definition.pinout().stream().filter(candidate -> candidate.source().equals(source)).findFirst()
                 .map(found -> found.spec().name()).orElse(source.value());
     }
@@ -1600,92 +1562,7 @@ final class ShapeCanvas extends JPanel {
             fitBox();
             fitPending = pending;
         }
-        Graphics2D surface = (Graphics2D) graphics.create();
-        try {
-            ColorScheme scheme = colors.get();
-            surface.setColor(scheme.background());
-            surface.fillRect(0, 0, getWidth(), getHeight());
-            surface.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-            double spacing = viewport.pixelsPerUnit();
-            if (spacing >= 4) {
-                surface.setColor(scheme.grid());
-                Point2D origin = viewport.gridToScreen(0, 0);
-                for (double x = origin.getX() % spacing; x < getWidth(); x += spacing) {
-                    for (double y = origin.getY() % spacing; y < getHeight(); y += spacing) {
-                        surface.fill(new Ellipse2D.Double(x - 0.8, y - 0.8, 1.6, 1.6));
-                    }
-                }
-            }
-            ComponentAppearance appearance = current.get().appearance();
-            surface.transform(viewport.documentTransform());
-            paintAppearance(surface, definition, appearance, scheme, true, (float) (SCREEN_STROKE_WIDTH / zoom()),
-                    SCREEN_PIN_RADIUS / (PainterSupport.PIN_DOT_RADIUS * zoom()));
-            paintGuides(surface, scheme, appearance.size());
-            surface.setColor(PainterSupport.withAlpha(scheme.text(), 130));
-            surface.setStroke(new BasicStroke((float) (1 / zoom()), BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER,
-                    10, new float[]{(float) (5 / zoom())}, 0));
-            surface.draw(new Rectangle2D.Double(0, 0, appearance.size().width() * UNIT, appearance.size().height() * UNIT));
-            surface.setFont(TextFonts.labelFont().deriveFont((float) (10 / zoom())));
-            surface.drawString(Messages.text("shape.box.label"), 0, (float) (-10 / zoom()));
-            if (!current.get().pinsLocked()) {
-                double right = appearance.size().width() * UNIT;
-                double bottom = appearance.size().height() * UNIT;
-                double offset = BOX_HANDLE_OFFSET / zoom();
-                surface.draw(new Line2D.Double(right, bottom, right + offset, bottom + offset));
-                surface.fill(new Ellipse2D.Double(right + offset - 3 / zoom(),
-                        bottom + offset - 3 / zoom(), 6 / zoom(), 6 / zoom()));
-            }
-            surface.setColor(scheme.selection());
-            if (tool == ShapeTool.SELECT) {
-                if (!onlyTextsSelected()) {
-                    current.get().selectionBounds().ifPresent(box -> paintSelection(surface, box));
-                }
-                paintTextBlocks(surface, scheme);
-            }
-            for (PinPlacement placement : appearance.pins()) {
-                boolean selected = pin.filter(placement.source()::equals).isPresent();
-                boolean hovered = hoveredPin.filter(placement.source()::equals).isPresent();
-                if (selected || hovered) {
-                    surface.setColor(hovered && !selected ? PainterSupport.withAlpha(scheme.selection(), 200)
-                            : scheme.selection());
-                    surface.setStroke(new BasicStroke((float) ((selected ? 2 : 1.5) / zoom())));
-                    surface.draw(new Ellipse2D.Double(placement.offset().x() * UNIT - PIN_RING_RADIUS / zoom(),
-                            placement.offset().y() * UNIT - PIN_RING_RADIUS / zoom(), 2 * PIN_RING_RADIUS / zoom(),
-                            2 * PIN_RING_RADIUS / zoom()));
-                }
-            }
-            surface.setColor(scheme.selection());
-            paintCoincidences(surface, scheme);
-            paintOffEdgePins(surface);
-            if (tool == ShapeTool.NODES || isNodeTool()) {
-                paintNodes(surface);
-            }
-            if (tool == ShapeTool.CURVE) {
-                paintCurveTool(surface, scheme);
-            }
-            if (nodeAction() == ShapeTool.ADD_NODE) {
-                paintInsertion(surface);
-            } else if (nodeAction() == ShapeTool.REMOVE_NODE) {
-                paintRemoval(surface, scheme);
-            }
-            if (bandShown()) {
-                RubberBand.paint(surface, new Rectangle2D.Double(Math.min(start.x(), bandEnd.x()) / 8.0 * UNIT,
-                        Math.min(start.y(), bandEnd.y()) / 8.0 * UNIT, Math.abs(start.x() - bandEnd.x()) / 8.0 * UNIT,
-                        Math.abs(start.y() - bandEnd.y()) / 8.0 * UNIT), scheme.selection(), BAND_FILL_ALPHA,
-                        BAND_WIDTH, marchingAnts.phase());
-            }
-            paintPathInProgress(surface, scheme);
-        } finally {
-            surface.dispose();
-        }
-        Graphics2D overlay = (Graphics2D) graphics.create();
-        try {
-            overlay.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-            overlay.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
-            paintCallouts(overlay, colors.get());
-        } finally {
-            overlay.dispose();
-        }
+        painter.paint(graphics);
     }
 
     /** Every whole grid point on the box edge: where pins usually go and where the outline should pass. */
@@ -1743,370 +1620,6 @@ final class ShapeCanvas extends JPanel {
         double pointerY = grid.getY();
         return freePinPoints().stream().min(Comparator.comparingDouble(
                 candidate -> Math.hypot(candidate.x() - pointerX, candidate.y() - pointerY)));
-    }
-
-    /** Notches on the box edge, and while a pin is dragged its free and occupied points; the colours are the scheme's. */
-    private void paintGuides(Graphics2D surface, ColorScheme scheme, GridSize size) {
-        Graphics2D guide = (Graphics2D) surface.create();
-        try {
-            guide.setStroke(new BasicStroke((float) (1.5 / zoom())));
-            guide.setColor(PainterSupport.withAlpha(scheme.text(), 150));
-            double notch = NOTCH_LENGTH / zoom();
-            for (GridPoint point : edgeNotches()) {
-                double x = point.x() * UNIT;
-                double y = point.y() * UNIT;
-                boolean onSide = point.x() == 0 || point.x() == size.width();
-                boolean corner = onSide && (point.y() == 0 || point.y() == size.height());
-                if (onSide || corner) {
-                    guide.draw(new Line2D.Double(x - notch, y, x + notch, y));
-                }
-                if (!onSide || corner) {
-                    guide.draw(new Line2D.Double(x, y - notch, x, y + notch));
-                }
-            }
-            Optional<GridPoint> nearest = nearestFreePinPoint();
-            for (GridPoint point : freePinPoints()) {
-                boolean strong = nearest.filter(point::equals).isPresent();
-                double radius = (strong ? 5 : 2) / zoom();
-                guide.setColor(strong ? scheme.selection() : PainterSupport.withAlpha(scheme.selection(), 140));
-                guide.setStroke(new BasicStroke((float) ((strong ? 2 : 1.2) / zoom())));
-                Ellipse2D ring = new Ellipse2D.Double(point.x() * UNIT - radius, point.y() * UNIT - radius,
-                        2 * radius, 2 * radius);
-                if (strong) {
-                    guide.draw(ring);
-                } else {
-                    guide.fill(ring);
-                }
-            }
-            guide.setColor(scheme.wireConflict());
-            guide.setStroke(new BasicStroke((float) (1.5 / zoom())));
-            double radius = 5 / zoom();
-            double slash = radius * 0.7;
-            for (GridPoint point : occupiedPinPoints()) {
-                double x = point.x() * UNIT;
-                double y = point.y() * UNIT;
-                guide.draw(new Ellipse2D.Double(x - radius, y - radius, 2 * radius, 2 * radius));
-                guide.draw(new Line2D.Double(x - slash, y + slash, x + slash, y - slash));
-            }
-        } finally {
-            guide.dispose();
-        }
-    }
-
-    /** A red ring and dot on every pin that shares its point: the icon and the callout carry the meaning too. */
-    private void paintCoincidences(Graphics2D surface, ColorScheme scheme) {
-        Map<GridPoint, Boolean> marked = new HashMap<>();
-        for (Coincidence found : coincidences()) {
-            if (marked.put(found.offset(), true) != null) {
-                continue;
-            }
-            double x = found.offset().x() * UNIT;
-            double y = found.offset().y() * UNIT;
-            surface.setColor(scheme.wireConflict());
-            surface.setStroke(new BasicStroke((float) (1.5 / zoom())));
-            surface.draw(new Ellipse2D.Double(x - 8 / zoom(), y - 8 / zoom(), 16 / zoom(), 16 / zoom()));
-            surface.fill(new Ellipse2D.Double(x - 4 / zoom(), y - 4 / zoom(), 8 / zoom(), 8 / zoom()));
-        }
-    }
-
-    /** An amber ring on every pin that is not on the box edge: the row's triangle and the warning line say the rest. */
-    private void paintOffEdgePins(Graphics2D surface) {
-        Set<String> offEdge = new HashSet<>();
-        for (DraftProblem problem : current.get().problems()) {
-            if (problem.kind() == DraftProblem.Kind.PIN_OFF_EDGE) {
-                offEdge.addAll(problem.pins());
-            }
-        }
-        surface.setColor(ReadableColors.warningText());
-        surface.setStroke(new BasicStroke((float) (1.5 / zoom())));
-        for (PinPlacement placement : current.get().appearance().pins()) {
-            if (offEdge.contains(pinName(placement.source()))) {
-                surface.draw(new Ellipse2D.Double(placement.offset().x() * UNIT - 9 / zoom(),
-                        placement.offset().y() * UNIT - 9 / zoom(), 18 / zoom(), 18 / zoom()));
-            }
-        }
-    }
-
-    private void paintCallouts(Graphics2D overlay, ColorScheme scheme) {
-        Optional<String> coincidence = coincidenceCallout();
-        if (coincidence.isPresent()) {
-            PinPlacement selected = current.get().appearance().pins().stream()
-                    .filter(placement -> pin.filter(placement.source()::equals).isPresent()).findFirst().orElseThrow();
-            paintCallout(overlay, screen(selected.offset().x() * 8, selected.offset().y() * 8),
-                    new String[]{coincidence.get()}, scheme.wireConflict(), true, true);
-        } else if (pinCallout().isPresent()) {
-            PinPlacement selected = current.get().appearance().pins().stream()
-                    .filter(placement -> pin.filter(placement.source()::equals).isPresent()).findFirst().orElseThrow();
-            paintCallout(overlay, screen(selected.offset().x() * 8, selected.offset().y() * 8),
-                    new String[]{pinCallout().get()}, scheme.selection(), false, true);
-        }
-        dragTip.ifPresent(tip -> paintCallout(overlay, pointer,
-                tip.split("\n"), scheme.selection(), false, false));
-        // While a handle is dragged the label next to its node would cover it; the drag tip speaks instead.
-        nodeLabel().filter(label -> grabbedHandle.isEmpty()).ifPresent(label -> {
-            SymbolPoint point = chosenPoint((SymbolPath) current.get().elements().get(pathIndex));
-            Point at = screen(point.x(), point.y());
-            overlay.setFont(TextFonts.labelFont().deriveFont(Font.BOLD, 13f));
-            FontMetrics metrics = overlay.getFontMetrics();
-            int width = metrics.stringWidth(label) + 10;
-            int x = Math.min(at.x + 12, Math.max(0, getWidth() - width - 2));
-            int y = Math.max(metrics.getHeight() + 2, at.y - 10);
-            overlay.setColor(PainterSupport.withAlpha(scheme.background(), 220));
-            overlay.fill(new RoundRectangle2D.Double(x - 4, y - metrics.getAscent() - 1, width, metrics.getHeight() + 2, 6, 6));
-            overlay.setColor(scheme.text());
-            overlay.drawString(label, x, y);
-        });
-    }
-
-    /**
-     * A rounded label next to {@code anchor}, kept inside the canvas. With {@code warning} it starts with a drawn
-     * «no entry» sign, so the meaning never depends on its colour alone.
-     */
-    private void paintCallout(Graphics2D overlay, Point anchor, String[] lines, Color fill, boolean warning,
-                              boolean above) {
-        overlay.setFont(TextFonts.labelFont().deriveFont(Font.BOLD, 13f));
-        FontMetrics metrics = overlay.getFontMetrics();
-        int iconSize = warning ? 14 : 0;
-        int iconGap = warning ? 6 : 0;
-        int textWidth = 0;
-        for (String line : lines) {
-            textWidth = Math.max(textWidth, metrics.stringWidth(line));
-        }
-        int width = textWidth + iconSize + iconGap + 16;
-        int height = metrics.getHeight() * lines.length + 10;
-        int x = Math.clamp(anchor.x + 16, 2, Math.max(2, getWidth() - width - 2));
-        int y = Math.clamp(above ? anchor.y - 18 - height : anchor.y + 18, 2, Math.max(2, getHeight() - height - 2));
-        overlay.setColor(fill);
-        overlay.fill(new RoundRectangle2D.Double(x, y, width, height, 8, 8));
-        Color ink = readableOn(fill);
-        overlay.setColor(ink);
-        int textX = x + 8;
-        if (warning) {
-            int iconY = y + (height - iconSize) / 2;
-            overlay.setStroke(new BasicStroke(2f));
-            overlay.draw(new Ellipse2D.Double(textX + 1, iconY + 1, iconSize - 2, iconSize - 2));
-            overlay.draw(new Line2D.Double(textX + 4, iconY + iconSize / 2.0, textX + iconSize - 4, iconY + iconSize / 2.0));
-            textX += iconSize + iconGap;
-        }
-        for (int line = 0; line < lines.length; line++) {
-            overlay.drawString(lines[line], textX, y + 5 + metrics.getAscent() + line * metrics.getHeight());
-        }
-    }
-
-    private static Color readableOn(Color fill) {
-        double luminance = (0.2126 * fill.getRed() + 0.7152 * fill.getGreen() + 0.0722 * fill.getBlue()) / 255;
-        return luminance < 0.6 ? Color.WHITE : Color.BLACK;
-    }
-
-    /** Every selected text in a rectangle around its whole block; the hovered one in a lighter outline. */
-    private void paintTextBlocks(Graphics2D surface, ColorScheme scheme) {
-        List<SymbolElement> elements = current.get().elements();
-        if (hoveredText >= 0 && hoveredText < elements.size() && !current.get().selection().contains(hoveredText)
-                && elements.get(hoveredText) instanceof SymbolText hovered) {
-            surface.setColor(PainterSupport.withAlpha(scheme.selection(), 110));
-            surface.setStroke(new BasicStroke((float) (1.2 / zoom())));
-            surface.draw(paddedTextBlock(hovered));
-        }
-        surface.setColor(scheme.selection());
-        surface.setStroke(new BasicStroke((float) (1.6 / zoom())));
-        for (int index : current.get().selection()) {
-            if (index < elements.size() && elements.get(index) instanceof SymbolText selected) {
-                surface.draw(paddedTextBlock(selected));
-            }
-        }
-    }
-
-    private void paintSelection(Graphics2D surface, SymbolDraft.Box box) {
-        surface.draw(new Rectangle2D.Double(box.left() / 8.0 * UNIT, box.top() / 8.0 * UNIT,
-                box.width() / 8.0 * UNIT, box.height() / 8.0 * UNIT));
-        for (SymbolDraft.Handle handle : SymbolDraft.Handle.values()) {
-            SymbolPoint point = handlePoint(handle, box);
-            surface.fill(new Rectangle2D.Double(point.x() / 8.0 * UNIT - 3 / zoom(),
-                    point.y() / 8.0 * UNIT - 3 / zoom(), 6 / zoom(), 6 / zoom()));
-        }
-    }
-
-    /**
-     * Every node as a round point (the chosen one filled), a corner between two curves as a diamond; every curve
-     * handle joined to its node by a thin line (straight through a smooth node), drawn over the nodes so it can be
-     * grabbed.
-     */
-    private void paintNodes(Graphics2D surface) {
-        SymbolDraft view = current.get();
-        List<SymbolElement> elements = view.elements();
-        List<HandleRef> handles = curveHandles();
-        paintHandleLines(surface, handles);
-        surface.setStroke(new BasicStroke((float) (1.5 / zoom())));
-        for (int index = 0; index < elements.size(); index++) {
-            if (!(elements.get(index) instanceof SymbolPath path)) {
-                continue;
-            }
-            for (int nodeNumber = 0; nodeNumber < path.nodes().size(); nodeNumber++) {
-                SymbolPoint point = path.nodes().get(nodeNumber).point();
-                boolean chosen = index == pathIndex && nodeNumber == nodeIndex;
-                Color fill = chosen ? colors.get().selection() : colors.get().background();
-                if (path.hasTwoHandles(nodeNumber) && !view.smooth(index, nodeNumber)) {
-                    paintDiamond(surface, point, CORNER_MARKER_RADIUS, fill, colors.get().componentStroke());
-                } else {
-                    double x = point.x() / 8.0 * UNIT;
-                    double y = point.y() / 8.0 * UNIT;
-                    Shape marker = new Ellipse2D.Double(x - 4 / zoom(), y - 4 / zoom(), 8 / zoom(), 8 / zoom());
-                    surface.setColor(fill);
-                    surface.fill(marker);
-                    surface.setColor(colors.get().componentStroke());
-                    surface.draw(marker);
-                }
-            }
-        }
-        paintHandles(surface, handles);
-    }
-
-    private void paintHandleLines(Graphics2D surface, List<HandleRef> handles) {
-        handles.forEach(reference -> paintHandleLine(surface, handleNode(reference), handleLocation(reference)));
-    }
-
-    /** The handle being dragged, else the one under the pointer, is drawn larger. */
-    private void paintHandles(Graphics2D surface, List<HandleRef> handles) {
-        Optional<HandleRef> active = grabbedHandle.or(() -> hoveredHandle);
-        handles.forEach(reference -> paintHandle(surface, handleLocation(reference),
-                active.filter(reference::equals).isPresent()));
-    }
-
-    /** The thin line from a node to one of its handles, in the selection colour. */
-    private void paintHandleLine(Graphics2D surface, SymbolPoint node, SymbolPoint handle) {
-        surface.setColor(colors.get().selection());
-        surface.setStroke(new BasicStroke((float) (HANDLE_LINE_WIDTH / zoom())));
-        surface.draw(new Line2D.Double(node.x() / 8.0 * UNIT, node.y() / 8.0 * UNIT, handle.x() / 8.0 * UNIT,
-                handle.y() / 8.0 * UNIT));
-    }
-
-    /**
-     * A handle: a dot in the selection colour with a thin ring of the background around it, so it stands out on the
-     * figure's stroke in both themes; larger under the pointer and while dragged.
-     */
-    private void paintHandle(Graphics2D surface, SymbolPoint handle, boolean active) {
-        double radius = (active ? ACTIVE_HANDLE_RADIUS : HANDLE_RADIUS) / zoom();
-        Shape dot = new Ellipse2D.Double(handle.x() / 8.0 * UNIT - radius, handle.y() / 8.0 * UNIT - radius,
-                2 * radius, 2 * radius);
-        surface.setColor(colors.get().selection());
-        surface.fill(dot);
-        surface.setColor(colors.get().background());
-        surface.setStroke(new BasicStroke((float) (1 / zoom())));
-        surface.draw(dot);
-    }
-
-    private void paintInsertion(Graphics2D surface) {
-        insertion.ifPresent(hit -> {
-            SymbolPath path = (SymbolPath) current.get().elements().get(hit.pathIndex());
-            Shape segment = AffineTransform.getScaleInstance(UNIT / 8, UNIT / 8)
-                    .createTransformedShape(ShapeSegments.shape(path, hit.segmentIndex()));
-            surface.setColor(colors.get().selection());
-            surface.setStroke(new BasicStroke((float) (3 / zoom()), BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
-            surface.draw(segment);
-            surface.fill(new Ellipse2D.Double(hit.point().x() / 8.0 * UNIT - 3 / zoom(),
-                    hit.point().y() / 8.0 * UNIT - 3 / zoom(), 6 / zoom(), 6 / zoom()));
-        });
-    }
-
-    /**
-     * The multiline or polygon being drawn: its placed segments and nodes, the rubber band from the last node to the
-     * pointer (and, for a polygon, back to the first node), and a ring on the first node when a click there closes it.
-     */
-    private void paintPathInProgress(Graphics2D surface, ColorScheme scheme) {
-        if (pathNodes.isEmpty()) {
-            return;
-        }
-        Path2D placed = new Path2D.Double();
-        placed.moveTo(pathNodes.getFirst().x() / 8.0 * UNIT, pathNodes.getFirst().y() / 8.0 * UNIT);
-        for (SymbolPoint node : pathNodes.subList(1, pathNodes.size())) {
-            placed.lineTo(node.x() / 8.0 * UNIT, node.y() / 8.0 * UNIT);
-        }
-        surface.setColor(scheme.componentStroke());
-        surface.setStroke(new BasicStroke((float) (SCREEN_STROKE_WIDTH / zoom()), BasicStroke.CAP_ROUND,
-                BasicStroke.JOIN_ROUND));
-        surface.draw(placed);
-        boolean closing = closesOnFirstNode(pointer);
-        SymbolPoint last = pathNodes.getLast();
-        SymbolPoint target = closing ? pathNodes.getFirst() : point(pointer);
-        surface.setColor(scheme.selection());
-        surface.setStroke(new BasicStroke((float) (1.2 / zoom()), BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER, 10,
-                new float[]{(float) (4 / zoom()), (float) (3 / zoom())}, 0));
-        surface.draw(new Line2D.Double(last.x() / 8.0 * UNIT, last.y() / 8.0 * UNIT, target.x() / 8.0 * UNIT,
-                target.y() / 8.0 * UNIT));
-        if (tool == ShapeTool.POLYGON && pathNodes.size() >= 2 && !closing) {
-            SymbolPoint first = pathNodes.getFirst();
-            surface.setColor(PainterSupport.withAlpha(scheme.selection(), 110));
-            surface.draw(new Line2D.Double(target.x() / 8.0 * UNIT, target.y() / 8.0 * UNIT, first.x() / 8.0 * UNIT,
-                    first.y() / 8.0 * UNIT));
-        }
-        surface.setStroke(new BasicStroke((float) (1.5 / zoom())));
-        for (SymbolPoint node : pathNodes) {
-            Shape marker = new Ellipse2D.Double(node.x() / 8.0 * UNIT - 3 / zoom(), node.y() / 8.0 * UNIT - 3 / zoom(),
-                    6 / zoom(), 6 / zoom());
-            surface.setColor(scheme.background());
-            surface.fill(marker);
-            surface.setColor(scheme.componentStroke());
-            surface.draw(marker);
-        }
-        if (closing) {
-            SymbolPoint first = pathNodes.getFirst();
-            surface.setColor(scheme.selection());
-            surface.setStroke(new BasicStroke((float) (2 / zoom())));
-            surface.draw(new Ellipse2D.Double(first.x() / 8.0 * UNIT - 7 / zoom(), first.y() / 8.0 * UNIT - 7 / zoom(),
-                    14 / zoom(), 14 / zoom()));
-        }
-    }
-
-    /**
-     * «Curvar tramo»: the segment under the pointer in the selection colour (unless one is being bent) and the handles
-     * of every curved segment, each joined to its node.
-     */
-    private void paintCurveTool(Graphics2D surface, ColorScheme scheme) {
-        List<SymbolElement> elements = current.get().elements();
-        if (curving.isEmpty()) {
-            curveTarget.filter(target -> target.pathIndex() < elements.size()
-                    && elements.get(target.pathIndex()) instanceof SymbolPath).ifPresent(target -> {
-                SymbolPath path = (SymbolPath) elements.get(target.pathIndex());
-                Shape segment = AffineTransform.getScaleInstance(UNIT / 8, UNIT / 8)
-                        .createTransformedShape(ShapeSegments.shape(path, target.segment()));
-                surface.setColor(scheme.selection());
-                surface.setStroke(new BasicStroke((float) (3 / zoom()), BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
-                surface.draw(segment);
-            });
-        }
-        List<HandleRef> handles = curveHandles();
-        paintHandleLines(surface, handles);
-        paintHandles(surface, handles);
-    }
-
-    /** A corner node: a diamond centred on {@code point} (eighths), {@code radius} screen pixels to each tip. */
-    private void paintDiamond(Graphics2D surface, SymbolPoint point, double radius, Color fill, Color outline) {
-        double x = point.x() / 8.0 * UNIT;
-        double y = point.y() / 8.0 * UNIT;
-        Path2D diamond = new Path2D.Double();
-        diamond.moveTo(x, y - radius / zoom());
-        diamond.lineTo(x + radius / zoom(), y);
-        diamond.lineTo(x, y + radius / zoom());
-        diamond.lineTo(x - radius / zoom(), y);
-        diamond.closePath();
-        surface.setColor(fill);
-        surface.fill(diamond);
-        surface.setColor(outline);
-        surface.draw(diamond);
-    }
-
-    /** The node a click would remove: filled and ringed in the problem colour, larger than the other nodes. */
-    private void paintRemoval(Graphics2D surface, ColorScheme scheme) {
-        removal.ifPresent(hit -> {
-            SymbolPoint point = ((SymbolPath) current.get().elements().get(hit.pathIndex())).nodes()
-                    .get(hit.nodeIndex()).point();
-            double x = point.x() / 8.0 * UNIT;
-            double y = point.y() / 8.0 * UNIT;
-            surface.setColor(scheme.wireConflict());
-            surface.setStroke(new BasicStroke((float) (1.5 / zoom())));
-            surface.fill(new Ellipse2D.Double(x - 5 / zoom(), y - 5 / zoom(), 10 / zoom(), 10 / zoom()));
-            surface.draw(new Ellipse2D.Double(x - 9 / zoom(), y - 9 / zoom(), 18 / zoom(), 18 / zoom()));
-        });
     }
 
     static void paintAppearance(Graphics2D graphics, ComponentDefinition definition, ComponentAppearance appearance,
