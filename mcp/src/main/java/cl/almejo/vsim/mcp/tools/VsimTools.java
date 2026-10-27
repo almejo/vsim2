@@ -26,6 +26,7 @@ public final class VsimTools {
         tools.addAll(DocumentTools.tools(api));
         tools.addAll(CatalogTools.tools(api));
         tools.addAll(CircuitTools.tools(api));
+        tools.addAll(MemoryTools.tools(api));
         tools.addAll(TaskTools.tools(api));
         tools.addAll(EditTools.tools(api));
         tools.addAll(PresentationTools.tools(api));

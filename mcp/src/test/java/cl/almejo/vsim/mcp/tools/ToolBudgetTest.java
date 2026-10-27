@@ -23,10 +23,10 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class ToolBudgetTest {
 
-    /** 40,961 characters after the fix round. */
-    private static final int ALL_TOOLS_BUDGET = 45_000;
-    /** 10,371 characters after the fix round; 12,244 with SetComponentShape (the shape editor, about 1,000); 13,474 with the sticky notes (AddStickyNote, SetStickyItem and their rule, about 1,240); 13,425 with those descriptions shortened; the budget is 13,470. */
-    private static final int EDIT_BUDGET = 13_470;
+    /** 40,961 characters after the fix round; 45,535 with the 32nd tool (vsim_read_memory) and SetMemoryContents, so the budget is 45,600. */
+    private static final int ALL_TOOLS_BUDGET = 45_600;
+    /** 10,371 characters after the fix round; 12,244 with SetComponentShape (the shape editor, about 1,000); 13,474 with the sticky notes (AddStickyNote, SetStickyItem and their rule, about 1,240); 13,425 with those descriptions shortened; the budget is 13,470; 13,959 with SetMemoryContents (about 530), so the budget is 14,000. */
+    private static final int EDIT_BUDGET = 14_000;
     /** The answer to four parts and three Connects: 590 characters after the fix round. */
     private static final int TYPICAL_EDIT_ANSWER_BUDGET = 650;
 
@@ -43,7 +43,7 @@ class ToolBudgetTest {
             total += modelVisible(tool);
         }
 
-        assertThat(total).as("the 31 tools as a model reads them").isLessThanOrEqualTo(ALL_TOOLS_BUDGET);
+        assertThat(total).as("the 32 tools as a model reads them").isLessThanOrEqualTo(ALL_TOOLS_BUDGET);
         assertThat(modelVisible(tool("vsim_edit"))).as("vsim_edit").isLessThanOrEqualTo(EDIT_BUDGET);
     }
 
