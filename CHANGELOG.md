@@ -21,6 +21,10 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
   memoria enlazada a un archivo se ve de solo lectura, con la barra «Enlazada a …: se edita en el editor externo»; con
   la simulación corriendo, la RAM muestra sus valores vivos y su última lectura (azul) y escritura (naranja).
   «Restaurar contenido inicial» y «Volcar…» también están en el clic derecho de la RAM.
+- Pestaña «Mapa de memoria»: la RAM o ROM seleccionada completa como una matriz que muestra en vivo cada lectura
+  (azul) y escritura (naranja); en pausa queda encendido lo que tocó el último paso. También un mapa de calor de
+  accesos desde que partió la simulación y los valores de cada palabra, zoom con la rueda en memorias grandes, una
+  ayuda con dirección, lecturas, escrituras y valor, y «Restaurar» para volver una RAM a su contenido inicial.
 
 ## Sin publicar — Notas adhesivas
 

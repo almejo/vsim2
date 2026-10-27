@@ -84,6 +84,7 @@ Una línea por función; el detalle está en [docs/funciones.md](docs/funciones.
 
 - [Cortocircuitos](docs/funciones/simulacion-y-paso-a-paso.md#cortocircuitos) marcados en el circuito, listados en Problemas y recorridos con F8.
 - [Paso a paso](docs/funciones/simulacion-y-paso-a-paso.md#paso-a-paso): avanzar al próximo evento o flanco de reloj, ver qué cambió y qué viene, y reiniciar.
+- [Mapa de memoria](docs/funciones/simulacion-y-paso-a-paso.md#mapa-de-memoria): la RAM o ROM seleccionada completa en una pestaña, con cada lectura y escritura encendida en vivo (y lo que tocó el último paso, en pausa), un mapa de calor de accesos o los valores, zoom con la rueda y «Restaurar» para una RAM.
 
 ### Formas de onda
 

@@ -23,6 +23,8 @@ import cl.almejo.vsim.core.simulation.CircuitFlattener;
 import cl.almejo.vsim.core.simulation.ConnectivityProblem;
 import cl.almejo.vsim.core.simulation.FlatCircuit;
 import cl.almejo.vsim.core.simulation.InputAssignment;
+import cl.almejo.vsim.core.simulation.MemoryMapFrame;
+import cl.almejo.vsim.core.simulation.MemoryMapRequest;
 import cl.almejo.vsim.core.simulation.RequestReport;
 import cl.almejo.vsim.core.simulation.SimulationEngine;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
@@ -430,6 +432,19 @@ public final class OpenDocument implements AutoCloseable {
     /** «Limpiar trazas»: drops the recorded events and keeps the channels. */
     public void clearWaveforms() {
         simulation.clearWaveforms();
+    }
+
+    /**
+     * What the «Mapa de memoria» shows (spec §6): {@link #latestMemoryMap()} answers this request from now on; empty
+     * stops the frames. One request per document: the last one set wins.
+     */
+    public void setMemoryMapRequest(Optional<MemoryMapRequest> request) {
+        simulation.setMemoryMapRequest(request);
+    }
+
+    /** The latest memory map frame (at most every 16 ms); safe to read from any thread. */
+    public Optional<MemoryMapFrame> latestMemoryMap() {
+        return simulation.latestMemoryMap();
     }
 
     /**

@@ -36,6 +36,8 @@ public final class SimulationThread implements AutoCloseable {
     private static final long PARK_NANOS = 2 * NANOS_PER_MILLISECOND;
     /** Waveform snapshots are republished at most this often (about 60 per second). */
     private static final long WAVEFORM_PUBLISH_INTERVAL_NANOS = 16 * NANOS_PER_MILLISECOND;
+    /** Memory map frames are republished at most this often, like the waveforms. */
+    private static final long MEMORY_MAP_PUBLISH_INTERVAL_NANOS = 16 * NANOS_PER_MILLISECOND;
 
     private final SimulationEngine engine;
     private final LongSupplier nanoClock;
@@ -47,6 +49,8 @@ public final class SimulationThread implements AutoCloseable {
     private final Set<CompletableFuture<Optional<MemoryContents>>> waitingContents = ConcurrentHashMap.newKeySet();
     private volatile SimulationSnapshot latestSnapshot = SimulationSnapshot.EMPTY;
     private volatile WaveformSnapshot latestWaveforms = WaveformSnapshot.EMPTY;
+    /** The last memory map frame for the current request; null without a request or a memory to answer it. */
+    private volatile MemoryMapFrame latestMemoryMap;
     /** The last «Avanzar» or paused interaction (M6.1-B); null until the first one. */
     private volatile StepReport latestStep;
     /** The engine's next event time, refreshed with every published snapshot (M6.1-B). */
@@ -70,6 +74,12 @@ public final class SimulationThread implements AutoCloseable {
     private boolean snapshotStale = true;
     private boolean waveformsPublished;
     private long lastWaveformPublishNanos;
+    /** What the memory map asks for; null when it asks for nothing. */
+    private MemoryMapRequest memoryMapRequest;
+    /** True when something ran since the last memory map frame (a request, a running tick). */
+    private boolean memoryMapStale;
+    private boolean memoryMapPublished;
+    private long lastMemoryMapPublishNanos;
     private long stepSequence;
     /** The {@link #published()} futures whose request ran in this tick, completed once it has published. */
     private final List<CompletableFuture<SimulationSnapshot>> publicationWaiters = new ArrayList<>();
@@ -289,6 +299,35 @@ public final class SimulationThread implements AutoCloseable {
     /** «Limpiar trazas»: drops every recorded event; the channels go on recording from their current value. */
     public void clearWaveforms() {
         requests.add(engine::clearWaveforms);
+    }
+
+    /**
+     * What the «Mapa de memoria» shows (spec §6): from now on {@link #latestMemoryMap()} answers {@code request} after
+     * something ran, at most every 16 ms while running; empty stops the frames. Asking for another memory forgets the
+     * accesses it made before (they are not recent for the map); its counts stay.
+     */
+    public void setMemoryMapRequest(Optional<MemoryMapRequest> request) {
+        MemoryMapRequest wanted = request.orElse(null);
+        requests.add(() -> {
+            if (wanted != null && (memoryMapRequest == null
+                    || !memoryMapRequest.componentId().equals(wanted.componentId()))) {
+                engine.memory(wanted.componentId()).ifPresent(memory -> memory.accessLog().drainRecent());
+            }
+            memoryMapRequest = wanted;
+            memoryMapStale = true;
+            memoryMapPublished = false;
+            if (wanted == null) {
+                latestMemoryMap = null;
+            }
+        });
+    }
+
+    /**
+     * The latest memory map frame: empty without a request, or when what it names is not a memory being simulated.
+     * Its {@link MemoryMapFrame#request()} may be an earlier request than the last one set; compare before using it.
+     */
+    public Optional<MemoryMapFrame> latestMemoryMap() {
+        return Optional.ofNullable(latestMemoryMap);
     }
 
     /**
@@ -580,6 +619,7 @@ public final class SimulationThread implements AutoCloseable {
                 latestPendingComponents = running ? Set.of() : engine.pendingComponents();
                 latestSnapshot = snapshot.withRunning(running).withFailure(Optional.ofNullable(failure));
                 snapshotStale = false;
+                memoryMapStale = true;
             }
         } catch (RuntimeException exception) {
             LOGGER.error("Simulation failed; pausing", exception);
@@ -587,6 +627,7 @@ public final class SimulationThread implements AutoCloseable {
         }
         // Also after a failure: the channels of a rejected circuit are still bound and shown.
         publishWaveforms(now);
+        publishMemoryMap(now);
         if (!publicationWaiters.isEmpty()) {
             SimulationSnapshot published = latestSnapshot;
             publicationWaiters.forEach(waiter -> waiter.complete(published));
@@ -617,6 +658,25 @@ public final class SimulationThread implements AutoCloseable {
             waveformsPublished = true;
             lastWaveformPublishNanos = nowNanos;
         }
+    }
+
+    /**
+     * Publishes a frame when something ran since the last one: while running at most every 16 ms (the snapshots go on
+     * being republished, so the map catches up); while paused at once, with the snapshot of the step or click that
+     * changed it, since no later snapshot may come to make the map look again.
+     */
+    private void publishMemoryMap(long nowNanos) {
+        MemoryMapRequest request = memoryMapRequest;
+        if (request == null || !memoryMapStale || running && memoryMapPublished
+                && nowNanos - lastMemoryMapPublishNanos < MEMORY_MAP_PUBLISH_INTERVAL_NANOS) {
+            return;
+        }
+        Optional<MemoryBehavior> memory = engine.memory(request.componentId());
+        latestMemoryMap = memory.map(found -> MemoryMapFrame.capture(found, request,
+                found.accessLog().drainRecent(), engine.now())).orElse(null);
+        memoryMapStale = false;
+        memoryMapPublished = true;
+        lastMemoryMapPublishNanos = nowNanos;
     }
 
     private void publishFailure(Throwable throwable) {
