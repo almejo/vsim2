@@ -44,11 +44,22 @@ public final class ShortcutsPanel extends JPanel {
         super(new MigLayout("insets dialog, fill, wrap 1", "[grow, fill]", "[][grow, fill][][]"));
         model = new ShortcutsTableModel(bindings);
         table = new JTable(model);
+        configureTable();
+        capture = new KeyCapture(this::captured, this::captureCancelled);
+        installTableListeners();
+        installButtonActions();
+        addControls();
+        showMessage();
+    }
+
+    private void configureTable() {
         table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         table.setFillsViewportHeight(true);
         table.getTableHeader().setReorderingAllowed(false);
         table.setDefaultRenderer(Object.class, new MenuRowRenderer());
-        capture = new KeyCapture(this::captured, this::captureCancelled);
+    }
+
+    private void installTableListeners() {
         table.addKeyListener(capture);
         table.addFocusListener(new FocusAdapter() {
             @Override
@@ -70,6 +81,9 @@ public final class ShortcutsPanel extends JPanel {
                 }
             }
         });
+    }
+
+    private void installButtonActions() {
         TextChanges.onChange(searchField, this::filterChanged);
         changeButton.addActionListener(event -> startCapture());
         clearButton.addActionListener(event -> selectedEntry().ifPresent(entry -> stopCaptureAnd(
@@ -85,7 +99,9 @@ public final class ShortcutsPanel extends JPanel {
             model.cancelReassign();
             showMessage();
         });
+    }
 
+    private void addControls() {
         add(new JLabel(Messages.text("shortcuts.search")), "split 2, growx 0");
         add(searchField, "growx");
         add(new JScrollPane(table), "grow, width 460lp, height 260lp");
@@ -96,7 +112,6 @@ public final class ShortcutsPanel extends JPanel {
         add(clearButton, "growx 0");
         add(resetButton, "growx 0");
         add(resetAllButton, "growx 0");
-        showMessage();
     }
 
     ShortcutsTableModel model() { return model; }
