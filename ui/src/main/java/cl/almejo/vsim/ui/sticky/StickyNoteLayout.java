@@ -6,10 +6,16 @@ import cl.almejo.vsim.core.document.StickyNote;
 import cl.almejo.vsim.core.document.StickyText;
 import cl.almejo.vsim.core.geometry.GridPoint;
 
+import cl.almejo.vsim.ui.paint.TextFonts;
+
+import java.awt.Font;
 import java.awt.FontMetrics;
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
 import java.awt.Shape;
 import java.awt.geom.Path2D;
 import java.awt.geom.Rectangle2D;
+import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.IntToDoubleFunction;
@@ -47,6 +53,7 @@ public record StickyNoteLayout(Rectangle2D paper, Shape fold, Rectangle2D closeB
     /** A paper narrower than this keeps no room for the ✕ in its first line: the line would be a letter. */
     private static final double WIDE_ENOUGH_FOR_CLOSE_ROOM = 6 * UNIT;
     private static final int LAST_CHARACTER_OFFSET = 1;
+    private static volatile Measuring measuring;
 
     public StickyNoteLayout {
         lines = List.copyOf(lines);
@@ -69,6 +76,40 @@ public record StickyNoteLayout(Rectangle2D paper, Shape fold, Rectangle2D closeB
         triangle.lineTo(paper.getMaxX() - size, paper.getMaxY() - size);
         triangle.closePath();
         return triangle;
+    }
+
+    /**
+     * The font metrics every layout is measured with, whatever the zoom: fractional metrics of the canvas text font on
+     * an untransformed graphics. Hinted metrics change with the graphics' scale (a text can wrap at 75 % and not at
+     * 100 %), so painting with the canvas graphics' own metrics would draw the checkboxes where the hit tester, which
+     * has no such graphics, does not look for them. The painter draws with fractional metrics too, so the glyphs land
+     * where this layout puts them.
+     */
+    public static FontMetrics measuring() {
+        Font font = TextFonts.labelFont();
+        Measuring cached = measuring;
+        if (cached == null || !cached.font().equals(font)) {
+            Graphics2D scratch = new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB).createGraphics();
+            try {
+                scratch.setRenderingHint(RenderingHints.KEY_FRACTIONALMETRICS,
+                        RenderingHints.VALUE_FRACTIONALMETRICS_ON);
+                scratch.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING,
+                        RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+                cached = new Measuring(font, scratch.getFontMetrics(font));
+            } finally {
+                scratch.dispose();
+            }
+            measuring = cached;
+        }
+        return cached.metrics();
+    }
+
+    private record Measuring(Font font, FontMetrics metrics) {
+    }
+
+    /** The layout of {@code note} at {@code pixelsPerGrid}, measured with {@link #measuring()}. */
+    public static StickyNoteLayout of(StickyNote note, double pixelsPerGrid) {
+        return of(note, measuring(), pixelsPerGrid);
     }
 
     /** The layout of {@code note} measured with {@code metrics} (the canvas text font) at {@code pixelsPerGrid}. */

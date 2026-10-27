@@ -53,7 +53,7 @@ public final class StickyNotePainter {
     public static void paint(Graphics2D graphics, StickyNote note, ColorScheme scheme, double pixelsPerGrid,
                              PaintPolicy policy, boolean closeHovered) {
         Font font = TextFonts.labelFont();
-        FontMetrics metrics = graphics.getFontMetrics(font);
+        FontMetrics metrics = StickyNoteLayout.measuring();
         StickyNoteLayout layout = StickyNoteLayout.of(note, metrics, pixelsPerGrid);
         boolean monochrome = policy.monochrome();
         Color paper = monochrome ? Color.WHITE : scheme.stickyPaper(note.color());
@@ -110,6 +110,8 @@ public final class StickyNotePainter {
             return;
         }
         graphics.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+        // the layout was measured with fractional metrics (see StickyNoteLayout.measuring)
+        graphics.setRenderingHint(RenderingHints.KEY_FRACTIONALMETRICS, RenderingHints.VALUE_FRACTIONALMETRICS_ON);
         graphics.setFont(font);
         StickyChecklist checklist = note.content() instanceof StickyChecklist list ? list : null;
         for (StickyNoteLayout.Line line : layout.lines()) {

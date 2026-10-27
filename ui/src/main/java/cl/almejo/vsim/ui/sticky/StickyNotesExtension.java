@@ -97,7 +97,7 @@ public final class StickyNotesExtension implements EditorExtension {
      * the hover does): one line per line of text, or per item with ☐ / ✓. Empty elsewhere or on an empty note.
      */
     static Optional<String> foldedNoteToolTip(CircuitDocument document, Point2D gridPoint, double pixelsPerGrid) {
-        return StickyNoteHitTester.hit(document, gridPoint, pixelsPerGrid, StickyNoteHitTester.measuringMetrics())
+        return StickyNoteHitTester.hit(document, gridPoint, pixelsPerGrid)
                 .flatMap(hit -> document.stickyNote(hit.note()))
                 .filter(StickyNote::folded)
                 .map(StickyNotesExtension::toolTipLines)

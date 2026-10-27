@@ -38,6 +38,7 @@ import java.awt.Color;
 import java.awt.Composite;
 import java.awt.FontMetrics;
 import java.awt.Graphics2D;
+import java.awt.GraphicsConfiguration;
 import java.awt.RenderingHints;
 import java.awt.Shape;
 import java.awt.geom.Ellipse2D;
@@ -237,12 +238,20 @@ public final class CircuitRenderer {
         paintStickyNotes(graphics, state, scheme);
     }
 
+    /** The HiDPI scale of the screen {@code graphics} paints on, 1 where it has no device configuration. */
+    private static double deviceScale(Graphics2D graphics) {
+        GraphicsConfiguration configuration = graphics.getDeviceConfiguration();
+        double scale = configuration == null ? 1 : configuration.getDefaultTransform().getScaleX();
+        return scale > 0 ? scale : 1;
+    }
+
     /** The user's sticky notes, the last pass: paper on top of everything, in document order. */
     private void paintStickyNotes(Graphics2D graphics, RenderState state, ColorScheme scheme) {
         if (!state.policy().paintStickyNotes()) {
             return;
         }
-        double pixelsPerGrid = UNIT * graphics.getTransform().getScaleX();
+        // logical pixels, like the hit tester's: the device (HiDPI) scale is not part of the zoom the user sees
+        double pixelsPerGrid = UNIT * graphics.getTransform().getScaleX() / deviceScale(graphics);
         for (StickyNote note : state.document().stickyNotes()) {
             StickyNotePainter.paint(graphics, note, scheme, pixelsPerGrid, state.policy());
             if (state.selection().contains(note.id())) {

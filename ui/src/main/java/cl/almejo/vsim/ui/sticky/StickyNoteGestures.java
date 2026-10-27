@@ -7,7 +7,6 @@ import cl.almejo.vsim.core.document.StickyNote;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.ui.canvas.PaintPolicy;
 import cl.almejo.vsim.ui.canvas.Selection;
-import cl.almejo.vsim.ui.paint.TextFonts;
 import cl.almejo.vsim.ui.snap.AlignmentLinesPainter;
 import cl.almejo.vsim.ui.snap.MatchedGuides;
 import cl.almejo.vsim.ui.snap.SnappedMove;
@@ -65,7 +64,7 @@ public final class StickyNoteGestures implements SelectToolDelegate {
 
     private static Optional<StickyNoteHit> hit(ToolContext context, CanvasMouseEvent event) {
         return StickyNoteHitTester.hit(context.openDocument().document(), event.gridPosition(),
-                context.viewport().pixelsPerUnit(), StickyNoteHitTester.measuringMetrics());
+                context.viewport().pixelsPerUnit());
     }
 
     @Override
@@ -300,8 +299,7 @@ public final class StickyNoteGestures implements SelectToolDelegate {
         double pixelsPerGrid = context.viewport().pixelsPerUnit();
         Graphics2D clipped = (Graphics2D) graphics.create();
         try {
-            clipped.clip(StickyNoteLayout.of(note, clipped.getFontMetrics(TextFonts.labelFont()), pixelsPerGrid)
-                    .closeBox());
+            clipped.clip(StickyNoteLayout.of(note, pixelsPerGrid).closeBox());
             StickyNotePainter.paint(clipped, note, context.scheme(), pixelsPerGrid, PaintPolicy.CANVAS, true);
         } finally {
             clipped.dispose();

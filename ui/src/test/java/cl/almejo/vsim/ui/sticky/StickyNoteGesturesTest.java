@@ -84,7 +84,7 @@ class StickyNoteGesturesTest {
     }
 
     private static StickyNoteLayout layout(StickyNote note) {
-        return StickyNoteLayout.of(note, StickyNoteHitTester.measuringMetrics(), 8);
+        return StickyNoteLayout.of(note, 8);
     }
 
     private static Point2D gridCentre(Rectangle2D documentPixels) {
@@ -111,12 +111,10 @@ class StickyNoteGesturesTest {
         StickyNote above = note(new StickyText("encima"));
         StickyNoteLayout layout = layout(above);
         Optional<StickyNoteHit> close = StickyNoteHitTester.hit(context.openDocument().document(),
-                gridCentre(layout.closeBox()), 8, StickyNoteHitTester.measuringMetrics());
+                gridCentre(layout.closeBox()), 8);
         assertThat(close).contains(new StickyNoteHit(above.id(), StickyPart.CLOSE, StickyNoteHit.NO_ITEM));
-        assertThat(StickyNoteHitTester.hit(context.openDocument().document(), new Point2D.Double(12, 14), 8,
-                StickyNoteHitTester.measuringMetrics()).orElseThrow().note()).isEqualTo(above.id());
-        assertThat(StickyNoteHitTester.hit(context.openDocument().document(), new Point2D.Double(40, 40), 8,
-                StickyNoteHitTester.measuringMetrics())).isEmpty();
+        assertThat(StickyNoteHitTester.hit(context.openDocument().document(), new Point2D.Double(12, 14), 8).orElseThrow().note()).isEqualTo(above.id());
+        assertThat(StickyNoteHitTester.hit(context.openDocument().document(), new Point2D.Double(40, 40), 8)).isEmpty();
         assertThat(below.id()).isNotEqualTo(above.id());
     }
 
@@ -125,18 +123,17 @@ class StickyNoteGesturesTest {
         StickyNote note = checklist();
         StickyNoteLayout layout = layout(note);
         assertThat(StickyNoteHitTester.hit(context.openDocument().document(), gridCentre(layout.checkboxes().get(1)),
-                8, StickyNoteHitTester.measuringMetrics()))
+                8))
                 .contains(new StickyNoteHit(note.id(), StickyPart.CHECKBOX, 1));
         assertThat(StickyNoteHitTester.hit(context.openDocument().document(), gridCentre(layout.resizeHandle()),
-                8, StickyNoteHitTester.measuringMetrics()).orElseThrow().part()).isEqualTo(StickyPart.RESIZE);
+                8).orElseThrow().part()).isEqualTo(StickyPart.RESIZE);
     }
 
     @Test
     void zoomedFarOutTheCloseButtonIsNotThereToHit() {
         StickyNote note = note(new StickyText("lejos"));
         Point2D closePoint = gridCentre(layout(note).closeBox());
-        assertThat(StickyNoteHitTester.hit(context.openDocument().document(), closePoint, 2,
-                StickyNoteHitTester.measuringMetrics()).orElseThrow().part()).isEqualTo(StickyPart.BODY);
+        assertThat(StickyNoteHitTester.hit(context.openDocument().document(), closePoint, 2).orElseThrow().part()).isEqualTo(StickyPart.BODY);
     }
 
     // --- close
