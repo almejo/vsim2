@@ -158,6 +158,7 @@ public final class AppPreferences {
     static final String FIND_MATCH_CASE = "find.matchCase";
     static final String FIND_REGEX = "find.regex";
     static final String SIMPLIFY_EXPRESSIONS = "expressions.simplify";
+    static final String EXTERNAL_EDITOR = "memory.externalEditor";
     static final String PRINT_PAPER = "print.paper";
     static final String PRINT_ORIENTATION = "print.orientation";
     static final String PRINT_SCALE = "print.scale";
@@ -604,6 +605,21 @@ public final class AppPreferences {
             return;
         }
         putFlag(SIMPLIFY_EXPRESSIONS, simplify);
+    }
+
+    // --- Memoria: editor externo ---
+
+    /**
+     * «Editor externo»: the command that opens a memory's linked file (a program and its arguments; the file goes
+     * last). Empty means the system's editor.
+     */
+    public Optional<String> externalEditor() {
+        return optional(EXTERNAL_EDITOR);
+    }
+
+    public void setExternalEditor(Optional<String> command) {
+        Objects.requireNonNull(command, "command");
+        put(EXTERNAL_EDITOR, command.map(String::strip).orElse(""));
     }
 
     // --- M6.8 text font ---

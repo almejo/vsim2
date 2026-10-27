@@ -25,6 +25,18 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
   (azul) y escritura (naranja); en pausa queda encendido lo que tocó el último paso. También un mapa de calor de
   accesos desde que partió la simulación y los valores de cada palabra, zoom con la rueda en memorias grandes, una
   ayuda con dirección, lecturas, escrituras y valor, y «Restaurar» para volver una RAM a su contenido inicial.
+- Memorias enlazadas a un archivo de texto: «Enlazar…» en el editor de contenido; el circuito guarda la ruta relativa a
+  su carpeta y una copia del contenido. VSim recarga el archivo cuando lo guardas en tu editor (un paso de deshacer),
+  avisa si falta o no se puede leer y sigue con la copia, y nunca lo escribe. «Abrir en editor externo» usa el comando
+  de Preferencias ▸ «Editor externo» o el editor del sistema.
+- El inspector de una RAM o una ROM dice dónde está su contenido («En el circuito» o «Enlazado: …»), con «Editar
+  contenido…» y «Abrir en editor externo», y avisa cuando el contenido tiene más palabras (o bits) de las que se ven,
+  con «Agrandar a …» y «Ver en el editor».
+- Arrastrar un archivo `.hex` (u otro archivo de memoria) al lienzo, o Archivo ▸ Importar ▸ «Memoria desde archivo…»,
+  crea una RAM o una ROM enlazada a ese archivo donde se soltó; con encabezado se crea de inmediato, sin él un diálogo
+  pregunta RAM o ROM con los valores ya llenos.
+- Al crear un componente propio con una memoria enlazada, la memoria entra con su contenido pero sin el enlace, y un
+  mensaje lo dice.
 
 ## Sin publicar — Notas adhesivas
 

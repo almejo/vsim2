@@ -80,7 +80,7 @@ final class CanvasTransferHandler extends TransferHandler {
                         && copyRequested(support.getUserDropAction(), support.getSourceDropActions()));
             }
             if (support.isDataFlavorSupported(DataFlavor.javaFileListFlavor)) {
-                return CircuitFileDrop.importData(support, canvas.fileDropHandler());
+                return CircuitFileDrop.importData(support, canvas.fileDropHandler(point));
             }
             String text = (String) transferable.getTransferData(DataFlavor.stringFlavor);
             return canvas.dropComponent(text, point) || canvas.dropFragment(text, point);

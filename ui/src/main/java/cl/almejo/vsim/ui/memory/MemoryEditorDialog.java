@@ -41,7 +41,6 @@ import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
 import java.util.Optional;
@@ -81,7 +80,6 @@ public final class MemoryEditorDialog {
     private final JButton linkButton;
     private final JButton externalButton;
     private final JButton unlinkButton;
-    private final MemoryContents initialContents;
     private final Timer liveTimer;
     private String link = "";
     private boolean livePending;
@@ -110,7 +108,7 @@ public final class MemoryEditorDialog {
         Map<String, Object> resolved = type.resolveParameters(component.parameters());
         long words = MemoryTypes.words(resolved);
         int width = (Integer) resolved.get(MemoryTypes.WIDTH);
-        this.initialContents = MemoryContents.decode((String) resolved.get(MemoryTypes.CONTENTS));
+        MemoryContents initialContents = MemoryContents.decode((String) resolved.get(MemoryTypes.CONTENTS));
         this.model = new MemoryGridModel(initialContents, width, words, MemoryRadix.HEX);
         this.name = nameOf(component);
 
@@ -309,16 +307,27 @@ public final class MemoryEditorDialog {
         boolean linked = !link.isEmpty();
         model.setReadOnly(linked);
         linkBar.setVisible(linked);
-        linkText.setText(Messages.format("memory.linkBar", link));
+        linkText.setText(Messages.format("memory.linkBar", shownLink()));
         boolean available = linkActions.available();
         linkButton.setEnabled(available);
         externalButton.setEnabled(available && linked);
         unlinkButton.setEnabled(available);
     }
 
+    /** The link as the user reads it: relative to the circuit when it is saved. */
+    private String shownLink() {
+        return link.isEmpty() ? "" : MemoryLinks.displayPath(link, document.path());
+    }
+
+    /** «Enlazar…»: once linked, the grid shows the file's words (read-only). */
     private void linkFile() {
         linkActions.link(view, componentId);
         refreshLink();
+        if (!link.isEmpty()) {
+            document.document().component(componentId).ifPresent(component -> model.replaceContents(
+                    MemoryContents.decode(String.valueOf(component.parameters().get(MemoryTypes.CONTENTS)))));
+            updateStatus(Optional.empty());
+        }
     }
 
     private void openExternal() {
@@ -326,7 +335,7 @@ public final class MemoryEditorDialog {
     }
 
     private void unlink() {
-        if (prompts.confirm(Messages.format("memory.unlink.confirm", link))) {
+        if (prompts.confirm(Messages.format("memory.unlink.confirm", shownLink()))) {
             linkActions.unlink(view, componentId);
             refreshLink();
             updateStatus(Optional.empty());
@@ -338,7 +347,8 @@ public final class MemoryEditorDialog {
         if (link.isEmpty()) {
             return true;
         }
-        if (!linkActions.available() || !prompts.confirm(Messages.format("memory.import.unlinkFirst", link))) {
+        if (!linkActions.available()
+                || !prompts.confirm(Messages.format("memory.import.unlinkFirst", shownLink()))) {
             return false;
         }
         linkActions.unlink(view, componentId);
@@ -388,7 +398,7 @@ public final class MemoryEditorDialog {
     CompletableFuture<Void> dumpTo(MemoryEditorPrompts.SaveChoice choice) {
         Path target = MemoryFileIo.withExtension(choice.path(), choice.format());
         if (isLinkedFile(target)) {
-            prompts.inform(Messages.format("memory.dump.linkedRefused", link));
+            prompts.inform(Messages.format("memory.dump.linkedRefused", shownLink()));
             return CompletableFuture.completedFuture(null);
         }
         return document.requestMemoryContents(componentId)
@@ -402,27 +412,12 @@ public final class MemoryEditorDialog {
                 }, ForkJoinPool.commonPool());
     }
 
-    /** Whether {@code file} is the file this memory is linked to (the link is relative to the circuit's folder). */
+    /** Whether {@code file} is the file this memory is linked to. */
     private boolean isLinkedFile(Path file) {
-        if (link.isEmpty()) {
-            return false;
-        }
-        Path linked = Path.of(link);
-        if (!linked.isAbsolute() && document.path().isPresent()) {
-            Path folder = document.path().get().toAbsolutePath().getParent();
-            linked = folder == null ? linked : folder.resolve(linked);
-        }
-        Path linkedAbsolute = linked.toAbsolutePath().normalize();
-        Path fileAbsolute = file.toAbsolutePath().normalize();
-        if (linkedAbsolute.equals(fileAbsolute)) {
-            return true;
-        }
-        try {
-            return Files.exists(linkedAbsolute) && Files.exists(fileAbsolute)
-                    && Files.isSameFile(linkedAbsolute, fileAbsolute);
-        } catch (java.io.IOException exception) {
-            return false;
-        }
+        return document.document().component(componentId)
+                .flatMap(component -> MemoryLinks.linkedFile(component, document.path()))
+                .filter(linked -> MemoryLinks.isSameFile(linked, file))
+                .isPresent();
     }
 
     private MemoryHeader header() {
@@ -554,7 +549,7 @@ public final class MemoryEditorDialog {
                     Long.toHexString(model.words() - 1).toUpperCase()));
             return;
         }
-        status.setText(link.isEmpty() ? " " : Messages.format("memory.status.linked", link));
+        status.setText(link.isEmpty() ? " " : Messages.format("memory.status.linked", shownLink()));
     }
 
     private void showAccess(VisibleState.MemoryState state) {
@@ -602,13 +597,18 @@ public final class MemoryEditorDialog {
 
     // Closing
 
-    /** Aceptar: the edited contents become one undo step (nothing when unchanged); closes the dialog. */
+    /**
+     * Aceptar: the edited contents become one undo step (nothing when they are what the circuit holds now, which a
+     * link or an unlink made meanwhile may have changed); closes the dialog.
+     */
     boolean accept() {
         Optional<Component> component = document.document().component(componentId);
         if (component.isEmpty()) {
             return false;
         }
-        if (!model.isReadOnly() && !model.edited().equals(initialContents)) {
+        MemoryContents current = MemoryContents.decode(
+                String.valueOf(component.get().parameters().getOrDefault(MemoryTypes.CONTENTS, "")));
+        if (!model.isReadOnly() && !model.edited().equals(current)) {
             ComponentType type = document.registry().typeOf(component.get());
             document.execute(new EditMemoryContentsCommand(component.get(), type, model.edited()));
         }

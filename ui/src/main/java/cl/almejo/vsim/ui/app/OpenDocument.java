@@ -34,6 +34,7 @@ import cl.almejo.vsim.core.simulation.StepReport;
 import cl.almejo.vsim.core.value.Value;
 import cl.almejo.vsim.core.waveform.WaveformSnapshot;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.memory.MemoryLinks;
 import cl.almejo.vsim.ui.waveform.ProbeNames;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -101,6 +102,8 @@ public final class OpenDocument implements AutoCloseable {
         this.registry.addResolver(SubcircuitTypes.resolverFor(document));
         this.path = path == null ? null : path.toAbsolutePath();
         this.importedFromVsim1 = importedFromVsim1;
+        // memory links are absolute while the circuit is open, relative to its folder in the file (Task 5)
+        MemoryLinks.absoluteLinks(document, Optional.ofNullable(this.path));
         this.history = new History(document);
         this.compiler = new NetlistCompiler(this.registry);
         this.flattener = new CircuitFlattener(this.registry);
@@ -594,7 +597,12 @@ public final class OpenDocument implements AutoCloseable {
      * @throws IllegalStateException when the document cannot be written (an instance whose definition is missing)
      */
     public String serialized() {
-        return new CircuitFormat(registry).write(document);
+        return serializedFor(Optional.ofNullable(path));
+    }
+
+    /** The format v2 text of the document saved as {@code target}: memory links relative to its folder. */
+    private String serializedFor(Optional<Path> target) {
+        return new CircuitFormat(registry).write(document, MemoryLinks.relativeLinks(target));
     }
 
     /**
@@ -602,13 +610,13 @@ public final class OpenDocument implements AutoCloseable {
      * reopened (an instance whose definition is missing) fails with an IOException before anything is written.
      */
     public void save(Path target) throws IOException {
+        Path absolute = target.toAbsolutePath();
         String content;
         try {
-            content = serialized();
+            content = serializedFor(Optional.of(absolute));
         } catch (IllegalStateException exception) {
             throw new IOException(exception.getMessage(), exception);
         }
-        Path absolute = target.toAbsolutePath();
         if (Files.exists(absolute) && !Files.isWritable(absolute)) {
             // M2 ruling: saving over a read-only file fails (with an error dialog), it does not replace it
             throw new AccessDeniedException(absolute.toString(), null, "the file is read-only");

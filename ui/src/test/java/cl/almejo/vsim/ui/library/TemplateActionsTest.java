@@ -4,6 +4,7 @@ import cl.almejo.vsim.core.command.AddElementsCommand;
 import cl.almejo.vsim.core.command.ChangeParametersCommand;
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.VisibleState;
+import cl.almejo.vsim.core.component.standard.MemoryTypes;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
@@ -261,6 +262,24 @@ class TemplateActionsTest {
     private NetId netOf(Wire wire) {
         return new NetlistCompiler(fixture.openDocument.registry()).compile(fixture.openDocument.document())
                 .netForWire(wire.id()).orElseThrow().id();
+    }
+
+    @Test
+    void aLinkedMemoryGoesIntoTheComponentWithItsWordsButWithoutItsLink() {
+        List<Component> parts = new java.util.ArrayList<>(fixture.drawInverter(0, 0));
+        parts.add(fixture.place(StandardComponentTypes.RAM, 0, 20, Map.of(MemoryTypes.CONTENTS, "@0 3A",
+                MemoryTypes.LINK, "/home/curso/programas/datos.hex")));
+        fixture.select(parts.toArray(Component[]::new));
+        fixture.dialogs.acceptForm(form -> form.setName("Con memoria"));
+
+        perform(fixture.features.actions().createComponent());
+
+        Component inner = fixture.openDocument.document().definition("con-memoria").orElseThrow().body().components()
+                .stream().filter(component -> component.typeId().equals(StandardComponentTypes.RAM)).findFirst()
+                .orElseThrow();
+        assertThat(inner.parameters()).containsEntry(MemoryTypes.CONTENTS, "@0 3A").containsEntry(MemoryTypes.LINK, "");
+        assertThat(fixture.dialogs.messages).containsExactly(
+                "El enlace a datos.hex no viaja dentro del componente; se guardó una copia");
     }
 
     @Test

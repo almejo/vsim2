@@ -49,9 +49,11 @@ import javax.swing.text.JTextComponent;
 import java.awt.Color;
 import java.awt.event.FocusAdapter;
 import java.awt.event.FocusEvent;
+import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Supplier;
@@ -81,6 +83,7 @@ public final class PropertiesPanel extends JPanel {
     private JRadioButton[] stickyKind;
     private Map<NoteStyle.Role, ColorSwatches<NoteColor>> noteStyleRows = Map.of();
     private Runnable pendingEdits = () -> { };
+    private final List<ComponentRows> componentRows = new ArrayList<>();
     private int generation;
     private boolean applying;
     private boolean disposed;
@@ -105,6 +108,45 @@ public final class PropertiesPanel extends JPanel {
         heading.putClientProperty("FlatLaf.styleClass", "h4");
         selection.addListener(this::selectionChanged);
         openDocument.document().addListener(documentListener);
+        rebuild();
+    }
+
+    /**
+     * Rows an extension adds under a component's own rows (the memory's «Contenido», its buttons and warnings). They
+     * are asked for each time the component is shown, so they show the document as it is then.
+     */
+    public interface ComponentRows {
+
+        /** Adds the rows of {@code component} through {@code rows}; nothing for a component it does not know. */
+        void addRows(Component component, Rows rows);
+    }
+
+    /** Where {@link ComponentRows} put their rows, in this panel's two columns. */
+    public interface Rows {
+
+        /** A row with {@code caption} on the left and {@code editor} on the right. */
+        void add(String caption, java.awt.Component editor);
+
+        /** A row as wide as the panel (a warning, a line of buttons). */
+        void addWide(java.awt.Component content);
+    }
+
+    /** Shows {@code contributor}'s rows for every component from now on; the returned runnable takes them back. */
+    public Runnable addComponentRows(ComponentRows contributor) {
+        Objects.requireNonNull(contributor, "contributor");
+        componentRows.add(contributor);
+        return () -> componentRows.remove(contributor);
+    }
+
+    /**
+     * Shows again what is selected, after applying what the editors hold: an extension's rows changed (a linked file
+     * went missing).
+     */
+    public void refresh() {
+        if (disposed) {
+            return;
+        }
+        commitEdits();
         rebuild();
     }
 
@@ -217,6 +259,7 @@ public final class PropertiesPanel extends JPanel {
         textField = field;
         if (type.parameters().isEmpty()) {
             pendingEdits = applyLabel;
+            addExtensionRows(component);
             return;
         }
         ParameterForm form = new ParameterForm(type, component.parameters(), scheme);
@@ -230,6 +273,24 @@ public final class PropertiesPanel extends JPanel {
         pendingEdits = () -> applyIfCurrent(built, () -> TunnelNames.executeRemembering(openDocument, id,
                 () -> executeTogether(Stream.of(labelCommand(id, field), parametersCommand(id, type, form))
                         .flatMap(Optional::stream).toList())));
+        addExtensionRows(component);
+    }
+
+    private void addExtensionRows(Component component) {
+        Rows rows = new Rows() {
+            @Override
+            public void add(String caption, java.awt.Component editor) {
+                addRow(caption, editor);
+            }
+
+            @Override
+            public void addWide(java.awt.Component content) {
+                PropertiesPanel.this.add(content, "span 2, growx");
+            }
+        };
+        for (ComponentRows contributor : List.copyOf(componentRows)) {
+            contributor.addRows(component, rows);
+        }
     }
 
     private void showText(TextLabel label) {

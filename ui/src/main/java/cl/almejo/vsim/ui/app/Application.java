@@ -52,7 +52,7 @@ import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.memory.MemoryEditorExtension;
 import cl.almejo.vsim.ui.memory.MemoryEditorLauncher;
-import cl.almejo.vsim.ui.memory.MemoryLinkActions;
+import cl.almejo.vsim.ui.memory.MemoryLinks;
 import cl.almejo.vsim.ui.preferences.PreferencesFeature;
 import cl.almejo.vsim.ui.quickinsert.QuickInsertExtension;
 import cl.almejo.vsim.ui.recents.RecentComponentsExtension;
@@ -245,13 +245,19 @@ public final class Application {
         editorExtensions.add(new QuickInsertExtension()); // its Insert key before the shortcuts extension
         editorExtensions.add(ai); // IA.1: last in Herramientas, before the shortcuts see its item
         editorExtensions.add(presentation); // IA.2: last in Ver and the toolbar, before the icons and shortcuts
-        editorExtensions.add(new MemoryEditorExtension(new MemoryEditorLauncher(MemoryLinkActions.NONE)));
+        editorExtensions.add(memoryExtension());
         editorExtensions.add(new ActionIcons());
         editorExtensions.add(new PreferencesFeature(ai.server()));
         editorExtensions.add(new RecentFilesFeature());
         editorExtensions.add(new ExamplesFeature());
         editorExtensions.add(new ShortcutsExtension());
         return List.copyOf(editorExtensions);
+    }
+
+    /** The memories' extension, with one {@link MemoryLinks} (and so one watcher per document) for every window. */
+    private static MemoryEditorExtension memoryExtension() {
+        MemoryLinks links = MemoryLinks.standard();
+        return new MemoryEditorExtension(new MemoryEditorLauncher(links), links);
     }
 
     public EditorServices services() {

@@ -1,6 +1,7 @@
 package cl.almejo.vsim.ui.clipboard;
 
 import cl.almejo.vsim.ui.app.FileNames;
+import cl.almejo.vsim.ui.memory.MemoryFileImport;
 
 import javax.swing.TransferHandler;
 import java.awt.datatransfer.DataFlavor;
@@ -14,7 +15,10 @@ import java.util.Locale;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 
-/** Circuit files ({@code .vsim}, {@code .json}) dropped from a file manager. */
+/**
+ * Circuit files ({@code .vsim}, {@code .json}) and memory files ({@code .hex}, a VSim header, Logisim's
+ * {@code v2.0 raw}, see {@link MemoryFileImport#isMemoryFile}) dropped from a file manager.
+ */
 public final class CircuitFileDrop {
 
     private CircuitFileDrop() {
@@ -24,9 +28,9 @@ public final class CircuitFileDrop {
         return support.isDataFlavorSupported(DataFlavor.javaFileListFlavor) && acceptAsCopy(support);
     }
 
-    /** Hands the circuit files of the drop to {@code opener}; false (and no call) when it carries none. */
+    /** Hands the circuit and memory files of the drop to {@code opener}; false (and no call) when it carries none. */
     public static boolean importData(TransferHandler.TransferSupport support, Consumer<List<Path>> opener) {
-        return importData(support, CircuitFileDrop::isCircuitFile, opener);
+        return importData(support, CircuitFileDrop::isDroppable, opener);
     }
 
     /** Hands the dropped files {@code accepted} keeps to {@code receiver}; false (and no call) when none are left. */
@@ -77,6 +81,10 @@ public final class CircuitFileDrop {
         }
         support.setDropAction(TransferHandler.COPY);
         return true;
+    }
+
+    private static boolean isDroppable(Path path) {
+        return isCircuitFile(path) || MemoryFileImport.isMemoryFile(path);
     }
 
     private static boolean isCircuitFile(Path path) {
