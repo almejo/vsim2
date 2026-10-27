@@ -156,18 +156,18 @@ final class EditTools {
                         .property("y", coordinate())
                         .property("style", noteStyle("Colours; NONE or left out: a plain note"))
                         .required("text", "x", "y").build(),
-                operation("AddStickyNote", "A reminder for the user, on paper; text or a to-do list")
+                operation("AddStickyNote", "A reminder for the user: text or a to-do list")
                         .property("alias", alias())
                         .property("x", Schema.integer("Top-left corner"))
                         .property("y", coordinate())
                         .property("width", Schema.integer("Default 8", StickyNote.MINIMUM_WIDTH, 100))
                         .property("height", Schema.integer("Default 6", StickyNote.MINIMUM_HEIGHT, 100))
                         .property("color", Schema.enumeration("Default YELLOW", STICKY_COLORS))
-                        .property("text", Schema.nonEmptyString("Either text (\\n for a new line) or items"))
-                        .property("items", Schema.array("A to-do list", Schema.nonEmptyString(""), 1, 100))
+                        .property("text", Schema.nonEmptyString("Text (\\n: new line), or items"))
+                        .property("items", Schema.array("To-do list", Schema.nonEmptyString(""), 1, 100))
                         .property("folded", Schema.bool(""))
                         .required("x", "y").build(),
-                operation("SetStickyItem", "Ticks or unticks an item of a sticky note's to-do list")
+                operation("SetStickyItem", "Ticks or unticks a sticky note's to-do item")
                         .property("target", target(""))
                         .property("index", Schema.integerFrom("From 0", 0))
                         .property("done", Schema.bool(""))
@@ -316,8 +316,9 @@ final class EditTools {
                         + "operationId and arguments returns the first receipt. The receipt gives the new version, "
                         + "the real ids of the aliases, each Connect's wires (joinedNets only when it joined more "
                         + "than its two pins) and warnings; empty and default fields are left out. validateOnly "
-                        + "changes nothing. Never edit, tick or delete the user's sticky notes unless asked. A guide only to align: AddGuide layoutOnly true. At most "
-                        + MAXIMUM_OPERATIONS + " operations; in a big circuit send fewer. In «Presentar» send one "
+                        + "changes nothing. Leave the user's sticky notes alone unless asked. A guide only to "
+                        + "align: AddGuide layoutOnly true. At most " + MAXIMUM_OPERATIONS + " operations; in a "
+                        + "big circuit send fewer. In «Presentar» send one "
                         + "step per call with stage, step, text and reason: status APPLIED is in the circuit; "
                         + "PROPOSED is a ghost, nothing changed yet (the aliases already name the ids it will "
                         + "have): call vsim_await_step until APPLIED before the next step. No status: only "

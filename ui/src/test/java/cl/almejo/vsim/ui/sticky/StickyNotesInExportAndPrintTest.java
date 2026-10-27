@@ -82,6 +82,30 @@ class StickyNotesInExportAndPrintTest {
     }
 
     @Test
+    void anImageHasNoStickyControlsButTheScreenHas() {
+        circuitWithAFarAwayNote();
+        CircuitImage included = image(true).orElseThrow();
+        BufferedImage fromImage = new BufferedImage(included.width(1), included.height(1), BufferedImage.TYPE_INT_ARGB);
+        BufferedImage withControls = new BufferedImage(included.width(1), included.height(1),
+                BufferedImage.TYPE_INT_ARGB);
+        Graphics2D imageGraphics = fromImage.createGraphics();
+        included.paint(imageGraphics, 1);
+        imageGraphics.dispose();
+        Graphics2D screenGraphics = withControls.createGraphics();
+        included.paint(screenGraphics, 1, cl.almejo.vsim.ui.canvas.PaintPolicy.CANVAS);
+        screenGraphics.dispose();
+        int differing = 0;
+        for (int y = 0; y < fromImage.getHeight(); y++) {
+            for (int x = 0; x < fromImage.getWidth(); x++) {
+                if (fromImage.getRGB(x, y) != withControls.getRGB(x, y)) {
+                    differing++;
+                }
+            }
+        }
+        assertThat(differing).as("pixels of the ✕ and the fold button that only the screen paints").isPositive();
+    }
+
+    @Test
     void aSelectionThatIsOnlyANoteHasNothingToExportByDefault() {
         circuitWithAFarAwayNote();
         Netlist netlist = new NetlistCompiler(registry).compile(document);

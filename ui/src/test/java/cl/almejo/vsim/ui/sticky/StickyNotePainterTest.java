@@ -70,6 +70,38 @@ class StickyNotePainterTest {
     }
 
     @Test
+    void doneItemsAndTheRestingCloseStayReadableOnEveryPaper() {
+        for (ColorScheme scheme : schemes()) {
+            for (StickyColor color : StickyColor.values()) {
+                Color paper = scheme.stickyPaper(color);
+                Color text = scheme.stickyText(color);
+                for (float alpha : new float[]{StickyNotePainter.DONE_ALPHA, StickyNotePainter.CLOSE_REST_ALPHA}) {
+                    Color blended = new Color(
+                            Math.round(text.getRed() * alpha + paper.getRed() * (1 - alpha)),
+                            Math.round(text.getGreen() * alpha + paper.getGreen() * (1 - alpha)),
+                            Math.round(text.getBlue() * alpha + paper.getBlue() * (1 - alpha)));
+                    assertThat(ReadableColors.contrast(blended, paper))
+                            .as("%s at alpha %s on board %s", color, alpha, scheme.background())
+                            .isGreaterThanOrEqualTo(READABLE);
+                }
+            }
+        }
+    }
+
+    @Test
+    void textAndFoldFollowThePapersOwnBrightnessNotTheTheme() {
+        ColorScheme dark = schemes().stream().filter(ColorScheme::isDark).findFirst().orElseThrow();
+        for (StickyColor color : StickyColor.values()) {
+            Color paper = dark.stickyPaper(color);
+            boolean brightPaper = ReadableColors.luminance(paper) > 0.3;
+            assertThat(brightPaper).as("%s is a bright post-it even on a dark board", color).isTrue();
+            assertThat(ReadableColors.luminance(dark.stickyText(color))).isLessThan(0.1);
+            assertThat(ReadableColors.luminance(dark.stickyFold(color))).isLessThan(ReadableColors.luminance(paper));
+        }
+        assertThat(ColorScheme.LIGHT.stickyPaper(StickyColor.YELLOW)).isEqualTo(new Color(0xFFF176));
+    }
+
+    @Test
     void theDarkVariantDiffersFromTheLightOne() {
         ColorScheme dark = schemes().stream().filter(ColorScheme::isDark).findFirst().orElseThrow();
         assertThat(dark.stickyPaper(StickyColor.YELLOW)).isNotEqualTo(ColorScheme.LIGHT.stickyPaper(StickyColor.YELLOW));
@@ -100,6 +132,22 @@ class StickyNotePainterTest {
         BufferedImage screen = paint(note, ColorScheme.LIGHT, PaintPolicy.CANVAS);
         BufferedImage withoutButtons = paint(note, ColorScheme.LIGHT, new PaintPolicy(false, false, false, 0, true));
         assertThat(differs(screen, withoutButtons)).isTrue();
+    }
+
+    @Test
+    void theControlsOfAnOpenNoteAreTheCloseAndTheFoldButtonAndImagesLeaveThemOut() {
+        StickyNote note = note(StickyColor.YELLOW, false);
+        BufferedImage screen = paint(note, ColorScheme.LIGHT, PaintPolicy.CANVAS);
+        BufferedImage image = paint(note, ColorScheme.LIGHT, PaintPolicy.IMAGE);
+        BufferedImage withoutControls = paint(note, ColorScheme.LIGHT, PaintPolicy.CANVAS.withStickyControls(false));
+        assertThat(PaintPolicy.IMAGE.paintStickyControls()).isFalse();
+        assertThat(PaintPolicy.IMAGE.paintFrameButtons()).isTrue();
+        assertThat(differs(screen, image)).isTrue();
+        assertThat(differs(image, withoutControls)).isFalse();
+        // the fold button's centre (8 + 3 + 5 document pixels from the paper's corner) is inked on screen only
+        Color atRest = new Color(screen.getRGB(8 + 8, 8 + 8), true);
+        assertThat(atRest).isNotEqualTo(ColorScheme.LIGHT.stickyPaper(StickyColor.YELLOW));
+        assertThat(new Color(image.getRGB(8 + 8, 8 + 8), true)).isEqualTo(ColorScheme.LIGHT.stickyPaper(StickyColor.YELLOW));
     }
 
     @Test

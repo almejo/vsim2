@@ -211,11 +211,11 @@ public final class CircuitImage {
      * problem wires is canvas chrome and is not painted (the problem wires keep their own color and thickness).
      */
     public void paint(Graphics2D graphics, double scale) {
-        paint(graphics, scale, PaintPolicy.CANVAS);
+        paint(graphics, scale, PaintPolicy.IMAGE);
     }
 
     /**
-     * Like {@link #paint(Graphics2D, double)} under {@code policy} (the PNG/SVG export uses {@link PaintPolicy#CANVAS});
+     * Like {@link #paint(Graphics2D, double)} under {@code policy} (the PNG/SVG export uses {@link PaintPolicy#IMAGE});
      * in black and white the background is white whatever the scheme.
      */
     public void paint(Graphics2D graphics, double scale, PaintPolicy policy) {

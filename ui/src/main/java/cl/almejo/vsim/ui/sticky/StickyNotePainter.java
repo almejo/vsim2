@@ -23,17 +23,18 @@ import java.awt.geom.Rectangle2D;
 
 /**
  * Paints a sticky note as a piece of paper stuck on the circuit: a soft shadow below and to the right, the paper with
- * its bottom-right corner folded (a darker triangle), its text or checklist, and the ✕ at the top-right corner on the
- * screen. Works in document coordinates (8 px per grid unit) and reads every colour from the scheme it is given, so
- * nothing is cached. In black and white the paper is white with a black outline and black text.
+ * its bottom-right corner folded (a darker triangle), its text or checklist, and on the screen the ✕ at the top-right
+ * corner and the fold button «–» at the top-left one. Works in document coordinates (8 px per grid unit) and reads
+ * every colour from the scheme it is given, so nothing is cached. In black and white the paper is white with a black outline and black text.
  */
 public final class StickyNotePainter {
 
     private static final BasicStroke BORDER = new BasicStroke(1f);
     private static final BasicStroke CONTROL = new BasicStroke(1.2f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
     private static final int SHADOW_LAYERS = 3;
-    private static final float CLOSE_REST_ALPHA = 0.55f;
-    private static final float DONE_ALPHA = 0.55f;
+    /** The ✕ at rest and a done item: tenuous, yet still 4.5:1 on every paper (checked by the painter test). */
+    static final float CLOSE_REST_ALPHA = 0.8f;
+    static final float DONE_ALPHA = 0.8f;
     private static final float CHECKBOX_ALPHA = 0.85f;
     private static final double CLOSE_MARGIN = 2.5;
     private static final double STRIKE_HEIGHT_SHARE = 0.3;
@@ -75,9 +76,10 @@ public final class StickyNotePainter {
         graphics.draw(layout.fold());
 
         paintText(graphics, note, layout, font, metrics, text);
-        if (policy.paintFrameButtons() && !note.folded()
+        if (policy.paintStickyControls() && !note.folded()
                 && pixelsPerGrid >= StickyNoteLayout.MINIMUM_PIXELS_PER_GRID_FOR_DETAILS) {
             paintClose(graphics, layout.closeBox(), text, closeHovered);
+            paintFoldButton(graphics, layout.foldButton(), text);
         }
     }
 
@@ -167,6 +169,17 @@ public final class StickyNotePainter {
                 box.getMaxX() - CLOSE_MARGIN, box.getMaxY() - CLOSE_MARGIN));
         graphics.draw(new Line2D.Double(box.getMaxX() - CLOSE_MARGIN, box.getY() + CLOSE_MARGIN,
                 box.getX() + CLOSE_MARGIN, box.getMaxY() - CLOSE_MARGIN));
+        graphics.setComposite(previous);
+    }
+
+    /** The «–» of the fold button, at rest strength like the ✕ (it never needs the hover to read). */
+    private static void paintFoldButton(Graphics2D graphics, Rectangle2D box, Color text) {
+        Composite previous = graphics.getComposite();
+        graphics.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, CLOSE_REST_ALPHA));
+        graphics.setColor(text);
+        graphics.setStroke(CONTROL);
+        graphics.draw(new Line2D.Double(box.getX() + CLOSE_MARGIN, box.getCenterY(), box.getMaxX() - CLOSE_MARGIN,
+                box.getCenterY()));
         graphics.setComposite(previous);
     }
 

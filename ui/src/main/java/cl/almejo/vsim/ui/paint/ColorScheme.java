@@ -66,6 +66,8 @@ public record ColorScheme(Color background, Color grid, Color gridLine, Color wi
     private static final int MAJOR_GRID_LINE_FACTOR = 2;
     private static final int GUIDE_ALPHA = 220;
     private static final double STICKY_FOLD_SHARE = 0.18;
+    private static final Color STICKY_DARK_TEXT = new Color(0x1F1F1F);
+    private static final Color STICKY_LIGHT_TEXT = new Color(0xF5F5F5);
     private static final int STICKY_LIGHT_SHADOW_ALPHA = 60;
     private static final int STICKY_DARK_SHADOW_ALPHA = 130;
     private static final int LIGHT_ALIGNMENT_GUIDE = 0xB4008C;
@@ -155,29 +157,37 @@ public record ColorScheme(Color background, Color grid, Color gridLine, Color wi
     }
 
     /**
-     * The paper of a sticky note of that colour: a pale paper on a light board, a deep muted one on a dark board
-     * (like the frame tints, derived from {@link #isDark}, so every built-in scheme and the user's own get both).
+     * The paper of a sticky note of that colour: a post-it, so a bright one on any board. On a light board it is pale;
+     * on a dark board it is saturated and a little deeper (like the frame tints, derived from {@link #isDark}, so
+     * every built-in scheme and the user's own get both). Its text and fold follow the paper's own brightness.
      */
     public Color stickyPaper(StickyColor color) {
         boolean dark = isDark();
         return new Color(switch (color) {
-            case YELLOW -> dark ? 0x6B5A12 : 0xFFF59D;
-            case PINK -> dark ? 0x6B2F45 : 0xF8BBD0;
-            case BLUE -> dark ? 0x1F4468 : 0xBBDEFB;
-            case GREEN -> dark ? 0x2C5A33 : 0xC8E6C9;
-            case ORANGE -> dark ? 0x724315 : 0xFFCC80;
+            case YELLOW -> dark ? 0xF0D44A : 0xFFF176;
+            case PINK -> dark ? 0xEE9DB7 : 0xF8BBD0;
+            case BLUE -> dark ? 0x7CC1F0 : 0xBBDEFB;
+            case GREEN -> dark ? 0x86CE8C : 0xC8E6C9;
+            case ORANGE -> dark ? 0xF4AD5E : 0xFFCC80;
         });
     }
 
-    /** The folded corner of a sticky note: its paper in a darker shade on a light board, a lighter one on a dark one. */
+    /** The folded corner of a sticky note: its paper in a darker shade when its text is dark, a lighter one otherwise. */
     public Color stickyFold(StickyColor color) {
         Color paper = stickyPaper(color);
-        return isDark() ? mixWith(paper, Color.WHITE, STICKY_FOLD_SHARE) : mixWith(paper, Color.BLACK, STICKY_FOLD_SHARE);
+        return mixWith(paper, stickyTextIsDark(paper) ? Color.BLACK : Color.WHITE, STICKY_FOLD_SHARE);
     }
 
-    /** The text of a sticky note: near black on a light paper, near white on a dark one; at least 4.5:1 on it. */
+    /**
+     * The text of a sticky note: near black or near white, whichever reads better on that paper (the paper's own
+     * brightness decides, not the theme: a bright paper on a dark board takes dark text); at least 4.5:1 on it.
+     */
     public Color stickyText(StickyColor color) {
-        return new Color(isDark() ? 0xF5F5F5 : 0x1F1F1F);
+        return stickyTextIsDark(stickyPaper(color)) ? STICKY_DARK_TEXT : STICKY_LIGHT_TEXT;
+    }
+
+    private static boolean stickyTextIsDark(Color paper) {
+        return ReadableColors.contrast(STICKY_DARK_TEXT, paper) >= ReadableColors.contrast(STICKY_LIGHT_TEXT, paper);
     }
 
     /** The soft shadow under a sticky note: translucent black, stronger on a dark board. */

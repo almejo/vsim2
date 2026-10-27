@@ -22,13 +22,15 @@ import java.util.function.IntToDoubleFunction;
 
 /**
  * Where everything of a sticky note goes, in document pixels (8 per grid unit): the paper, its folded corner, the ✕,
- * the resize handle, the wrapped text lines and the checkboxes. One layout feeds both the painter and the hit tester,
+ * the fold button «–» at the top-left corner, the resize handle, the wrapped text lines and the checkboxes. One layout
+ * feeds both the painter and the hit tester,
  * so what the user sees is what they click. Text wraps at the paper width (a word longer than a line breaks by
  * characters); what does not fit the height is clipped and the last visible line ends in «…». Below
  * {@link #MINIMUM_PIXELS_PER_GRID_FOR_DETAILS} screen pixels per grid unit the text and the checkboxes are left out,
  * as frame titles are: they would be a smear. A folded note is only its paper and its fold.
  */
-public record StickyNoteLayout(Rectangle2D paper, Shape fold, Rectangle2D closeBox, Rectangle2D resizeHandle,
+public record StickyNoteLayout(Rectangle2D paper, Shape fold, Rectangle2D closeBox, Rectangle2D foldButton,
+                               Rectangle2D resizeHandle,
                                List<Line> lines, List<Rectangle2D> checkboxes) {
 
     /**
@@ -50,6 +52,10 @@ public record StickyNoteLayout(Rectangle2D paper, Shape fold, Rectangle2D closeB
     static final String ELLIPSIS = "…";
 
     private static final double UNIT = GridPoint.PIXELS_PER_UNIT;
+    /** Where the text starts below the paper's top when the two buttons get a strip of their own. */
+    private static final double CONTROL_STRIP = CLOSE_INSET + CLOSE_SIZE + 2;
+    /** A paper lower than this has no room for the strip: the buttons then lie over the first line's ends. */
+    private static final double TALL_ENOUGH_FOR_STRIP = 4 * UNIT;
     /** A paper narrower than this keeps no room for the ✕ in its first line: the line would be a letter. */
     private static final double WIDE_ENOUGH_FOR_CLOSE_ROOM = 6 * UNIT;
     private static final int LAST_CHARACTER_OFFSET = 1;
@@ -118,21 +124,24 @@ public record StickyNoteLayout(Rectangle2D paper, Shape fold, Rectangle2D closeB
         Shape fold = foldOf(note);
         if (note.folded()) {
             Rectangle2D none = new Rectangle2D.Double(paper.getMaxX(), paper.getMaxY(), 0, 0);
-            return new StickyNoteLayout(paper, fold, none, none, List.of(), List.of());
+            return new StickyNoteLayout(paper, fold, none, none, none, List.of(), List.of());
         }
         Rectangle2D closeBox = new Rectangle2D.Double(paper.getMaxX() - CLOSE_INSET - CLOSE_SIZE,
                 paper.getY() + CLOSE_INSET, CLOSE_SIZE, CLOSE_SIZE);
+        Rectangle2D foldButton = new Rectangle2D.Double(paper.getX() + CLOSE_INSET, paper.getY() + CLOSE_INSET,
+                CLOSE_SIZE, CLOSE_SIZE);
         Rectangle2D resizeHandle = new Rectangle2D.Double(paper.getMaxX() - RESIZE_SIZE,
                 paper.getMaxY() - RESIZE_SIZE, RESIZE_SIZE, RESIZE_SIZE);
         if (pixelsPerGrid < MINIMUM_PIXELS_PER_GRID_FOR_DETAILS) {
-            return new StickyNoteLayout(paper, fold, closeBox, resizeHandle, List.of(), List.of());
+            return new StickyNoteLayout(paper, fold, closeBox, foldButton, resizeHandle, List.of(), List.of());
         }
         Text text = new Text(paper, closeBox, metrics);
         switch (note.content()) {
             case StickyText freeText -> text.addFreeText(freeText.text());
             case StickyChecklist checklist -> text.addChecklist(checklist.items());
         }
-        return new StickyNoteLayout(paper, fold, closeBox, resizeHandle, text.lines(), text.checkboxes());
+        return new StickyNoteLayout(paper, fold, closeBox, foldButton, resizeHandle, text.lines(),
+                text.checkboxes());
     }
 
     /** The wrapping of one note's text: rows are filled until the paper's height is used up. */
@@ -152,10 +161,12 @@ public record StickyNoteLayout(Rectangle2D paper, Shape fold, Rectangle2D closeB
             this.paper = paper;
             this.metrics = metrics;
             this.left = paper.getX() + PADDING;
-            this.top = paper.getY() + PADDING;
+            boolean strip = paper.getHeight() >= TALL_ENOUGH_FOR_STRIP;
+            this.top = paper.getY() + (strip ? CONTROL_STRIP : PADDING);
             this.lineHeight = Math.max(1, metrics.getHeight());
-            this.capacity = Math.max(1, (int) Math.floor((paper.getHeight() - 2 * PADDING) / lineHeight));
-            this.closeRoom = paper.getWidth() >= WIDE_ENOUGH_FOR_CLOSE_ROOM ? CLOSE_SIZE + CLOSE_INSET : 0;
+            double room = paper.getHeight() - (top - paper.getY()) - PADDING;
+            this.capacity = Math.max(1, (int) Math.floor(room / lineHeight));
+            this.closeRoom = !strip && paper.getWidth() >= WIDE_ENOUGH_FOR_CLOSE_ROOM ? CLOSE_SIZE + CLOSE_INSET : 0;
         }
 
         List<Line> lines() {

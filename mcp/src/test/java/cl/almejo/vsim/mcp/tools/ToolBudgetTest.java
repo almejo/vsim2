@@ -25,8 +25,8 @@ class ToolBudgetTest {
 
     /** 40,961 characters after the fix round. */
     private static final int ALL_TOOLS_BUDGET = 45_000;
-    /** 10,371 characters after the fix round; 12,244 with SetComponentShape (the shape editor, about 1,000); 13,483 with the sticky notes (AddStickyNote, SetStickyItem and their rule, about 1,240); 14,700 is that plus about 9 %. */
-    private static final int EDIT_BUDGET = 14_700;
+    /** 10,371 characters after the fix round; 12,244 with SetComponentShape (the shape editor, about 1,000); 13,474 with the sticky notes (AddStickyNote, SetStickyItem and their rule, about 1,240); 13,425 with those descriptions shortened; the budget is 13,470. */
+    private static final int EDIT_BUDGET = 13_470;
     /** The answer to four parts and three Connects: 590 characters after the fix round. */
     private static final int TYPICAL_EDIT_ANSWER_BUDGET = 650;
 

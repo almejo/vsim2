@@ -50,6 +50,9 @@ public final class StickyNoteHitTester {
         if (detailed && layout.closeBox().contains(x, y)) {
             return new StickyNoteHit(note.id(), StickyPart.CLOSE, StickyNoteHit.NO_ITEM);
         }
+        if (detailed && layout.foldButton().contains(x, y)) {
+            return new StickyNoteHit(note.id(), StickyPart.FOLD, StickyNoteHit.NO_ITEM);
+        }
         // the painter draws box n for item n (the boxes stop where the paper does), so the index is the item's
         for (int itemIndex = 0; itemIndex < layout.checkboxes().size(); itemIndex++) {
             Rectangle2D box = layout.checkboxes().get(itemIndex);

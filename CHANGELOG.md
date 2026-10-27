@@ -18,6 +18,16 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
   papelito que muestra su texto al pasar el mouse. También se cambian en Propiedades. Dentro de un marco cerrado se
   mueven con el bloque y no se pueden cambiar hasta abrir el candado. No salen en las imágenes ni en los PDF salvo que
   marques «Incluir notas adhesivas», y Ctrl+F busca en ellas.
+- Botón «–» en la esquina de arriba a la izquierda de cada nota para plegarla (la ✕ sigue arriba a la derecha): la nota
+  plegada queda como un papelito anclado en esa misma esquina, y un solo clic sobre él la despliega. Es un paso de
+  deshacer, no se puede dentro de un marco cerrado y los botones no salen en imágenes ni PDF.
+- Los papeles son de colores vivos, como un post-it, también en el tema oscuro (amarillo `#FFF176` en el claro, `#F0D44A` en
+  el oscuro); el texto y la esquina doblada se eligen según el brillo del papel y no según el tema.
+- Pestaña «Notas» del panel lateral: lista las notas del circuito en orden de lectura, con su color, la primera línea o
+  el avance de la lista («2/4», «✓ todo listo») y «(plegada)»; un clic o Enter en una te lleva a ella y la selecciona
+  (y la despliega, salvo dentro de un marco cerrado).
+- La IA (MCP) lee tus notas adhesivas, pega notas de texto o de tareas, marca tareas y cambia su texto; no toca las
+  tuyas si no se lo pides, y las deja fuera de sus exportaciones salvo que pida incluirlas.
 
 ## Versión 0.4 — 2026-10-26
 

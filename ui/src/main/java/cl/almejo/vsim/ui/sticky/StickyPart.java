@@ -4,6 +4,8 @@ package cl.almejo.vsim.ui.sticky;
 public enum StickyPart {
     /** The ✕ at the top-right corner: closes (unsticks) the note after a confirmation. */
     CLOSE,
+    /** The «–» at the top-left corner: folds the note into its small paper. */
+    FOLD,
     /** The checkbox of one checklist item: ticks or unticks it. */
     CHECKBOX,
     /** The folded bottom-right corner of an unfolded note: dragging it resizes the note. */

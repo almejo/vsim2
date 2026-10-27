@@ -267,6 +267,80 @@ class StickyNoteGesturesTest {
         assertThat(context.openDocument().history().undoDescription()).contains("command.unfoldStickyNote");
     }
 
+    private StickyNote foldedNote(StickyContent content) {
+        StickyNote note = note(content);
+        context.openDocument().execute(new cl.almejo.vsim.core.command.ChangeStickyNoteCommand(note,
+                note.withFolded(true)));
+        context.openDocument().history().clear();
+        return note;
+    }
+
+    @Test
+    void theFoldButtonFoldsTheNoteInOneUndoStepAndTheFoldedPaperKeepsTheTopLeft() {
+        StickyNote note = checklist();
+        click(gridCentre(layout(note).foldButton()));
+
+        assertThat(current(note).folded()).isTrue();
+        assertThat(current(note).position()).isEqualTo(note.position());
+        assertThat(context.openDocument().history().undoDescription()).contains("command.foldStickyNote");
+        assertThat(context.selection.ids()).isEmpty();
+        context.openDocument().history().undo();
+        assertThat(current(note).folded()).isFalse();
+        assertThat(context.openDocument().history().undoCommand()).isEmpty();
+    }
+
+    @Test
+    void aSingleClickOnTheFoldedPaperUnfoldsItAsOneUndoStep() {
+        StickyNote note = foldedNote(new StickyText("plegada"));
+        click(new Point2D.Double(11, 11));
+
+        assertThat(current(note).folded()).isFalse();
+        assertThat(context.editedLabel).isNull();
+        assertThat(context.openDocument().history().undoDescription()).contains("command.unfoldStickyNote");
+        context.openDocument().history().undo();
+        assertThat(current(note).folded()).isTrue();
+    }
+
+    @Test
+    void aDoubleClickOnTheFoldedPaperUnfoldsItOnceAndDoesNotFoldItAgainOrOpenTheEditor() {
+        StickyNote note = foldedNote(new StickyText("plegada"));
+        doubleClick(11, 11);
+
+        assertThat(current(note).folded()).isFalse();
+        assertThat(context.editedLabel).isNull();
+        context.openDocument().history().undo();
+        assertThat(current(note).folded()).isTrue();
+        assertThat(context.openDocument().history().undoCommand()).isEmpty();
+    }
+
+    @Test
+    void draggingAFoldedNoteMovesItAndLeavesItFolded() {
+        StickyNote note = foldedNote(new StickyText("plegada"));
+        context.drag(tool, 11, 11, 16, 13);
+
+        assertThat(current(note).folded()).isTrue();
+        assertThat(current(note).position()).isEqualTo(new GridPoint(15, 12));
+    }
+
+    @Test
+    void insideALockedFrameTheFoldButtonIsRefused() {
+        StickyNote open = checklist();
+        lockedFrameAround();
+        click(gridCentre(layout(open).foldButton()));
+
+        assertThat(current(open).folded()).isFalse();
+        assertThat(context.openDocument().history().undoCommand()).isEmpty();
+    }
+
+    @Test
+    void insideALockedFrameAClickOnTheFoldedPaperDoesNotUnfoldIt() {
+        StickyNote folded = foldedNote(new StickyText("quieta"));
+        lockedFrameAround();
+        click(new Point2D.Double(11, 11));
+
+        assertThat(current(folded).folded()).isTrue();
+    }
+
     @Test
     void aRightClickSelectsTheNoteAndOpensItsMenu() {
         StickyNote note = note(new StickyText("menú"));

@@ -138,6 +138,24 @@ class StickyNoteLayoutTest {
     }
 
     @Test
+    void theFoldButtonSitsAtTheTopLeftApartFromTheCloseAndTheText() {
+        StickyNoteLayout layout = layout(note(8, 6, new StickyText("hola mundo")), FULL_ZOOM);
+        assertThat(layout.paper().contains(layout.foldButton())).isTrue();
+        assertThat(layout.foldButton().getX()).isLessThan(layout.paper().getX() + 8);
+        assertThat(layout.foldButton().getY()).isLessThan(layout.paper().getY() + 8);
+        assertThat(layout.foldButton().intersects(layout.closeBox())).isFalse();
+        for (StickyNoteLayout.Line line : layout.lines()) {
+            assertThat(line.baseline() - 10).as("text starts below the buttons").isGreaterThanOrEqualTo(
+                    layout.foldButton().getMaxY());
+        }
+        StickyNoteLayout checklist = layout(note(8, 6, new StickyChecklist(List.of(new StickyItem("a", false)))),
+                FULL_ZOOM);
+        assertThat(checklist.checkboxes().getFirst().getY()).isGreaterThanOrEqualTo(checklist.foldButton().getMaxY());
+        assertThat(layout(note(8, 6, new StickyText("x")).withFolded(true), FULL_ZOOM).foldButton().isEmpty())
+                .isTrue();
+    }
+
+    @Test
     void aFoldedNoteIsTheFoldedSquareWithOnlyTheFold() {
         StickyNote folded = note(8, 6, new StickyText("hola")).withFolded(true);
         StickyNoteLayout layout = layout(folded, FULL_ZOOM);

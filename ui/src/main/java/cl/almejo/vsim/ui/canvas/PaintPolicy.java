@@ -11,16 +11,27 @@ import java.awt.BasicStroke;
  * frames without fill, wire states by grey level and dash pattern); {@code minimumStrokePixels} is the thinnest
  * stroke of wires and frame borders, in document pixels (the renderer's own units, 8 per grid unit), 0 for none;
  * {@code paintStickyNotes} false leaves the user's sticky notes out (paper: they are reminders, not part of the
- * figure, unless the user asks for them).
+ * figure, unless the user asks for them); {@code paintStickyControls} false leaves the ✕ and the fold button of the
+ * notes out (they are screen chrome, like the buttons of a frame, and do not belong in a figure).
  */
 public record PaintPolicy(boolean alwaysShowFrameTitles, boolean paintFrameButtons, boolean monochrome,
-                          double minimumStrokePixels, boolean paintStickyNotes) {
+                          double minimumStrokePixels, boolean paintStickyNotes, boolean paintStickyControls) {
 
-    /** The canvas, and the PNG/SVG image export: what VSim always painted. */
-    public static final PaintPolicy CANVAS = new PaintPolicy(false, true, false, 0, true);
+    /** The canvas: what VSim always painted. */
+    public static final PaintPolicy CANVAS = new PaintPolicy(false, true, false, 0, true, true);
+
+    /** The PNG/SVG image export: the canvas without the controls of the sticky notes. */
+    public static final PaintPolicy IMAGE = CANVAS.withStickyControls(false);
 
     /** The thinnest wire or frame border on paper, in points: about 0.18 mm, still visible on any printer. */
     public static final double PAPER_MINIMUM_STROKE_POINTS = 0.5;
+
+    /** A policy whose sticky notes show their controls where it paints the frame buttons. */
+    public PaintPolicy(boolean alwaysShowFrameTitles, boolean paintFrameButtons, boolean monochrome,
+                       double minimumStrokePixels, boolean paintStickyNotes) {
+        this(alwaysShowFrameTitles, paintFrameButtons, monochrome, minimumStrokePixels, paintStickyNotes,
+                paintFrameButtons);
+    }
 
     /** A policy that paints sticky notes (every policy before sticky notes existed). */
     public PaintPolicy(boolean alwaysShowFrameTitles, boolean paintFrameButtons, boolean monochrome,
@@ -40,7 +51,7 @@ public record PaintPolicy(boolean alwaysShowFrameTitles, boolean paintFrameButto
      * document pixel is one point); a page painted at another scale uses {@link #atPageScale}.
      */
     public static PaintPolicy print(boolean monochrome) {
-        return new PaintPolicy(true, false, monochrome, PAPER_MINIMUM_STROKE_POINTS, false);
+        return new PaintPolicy(true, false, monochrome, PAPER_MINIMUM_STROKE_POINTS, false, false);
     }
 
     /**
@@ -53,12 +64,19 @@ public record PaintPolicy(boolean alwaysShowFrameTitles, boolean paintFrameButto
             throw new IllegalArgumentException("pointsPerDocumentPixel must be positive: " + pointsPerDocumentPixel);
         }
         return new PaintPolicy(alwaysShowFrameTitles, paintFrameButtons, monochrome,
-                minimumStrokePixels / pointsPerDocumentPixel, paintStickyNotes);
+                minimumStrokePixels / pointsPerDocumentPixel, paintStickyNotes, paintStickyControls);
     }
 
     /** This policy with sticky notes painted or left out. */
     public PaintPolicy withStickyNotes(boolean paint) {
-        return new PaintPolicy(alwaysShowFrameTitles, paintFrameButtons, monochrome, minimumStrokePixels, paint);
+        return new PaintPolicy(alwaysShowFrameTitles, paintFrameButtons, monochrome, minimumStrokePixels, paint,
+                paintStickyControls);
+    }
+
+    /** This policy with the ✕ and the fold button of the sticky notes painted or left out. */
+    public PaintPolicy withStickyControls(boolean paint) {
+        return new PaintPolicy(alwaysShowFrameTitles, paintFrameButtons, monochrome, minimumStrokePixels,
+                paintStickyNotes, paint);
     }
 
     /** {@code stroke}, or the same stroke at {@link #minimumStrokePixels} wide when it is thinner than that. */

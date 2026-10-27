@@ -29,10 +29,13 @@ import java.util.function.Supplier;
  * What the select tool does with sticky notes (spec §3). Notes lie on top of everything, so this delegate is asked
  * before the others. A press on the ✕ asks the confirmation and unsticks the note; a press on a checkbox ticks or
  * unticks its item; neither selects, moves nor starts a rubber band. Dragging the folded corner resizes the note (one
- * undo step at the release); anywhere else on the paper the note is selected and dragging moves what the selection
+ * undo step at the release); the «–» button at the top-left corner folds the note and a single click on a folded paper
+ * unfolds it (a press and release without moving; dragging it moves it instead). Anywhere else on the paper the note
+ * is selected and dragging moves what the selection
  * acts on, the way {@code FrameGestures} moves a frame by its title: snapped (Ajustar), stopped by the walls of a
- * locked frame, with the wires following, as one undo step. A double click edits the text, or unfolds a folded note.
- * While a locked frame holds the note, the ✕, the checkboxes, the corner and the double click do nothing (the note
+ * locked frame, with the wires following, as one undo step. A double click edits the text.
+ * While a locked frame holds the note, the ✕, the «–», the checkboxes, the corner, the unfolding click and the double
+ * click do nothing (the note
  * still moves inside the frame).
  */
 public final class StickyNoteGestures implements SelectToolDelegate {
@@ -47,6 +50,10 @@ public final class StickyNoteGestures implements SelectToolDelegate {
     /** A Shift press on a selected note: a release without moving takes it out of the selection. */
     private boolean removeOnRelease;
     private boolean pointerMoved;
+    /** A plain press on a folded paper: a release without moving unfolds it (a single click is enough). */
+    private boolean unfoldOnRelease;
+    /** The note a click has just unfolded: the second press of that double click is swallowed. */
+    private ElementId justUnfolded;
     private int deltaX;
     private int deltaY;
     private boolean followWires;
@@ -86,12 +93,21 @@ public final class StickyNoteGestures implements SelectToolDelegate {
         if (event.button() != CanvasMouseEvent.PRIMARY) {
             return Press.IGNORED;
         }
+        ElementId unfoldedByTheFirstClick = justUnfolded;
+        justUnfolded = null;
+        if (event.clickCount() >= 2 && note.id().equals(unfoldedByTheFirstClick)) {
+            return Press.HANDLED;
+        }
         boolean locked = StickyNoteLock.isLocked(context.openDocument(), note.id());
         StickyNoteEdits edits = new StickyNoteEdits(context.openDocument());
         return switch (hit.get().part()) {
             case CLOSE -> {
                 // refused inside a locked frame: StickyNoteEdits does nothing with a locked note
                 edits.close(note.id(), confirmation, parent.get());
+                yield Press.HANDLED;
+            }
+            case FOLD -> {
+                edits.setFolded(note.id(), true);
                 yield Press.HANDLED;
             }
             case CHECKBOX -> {
@@ -132,6 +148,7 @@ public final class StickyNoteGestures implements SelectToolDelegate {
             return Press.HANDLED;
         }
         grab(note, resize, event);
+        unfoldOnRelease = note.folded();
         if (!selection.contains(note.id())) {
             selection.select(note.id());
         } else if (!resize) {
@@ -198,6 +215,13 @@ public final class StickyNoteGestures implements SelectToolDelegate {
             return;
         }
         dragged(context, event);
+        if (unfoldOnRelease && !pointerMoved) {
+            ElementId unfolded = grabbed.id();
+            new StickyNoteEdits(context.openDocument()).setFolded(unfolded, false);
+            if (context.openDocument().document().stickyNote(unfolded).filter(note -> !note.folded()).isPresent()) {
+                justUnfolded = unfolded;
+            }
+        }
         if (resizing) {
             ElementId id = grabbed.id();
             int width = resizedWidth();
@@ -260,7 +284,7 @@ public final class StickyNoteGestures implements SelectToolDelegate {
     private static CanvasCursor cursorOver(ToolContext context, StickyNoteHit hit) {
         boolean locked = StickyNoteLock.isLocked(context.openDocument(), hit.note());
         return switch (hit.part()) {
-            case CLOSE, CHECKBOX -> locked ? CanvasCursor.DEFAULT : CanvasCursor.HAND;
+            case CLOSE, FOLD, CHECKBOX -> locked ? CanvasCursor.DEFAULT : CanvasCursor.HAND;
             case RESIZE -> locked ? CanvasCursor.MOVE : CanvasCursor.RESIZE_SOUTH_EAST;
             case BODY -> CanvasCursor.MOVE;
         };
@@ -313,6 +337,7 @@ public final class StickyNoteGestures implements SelectToolDelegate {
         narrowOnRelease = false;
         removeOnRelease = false;
         pointerMoved = false;
+        unfoldOnRelease = false;
         deltaX = 0;
         deltaY = 0;
         followWires = false;
