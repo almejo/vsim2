@@ -87,6 +87,21 @@ class StickyNotesPanelTest {
     }
 
     @Test
+    void aWindowOpensOnADocumentThatAlreadyHasNotes() {
+        add(0, 0, new StickyText("already here"), false);
+        OpenDocument withNotes = openDocument;
+        EditorView second = new EditorView(withNotes, EditorServices.of(PainterRegistry.standard(),
+                ColorScheme.LIGHT).withExtensions(List.of(new StickyNotesTabExtension())), NO_WINDOW);
+        try {
+            assertThat(texts(find(second).orElseThrow())).containsExactly("already here");
+            second.inspector().showTab("Notas (1)");
+            assertThat(second.inspector().selectedTab()).contains("Notas (1)");
+        } finally {
+            second.dispose();
+        }
+    }
+
+    @Test
     void emptyDocumentShowsTheHintAndTheTitleSaysZero() {
         assertThat(panel.showsHint()).isTrue();
         assertThat(panel.hint().getText()).contains("No hay notas adhesivas");

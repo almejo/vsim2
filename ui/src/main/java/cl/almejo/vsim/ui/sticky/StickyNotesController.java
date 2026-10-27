@@ -29,7 +29,10 @@ public final class StickyNotesController {
             return;
         }
         title = newTitle;
-        view.inspector().setTitle(panel, newTitle);
+        if (panel != null) {
+            // while the panel is being built (a document that already has notes) addTab uses the title kept here
+            view.inspector().setTitle(panel, newTitle);
+        }
     }
 
     public StickyNotesPanel panel() {
