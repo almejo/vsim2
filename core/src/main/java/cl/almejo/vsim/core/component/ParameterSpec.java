@@ -7,11 +7,12 @@ import java.util.function.UnaryOperator;
 /**
  * One parameter of a {@link ComponentType}. A {@code displayOnly} parameter (M7: «Mostrar como») changes only how the
  * component is drawn: the behaviour never reads it, so the engine keeps a running component (a register's contents, a
- * pin's typed value) when only such parameters change.
+ * pin's typed value) when only such parameters change. A {@code hidden} parameter (memory contents) is not offered as
+ * an editable field by the UI.
  */
 public record ParameterSpec(String name, ParameterKind kind, Object defaultValue,
                             int minimum, int maximum, List<String> choices, UnaryOperator<String> textNormalizer,
-                            boolean displayOnly) {
+                            boolean displayOnly, boolean hidden) {
 
     public ParameterSpec(String name, ParameterKind kind, Object defaultValue,
                          int minimum, int maximum, List<String> choices) {
@@ -21,6 +22,12 @@ public record ParameterSpec(String name, ParameterKind kind, Object defaultValue
     public ParameterSpec(String name, ParameterKind kind, Object defaultValue,
                          int minimum, int maximum, List<String> choices, UnaryOperator<String> textNormalizer) {
         this(name, kind, defaultValue, minimum, maximum, choices, textNormalizer, false);
+    }
+
+    public ParameterSpec(String name, ParameterKind kind, Object defaultValue,
+                         int minimum, int maximum, List<String> choices, UnaryOperator<String> textNormalizer,
+                         boolean displayOnly) {
+        this(name, kind, defaultValue, minimum, maximum, choices, textNormalizer, displayOnly, false);
     }
 
     public ParameterSpec {
@@ -60,7 +67,15 @@ public record ParameterSpec(String name, ParameterKind kind, Object defaultValue
 
     /** This parameter marked as {@linkplain #displayOnly() display-only}. */
     public ParameterSpec asDisplayOnly() {
-        return new ParameterSpec(name, kind, defaultValue, minimum, maximum, choices, textNormalizer, true);
+        return new ParameterSpec(name, kind, defaultValue, minimum, maximum, choices, textNormalizer, true, hidden);
+    }
+
+    /**
+     * This parameter marked as {@linkplain #hidden() hidden}: it is part of the component (saved, undone, copied) but
+     * the inspector and the configure dialog do not show it as a field.
+     */
+    public ParameterSpec asHidden() {
+        return new ParameterSpec(name, kind, defaultValue, minimum, maximum, choices, textNormalizer, displayOnly, true);
     }
 
     /** Converts a raw value (from JSON or a dialog) to the canonical type, or throws IllegalArgumentException. */
