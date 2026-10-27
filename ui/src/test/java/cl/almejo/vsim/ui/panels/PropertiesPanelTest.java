@@ -97,6 +97,22 @@ class PropertiesPanelTest {
     }
 
     @Test
+    void aRefreshWhileTypingKeepsWhatIsTypedAndAppliesNothing() {
+        Component gate = gate(0);
+        selection.select(gate.id());
+        long changes = openDocument.changeCount();
+        javax.swing.JTextField typing = panel.textField();
+        typing.setText("A1");
+        panel.typingProbe(() -> true);
+
+        panel.refresh();
+
+        assertThat(panel.textField()).isSameAs(typing);
+        assertThat(typing.getText()).isEqualTo("A1");
+        assertThat(openDocument.changeCount()).isEqualTo(changes);
+    }
+
+    @Test
     void nothingSelectedSaysSo() {
         assertThat(panel.heading()).isEqualTo("Sin selección");
         assertThat(panel.textField()).isNull();

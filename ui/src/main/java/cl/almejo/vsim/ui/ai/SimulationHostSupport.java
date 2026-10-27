@@ -106,7 +106,7 @@ final class SimulationHostSupport {
 
     /** The words of memory {@code component} in the simulation now, asked of its thread; the EDT never waits. */
     CompletableFuture<Optional<MemoryContents>> currentMemory(DocumentId document, String component) {
-        return queue.submitAsync(editorThread, result -> document(document).requestMemoryContents(component)
+        return queue.submitAsync(editorThread, result -> document(document).requestMemoryContents(new ElementId(component))
                 .whenComplete((contents, failure) -> {
                     if (failure != null) {
                         result.completeExceptionally(closedOr(failure, document));

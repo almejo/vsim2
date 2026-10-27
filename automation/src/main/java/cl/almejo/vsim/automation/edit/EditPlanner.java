@@ -352,7 +352,7 @@ final class EditPlanner {
             throw new AutomationException(AutomationError.INVALID_PARAMETER, "Give between 1 and "
                     + MAXIMUM_MEMORY_WORDS + " words per operation");
         }
-        if (operation.firstAddress() < 0 || operation.firstAddress() + operation.words().size() > words) {
+        if (operation.firstAddress() < 0 || operation.firstAddress() > words - operation.words().size()) {
             throw new AutomationException(AutomationError.INVALID_PARAMETER, "Words " + operation.firstAddress() + ".."
                     + (operation.firstAddress() + operation.words().size() - 1) + " do not fit: the memory has "
                     + words + " words (addresses 0.." + (words - 1) + ")");

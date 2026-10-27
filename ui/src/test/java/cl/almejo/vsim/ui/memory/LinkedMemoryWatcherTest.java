@@ -68,6 +68,7 @@ class LinkedMemoryWatcherTest {
 
         edit(file, "01 02 03\n", 5);
         watcher.poll();
+        watcher.poll();
 
         assertThat(contentsOf(rom)).isEqualTo(MemoryContents.decode("@0 1 2 3"));
         assertThat(document.changeCount()).isEqualTo(changes + 1);
@@ -94,6 +95,7 @@ class LinkedMemoryWatcherTest {
         watcher.poll();
 
         edit(file, "0A 0B\n", 5);
+        watcher.poll();
         watcher.poll();
         awaitSimulation(document);
 
@@ -134,9 +136,45 @@ class LinkedMemoryWatcherTest {
         Files.write(file, new byte[]{'0', '2', (byte) 0xE9, '\n'});
         Files.setLastModifiedTime(file, FileTime.from(Instant.now().plusSeconds(5)));
         watcher.poll();
+        watcher.poll();
 
         assertThat(watcher.problem(rom.id())).hasValueSatisfying(text -> assertThat(text).contains("UTF-8"));
         assertThat(document.changeCount()).isEqualTo(changes);
+    }
+
+    @Test
+    void aFileSavedInTwoWritesIsReadOnlyOnceItStopsChanging() throws IOException {
+        Path file = program("01\n");
+        Component rom = linkedRom(file, "@0 1");
+        watcher.poll();
+        long changes = document.changeCount();
+
+        edit(file, "", 5);
+        watcher.poll();
+        edit(file, "01 02 03\n", 6);
+        watcher.poll();
+
+        assertThat(document.changeCount()).isEqualTo(changes);
+        assertThat(contentsOf(rom)).isEqualTo(MemoryContents.decode("@0 1"));
+
+        watcher.poll();
+
+        assertThat(contentsOf(rom)).isEqualTo(MemoryContents.decode("@0 1 2 3"));
+        assertThat(document.changeCount()).isEqualTo(changes + 1);
+    }
+
+    @Test
+    void aLinkedFileThatIsNotUtf8WhenFirstSeenIsAProblemAndKeepsTheCopy() throws IOException {
+        Path file = folder.resolve("rom.hex");
+        Files.write(file, new byte[]{'0', '2', (byte) 0xE9, '\n'});
+        Component rom = linkedRom(file, "@0 1");
+        long changes = document.changeCount();
+
+        watcher.poll();
+
+        assertThat(watcher.problem(rom.id())).hasValueSatisfying(text -> assertThat(text).contains("UTF-8"));
+        assertThat(document.changeCount()).isEqualTo(changes);
+        assertThat(contentsOf(rom)).isEqualTo(MemoryContents.decode("@0 1"));
     }
 
     @Test

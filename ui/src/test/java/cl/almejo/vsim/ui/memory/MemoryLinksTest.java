@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.memory;
 
+import cl.almejo.vsim.core.memory.MemoryLinkPaths;
 import cl.almejo.vsim.core.component.standard.MemoryTypes;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
@@ -78,26 +79,26 @@ class MemoryLinksTest {
     @Test
     void theStoredPathIsRelativeToTheCircuitsFolderWithSlashes() {
         Path circuit = folder.resolve("curso/cpu.vsim");
-        assertThat(MemoryLinks.storedLinkPath(folder.resolve("curso/programas/rom.hex"), Optional.of(circuit)))
+        assertThat(MemoryLinkPaths.storedLinkPath(folder.resolve("curso/programas/rom.hex"), Optional.of(circuit)))
                 .isEqualTo("programas/rom.hex");
-        assertThat(MemoryLinks.storedLinkPath(folder.resolve("otros/rom.hex"), Optional.of(circuit)))
+        assertThat(MemoryLinkPaths.storedLinkPath(folder.resolve("otros/rom.hex"), Optional.of(circuit)))
                 .isEqualTo("../otros/rom.hex");
     }
 
     @Test
     void anUnsavedCircuitStoresTheAbsolutePath() {
         Path file = folder.resolve("rom.hex");
-        assertThat(MemoryLinks.storedLinkPath(file, Optional.empty()))
+        assertThat(MemoryLinkPaths.storedLinkPath(file, Optional.empty()))
                 .isEqualTo(file.toAbsolutePath().normalize().toString().replace('\\', '/'));
     }
 
     @Test
     void aStoredPathResolvesAgainstTheCircuitsFolderOrStaysAbsolute() {
         Path circuit = folder.resolve("curso/cpu.vsim");
-        assertThat(MemoryLinks.resolve("programas/rom.hex", Optional.of(circuit)))
+        assertThat(MemoryLinkPaths.resolve("programas/rom.hex", Optional.of(circuit)))
                 .isEqualTo(folder.resolve("curso/programas/rom.hex").toAbsolutePath().normalize());
         String absolute = folder.resolve("rom.hex").toAbsolutePath().toString();
-        assertThat(MemoryLinks.resolve(absolute, Optional.of(circuit))).isEqualTo(Path.of(absolute));
+        assertThat(MemoryLinkPaths.resolve(absolute, Optional.of(circuit))).isEqualTo(Path.of(absolute));
     }
 
     @Test
@@ -111,7 +112,7 @@ class MemoryLinksTest {
 
         assertThat(MemoryContents.decode(parameter(document, rom, MemoryTypes.CONTENTS)))
                 .isEqualTo(MemoryContents.empty().with(0, 0x3A).with(1, 0xC6));
-        assertThat(MemoryLinks.resolve(parameter(document, rom, MemoryTypes.LINK), document.path())).isEqualTo(file);
+        assertThat(MemoryLinkPaths.resolve(parameter(document, rom, MemoryTypes.LINK), document.path())).isEqualTo(file);
         document.history().undo();
         assertThat(parameter(document, rom, MemoryTypes.CONTENTS)).isEqualTo("@0 7");
         assertThat(parameter(document, rom, MemoryTypes.LINK)).isEmpty();
@@ -161,11 +162,11 @@ class MemoryLinksTest {
         Files.createDirectories(second.getParent());
         document.save(second);
         assertThat(Files.readString(second)).contains("\"link\" : \"../../curso/programas/rom.hex\"");
-        assertThat(MemoryLinks.resolve(parameter(document, rom, MemoryTypes.LINK), document.path())).isEqualTo(file);
+        assertThat(MemoryLinkPaths.resolve(parameter(document, rom, MemoryTypes.LINK), document.path())).isEqualTo(file);
 
         OpenDocument reopened = track(OpenDocument.open(second, StandardComponentTypes.registry()));
         Component again = reopened.document().components().get(0);
-        assertThat(MemoryLinks.resolve(parameter(reopened, again, MemoryTypes.LINK), reopened.path()))
+        assertThat(MemoryLinkPaths.resolve(parameter(reopened, again, MemoryTypes.LINK), reopened.path()))
                 .isEqualTo(file);
         assertThat(reopened.isModified()).isFalse();
     }

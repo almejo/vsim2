@@ -13,6 +13,9 @@ import java.util.regex.Pattern;
  */
 public final class VsimMemoryFormat implements MemoryFileFormat {
 
+    /** The byte order mark some editors put in front of a text file. */
+    private static final char BYTE_ORDER_MARK = '\uFEFF';
+
     public static final String ID = "vsim";
     static final int MINIMUM_WORDS = 2;
     static final int MAXIMUM_WORDS = 1 << 24;
@@ -28,7 +31,7 @@ public final class VsimMemoryFormat implements MemoryFileFormat {
     @Override
     public boolean canRead(String fileName, String firstLine) {
         String first = firstLine == null ? "" : firstLine.strip();
-        if (first.startsWith("﻿")) {
+        if (!first.isEmpty() && first.charAt(0) == BYTE_ORDER_MARK) {
             first = first.substring(1);
         }
         if (first.equals(LogisimRawFormat.SIGNATURE)) {

@@ -1,5 +1,6 @@
 package cl.almejo.vsim.ui.memory;
 
+import cl.almejo.vsim.core.memory.MemoryLinkPaths;
 import cl.almejo.vsim.core.component.standard.MemoryTypes;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
@@ -85,7 +86,7 @@ class MemoryFileImportTest {
         assertThat(rom.parameters()).containsEntry(MemoryTypes.WORDS, "1024").containsEntry(MemoryTypes.WIDTH, 16);
         assertThat(MemoryContents.decode((String) rom.parameters().get(MemoryTypes.CONTENTS)))
                 .isEqualTo(MemoryContents.empty().with(0, 0x3A10).with(1, 0xC601));
-        assertThat(MemoryLinks.resolve((String) rom.parameters().get(MemoryTypes.LINK), document.path()))
+        assertThat(MemoryLinkPaths.resolve((String) rom.parameters().get(MemoryTypes.LINK), document.path()))
                 .isEqualTo(program);
         assertThat(prompts.askedKinds).isEmpty();
         assertThat(openedAsCircuits).isEmpty();

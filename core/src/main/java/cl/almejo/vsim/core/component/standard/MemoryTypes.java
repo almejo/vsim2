@@ -68,6 +68,9 @@ public final class MemoryTypes {
 
     /** The canonical text of the last few contents seen, so resolving a part's parameters (on every paint) stays cheap. */
     private static final int CANONICAL_CACHE_SIZE = 32;
+    /** Longer texts (about 64 KB) go to a single slot: a few of them would hold megabytes for good. */
+    private static final int CACHEABLE_LENGTH = 64 * 1024;
+    private static volatile Map.Entry<String, String> lastLarge;
     private static final Map<String, String> CANONICAL_CACHE = new LinkedHashMap<>(CANONICAL_CACHE_SIZE, 0.75f, true) {
         @Override
         protected boolean removeEldestEntry(Map.Entry<String, String> eldest) {
@@ -125,6 +128,16 @@ public final class MemoryTypes {
 
     /** The normalizer of {@link #CONTENTS}: any readable contents text to its canonical form. */
     private static String canonicalContents(String text) {
+        if (text.length() > CACHEABLE_LENGTH) {
+            // one slot only: the same big text is resolved on every paint, but a few of them must not pile up
+            Map.Entry<String, String> last = lastLarge;
+            if (last != null && last.getKey().equals(text)) {
+                return last.getValue();
+            }
+            String canonical = MemoryContents.decode(text).encode();
+            lastLarge = Map.entry(text, canonical);
+            return canonical;
+        }
         synchronized (CANONICAL_CACHE) {
             String known = CANONICAL_CACHE.get(text);
             if (known != null) {

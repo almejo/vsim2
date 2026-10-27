@@ -173,6 +173,26 @@ class ComponentTypeTest {
     }
 
     @Test
+    void hiddenParametersDoNotKeyTheShapeMemo() {
+        AtomicInteger layouts = new AtomicInteger();
+        ComponentType counted = ComponentType.parameterized("test-hidden", ComponentCategory.BASIC,
+                List.of(ParameterSpec.integer("width", 2, 1, 8), ParameterSpec.text("payload", "").asHidden()),
+                parameters -> {
+                    layouts.incrementAndGet();
+                    return new ComponentShape(new GridSize(2, 2), List.of());
+                },
+                parameters -> (context, pinIndex) -> {
+                });
+        int before = layouts.get();
+
+        for (int index = 0; index < 100; index++) {
+            counted.specializedFor(Map.of("width", 3, "payload", "text " + index));
+        }
+
+        assertThat(layouts.get() - before).isEqualTo(1);
+    }
+
+    @Test
     void aParameterizedTypeRunsItsLayoutOncePerSetOfParameters() {
         AtomicInteger layouts = new AtomicInteger();
         ComponentType counted = ComponentType.parameterized("test-counted", ComponentCategory.BASIC,

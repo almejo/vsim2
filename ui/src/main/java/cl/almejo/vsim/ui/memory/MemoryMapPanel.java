@@ -397,7 +397,9 @@ public final class MemoryMapPanel extends JPanel {
             }
         }
         boolean any = false;
-        if (baselineReady) {
+        // Narrower than a counter's block: the counts are the block's, so a rise says nothing about this word.
+        boolean sharedCounts = request.wordsPerCell() < frame.wordsPerCounter();
+        if (baselineReady && !sharedCounts) {
             for (int cell = 0; cell < frame.cells(); cell++) {
                 long readsBefore = restarted ? 0 : baselineReads[cell];
                 long writesBefore = restarted ? 0 : baselineWrites[cell];
@@ -515,6 +517,10 @@ public final class MemoryMapPanel extends JPanel {
         String value = known ? hex(lastFrame.valueAt(cell), (width + 3) / 4) : "?";
         int addressDigits = Math.max(1, (addressBits + 3) / 4);
         long first = request.addressOf(cell);
+        long block = lastFrame == null ? 1 : lastFrame.wordsPerCounter();
+        if (request.wordsPerCell() < block) {
+            return Messages.format("memory.map.tooltip.block", hex(first, addressDigits), block, reads, writes, value);
+        }
         if (request.wordsPerCell() == 1) {
             return Messages.format("memory.map.tooltip.word", hex(first, addressDigits), reads, writes, value);
         }

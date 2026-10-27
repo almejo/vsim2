@@ -18,9 +18,9 @@ import java.awt.geom.Ellipse2D;
 import java.awt.geom.Path2D;
 import java.awt.geom.Rectangle2D;
 import java.awt.geom.RoundRectangle2D;
+import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicReference;
 
 import static cl.almejo.vsim.ui.paint.PainterSupport.UNIT;
 
@@ -66,11 +66,20 @@ public final class MemoryPainter implements ComponentPainter {
             BasicStroke.JOIN_ROUND, 1f, new float[]{4f, 3f}, 0f);
     private static final String CLOCK_PIN = "CLK";
 
-    /** The decoded contents of the last contents text seen, so a paint never decodes (the text rarely changes). */
+    /** The decoded contents of the last few contents texts seen, so a paint never decodes (the text rarely changes). */
     private record Decoded(String text, MemoryContents contents, long highestAddress, int widestBits) {
     }
 
-    private final AtomicReference<Decoded> lastDecoded = new AtomicReference<>();
+    /** How many memories' decoded contents are kept: a circuit with a few memories decodes none per frame. */
+    private static final int DECODED_CACHE_SIZE = 8;
+
+    private final Map<String, Decoded> decodedByText = new LinkedHashMap<>(DECODED_CACHE_SIZE, 0.75f, true) {
+        @Override
+        protected boolean removeEldestEntry(Map.Entry<String, Decoded> eldest) {
+            return size() > DECODED_CACHE_SIZE;
+        }
+    };
+    private int decodeCount;
 
     /** What a memory is called on the canvas: its label, or {@code RAM1} / {@code ROM2} by its place among the memories. */
     public static String displayName(String label, MemoryKind kind, int ordinal) {
@@ -130,14 +139,26 @@ public final class MemoryPainter implements ComponentPainter {
     }
 
     private Decoded decoded(String contents) {
-        Decoded known = lastDecoded.get();
-        if (known != null && known.text().equals(contents)) {
-            return known;
+        synchronized (decodedByText) {
+            Decoded known = decodedByText.get(contents);
+            if (known != null) {
+                return known;
+            }
         }
         MemoryContents parsed = MemoryContents.decode(contents);
         Decoded fresh = new Decoded(contents, parsed, parsed.highestAddress(), parsed.widestBits());
-        lastDecoded.set(fresh);
+        synchronized (decodedByText) {
+            decodeCount++;
+            decodedByText.put(contents, fresh);
+        }
         return fresh;
+    }
+
+    /** How many times a contents text was decoded (tests). */
+    int decodeCount() {
+        synchronized (decodedByText) {
+            return decodeCount;
+        }
     }
 
     private static boolean doesNotFit(Map<String, Object> resolved, Decoded decoded) {
