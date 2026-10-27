@@ -6,6 +6,19 @@ Los cambios de VSim 2 que se notan al usarlo, del más nuevo al más antiguo. El
 funciones, con las fechas en que se hizo. El detalle de cada función está en
 [docs/funciones.md](docs/funciones.md).
 
+## Sin publicar — Notas adhesivas
+
+### Agregado
+
+- Notas adhesivas: recordatorios tuyos pegados sobre el circuito como un papel (amarillo, rosa, azul, verde o naranja,
+  con la esquina doblada y sombra), de texto libre o con una lista de tareas que se marcan con un clic. Se pegan con la
+  herramienta «Nota adhesiva» (justo después de «Marco»): un clic deja una nota de 8 × 6 cuadros, arrastrar le da otro
+  tamaño, y se abre su editor. Doble clic las edita en el lugar, la esquina doblada les cambia el tamaño, la ✕ las
+  despega después de preguntar, y el clic derecho cambia el color, el tipo (texto o lista) o las pliega en un
+  papelito que muestra su texto al pasar el mouse. También se cambian en Propiedades. Dentro de un marco cerrado se
+  mueven con el bloque y no se pueden cambiar hasta abrir el candado. No salen en las imágenes ni en los PDF salvo que
+  marques «Incluir notas adhesivas», y Ctrl+F busca en ellas.
+
 ## Versión 0.4 — 2026-10-26
 
 ### Agregado

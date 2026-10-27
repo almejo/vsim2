@@ -58,6 +58,7 @@ Una línea por función; el detalle está en [docs/funciones.md](docs/funciones.
 - [Elegir un color](docs/funciones/edicion.md#elegir-un-color) con una fila de muestras, igual para LED, marcos, túneles y notas.
 - [Edición de texto en el lugar](docs/funciones/edicion.md#edición-de-texto-en-el-lugar) para etiquetas, textos, títulos y valores.
 - [Marcos](docs/funciones/edicion.md#marcos) con título, color y candado, que mueven su bloque completo.
+- [Notas adhesivas](docs/funciones/edicion.md#notas-adhesivas): recordatorios de texto o de tareas pegados sobre el circuito, que se pliegan, se despegan con su ✕ y no salen en las imágenes salvo que lo pidas.
 
 ### Cables, buses y túneles
 

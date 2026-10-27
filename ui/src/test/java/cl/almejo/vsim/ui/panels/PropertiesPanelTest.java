@@ -12,6 +12,10 @@ import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.NoteColor;
 import cl.almejo.vsim.core.document.NoteStyle;
+import cl.almejo.vsim.core.document.StickyChecklist;
+import cl.almejo.vsim.core.document.StickyColor;
+import cl.almejo.vsim.core.document.StickyNote;
+import cl.almejo.vsim.core.document.StickyText;
 import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
@@ -774,5 +778,55 @@ class PropertiesPanelTest {
         area.deliver(new java.awt.event.KeyEvent(area, java.awt.event.KeyEvent.KEY_PRESSED, 0, 0,
                 java.awt.event.KeyEvent.VK_ENTER, java.awt.event.KeyEvent.CHAR_UNDEFINED));
         assertThat(openDocument.document().label(label.id()).orElseThrow().text()).isEqualTo("uno\ndos\ntres");
+    }
+
+    // --- sticky notes
+
+    private StickyNote stickyNote() {
+        StickyNote note = new StickyNote(
+                openDocument.document().newStickyNoteId(), new GridPoint(10, 10), 8, 6,
+                StickyColor.YELLOW,
+                new StickyText("uno\ndos"), false);
+        openDocument.execute(new AddElementsCommand(List.of(note)));
+        selection.select(note.id());
+        return note;
+    }
+
+    private StickyNote current(StickyNote note) {
+        return openDocument.document().stickyNote(note.id()).orElseThrow();
+    }
+
+    @Test
+    void aStickyNoteShowsItsColourAndKindAndEachChangeIsOneUndoStep() {
+        StickyNote note = stickyNote();
+        assertThat(panel.heading()).isEqualTo("Nota adhesiva");
+        assertThat(panel.stickyColor().values())
+                .containsExactly(StickyColor.values());
+        assertThat(panel.stickyColor().selectedValue()).isEqualTo(StickyColor.YELLOW);
+        assertThat(panel.stickyKind()[0].isSelected()).isTrue();
+
+        panel.stickyColor().swatch(StickyColor.GREEN.ordinal()).doClick();
+        assertThat(current(note).color()).isEqualTo(StickyColor.GREEN);
+        assertThat(openDocument.history().undoDescription()).contains("command.colorStickyNote");
+
+        panel.stickyKind()[1].doClick();
+        assertThat(current(note).content()).isInstanceOf(StickyChecklist.class);
+        assertThat(openDocument.history().undoDescription()).contains("command.stickyNoteKind");
+
+        openDocument.history().undo();
+        assertThat(current(note).content()).isEqualTo(new StickyText("uno\ndos"));
+        assertThat(panel.stickyKind()[0].isSelected()).isTrue();
+    }
+
+    @Test
+    void aStickyNoteInALockedFrameCannotBeChangedFromHere() {
+        openDocument.execute(new CreateFrameCommand(new Frame(openDocument.document().newFrameId(),
+                new GridPoint(5, 5), 30, 20, "Bloque", FrameTint.NONE, true)));
+        StickyNote note = stickyNote();
+        assertThat(panel.stickyColor().swatch(0).isEnabled()).isFalse();
+        assertThat(panel.stickyKind()[0].isEnabled()).isFalse();
+        assertThat(panel.stickyKind()[1].isEnabled()).isFalse();
+        panel.stickyKind()[1].doClick();
+        assertThat(current(note)).isEqualTo(note);
     }
 }

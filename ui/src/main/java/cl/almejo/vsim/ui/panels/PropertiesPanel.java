@@ -17,6 +17,8 @@ import cl.almejo.vsim.core.document.FrameContents;
 import cl.almejo.vsim.core.document.FrameTint;
 import cl.almejo.vsim.core.document.NoteColor;
 import cl.almejo.vsim.core.document.NoteStyle;
+import cl.almejo.vsim.core.document.StickyChecklist;
+import cl.almejo.vsim.core.document.StickyColor;
 import cl.almejo.vsim.core.document.StickyNote;
 import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.document.Wire;
@@ -26,14 +28,19 @@ import cl.almejo.vsim.ui.clipboard.FragmentRefusingTransferHandler;
 import cl.almejo.vsim.ui.i18n.FrameTintNames;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.i18n.NoteColorNames;
+import cl.almejo.vsim.ui.i18n.StickyColorNames;
 import cl.almejo.vsim.ui.paint.ColorScheme;
+import cl.almejo.vsim.ui.sticky.StickyNoteEdits;
+import cl.almejo.vsim.ui.sticky.StickyNoteLock;
 import cl.almejo.vsim.ui.theme.ErrorTextLabel;
 import cl.almejo.vsim.ui.tunnel.TunnelColorSwatches;
 import cl.almejo.vsim.ui.tunnel.TunnelNames;
 import cl.almejo.vsim.ui.wiring.SelectionMoves;
 import net.miginfocom.swing.MigLayout;
 
+import javax.swing.ButtonGroup;
 import javax.swing.JLabel;
+import javax.swing.JRadioButton;
 import javax.swing.JSpinner;
 import javax.swing.SpinnerNumberModel;
 import javax.swing.JPanel;
@@ -70,6 +77,8 @@ public final class PropertiesPanel extends JPanel {
     private final Supplier<ColorScheme> scheme;
     private ColorSwatches<FrameTint> frameColor;
     private JSpinner[] frameSpinners;
+    private ColorSwatches<StickyColor> stickyColor;
+    private JRadioButton[] stickyKind;
     private Map<NoteStyle.Role, ColorSwatches<NoteColor>> noteStyleRows = Map.of();
     private Runnable pendingEdits = () -> { };
     private int generation;
@@ -162,6 +171,8 @@ public final class PropertiesPanel extends JPanel {
         parameterForm = null;
         frameColor = null;
         frameSpinners = null;
+        stickyColor = null;
+        stickyKind = null;
         noteStyleRows = Map.of();
         pendingEdits = () -> { };
         error.setText(" ");
@@ -190,7 +201,7 @@ public final class PropertiesPanel extends JPanel {
             case TextLabel label -> showText(label);
             case Wire wire -> heading.setText(Messages.format("properties.wire", length(wire)));
             case Frame frame -> showFrame(frame);
-            case StickyNote note -> heading.setText(Messages.text("properties.none"));
+            case StickyNote note -> showStickyNote(note);
         }
     }
 
@@ -315,6 +326,54 @@ public final class PropertiesPanel extends JPanel {
         width.setEnabled(!frame.locked());
         height.setEnabled(!frame.locked());
         frameSpinners = new JSpinner[]{x, y, width, height};
+    }
+
+    /**
+     * A sticky note: its paper colour and its kind («Texto» / «Lista»), each change one undo step (the text is edited
+     * on the paper itself). While a locked frame holds the note both rows are disabled, as every edit of it is.
+     */
+    private void showStickyNote(StickyNote note) {
+        heading.setText(Messages.text("properties.stickyNote"));
+        ElementId id = note.id();
+        int built = generation;
+        boolean editable = !StickyNoteLock.isLocked(openDocument, id);
+        StickyNoteEdits edits = new StickyNoteEdits(openDocument);
+
+        ColorSwatches<StickyColor> color = new ColorSwatches<>(List.of(StickyColor.values()), note.color(),
+                StickyColorNames::of, paper -> Optional.of(scheme.get().stickyPaper(paper)));
+        color.addChoiceListener(() -> applyIfCurrent(built, () -> edits.setColor(id, color.selectedValue())));
+        for (int index = 0; index < StickyColor.values().length; index++) {
+            color.swatch(index).setEnabled(editable);
+        }
+        addRow(Messages.text("properties.stickyColor"), color);
+        stickyColor = color;
+
+        boolean checklist = note.content() instanceof StickyChecklist;
+        JRadioButton text = new JRadioButton(Messages.text("stickyNotes.menu.text"), !checklist);
+        JRadioButton list = new JRadioButton(Messages.text("stickyNotes.menu.list"), checklist);
+        ButtonGroup kinds = new ButtonGroup();
+        kinds.add(text);
+        kinds.add(list);
+        text.addActionListener(event -> applyIfCurrent(built, () -> edits.setKind(id, false)));
+        list.addActionListener(event -> applyIfCurrent(built, () -> edits.setKind(id, true)));
+        JPanel kind = new JPanel(new MigLayout("insets 0"));
+        kind.setOpaque(false);
+        kind.add(text);
+        kind.add(list);
+        text.setEnabled(editable);
+        list.setEnabled(editable);
+        addRow(Messages.text("properties.stickyKind"), kind);
+        stickyKind = new JRadioButton[]{text, list};
+    }
+
+    /** The paper colour swatches of the sticky note shown; null when no sticky note is shown. */
+    ColorSwatches<StickyColor> stickyColor() {
+        return stickyColor;
+    }
+
+    /** «Texto» and «Lista» of the sticky note shown; null when no sticky note is shown. */
+    JRadioButton[] stickyKind() {
+        return stickyKind;
     }
 
     /**

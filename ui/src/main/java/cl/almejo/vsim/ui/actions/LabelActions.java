@@ -16,7 +16,11 @@ import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.document.Frame;
 import cl.almejo.vsim.core.document.NoteColor;
 import cl.almejo.vsim.core.document.NoteStyle;
+import cl.almejo.vsim.core.document.StickyChecklist;
+import cl.almejo.vsim.core.document.StickyContent;
+import cl.almejo.vsim.core.document.StickyItem;
 import cl.almejo.vsim.core.document.StickyNote;
+import cl.almejo.vsim.core.document.StickyText;
 import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.geometry.GridPoint;
@@ -34,9 +38,12 @@ import cl.almejo.vsim.ui.inline.InlineTextEditor;
 import cl.almejo.vsim.ui.inline.InlineValidators;
 import cl.almejo.vsim.ui.paint.ConstantPainter;
 import cl.almejo.vsim.ui.paint.InterfacePinPainter;
+import cl.almejo.vsim.ui.sticky.StickyNoteLayout;
+import cl.almejo.vsim.ui.sticky.StickyNoteLock;
 import cl.almejo.vsim.ui.tunnel.TunnelNameEditor;
 
 import javax.swing.Action;
+import java.awt.geom.Rectangle2D;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -45,11 +52,13 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 /**
- * Label edits of one editor, done in place over the canvas: component labels, free texts, frame titles, the value of a
- * Constante, and cutting wire stretches. Each one is one undo step. M7: also the live value of a bus input pin, which
- * goes to the simulation and is no undo step. Wire tunnels: their name (a double click, or F2 with one selected).
+ * Label edits of one editor, done in place over the canvas: component labels, free texts, frame titles, the text of a
+ * sticky note, the value of a Constante, and cutting wire stretches. Each one is one undo step. M7: also the live value
+ * of a bus input pin, which goes to the simulation and is no undo step. Wire tunnels: their name (a double click, or F2
+ * with one selected).
  */
 public final class LabelActions {
 
@@ -124,12 +133,50 @@ public final class LabelActions {
                     text -> setLabelIfChanged(id, text.strip(), true)), stillThere);
             case Wire wire -> {
             }
-            case StickyNote ignored -> {
-                // edited in place once sticky notes have their own tool
-            }
+            case StickyNote note -> editStickyNote(note, stillThere);
             case Frame frame -> editor.open(new InlineEditRequest(FramePainter.titleTextBounds(frame),
                     FramePainter.titleFont(), frame.title(), InlineValidators.anyText(),
                     text -> setLabelIfChanged(id, text.strip(), false)), stillThere);
+        }
+    }
+
+    /**
+     * Edits in place the text of a sticky note over its paper, wrapping at the paper's width (Shift+Enter adds a line,
+     * Enter confirms). A checklist is edited as its items, one per line; on confirm an unchanged line keeps its tick
+     * and empty lines are dropped ({@code StickyChecklist.edited}). A folded note, or one held by a locked frame, is
+     * not edited.
+     */
+    private void editStickyNote(StickyNote note, BooleanSupplier stillThere) {
+        if (note.folded() || StickyNoteLock.isLocked(openDocument, note.id())) {
+            return;
+        }
+        Rectangle2D paper = StickyNoteLayout.paperOf(note);
+        double padding = StickyNoteLayout.PADDING;
+        Rectangle2D textArea = new Rectangle2D.Double(paper.getX() + padding, paper.getY() + padding,
+                paper.getWidth() - 2 * padding, paper.getHeight() - 2 * padding);
+        String initial = switch (note.content()) {
+            case StickyText freeText -> freeText.text();
+            case StickyChecklist checklist -> checklist.items().stream().map(StickyItem::text)
+                    .collect(Collectors.joining("\n"));
+        };
+        ElementId id = note.id();
+        editor.open(InlineEditRequest.wrapped(textArea, LabelLayout.font(), initial, InlineValidators.anyText(),
+                text -> setStickyTextIfChanged(id, text.strip())), stillThere);
+    }
+
+    /** One undo step when the confirmed text changes what the note says. */
+    private void setStickyTextIfChanged(ElementId id, String text) {
+        Optional<StickyNote> current = openDocument.document().stickyNote(id)
+                .filter(note -> !StickyNoteLock.isLocked(openDocument, id));
+        if (current.isEmpty()) {
+            return;
+        }
+        StickyContent edited = switch (current.get().content()) {
+            case StickyText ignored -> new StickyText(text);
+            case StickyChecklist checklist -> checklist.edited(List.of(text.split("\n", -1)));
+        };
+        if (!edited.equals(current.get().content())) {
+            openDocument.execute(new SetLabelCommand(id, text));
         }
     }
 
