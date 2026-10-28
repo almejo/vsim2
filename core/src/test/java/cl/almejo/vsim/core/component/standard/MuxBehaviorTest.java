@@ -36,7 +36,7 @@ class MuxBehaviorTest {
         assertThat(two.category()).isEqualTo(ComponentCategory.PLEXERS);
         assertThat(two.parameters()).extracting(parameter -> parameter.name())
                 .containsExactly("width", "inputs", "delay");
-        assertThat(two.parameters().get(1).choices()).containsExactly("2", "4");
+        assertThat(two.parameters().get(1).choices()).containsExactly("2", "4", "8");
         assertThat(two.parameters().get(1).defaultValue()).isEqualTo("2");
         assertThat(two.pins()).extracting(PinSpec::name).containsExactly("D0", "D1", "S", "Y");
         assertThat(two.pins()).extracting(PinSpec::direction).containsExactly(PinDirection.INPUT,

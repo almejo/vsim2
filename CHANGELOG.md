@@ -18,9 +18,12 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 - Los componentes propios tienen descripción: se escribe al crearlos o actualizarlos («Descripción (opcional)») y
   después con «Editar descripción…» en Propiedades, como un paso de deshacer.
 - La IA recibe la misma descripción en `vsim_describe_component`.
+- Multiplexores: «Demultiplexor» (D va a la salida que elige S, de 2, 4 u 8 salidas; las demás valen 0) y «Codificador
+  con prioridad» (A es el número de la entrada más alta en 1 y V dice si alguna lo está; de 2, 4, 8 o 16 entradas).
 
 ### Cambiado
 
+- El multiplexor ofrece 8 entradas además de 2 y 4; D0, D1, Y y los circuitos de antes no cambian.
 - El globo de cada pieza de la paleta es ahora el primer párrafo de su descripción, así que todas las piezas tienen
   uno (antes solo los bloques, los pines, los túneles y la memoria).
 

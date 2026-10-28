@@ -186,6 +186,12 @@ class PaintersTest {
         for (Map<String, Object> parameters : decoders) {
             assertGrownBlockDrawsNearItsBounds(StandardComponentTypes.DECODER, parameters);
         }
+        assertGrownBlockDrawsNearItsBounds(StandardComponentTypes.MUX,
+                Map.of("inputs", "8", StandardComponentTypes.WIDTH, 8));
+        assertGrownBlockDrawsNearItsBounds("demux", Map.of("outputs", "8", StandardComponentTypes.WIDTH, 8));
+        assertGrownBlockDrawsNearItsBounds("demux", Map.of("outputs", "2", StandardComponentTypes.WIDTH, 1));
+        assertGrownBlockDrawsNearItsBounds("priority-encoder", Map.of("inputs", "16"));
+        assertGrownBlockDrawsNearItsBounds("priority-encoder", Map.of("inputs", "2"));
         assertThat(registry.require(StandardComponentTypes.DECODER).specializedFor(decoders.get(1)).size().height())
                 .isGreaterThan(registry.require(StandardComponentTypes.DECODER).size().height());
     }
