@@ -16,6 +16,10 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
   puntero. Con un bit, nada cambia.
 - El LED también puede tener varios bits: una fila de luces con la misma caja que el interruptor del mismo ancho (bit
   contra bit) y un solo pin de bus de entrada. Cada luz se enciende solo con 1; con 0, Z o conflicto queda apagada.
+- Rotar un interruptor o un LED de varios bits no da vuelta la fila: su pin pasa al lado siguiente en el sentido del
+  reloj y el cuerpo sigue derecho, también dentro de un grupo rotado (el pin va adonde lo lleva el giro, así sus cables
+  siguen conectados), en la exportación y al imprimir. Un interruptor de un bit rotado que pasa a varios bits queda
+  derecho con la salida hacia donde apuntaba.
 - Propiedades termina con un recuadro «Descripción» que explica la pieza elegida y sus supuestos: qué vale una
   entrada sin conectar, en qué flanco actúa, qué pasa con una entrada en Z, cómo lee los números con signo. Todas las
   piezas lo tienen, también la RAM y la ROM (escritura en el flanco de bajada, `CS` y `WE` sin conectar, direcciones

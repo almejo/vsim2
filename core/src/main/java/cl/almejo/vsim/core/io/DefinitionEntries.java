@@ -4,6 +4,7 @@ import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.PinDirection;
 import cl.almejo.vsim.core.component.PinSpec;
+import cl.almejo.vsim.core.component.standard.MultiBitOrientation;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
@@ -74,8 +75,8 @@ final class DefinitionEntries {
                         CircuitFormatException.Reason.UNKNOWN_COMPONENT_TYPE,
                         component.typeId() + " in definition " + definition.id()));
                 try {
-                    normalized.add(CircuitFormat.validateAppearance(
-                            component.withParameters(type.resolveParameters(component.parameters())), type));
+                    normalized.add(MultiBitOrientation.normalized(CircuitFormat.validateAppearance(
+                            component.withParameters(type.resolveParameters(component.parameters())), type), type));
                 } catch (IllegalArgumentException | NullPointerException exception) {
                     // A malformed parameter value can surface as a NullPointerException; no unchecked exception may
                     // escape to the caller (on a paste that would reach the EDT), so it becomes INVALID_ELEMENT.

@@ -31,6 +31,7 @@ import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.io.LegacyGateMigration;
 import cl.almejo.vsim.core.command.AddElementsCommand;
 import cl.almejo.vsim.core.component.standard.MemoryTypes;
+import cl.almejo.vsim.core.component.standard.MultiBitOrientation;
 import cl.almejo.vsim.core.memory.MemoryContents;
 import cl.almejo.vsim.core.command.AddWireCommand;
 import cl.almejo.vsim.core.command.ChangeStickyNoteCommand;
@@ -284,9 +285,10 @@ final class EditPlanner {
                         + "describe the components to see the types"));
         requireKnownParameters(type, parameters);
         requireNotMemoryFiles(type, parameters);
-        Component component = type.newComponent(candidate.newComponentId(),
+        // A multi-bit Switch or LED asked for turned stays upright with its pin where the turn would put it.
+        Component component = MultiBitOrientation.normalized(type.newComponent(candidate.newComponentId(),
                 new GridPoint(operation.x(), operation.y()), operation.rotation(), parameters,
-                operation.label());
+                operation.label()), type);
         place(component, alias);
     }
 

@@ -163,6 +163,19 @@ class EditServiceTest {
     }
 
     @Test
+    void aMultiBitSwitchPlacedTurnedComesOutUprightWithItsPinWhereTheTurnPutIt() {
+        service.edit(request(new PlacePart(Optional.of("bits"), "switch", 10, 10, Rotation.R90,
+                Map.of("width", 8), "")));
+
+        Component placed = circuit.document().components().getFirst();
+        ComponentType type = StandardComponentTypes.registry().require("switch");
+        Component asAsked = type.newComponent(placed.id(), new GridPoint(10, 10), Rotation.R90, Map.of("width", 8), "");
+        assertThat(placed.rotation()).isEqualTo(Rotation.R0);
+        assertThat(placed.parameters()).containsEntry("side", "bottom");
+        assertThat(type.pinLocation(placed, 0)).isEqualTo(type.pinLocation(asAsked, 0));
+    }
+
+    @Test
     void anOldGateIdIsRefusedNamingItsReplacement() {
         assertThatThrownBy(() -> service.edit(request(place("gate", "nand2", 0, 0))))
                 .isInstanceOfSatisfying(AutomationException.class, refusal -> {

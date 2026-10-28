@@ -1,7 +1,9 @@
 package cl.almejo.vsim.core.command;
 
+import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.ElementBounds;
+import cl.almejo.vsim.core.component.standard.MultiBitOrientation;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
@@ -22,8 +24,10 @@ import java.util.Optional;
 /**
  * Turns components (position and rotation), wires, text labels and frames a quarter turn as a group, around the grid
  * point nearest the center of their bounds. Text labels move but stay upright; a frame's rectangle turns (its title
- * stays on top). Wires are not merged (like a move). Elements that look the same after the turn (a lone text label) are left
- * untouched, and if none changes the document is not touched at all.
+ * stays on top). A multi-bit Switch or LED never turns its body: its pin moves to the next side, alone with the body
+ * in place, in a group to where the turn takes the pin ({@link MultiBitOrientation}). Wires are not merged (like a
+ * move). Elements that look the same after the turn (a lone text label) are left untouched, and if none changes the
+ * document is not touched at all.
  */
 public final class RotateElementsCommand implements Command {
 
@@ -65,6 +69,9 @@ public final class RotateElementsCommand implements Command {
         }
         GridPoint pivot = pivotOf(bounds.get());
         Rotation turn = clockwise ? Rotation.R90 : Rotation.R270;
+        if (elements.size() == 1 && elements.getFirst() instanceof Component lone && turnsBySide(lone)) {
+            return List.of(new Turn(lone, MultiBitOrientation.turnedInPlace(lone, typeOf(lone), turn)));
+        }
         List<Turn> turned = new ArrayList<>();
         for (DocumentElement element : elements) {
             DocumentElement rotated = rotated(element, pivot, turn);
@@ -92,6 +99,8 @@ public final class RotateElementsCommand implements Command {
 
     private DocumentElement rotated(DocumentElement element, GridPoint pivot, Rotation turn) {
         return switch (element) {
+            case Component component when turnsBySide(component) ->
+                    MultiBitOrientation.turnedAbout(component, typeOf(component), pivot, turn);
             case Component component -> component
                     .withPosition(around(component.position(), pivot, turn))
                     .withRotation(clockwise ? component.rotation().clockwise() : component.rotation().counterClockwise());
@@ -101,6 +110,15 @@ public final class RotateElementsCommand implements Command {
             // The paper keeps its shape; only its anchor moves, like a plain note.
             case StickyNote note -> note.placed(note.id(), around(note.position(), pivot, turn));
         };
+    }
+
+    private boolean turnsBySide(Component component) {
+        return registry.findTypeOf(component)
+                .map(type -> MultiBitOrientation.turnsBySide(component, type)).orElse(false);
+    }
+
+    private ComponentType typeOf(Component component) {
+        return registry.typeOf(component);
     }
 
     /**

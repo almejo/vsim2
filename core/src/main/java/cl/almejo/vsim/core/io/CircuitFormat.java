@@ -4,6 +4,7 @@ import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.standard.ConstantValue;
 import cl.almejo.vsim.core.component.standard.MultiBitLayout;
+import cl.almejo.vsim.core.component.standard.MultiBitOrientation;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
@@ -300,7 +301,8 @@ public final class CircuitFormat {
             ComponentType type = local.find(entry.type()).orElseThrow(() -> new CircuitFormatException(
                     CircuitFormatException.Reason.UNKNOWN_COMPONENT_TYPE, String.valueOf(entry.type())));
             requireRotation(entry);
-            add(document, () -> validateAppearance(component(entry, type.resolveParameters(entry.parameters())), type));
+            add(document, () -> MultiBitOrientation.normalized(
+                    validateAppearance(component(entry, type.resolveParameters(entry.parameters())), type), type));
         }
         for (WireEntry entry : entries(file.wires())) {
             requireEntry(entry, "wires");
