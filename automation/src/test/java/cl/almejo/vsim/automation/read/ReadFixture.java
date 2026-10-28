@@ -34,6 +34,11 @@ final class ReadFixture {
         public String english(ComponentType type) {
             return "en " + type.id();
         }
+
+        @Override
+        public String description(ComponentType type, Map<String, Object> parameters) {
+            return "reglas de " + type.id() + (Boolean.TRUE.equals(parameters.get("negate")) ? " negada" : "");
+        }
     };
 
     final CircuitDocument document = new CircuitDocument();

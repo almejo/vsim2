@@ -15,6 +15,7 @@ import javax.swing.JList;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
+import javax.swing.JTextArea;
 import javax.swing.JTextField;
 import javax.swing.UIManager;
 import java.awt.Color;
@@ -37,6 +38,8 @@ public final class ComponentFormPanel extends JPanel {
 
     private final ComponentForm form;
     private final JTextField name = new JTextField(24);
+    /** The optional «Descripción», a few wrapped lines. */
+    private final JTextArea description = new JTextArea(3, 24);
     private final JLabel message = new JLabel(" ");
     private final PinNameTable inputs;
     private final PinNameTable outputs;
@@ -108,6 +111,7 @@ public final class ComponentFormPanel extends JPanel {
                         && !form.target().map(definition::equals).orElse(false)) {
                     form.setTarget(definition);
                     name.setText(form.name());
+                    description.setText(form.description());
                 }
             });
             add(new JLabel(Messages.text("template.dialog.target")), "span 2");
@@ -123,6 +127,23 @@ public final class ComponentFormPanel extends JPanel {
         Color error = UIManager.getColor("Actions.Red");
         message.setForeground(error == null ? ERROR_FALLBACK : error);
         add(message, "span 2");
+        addDescription();
+    }
+
+    /** «Descripción (opcional)»: what Propiedades will show for the component's instances. */
+    private void addDescription() {
+        JLabel caption = new JLabel(Messages.text("template.dialog.description"));
+        caption.setLabelFor(description);
+        add(caption, "span 2");
+        description.setText(form.description());
+        description.setLineWrap(true);
+        description.setWrapStyleWord(true);
+        TextChanges.onChange(description, () -> form.setDescription(description.getText()));
+        add(new JScrollPane(description), "span 2, h 50:70");
+    }
+
+    JTextArea descriptionArea() {
+        return description;
     }
 
     private void addNotesAndReplace() {

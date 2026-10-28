@@ -65,6 +65,11 @@ final class ToolTestHost extends FakeAutomationHost {
         public String english(ComponentType type) {
             return "en " + type.id();
         }
+
+        @Override
+        public String description(ComponentType type, Map<String, Object> parameters) {
+            return "reglas de " + type.id();
+        }
     };
     static final byte[] PNG = {(byte) 0x89, 'P', 'N', 'G'};
 

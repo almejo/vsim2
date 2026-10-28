@@ -20,6 +20,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
@@ -39,7 +40,8 @@ public final class CatalogReader {
     public static CatalogView describeAll(ReadSource source, Optional<String> typeFilter) {
         List<ComponentTypeView> types = new ArrayList<>();
         for (Map.Entry<ComponentType, ComponentTypeView.Origin> entry : catalogueTypes(source).entrySet()) {
-            ComponentTypeView view = view(source, entry.getKey(), Map.of(), entry.getValue());
+            ComponentTypeView view = view(source, entry.getKey(), Map.of(), entry.getValue(),
+                    resolved -> "");
             if (typeFilter.map(filter -> matches(view, filter)).orElse(true)) {
                 types.add(view);
             }
@@ -67,7 +69,8 @@ public final class CatalogReader {
                         "Type " + typeId + " has no parameter " + name, Map.of("parameters", List.copyOf(names)));
             }
         }
-        return view(source, type, parameters, origin);
+        return view(source, type, parameters, origin,
+                resolved -> source.names().description(type, resolved));
     }
 
     /** The library component whose type id is {@code typeId}, when the circuit does not have it yet. */
@@ -100,8 +103,10 @@ public final class CatalogReader {
         return types;
     }
 
+    /** The view of {@code type} with {@code parameters}; {@code description} gives its text from the resolved ones. */
     private static ComponentTypeView view(ReadSource source, ComponentType type, Map<String, Object> parameters,
-                                          ComponentTypeView.Origin origin) {
+                                          ComponentTypeView.Origin origin,
+                                          Function<Map<String, Object>, String> description) {
         Map<String, Object> resolved;
         ComponentType specialised;
         try {
@@ -116,7 +121,8 @@ public final class CatalogReader {
                 source.names().english(type), definition.isPresent(),
                 definition.map(ComponentDefinition::name).orElse(""), resolved,
                 type.parameters().stream().map(CatalogReader::parameter).toList(),
-                specialised.size().width(), specialised.size().height(), pins(specialised), origin);
+                specialised.size().width(), specialised.size().height(), pins(specialised), origin,
+                description.apply(resolved));
     }
 
     private static ParameterView parameter(ParameterSpec spec) {

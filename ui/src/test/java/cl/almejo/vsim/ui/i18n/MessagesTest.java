@@ -99,19 +99,6 @@ class MessagesTest {
     }
 
     @Test
-    void everyBlockHasAPaletteHelp() {
-        List<String> keys = new ArrayList<>();
-        for (ComponentType type : StandardComponentTypes.registry().all()) {
-            if (List.of(ComponentCategory.ARITHMETIC, ComponentCategory.PLEXERS, ComponentCategory.SEQUENTIAL)
-                    .contains(type.category()) && !type.id().equals(StandardComponentTypes.FLIP_FLOP_DATA)) {
-                keys.add("help.component." + type.id());
-            }
-        }
-        assertThat(keys).contains("help.component." + StandardComponentTypes.ADDER);
-        assertThat(missing(keys)).isEmpty();
-    }
-
-    @Test
     void everyReadErrorReasonHasAMessage() {
         List<String> keys = new ArrayList<>();
         for (CircuitFormatException.Reason reason : CircuitFormatException.Reason.values()) {

@@ -10,12 +10,14 @@ import java.util.Map;
  * and the size and pins of the instance the given parameters make (defaults when none are given). Pin positions are
  * relative to the part's origin, unrotated; {@code userComponent} marks user components, the circuit's own and those
  * of the user's library ({@code definitionName} is then the name {@code PlaceInstance} takes, otherwise empty);
- * {@code origin} says which.
+ * {@code origin} says which. {@code description} is what Propiedades says about such a part (its rules and
+ * assumptions, in the editor's language); only the one-type answer carries it, the catalogue leaves it empty to stay
+ * short.
  */
 public record ComponentTypeView(String typeId, String category, String spanishName, String englishName,
                                 boolean userComponent, String definitionName, Map<String, Object> parameterValues,
                                 List<ParameterView> parameters, int width, int height, List<PinSpecView> pins,
-                                Origin origin) {
+                                Origin origin, String description) {
 
     /** Where a type comes from. */
     public enum Origin {
@@ -32,6 +34,7 @@ public record ComponentTypeView(String typeId, String category, String spanishNa
         parameters = List.copyOf(parameters);
         pins = List.copyOf(pins);
         java.util.Objects.requireNonNull(origin, "origin");
+        java.util.Objects.requireNonNull(description, "description");
     }
 
     /**

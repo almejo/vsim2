@@ -44,6 +44,16 @@ class ComponentDefinitionTest {
     }
 
     @Test
+    void aNewDescriptionIsANewRevisionAndTheSameOneChangesNothing() {
+        ComponentDefinition described = inverter.withDescription("Invierte la entrada.");
+
+        assertThat(described.description()).isEqualTo("Invierte la entrada.");
+        assertThat(described.revision()).isEqualTo(inverter.revision() + 1);
+        assertThat(described.withDescription("Invierte la entrada.")).isSameAs(described);
+        assertThat(inverter.withDescription(null).description()).isEmpty();
+    }
+
+    @Test
     void pinsMustPointAtTheMatchingInterfaceComponent() {
         DefinitionPin wrongSource = new DefinitionPin(PinSpec.input("a", 0, 2), new ElementId("c2"));
         assertThatThrownBy(() -> new ComponentDefinition("bad", "Malo", "", new GridSize(4, 4),

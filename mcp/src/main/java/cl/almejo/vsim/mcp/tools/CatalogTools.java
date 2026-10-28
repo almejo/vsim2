@@ -37,6 +37,8 @@ final class CatalogTools {
                 .property("pins", Schema.array("Its pins for these parameters: index (place among the part's pins), "
                         + "name, direction, width in bits (0: takes the width of what it touches) and position "
                         + "relative to the part's origin, unrotated", Schema.anyObject()))
+                .property("description", Schema.string("Its rules and assumptions as the editor's Propiedades "
+                        + "shows them (only vsim_describe_component fills it)"))
                 .required("typeId", "category", "userComponent", "origin", "pins")
                 .build();
     }

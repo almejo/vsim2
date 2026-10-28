@@ -20,6 +20,12 @@ public interface LibraryDialogs {
 
     Optional<String> askNewName(java.awt.Component parent, String currentName);
 
+    /**
+     * «Editar descripción…» of the user component {@code componentName}, starting from {@code current}: the new text,
+     * or empty when the user cancels.
+     */
+    Optional<String> editDescription(java.awt.Component parent, String componentName, String current);
+
     Optional<Path> chooseExportFile(java.awt.Component parent, String suggestedFileName);
 
     /** Empty when the user cancels. */

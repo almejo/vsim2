@@ -15,6 +15,7 @@ import cl.almejo.vsim.core.library.DefinitionBundle;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.ui.app.Listeners;
 import cl.almejo.vsim.ui.clipboard.FragmentRefusingTransferHandler;
+import cl.almejo.vsim.ui.i18n.Descriptions;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.Appearance;
 import cl.almejo.vsim.ui.paint.ColorScheme;
@@ -747,11 +748,19 @@ public final class PalettePanel extends JPanel {
         return null;
     }
 
-    /** The palette tooltip of {@code entry}: its help wrapped to {@link #HELP_WIDTH}, or null (no tooltip). */
+    /**
+     * The palette tooltip of {@code entry}: the first paragraph of its «Descripción» ({@link Descriptions#summary}),
+     * wrapped to {@link #HELP_WIDTH}, or null (no tooltip).
+     */
     static String help(PaletteEntry entry) {
-        return Messages.componentHelp(entry.id())
-                .map(text -> "<html><body style='width:" + HELP_WIDTH + "px'>" + text + "</body></html>")
+        return Descriptions.summary(entry.type(), entry.parameters())
+                .map(text -> "<html><body style='width:" + HELP_WIDTH + "px'>" + escapeHtml(text) + "</body></html>")
                 .orElse(null);
+    }
+
+    /** {@code text} safe inside a tooltip's HTML: «A<B» and «<<» are text, not tags. */
+    private static String escapeHtml(String text) {
+        return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
     }
 
     /** The tooltip the palette shows over the entry of {@code typeId}, if any. Package-private for tests. */

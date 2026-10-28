@@ -99,6 +99,9 @@ class MemoryInspectorRowsTest {
 
     private static void collectOutside(Container root, Container container, int width, List<String> outside) {
         for (java.awt.Component child : container.getComponents()) {
+            if (!child.isVisible()) {
+                continue; // nothing inside a hidden part shows (the buttons of a scroll bar not needed now)
+            }
             java.awt.Rectangle inRoot = javax.swing.SwingUtilities.convertRectangle(container, child.getBounds(), root);
             if (inRoot.x + inRoot.width > width || (child instanceof javax.swing.JComponent && child.isVisible() && inRoot.width <= 0 && !(child instanceof JLabel label && label.getText().isEmpty()))) {
                 outside.add(child.getClass().getSimpleName() + " " + child.getName() + " " + inRoot);

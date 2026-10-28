@@ -50,6 +50,7 @@ public final class TemplateFeatures {
         edit.add(actions.createComponent());
         edit.add(actions.updateComponent());
         view.addContextMenuContributor(actions.contributor());
+        Runnable removeDescriptionRows = view.labelFeatures().properties().addComponentRows(actions.descriptionRows());
         view.setTemplateActions(actions);
 
         LibraryImport importer = new LibraryImport(service, dialogs);
@@ -97,6 +98,7 @@ public final class TemplateFeatures {
         });
         return new TemplateFeatures(view, service, actions, palette, importComponent, importItemRemover, badge,
                 problemsListener, () -> {
+                    removeDescriptionRows.run();
                     removeWarnings.run();
                     removeBadges.run();
                     outdatedPieces.dispose();

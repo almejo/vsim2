@@ -2,6 +2,29 @@
 
 Parte de las [funciones de VSim 2](../funciones.md).
 
+## Descripción en Propiedades
+
+- Al elegir una pieza, la pestaña Propiedades termina con un recuadro «Descripción»: qué hace la pieza, sus pines y
+  sus supuestos, en palabras simples (cuánto vale una entrada de control sin conectar, en qué flanco del reloj
+  actúa, qué pasa con una entrada en Z o en conflicto, cómo trata los números con signo…). Todas las piezas de la
+  paleta tienen una, en español y en inglés; la de la RAM y la ROM dice, por ejemplo, que escriben en el flanco de
+  bajada, que `CS` sin conectar vale 1 y `WE` 0, que una dirección indefinida se lee como Z y no escribe, que achicar
+  la memoria nunca corta el contenido y que VSim nunca escribe un archivo enlazado.
+- El texto sigue a los parámetros: un AND con «Negar salida» muestra la descripción del NAND, el comparador «Con
+  signo» explica el complemento a dos, y la RAM agrega un párrafo para «Escritura: Sin reloj», «Datos: Un solo bus
+  D», «Conexión: Pines sueltos» o cuando está enlazada a un archivo. Cambia apenas se aplica el cambio.
+- Un clic en el título «▾ Descripción» la pliega (queda solo el título, «▸ Descripción») y otro la despliega; VSim
+  recuerda la elección para todas las piezas y las próximas sesiones. El texto se ajusta al ancho de la barra lateral
+  y, si es largo, se desplaza dentro del recuadro sin empujar lo demás. Con varias cosas elegidas, un cable o un
+  texto no se muestra.
+- El diálogo «Configurar…» muestra la misma descripción bajo los parámetros, y la sigue al aplicar cada valor.
+- Al pasar el mouse sobre una pieza de la paleta, el globo muestra el primer párrafo de su descripción.
+- Los componentes propios muestran su propia descripción: se escribe en «Descripción (opcional)» al crear o actualizar
+  el componente, y después con el botón «Editar descripción…» de Propiedades (un paso de deshacer; si el componente
+  está en la librería, su archivo se actualiza también). Sin descripción, el recuadro no aparece.
+- La IA lee el mismo texto: `vsim_describe_component` devuelve la descripción de la pieza con los parámetros pedidos
+  (o la del componente propio), en el idioma del editor.
+
 ## Compuertas
 
 - Hay una sola compuerta por operación: **AND**, **OR** y **XOR**, y el **Buffer** (una entrada). En Propiedades

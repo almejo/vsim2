@@ -129,6 +129,29 @@ class DefinitionCommandsTest {
                 List.of(body.get(0), instance("c2", innerId, 2, 0), body.get(2)), List.of(), List.of()));
     }
 
+    @Test
+    void changingADescriptionReplacesOnlyTheTextAndRevertRestoresIt() {
+        document.putDefinition(inverter);
+        Component instance = instance("c1", ExampleDefinitions.INVERTER, 0, 0);
+        document.add(instance);
+        List<DocumentChange> changes = new ArrayList<>();
+        document.addListener((changed, change) -> changes.add(change));
+        ChangeDefinitionDescriptionCommand command = new ChangeDefinitionDescriptionCommand(
+                ExampleDefinitions.INVERTER, "Invierte la entrada.");
+
+        command.apply(document);
+        ComponentDefinition described = document.definition(ExampleDefinitions.INVERTER).orElseThrow();
+        assertThat(described.description()).isEqualTo("Invierte la entrada.");
+        assertThat(described.name()).isEqualTo(inverter.name());
+        assertThat(described.body()).isEqualTo(inverter.body());
+        assertThat(described.revision()).isEqualTo(inverter.revision() + 1);
+        assertThat(changes).anySatisfy(change -> assertThat(change.changed()).contains(instance.id()));
+        assertThat(command.description()).isEqualTo("command.changeDescription");
+
+        command.revert(document);
+        assertThat(document.definition(ExampleDefinitions.INVERTER)).containsSame(inverter);
+    }
+
     private static Component instance(String id, String definitionId, int x, int y) {
         return new Component(new ElementId(id), SubcircuitTypes.typeIdOf(definitionId), new GridPoint(x, y),
                 Rotation.R0, Map.of(), "");

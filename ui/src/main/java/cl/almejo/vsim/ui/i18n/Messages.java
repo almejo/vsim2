@@ -13,7 +13,6 @@ import java.text.MessageFormat;
 import java.util.Locale;
 import java.util.Map;
 import java.util.MissingResourceException;
-import java.util.Optional;
 import java.util.ResourceBundle;
 
 /**
@@ -88,17 +87,6 @@ public final class Messages {
     public static String componentName(ComponentType type, Map<String, Object> parameters) {
         return SubcircuitTypes.definitionOf(type).map(ComponentDefinition::name)
                 .orElseGet(() -> componentName(type.id(), parameters));
-    }
-
-    /** The help a type shows as a palette tooltip (key {@code help.component.<type id>}), when it has one. */
-    public static Optional<String> componentHelp(ComponentType type) {
-        return componentHelp(type.id());
-    }
-
-    /** The help of the palette entry {@code id}, a type or a preset (key {@code help.component.<id>}), if any. */
-    public static Optional<String> componentHelp(String id) {
-        String key = "help.component." + id;
-        return current.containsKey(key) ? Optional.of(current.getString(key)) : Optional.empty();
     }
 
     public static String categoryName(ComponentCategory category) {
