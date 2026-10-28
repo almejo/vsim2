@@ -18,6 +18,8 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 - El **Buffer**: una compuerta de una entrada que copia su entrada (útil para hablar de retardo y de fan-out); negado
   es el NOT. También tiene «Ancho (bits)».
 - La línea de costo del asistente de Karnaugh y de «Circuito desde expresiones» cuenta los XNOR.
+- Para la IA, una compuerta se coloca con sus parámetros (`inputs`, `width`, `negate`) y `vsim_describe_component` lista los pines según «Entradas»; el ejemplo de la herramienta de edición usa `and` con `negate`.
+- Para desarrolladores: `VSIM_MIGRATE_PATHS` reescribe tus archivos al formato 4 (ver «Para desarrolladores»). Los ejemplos y fixtures del repositorio ya están en el formato 4.
 
 ### Cambiado
 

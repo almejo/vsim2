@@ -350,8 +350,10 @@ final class EditTools {
                         "stage", "Latch SR", "step", "Coloco las compuertas", "text", "Coloco dos NAND",
                         "reason", "Dos NAND cruzadas forman el latch",
                         "operations", List.of(
-                                Map.of("op", "PlacePart", "alias", "top", "typeId", "nand2", "x", 10, "y", 0),
-                                Map.of("op", "PlacePart", "alias", "bottom", "typeId", "nand2", "x", 10, "y", 10),
+                                Map.of("op", "PlacePart", "alias", "top", "typeId", "and", "x", 10, "y", 0,
+                                        "parameters", Map.of("negate", true)),
+                                Map.of("op", "PlacePart", "alias", "bottom", "typeId", "and", "x", 10, "y", 10,
+                                        "parameters", Map.of("negate", true)),
                                 Map.of("op", "PlacePart", "alias", "s", "typeId", "switch", "x", 0, "y", 0,
                                         "label", "S"),
                                 Map.of("op", "Connect", "from", Map.of("target", "new:s", "pinName", "out"),

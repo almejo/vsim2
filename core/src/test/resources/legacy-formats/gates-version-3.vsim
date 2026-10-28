@@ -1,0 +1,1171 @@
+{
+  "format" : "vsim2",
+  "savedWith" : "0.3",
+  "formatVersion" : 3,
+  "kind" : "circuit",
+  "name" : "rotated-gates",
+  "components" : [ {
+    "id" : "c6",
+    "type" : "not",
+    "x" : 10,
+    "y" : 10,
+    "rotation" : 0,
+    "label" : "",
+    "parameters" : {
+      "delay" : 1
+    }
+  }, {
+    "id" : "c7",
+    "type" : "clock",
+    "x" : 6,
+    "y" : 10,
+    "rotation" : 0,
+    "label" : "",
+    "parameters" : {
+      "time-down" : 40,
+      "time-up" : 40
+    }
+  }, {
+    "id" : "c9",
+    "type" : "led",
+    "x" : 19,
+    "y" : 11,
+    "rotation" : 1,
+    "label" : "",
+    "parameters" : {
+      "color" : "red"
+    }
+  }, {
+    "id" : "c11",
+    "type" : "not",
+    "x" : 38,
+    "y" : 10,
+    "rotation" : 1,
+    "label" : "",
+    "parameters" : {
+      "delay" : 1
+    }
+  }, {
+    "id" : "c12",
+    "type" : "clock",
+    "x" : 38,
+    "y" : 6,
+    "rotation" : 1,
+    "label" : "",
+    "parameters" : {
+      "time-down" : 40,
+      "time-up" : 40
+    }
+  }, {
+    "id" : "c14",
+    "type" : "led",
+    "x" : 37,
+    "y" : 19,
+    "rotation" : 2,
+    "label" : "",
+    "parameters" : {
+      "color" : "red"
+    }
+  }, {
+    "id" : "c16",
+    "type" : "not",
+    "x" : 62,
+    "y" : 14,
+    "rotation" : 2,
+    "label" : "",
+    "parameters" : {
+      "delay" : 1
+    }
+  }, {
+    "id" : "c17",
+    "type" : "clock",
+    "x" : 66,
+    "y" : 14,
+    "rotation" : 2,
+    "label" : "",
+    "parameters" : {
+      "time-down" : 40,
+      "time-up" : 40
+    }
+  }, {
+    "id" : "c19",
+    "type" : "led",
+    "x" : 53,
+    "y" : 13,
+    "rotation" : 3,
+    "label" : "",
+    "parameters" : {
+      "color" : "red"
+    }
+  }, {
+    "id" : "c21",
+    "type" : "not",
+    "x" : 82,
+    "y" : 14,
+    "rotation" : 3,
+    "label" : "",
+    "parameters" : {
+      "delay" : 1
+    }
+  }, {
+    "id" : "c22",
+    "type" : "clock",
+    "x" : 82,
+    "y" : 18,
+    "rotation" : 3,
+    "label" : "",
+    "parameters" : {
+      "time-down" : 40,
+      "time-up" : 40
+    }
+  }, {
+    "id" : "c24",
+    "type" : "led",
+    "x" : 83,
+    "y" : 5,
+    "rotation" : 0,
+    "label" : "",
+    "parameters" : {
+      "color" : "red"
+    }
+  }, {
+    "id" : "c27",
+    "type" : "and2",
+    "x" : 10,
+    "y" : 34,
+    "rotation" : 0,
+    "label" : "",
+    "parameters" : {
+      "delay" : 1
+    }
+  }, {
+    "id" : "c28",
+    "type" : "clock",
+    "x" : 6,
+    "y" : 32,
+    "rotation" : 0,
+    "label" : "",
+    "parameters" : {
+      "time-down" : 40,
+      "time-up" : 40
+    }
+  }, {
+    "id" : "c30",
+    "type" : "switch",
+    "x" : 4,
+    "y" : 37,
+    "rotation" : 0,
+    "label" : "",
+    "parameters" : {
+      "value" : "1"
+    }
+  }, {
+    "id" : "c32",
+    "type" : "led",
+    "x" : 19,
+    "y" : 35,
+    "rotation" : 1,
+    "label" : "",
+    "parameters" : {
+      "color" : "red"
+    }
+  }, {
+    "id" : "c34",
+    "type" : "and2",
+    "x" : 38,
+    "y" : 34,
+    "rotation" : 1,
+    "label" : "",
+    "parameters" : {
+      "delay" : 1
+    }
+  }, {
+    "id" : "c35",
+    "type" : "clock",
+    "x" : 40,
+    "y" : 30,
+    "rotation" : 1,
+    "label" : "",
+    "parameters" : {
+      "time-down" : 40,
+      "time-up" : 40
+    }
+  }, {
+    "id" : "c37",
+    "type" : "switch",
+    "x" : 35,
+    "y" : 28,
+    "rotation" : 1,
+    "label" : "",
+    "parameters" : {
+      "value" : "1"
+    }
+  }, {
+    "id" : "c39",
+    "type" : "led",
+    "x" : 37,
+    "y" : 43,
+    "rotation" : 2,
+    "label" : "",
+    "parameters" : {
+      "color" : "red"
+    }
+  }, {
+    "id" : "c41",
+    "type" : "and2",
+    "x" : 62,
+    "y" : 38,
+    "rotation" : 2,
+    "label" : "",
+    "parameters" : {
+      "delay" : 1
+    }
+  }, {
+    "id" : "c42",
+    "type" : "clock",
+    "x" : 66,
+    "y" : 40,
+    "rotation" : 2,
+    "label" : "",
+    "parameters" : {
+      "time-down" : 40,
+      "time-up" : 40
+    }
+  }, {
+    "id" : "c44",
+    "type" : "switch",
+    "x" : 68,
+    "y" : 35,
+    "rotation" : 2,
+    "label" : "",
+    "parameters" : {
+      "value" : "1"
+    }
+  }, {
+    "id" : "c46",
+    "type" : "led",
+    "x" : 53,
+    "y" : 37,
+    "rotation" : 3,
+    "label" : "",
+    "parameters" : {
+      "color" : "red"
+    }
+  }, {
+    "id" : "c48",
+    "type" : "and2",
+    "x" : 82,
+    "y" : 38,
+    "rotation" : 3,
+    "label" : "",
+    "parameters" : {
+      "delay" : 1
+    }
+  }, {
+    "id" : "c49",
+    "type" : "clock",
+    "x" : 80,
+    "y" : 42,
+    "rotation" : 3,
+    "label" : "",
+    "parameters" : {
+      "time-down" : 40,
+      "time-up" : 40
+    }
+  }, {
+    "id" : "c51",
+    "type" : "switch",
+    "x" : 85,
+    "y" : 44,
+    "rotation" : 3,
+    "label" : "",
+    "parameters" : {
+      "value" : "1"
+    }
+  }, {
+    "id" : "c53",
+    "type" : "led",
+    "x" : 83,
+    "y" : 29,
+    "rotation" : 0,
+    "label" : "",
+    "parameters" : {
+      "color" : "red"
+    }
+  }, {
+    "id" : "c56",
+    "type" : "or2",
+    "x" : 10,
+    "y" : 58,
+    "rotation" : 0,
+    "label" : "",
+    "parameters" : {
+      "delay" : 1
+    }
+  }, {
+    "id" : "c57",
+    "type" : "clock",
+    "x" : 6,
+    "y" : 56,
+    "rotation" : 0,
+    "label" : "",
+    "parameters" : {
+      "time-down" : 40,
+      "time-up" : 40
+    }
+  }, {
+    "id" : "c59",
+    "type" : "switch",
+    "x" : 4,
+    "y" : 61,
+    "rotation" : 0,
+    "label" : "",
+    "parameters" : {
+      "value" : "0"
+    }
+  }, {
+    "id" : "c61",
+    "type" : "led",
+    "x" : 19,
+    "y" : 59,
+    "rotation" : 1,
+    "label" : "",
+    "parameters" : {
+      "color" : "red"
+    }
+  }, {
+    "id" : "c63",
+    "type" : "or2",
+    "x" : 38,
+    "y" : 58,
+    "rotation" : 1,
+    "label" : "",
+    "parameters" : {
+      "delay" : 1
+    }
+  }, {
+    "id" : "c64",
+    "type" : "clock",
+    "x" : 40,
+    "y" : 54,
+    "rotation" : 1,
+    "label" : "",
+    "parameters" : {
+      "time-down" : 40,
+      "time-up" : 40
+    }
+  }, {
+    "id" : "c66",
+    "type" : "switch",
+    "x" : 35,
+    "y" : 52,
+    "rotation" : 1,
+    "label" : "",
+    "parameters" : {
+      "value" : "0"
+    }
+  }, {
+    "id" : "c68",
+    "type" : "led",
+    "x" : 37,
+    "y" : 67,
+    "rotation" : 2,
+    "label" : "",
+    "parameters" : {
+      "color" : "red"
+    }
+  }, {
+    "id" : "c70",
+    "type" : "or2",
+    "x" : 62,
+    "y" : 62,
+    "rotation" : 2,
+    "label" : "",
+    "parameters" : {
+      "delay" : 1
+    }
+  }, {
+    "id" : "c71",
+    "type" : "clock",
+    "x" : 66,
+    "y" : 64,
+    "rotation" : 2,
+    "label" : "",
+    "parameters" : {
+      "time-down" : 40,
+      "time-up" : 40
+    }
+  }, {
+    "id" : "c73",
+    "type" : "switch",
+    "x" : 68,
+    "y" : 59,
+    "rotation" : 2,
+    "label" : "",
+    "parameters" : {
+      "value" : "0"
+    }
+  }, {
+    "id" : "c75",
+    "type" : "led",
+    "x" : 53,
+    "y" : 61,
+    "rotation" : 3,
+    "label" : "",
+    "parameters" : {
+      "color" : "red"
+    }
+  }, {
+    "id" : "c77",
+    "type" : "or2",
+    "x" : 82,
+    "y" : 62,
+    "rotation" : 3,
+    "label" : "",
+    "parameters" : {
+      "delay" : 1
+    }
+  }, {
+    "id" : "c78",
+    "type" : "clock",
+    "x" : 80,
+    "y" : 66,
+    "rotation" : 3,
+    "label" : "",
+    "parameters" : {
+      "time-down" : 40,
+      "time-up" : 40
+    }
+  }, {
+    "id" : "c80",
+    "type" : "switch",
+    "x" : 85,
+    "y" : 68,
+    "rotation" : 3,
+    "label" : "",
+    "parameters" : {
+      "value" : "0"
+    }
+  }, {
+    "id" : "c82",
+    "type" : "led",
+    "x" : 83,
+    "y" : 53,
+    "rotation" : 0,
+    "label" : "",
+    "parameters" : {
+      "color" : "red"
+    }
+  }, {
+    "id" : "c85",
+    "type" : "xor2",
+    "x" : 10,
+    "y" : 82,
+    "rotation" : 0,
+    "label" : "",
+    "parameters" : {
+      "delay" : 1
+    }
+  }, {
+    "id" : "c86",
+    "type" : "clock",
+    "x" : 6,
+    "y" : 80,
+    "rotation" : 0,
+    "label" : "",
+    "parameters" : {
+      "time-down" : 40,
+      "time-up" : 40
+    }
+  }, {
+    "id" : "c88",
+    "type" : "switch",
+    "x" : 4,
+    "y" : 85,
+    "rotation" : 0,
+    "label" : "",
+    "parameters" : {
+      "value" : "1"
+    }
+  }, {
+    "id" : "c90",
+    "type" : "led",
+    "x" : 19,
+    "y" : 83,
+    "rotation" : 1,
+    "label" : "",
+    "parameters" : {
+      "color" : "red"
+    }
+  }, {
+    "id" : "c92",
+    "type" : "xor2",
+    "x" : 38,
+    "y" : 82,
+    "rotation" : 1,
+    "label" : "",
+    "parameters" : {
+      "delay" : 1
+    }
+  }, {
+    "id" : "c93",
+    "type" : "clock",
+    "x" : 40,
+    "y" : 78,
+    "rotation" : 1,
+    "label" : "",
+    "parameters" : {
+      "time-down" : 40,
+      "time-up" : 40
+    }
+  }, {
+    "id" : "c95",
+    "type" : "switch",
+    "x" : 35,
+    "y" : 76,
+    "rotation" : 1,
+    "label" : "",
+    "parameters" : {
+      "value" : "1"
+    }
+  }, {
+    "id" : "c97",
+    "type" : "led",
+    "x" : 37,
+    "y" : 91,
+    "rotation" : 2,
+    "label" : "",
+    "parameters" : {
+      "color" : "red"
+    }
+  }, {
+    "id" : "c99",
+    "type" : "xor2",
+    "x" : 62,
+    "y" : 86,
+    "rotation" : 2,
+    "label" : "",
+    "parameters" : {
+      "delay" : 1
+    }
+  }, {
+    "id" : "c100",
+    "type" : "clock",
+    "x" : 66,
+    "y" : 88,
+    "rotation" : 2,
+    "label" : "",
+    "parameters" : {
+      "time-down" : 40,
+      "time-up" : 40
+    }
+  }, {
+    "id" : "c102",
+    "type" : "switch",
+    "x" : 68,
+    "y" : 83,
+    "rotation" : 2,
+    "label" : "",
+    "parameters" : {
+      "value" : "1"
+    }
+  }, {
+    "id" : "c104",
+    "type" : "led",
+    "x" : 53,
+    "y" : 85,
+    "rotation" : 3,
+    "label" : "",
+    "parameters" : {
+      "color" : "red"
+    }
+  }, {
+    "id" : "c106",
+    "type" : "xor2",
+    "x" : 82,
+    "y" : 86,
+    "rotation" : 3,
+    "label" : "",
+    "parameters" : {
+      "delay" : 1
+    }
+  }, {
+    "id" : "c107",
+    "type" : "clock",
+    "x" : 80,
+    "y" : 90,
+    "rotation" : 3,
+    "label" : "",
+    "parameters" : {
+      "time-down" : 40,
+      "time-up" : 40
+    }
+  }, {
+    "id" : "c109",
+    "type" : "switch",
+    "x" : 85,
+    "y" : 92,
+    "rotation" : 3,
+    "label" : "",
+    "parameters" : {
+      "value" : "1"
+    }
+  }, {
+    "id" : "c111",
+    "type" : "led",
+    "x" : 83,
+    "y" : 77,
+    "rotation" : 0,
+    "label" : "",
+    "parameters" : {
+      "color" : "red"
+    }
+  }, {
+    "id" : "c114",
+    "type" : "flip-flop-data",
+    "x" : 10,
+    "y" : 106,
+    "rotation" : 0,
+    "label" : "",
+    "parameters" : {
+      "delay" : 1
+    }
+  }, {
+    "id" : "c115",
+    "type" : "switch",
+    "x" : 4,
+    "y" : 107,
+    "rotation" : 0,
+    "label" : "",
+    "parameters" : {
+      "value" : "1"
+    }
+  }, {
+    "id" : "c117",
+    "type" : "clock",
+    "x" : 10,
+    "y" : 114,
+    "rotation" : 3,
+    "label" : "",
+    "parameters" : {
+      "time-down" : 40,
+      "time-up" : 40
+    }
+  }, {
+    "id" : "c119",
+    "type" : "led",
+    "x" : 19,
+    "y" : 107,
+    "rotation" : 1,
+    "label" : "",
+    "parameters" : {
+      "color" : "red"
+    }
+  }, {
+    "id" : "c121",
+    "type" : "flip-flop-data",
+    "x" : 38,
+    "y" : 106,
+    "rotation" : 1,
+    "label" : "",
+    "parameters" : {
+      "delay" : 1
+    }
+  }, {
+    "id" : "c122",
+    "type" : "switch",
+    "x" : 37,
+    "y" : 100,
+    "rotation" : 1,
+    "label" : "",
+    "parameters" : {
+      "value" : "1"
+    }
+  }, {
+    "id" : "c124",
+    "type" : "clock",
+    "x" : 30,
+    "y" : 106,
+    "rotation" : 0,
+    "label" : "",
+    "parameters" : {
+      "time-down" : 40,
+      "time-up" : 40
+    }
+  }, {
+    "id" : "c126",
+    "type" : "led",
+    "x" : 37,
+    "y" : 115,
+    "rotation" : 2,
+    "label" : "",
+    "parameters" : {
+      "color" : "red"
+    }
+  }, {
+    "id" : "c128",
+    "type" : "flip-flop-data",
+    "x" : 62,
+    "y" : 110,
+    "rotation" : 2,
+    "label" : "",
+    "parameters" : {
+      "delay" : 1
+    }
+  }, {
+    "id" : "c129",
+    "type" : "switch",
+    "x" : 68,
+    "y" : 109,
+    "rotation" : 2,
+    "label" : "",
+    "parameters" : {
+      "value" : "1"
+    }
+  }, {
+    "id" : "c131",
+    "type" : "clock",
+    "x" : 62,
+    "y" : 102,
+    "rotation" : 1,
+    "label" : "",
+    "parameters" : {
+      "time-down" : 40,
+      "time-up" : 40
+    }
+  }, {
+    "id" : "c133",
+    "type" : "led",
+    "x" : 53,
+    "y" : 109,
+    "rotation" : 3,
+    "label" : "",
+    "parameters" : {
+      "color" : "red"
+    }
+  }, {
+    "id" : "c135",
+    "type" : "flip-flop-data",
+    "x" : 82,
+    "y" : 110,
+    "rotation" : 3,
+    "label" : "",
+    "parameters" : {
+      "delay" : 1
+    }
+  }, {
+    "id" : "c136",
+    "type" : "switch",
+    "x" : 83,
+    "y" : 116,
+    "rotation" : 3,
+    "label" : "",
+    "parameters" : {
+      "value" : "1"
+    }
+  }, {
+    "id" : "c138",
+    "type" : "clock",
+    "x" : 90,
+    "y" : 110,
+    "rotation" : 2,
+    "label" : "",
+    "parameters" : {
+      "time-down" : 40,
+      "time-up" : 40
+    }
+  }, {
+    "id" : "c140",
+    "type" : "led",
+    "x" : 83,
+    "y" : 101,
+    "rotation" : 0,
+    "label" : "",
+    "parameters" : {
+      "color" : "red"
+    }
+  } ],
+  "wires" : [ {
+    "id" : "w8",
+    "x1" : 8,
+    "y1" : 12,
+    "x2" : 10,
+    "y2" : 12
+  }, {
+    "id" : "w10",
+    "x1" : 14,
+    "y1" : 12,
+    "x2" : 16,
+    "y2" : 12
+  }, {
+    "id" : "w13",
+    "x1" : 36,
+    "y1" : 8,
+    "x2" : 36,
+    "y2" : 10
+  }, {
+    "id" : "w15",
+    "x1" : 36,
+    "y1" : 14,
+    "x2" : 36,
+    "y2" : 16
+  }, {
+    "id" : "w18",
+    "x1" : 62,
+    "y1" : 12,
+    "x2" : 64,
+    "y2" : 12
+  }, {
+    "id" : "w20",
+    "x1" : 56,
+    "y1" : 12,
+    "x2" : 58,
+    "y2" : 12
+  }, {
+    "id" : "w23",
+    "x1" : 84,
+    "y1" : 14,
+    "x2" : 84,
+    "y2" : 16
+  }, {
+    "id" : "w25",
+    "x1" : 84,
+    "y1" : 8,
+    "x2" : 84,
+    "y2" : 10
+  }, {
+    "id" : "w29",
+    "x1" : 8,
+    "y1" : 34,
+    "x2" : 10,
+    "y2" : 34
+  }, {
+    "id" : "w31",
+    "x1" : 8,
+    "y1" : 38,
+    "x2" : 10,
+    "y2" : 38
+  }, {
+    "id" : "w33",
+    "x1" : 14,
+    "y1" : 36,
+    "x2" : 16,
+    "y2" : 36
+  }, {
+    "id" : "w36",
+    "x1" : 38,
+    "y1" : 32,
+    "x2" : 38,
+    "y2" : 34
+  }, {
+    "id" : "w38",
+    "x1" : 34,
+    "y1" : 32,
+    "x2" : 34,
+    "y2" : 34
+  }, {
+    "id" : "w40",
+    "x1" : 36,
+    "y1" : 38,
+    "x2" : 36,
+    "y2" : 40
+  }, {
+    "id" : "w43",
+    "x1" : 62,
+    "y1" : 38,
+    "x2" : 64,
+    "y2" : 38
+  }, {
+    "id" : "w45",
+    "x1" : 62,
+    "y1" : 34,
+    "x2" : 64,
+    "y2" : 34
+  }, {
+    "id" : "w47",
+    "x1" : 56,
+    "y1" : 36,
+    "x2" : 58,
+    "y2" : 36
+  }, {
+    "id" : "w50",
+    "x1" : 82,
+    "y1" : 38,
+    "x2" : 82,
+    "y2" : 40
+  }, {
+    "id" : "w52",
+    "x1" : 86,
+    "y1" : 38,
+    "x2" : 86,
+    "y2" : 40
+  }, {
+    "id" : "w54",
+    "x1" : 84,
+    "y1" : 32,
+    "x2" : 84,
+    "y2" : 34
+  }, {
+    "id" : "w58",
+    "x1" : 8,
+    "y1" : 58,
+    "x2" : 10,
+    "y2" : 58
+  }, {
+    "id" : "w60",
+    "x1" : 8,
+    "y1" : 62,
+    "x2" : 10,
+    "y2" : 62
+  }, {
+    "id" : "w62",
+    "x1" : 14,
+    "y1" : 60,
+    "x2" : 16,
+    "y2" : 60
+  }, {
+    "id" : "w65",
+    "x1" : 38,
+    "y1" : 56,
+    "x2" : 38,
+    "y2" : 58
+  }, {
+    "id" : "w67",
+    "x1" : 34,
+    "y1" : 56,
+    "x2" : 34,
+    "y2" : 58
+  }, {
+    "id" : "w69",
+    "x1" : 36,
+    "y1" : 62,
+    "x2" : 36,
+    "y2" : 64
+  }, {
+    "id" : "w72",
+    "x1" : 62,
+    "y1" : 62,
+    "x2" : 64,
+    "y2" : 62
+  }, {
+    "id" : "w74",
+    "x1" : 62,
+    "y1" : 58,
+    "x2" : 64,
+    "y2" : 58
+  }, {
+    "id" : "w76",
+    "x1" : 56,
+    "y1" : 60,
+    "x2" : 58,
+    "y2" : 60
+  }, {
+    "id" : "w79",
+    "x1" : 82,
+    "y1" : 62,
+    "x2" : 82,
+    "y2" : 64
+  }, {
+    "id" : "w81",
+    "x1" : 86,
+    "y1" : 62,
+    "x2" : 86,
+    "y2" : 64
+  }, {
+    "id" : "w83",
+    "x1" : 84,
+    "y1" : 56,
+    "x2" : 84,
+    "y2" : 58
+  }, {
+    "id" : "w87",
+    "x1" : 8,
+    "y1" : 82,
+    "x2" : 10,
+    "y2" : 82
+  }, {
+    "id" : "w89",
+    "x1" : 8,
+    "y1" : 86,
+    "x2" : 10,
+    "y2" : 86
+  }, {
+    "id" : "w91",
+    "x1" : 14,
+    "y1" : 84,
+    "x2" : 16,
+    "y2" : 84
+  }, {
+    "id" : "w94",
+    "x1" : 38,
+    "y1" : 80,
+    "x2" : 38,
+    "y2" : 82
+  }, {
+    "id" : "w96",
+    "x1" : 34,
+    "y1" : 80,
+    "x2" : 34,
+    "y2" : 82
+  }, {
+    "id" : "w98",
+    "x1" : 36,
+    "y1" : 86,
+    "x2" : 36,
+    "y2" : 88
+  }, {
+    "id" : "w101",
+    "x1" : 62,
+    "y1" : 86,
+    "x2" : 64,
+    "y2" : 86
+  }, {
+    "id" : "w103",
+    "x1" : 62,
+    "y1" : 82,
+    "x2" : 64,
+    "y2" : 82
+  }, {
+    "id" : "w105",
+    "x1" : 56,
+    "y1" : 84,
+    "x2" : 58,
+    "y2" : 84
+  }, {
+    "id" : "w108",
+    "x1" : 82,
+    "y1" : 86,
+    "x2" : 82,
+    "y2" : 88
+  }, {
+    "id" : "w110",
+    "x1" : 86,
+    "y1" : 86,
+    "x2" : 86,
+    "y2" : 88
+  }, {
+    "id" : "w112",
+    "x1" : 84,
+    "y1" : 80,
+    "x2" : 84,
+    "y2" : 82
+  }, {
+    "id" : "w116",
+    "x1" : 8,
+    "y1" : 108,
+    "x2" : 10,
+    "y2" : 108
+  }, {
+    "id" : "w118",
+    "x1" : 12,
+    "y1" : 110,
+    "x2" : 12,
+    "y2" : 112
+  }, {
+    "id" : "w120",
+    "x1" : 14,
+    "y1" : 108,
+    "x2" : 16,
+    "y2" : 108
+  }, {
+    "id" : "w123",
+    "x1" : 36,
+    "y1" : 104,
+    "x2" : 36,
+    "y2" : 106
+  }, {
+    "id" : "w125",
+    "x1" : 32,
+    "y1" : 108,
+    "x2" : 34,
+    "y2" : 108
+  }, {
+    "id" : "w127",
+    "x1" : 36,
+    "y1" : 110,
+    "x2" : 36,
+    "y2" : 112
+  }, {
+    "id" : "w130",
+    "x1" : 62,
+    "y1" : 108,
+    "x2" : 64,
+    "y2" : 108
+  }, {
+    "id" : "w132",
+    "x1" : 60,
+    "y1" : 104,
+    "x2" : 60,
+    "y2" : 106
+  }, {
+    "id" : "w134",
+    "x1" : 56,
+    "y1" : 108,
+    "x2" : 58,
+    "y2" : 108
+  }, {
+    "id" : "w137",
+    "x1" : 84,
+    "y1" : 110,
+    "x2" : 84,
+    "y2" : 112
+  }, {
+    "id" : "w139",
+    "x1" : 86,
+    "y1" : 108,
+    "x2" : 88,
+    "y2" : 108
+  }, {
+    "id" : "w141",
+    "x1" : 84,
+    "y1" : 104,
+    "x2" : 84,
+    "y2" : 106
+  } ],
+  "labels" : [ {
+    "id" : "l1",
+    "x" : 11,
+    "y" : 1,
+    "text" : "R0"
+  }, {
+    "id" : "l2",
+    "x" : 35,
+    "y" : 1,
+    "text" : "R90"
+  }, {
+    "id" : "l3",
+    "x" : 59,
+    "y" : 1,
+    "text" : "R180"
+  }, {
+    "id" : "l4",
+    "x" : 83,
+    "y" : 1,
+    "text" : "R270"
+  }, {
+    "id" : "l5",
+    "x" : 1,
+    "y" : 3,
+    "text" : "NOT"
+  }, {
+    "id" : "l26",
+    "x" : 1,
+    "y" : 27,
+    "text" : "AND2"
+  }, {
+    "id" : "l55",
+    "x" : 1,
+    "y" : 51,
+    "text" : "OR2"
+  }, {
+    "id" : "l84",
+    "x" : 1,
+    "y" : 75,
+    "text" : "XOR2"
+  }, {
+    "id" : "l113",
+    "x" : 1,
+    "y" : 99,
+    "text" : "Flip-flop D"
+  } ]
+}

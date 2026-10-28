@@ -1,7 +1,7 @@
 {
   "format" : "vsim2",
-  "savedWith" : "0.3",
-  "formatVersion" : 3,
+  "savedWith" : "0.4",
+  "formatVersion" : 4,
   "kind" : "circuit",
   "name" : "",
   "components" : [ {
@@ -87,23 +87,29 @@
     }
   }, {
     "id" : "c24",
-    "type" : "xor2",
+    "type" : "xor",
     "x" : 19,
     "y" : 34,
     "rotation" : 0,
     "label" : "XOR",
     "parameters" : {
-      "delay" : 1
+      "delay" : 1,
+      "inputs" : 2,
+      "negate" : false,
+      "width" : 1
     }
   }, {
     "id" : "c25",
-    "type" : "and2",
+    "type" : "and",
     "x" : 19,
     "y" : 42,
     "rotation" : 0,
     "label" : "AND",
     "parameters" : {
-      "delay" : 1
+      "delay" : 1,
+      "inputs" : 2,
+      "negate" : false,
+      "width" : 1
     }
   }, {
     "id" : "c26",

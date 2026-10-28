@@ -20,6 +20,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -83,6 +85,17 @@ class LegacyGateMigrationTest {
 
         assertThat(saved).contains("\"formatVersion\" : 4").contains("\"type\" : \"or\"").doesNotContain("nor3");
         assertThat(format.write(format.read(saved))).isEqualTo(saved);
+    }
+
+    @Test
+    void aCommittedFormatThreeFileOpensAsTheSameCircuitAsItsFormatFourRewrite() throws Exception {
+        String legacy = Files.readString(Path.of("src/test/resources/legacy-formats/gates-version-3.vsim"));
+        String current = Files.readString(Path.of("src/test/resources/fixtures/m3/rotated-gates.vsim"));
+
+        assertThat(legacy).contains("\"formatVersion\" : 3").contains("\"not\"");
+        assertThat(current).contains("\"formatVersion\" : 4");
+        assertThat(format.write(format.read(legacy)))
+                .isEqualTo(format.write(format.read(current)));
     }
 
     @Test

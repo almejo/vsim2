@@ -1,7 +1,7 @@
 {
   "format" : "vsim2",
-  "savedWith" : "0.3",
-  "formatVersion" : 3,
+  "savedWith" : "0.4",
+  "formatVersion" : 4,
   "kind" : "circuit",
   "name" : "selection-playground",
   "components" : [ {
@@ -17,33 +17,39 @@
     }
   }, {
     "id" : "c3",
-    "type" : "not",
+    "type" : "buffer",
     "x" : 10,
     "y" : 8,
     "rotation" : 0,
     "label" : "N1",
     "parameters" : {
-      "delay" : 1
+      "delay" : 1,
+      "negate" : true,
+      "width" : 1
     }
   }, {
     "id" : "c4",
-    "type" : "not",
+    "type" : "buffer",
     "x" : 18,
     "y" : 8,
     "rotation" : 0,
     "label" : "N2",
     "parameters" : {
-      "delay" : 1
+      "delay" : 1,
+      "negate" : true,
+      "width" : 1
     }
   }, {
     "id" : "c5",
-    "type" : "not",
+    "type" : "buffer",
     "x" : 26,
     "y" : 8,
     "rotation" : 0,
     "label" : "N3",
     "parameters" : {
-      "delay" : 1
+      "delay" : 1,
+      "negate" : true,
+      "width" : 1
     }
   }, {
     "id" : "c11",

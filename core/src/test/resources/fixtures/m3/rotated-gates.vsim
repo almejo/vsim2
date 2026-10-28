@@ -1,18 +1,20 @@
 {
   "format" : "vsim2",
-  "savedWith" : "0.3",
-  "formatVersion" : 3,
+  "savedWith" : "0.4",
+  "formatVersion" : 4,
   "kind" : "circuit",
   "name" : "rotated-gates",
   "components" : [ {
     "id" : "c6",
-    "type" : "not",
+    "type" : "buffer",
     "x" : 10,
     "y" : 10,
     "rotation" : 0,
     "label" : "",
     "parameters" : {
-      "delay" : 1
+      "delay" : 1,
+      "negate" : true,
+      "width" : 1
     }
   }, {
     "id" : "c7",
@@ -37,13 +39,15 @@
     }
   }, {
     "id" : "c11",
-    "type" : "not",
+    "type" : "buffer",
     "x" : 38,
     "y" : 10,
     "rotation" : 1,
     "label" : "",
     "parameters" : {
-      "delay" : 1
+      "delay" : 1,
+      "negate" : true,
+      "width" : 1
     }
   }, {
     "id" : "c12",
@@ -68,13 +72,15 @@
     }
   }, {
     "id" : "c16",
-    "type" : "not",
+    "type" : "buffer",
     "x" : 62,
     "y" : 14,
     "rotation" : 2,
     "label" : "",
     "parameters" : {
-      "delay" : 1
+      "delay" : 1,
+      "negate" : true,
+      "width" : 1
     }
   }, {
     "id" : "c17",
@@ -99,13 +105,15 @@
     }
   }, {
     "id" : "c21",
-    "type" : "not",
+    "type" : "buffer",
     "x" : 82,
     "y" : 14,
     "rotation" : 3,
     "label" : "",
     "parameters" : {
-      "delay" : 1
+      "delay" : 1,
+      "negate" : true,
+      "width" : 1
     }
   }, {
     "id" : "c22",
@@ -130,13 +138,16 @@
     }
   }, {
     "id" : "c27",
-    "type" : "and2",
+    "type" : "and",
     "x" : 10,
     "y" : 34,
     "rotation" : 0,
     "label" : "",
     "parameters" : {
-      "delay" : 1
+      "delay" : 1,
+      "inputs" : 2,
+      "negate" : false,
+      "width" : 1
     }
   }, {
     "id" : "c28",
@@ -171,13 +182,16 @@
     }
   }, {
     "id" : "c34",
-    "type" : "and2",
+    "type" : "and",
     "x" : 38,
     "y" : 34,
     "rotation" : 1,
     "label" : "",
     "parameters" : {
-      "delay" : 1
+      "delay" : 1,
+      "inputs" : 2,
+      "negate" : false,
+      "width" : 1
     }
   }, {
     "id" : "c35",
@@ -212,13 +226,16 @@
     }
   }, {
     "id" : "c41",
-    "type" : "and2",
+    "type" : "and",
     "x" : 62,
     "y" : 38,
     "rotation" : 2,
     "label" : "",
     "parameters" : {
-      "delay" : 1
+      "delay" : 1,
+      "inputs" : 2,
+      "negate" : false,
+      "width" : 1
     }
   }, {
     "id" : "c42",
@@ -253,13 +270,16 @@
     }
   }, {
     "id" : "c48",
-    "type" : "and2",
+    "type" : "and",
     "x" : 82,
     "y" : 38,
     "rotation" : 3,
     "label" : "",
     "parameters" : {
-      "delay" : 1
+      "delay" : 1,
+      "inputs" : 2,
+      "negate" : false,
+      "width" : 1
     }
   }, {
     "id" : "c49",
@@ -294,13 +314,16 @@
     }
   }, {
     "id" : "c56",
-    "type" : "or2",
+    "type" : "or",
     "x" : 10,
     "y" : 58,
     "rotation" : 0,
     "label" : "",
     "parameters" : {
-      "delay" : 1
+      "delay" : 1,
+      "inputs" : 2,
+      "negate" : false,
+      "width" : 1
     }
   }, {
     "id" : "c57",
@@ -335,13 +358,16 @@
     }
   }, {
     "id" : "c63",
-    "type" : "or2",
+    "type" : "or",
     "x" : 38,
     "y" : 58,
     "rotation" : 1,
     "label" : "",
     "parameters" : {
-      "delay" : 1
+      "delay" : 1,
+      "inputs" : 2,
+      "negate" : false,
+      "width" : 1
     }
   }, {
     "id" : "c64",
@@ -376,13 +402,16 @@
     }
   }, {
     "id" : "c70",
-    "type" : "or2",
+    "type" : "or",
     "x" : 62,
     "y" : 62,
     "rotation" : 2,
     "label" : "",
     "parameters" : {
-      "delay" : 1
+      "delay" : 1,
+      "inputs" : 2,
+      "negate" : false,
+      "width" : 1
     }
   }, {
     "id" : "c71",
@@ -417,13 +446,16 @@
     }
   }, {
     "id" : "c77",
-    "type" : "or2",
+    "type" : "or",
     "x" : 82,
     "y" : 62,
     "rotation" : 3,
     "label" : "",
     "parameters" : {
-      "delay" : 1
+      "delay" : 1,
+      "inputs" : 2,
+      "negate" : false,
+      "width" : 1
     }
   }, {
     "id" : "c78",
@@ -458,13 +490,16 @@
     }
   }, {
     "id" : "c85",
-    "type" : "xor2",
+    "type" : "xor",
     "x" : 10,
     "y" : 82,
     "rotation" : 0,
     "label" : "",
     "parameters" : {
-      "delay" : 1
+      "delay" : 1,
+      "inputs" : 2,
+      "negate" : false,
+      "width" : 1
     }
   }, {
     "id" : "c86",
@@ -499,13 +534,16 @@
     }
   }, {
     "id" : "c92",
-    "type" : "xor2",
+    "type" : "xor",
     "x" : 38,
     "y" : 82,
     "rotation" : 1,
     "label" : "",
     "parameters" : {
-      "delay" : 1
+      "delay" : 1,
+      "inputs" : 2,
+      "negate" : false,
+      "width" : 1
     }
   }, {
     "id" : "c93",
@@ -540,13 +578,16 @@
     }
   }, {
     "id" : "c99",
-    "type" : "xor2",
+    "type" : "xor",
     "x" : 62,
     "y" : 86,
     "rotation" : 2,
     "label" : "",
     "parameters" : {
-      "delay" : 1
+      "delay" : 1,
+      "inputs" : 2,
+      "negate" : false,
+      "width" : 1
     }
   }, {
     "id" : "c100",
@@ -581,13 +622,16 @@
     }
   }, {
     "id" : "c106",
-    "type" : "xor2",
+    "type" : "xor",
     "x" : 82,
     "y" : 86,
     "rotation" : 3,
     "label" : "",
     "parameters" : {
-      "delay" : 1
+      "delay" : 1,
+      "inputs" : 2,
+      "negate" : false,
+      "width" : 1
     }
   }, {
     "id" : "c107",
