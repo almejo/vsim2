@@ -74,6 +74,8 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 - Ejemplos nuevos en Archivo ▸ Ejemplos: «Programa en ROM» (un contador recorre una ROM de 16 palabras con Fibonacci y un
   display las muestra en hexadecimal) y «RAM que se llena» (un contador de direcciones y otro de pasadas escriben una
   RAM de 16 palabras: la pasada 0 deja 00 en todas, la 1 deja 01 y así hasta FF, y vuelve a 00).
+- Al cambiar la base del editor de contenido (Hex, Dec, Bin), las columnas se ajustan al ancho de las palabras en esa
+  base; si la fila no cabe, la grilla se desplaza hacia el lado en vez de cortar los valores con «…».
 
 ## Sin publicar — Notas adhesivas
 

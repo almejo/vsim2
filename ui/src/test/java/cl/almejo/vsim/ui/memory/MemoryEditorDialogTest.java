@@ -543,6 +543,42 @@ class MemoryEditorDialogTest {
     }
 
     @Test
+    void switchingTheBaseResizesEveryWordColumnToItsText() {
+        for (int width : new int[]{8, 16, 64}) {
+            MemoryEditorDialog dialog = dialogOn(ram(Map.of(MemoryTypes.WORDS, "16", MemoryTypes.WIDTH, width)));
+            javax.swing.JComboBox<?> radix = (javax.swing.JComboBox<?>) findByName(dialog.content(), "memory.radix");
+            for (MemoryRadix chosen : new MemoryRadix[]{MemoryRadix.BINARY, MemoryRadix.DECIMAL, MemoryRadix.HEX}) {
+                radix.setSelectedItem(chosen);
+                javax.swing.JTable table = dialog.table();
+                java.awt.FontMetrics metrics = table.getFontMetrics(
+                        new java.awt.Font(java.awt.Font.MONOSPACED, java.awt.Font.PLAIN, table.getFont().getSize()));
+                for (int column = 1; column <= dialog.model().columns(); column++) {
+                    int needed = metrics.stringWidth(dialog.model().format(-1L >>> (64 - width)));
+                    assertThat(table.getColumnModel().getColumn(column).getWidth())
+                            .as("%d bits in %s, column %d", width, chosen, column).isGreaterThanOrEqualTo(needed);
+                    assertThat(table.getColumnModel().getColumn(column).getPreferredWidth())
+                            .isGreaterThanOrEqualTo(needed);
+                }
+            }
+        }
+    }
+
+    private static java.awt.Component findByName(java.awt.Component root, String name) {
+        if (name.equals(root.getName())) {
+            return root;
+        }
+        if (root instanceof Container container) {
+            for (java.awt.Component child : container.getComponents()) {
+                java.awt.Component found = findByName(child, name);
+                if (found != null) {
+                    return found;
+                }
+            }
+        }
+        return null;
+    }
+
+    @Test
     void everyFileFormatAndRadixHasAName() {
         for (cl.almejo.vsim.core.memory.MemoryFileFormat format : cl.almejo.vsim.core.memory.MemoryFormats.all()) {
             assertThat(cl.almejo.vsim.ui.i18n.Messages.text("memory.format." + format.id())).doesNotStartWith("!");

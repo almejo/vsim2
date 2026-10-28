@@ -265,6 +265,31 @@ public final class MemoryEditorDialog {
                 : Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx();
     }
 
+    /**
+     * Sizes every column from the widest text it shows now: the words from the widest value of the shown base (and the
+     * header), with the font the cells are painted in. The row scrolls sideways when it no longer fits (the grid keeps
+     * its words per row; it never squeezes a word into an elided cell).
+     */
+    private void resizeColumns() {
+        java.awt.FontMetrics metrics = table.getFontMetrics(
+                new java.awt.Font(java.awt.Font.MONOSPACED, java.awt.Font.PLAIN, table.getFont().getSize()));
+        long widest = model.width() >= Long.SIZE ? -1L : (1L << model.width()) - 1;
+        int wordWidth = metrics.stringWidth(model.format(widest));
+        for (int column = 0; column < model.getColumnCount(); column++) {
+            int width;
+            if (model.isAddressColumn(column)) {
+                width = metrics.charWidth('0') * 8 + CELL_PADDING;
+            } else if (model.isAsciiColumn(column)) {
+                width = metrics.charWidth('0') * 17;
+            } else {
+                width = Math.max(wordWidth, metrics.stringWidth(model.getColumnName(column))) + CELL_PADDING;
+            }
+            javax.swing.table.TableColumn tableColumn = table.getColumnModel().getColumn(column);
+            tableColumn.setPreferredWidth(width);
+            tableColumn.setWidth(width);
+        }
+    }
+
     private void configureTable() {
         table.setName("memory.grid");
         table.setCellSelectionEnabled(true);
@@ -286,15 +311,7 @@ public final class MemoryEditorDialog {
                 return component;
             }
         });
-        int digits = model.radix() == MemoryRadix.BINARY ? model.width() : Math.max(2, (model.width() + 3) / 4);
-        int cellWidth = table.getFontMetrics(table.getFont()).charWidth('0') * digits + CELL_PADDING;
-        for (int column = 0; column < model.getColumnCount(); column++) {
-            int width = model.isAddressColumn(column)
-                    ? table.getFontMetrics(table.getFont()).charWidth('0') * 8 + CELL_PADDING
-                    : model.isAsciiColumn(column) ? table.getFontMetrics(table.getFont()).charWidth('0') * 17
-                    : cellWidth;
-            table.getColumnModel().getColumn(column).setPreferredWidth(width);
-        }
+        resizeColumns();
         table.getInputMap(JComponent.WHEN_FOCUSED).put(KeyStroke.getKeyStroke(KeyEvent.VK_C, shortcutMask()), "copy");
         table.getActionMap().put("copy", unnamed(this::copySelection));
         table.getInputMap(JComponent.WHEN_FOCUSED).put(KeyStroke.getKeyStroke(KeyEvent.VK_V, shortcutMask()), "paste");
@@ -351,6 +368,7 @@ public final class MemoryEditorDialog {
         });
         radix.addActionListener(event -> {
             model.setRadix((MemoryRadix) radix.getSelectedItem());
+            resizeColumns();
             refreshFindAfterRadixChange();
         });
         toolbar.add(radix);
