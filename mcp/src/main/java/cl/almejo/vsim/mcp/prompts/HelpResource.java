@@ -53,6 +53,22 @@ public final class HelpResource {
                 - Usar guías, imán y cuadrícula mientras trabaja (solo en esa ventana y durante la tarea), y \
                 proponerte cambios de preferencias, que tú aceptas o no.
 
+                ## Qué piezas conoce
+
+                La paleta tiene nueve categorías y la IA arma con todas sus partes (cada una trae su \
+                «Descripción» con sus supuestos, y la IA la lee con `vsim_describe_component`):
+
+                - **Compuertas**: AND, OR, XOR, NAND, NOR, XNOR, Buffer, NOT, buffer tri-estado e inversor controlado.
+                - **Cableado**: splitter, joiner, túneles, extensor de bits y selector de bits.
+                - **Aritmética**: sumador, restador, negador, multiplicador, divisor, desplazador, comparador, \
+                contador de unos y ALU.
+                - **Multiplexores**: mux (2, 4 u 8 entradas), demux, decodificador y codificador con prioridad.
+                - **Secuenciales**: flip-flops D, JK, T y SR, registro y contador.
+                - **Memoria**: RAM y ROM.
+                - **Entrada/Salida**: switch, constante, reloj, LED, displays y pines de entrada y salida.
+                - **Depuración**: diagrama de tiempo.
+                - **Mis componentes**: los tuyos.
+
                 ## Qué no hace
 
                 - No guarda, no abre ni borra archivos: guardar es siempre cosa tuya. Exporta solo con un nombre \

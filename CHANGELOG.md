@@ -17,7 +17,9 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
   reloj» lo explica). Se pliega con un clic y VSim lo recuerda; también aparece en «Configurar…».
 - Los componentes propios tienen descripción: se escribe al crearlos o actualizarlos («Descripción (opcional)») y
   después con «Editar descripción…» en Propiedades, como un paso de deshacer.
-- La IA recibe la misma descripción en `vsim_describe_component`.
+- La IA recibe la misma descripción en `vsim_describe_component`, y su ayuda (el recurso «ayuda») lista las nueve
+  categorías de la paleta con sus piezas; el filtro por categoría de `vsim_describe_components` usa los nombres nuevos
+  (gates, wiring, arithmetic, plexers, sequential, memory…).
 - Aritmética con seis piezas nuevas de N bits, cada una con su «Descripción»: «Restador» (A − B − Bin, con Bout),
   «Negador» (−A en complemento a dos), «Multiplicador» (producto de 2N bits en dos mitades P y H, con o sin signo),
   «Divisor» (cociente, resto y la salida E para la división por cero: Q = 0, R = A, E = 1), «Desplazador» (lógico,

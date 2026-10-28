@@ -67,7 +67,7 @@ public final class CircuitBuilder {
     /** Places a component so that its pin {@code pinIndex} lands on {@code pinPoint}. */
     public Component placeByPin(String typeId, GridPoint pinPoint, int pinIndex, Rotation rotation,
                                 Map<String, Object> parameters, String label) {
-        GridPoint local = registry.require(typeId).pin(pinIndex).position();
+        GridPoint local = registry.require(typeId).specializedFor(parameters).pin(pinIndex).position();
         GridPoint rotated = rotation.apply(local);
         return place(typeId, new GridPoint(pinPoint.x() - rotated.x(), pinPoint.y() - rotated.y()), rotation,
                 parameters, label);
@@ -91,13 +91,13 @@ public final class CircuitBuilder {
      */
     public Component attach(Component target, int pinIndex, String typeId, Map<String, Object> parameters,
                             String label, int length) {
-        GridPoint direction = outward(target.typeId(), target.rotation(), pinIndex);
+        GridPoint direction = target.rotation().apply(localOutward(registry.typeOf(target), target.typeId(), pinIndex));
         GridPoint start = pin(target, pinIndex);
         GridPoint end = start.translate(direction.x() * length, direction.y() * length);
         GridPoint wanted = new GridPoint(-direction.x(), -direction.y());
         Rotation facing = null;
         for (Rotation candidate : ALL_ROTATIONS) {
-            if (candidate.apply(localOutward(typeId, 0)).equals(wanted)) {
+            if (candidate.apply(localOutward(registry.require(typeId).specializedFor(parameters), typeId, 0)).equals(wanted)) {
                 facing = candidate;
             }
         }
@@ -125,13 +125,8 @@ public final class CircuitBuilder {
         return label;
     }
 
-    private GridPoint outward(String typeId, Rotation rotation, int pinIndex) {
-        return rotation.apply(localOutward(typeId, pinIndex));
-    }
-
     /** Unit vector pointing away from the component body at a pin, before rotation. */
-    private GridPoint localOutward(String typeId, int pinIndex) {
-        ComponentType type = registry.require(typeId);
+    private GridPoint localOutward(ComponentType type, String typeId, int pinIndex) {
         if (typeId.startsWith("seven-segments")) {
             return new GridPoint(0, -1);
         }

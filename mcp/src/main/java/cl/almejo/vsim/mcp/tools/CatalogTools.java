@@ -46,9 +46,9 @@ final class CatalogTools {
     private static Tool describeComponents(AutomationApi api) {
         return new Tool(DESCRIBE_COMPONENTS, "Describe the component catalogue",
                 "The types that can be placed in a circuit: VSim's own, then the circuit's user components, then "
-                        + "the user's library («Mis componentes»), each with its parameters and the pins of a part "
-                        + "with default parameters. Filter by part of an id or a name (Spanish or English) or by a "
-                        + "category (gates, input output, interface…). Ask vsim_describe_component for the pins with "
+                        + "the user's library («Mis componentes»), each with parameters and the pins of a part "
+                        + "with default parameters. Filter by part of an id or name (Spanish or English) or by "
+                        + "category (gates, wiring, arithmetic, plexers, sequential, memory…). Ask vsim_describe_component for the pins with "
                         + "other parameters (a register's pins follow its width, a gate's its «inputs»; NAND/NOR/"
                         + "XNOR = and/or/xor + negate, NOT = buffer + negate)." + Common.DATA_NOTE,
                 Schema.object("")
