@@ -15,8 +15,8 @@ import java.util.Optional;
 import java.util.TreeMap;
 
 /**
- * The compact rows of the multi-bit Switch and LED: one cell per bit, most significant bit on the left, a small gap
- * every four bits and rows of eight from nine bits on (the first row on top). The Switch and the LED use the same
+ * The compact rows of the multi-bit Switch and LED: one cell per bit ({@link #BIT_PITCH} pixels apart), most
+ * significant bit on the left, a small gap every four bits and rows of eight from nine bits on (the first row on top). The Switch and the LED use the same
  * function, so the same width gives the same box and their bits line up when one is placed under the other.
  *
  * <p>The <em>body</em> is the box of the rows; the component also has a short lead from the middle of one side to its
@@ -41,6 +41,8 @@ public final class MultiBitLayout {
 
     /** Pixels per grid unit ({@link GridPoint#PIXELS_PER_UNIT}). */
     public static final int UNIT = GridPoint.PIXELS_PER_UNIT;
+    /** The distance, in pixels, from one bit's cell to the next one in the same group (1.5 grid units). */
+    public static final int BIT_PITCH = 12;
     /** The gap, in pixels, between groups of four bits. */
     public static final int GAP = 4;
     /** The length of the lead from the body to the pin, in grid units. */
@@ -130,7 +132,7 @@ public final class MultiBitLayout {
         checkWidth(width);
         int perRow = Math.min(width, BITS_PER_ROW);
         int rows = rowsFor(width);
-        int widthPixels = perRow * UNIT + (groupsIn(perRow) - 1) * GAP + BODY_PADDING;
+        int widthPixels = perRow * pitchFor(width) + (groupsIn(perRow) - 1) * GAP + BODY_PADDING;
         int heightPixels = rows * ROW_HEIGHT + (rows - 1) * ROW_GAP + VERTICAL_PADDING;
         return new GridSize(unitsFor(widthPixels), unitsFor(heightPixels));
     }
@@ -139,7 +141,7 @@ public final class MultiBitLayout {
     public static List<BitCell> cells(int width) {
         GridSize box = boxFor(width);
         int perRow = Math.min(width, BITS_PER_ROW);
-        double inner = perRow * UNIT + (groupsIn(perRow) - 1) * GAP;
+        double inner = perRow * pitchFor(width) + (groupsIn(perRow) - 1) * GAP;
         double left = (box.width() * UNIT - inner) / 2;
         double contentHeight = rowsFor(width) * ROW_HEIGHT + (rowsFor(width) - 1) * ROW_GAP;
         double top = (box.height() * UNIT - contentHeight) / 2;
@@ -147,9 +149,9 @@ public final class MultiBitLayout {
         for (int position = 0; position < width; position++) {
             int row = position / BITS_PER_ROW;
             int column = position % BITS_PER_ROW;
-            double x = left + column * UNIT + (column / BITS_PER_GROUP) * GAP;
+            double x = left + column * pitchFor(width) + (column / BITS_PER_GROUP) * GAP;
             double y = top + row * (ROW_HEIGHT + ROW_GAP);
-            cells.add(new BitCell(width - 1 - position, x, y, UNIT, ROW_HEIGHT));
+            cells.add(new BitCell(width - 1 - position, x, y, pitchFor(width), ROW_HEIGHT));
         }
         return List.copyOf(cells);
     }
@@ -196,6 +198,11 @@ public final class MultiBitLayout {
         GridPoint pin = pinFor(width, side);
         return new ComponentShape(sizeFor(width, side),
                 List.of(new PinSpec(pinName, pin, direction, width)));
+    }
+
+    /** A single bit keeps its old one-unit cell; from two bits on the cells are {@link #BIT_PITCH} apart. */
+    private static int pitchFor(int width) {
+        return width == 1 ? UNIT : BIT_PITCH;
     }
 
     private static int rowsFor(int width) {

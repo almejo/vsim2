@@ -49,7 +49,7 @@ public final class LedPainter implements ComponentPainter {
     }
 
     /** The radius of the light of one bit of a multi-bit LED, and how far its glow reaches past it. */
-    private static final double BIT_LIGHT_RADIUS = 3;
+    private static final double BIT_LIGHT_RADIUS = 3.5;
     private static final double BIT_GLOW_REACH = 2;
     private static final double BIT_GLINT_SHIFT_X = 0.3;
     private static final double BIT_GLINT_SHIFT_Y = 0.35;

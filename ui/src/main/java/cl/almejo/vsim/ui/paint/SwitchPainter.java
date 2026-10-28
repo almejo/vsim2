@@ -18,8 +18,8 @@ public final class SwitchPainter implements ComponentPainter {
     /** WCAG's graphics contrast: the switch's text is a single small bold character. */
     private static final double MINIMUM_TEXT_CONTRAST = 3.0;
 
-    /** The digits of a bit cell are smaller than the one-bit switch's: a cell is one grid unit wide. */
-    private static final float CELL_TEXT_SIZE = 8f;
+    /** The digits of a bit cell are smaller than the one-bit switch's: a cell is {@link MultiBitLayout#BIT_PITCH} pixels wide. */
+    private static final float CELL_TEXT_SIZE = 9f;
     private static final double CELL_INSET = 0.5;
     private static final double CELL_CORNER = 4;
 

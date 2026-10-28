@@ -66,7 +66,7 @@ class MultiBitSwitchTest {
         assertThat(right.pinCount()).isEqualTo(1);
         assertThat(right.pin(0).width()).isEqualTo(8);
         assertThat(right.pin(0).position()).isEqualTo(MultiBitLayout.pinFor(8, "right"));
-        assertThat(right.size()).isEqualTo(new GridSize(12, 3));
+        assertThat(right.size()).isEqualTo(new GridSize(16, 3));
         assertThat(top.pin(0).position()).isEqualTo(MultiBitLayout.pinFor(8, "top"));
     }
 
