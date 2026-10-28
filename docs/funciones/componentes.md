@@ -8,7 +8,7 @@ Parte de las [funciones de VSim 2](../funciones.md).
   (y en el diálogo de configurar) cada una tiene, en este orden:
   - «Entradas»: de 2 a 8 (solo AND, OR y XOR; 2 por omisión). Hasta 5 entradas la compuerta mide 4 × 4; con 6 o 7
     mide 4 × 6 y con 8, 4 × 8, con la salida siempre al medio. Con 2, 3 y 4 entradas los pines quedan donde estaban
-    siempre. Al cambiar las entradas algunos pines se mueven y sus cables quedan sueltos, como en el multiplexor.
+    siempre. Al cambiar las entradas algunos pines se mueven (la salida pasa a otro número) y sus cables quedan sueltos, como en el multiplexor; las sondas de la forma de onda siguen al pin con el mismo nombre (la salida sigue siendo la salida) y se quitan si su pin ya no existe, todo en el mismo paso de deshacer.
   - «Ancho (bits)»: de 1 a 32 (1 por omisión). Con más de 1 bit todos los pines son buses de ese ancho y la compuerta
     opera bit a bit (un AND de 8 bits de 6 buses, por ejemplo); un cable de otro ancho es el aviso de anchos
     incompatibles de siempre.

@@ -47,8 +47,8 @@ final class CatalogTools {
                         + "the user's library («Mis componentes»), each with its parameters and the pins of a part "
                         + "with default parameters. Filter by part of an id or a name (Spanish or English) or by a "
                         + "category (gates, input output, interface…). Ask vsim_describe_component for the pins with "
-                        + "other parameters (an 8-bit register has other pins than a 4-bit one; a gate's pins follow "
-                        + "its «inputs»; NAND = «and» + negate)." + Common.DATA_NOTE,
+                        + "other parameters (a register's pins follow its width, a gate's its «inputs»; NAND/NOR/"
+                        + "XNOR = and/or/xor + negate, NOT = buffer + negate)." + Common.DATA_NOTE,
                 Schema.object("")
                         .property("document", Common.document())
                         .property("filter", Schema.string("Part of an id or a name, or a category"))

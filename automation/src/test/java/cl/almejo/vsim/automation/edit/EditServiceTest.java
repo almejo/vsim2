@@ -151,6 +151,28 @@ class EditServiceTest {
     }
 
     @Test
+    void aPresetIdPlacesItsTypeWithItsParametersAndKeepsTheOthers() {
+        service.edit(request(new PlacePart(Optional.of("gate"), "nand", 0, 0, Rotation.R0, Map.of("inputs", 3), ""),
+                new PlacePart(Optional.of("inverter"), "not", 10, 0, Rotation.R0, Map.of(), "")));
+
+        assertThat(circuit.document().components()).extracting(component -> component.typeId())
+                .containsExactly("and", "buffer");
+        assertThat(circuit.document().components().get(0).parameters())
+                .containsEntry("inputs", 3).containsEntry("negate", true);
+        assertThat(circuit.document().components().get(1).parameters()).containsEntry("negate", true);
+    }
+
+    @Test
+    void anOldGateIdIsRefusedNamingItsReplacement() {
+        assertThatThrownBy(() -> service.edit(request(place("gate", "nand2", 0, 0))))
+                .isInstanceOfSatisfying(AutomationException.class, refusal -> {
+                    assertThat(refusal.error()).isEqualTo(AutomationError.INVALID_REFERENCE);
+                    assertThat(refusal.getMessage()).contains("use \"and\" with \"inputs\": 2, \"negate\": true");
+                });
+        assertNothingChanged();
+    }
+
+    @Test
     void aGateIsPlacedWithSixInputsEightBitsAndANegatedOutput() {
         service.edit(request(new PlacePart(Optional.of("gate"), "and", 0, 0, Rotation.R0,
                 Map.of("inputs", 6, "width", 8, "negate", true), "")));

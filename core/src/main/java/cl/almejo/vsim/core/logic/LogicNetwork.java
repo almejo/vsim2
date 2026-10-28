@@ -157,20 +157,23 @@ final class LogicNetwork {
     /** Gate counts per {@linkplain GateCost#key gate key}, in the {@link GateCost} order. */
     GateCost cost() {
         Map<String, Integer> counts = new HashMap<>();
+        Map<String, Integer> familyOrders = new HashMap<>();
         for (Gate gate : gates) {
-            counts.merge(GateCost.key(gate.typeId(), gate.parameters()), 1, Integer::sum);
+            String key = GateCost.key(gate.typeId(), gate.parameters());
+            counts.merge(key, 1, Integer::sum);
+            familyOrders.computeIfAbsent(key, ignored -> familyOrder(gate));
         }
         Map<String, Integer> ordered = new LinkedHashMap<>();
         counts.keySet().stream()
-                .sorted(Comparator.comparingInt((String type) -> familyOrder(type))
+                .sorted(Comparator.comparingInt((String type) -> familyOrders.get(type))
                         .thenComparingInt(type -> type.length())
                         .thenComparing(Comparator.naturalOrder()))
                 .forEach(type -> ordered.put(type, counts.get(type)));
         return new GateCost(gates.size(), ordered);
     }
 
-    private static int familyOrder(String key) {
-        int index = GateCost.FAMILIES.indexOf(GateCost.familyOfKey(key));
+    private static int familyOrder(Gate gate) {
+        int index = GateCost.family(gate.typeId(), gate.parameters()).map(GateCost.FAMILIES::indexOf).orElse(-1);
         return index < 0 ? GateCost.FAMILIES.size() : index;
     }
 

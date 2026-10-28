@@ -71,7 +71,7 @@ Una línea por función; el detalle está en [docs/funciones.md](docs/funciones.
 
 ### Componentes
 
-- [Compuertas](docs/funciones/componentes.md#compuertas) AND, OR, XOR y Buffer de 2 a 8 entradas y de 1 a 32 bits, con «Negar salida» para NAND, NOR, XNOR y NOT, que están en la paleta como una entrada más; los circuitos de antes se abren igual.
+- [Compuertas](docs/funciones/componentes.md#compuertas) AND, OR y XOR de 2 a 8 entradas, y esas tres más el Buffer de 1 a 32 bits, con «Negar salida» para NAND, NOR, XNOR y NOT, que están en la paleta como una entrada más; los circuitos de antes se abren igual.
 - [Interruptores, LED, displays y diagramas de tiempo](docs/funciones/componentes.md#interruptores-led-displays-y-diagramas-de-tiempo) para probar los circuitos.
 - [Pines de entrada y de salida](docs/funciones/componentes.md#pines-de-entrada-y-de-salida) de 1 a 64 bits, con su valor escrito y editable.
 - [Constante](docs/funciones/componentes.md#constante) de 1 a 32 bits en binario, hexadecimal o decimal.

@@ -15,6 +15,7 @@ import cl.almejo.vsim.automation.read.CircuitView.WireView;
 import cl.almejo.vsim.automation.read.ReadFilter.Detail;
 import cl.almejo.vsim.automation.read.ReadFilter.ElementKind;
 import cl.almejo.vsim.core.component.ComponentType;
+import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.component.ParameterSpec;
 import cl.almejo.vsim.core.component.standard.MemoryTypes;
 import cl.almejo.vsim.core.memory.MemoryContents;
@@ -243,7 +244,8 @@ public final class CircuitReader {
     private static Summary summary(ReadSource source) {
         CircuitDocument document = source.document();
         Map<String, Integer> partsByType = new TreeMap<>();
-        document.components().forEach(component -> partsByType.merge(component.typeId(), 1, Integer::sum));
+        document.components().forEach(component -> partsByType.merge(
+                StandardComponentTypes.nameId(component.typeId(), component.parameters()), 1, Integer::sum));
         Bounds bounds = null;
         for (DocumentElement element : document.elements()) {
             Bounds elementBounds = boundsOf(element, source);

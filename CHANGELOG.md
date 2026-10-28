@@ -17,15 +17,17 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
   un XOR un **XNOR**, que es nuevo.
 - El **Buffer**: una compuerta de una entrada que copia su entrada (útil para hablar de retardo y de fan-out); negado
   es el NOT. También tiene «Ancho (bits)».
-- Las compuertas con 5 a 8 entradas se dibujan con el cuerpo de siempre (4 × 4, centrado en la salida) y una línea
+- Las compuertas con 6 a 8 entradas se dibujan con el cuerpo de siempre (4 × 4, centrado en la salida) y una línea
   trasera prolongada hasta las entradas de los extremos; con «Ancho» mayor que 1 los cables de sus pines son gruesos
   (también en el Buffer).
 - La línea de costo del asistente de Karnaugh y de «Circuito desde expresiones» cuenta los XNOR.
-- Para la IA, una compuerta se coloca con sus parámetros (`inputs`, `width`, `negate`) y `vsim_describe_component` lista los pines según «Entradas»; el ejemplo de la herramienta de edición usa `and` con `negate`.
+- Para la IA, una compuerta se coloca con sus parámetros (`inputs`, `width`, `negate`) y `vsim_describe_component` lista los pines según «Entradas»; el ejemplo de la herramienta de edición usa `and` con `negate`. También acepta `nand`, `nor`, `xnor` y `not` como tipo (ponen la compuerta con «Negar salida»), y un id de antes, como `nand2`, da un error que dice con qué reemplazarlo; el resumen del circuito cuenta una NAND como `nand` y no como `and`.
+- Las herramientas de prueba con variable de entorno (`VSIM_MIGRATE_PATHS`, `VSIM_WRITE_SHOWCASE`, `VSIM_WRITE_BUNDLED`) ya no quedan «UP-TO-DATE» en Gradle cuando la variable está puesta.
 - Para desarrolladores: `VSIM_MIGRATE_PATHS` reescribe tus archivos al formato 4 (ver «Para desarrolladores»). Los ejemplos y fixtures del repositorio ya están en el formato 4.
 
 ### Cambiado
 
+- Al cambiar un parámetro que mueve pines (las «Entradas» de una compuerta, las de un multiplexor), las sondas de esos pines pasan al pin con el mismo nombre y se quitan si ya no existe; deshacer las devuelve.
 - Hay un solo tipo por compuerta (AND, OR, XOR y Buffer) en vez de uno por cada número de entradas. Los circuitos,
   componentes, librerías y lo copiado antes se abren igual, con los pines en el mismo lugar; al guardarlos se
   escriben con el formato nuevo (versión 4), que las versiones anteriores de VSim 2 no abren.

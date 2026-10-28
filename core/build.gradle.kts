@@ -30,3 +30,12 @@ val generateVersionResource = tasks.register("generateVersionResource") {
 sourceSets.named("main") {
     resources.srcDir(generateVersionResource)
 }
+
+// The test tools driven by an environment variable (regenerate the bundled examples, migrate files, write the gate
+// showcase) work as a side effect: with one of them set the test task runs every time, never UP-TO-DATE.
+tasks.named<Test>("test") {
+    val toolVariables = listOf("VSIM_WRITE_BUNDLED", "VSIM_MIGRATE_PATHS", "VSIM_WRITE_SHOWCASE")
+    if (toolVariables.any { variable -> System.getenv(variable) != null }) {
+        outputs.upToDateWhen { false }
+    }
+}

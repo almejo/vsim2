@@ -209,6 +209,19 @@ class CircuitReaderTest {
     }
 
     @Test
+    void theSummaryCountsANandAsANandAndNotAsAnAnd() {
+        fixture.place(StandardComponentTypes.AND, 0, 0);
+        fixture.place(StandardComponentTypes.AND, 10, 0, Rotation.R0, Map.of(StandardComponentTypes.NEGATE, true), "");
+        fixture.place(StandardComponentTypes.BUFFER, 20, 0, Rotation.R0,
+                Map.of(StandardComponentTypes.NEGATE, true), "");
+
+        CircuitView view = CircuitReader.read(fixture.source(), ReadFilter.SUMMARY, Optional.empty());
+
+        assertThat(view.summary().partsByType()).containsEntry("and", 1).containsEntry("nand", 1)
+                .containsEntry("not", 1);
+    }
+
+    @Test
     void theSummaryListsPartsFramesNotesAndGuidesAndOnlyCountsWiresAndNets() {
         Component input = fixture.place(StandardComponentTypes.SWITCH, 4, 11);
         Component flipFlop = fixture.place(StandardComponentTypes.FLIP_FLOP_DATA, 10, 10);

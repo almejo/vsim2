@@ -26,6 +26,9 @@ import cl.almejo.vsim.automation.edit.EditOperation.SetStickyItem;
 import cl.almejo.vsim.automation.edit.EditOperation.TidyWires;
 import cl.almejo.vsim.automation.edit.EditReceipt.ConnectionReport;
 import cl.almejo.vsim.automation.edit.EditReceipt.CreatedComponent;
+import cl.almejo.vsim.core.component.ComponentPreset;
+import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
+import cl.almejo.vsim.core.io.LegacyGateMigration;
 import cl.almejo.vsim.core.command.AddElementsCommand;
 import cl.almejo.vsim.core.component.standard.MemoryTypes;
 import cl.almejo.vsim.core.memory.MemoryContents;
@@ -270,16 +273,30 @@ final class EditPlanner {
 
     private void placePart(PlacePart operation) {
         String alias = newAlias(operation.alias());
-        bringFromLibrary(operation.typeId());
-        ComponentType type = registry.find(operation.typeId())
+        Optional<ComponentPreset> preset = StandardComponentTypes.preset(operation.typeId());
+        String typeId = preset.map(ComponentPreset::typeId).orElse(operation.typeId());
+        Map<String, Object> parameters = new HashMap<>(operation.parameters());
+        preset.ifPresent(found -> parameters.putAll(found.parameters()));
+        bringFromLibrary(typeId);
+        ComponentType type = registry.find(typeId)
                 .orElseThrow(() -> new AutomationException(AutomationError.INVALID_REFERENCE, "There is no component "
-                        + "type " + operation.typeId() + "; describe the components to see the types"));
-        requireKnownParameters(type, operation.parameters());
-        requireNotMemoryFiles(type, operation.parameters());
+                        + "type " + operation.typeId() + "; " + legacyGateHint(operation.typeId())
+                        + "describe the components to see the types"));
+        requireKnownParameters(type, parameters);
+        requireNotMemoryFiles(type, parameters);
         Component component = type.newComponent(candidate.newComponentId(),
-                new GridPoint(operation.x(), operation.y()), operation.rotation(), operation.parameters(),
+                new GridPoint(operation.x(), operation.y()), operation.rotation(), parameters,
                 operation.label());
         place(component, alias);
+    }
+
+    /** For an old gate id such as {@code nand2}: what replaces it, so the AI corrects itself in one turn. */
+    private static String legacyGateHint(String typeId) {
+        return LegacyGateMigration.replacement(typeId)
+                .map(found -> "use \"" + found.typeId() + "\" with \"inputs\": "
+                        + found.parameters().get(StandardComponentTypes.GATE_INPUTS) + ", \"negate\": "
+                        + found.parameters().get(StandardComponentTypes.NEGATE) + "; ")
+                .orElse("");
     }
 
     private void placeInstance(PlaceInstance operation) {
