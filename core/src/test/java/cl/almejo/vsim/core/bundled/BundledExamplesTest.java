@@ -7,6 +7,7 @@ import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
 import cl.almejo.vsim.core.io.CircuitFormat;
 import cl.almejo.vsim.core.io.CircuitFormatException;
+import cl.almejo.vsim.core.tunnel.Tunnels;
 import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
@@ -35,6 +36,19 @@ class BundledExamplesTest {
         assertThat(BundledExamples.all()).extracting(BundledExample::resourceName)
                 .allMatch(name -> name.startsWith("/" + BundledExamples.RESOURCE_DIRECTORY + "/"))
                 .doesNotHaveDuplicates();
+    }
+
+    @Test
+    void everyTunnelNameOfAnExampleHasItsOwnColour() throws CircuitFormatException {
+        for (String id : BundledExamples.ids()) {
+            Map<String, Integer> colors = Tunnels.colorsByName(BundledExamples.open(id, registry));
+            if (colors.size() <= Tunnels.COLOR_COUNT) {
+                assertThat(colors.values()).as("colours of the tunnels of «%s»: %s", id, colors).doesNotHaveDuplicates();
+            } else {
+                assertThat(colors.values()).as("«%s» uses the whole palette", id)
+                        .containsAll(List.of(0, 1, 2, 3, 4, 5, 6, 7));
+            }
+        }
     }
 
     @Test

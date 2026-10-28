@@ -6,6 +6,7 @@ import cl.almejo.vsim.core.component.PinSpec;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
+import cl.almejo.vsim.core.document.Frame;
 import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.document.Wire;
 import cl.almejo.vsim.core.examples.CircuitBuilder;
@@ -110,6 +111,7 @@ public final class ExampleChecks {
         wiresOverWires(document, problems);
         wiresThroughBodies(document, registry, problems);
         textOverlaps(document, registry, problems);
+        frameEdges(document, registry, problems);
         return problems;
     }
 
@@ -315,12 +317,45 @@ public final class ExampleChecks {
         }
     }
 
+    /**
+     * No part and no text straddles the border of a frame: whatever touches a frame is wholly inside it (a part
+     * sticking out would not move with its frame). A component's label counts with the part.
+     */
+    private static void frameEdges(CircuitDocument document, ComponentTypeRegistry registry, List<String> problems) {
+        for (Frame frame : document.frames()) {
+            Box inside = new Box("", frame.topLeft().x(), frame.topLeft().y(), frame.width(), frame.height());
+            for (Component component : document.components()) {
+                Bounds body = registry.typeOf(component).bounds(component);
+                Box bodyBox = new Box("", body.x(), body.y(), body.width(), body.height());
+                if (bodyBox.overlaps(inside) && !inside.contains(bodyBox)) {
+                    problems.add(name(component) + " sticks out of frame «" + frame.title() + "»");
+                } else if (bodyBox.overlaps(inside) && !component.label().isBlank()
+                        && !inside.contains(componentLabel(component, body))) {
+                    problems.add("label of " + name(component) + " sticks out of frame «" + frame.title() + "»");
+                }
+            }
+            for (TextLabel label : document.labels()) {
+                double width = Math.max(1, textWidth(label.text())) * 1.1;
+                Box text = new Box(label.text(), label.position().x(), label.position().y(), width,
+                        textHeight(label.text()));
+                if (text.overlaps(inside) && !inside.contains(text) && !label.text().equals(document.name())) {
+                    problems.add("text «" + label.text() + "» sticks out of frame «" + frame.title() + "» " + text);
+                }
+            }
+        }
+    }
+
     /** A text's box in grid units, with the safety margin. */
     private record Box(String name, double left, double top, double width, double height) {
 
         boolean overlaps(Box other) {
             return left < other.left + other.width && other.left < left + width
                     && top < other.top + other.height && other.top < top + height;
+        }
+
+        boolean contains(Box other) {
+            return other.left >= left && other.left + other.width <= left + width
+                    && other.top >= top && other.top + other.height <= top + height;
         }
     }
 
