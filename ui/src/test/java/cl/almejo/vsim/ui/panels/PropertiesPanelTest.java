@@ -22,9 +22,11 @@ import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.library.ExampleDefinitions;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.core.tunnel.Tunnels;
+import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.Selection;
 import cl.almejo.vsim.ui.clipboard.FragmentTransferable;
+import cl.almejo.vsim.ui.i18n.Descriptions;
 import cl.almejo.vsim.ui.i18n.FrameTintNames;
 import cl.almejo.vsim.ui.paint.ColorSchemes;
 import cl.almejo.vsim.ui.wiring.SelectionMoves;
@@ -165,6 +167,93 @@ class PropertiesPanelTest {
         openDocument.history().undo();
         assertThat(current(andGate).parameters().get(StandardComponentTypes.NEGATE)).isNotEqualTo(true);
         assertThat(panel.heading()).isEqualTo("AND");
+    }
+
+    @Test
+    void theDescriptionAtTheBottomExplainsThePartAndFollowsItsParameters() {
+        Component andGate = place(openDocument, StandardComponentTypes.AND, 0, 0, Map.of());
+        selection.select(andGate.id());
+        cl.almejo.vsim.core.component.ComponentType and = openDocument.registry().require(StandardComponentTypes.AND);
+
+        DescriptionBox box = panel.descriptionBox().orElseThrow();
+        assertThat(box.text()).isEqualTo(Descriptions.of(and, Map.of())).isNotBlank();
+        java.awt.Component[] children = panel.getComponents();
+        assertThat(children[children.length - 1]).isSameAs(box);
+
+        ((javax.swing.JCheckBox) panel.parameterForm().editor(StandardComponentTypes.NEGATE)).doClick();
+
+        assertThat(panel.descriptionBox().orElseThrow().text()).contains("NAND");
+        openDocument.history().undo();
+        assertThat(panel.descriptionBox().orElseThrow().text()).isEqualTo(Descriptions.of(and, Map.of()));
+    }
+
+    @Test
+    void severalPartsAWireOrNothingSelectedShowNoDescription() {
+        Component first = gate(0);
+        Component second = gate(10);
+        assertThat(panel.descriptionBox()).isEmpty();
+
+        selection.set(List.of(first.id(), second.id()));
+        assertThat(panel.descriptionBox()).isEmpty();
+
+        Wire wire = new Wire(openDocument.document().newWireId(), new GridPoint(0, 20), new GridPoint(6, 20));
+        openDocument.execute(new AddWireCommand(wire));
+        selection.select(wire.id());
+        assertThat(panel.descriptionBox()).isEmpty();
+    }
+
+    @Test
+    void aUserComponentShowsTheDescriptionItsAuthorWroteAndNoneWithoutOne() {
+        openDocument.execute(new PutDefinitionsCommand(List.of(
+                ExampleDefinitions.inverter().withDescription("Invierte la entrada."),
+                ExampleDefinitions.doubleInverter())));
+        Component described = place(openDocument, SubcircuitTypes.typeIdOf(ExampleDefinitions.INVERTER), 0, 0,
+                Map.of());
+        Component plain = place(openDocument, SubcircuitTypes.typeIdOf(ExampleDefinitions.DOUBLE_INVERTER), 10, 0,
+                Map.of());
+
+        selection.select(described.id());
+        assertThat(panel.descriptionBox()).hasValueSatisfying(box -> assertThat(box.text())
+                .isEqualTo("Invierte la entrada."));
+        selection.select(plain.id());
+        assertThat(panel.descriptionBox()).isEmpty();
+    }
+
+    @Test
+    void foldingTheDescriptionIsRememberedForTheNextPartAndInThePreferences() {
+        panel.dispose();
+        AppPreferences preferences = AppPreferences.inMemory();
+        panel = new PropertiesPanel(openDocument, selection, SelectionMoves.detached(), () -> ColorSchemes.LIGHT,
+                preferences);
+        Component first = gate(0);
+        Component second = gate(10);
+        selection.select(first.id());
+        DescriptionBox box = panel.descriptionBox().orElseThrow();
+        assertThat(box.isFolded()).isFalse();
+        assertThat(box.isBodyVisible()).isTrue();
+
+        box.toggle();
+
+        assertThat(box.isFolded()).isTrue();
+        assertThat(box.isBodyVisible()).isFalse();
+        assertThat(preferences.descriptionFolded()).isTrue();
+        selection.select(second.id());
+        assertThat(panel.descriptionBox().orElseThrow().isFolded()).isTrue();
+        panel.descriptionBox().orElseThrow().toggle();
+        assertThat(preferences.descriptionFolded()).isFalse();
+    }
+
+    @Test
+    void aLongDescriptionWrapsToThePanelAndScrollsPastItsMaximumHeight() {
+        Component ram = place(openDocument, StandardComponentTypes.RAM, 0, 0, Map.of());
+        selection.select(ram.id());
+        panel.setSize(280, 2000);
+        layOut(panel);
+
+        DescriptionBox box = panel.descriptionBox().orElseThrow();
+        assertThat(box.getWidth()).isLessThanOrEqualTo(280);
+        assertThat(box.getHeight()).isLessThanOrEqualTo(box.maximumBodyHeight() + box.headerHeight() + 10);
+        assertThat(box.bodyHeightAt(260)).isGreaterThan(box.maximumBodyHeight());
     }
 
     @Test

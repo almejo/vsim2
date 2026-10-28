@@ -1,6 +1,7 @@
 package cl.almejo.vsim.ui.library;
 
 import cl.almejo.vsim.core.command.AddElementsCommand;
+import cl.almejo.vsim.core.command.ChangeDefinitionDescriptionCommand;
 import cl.almejo.vsim.core.command.Command;
 import cl.almejo.vsim.core.command.CompositeCommand;
 import cl.almejo.vsim.core.command.PasteCommand;
@@ -40,11 +41,13 @@ import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.icons.Icons;
+import cl.almejo.vsim.ui.panels.PropertiesPanel;
 import cl.almejo.vsim.core.memory.MemoryLinkPaths;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.swing.Action;
+import javax.swing.JButton;
 import javax.swing.JMenuItem;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -354,6 +357,48 @@ public final class TemplateActions {
     }
 
     /**
+     * {@code created}, a definition just built from the selection, with {@code description}: still its first
+     * revision, as it has never been in a circuit.
+     */
+    private static ComponentDefinition described(ComponentDefinition created, String description) {
+        return new ComponentDefinition(created.id(), created.name(), description, created.size(), created.pinout(),
+                created.body(), created.appearance(), created.revision());
+    }
+
+    /**
+     * «Editar descripción…» of {@code instance}'s user component: the new text, stripped, is one undo step on the
+     * circuit's definition, and goes to the library file too when the library has the component (so the instance does
+     * not look outdated). Cancelling or keeping the same text changes nothing.
+     */
+    public void editDescription(Component instance) {
+        CircuitDocument document = openDocument.document();
+        Optional<ComponentDefinition> found = definitionIdOf(instance).flatMap(document::definition);
+        if (found.isEmpty()) {
+            return;
+        }
+        ComponentDefinition definition = found.get();
+        Optional<String> answer = dialogs.editDescription(canvas.get(), definition.name(), definition.description());
+        if (answer.isEmpty() || answer.get().strip().equals(definition.description())) {
+            return;
+        }
+        openDocument.execute(new ChangeDefinitionDescriptionCommand(definition.id(), answer.get().strip()));
+        if (service.library().find(definition.id()).isPresent()) {
+            ComponentDefinition edited = document.definition(definition.id()).orElseThrow();
+            saveToLibrary(new DefinitionBundle(edited, document.definitionsUsedBy(edited.body().components())));
+        }
+    }
+
+    /** The «Editar descripción…» button Propiedades shows under a user component's parameters. */
+    public PropertiesPanel.ComponentRows descriptionRows() {
+        return (component, rows) -> {
+            if (definitionIdOf(component).flatMap(openDocument.document()::definition).isPresent()) {
+                rows.addWide(new JButton(Actions.of(Messages.text("action.editDescription"),
+                        () -> editDescription(component))));
+            }
+        };
+    }
+
+    /**
      * Adds the definition of {@code converted} (the selection with its checked test parts turned into pins) and, if
      * asked, replaces the selection by an instance: the checked test parts that gave pins stay, connected to it
      * ({@link ConvertedSelection#keptParts()}); everything else goes.
@@ -362,8 +407,10 @@ public final class TemplateActions {
                         Optional<ElementId> frameToRemove, List<Component> linkedMemories) {
         CircuitDocument document = openDocument.document();
         ComponentTypeRegistry registry = openDocument.registry();
-        DefinitionBundle bundle = converted.definition(result.definitionId(), result.name(), result.pinOrder(),
+        DefinitionBundle built = converted.definition(result.definitionId(), result.name(), result.pinOrder(),
                 result.pinNames(), registry);
+        DefinitionBundle bundle = new DefinitionBundle(described(built.root(), result.description()),
+                built.dependencies());
         List<Command> steps = new ArrayList<>();
         steps.add(new PutDefinitionsCommand(bundle.all()));
         Component instance = null;
@@ -439,7 +486,7 @@ public final class TemplateActions {
         Optional<ComponentDefinition> previous = document.definition(bundle.root().id());
         if (previous.isPresent()) {
             ComponentDefinition candidate = AppearanceReconciler.preserveGeneralAppearance(previous.get(),
-                    bundle.root());
+                    bundle.root().withDescription(result.description()));
             bundle = new DefinitionBundle(candidate.revisedFrom(previous.get()), bundle.dependencies());
         }
         List<Component> linkedMemories = DefinitionBuilder.linkedMemories(document, ids);

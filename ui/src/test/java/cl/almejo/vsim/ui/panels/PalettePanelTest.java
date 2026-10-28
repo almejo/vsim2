@@ -293,13 +293,18 @@ class PalettePanelTest {
     }
 
     @Test
-    void onlyComponentPinsHaveHelpAndItFollowsTheLanguage() {
+    void everyPartsTooltipIsTheFirstParagraphOfItsDescriptionInTheLanguageChosen() {
         palette.setUserComponents(List.of(inverterBundle), List.of());
         assertThat(palette.toolTipFor(InterfacePins.INPUT_PIN)).hasValueSatisfying(text -> assertThat(text)
                 .contains("interruptor").contains("entradas"));
         assertThat(palette.toolTipFor(InterfacePins.OUTPUT_PIN)).hasValueSatisfying(text -> assertThat(text)
                 .contains("LED").contains("salidas"));
-        assertThat(palette.toolTipFor(StandardComponentTypes.AND)).isEmpty();
+        assertThat(palette.toolTipFor(StandardComponentTypes.AND)).hasValueSatisfying(text -> assertThat(text)
+                .contains("AND").doesNotContain("\n"));
+        assertThat(palette.toolTipFor(StandardComponentTypes.NAND_PRESET)).hasValueSatisfying(text -> assertThat(text)
+                .contains("NAND"));
+        assertThat(palette.toolTipFor(StandardComponentTypes.COMPARATOR)).hasValueSatisfying(text -> assertThat(text)
+                .contains("A&lt;B").doesNotContain("A<B"));
         assertThat(palette.toolTipFor(SubcircuitTypes.typeIdOf(ExampleDefinitions.INVERTER))).isEmpty();
         assertThat(palette.toolTipFor("no-such-type")).isEmpty();
 

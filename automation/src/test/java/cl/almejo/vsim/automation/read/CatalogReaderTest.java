@@ -47,6 +47,36 @@ class CatalogReaderTest {
     }
 
     @Test
+    void oneTypeComesWithTheDescriptionForItsParametersButTheCatalogueLeavesItOut() {
+        ComponentTypeView nand = CatalogReader.describe(fixture.source(), StandardComponentTypes.AND,
+                Map.of(StandardComponentTypes.NEGATE, true));
+        CatalogView catalog = CatalogReader.describeAll(fixture.source(), Optional.empty());
+
+        assertThat(nand.description()).isEqualTo("reglas de and negada");
+        assertThat(catalog.types()).allSatisfy(type -> assertThat(type.description()).isEmpty());
+    }
+
+    @Test
+    void withoutBundlesAUserComponentIsDescribedByItsDefinition() {
+        ComponentNames names = new ComponentNames() {
+            @Override
+            public String spanish(ComponentType type) {
+                return type.id();
+            }
+
+            @Override
+            public String english(ComponentType type) {
+                return type.id();
+            }
+        };
+        ComponentType described = SubcircuitTypes.typeOf(ExampleDefinitions.inverter()
+                .withDescription("Invierte la entrada."));
+
+        assertThat(names.description(described, Map.of())).isEqualTo("Invierte la entrada.");
+        assertThat(names.description(fixture.registry.require(StandardComponentTypes.AND), Map.of())).isEmpty();
+    }
+
+    @Test
     void aParameterSaysItsKindRangeAndDefault() {
         ComponentTypeView splitter = CatalogReader.describe(fixture.source(), StandardComponentTypes.BUS_SPLITTER,
                 Map.of());

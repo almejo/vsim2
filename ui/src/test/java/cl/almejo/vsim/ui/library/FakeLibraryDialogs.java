@@ -14,6 +14,10 @@ final class FakeLibraryDialogs implements LibraryDialogs {
     final Deque<Optional<Consumer<ComponentForm>>> formAnswers = new ArrayDeque<>();
     final List<ComponentForm> forms = new ArrayList<>();
     final Deque<Optional<String>> names = new ArrayDeque<>();
+    /** The answers to «Editar descripción…»; an empty queue cancels. */
+    final Deque<Optional<String>> descriptions = new ArrayDeque<>();
+    /** The components whose description was asked for, by name. */
+    final List<String> describedNames = new ArrayList<>();
     final Deque<Optional<Path>> exportTargets = new ArrayDeque<>();
     final Deque<List<Path>> importFiles = new ArrayDeque<>();
     final Deque<ImportChoice> collisions = new ArrayDeque<>();
@@ -51,6 +55,12 @@ final class FakeLibraryDialogs implements LibraryDialogs {
     @Override
     public Optional<String> askNewName(java.awt.Component parent, String currentName) {
         return names.isEmpty() ? Optional.empty() : names.removeFirst();
+    }
+
+    @Override
+    public Optional<String> editDescription(java.awt.Component parent, String componentName, String current) {
+        describedNames.add(componentName);
+        return descriptions.isEmpty() ? Optional.empty() : descriptions.removeFirst();
     }
 
     @Override

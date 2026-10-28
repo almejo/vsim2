@@ -119,6 +119,18 @@ public record ComponentDefinition(String id, String name, String description, Gr
                 Math.incrementExact(revision));
     }
 
+    /**
+     * This definition with {@code newDescription} (the «Descripción» Propiedades shows for its instances; null is
+     * empty): a new revision, or {@code this} when the text is the same.
+     */
+    public ComponentDefinition withDescription(String newDescription) {
+        String next = newDescription == null ? "" : newDescription;
+        if (description.equals(next)) {
+            return this;
+        }
+        return new ComponentDefinition(id, name, next, size, pinout, body, appearance, Math.incrementExact(revision));
+    }
+
     public ComponentDefinition withAppearance(Optional<SymbolDrawing> newAppearance) {
         return withGeometry(size, pinout, newAppearance);
     }

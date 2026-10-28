@@ -84,6 +84,36 @@ class ComponentFormTest {
     }
 
     @Test
+    void theDescriptionIsOptionalAndGoesInTheResultWithoutSurroundingSpaces() {
+        ComponentForm form = ComponentForm.create(order, names, List.of(), Set.of());
+        form.setName("Par");
+        assertThat(form.description()).isEmpty();
+        assertThat(form.result().description()).isEmpty();
+        AtomicInteger changes = new AtomicInteger();
+        form.addListener(changes::incrementAndGet);
+
+        form.setDescription("  Suma dos bits.\n\nSin acarreo.  ");
+
+        assertThat(changes).hasValue(1);
+        assertThat(form.canAccept()).isTrue();
+        assertThat(form.result().description()).isEqualTo("Suma dos bits.\n\nSin acarreo.");
+    }
+
+    @Test
+    void updatingStartsFromTheTargetsDescriptionAndFollowsTheChosenTarget() {
+        ComponentDefinition inverter = ExampleDefinitions.inverter().withDescription("Invierte.");
+        ComponentDefinition doubleInverter = ExampleDefinitions.doubleInverter().withDescription("Deja pasar.");
+        ComponentForm form = ComponentForm.update(order, names, List.of("Inversor", "Doble inversor"),
+                List.of(inverter, doubleInverter));
+        assertThat(form.description()).isEqualTo("Invierte.");
+
+        form.setTarget(doubleInverter);
+        assertThat(form.description()).isEqualTo("Deja pasar.");
+        form.setDescription("Copia la entrada.");
+        assertThat(form.result().description()).isEqualTo("Copia la entrada.");
+    }
+
+    @Test
     void withoutTestPartsTheFormHasNoChoicesAndConvertsNothing() {
         ComponentForm form = ComponentForm.create(order, names, List.of(), Set.of());
         form.setName("Par");

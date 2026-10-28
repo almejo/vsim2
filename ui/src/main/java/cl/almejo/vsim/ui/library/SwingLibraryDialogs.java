@@ -11,8 +11,11 @@ import javax.swing.JButton;
 import javax.swing.JComponent;
 import javax.swing.JDialog;
 import javax.swing.JFileChooser;
+import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.JTextArea;
 import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
 import javax.swing.filechooser.FileFilter;
@@ -35,6 +38,9 @@ public final class SwingLibraryDialogs implements LibraryDialogs {
     public static final SwingLibraryDialogs INSTANCE = new SwingLibraryDialogs();
 
     private static final Logger LOGGER = LoggerFactory.getLogger(SwingLibraryDialogs.class);
+    /** The size of the «Editar descripción…» text: a few short paragraphs. */
+    private static final int DESCRIPTION_ROWS = 6;
+    private static final int DESCRIPTION_COLUMNS = 40;
 
     private Path lastDirectory = Path.of(System.getProperty("user.home"));
 
@@ -88,6 +94,20 @@ public final class SwingLibraryDialogs implements LibraryDialogs {
     public Optional<String> askNewName(java.awt.Component parent, String currentName) {
         return TextPrompt.DIALOG.ask(parent, Messages.text("library.title"), Messages.text("library.rename.message"),
                 currentName);
+    }
+
+    /** A wrapped text area of a few lines under «Descripción de <nombre>», with Aceptar and Cancelar. */
+    @Override
+    public Optional<String> editDescription(java.awt.Component parent, String componentName, String current) {
+        JTextArea text = new JTextArea(current, DESCRIPTION_ROWS, DESCRIPTION_COLUMNS);
+        text.setLineWrap(true);
+        text.setWrapStyleWord(true);
+        JPanel content = new JPanel(new BorderLayout(0, 6));
+        content.add(new JLabel(Messages.format("library.description.message", componentName)), BorderLayout.NORTH);
+        content.add(new JScrollPane(text), BorderLayout.CENTER);
+        int answer = JOptionPane.showConfirmDialog(parent, content, Messages.text("library.description.title"),
+                JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+        return answer == JOptionPane.OK_OPTION ? Optional.of(text.getText()) : Optional.empty();
     }
 
     @Override

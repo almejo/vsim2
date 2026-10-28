@@ -161,6 +161,29 @@ class ComponentFormPanelTest {
     }
 
     @Test
+    void theDescriptionAreaEditsTheFormAndFollowsTheChosenTarget() {
+        ComponentForm creating = ComponentForm.create(order, names, List.of(), Set.of());
+        ComponentFormPanel createPanel = new ComponentFormPanel(creating);
+        assertThat(createPanel.descriptionArea().getText()).isEmpty();
+
+        createPanel.descriptionArea().setText("Suma dos bits.");
+
+        assertThat(creating.description()).isEqualTo("Suma dos bits.");
+        assertThat(createPanel.descriptionArea().getLineWrap()).isTrue();
+
+        ComponentDefinition doubleInverter = ExampleDefinitions.doubleInverter().withDescription("Deja pasar.");
+        ComponentForm updating = ComponentForm.update(order, names, List.of(),
+                List.of(ExampleDefinitions.inverter().withDescription("Invierte."), doubleInverter));
+        ComponentFormPanel updatePanel = new ComponentFormPanel(updating);
+        assertThat(updatePanel.descriptionArea().getText()).isEqualTo("Invierte.");
+
+        updatePanel.targetChoice().setSelectedItem(doubleInverter);
+
+        assertThat(updatePanel.descriptionArea().getText()).isEqualTo("Deja pasar.");
+        assertThat(updating.description()).isEqualTo("Deja pasar.");
+    }
+
+    @Test
     void theTestPartsListShowsOnlyWhenTheSelectionHasTestParts() {
         ComponentFormPanel withoutParts = new ComponentFormPanel(ComponentForm.create(order, names, List.of(),
                 Set.of()));

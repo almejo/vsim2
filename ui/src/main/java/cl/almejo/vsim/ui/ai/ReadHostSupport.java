@@ -14,6 +14,7 @@ import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.DefinitionBundle;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.ui.app.OpenDocument;
+import cl.almejo.vsim.ui.i18n.Descriptions;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 
@@ -32,7 +33,10 @@ import java.util.function.Function;
  */
 final class ReadHostSupport {
 
-    /** The palette's names in both languages; a user component goes by its definition's name. */
+    /**
+     * The palette's names in both languages (a user component goes by its definition's name) and the «Descripción»
+     * Propiedades shows, in the editor's language.
+     */
     static final ComponentNames NAMES = new ComponentNames() {
         @Override
         public String spanish(ComponentType type) {
@@ -42,6 +46,11 @@ final class ReadHostSupport {
         @Override
         public String english(ComponentType type) {
             return nameIn(type, Messages.bundle(Locale.ENGLISH));
+        }
+
+        @Override
+        public String description(ComponentType type, Map<String, Object> parameters) {
+            return Descriptions.of(type, parameters);
         }
     };
 

@@ -71,6 +71,7 @@ Una línea por función; el detalle está en [docs/funciones.md](docs/funciones.
 
 ### Componentes
 
+- [Descripción en Propiedades](docs/funciones/componentes.md#descripción-en-propiedades): cada pieza explica qué hace y qué supone (entradas sin conectar, flanco del reloj, valores en Z, con signo…), según sus parámetros, en un recuadro plegable que también lee la IA; los componentes propios llevan la descripción que les escribas.
 - [Compuertas](docs/funciones/componentes.md#compuertas) AND, OR y XOR de 2 a 8 entradas, y esas tres más el Buffer de 1 a 32 bits, con «Negar salida» para NAND, NOR, XNOR y NOT, que están en la paleta como una entrada más; los circuitos de antes se abren igual.
 - [Interruptores, LED, displays y diagramas de tiempo](docs/funciones/componentes.md#interruptores-led-displays-y-diagramas-de-tiempo) para probar los circuitos.
 - [Pines de entrada y de salida](docs/funciones/componentes.md#pines-de-entrada-y-de-salida) de 1 a 64 bits, con su valor escrito y editable.

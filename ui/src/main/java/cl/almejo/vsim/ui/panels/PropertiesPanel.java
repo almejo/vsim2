@@ -22,9 +22,11 @@ import cl.almejo.vsim.core.document.StickyColor;
 import cl.almejo.vsim.core.document.StickyNote;
 import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.document.Wire;
+import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.Selection;
 import cl.almejo.vsim.ui.clipboard.FragmentRefusingTransferHandler;
+import cl.almejo.vsim.ui.i18n.Descriptions;
 import cl.almejo.vsim.ui.i18n.FrameTintNames;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.i18n.NoteColorNames;
@@ -67,7 +69,8 @@ import java.util.stream.Stream;
 
 /**
  * The "Propiedades" tab: what is selected, with editors that apply on Enter or focus loss. Each applied edit
- * is one undo step; invalid values only show an inline error.
+ * is one undo step; invalid values only show an inline error. A single part ends with its «Descripción»
+ * ({@link DescriptionBox}), which follows its parameters.
  */
 public final class PropertiesPanel extends JPanel {
 
@@ -82,6 +85,8 @@ public final class PropertiesPanel extends JPanel {
     private NoteTextArea noteArea;
     private ParameterForm parameterForm;
     private final Supplier<ColorScheme> scheme;
+    private final AppPreferences preferences;
+    private DescriptionBox descriptionBox;
     private ColorSwatches<FrameTint> frameColor;
     private JSpinner[] frameSpinners;
     private ColorSwatches<StickyColor> stickyColor;
@@ -107,8 +112,15 @@ public final class PropertiesPanel extends JPanel {
     /** {@code scheme} gives the colours the canvas paints with now: the colour swatches show the same ones. */
     public PropertiesPanel(OpenDocument openDocument, Selection selection, SelectionMoves selectionMoves,
                            Supplier<ColorScheme> scheme) {
+        this(openDocument, selection, selectionMoves, scheme, AppPreferences.inMemory());
+    }
+
+    /** {@code preferences} keep whether the «Descripción» box is folded. */
+    public PropertiesPanel(OpenDocument openDocument, Selection selection, SelectionMoves selectionMoves,
+                           Supplier<ColorScheme> scheme, AppPreferences preferences) {
         super(new MigLayout("wrap 2, insets dialog", "[right][grow, fill, 60::]"));
         this.scheme = scheme;
+        this.preferences = Objects.requireNonNull(preferences, "preferences");
         this.openDocument = openDocument;
         this.selection = selection;
         this.selectionMoves = selectionMoves;
@@ -214,6 +226,11 @@ public final class PropertiesPanel extends JPanel {
         return parameterForm;
     }
 
+    /** The «Descripción» box shown, empty when nothing, several elements or a part without description is shown. */
+    Optional<DescriptionBox> descriptionBox() {
+        return Optional.ofNullable(descriptionBox);
+    }
+
     String error() {
         return error.getText();
     }
@@ -242,7 +259,9 @@ public final class PropertiesPanel extends JPanel {
             return;
         }
         if (applying) {
-            renameShownComponent(); // the editors stay; «Negar salida» turns an AND into a NAND
+            // the editors stay; «Negar salida» turns an AND into a NAND, with the NAND's description
+            renameShownComponent();
+            describeShownComponent();
         } else {
             rebuild();
         }
@@ -257,9 +276,33 @@ public final class PropertiesPanel extends JPanel {
                 Messages.componentName(openDocument.registry().typeOf(component), component.parameters())));
     }
 
+    /**
+     * Shows the description of the one component shown, from its parameters now, at the bottom of the panel. The
+     * box goes away when that part has none.
+     */
+    private void describeShownComponent() {
+        if (descriptionBox != null) {
+            remove(descriptionBox);
+            descriptionBox = null;
+        }
+        if (shown.size() != 1) {
+            return;
+        }
+        openDocument.document().component(shown.iterator().next()).ifPresent(component -> {
+            String text = Descriptions.of(openDocument.registry().typeOf(component), component.parameters());
+            if (!text.isBlank()) {
+                descriptionBox = new DescriptionBox(text, preferences);
+                add(descriptionBox, "span 2, growx, wmin 0, gaptop 8");
+            }
+        });
+        revalidate();
+        repaint();
+    }
+
     private void rebuild() {
         generation++;
         removeAll();
+        descriptionBox = null;
         textField = null;
         noteArea = null;
         parameterForm = null;
@@ -284,8 +327,7 @@ public final class PropertiesPanel extends JPanel {
             showElement(openDocument.document().element(shown.iterator().next()).orElse(null));
         }
         add(error, "span 2, align left");
-        revalidate();
-        repaint();
+        describeShownComponent();
     }
 
     private void showElement(DocumentElement element) {

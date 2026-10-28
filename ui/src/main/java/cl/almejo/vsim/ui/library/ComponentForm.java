@@ -34,14 +34,21 @@ public final class ComponentForm {
 
     /**
      * What the user accepted: a new unique slug id when creating, the target's id when updating, the test parts
-     * checked to become pins and the new names of the pins the user renamed (stripped; only those whose name differs
-     * from the default one).
+     * checked to become pins, the new names of the pins the user renamed (stripped; only those whose name differs
+     * from the default one) and the component's «Descripción» (stripped; empty when none).
      */
     public record Result(String definitionId, String name, PinOrder pinOrder, boolean replaceSelection,
-                         Set<ElementId> convertedParts, Map<ElementId, String> pinNames) {
+                         Set<ElementId> convertedParts, Map<ElementId, String> pinNames, String description) {
         public Result {
             convertedParts = Set.copyOf(convertedParts);
             pinNames = Map.copyOf(pinNames);
+            Objects.requireNonNull(description, "description");
+        }
+
+        /** A result without a description. */
+        public Result(String definitionId, String name, PinOrder pinOrder, boolean replaceSelection,
+                      Set<ElementId> convertedParts, Map<ElementId, String> pinNames) {
+            this(definitionId, name, pinOrder, replaceSelection, convertedParts, pinNames, "");
         }
 
         /** A result without renamed pins. */
@@ -89,6 +96,8 @@ public final class ComponentForm {
     private final List<ElementId> outputs;
     private final List<Runnable> listeners = new CopyOnWriteArrayList<>();
     private String name;
+    /** The component's «Descripción», as typed. */
+    private String description;
     private ComponentDefinition target;
     private boolean replaceSelection;
 
@@ -109,6 +118,7 @@ public final class ComponentForm {
         this.outputs = new ArrayList<>(order.outputs());
         this.target = targets.isEmpty() ? null : targets.get(0);
         this.name = target == null ? "" : target.name();
+        this.description = target == null ? "" : target.description();
         this.replaceSelection = mode == Mode.CREATE;
     }
 
@@ -173,14 +183,28 @@ public final class ComponentForm {
         return Optional.ofNullable(target);
     }
 
-    /** Chooses which definition an update replaces; the name becomes that definition's name. */
+    /** Chooses which definition an update replaces; the name and the description become that definition's. */
     public void setTarget(ComponentDefinition next) {
         if (!targets.contains(next)) {
             throw new IllegalArgumentException("not a definition of this form: " + next.id());
         }
         target = next;
         name = next.name();
+        description = next.description();
         fire();
+    }
+
+    /** The «Descripción» the component gets: what Propiedades shows for its instances. Optional. */
+    public String description() {
+        return description;
+    }
+
+    public void setDescription(String newDescription) {
+        String next = newDescription == null ? "" : newDescription;
+        if (!next.equals(description)) {
+            description = next;
+            fire();
+        }
     }
 
     public boolean replaceSelection() {
@@ -403,7 +427,7 @@ public final class ComponentForm {
             }
         }
         return new Result(id, name.strip(), new PinOrder(inputs, outputs), replaceSelection, convertedParts,
-                renamed);
+                renamed, description.strip());
     }
 
     public void addListener(Runnable listener) {

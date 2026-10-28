@@ -101,6 +101,7 @@ class ToolCallsTest {
                 "typeId", "register", "parameters", Map.of("width", 8)));
 
         assertThat(list(register, "pins")).anySatisfy(pin -> assertThat(pin).containsEntry("width", 8));
+        assertThat(register).containsEntry("description", "reglas de register");
     }
 
     @Test

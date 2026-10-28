@@ -6,6 +6,24 @@ Los cambios de VSim 2 que se notan al usarlo, del más nuevo al más antiguo. El
 funciones, con las fechas en que se hizo. El detalle de cada función está en
 [docs/funciones.md](docs/funciones.md).
 
+## Sin publicar — Componentes para clases
+
+### Agregado
+
+- Propiedades termina con un recuadro «Descripción» que explica la pieza elegida y sus supuestos: qué vale una
+  entrada sin conectar, en qué flanco actúa, qué pasa con una entrada en Z, cómo lee los números con signo. Todas las
+  piezas lo tienen, también la RAM y la ROM (escritura en el flanco de bajada, `CS` y `WE` sin conectar, direcciones
+  indefinidas, archivos enlazados), y el texto cambia con los parámetros (un AND negado muestra el NAND, la RAM «Sin
+  reloj» lo explica). Se pliega con un clic y VSim lo recuerda; también aparece en «Configurar…».
+- Los componentes propios tienen descripción: se escribe al crearlos o actualizarlos («Descripción (opcional)») y
+  después con «Editar descripción…» en Propiedades, como un paso de deshacer.
+- La IA recibe la misma descripción en `vsim_describe_component`.
+
+### Cambiado
+
+- El globo de cada pieza de la paleta es ahora el primer párrafo de su descripción, así que todas las piezas tienen
+  uno (antes solo los bloques, los pines, los túneles y la memoria).
+
 ## Sin publicar — Compuertas parametrizables
 
 ### Agregado

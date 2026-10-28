@@ -2,10 +2,12 @@ package cl.almejo.vsim.ui.panels;
 
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
+import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.theme.FlatLafInstaller;
 import cl.almejo.vsim.ui.theme.ReadableColors;
 import org.junit.jupiter.api.Test;
 
+import javax.swing.JCheckBox;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JSpinner;
@@ -25,6 +27,18 @@ class ConfigureDialogTest {
 
     private static void typeInto(JSpinner spinner, String text) {
         ((JSpinner.DefaultEditor) spinner.getEditor()).getTextField().setText(text);
+    }
+
+    @Test
+    void theDescriptionUnderTheFormFollowsAnAppliedNegateOutput() {
+        ParameterForm form = new ParameterForm(registry.require(StandardComponentTypes.AND), Map.of());
+        DescriptionBox box = ConfigureDialog.descriptionBox(registry.require(StandardComponentTypes.AND), form,
+                AppPreferences.inMemory());
+        assertThat(box.text()).startsWith("AND");
+
+        ((JCheckBox) form.editor(StandardComponentTypes.NEGATE)).doClick();
+
+        assertThat(box.text()).startsWith("NAND");
     }
 
     @Test
