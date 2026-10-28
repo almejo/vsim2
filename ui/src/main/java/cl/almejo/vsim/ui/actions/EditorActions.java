@@ -58,7 +58,6 @@ public final class EditorActions {
     private final Supplier<CircuitCanvas> activePane;
     private final Selection selection;
     /** Where the configure dialog's «Descripción» remembers whether it is folded. */
-    private final AppPreferences preferences;
     private final int menuMask = ShortcutCatalog.menuMask();
     private final HistoryListener historyListener = history -> refresh();
     /** How far «Avanzar N t» goes (M6.1-B: the preference, followed by {@code FixedStepFeatures}). */
@@ -105,9 +104,8 @@ public final class EditorActions {
      * tool actions go through {@code toolChoice} to every pane. The window feeds {@link #refreshSimulationButtons}.
      */
     public EditorActions(OpenDocument openDocument, Supplier<CircuitCanvas> activePane, Selection selection,
-                         ToolChoice toolChoice, WindowCommands window, AppPreferences preferences) {
+                         ToolChoice toolChoice, WindowCommands window) {
         this.openDocument = openDocument;
-        this.preferences = preferences;
         this.activePane = activePane;
         this.selection = selection;
         newDocument = Actions.of(Messages.text("action.new"), shortcut(KeyEvent.VK_N, 0), window::newDocument);
@@ -248,7 +246,7 @@ public final class EditorActions {
         if (type.parameters().isEmpty()) {
             return;
         }
-        ConfigureDialog.show(activePane.get(), type, component, activePane.get()::scheme, preferences)
+        ConfigureDialog.show(activePane.get(), type, component, activePane.get()::scheme)
                 .ifPresent(values -> TunnelNames.applyParameters(openDocument, component.id(), type, values));
     }
 

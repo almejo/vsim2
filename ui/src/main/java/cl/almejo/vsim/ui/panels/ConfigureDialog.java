@@ -2,7 +2,6 @@ package cl.almejo.vsim.ui.panels;
 
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.document.Component;
-import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.i18n.Descriptions;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.ColorScheme;
@@ -33,18 +32,16 @@ public final class ConfigureDialog {
     }
 
     /**
-     * {@code scheme} gives the colours the canvas paints with now, for the colour swatches; {@code preferences} keep
-     * whether the «Descripción» under the form is folded.
+     * {@code scheme} gives the colours the canvas paints with now, for the colour swatches.
      */
     public static Optional<Map<String, Object>> show(java.awt.Component owner, ComponentType type,
-                                                     Component component, Supplier<ColorScheme> scheme,
-                                                     AppPreferences preferences) {
+                                                     Component component, Supplier<ColorScheme> scheme) {
         ParameterForm form = new ParameterForm(type, component.parameters(), scheme);
         JLabel error = newErrorLabel();
         JPanel content = new JPanel(new BorderLayout(0, 8));
         content.add(form, BorderLayout.NORTH);
         content.add(error, BorderLayout.CENTER);
-        content.add(descriptionBox(type, form, preferences), BorderLayout.SOUTH);
+        content.add(descriptionBox(type, form), BorderLayout.SOUTH);
 
         JOptionPane pane = new JOptionPane(content, JOptionPane.PLAIN_MESSAGE, JOptionPane.OK_CANCEL_OPTION);
         Window window = owner == null ? null : SwingUtilities.getWindowAncestor(owner);
@@ -81,8 +78,8 @@ public final class ConfigureDialog {
      * The «Descripción» of the part, following the values in {@code form} each time one is applied (Enter or leaving
      * the field); values that do not resolve keep the base text.
      */
-    static DescriptionBox descriptionBox(ComponentType type, ParameterForm form, AppPreferences preferences) {
-        DescriptionBox box = new DescriptionBox(Descriptions.of(type, form.rawValues()), preferences);
+    static DescriptionBox descriptionBox(ComponentType type, ParameterForm form) {
+        DescriptionBox box = DescriptionBox.capped(Descriptions.of(type, form.rawValues()));
         form.addCommitListener(() -> box.showText(Descriptions.of(type, form.rawValues())));
         return box;
     }

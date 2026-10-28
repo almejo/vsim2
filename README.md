@@ -71,7 +71,7 @@ Una línea por función; el detalle está en [docs/funciones.md](docs/funciones.
 
 ### Componentes
 
-- [Descripción en Propiedades](docs/funciones/componentes.md#descripción-en-propiedades): cada pieza explica qué hace y qué supone (entradas sin conectar, flanco del reloj, valores en Z, con signo…), según sus parámetros, en un recuadro plegable que también lee la IA; los componentes propios llevan la descripción que les escribas.
+- [Descripción en Propiedades](docs/funciones/componentes.md#descripción-en-propiedades): cada pieza explica qué hace y qué supone (entradas sin conectar, flanco del reloj, valores en Z, con signo…), según sus parámetros, en un recuadro que ocupa el espacio que queda en Propiedades y que también lee la IA; los componentes propios llevan la descripción que les escribas.
 - [Compuertas](docs/funciones/componentes.md#compuertas) AND, OR y XOR de 2 a 8 entradas, y esas tres más el Buffer de 1 a 32 bits, con «Negar salida» para NAND, NOR, XNOR y NOT, que están en la paleta como una entrada más; el Buffer triestado también tiene ancho y «Negar salida» (el Inversor controlado); los circuitos de antes se abren igual.
 - [Extensor y selector de bits](docs/funciones/componentes.md#cableado-extensor-y-selector-de-bits): el extensor cambia el ancho de un bus (rellena con ceros o con el signo, o corta) y el selector saca un grupo de bits de un bus.
 - [Interruptores, LED, displays y diagramas de tiempo](docs/funciones/componentes.md#interruptores-led-displays-y-diagramas-de-tiempo) para probar los circuitos.

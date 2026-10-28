@@ -1,15 +1,13 @@
 package cl.almejo.vsim.ui.panels;
 
-import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.i18n.Messages;
 
 import javax.swing.BorderFactory;
-import javax.swing.JButton;
+import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
 import javax.swing.ScrollPaneConstants;
-import javax.swing.SwingConstants;
 import javax.swing.UIManager;
 import java.awt.BorderLayout;
 import java.awt.Dimension;
@@ -19,34 +17,42 @@ import java.awt.event.ComponentEvent;
 import java.util.Objects;
 
 /**
- * The «Descripción» box at the bottom of Propiedades (and of the configure dialog): the rules and assumptions of the
- * selected part, read only. A click on its title folds or unfolds it, and every box remembers the choice in
- * {@link AppPreferences#descriptionFolded()}. The text wraps to the box's width and scrolls past
- * {@link #MAXIMUM_LINES} lines, so a long text (the RAM's) never pushes the rest out of sight. Font and colours come
- * from the look and feel each time it changes.
+ * The «Descripción» box of Propiedades (and of the configure dialog): the rules and assumptions of the selected
+ * part, read only, under a plain heading. The text wraps to the box's width. {@link #filling} asks for the height the
+ * whole text needs and lets the layout give it all the space left (it scrolls only when the text is longer than that
+ * space); {@link #capped} stops at {@link #MAXIMUM_LINES} lines and scrolls past them, so a long text (the RAM's)
+ * never makes a dialog taller than the screen. Font and colours come from the look and feel each time it changes.
  */
 public final class DescriptionBox extends JPanel {
 
-    /** Lines the box shows before it scrolls. */
+    /** Lines a {@link #capped} box shows before it scrolls. */
     static final int MAXIMUM_LINES = 14;
+    /** Lines a box keeps visible at least, whatever the space left. */
+    private static final int MINIMUM_LINES = 3;
     /** The width assumed before the box has one. */
     private static final int FALLBACK_WIDTH = 260;
     private static final int GAP = 4;
 
-    private final AppPreferences preferences;
-    private final JButton title = new JButton();
+    private final int maximumLines;
+    private final JLabel title = new JLabel(Messages.text("properties.description.title"));
     private final JTextArea body = new JTextArea();
     private final JScrollPane scroll = new JScrollPane(body, ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED,
             ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
 
-    public DescriptionBox(String text, AppPreferences preferences) {
+    /** A box that takes all the height its container has left (Propiedades). */
+    public static DescriptionBox filling(String text) {
+        return new DescriptionBox(text, Integer.MAX_VALUE);
+    }
+
+    /** A box of at most {@link #MAXIMUM_LINES} lines (the configure dialog). */
+    public static DescriptionBox capped(String text) {
+        return new DescriptionBox(text, MAXIMUM_LINES);
+    }
+
+    private DescriptionBox(String text, int maximumLines) {
         super(new BorderLayout(0, GAP));
-        this.preferences = Objects.requireNonNull(preferences, "preferences");
+        this.maximumLines = maximumLines;
         setOpaque(false);
-        title.putClientProperty("JButton.buttonType", "borderless");
-        title.setHorizontalAlignment(SwingConstants.LEADING);
-        title.setFocusable(true);
-        title.addActionListener(event -> toggle());
         body.setEditable(false);
         body.setFocusable(false);
         body.setLineWrap(true);
@@ -59,7 +65,6 @@ public final class DescriptionBox extends JPanel {
         add(title, BorderLayout.NORTH);
         add(scroll, BorderLayout.CENTER);
         applyLabelLook();
-        showFolding();
         showText(text);
         // The wrapped height depends on the width: ask the layout again when the width changes.
         addComponentListener(new ComponentAdapter() {
@@ -83,34 +88,11 @@ public final class DescriptionBox extends JPanel {
         Font font = UIManager.getFont("Label.font");
         if (font != null) {
             body.setFont(font);
+            title.setFont(font.deriveFont(Font.BOLD));
         }
         if (UIManager.getColor("Label.foreground") != null) {
             body.setForeground(UIManager.getColor("Label.foreground"));
         }
-    }
-
-    /** Folds an unfolded box and the other way round, and remembers it for every box from now on. */
-    void toggle() {
-        preferences.setDescriptionFolded(!isFolded());
-        showFolding();
-        revalidate();
-        repaint();
-    }
-
-    private void showFolding() {
-        boolean folded = isFolded();
-        title.setText(Messages.text(folded ? "properties.description.folded" : "properties.description.unfolded"));
-        title.getAccessibleContext().setAccessibleDescription(Messages.text(folded
-                ? "properties.description.unfold" : "properties.description.fold"));
-        scroll.setVisible(!folded);
-    }
-
-    boolean isFolded() {
-        return preferences.descriptionFolded();
-    }
-
-    boolean isBodyVisible() {
-        return scroll.isVisible();
     }
 
     public String text() {
@@ -132,18 +114,15 @@ public final class DescriptionBox extends JPanel {
      */
     @Override
     public Dimension getPreferredSize() {
-        Dimension titleSize = title.getPreferredSize();
-        if (!scroll.isVisible()) {
-            return new Dimension(titleSize.width, titleSize.height);
-        }
         int width = getWidth() > 0 ? getWidth() : FALLBACK_WIDTH;
         int bodyHeight = Math.min(bodyHeightAt(width), maximumBodyHeight());
-        return new Dimension(titleSize.width, titleSize.height + GAP + bodyHeight);
+        return new Dimension(title.getPreferredSize().width, headerHeight() + GAP + bodyHeight);
     }
 
+    /** The title and a few lines, so the box never collapses to nothing when the parameters take the space. */
     @Override
     public Dimension getMinimumSize() {
-        return new Dimension(0, title.getPreferredSize().height);
+        return new Dimension(0, headerHeight() + GAP + lineHeight() * MINIMUM_LINES);
     }
 
     /** The height the whole text needs wrapped to {@code width}. */
@@ -158,9 +137,13 @@ public final class DescriptionBox extends JPanel {
         return measure.getPreferredSize().height;
     }
 
-    /** {@link #MAXIMUM_LINES} lines of the body's font. */
+    /** The cap of a {@link #capped} box; no cap ({@link Integer#MAX_VALUE}) for a {@link #filling} one. */
     int maximumBodyHeight() {
-        return body.getFontMetrics(body.getFont()).getHeight() * MAXIMUM_LINES;
+        return maximumLines == Integer.MAX_VALUE ? Integer.MAX_VALUE : lineHeight() * maximumLines;
+    }
+
+    private int lineHeight() {
+        return body.getFontMetrics(body.getFont()).getHeight();
     }
 
     int headerHeight() {

@@ -22,7 +22,6 @@ import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.library.ExampleDefinitions;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.core.tunnel.Tunnels;
-import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.Selection;
 import cl.almejo.vsim.ui.clipboard.FragmentTransferable;
@@ -220,40 +219,62 @@ class PropertiesPanelTest {
     }
 
     @Test
-    void foldingTheDescriptionIsRememberedForTheNextPartAndInThePreferences() {
-        panel.dispose();
-        AppPreferences preferences = AppPreferences.inMemory();
-        panel = new PropertiesPanel(openDocument, selection, SelectionMoves.detached(), () -> ColorSchemes.LIGHT,
-                preferences);
-        Component first = gate(0);
-        Component second = gate(10);
-        selection.select(first.id());
+    void theDescriptionTakesAllTheHeightLeftUnderTheParameters() {
+        Component gate = gate(0);
+        selection.select(gate.id());
+        panel.setSize(280, 900);
+        layOut(panel);
+
         DescriptionBox box = panel.descriptionBox().orElseThrow();
-        assertThat(box.isFolded()).isFalse();
-        assertThat(box.isBodyVisible()).isTrue();
+        assertThat(box.getY() + box.getHeight()).isGreaterThanOrEqualTo(panel.getHeight() - 30);
+        assertThat(box.getHeight()).isGreaterThan(box.headerHeight() + 300);
+        int heightInTallPanel = box.getHeight();
 
-        box.toggle();
-
-        assertThat(box.isFolded()).isTrue();
-        assertThat(box.isBodyVisible()).isFalse();
-        assertThat(preferences.descriptionFolded()).isTrue();
-        selection.select(second.id());
-        assertThat(panel.descriptionBox().orElseThrow().isFolded()).isTrue();
-        panel.descriptionBox().orElseThrow().toggle();
-        assertThat(preferences.descriptionFolded()).isFalse();
+        panel.setSize(280, 1200);
+        layOut(panel);
+        assertThat(panel.descriptionBox().orElseThrow().getHeight()).isGreaterThan(heightInTallPanel);
     }
 
     @Test
-    void aLongDescriptionWrapsToThePanelAndScrollsPastItsMaximumHeight() {
+    void aLongDescriptionIsNotCappedInPropertiesAndScrollsOnlyWhenTheSpaceIsShort() {
         Component ram = place(openDocument, StandardComponentTypes.RAM, 0, 0, Map.of());
         selection.select(ram.id());
-        panel.setSize(280, 2000);
+        panel.setSize(280, 3000);
         layOut(panel);
 
         DescriptionBox box = panel.descriptionBox().orElseThrow();
         assertThat(box.getWidth()).isLessThanOrEqualTo(280);
-        assertThat(box.getHeight()).isLessThanOrEqualTo(box.maximumBodyHeight() + box.headerHeight() + 10);
-        assertThat(box.bodyHeightAt(260)).isGreaterThan(box.maximumBodyHeight());
+        assertThat(box.bodyHeightAt(box.getWidth())).isLessThanOrEqualTo(box.getHeight());
+        assertThat(box.bodyHeightAt(260)).isGreaterThan(300);
+
+        panel.setSize(280, 300);
+        layOut(panel);
+        assertThat(panel.descriptionBox().orElseThrow().getHeight())
+                .isLessThan(box.bodyHeightAt(box.getWidth()));
+    }
+
+    @Test
+    void theDescriptionHasAPlainHeadingAndNoFoldingButton() {
+        selection.select(gate(0).id());
+        DescriptionBox box = panel.descriptionBox().orElseThrow();
+
+        assertThat(allOf(box, javax.swing.AbstractButton.class)).extracting(javax.swing.AbstractButton::getText)
+                .allMatch(text -> text == null || text.isEmpty());
+        assertThat(allOf(box, javax.swing.JLabel.class)).extracting(javax.swing.JLabel::getText)
+                .containsExactly("Descripción");
+    }
+
+    private static <T extends java.awt.Component> List<T> allOf(java.awt.Container root, Class<T> type) {
+        List<T> found = new java.util.ArrayList<>();
+        for (java.awt.Component child : root.getComponents()) {
+            if (type.isInstance(child)) {
+                found.add(type.cast(child));
+            }
+            if (child instanceof java.awt.Container container) {
+                found.addAll(allOf(container, type));
+            }
+        }
+        return found;
     }
 
     @Test
