@@ -4,6 +4,7 @@ import cl.almejo.vsim.core.command.SetLabelCommand;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
+import cl.almejo.vsim.core.io.CircuitFormat;
 import cl.almejo.vsim.core.library.ComponentLibrary;
 import cl.almejo.vsim.ui.library.LibraryService;
 import cl.almejo.vsim.ui.library.SwingLibraryDialogs;
@@ -97,7 +98,7 @@ class PolishEndToEndTest {
         Path file = directory.resolve("cadena.vsim");
         original.save(file);
         String saved = Files.readString(file);
-        assertThat(saved).contains("\"formatVersion\" : 4").doesNotContain("A.out");
+        assertThat(saved).contains("\"formatVersion\" : " + CircuitFormat.FORMAT_VERSION).doesNotContain("A.out");
         assertThat(saved.replaceAll("\\s", "")).as("the live name is left out")
                 .contains("{\"id\":\"p1\",\"name\":\"entrada\",\"component\":\"c1\",\"pin\":0}")
                 .contains("{\"id\":\"p2\",\"component\":\"c2\",\"pin\":1}");

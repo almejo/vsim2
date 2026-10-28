@@ -116,6 +116,8 @@ public final class StandardComponentTypes {
             new ComponentPreset(XNOR_PRESET, XOR, Map.of(NEGATE, true)),
             new ComponentPreset(NOT_PRESET, BUFFER, Map.of(NEGATE, true)),
             new ComponentPreset(INVERTER_CONTROLLED_PRESET, TRI_STATE, Map.of(NEGATE, true)));
+    /** A register shows its binary value in one line up to 16 bits and in two lines of 16 above. */
+    public static final int REGISTER_ONE_LINE_BITS = 16;
     private static final ParameterSpec BUS_WIDTH = ParameterSpec.integer(WIDTH, 8, 2, 32);
     /**
      * Tunnels only join nets: the flattener leaves them out, so this behaviour never runs; it exists because every
@@ -142,9 +144,11 @@ public final class StandardComponentTypes {
                 parameters -> bufferShape((Integer) parameters.get(WIDTH)),
                 parameters -> new BufferBehavior((Boolean) parameters.get(NEGATE), (Integer) parameters.get("delay"))));
         registry.register(new ComponentType(FLIP_FLOP_DATA, ComponentCategory.SEQUENTIAL, GATE_SIZE,
-                List.of(PinSpec.input("d", 0, 2), PinSpec.output("q", 4, 2), PinSpec.input("clock", 2, 4)),
+                List.of(PinSpec.input("d", 0, 2), PinSpec.output("q", 4, 2), PinSpec.input("clock", 2, 4),
+                        PinSpec.output(SequentialTypes.NOT_OUTPUT_PIN, 4, 3)),
                 List.of(DELAY),
                 parameters -> new FlipFlopDataBehavior((Integer) parameters.get("delay"))));
+        SequentialTypes.register(registry);
         registry.register(ComponentType.parameterized(TRI_STATE, ComponentCategory.GATES,
                 List.of(GATE_WIDTH, NEGATE_SPEC, DELAY),
                 parameters -> triStateShape((Integer) parameters.get(WIDTH)),
@@ -285,19 +289,27 @@ public final class StandardComponentTypes {
     }
 
     /**
-     * A 12 x 7 register: D[N] at (0, 2), Q[N] at (12, 2), EN, CLR and CLK on the bottom edge at x = 6, 8, 10. Wide
-     * enough for its value in every format at 32 bits (32 binary digits get a smaller text).
+     * A thin register (format 5): 12 x 4, or 12 x 5 over {@value #REGISTER_ONE_LINE_BITS} bits so its binary value
+     * fits in two lines. D[N] at (0, 2), Q[N] at (12, 2), EN, CLR and CLK on the bottom edge at x = 6, 8, 10. Its size
+     * depends on the width only (not on «Mostrar como»). Files of format 4 and older had it 12 x 7
+     * ({@code RegisterShapeMigration} adds wires from the moved pins to where they were).
      */
     private static ComponentShape registerShape(int width) {
-        return new ComponentShape(new GridSize(12, 7), List.of(
+        int height = registerHeight(width);
+        return new ComponentShape(new GridSize(12, height), List.of(
                 PinSpec.input("D", 0, 2, width),
-                PinSpec.input("EN", 6, 7),
-                PinSpec.input("CLR", 8, 7),
-                PinSpec.input("CLK", 10, 7),
+                PinSpec.input("EN", 6, height),
+                PinSpec.input("CLR", 8, height),
+                PinSpec.input("CLK", 10, height),
                 PinSpec.output("Q", 12, 2, width)));
     }
 
-    /** The register's 12 x 7 box with LD at (4, 7) on the bottom edge and C at (12, 5) on the right. */
+    /** The register's height at {@code width} bits: 4, or 5 when its binary value takes two lines. */
+    public static int registerHeight(int width) {
+        return width > REGISTER_ONE_LINE_BITS ? 5 : 4;
+    }
+
+    /** The counter's 12 x 7 box (the register's before format 5) with LD at (4, 7) and C at (12, 5) on the right. */
     private static ComponentShape counterShape(int width) {
         return new ComponentShape(new GridSize(12, 7), List.of(
                 PinSpec.input("D", 0, 2, width),

@@ -14,6 +14,7 @@ import java.awt.geom.Path2D;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 import java.awt.geom.RoundRectangle2D;
+import java.util.Arrays;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.BiFunction;
@@ -29,7 +30,8 @@ import static cl.almejo.vsim.ui.paint.PainterSupport.UNIT;
  *     (room for the leads) and one pixel on the others;</li>
  *     <li>a lead from each pin on the box's edge to the body, thick for a bus pin (wider than one bit);</li>
  *     <li>the clock triangle on the body's edge at every pin named {@value #CLOCK_PIN} (instead of its name);</li>
- *     <li>the symbol in the middle and, under it on screen, the live text (if the state gives one);</li>
+ *     <li>the symbol in the middle and, under it on screen, the live text (if the state gives one); with
+ *     {@link #withCornerSymbol}, the symbol small in a corner and the live text in lines in the middle;</li>
  *     <li>each pin's short name inside the body next to its pin (left pins left-aligned, right pins right-aligned,
  *     top and bottom pins centred under or over them), shrunk to fit and never outside the body;</li>
  *     <li>the pin dots, last.</li>
@@ -64,11 +66,14 @@ public final class BlockPainter implements ComponentPainter {
     private static final double INSET = 2;
     private static final float SYMBOL_SIZE = 9f;
     private static final float LIVE_TEXT_SIZE = 7f;
+    /** The thin register's value: larger than the usual live text, the symbol is out of its way. */
+    private static final float CORNER_LIVE_TEXT_SIZE = 9f;
+    private static final float CORNER_SYMBOL_SIZE = 5f;
     private static final float PIN_NAME_SIZE = 6f;
     private static final float MINIMUM_SIZE = 4f;
     /**
      * Smaller than the other texts' minimum so a register's 32 binary digits fit its body, upright and also sideways,
-     * where the body is only 7 units across (readable with zoom).
+     * where the body is only a few units across (readable with zoom).
      */
     private static final float LIVE_TEXT_MINIMUM_SIZE = 1.5f;
     private static final double TEXT_GAP = 1;
@@ -84,17 +89,20 @@ public final class BlockPainter implements ComponentPainter {
     private final String symbol;
     private final Body body;
     private final BiFunction<VisibleState, Map<String, Object>, Optional<String>> liveText;
+    private final boolean cornerSymbol;
 
     /** A block drawn with {@code body}, showing {@code symbol} (such as {@code Σ} or {@code ALU}) in its middle. */
     public BlockPainter(String symbol, Body body) {
-        this(symbol, body, NO_LIVE_TEXT);
+        this(symbol, body, NO_LIVE_TEXT, false);
     }
 
     private BlockPainter(String symbol, Body body,
-                         BiFunction<VisibleState, Map<String, Object>, Optional<String>> liveText) {
+                         BiFunction<VisibleState, Map<String, Object>, Optional<String>> liveText,
+                         boolean cornerSymbol) {
         this.symbol = symbol;
         this.body = body;
         this.liveText = liveText;
+        this.cornerSymbol = cornerSymbol;
     }
 
     /** This painter, also writing under the symbol the text {@code text} gives for the state (nothing when empty). */
@@ -107,7 +115,15 @@ public final class BlockPainter implements ComponentPainter {
      * parameter present, normalized), such as the «Mostrar como» format of a register.
      */
     public BlockPainter withLiveText(BiFunction<VisibleState, Map<String, Object>, Optional<String>> text) {
-        return new BlockPainter(symbol, body, text);
+        return new BlockPainter(symbol, body, text, cornerSymbol);
+    }
+
+    /**
+     * This painter with the symbol small in the body's top left corner and the live text large in the middle, one line
+     * per {@code \n} (the thin register: «REG» in the corner, its value in one or two lines).
+     */
+    public BlockPainter withCornerSymbol() {
+        return new BlockPainter(symbol, body, liveText, true);
     }
 
     @Override
@@ -127,7 +143,12 @@ public final class BlockPainter implements ComponentPainter {
                 paintClockMark(graphics, pin, side(shaped, pin), box, scheme);
             }
         }
-        paintSymbolAndLiveText(graphics, outline, box, liveText.apply(state, resolved), sideways, scheme);
+        Optional<String> live = liveText.apply(state, resolved);
+        if (cornerSymbol) {
+            paintCornerSymbolAndLines(graphics, shaped, outline, box, live.orElse(""), sideways, scheme);
+        } else {
+            paintSymbolAndLiveText(graphics, outline, box, live, sideways, scheme);
+        }
         for (PinSpec pin : shaped.pins()) {
             if (!pin.name().isBlank() && !pin.name().equals(CLOCK_PIN)) {
                 paintPinName(graphics, shaped, pin, box, outline, sideways, scheme);
@@ -299,6 +320,82 @@ public final class BlockPainter implements ComponentPainter {
                 centerY + down.getY() * symbolOffset, symbolSize, scheme.text());
         PainterSupport.centeredText(graphics, outline, text, centerX + down.getX() * liveOffset,
                 centerY + down.getY() * liveOffset, liveSize, scheme.text());
+    }
+
+    /**
+     * The symbol small in the body's top left corner (local; another corner on screen when turned) and the lines of
+     * {@code live} stacked in the middle of what the pin names and the symbol leave free, all at one size that fits
+     * the widest line across that area and every line along it.
+     */
+    private void paintCornerSymbolAndLines(Graphics2D graphics, ComponentType type, Shape outline, Rectangle2D box,
+                                           String live, boolean sideways, ColorScheme scheme) {
+        float symbolSize = fitted(graphics, symbol, CORNER_SYMBOL_SIZE, box.getWidth() / 2);
+        double symbolWidth = textWidth(graphics, symbol, symbolSize);
+        double symbolHeight = textHeight(graphics, symbolSize);
+        double localSymbolWidth = sideways ? symbolHeight : symbolWidth;
+        double localSymbolHeight = sideways ? symbolWidth : symbolHeight;
+        // Upright the symbol takes a band over the value; turned sideways it sits after the left pins' names (on
+        // screen: under the top names) and takes a band along the value instead.
+        Rectangle2D area = valueArea(graphics, type, box, sideways ? 0 : INSET + symbolHeight + TEXT_GAP, sideways);
+        double symbolLeft = sideways ? area.getX() : box.getX() + INSET;
+        PainterSupport.centeredText(graphics, outline, symbol, symbolLeft + localSymbolWidth / 2,
+                box.getY() + INSET + localSymbolHeight / 2, symbolSize, scheme.text());
+        if (live.isEmpty()) {
+            return;
+        }
+        if (sideways) {
+            double symbolBand = localSymbolWidth + TEXT_GAP;
+            area = new Rectangle2D.Double(area.getX() + symbolBand, area.getY(),
+                    Math.max(1, area.getWidth() - symbolBand), area.getHeight());
+        }
+        double across = sideways ? area.getHeight() : area.getWidth();
+        double along = sideways ? area.getWidth() : area.getHeight();
+        String[] lines = live.split("\\n");
+        float size = CORNER_LIVE_TEXT_SIZE;
+        for (String line : lines) {
+            size = Math.min(size, fitted(graphics, line, CORNER_LIVE_TEXT_SIZE, across, LIVE_TEXT_MINIMUM_SIZE));
+        }
+        double lineHeight = textHeight(graphics, size) + TEXT_GAP * 2;
+        if (lines.length * lineHeight > along && lineHeight > 0) {
+            size = (float) Math.max(LIVE_TEXT_MINIMUM_SIZE, size * along / (lines.length * lineHeight));
+            lineHeight = textHeight(graphics, size) + TEXT_GAP * 2;
+        }
+        Point2D down = screenDown(graphics);
+        for (int index = 0; index < lines.length; index++) {
+            double offset = (index - (lines.length - 1) / 2.0) * lineHeight;
+            PainterSupport.centeredText(graphics, outline, lines[index], area.getCenterX() + down.getX() * offset,
+                    area.getCenterY() + down.getY() * offset, size, scheme.text());
+        }
+    }
+
+    /**
+     * The part of the body no pin name and no clock triangle uses: on each side with pins, a band as deep as its
+     * deepest name (measured as {@link #paintPinName} draws it); the top band at least {@code topBand} deep, and
+     * every band at least the usual inset.
+     */
+    private static Rectangle2D valueArea(Graphics2D graphics, ComponentType type, Rectangle2D box, double topBand,
+                                         boolean sideways) {
+        double[] bands = new double[Side.values().length];
+        Arrays.fill(bands, INSET);
+        bands[Side.TOP.ordinal()] = Math.max(INSET, topBand);
+        for (PinSpec pin : type.pins()) {
+            Side side = side(type, pin);
+            if (side == Side.NONE || pin.name().isBlank()) {
+                continue;
+            }
+            double depth = CLOCK_DEPTH;
+            if (!pin.name().equals(CLOCK_PIN)) {
+                boolean runsAcrossTheEdge = (side == Side.LEFT || side == Side.RIGHT) != sideways;
+                depth = runsAcrossTheEdge ? textWidth(graphics, pin.name(), PIN_NAME_SIZE)
+                        : textHeight(graphics, PIN_NAME_SIZE);
+            }
+            bands[side.ordinal()] = Math.max(bands[side.ordinal()], INSET + depth + TEXT_GAP);
+        }
+        double left = box.getX() + bands[Side.LEFT.ordinal()];
+        double top = box.getY() + bands[Side.TOP.ordinal()];
+        double right = box.getMaxX() - bands[Side.RIGHT.ordinal()];
+        double bottom = box.getMaxY() - bands[Side.BOTTOM.ordinal()];
+        return new Rectangle2D.Double(left, top, Math.max(1, right - left), Math.max(1, bottom - top));
     }
 
     /** A pin's name inside the body, next to its pin. */

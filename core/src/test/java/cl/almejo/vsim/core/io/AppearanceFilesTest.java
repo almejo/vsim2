@@ -49,7 +49,7 @@ class AppearanceFilesTest {
                 ComponentAppearance.of(original).pins());
         document.replace(instance.withAppearance(Optional.of(override)));
         String json = format.write(document);
-        assertThat(new ObjectMapper().readTree(json).path("formatVersion").asInt()).isEqualTo(4);
+        assertThat(new ObjectMapper().readTree(json).path("formatVersion").asInt()).isEqualTo(CircuitFormat.FORMAT_VERSION);
         CircuitDocument loaded = format.read(json);
         assertThat(loaded.definitions()).containsExactly(definition);
         assertThat(loaded.components()).isEqualTo(document.components());

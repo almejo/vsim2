@@ -78,22 +78,23 @@ class LegacyGateMigrationTest {
     }
 
     @Test
-    void aMigratedCircuitSavesAsFormatFourAndReadsBackTheSame() throws Exception {
+    void aMigratedCircuitSavesAsTheCurrentFormatAndReadsBackTheSame() throws Exception {
         CircuitDocument migrated = format.read(circuitWith("nor3", 3));
 
         String saved = format.write(migrated);
 
-        assertThat(saved).contains("\"formatVersion\" : 4").contains("\"type\" : \"or\"").doesNotContain("nor3");
+        assertThat(saved).contains("\"formatVersion\" : " + CircuitFormat.FORMAT_VERSION)
+                .contains("\"type\" : \"or\"").doesNotContain("nor3");
         assertThat(format.write(format.read(saved))).isEqualTo(saved);
     }
 
     @Test
-    void aCommittedFormatThreeFileOpensAsTheSameCircuitAsItsFormatFourRewrite() throws Exception {
+    void aCommittedFormatThreeFileOpensAsTheSameCircuitAsItsCurrentRewrite() throws Exception {
         String legacy = Files.readString(Path.of("src/test/resources/legacy-formats/gates-version-3.vsim"));
         String current = Files.readString(Path.of("src/test/resources/fixtures/m3/rotated-gates.vsim"));
 
         assertThat(legacy).contains("\"formatVersion\" : 3").contains("\"not\"");
-        assertThat(current).contains("\"formatVersion\" : 4");
+        assertThat(current).contains("\"formatVersion\" : " + CircuitFormat.FORMAT_VERSION);
         assertThat(format.write(format.read(legacy)))
                 .isEqualTo(format.write(format.read(current)));
     }
@@ -146,7 +147,8 @@ class LegacyGateMigrationTest {
 
         assertThat(typeOf(bundle.root(), "g2")).isEqualTo("and");
         assertThat(typeOf(bundle.dependencies().getFirst(), "g1")).isEqualTo("buffer");
-        assertThat(new DefinitionFormat(registry).write(bundle)).contains("\"formatVersion\" : 4")
+        assertThat(new DefinitionFormat(registry).write(bundle))
+                .contains("\"formatVersion\" : " + CircuitFormat.FORMAT_VERSION)
                 .doesNotContain("nand2").doesNotContain("\"not\"");
     }
 

@@ -38,7 +38,7 @@ class CircuitFormatProbesTest {
         document.setProbes(probes);
 
         String json = format.write(document);
-        assertThat(json).contains("\"formatVersion\" : 4").contains("\"probes\"")
+        assertThat(json).contains("\"formatVersion\" : " + CircuitFormat.FORMAT_VERSION).contains("\"probes\"")
                 .doesNotContain("\"component\" : null").doesNotContain("\"wire\" : null")
                 .doesNotContain("\"pin\" : null");
 
@@ -72,7 +72,7 @@ class CircuitFormatProbesTest {
 
         String json = format.write(document);
 
-        assertThat(json).contains("\"formatVersion\" : 4").contains("\"name\" : \"reloj\"")
+        assertThat(json).contains("\"formatVersion\" : " + CircuitFormat.FORMAT_VERSION).contains("\"name\" : \"reloj\"")
                 .doesNotContain("\"name\" : \"\"").doesNotContain("\"name\" : null");
         assertThat(format.read(json).probes()).containsExactlyElementsOf(document.probes());
     }

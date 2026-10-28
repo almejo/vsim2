@@ -8,6 +8,7 @@ import cl.almejo.vsim.core.component.ComponentCategory;
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.ParameterSpec;
 import cl.almejo.vsim.core.component.PinSpec;
+import cl.almejo.vsim.core.component.standard.SequentialTypes;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.GridSize;
@@ -43,7 +44,8 @@ class CatalogReaderTest {
         assertThat(flipFlop.pins()).containsExactly(
                 new PinSpecView(0, "d", "INPUT", 1, false, new GridPoint(0, 2)),
                 new PinSpecView(1, "q", "OUTPUT", 1, false, new GridPoint(4, 2)),
-                new PinSpecView(2, "clock", "INPUT", 1, false, new GridPoint(2, 4)));
+                new PinSpecView(2, "clock", "INPUT", 1, false, new GridPoint(2, 4)),
+                new PinSpecView(3, "nQ", "OUTPUT", 1, false, new GridPoint(4, 3)));
     }
 
     @Test
@@ -145,7 +147,7 @@ class CatalogReaderTest {
         fixture.document.putDefinition(ExampleDefinitions.inverter());
 
         assertThat(CatalogReader.describeAll(fixture.source(), Optional.of("FLIP")).types())
-                .extracting(ComponentTypeView::typeId).containsExactly(StandardComponentTypes.FLIP_FLOP_DATA);
+                .extracting(ComponentTypeView::typeId).containsExactlyElementsOf(SequentialTypes.FLIP_FLOPS);
         assertThat(CatalogReader.describeAll(fixture.source(), Optional.of("inversor")).types())
                 .extracting(ComponentTypeView::typeId)
                 .containsExactly(SubcircuitTypes.typeIdOf(ExampleDefinitions.INVERTER));

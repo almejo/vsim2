@@ -2,6 +2,7 @@ package cl.almejo.vsim.core.truthtable;
 
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.PinDirection;
+import cl.almejo.vsim.core.component.standard.SequentialTypes;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
@@ -44,7 +45,8 @@ public final class TruthTableScope {
             StandardComponentTypes.OUTPUT_PIN);
     private static final Set<String> SEQUENTIAL_TYPES = Set.of(StandardComponentTypes.FLIP_FLOP_DATA,
             StandardComponentTypes.CLOCK, StandardComponentTypes.REGISTER, StandardComponentTypes.COUNTER,
-            StandardComponentTypes.RAM);
+            StandardComponentTypes.RAM, SequentialTypes.FLIP_FLOP_JK, SequentialTypes.FLIP_FLOP_T,
+            SequentialTypes.FLIP_FLOP_SR);
     /** Top to bottom, then left to right: the order {@code PinOrder} uses. */
     private static final Comparator<Component> BY_POSITION = Comparator
             .comparingInt((Component component) -> component.position().y())

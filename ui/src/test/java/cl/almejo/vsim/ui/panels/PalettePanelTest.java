@@ -4,6 +4,7 @@ import cl.almejo.vsim.core.component.ComponentCategory;
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.standard.ArithmeticTypes;
+import cl.almejo.vsim.core.component.standard.SequentialTypes;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.io.CircuitFragment;
@@ -134,6 +135,7 @@ class PalettePanelTest {
         assertThat(typesIn(ComponentCategory.PLEXERS)).containsExactly(StandardComponentTypes.MUX,
                 StandardComponentTypes.DECODER, "demux", "priority-encoder");
         assertThat(typesIn(ComponentCategory.SEQUENTIAL)).containsExactly(StandardComponentTypes.FLIP_FLOP_DATA,
+                SequentialTypes.FLIP_FLOP_JK, SequentialTypes.FLIP_FLOP_T, SequentialTypes.FLIP_FLOP_SR,
                 StandardComponentTypes.REGISTER, StandardComponentTypes.COUNTER);
         assertThat(typesIn(ComponentCategory.INPUT_OUTPUT)).contains(StandardComponentTypes.INPUT_PIN,
                 StandardComponentTypes.OUTPUT_PIN, StandardComponentTypes.SWITCH, StandardComponentTypes.LED);

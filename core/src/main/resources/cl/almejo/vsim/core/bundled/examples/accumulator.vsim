@@ -1,7 +1,7 @@
 {
   "format" : "vsim2",
   "savedWith" : "0.4",
-  "formatVersion" : 4,
+  "formatVersion" : 5,
   "kind" : "circuit",
   "name" : "Acumulador",
   "components" : [ {
@@ -124,7 +124,7 @@
   }, {
     "id" : "w14",
     "x1" : 42,
-    "y1" : 17,
+    "y1" : 14,
     "x2" : 42,
     "y2" : 21
   }, {
@@ -136,7 +136,7 @@
   }, {
     "id" : "w17",
     "x1" : 44,
-    "y1" : 17,
+    "y1" : 14,
     "x2" : 44,
     "y2" : 27
   } ],

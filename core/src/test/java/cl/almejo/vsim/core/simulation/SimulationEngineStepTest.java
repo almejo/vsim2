@@ -267,7 +267,7 @@ class SimulationEngineStepTest {
                 new FlatComponent("ff", standard.require(StandardComponentTypes.FLIP_FLOP_DATA), Map.of("delay", 1)),
                 component("n", TestComponentTypes.INVERTER, Map.of("delay", 1))),
                 List.of(net("clock", pin("k", 0), pin("ff", 2), pin("n", 0)), net("d", pin("one", 0), pin("ff", 0)),
-                        net("q", pin("ff", 1)), net("inverted", pin("n", 1)))));
+                        net("q", pin("ff", 1)), net("notQ", pin("ff", 3)), net("inverted", pin("n", 1)))));
         engine.advance(5);
         assertThat(engine.snapshot().netValue("q")).isEqualTo(Value.ZERO);
 
@@ -277,7 +277,7 @@ class SimulationEngineStepTest {
                 .isEqualTo(new StepResult(5, 2_000, Set.of("clock"), OptionalLong.of(2_001)));
         assertThat(engine.snapshot().netValue("q")).as("the flip-flop has not reacted yet").isEqualTo(Value.ZERO);
         StepResult reaction = engine.advanceToNextEvent();
-        assertThat(reaction.changedNets()).containsExactlyInAnyOrder("q", "inverted");
+        assertThat(reaction.changedNets()).containsExactlyInAnyOrder("q", "notQ", "inverted");
         assertThat(engine.snapshot().netValue("q")).isEqualTo(Value.ONE);
     }
 

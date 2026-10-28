@@ -98,8 +98,8 @@ class ProbeActionsTest {
 
         assertThat(probes()).extracting(Probe::target).containsExactly(
                 new ProbeTarget.PinTarget(flipFlop.id(), 0), new ProbeTarget.PinTarget(flipFlop.id(), 2),
-                new ProbeTarget.PinTarget(flipFlop.id(), 1));
-        assertThat(names()).containsExactly("c1.d", "c1.clock", "c1.q");
+                new ProbeTarget.PinTarget(flipFlop.id(), 1), new ProbeTarget.PinTarget(flipFlop.id(), 3));
+        assertThat(names()).containsExactly("c1.d", "c1.clock", "c1.q", "c1.nQ");
     }
 
     @Test
