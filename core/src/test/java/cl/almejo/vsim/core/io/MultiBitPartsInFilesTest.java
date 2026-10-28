@@ -69,4 +69,34 @@ class MultiBitPartsInFilesTest {
         assertThat(written).contains("\"width\" : 4").doesNotContain("\"side\"");
         assertThat(format.read(written).components().getFirst().parameters().get("side")).isEqualTo("right");
     }
+
+    @Test
+    void aOneBitLedOfAnyColourLoadsAndSavesWithoutNewKeys() throws CircuitFormatException {
+        CircuitDocument document = new CircuitDocument();
+        document.add(new Component(document.newComponentId(), "led", new GridPoint(0, 0), Rotation.R0,
+                Map.of("color", "cyan"), ""));
+        String written = format.write(document);
+
+        assertThat(written).doesNotContain("\"width\"").doesNotContain("\"side\"").contains("\"color\" : \"cyan\"");
+        assertThat(format.read(written).components().getFirst().parameters())
+                .isEqualTo(Map.of("color", "cyan", "width", 1, "side", "left"));
+    }
+
+    @Test
+    void aMultiBitLedKeepsItsWidthAndASideThatIsNotTheDefault() throws CircuitFormatException {
+        CircuitDocument document = new CircuitDocument();
+        document.add(new Component(document.newComponentId(), "led", new GridPoint(0, 0), Rotation.R0,
+                Map.of("color", "green", "width", 8, "side", "bottom"), ""));
+        document.add(new Component(document.newComponentId(), "led", new GridPoint(0, 10), Rotation.R0,
+                Map.of("color", "red", "width", 8, "side", "left"), ""));
+
+        String written = format.write(document);
+        CircuitDocument loaded = format.read(written);
+
+        assertThat(loaded.components().get(0).parameters())
+                .isEqualTo(Map.of("color", "green", "width", 8, "side", "bottom"));
+        assertThat(loaded.components().get(1).parameters())
+                .isEqualTo(Map.of("color", "red", "width", 8, "side", "left"));
+        assertThat(written.split("\"side\"", -1)).as("only the side that is not the default is written").hasSize(2);
+    }
 }

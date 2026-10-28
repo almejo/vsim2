@@ -62,7 +62,7 @@ class VsimV1ImporterTest {
         assertThat(document.components()).extracting(Component::parameters).containsExactly(
                 Map.of("time-up", 200, "time-down", 300),
                 Map.of("value", "Z", "width", 1, "side", "right"),
-                Map.of("color", "red"),
+                Map.of("color", "red", "width", 1, "side", "left"),
                 Map.of("width", 1, "negate", true, "delay", 4),
                 Map.of("sample-interval", 150, "history", 200));
         assertThat(document.components().get(2).label()).isEqualTo("L1");

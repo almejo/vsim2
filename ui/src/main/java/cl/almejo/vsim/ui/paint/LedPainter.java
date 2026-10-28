@@ -2,8 +2,11 @@ package cl.almejo.vsim.ui.paint;
 
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.VisibleState;
+import cl.almejo.vsim.core.component.standard.MultiBitLayout;
+import cl.almejo.vsim.core.value.BitState;
 import cl.almejo.vsim.core.value.Value;
 
+import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.geom.Ellipse2D;
@@ -45,9 +48,22 @@ public final class LedPainter implements ComponentPainter {
         return (int) Math.round(litChannel * UNLIT_SHARE + lensChannel * (1 - UNLIT_SHARE));
     }
 
+    /** The radius of the light of one bit of a multi-bit LED, and how far its glow reaches past it. */
+    private static final double BIT_LIGHT_RADIUS = 3;
+    private static final double BIT_GLOW_REACH = 2;
+    private static final double BIT_GLINT_SHIFT_X = 0.3;
+    private static final double BIT_GLINT_SHIFT_Y = 0.35;
+    private static final double BIT_GLINT_SHARE = 0.32;
+    /** Thin, so eight lights in a row do not turn into outlines. */
+    private static final BasicStroke BIT_LIGHT_STROKE = new BasicStroke(0.6f);
+
     @Override
     public void paint(Graphics2D graphics, ComponentType type, Map<String, Object> parameters, VisibleState state,
                       ColorScheme scheme) {
+        if (MultiBitLayout.isMultiBit(type)) {
+            paintLights(graphics, type, parameters, state, scheme);
+            return;
+        }
         String colorName = String.valueOf(parameters.get("color"));
         Color color = colorFor(colorName);
         boolean lit = PainterSupport.valueOf(state).equals(Value.ONE);
@@ -67,5 +83,48 @@ public final class LedPainter implements ComponentPainter {
         graphics.setColor(new Color(255, 255, 255, lit ? 170 : 110));
         graphics.fill(new Ellipse2D.Double(4, 3, 5, 4));
         PainterSupport.pinDots(graphics, type, scheme);
+    }
+
+    /** The row of lights of a multi-bit LED: one per bit, lit only where the bit is 1 (Z and a conflict stay unlit). */
+    private static void paintLights(Graphics2D graphics, ComponentType type, Map<String, Object> parameters,
+                                    VisibleState state, ColorScheme scheme) {
+        String colorName = String.valueOf(parameters.get("color"));
+        Value value = state instanceof VisibleState.LedState ledState ? ledState.value() : Value.highImpedance(1);
+        MultiBitBody.paint(graphics, type, parameters, scheme, (cellGraphics, cell) -> {
+            boolean lit = isLit(value, cell.bit());
+            paintLight(cellGraphics, colorName, lit, scheme, cell.x() + cell.width() / 2,
+                    cell.y() + cell.height() / 2);
+        });
+    }
+
+    private static boolean isLit(Value value, int bit) {
+        return !value.conflict() && bit < value.width() && value.bit(bit) == BitState.ONE;
+    }
+
+    private static void paintLight(Graphics2D graphics, String colorName, boolean lit, ColorScheme scheme,
+                                   double centerX, double centerY) {
+        Color color = colorFor(colorName);
+        if (lit) {
+            graphics.setColor(PainterSupport.withAlpha(color, 70));
+            double reach = BIT_LIGHT_RADIUS + BIT_GLOW_REACH;
+            graphics.fill(new Ellipse2D.Double(centerX - reach, centerY - reach, 2 * reach, 2 * reach));
+        }
+        Color lens;
+        if (MonochromeScheme.isMonochrome(scheme)) {
+            lens = lit ? MonochromeScheme.BLACK : Color.WHITE;
+        } else {
+            lens = lit ? color : unlitColorFor(colorName);
+        }
+        Ellipse2D lensShape = new Ellipse2D.Double(centerX - BIT_LIGHT_RADIUS, centerY - BIT_LIGHT_RADIUS,
+                2 * BIT_LIGHT_RADIUS, 2 * BIT_LIGHT_RADIUS);
+        graphics.setColor(lens);
+        graphics.fill(lensShape);
+        graphics.setColor(scheme.componentStroke());
+        graphics.setStroke(BIT_LIGHT_STROKE);
+        graphics.draw(lensShape);
+        graphics.setColor(new Color(255, 255, 255, lit ? 170 : 110));
+        double glint = BIT_LIGHT_RADIUS * BIT_GLINT_SHARE;
+        graphics.fill(new Ellipse2D.Double(centerX - BIT_LIGHT_RADIUS * BIT_GLINT_SHIFT_X - glint,
+                centerY - BIT_LIGHT_RADIUS * BIT_GLINT_SHIFT_Y - glint, 2 * glint, 2 * glint));
     }
 }

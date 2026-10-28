@@ -14,6 +14,8 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
   significativo a la izquierda, y una sola salida de bus. Un clic sobre una celda cambia solo ese bit (sin deshacer ni
   marcar el archivo como modificado); el globo muestra el valor en binario, hexadecimal y decimal y el bit bajo el
   puntero. Con un bit, nada cambia.
+- El LED también puede tener varios bits: una fila de luces con la misma caja que el interruptor del mismo ancho (bit
+  contra bit) y un solo pin de bus de entrada. Cada luz se enciende solo con 1; con 0, Z o conflicto queda apagada.
 - Propiedades termina con un recuadro «Descripción» que explica la pieza elegida y sus supuestos: qué vale una
   entrada sin conectar, en qué flanco actúa, qué pasa con una entrada en Z, cómo lee los números con signo. Todas las
   piezas lo tienen, también la RAM y la ROM (escritura en el flanco de bajada, `CS` y `WE` sin conectar, direcciones

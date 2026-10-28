@@ -2,7 +2,9 @@ package cl.almejo.vsim.ui.problems;
 
 import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
+import cl.almejo.vsim.core.component.standard.MultiBitLayout;
 import cl.almejo.vsim.core.document.Component;
+import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
 import cl.almejo.vsim.core.value.Value;
 import cl.almejo.vsim.ui.app.OpenDocument;
@@ -84,5 +86,18 @@ class MultiBitTooltipTest {
 
         assertThat(oneBit).isNotNull();
         assertThat(view.canvas().getToolTipText(hoverAt(20, 88))).isNull();
+    }
+
+    @Test
+    void aLedNamesItsBitAndWritesAZBitByBitInsteadOfAsANumber() {
+        Component led = place(openDocument, StandardComponentTypes.LED, 0, 10, Map.of("width", 4));
+        int bodyLeft = MultiBitLayout.LEAD_UNITS * GridPoint.PIXELS_PER_UNIT;
+        int rowY = 10 * GridPoint.PIXELS_PER_UNIT + BIT_THREE_Y;
+        view.problems().showSnapshot(new SimulationSnapshot(1, openDocument.netlistToken(), 10, true, Map.of(),
+                Map.of(led.id().value(), new VisibleState.LedState(new Value(4, 0b1001, 0b0010, false))), List.of(),
+                Optional.empty()));
+
+        assertThat(view.canvas().getToolTipText(hoverAt(bodyLeft + BIT_ZERO_X - 8, rowY))).isEqualTo("10Z1 · bit 1");
+        assertThat(view.canvas().getToolTipText(hoverAt(bodyLeft + BIT_THREE_X, rowY))).isEqualTo("10Z1 · bit 3");
     }
 }

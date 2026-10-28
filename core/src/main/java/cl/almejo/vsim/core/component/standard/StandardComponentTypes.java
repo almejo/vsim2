@@ -186,10 +186,12 @@ public final class StandardComponentTypes {
                     return new ConstantBehavior(Value.of(width,
                             ConstantValue.bitsOf((String) parameters.get("value"), width).orElseThrow()));
                 }));
-        registry.register(new ComponentType(LED, ComponentCategory.INPUT_OUTPUT, new GridSize(2, 3),
-                List.of(PinSpec.input("in", 1, 3)),
-                List.of(ParameterSpec.color("color", "red",
-                        List.of("red", "green", "yellow", "blue", "orange", "white", "purple", "cyan"))),
+        registry.register(ComponentType.parameterized(LED, ComponentCategory.INPUT_OUTPUT,
+                List.of(ParameterSpec.integer(WIDTH, 1, MultiBitLayout.MINIMUM_WIDTH, MultiBitLayout.MAXIMUM_WIDTH),
+                        MultiBitLayout.sideParameter(MultiBitLayout.LEFT),
+                        ParameterSpec.color("color", "red",
+                                List.of("red", "green", "yellow", "blue", "orange", "white", "purple", "cyan"))),
+                parameters -> ledShape((Integer) parameters.get(WIDTH), (String) parameters.get(MultiBitLayout.SIDE)),
                 parameters -> new LedBehavior()));
         registry.register(sevenSegments(SEVEN_SEGMENTS_DISPLAY, 4));
         registry.register(sevenSegments(SEVEN_SEGMENTS_DISPLAY_DOUBLE, 8));
@@ -343,6 +345,14 @@ public final class StandardComponentTypes {
             return new ComponentShape(new GridSize(4, 2), List.of(PinSpec.output("out", 4, 1)));
         }
         return MultiBitLayout.shape(width, side, "out", PinDirection.OUTPUT);
+    }
+
+    /** One bit is today's round light with its pin below; more bits are the rows of {@link MultiBitLayout}. */
+    private static ComponentShape ledShape(int width, String side) {
+        if (width == 1) {
+            return new ComponentShape(new GridSize(2, 3), List.of(PinSpec.input("in", 1, 3)));
+        }
+        return MultiBitLayout.shape(width, side, "in", PinDirection.INPUT);
     }
 
     /** The value must be a non-negative number that fits the width; {@code Z} only exists for one bit. */

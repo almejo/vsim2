@@ -54,8 +54,9 @@ class ComponentTypeTest {
     @Test
     void theLedColourIsAColourParameter() {
         ComponentType led = StandardComponentTypes.registry().require(StandardComponentTypes.LED);
-        assertThat(led.parameters().getFirst().kind()).isEqualTo(ParameterKind.COLOR);
-        assertThat(led.resolveParameters(Map.of())).isEqualTo(Map.of("color", "red"));
+        assertThat(led.parameters().stream().filter(parameter -> parameter.name().equals("color")).findFirst()
+                .orElseThrow().kind()).isEqualTo(ParameterKind.COLOR);
+        assertThat(led.resolveParameters(Map.of())).isEqualTo(Map.of("color", "red", "width", 1, "side", "left"));
     }
 
     @Test
