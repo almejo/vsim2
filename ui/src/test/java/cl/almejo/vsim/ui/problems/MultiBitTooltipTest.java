@@ -27,10 +27,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 /** Hovering a multi-bit Switch: its value in four notations and the bit under the pointer. */
 class MultiBitTooltipTest {
 
-    /** The pixel over bit 3 of a 4-bit switch at the origin (cell x 4..12, y 5..19, bit 0 at x 28..36 at 8 pixels per unit). */
-    private static final int BIT_THREE_X = 8;
+    /** The pixel over bit 3 of a 4-bit switch at the origin (cell x 4..16, y 5..19, bit 0 at x 40..52 at 8 pixels per unit). */
+    private static final int BIT_THREE_X = 10;
     private static final int BIT_THREE_Y = 12;
-    private static final int BIT_ZERO_X = 32;
+    private static final int BIT_ZERO_X = 46;
 
     private OpenDocument openDocument;
     private EditorView view;
@@ -97,7 +97,7 @@ class MultiBitTooltipTest {
                 Map.of(led.id().value(), new VisibleState.LedState(new Value(4, 0b1001, 0b0010, false))), List.of(),
                 Optional.empty()));
 
-        assertThat(view.canvas().getToolTipText(hoverAt(bodyLeft + BIT_ZERO_X - 8, rowY))).isEqualTo("10Z1 · bit 1");
+        assertThat(view.canvas().getToolTipText(hoverAt(bodyLeft + BIT_ZERO_X - 12, rowY))).isEqualTo("10Z1 · bit 1");
         assertThat(view.canvas().getToolTipText(hoverAt(bodyLeft + BIT_THREE_X, rowY))).isEqualTo("10Z1 · bit 3");
     }
 }

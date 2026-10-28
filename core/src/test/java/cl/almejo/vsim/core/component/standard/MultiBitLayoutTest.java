@@ -16,11 +16,11 @@ class MultiBitLayoutTest {
     @Test
     void theBoxGrowsWithTheBitsAndWrapsInRowsOfEightFromNineBits() {
         assertThat(MultiBitLayout.boxFor(1)).isEqualTo(new GridSize(2, 3));
-        assertThat(MultiBitLayout.boxFor(4)).isEqualTo(new GridSize(5, 3));
-        assertThat(MultiBitLayout.boxFor(8)).isEqualTo(new GridSize(10, 3));
-        assertThat(MultiBitLayout.boxFor(9)).isEqualTo(new GridSize(10, 5));
-        assertThat(MultiBitLayout.boxFor(16)).isEqualTo(new GridSize(10, 5));
-        assertThat(MultiBitLayout.boxFor(32)).isEqualTo(new GridSize(10, 9));
+        assertThat(MultiBitLayout.boxFor(4)).isEqualTo(new GridSize(7, 3));
+        assertThat(MultiBitLayout.boxFor(8)).isEqualTo(new GridSize(14, 3));
+        assertThat(MultiBitLayout.boxFor(9)).isEqualTo(new GridSize(14, 5));
+        assertThat(MultiBitLayout.boxFor(16)).isEqualTo(new GridSize(14, 5));
+        assertThat(MultiBitLayout.boxFor(32)).isEqualTo(new GridSize(14, 9));
     }
 
     @Test
@@ -32,6 +32,15 @@ class MultiBitLayoutTest {
         assertThat(cells.get(7).bit()).isZero();
         assertThat(cells.get(0).x()).isLessThan(cells.get(7).x());
         assertThat(cells.get(0).y()).isEqualTo(cells.get(7).y());
+    }
+
+    @Test
+    void theBitsAreTwelvePixelsApartAndTheOneBitCellKeepsItsOldWidth() {
+        List<MultiBitLayout.BitCell> cells = MultiBitLayout.cells(8);
+
+        assertThat(cells.get(1).x() - cells.get(0).x()).isEqualTo(MultiBitLayout.BIT_PITCH).isEqualTo(12);
+        assertThat(cells.get(0).width()).isEqualTo(12);
+        assertThat(MultiBitLayout.cells(1).get(0).width()).isEqualTo(MultiBitLayout.UNIT);
     }
 
     @Test
@@ -73,8 +82,8 @@ class MultiBitLayoutTest {
 
         assertThat(MultiBitLayout.pinFor(8, "right")).isEqualTo(new GridPoint(box.width() + 2, 2));
         assertThat(MultiBitLayout.pinFor(8, "left")).isEqualTo(new GridPoint(0, 2));
-        assertThat(MultiBitLayout.pinFor(8, "bottom")).isEqualTo(new GridPoint(5, box.height() + 2));
-        assertThat(MultiBitLayout.pinFor(8, "top")).isEqualTo(new GridPoint(5, 0));
+        assertThat(MultiBitLayout.pinFor(8, "bottom")).isEqualTo(new GridPoint(7, box.height() + 2));
+        assertThat(MultiBitLayout.pinFor(8, "top")).isEqualTo(new GridPoint(7, 0));
     }
 
     @Test
@@ -82,12 +91,12 @@ class MultiBitLayoutTest {
         ComponentShape right = MultiBitLayout.shape(8, "right", "out", PinDirection.OUTPUT);
         ComponentShape left = MultiBitLayout.shape(8, "left", "in", PinDirection.INPUT);
 
-        assertThat(right.size()).isEqualTo(new GridSize(12, 3));
+        assertThat(right.size()).isEqualTo(new GridSize(16, 3));
         assertThat(right.pins()).hasSize(1);
         assertThat(right.pins().get(0).width()).isEqualTo(8);
         assertThat(right.pins().get(0).direction()).isEqualTo(PinDirection.OUTPUT);
         assertThat(MultiBitLayout.bodyOrigin(8, "right")).isEqualTo(GridPoint.ORIGIN);
-        assertThat(left.size()).isEqualTo(new GridSize(12, 3));
+        assertThat(left.size()).isEqualTo(new GridSize(16, 3));
         assertThat(MultiBitLayout.bodyOrigin(8, "left")).isEqualTo(new GridPoint(2, 0));
         assertThat(MultiBitLayout.bodyOrigin(8, "top")).isEqualTo(new GridPoint(0, 2));
     }
