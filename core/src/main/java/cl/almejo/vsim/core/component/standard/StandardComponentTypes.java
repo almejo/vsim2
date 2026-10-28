@@ -212,6 +212,7 @@ public final class StandardComponentTypes {
         }
         registerBlocks(registry);
         MemoryTypes.register(registry);
+        ArithmeticTypes.register(registry);
     }
 
     /**

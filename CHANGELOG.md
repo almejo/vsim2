@@ -18,6 +18,10 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 - Los componentes propios tienen descripción: se escribe al crearlos o actualizarlos («Descripción (opcional)») y
   después con «Editar descripción…» en Propiedades, como un paso de deshacer.
 - La IA recibe la misma descripción en `vsim_describe_component`.
+- Aritmética con seis piezas nuevas de N bits, cada una con su «Descripción»: «Restador» (A − B − Bin, con Bout),
+  «Negador» (−A en complemento a dos), «Multiplicador» (producto de 2N bits en dos mitades P y H, con o sin signo),
+  «Divisor» (cociente, resto y la salida E para la división por cero: Q = 0, R = A, E = 1), «Desplazador» (lógico,
+  aritmético o rotación, a izquierda o derecha; la cantidad entra por S) y «Contador de unos».
 
 ### Cambiado
 

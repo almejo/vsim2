@@ -1,6 +1,7 @@
 package cl.almejo.vsim.ui.paint;
 
 import cl.almejo.vsim.core.component.VisibleState;
+import cl.almejo.vsim.core.component.standard.ArithmeticTypes;
 import cl.almejo.vsim.core.component.standard.ConstantValue;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.library.InterfacePins;
@@ -49,6 +50,7 @@ public final class PainterRegistry {
         registry.register(StandardComponentTypes.TUNNEL_ENTRANCE, tunnel);
         registry.register(StandardComponentTypes.TUNNEL_EXIT, tunnel);
         registerBlocks(registry);
+        registerArithmetic(registry);
         return registry;
     }
 
@@ -66,6 +68,28 @@ public final class PainterRegistry {
                 .withLiveText(PainterRegistry::storedValueText));
         registry.register(StandardComponentTypes.RAM, new MemoryPainter());
         registry.register(StandardComponentTypes.ROM, new MemoryPainter());
+    }
+
+    /** The arithmetic parts after the adder: each shows its operation's symbol; the shifter, its type's. */
+    private static void registerArithmetic(PainterRegistry registry) {
+        registry.register(ArithmeticTypes.SUBTRACTOR, new BlockPainter("−", BlockPainter.Body.CHEVRON));
+        registry.register(ArithmeticTypes.NEGATOR, new BlockPainter("−A", BlockPainter.Body.CHEVRON));
+        registry.register(ArithmeticTypes.MULTIPLIER, new BlockPainter("×", BlockPainter.Body.CHEVRON));
+        registry.register(ArithmeticTypes.DIVIDER, new BlockPainter("÷", BlockPainter.Body.RECTANGLE));
+        registry.register(ArithmeticTypes.SHIFTER, new BlockPainter("SHF", BlockPainter.Body.RECTANGLE)
+                .withLiveText((state, parameters) -> Optional.of(shiftSymbol(parameters))));
+        registry.register(ArithmeticTypes.BIT_COUNTER, new BlockPainter("#1", BlockPainter.Body.RECTANGLE));
+    }
+
+    /** The shifter's symbol by «Tipo»: {@code <<}, {@code >>}, {@code >>>}, {@code ⟲} (rotate left), {@code ⟳}. */
+    static String shiftSymbol(Map<String, Object> parameters) {
+        return switch (String.valueOf(parameters.get(ArithmeticTypes.SHIFT_TYPE))) {
+            case ArithmeticTypes.LOGICAL_RIGHT -> ">>";
+            case ArithmeticTypes.ARITHMETIC_RIGHT -> ">>>";
+            case ArithmeticTypes.ROTATE_LEFT -> "⟲";
+            case ArithmeticTypes.ROTATE_RIGHT -> "⟳";
+            default -> "<<";
+        };
     }
 
     /**

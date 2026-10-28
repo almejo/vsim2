@@ -6,6 +6,7 @@ import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.ParameterKind;
 import cl.almejo.vsim.core.component.ParameterSpec;
+import cl.almejo.vsim.core.component.standard.ArithmeticTypes;
 import cl.almejo.vsim.core.component.standard.MemoryTypes;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.geometry.GridSize;
@@ -142,6 +143,22 @@ class DescriptionsTest {
                 StandardComponentTypes.SIGNEDNESS_SIGNED));
 
         assertThat(signed).startsWith(Descriptions.of(comparator, Map.of())).contains("complemento a dos");
+    }
+
+    @Test
+    void theArithmeticPartsExplainTheirAssumptionsAndTheShifterFollowsItsType() {
+        ComponentType shifter = REGISTRY.require(ArithmeticTypes.SHIFTER);
+
+        String arithmetic = Descriptions.of(shifter, Map.of(ArithmeticTypes.SHIFT_TYPE,
+                ArithmeticTypes.ARITHMETIC_RIGHT));
+        String rotating = Descriptions.of(shifter, Map.of(ArithmeticTypes.SHIFT_TYPE, ArithmeticTypes.ROTATE_LEFT));
+
+        assertThat(arithmetic).startsWith("Desplazador: mueve").contains("bit más alto");
+        assertThat(rotating).contains("vuelven a entrar").isNotEqualTo(arithmetic);
+        assertThat(Descriptions.of(REGISTRY.require(ArithmeticTypes.DIVIDER), Map.of())).contains("división por cero");
+        assertThat(Descriptions.of(REGISTRY.require(ArithmeticTypes.DIVIDER),
+                Map.of(StandardComponentTypes.SIGNEDNESS, StandardComponentTypes.SIGNEDNESS_SIGNED)))
+                .contains("hacia cero");
     }
 
     @Test

@@ -3,6 +3,7 @@ package cl.almejo.vsim.ui.panels;
 import cl.almejo.vsim.core.component.ComponentCategory;
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
+import cl.almejo.vsim.core.component.standard.ArithmeticTypes;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.io.CircuitFragment;
@@ -127,7 +128,9 @@ class PalettePanelTest {
                 StandardComponentTypes.BUS_JOINER, StandardComponentTypes.TUNNEL_ENTRANCE,
                 StandardComponentTypes.TUNNEL_EXIT);
         assertThat(typesIn(ComponentCategory.ARITHMETIC)).containsExactly(StandardComponentTypes.ADDER,
-                StandardComponentTypes.COMPARATOR, StandardComponentTypes.ALU);
+                StandardComponentTypes.COMPARATOR, StandardComponentTypes.ALU, ArithmeticTypes.SUBTRACTOR,
+                ArithmeticTypes.NEGATOR, ArithmeticTypes.MULTIPLIER, ArithmeticTypes.DIVIDER,
+                ArithmeticTypes.SHIFTER, ArithmeticTypes.BIT_COUNTER);
         assertThat(typesIn(ComponentCategory.PLEXERS)).containsExactly(StandardComponentTypes.MUX,
                 StandardComponentTypes.DECODER);
         assertThat(typesIn(ComponentCategory.SEQUENTIAL)).containsExactly(StandardComponentTypes.FLIP_FLOP_DATA,
