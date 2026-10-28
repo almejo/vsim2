@@ -135,14 +135,28 @@ public record ComponentType(String id, ComponentCategory category, GridSize size
     }
 
     /**
-     * The resolved parameters the behaviour depends on: {@link #resolveParameters} without the
-     * {@linkplain ParameterSpec#displayOnly() display-only} ones. Two components with equal behaviour parameters can
-     * share one running behaviour.
+     * The resolved parameters that shape the running behaviour: {@link #resolveParameters} without the
+     * {@linkplain ParameterSpec#displayOnly() display-only} ones and without the
+     * {@linkplain ParameterSpec#liveValue() live values}. Two components with equal behaviour parameters can share one
+     * running behaviour; a different live value is handed to it ({@link #liveValueParameters}).
      */
     public Map<String, Object> behaviorParameters(Map<String, Object> raw) {
         Map<String, Object> resolved = new LinkedHashMap<>(resolveParameters(raw));
-        parameters.stream().filter(ParameterSpec::displayOnly).forEach(parameter -> resolved.remove(parameter.name()));
+        parameters.stream().filter(parameter -> parameter.displayOnly() || parameter.liveValue())
+                .forEach(parameter -> resolved.remove(parameter.name()));
         return Map.copyOf(resolved);
+    }
+
+    /** The resolved {@linkplain ParameterSpec#liveValue() live-value} parameters of {@code raw} (most types: none). */
+    public Map<String, Object> liveValueParameters(Map<String, Object> raw) {
+        if (parameters.stream().noneMatch(ParameterSpec::liveValue)) {
+            return Map.of();
+        }
+        Map<String, Object> resolved = resolveParameters(raw);
+        Map<String, Object> live = new LinkedHashMap<>();
+        parameters.stream().filter(ParameterSpec::liveValue)
+                .forEach(parameter -> live.put(parameter.name(), resolved.get(parameter.name())));
+        return Map.copyOf(live);
     }
 
     /** Creates a document component of this type, normalizing {@code rawParameters} (invalid values throw). */

@@ -134,14 +134,16 @@ class SelectToolTest {
     }
 
     @Test
-    void clickingASwitchTogglesItWithoutTouchingTheHistory() {
+    void clickingASwitchTogglesItAndItsValueAsOneUndoStep() {
         Component lever = place(context.openDocument(), StandardComponentTypes.SWITCH, 0, 0, Map.of("value", "1"));
         waitUntil(() -> context.openDocument().latestSnapshot().componentState(lever.id().value())
                 .equals(new VisibleState.SwitchState(Value.ONE)));
         context.click(tool, 1, 1);
         waitUntil(() -> context.openDocument().latestSnapshot().componentState(lever.id().value())
                 .equals(new VisibleState.SwitchState(Value.ZERO)));
-        assertThat(context.openDocument().history().undoDescription()).contains("command.add");
+        assertThat(context.openDocument().history().undoDescription()).contains("command.switchClick");
+        assertThat(context.openDocument().document().component(lever.id()).orElseThrow().parameters())
+                .containsEntry("value", "0");
     }
 
     @Test

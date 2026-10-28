@@ -49,6 +49,8 @@ class EditorEndToEndTest {
             context.click(new SelectTool(), 1, 1);
             waitUntil(() -> ledState(document, led).equals(new VisibleState.LedState(Value.ZERO)));
 
+            document.history().undo(); // the click: the switch is back at 1 (2026-10-28)
+            waitUntil(() -> ledState(document, led).equals(new VisibleState.LedState(Value.ONE)));
             document.history().undo();
             assertThat(document.document().wires()).isEmpty();
             waitUntil(() -> synced(document)

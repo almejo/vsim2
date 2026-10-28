@@ -22,8 +22,7 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
   bits): los circuitos de una clase de arquitectura, con un marco y una nota por bloque, interruptores de varios bits
   como entradas y filas de LED donde ayudan.
 - El interruptor puede tener varios bits («Ancho (bits)» de 1 a 32): una fila compacta con una celda por bit, el más
-  significativo a la izquierda, y una sola salida de bus. Un clic sobre una celda cambia solo ese bit (sin deshacer ni
-  marcar el archivo como modificado); el globo muestra el valor en binario, hexadecimal y decimal, y el bit
+  significativo a la izquierda, y una sola salida de bus. Un clic sobre una celda cambia solo ese bit; el globo muestra el valor en binario, hexadecimal y decimal, y el bit
   bajo el puntero. Con un bit, nada cambia.
 - El LED también puede tener varios bits: una fila de luces con la misma caja que el interruptor del mismo ancho (bit
   contra bit) y un solo pin de bus de entrada. Cada luz se enciende solo con 1; con 0, Z o conflicto queda apagada.
@@ -82,6 +81,10 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
   binario los dígitos van en grupos de 4 y, con más de 16 bits, en dos líneas (el registro mide 12 × 5). Los
   circuitos guardados antes se abren conectados: VSim agrega un tramo corto de cable desde cada pin de abajo hasta
   donde estaba. El contador no cambia.
+- Un clic en un interruptor (o en un bit de uno de varios bits) ahora cambia su «Valor»: Propiedades muestra el valor
+  nuevo al instante, el archivo queda modificado, al guardar se escribe ese valor y cambiar otra propiedad ya no lo
+  devuelve al valor guardado. Se deshace con Ctrl+Z, que también lo devuelve en la simulación; varios clics seguidos
+  en el mismo interruptor son un solo paso. Los valores que la IA pone en interruptores también quedan en su «Valor».
 
 ### Arreglado
 

@@ -167,7 +167,7 @@ class ExamplesEndToEndTest {
         example.interact(component(example.document(), "Cin").id());
         waitUntil(() -> led(example, "Cout").equals(Value.ONE));
         assertThat(display(example, 2)).isEqualTo(Value.of(4, 0));
-        assertThat(example.isModified()).as("running is not editing").isFalse();
+        assertThat(example.isModified()).as("a click changes the switch's «Valor» (2026-10-28)").isTrue();
     }
 
     @Test
@@ -188,6 +188,7 @@ class ExamplesEndToEndTest {
             assertThat(example.stepMode()).isTrue();
             long before = example.latestStep().map(StepReport::sequence).orElse(-1L);
             example.interact(component(example.document(), "Cin").id());
+            long changesAfterTheClick = example.changeCount();
             StepReport report = nextReport(example, before);
             List<Long> times = new ArrayList<>();
             while (report.result().nextEventTime().isPresent()) {
@@ -200,7 +201,7 @@ class ExamplesEndToEndTest {
                     .hasSizeGreaterThanOrEqualTo(4);
             waitUntil(() -> led(example, "Cout").equals(Value.ONE));
             assertThat(display(example, 2)).as("1111 + 0000 + 1 = 1 0000").isEqualTo(Value.of(4, 0));
-            assertThat(example.isModified()).as("stepping is not editing").isFalse();
+            assertThat(example.changeCount()).as("stepping is not editing").isEqualTo(changesAfterTheClick);
         } finally {
             view.dispose();
         }

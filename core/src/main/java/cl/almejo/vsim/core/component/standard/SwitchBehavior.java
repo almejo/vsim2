@@ -5,6 +5,8 @@ import cl.almejo.vsim.core.component.BehaviorContext;
 import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.value.Value;
 
+import java.util.Map;
+
 final class SwitchBehavior implements Behavior {
 
     private Value value;
@@ -75,19 +77,17 @@ final class SwitchBehavior implements Behavior {
     /** Toggles between all ones and all zeros (Z or a mixed value becomes all ones). */
     @Override
     public void interact(BehaviorContext context) {
-        Value allOnes = Value.of(value.width(), Value.maskFor(value.width()));
-        value = value.equals(allOnes) ? Value.of(value.width(), 0L) : allOnes;
+        value = SwitchValues.toggled(value);
         context.drive(0, value, 0);
     }
 
     /** Flips bit {@code bit} (0 = least significant) of a multi-bit switch; a bit outside the width is ignored. */
     @Override
     public void interactBit(BehaviorContext context, int bit) {
-        if (bit < 0 || bit >= value.width() || !value.isFullyDefined()) {
-            return;
-        }
-        value = Value.of(value.width(), value.bits() ^ (1L << bit));
-        context.drive(0, value, 0);
+        SwitchValues.withBitFlipped(value, bit).ifPresent(flipped -> {
+            value = flipped;
+            context.drive(0, value, 0);
+        });
     }
 
     /** Drives {@code newValue} with delay 0; it must be as wide as the switch or pin (IllegalArgumentException). */
@@ -100,6 +100,15 @@ final class SwitchBehavior implements Behavior {
         value = newValue;
         context.drive(0, value, 0);
         return true;
+    }
+
+    /** A new «Valor» (an undo of a click, a value typed in Propiedades): driven now unless it is the one driven. */
+    @Override
+    public void takeLiveValue(BehaviorContext context, Map<String, Object> parameters) {
+        Value wanted = SwitchValues.valueOf(parameters);
+        if (!wanted.equals(value)) {
+            setValue(context, wanted);
+        }
     }
 
     @Override

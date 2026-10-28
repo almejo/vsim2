@@ -8,11 +8,13 @@ import java.util.function.UnaryOperator;
  * One parameter of a {@link ComponentType}. A {@code displayOnly} parameter (M7: «Mostrar como») changes only how the
  * component is drawn: the behaviour never reads it, so the engine keeps a running component (a register's contents, a
  * pin's typed value) when only such parameters change. A {@code hidden} parameter (memory contents) is not offered as
- * an editable field by the UI.
+ * an editable field by the UI. A {@code liveValue} parameter is the value an input drives (a Switch's «Valor»): when
+ * only it changes the engine keeps the running component and hands it the new value ({@link Behavior#takeLiveValue}),
+ * so a value the component already drives fires nothing.
  */
 public record ParameterSpec(String name, ParameterKind kind, Object defaultValue,
                             int minimum, int maximum, List<String> choices, UnaryOperator<String> textNormalizer,
-                            boolean displayOnly, boolean hidden) {
+                            boolean displayOnly, boolean hidden, boolean liveValue) {
 
     public ParameterSpec(String name, ParameterKind kind, Object defaultValue,
                          int minimum, int maximum, List<String> choices) {
@@ -27,7 +29,7 @@ public record ParameterSpec(String name, ParameterKind kind, Object defaultValue
     public ParameterSpec(String name, ParameterKind kind, Object defaultValue,
                          int minimum, int maximum, List<String> choices, UnaryOperator<String> textNormalizer,
                          boolean displayOnly) {
-        this(name, kind, defaultValue, minimum, maximum, choices, textNormalizer, displayOnly, false);
+        this(name, kind, defaultValue, minimum, maximum, choices, textNormalizer, displayOnly, false, false);
     }
 
     public ParameterSpec {
@@ -72,7 +74,8 @@ public record ParameterSpec(String name, ParameterKind kind, Object defaultValue
 
     /** This parameter marked as {@linkplain #displayOnly() display-only}. */
     public ParameterSpec asDisplayOnly() {
-        return new ParameterSpec(name, kind, defaultValue, minimum, maximum, choices, textNormalizer, true, hidden);
+        return new ParameterSpec(name, kind, defaultValue, minimum, maximum, choices, textNormalizer, true, hidden,
+                liveValue);
     }
 
     /**
@@ -80,7 +83,17 @@ public record ParameterSpec(String name, ParameterKind kind, Object defaultValue
      * the inspector and the configure dialog do not show it as a field.
      */
     public ParameterSpec asHidden() {
-        return new ParameterSpec(name, kind, defaultValue, minimum, maximum, choices, textNormalizer, displayOnly, true);
+        return new ParameterSpec(name, kind, defaultValue, minimum, maximum, choices, textNormalizer, displayOnly, true,
+                liveValue);
+    }
+
+    /**
+     * This parameter marked as the {@linkplain #liveValue() live value} of an input: the behaviour built from it takes
+     * a new one with {@link Behavior#takeLiveValue}.
+     */
+    public ParameterSpec asLiveValue() {
+        return new ParameterSpec(name, kind, defaultValue, minimum, maximum, choices, textNormalizer, displayOnly,
+                hidden, true);
     }
 
     /** Converts a raw value (from JSON or a dialog) to the canonical type, or throws IllegalArgumentException. */

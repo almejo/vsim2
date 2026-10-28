@@ -12,7 +12,8 @@ final class ComponentInstance implements BehaviorContext {
 
     final String id;
     final ComponentType type;
-    final Map<String, Object> parameters;
+    /** The parameters it was built with, or the last ones whose live value it was handed ({@link #takeLiveValue}). */
+    private Map<String, Object> parameters;
     final Behavior behavior;
     final PinState[] pins;
     boolean removed;
@@ -40,6 +41,23 @@ final class ComponentInstance implements BehaviorContext {
         return !initializationFailed
                 && type.equals(component.type())
                 && type.behaviorParameters(parameters).equals(type.behaviorParameters(component.parameters()));
+    }
+
+    /**
+     * Whether {@code component}, which this instance {@link #matches}, has another
+     * {@linkplain cl.almejo.vsim.core.component.ParameterSpec#liveValue() live value} (a Switch's «Valor»).
+     */
+    boolean hasOtherLiveValue(FlatComponent component) {
+        return !type.liveValueParameters(parameters).equals(type.liveValueParameters(component.parameters()));
+    }
+
+    /**
+     * Takes {@code component}'s parameters and hands their live value to the running behaviour, which drives it now
+     * unless it drives it already ({@link Behavior#takeLiveValue}): nothing fires twice.
+     */
+    void takeLiveValue(FlatComponent component) {
+        parameters = component.parameters();
+        behavior.takeLiveValue(this, type.resolveParameters(parameters));
     }
 
     @Override

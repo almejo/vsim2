@@ -87,7 +87,9 @@ class SimulationHostSupportTest {
         assertThat(settled.outcome()).isEqualTo(SimulationReceipt.Outcome.COMPLETED);
         assertThat(settled.nextEventTime()).as("the adder settled").isEmpty();
         assertThat(read(adder.id(), ADDER_CARRY_LED, "in")).isEqualTo("1");
-        assertThat(set.netlistToken()).isEqualTo(settled.netlistToken());
+        // The switches keep the values set (2026-10-28): that edit recompiles the circuit; the step runs on the new one.
+        assertThat(settled.netlistToken()).isGreaterThan(set.netlistToken());
+        assertThat(settled.ranOnThatCircuit()).isTrue();
     }
 
     /** An 8-bit Switch wired to an 8-bit LED; returns the ids (switch, LED) in an open document. */
@@ -127,6 +129,28 @@ class SimulationHostSupportTest {
                     assertThat(exception.error()).isEqualTo(AutomationError.INPUT_REJECTED);
                     assertThat(exception.recovery().get("inputs").toString()).contains("does not fit in 8 bits");
                 });
+    }
+
+    /** Decided 2026-10-28: a switch the AI sets keeps that «Valor», as a click does, in one undo step of its own. */
+    @Test
+    void aSwitchTheAiSetsKeepsTheValueAsOneUndoStepWithoutMakingItsVersionStale() throws Exception {
+        List<String> parts = eightBitSwitchToLed();
+        OpenDocument document = open.get(open.size() - 1);
+        DocumentSummary summary = summary();
+        cl.almejo.vsim.core.document.ElementId switchId = new cl.almejo.vsim.core.document.ElementId(parts.get(0));
+
+        SimulationReceipt set = api.setInputs(summary.id(), summary.version(), null,
+                List.of(new InputValue(parts.get(0), "0xA6")));
+
+        assertThat(set.stale()).isFalse();
+        assertThat(summary().version()).as("an input's value, like a click").isEqualTo(summary.version());
+        assertThat(document.document().component(switchId).orElseThrow().parameters()
+                .get(StandardComponentTypes.VALUE)).isEqualTo("166");
+        assertThat(document.history().undoDescription()).contains(SimulationHostSupport.AI_SWITCH_VALUES);
+        api.setInputs(summary.id(), summary.version(), null, List.of(new InputValue(parts.get(0), "0x0F")));
+        document.history().undo();
+        assertThat(document.document().component(switchId).orElseThrow().parameters()
+                .get(StandardComponentTypes.VALUE)).isEqualTo("166");
     }
 
     @Test

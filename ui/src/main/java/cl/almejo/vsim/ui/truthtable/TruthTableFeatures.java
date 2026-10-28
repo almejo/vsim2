@@ -259,7 +259,7 @@ public final class TruthTableFeatures {
             acceptedRows = Math.max(acceptedRows, ready.rowCount());
             OpenDocument openDocument = view.openDocument();
             pendingLive = LiveInputs.resolve(ready.liveInputPins(), openDocument.netlist(),
-                    openDocument.netlistToken());
+                    openDocument.structureRevision());
             pendingTryable = ready.inputsAreTopLevelSwitches();
             stopProgressDelay.run();
             if (running) {
@@ -282,7 +282,7 @@ public final class TruthTableFeatures {
             if (closed || table == null) {
                 return;
             }
-            OptionalInt row = live.rowIn(table, snapshot);
+            OptionalInt row = live.rowIn(table, snapshot, view.openDocument().structureRevision());
             if (!row.equals(shownRow)) {
                 shownRow = row;
                 display.showCurrentRow(row);

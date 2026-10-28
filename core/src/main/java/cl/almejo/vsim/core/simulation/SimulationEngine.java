@@ -65,10 +65,14 @@ public final class SimulationEngine {
         validate(circuit);
         Map<String, ComponentInstance> nextInstances = new LinkedHashMap<>();
         List<ComponentInstance> created = new ArrayList<>();
+        Map<ComponentInstance, FlatComponent> newLiveValues = new LinkedHashMap<>();
         for (FlatComponent component : circuit.components()) {
             ComponentInstance existing = instances.get(component.id());
             if (existing != null && existing.matches(component)) {
                 nextInstances.put(component.id(), existing);
+                if (existing.hasOtherLiveValue(component)) {
+                    newLiveValues.put(existing, component);
+                }
             } else {
                 ComponentInstance instance = new ComponentInstance(this, component);
                 nextInstances.put(component.id(), instance);
@@ -90,10 +94,24 @@ public final class SimulationEngine {
             // The nets may have been replaced even when initialization failed: the traces follow the live ones.
             rebindWaveforms();
         }
+        handOverLiveValues(newLiveValues);
         token = circuit.token();
         tunnelProblems = circuit.tunnelProblems();
         connectivityProblems = circuit.connectivityProblems();
         revision++;
+    }
+
+    /**
+     * A Switch whose «Valor» changed keeps running and drives the new value now, like a click (an undo of a click, a
+     * value typed in Propiedades); one that drives it already, because the click reached the engine first, fires
+     * nothing.
+     */
+    private void handOverLiveValues(Map<ComponentInstance, FlatComponent> newLiveValues) {
+        if (newLiveValues.isEmpty()) {
+            return;
+        }
+        newLiveValues.forEach(ComponentInstance::takeLiveValue);
+        scheduler.runUntil(now());
     }
 
     /**
