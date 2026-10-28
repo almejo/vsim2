@@ -3,6 +3,7 @@ package cl.almejo.vsim.core.component;
 import cl.almejo.vsim.core.value.Value;
 
 import java.util.List;
+import java.util.Objects;
 
 public sealed interface VisibleState {
 
@@ -51,11 +52,26 @@ public sealed interface VisibleState {
      * (five, or every word of a smaller memory), placed around the last address and kept inside the memory. A word the
      * simulation stored as undefined (all Z) is 0 in {@code window} and has its bit set in {@code undefinedWindowWords}
      * (bit {@code row} for {@code window.get(row)}), so the painter shows it as «Z».
+     *
+     * <p>{@code lastRead} and {@code lastWrite} tell the last read and the last write apart from the last access, each
+     * with a count that only grows, so a view that compares them with the state it showed before can tell which
+     * accesses happened in between (a counter that moves the address right after each write would otherwise hide
+     * every write behind the next read).
      */
     record MemoryState(boolean enabled, MemoryAccess lastAccess, long lastAddress, long firstWindowAddress,
-                       List<Long> window, long undefinedWindowWords) implements VisibleState {
+                       List<Long> window, long undefinedWindowWords, LastRead lastRead, LastWrite lastWrite)
+            implements VisibleState {
         public MemoryState {
             window = List.copyOf(window);
+            Objects.requireNonNull(lastRead, "lastRead");
+            Objects.requireNonNull(lastWrite, "lastWrite");
+        }
+
+        /** A state without the read and write tallies (none so far). */
+        public MemoryState(boolean enabled, MemoryAccess lastAccess, long lastAddress, long firstWindowAddress,
+                           List<Long> window, long undefinedWindowWords) {
+            this(enabled, lastAccess, lastAddress, firstWindowAddress, window, undefinedWindowWords, LastRead.NONE,
+                    LastWrite.NONE);
         }
 
         /** A state whose window words are all defined. */
@@ -67,6 +83,49 @@ public sealed interface VisibleState {
         /** Whether the word in window row {@code row} was written undefined. */
         public boolean undefinedAt(int row) {
             return row >= 0 && row < Long.SIZE && (undefinedWindowWords >>> row & 1L) != 0;
+        }
+
+        /** Whether the window holds the word at {@code address}. */
+        public boolean windowHolds(long address) {
+            return address >= firstWindowAddress && address < firstWindowAddress + window.size();
+        }
+
+        /**
+         * This state as if its last write were its last access: the write, its address and the window around it.
+         * Itself when there is no write to show.
+         */
+        public MemoryState showingWrite() {
+            if (lastWrite.address() < 0) {
+                return this;
+            }
+            return new MemoryState(enabled, MemoryAccess.WRITE, lastWrite.address(), lastWrite.firstWindowAddress(),
+                    lastWrite.window(), lastWrite.undefinedWindowWords(), lastRead, lastWrite);
+        }
+    }
+
+    /**
+     * A memory's last read: how many reads it has counted in all ({@code count}, it only grows, also across a
+     * restore), and the simulation time and address of the last one ({@code -1} before the first one and since a
+     * restore).
+     */
+    record LastRead(long count, long time, long address) {
+
+        /** No read yet. */
+        public static final LastRead NONE = new LastRead(0, -1, -1);
+    }
+
+    /**
+     * A memory's last write, like {@link LastRead}, plus the content window around its address as it is now (like
+     * {@link MemoryState}'s), so a view can show the written word even when the last access was a read far from it.
+     */
+    record LastWrite(long count, long time, long address, long firstWindowAddress, List<Long> window,
+                     long undefinedWindowWords) {
+
+        /** No write yet. */
+        public static final LastWrite NONE = new LastWrite(0, -1, -1, 0, List.of(), 0);
+
+        public LastWrite {
+            window = List.copyOf(window);
         }
     }
 }

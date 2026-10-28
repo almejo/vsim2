@@ -53,6 +53,14 @@ public final class MemoryBehavior implements Behavior {
     private boolean enabled;
     private MemoryAccess lastAccess = MemoryAccess.NONE;
     private long lastAddress = -1;
+    /** Reads counted in all (never reset), and the time and address of the last one (-1: none since the start). */
+    private long readCount;
+    private long latestReadTime = -1;
+    private long latestReadAddress = -1;
+    /** Writes made in all (never reset), and the time and address of the last one (-1: none since the start). */
+    private long writeCount;
+    private long lastWriteTime = -1;
+    private long lastWriteAddress = -1;
     /** What the outputs (Q, or a shared D) were last told to show; null before the first time. */
     private Value requestedOutput;
     /** Bumped on each shared-D request, so a read still on its way never drives after a release. */
@@ -131,6 +139,10 @@ public final class MemoryBehavior implements Behavior {
         lastLevelWriteAddress = -1;
         lastAccess = MemoryAccess.NONE;
         lastAddress = -1;
+        latestReadTime = -1;
+        latestReadAddress = -1;
+        lastWriteTime = -1;
+        lastWriteAddress = -1;
         visibleState = null;
         refresh(context, false);
     }
@@ -185,6 +197,9 @@ public final class MemoryBehavior implements Behavior {
         accessLog.write(address, context.now());
         lastAccess = MemoryAccess.WRITE;
         lastAddress = address;
+        writeCount++;
+        lastWriteTime = context.now();
+        lastWriteAddress = address;
         lastReadAddress = -1;
         visibleState = null;
     }
@@ -215,6 +230,9 @@ public final class MemoryBehavior implements Behavior {
         if (countRead && at != lastReadAddress) {
             accessLog.read(at, context.now());
             lastReadAddress = at;
+            readCount++;
+            latestReadTime = context.now();
+            latestReadAddress = at;
             lastAccess = MemoryAccess.READ;
             lastAddress = at;
             visibleState = null;
@@ -309,17 +327,46 @@ public final class MemoryBehavior implements Behavior {
     }
 
     private VisibleState.MemoryState buildVisibleState() {
+        long first = windowStart(lastAddress);
+        List<Long> window = window(first);
+        VisibleState.LastRead lastRead = readCount == 0 ? VisibleState.LastRead.NONE
+                : new VisibleState.LastRead(readCount, latestReadTime, latestReadAddress);
+        VisibleState.LastWrite lastWrite = VisibleState.LastWrite.NONE;
+        if (lastWriteAddress >= 0) {
+            long writeFirst = windowStart(lastWriteAddress);
+            lastWrite = new VisibleState.LastWrite(writeCount, lastWriteTime, lastWriteAddress, writeFirst,
+                    writeFirst == first ? window : window(writeFirst), undefinedRows(writeFirst));
+        } else if (writeCount > 0) {
+            lastWrite = new VisibleState.LastWrite(writeCount, -1, -1, 0, List.of(), 0);
+        }
+        return new VisibleState.MemoryState(enabled, lastAccess, lastAddress, first, window, undefinedRows(first),
+                lastRead, lastWrite);
+    }
+
+    /** The first address of the content window placed around {@code address} (0 when it is -1). */
+    private long windowStart(long address) {
         int shown = (int) Math.min(WINDOW_WORDS, words);
-        long center = Math.max(0, lastAddress);
-        long first = Math.max(0, Math.min(center - WINDOW_WORDS / 2, words - shown));
+        long center = Math.max(0, address);
+        return Math.max(0, Math.min(center - WINDOW_WORDS / 2, words - shown));
+    }
+
+    private List<Long> window(long first) {
+        int shown = (int) Math.min(WINDOW_WORDS, words);
         List<Long> window = new ArrayList<>(shown);
-        long undefinedRows = 0;
         for (int offset = 0; offset < shown; offset++) {
             window.add(live.word(first + offset));
+        }
+        return window;
+    }
+
+    private long undefinedRows(long first) {
+        int shown = (int) Math.min(WINDOW_WORDS, words);
+        long undefinedRows = 0;
+        for (int offset = 0; offset < shown; offset++) {
             if (undefinedWords.contains(first + offset)) {
                 undefinedRows |= 1L << offset;
             }
         }
-        return new VisibleState.MemoryState(enabled, lastAccess, lastAddress, first, window, undefinedRows);
+        return undefinedRows;
     }
 }

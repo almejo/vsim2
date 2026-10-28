@@ -439,4 +439,76 @@ class MemoryPainterTest {
         }
         assertThat(differing).isGreaterThan(20);
     }
+
+    /** Pixels of {@code color} in the title bar and below it, drawn {@link #ZOOM} times larger at the origin. */
+    private int[] titleAndBelow(String typeId, Map<String, Object> parameters, VisibleState state, MemoryLights lights,
+                                Color color) {
+        ComponentType type = StandardComponentTypes.registry().require(typeId).specializedFor(parameters);
+        Component component = type.newComponent(new ElementId("m1"), GridPoint.ORIGIN, Rotation.R0, parameters, "");
+        BufferedImage image = PaintersTest.blankImage(IMAGE_SIZE, IMAGE_SIZE);
+        Graphics2D graphics = image.createGraphics();
+        graphics.scale(ZOOM, ZOOM);
+        MemoryPainter painter = new MemoryPainter();
+        ComponentDrawing.paintPlaced(graphics, component, local -> painter.paintWithLabel(local, type,
+                component.parameters(), state, SCHEME, "M", lights));
+        graphics.dispose();
+        Rectangle2D titleBar = MemoryPainter.titleBar(type);
+        int[] counts = new int[2];
+        for (int x = 0; x < IMAGE_SIZE; x++) {
+            for (int y = 0; y < IMAGE_SIZE; y++) {
+                if (image.getRGB(x, y) == color.getRGB()) {
+                    counts[titleBar.contains((x + 0.5) / ZOOM, (y + 0.5) / ZOOM) ? 0 : 1]++;
+                }
+            }
+        }
+        return counts;
+    }
+
+    @Test
+    void aMemoryThatReadAndWroteSinceTheLastFrameLightsBothAndOutlinesBothWords() {
+        MemoryLights both = new MemoryLights(true, 3, true, 2);
+        int[] read = titleAndBelow(StandardComponentTypes.RAM, Map.of(), READING, both, READ);
+        int[] written = titleAndBelow(StandardComponentTypes.RAM, Map.of(), READING, both, WRITE);
+        assertThat(read[0]).as("the RD light").isGreaterThan(100);
+        assertThat(written[0]).as("the WR light").isGreaterThan(100);
+        assertThat(read[1]).as("the word read").isGreaterThan(100);
+        assertThat(written[1]).as("the word written").isGreaterThan(100);
+    }
+
+    @Test
+    void onTheSameWordTheWriteWins() {
+        MemoryLights same = new MemoryLights(true, 2, true, 2);
+        assertThat(titleAndBelow(StandardComponentTypes.RAM, Map.of(), WRITING, same, READ)[1])
+                .as("no blue outline under the orange one").isZero();
+        assertThat(titleAndBelow(StandardComponentTypes.RAM, Map.of(), WRITING, same, WRITE)[1]).isGreaterThan(100);
+    }
+
+    @Test
+    void theWrittenWordIsShownEvenWhenAReadFarAwayMovedTheWindow() {
+        // read 12 last (window 10..14), but wrote 1 in the same frame: the window around the write is shown
+        VisibleState farRead = new VisibleState.MemoryState(true, VisibleState.MemoryAccess.READ, 12, 10,
+                List.of(0L, 0L, 0L, 0L, 0L), 0, new VisibleState.LastRead(4, 30, 12),
+                new VisibleState.LastWrite(1, 20, 1, 0, List.of(0L, 0x77L, 0L, 0L, 0L), 0));
+        MemoryLights both = new MemoryLights(true, 12, true, 1);
+        assertThat(titleAndBelow(StandardComponentTypes.RAM, Map.of(), farRead, both, WRITE)[1])
+                .as("the written word outlined").isGreaterThan(100);
+    }
+
+    @Test
+    void aRomHasOnlyTheReadLight() {
+        MemoryLights both = new MemoryLights(true, 2, true, 2);
+        assertThat(titleAndBelow(StandardComponentTypes.ROM, Map.of(), READING, both, WRITE))
+                .as("never a WR light on a ROM").containsExactly(0, 0);
+        assertThat(titleAndBelow(StandardComponentTypes.ROM, Map.of(), READING, both, READ)[0]).isGreaterThan(100);
+        // idle, the RAM draws two outlined lights and the ROM one: the ROM's title has room for one light less
+        Color stroke = SCHEME.componentFill();
+        int ramIdle = titleAndBelow(StandardComponentTypes.RAM, Map.of(), READING, MemoryLights.IDLE, stroke)[0];
+        int ramOneLit = titleAndBelow(StandardComponentTypes.RAM, Map.of(), READING,
+                new MemoryLights(false, -1, true, 2), stroke)[0];
+        int romIdle = titleAndBelow(StandardComponentTypes.ROM, Map.of(), READING, MemoryLights.IDLE, stroke)[0];
+        int romLit = titleAndBelow(StandardComponentTypes.ROM, Map.of(), READING,
+                new MemoryLights(false, -1, true, 2), stroke)[0];
+        assertThat(ramIdle).as("a RAM lights its WR pill").isNotEqualTo(ramOneLit);
+        assertThat(romIdle).as("a ROM has no WR pill to light").isEqualTo(romLit);
+    }
 }

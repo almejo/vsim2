@@ -34,12 +34,14 @@ import static cl.almejo.vsim.ui.paint.PainterSupport.UNIT;
 
 /**
  * The RAM and ROM (memory spec §3, mockup §2–3). The title bar has «RAM · 256 × 8» small above the name, and on the
- * right the activity light and the ▾ / ▸ square that folds the content window ({@code show-contents}); while the
- * memory reads or writes, an {@code RD} / {@code WR} pill sits left of the light, and «CS = 0» when it is not selected.
- * Shown, a bordered window lists five words around the last address as «address  word» in monospace; the accessed word
- * is outlined with a light tint, blue for a read and orange for a write (the written value in orange), from the
- * scheme's {@code memoryRead} / {@code memoryWrite} read at paint time; a word written undefined shows «Z»; a memory
- * whose {@code CS} is 0 has its light off and its window dimmed. A ROM has a band along its top edge. A dashed outline
+ * right two lights, {@code RD} and {@code WR} (a ROM, never written, only {@code RD}), and the ▾ / ▸ square that folds
+ * the content window ({@code show-contents}); each light is lit by its own accesses ({@link MemoryLights}, both at once
+ * when the memory read and wrote since the last frame) and only outlined while idle; «CS = 0» sits left of them when
+ * the memory is not selected. Shown, a bordered window lists five words around the last address as «address  word» in
+ * monospace; the word read is outlined with a light blue tint and the word written with an orange one (its value in
+ * orange; the write wins on the same word), from the scheme's {@code memoryRead} / {@code memoryWrite} read at paint
+ * time; a word written undefined shows «Z»; a memory whose {@code CS} is 0 has its lights and window dimmed. A ROM has
+ * a band along its top edge. A dashed outline
  * in the conflict colour warns that the contents do not fit the memory.
  *
  * <p>The title bar and the window are drawn upright in their own place, so turned upside down the part keeps its title
@@ -78,9 +80,13 @@ public final class MemoryPainter implements ComponentPainter {
     private static final double TOGGLE_HIT_MARGIN = 1.5;
     private static final double TOGGLE_ARC = 2;
     private static final double GLYPH_HALF = 2;
-    private static final double LIGHT_RADIUS = 3;
+    /** The RD and WR lights: pills of this width with this gap (a ROM, never written, has only RD). */
+    private static final double LIGHT_WIDTH = 12;
+    private static final double LIGHT_GAP = 1.5;
+
+    /** The letters of an idle light: readable, but quieter than the muted addresses. */
+    private static final int IDLE_LIGHT_TEXT_ALPHA = 140;
     private static final double PILL_HEIGHT = 8;
-    private static final double PILL_PADDING = 3;
     /**
      * How much a light text on the pill is preferred over a dark one, as a contrast factor: the mockup has white on
      * both activity colours in Claro; on the brighter colours of Oscuro the dark text still wins.
@@ -129,24 +135,23 @@ public final class MemoryPainter implements ComponentPainter {
     };
     private int decodeCount;
 
-    /** What a memory shows now: whether it is selected and its last access (none in the palette and the ghost). */
-    private record Activity(boolean enabled, VisibleState.MemoryAccess access) {
+    /**
+     * What a memory shows now: whether it comes from the simulation (not the palette or the ghost), whether it is
+     * selected, whether it can be written (a RAM: it has a WR light) and which of its lights are lit.
+     */
+    private record Activity(boolean simulated, boolean enabled, boolean writable, MemoryLights lights) {
 
-        static Activity of(VisibleState.MemoryState memory) {
-            return memory == null ? new Activity(true, VisibleState.MemoryAccess.NONE)
-                    : new Activity(memory.enabled(), memory.lastAccess());
+        static Activity of(VisibleState.MemoryState memory, boolean writable, MemoryLights lights) {
+            return memory == null ? new Activity(false, true, writable, MemoryLights.IDLE)
+                    : new Activity(true, memory.enabled(), writable, lights);
         }
 
-        /** The colour of the last access while selected, empty when idle or deselected. */
-        Optional<Color> color(ColorScheme scheme) {
-            if (!enabled) {
-                return Optional.empty();
-            }
-            return switch (access) {
-                case READ -> Optional.of(scheme.memoryRead());
-                case WRITE -> Optional.of(scheme.memoryWrite());
-                case NONE -> Optional.empty();
-            };
+        boolean reading() {
+            return enabled && lights.reading();
+        }
+
+        boolean writing() {
+            return enabled && writable && lights.writing();
         }
     }
 
@@ -156,14 +161,23 @@ public final class MemoryPainter implements ComponentPainter {
         paintWithLabel(graphics, type, parameters, state, scheme, Messages.componentName(type.id()));
     }
 
-    /** Draws the memory with {@code name} (see {@code MemoryNames}) in its title bar. */
+    /** Draws the memory with {@code name} in its title bar and its lights as its last access sets them. */
     public void paintWithLabel(Graphics2D graphics, ComponentType type, Map<String, Object> parameters,
                                VisibleState state, ColorScheme scheme, String name) {
+        paintWithLabel(graphics, type, parameters, state, scheme, name, MemoryLights.of(state));
+    }
+
+    /**
+     * Draws the memory with {@code name} (see {@code MemoryNames}) in its title bar and {@code lights} lit (the canvas
+     * keeps them lit a little while after each access, see {@code MemoryActivity}).
+     */
+    public void paintWithLabel(Graphics2D graphics, ComponentType type, Map<String, Object> parameters,
+                               VisibleState state, ColorScheme scheme, String name, MemoryLights lights) {
         Map<String, Object> resolved = type.resolveParameters(parameters);
         ComponentType shaped = type.specializedFor(parameters);
         MemoryKind kind = MemoryTypes.kindOf(type.id()).orElse(MemoryKind.RAM);
         VisibleState.MemoryState memory = state instanceof VisibleState.MemoryState known ? known : null;
-        Activity activity = Activity.of(memory);
+        Activity activity = Activity.of(memory, kind == MemoryKind.RAM, lights);
         boolean sideways = PainterSupport.turnedSideways(graphics);
         boolean folded = sideways || MemoryTypes.SHOW_CONTENTS_NO.equals(resolved.get(MemoryTypes.SHOW_CONTENTS));
         Decoded decoded = decoded((String) resolved.get(MemoryTypes.CONTENTS));
@@ -183,7 +197,7 @@ public final class MemoryPainter implements ComponentPainter {
             if (sideways) {
                 paintSidewaysTitle(clipped, box, subtitle, name, activity, linked, scheme);
             } else {
-                paintTitle(clipped, titleBar(box), subtitle, name, memory != null, activity, folded, linked, scheme);
+                paintTitle(clipped, titleBar(box), subtitle, name, activity, folded, linked, scheme);
             }
             if (!folded) {
                 paintWindow(clipped, windowBox(box, resolved), resolved, memory, decoded, activity, scheme);
@@ -255,18 +269,29 @@ public final class MemoryPainter implements ComponentPainter {
 
     /** The chain of a linked memory (local coordinates, upright title bar): left of the light, inside the title bar. */
     static Rectangle2D linkGlyphArea(ComponentType specialized) {
-        return linkGlyph(titleBar(bodyBox(specialized)));
+        return linkGlyph(titleBar(bodyBox(specialized)),
+                MemoryTypes.kindOf(specialized.id()).orElse(MemoryKind.RAM) == MemoryKind.RAM);
     }
 
-    private static Rectangle2D linkGlyph(Rectangle2D titleBar) {
-        Rectangle2D square = toggleSquare(titleBar);
-        return linkGlyph(titleBar, square.getX() - TEXT_GAP - LIGHT_RADIUS);
+    private static Rectangle2D linkGlyph(Rectangle2D titleBar, boolean writable) {
+        return linkGlyph(titleBar, lightsLeft(titleBar, writable));
     }
 
-    private static Rectangle2D linkGlyph(Rectangle2D titleBar, double lightX) {
-        double right = lightX - LIGHT_RADIUS - TEXT_GAP;
-        return new Rectangle2D.Double(right - CHAIN_WIDTH, titleBar.getY() + TITLE_MIDDLE - CHAIN_HEIGHT / 2,
+    /** The chain ending a gap left of {@code right}, in the middle of the title bar. */
+    private static Rectangle2D linkGlyph(Rectangle2D titleBar, double right) {
+        double end = right - TEXT_GAP;
+        return new Rectangle2D.Double(end - CHAIN_WIDTH, titleBar.getY() + TITLE_MIDDLE - CHAIN_HEIGHT / 2,
                 CHAIN_WIDTH, CHAIN_HEIGHT);
+    }
+
+    /** Where the RD and WR lights start on the left: they end a gap left of the square. */
+    private static double lightsLeft(Rectangle2D titleBar, boolean writable) {
+        return toggleSquare(titleBar).getX() - TEXT_GAP - lightsWidth(writable);
+    }
+
+    /** RD and WR side by side, or RD alone on a ROM. */
+    private static double lightsWidth(boolean writable) {
+        return writable ? 2 * LIGHT_WIDTH + LIGHT_GAP : LIGHT_WIDTH;
     }
 
     /** Two interlocked rounded links, in the text colour, filling {@code area}. */
@@ -395,27 +420,26 @@ public final class MemoryPainter implements ComponentPainter {
     }
 
     /**
-     * The title bar, upright about its centre: subtitle and name on the left; on the right the square, the light and,
-     * left of the light, the RD / WR pill or «CS = 0» ({@code simulated}: a state from the simulation, not the palette).
+     * The title bar, upright about its centre: subtitle and name on the left; on the right the square, the RD and WR
+     * lights and, left of them, the chain of a linked memory and «CS = 0» when it is not selected.
      */
     private static void paintTitle(Graphics2D graphics, Rectangle2D titleBar, String subtitle, String name,
-                                   boolean simulated, Activity activity, boolean folded, boolean linked,
-                                   ColorScheme scheme) {
+                                   Activity activity, boolean folded, boolean linked, ColorScheme scheme) {
         Graphics2D upright = uprightAbout(graphics, titleBar.getCenterX(), titleBar.getCenterY());
         try {
             Rectangle2D square = toggleSquare(titleBar);
             paintToggle(upright, square, folded, scheme);
-            double lightX = square.getX() - TEXT_GAP - LIGHT_RADIUS;
             double middleY = titleBar.getY() + TITLE_MIDDLE;
-            paintLight(upright, lightX, middleY, activity, scheme);
+            paintLights(upright, lightsLeft(titleBar, activity.writable()), middleY, activity, scheme);
             double textLeft = titleBar.getX() + TEXT_INSET;
-            double statusRight = lightX - LIGHT_RADIUS - TEXT_GAP;
+            double statusRight = lightsLeft(titleBar, activity.writable()) - TEXT_GAP;
             if (linked) {
-                paintChain(upright, linkGlyph(titleBar), scheme);
-                statusRight = linkGlyph(titleBar).getX() - TEXT_GAP;
+                Rectangle2D chain = linkGlyph(titleBar, activity.writable());
+                paintChain(upright, chain, scheme);
+                statusRight = chain.getX() - TEXT_GAP;
             }
-            double statusLeft = paintStatus(upright, statusRight, middleY, statusRight - textLeft - MINIMUM_NAME_ROOM,
-                    simulated, activity, scheme);
+            double statusLeft = paintDeselected(upright, statusRight, middleY,
+                    statusRight - textLeft - MINIMUM_NAME_ROOM, activity, scheme);
             double available = statusLeft - TEXT_GAP - textLeft;
             drawText(upright, subtitle, textLeft, titleBar.getY() + 7.5, SUBTITLE_SIZE, available,
                     PainterSupport.ALIGN_LEFT, scheme.text());
@@ -426,13 +450,14 @@ public final class MemoryPainter implements ComponentPainter {
         }
     }
 
-    /** Turned a quarter: subtitle, name and the pill or «CS = 0» centred in the body; the light in its corner. */
+    /**
+     * Turned a quarter: subtitle, name and the RD and WR lights centred in the body, «CS = 0» under them when it is not
+     * selected; the chain of a linked memory in its corner.
+     */
     private static void paintSidewaysTitle(Graphics2D graphics, Rectangle2D box, String subtitle, String name,
                                            Activity activity, boolean linked, ColorScheme scheme) {
-        paintLight(graphics, box.getMaxX() - TOGGLE_FROM_RIGHT - LIGHT_RADIUS, box.getY() + TITLE_MIDDLE, activity,
-                scheme);
         if (linked) {
-            paintChain(graphics, linkGlyph(titleBar(box), box.getMaxX() - TOGGLE_FROM_RIGHT - LIGHT_RADIUS), scheme);
+            paintChain(graphics, linkGlyph(titleBar(box), box.getMaxX() - TOGGLE_FROM_RIGHT + TEXT_GAP), scheme);
         }
         double centerX = box.getCenterX();
         double centerY = box.getCenterY();
@@ -444,11 +469,11 @@ public final class MemoryPainter implements ComponentPainter {
                     scheme.text());
             drawText(upright, name, centerX, centerY + 1, NAME_SIZE, across, PainterSupport.ALIGN_CENTER,
                     scheme.text());
-            statusText(true, activity).ifPresent(text -> {
-                double width = textWidth(upright, text, BADGE_SIZE, Font.BOLD)
-                        + (activity.color(scheme).isPresent() ? 2 * PILL_PADDING : 0);
-                paintStatus(upright, centerX + width / 2, centerY + 11, width, true, activity, scheme);
-            });
+            paintLights(upright, centerX - lightsWidth(activity.writable()) / 2, centerY + 11, activity, scheme);
+            if (activity.simulated() && !activity.enabled()) {
+                drawText(upright, Messages.text("memory.badge.deselected"), centerX, centerY + 19, BADGE_SIZE, across,
+                        PainterSupport.ALIGN_CENTER, PainterSupport.withAlpha(scheme.text(), QUIET_ROW_ALPHA));
+            }
         } finally {
             upright.dispose();
         }
@@ -480,63 +505,67 @@ public final class MemoryPainter implements ComponentPainter {
         graphics.fill(glyph);
     }
 
-    private static void paintLight(Graphics2D graphics, double centerX, double centerY, Activity activity,
-                                   ColorScheme scheme) {
-        Ellipse2D light = new Ellipse2D.Double(centerX - LIGHT_RADIUS, centerY - LIGHT_RADIUS, 2 * LIGHT_RADIUS,
-                2 * LIGHT_RADIUS);
-        Optional<Color> lit = activity.color(scheme);
-        graphics.setColor(lit.orElse(scheme.componentShade()));
-        graphics.fill(light);
-        if (lit.isEmpty()) {
-            // an unlit light is only its outline, as a lit one is only its colour (mockup)
-            graphics.setColor(scheme.componentStroke());
-            graphics.setStroke(THIN_STROKE);
-            graphics.draw(light);
+    /**
+     * The RD and WR lights side by side from {@code left} (RD alone on a ROM): each a small pill, filled in its colour with its letters
+     * while lit, only outlined with quiet letters while idle (so the student knows where to look), both dimmed while
+     * the memory is not selected.
+     */
+    private static void paintLights(Graphics2D graphics, double left, double centerY, Activity activity,
+                                    ColorScheme scheme) {
+        Graphics2D lights = (Graphics2D) graphics.create();
+        try {
+            if (!activity.enabled()) {
+                lights.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, DIMMED_ALPHA));
+            }
+            paintLight(lights, left, centerY, Messages.text("memory.badge.read"),
+                    activity.reading() ? Optional.of(scheme.memoryRead()) : Optional.empty(), scheme);
+            if (activity.writable()) {
+                paintLight(lights, left + LIGHT_WIDTH + LIGHT_GAP, centerY, Messages.text("memory.badge.write"),
+                        activity.writing() ? Optional.of(scheme.memoryWrite()) : Optional.empty(), scheme);
+            }
+        } finally {
+            lights.dispose();
         }
     }
 
-    /** «RD» / «WR» while selected and active, «CS = 0» when deselected, nothing otherwise or in the palette. */
-    private static Optional<String> statusText(boolean simulated, Activity activity) {
-        if (!simulated) {
-            return Optional.empty();
+    private static void paintLight(Graphics2D graphics, double left, double centerY, String text,
+                                   Optional<Color> lit, ColorScheme scheme) {
+        Shape pill = new RoundRectangle2D.Double(left, centerY - PILL_HEIGHT / 2, LIGHT_WIDTH, PILL_HEIGHT,
+                PILL_HEIGHT, PILL_HEIGHT);
+        Font bold = PainterSupport.BASE_FONT.deriveFont(Font.BOLD);
+        float size = fittedSize(graphics, text, BADGE_SIZE, LIGHT_WIDTH - 2, bold);
+        if (lit.isPresent()) {
+            graphics.setColor(lit.get());
+            graphics.fill(pill);
+            PainterSupport.uprightText(graphics, text, left + LIGHT_WIDTH / 2, centerY, size,
+                    contrasting(lit.get(), scheme), PainterSupport.ALIGN_CENTER, bold);
+            return;
         }
-        if (!activity.enabled()) {
-            return Optional.of(Messages.text("memory.badge.deselected"));
-        }
-        return switch (activity.access()) {
-            case READ -> Optional.of(Messages.text("memory.badge.read"));
-            case WRITE -> Optional.of(Messages.text("memory.badge.write"));
-            case NONE -> Optional.empty();
-        };
+        graphics.setColor(scheme.componentFill());
+        graphics.fill(pill);
+        graphics.setColor(PainterSupport.withAlpha(scheme.componentStroke(), QUIET_ROW_ALPHA));
+        graphics.setStroke(THIN_STROKE);
+        graphics.draw(pill);
+        PainterSupport.uprightText(graphics, text, left + LIGHT_WIDTH / 2, centerY, size,
+                PainterSupport.withAlpha(scheme.text(), IDLE_LIGHT_TEXT_ALPHA), PainterSupport.ALIGN_CENTER, bold);
     }
 
     /**
-     * Draws the pill (or «CS = 0») ending at {@code right} when it fits in {@code room}; answers where it starts
-     * ({@code right} when nothing was drawn), so the name keeps the rest.
+     * «CS = 0» ending at {@code right} when the simulated memory is not selected and it fits in {@code room}; answers
+     * where it starts ({@code right} when nothing was drawn), so the name keeps the rest.
      */
-    private static double paintStatus(Graphics2D graphics, double right, double centerY, double room,
-                                      boolean simulated, Activity activity, ColorScheme scheme) {
-        Optional<String> text = statusText(simulated, activity);
-        if (text.isEmpty()) {
+    private static double paintDeselected(Graphics2D graphics, double right, double centerY, double room,
+                                          Activity activity, ColorScheme scheme) {
+        if (!activity.simulated() || activity.enabled()) {
             return right;
         }
-        Optional<Color> pill = activity.color(scheme);
-        double width = textWidth(graphics, text.get(), BADGE_SIZE, Font.BOLD) + (pill.isPresent() ? 2 * PILL_PADDING : 0);
+        String text = Messages.text("memory.badge.deselected");
+        double width = textWidth(graphics, text, BADGE_SIZE, Font.BOLD);
         if (width > room) {
             return right;
         }
-        if (pill.isEmpty()) {
-            drawText(graphics, text.get(), right, centerY, BADGE_SIZE, width, PainterSupport.ALIGN_RIGHT,
-                    PainterSupport.withAlpha(scheme.text(), QUIET_ROW_ALPHA));
-            return right - width;
-        }
-        Shape badge = new RoundRectangle2D.Double(right - width, centerY - PILL_HEIGHT / 2, width, PILL_HEIGHT,
-                PILL_HEIGHT, PILL_HEIGHT);
-        graphics.setColor(pill.get());
-        graphics.fill(badge);
-        PainterSupport.uprightText(graphics, text.get(), right - width / 2, centerY, BADGE_SIZE,
-                contrasting(pill.get(), scheme), PainterSupport.ALIGN_CENTER,
-                PainterSupport.BASE_FONT.deriveFont(Font.BOLD));
+        drawText(graphics, text, right, centerY, BADGE_SIZE, width, PainterSupport.ALIGN_RIGHT,
+                PainterSupport.withAlpha(scheme.text(), QUIET_ROW_ALPHA));
         return right - width;
     }
 
@@ -594,13 +623,29 @@ public final class MemoryPainter implements ComponentPainter {
             upright.setColor(scheme.componentStroke());
             upright.setStroke(THIN_STROKE);
             upright.draw(frame);
-            paintRows(upright, window, rows, resolved, memory, decoded, activity, scheme);
+            paintRows(upright, window, rows, resolved, shownWindow(memory, activity), decoded, activity, scheme);
         } finally {
             upright.dispose();
         }
     }
 
-    /** One «address  word» row per window row; the accessed one outlined and tinted. */
+    /**
+     * The state whose window to show: the memory's own, or the one around its last write when the write light is on
+     * and the last access, a read, moved the window away from the written word.
+     */
+    private static VisibleState.MemoryState shownWindow(VisibleState.MemoryState memory, Activity activity) {
+        if (memory == null || !activity.writing() || memory.windowHolds(activity.lights().writeAddress())
+                || memory.lastWrite().address() != activity.lights().writeAddress()) {
+            return memory;
+        }
+        return memory.showingWrite();
+    }
+
+    /**
+     * One «address  word» row per window row; the word read outlined and tinted blue while the read light is on, the
+     * word written outlined and tinted orange with its value in orange while the write light is on (the write wins
+     * when both are the same word).
+     */
     private static void paintRows(Graphics2D graphics, Rectangle2D window, int rows, Map<String, Object> resolved,
                                   VisibleState.MemoryState memory, Decoded decoded, Activity activity,
                                   ColorScheme scheme) {
@@ -614,12 +659,14 @@ public final class MemoryPainter implements ComponentPainter {
         double addressLeft = window.getX() + ROW_TEXT_INSET;
         double valueLeft = addressLeft + textWidth(graphics, addressText(0, addressBits) + COLUMN_GAP, size,
                 Font.PLAIN, MONOSPACE);
-        Optional<Color> accessColor = activity.color(scheme);
         for (int row = 0; row < rows; row++) {
             long address = first + row;
             double centerY = window.getY() + WINDOW_PADDING + row * ROW_HEIGHT + ROW_HEIGHT / 2;
-            boolean accessed = memory != null && accessColor.isPresent() && address == memory.lastAddress();
-            if (accessed) {
+            boolean written = memory != null && activity.writing() && address == activity.lights().writeAddress();
+            boolean read = memory != null && activity.reading() && address == activity.lights().readAddress();
+            Optional<Color> accessColor = written ? Optional.of(scheme.memoryWrite())
+                    : read ? Optional.of(scheme.memoryRead()) : Optional.empty();
+            if (accessColor.isPresent()) {
                 Shape box = new RoundRectangle2D.Double(window.getX() + WINDOW_PADDING, centerY - ROW_HEIGHT / 2,
                         window.getWidth() - 2 * WINDOW_PADDING, ROW_HEIGHT, WINDOW_ARC, WINDOW_ARC);
                 graphics.setColor(PainterSupport.withAlpha(accessColor.get(), ACCESS_TINT_ALPHA));
@@ -629,7 +676,6 @@ public final class MemoryPainter implements ComponentPainter {
                 graphics.draw(box);
             }
             Color label = PainterSupport.withAlpha(scheme.text(), ADDRESS_ALPHA);
-            boolean written = accessed && activity.access() == VisibleState.MemoryAccess.WRITE;
             PainterSupport.uprightText(graphics, addressText(address, addressBits), addressLeft, centerY, size, label,
                     PainterSupport.ALIGN_LEFT, MONOSPACE);
             PainterSupport.uprightText(graphics, wordAt(memory, decoded, row, address, mask, valueDigits), valueLeft,

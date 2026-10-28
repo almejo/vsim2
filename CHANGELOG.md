@@ -14,10 +14,12 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
   pines `A`, `D`, `Q`, `WE`, `CS` y reloj. Lectura combinacional, escritura en el flanco de bajada del reloj (o «Sin
   reloj»), conexión por bus o con pines sueltos, «Un solo bus D», nombre y retardo. Cambiar el tamaño nunca corta el
   contenido. Una memoria vacía casi no ocupa espacio, ni siquiera de 16M × 64 bits.
-- En el lienzo, la memoria muestra en su barra de título «RAM · 256 × 8», su nombre, una luz de actividad (azul al
-  leer, naranja al escribir) con la insignia `RD` o `WR`, o «CS = 0» cuando no está conectada, y un cuadrito ▾ / ▸ que
+- En el lienzo, la memoria muestra en su barra de título «RAM · 256 × 8», su nombre, dos luces, `RD` (azul, al leer)
+  y `WR` (naranja, al escribir; la ROM solo tiene `RD`), cada una encendida por sus propios accesos y al menos 200 ms
+  (en pausa, hasta el paso siguiente), así que una escritura seguida de una lectura enciende las dos; apagadas se ven
+  con su borde y tenues con «CS = 0» cuando no está conectada; y un cuadrito ▾ / ▸ que
   con un clic muestra u oculta la ventana de contenido. La ventana lista las palabras alrededor de la dirección actual
-  («dirección  palabra», letra de ancho fijo, la dirección en un tono apagado y la palabra en el color normal) con la palabra leída o escrita en un recuadro de su color y una palabra
+  («dirección  palabra», letra de ancho fijo, la dirección en un tono apagado y la palabra en el color normal) con la palabra leída y la escrita en un recuadro de su color (gana la escritura si es la misma) y una palabra
   escrita sin definir como «Z». Una memoria vinculada a un archivo muestra una cadenita en la barra de título. Una memoria sin etiqueta se llama RAM1, RAM2, ROM1… (numeradas por tipo), igual en el
   lienzo, el mapa, el editor y «Volcar…». Los colores de lectura y escritura son dos roles nuevos de cada esquema de
   colores.
@@ -25,8 +27,9 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
   direcciones y palabras que se escribe sobre las celdas, en hexadecimal, decimal o binario, con Ctrl+C y Ctrl+V de
   texto hexadecimal, Ctrl+Z y Ctrl+Y dentro del editor, «Llenar…», «Ir a…» (Ctrl+G), «Importar…», «Exportar…» y
   «Volcar…» (RAM) en el formato de VSim y en el de Logisim (v2.0 raw), con ícono y texto en cada botón. Aceptar es un
-  solo paso de deshacer. Con la simulación corriendo, o en pausa, la RAM muestra sus valores vivos y su última lectura
-  (azul) y escritura (naranja). «Exportar…» y «Volcar…» nunca escriben sobre un archivo enlazado de ninguna memoria del
+  solo paso de deshacer. Con la simulación corriendo, o en pausa, la RAM muestra sus valores vivos, su lectura
+  (azul) y su escritura (naranja) con la misma regla de las luces, y la barra de estado dice «Última lectura … · Última
+  escritura …». «Exportar…» y «Volcar…» nunca escriben sobre un archivo enlazado de ninguna memoria del
   circuito; «Llenar…» propone la selección o las filas que se ven, y pide confirmar sobre 65.536 palabras; «Enlazar…»
   pregunta antes de descartar cambios sin aceptar.
   «Restaurar contenido inicial» y «Volcar…» también están en el clic derecho de la RAM.

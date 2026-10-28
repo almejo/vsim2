@@ -2,6 +2,7 @@ package cl.almejo.vsim.ui.memory;
 
 import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.memory.MemoryContents;
+import cl.almejo.vsim.ui.paint.MemoryLights;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -210,9 +211,14 @@ class MemoryGridModelTest {
         assertThat(grid.edited().word(0)).isEqualTo(1);
         grid.hideLive();
         assertThat(grid.getValueAt(0, 1)).isEqualTo("01");
-        grid.showAccess(VisibleState.MemoryAccess.WRITE, 3);
+        grid.showAccesses(new MemoryLights(false, -1, true, 3));
         assertThat(grid.accessAt(3)).isEqualTo(VisibleState.MemoryAccess.WRITE);
         assertThat(grid.accessAt(4)).isEqualTo(VisibleState.MemoryAccess.NONE);
+        grid.showAccesses(new MemoryLights(true, 4, true, 3));
+        assertThat(grid.accessAt(3)).as("a write and a read in the same frame").isEqualTo(VisibleState.MemoryAccess.WRITE);
+        assertThat(grid.accessAt(4)).isEqualTo(VisibleState.MemoryAccess.READ);
+        grid.showAccesses(new MemoryLights(true, 3, true, 3));
+        assertThat(grid.accessAt(3)).as("the write wins on the same word").isEqualTo(VisibleState.MemoryAccess.WRITE);
     }
 
     @Test

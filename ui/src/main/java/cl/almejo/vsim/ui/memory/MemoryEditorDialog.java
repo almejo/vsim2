@@ -15,6 +15,7 @@ import cl.almejo.vsim.ui.actions.Keys;
 import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.ColorScheme;
+import cl.almejo.vsim.ui.paint.MemoryLights;
 import cl.almejo.vsim.ui.search.FindIcons;
 import cl.almejo.vsim.ui.search.SearchField;
 import cl.almejo.vsim.ui.icons.Icons;
@@ -54,12 +55,15 @@ import java.awt.event.KeyEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.OptionalLong;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ForkJoinPool;
+import java.util.function.LongSupplier;
 
 /**
  * The content editor of a RAM or ROM (memory spec §7): a hex grid over a copy of the initial contents, a toolbar
@@ -111,6 +115,8 @@ public final class MemoryEditorDialog {
     /** The snapshot revision whose words were last asked for (while paused, each revision is asked once). */
     private long liveRevision = -1;
     private Runnable closer = () -> { };
+    /** Which accesses the grid highlights: each kept on a little while after it happened. */
+    private MemoryActivity activity = new MemoryActivity();
 
     /** The editor with the real windows and clipboard for its questions. */
     public MemoryEditorDialog(OpenDocument document, ElementId componentId, EditorView view,
@@ -723,12 +729,29 @@ public final class MemoryEditorDialog {
         status.setDetail(detail);
     }
 
-    private void showAccess(VisibleState.MemoryState state) {
-        model.showAccess(state.lastAccess(), state.lastAddress());
-        if (state.lastAccess() != VisibleState.MemoryAccess.NONE && state.lastAddress() >= 0) {
-            setStatus(Messages.format(state.lastAccess() == VisibleState.MemoryAccess.READ
-                            ? "memory.status.read" : "memory.status.write",
-                    model.hexAddress(state.lastAddress())), null);
+    /** For tests: the highlights' hold follows {@code nanoClock} instead of the system's clock. */
+    void useActivityClock(LongSupplier nanoClock) {
+        activity = new MemoryActivity(nanoClock);
+    }
+
+    /**
+     * One frame of the live accesses, from a snapshot at {@code simulationTime}: the word read and the word written
+     * since the frame before highlighted, each kept a little while (see {@link MemoryActivity}), and the status line
+     * telling the last read and, on a RAM, the last write.
+     */
+    void showAccesses(VisibleState.MemoryState state, long simulationTime) {
+        model.showAccesses(activity.lights(componentId.value(), state, simulationTime));
+        List<String> parts = new ArrayList<>();
+        if (state.lastRead().address() >= 0) {
+            parts.add(Messages.format("memory.status.read", model.hexAddress(state.lastRead().address())));
+        }
+        if (kind == MemoryKind.RAM && state.lastWrite().address() >= 0) {
+            parts.add(Messages.format("memory.status.write", model.hexAddress(state.lastWrite().address())));
+        }
+        if (parts.size() == 2) {
+            setStatus(Messages.format("memory.status.accesses", parts.get(0), parts.get(1)), null);
+        } else if (parts.size() == 1) {
+            setStatus(parts.get(0), null);
         }
     }
 
@@ -744,11 +767,11 @@ public final class MemoryEditorDialog {
         SimulationSnapshot snapshot = document.latestSnapshot();
         if (!(snapshot.componentState(componentId.value()) instanceof VisibleState.MemoryState state)) {
             model.hideLive();
-            model.showAccess(VisibleState.MemoryAccess.NONE, -1);
+            model.showAccesses(MemoryLights.IDLE);
             updateStatus(Optional.empty());
             return CompletableFuture.completedFuture(null);
         }
-        showAccess(state);
+        showAccesses(state, snapshot.time());
         if (kind != MemoryKind.RAM || livePending
                 || (!snapshot.running() && snapshot.revision() == liveRevision)) {
             return CompletableFuture.completedFuture(null);

@@ -1,5 +1,7 @@
 package cl.almejo.vsim.core.bundled;
 
+import cl.almejo.vsim.core.component.VisibleState.MemoryAccess;
+import cl.almejo.vsim.core.component.VisibleState.MemoryState;
 import cl.almejo.vsim.core.component.standard.MemoryTypes;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
@@ -63,6 +65,35 @@ class MemoryExamplesTest {
         for (int address = 0; address < 16; address++) {
             assertThat(word(simulation, address)).as("word %d", address).isZero();
         }
+    }
+
+    @Test
+    void aFrameAfterTheWriteReportsBothTheWriteAndTheReadOfTheNextAddressThatFollowedIt() {
+        // The edge at 19000 (second pass) writes 1 at address 2; the address counter moves to 3 a few units later and the RAM reads it, all
+        // before a frame at 19100. The last access is that read, but the state tells the write and the read apart.
+        ExampleSimulation simulation = new ExampleSimulation(MemoryExamples.ramFill(), Map.of());
+        Component ram = simulation.component("Datos", StandardComponentTypes.RAM);
+        simulation.runUntil(18100);
+        MemoryState before = (MemoryState) simulation.engine().snapshot().componentState(ram.id().value());
+        simulation.runUntil(19100);
+        MemoryState state = (MemoryState) simulation.engine().snapshot().componentState(ram.id().value());
+
+        assertThat(state.lastAccess()).isEqualTo(MemoryAccess.READ);
+        assertThat(state.lastAddress()).isEqualTo(3);
+        assertThat(state.lastWrite().count()).as("one more write since the previous frame")
+                .isEqualTo(before.lastWrite().count() + 1);
+        assertThat(state.lastWrite().address()).isEqualTo(2);
+        assertThat(state.lastWrite().time()).isEqualTo(19000);
+        assertThat(state.lastRead().count()).as("and a read after it").isGreaterThan(before.lastRead().count());
+        assertThat(state.lastRead().address()).isEqualTo(3);
+        assertThat(state.lastRead().time()).isGreaterThan(19000);
+
+        MemoryState written = state.showingWrite();
+        assertThat(written.lastAccess()).isEqualTo(MemoryAccess.WRITE);
+        assertThat(written.lastAddress()).isEqualTo(2);
+        int row = (int) (2 - written.firstWindowAddress());
+        assertThat(written.window().get(row)).as("the written word in its window").isEqualTo(1);
+        assertThat(written.lastWrite()).isEqualTo(state.lastWrite());
     }
 
     @Test

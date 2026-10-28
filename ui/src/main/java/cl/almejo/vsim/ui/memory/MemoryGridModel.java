@@ -5,6 +5,7 @@ import cl.almejo.vsim.core.memory.MemoryContents;
 import cl.almejo.vsim.core.memory.MutableMemoryContents;
 
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.ui.paint.MemoryLights;
 
 import javax.swing.table.AbstractTableModel;
 import java.util.ArrayDeque;
@@ -48,8 +49,8 @@ public final class MemoryGridModel extends AbstractTableModel {
     private final Deque<MemoryContents> redoStack = new ArrayDeque<>();
     private boolean readOnly;
     private MemoryContents live;
-    private long accessAddress = -1;
-    private VisibleState.MemoryAccess access = VisibleState.MemoryAccess.NONE;
+    /** The lit accesses for the cell highlight: the word read and the word written (-1: none lit). */
+    private MemoryLights accesses = MemoryLights.IDLE;
 
     public MemoryGridModel(MemoryContents contents, int width, long words, MemoryRadix radix) {
         this.contents = contents;
@@ -517,15 +518,23 @@ public final class MemoryGridModel extends AbstractTableModel {
         return live != null;
     }
 
-    /** The last access, for the cell highlight. */
-    public void showAccess(VisibleState.MemoryAccess lastAccess, long address) {
-        this.access = lastAccess;
-        this.accessAddress = address;
+    /** The lit accesses (see {@code MemoryActivity}), for the cell highlight. */
+    public void showAccesses(MemoryLights lights) {
+        if (lights.equals(accesses)) {
+            return;
+        }
+        accesses = lights;
         fireTableDataChanged();
     }
 
-    /** The kind of the last access if it touched {@code address}, NONE otherwise. */
+    /** WRITE when the lit write touched {@code address} (it wins), else READ when the lit read did, else NONE. */
     public VisibleState.MemoryAccess accessAt(long address) {
-        return address == accessAddress ? access : VisibleState.MemoryAccess.NONE;
+        if (accesses.writing() && address == accesses.writeAddress()) {
+            return VisibleState.MemoryAccess.WRITE;
+        }
+        if (accesses.reading() && address == accesses.readAddress()) {
+            return VisibleState.MemoryAccess.READ;
+        }
+        return VisibleState.MemoryAccess.NONE;
     }
 }

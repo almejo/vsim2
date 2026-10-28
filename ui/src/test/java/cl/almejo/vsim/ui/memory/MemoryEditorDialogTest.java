@@ -1,6 +1,7 @@
 package cl.almejo.vsim.ui.memory;
 
 import cl.almejo.vsim.core.command.ChangeParametersCommand;
+import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.component.standard.MemoryTypes;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
@@ -556,5 +557,44 @@ class MemoryEditorDialogTest {
         for (String key : List.of("notHex", "tooLong", "tooWide", "badWords", "badWidth", "badRun", "notLogisim")) {
             assertThat(cl.almejo.vsim.ui.i18n.Messages.text("memory.file." + key)).doesNotStartWith("!");
         }
+    }
+
+    private static VisibleState.MemoryState wroteThenRead(long writes) {
+        List<Long> window = List.of(0L, 0L, 0L, 0L, 0L);
+        return new VisibleState.MemoryState(true, VisibleState.MemoryAccess.READ, 3, 1, window, 0,
+                new VisibleState.LastRead(writes, writes * 1000 + 3, 3),
+                new VisibleState.LastWrite(writes, writes * 1000, 2, 0, window, 0));
+    }
+
+    @Test
+    void theLiveHighlightShowsAWriteFollowedByAReadInTheSameFrameAndHoldsItTwoHundredMilliseconds() {
+        long[] now = {0};
+        MemoryEditorDialog dialog = dialogOn(ram(Map.of(MemoryTypes.WORDS, "256")));
+        dialog.useActivityClock(() -> now[0]);
+        dialog.showAccesses(wroteThenRead(1), 1100);
+        dialog.showAccesses(wroteThenRead(2), 2100);
+        assertThat(dialog.model().accessAt(2)).isEqualTo(VisibleState.MemoryAccess.WRITE);
+        assertThat(dialog.model().accessAt(3)).isEqualTo(VisibleState.MemoryAccess.READ);
+        assertThat(dialog.status().getText()).contains("02").contains("03")
+                .contains(cl.almejo.vsim.ui.i18n.Messages.format("memory.status.write", "02"))
+                .contains(cl.almejo.vsim.ui.i18n.Messages.format("memory.status.read", "03"));
+
+        now[0] += 150_000_000L;
+        dialog.showAccesses(wroteThenRead(2), 2200);
+        assertThat(dialog.model().accessAt(2)).as("held").isEqualTo(VisibleState.MemoryAccess.WRITE);
+        now[0] += 100_000_000L;
+        dialog.showAccesses(wroteThenRead(2), 2300);
+        assertThat(dialog.model().accessAt(2)).as("gone after 250 ms").isEqualTo(VisibleState.MemoryAccess.NONE);
+        assertThat(dialog.status().getText()).as("the status still tells the last ones").contains("02");
+    }
+
+    @Test
+    void aRomsStatusTellsOnlyItsLastRead() {
+        MemoryEditorDialog dialog = dialogOn(rom(Map.of(MemoryTypes.WORDS, "256")));
+        List<Long> window = List.of(0L, 0L, 0L, 0L, 0L);
+        dialog.showAccesses(new VisibleState.MemoryState(true, VisibleState.MemoryAccess.READ, 3, 1, window, 0,
+                new VisibleState.LastRead(4, 40, 3), VisibleState.LastWrite.NONE), 50);
+        assertThat(dialog.status().getText())
+                .isEqualTo(cl.almejo.vsim.ui.i18n.Messages.format("memory.status.read", "03"));
     }
 }

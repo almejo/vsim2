@@ -18,10 +18,12 @@ import cl.almejo.vsim.core.tunnel.Tunnels;
 import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.app.AppPreferences.GridStyle;
 import cl.almejo.vsim.ui.frames.FramePainter;
+import cl.almejo.vsim.ui.memory.MemoryActivity;
 import cl.almejo.vsim.ui.memory.MemoryNames;
 import cl.almejo.vsim.ui.paint.Appearance;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.ComponentDrawing;
+import cl.almejo.vsim.ui.paint.MemoryLights;
 import cl.almejo.vsim.ui.paint.MemoryPainter;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.paint.PainterSupport;
@@ -55,6 +57,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.Set;
+import java.util.function.LongSupplier;
 import java.util.stream.Collectors;
 
 /** Paints a circuit. {@link #paint} and {@link #paintGhost} work in document coordinates (8 px per grid unit). */
@@ -96,6 +99,8 @@ public final class CircuitRenderer {
     private final Appearance appearance;
     private final HighlightCache highlights;
     private final ConnectionPoints connectionPoints;
+    /** Which memory lights this view shows: each kept on a little while after its access. */
+    private MemoryActivity memoryActivity = new MemoryActivity();
 
     public CircuitRenderer(ComponentTypeRegistry registry, PainterRegistry painters, ColorScheme scheme) {
         this(registry, painters, new Appearance(scheme));
@@ -107,6 +112,11 @@ public final class CircuitRenderer {
         this.appearance = appearance;
         this.highlights = new HighlightCache(registry);
         this.connectionPoints = new ConnectionPoints(registry);
+    }
+
+    /** For tests: the memory lights follow {@code nanoClock} instead of the system's clock. */
+    void useMemoryClock(LongSupplier nanoClock) {
+        memoryActivity = new MemoryActivity(nanoClock);
     }
 
     /** The scheme in use right now; it changes when the user picks another one. */
@@ -352,8 +362,10 @@ public final class CircuitRenderer {
                 // The name sits in the memory's title bar (RAM1, ROM1... per kind when it has no label).
                 String name = memoryNames.nameOf(component);
                 VisibleState memoryState = state.snapshot().componentState(component.id().value());
+                MemoryLights lights = memoryActivity.lights(component.id().value(), memoryState,
+                        state.snapshot().time());
                 ComponentDrawing.paintPlaced(graphics, component, local -> memoryPainter.paintWithLabel(local, type,
-                        component.parameters(), memoryState, scheme, name));
+                        component.parameters(), memoryState, scheme, name, lights));
             } else {
                 ComponentDrawing.paint(graphics, type, component,
                         state.snapshot().componentState(component.id().value()), scheme, painters);

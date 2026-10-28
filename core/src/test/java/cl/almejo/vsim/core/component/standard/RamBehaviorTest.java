@@ -219,12 +219,14 @@ class RamBehaviorTest {
     void theVisibleStateReportsTheLastAccessAndTheWindow() {
         BlockHarness harness = selected(with(ram(16, 8), MemoryTypes.CONTENTS, "@0 10 11 12 13 14 15 16"));
         harness.set(pin(harness, "A"), 5).settle();
-        assertThat(harness.state()).isEqualTo(new MemoryState(true, MemoryAccess.READ, 5, 3,
+        assertThat(harness.state()).usingRecursiveComparison().ignoringFields("lastRead", "lastWrite")
+                .isEqualTo(new MemoryState(true, MemoryAccess.READ, 5, 3,
                 List.of(0x13L, 0x14L, 0x15L, 0x16L, 0L)));
 
         harness.set(pin(harness, "A"), 15).set(pin(harness, "D"), 0xEE).set(pin(harness, "WE"), 1)
                 .set(pin(harness, "CLK"), 1).settle().set(pin(harness, "CLK"), 0).settle();
-        assertThat(harness.state()).isEqualTo(new MemoryState(true, MemoryAccess.WRITE, 15, 11,
+        assertThat(harness.state()).usingRecursiveComparison().ignoringFields("lastRead", "lastWrite")
+                .isEqualTo(new MemoryState(true, MemoryAccess.WRITE, 15, 11,
                 List.of(0L, 0L, 0L, 0L, 0xEEL)));
         harness.set(pin(harness, "WE"), 0).settle();
         assertThat(((MemoryState) harness.state()).lastAccess()).as("the first evaluation after a write reads")
@@ -234,6 +236,30 @@ class RamBehaviorTest {
         MemoryState first = (MemoryState) harness.state();
         assertThat(first.lastAccess()).isEqualTo(MemoryAccess.READ);
         assertThat(first.firstWindowAddress()).as("kept inside the memory").isZero();
+    }
+
+    @Test
+    void theLastWriteKeepsItsWindowAfterAReadFarAwayAndARestoreForgetsWhereButNotHowMany() {
+        BlockHarness harness = selected(ram(16, 8));
+        write(harness, 15, 0xEE);
+        harness.set(pin(harness, "A"), 0).settle();
+        MemoryState state = (MemoryState) harness.state();
+        assertThat(state.lastAccess()).isEqualTo(MemoryAccess.READ);
+        assertThat(state.windowHolds(15)).isFalse();
+        assertThat(state.lastRead().address()).isZero();
+        assertThat(state.lastWrite().count()).isEqualTo(1);
+        assertThat(state.lastWrite().address()).isEqualTo(15);
+        MemoryState written = state.showingWrite();
+        assertThat(written.windowHolds(15)).isTrue();
+        assertThat(written.window().get((int) (15 - written.firstWindowAddress()))).isEqualTo(0xEE);
+        assertThat(written.lastRead()).isEqualTo(state.lastRead());
+
+        harness.restoreMemory();
+        harness.settle();
+        MemoryState restored = (MemoryState) harness.state();
+        assertThat(restored.lastWrite().address()).isEqualTo(-1);
+        assertThat(restored.lastWrite().count()).as("the count only grows").isEqualTo(1);
+        assertThat(restored.showingWrite()).isSameAs(restored);
     }
 
     @Test
