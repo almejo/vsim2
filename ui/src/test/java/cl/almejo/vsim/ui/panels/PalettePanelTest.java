@@ -132,7 +132,7 @@ class PalettePanelTest {
                 ArithmeticTypes.NEGATOR, ArithmeticTypes.MULTIPLIER, ArithmeticTypes.DIVIDER,
                 ArithmeticTypes.SHIFTER, ArithmeticTypes.BIT_COUNTER);
         assertThat(typesIn(ComponentCategory.PLEXERS)).containsExactly(StandardComponentTypes.MUX,
-                StandardComponentTypes.DECODER);
+                StandardComponentTypes.DECODER, "demux", "priority-encoder");
         assertThat(typesIn(ComponentCategory.SEQUENTIAL)).containsExactly(StandardComponentTypes.FLIP_FLOP_DATA,
                 StandardComponentTypes.REGISTER, StandardComponentTypes.COUNTER);
         assertThat(typesIn(ComponentCategory.INPUT_OUTPUT)).contains(StandardComponentTypes.INPUT_PIN,

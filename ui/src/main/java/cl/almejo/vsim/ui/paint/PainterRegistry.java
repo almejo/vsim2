@@ -62,6 +62,8 @@ public final class PainterRegistry {
         registry.register(StandardComponentTypes.COMPARATOR, new BlockPainter("CMP", BlockPainter.Body.RECTANGLE));
         registry.register(StandardComponentTypes.MUX, new BlockPainter("MUX", BlockPainter.Body.TRAPEZOID));
         registry.register(StandardComponentTypes.DECODER, new BlockPainter("DEC", BlockPainter.Body.RECTANGLE));
+        registry.register("demux", new BlockPainter("DEMUX", BlockPainter.Body.RECTANGLE));
+        registry.register("priority-encoder", new BlockPainter("PRI", BlockPainter.Body.RECTANGLE));
         registry.register(StandardComponentTypes.REGISTER, new BlockPainter("REG", BlockPainter.Body.RECTANGLE)
                 .withLiveText(PainterRegistry::storedValueText));
         registry.register(StandardComponentTypes.COUNTER, new BlockPainter("CNT", BlockPainter.Body.RECTANGLE)

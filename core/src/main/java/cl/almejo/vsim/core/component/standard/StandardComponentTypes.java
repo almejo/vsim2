@@ -114,10 +114,6 @@ public final class StandardComponentTypes {
             new ComponentPreset(XNOR_PRESET, XOR, Map.of(NEGATE, true)),
             new ComponentPreset(NOT_PRESET, BUFFER, Map.of(NEGATE, true)));
     private static final ParameterSpec BUS_WIDTH = ParameterSpec.integer(WIDTH, 8, 2, 32);
-    /** «Entradas» of the mux: 2 or 4 data inputs. */
-    private static final ParameterSpec MUX_INPUTS = ParameterSpec.choice("inputs", "2", List.of("2", "4"));
-    /** «Bits de entrada» of the decoder: 1..4 address bits, so 2..16 outputs. */
-    private static final ParameterSpec DECODER_INPUT_BITS = ParameterSpec.integer("inputBits", 2, 1, 4);
     /**
      * Tunnels only join nets: the flattener leaves them out, so this behaviour never runs; it exists because every
      * type has one.
@@ -213,6 +209,7 @@ public final class StandardComponentTypes {
         registerBlocks(registry);
         MemoryTypes.register(registry);
         ArithmeticTypes.register(registry);
+        PlexerTypes.register(registry);
     }
 
     /**
@@ -234,17 +231,6 @@ public final class StandardComponentTypes {
                 List.of(BlockSignals.WIDTH, DELAY),
                 parameters -> aluShape((Integer) parameters.get(WIDTH)),
                 parameters -> new AluBehavior((Integer) parameters.get(WIDTH), (Integer) parameters.get("delay"))));
-        registry.register(ComponentType.parameterized(MUX, ComponentCategory.PLEXERS,
-                List.of(BlockSignals.WIDTH, MUX_INPUTS, DELAY),
-                parameters -> muxShape(Integer.parseInt((String) parameters.get("inputs")),
-                        (Integer) parameters.get(WIDTH)),
-                parameters -> new MuxBehavior(Integer.parseInt((String) parameters.get("inputs")),
-                        (Integer) parameters.get(WIDTH), (Integer) parameters.get("delay"))));
-        registry.register(ComponentType.parameterized(DECODER, ComponentCategory.PLEXERS,
-                List.of(DECODER_INPUT_BITS, DELAY),
-                parameters -> decoderShape((Integer) parameters.get("inputBits")),
-                parameters -> new DecoderBehavior((Integer) parameters.get("inputBits"),
-                        (Integer) parameters.get("delay"))));
         registry.register(ComponentType.parameterized(REGISTER, ComponentCategory.SEQUENTIAL,
                 List.of(BlockSignals.WIDTH, DELAY, ConstantValue.FORMAT_PARAMETER),
                 parameters -> registerShape((Integer) parameters.get(WIDTH)),
@@ -255,39 +241,6 @@ public final class StandardComponentTypes {
                 parameters -> counterShape((Integer) parameters.get(WIDTH)),
                 parameters -> new CounterBehavior((Integer) parameters.get(WIDTH),
                         (Integer) parameters.get("delay"))));
-    }
-
-    /**
-     * A 6 x (2k + 4) trapezoid: D0..D(k-1)[N] on the left at y = 3, 5, ..., S[log2 k] in the middle of the bottom edge
-     * and Y[N] at (6, 4), the middle of the right edge with 2 inputs. D0, D1 and Y stay put when the inputs go from 2
-     * to 4 (S, on the bottom edge, has to move), so their wires stay connected.
-     */
-    private static ComponentShape muxShape(int inputs, int width) {
-        int height = 2 * inputs + 4;
-        List<PinSpec> pins = new ArrayList<>();
-        for (int index = 0; index < inputs; index++) {
-            pins.add(PinSpec.input("D" + index, 0, 3 + 2 * index, width));
-        }
-        pins.add(PinSpec.input("S", 3, height, Integer.numberOfTrailingZeros(inputs)));
-        pins.add(PinSpec.output("Y", 6, 4, width));
-        return new ComponentShape(new GridSize(6, height), pins);
-    }
-
-    /**
-     * A 6 x (2 * 2^k + 2) rectangle: A[k] at (0, 3) on the left edge, EN in the middle of the bottom edge and
-     * Y0..Y(2^k-1) on the right edge at y = 2, 4, ... A and the first outputs stay put when «Bits de entrada» changes
-     * (EN, on the bottom edge, has to move).
-     */
-    private static ComponentShape decoderShape(int inputBits) {
-        int outputs = 1 << inputBits;
-        int height = 2 * outputs + 2;
-        List<PinSpec> pins = new ArrayList<>();
-        pins.add(PinSpec.input("A", 0, 3, inputBits));
-        pins.add(PinSpec.input("EN", 3, height));
-        for (int output = 0; output < outputs; output++) {
-            pins.add(PinSpec.output("Y" + output, 6, 2 + 2 * output));
-        }
-        return new ComponentShape(new GridSize(6, height), pins);
     }
 
     /** A 4 x 8 block: A[N] at (0, 3), B[N] at (0, 5), Cin at (2, 0), S[N] at (4, 4), Cout at (2, 8). */
