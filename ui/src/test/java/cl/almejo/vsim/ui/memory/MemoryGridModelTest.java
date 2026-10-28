@@ -204,8 +204,9 @@ class MemoryGridModelTest {
     void theLiveWordsReplaceTheShownOnesAndTheAccessIsHighlighted() {
         MemoryGridModel grid = model(8, 256);
         grid.setCell(0, "1");
-        grid.showLive(MemoryContents.decode("@0 9"));
-        assertThat(grid.getValueAt(0, 1)).isEqualTo("09");
+        grid.showLive(MemoryContents.decode("@0 9 9"));
+        assertThat(grid.getValueAt(0, 2)).isEqualTo("09");
+        assertThat(grid.getValueAt(0, 1)).as("an edited cell keeps its new initial value").isEqualTo("01");
         assertThat(grid.edited().word(0)).isEqualTo(1);
         grid.hideLive();
         assertThat(grid.getValueAt(0, 1)).isEqualTo("01");

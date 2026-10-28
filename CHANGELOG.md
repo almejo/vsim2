@@ -30,6 +30,19 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
   circuito; «Llenar…» propone la selección o las filas que se ven, y pide confirmar sobre 65.536 palabras; «Enlazar…»
   pregunta antes de descartar cambios sin aceptar.
   «Restaurar contenido inicial» y «Volcar…» también están en el clic derecho de la RAM.
+- Editor de contenido, pulido: la celda que editas mientras la grilla muestra valores vivos (corriendo o en pausa)
+  se ve con su valor nuevo, en negrita y con un tinte, y su globo dice «Editado · inicial: FF · en la simulación
+  ahora: 0A»; la celda solo acepta los dígitos de la base (hex 0-9 A-F, en mayúscula; Dec 0-9; Bin 0-1) y no más de
+  los que cabe en el ancho (las demás teclas se ignoran); la columna de direcciones se ve en un tono más tenue que
+  las palabras, también en una memoria enlazada y en el esquema oscuro. La barra de herramientas tiene botones del
+  mismo estilo, agrupados (archivo, enlace, edición, restaurar) y con la base al final, y el editor se abre del
+  ancho que necesita; la barra «Enlazada a …» ocupa su propia fila con sus botones completos y, con la barra de
+  estado, muestra el ícono de enlace y solo el nombre del archivo (la ruta completa en el globo; si aun así no cabe,
+  se acorta por el medio). Nueva barra de búsqueda (la lupa de la barra de herramientas, o Ctrl+F): escribes un
+  valor en la base actual y ▲ / ▼ (o Enter, Mayús+Enter, F3) van a la palabra anterior o siguiente que lo tiene,
+  dando la vuelta en los extremos, con «3 de 12», la celda elegida y a la vista; Esc la cierra. Busca en los valores
+  vivos cuando se ven y recorre solo las palabras guardadas, así que una memoria de 16M palabras no se traba (buscar
+  0 cuenta las no definidas sin visitarlas).
 - El inspector de una RAM o una ROM dice dónde está su contenido («En el circuito» o «Enlazado: …»), con «Editar
   contenido…» y «Abrir en editor externo», y avisa cuando el contenido tiene más palabras (o bits) de las que se ven,
   con «Agrandar a …» y «Ver en el editor». Los botones y avisos se acomodan al ancho de la barra lateral sin

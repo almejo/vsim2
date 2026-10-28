@@ -6,7 +6,6 @@ import cl.almejo.vsim.ui.paint.ColorScheme;
 
 import javax.swing.JLabel;
 import javax.swing.JTable;
-import javax.swing.UIManager;
 import javax.swing.table.DefaultTableCellRenderer;
 import java.awt.Color;
 import java.awt.Font;
@@ -20,6 +19,9 @@ import java.util.function.Supplier;
 final class MemoryCellRenderer extends DefaultTableCellRenderer {
 
     private static final float TINT_WEIGHT = 0.45f;
+    /** How far the address and ASCII columns' text moves from the strong text to the background. */
+    private static final float MUTED_WEIGHT = 0.5f;
+    private static final float EDITED_WEIGHT = 0.25f;
 
     private final MemoryGridModel model;
     private final Supplier<ColorScheme> scheme;
@@ -33,17 +35,22 @@ final class MemoryCellRenderer extends DefaultTableCellRenderer {
     public java.awt.Component getTableCellRendererComponent(JTable table, Object value, boolean selected,
                                                             boolean focused, int row, int column) {
         super.getTableCellRendererComponent(table, value, selected, focused, row, column);
-        setFont(new Font(Font.MONOSPACED, Font.PLAIN, table.getFont().getSize()));
+        OptionalLong cellAddress = model.addressAt(row, column);
+        boolean edited = cellAddress.isPresent() && model.isEdited(cellAddress.getAsLong());
+        setFont(new Font(Font.MONOSPACED, edited ? Font.BOLD : Font.PLAIN, table.getFont().getSize()));
         setHorizontalAlignment(model.isAsciiColumn(column) ? JLabel.LEFT : JLabel.CENTER);
         if (!selected) {
             Color background = table.getBackground();
             setBackground(background);
             if (model.isAddressColumn(column) || model.isAsciiColumn(column)) {
-                Color dimmed = UIManager.getColor("Label.disabledForeground");
-                setForeground(dimmed == null ? Color.GRAY : dimmed);
+                // muted: the table's own text pulled towards its background, so it follows light and dark
+                setForeground(blend(table.getForeground(), background, MUTED_WEIGHT));
             } else {
                 setForeground(table.getForeground());
-                OptionalLong address = model.addressAt(row, column);
+                OptionalLong address = cellAddress;
+                if (edited) {
+                    setBackground(blend(background, table.getSelectionBackground(), EDITED_WEIGHT));
+                }
                 if (address.isPresent()) {
                     VisibleState.MemoryAccess access = model.accessAt(address.getAsLong());
                     if (access != VisibleState.MemoryAccess.NONE) {
@@ -58,9 +65,13 @@ final class MemoryCellRenderer extends DefaultTableCellRenderer {
     }
 
     private static Color blend(Color base, Color tint) {
-        float keep = 1 - TINT_WEIGHT;
-        return new Color(Math.round(base.getRed() * keep + tint.getRed() * TINT_WEIGHT),
-                Math.round(base.getGreen() * keep + tint.getGreen() * TINT_WEIGHT),
-                Math.round(base.getBlue() * keep + tint.getBlue() * TINT_WEIGHT));
+        return blend(base, tint, TINT_WEIGHT);
+    }
+
+    private static Color blend(Color base, Color tint, float weight) {
+        float keep = 1 - weight;
+        return new Color(Math.round(base.getRed() * keep + tint.getRed() * weight),
+                Math.round(base.getGreen() * keep + tint.getGreen() * weight),
+                Math.round(base.getBlue() * keep + tint.getBlue() * weight));
     }
 }
