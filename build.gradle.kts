@@ -17,6 +17,9 @@ subprojects {
 
     tasks.withType<Test>().configureEach {
         useJUnitPlatform()
+        // Two test JVMs per module (with org.gradle.parallel): the fastest setting measured on 2026-10-28; more forks
+        // were slower and made timing-sensitive tests flaky.
+        maxParallelForks = 2
         testLogging { events("failed"); exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL }
     }
 }
