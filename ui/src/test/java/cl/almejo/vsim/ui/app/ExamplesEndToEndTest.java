@@ -139,9 +139,9 @@ class ExamplesEndToEndTest {
         OpenDocument empty = track(OpenDocument.createEmpty(registry));
         EditorView view = new EditorView(empty, services, NO_WINDOW);
         try {
-            assertThat(texts(examplesMenu(view))).hasSize(16)
+            assertThat(texts(examplesMenu(view))).hasSize(18)
                     .contains("Sumador de 4 bits", "ALU de 4 bits", "Mini ALU", "Acumulador", "Programa en ROM",
-                            "RAM que se llena");
+                            "RAM que se llena", "Aritmética", "Elementos modulares");
         } finally {
             view.dispose();
         }

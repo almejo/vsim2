@@ -14,6 +14,7 @@ import cl.almejo.vsim.core.simulation.SimulationEngine;
 import cl.almejo.vsim.core.value.Value;
 
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
@@ -33,8 +34,12 @@ public final class ExampleSimulation {
 
     public ExampleSimulation(CircuitDocument document, Map<String, String> switchValues) {
         this.document = document;
-        switchValues.forEach((label, value) -> document.replace(
-                component(label, StandardComponentTypes.SWITCH).withParameters(Map.of("value", value))));
+        switchValues.forEach((label, value) -> {
+            Component switchPart = component(label, StandardComponentTypes.SWITCH);
+            Map<String, Object> parameters = new HashMap<>(switchPart.parameters());
+            parameters.put("value", value);
+            document.replace(switchPart.withParameters(parameters));
+        });
         ComponentTypeRegistry registry = StandardComponentTypes.registry();
         registry.addResolver(SubcircuitTypes.resolverFor(document));
         Netlist netlist = new NetlistCompiler(registry).compile(document);
@@ -62,6 +67,19 @@ public final class ExampleSimulation {
     /** A click on the switch {@code label}, applied at the current time. */
     public ExampleSimulation toggle(String label) {
         engine.interact(component(label, StandardComponentTypes.SWITCH).id().value());
+        return this;
+    }
+
+    /** Makes the Switch {@code label} (any width) hold {@code number} by clicking the bits that differ, now. */
+    public ExampleSimulation setSwitch(String label, long number) {
+        Component switchPart = component(label, StandardComponentTypes.SWITCH);
+        String id = switchPart.id().value();
+        Value current = ((VisibleState.SwitchState) engine.snapshot().componentState(id)).value();
+        for (int bit = 0; bit < current.width(); bit++) {
+            if (((current.bits() >> bit) & 1) != ((number >> bit) & 1)) {
+                engine.interactBit(id, bit);
+            }
+        }
         return this;
     }
 

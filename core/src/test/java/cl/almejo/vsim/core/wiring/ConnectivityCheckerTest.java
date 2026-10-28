@@ -45,9 +45,20 @@ class ConnectivityCheckerTest {
     /** The bundled examples ({@code bundled/<id>}) and the m3 test fixtures ({@code fixtures/m3/<name>.vsim}). */
     private static List<String> examples() {
         List<String> examples = new ArrayList<>();
-        BundledExamples.ids().forEach(id -> examples.add("bundled/" + id));
+        // The checker joins by wire geometry only, while the reference netlist also joins tunnels of the same name:
+        // the class examples (tunnels between frames) would differ for a reason the tidy tool does not care about.
+        BundledExamples.ids().stream().filter(id -> !hasTunnels(id)).forEach(id -> examples.add("bundled/" + id));
         ExampleCircuits.builders().keySet().stream().sorted().forEach(name -> examples.add("fixtures/m3/" + name + ".vsim"));
         return examples;
+    }
+
+    private static boolean hasTunnels(String id) {
+        try {
+            return BundledExamples.open(id, REGISTRY).components().stream()
+                    .anyMatch(component -> component.typeId().startsWith("tunnel"));
+        } catch (CircuitFormatException exception) {
+            throw new IllegalStateException(exception);
+        }
     }
 
     private static CircuitDocument open(String example) throws CircuitFormatException {

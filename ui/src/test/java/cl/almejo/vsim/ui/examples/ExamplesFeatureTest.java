@@ -99,7 +99,7 @@ class ExamplesFeatureTest {
         assertThat(texts(examples)).containsExactly("Sumador completo", "Sumador de 4 bits", "Multiplexor 4:1",
                 "Decodificador 2 a 4", "Paridad de 3 bits", "Multiplicador 2×2", "Registro de 4 bits",
                 "Registro de desplazamiento", "Contador de 4 bits", "Contador Johnson", "Bus de 8 bits",
-                "ALU de 4 bits", "Mini ALU", "Acumulador", "Programa en ROM", "RAM que se llena");
+                "ALU de 4 bits", "Mini ALU", "Acumulador", "Programa en ROM", "RAM que se llena", "Aritmética", "Elementos modulares");
         assertThat(item(examples, "Sumador completo").getToolTipText())
                 .isEqualTo("Suma A, B y el acarreo de entrada con dos XOR, dos AND y una OR");
 
