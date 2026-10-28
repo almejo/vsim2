@@ -143,8 +143,8 @@ public final class EditorView extends JPanel implements CanvasHost {
         }, window);
         this.selectionActions = new SelectionActions(openDocument, this::canvas, selection, actions,
                 FragmentClipboard.system());
-        this.palette = new PalettePanel(openDocument.registry(), services.painters(), services.appearance(), type -> {
-            setToolOnEveryPane(() -> new PlaceComponentTool(type));
+        this.palette = new PalettePanel(openDocument.registry(), services.painters(), services.appearance(), entry -> {
+            setToolOnEveryPane(() -> new PlaceComponentTool(entry.type(), entry.parameters()));
             canvas().requestFocusInWindow();
         });
         this.menuBar = actions.createMenuBar();

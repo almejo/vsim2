@@ -1,9 +1,7 @@
 package cl.almejo.vsim.ui.panels;
 
-import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.panels.PalettePanel.StarState;
-import cl.almejo.vsim.ui.panels.PalettePanel.UserComponent;
 
 import javax.swing.AbstractAction;
 import javax.swing.JTree;
@@ -136,8 +134,7 @@ final class FavoritesTree extends JTree {
             return Optional.empty();
         }
         Object item = ((DefaultMutableTreeNode) path.getLastPathComponent()).getUserObject();
-        return item instanceof ComponentType || item instanceof UserComponent
-                ? Optional.of(PalettePanel.typeIdOf(item)) : Optional.empty();
+        return PalettePanel.isEntryItem(item) ? Optional.of(PalettePanel.idOf(item)) : Optional.empty();
     }
 
     @Override

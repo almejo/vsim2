@@ -27,6 +27,7 @@ import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.edges.EdgeController;
 import cl.almejo.vsim.ui.canvas.edges.EdgeHandle;
 import cl.almejo.vsim.ui.paint.ColorScheme;
+import cl.almejo.vsim.ui.panels.PaletteEntry;
 import cl.almejo.vsim.ui.panels.PaletteTransfer;
 import cl.almejo.vsim.ui.tools.CanvasCursor;
 import cl.almejo.vsim.ui.tools.CanvasMouseEvent;
@@ -121,7 +122,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     /** Told when the view moves by anything but a travel (the user's pan or zoom, a centring). */
     private final List<Runnable> viewTakenListeners = new CopyOnWriteArrayList<>();
     private final List<Consumer<CircuitFragment>> incomingFragmentListeners = new CopyOnWriteArrayList<>();
-    private final List<Consumer<ComponentType>> placementListeners = new CopyOnWriteArrayList<>();
+    private final List<Consumer<String>> placementListeners = new CopyOnWriteArrayList<>();
     private final List<CanvasOverlay> overlays = new CopyOnWriteArrayList<>();
     private final List<Function<Point2D, Optional<String>>> toolTipOverrides = new CopyOnWriteArrayList<>();
     private final List<Predicate<CanvasMouseEvent>> pressInterceptors = new CopyOnWriteArrayList<>();
@@ -219,16 +220,21 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
         viewTravel.listenForUserMoves();
     }
 
-    /** Places the palette entry encoded in {@code transferText} at {@code screenPoint}; false when it is not one. */
+    /**
+     * Places the palette entry encoded in {@code transferText} (a type, or a preset such as NAND with its parameters)
+     * at {@code screenPoint}; false when it is not one.
+     */
     public boolean dropComponent(String transferText, Point screenPoint) {
-        Optional<ComponentType> type = PaletteTransfer.decode(transferText)
-                .flatMap(typeId -> openDocument.registry().find(typeId));
-        if (type.isEmpty()) {
+        Optional<PaletteEntry> entry = PaletteTransfer.decode(transferText)
+                .flatMap(id -> PaletteEntry.forId(id, openDocument.registry()));
+        if (entry.isEmpty()) {
             return false;
         }
+        ComponentType type = entry.get().type();
+        Map<String, Object> presetParameters = entry.get().parameters();
         GridPoint raw = viewport.snap(screenPoint.x, screenPoint.y);
-        ComponentPlacement.place(this, type.get(),
-                ComponentPlacement.snapped(this, type.get(), raw, Rotation.R0).position(), Rotation.R0);
+        ComponentPlacement.place(this, type, presetParameters,
+                ComponentPlacement.snapped(this, type, presetParameters, raw, Rotation.R0).position(), Rotation.R0);
         useDefaultTool();
         requestFocusInWindow();
         return true;
@@ -289,7 +295,7 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
             PasteCommand paste = new PasteCommand(fragment.get(), landing);
             openDocument.execute(paste);
             selection.set(paste.pastedIds());
-            paletteType.ifPresent(this::componentPlaced);
+            paletteType.map(ComponentType::id).ifPresent(this::componentPlaced);
         } else {
             setTool(new FloatingSelectionTool(fragment.get(), at, paletteType));
         }
@@ -591,17 +597,17 @@ public final class CircuitCanvas extends JComponent implements ToolContext {
     }
 
     /**
-     * Runs {@code listener} with the type of every component placed from the palette's world on this canvas (see
-     * {@link ToolContext#componentPlaced}). Returns its removal.
+     * Runs {@code listener} with the palette id (a type id or a preset's, {@code nand}) of every component placed from
+     * the palette's world on this canvas (see {@link ToolContext#componentPlaced}). Returns its removal.
      */
-    public Runnable addPlacementListener(Consumer<ComponentType> listener) {
+    public Runnable addPlacementListener(Consumer<String> listener) {
         placementListeners.add(Objects.requireNonNull(listener, "listener"));
         return () -> placementListeners.remove(listener);
     }
 
     @Override
-    public void componentPlaced(ComponentType type) {
-        placementListeners.forEach(listener -> listener.accept(type));
+    public void componentPlaced(String paletteId) {
+        placementListeners.forEach(listener -> listener.accept(paletteId));
     }
 
     /** Runs {@code listener} with every tool this canvas switches to. Returns its removal. */

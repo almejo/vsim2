@@ -111,7 +111,7 @@ class ComponentTreePanelTest {
     void showsTheDocumentAndFollowsItsChanges() {
         assertThat(panel.rowText("/")).contains("Sin título");
         Component gate = place(openDocument, StandardComponentTypes.BUFFER, 20, 10, Map.of(StandardComponentTypes.NEGATE, true));
-        assertThat(panel.rowText(gate.id().value())).contains("Buffer");
+        assertThat(panel.rowText(gate.id().value())).contains("NOT");
         openDocument.history().undo();
         assertThat(panel.rowText(gate.id().value())).isEmpty();
     }
@@ -120,10 +120,11 @@ class ComponentTreePanelTest {
     void groupByTypeRebuildsTheTreeInGroups() {
         Component gate = place(openDocument, StandardComponentTypes.BUFFER, 20, 10, Map.of(StandardComponentTypes.NEGATE, true));
         panel.groupByTypeToggle().setSelected(true);
-        assertThat(panel.rowText("/buffer")).contains("Buffer (1)");
+        assertThat(panel.rowText("/not")).contains("NOT (1)");
+        assertThat(panel.iconOf("/not")).isPresent();
         assertThat(panel.treePath(gate.id().value()).orElseThrow().getPathCount()).isEqualTo(3);
         panel.groupByTypeToggle().setSelected(false);
-        assertThat(panel.rowText("/buffer")).isEmpty();
+        assertThat(panel.rowText("/not")).isEmpty();
         assertThat(panel.treePath(gate.id().value()).orElseThrow().getPathCount()).isEqualTo(2);
     }
 
@@ -271,7 +272,15 @@ class ComponentTreePanelTest {
         assertThat(panel.rowText(gate.id().value())).isEmpty();
     }
     private Component labeled(String typeId, int x, int y, String label) {
-        Component component = place(openDocument, typeId, x, y, Map.of());
+        return labeled(typeId, Map.of(), x, y, label);
+    }
+
+    private Component labeledNot(int x, int y, String label) {
+        return labeled(StandardComponentTypes.BUFFER, Map.of(StandardComponentTypes.NEGATE, true), x, y, label);
+    }
+
+    private Component labeled(String typeId, Map<String, Object> parameters, int x, int y, String label) {
+        Component component = place(openDocument, typeId, x, y, parameters);
         openDocument.execute(new SetLabelCommand(component.id(), label));
         return component;
     }
@@ -279,13 +288,13 @@ class ComponentTreePanelTest {
     @Test
     void theFilterKeepsTheMatchingRowsAndTheirAncestorsExpanded() {
         Frame block = addFrame(0, 0, 30, 20, "ALU");
-        Component inside = labeled(StandardComponentTypes.BUFFER, 10, 8, "U1");
+        Component inside = labeledNot(10, 8, "U1");
         Component outside = labeled(StandardComponentTypes.AND, 60, 8, "U2");
-        Component instance = inverterInstance(); // at (4, -1), outside the frame; its part c2 is a Buffer
+        Component instance = inverterInstance(); // at (4, -1), outside the frame; its part c2 is a NOT
         String framePath = ComponentTreeNode.framePath(block.id());
         String nestedNot = InstancePath.child(instance.id().value(), "c2");
 
-        panel.filterField().setText("buffer");
+        panel.filterField().setText("not");
 
         assertThat(panel.rowText(inside.id().value())).isPresent();
         assertThat(panel.rowText(nestedNot)).isPresent();
@@ -303,14 +312,14 @@ class ComponentTreePanelTest {
     @Test
     void clearingTheFilterRestoresTheExpansionOfBefore() {
         Frame block = addFrame(0, 0, 30, 20, "ALU");
-        labeled(StandardComponentTypes.BUFFER, 10, 8, "U1");
+        labeledNot(10, 8, "U1");
         Component instance = inverterInstance();
         String framePath = ComponentTreeNode.framePath(block.id());
         panel.tree().expandPath(panel.treePath(framePath).orElseThrow());
         panel.tree().collapsePath(panel.treePath(instance.id().value()).orElseThrow());
 
         panel.filterField().setText("no");
-        panel.filterField().setText("buffer");
+        panel.filterField().setText("not");
         assertThat(panel.tree().isExpanded(panel.treePath(instance.id().value()).orElseThrow())).isTrue();
         panel.filterField().setText("");
 
@@ -486,7 +495,7 @@ class ComponentTreePanelTest {
 
         panel.groupByTypeToggle().setSelected(true);
         assertThat(renderedIcon(ComponentTreeNode.groupPath(ComponentTreeNode.framePath(block.id()),
-                StandardComponentTypes.BUFFER))).isInstanceOf(ComponentIcon.class);
+                StandardComponentTypes.NOT_PRESET))).isInstanceOf(ComponentIcon.class);
         assertThat(renderedIcon(ComponentTreeNode.DOCUMENT_PATH)).isNull();
     }
 

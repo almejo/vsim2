@@ -1,6 +1,8 @@
 package cl.almejo.vsim.ui.tree;
 
+import cl.almejo.vsim.core.component.ComponentPreset;
 import cl.almejo.vsim.core.component.ComponentType;
+import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.ElementId;
@@ -74,8 +76,8 @@ public final class ComponentTreePanel extends JPanel {
     private final Runnable stopFollowingSnapshots;
     private final PainterRegistry painters;
     private final Appearance appearance;
-    /** Component icons by type id, drawn with the current scheme; cleared when the scheme changes. */
-    private final Map<ComponentType, Icon> icons = new HashMap<>();
+    /** Component icons by type and parameters, drawn with the current scheme; cleared when the scheme changes. */
+    private final Map<IconKey, Icon> icons = new HashMap<>();
     private final DefaultTreeModel treeModel = new DefaultTreeModel(new DefaultMutableTreeNode());
     private final JTree tree = new JTree(treeModel);
     private final JCheckBox groupByType = new JCheckBox(Messages.text("tree.groupByType"));
@@ -352,18 +354,32 @@ public final class ComponentTreePanel extends JPanel {
         };
     }
 
-    /** The icon of a row: the palette icon of its type, the frame tool icon for frames, none for the document. */
+    /**
+     * The icon of a row: the palette icon of its entry (the type with its default parameters, or a preset's: a NAND
+     * shows its bubble, as in PalettePanel), the frame tool icon for frames, none for the document.
+     */
     Icon icon(ComponentTreeNode node) {
-        String typeId = node.typeId(); // the palette icon: the type with its default parameters, as in PalettePanel
+        Optional<ComponentPreset> preset = StandardComponentTypes.preset(node.paletteId());
+        Map<String, Object> parameters = preset.map(ComponentPreset::parameters).orElseGet(Map::of);
         return switch (node.kind()) {
-            case COMPONENT, GROUP -> (node.kind() == ComponentTreeNode.Kind.COMPONENT
-                    ? effectiveType(node.path()) : openDocument.registry().find(typeId))
-                    .map(type -> icons.computeIfAbsent(type, current -> new ComponentIcon(current,
-                            painters.painterFor(current.id()), appearance.scheme(), ICON_SIZE)))
+            case COMPONENT, GROUP -> (node.kind() == ComponentTreeNode.Kind.COMPONENT ? effectiveType(node.path())
+                    : openDocument.registry().find(preset.map(ComponentPreset::typeId).orElse(node.paletteId())))
+                    .map(type -> icons.computeIfAbsent(new IconKey(type, parameters), key -> new ComponentIcon(type,
+                            painters.painterFor(type.id()), appearance.scheme(), ICON_SIZE, parameters)))
                     .orElse(null);
             case FRAME -> Icons.get(FrameIcons.FRAME_TOOL, ICON_SIZE);
             case DOCUMENT -> null;
         };
+    }
+
+    /** The icon the row {@code nodePath} shows, if the row is shown and has one. Package-private for tests. */
+    Optional<Icon> iconOf(String nodePath) {
+        return Optional.ofNullable(nodesByPath.get(nodePath))
+                .map(node -> icon(((Row) node.getUserObject()).node()));
+    }
+
+    /** What an icon is drawn from: a NAND row and an AND row share the type but not the icon. */
+    private record IconKey(ComponentType type, Map<String, Object> parameters) {
     }
 
     /** Walks the actual nested instances so their own shapes also appear in the tree. */

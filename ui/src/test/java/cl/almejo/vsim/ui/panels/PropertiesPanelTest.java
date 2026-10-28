@@ -147,9 +147,24 @@ class PropertiesPanelTest {
     void aComponentShowsTypeLabelAndParameters() {
         Component gate = gate(0);
         selection.select(gate.id());
-        assertThat(panel.heading()).isEqualTo("Buffer");
+        assertThat(panel.heading()).isEqualTo("NOT");
         assertThat(panel.textField().getText()).isEmpty();
         assertThat(((JSpinner) panel.parameterForm().editor("delay")).getValue()).isEqualTo(1);
+    }
+
+    @Test
+    void turningNegateOnRenamesAnAndToNandInOneUndoStep() {
+        Component andGate = place(openDocument, StandardComponentTypes.AND, 0, 0, Map.of());
+        selection.select(andGate.id());
+        assertThat(panel.heading()).isEqualTo("AND");
+
+        ((javax.swing.JCheckBox) panel.parameterForm().editor(StandardComponentTypes.NEGATE)).doClick();
+
+        assertThat(current(andGate).parameters()).containsEntry(StandardComponentTypes.NEGATE, true);
+        assertThat(panel.heading()).isEqualTo("NAND");
+        openDocument.history().undo();
+        assertThat(current(andGate).parameters().get(StandardComponentTypes.NEGATE)).isNotEqualTo(true);
+        assertThat(panel.heading()).isEqualTo("AND");
     }
 
     @Test

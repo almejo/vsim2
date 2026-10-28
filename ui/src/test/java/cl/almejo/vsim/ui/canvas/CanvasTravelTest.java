@@ -446,11 +446,11 @@ class CanvasTravelTest {
     @Test
     void aCrossingContextReportsAPlacementToThePressedPane() {
         List<String> placed = new java.util.ArrayList<>();
-        canvas.addPlacementListener(type -> placed.add(type.id()));
+        canvas.addPlacementListener(placed::add);
 
-        new CrossPaneContext(canvas, canvas).componentPlaced(openDocument.registry().require("and"));
+        new CrossPaneContext(canvas, canvas).componentPlaced("nand");
 
-        assertThat(placed).containsExactly("and");
+        assertThat(placed).containsExactly("nand");
     }
 
     @Test

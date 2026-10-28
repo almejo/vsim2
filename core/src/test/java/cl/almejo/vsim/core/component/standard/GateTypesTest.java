@@ -196,6 +196,14 @@ class GateTypesTest {
                 StandardComponentTypes.nameId(preset.typeId(), preset.parameters())).isEqualTo(preset.id()));
     }
 
+    @Test
+    void aPresetIsFoundByItsIdAndATypeIdIsNotAPreset() {
+        assertThat(StandardComponentTypes.preset("xnor"))
+                .contains(new ComponentPreset("xnor", "xor", Map.of("negate", true)));
+        assertThat(StandardComponentTypes.preset("xor")).isEmpty();
+        assertThat(StandardComponentTypes.preset("nand2")).isEmpty();
+    }
+
     /** What the gate drives on its output once with {@code inputs} on its input pins. */
     private Value evaluate(String typeId, Map<String, Object> parameters, List<Value> inputs) {
         return GateEvaluation.output(registry.require(typeId), parameters, inputs);

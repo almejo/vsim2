@@ -10,8 +10,8 @@ import java.awt.datatransfer.Transferable;
 import java.util.Optional;
 
 /**
- * Drags entries to a canvas (a standard type as text, a user component as a fragment with its definitions) and
- * accepts dropped circuit and component files.
+ * Drags entries to a canvas (a standard type or preset as text with its id, a user component as a fragment with its
+ * definitions) and accepts dropped circuit and component files.
  */
 final class PaletteTransferHandler extends TransferHandler {
     private final PalettePanel panel;
@@ -31,7 +31,7 @@ final class PaletteTransferHandler extends TransferHandler {
         if (user.isPresent()) {
             return new PaletteDragTransferable(panel.fragmentJson(user.get()), user.get().type().id());
         }
-        return panel.selectedType().map(type -> new StringSelection(PaletteTransfer.encode(type.id()))).orElse(null);
+        return panel.selectedEntry().map(entry -> new StringSelection(PaletteTransfer.encode(entry.id()))).orElse(null);
     }
 
     @Override

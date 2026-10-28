@@ -1,7 +1,6 @@
 package cl.almejo.vsim.ui.panels;
 
 import cl.almejo.vsim.core.component.ComponentCategory;
-import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.panels.PalettePanel.TopSection;
 import cl.almejo.vsim.ui.panels.PalettePanel.UserComponent;
@@ -26,12 +25,11 @@ final class PaletteRowRenderer extends DefaultTreeCellRenderer {
         super.getTreeCellRendererComponent(owner, value, selected, expanded, leaf, row, focused);
         Object item = ((DefaultMutableTreeNode) value).getUserObject();
         setEnabled(owner.isEnabled() && item != TopSection.EMPTY);
-        getAccessibleContext().setAccessibleName(item instanceof ComponentType || item instanceof UserComponent
-                ? panel.accessibleName(item) : null);
-        if (item instanceof ComponentType type) {
-            setText(Messages.componentName(type));
-            setIcon(panel.icon(type));
-            setToolTipText(PalettePanel.help(type));
+        getAccessibleContext().setAccessibleName(PalettePanel.isEntryItem(item) ? panel.accessibleName(item) : null);
+        if (item instanceof PaletteEntry entry) {
+            setText(entry.name());
+            setIcon(panel.icon(entry));
+            setToolTipText(PalettePanel.help(entry));
         } else if (item instanceof UserComponent component) {
             setText(Messages.componentName(component.type()));
             setIcon(panel.icon(component.type()));

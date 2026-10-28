@@ -12,13 +12,13 @@ import cl.almejo.vsim.ui.snap.ContactCache;
 import cl.almejo.vsim.ui.snap.ContactDots;
 import cl.almejo.vsim.ui.snap.MatchedGuides;
 import cl.almejo.vsim.ui.snap.SnappedPlacement;
-import cl.almejo.vsim.ui.tunnel.NewTunnels;
 
 import java.awt.Cursor;
 import java.awt.Graphics2D;
 import java.awt.event.KeyEvent;
 import java.awt.geom.Point2D;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
@@ -34,6 +34,8 @@ public final class PlaceComponentTool implements Tool {
     private static final ElementId PREVIEW_ID = new ElementId("preview");
 
     private final ComponentType type;
+    /** A palette preset's parameters (NAND: {@code negate}) on top of the type's defaults; empty for a type. */
+    private final Map<String, Object> presetParameters;
     private Rotation rotation = Rotation.R0;
     private GridPoint hover;
     /** The grid point under the pointer before the magnet. */
@@ -44,7 +46,13 @@ public final class PlaceComponentTool implements Tool {
     private Point2D pointer;
 
     public PlaceComponentTool(ComponentType type) {
+        this(type, Map.of());
+    }
+
+    /** Places {@code type} with {@code presetParameters} set: the palette's NAND is an AND with «Negar salida». */
+    public PlaceComponentTool(ComponentType type, Map<String, Object> presetParameters) {
         this.type = type;
+        this.presetParameters = Map.copyOf(presetParameters);
     }
 
     public ComponentType type() {
@@ -89,7 +97,7 @@ public final class PlaceComponentTool implements Tool {
     }
 
     private void snapHover(ToolContext context) {
-        snapped = ComponentPlacement.snapped(context, type, rawHover, rotation);
+        snapped = ComponentPlacement.snapped(context, type, presetParameters, rawHover, rotation);
         hover = snapped.position();
     }
 
@@ -111,7 +119,7 @@ public final class PlaceComponentTool implements Tool {
             rawHover = event.snapped();
             snapHover(context);
         }
-        ComponentPlacement.place(context, type, hover, rotation);
+        ComponentPlacement.place(context, type, presetParameters, hover, rotation);
         if (!event.shiftDown()) {
             context.useDefaultTool();
         }
@@ -144,7 +152,8 @@ public final class PlaceComponentTool implements Tool {
     }
 
     private Component ghost(ToolContext context) {
-        return type.newComponent(PREVIEW_ID, hover, rotation, NewTunnels.parameters(context.openDocument(), type), "");
+        return type.newComponent(PREVIEW_ID, hover, rotation,
+                ComponentPlacement.startingParameters(context, type, presetParameters), "");
     }
 
     /**

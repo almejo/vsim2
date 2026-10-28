@@ -48,7 +48,7 @@ class ComponentTreeExtensionTest {
                 assertThat(view.inspector().selectedTab()).contains("Componentes");
                 ComponentTreePanel panel = findPanel(view).orElseThrow();
                 Component first = place(openDocument, StandardComponentTypes.BUFFER, 0, 0, Map.of(StandardComponentTypes.NEGATE, true));
-                assertThat(panel.rowText(first.id().value())).contains("Buffer");
+                assertThat(panel.rowText(first.id().value())).contains("NOT");
 
                 view.dispose();
                 Component second = place(openDocument, StandardComponentTypes.BUFFER, 10, 0, Map.of(StandardComponentTypes.NEGATE, true));

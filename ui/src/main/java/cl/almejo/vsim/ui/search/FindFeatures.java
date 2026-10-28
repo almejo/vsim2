@@ -310,7 +310,7 @@ public final class FindFeatures {
         if (!hit.nested() && hit.field() == SearchHit.Field.TUNNEL_NAME) {
             return openDocument.document().component(hit.elementId())
                     .map(tunnel -> Messages.format("find.tunnel",
-                            TypeNames.of(tunnel.typeId(), openDocument.registry()), hit.matchedText()))
+                            TypeNames.of(tunnel, openDocument.registry()), hit.matchedText()))
                     .orElse("");
         }
         if (!hit.nested()) {
@@ -321,7 +321,7 @@ public final class FindFeatures {
             return "";
         }
         String path = String.join(" ▸ ", hit.nestedPath());
-        String typeName = TypeNames.of(instance.get().typeId(), openDocument.registry());
+        String typeName = TypeNames.of(instance.get(), openDocument.registry());
         String label = instance.get().label();
         return label.isBlank() ? Messages.format("find.inside", path, typeName)
                 : Messages.format("find.insideLabeled", path, typeName, label);

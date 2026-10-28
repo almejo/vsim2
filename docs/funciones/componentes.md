@@ -18,6 +18,13 @@ Parte de las [funciones de VSim 2](../funciones.md).
 - El dibujo: el cuerpo mide siempre 4 × 4 y queda centrado en la fila de la salida; con 5 o más entradas, las de los
   extremos llegan a una línea trasera prolongada (como en Logisim). Con «Ancho» mayor que 1 los cables de los pines se
   dibujan gruesos, como los de los bloques; el Buffer es un triángulo (con burbuja si está negado).
+- La paleta tiene una entrada por compuerta, en este orden: AND, OR, XOR, NAND, NOR, XNOR, Buffer y NOT. NAND, NOR,
+  XNOR y NOT son atajos: colocan un AND, un OR, un XOR o un Buffer con «Negar salida» ya marcada, con un clic, al
+  arrastrarlos, desde la inserción rápida (escribiendo «nand», «xnor», «not»…) o desde «Favoritos» y «Recientes»,
+  donde cuentan como su propia entrada. El nombre sigue a «Negar salida» en todas partes (Propiedades, el árbol de
+  componentes, la búsqueda, Problemas): marcarla en un AND lo convierte en «NAND», y en el árbol agrupado los NAND
+  van en su propio grupo. Los favoritos guardados con las compuertas de antes («AND de 3 entradas», «NAND de 2
+  entradas», «NOT») aparecen como AND, NAND y NOT.
 - El XOR de más de dos entradas es la paridad impar: vale 1 cuando hay un número impar de entradas en 1.
 - Una entrada sin conectar (en Z) no cuenta, como antes: un AND con una entrada suelta deja pasar la otra.
 - Los circuitos, componentes, librerías y lo copiado con versiones anteriores se abren sin cambios: las compuertas de
