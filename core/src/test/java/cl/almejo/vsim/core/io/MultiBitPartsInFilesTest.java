@@ -42,7 +42,7 @@ class MultiBitPartsInFilesTest {
         CircuitDocument loaded = format.read(OLD_FILE);
 
         assertThat(loaded.components().getFirst().parameters())
-                .isEqualTo(Map.of("value", "Z", "width", 1, "side", "right"));
+                .isEqualTo(Map.of("value", "Z", "width", 1, "side", "right", "signedness", "unsigned"));
         String written = format.write(loaded);
         assertThat(written).doesNotContain("\"width\"").doesNotContain("\"side\"").contains("\"value\" : \"Z\"");
     }
@@ -56,11 +56,27 @@ class MultiBitPartsInFilesTest {
         CircuitDocument loaded = format.read(format.write(document));
 
         assertThat(loaded.components().getFirst().parameters())
-                .isEqualTo(Map.of("value", "0xA6", "width", 8, "side", "top"));
+                .isEqualTo(Map.of("value", "0xA6", "width", 8, "side", "top", "signedness", "unsigned"));
     }
 
     @Test
-    void aMultiBitSwitchOnTheDefaultSideDoesNotWriteIt() throws CircuitFormatException {
+    void theSignednessIsWrittenOnlyWhenSignedAndOldFilesReadAsUnsigned() throws CircuitFormatException {
+        CircuitDocument document = new CircuitDocument();
+        document.add(new Component(document.newComponentId(), "switch", new GridPoint(0, 0), Rotation.R0,
+                Map.of("value", "-1", "width", 8, "signedness", "signed"), ""));
+        document.add(new Component(document.newComponentId(), "switch", new GridPoint(0, 4), Rotation.R0,
+                Map.of("value", "5", "width", 8, "signedness", "unsigned"), ""));
+
+        String written = format.write(document);
+
+        assertThat(written).contains("\"signedness\" : \"signed\"").doesNotContain("\"unsigned\"");
+        CircuitDocument loaded = format.read(written);
+        assertThat(loaded.components().get(0).parameters().get("signedness")).isEqualTo("signed");
+        assertThat(loaded.components().get(1).parameters().get("signedness")).isEqualTo("unsigned");
+    }
+
+    @Test
+    void aMultiBitSwitchOnTheDefaultSideDoesNotWriteIt()throws CircuitFormatException {
         CircuitDocument document = new CircuitDocument();
         document.add(new Component(document.newComponentId(), "switch", new GridPoint(0, 0), Rotation.R0,
                 Map.of("value", "5", "width", 4, "side", "right"), ""));

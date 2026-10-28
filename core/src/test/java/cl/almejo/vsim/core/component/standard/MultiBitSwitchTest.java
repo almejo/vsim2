@@ -39,7 +39,7 @@ class MultiBitSwitchTest {
     @Test
     void theDefaultsAreOneBitOnTheRightWithTheValueOne() {
         assertThat(switchType.resolveParameters(Map.of()))
-                .isEqualTo(Map.of("width", 1, "side", "right", "value", "1"));
+                .isEqualTo(Map.of("width", 1, "side", "right", "value", "1", "signedness", "unsigned"));
     }
 
     @Test
@@ -107,6 +107,32 @@ class MultiBitSwitchTest {
         assertThat(switchType.check(Map.of("width", 4, "value", "0x1F")))
                 .contains(new ParameterProblem("value", "constant.doesNotFit", List.of(4)));
         assertThat(switchType.check(Map.of("width", 4, "value", "abc")))
+                .contains(new ParameterProblem("value", "constant.invalidValue", List.of()));
+    }
+
+    @Test
+    void aSignedSwitchAcceptsNegativeDecimalsThatFitAndStoresTwosComplement() {
+        Map<String, Object> signed = Map.of("width", 8, "signedness", "signed", "value", "-1");
+
+        assertThat(switchType.check(signed)).isEmpty();
+        assertThat(switchType.check(Map.of("width", 8, "signedness", "signed", "value", "-128"))).isEmpty();
+        assertThat(switchType.check(Map.of("width", 8, "signedness", "signed", "value", "-129")))
+                .contains(new ParameterProblem("value", "constant.doesNotFit", List.of(8)));
+        simulate(signed);
+        assertThat(engine.snapshot().netValue("n")).isEqualTo(Value.of(8, 0xFF));
+    }
+
+    @Test
+    void anUnsignedSwitchRefusesNegativeDecimals() {
+        assertThat(switchType.check(Map.of("width", 8, "value", "-1")))
+                .contains(new ParameterProblem("value", "constant.invalidValue", List.of()));
+        assertThat(switchType.check(Map.of("width", 8, "signedness", "unsigned", "value", "-1")))
+                .contains(new ParameterProblem("value", "constant.invalidValue", List.of()));
+    }
+
+    @Test
+    void theSignednessIsIgnoredAtOneBit() {
+        assertThat(switchType.check(Map.of("width", 1, "signedness", "signed", "value", "-1")))
                 .contains(new ParameterProblem("value", "constant.invalidValue", List.of()));
     }
 

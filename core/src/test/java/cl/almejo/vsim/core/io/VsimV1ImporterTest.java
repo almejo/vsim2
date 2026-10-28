@@ -37,8 +37,8 @@ class VsimV1ImporterTest {
         assertThat(document.components()).extracting(Component::typeId).containsExactly("switch", "switch", "xor");
         Component firstSwitch = document.components().getFirst();
         assertThat(firstSwitch.position()).isEqualTo(new GridPoint(19, 28));
-        assertThat(firstSwitch.parameters()).isEqualTo(Map.of("value", "1", "width", 1, "side", "right"));
-        assertThat(document.components().get(1).parameters()).isEqualTo(Map.of("value", "0", "width", 1, "side", "right"));
+        assertThat(firstSwitch.parameters()).isEqualTo(Map.of("value", "1", "width", 1, "side", "right", "signedness", "unsigned"));
+        assertThat(document.components().get(1).parameters()).isEqualTo(Map.of("value", "0", "width", 1, "side", "right", "signedness", "unsigned"));
         assertThat(document.wires()).hasSize(4);
     }
 
@@ -61,7 +61,7 @@ class VsimV1ImporterTest {
                 """);
         assertThat(document.components()).extracting(Component::parameters).containsExactly(
                 Map.of("time-up", 200, "time-down", 300),
-                Map.of("value", "Z", "width", 1, "side", "right"),
+                Map.of("value", "Z", "width", 1, "side", "right", "signedness", "unsigned"),
                 Map.of("color", "red", "width", 1, "side", "left"),
                 Map.of("width", 1, "negate", true, "delay", 4),
                 Map.of("sample-interval", 150, "history", 200));

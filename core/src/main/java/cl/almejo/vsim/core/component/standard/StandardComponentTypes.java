@@ -170,6 +170,8 @@ public final class StandardComponentTypes {
         registry.register(ComponentType.parameterized(SWITCH, ComponentCategory.INPUT_OUTPUT,
                 List.of(ParameterSpec.integer(WIDTH, 1, MultiBitLayout.MINIMUM_WIDTH, MultiBitLayout.MAXIMUM_WIDTH),
                         MultiBitLayout.sideParameter(MultiBitLayout.RIGHT),
+                        ParameterSpec.choice(SIGNEDNESS, SIGNEDNESS_UNSIGNED,
+                                List.of(SIGNEDNESS_UNSIGNED, SIGNEDNESS_SIGNED)),
                         ParameterSpec.text(VALUE, "1", SwitchBehavior::normalizeValue)),
                 parameters -> switchShape((Integer) parameters.get(WIDTH), (String) parameters.get(MultiBitLayout.SIDE)),
                 StandardComponentTypes::checkSwitch,
@@ -355,7 +357,10 @@ public final class StandardComponentTypes {
         return MultiBitLayout.shape(width, side, "in", PinDirection.INPUT);
     }
 
-    /** The value must be a non-negative number that fits the width; {@code Z} only exists for one bit. */
+    /**
+     * The value must be a number that fits the width, negative only with «Con signo» (and more than one bit);
+     * {@code Z} only exists for one bit.
+     */
     private static Optional<ParameterProblem> checkSwitch(Map<String, Object> raw) {
         Object rawWidth = raw == null ? null : raw.get(WIDTH);
         int width;
@@ -373,7 +378,8 @@ public final class StandardComponentTypes {
         if (SwitchBehavior.isHighImpedanceText(text)) {
             return width == 1 ? Optional.empty() : Optional.of(new ParameterProblem(VALUE, "switch.noZ", List.of()));
         }
-        if (!ConstantValue.isValidText(text) || text.startsWith("-")) {
+        boolean negativeAllowed = width > 1 && raw != null && SIGNEDNESS_SIGNED.equals(raw.get(SIGNEDNESS));
+        if (!ConstantValue.isValidText(text) || text.startsWith("-") && !negativeAllowed) {
             return Optional.of(new ParameterProblem(VALUE, "constant.invalidValue", List.of()));
         }
         if (!ConstantValue.fitsText(text, width)) {

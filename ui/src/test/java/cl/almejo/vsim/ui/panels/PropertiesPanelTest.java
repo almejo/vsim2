@@ -855,7 +855,7 @@ class PropertiesPanelTest {
 
     private void collectRows(java.awt.Container container, List<java.awt.Rectangle[]> rows) {
         for (java.awt.Component child : container.getComponents()) {
-            if (child instanceof javax.swing.JLabel label && label.getLabelFor() != null) {
+            if (child instanceof javax.swing.JLabel label && label.getLabelFor() != null && label.isVisible()) {
                 java.awt.Component field = label.getLabelFor();
                 rows.add(new java.awt.Rectangle[]{
                         javax.swing.SwingUtilities.convertRectangle(container, label.getBounds(), panel),
@@ -893,6 +893,9 @@ class PropertiesPanelTest {
             selection.select(component.id());
             int parameterCount = (int) openDocument.registry().typeOf(component).parameters().stream()
                     .filter(parameter -> !parameter.hidden()).count();
+            if (component == toggle) {
+                parameterCount--; // «Números» only shows from two bits on
+            }
             List<java.awt.Rectangle[]> rows = laidOutRows();
             assertOneGrid(rows, 1 + parameterCount);
             assertThat(captionColumnLeft(rows)).as(component.typeId()).isEqualTo(captionLeft);

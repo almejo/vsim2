@@ -24,7 +24,7 @@ import static cl.almejo.vsim.ui.UiTestSupport.NO_WINDOW;
 import static cl.almejo.vsim.ui.UiTestSupport.place;
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** Hovering a multi-bit Switch: its value in four notations and the bit under the pointer. */
+/** Hovering a multi-bit Switch: its value in binary, hex and decimal and the bit under the pointer. */
 class MultiBitTooltipTest {
 
     /** The pixel over bit 3 of a 4-bit switch at the origin (cell x 4..12, y 5..19, bit 0 at x 28..36 at 8 pixels per unit). */
@@ -59,13 +59,25 @@ class MultiBitTooltipTest {
     }
 
     @Test
-    void theValueIsWrittenInBinaryHexDecimalAndSignedWithTheBitUnderThePointer() {
+    void theValueIsWrittenInBinaryHexAndDecimalWithTheBitUnderThePointer() {
         show(Value.of(4, 0b1010));
 
         assertThat(view.canvas().getToolTipText(hoverAt(BIT_THREE_X, BIT_THREE_Y)))
-                .isEqualTo("0b1010 = 0xA = 10 (con signo: -6) · bit 3");
+                .isEqualTo("0b1010 = 0xA = 10 · bit 3");
         assertThat(view.canvas().getToolTipText(hoverAt(BIT_ZERO_X, BIT_THREE_Y)))
-                .isEqualTo("0b1010 = 0xA = 10 (con signo: -6) · bit 0");
+                .isEqualTo("0b1010 = 0xA = 10 · bit 0");
+    }
+
+    @Test
+    void aSignedSwitchGivesTheSignedDecimalInsteadOfTheUnsignedOne() {
+        Component signed = place(openDocument, StandardComponentTypes.SWITCH, 0, 20,
+                Map.of("width", 4, "value", "0b1010", "signedness", "signed"));
+        view.problems().showSnapshot(new SimulationSnapshot(1, openDocument.netlistToken(), 10, true, Map.of(),
+                Map.of(signed.id().value(), new VisibleState.SwitchState(Value.of(4, 0b1010))), List.of(),
+                Optional.empty()));
+
+        assertThat(view.canvas().getToolTipText(hoverAt(BIT_THREE_X, 20 * 8 + BIT_THREE_Y)))
+                .isEqualTo("0b1010 = 0xA = -6 · bit 3");
     }
 
     @Test
@@ -77,7 +89,7 @@ class MultiBitTooltipTest {
     void betweenCellsOnlyTheValueShows() {
         show(Value.of(4, 0b1010));
 
-        assertThat(view.canvas().getToolTipText(hoverAt(1, 1))).isEqualTo("0b1010 = 0xA = 10 (con signo: -6)");
+        assertThat(view.canvas().getToolTipText(hoverAt(1, 1))).isEqualTo("0b1010 = 0xA = 10");
     }
 
     @Test

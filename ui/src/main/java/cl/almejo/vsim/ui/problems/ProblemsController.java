@@ -390,8 +390,9 @@ public final class ProblemsController {
         Optional<Value> value = current
                 ? MultiBitReadout.valueOf(snapshot.componentState(component.id().value()))
                 : Optional.empty();
-        return MultiBitReadout.text(value,
-                MultiBitCells.bitAt(openDocument.registry().typeOf(component), component, gridPoint));
+        ComponentType type = openDocument.registry().typeOf(component);
+        return MultiBitReadout.text(value, MultiBitCells.bitAt(type, component, gridPoint),
+                MultiBitReadout.numbersOf(type, component.parameters()));
     }
 
     /** A 7-segment display showing «–» (a Z input) explains it (M6.1-E); any other component has no tooltip. */

@@ -336,39 +336,99 @@ class ParameterFormTest {
         ((JSpinner) form.editor("width")).setValue(width);
     }
 
+    /** The texts of the reading block's labels, in order (caption, value, caption, value…). */
+    private static List<String> readingTexts(ParameterForm form) {
+        return List.of(form.valueReading().getComponents()).stream()
+                .map(component -> ((JLabel) component).getText()).toList();
+    }
+
+    /** Lays the form out at a typical side-panel width. */
+    private static void layOutAt(int width, ParameterForm form) {
+        form.setSize(width, 400);
+        // resize events are queued on the EDT: let them rebuild the block, then lay it out again
+        for (int pass = 0; pass < 2; pass++) {
+            cl.almejo.vsim.ui.UiTestSupport.layOut(form);
+            flushEventQueue();
+        }
+        cl.almejo.vsim.ui.UiTestSupport.layOut(form);
+    }
+
+    private static void flushEventQueue() {
+        try {
+            javax.swing.SwingUtilities.invokeAndWait(() -> { });
+        } catch (java.lang.reflect.InvocationTargetException | InterruptedException exception) {
+            throw new IllegalStateException(exception);
+        }
+    }
+
     @Test
-    void aWideSwitchValueIsReadBackInBinaryHexAndDecimalWhileTyping() {
+    void aWideSwitchValueIsReadBackInBinaryHexAndDecimalOneUnderTheOtherWhileTyping() {
         ParameterForm form = form(StandardComponentTypes.SWITCH, Map.of("width", 8));
 
         typeSwitchValue(form, "100");
 
         assertThat(form.valueReading().isVisible()).isTrue();
-        assertThat(form.valueReading().getText()).isEqualTo("= 0110 0100 en binario · 0x64 · 100 en decimal");
+        assertThat(readingTexts(form)).containsExactly("binario", "0110 0100", "hexa", "0x64", "decimal", "100");
     }
 
     @Test
-    void theReadingAddsTheSignedValueOnlyWhenTheTopBitIsOne() {
+    void unsignedNumbersReadTheDecimalWithoutSignAndHaveNoSignedRow() {
         ParameterForm form = form(StandardComponentTypes.SWITCH, Map.of("width", 8));
 
         typeSwitchValue(form, "0xFF");
-        assertThat(form.valueReading().getText())
-                .isEqualTo("= 1111 1111 en binario · 0xFF · 255 en decimal · -1 con signo");
 
-        typeSwitchValue(form, "0x7F");
-        assertThat(form.valueReading().getText()).doesNotContain("con signo");
+        assertThat(readingTexts(form)).containsExactly("binario", "1111 1111", "hexa", "0xFF", "decimal", "255");
     }
 
     @Test
-    void aValueThatDoesNotFitOrDoesNotParseIsSaidInTheErrorColour() {
+    void signedNumbersReadTheDecimalWithSignInsteadOfTheUnsignedOne() {
+        ParameterForm form = form(StandardComponentTypes.SWITCH, Map.of("width", 8, "signedness", "signed"));
+
+        typeSwitchValue(form, "-1");
+        assertThat(readingTexts(form)).containsExactly("binario", "1111 1111", "hexa", "0xFF", "con signo", "-1");
+
+        typeSwitchValue(form, "0x7F");
+        assertThat(readingTexts(form)).containsExactly("binario", "0111 1111", "hexa", "0x7F", "con signo", "127");
+    }
+
+    @Test
+    void aNegativeValueIsRefusedUntilTheNumbersAreSigned() {
+        ParameterForm form = form(StandardComponentTypes.SWITCH, Map.of("width", 8));
+
+        typeSwitchValue(form, "-1");
+        assertThat(readingTexts(form)).containsExactly("Valor no válido (usa 0b…, 0x… o un número)");
+
+        ((JComboBox<?>) form.editor("signedness")).setSelectedItem("signed");
+        assertThat(readingTexts(form)).containsExactly("binario", "1111 1111", "hexa", "0xFF", "con signo", "-1");
+        assertThat(form.rawValues()).containsEntry("signedness", "signed").containsEntry("value", "-1");
+
+        ((JComboBox<?>) form.editor("signedness")).setSelectedItem("unsigned");
+        assertThat(readingTexts(form)).hasSize(1);
+    }
+
+    @Test
+    void theNumbersRowOnlyShowsFromTwoBitsOn() {
+        ParameterForm form = form(StandardComponentTypes.SWITCH, Map.of());
+        assertThat(form.editor("signedness").isVisible()).isFalse();
+
+        setWidth(form, 4);
+        assertThat(form.editor("signedness").isVisible()).isTrue();
+
+        setWidth(form, 1);
+        assertThat(form.editor("signedness").isVisible()).isFalse();
+    }
+
+    @Test
+    void aValueThatDoesNotFitOrDoesNotParseIsSaidInOneErrorLineInTheErrorColour() {
         ParameterForm form = form(StandardComponentTypes.SWITCH, Map.of("width", 8));
 
         typeSwitchValue(form, "0b1_0000_0000");
-        assertThat(form.valueReading().getText()).isEqualTo("No cabe en 8 bits");
-        assertThat(form.valueReading().getForeground()).isEqualTo(ReadableColors.errorText());
+        assertThat(readingTexts(form)).containsExactly("No cabe en 8 bits");
+        assertThat(form.valueReading().getComponent(0).getForeground()).isEqualTo(ReadableColors.errorText());
 
         typeSwitchValue(form, "hola");
-        assertThat(form.valueReading().getText()).isEqualTo("Valor no válido (usa 0b…, 0x… o un número)");
-        assertThat(form.valueReading().getForeground()).isEqualTo(ReadableColors.errorText());
+        assertThat(readingTexts(form)).containsExactly("Valor no válido (usa 0b…, 0x… o un número)");
+        assertThat(form.valueReading().getComponent(0).getForeground()).isEqualTo(ReadableColors.errorText());
     }
 
     @Test
@@ -379,16 +439,69 @@ class ParameterFormTest {
         setWidth(form, 4);
         typeSwitchValue(form, "5");
         assertThat(form.valueReading().isVisible()).isTrue();
-        assertThat(form.valueReading().getText()).isEqualTo("= 0101 en binario · 0x5 · 5 en decimal");
+        assertThat(readingTexts(form)).containsExactly("binario", "0101", "hexa", "0x5", "decimal", "5");
 
         setWidth(form, 3);
-        assertThat(form.valueReading().getText()).isEqualTo("= 101 en binario · 0x5 · 5 en decimal · -3 con signo");
+        assertThat(readingTexts(form)).containsExactly("binario", "101", "hexa", "0x5", "decimal", "5");
 
         setWidth(form, 2);
-        assertThat(form.valueReading().getText()).isEqualTo("No cabe en 2 bits");
+        assertThat(readingTexts(form)).containsExactly("No cabe en 2 bits");
 
         setWidth(form, 1);
         assertThat(form.valueReading().isVisible()).isFalse();
+    }
+
+    @Test
+    void atATypicalPanelWidthNoReadingIsWiderThanTheField() {
+        ParameterForm form = form(StandardComponentTypes.SWITCH, Map.of("width", 8));
+        layOutAt(240, form);
+        int fieldWidth = form.editor("value").getWidth();
+        assertThat(fieldWidth).isPositive();
+
+        for (String text : List.of("0xFF", "1", "hola", "0b1_0000_0000")) {
+            typeSwitchValue(form, text);
+            layOutAt(240, form);
+            for (java.awt.Component component : form.valueReading().getComponents()) {
+                assertThat(component.getPreferredSize().width)
+                        .as("«%s» in «%s»", ((JLabel) component).getText(), text).isLessThanOrEqualTo(fieldWidth);
+            }
+        }
+    }
+
+    @Test
+    void aThirtyTwoBitBinaryWrapsToFitTheFieldInTwoLinesOf16BitsOrFourOf8() {
+        ParameterForm form = form(StandardComponentTypes.SWITCH, Map.of("width", 32));
+        typeSwitchValue(form, "0x12345678");
+
+        layOutAt(290, form);
+        assertThat(readingTexts(form)).startsWith("binario", "0001 0010 0011 0100", "", "0101 0110 0111 1000",
+                "hexa", "0x12345678");
+        assertNoReadingWiderThanTheField(form);
+
+        layOutAt(240, form);
+        assertThat(readingTexts(form)).startsWith("binario", "0001 0010", "", "0011 0100", "", "0101 0110", "",
+                "0111 1000", "hexa", "0x12345678");
+        assertNoReadingWiderThanTheField(form);
+    }
+
+    private static void assertNoReadingWiderThanTheField(ParameterForm form) {
+        int fieldWidth = form.editor("value").getWidth();
+        for (java.awt.Component component : form.valueReading().getComponents()) {
+            assertThat(component.getPreferredSize().width).isLessThanOrEqualTo(fieldWidth);
+        }
+    }
+
+    @Test
+    void aLongErrorWrapsAtTheFieldWidthInsteadOfBeingCut() {
+        ParameterForm form = form(StandardComponentTypes.SWITCH, Map.of("width", 8));
+        layOutAt(240, form);
+
+        typeSwitchValue(form, "hola");
+        layOutAt(240, form);
+
+        assertThat(readingTexts(form).size()).isGreaterThan(1);
+        assertThat(String.join(" ", readingTexts(form))).isEqualTo("Valor no válido (usa 0b…, 0x… o un número)");
+        assertNoReadingWiderThanTheField(form);
     }
 
     @Test

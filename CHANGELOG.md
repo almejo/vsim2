@@ -10,15 +10,20 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 
 ### Agregado
 
-- Bajo el «Valor» de un interruptor de varios bits (en Propiedades y en el diálogo de configurar), una línea dice cómo lee VSim
-  el número mientras lo escribes: «= 0110 0100 en binario · 0x64 · 100 en decimal» (y «con signo» si el bit más
-  significativo es 1). Si no es un número o no cabe, lo dice en el color de error; cambiar el ancho la actualiza.
+- Bajo el «Valor» de un interruptor de varios bits (en Propiedades y en el diálogo de configurar), un pequeño bloque dice
+  cómo lee VSim el número mientras lo escribes, una lectura bajo la otra y alineadas (binario, hexa y decimal; un
+  binario muy largo se parte en líneas para no pasar del campo, así el panel no se desplaza de lado). Si no es un
+  número o no cabe, lo dice en el color de error, en una línea que se parte si es larga; cambiar el ancho lo actualiza.
+- El interruptor de varios bits tiene «Números» (Sin signo / Con signo, por defecto Sin signo; solo se muestra con más
+  de un bit). Con signo, «Valor» acepta además decimales negativos (en 8 bits, de −128 a −1: −1 entrega 0xFF), y la
+  lectura y el globo dan el decimal con signo en lugar del sin signo. Los archivos de antes se abren sin signo y el
+  valor por defecto no se escribe.
 - Dos ejemplos nuevos en Archivo ▸ Ejemplos, «Aritmética» y «Elementos modulares» (contar los unos de un número de 8
   bits): los circuitos de una clase de arquitectura, con un marco y una nota por bloque, interruptores de varios bits
   como entradas y filas de LED donde ayudan.
 - El interruptor puede tener varios bits («Ancho (bits)» de 1 a 32): una fila compacta con una celda por bit, el más
   significativo a la izquierda, y una sola salida de bus. Un clic sobre una celda cambia solo ese bit (sin deshacer ni
-  marcar el archivo como modificado); el globo muestra el valor en binario, hexadecimal, decimal y decimal con signo, y el bit
+  marcar el archivo como modificado); el globo muestra el valor en binario, hexadecimal y decimal, y el bit
   bajo el puntero. Con un bit, nada cambia.
 - El LED también puede tener varios bits: una fila de luces con la misma caja que el interruptor del mismo ancho (bit
   contra bit) y un solo pin de bus de entrada. Cada luz se enciende solo con 1; con 0, Z o conflicto queda apagada.

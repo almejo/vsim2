@@ -103,8 +103,8 @@ public final class MultiBitLayout {
     }
 
     /**
-     * The parameters of a Switch or LED as a file keeps them: «width» when it is 1 and «side» when it is the
-     * default are left out, so the one-bit parts written before the multi-bit ones existed keep their bytes (reading
+     * The parameters of a Switch or LED as a file keeps them: «width» when it is 1, «signedness» when it is
+     * «Sin signo» and «side» when it is the default are left out, so the one-bit parts written before the multi-bit ones existed keep their bytes (reading
      * fills the defaults back in). Any other type's parameters come back unchanged.
      */
     public static Map<String, Object> withoutDefaults(String typeId, Map<String, Object> parameters) {
@@ -118,6 +118,9 @@ public final class MultiBitLayout {
         }
         if (defaultSide.get().equals(written.get(SIDE))) {
             written.remove(SIDE);
+        }
+        if (StandardComponentTypes.SIGNEDNESS_UNSIGNED.equals(written.get(StandardComponentTypes.SIGNEDNESS))) {
+            written.remove(StandardComponentTypes.SIGNEDNESS);
         }
         return written;
     }

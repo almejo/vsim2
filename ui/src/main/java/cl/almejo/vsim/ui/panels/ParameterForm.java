@@ -22,6 +22,8 @@ import javax.swing.JLabel;
 import javax.swing.JList;
 import javax.swing.JPanel;
 import javax.swing.JSpinner;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 import javax.swing.JTextField;
 import javax.swing.SpinnerNumberModel;
 import java.awt.Component;
@@ -56,7 +58,7 @@ public final class ParameterForm extends JPanel {
     private final Map<String, Object> initial;
     private final Map<String, JComponent> editors = new LinkedHashMap<>();
     private final Map<String, JLabel> labels = new LinkedHashMap<>();
-    /** The line under a multi-bit Switch's «Valor» (null for any other type); see {@link SwitchValueReading}. */
+    /** The block under a multi-bit Switch's «Valor» (null for any other type); see {@link SwitchValueReading}. */
     private SwitchValueReading valueReading;
 
     public ParameterForm(ComponentType type, Map<String, Object> currentParameters) {
@@ -86,19 +88,65 @@ public final class ParameterForm extends JPanel {
                     spinnerField(spinner).setToolTipText(tip);
                 }
             }
-            add(label);
-            add(editor, "width 160::");
+            add(label, rowConstraints(type, parameter, ""));
+            add(editor, rowConstraints(type, parameter, "width 160::"));
             if (isSwitchValue(type, parameter)) {
                 valueReading = new SwitchValueReading(type, initial, (JComboBox<?>) editor,
-                        (JSpinner) editors.get(StandardComponentTypes.WIDTH));
+                        (JSpinner) editors.get(StandardComponentTypes.WIDTH),
+                        (JComboBox<?>) editors.get(StandardComponentTypes.SIGNEDNESS));
                 valueReading.addTo(this);
             }
         }
+        if (editors.containsKey(StandardComponentTypes.SIGNEDNESS) && editors.containsKey(StandardComponentTypes.WIDTH)
+                && type.id().equals(StandardComponentTypes.SWITCH)) {
+            showNumbersOnlyWithManyBits();
+        }
     }
 
-    /** The line under a Switch's «Valor» saying how the number is read; null when the type has none. */
-    JLabel valueReading() {
-        return valueReading == null ? null : valueReading.label();
+    /** The Switch's «Números» row disappears (taking no room) when it has one bit: there is nothing to sign. */
+    private static String rowConstraints(ComponentType type, ParameterSpec parameter, String constraints) {
+        if (type.id().equals(StandardComponentTypes.SWITCH)
+                && parameter.name().equals(StandardComponentTypes.SIGNEDNESS)) {
+            return constraints.isEmpty() ? "hidemode 3" : constraints + ", hidemode 3";
+        }
+        return constraints;
+    }
+
+    private void showNumbersOnlyWithManyBits() {
+        JFormattedTextField widthField = spinnerField((JSpinner) editors.get(StandardComponentTypes.WIDTH));
+        Runnable update = () -> {
+            boolean many;
+            try {
+                many = Long.parseLong(widthField.getText().strip()) > 1;
+            } catch (NumberFormatException exception) {
+                many = true;
+            }
+            labels.get(StandardComponentTypes.SIGNEDNESS).setVisible(many);
+            editors.get(StandardComponentTypes.SIGNEDNESS).setVisible(many);
+        };
+        widthField.getDocument().addDocumentListener(new DocumentListener() {
+            @Override
+            public void insertUpdate(DocumentEvent event) {
+                update.run();
+            }
+
+            @Override
+            public void removeUpdate(DocumentEvent event) {
+                update.run();
+            }
+
+            @Override
+            public void changedUpdate(DocumentEvent event) {
+                update.run();
+            }
+        });
+        widthField.addPropertyChangeListener("value", event -> update.run());
+        update.run();
+    }
+
+    /** The block under a Switch's «Valor» saying how the number is read; null when the type has none. */
+    JPanel valueReading() {
+        return valueReading == null ? null : valueReading.block();
     }
 
     /**
@@ -108,8 +156,9 @@ public final class ParameterForm extends JPanel {
      */
     public void addRowsTo(JPanel host) {
         labels.forEach((name, label) -> {
-            host.add(label);
-            host.add(editors.get(name));
+            String constraints = name.equals(StandardComponentTypes.SIGNEDNESS) ? "hidemode 3" : "";
+            host.add(label, constraints);
+            host.add(editors.get(name), constraints);
             if (valueReading != null && name.equals(SWITCH_VALUE)) {
                 valueReading.addTo(host);
             }
