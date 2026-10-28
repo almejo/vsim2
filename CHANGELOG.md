@@ -18,11 +18,18 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 - Los componentes propios tienen descripción: se escribe al crearlos o actualizarlos («Descripción (opcional)») y
   después con «Editar descripción…» en Propiedades, como un paso de deshacer.
 - La IA recibe la misma descripción en `vsim_describe_component`.
+- Flip-flops JK, T y SR en Secuenciales, del tamaño del flip-flop D, con Q y Q̅, en el flanco de bajada y partiendo en
+  Q = 0. El SR con S = R = 1 muestra el estado prohibido: Q y Q̅ en 0 hasta un flanco con S distinto de R.
 
 ### Cambiado
 
 - El globo de cada pieza de la paleta es ahora el primer párrafo de su descripción, así que todas las piezas tienen
   uno (antes solo los bloques, los pines, los túneles y la memoria).
+- El flip-flop D tiene también Q̅, debajo de Q; los circuitos de antes se abren y simulan igual.
+- El registro es más delgado (12 × 4 en vez de 12 × 7): «REG» chico en la esquina y el valor grande al medio; en
+  binario los dígitos van en grupos de 4 y, con más de 16 bits, en dos líneas (el registro mide 12 × 5). Los
+  circuitos guardados antes se abren conectados: VSim agrega un tramo corto de cable desde cada pin de abajo hasta
+  donde estaba. El contador no cambia.
 
 ## Sin publicar — Compuertas parametrizables
 

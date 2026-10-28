@@ -61,12 +61,13 @@ class CircuitReaderTest {
         assertThat(part.pins()).extracting(PinView::pin).containsExactly(
                 new PinReference(flipFlop.id().value(), "d", 0),
                 new PinReference(flipFlop.id().value(), "q", 0),
-                new PinReference(flipFlop.id().value(), "clock", 0));
-        assertThat(part.pins()).extracting(PinView::position)
-                .containsExactly(new GridPoint(10, 12), new GridPoint(14, 12), new GridPoint(12, 14));
-        assertThat(part.pins()).extracting(PinView::direction).containsExactly("INPUT", "OUTPUT", "INPUT");
+                new PinReference(flipFlop.id().value(), "clock", 0),
+                new PinReference(flipFlop.id().value(), "nQ", 0));
+        assertThat(part.pins()).extracting(PinView::position).containsExactly(new GridPoint(10, 12),
+                new GridPoint(14, 12), new GridPoint(12, 14), new GridPoint(14, 13));
+        assertThat(part.pins()).extracting(PinView::direction).containsExactly("INPUT", "OUTPUT", "INPUT", "OUTPUT");
         assertThat(part.pins()).extracting(PinView::width).containsOnly(1);
-        assertThat(part.pins()).extracting(PinView::connected).containsExactly(true, false, false);
+        assertThat(part.pins()).extracting(PinView::connected).containsExactly(true, false, false, false);
         assertThat(view.wires()).singleElement().satisfies(wire -> {
             assertThat(wire.id()).isEqualTo(data.id().value());
             assertThat(wire.netId()).isEqualTo(part.pins().get(0).netId());
@@ -104,7 +105,8 @@ class CircuitReaderTest {
 
         assertThat(part.rotation()).isEqualTo("R90");
         assertThat(part.pins()).extracting(PinView::position)
-                .containsExactly(new GridPoint(8, 10), new GridPoint(8, 14), new GridPoint(6, 12));
+                .containsExactly(new GridPoint(8, 10), new GridPoint(8, 14), new GridPoint(6, 12),
+                        new GridPoint(7, 14));
     }
 
     @Test

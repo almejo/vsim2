@@ -79,7 +79,7 @@ Parte de las [funciones de VSim 2](../funciones.md).
 
 ## Categorías de la paleta
 
-- La paleta tiene nueve categorías, en este orden: **Compuertas** (AND, OR, XOR, NAND, NOR, XNOR, Buffer, NOT y el buffer tri-estado), **Cableado** (separador y unión de bus, túneles), **Aritmética** (sumador, comparador, ALU), **Multiplexores** (multiplexor, decodificador), **Secuenciales** (flip-flop D, registro, contador), **Memoria** (RAM, ROM), **Entrada/Salida** (interruptor, constante, reloj, LED, displays y los pines de entrada y de salida), **Depuración** (diagrama de tiempo) y, al final, **Mis componentes** y los componentes de este circuito. Ya no existen «Básicas», «Bloques» ni «Pines de componente».
+- La paleta tiene nueve categorías, en este orden: **Compuertas** (AND, OR, XOR, NAND, NOR, XNOR, Buffer, NOT y el buffer tri-estado), **Cableado** (separador y unión de bus, túneles), **Aritmética** (sumador, comparador, ALU), **Multiplexores** (multiplexor, decodificador), **Secuenciales** (flip-flops D, JK, T y SR, registro, contador), **Memoria** (RAM, ROM), **Entrada/Salida** (interruptor, constante, reloj, LED, displays y los pines de entrada y de salida), **Depuración** (diagrama de tiempo) y, al final, **Mis componentes** y los componentes de este circuito. Ya no existen «Básicas», «Bloques» ni «Pines de componente».
 - Los archivos no guardan la categoría, así que los circuitos de antes se abren igual; los favoritos y los recientes siguen donde estaban porque se guardan por identificador. La búsqueda de la paleta y de la inserción rápida muestran el nombre de la categoría nueva en cada resultado.
 
 ## Bloques
@@ -91,9 +91,37 @@ Parte de las [funciones de VSim 2](../funciones.md).
 - «Comparador» (CMP): compara A con B y exactamente una de A<B, A=B, A>B vale 1. «Números» elige «Sin signo» o «Con signo» (complemento a dos).
 - «Multiplexor» (MUX, trapecio angosto a la salida): Y = D0 si S = 0, D1 si S = 1. «Entradas» elige 2 o 4 entradas de datos (con 4, S tiene 2 bits y la pieza crece hacia abajo; D0, D1 e Y no se mueven, así sus cables siguen conectados, y solo S baja con el borde inferior). S entra por abajo. Solo importa la entrada elegida: si ella o S no están definidas, Y queda en Z.
 - «Decodificador» (DEC): A (de 1 a 4 bits, «Bits de entrada», 2 por omisión) a la izquierda, una salida Y0, Y1, … por cada número a la derecha y EN abajo. Con EN = 1 se enciende solo la salida cuyo número es A; con EN = 0 todas quedan en 0. EN sin conectar vale 1. Con A indefinida todas las salidas quedan en Z. La pieza crece hacia abajo con sus salidas (A y las primeras salidas no se mueven; EN baja con el borde inferior) y no tiene «Ancho (bits)».
-- «Registro» (REG) y «Contador» (CNT), con el triángulo de reloj en CLK y su valor escrito dentro del cuerpo en el formato de su parámetro «Mostrar como» (en la paleta, 0). Actúan en el flanco de bajada del reloj, como el flip-flop D, y parten en 0 (también al «Reiniciar»). El registro carga D cuando EN = 1; el contador carga D cuando LD = 1 y si no cuenta hacia arriba cuando EN = 1 (después del máximo vuelve a 0), y su salida C («fin de cuenta») vale 1 mientras la cuenta es todo unos y EN = 1, para encadenar contadores. CLR = 1 los deja en 0 al instante, sin esperar el reloj. Sin conectar, EN vale 1 y CLR y LD valen 0; un conflicto en una entrada de control deja el valor guardado como estaba, y cargar un D con bits en Z deja Q en Z. Cambiar «Mostrar como» no borra el valor guardado. Con la pieza girada el valor se achica para caber (32 bits en binario se leen mejor con zoom). La tabla de verdad los rechaza como secuenciales, igual que al flip-flop y al reloj.
+- «Registro» (REG) y «Contador» (CNT), con el triángulo de reloj en CLK y su valor escrito dentro del cuerpo en el formato de su parámetro «Mostrar como» (en la paleta, 0). Actúan en el flanco de bajada del reloj, como el flip-flop D, y parten en 0 (también al «Reiniciar»). El registro carga D cuando EN = 1; el contador carga D cuando LD = 1 y si no cuenta hacia arriba cuando EN = 1 (después del máximo vuelve a 0), y su salida C («fin de cuenta») vale 1 mientras la cuenta es todo unos y EN = 1, para encadenar contadores. CLR = 1 los deja en 0 al instante, sin esperar el reloj. Sin conectar, EN vale 1 y CLR y LD valen 0; un conflicto en una entrada de control deja el valor guardado como estaba, y cargar un D con bits en Z deja Q en Z. Cambiar «Mostrar como» no borra el valor guardado. Con la pieza girada el valor se achica para caber (32 bits en binario se leen mejor con zoom). El registro es delgado y escribe el binario en grupos de 4 (ver [Secuenciales](#secuenciales)). La tabla de verdad los rechaza como secuenciales, igual que al flip-flop y al reloj.
 - «Mostrar como» tiene una quinta opción, «Decimal con signo» (complemento a dos: en 8 bits, `0xFF` se ve como `-1`). La Constante la ofrece y su valor acepta además un decimal negativo que quepa en el ancho como número con signo (`-3` en 8 bits entrega `0xFD`; `-129` no cabe en 8 bits).
 - Dos ejemplos nuevos en Archivo ▸ Ejemplos hechos con bloques: «Mini ALU» (una ALU de 8 bits en un marco «ALU», con A y B en hexadecimal, OP en binario, Y en decimal con signo y las banderas Z, N, C y V en pines de salida; los valores se escriben con doble clic en los pines de entrada) y «Acumulador» (un registro de 8 bits alimentado por un sumador cuya otra entrada es el pin «Sumando»: con cada bajada del reloj el total suma ese número, pasado 255 da la vuelta, y «CLR» lo deja en 0). La tabla de verdad de la Mini ALU se rechaza por tener demasiados bits de entrada (19: A, B y OP; el máximo es 16) y la del acumulador por secuencial.
+
+## Secuenciales
+
+- Cuatro flip-flops en **Secuenciales**, todos del mismo tamaño (4 × 4), con el reloj abajo al medio (dibujado como
+  un triángulo), las entradas a la izquierda y **Q** y **Q̅** a la derecha, Q̅ debajo de Q. Todos actúan en el flanco de
+  bajada del reloj (de 1 a 0; un reloj que pasa por Z no da flanco), parten con Q = 0 y Q̅ = 1 (también al
+  «Reiniciar»), tienen «Retardo» y la tabla de verdad los rechaza como secuenciales.
+- «Flip-flop D»: Q toma D en el flanco. Ahora tiene también **Q̅**, agregado como su último pin: los circuitos de antes
+  se abren con sus cables y sondas donde estaban y simulan igual.
+- «Flip-flop JK»: J = 0 y K = 0 lo deja igual, J = 0 y K = 1 lo pone en 0, J = 1 y K = 0 lo pone en 1, y J = 1 y
+  K = 1 lo invierte.
+- «Flip-flop T»: con T = 1 se invierte en cada flanco y con T = 0 queda igual. T está en la misma fila que la D del
+  flip-flop D, así que uno reemplaza al otro sin mover cables.
+- «Flip-flop SR»: S = 1 lo pone en 1, R = 1 lo pone en 0, S = R = 0 lo deja igual. S = R = 1 es el **estado
+  prohibido**: Q y Q̅ quedan los dos en 0 (lo que muestra un latch hecho con compuertas NOR) hasta un flanco con S
+  distinto de R.
+- Una entrada de datos (D, J, K, T, S o R) en Z o en conflicto en el flanco deja Q y Q̅ en Z. T sin conectar no cuenta
+  como 1: conéctalo a una constante. Cada supuesto está en el recuadro «Descripción» de Propiedades.
+- El «Registro» es ahora **delgado**: 12 × 4 (antes 12 × 7), con «REG» chico arriba a la izquierda, el valor grande
+  al medio, D a la izquierda, Q a la derecha y EN, CLR y el reloj abajo (en las mismas columnas que antes). En binario
+  los dígitos van en grupos de 4; con más de 16 bits el registro mide 12 × 5 y el binario va en dos líneas de 16
+  (el bit más alto arriba a la izquierda). El tamaño depende solo del ancho: al cruzar los 16 bits los pines de abajo
+  se mueven una unidad, como cualquier pin. Girado, el valor se achica para caber (se lee con zoom). El «Contador» se
+  queda en 12 × 7.
+- Los circuitos guardados antes del registro delgado se abren conectados: VSim agrega un tramo corto de cable desde
+  cada pin de abajo hasta donde estaba antes (3 unidades, o 2 con más de 16 bits), girado con el registro, solo donde
+  había un cable o un pin tocando; un pin sin conectar no recibe tramo. También dentro de los componentes propios.
+  Al guardar, el archivo queda en el formato nuevo.
 
 ## Componentes propios
 

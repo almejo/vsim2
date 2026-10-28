@@ -1,5 +1,6 @@
 package cl.almejo.vsim.core.truthtable;
 
+import cl.almejo.vsim.core.component.standard.SequentialTypes;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
@@ -233,9 +234,10 @@ class TruthTableScopeTest {
     }
 
     @Test
-    void registersCountersAndRamsAreRefusedAsSequential() {
+    void registersCountersRamsAndEveryFlipFlopAreRefusedAsSequential() {
         for (String sequential : List.of(StandardComponentTypes.REGISTER, StandardComponentTypes.COUNTER,
-                StandardComponentTypes.RAM)) {
+                StandardComponentTypes.RAM, SequentialTypes.FLIP_FLOP_JK, SequentialTypes.FLIP_FLOP_T,
+                SequentialTypes.FLIP_FLOP_SR)) {
             TruthTableCircuits circuits = TruthTableCircuits.halfAdder();
             circuits.place(sequential, 40, 40, "");
 

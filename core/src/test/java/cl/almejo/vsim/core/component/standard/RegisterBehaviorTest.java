@@ -6,6 +6,7 @@ import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.PinDirection;
 import cl.almejo.vsim.core.component.PinSpec;
 import cl.almejo.vsim.core.component.VisibleState;
+import cl.almejo.vsim.core.geometry.GridSize;
 import cl.almejo.vsim.core.value.Value;
 import org.junit.jupiter.api.Test;
 
@@ -53,7 +54,8 @@ class RegisterBehaviorTest {
         }
         ComponentType wide = register.specializedFor(width(32));
         assertThat(wide.pins()).extracting(PinSpec::width).containsExactly(32, 1, 1, 1, 32);
-        assertThat(wide.size()).isEqualTo(register.size());
+        assertThat(wide.size()).as("two lines of binary over 16 bits").isEqualTo(new GridSize(12, 5));
+        assertThat(wide.pin(CLOCK).position().y()).isEqualTo(5);
     }
 
     @Test

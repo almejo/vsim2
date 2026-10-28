@@ -40,7 +40,7 @@ class FragmentFormatTest {
     @Test
     void roundTripKeepsEveryElement() throws CircuitFormatException {
         String json = format.write(sample());
-        assertThat(json).contains("\"formatVersion\":4").contains("\"kind\":\"fragment\"");
+        assertThat(json).contains("\"formatVersion\":" + CircuitFormat.FORMAT_VERSION).contains("\"kind\":\"fragment\"");
         assertThat(format.read(json)).isEqualTo(sample());
     }
 
@@ -66,7 +66,7 @@ class FragmentFormatTest {
                 arguments("not json", CircuitFormatException.Reason.INVALID_JSON),
                 arguments("[1,2]", CircuitFormatException.Reason.NOT_VSIM_FILE),
                 arguments("{\"formatVersion\":2,\"kind\":\"circuit\"}", CircuitFormatException.Reason.INVALID_ELEMENT),
-                arguments("{\"formatVersion\":5,\"kind\":\"fragment\"}", CircuitFormatException.Reason.NEWER_FORMAT),
+                arguments("{\"formatVersion\":6,\"kind\":\"fragment\"}", CircuitFormatException.Reason.NEWER_FORMAT),
                 arguments("{\"formatVersion\":2,\"kind\":\"fragment\",\"components\":"
                         + "[{\"id\":\"c1\",\"type\":\"lamp\",\"x\":0,\"y\":0}]}",
                         CircuitFormatException.Reason.UNKNOWN_COMPONENT_TYPE),

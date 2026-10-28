@@ -48,6 +48,46 @@ class StoredValuePainterTest {
                 Map.of(StandardComponentTypes.WIDTH, 4, ConstantValue.FORMAT, ConstantValue.AUTO))).contains("0000");
     }
 
+    private static Optional<String> registerText(Value value, String format) {
+        return PainterRegistry.registerValueText(new VisibleState.StoredValueState(value),
+                Map.of(StandardComponentTypes.WIDTH, value.width(), ConstantValue.FORMAT, format));
+    }
+
+    /** The thin register (format 5) groups binary digits by four and puts more than 16 in two lines, MSB first. */
+    @Test
+    void theRegisterGroupsItsBinaryDigitsByFourAndWritesMoreThanSixteenInTwoLines() {
+        assertThat(registerText(Value.of(8, 0x3A), ConstantValue.BINARY)).contains("0011 1010");
+        assertThat(registerText(Value.of(16, 0x8001), ConstantValue.BINARY)).contains("1000 0000 0000 0001");
+        assertThat(registerText(Value.of(32, 0x8000_0001L), ConstantValue.BINARY))
+                .contains("1000 0000 0000 0000\n0000 0000 0000 0001");
+        assertThat(registerText(Value.of(20, 0xA_0003L), ConstantValue.BINARY))
+                .as("the low 16 bits make the second line").contains("1010\n0000 0000 0000 0011");
+        assertThat(registerText(Value.of(6, 0x2A), ConstantValue.BINARY)).contains("10 1010");
+        assertThat(registerText(Value.of(32, 0x3A), ConstantValue.HEX)).contains("0x3A");
+        assertThat(registerText(Value.of(8, 10), ConstantValue.DECIMAL)).as("decimal is never grouped").contains("10");
+    }
+
+    /** Upright, a 32-bit register (12 x 5) draws its first and its last binary digit. */
+    @Test
+    void thirtyTwoBinaryDigitsFitTheThinRegisterUpright() {
+        Map<String, Object> parameters = Map.of(StandardComponentTypes.WIDTH, 32, ConstantValue.FORMAT,
+                ConstantValue.BINARY);
+        ComponentType type = StandardComponentTypes.registry().require(StandardComponentTypes.REGISTER)
+                .specializedFor(parameters);
+        ComponentPainter painter = PainterRegistry.standard().painterFor(StandardComponentTypes.REGISTER);
+        assertThat(type.size().height()).isEqualTo(5);
+
+        BufferedImage ones = paint(painter, type, parameters, new VisibleState.StoredValueState(Value.of(32,
+                0xFFFF_FFFFL)));
+        BufferedImage firstZero = paint(painter, type, parameters, new VisibleState.StoredValueState(Value.of(32,
+                0x7FFF_FFFFL)));
+        BufferedImage lastZero = paint(painter, type, parameters, new VisibleState.StoredValueState(Value.of(32,
+                0xFFFF_FFFEL)));
+
+        assertThat(differingPixels(ones, firstZero)).as("first digit").isGreaterThan(0);
+        assertThat(differingPixels(ones, lastZero)).as("last digit").isGreaterThan(0);
+    }
+
     /**
      * M2 (M7 fix round): turned sideways, a 32-bit register's 32 binary digits still fit across its body: both its
      * first and its last digit are drawn.

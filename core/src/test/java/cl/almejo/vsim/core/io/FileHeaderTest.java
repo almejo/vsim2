@@ -49,7 +49,7 @@ class FileHeaderTest {
                 document.labels(), List.of(), List.of()));
 
         assertThat(circuit).startsWith("{\n  \"format\" : \"vsim2\",\n  \"savedWith\" : \"" + VsimVersion.current()
-                + "\",\n  \"formatVersion\" : 4,\n  \"kind\" : \"circuit\"");
+                + "\",\n  \"formatVersion\" : " + CircuitFormat.FORMAT_VERSION + ",\n  \"kind\" : \"circuit\"");
         assertThat(firstKeys(component)).containsExactly("format", "savedWith", "formatVersion", "kind");
         assertThat(firstKeys(fragment)).containsExactly("format", "savedWith", "formatVersion", "kind");
         assertThat(mapper.readTree(fragment).path("format").asText()).isEqualTo("vsim2");
@@ -65,8 +65,8 @@ class FileHeaderTest {
 
     static Stream<Arguments> refusedFiles() {
         return Stream.of(
-                arguments("{\"format\":\"vsim2\",\"formatVersion\":5,\"kind\":\"circuit\"}",
-                        CircuitFormatException.Reason.NEWER_FORMAT, "5"),
+                arguments("{\"format\":\"vsim2\",\"formatVersion\":6,\"kind\":\"circuit\"}",
+                        CircuitFormatException.Reason.NEWER_FORMAT, "6"),
                 arguments("{\"formatVersion\":7,\"kind\":\"circuit\"}", CircuitFormatException.Reason.NEWER_FORMAT, "7"),
                 arguments("{\"name\":\"package.json\",\"version\":\"1.0\"}",
                         CircuitFormatException.Reason.NOT_VSIM_FILE, null),

@@ -84,8 +84,8 @@ public final class BlockExamples {
 
     /**
      * Acumulador. The adder (4 x 8: A (0,3), B (0,5), Cin (2,0), S (4,4), Cout (2,8)) adds the register's Q (fed back
-     * over the top) and «Sumando»; S goes straight into the register's D (12 x 7: D (0,2), Q (12,2), EN (6,7),
-     * CLR (8,7), CLK (10,7)). Cin and EN are left unconnected (rest values 0 and 1); Cout is not used.
+     * over the top) and «Sumando»; S goes straight into the register's D (12 x 4: D (0,2), Q (12,2), EN (6,4),
+     * CLR (8,4), CLK (10,4)). Cin and EN are left unconnected (rest values 0 and 1); Cout is not used.
      */
     static CircuitBuilder accumulator() {
         CircuitBuilder builder = new CircuitBuilder("Acumulador");
@@ -108,11 +108,11 @@ public final class BlockExamples {
         builder.link(register, 4, adder, 0);
 
         Component clear = builder.placeByPin(INPUT_PIN, new GridPoint(30, 21), 0, Rotation.R0, ONE_BIT, "CLR");
-        builder.route(new GridPoint(30, 21), new GridPoint(42, 21), new GridPoint(42, 17));
+        builder.route(new GridPoint(30, 21), new GridPoint(42, 21), new GridPoint(42, 14));
         builder.link(clear, 0, register, 2);
         Component clock = builder.placeByPin(CLOCK, new GridPoint(36, 27), 0, Rotation.R0,
                 Map.of("time-up", 500, "time-down", 500), "Reloj");
-        builder.route(new GridPoint(36, 27), new GridPoint(44, 27), new GridPoint(44, 17));
+        builder.route(new GridPoint(36, 27), new GridPoint(44, 27), new GridPoint(44, 14));
         builder.link(clock, 0, register, 3);
 
         builder.text(2, 0, "Acumulador");

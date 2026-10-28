@@ -1,7 +1,7 @@
 {
   "format" : "vsim2",
   "savedWith" : "0.4",
-  "formatVersion" : 4,
+  "formatVersion" : 5,
   "kind" : "circuit",
   "name" : "",
   "components" : [ {

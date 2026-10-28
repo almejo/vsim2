@@ -2,6 +2,7 @@ package cl.almejo.vsim.ui.paint;
 
 import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.component.standard.ConstantValue;
+import cl.almejo.vsim.core.component.standard.SequentialTypes;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.library.InterfacePins;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
@@ -30,7 +31,10 @@ public final class PainterRegistry {
         registry.register(StandardComponentTypes.XOR, new LogicGatePainter(GateShape.XOR));
         registry.register(StandardComponentTypes.BUFFER, new BufferPainter());
         registry.register(StandardComponentTypes.TRI_STATE, new TriStatePainter());
-        registry.register(StandardComponentTypes.FLIP_FLOP_DATA, new FlipFlopPainter());
+        FlipFlopPainter flipFlop = new FlipFlopPainter();
+        for (String flipFlopType : SequentialTypes.FLIP_FLOPS) {
+            registry.register(flipFlopType, flipFlop);
+        }
         registry.register(StandardComponentTypes.CLOCK, new ClockPainter());
         registry.register(StandardComponentTypes.SWITCH, new SwitchPainter());
         registry.register(StandardComponentTypes.CONSTANT, new ConstantPainter());
@@ -61,7 +65,7 @@ public final class PainterRegistry {
         registry.register(StandardComponentTypes.MUX, new BlockPainter("MUX", BlockPainter.Body.TRAPEZOID));
         registry.register(StandardComponentTypes.DECODER, new BlockPainter("DEC", BlockPainter.Body.RECTANGLE));
         registry.register(StandardComponentTypes.REGISTER, new BlockPainter("REG", BlockPainter.Body.RECTANGLE)
-                .withLiveText(PainterRegistry::storedValueText));
+                .withLiveText(PainterRegistry::registerValueText).withCornerSymbol());
         registry.register(StandardComponentTypes.COUNTER, new BlockPainter("CNT", BlockPainter.Body.RECTANGLE)
                 .withLiveText(PainterRegistry::storedValueText));
         registry.register(StandardComponentTypes.RAM, new MemoryPainter());
@@ -97,6 +101,40 @@ public final class PainterRegistry {
         }
         Object format = parameters.get(ConstantValue.FORMAT);
         return Optional.of(InterfacePinPainter.shownText(value, format == null ? ConstantValue.AUTO : (String) format));
+    }
+
+    /**
+     * What the thin register shows in its middle: {@link #storedValueText}, with binary digits grouped by four and,
+     * over {@value StandardComponentTypes#REGISTER_ONE_LINE_BITS} bits, in two lines ({@code \n} between them): the
+     * high bits on top, the low 16 bits below, so the most significant bit is top left (like the multi-bit Switch).
+     */
+    static Optional<String> registerValueText(VisibleState state, Map<String, Object> parameters) {
+        Optional<String> text = storedValueText(state, parameters);
+        Object format = parameters.get(ConstantValue.FORMAT);
+        if (text.isEmpty() || !(parameters.get(StandardComponentTypes.WIDTH) instanceof Integer width)
+                || text.get().length() != width
+                || !ConstantValue.BINARY.equals(ConstantValue.resolveFormat(
+                format == null ? ConstantValue.AUTO : (String) format, width))) {
+            return text;
+        }
+        String digits = text.get();
+        if (width <= StandardComponentTypes.REGISTER_ONE_LINE_BITS) {
+            return Optional.of(groupedByFour(digits));
+        }
+        int split = width - StandardComponentTypes.REGISTER_ONE_LINE_BITS;
+        return Optional.of(groupedByFour(digits.substring(0, split)) + "\n" + groupedByFour(digits.substring(split)));
+    }
+
+    /** {@code digits} in groups of four from the right: {@code 101010} → {@code 10 1010}. */
+    private static String groupedByFour(String digits) {
+        StringBuilder grouped = new StringBuilder();
+        for (int index = 0; index < digits.length(); index++) {
+            if (index > 0 && (digits.length() - index) % 4 == 0) {
+                grouped.append(' ');
+            }
+            grouped.append(digits.charAt(index));
+        }
+        return grouped.toString();
     }
 
     public void register(String typeId, ComponentPainter painter) {

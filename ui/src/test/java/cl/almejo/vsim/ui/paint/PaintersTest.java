@@ -6,6 +6,7 @@ import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.PinSpec;
 import cl.almejo.vsim.core.component.TimeDiagramSample;
 import cl.almejo.vsim.core.component.VisibleState;
+import cl.almejo.vsim.core.component.standard.SequentialTypes;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
@@ -155,7 +156,7 @@ class PaintersTest {
     void blocksOfAnyWidthDrawNearTheirBoundsInEveryRotation() {
         List<ComponentType> blocks = registry.all().stream()
                 .filter(type -> BLOCK_CATEGORIES.contains(type.category()))
-                .filter(type -> !type.id().equals(StandardComponentTypes.FLIP_FLOP_DATA)).toList();
+                .filter(type -> !SequentialTypes.FLIP_FLOPS.contains(type.id())).toList();
         assertThat(blocks).extracting(ComponentType::id).contains(StandardComponentTypes.ADDER);
         for (ComponentType block : blocks) {
             assertThat(painters.painterFor(block.id())).as(block.id()).isInstanceOf(BlockPainter.class);
