@@ -28,7 +28,8 @@ class BundledExamplesTest {
     void theExamplesAreListedInMenuOrderEachWithItsOwnResource() {
         assertThat(BundledExamples.ids()).containsExactly("full-adder", "adder-4-bits", "mux-4-1", "decoder-2-4",
                 "parity-3-bits", "multiplier-2x2", "register-4-bits", "shift-register-4-bits", "counter-4-bits",
-                "johnson-counter", "bus-8-bits", "alu-4-bits", "mini-alu", "accumulator");
+                "johnson-counter", "bus-8-bits", "alu-4-bits", "mini-alu", "accumulator", "rom-program",
+                "ram-fill");
         assertThat(BundledExamples.all()).first().isEqualTo(new BundledExample("full-adder",
                 "/cl/almejo/vsim/core/bundled/examples/full-adder.vsim"));
         assertThat(BundledExamples.all()).extracting(BundledExample::resourceName)

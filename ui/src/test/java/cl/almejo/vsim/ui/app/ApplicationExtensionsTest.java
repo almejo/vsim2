@@ -4,7 +4,9 @@ import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.library.ComponentLibrary;
+import cl.almejo.vsim.ui.icons.ActionIcons;
 import cl.almejo.vsim.ui.icons.Icons;
+import cl.almejo.vsim.ui.memory.MemoryEditorExtension;
 import cl.almejo.vsim.ui.library.LibraryService;
 import cl.almejo.vsim.ui.library.SwingLibraryDialogs;
 import cl.almejo.vsim.ui.paint.Appearance;
@@ -14,6 +16,7 @@ import cl.almejo.vsim.ui.shortcuts.Scope;
 import cl.almejo.vsim.ui.shortcuts.ShortcutCatalog;
 import cl.almejo.vsim.ui.stepping.StepIcons;
 import cl.almejo.vsim.ui.tools.CanvasMouseEvent;
+import cl.almejo.vsim.ui.window.EditorExtension;
 import cl.almejo.vsim.ui.window.EditorServices;
 import cl.almejo.vsim.ui.window.EditorView;
 import cl.almejo.vsim.ui.window.ImportMenu;
@@ -88,6 +91,22 @@ class ApplicationExtensionsTest {
     }
 
     @Test
+    void theMemoryContentEditorIsAmongTheExtensionsBeforeTheIcons() {
+        List<EditorExtension> extensions = Application.editorExtensions(service, SwingLibraryDialogs.INSTANCE);
+        int editor = -1;
+        int icons = -1;
+        for (int index = 0; index < extensions.size(); index++) {
+            if (extensions.get(index) instanceof MemoryEditorExtension) {
+                editor = index;
+            }
+            if (extensions.get(index) instanceof ActionIcons) {
+                icons = index;
+            }
+        }
+        assertThat(editor).isNotNegative().isLessThan(icons);
+    }
+
+    @Test
     void theFileMenuHasEveryExtensionsEntryInPlace() {
         EditorView view = new EditorView(openDocument, services, NO_WINDOW);
         try {
@@ -96,7 +115,8 @@ class ApplicationExtensionsTest {
                     "Preferencias…", "---",
                     "Cerrar ventana", "Salir");
             JMenu importMenu = ImportMenu.find(view.menu(MenuId.FILE)).orElseThrow();
-            assertThat(texts(importMenu)).containsExactly("Componente…", "Tabla de verdad desde Excel/CSV…");
+            assertThat(texts(importMenu)).containsExactly("Componente…", "Tabla de verdad desde Excel/CSV…",
+                    "Memoria desde archivo…");
             assertThat(view.shortcutActions().get("file.importTruthTable"))
                     .isSameAs(importMenu.getItem(1).getAction());
             assertThat(texts(view.menu(MenuId.EDIT))).containsSubsequence("Deshacer", "Rehacer", "Cortar", "Copiar",

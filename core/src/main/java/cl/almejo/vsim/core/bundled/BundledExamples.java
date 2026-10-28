@@ -34,7 +34,9 @@ public final class BundledExamples {
             example("bus-8-bits"),
             example("alu-4-bits"),
             example("mini-alu"),
-            example("accumulator"));
+            example("accumulator"),
+            example("rom-program"),
+            example("ram-fill"));
 
     private BundledExamples() {
     }

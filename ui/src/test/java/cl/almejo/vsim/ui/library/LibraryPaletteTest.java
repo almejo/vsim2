@@ -55,7 +55,8 @@ class LibraryPaletteTest {
         putAndPlace(spare);
 
         assertThat(fixture.view.palette().visibleSections()).containsExactly("Básicas", "Entrada/Salida",
-                "Bloques", "Depuración", "Pines de componente", "Mis componentes", "Componentes de este circuito");
+                "Bloques", "Memoria", "Depuración", "Pines de componente", "Mis componentes",
+                "Componentes de este circuito");
         assertThat(fixture.view.palette().visibleTypeIds())
                 .endsWith("input-pin", "output-pin", "subcircuit:inverter", "subcircuit:spare");
     }

@@ -38,11 +38,12 @@ class StandardComponentTypesTest {
 
     @Test
     void registryHasEveryType() {
-        assertThat(registry.all()).hasSize(38);
+        assertThat(registry.all()).hasSize(40);
         assertThat(registry.all()).extracting(ComponentType::id).contains(
                 "and2", "or3", "xor4", "nand2", "nor4", "not", "flip-flop-data", "tri-state", "clock",
                 "switch", "constant", "led", "seven-segments-display", "seven-segments-display-double", "time-diagram", "bus-splitter", "bus-joiner",
-                "adder", "alu", "comparator", "mux", "decoder", "register", "counter", "tunnel-in", "tunnel-out");
+                "adder", "alu", "comparator", "mux", "decoder", "register", "counter", "tunnel-in", "tunnel-out", "ram",
+                "rom");
     }
 
     @Test

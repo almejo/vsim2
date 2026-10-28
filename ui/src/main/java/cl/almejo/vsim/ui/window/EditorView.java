@@ -1,8 +1,10 @@
 package cl.almejo.vsim.ui.window;
 
+import cl.almejo.vsim.core.component.standard.MemoryTypes;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.value.Value;
 import cl.almejo.vsim.core.document.DocumentElement;
+import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.io.LibraryDirectory;
 import cl.almejo.vsim.core.logic.TruthTableSpec;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
@@ -21,6 +23,7 @@ import cl.almejo.vsim.ui.clipboard.FragmentClipboard;
 import cl.almejo.vsim.ui.inline.InlineTextEditor;
 import cl.almejo.vsim.ui.library.TemplateActions;
 import cl.almejo.vsim.ui.paint.ColorScheme;
+import cl.almejo.vsim.ui.paint.MemoryPainter;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
 import cl.almejo.vsim.ui.paint.TextFonts;
 import cl.almejo.vsim.ui.panels.PalettePanel;
@@ -108,6 +111,8 @@ public final class EditorView extends JPanel implements CanvasHost {
     private final Runnable textFontListener;
     private final List<Runnable> extensionDisposers = new ArrayList<>();
     private Consumer<List<Path>> componentFileImporter;
+    private PositionedFileImporter memoryFileImporter;
+    private Consumer<Component> memoryEditor;
     private final WindowCommands windowCommands;
     private Consumer<TruthTableSpec> tableWizard;
     private Consumer<List<Path>> circuitOpener = files -> {
@@ -379,6 +384,23 @@ public final class EditorView extends JPanel implements CanvasHost {
         componentFileImporter = importer;
     }
 
+    /**
+     * Files an extension takes before they reach the circuit opener (memory files become new memories), with the
+     * grid point they were dropped on when there is one.
+     */
+    public interface PositionedFileImporter {
+
+        boolean accepts(Path file);
+
+        /** Imports {@code files} (all accepted) at {@code position}, or where the extension chooses when empty. */
+        void importFiles(List<Path> files, Optional<GridPoint> position);
+    }
+
+    /** Where memory files that are opened or dropped go; null (the default) sends them to the circuit opener. */
+    public void setMemoryFileImporter(PositionedFileImporter importer) {
+        memoryFileImporter = importer;
+    }
+
     /** Where {@link #openOrImport} sends circuit files (a window: open them); by default they are ignored. */
     public void setCircuitOpener(Consumer<List<Path>> opener) {
         circuitOpener = Objects.requireNonNull(opener);
@@ -389,7 +411,7 @@ public final class EditorView extends JPanel implements CanvasHost {
      * library (when an importer is set), the others go to the circuit opener.
      */
     public void openOrImport(List<Path> files) {
-        openOrImportFiles(files, circuitOpener);
+        openOrImportFiles(files, circuitOpener, Optional.empty());
     }
 
     /**
@@ -400,17 +422,36 @@ public final class EditorView extends JPanel implements CanvasHost {
         SwingUtilities.invokeLater(() -> openOrImport(files));
     }
 
-    /**
-     * Files dropped on the window or the canvas: component files go to the component importer (when one is set),
-     * the others to {@code circuitOpener}. Each receiver is called only when it gets at least one file.
-     */
+    /** Files dropped on a pane at {@code gridPosition}: like {@link #dropFiles}, memory files land there. */
+    public void dropFilesAt(List<Path> files, GridPoint gridPosition) {
+        SwingUtilities.invokeLater(() -> openOrImportFiles(files, circuitOpener, Optional.of(gridPosition)));
+    }
+
+    /** {@link #openOrImportFiles(List, Consumer, Optional)} without a drop point. */
     public void openOrImportFiles(List<Path> files, Consumer<List<Path>> circuitOpener) {
+        openOrImportFiles(files, circuitOpener, Optional.empty());
+    }
+
+    /**
+     * Files dropped on the window or the canvas: component files go to the component importer and memory files to
+     * the memory importer, at {@code position} (when they are set), the others to {@code circuitOpener}. Each
+     * receiver is called only when it gets at least one file.
+     */
+    public void openOrImportFiles(List<Path> files, Consumer<List<Path>> circuitOpener,
+                                  Optional<GridPoint> position) {
         Consumer<List<Path>> importer = componentFileImporter;
+        PositionedFileImporter memoryImporter = memoryFileImporter;
         List<Path> components = importer == null ? List.of()
                 : files.stream().filter(LibraryDirectory::isComponentFile).toList();
-        List<Path> circuits = files.stream().filter(file -> !components.contains(file)).toList();
+        List<Path> memories = memoryImporter == null ? List.of()
+                : files.stream().filter(file -> !components.contains(file) && memoryImporter.accepts(file)).toList();
+        List<Path> circuits = files.stream()
+                .filter(file -> !components.contains(file) && !memories.contains(file)).toList();
         if (!components.isEmpty()) {
             importer.accept(components);
+        }
+        if (!memories.isEmpty()) {
+            memoryImporter.importFiles(memories, position);
         }
         if (!circuits.isEmpty()) {
             circuitOpener.accept(circuits);
@@ -478,6 +519,32 @@ public final class EditorView extends JPanel implements CanvasHost {
     @Override
     public void editValue(Component component) {
         labelFeatures.actions().editValue(component);
+    }
+
+    /** Where the memory content editor extension plugs in: what a double click on a RAM or ROM opens. */
+    public void setMemoryEditor(Consumer<Component> memoryEditor) {
+        this.memoryEditor = Objects.requireNonNull(memoryEditor);
+    }
+
+    /** Undoes {@link #setMemoryEditor}: a double click on a memory configures it again. */
+    public void clearMemoryEditor() {
+        this.memoryEditor = null;
+    }
+
+    @Override
+    public void editMemory(Component component) {
+        if (memoryEditor == null) {
+            configure(component);
+        } else {
+            memoryEditor.accept(component);
+        }
+    }
+
+    /** The square the memory painter draws in the title bar of a RAM or ROM. */
+    @Override
+    public boolean memoryFoldToggleAt(Component component, Point2D gridPosition) {
+        return MemoryTypes.kindOf(component.typeId()).isPresent() && MemoryPainter.isOnFoldToggle(
+                openDocument.registry().typeOf(component), component, gridPosition);
     }
 
     @Override
@@ -662,7 +729,7 @@ public final class EditorView extends JPanel implements CanvasHost {
     /** What this view sets on every pane: view moves, file drops, its key bindings, the status bar, the tool. */
     private Runnable configurePane(CircuitCanvas pane) {
         pane.setAnimateViewMoves(services.preferences()::animateViewMoves);
-        pane.setFileDropHandler(this::dropFiles);
+        pane.setFileDropTarget(this::dropFilesAt);
         Map<KeyStroke, String> bound = new LinkedHashMap<>();
         bindKey(pane, bound, KeyStroke.getKeyStroke(KeyEvent.VK_DELETE, 0), "delete", actions.delete());
         bindKey(pane, bound, KeyStroke.getKeyStroke(KeyEvent.VK_BACK_SPACE, 0), "delete", actions.delete());

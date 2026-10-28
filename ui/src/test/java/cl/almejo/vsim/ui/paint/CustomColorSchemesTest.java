@@ -4,6 +4,7 @@ import cl.almejo.vsim.ui.app.AppPreferences;
 import org.junit.jupiter.api.Test;
 
 import java.awt.Color;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -22,7 +23,7 @@ class CustomColorSchemesTest {
     }
 
     @Test
-    void aSavedSchemeComesBackWithAllTwentyTwoRolesAndTheirAlpha() {
+    void aSavedSchemeComesBackWithAllTwentyFourRolesAndTheirAlpha() {
         NamedColorScheme saved = schemes.save("Mío", distinctColors());
         assertThat(saved.id()).isEqualTo("custom-1");
         assertThat(saved.name()).isEqualTo("Mío");
@@ -77,6 +78,25 @@ class CustomColorSchemesTest {
 
         assertThat(found.pad()).isEqualTo(new Color(0x405060));
         assertThat(found.componentStroke()).isEqualTo(new Color(0x405060));
+    }
+
+    @Test
+    void aSchemeStoredBeforeTheMemoriesGetsTheActivityColoursThatSuitItsBoard() {
+        NamedColorScheme darkBoard = schemes.save("Oscuro antiguo", ColorSchemes.DARK);
+        NamedColorScheme lightBoard = schemes.save("Claro antiguo", ColorScheme.LIGHT);
+        for (NamedColorScheme saved : List.of(darkBoard, lightBoard)) {
+            preferences.colorSchemesNode().node(saved.id()).remove("memoryRead");
+            preferences.colorSchemesNode().node(saved.id()).remove("memoryWrite");
+        }
+
+        ColorScheme dark = schemes.byId(darkBoard.id()).orElseThrow().scheme();
+        ColorScheme light = schemes.byId(lightBoard.id()).orElseThrow().scheme();
+
+        assertThat(dark.memoryRead()).isEqualTo(ColorSchemes.DARK.memoryRead());
+        assertThat(dark.memoryWrite()).isEqualTo(ColorSchemes.DARK.memoryWrite());
+        assertThat(light.memoryRead()).isEqualTo(ColorScheme.LIGHT.memoryRead());
+        assertThat(light.memoryWrite()).isEqualTo(ColorScheme.LIGHT.memoryWrite());
+        assertThat(dark.background()).isEqualTo(ColorSchemes.DARK.background());
     }
 
     @Test

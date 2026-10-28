@@ -34,7 +34,7 @@ public record ComponentType(String id, ComponentCategory category, GridSize size
         Objects.requireNonNull(behaviorFactory, "behaviorFactory");
         pins = List.copyOf(pins);
         parameters = List.copyOf(parameters);
-        layout = layout == null ? null : MemoizedLayout.of(layout);
+        layout = layout == null ? null : MemoizedLayout.of(layout, parameters);
     }
 
     public ComponentType(String id, ComponentCategory category, GridSize size, List<PinSpec> pins,

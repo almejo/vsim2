@@ -40,6 +40,7 @@ import cl.almejo.vsim.ui.app.OpenDocument;
 import cl.almejo.vsim.ui.canvas.CircuitCanvas;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.icons.Icons;
+import cl.almejo.vsim.core.memory.MemoryLinkPaths;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -179,7 +180,8 @@ public final class TemplateActions {
             }
             Optional<String> missing = missingPins(result.get().pinOrder());
             if (missing.isEmpty() || dialogs.confirmMissingPins(canvas.get(), missing.get())) {
-                create(converter.apply(result.get().convertedParts()), result.get(), frameToRemove);
+                create(converter.apply(result.get().convertedParts()), result.get(), frameToRemove,
+                        DefinitionBuilder.linkedMemories(document, ids));
                 return;
             }
         }
@@ -357,7 +359,7 @@ public final class TemplateActions {
      * ({@link ConvertedSelection#keptParts()}); everything else goes.
      */
     private void create(ConvertedSelection converted, ComponentForm.Result result,
-                        Optional<ElementId> frameToRemove) {
+                        Optional<ElementId> frameToRemove, List<Component> linkedMemories) {
         CircuitDocument document = openDocument.document();
         ComponentTypeRegistry registry = openDocument.registry();
         DefinitionBundle bundle = converted.definition(result.definitionId(), result.name(), result.pinOrder(),
@@ -388,6 +390,7 @@ public final class TemplateActions {
                 message = withSplitTunnels(message, Tunnels.namesSplitBy(document, converted.replacedIds()));
             }
         }
+        message = withDroppedLinks(message, linkedMemories);
         openDocument.execute(new CompositeCommand("command.createComponent", steps));
         if (instance != null) {
             canvas.get().selection().select(instance.id());
@@ -410,6 +413,21 @@ public final class TemplateActions {
         return message == null ? split : message + "\n" + split;
     }
 
+    /**
+     * {@code message} (null when there is none) followed by one line for each linked memory that went into a
+     * component: a definition has no folder for the link, so it keeps a copy of the words and loses the link.
+     */
+    private String withDroppedLinks(String message, List<Component> linkedMemories) {
+        String result = message;
+        for (Component memory : linkedMemories) {
+            String fileName = MemoryLinkPaths.linkedFile(memory, openDocument.path())
+                    .map(file -> String.valueOf(file.getFileName())).orElse("");
+            String dropped = Messages.format("template.memoryLinkDropped", fileName);
+            result = result == null ? dropped : result + "\n" + dropped;
+        }
+        return result;
+    }
+
     private void update(Set<ElementId> ids, ComponentForm.Result result) {
         CircuitDocument document = openDocument.document();
         if (nests(document, ids, result.definitionId())) {
@@ -424,8 +442,13 @@ public final class TemplateActions {
                     bundle.root());
             bundle = new DefinitionBundle(candidate.revisedFrom(previous.get()), bundle.dependencies());
         }
+        List<Component> linkedMemories = DefinitionBuilder.linkedMemories(document, ids);
         if (!replaceDefinition(bundle)) {
             return;
+        }
+        String droppedLinks = withDroppedLinks(null, linkedMemories);
+        if (droppedLinks != null) {
+            dialogs.showMessage(canvas.get(), droppedLinks);
         }
         if (service.library().find(bundle.root().id()).isPresent()) {
             saveToLibrary(bundle);

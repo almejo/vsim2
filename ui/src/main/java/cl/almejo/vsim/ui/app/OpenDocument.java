@@ -14,6 +14,7 @@ import cl.almejo.vsim.core.io.CircuitFormatException;
 import cl.almejo.vsim.core.io.CircuitReader;
 import cl.almejo.vsim.core.io.OpenedCircuit;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
+import cl.almejo.vsim.core.memory.MemoryContents;
 import cl.almejo.vsim.core.netlist.Netlist;
 import cl.almejo.vsim.core.netlist.NetlistCompiler;
 import cl.almejo.vsim.core.netlist.PinRef;
@@ -22,6 +23,8 @@ import cl.almejo.vsim.core.simulation.CircuitFlattener;
 import cl.almejo.vsim.core.simulation.ConnectivityProblem;
 import cl.almejo.vsim.core.simulation.FlatCircuit;
 import cl.almejo.vsim.core.simulation.InputAssignment;
+import cl.almejo.vsim.core.simulation.MemoryMapFrame;
+import cl.almejo.vsim.core.simulation.MemoryMapRequest;
 import cl.almejo.vsim.core.simulation.RequestReport;
 import cl.almejo.vsim.core.simulation.SimulationEngine;
 import cl.almejo.vsim.core.simulation.SimulationSnapshot;
@@ -30,6 +33,7 @@ import cl.almejo.vsim.core.simulation.StepReport;
 import cl.almejo.vsim.core.value.Value;
 import cl.almejo.vsim.core.waveform.WaveformSnapshot;
 import cl.almejo.vsim.ui.i18n.Messages;
+import cl.almejo.vsim.core.memory.MemoryLinkPaths;
 import cl.almejo.vsim.ui.waveform.ProbeNames;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -97,6 +101,8 @@ public final class OpenDocument implements AutoCloseable {
         this.registry.addResolver(SubcircuitTypes.resolverFor(document));
         this.path = path == null ? null : path.toAbsolutePath();
         this.importedFromVsim1 = importedFromVsim1;
+        // memory links are absolute while the circuit is open, relative to its folder in the file (Task 5)
+        MemoryLinkPaths.absoluteLinks(document, Optional.ofNullable(this.path));
         this.history = new History(document);
         this.compiler = new NetlistCompiler(this.registry);
         this.flattener = new CircuitFlattener(this.registry);
@@ -346,6 +352,22 @@ public final class OpenDocument implements AutoCloseable {
     }
 
     /**
+     * «Restaurar contenido inicial»: queues a request putting the RAM {@code componentId} back to its initial
+     * contents without restarting the rest of the simulation. Not a document change, no undo step.
+     */
+    public void restoreMemory(ElementId componentId) {
+        simulation.restoreMemory(componentId.value());
+    }
+
+    /**
+     * The words the memory {@code componentId} holds now in the simulation (for «Volcar» and the editor's live grid):
+     * completed on the simulation thread, empty when the engine has no such memory. Never wait for it on the EDT.
+     */
+    public CompletableFuture<Optional<MemoryContents>> requestMemoryContents(ElementId componentId) {
+        return simulation.requestMemoryContents(componentId.value());
+    }
+
+    /**
      * Sets switches or input pins of the live simulation, as clicks do (M6.1-C: a truth-table row tried in the
      * circuit): not a document change and no undo step; the saved initial values are untouched.
      */
@@ -412,6 +434,19 @@ public final class OpenDocument implements AutoCloseable {
     /** «Limpiar trazas»: drops the recorded events and keeps the channels. */
     public void clearWaveforms() {
         simulation.clearWaveforms();
+    }
+
+    /**
+     * What the «Mapa de memoria» shows (spec §6): {@link #latestMemoryMap()} answers this request from now on; empty
+     * stops the frames. One request per document: the last one set wins.
+     */
+    public void setMemoryMapRequest(Optional<MemoryMapRequest> request) {
+        simulation.setMemoryMapRequest(request);
+    }
+
+    /** The latest memory map frame (at most every 16 ms); safe to read from any thread. */
+    public Optional<MemoryMapFrame> latestMemoryMap() {
+        return simulation.latestMemoryMap();
     }
 
     /**
@@ -556,7 +591,12 @@ public final class OpenDocument implements AutoCloseable {
      * @throws IllegalStateException when the document cannot be written (an instance whose definition is missing)
      */
     public String serialized() {
-        return new CircuitFormat(registry).write(document);
+        return serializedFor(Optional.ofNullable(path));
+    }
+
+    /** The format v2 text of the document saved as {@code target}: memory links relative to its folder. */
+    private String serializedFor(Optional<Path> target) {
+        return new CircuitFormat(registry).write(document, MemoryLinkPaths.relativeLinks(target));
     }
 
     /**
@@ -564,13 +604,13 @@ public final class OpenDocument implements AutoCloseable {
      * reopened (an instance whose definition is missing) fails with an IOException before anything is written.
      */
     public void save(Path target) throws IOException {
+        Path absolute = target.toAbsolutePath();
         String content;
         try {
-            content = serialized();
+            content = serializedFor(Optional.of(absolute));
         } catch (IllegalStateException exception) {
             throw new IOException(exception.getMessage(), exception);
         }
-        Path absolute = target.toAbsolutePath();
         if (Files.exists(absolute) && !Files.isWritable(absolute)) {
             // M2 ruling: saving over a read-only file fails (with an error dialog), it does not replace it
             throw new AccessDeniedException(absolute.toString(), null, "the file is read-only");

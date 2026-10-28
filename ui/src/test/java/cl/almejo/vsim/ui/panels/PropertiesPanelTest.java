@@ -82,6 +82,37 @@ class PropertiesPanelTest {
     }
 
     @Test
+    void anExtensionsRowsComeAfterTheParametersUntilItTakesThemBack() {
+        Component gate = gate(0);
+        javax.swing.JLabel extra = new javax.swing.JLabel("extra");
+        Runnable remove = panel.addComponentRows((component, rows) -> rows.add("Más", extra));
+        selection.select(gate.id());
+        java.util.List<java.awt.Component> children = java.util.List.of(panel.getComponents());
+        assertThat(children).contains(extra);
+        assertThat(children.indexOf(extra)).isGreaterThan(children.indexOf(panel.textField()));
+
+        remove.run();
+        panel.refresh();
+        assertThat(panel.getComponents()).doesNotContain(extra);
+    }
+
+    @Test
+    void aRefreshWhileTypingKeepsWhatIsTypedAndAppliesNothing() {
+        Component gate = gate(0);
+        selection.select(gate.id());
+        long changes = openDocument.changeCount();
+        javax.swing.JTextField typing = panel.textField();
+        typing.setText("A1");
+        panel.typingProbe(() -> true);
+
+        panel.refresh();
+
+        assertThat(panel.textField()).isSameAs(typing);
+        assertThat(typing.getText()).isEqualTo("A1");
+        assertThat(openDocument.changeCount()).isEqualTo(changes);
+    }
+
+    @Test
     void nothingSelectedSaysSo() {
         assertThat(panel.heading()).isEqualTo("Sin selección");
         assertThat(panel.textField()).isNull();

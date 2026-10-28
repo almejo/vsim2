@@ -565,6 +565,21 @@ class CircuitCanvasTest {
     }
 
     @Test
+    void aFileDropTargetGetsTheGridPointWhereTheFilesCame() {
+        canvas.setSize(400, 300);
+        List<Path> dropped = new ArrayList<>();
+        List<GridPoint> points = new ArrayList<>();
+        canvas.setFileDropTarget((files, point) -> {
+            dropped.addAll(files);
+            points.add(point);
+        });
+        assertThat(canvas.getTransferHandler().importData(new TransferHandler.TransferSupport(canvas,
+                new FileListTransferable(List.of(new File("/tmp/a.vsim")))))).isTrue();
+        assertThat(dropped).containsExactly(Path.of("/tmp/a.vsim"));
+        assertThat(points).containsExactly(canvas.viewport().snap(200, 150));
+    }
+
+    @Test
     void dropOfForeignTextOrABrokenFragmentIsRefused() {
         assertThat(canvas.dropFragment("hello", new Point(10, 10))).isFalse();
         assertThat(canvas.dropFragment("{}", new Point(10, 10))).isFalse();

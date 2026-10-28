@@ -66,13 +66,13 @@ class ColorSchemesTest {
     }
 
     @Test
-    void theTwentyTwoRolesReadAndReplaceEachColorOfAScheme() {
-        assertThat(ColorRole.values()).hasSize(22);
+    void theTwentyFourRolesReadAndReplaceEachColorOfAScheme() {
+        assertThat(ColorRole.values()).hasSize(24);
         assertThat(ColorRole.values()).extracting(ColorRole::key).containsExactly("background", "grid", "gridLine",
                 "wireZero",
                 "wireOne", "wireHighImpedance", "wireConflict", "wireUnknown", "componentStroke", "componentFill",
                 "componentShade", "shadow", "text", "selection", "preview", "displayBackground", "segmentOn",
-                "segmentOff", "diagramBackground", "diagramGrid", "diagramTrace", "pad");
+                "segmentOff", "diagramBackground", "diagramGrid", "diagramTrace", "pad", "memoryRead", "memoryWrite");
         assertThat(ColorRole.scheme(role -> role.get(ColorSchemes.CSIM))).isEqualTo(ColorSchemes.CSIM);
         assertThat(ColorRole.scheme(role -> role.get(ColorSchemes.PLACA))).isEqualTo(ColorSchemes.PLACA);
         Color marker = new Color(1, 2, 3, 4);

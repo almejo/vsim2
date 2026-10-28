@@ -4,6 +4,7 @@ import cl.almejo.vsim.automation.read.ReadSource;
 import cl.almejo.vsim.automation.read.RegionPicture;
 import cl.almejo.vsim.automation.read.WindowPicture;
 import cl.almejo.vsim.core.geometry.Bounds;
+import cl.almejo.vsim.core.memory.MemoryContents;
 
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -42,5 +43,14 @@ public interface ReadHost {
      */
     default CompletableFuture<WindowPicture> pictureOfWindow(DocumentId document) {
         return CompletableFuture.failedFuture(new UnsupportedOperationException("this host paints no pictures"));
+    }
+
+    /**
+     * The words RAM or ROM {@code component} of circuit {@code document} holds in the running simulation, writes
+     * included, once the earlier requests ran; empty when the simulation has no such memory (stopped or not built
+     * yet). Called off the editor thread; completes off it.
+     */
+    default CompletableFuture<Optional<MemoryContents>> currentMemory(DocumentId document, String component) {
+        return CompletableFuture.completedFuture(Optional.empty());
     }
 }

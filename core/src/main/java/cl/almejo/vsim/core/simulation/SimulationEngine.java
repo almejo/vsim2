@@ -2,6 +2,7 @@ package cl.almejo.vsim.core.simulation;
 
 import cl.almejo.vsim.core.component.Behavior;
 import cl.almejo.vsim.core.component.VisibleState;
+import cl.almejo.vsim.core.component.standard.MemoryBehavior;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.value.Value;
 import cl.almejo.vsim.core.waveform.WaveformSnapshot;
@@ -277,6 +278,26 @@ public final class SimulationEngine {
             // Apply zero-delay effects now so a paused simulation shows a consistent picture.
             scheduler.runUntil(now());
         }
+    }
+
+    /**
+     * «Restaurar contenido inicial»: component {@code componentId} (a RAM) goes back to its initial contents
+     * ({@link Behavior#restoreInitialState}) and its zero-delay effects apply now; the rest of the circuit and the
+     * time go on. An unknown id or a component without contents changes nothing.
+     */
+    public void restoreInitialState(String componentId) {
+        ComponentInstance instance = instances.get(componentId);
+        if (instance != null) {
+            instance.behavior.restoreInitialState(instance);
+            scheduler.runUntil(now());
+        }
+    }
+
+    /** The memory simulated as {@code componentId} (flat id), empty when there is none or it is not a RAM or ROM. */
+    public Optional<MemoryBehavior> memory(String componentId) {
+        ComponentInstance instance = instances.get(componentId);
+        return instance != null && instance.behavior instanceof MemoryBehavior memory
+                ? Optional.of(memory) : Optional.empty();
     }
 
     /**

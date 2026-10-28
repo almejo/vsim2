@@ -216,6 +216,12 @@ final class EditTools {
                                 .required("name", "x", "y").build()))
                         .property("clear", Schema.bool("Back to the definition's shape (a definition: the box)"))
                         .build(),
+                operation("SetMemoryContents", "Writes hex words into the initial contents of a RAM or ROM from "
+                        + "firstAddress; all or nothing; a linked memory is the user's")
+                        .property("component", target("The RAM or ROM"))
+                        .property("firstAddress", Schema.integerFrom("", 0))
+                        .property("words", Schema.array("Hex, each within the width", Schema.string(""), 1, 4096))
+                        .required("component", "firstAddress", "words").build(),
                 operation("TidyWires", "«Ordenar cables» on the targets' wires (all wires when no targets)")
                         .property("targets", targets(""))
                         .build());
@@ -275,6 +281,8 @@ final class EditTools {
                     : Optional.empty(), operation.objects("pins").stream()
                     .map(pin -> new EditOperation.SetComponentShape.PinPosition(pin.string("name"),
                             pin.integer("x"), pin.integer("y"))).toList(), operation.bool("clear", false));
+            case "SetMemoryContents" -> new EditOperation.SetMemoryContents(operation.string("component"),
+                    operation.longValue("firstAddress"), operation.strings("words"));
             case "TidyWires" -> new EditOperation.TidyWires(operation.strings("targets"));
             default -> throw operation.invalid("op", "is not an operation VSim knows: " + kind);
         };

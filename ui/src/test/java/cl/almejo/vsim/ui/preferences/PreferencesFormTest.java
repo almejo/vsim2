@@ -64,6 +64,22 @@ class PreferencesFormTest {
     }
 
     @Test
+    void theExternalEditorCommandRoundTripsAndEmptyMeansTheSystems() {
+        preferences.setExternalEditor(Optional.of("gedit"));
+        PreferencesForm form = form();
+        assertThat(form.externalEditorField().getText()).isEqualTo("gedit");
+
+        form.externalEditorField().setText("  code --wait ");
+        form.externalEditorField().postActionEvent();
+        assertThat(preferences.externalEditor()).contains("code --wait");
+        assertThat(form().externalEditorField().getText()).isEqualTo("code --wait");
+
+        form.externalEditorField().setText(" ");
+        form.externalEditorField().postActionEvent();
+        assertThat(preferences.externalEditor()).isEmpty();
+    }
+
+    @Test
     void choicesAreNamedInSpanish() {
         PreferencesForm form = form();
         assertThat(labels(form.themeChoice())).containsExactly("Seguir sistema", "Claro", "Oscuro");

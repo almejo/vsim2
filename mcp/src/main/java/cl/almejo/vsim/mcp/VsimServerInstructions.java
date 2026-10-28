@@ -45,6 +45,8 @@ public final class VsimServerInstructions {
             to try the circuit is welcome.
             - A stage that makes a component later stages use: CreateComponent with replaceSelection false, then \
             PlaceInstance it. Never delete frames or parts the user did not ask you to remove.
+            - RAM and ROM: place and configure them like any part, write words with SetMemoryContents (hex) and \
+            read them with vsim_read_memory; linking, importing or dumping files is for the user: ask them.
 
             Presentar (the user watches how you build: a class, a video)
             - Read the mode with vsim_get_presentation. Ask for it (vsim_set_presentation presenting true) only when \

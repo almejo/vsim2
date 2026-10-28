@@ -43,7 +43,9 @@ public final class ColorSchemes {
             new Color(0x000000),          // segmentOff      (VSim "off")
             new Color(0xBDBDBD),          // diagramBackground (VSim "background")
             new Color(0xCCCCCC),          // diagramGrid     (VSim "grid")
-            new Color(0xFF0000));         // diagramTrace    (VSim "signal")
+            new Color(0xFF0000),         // diagramTrace    (VSim "signal")
+            new Color(0x1565C0),          // memoryRead     (the read light and row)
+            new Color(0xE65100));         // memoryWrite    (the write light and value)
 
     /** Today's scheme (M4-0). */
     public static final ColorScheme LIGHT = ColorScheme.LIGHT;
@@ -70,7 +72,9 @@ public final class ColorSchemes {
             new Color(255, 255, 255, 22), // segmentOff
             new Color(0x0D1117),          // diagramBackground
             new Color(255, 255, 255, 32), // diagramGrid
-            new Color(0x7CFC7C));         // diagramTrace
+            new Color(0x7CFC7C),         // diagramTrace
+            new Color(0x4FC3F7),          // memoryRead     (the read light and row)
+            new Color(0xFFA726));         // memoryWrite    (the write light and value)
 
     /** VSim's "pastel": gray board, black 0, coral 1, green Z, blue gates, orange labels. */
     public static final ColorScheme PASTEL = new ColorScheme(
@@ -94,7 +98,9 @@ public final class ColorSchemes {
             new Color(0x000000),          // segmentOff      (VSim "off")
             new Color(0xBDBDBD),          // diagramBackground (VSim "background")
             new Color(0xCCCCCC),          // diagramGrid     (VSim "grid")
-            new Color(0x990033));         // diagramTrace    (VSim "signal")
+            new Color(0x990033),         // diagramTrace    (VSim "signal")
+            new Color(0x1565C0),          // memoryRead     (the read light and row)
+            new Color(0xE65100));         // memoryWrite    (the write light and value)
 
     /** VSim's "csim": blue board, black 0, white 1, green Z, orange gates, yellow labels. */
     public static final ColorScheme CSIM = new ColorScheme(
@@ -118,7 +124,9 @@ public final class ColorSchemes {
             new Color(0x000000),          // segmentOff      (VSim "off")
             new Color(0x0033CC),          // diagramBackground (VSim "background")
             new Color(255, 255, 255, 40), // diagramGrid     (VSim's grid is the background color)
-            new Color(0xFF0000));         // diagramTrace    (VSim "signal")
+            new Color(0xFF0000),         // diagramTrace    (VSim "signal")
+            new Color(0x4FC3F7),          // memoryRead     (the read light and row)
+            new Color(0xFFA726));         // memoryWrite    (the write light and value)
 
     /** VSim's "Twilight": black board, gray 0, dark red 1, dark green Z, navy gates, blue labels. */
     public static final ColorScheme TWILIGHT = new ColorScheme(
@@ -142,7 +150,9 @@ public final class ColorSchemes {
             new Color(0x808080),          // segmentOff      (VSim "off")
             new Color(0x000000),          // diagramBackground (VSim "background")
             new Color(0x1C1C1C),          // diagramGrid     (VSim "grid")
-            new Color(0x990099));         // diagramTrace    (VSim "signal")
+            new Color(0x990099),         // diagramTrace    (VSim "signal")
+            new Color(0x4FC3F7),          // memoryRead     (the read light and row)
+            new Color(0xFFA726));         // memoryWrite    (the write light and value)
 
     /**
      * «Placa»: a printed circuit board. Green solder mask, copper traces at 0 and bright gold at 1, white silkscreen
@@ -173,7 +183,9 @@ public final class ColorSchemes {
             new Color(0x082E18),          // diagramBackground (a deeper green)
             new Color(255, 255, 255, 32), // diagramGrid
             new Color(0xFFD34D),          // diagramTrace    (the gold of a 1)
-            new Color(0xE0B04A));         // pad             (gold pads at the pins, 6.2:1 on the board)
+            new Color(0xE0B04A),         // pad             (gold pads at the pins, 6.2:1 on the board)
+            new Color(0x4FC3F7),          // memoryRead     (the read light and row)
+            new Color(0xFFA726));         // memoryWrite    (the write light and value)
 
     private ColorSchemes() {
     }

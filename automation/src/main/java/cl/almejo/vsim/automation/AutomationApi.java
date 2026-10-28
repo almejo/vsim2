@@ -7,6 +7,7 @@ import cl.almejo.vsim.automation.export.ExportRequest;
 import cl.almejo.vsim.automation.read.CatalogView;
 import cl.almejo.vsim.automation.read.CircuitView;
 import cl.almejo.vsim.automation.read.ComponentTypeView;
+import cl.almejo.vsim.automation.read.MemoryView;
 import cl.almejo.vsim.automation.read.ProblemsView;
 import cl.almejo.vsim.automation.read.ReadFilter;
 import cl.almejo.vsim.automation.read.Reads;
@@ -195,6 +196,15 @@ public final class AutomationApi {
 
     private static String summaryOf(StageCheck.Result result) {
         return String.join("; ", result.checks().stream().map(StageCheck.CheckResult::summary).toList());
+    }
+
+    /**
+     * {@code count} (at most 256) words of RAM or ROM {@code component}, from {@code firstAddress}: its initial
+     * contents or, {@code current}, the simulation's.
+     */
+    public MemoryView readMemory(DocumentId document, String component, boolean current, long firstAddress,
+                                 int count) {
+        return reads.readMemory(document, component, current, firstAddress, count);
     }
 
     // --- Simulation with budgets and receipts (IA.1 Task 4): see SimulationOperations ---

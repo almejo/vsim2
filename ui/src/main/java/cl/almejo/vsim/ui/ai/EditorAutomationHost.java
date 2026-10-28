@@ -21,6 +21,7 @@ import cl.almejo.vsim.automation.export.ExportReceipt;
 import cl.almejo.vsim.automation.export.ExportRequest;
 import cl.almejo.vsim.automation.EditorSetting;
 import cl.almejo.vsim.automation.ProposalAnswer;
+import cl.almejo.vsim.core.memory.MemoryContents;
 import cl.almejo.vsim.automation.ProposedPreference;
 import cl.almejo.vsim.automation.check.TextMeasure;
 import cl.almejo.vsim.automation.present.PresentationPace;
@@ -132,6 +133,11 @@ public final class EditorAutomationHost implements AutomationHost {
     @Override
     public CompletableFuture<PreparedTruthTable> prepareTruthTable(TruthTableRequest request) {
         return simulation.prepareTruthTable(request);
+    }
+
+    @Override
+    public CompletableFuture<Optional<MemoryContents>> currentMemory(DocumentId document, String component) {
+        return simulation.currentMemory(document, component);
     }
 
     /** {@code listener} runs (on the caller's thread) at every request until the returned runnable takes it back. */

@@ -29,6 +29,7 @@ import cl.almejo.vsim.ui.ai.present.PresentationExtension;
 import cl.almejo.vsim.ui.appearance.AppearanceExtension;
 import cl.almejo.vsim.ui.examples.ExamplesFeature;
 import cl.almejo.vsim.ui.export.ExportImageExtension;
+import cl.almejo.vsim.ui.memory.MemoryMapExtension;
 import cl.almejo.vsim.ui.print.ExportPdfExtension;
 import cl.almejo.vsim.ui.favorites.FavoritesExtension;
 import cl.almejo.vsim.ui.frames.FramesExtension;
@@ -49,6 +50,10 @@ import cl.almejo.vsim.ui.library.TemplatesExtension;
 import cl.almejo.vsim.ui.paint.Appearance;
 import cl.almejo.vsim.ui.paint.ColorScheme;
 import cl.almejo.vsim.ui.paint.PainterRegistry;
+import cl.almejo.vsim.ui.memory.MemoryEditorExtension;
+import cl.almejo.vsim.ui.memory.MemoryEditorLauncher;
+import cl.almejo.vsim.ui.memory.MemoryLinks;
+import cl.almejo.vsim.ui.memory.MemoryMapActions;
 import cl.almejo.vsim.ui.preferences.PreferencesFeature;
 import cl.almejo.vsim.ui.quickinsert.QuickInsertExtension;
 import cl.almejo.vsim.ui.recents.RecentComponentsExtension;
@@ -227,6 +232,10 @@ public final class Application {
         editorExtensions.add(new StickyNotesExtension());
         editorExtensions.add(new FramesExtension());
         editorExtensions.add(new StickyNotesTabExtension());
+        MemoryLinks memoryLinks = MemoryLinks.standard(); // one for every window (and one watcher per document)
+        MemoryEditorLauncher memoryLauncher = new MemoryEditorLauncher(memoryLinks);
+        // the «Mapa de memoria» tab after «Notas»: a click on a cell opens the content editor there
+        editorExtensions.add(new MemoryMapExtension(view -> MemoryMapActions.of(view, memoryLauncher)));
         editorExtensions.add(new WiresFollowExtension());
         editorExtensions.add(new GridExtension());
         editorExtensions.add(new SnapExtension());
@@ -240,6 +249,7 @@ public final class Application {
         editorExtensions.add(new QuickInsertExtension()); // its Insert key before the shortcuts extension
         editorExtensions.add(ai); // IA.1: last in Herramientas, before the shortcuts see its item
         editorExtensions.add(presentation); // IA.2: last in Ver and the toolbar, before the icons and shortcuts
+        editorExtensions.add(new MemoryEditorExtension(memoryLauncher, memoryLinks));
         editorExtensions.add(new ActionIcons());
         editorExtensions.add(new PreferencesFeature(ai.server()));
         editorExtensions.add(new RecentFilesFeature());

@@ -38,6 +38,8 @@ public final class BundledCircuits {
         builders.put("alu-4-bits", BusAndAluExamples::alu);
         builders.put("mini-alu", BlockExamples::miniAlu);
         builders.put("accumulator", BlockExamples::accumulator);
+        builders.put("rom-program", MemoryExamples::romProgram);
+        builders.put("ram-fill", MemoryExamples::ramFill);
         return builders;
     }
 

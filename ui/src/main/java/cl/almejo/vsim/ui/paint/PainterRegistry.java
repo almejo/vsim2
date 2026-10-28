@@ -68,6 +68,8 @@ public final class PainterRegistry {
                 .withLiveText(PainterRegistry::storedValueText));
         registry.register(StandardComponentTypes.COUNTER, new BlockPainter("CNT", BlockPainter.Body.RECTANGLE)
                 .withLiveText(PainterRegistry::storedValueText));
+        registry.register(StandardComponentTypes.RAM, new MemoryPainter());
+        registry.register(StandardComponentTypes.ROM, new MemoryPainter());
     }
 
     /**

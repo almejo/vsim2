@@ -111,6 +111,15 @@ final class ToolTestHost extends FakeAutomationHost {
         });
     }
 
+    /** What the simulation holds in every memory, set by the test; empty: the simulation has none. */
+    Optional<cl.almejo.vsim.core.memory.MemoryContents> currentMemory = Optional.empty();
+
+    @Override
+    public CompletableFuture<Optional<cl.almejo.vsim.core.memory.MemoryContents>> currentMemory(
+            DocumentId document, String component) {
+        return CompletableFuture.completedFuture(currentMemory);
+    }
+
     @Override
     public CompletableFuture<RegionPicture> pictureOf(DocumentId document, Optional<Bounds> region,
                                                       boolean asOnScreen) {

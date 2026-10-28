@@ -291,6 +291,42 @@ class ToolCallsTest {
     }
 
     @Test
+    void memoryWordsAreWrittenAndReadBackAndTheReadingOfTheCircuitStaysSmall() {
+        String task = beginTask();
+        call("vsim_edit", edit(task, 0, List.of(Map.of("op", "PlacePart", "alias", "memory", "typeId", "ram",
+                "x", 0, "y", 0, "parameters", Map.of("words", "16777216", "width", 64)))));
+        String memory = (String) list(call("vsim_read_circuit", Map.of("document", "circuit-1")), "parts")
+                .getFirst().get("id");
+
+        call("vsim_edit", edit(task, 1, List.of(Map.of("op", "SetMemoryContents", "component", memory,
+                "firstAddress", 4, "words", List.of("DEADBEEF", "0x1")))));
+
+        Map<String, Object> read = call("vsim_read_memory", Map.of("document", "circuit-1", "component", memory,
+                "firstAddress", 3, "count", 4));
+        assertThat((List<Object>) read.get("words")).isEqualTo(List.of("0000000000000000", "00000000DEADBEEF",
+                "0000000000000001", "0000000000000000"));
+        assertThat(read).containsEntry("totalWords", 16777216L).containsEntry("width", 64)
+                .containsEntry("linked", false).containsEntry("nonZeroWords", 2L);
+        assertThat(call("vsim_read_circuit", Map.of("document", "circuit-1")).toString().length()).isLessThan(2000);
+        assertThat(refusal("vsim_read_memory", Map.of("document", "circuit-1", "component", memory,
+                "source", "current"))).containsEntry("error", "NOT_ALLOWED");
+    }
+
+    @Test
+    void aMemoryWordWiderThanTheWidthIsRefusedAndNothingIsChanged() {
+        String task = beginTask();
+        call("vsim_edit", edit(task, 0, List.of(Map.of("op", "PlacePart", "alias", "memory", "typeId", "rom",
+                "x", 0, "y", 0, "parameters", Map.of("words", "16", "width", 4)))));
+        String memory = (String) list(call("vsim_read_circuit", Map.of("document", "circuit-1")), "parts")
+                .getFirst().get("id");
+
+        assertThat(refusal("vsim_edit", edit(task, 1, List.of(Map.of("op", "SetMemoryContents", "component", memory,
+                "firstAddress", 0, "words", List.of("1", "10")))))).containsEntry("error", "INVALID_PARAMETER");
+        assertThat((List<Object>) call("vsim_read_memory", Map.of("document", "circuit-1", "component", memory)).get("words"))
+                .containsOnly("0");
+    }
+
+    @Test
     void aShapeTemplateThatIsNotOneOfTheFormasIsRefusedAsAnInvalidParameter() {
         assertThat(refusal("vsim_edit", edit(beginTask(), 0, List.of(Map.of("op", "SetComponentShape",
                 "definition", "Inversor", "template", "HEXAGON"))))).containsEntry("error", "INVALID_PARAMETER");

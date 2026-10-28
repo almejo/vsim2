@@ -13,15 +13,24 @@ import java.util.Optional;
  * Colors of the circuit drawing, independent of the Swing theme. M4-D adds the other schemes; painters read the
  * scheme they are given on every paint and never cache colors. {@code pad} is the colour of the pin marks (the dot
  * of a 1-bit pin, the square of a bus pin); leads, outlines, wire junctions and open-pin rings stay
- * {@code componentStroke}.
+ * {@code componentStroke}. {@code memoryRead} and {@code memoryWrite} colour the activity of a RAM or ROM (its light,
+ * the row of the content window and the badge) for a read and for a write.
  */
 public record ColorScheme(Color background, Color grid, Color gridLine, Color wireZero, Color wireOne, Color wireHighImpedance,
                           Color wireConflict, Color wireUnknown, Color componentStroke, Color componentFill,
                           Color componentShade, Color shadow, Color text, Color selection, Color preview,
                           Color displayBackground, Color segmentOn, Color segmentOff,
-                          Color diagramBackground, Color diagramGrid, Color diagramTrace, Color pad) {
+                          Color diagramBackground, Color diagramGrid, Color diagramTrace, Color pad,
+                          Color memoryRead, Color memoryWrite) {
 
-    /** A scheme whose pins are drawn like its outlines ({@code pad = componentStroke}): every scheme but «Placa». */
+    /** The activity colours of a scheme that gives none: a blue for a read, an orange for a write (on a light fill). */
+    private static final Color DEFAULT_MEMORY_READ = new Color(0x1E88E5);
+    private static final Color DEFAULT_MEMORY_WRITE = new Color(0xF57C00);
+
+    /**
+     * A scheme whose pins are drawn like its outlines ({@code pad = componentStroke}) and whose memory activity has
+     * the default blue and orange: used by tests and by schemes that name only the older colours.
+     */
     public ColorScheme(Color background, Color grid, Color gridLine, Color wireZero, Color wireOne,
                        Color wireHighImpedance, Color wireConflict, Color wireUnknown, Color componentStroke,
                        Color componentFill, Color componentShade, Color shadow, Color text, Color selection,
@@ -29,7 +38,21 @@ public record ColorScheme(Color background, Color grid, Color gridLine, Color wi
                        Color diagramBackground, Color diagramGrid, Color diagramTrace) {
         this(background, grid, gridLine, wireZero, wireOne, wireHighImpedance, wireConflict, wireUnknown,
                 componentStroke, componentFill, componentShade, shadow, text, selection, preview, displayBackground,
-                segmentOn, segmentOff, diagramBackground, diagramGrid, diagramTrace, componentStroke);
+                segmentOn, segmentOff, diagramBackground, diagramGrid, diagramTrace, componentStroke,
+                DEFAULT_MEMORY_READ, DEFAULT_MEMORY_WRITE);
+    }
+
+    /** A scheme whose pins are drawn like its outlines ({@code pad = componentStroke}): every scheme but «Placa». */
+    public ColorScheme(Color background, Color grid, Color gridLine, Color wireZero, Color wireOne,
+                       Color wireHighImpedance, Color wireConflict, Color wireUnknown, Color componentStroke,
+                       Color componentFill, Color componentShade, Color shadow, Color text, Color selection,
+                       Color preview, Color displayBackground, Color segmentOn, Color segmentOff,
+                       Color diagramBackground, Color diagramGrid, Color diagramTrace, Color memoryRead,
+                       Color memoryWrite) {
+        this(background, grid, gridLine, wireZero, wireOne, wireHighImpedance, wireConflict, wireUnknown,
+                componentStroke, componentFill, componentShade, shadow, text, selection, preview, displayBackground,
+                segmentOn, segmentOff, diagramBackground, diagramGrid, diagramTrace, componentStroke, memoryRead,
+                memoryWrite);
     }
 
     public static final ColorScheme LIGHT = new ColorScheme(
@@ -53,7 +76,9 @@ public record ColorScheme(Color background, Color grid, Color gridLine, Color wi
             new Color(255, 255, 255, 28),
             new Color(0x22272E),
             new Color(255, 255, 255, 40),
-            new Color(0x3CC23C));
+            new Color(0x3CC23C),
+            DEFAULT_MEMORY_READ,
+            DEFAULT_MEMORY_WRITE);
 
     private static final int LIGHT_TINT_ALPHA = 40;
     private static final int DARK_TINT_ALPHA = 56;

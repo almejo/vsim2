@@ -89,8 +89,8 @@ public final class PalettePanel extends JPanel {
     }
 
     private static final List<ComponentCategory> ORDER = List.of(ComponentCategory.BASIC,
-            ComponentCategory.INPUT_OUTPUT, ComponentCategory.BLOCKS, ComponentCategory.DEBUG,
-            ComponentCategory.INTERFACE);
+            ComponentCategory.INPUT_OUTPUT, ComponentCategory.BLOCKS, ComponentCategory.MEMORY,
+            ComponentCategory.DEBUG, ComponentCategory.INTERFACE);
     static final int ICON_SIZE = 24;
     /** Width of a help tooltip before it wraps, in pixels. */
     private static final int HELP_WIDTH = 260;
