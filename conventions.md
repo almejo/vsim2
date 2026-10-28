@@ -117,8 +117,8 @@ We apply Clean Code (Robert C. Martin) to new code and to the code we modify (se
 
 ## 10. Commits and documentation
 
-- One logical change per commit; imperative English message; the `Co-Authored-By:` trailer of the model that wrote
-  it. Stage by path only (never `git add -A` / `git commit -a`); never commit the user's untracked circuits, scratch
+- One logical change per commit; imperative English message; authored as alejandro.vera@gmail.com, **no**
+  `Co-Authored-By:` trailer (agreed with the user 2026-10-22). Stage by path only (never `git add -A` / `git commit -a`); never commit the user's untracked circuits, scratch
   folders or `CLAUDE.md`. Push only with the user's explicit OK.
 - A user-visible feature updates three documents (all in Spanish) in the same work: its one-line entry in the
   README's «Funciones» list (under its area, linking to its section), its full detail in its area's file
