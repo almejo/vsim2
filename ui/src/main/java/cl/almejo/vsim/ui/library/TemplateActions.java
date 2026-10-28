@@ -1,7 +1,6 @@
 package cl.almejo.vsim.ui.library;
 
 import cl.almejo.vsim.core.command.AddElementsCommand;
-import cl.almejo.vsim.core.command.ChangeDefinitionDescriptionCommand;
 import cl.almejo.vsim.core.command.Command;
 import cl.almejo.vsim.core.command.CompositeCommand;
 import cl.almejo.vsim.core.command.PasteCommand;
@@ -367,8 +366,9 @@ public final class TemplateActions {
 
     /**
      * «Editar descripción…» of {@code instance}'s user component: the new text, stripped, is one undo step on the
-     * circuit's definition, and goes to the library file too when the library has the component (so the instance does
-     * not look outdated). Cancelling or keeping the same text changes nothing.
+     * circuit's definition and, when the library has the component, on its library file too
+     * ({@link EditDescriptionCommand}), so the instance does not look outdated, not even after Deshacer. Cancelling or
+     * keeping the same text changes nothing.
      */
     public void editDescription(Component instance) {
         CircuitDocument document = openDocument.document();
@@ -381,11 +381,8 @@ public final class TemplateActions {
         if (answer.isEmpty() || answer.get().strip().equals(definition.description())) {
             return;
         }
-        openDocument.execute(new ChangeDefinitionDescriptionCommand(definition.id(), answer.get().strip()));
-        if (service.library().find(definition.id()).isPresent()) {
-            ComponentDefinition edited = document.definition(definition.id()).orElseThrow();
-            saveToLibrary(new DefinitionBundle(edited, document.definitionsUsedBy(edited.body().components())));
-        }
+        openDocument.execute(new EditDescriptionCommand(definition.id(), answer.get().strip(),
+                service.library()::find, this::saveToLibrary));
     }
 
     /** The «Editar descripción…» button Propiedades shows under a user component's parameters. */

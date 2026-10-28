@@ -16,7 +16,8 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
   indefinidas, archivos enlazados), y el texto cambia con los parámetros (un AND negado muestra el NAND, la RAM «Sin
   reloj» lo explica). Se pliega con un clic y VSim lo recuerda; también aparece en «Configurar…».
 - Los componentes propios tienen descripción: se escribe al crearlos o actualizarlos («Descripción (opcional)») y
-  después con «Editar descripción…» en Propiedades, como un paso de deshacer.
+  después con «Editar descripción…» en Propiedades, como un paso de deshacer que también cambia (y al deshacer,
+  devuelve) el archivo de la librería.
 - La IA recibe la misma descripción en `vsim_describe_component`, y su ayuda (el recurso «ayuda») lista las nueve
   categorías de la paleta con sus piezas; el filtro por categoría de `vsim_describe_components` usa los nombres nuevos
   (gates, wiring, arithmetic, plexers, sequential, memory…).

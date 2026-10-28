@@ -3,7 +3,10 @@ package cl.almejo.vsim.ui.library;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
+import cl.almejo.vsim.core.io.LibraryDirectory;
 import cl.almejo.vsim.core.library.ComponentDefinition;
+import cl.almejo.vsim.core.library.DefinitionBundle;
+import cl.almejo.vsim.core.library.LibraryVersions;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.panels.PropertiesPanel;
 import org.junit.jupiter.api.AfterEach;
@@ -120,6 +123,53 @@ class ComponentDescriptionTest {
         fixture.openDocument.history().undo();
         assertThat(document.definition("negador")).get().extracting(ComponentDefinition::description)
                 .isEqualTo("");
+    }
+
+    @Test
+    void undoAndRedoOfADescriptionEditTakeTheLibraryFileAlongSoTheInstanceNeverLooksOutdated() throws Exception {
+        Component instance = createNegador("");
+        fixture.view.canvas().selection().select(instance.id());
+        fixture.dialogs.descriptions.add(Optional.of("Invierte la entrada."));
+        editButtons().get(0).doClick();
+
+        fixture.openDocument.history().undo();
+
+        assertThat(libraryDescription()).isEqualTo("");
+        assertThat(LibraryVersions.outdated(document.definitions(), fixture.library)).isEmpty();
+        assertThat(fileDescription()).isEqualTo("");
+
+        fixture.openDocument.history().redo();
+
+        assertThat(libraryDescription()).isEqualTo("Invierte la entrada.");
+        assertThat(LibraryVersions.outdated(document.definitions(), fixture.library)).isEmpty();
+        assertThat(fileDescription()).isEqualTo("Invierte la entrada.");
+    }
+
+    @Test
+    void undoLeavesTheLibraryAloneWhenSomethingElseChangedItMeanwhile() throws Exception {
+        Component instance = createNegador("");
+        fixture.view.canvas().selection().select(instance.id());
+        fixture.dialogs.descriptions.add(Optional.of("Invierte la entrada."));
+        editButtons().get(0).doClick();
+        DefinitionBundle edited = fixture.library.find("negador").orElseThrow();
+        DefinitionBundle elsewhere = new DefinitionBundle(edited.root().withDescription("Escrita en otro circuito."),
+                edited.dependencies());
+        fixture.features.actions().saveToLibrary(elsewhere);
+
+        fixture.openDocument.history().undo();
+
+        assertThat(libraryDescription()).isEqualTo("Escrita en otro circuito.");
+    }
+
+    private String libraryDescription() {
+        return fixture.library.find("negador").orElseThrow().root().description();
+    }
+
+    /** The description in the file on disk, read back as a fresh library would. */
+    private String fileDescription() throws Exception {
+        return new LibraryDirectory(directory.resolve("library"), StandardComponentTypes.registry()).load().bundles()
+                .stream().filter(bundle -> bundle.root().id().equals("negador")).findFirst().orElseThrow().root()
+                .description();
     }
 
     @Test

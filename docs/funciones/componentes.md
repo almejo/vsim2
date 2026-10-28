@@ -21,7 +21,8 @@ Parte de las [funciones de VSim 2](../funciones.md).
 - Al pasar el mouse sobre una pieza de la paleta, el globo muestra el primer párrafo de su descripción.
 - Los componentes propios muestran su propia descripción: se escribe en «Descripción (opcional)» al crear o actualizar
   el componente, y después con el botón «Editar descripción…» de Propiedades (un paso de deshacer; si el componente
-  está en la librería, su archivo se actualiza también). Sin descripción, el recuadro no aparece.
+  está en la librería, su archivo se actualiza también, y Deshacer y Rehacer lo llevan consigo, así que la pieza no
+  aparece como desactualizada). Sin descripción, el recuadro no aparece.
 - La IA lee el mismo texto: `vsim_describe_component` devuelve la descripción de la pieza con los parámetros pedidos
   (o la del componente propio), en el idioma del editor.
 
