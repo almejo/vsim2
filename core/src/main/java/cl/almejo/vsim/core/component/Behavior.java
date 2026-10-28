@@ -2,6 +2,8 @@ package cl.almejo.vsim.core.component;
 
 import cl.almejo.vsim.core.value.Value;
 
+import java.util.Map;
+
 /** Simulation logic of one component instance. Called only from the simulation thread. */
 public interface Behavior {
 
@@ -38,6 +40,14 @@ public interface Behavior {
      */
     default boolean setValue(BehaviorContext context, Value value) {
         return false;
+    }
+
+    /**
+     * The {@linkplain ParameterSpec#liveValue() live value} of the component changed to the one {@code parameters}
+     * (resolved) give, while it keeps running: an input drives it now, unless it drives it already (the click that
+     * the edit records reached the simulation first). Only called on behaviours of types with a live-value parameter.
+     */
+    default void takeLiveValue(BehaviorContext context, Map<String, Object> parameters) {
     }
 
     /**

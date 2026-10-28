@@ -82,7 +82,8 @@ final class SimulationTools {
                         + "give the circuit time between values (a latch, a counter driven by hand), pause, set, "
                         + "vsim_step by a DURATION, then set the next values in another call. All are "
                         + "checked first: one that cannot be set refuses the whole call (INPUT_REJECTED, nothing "
-                        + "set). The receipt says what each one did. Idempotent by operationId.",
+                        + "set). A switch keeps it as its value, like a click (one undo step per call). The receipt "
+                        + "says what each one did. Idempotent by operationId.",
                 Schema.object("")
                         .property("document", Common.document())
                         .property("version", Common.version())

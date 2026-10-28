@@ -27,6 +27,8 @@ public final class History {
     private Command savedTop;
     /** The command the last {@link #execute} left on top; null after an undo, a redo or a clear, so a run never resumes. */
     private Command lastExecuted;
+    /** The command the last notification applied, reverted or merged; null after a save, a clear or markUnsaved. */
+    private Command lastChange;
 
     public History(CircuitDocument document) {
         this(document, DEFAULT_LIMIT);
@@ -56,6 +58,7 @@ public final class History {
         }
         command.apply(document);
         lastExecuted = command;
+        lastChange = command;
         undoStack.push(command);
         if (redoStack.contains(savedTop)) {
             savedTop = UNREACHABLE;
@@ -103,6 +106,7 @@ public final class History {
             return false;
         }
         undoStack.pop();
+        lastChange = dropRun ? top : replacement;
         if (dropRun) {
             lastExecuted = null;
         } else {
@@ -135,6 +139,7 @@ public final class History {
         lastExecuted = null;
         Command command = undoStack.peek();
         command.revert(document);
+        lastChange = command;
         undoStack.pop();
         redoStack.push(command);
         notifyListeners();
@@ -147,6 +152,7 @@ public final class History {
         lastExecuted = null;
         Command command = redoStack.peek();
         command.apply(document);
+        lastChange = command;
         redoStack.pop();
         undoStack.push(command);
         notifyListeners();
@@ -176,6 +182,15 @@ public final class History {
         return Optional.ofNullable(lastExecuted);
     }
 
+    /**
+     * The command the last history notification applied, reverted or merged (the merged one after a merged run, the
+     * run's top when the run was dropped); empty when that notification was a save, a clear or {@link #markUnsaved}.
+     * Lets a listener tell what kind of change it is told about (a switch's value, {@link SetSwitchValueCommand}).
+     */
+    public Optional<Command> lastChange() {
+        return Optional.ofNullable(lastChange);
+    }
+
     public Optional<String> undoDescription() {
         return Optional.ofNullable(undoStack.peek()).map(Command::description);
     }
@@ -186,6 +201,7 @@ public final class History {
 
     public void markSaved() {
         savedTop = undoStack.peek();
+        lastChange = null;
         notifyListeners();
     }
 
@@ -195,6 +211,7 @@ public final class History {
      */
     public void markUnsaved() {
         savedTop = UNREACHABLE;
+        lastChange = null;
         notifyListeners();
     }
 
@@ -207,6 +224,7 @@ public final class History {
         redoStack.clear();
         savedTop = null;
         lastExecuted = null;
+        lastChange = null;
         notifyListeners();
     }
 

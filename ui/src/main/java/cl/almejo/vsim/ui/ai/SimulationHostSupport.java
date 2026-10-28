@@ -14,7 +14,9 @@ import cl.almejo.vsim.automation.simulate.TruthTableRequest;
 import cl.almejo.vsim.automation.simulate.ValueText;
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.PinSpec;
+import cl.almejo.vsim.core.command.SetSwitchValueCommand;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
+import cl.almejo.vsim.core.component.standard.SwitchValues;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.memory.MemoryContents;
@@ -45,6 +47,8 @@ final class SimulationHostSupport {
 
     private static final Set<String> INPUT_TYPES = Set.of(StandardComponentTypes.SWITCH,
             StandardComponentTypes.INPUT_PIN);
+    /** The undo menu says «Deshacer valores puestos por la IA». */
+    static final String AI_SWITCH_VALUES = "command.aiSwitchValues";
 
     /** A request handed to the simulation thread, with what the receipt needs to be written. */
     private record Started(CompletableFuture<RequestReport> report, int eventBudget, List<InputValue> asked,
@@ -154,8 +158,11 @@ final class SimulationHostSupport {
                             + setInputs.version().value() + "; read it again",
                             Map.of("currentVersion", version.value()));
                 }
-                yield new Started(document.setInputsWithin(assignments(document, setInputs.values()),
-                        setInputs.eventBudget()), setInputs.eventBudget(), setInputs.values(), List.of());
+                List<InputAssignment> assignments = assignments(document, setInputs.values());
+                CompletableFuture<RequestReport> report = document.setInputsWithin(assignments,
+                        setInputs.eventBudget());
+                recordSwitchValues(document, assignments);
+                yield new Started(report, setInputs.eventBudget(), setInputs.values(), List.of());
             }
             case SimulationRequest.Step step -> new Started(switch (step.kind()) {
                 case NEXT_EVENT -> document.advanceToNextEventWithin((int) step.amount(), step.eventBudget());
@@ -202,6 +209,29 @@ final class SimulationHostSupport {
                     + (problems.size() == 1 ? " value was" : " values were") + " refused", Map.of("inputs", problems));
         }
         return assignments;
+    }
+
+    /**
+     * The switches among {@code assignments} keep their new value in «Valor», as a click does (decided 2026-10-28),
+     * all in one undo step for the call. Queued after the simulation request, so its recompile finds the values
+     * driven. Input pins stay as they were: a value set on one is the simulation's only.
+     */
+    private static void recordSwitchValues(OpenDocument document, List<InputAssignment> assignments) {
+        Map<ElementId, String> values = new LinkedHashMap<>();
+        for (InputAssignment assignment : assignments) {
+            ElementId id = new ElementId(assignment.componentId());
+            Component component = document.document().component(id).orElseThrow();
+            if (!component.typeId().equals(StandardComponentTypes.SWITCH)) {
+                continue;
+            }
+            Map<String, Object> parameters = typeOf(document, component).resolveParameters(component.parameters());
+            SwitchValues.textFor(assignment.value(), parameters)
+                    .filter(text -> !text.equals(parameters.get(StandardComponentTypes.VALUE)))
+                    .ifPresentOrElse(text -> values.put(id, text), () -> values.remove(id));
+        }
+        if (!values.isEmpty()) {
+            document.execute(SetSwitchValueCommand.of(values, AI_SWITCH_VALUES));
+        }
     }
 
     private static Map<String, Object> problem(InputValue value, String reason) {

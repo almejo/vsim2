@@ -15,7 +15,7 @@ import static cl.almejo.vsim.ui.UiTestSupport.place;
 import static cl.almejo.vsim.ui.UiTestSupport.waitUntil;
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** A click on a bit of a multi-bit Switch toggles that bit: an input event, never an edit. */
+/** A click on a bit of a multi-bit Switch toggles that bit, and «Valor» with it (one undo step for a run). */
 class MultiBitSwitchClickTest {
 
     private final TestToolContext context = TestToolContext.withNewDocument();
@@ -71,16 +71,20 @@ class MultiBitSwitchClickTest {
     }
 
     @Test
-    void aBitClickIsNotAnEditAndLeavesTheHistoryAlone() {
+    void aBitClickChangesTheValueAsOneUndoStep() {
         Component lever = fourBitSwitch();
-        String undoBefore = context.openDocument().history().undoDescription().toString();
-        boolean modifiedBefore = context.openDocument().isModified();
+        context.openDocument().history().markSaved();
 
         clickBit(1);
-        expectValue(lever, 0b1000);
+        clickBit(0);
+        expectValue(lever, 0b1001);
 
-        assertThat(context.openDocument().history().undoDescription().toString()).isEqualTo(undoBefore);
-        assertThat(context.openDocument().isModified()).isEqualTo(modifiedBefore);
+        assertThat(context.openDocument().document().component(lever.id()).orElseThrow().parameters()
+                .get(StandardComponentTypes.VALUE)).isEqualTo("0b1001");
+        assertThat(context.openDocument().isModified()).isTrue();
+        context.openDocument().history().undo();
+        assertThat(context.openDocument().isModified()).isFalse();
+        expectValue(lever, 0b1010);
     }
 
     @Test

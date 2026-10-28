@@ -91,7 +91,8 @@ public final class StandardComponentTypes {
     public static final String DISPLAY_BUS_PIN = "bus";
     /** The parameter that sets a bus component's width in bits. */
     public static final String WIDTH = "width";
-    private static final String VALUE = "value";
+    /** A Switch's «Valor»: what it drives; a click on the switch changes it (see {@link SwitchValues}). */
+    public static final String VALUE = "value";
 
     private static final GridSize GATE_SIZE = new GridSize(4, 4);
     /** The gate body's width; its height grows from 4 to 6 and 8 with the inputs. */
@@ -172,7 +173,7 @@ public final class StandardComponentTypes {
                         MultiBitLayout.sideParameter(MultiBitLayout.RIGHT),
                         ParameterSpec.choice(SIGNEDNESS, SIGNEDNESS_UNSIGNED,
                                 List.of(SIGNEDNESS_UNSIGNED, SIGNEDNESS_SIGNED)),
-                        ParameterSpec.text(VALUE, "1", SwitchBehavior::normalizeValue)),
+                        ParameterSpec.text(VALUE, "1", SwitchBehavior::normalizeValue).asLiveValue()),
                 parameters -> switchShape((Integer) parameters.get(WIDTH), (String) parameters.get(MultiBitLayout.SIDE)),
                 StandardComponentTypes::checkSwitch,
                 parameters -> new SwitchBehavior(SwitchBehavior.parseNumber((String) parameters.get(VALUE),

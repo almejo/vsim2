@@ -221,7 +221,7 @@ public final class LabelActions {
     /**
      * M7: types the value of a bus input pin in place, over its value box, starting from the live value in the pin's
      * «Mostrar como». Only a value that fits the pin's width (as it is at each keystroke) can be confirmed; it goes to
-     * the simulation like a click on a switch (no document change, no undo step).
+     * the simulation only (no document change, no undo step), unlike a click on a switch.
      */
     public void editInputValue(Component pin) {
         editInputValue(pin, null);

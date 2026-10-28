@@ -38,11 +38,20 @@ class LiveInputsTest {
     void theRowFollowsTheValuesOfTheInputNetsOfTheSameCircuit() {
         LiveInputs live = new LiveInputs(List.of("n1", "n2"), 7);
 
-        assertThat(live.rowIn(table, snapshot(7, Map.of("n1", Value.ONE, "n2", Value.ZERO)))).hasValue(2);
-        assertThat(live.rowIn(table, snapshot(7, Map.of("n1", Value.ZERO, "n2", Value.ONE)))).hasValue(1);
-        assertThat(live.rowIn(table, snapshot(7, Map.of("n1", Value.ONE)))).as("n2 has no value: Z").isEmpty();
-        assertThat(live.rowIn(table, snapshot(8, Map.of("n1", Value.ONE, "n2", Value.ONE))))
+        assertThat(live.rowIn(table, snapshot(7, Map.of("n1", Value.ONE, "n2", Value.ZERO)), 7)).hasValue(2);
+        assertThat(live.rowIn(table, snapshot(7, Map.of("n1", Value.ZERO, "n2", Value.ONE)), 7)).hasValue(1);
+        assertThat(live.rowIn(table, snapshot(7, Map.of("n1", Value.ONE)), 7)).as("n2 has no value: Z").isEmpty();
+        assertThat(live.rowIn(table, snapshot(8, Map.of("n1", Value.ONE, "n2", Value.ONE)), 8))
                 .as("the circuit changed since the table was computed").isEmpty();
+        assertThat(live.rowIn(table, snapshot(6, Map.of("n1", Value.ONE, "n2", Value.ONE)), 7))
+                .as("a snapshot of the circuit before").isEmpty();
+    }
+
+    @Test
+    void clickedSwitchesKeepTheCircuitOfTheTable() {
+        LiveInputs live = new LiveInputs(List.of("n1", "n2"), 7);
+
+        assertThat(live.rowIn(table, snapshot(9, Map.of("n1", Value.ONE, "n2", Value.ONE)), 7)).hasValue(3);
     }
 
     @Test
