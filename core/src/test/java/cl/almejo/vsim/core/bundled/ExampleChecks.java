@@ -379,13 +379,17 @@ public final class ExampleChecks {
                 height + 2 * TEXT_MARGIN);
     }
 
+    /** The widest line of the text (a note may have several lines). */
     private static double textWidth(String text) {
-        return text.isEmpty() ? 0 : FONT.getStringBounds(text, RENDER_CONTEXT).getWidth() / PIXELS_PER_UNIT;
+        return text.lines().mapToDouble(line -> line.isEmpty() ? 0
+                : FONT.getStringBounds(line, RENDER_CONTEXT).getWidth() / PIXELS_PER_UNIT).max().orElse(0);
     }
 
+    /** One line's height times the number of lines of the text. */
     private static double textHeight(String text) {
-        LineMetrics metrics = FONT.getLineMetrics(text.isEmpty() ? " " : text, RENDER_CONTEXT);
-        return (metrics.getAscent() + metrics.getDescent()) / PIXELS_PER_UNIT;
+        LineMetrics metrics = FONT.getLineMetrics(" ", RENDER_CONTEXT);
+        long lines = Math.max(1, text.lines().count());
+        return lines * (metrics.getAscent() + metrics.getDescent()) / PIXELS_PER_UNIT;
     }
 
     private static PinSpec spec(CircuitDocument document, ComponentTypeRegistry registry, PinRef pin) {

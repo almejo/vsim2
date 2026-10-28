@@ -65,6 +65,9 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 
 ### Cambiado
 
+- El ejemplo «Elementos modulares» se rehizo igual que la lámina de la clase: los bloques «Registro» y «Multiplexor»,
+  y «Ejemplo: contar los bits en 1» con sus dos lazos (x y la cuenta), el bit 0 de x por un separador de bus, el LED
+  «ready», la salida «nº bits en 1» y la función en C como nota. Solo «start» y «reloj» van por túneles.
 - La paleta se reorganiza en nueve categorías que sigue un curso: Compuertas, Cableado, Aritmética, Multiplexores,
   Secuenciales, Memoria, Entrada/Salida, Depuración y Mis componentes. Desaparecen «Básicas», «Bloques» y «Pines de
   componente» (los pines de entrada y de salida pasan a Entrada/Salida). Los circuitos, favoritos y recientes de antes
