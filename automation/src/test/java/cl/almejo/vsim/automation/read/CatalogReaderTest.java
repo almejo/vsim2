@@ -4,8 +4,13 @@ import cl.almejo.vsim.automation.AutomationError;
 import cl.almejo.vsim.automation.AutomationException;
 import cl.almejo.vsim.automation.read.ComponentTypeView.ParameterView;
 import cl.almejo.vsim.automation.read.ComponentTypeView.PinSpecView;
+import cl.almejo.vsim.core.component.ComponentCategory;
+import cl.almejo.vsim.core.component.ComponentType;
+import cl.almejo.vsim.core.component.ParameterSpec;
+import cl.almejo.vsim.core.component.PinSpec;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.geometry.GridPoint;
+import cl.almejo.vsim.core.geometry.GridSize;
 import cl.almejo.vsim.core.library.DefinitionBundle;
 import cl.almejo.vsim.core.library.ExampleDefinitions;
 import cl.almejo.vsim.core.library.SubcircuitTypes;
@@ -135,5 +140,19 @@ class CatalogReaderTest {
 
     private static ComponentTypeView type(CatalogView catalog, String typeId) {
         return catalog.types().stream().filter(type -> type.typeId().equals(typeId)).findFirst().orElseThrow();
+    }
+
+    @Test
+    void aBooleanParameterIsExportedAsKindBooleanWithoutARange() {
+        fixture.registry.register(new ComponentType("test-flagged", ComponentCategory.BASIC, new GridSize(2, 2),
+                List.of(PinSpec.output("out", 2, 1)), List.of(ParameterSpec.bool("negate", false)),
+                parameters -> (context, pinIndex) -> {
+                }));
+
+        ComponentTypeView flagged = CatalogReader.describe(fixture.source(), "test-flagged", Map.of("negate", "TRUE"));
+
+        assertThat(flagged.parameters()).containsExactly(
+                new ParameterView("negate", "BOOLEAN", false, null, null, List.of(), false));
+        assertThat(flagged.parameterValues()).containsEntry("negate", true);
     }
 }

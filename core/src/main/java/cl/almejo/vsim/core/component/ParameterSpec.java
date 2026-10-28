@@ -56,6 +56,11 @@ public record ParameterSpec(String name, ParameterKind kind, Object defaultValue
         return new ParameterSpec(name, ParameterKind.CHOICE, defaultValue, 0, 0, choices);
     }
 
+    /** An on/off parameter, shown as a check box; stored as a {@link Boolean}. */
+    public static ParameterSpec bool(String name, boolean defaultValue) {
+        return new ParameterSpec(name, ParameterKind.BOOLEAN, defaultValue, 0, 0, List.of());
+    }
+
     /**
      * A choice among colour names, shown as swatches. The names are plain values (core knows no colours); the UI
      * paints each one, so a new colour parameter gets the swatch editor once its names are in the UI's colour list
@@ -83,6 +88,7 @@ public record ParameterSpec(String name, ParameterKind kind, Object defaultValue
         Objects.requireNonNull(raw, () -> "parameter " + name + " must not be null");
         return switch (kind) {
             case INTEGER -> normalizeInteger(raw);
+            case BOOLEAN -> normalizeBoolean(raw);
             case TEXT -> textNormalizer == null ? raw.toString() : textNormalizer.apply(raw.toString());
             case CHOICE, COLOR -> {
                 String text = raw.toString();
@@ -92,6 +98,16 @@ public record ParameterSpec(String name, ParameterKind kind, Object defaultValue
                 yield text;
             }
         };
+    }
+
+    private Boolean normalizeBoolean(Object raw) {
+        if (raw instanceof Boolean flag) {
+            return flag;
+        }
+        if (raw instanceof String text && (text.equalsIgnoreCase("true") || text.equalsIgnoreCase("false"))) {
+            return Boolean.parseBoolean(text);
+        }
+        throw new IllegalArgumentException("parameter " + name + " must be true or false: " + raw);
     }
 
     private Integer normalizeInteger(Object raw) {

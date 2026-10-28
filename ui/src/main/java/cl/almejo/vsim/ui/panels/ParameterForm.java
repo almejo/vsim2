@@ -14,6 +14,7 @@ import cl.almejo.vsim.ui.tunnel.TunnelColorSwatches;
 import net.miginfocom.swing.MigLayout;
 
 import javax.swing.DefaultListCellRenderer;
+import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import javax.swing.JFormattedTextField;
@@ -219,6 +220,7 @@ public final class ParameterForm extends JPanel {
                     field.addFocusListener(onFocusLost);
                 }
                 case JComboBox<?> box -> box.addActionListener(event -> listener.run());
+                case JCheckBox checkBox -> checkBox.addActionListener(event -> listener.run());
                 case ColorSwatches<?> swatches -> swatches.addChoiceListener(listener);
                 default -> throw new IllegalStateException("unexpected editor " + editor.getClass());
             }
@@ -247,6 +249,7 @@ public final class ParameterForm extends JPanel {
                 FragmentRefusingTransferHandler.install(spinnerField(spinner));
                 yield spinner;
             }
+            case BOOLEAN -> new JCheckBox("", (Boolean) value);
             case TEXT -> FragmentRefusingTransferHandler.install(new JTextField(value.toString(), 16));
             case CHOICE -> {
                 JComboBox<String> box = new JComboBox<>(parameter.choices().toArray(String[]::new));
@@ -281,6 +284,7 @@ public final class ParameterForm extends JPanel {
             }
             case JTextField field -> field.getText();
             case JComboBox<?> box -> box.getSelectedItem();
+            case JCheckBox checkBox -> checkBox.isSelected();
             case ColorSwatches<?> swatches -> swatches.selectedValue();
             default -> throw new IllegalStateException("unexpected editor " + editor.getClass());
         };

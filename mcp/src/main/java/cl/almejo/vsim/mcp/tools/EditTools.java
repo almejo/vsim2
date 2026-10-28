@@ -99,7 +99,7 @@ final class EditTools {
     }
 
     private static Map<String, Object> operations() {
-        Map<String, Object> parameters = Schema.mapOf("Parameter values by name (a number or a text)",
+        Map<String, Object> parameters = Schema.mapOf("Parameter values by name (a number, a text or true/false)",
                 Schema.anyValue(""));
         List<Map<String, Object>> kinds = List.of(
                 operation("PlacePart", "Places a part of typeId with its origin at (x, y)")

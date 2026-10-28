@@ -25,6 +25,10 @@ import cl.almejo.vsim.automation.edit.EditOperation.SetParameters;
 import cl.almejo.vsim.automation.edit.EditOperation.SetStickyItem;
 import cl.almejo.vsim.automation.edit.EditOperation.TidyWires;
 import cl.almejo.vsim.core.command.MoveElementsCommand;
+import cl.almejo.vsim.core.component.ComponentCategory;
+import cl.almejo.vsim.core.component.ComponentType;
+import cl.almejo.vsim.core.component.ParameterSpec;
+import cl.almejo.vsim.core.component.PinSpec;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
 import cl.almejo.vsim.core.document.ElementId;
@@ -40,6 +44,7 @@ import cl.almejo.vsim.core.document.StickyNote;
 import cl.almejo.vsim.core.document.StickyText;
 import cl.almejo.vsim.core.document.TextLabel;
 import cl.almejo.vsim.core.geometry.GridPoint;
+import cl.almejo.vsim.core.geometry.GridSize;
 import cl.almejo.vsim.core.geometry.Rotation;
 import cl.almejo.vsim.core.library.ComponentDefinition;
 import cl.almejo.vsim.core.library.DefinitionBundle;
@@ -141,6 +146,23 @@ class EditServiceTest {
                 "")), AutomationError.INVALID_PARAMETER);
         assertRefused(request(place("x", "warp-drive", 0, 0)), AutomationError.INVALID_REFERENCE);
         assertNothingChanged();
+    }
+
+    @Test
+    void aBooleanParameterIsSetFromAJsonBooleanOrItsTextAndARefusedValueChangesNothing() {
+        circuit.registry().register(new ComponentType("test-flagged", ComponentCategory.BASIC, new GridSize(2, 2),
+                List.of(PinSpec.output("out", 2, 1)), List.of(ParameterSpec.bool("negate", false)),
+                parameters -> (context, pinIndex) -> {
+                }));
+        service.edit(request(place("part", "test-flagged", 0, 0)));
+
+        service.edit(request(new SetParameters("c1", Map.of("negate", true))));
+        assertThat(circuit.document().components().getFirst().parameters()).containsEntry("negate", true);
+        service.edit(request(new SetParameters("c1", Map.of("negate", "FALSE"))));
+        assertThat(circuit.document().components().getFirst().parameters()).containsEntry("negate", false);
+
+        assertRefused(request(new SetParameters("c1", Map.of("negate", "maybe"))), AutomationError.INVALID_PARAMETER);
+        assertThat(circuit.document().components().getFirst().parameters()).containsEntry("negate", false);
     }
 
     @Test

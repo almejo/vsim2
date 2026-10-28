@@ -1,14 +1,19 @@
 package cl.almejo.vsim.ui.panels;
 
+import cl.almejo.vsim.core.component.ComponentCategory;
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.ParameterKind;
 import cl.almejo.vsim.core.component.ParameterSpec;
+import cl.almejo.vsim.core.component.PinSpec;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
+import cl.almejo.vsim.core.geometry.GridSize;
 import cl.almejo.vsim.core.memory.MemoryContents;
 import cl.almejo.vsim.ui.i18n.Messages;
 import cl.almejo.vsim.ui.paint.ColorSchemes;
 import cl.almejo.vsim.ui.paint.LedPainter;
+import java.util.List;
+import javax.swing.JCheckBox;
 import org.junit.jupiter.api.Test;
 
 import javax.swing.JComboBox;
@@ -244,5 +249,35 @@ class ParameterFormTest {
         ((JComboBox<?>) form.editor("words")).setSelectedIndex(0);
         assertThat(form.hasChanges()).isTrue();
         assertThat(form.rawValues().get("contents")).isEqualTo(contents);
+    }
+
+    private static ComponentType flaggedType() {
+        return new ComponentType("test-flagged", ComponentCategory.BASIC, new GridSize(2, 2),
+                List.of(PinSpec.output("out", 2, 1)), List.of(ParameterSpec.bool("negate", false)),
+                parameters -> (context, pinIndex) -> {
+                });
+    }
+
+    @Test
+    void aBooleanParameterIsACheckBoxHoldingTheCurrentValue() {
+        ParameterForm unchecked = new ParameterForm(flaggedType(), Map.of());
+        ParameterForm checked = new ParameterForm(flaggedType(), Map.of("negate", true));
+
+        assertThat(((JCheckBox) unchecked.editor("negate")).isSelected()).isFalse();
+        assertThat(((JCheckBox) checked.editor("negate")).isSelected()).isTrue();
+        assertThat(unchecked.validationError()).isEmpty();
+    }
+
+    @Test
+    void togglingTheCheckBoxCommitsOnceAndReportsTheBoolean() {
+        ParameterForm form = new ParameterForm(flaggedType(), Map.of());
+        AtomicInteger commits = new AtomicInteger();
+        form.addCommitListener(commits::incrementAndGet);
+
+        ((JCheckBox) form.editor("negate")).doClick();
+
+        assertThat(commits).hasValue(1);
+        assertThat(form.rawValues()).containsEntry("negate", Boolean.TRUE);
+        assertThat(form.hasChanges()).isTrue();
     }
 }
