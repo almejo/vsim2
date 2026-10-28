@@ -48,6 +48,11 @@ public final class StandardComponentTypes {
     /** «Negar salida» of a gate or the Buffer. */
     public static final String NEGATE = "negate";
     public static final String FLIP_FLOP_DATA = "flip-flop-data";
+    /**
+     * «Mostrar Q̅» of the D flip-flop: when off it has only D, Q and the clock. On for a new part; off for every D
+     * flip-flop of a file older than format 5 ({@code FlipFlopNotOutputMigration}), whose Q wire may pass over Q̅.
+     */
+    public static final String SHOW_INVERTED = "showInverted";
     public static final String TRI_STATE = "tri-state";
     public static final String CLOCK = "clock";
     public static final String SWITCH = "switch";
@@ -98,6 +103,8 @@ public final class StandardComponentTypes {
     public static final ParameterSpec GATE_WIDTH = ParameterSpec.integer(WIDTH, 1, 1, 32);
     /** «Negar salida»: the bubble on the output (NAND, NOR, XNOR, NOT). */
     public static final ParameterSpec NEGATE_SPEC = ParameterSpec.bool(NEGATE, false);
+    /** «Mostrar Q̅» of the D flip-flop, on for a new part. */
+    private static final ParameterSpec SHOW_INVERTED_SPEC = ParameterSpec.bool(SHOW_INVERTED, true);
     /**
      * The input rows of a gate by number of inputs (index = inputs). 2..4 keep VSim's rows, so old circuits keep their
      * wires; from 6 the type is taller and even counts skip the middle row, so the output stays centred.
@@ -143,11 +150,11 @@ public final class StandardComponentTypes {
                 List.of(GATE_WIDTH, NEGATE_SPEC, DELAY),
                 parameters -> bufferShape((Integer) parameters.get(WIDTH)),
                 parameters -> new BufferBehavior((Boolean) parameters.get(NEGATE), (Integer) parameters.get("delay"))));
-        registry.register(new ComponentType(FLIP_FLOP_DATA, ComponentCategory.SEQUENTIAL, GATE_SIZE,
-                List.of(PinSpec.input("d", 0, 2), PinSpec.output("q", 4, 2), PinSpec.input("clock", 2, 4),
-                        PinSpec.output(SequentialTypes.NOT_OUTPUT_PIN, 4, 3)),
-                List.of(DELAY),
-                parameters -> new FlipFlopDataBehavior((Integer) parameters.get("delay"))));
+        registry.register(ComponentType.parameterized(FLIP_FLOP_DATA, ComponentCategory.SEQUENTIAL,
+                List.of(SHOW_INVERTED_SPEC, DELAY),
+                parameters -> dataFlipFlopShape((Boolean) parameters.get(SHOW_INVERTED)),
+                parameters -> new FlipFlopDataBehavior((Integer) parameters.get("delay"),
+                        (Boolean) parameters.get(SHOW_INVERTED))));
         SequentialTypes.register(registry);
         registry.register(ComponentType.parameterized(TRI_STATE, ComponentCategory.GATES,
                 List.of(GATE_WIDTH, NEGATE_SPEC, DELAY),
@@ -388,6 +395,19 @@ public final class StandardComponentTypes {
     private static ComponentShape triStateShape(int width) {
         return new ComponentShape(GATE_SIZE, List.of(PinSpec.input("in", 0, 2, width),
                 PinSpec.output("out", GATE_WIDTH_IN_UNITS, 2, width), PinSpec.input("enable", 2, 4)));
+    }
+
+    /**
+     * The D flip-flop's 4 x 4 box: D (0, 2), Q (4, 2), the clock (2, 4) and, when shown, Q̅ (4, 3) as the last pin, so
+     * the first three indices never change.
+     */
+    private static ComponentShape dataFlipFlopShape(boolean showInverted) {
+        List<PinSpec> pins = new ArrayList<>(List.of(PinSpec.input("d", 0, 2), PinSpec.output("q", 4, 2),
+                PinSpec.input("clock", 2, 4)));
+        if (showInverted) {
+            pins.add(PinSpec.output(SequentialTypes.NOT_OUTPUT_PIN, 4, 3));
+        }
+        return new ComponentShape(GATE_SIZE, pins);
     }
 
     /** The Buffer's 4 x 4 box (the old NOT's): in at (0, 2), out at (4, 2). */

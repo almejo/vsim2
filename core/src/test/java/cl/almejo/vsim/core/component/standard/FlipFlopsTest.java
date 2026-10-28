@@ -16,6 +16,9 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
+import java.util.List;
+import java.util.Map;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -80,7 +83,8 @@ class FlipFlopsTest {
         assertThat(type.pinLocation(flipFlop, DATA_CLOCK)).isEqualTo(new GridPoint(12, 14));
         assertThat(document.probes().getFirst().target())
                 .isEqualTo(new ProbeTarget.PinTarget(flipFlop.id(), DATA_CLOCK));
-        assertThat(document.wires()).as("Q̅ is new and nothing touches it: no wire added").hasSize(1);
+        assertThat(document.wires()).as("no wire added").hasSize(1);
+        assertThat(type.pins()).as("an old D flip-flop opens without Q̅").hasSize(3);
     }
 
     @Test
@@ -94,6 +98,18 @@ class FlipFlopsTest {
 
         assertThat(harness.output(DATA_OUTPUT)).isEqualTo(Value.ONE);
         assertThat(harness.output(DATA_NOT_OUTPUT)).isEqualTo(Value.ZERO);
+    }
+
+    @Test
+    void aDFlipFlopWithoutNotQLatchesDOnQAsBefore() {
+        GateHarness harness = new GateHarness(StandardComponentTypes.FLIP_FLOP_DATA,
+                Map.of(StandardComponentTypes.SHOW_INVERTED, false)).set(0, Value.ONE).set(DATA_CLOCK, Value.ZERO)
+                .advance(2);
+        assertThat(harness.output(DATA_OUTPUT)).isEqualTo(Value.ZERO);
+
+        fallingEdge(harness, DATA_CLOCK);
+
+        assertThat(harness.output(DATA_OUTPUT)).isEqualTo(Value.ONE);
     }
 
     @Test
@@ -113,8 +129,15 @@ class FlipFlopsTest {
             ComponentType type = registry.require(typeId);
             assertThat(type.category()).as(typeId).isEqualTo(ComponentCategory.SEQUENTIAL);
             assertThat(type.size()).as(typeId).isEqualTo(registry.require(StandardComponentTypes.FLIP_FLOP_DATA).size());
-            assertThat(type.parameters()).extracting(parameter -> parameter.name()).containsExactly("delay");
         }
+        for (String typeId : List.of(SequentialTypes.FLIP_FLOP_JK, SequentialTypes.FLIP_FLOP_T,
+                SequentialTypes.FLIP_FLOP_SR)) {
+            assertThat(registry.require(typeId).parameters()).extracting(parameter -> parameter.name())
+                    .as(typeId).containsExactly("delay");
+        }
+        assertThat(registry.require(StandardComponentTypes.FLIP_FLOP_DATA).parameters())
+                .extracting(parameter -> parameter.name())
+                .containsExactly(StandardComponentTypes.SHOW_INVERTED, "delay");
     }
 
     @Test

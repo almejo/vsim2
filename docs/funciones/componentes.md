@@ -99,19 +99,19 @@ Parte de las [funciones de VSim 2](../funciones.md).
 
 ## Categorías de la paleta
 
-- La paleta tiene nueve categorías, en este orden: **Compuertas** (AND, OR, XOR, NAND, NOR, XNOR, Buffer, NOT, buffer tri-estado e inversor controlado), **Cableado** (separador y unión de bus, túneles, extensor y selector de bits), **Aritmética** (sumador, restador, negador, multiplicador, divisor, desplazador, contador de unos, comparador, ALU), **Multiplexores** (multiplexor, demultiplexor, decodificador, codificador con prioridad), **Secuenciales** (flip-flops D, JK, T y SR, registro, contador), **Memoria** (RAM, ROM), **Entrada/Salida** (interruptor, constante, reloj, LED, displays y los pines de entrada y de salida), **Depuración** (diagrama de tiempo) y, al final, **Mis componentes** y los componentes de este circuito. Ya no existen «Básicas», «Bloques» ni «Pines de componente».
+- La paleta tiene nueve categorías, en este orden: **Compuertas** (AND, OR, XOR, NAND, NOR, XNOR, Buffer, NOT, buffer tri-estado e inversor controlado), **Cableado** (separador y unión de bus, túneles, extensor y selector de bits), **Aritmética** (sumador, comparador, ALU, restador, negador, multiplicador, divisor, desplazador, contador de unos), **Multiplexores** (multiplexor, decodificador, demultiplexor, codificador con prioridad), **Secuenciales** (flip-flops D, JK, T y SR, registro, contador), **Memoria** (RAM, ROM), **Entrada/Salida** (reloj, interruptor, constante, LED, displays y los pines de entrada y de salida), **Depuración** (diagrama de tiempo) y, al final, **Mis componentes** y los componentes de este circuito. Ya no existen «Básicas», «Bloques» ni «Pines de componente».
 - Los archivos no guardan la categoría, así que los circuitos de antes se abren igual; los favoritos y los recientes siguen donde estaban porque se guardan por identificador. La búsqueda de la paleta y de la inserción rápida muestran el nombre de la categoría nueva en cada resultado.
 
 ## Bloques de N bits
 
-- Aritmética, multiplexores y registros: piezas de N bits programadas en el simulador, para armar un camino de datos sin miles de compuertas. Todas, salvo el decodificador y el codificador con prioridad, tienen «Ancho (bits)» (1 a 32, 8 por omisión, como el divisor y el unidor de bus y la «Constante»; un archivo guardado conserva el ancho de cada pieza), y todas tienen «Retardo» (1 por omisión: el bloque tarda un retardo desde cualquier entrada a sus salidas). Los datos entran por la izquierda (buses del ancho elegido, con cable grueso) y los resultados salen por la derecha; el tamaño de la pieza no depende del ancho. Cada pin lleva su nombre corto dentro del cuerpo y la paleta explica cada bloque al pasar el mouse.
+- Aritmética, multiplexores y registros: piezas de N bits programadas en el simulador, para armar un camino de datos sin miles de compuertas. Todas, salvo el decodificador y el codificador con prioridad, tienen «Ancho (bits)» (1 a 32, 8 por omisión, como el separador y la unión de bus y la «Constante»; un archivo guardado conserva el ancho de cada pieza), y todas tienen «Retardo» (1 por omisión: el bloque tarda un retardo desde cualquier entrada a sus salidas). Los datos entran por la izquierda (buses del ancho elegido, con cable grueso) y los resultados salen por la derecha; el tamaño de la pieza no depende del ancho. Cada pin lleva su nombre corto dentro del cuerpo y la paleta explica cada bloque al pasar el mouse.
 - Reglas comunes: una entrada de control sin conectar toma su valor de reposo (por ejemplo Cin = 0); si una entrada de datos tiene algún bit en Z o en conflicto, las salidas que dependen de ella quedan en Z.
 - «Sumador» (Σ): S = A + B + Cin con el ancho elegido y Cout el acarreo que sale del bit más alto. Cin entra por arriba y Cout sale por abajo.
 - «Restador» (−): D = A − B − Bin con el ancho elegido; Bout vale 1 cuando el resultado, leído sin signo, necesitó pedir prestado. Bin entra por arriba (sin conectar vale 0) y Bout sale por abajo. 0 − 1 da todos unos.
 - «Negador» (−A): Y = −A en complemento a dos. 0 da 0 y el mínimo (−128 con 8 bits) da el mismo mínimo.
 - «Multiplicador» (×): el producto de A por B ocupa el doble de bits y sale en dos mitades: P, la baja, y H, la alta; nada se pierde, tampoco con 32 bits. «Números» elige «Sin signo» o «Con signo» (en complemento a dos: −1 × −1 da P = 1, H = 0).
 - «Divisor» (÷): Q es el cociente, R el resto y E vale 1 cuando B es 0. Con B = 0 no se puede dividir: Q = 0, R = A, E = 1. «Números» elige «Sin signo» o «Con signo»: el cociente se trunca hacia cero y el resto lleva el signo del dividendo (−7 ÷ 2 da Q = −3, R = −1); −128 ÷ −1 con 8 bits da la vuelta y vale −128.
-- «Desplazador»: mueve A tantas posiciones como diga S (S tiene los bits justos para contar de 0 a N − 1; con S = 0, Y = A). «Tipo» elige «Lógico a la izquierda» (<<), «Lógico a la derecha» (>>), «Aritmético a la derecha» (>>>, copia el bit de signo), «Rotar a la izquierda» o «Rotar a la derecha»; la pieza muestra el símbolo del tipo. Con S fija desde una Constante da un desplazamiento fijo (x >> 1).
+- «Desplazador»: mueve A tantas posiciones como diga S (S tiene los bits justos para contar de 0 a N − 1; con S = 0, Y = A). «Tipo» elige «Lógico a la izquierda» (<<), «Lógico a la derecha» (>>), «Aritmético a la derecha» (>>>, copia el bit de signo), «Rotar a la izquierda» o «Rotar a la derecha»; la pieza muestra el símbolo del tipo. Los símbolos son los de Verilog: >> es el lógico y >>> el aritmético, al revés que en Java y JavaScript. Con S fija desde una Constante da un desplazamiento fijo (x >> 1).
 - «Contador de unos» (#1): Y es cuántos bits de A valen 1; Y tiene los bits justos para contar de 0 a N.
 - «ALU»: opera A y B según OP (3 bits, entra por abajo) y muestra adentro la operación que está haciendo (en la paleta, A+B): 000 A + B, 001 A − B, 010 AND, 011 OR, 100 XOR, 101 NOT A, 110 A << 1, 111 A >> 1 (lógico). Sale Y y las banderas Z (Y es 0), N (bit más alto de Y), C (acarreo de la suma, préstamo de la resta —1 si A < B sin signo— o el bit que sale al desplazar) y V (desborde con signo de la suma o la resta). Con OP indefinido todas las salidas quedan en Z y adentro se ve «?». La operación escrita cambia apenas cambia OP; Y y las banderas, después del retardo.
 - «Comparador» (CMP): compara A con B y exactamente una de A<B, A=B, A>B vale 1. «Números» elige «Sin signo» o «Con signo» (complemento a dos).
@@ -129,8 +129,11 @@ Parte de las [funciones de VSim 2](../funciones.md).
   un triángulo), las entradas a la izquierda y **Q** y **Q̅** a la derecha, Q̅ debajo de Q. Todos actúan en el flanco de
   bajada del reloj (de 1 a 0; un reloj que pasa por Z no da flanco), parten con Q = 0 y Q̅ = 1 (también al
   «Reiniciar»), tienen «Retardo» y la tabla de verdad los rechaza como secuenciales.
-- «Flip-flop D»: Q toma D en el flanco. Ahora tiene también **Q̅**, agregado como su último pin: los circuitos de antes
-  se abren con sus cables y sondas donde estaban y simulan igual.
+- «Flip-flop D»: Q toma D en el flanco. Ahora tiene también **Q̅**, agregado como su último pin, y el parámetro
+  «Mostrar Q̅» (encendido en uno nuevo). Los flip-flops D de los circuitos de antes se abren con «Mostrar Q̅»
+  apagado, con sus tres pines de siempre: un cable que bajaba derecho desde Q pasaría por el punto de Q̅ y los
+  uniría. Así se abren con sus cables y sondas donde estaban y simulan igual; Q̅ se enciende en Propiedades (revisa
+  antes que ningún cable pase justo abajo de Q).
 - «Flip-flop JK»: J = 0 y K = 0 lo deja igual, J = 0 y K = 1 lo pone en 0, J = 1 y K = 0 lo pone en 1, y J = 1 y
   K = 1 lo invierte.
 - «Flip-flop T»: con T = 1 se invierte en cada flanco y con T = 0 queda igual. T está en la misma fila que la D del
@@ -138,7 +141,8 @@ Parte de las [funciones de VSim 2](../funciones.md).
 - «Flip-flop SR»: S = 1 lo pone en 1, R = 1 lo pone en 0, S = R = 0 lo deja igual. S = R = 1 es el **estado
   prohibido**: Q y Q̅ quedan los dos en 0 (lo que muestra un latch hecho con compuertas NOR) hasta un flanco con S
   distinto de R.
-- Una entrada de datos (D, J, K, T, S o R) en Z o en conflicto en el flanco deja Q y Q̅ en Z. T sin conectar no cuenta
+- Una entrada de datos (J, K, T, S o R) en Z o en conflicto en el flanco deja Q y Q̅ en Z. El flip-flop D copia D
+  tal cual: con D en Z, Q queda en Z, y con D en conflicto, Q queda en conflicto; Q̅ queda en Z en los dos casos. T sin conectar no cuenta
   como 1: conéctalo a una constante. Cada supuesto está en el recuadro «Descripción» de Propiedades.
 - El «Registro» es ahora **delgado**: 12 × 4 (antes 12 × 7), con «REG» chico arriba a la izquierda, el valor grande
   al medio, D a la izquierda, Q a la derecha y EN, CLR y el reloj abajo (en las mismas columnas que antes). En binario

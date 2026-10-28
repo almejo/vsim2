@@ -28,6 +28,9 @@ abstract sealed class ClockedFlipFlopBehavior implements Behavior
         }
     }
 
+    /** {@code notOutputPin} of a flip-flop without Q̅ (a D flip-flop with «Mostrar Q̅» off). */
+    static final int NO_PIN = -1;
+
     private final int clockPin;
     private final int outputPin;
     private final int notOutputPin;
@@ -59,8 +62,7 @@ abstract sealed class ClockedFlipFlopBehavior implements Behavior
     public final void initialize(BehaviorContext context) {
         previousClock = context.input(clockPin);
         // Power-on reset: Q is 0 and Q̅ is 1 before the first falling edge (an unconnected input still reads Z).
-        context.drive(outputPin, current.output(), 0);
-        context.drive(notOutputPin, current.notOutput(), 0);
+        drive(context, current, 0);
     }
 
     @Override
@@ -76,8 +78,14 @@ abstract sealed class ClockedFlipFlopBehavior implements Behavior
         }
         next(context, current).ifPresent(outputs -> {
             current = outputs;
-            context.drive(outputPin, outputs.output(), delay);
-            context.drive(notOutputPin, outputs.notOutput(), delay);
+            drive(context, outputs, delay);
         });
+    }
+
+    private void drive(BehaviorContext context, Outputs outputs, int after) {
+        context.drive(outputPin, outputs.output(), after);
+        if (notOutputPin != NO_PIN) {
+            context.drive(notOutputPin, outputs.notOutput(), after);
+        }
     }
 }

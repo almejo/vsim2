@@ -5,8 +5,8 @@ import cl.almejo.vsim.core.component.BehaviorContext;
 import java.util.Optional;
 
 /**
- * D flip-flop: pin 0 D, pin 1 Q, pin 2 clock, pin 3 Q̅ (appended in format 5, so older files keep their pin indices).
- * Latches D on a falling edge; Q copies D as it is (Z included), Q̅ is its complement or Z.
+ * D flip-flop: pin 0 D, pin 1 Q, pin 2 clock, pin 3 Q̅ when «Mostrar Q̅» is on (appended in format 5, so older files
+ * keep their pin indices). Latches D on a falling edge; Q copies D as it is (Z included), Q̅ is its complement or Z.
  */
 final class FlipFlopDataBehavior extends ClockedFlipFlopBehavior {
 
@@ -15,8 +15,8 @@ final class FlipFlopDataBehavior extends ClockedFlipFlopBehavior {
     static final int CLOCK = 2;
     static final int NOT_OUTPUT = 3;
 
-    FlipFlopDataBehavior(int delay) {
-        super(CLOCK, OUTPUT, NOT_OUTPUT, delay);
+    FlipFlopDataBehavior(int delay, boolean showInverted) {
+        super(CLOCK, OUTPUT, showInverted ? NOT_OUTPUT : NO_PIN, delay);
     }
 
     @Override

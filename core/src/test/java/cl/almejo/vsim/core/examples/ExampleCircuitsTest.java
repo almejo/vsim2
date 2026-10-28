@@ -70,7 +70,7 @@ class ExampleCircuitsTest {
 
         Map<PinRef, Set<PinRef>> expected = new HashMap<>();
         for (Component component : builder.document().components()) {
-            for (int pinIndex = 0; pinIndex < registry.require(component.typeId()).pinCount(); pinIndex++) {
+            for (int pinIndex = 0; pinIndex < registry.typeOf(component).pinCount(); pinIndex++) {
                 PinRef pin = new PinRef(component.id(), pinIndex);
                 expected.put(pin, new HashSet<>(Set.of(pin)));
             }

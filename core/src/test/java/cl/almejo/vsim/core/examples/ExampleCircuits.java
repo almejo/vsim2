@@ -129,7 +129,12 @@ public final class ExampleCircuits {
             for (int column = 0; column < ALL_ROTATIONS.length; column++) {
                 int centerX = 12 + 24 * column;
                 String typeId = typeIds[row];
-                Map<String, Object> gateParameters = typeId.equals(BUFFER) ? NEGATED : Map.of();
+                Map<String, Object> gateParameters = switch (typeId) {
+                    case BUFFER -> NEGATED;
+                    // The fixture predates Q̅ (it was format 4): its D flip-flops keep their three pins.
+                    case FLIP_FLOP_DATA -> Map.of(StandardComponentTypes.SHOW_INVERTED, false);
+                    default -> Map.of();
+                };
                 Component gate = builder.placeByBox(typeId, centerX - 2, centerY - 2, ALL_ROTATIONS[column],
                         gateParameters, "");
                 String switchValue = typeId.equals(OR) ? "0" : "1";

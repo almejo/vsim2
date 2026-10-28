@@ -31,10 +31,6 @@ net n:p:c114#2 width=1 mismatch=false
   wires [w118]
   pins [c114#2, c117#0]
   points [GridPoint[x=12, y=110], GridPoint[x=12, y=112]]
-net n:p:c114#3 width=1 mismatch=false
-  wires []
-  pins [c114#3]
-  points [GridPoint[x=14, y=109]]
 net n:p:c121#0 width=1 mismatch=false
   wires [w123]
   pins [c121#0, c122#0]
@@ -47,10 +43,6 @@ net n:p:c121#2 width=1 mismatch=false
   wires [w125]
   pins [c121#2, c124#0]
   points [GridPoint[x=32, y=108], GridPoint[x=34, y=108]]
-net n:p:c121#3 width=1 mismatch=false
-  wires []
-  pins [c121#3]
-  points [GridPoint[x=35, y=110]]
 net n:p:c128#0 width=1 mismatch=false
   wires [w130]
   pins [c128#0, c129#0]
@@ -63,10 +55,6 @@ net n:p:c128#2 width=1 mismatch=false
   wires [w132]
   pins [c128#2, c131#0]
   points [GridPoint[x=60, y=104], GridPoint[x=60, y=106]]
-net n:p:c128#3 width=1 mismatch=false
-  wires []
-  pins [c128#3]
-  points [GridPoint[x=58, y=107]]
 net n:p:c135#0 width=1 mismatch=false
   wires [w137]
   pins [c135#0, c136#0]
@@ -79,10 +67,6 @@ net n:p:c135#2 width=1 mismatch=false
   wires [w139]
   pins [c135#2, c138#0]
   points [GridPoint[x=86, y=108], GridPoint[x=88, y=108]]
-net n:p:c135#3 width=1 mismatch=false
-  wires []
-  pins [c135#3]
-  points [GridPoint[x=85, y=106]]
 net n:p:c16#0 width=1 mismatch=false
   wires [w18]
   pins [c16#0, c17#0]
@@ -330,28 +314,24 @@ pin c111#0 -> n:p:c106#2
 pin c114#0 -> n:p:c114#0
 pin c114#1 -> n:p:c114#1
 pin c114#2 -> n:p:c114#2
-pin c114#3 -> n:p:c114#3
 pin c115#0 -> n:p:c114#0
 pin c117#0 -> n:p:c114#2
 pin c119#0 -> n:p:c114#1
 pin c121#0 -> n:p:c121#0
 pin c121#1 -> n:p:c121#1
 pin c121#2 -> n:p:c121#2
-pin c121#3 -> n:p:c121#3
 pin c122#0 -> n:p:c121#0
 pin c124#0 -> n:p:c121#2
 pin c126#0 -> n:p:c121#1
 pin c128#0 -> n:p:c128#0
 pin c128#1 -> n:p:c128#1
 pin c128#2 -> n:p:c128#2
-pin c128#3 -> n:p:c128#3
 pin c129#0 -> n:p:c128#0
 pin c131#0 -> n:p:c128#2
 pin c133#0 -> n:p:c128#1
 pin c135#0 -> n:p:c135#0
 pin c135#1 -> n:p:c135#1
 pin c135#2 -> n:p:c135#2
-pin c135#3 -> n:p:c135#3
 pin c136#0 -> n:p:c135#0
 pin c138#0 -> n:p:c135#2
 pin c140#0 -> n:p:c135#1
@@ -388,10 +368,6 @@ net n:p:c114#2 width=1 mismatch=false
   wires [w118]
   pins [c114#2, c117#0]
   points [GridPoint[x=12, y=110], GridPoint[x=12, y=112]]
-net n:p:c114#3 width=1 mismatch=false
-  wires []
-  pins [c114#3]
-  points [GridPoint[x=14, y=109]]
 net n:p:c121#0 width=1 mismatch=false
   wires [w123]
   pins [c121#0, c122#0]
@@ -404,10 +380,6 @@ net n:p:c121#2 width=1 mismatch=false
   wires [w125]
   pins [c121#2, c124#0]
   points [GridPoint[x=32, y=108], GridPoint[x=34, y=108]]
-net n:p:c121#3 width=1 mismatch=false
-  wires []
-  pins [c121#3]
-  points [GridPoint[x=35, y=110]]
 net n:p:c128#0 width=1 mismatch=false
   wires [w130]
   pins [c128#0, c129#0]
@@ -420,10 +392,6 @@ net n:p:c128#2 width=1 mismatch=false
   wires [w132]
   pins [c128#2, c131#0]
   points [GridPoint[x=60, y=104], GridPoint[x=60, y=106]]
-net n:p:c128#3 width=1 mismatch=false
-  wires []
-  pins [c128#3]
-  points [GridPoint[x=58, y=107]]
 net n:p:c135#0 width=1 mismatch=false
   wires [w137]
   pins [c135#0, c136#0]
@@ -436,10 +404,6 @@ net n:p:c135#2 width=1 mismatch=false
   wires [w139]
   pins [c135#2, c138#0]
   points [GridPoint[x=86, y=108], GridPoint[x=88, y=108]]
-net n:p:c135#3 width=1 mismatch=false
-  wires []
-  pins [c135#3]
-  points [GridPoint[x=85, y=106]]
 net n:p:c16#0 width=1 mismatch=false
   wires [w18]
   pins [c16#0, c17#0]
@@ -687,28 +651,24 @@ pin c111#0 -> n:p:c106#2
 pin c114#0 -> n:p:c114#0
 pin c114#1 -> n:p:c114#1
 pin c114#2 -> n:p:c114#2
-pin c114#3 -> n:p:c114#3
 pin c115#0 -> n:p:c114#0
 pin c117#0 -> n:p:c114#2
 pin c119#0 -> n:p:c114#1
 pin c121#0 -> n:p:c121#0
 pin c121#1 -> n:p:c121#1
 pin c121#2 -> n:p:c121#2
-pin c121#3 -> n:p:c121#3
 pin c122#0 -> n:p:c121#0
 pin c124#0 -> n:p:c121#2
 pin c126#0 -> n:p:c121#1
 pin c128#0 -> n:p:c128#0
 pin c128#1 -> n:p:c128#1
 pin c128#2 -> n:p:c128#2
-pin c128#3 -> n:p:c128#3
 pin c129#0 -> n:p:c128#0
 pin c131#0 -> n:p:c128#2
 pin c133#0 -> n:p:c128#1
 pin c135#0 -> n:p:c135#0
 pin c135#1 -> n:p:c135#1
 pin c135#2 -> n:p:c135#2
-pin c135#3 -> n:p:c135#3
 pin c136#0 -> n:p:c135#0
 pin c138#0 -> n:p:c135#2
 pin c140#0 -> n:p:c135#1

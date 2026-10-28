@@ -36,12 +36,18 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 
 ### Cambiado
 
+- La paleta se reorganiza en nueve categorías que sigue un curso: Compuertas, Cableado, Aritmética, Multiplexores,
+  Secuenciales, Memoria, Entrada/Salida, Depuración y Mis componentes. Desaparecen «Básicas», «Bloques» y «Pines de
+  componente» (los pines de entrada y de salida pasan a Entrada/Salida). Los circuitos, favoritos y recientes de antes
+  no cambian.
 - El multiplexor ofrece 8 entradas además de 2 y 4; D0, D1, Y y los circuitos de antes no cambian.
 - El Buffer triestado tiene «Ancho (bits)» (1 por omisión) y «Negar salida»; los triestado de antes se abren y
   funcionan igual.
 - El globo de cada pieza de la paleta es ahora el primer párrafo de su descripción, así que todas las piezas tienen
   uno (antes solo los bloques, los pines, los túneles y la memoria).
-- El flip-flop D tiene también Q̅, debajo de Q; los circuitos de antes se abren y simulan igual.
+- El flip-flop D tiene también Q̅, debajo de Q, y el parámetro «Mostrar Q̅» para ocultarlo. Los flip-flops D de los
+  circuitos de antes se abren con Q̅ oculto, con sus tres pines de siempre, así que un cable que baja derecho desde Q
+  no queda unido a Q̅ y el circuito simula igual.
 - El registro es más delgado (12 × 4 en vez de 12 × 7): «REG» chico en la esquina y el valor grande al medio; en
   binario los dígitos van en grupos de 4 y, con más de 16 bits, en dos líneas (el registro mide 12 × 5). Los
   circuitos guardados antes se abren conectados: VSim agrega un tramo corto de cable desde cada pin de abajo hasta
@@ -68,10 +74,6 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 
 ### Cambiado
 
-- La paleta se reorganiza en nueve categorías que sigue un curso: Compuertas, Cableado, Aritmética, Multiplexores,
-  Secuenciales, Memoria, Entrada/Salida, Depuración y Mis componentes. Desaparecen «Básicas», «Bloques» y «Pines de
-  componente» (los pines de entrada y de salida pasan a Entrada/Salida). Los circuitos, favoritos y recientes de antes
-  no cambian.
 - Al cambiar un parámetro que mueve pines (las «Entradas» de una compuerta, las de un multiplexor), las sondas de esos pines pasan al pin con el mismo nombre y se quitan si ya no existe; deshacer las devuelve.
 - Hay un solo tipo por compuerta (AND, OR, XOR y Buffer) en vez de uno por cada número de entradas. Los circuitos,
   componentes, librerías y lo copiado antes se abren igual, con los pines en el mismo lugar; al guardarlos se

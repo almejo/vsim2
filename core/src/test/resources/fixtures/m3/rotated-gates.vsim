@@ -672,7 +672,8 @@
     "rotation" : 0,
     "label" : "",
     "parameters" : {
-      "delay" : 1
+      "delay" : 1,
+      "showInverted" : false
     }
   }, {
     "id" : "c115",
@@ -713,7 +714,8 @@
     "rotation" : 1,
     "label" : "",
     "parameters" : {
-      "delay" : 1
+      "delay" : 1,
+      "showInverted" : false
     }
   }, {
     "id" : "c122",
@@ -754,7 +756,8 @@
     "rotation" : 2,
     "label" : "",
     "parameters" : {
-      "delay" : 1
+      "delay" : 1,
+      "showInverted" : false
     }
   }, {
     "id" : "c129",
@@ -795,7 +798,8 @@
     "rotation" : 3,
     "label" : "",
     "parameters" : {
-      "delay" : 1
+      "delay" : 1,
+      "showInverted" : false
     }
   }, {
     "id" : "c136",

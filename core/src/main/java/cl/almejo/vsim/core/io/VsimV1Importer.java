@@ -2,6 +2,7 @@ package cl.almejo.vsim.core.io;
 
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
+import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.Wire;
@@ -109,6 +110,11 @@ public final class VsimV1Importer {
             case "clock" -> {
                 copyInteger(parameters, "time-up", result);
                 copyInteger(parameters, "time-down", result);
+            }
+            case StandardComponentTypes.FLIP_FLOP_DATA -> {
+                copyInteger(parameters, "delay", result);
+                // VSim 1's D flip-flop had no Q̅; a Q wire running down would short with it (see FlipFlopNotOutputMigration).
+                result.put(StandardComponentTypes.SHOW_INVERTED, false);
             }
             default -> copyInteger(parameters, "delay", result);
         }

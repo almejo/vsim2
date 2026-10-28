@@ -32,7 +32,8 @@
     "rotation" : 0,
     "label" : "",
     "parameters" : {
-      "delay" : 1
+      "delay" : 1,
+      "showInverted" : true
     }
   }, {
     "id" : "c11",
@@ -62,7 +63,8 @@
     "rotation" : 0,
     "label" : "",
     "parameters" : {
-      "delay" : 1
+      "delay" : 1,
+      "showInverted" : true
     }
   }, {
     "id" : "c19",
@@ -92,7 +94,8 @@
     "rotation" : 0,
     "label" : "",
     "parameters" : {
-      "delay" : 1
+      "delay" : 1,
+      "showInverted" : true
     }
   }, {
     "id" : "c27",
@@ -122,7 +125,8 @@
     "rotation" : 0,
     "label" : "",
     "parameters" : {
-      "delay" : 1
+      "delay" : 1,
+      "showInverted" : true
     }
   }, {
     "id" : "c35",

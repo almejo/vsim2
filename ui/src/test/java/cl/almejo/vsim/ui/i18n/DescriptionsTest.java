@@ -162,6 +162,23 @@ class DescriptionsTest {
     }
 
     @Test
+    void theShifterSaysItsSymbolsAreVerilogs() {
+        assertThat(Descriptions.of(REGISTRY.require(ArithmeticTypes.SHIFTER), Map.of())).contains("Verilog")
+                .contains("al revés que en Java");
+    }
+
+    @Test
+    void aDFlipFlopWithoutNotQSaysWhy() {
+        ComponentType flipFlop = REGISTRY.require(StandardComponentTypes.FLIP_FLOP_DATA);
+
+        String hidden = Descriptions.of(flipFlop, Map.of(StandardComponentTypes.SHOW_INVERTED, false));
+
+        assertThat(Descriptions.of(flipFlop, Map.of())).doesNotContain("«Mostrar Q̅» apagado");
+        assertThat(hidden).startsWith(Descriptions.of(flipFlop, Map.of())).contains("«Mostrar Q̅» apagado")
+                .contains("antes de que existiera Q̅");
+    }
+
+    @Test
     void invalidParametersStillGiveTheBaseText() {
         ComponentType constant = REGISTRY.require(StandardComponentTypes.CONSTANT);
 

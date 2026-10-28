@@ -70,6 +70,16 @@ class VsimV1ImporterTest {
         assertThat(document.wires()).isEmpty();
     }
 
+    @Test
+    void aVsim1DFlipFlopKeepsItsThreePins() throws Exception {
+        Component flipFlop = importJson("""
+                {"gates":[{"type":"flip-flop-data","position":{"x":8,"y":16},"parameters":{"delay":3}}],
+                 "connections":[]}
+                """).components().getFirst();
+
+        assertThat(flipFlop.parameters()).containsEntry(StandardComponentTypes.SHOW_INVERTED, false);
+    }
+
     @ParameterizedTest(name = "{0} → {1}, {2} inputs, negated {3}")
     @CsvSource({"and2,and,2,false", "and3,and,3,false", "and4,and,4,false", "or2,or,2,false", "or3,or,3,false",
             "or4,or,4,false", "xor2,xor,2,false", "xor3,xor,3,false", "xor4,xor,4,false", "nand2,and,2,true",

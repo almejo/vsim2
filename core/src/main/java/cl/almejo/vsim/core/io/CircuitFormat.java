@@ -52,7 +52,10 @@ import static cl.almejo.vsim.core.io.CircuitFormatException.invalid;
 /** Reads formats 2 to 5 and writes format 5 (JSON; first keys in {@link FileHeader}). */
 public final class CircuitFormat {
 
-    /** 4: parameterized gates ({@link LegacyGateMigration}); 5: the thin register ({@link RegisterShapeMigration}). */
+    /**
+     * 4: parameterized gates ({@link LegacyGateMigration}); 5: the thin register ({@link RegisterShapeMigration}) and
+     * the D flip-flop's Q̅, off on old parts ({@link FlipFlopNotOutputMigration}).
+     */
     public static final int FORMAT_VERSION = 5;
     static final String KIND_CIRCUIT = "circuit";
     private static final String STICKY_KIND_TEXT = "text";
@@ -350,8 +353,9 @@ public final class CircuitFormat {
     }
 
     /**
-     * {@code root} with an old file's gates renamed ({@link LegacyGateMigration}), then its registers' moved pins
-     * wired to where they were ({@link RegisterShapeMigration}); the caller's tree is not touched.
+     * {@code root} with an old file's gates renamed ({@link LegacyGateMigration}), its D flip-flops without Q̅
+     * ({@link FlipFlopNotOutputMigration}), then its registers' moved pins wired to where they were
+     * ({@link RegisterShapeMigration}); the caller's tree is not touched.
      */
     private static JsonNode migrated(JsonNode root) {
         if (!(root instanceof ObjectNode object)
@@ -360,6 +364,7 @@ public final class CircuitFormat {
         }
         ObjectNode copy = object.deepCopy();
         LegacyGateMigration.migrate(copy);
+        FlipFlopNotOutputMigration.migrate(copy);
         RegisterShapeMigration.migrate(copy);
         return copy;
     }
