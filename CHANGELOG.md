@@ -14,6 +14,10 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
   significativo a la izquierda, y una sola salida de bus. Un clic sobre una celda cambia solo ese bit (sin deshacer ni
   marcar el archivo como modificado); el globo muestra el valor en binario, hexadecimal y decimal y el bit bajo el
   puntero. Con un bit, nada cambia.
+- La tabla de verdad, «Crear componente» y la IA entienden el interruptor y el LED de varios bits: la tabla los muestra
+  como columnas de N bits, «Crear componente» los vuelve un pin de entrada o de salida del mismo ancho (sin marcar, el
+  interruptor queda como una constante de ese ancho) y `vsim_set_inputs` acepta `0xA6`, `0b1010_0110` o `166` para un
+  interruptor de 8 bits y rechaza lo que no cabe.
 - El LED también puede tener varios bits: una fila de luces con la misma caja que el interruptor del mismo ancho (bit
   contra bit) y un solo pin de bus de entrada. Cada luz se enciende solo con 1; con 0, Z o conflicto queda apagada.
 - Propiedades termina con un recuadro «Descripción» que explica la pieza elegida y sus supuestos: qué vale una

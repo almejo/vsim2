@@ -277,7 +277,8 @@ public final class ConvertedSelection {
             }
             String label = part.label().strip();
             switch (kind) {
-                case SWITCH -> addInput(part, slots.get(0), Map.of("value", switchText(part, currentValue)));
+                case SWITCH -> addInput(part, slots.get(0), Map.of(InterfacePins.WIDTH, widthOf(part),
+                        "value", pinDefault(part, currentValue)));
                 case CONSTANT -> {
                     Map<String, Object> parameters = typeOf(part).resolveParameters(part.parameters());
                     addInput(part, slots.get(0), Map.of(
@@ -311,7 +312,8 @@ public final class ConvertedSelection {
 
         /** An unchecked switch: a constant of its value, or still a switch when it is at Z. */
         private void keepSwitch(Component part, ElementId slot, Value currentValue) {
-            String text = switchText(part, currentValue);
+            int width = widthOf(part);
+            String text = width > 1 ? numberText(part, currentValue) : switchText(part, currentValue);
             if (text.equals("Z")) {
                 Map<String, Object> parameters = new HashMap<>(part.parameters());
                 parameters.put("value", text);
@@ -320,7 +322,7 @@ public final class ConvertedSelection {
             }
             remove(part);
             add(placed(StandardComponentTypes.CONSTANT, slot, pinPoint(part, 0), part,
-                    Map.of(StandardComponentTypes.WIDTH, 1, "value", text), part.label()));
+                    Map.of(StandardComponentTypes.WIDTH, width, "value", text), part.label()));
         }
 
         private void addInput(Component part, ElementId slot, Map<String, Object> parameters) {
@@ -395,6 +397,34 @@ public final class ConvertedSelection {
             }
             return new NetlistCompiler(registry.extendedWith(SubcircuitTypes.resolverFor(selection)))
                     .compile(selection);
+        }
+
+        private int widthOf(Component part) {
+            return typeOf(part).pin(0).width();
+        }
+
+        /**
+         * What an input pin made from a Switch starts with: its one-bit text, or for several bits all ones («1»), all
+         * Z or else all zeros (the pin's default is only one of those three).
+         */
+        private String pinDefault(Component part, Value currentValue) {
+            int width = widthOf(part);
+            if (width == 1) {
+                return switchText(part, currentValue);
+            }
+            String number = numberText(part, currentValue);
+            boolean allOnes = number.equals(String.valueOf(Value.maskFor(width)));
+            return allOnes ? "1" : "0";
+        }
+
+        /** A multi-bit Switch's value as a decimal number: the live one, else the saved one (Z reads as 0). */
+        private String numberText(Component part, Value currentValue) {
+            if (currentValue != null) {
+                return currentValue.isFullyDefined() ? String.valueOf(currentValue.bits()) : "0";
+            }
+            String saved = String.valueOf(typeOf(part).resolveParameters(part.parameters())
+                    .get("value"));
+            return saved.equalsIgnoreCase("Z") ? "0" : saved;
         }
 
         private static String switchText(Component part, Value currentValue) {
