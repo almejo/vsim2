@@ -81,9 +81,23 @@ public final class Messages {
                 .orElseGet(() -> componentName(type.id()));
     }
 
+    /**
+     * Visible name of a part of {@code type} with {@code parameters}: the definition name for a user component,
+     * «NAND» for an AND with «Negar salida».
+     */
+    public static String componentName(ComponentType type, Map<String, Object> parameters) {
+        return SubcircuitTypes.definitionOf(type).map(ComponentDefinition::name)
+                .orElseGet(() -> componentName(type.id(), parameters));
+    }
+
     /** The help a type shows as a palette tooltip (key {@code help.component.<type id>}), when it has one. */
     public static Optional<String> componentHelp(ComponentType type) {
-        String key = "help.component." + type.id();
+        return componentHelp(type.id());
+    }
+
+    /** The help of the palette entry {@code id}, a type or a preset (key {@code help.component.<id>}), if any. */
+    public static Optional<String> componentHelp(String id) {
+        String key = "help.component." + id;
         return current.containsKey(key) ? Optional.of(current.getString(key)) : Optional.empty();
     }
 

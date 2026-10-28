@@ -1,8 +1,10 @@
 package cl.almejo.vsim.ui.panels;
 
 import cl.almejo.vsim.core.component.ComponentCategory;
+import cl.almejo.vsim.core.component.ComponentPreset;
 import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
+import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.ElementId;
 import cl.almejo.vsim.core.geometry.GridPoint;
 import cl.almejo.vsim.core.geometry.Rotation;
@@ -88,6 +90,15 @@ public final class PalettePanel extends JPanel {
         }
     }
 
+    /**
+     * The entry each preset follows in its category, so the gates read AND, OR, XOR, NAND, NOR, XNOR, Buffer, NOT
+     * (spec 2026-10-28 §3): the negated gates after the three plain ones, NOT after the Buffer.
+     */
+    private static final Map<String, String> PRESET_PLACES = Map.of(
+            StandardComponentTypes.NAND_PRESET, StandardComponentTypes.XOR,
+            StandardComponentTypes.NOR_PRESET, StandardComponentTypes.NAND_PRESET,
+            StandardComponentTypes.XNOR_PRESET, StandardComponentTypes.NOR_PRESET,
+            StandardComponentTypes.NOT_PRESET, StandardComponentTypes.BUFFER);
     private static final List<ComponentCategory> ORDER = List.of(ComponentCategory.BASIC,
             ComponentCategory.INPUT_OUTPUT, ComponentCategory.BLOCKS, ComponentCategory.MEMORY,
             ComponentCategory.DEBUG, ComponentCategory.INTERFACE);
@@ -102,7 +113,7 @@ public final class PalettePanel extends JPanel {
     private final PainterRegistry painters;
     private final Appearance appearance;
     private final Runnable appearanceListener;
-    private final Consumer<ComponentType> onChoose;
+    private final Consumer<PaletteEntry> onChoose;
     private final JTextField search = new JTextField();
     private final JTree tree = new FavoritesTree(this);
     private final Map<String, Icon> icons = new HashMap<>();
@@ -124,7 +135,7 @@ public final class PalettePanel extends JPanel {
     private List<String> recentIds = List.of();
     private final Listeners<Runnable> entriesListeners = new Listeners<>();
 
-    /** The type ids shown as favourites now; read live by the tree, the renderer and the popup. */
+    /** The ids (type or preset) shown as favourites now; read live by the tree, the renderer and the popup. */
     List<String> favoriteIds() {
         return favoriteIds;
     }
@@ -260,7 +271,7 @@ public final class PalettePanel extends JPanel {
 
     private Map<String, PaletteEntry> availableById() {
         Map<String, PaletteEntry> available = new HashMap<>();
-        entries().forEach(entry -> available.put(entry.type().id(), entry));
+        entries().forEach(entry -> available.put(entry.id(), entry));
         return available;
     }
 
@@ -299,8 +310,7 @@ public final class PalettePanel extends JPanel {
     public List<PaletteEntry> entries() {
         Map<String, PaletteEntry> entries = new LinkedHashMap<>();
         for (ComponentCategory category : ORDER) {
-            registry.all().stream().filter(type -> type.category() == category)
-                    .forEach(type -> entries.put(type.id(), new PaletteEntry(type, Optional.empty())));
+            standardEntries(category).forEach(entry -> entries.put(entry.id(), entry));
         }
         for (UserComponent component : libraryComponents) {
             entries.put(component.type().id(), new PaletteEntry(component.type(), Optional.of(component)));
@@ -311,12 +321,38 @@ public final class PalettePanel extends JPanel {
         return List.copyOf(entries.values());
     }
 
+    /**
+     * The types of {@code category} in the registry's order, with each preset of one of them (NAND, NOR, XNOR, NOT)
+     * where {@link #PRESET_PLACES} puts it: AND, OR, XOR, NAND, NOR, XNOR, Buffer, NOT.
+     */
+    private List<PaletteEntry> standardEntries(ComponentCategory category) {
+        List<PaletteEntry> entries = new ArrayList<>();
+        registry.all().stream().filter(type -> type.category() == category)
+                .forEach(type -> entries.add(PaletteEntry.of(type)));
+        for (ComponentPreset preset : StandardComponentTypes.presets()) {
+            PaletteEntry.of(preset, registry).filter(entry -> entry.type().category() == category)
+                    .ifPresent(entry -> entries.add(placeOf(entries, preset), entry));
+        }
+        return entries;
+    }
+
+    /** Where {@code preset} goes in {@code entries}: right after the entry {@link #PRESET_PLACES} names, or last. */
+    private static int placeOf(List<PaletteEntry> entries, ComponentPreset preset) {
+        String after = PRESET_PLACES.getOrDefault(preset.id(), "");
+        for (int index = 0; index < entries.size(); index++) {
+            if (entries.get(index).id().equals(after)) {
+                return index + 1;
+            }
+        }
+        return entries.size();
+    }
+
     /** Starts the same placement as choosing the entry in the palette, including library-version warnings. */
     public void chooseEntry(PaletteEntry entry) {
         if (entry.userComponent().isPresent()) {
             userChooser.accept(entry.userComponent().get());
         } else {
-            onChoose.accept(entry.type());
+            onChoose.accept(entry);
         }
     }
 
@@ -324,13 +360,17 @@ public final class PalettePanel extends JPanel {
         favoriteToggle.ifPresent(toggle -> toggle.accept(typeId));
     }
 
+    /**
+     * {@code onChoose} receives the standard entries chosen (a type, or a preset with its parameters); user components
+     * go to the {@link #setUserComponentChooser chooser}.
+     */
     public PalettePanel(ComponentTypeRegistry registry, PainterRegistry painters, ColorScheme scheme,
-                        Consumer<ComponentType> onChoose) {
+                        Consumer<PaletteEntry> onChoose) {
         this(registry, painters, new Appearance(scheme), onChoose);
     }
 
     public PalettePanel(ComponentTypeRegistry registry, PainterRegistry painters, Appearance appearance,
-                        Consumer<ComponentType> onChoose) {
+                        Consumer<PaletteEntry> onChoose) {
         super(new MigLayout("insets 4, fill, wrap 1", "[grow, fill]", "[][grow, fill]"));
         this.registry = registry;
         this.painters = painters;
@@ -355,7 +395,7 @@ public final class PalettePanel extends JPanel {
         tree.getSelectionModel().setSelectionMode(TreeSelectionModel.SINGLE_TREE_SELECTION);
         tree.addTreeSelectionListener(event -> {
             if (!updating) {
-                selectedType().ifPresent(onChoose);
+                selectedEntry().ifPresent(onChoose);
                 selectedUserComponent().ifPresent(component -> userChooser.accept(component));
             }
         });
@@ -392,8 +432,13 @@ public final class PalettePanel extends JPanel {
 
     /** The icon drawn for {@code type} with the current scheme. Package-private for tests. */
     Icon icon(ComponentType type) {
-        return icons.computeIfAbsent(type.id(),
-                id -> new ComponentIcon(type, painters.painterFor(id), appearance.scheme(), ICON_SIZE));
+        return icon(PaletteEntry.of(type));
+    }
+
+    /** The icon of {@code entry}: its type drawn with the entry's parameters (a NAND's bubble), current scheme. */
+    Icon icon(PaletteEntry entry) {
+        return icons.computeIfAbsent(entry.id(), id -> new ComponentIcon(entry.type(),
+                painters.painterFor(entry.type().id()), appearance.scheme(), ICON_SIZE, entry.parameters()));
     }
 
     /** Package-private for tests. */
@@ -417,7 +462,7 @@ public final class PalettePanel extends JPanel {
                 || !selected.equals(tree.getPathForLocation(event.getX(), event.getY()))) {
             return;
         }
-        if (selectedType().isPresent() || selectedUserComponent().isPresent()) {
+        if (selectedEntry().isPresent() || selectedUserComponent().isPresent()) {
             SwingUtilities.invokeLater(focusAfterMouseChoice);
         }
     }
@@ -542,10 +587,10 @@ public final class PalettePanel extends JPanel {
         Optional<JPopupMenu> provided = userMenuProvider.apply(component);
         provided.ifPresent(popup -> userMenuContributors.forEach(contributor -> contributor.accept(component, popup)));
         Object item = path == null ? null : ((DefaultMutableTreeNode) path.getLastPathComponent()).getUserObject();
-        if (favoriteToggle.isEmpty() || !(item instanceof ComponentType || item instanceof UserComponent)) {
+        if (favoriteToggle.isEmpty() || !isEntryItem(item)) {
             return provided;
         }
-        String typeId = typeIdOf(item);
+        String typeId = idOf(item);
         JPopupMenu menu = provided.orElseGet(JPopupMenu::new);
         if (menu.getComponentCount() > 0) {
             menu.addSeparator();
@@ -567,8 +612,8 @@ public final class PalettePanel extends JPanel {
         for (DefaultMutableTreeNode section : sections()) {
             for (Object leaf : Collections.list(section.children())) {
                 Object item = ((DefaultMutableTreeNode) leaf).getUserObject();
-                if (item instanceof ComponentType || item instanceof UserComponent) {
-                    ids.add(typeIdOf(item));
+                if (isEntryItem(item)) {
+                    ids.add(idOf(item));
                 }
             }
         }
@@ -604,10 +649,9 @@ public final class PalettePanel extends JPanel {
         addSection(root, recentSection(query));
         for (ComponentCategory category : ORDER) {
             DefaultMutableTreeNode categoryNode = new DefaultMutableTreeNode(category);
-            registry.all().stream()
-                    .filter(type -> type.category() == category)
-                    .filter(type -> PaletteFilter.matches(type, query))
-                    .forEach(type -> categoryNode.add(new DefaultMutableTreeNode(type, false)));
+            standardEntries(category).stream()
+                    .filter(entry -> PaletteFilter.matches(entry, query))
+                    .forEach(entry -> categoryNode.add(new DefaultMutableTreeNode(entry.treeItem(), false)));
             if (categoryNode.getChildCount() > 0) {
                 root.add(categoryNode);
             }
@@ -625,13 +669,14 @@ public final class PalettePanel extends JPanel {
         }
     }
 
-    Optional<ComponentType> selectedType() {
+    /** The standard entry (a type or a preset) highlighted now; empty for a user component or none. */
+    Optional<PaletteEntry> selectedEntry() {
         TreePath path = tree.getSelectionPath();
         if (path == null) {
             return Optional.empty();
         }
         Object value = ((DefaultMutableTreeNode) path.getLastPathComponent()).getUserObject();
-        return value instanceof ComponentType type ? Optional.of(type) : Optional.empty();
+        return value instanceof PaletteEntry entry ? Optional.of(entry) : Optional.empty();
     }
 
     /** «Favoritos» filtered by {@code query}: no rows while favourites are off, the hint when empty and unfiltered. */
@@ -640,7 +685,7 @@ public final class PalettePanel extends JPanel {
         if (favoriteToggle.isEmpty()) {
             return section;
         }
-        favoriteEntries().stream().filter(entry -> PaletteFilter.matches(entry.type(), query))
+        favoriteEntries().stream().filter(entry -> PaletteFilter.matches(entry, query))
                 .forEach(entry -> section.add(new DefaultMutableTreeNode(entry.treeItem(), false)));
         if (section.getChildCount() == 0 && query.isBlank()) {
             section.add(new DefaultMutableTreeNode(TopSection.EMPTY, false));
@@ -651,7 +696,7 @@ public final class PalettePanel extends JPanel {
     /** «Recientes» filtered by {@code query}; no hint row: an empty section is not shown. */
     private DefaultMutableTreeNode recentSection(String query) {
         DefaultMutableTreeNode section = new DefaultMutableTreeNode(TopSection.RECENT);
-        recentEntries().stream().filter(entry -> PaletteFilter.matches(entry.type(), query))
+        recentEntries().stream().filter(entry -> PaletteFilter.matches(entry, query))
                 .forEach(entry -> section.add(new DefaultMutableTreeNode(entry.treeItem(), false)));
         return section;
     }
@@ -693,8 +738,7 @@ public final class PalettePanel extends JPanel {
         for (DefaultMutableTreeNode section : sections()) {
             for (Object leaf : Collections.list(section.children())) {
                 DefaultMutableTreeNode node = (DefaultMutableTreeNode) leaf;
-                if ((node.getUserObject() instanceof ComponentType || node.getUserObject() instanceof UserComponent)
-                        && typeIdOf(node.getUserObject()).equals(typeId)) {
+                if (isEntryItem(node.getUserObject()) && idOf(node.getUserObject()).equals(typeId)) {
                     return new TreePath(node.getPath());
                 }
             }
@@ -702,9 +746,9 @@ public final class PalettePanel extends JPanel {
         return null;
     }
 
-    /** The palette tooltip of {@code type}: its help wrapped to {@link #HELP_WIDTH}, or null (no tooltip). */
-    static String help(ComponentType type) {
-        return Messages.componentHelp(type)
+    /** The palette tooltip of {@code entry}: its help wrapped to {@link #HELP_WIDTH}, or null (no tooltip). */
+    static String help(PaletteEntry entry) {
+        return Messages.componentHelp(entry.id())
                 .map(text -> "<html><body style='width:" + HELP_WIDTH + "px'>" + text + "</body></html>")
                 .orElse(null);
     }
@@ -714,7 +758,7 @@ public final class PalettePanel extends JPanel {
         for (int row = 0; row < tree.getRowCount(); row++) {
             DefaultMutableTreeNode node = (DefaultMutableTreeNode) tree.getPathForRow(row).getLastPathComponent();
             Object item = node.getUserObject();
-            if ((item instanceof ComponentType || item instanceof UserComponent) && typeId.equals(typeIdOf(item))) {
+            if (isEntryItem(item) && typeId.equals(idOf(item))) {
                 Component rendered = tree.getCellRenderer().getTreeCellRendererComponent(tree, node, false, false,
                         true, row, false);
                 return Optional.ofNullable(((JComponent) rendered).getToolTipText());
@@ -728,7 +772,7 @@ public final class PalettePanel extends JPanel {
         for (int row = 0; row < tree.getRowCount(); row++) {
             DefaultMutableTreeNode node = (DefaultMutableTreeNode) tree.getPathForRow(row).getLastPathComponent();
             Object item = node.getUserObject();
-            if ((item instanceof ComponentType || item instanceof UserComponent) && typeId.equals(typeIdOf(item))) {
+            if (isEntryItem(item) && typeId.equals(idOf(item))) {
                 Component rendered = tree.getCellRenderer().getTreeCellRendererComponent(tree, node, false, false,
                         true, row, false);
                 return Optional.ofNullable(rendered.getAccessibleContext().getAccessibleName());
@@ -737,8 +781,14 @@ public final class PalettePanel extends JPanel {
         return Optional.empty();
     }
 
-    static String typeIdOf(Object item) {
-        return item instanceof UserComponent component ? component.type().id() : ((ComponentType) item).id();
+    /** True for a row that is a component to place (a type, a preset or a user component), not a heading. */
+    static boolean isEntryItem(Object item) {
+        return item instanceof PaletteEntry || item instanceof UserComponent;
+    }
+
+    /** The id an entry row is known by: the preset's ({@code nand}) or the type's. */
+    static String idOf(Object item) {
+        return item instanceof UserComponent component ? component.type().id() : ((PaletteEntry) item).id();
     }
 
     private void showPopup(MouseEvent event) {
@@ -770,9 +820,9 @@ public final class PalettePanel extends JPanel {
      * is painted and has no accessible object of its own.
      */
     String accessibleName(Object item) {
-        String name = Messages.componentName(item instanceof UserComponent component ? component.type()
-                : (ComponentType) item);
-        return favoriteToggle.isPresent() && favoriteIds.contains(typeIdOf(item))
+        String name = item instanceof UserComponent component ? Messages.componentName(component.type())
+                : ((PaletteEntry) item).name();
+        return favoriteToggle.isPresent() && favoriteIds.contains(idOf(item))
                 ? Messages.format("palette.favorite.accessibleName", name) : name;
     }
 }

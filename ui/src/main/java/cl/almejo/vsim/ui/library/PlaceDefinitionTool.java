@@ -78,7 +78,7 @@ public final class PlaceDefinitionTool implements Tool {
         openDocument.execute(new CompositeCommand("command.add", List.of(
                 new PutDefinitionsCommand(bundle.all()), new AddElementsCommand(List.of(instance)))));
         context.selection().select(instance.id());
-        context.componentPlaced(type);
+        context.componentPlaced(type.id());
         context.repaint();
         if (!event.shiftDown()) {
             context.useDefaultTool();

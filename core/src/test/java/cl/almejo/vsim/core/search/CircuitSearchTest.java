@@ -45,6 +45,7 @@ class CircuitSearchTest {
         case StandardComponentTypes.AND -> "And";
         case StandardComponentTypes.OR -> "Or";
         case StandardComponentTypes.XOR -> "Xor";
+        case StandardComponentTypes.NAND_PRESET -> "Nand";
         case StandardComponentTypes.LED -> "LED";
         case InterfacePins.INPUT_PIN -> "Pin de entrada";
         case InterfacePins.OUTPUT_PIN -> "Pin de salida";
@@ -101,6 +102,16 @@ class CircuitSearchTest {
         Component gate = place(registry, document, StandardComponentTypes.AND, 0, 0, "");
 
         assertThat(find("and")).containsExactly(new SearchHit(gate.id(), List.of(), List.of(), SearchHit.Field.TYPE, "And"));
+    }
+
+    @Test
+    void aNegatedGateIsNamedByItsShortcut() {
+        Component gate = new Component(document.newComponentId(), StandardComponentTypes.AND, GridPoint.ORIGIN,
+                Rotation.R0, Map.of(StandardComponentTypes.NEGATE, true), "");
+        document.add(gate);
+
+        assertThat(find("nand")).containsExactly(new SearchHit(gate.id(), List.of(), List.of(), SearchHit.Field.TYPE,
+                "Nand"));
     }
 
     @Test

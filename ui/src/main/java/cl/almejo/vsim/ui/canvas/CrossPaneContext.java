@@ -1,6 +1,5 @@
 package cl.almejo.vsim.ui.canvas;
 
-import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
@@ -151,8 +150,8 @@ final class CrossPaneContext implements ToolContext {
     }
 
     @Override
-    public void componentPlaced(ComponentType type) {
-        owner.componentPlaced(type);
+    public void componentPlaced(String paletteId) {
+        owner.componentPlaced(paletteId);
     }
 
     @Override

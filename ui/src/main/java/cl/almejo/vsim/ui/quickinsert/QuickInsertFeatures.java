@@ -128,7 +128,7 @@ final class QuickInsertFeatures {
     private void choose(CircuitCanvas canvas, Point position, Optional<CanvasMouseEvent> chosenPoint,
                         PaletteEntry entry) {
         Optional<PaletteEntry> available = view.palette().entries().stream()
-                .filter(candidate -> candidate.type().id().equals(entry.type().id())).findFirst();
+                .filter(candidate -> candidate.id().equals(entry.id())).findFirst();
         if (available.isEmpty()) {
             panel.refresh();
             return;

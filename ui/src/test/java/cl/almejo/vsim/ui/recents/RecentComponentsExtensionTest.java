@@ -82,7 +82,7 @@ class RecentComponentsExtensionTest {
     }
 
     private static List<String> recentIds(EditorView target) {
-        return target.palette().recentEntries().stream().map(entry -> entry.type().id()).toList();
+        return target.palette().recentEntries().stream().map(PaletteEntry::id).toList();
     }
 
     @Test
@@ -108,6 +108,54 @@ class RecentComponentsExtensionTest {
         placeWithAClick(view, "subcircuit:inverter", 10, 10);
 
         assertThat(extension.recents().typeIds()).containsExactly("subcircuit:inverter");
+    }
+
+    @Test
+    void placingNandWithAClickPlacesANegatedAndInOneStepAndCountsTheShortcut() {
+        extension.install(view);
+
+        placeWithAClick(view, "nand", 10, 10);
+
+        assertThat(document.document().components()).singleElement().satisfies(component -> {
+            assertThat(component.typeId()).isEqualTo(StandardComponentTypes.AND);
+            assertThat(component.parameters()).containsEntry(StandardComponentTypes.NEGATE, true);
+        });
+        assertThat(extension.recents().typeIds()).containsExactly("nand");
+        assertThat(recentIds(view)).containsExactly("nand");
+        document.history().undo();
+        assertThat(document.document().components()).isEmpty();
+    }
+
+    @Test
+    void droppingNorPlacesANegatedOrAndCountsTheShortcut() {
+        extension.install(view);
+
+        assertThat(view.canvas().dropComponent(PaletteTransfer.encode("nor"), new Point(300, 300))).isTrue();
+
+        assertThat(document.document().components()).singleElement().satisfies(component -> {
+            assertThat(component.typeId()).isEqualTo(StandardComponentTypes.OR);
+            assertThat(component.parameters()).containsEntry(StandardComponentTypes.NEGATE, true);
+        });
+        assertThat(extension.recents().typeIds()).containsExactly("nor");
+    }
+
+    @Test
+    void shiftKeepsPlacingTheShortcutWithItsParameters() {
+        extension.install(view);
+        view.palette().choose("not");
+        CanvasMouseEvent first = at(view, 10, 10);
+        CanvasMouseEvent shifted = new CanvasMouseEvent(first.gridPosition(), first.snapped(),
+                first.screenPosition(), CanvasMouseEvent.PRIMARY, true, false, 1);
+        view.canvas().tool().mouseMoved(view.canvas(), shifted);
+        view.canvas().tool().mousePressed(view.canvas(), shifted);
+        view.canvas().tool().mouseMoved(view.canvas(), at(view, 30, 30));
+        view.canvas().tool().mousePressed(view.canvas(), at(view, 30, 30));
+
+        assertThat(document.document().components()).hasSize(2).allSatisfy(component -> {
+            assertThat(component.typeId()).isEqualTo(StandardComponentTypes.BUFFER);
+            assertThat(component.parameters()).containsEntry(StandardComponentTypes.NEGATE, true);
+        });
+        assertThat(extension.recents().typeIds()).containsExactly("not");
     }
 
     @Test

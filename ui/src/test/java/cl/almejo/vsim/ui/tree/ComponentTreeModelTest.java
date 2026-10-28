@@ -101,6 +101,20 @@ class ComponentTreeModelTest {
     }
 
     @Test
+    void aNegatedGateGoesByItsOwnNameInItsOwnGroup() {
+        add(StandardComponentTypes.AND, 0, 0, "");
+        Component nand = registry.require(StandardComponentTypes.AND).newComponent(document.newComponentId(),
+                new GridPoint(10, 0), Rotation.R0, Map.of(StandardComponentTypes.NEGATE, true), "U2");
+        document.add(nand);
+
+        assertThat(texts(ComponentTreeModel.build("Sumador", document, registry, false).children()))
+                .containsExactly("AND", "U2 · NAND");
+        ComponentTreeNode root = ComponentTreeModel.build("Sumador", document, registry, true);
+        assertThat(texts(root.children())).containsExactly("AND (1)", "NAND (1)");
+        assertThat(root.children().get(1).path()).isEqualTo("/nand");
+    }
+
+    @Test
     void instancesExpandIntoTheirBodyRecursivelyWithHierarchicalIds() {
         document.putDefinition(ExampleDefinitions.inverter());
         document.putDefinition(ExampleDefinitions.doubleInverter());
@@ -118,7 +132,7 @@ class ComponentTreeModelTest {
         String innerId = InstancePath.child(id, "c2");
         assertThat(paths(inner.children())).containsExactly(InstancePath.child(innerId, "c1"),
                 InstancePath.child(innerId, "c2"), InstancePath.child(innerId, "c3"));
-        assertThat(texts(inner.children())).containsExactly("a · Pin de entrada", "Buffer", "y · Pin de salida");
+        assertThat(texts(inner.children())).containsExactly("a · Pin de entrada", "NOT", "y · Pin de salida");
         assertThat(node.children().get(0).showsValue()).isTrue();
         assertThat(node.children().get(1).showsValue()).isFalse();
         assertThat(inner.children().get(0).showsValue()).isTrue();
@@ -185,7 +199,7 @@ class ComponentTreeModelTest {
         ComponentTreeNode innerNode = outerNode.children().get(0);
         assertThat(innerNode.text()).isEqualTo("Marco");
         assertThat(paths(innerNode.children())).containsExactly(inInner.id().value());
-        assertThat(innerNode.children().get(0).typeId()).isEqualTo(StandardComponentTypes.BUFFER);
+        assertThat(innerNode.children().get(0).paletteId()).isEqualTo(StandardComponentTypes.BUFFER);
     }
 
     @Test
@@ -205,6 +219,6 @@ class ComponentTreeModelTest {
         assertThat(paths(blockNode.children())).containsExactly(
                 ComponentTreeNode.groupPath(ComponentTreeNode.framePath(block.id()), StandardComponentTypes.BUFFER),
                 ComponentTreeNode.groupPath(ComponentTreeNode.framePath(block.id()), StandardComponentTypes.LED));
-        assertThat(blockNode.children().get(0).typeId()).isEqualTo(StandardComponentTypes.BUFFER);
+        assertThat(blockNode.children().get(0).paletteId()).isEqualTo(StandardComponentTypes.BUFFER);
     }
 }

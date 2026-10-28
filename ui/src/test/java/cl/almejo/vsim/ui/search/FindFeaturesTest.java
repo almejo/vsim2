@@ -340,7 +340,7 @@ class FindFeaturesTest {
                 ExampleDefinitions.doubleInverter())));
         labeled(SubcircuitTypes.typeIdOf(ExampleDefinitions.DOUBLE_INVERTER), 4, 4, "D");
         perform(features.findAction());
-        type("buffer"); // the Buffer inside each of the two unlabeled «Inversor» parts
+        type("not"); // the NOT inside each of the two unlabeled «Inversor» parts
         assertThat(features.hits()).hasSize(2);
         press(KeyEvent.VK_ENTER, 0);
         assertThat(features.bar().counterText()).isEqualTo("2 de 2");
@@ -451,11 +451,11 @@ class FindFeaturesTest {
         Component instance = labeled(SubcircuitTypes.typeIdOf(ExampleDefinitions.INVERTER), 4, 4, "U3");
         perform(features.findAction());
 
-        type("buffer");
+        type("not");
 
         assertThat(currentIds()).containsExactly(instance.id());
         assertThat(view.canvas().selection().ids()).containsExactly(instance.id());
-        assertThat(features.bar().messageText()).isEqualTo("«Buffer», dentro de «Inversor» (U3)");
+        assertThat(features.bar().messageText()).isEqualTo("«NOT», dentro de «Inversor» (U3)");
     }
 
     @Test

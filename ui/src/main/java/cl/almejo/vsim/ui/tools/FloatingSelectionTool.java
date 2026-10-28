@@ -283,7 +283,7 @@ public final class FloatingSelectionTool implements Tool {
             PasteCommand command = new PasteCommand(fragment, position);
             context.openDocument().execute(command);
             context.selection().set(command.pastedIds());
-            fromPalette.ifPresent(context::componentPlaced);
+            fromPalette.map(ComponentType::id).ifPresent(context::componentPlaced);
         }
         context.repaint();
         if (switchTool) {

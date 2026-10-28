@@ -11,7 +11,10 @@ import java.util.Map;
 
 import static cl.almejo.vsim.ui.paint.PainterSupport.UNIT;
 
-/** Palette icon drawn by the same painter as the canvas, so both always match. */
+/**
+ * Palette icon drawn by the same painter as the canvas, so both always match: the type with its default parameters,
+ * or with a preset's ({@code negate} for the NAND's bubble).
+ */
 public final class ComponentIcon implements Icon {
 
     private static final double PADDING = 3;
@@ -20,12 +23,20 @@ public final class ComponentIcon implements Icon {
     private final ComponentPainter painter;
     private final ColorScheme scheme;
     private final int size;
+    private final Map<String, Object> parameters;
 
     public ComponentIcon(ComponentType type, ComponentPainter painter, ColorScheme scheme, int size) {
+        this(type, painter, scheme, size, Map.of());
+    }
+
+    /** {@code parameters} are drawn on top of the type's defaults. */
+    public ComponentIcon(ComponentType type, ComponentPainter painter, ColorScheme scheme, int size,
+                         Map<String, Object> parameters) {
         this.type = type;
         this.painter = painter;
         this.scheme = scheme;
         this.size = size;
+        this.parameters = Map.copyOf(parameters);
     }
 
     public ColorScheme scheme() {
@@ -44,7 +55,7 @@ public final class ComponentIcon implements Icon {
             local.translate(x + (size - contentWidth * scale) / 2, y + (size - contentHeight * scale) / 2);
             local.scale(scale, scale);
             local.translate(PADDING, PADDING);
-            painter.paint(local, type, type.resolveParameters(Map.of()), VisibleState.NONE, scheme);
+            painter.paint(local, type, type.resolveParameters(parameters), VisibleState.NONE, scheme);
         } finally {
             local.dispose();
         }

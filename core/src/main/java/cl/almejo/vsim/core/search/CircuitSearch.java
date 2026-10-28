@@ -1,6 +1,7 @@
 package cl.almejo.vsim.core.search;
 
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
+import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
 import cl.almejo.vsim.core.document.CircuitDocument;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
@@ -39,8 +40,9 @@ public final class CircuitSearch {
 
     /**
      * Every hit of {@code query} in {@code document}; none at all when the query gives up on the way
-     * ({@link CompiledQuery#problem()} then says so). {@code typeDisplayName} gives the visible name of a type id
-     * (the definition name for user components), so the UI decides the language.
+     * ({@link CompiledQuery#problem()} then says so). {@code typeDisplayName} gives the visible name of a name id
+     * ({@link StandardComponentTypes#nameId}: the type id, or {@code nand} for an AND with «Negar salida»; the
+     * definition name for user components), so the UI decides the language.
      */
     public static List<SearchHit> find(CircuitDocument document, ComponentTypeRegistry registry, CompiledQuery query,
                                        Function<String, String> typeDisplayName) {
@@ -111,7 +113,7 @@ public final class CircuitSearch {
                 List<ElementId> partIds = new ArrayList<>(ids);
                 partIds.add(part.id());
                 List<String> partPath = new ArrayList<>(path);
-                partPath.add(part.label().isBlank() ? typeDisplayName.apply(part.typeId()) : part.label());
+                partPath.add(part.label().isBlank() ? typeName(part) : part.label());
                 componentHit(part).ifPresent(hit -> hits.add(new SearchHit(topLevel.id(), partIds, partPath, hit.field(),
                         hit.text())));
                 visitInside(topLevel, part, partIds, partPath, depth + 1);
@@ -130,11 +132,16 @@ public final class CircuitSearch {
             if (Tunnels.isTunnel(component.typeId()) && query.matches(Tunnels.nameOf(component))) {
                 return Optional.of(new FieldMatch(SearchHit.Field.TUNNEL_NAME, Tunnels.nameOf(component)));
             }
-            String typeName = typeDisplayName.apply(component.typeId());
+            String typeName = typeName(component);
             if (query.matches(typeName)) {
                 return Optional.of(new FieldMatch(SearchHit.Field.TYPE, typeName));
             }
             return Optional.empty();
+        }
+
+        /** The visible name of {@code component}'s kind: «NAND» for an AND with «Negar salida». */
+        private String typeName(Component component) {
+            return typeDisplayName.apply(StandardComponentTypes.nameId(component.typeId(), component.parameters()));
         }
     }
 

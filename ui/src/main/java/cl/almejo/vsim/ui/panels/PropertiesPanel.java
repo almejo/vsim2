@@ -236,14 +236,25 @@ public final class PropertiesPanel extends JPanel {
     }
 
     private void documentChanged(CircuitDocument document, DocumentChange change) {
-        if (applying) {
-            return;
-        }
         boolean touchesShown = shown.stream()
                 .anyMatch(id -> change.changed().contains(id) || change.removed().contains(id));
-        if (touchesShown) {
+        if (!touchesShown) {
+            return;
+        }
+        if (applying) {
+            renameShownComponent(); // the editors stay; «Negar salida» turns an AND into a NAND
+        } else {
             rebuild();
         }
+    }
+
+    /** Names the one component shown again from its parameters now, leaving the editors as they are. */
+    private void renameShownComponent() {
+        if (shown.size() != 1) {
+            return;
+        }
+        openDocument.document().component(shown.iterator().next()).ifPresent(component -> heading.setText(
+                Messages.componentName(openDocument.registry().typeOf(component), component.parameters())));
     }
 
     private void rebuild() {
@@ -290,7 +301,7 @@ public final class PropertiesPanel extends JPanel {
 
     private void showComponent(Component component) {
         ComponentType type = openDocument.registry().typeOf(component);
-        heading.setText(Messages.componentName(type));
+        heading.setText(Messages.componentName(type, component.parameters()));
         JTextField field = addTextRow(Messages.text("properties.label"), component.label());
         ElementId id = component.id();
         int built = generation;

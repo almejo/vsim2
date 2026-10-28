@@ -86,9 +86,9 @@ final class QuickInsertPanel extends JPanel {
                 super.getListCellRendererComponent(owner, value, index, selected, focused);
                 if (value instanceof Choice choice) {
                     PaletteEntry entry = choice.entry();
-                    setText(Messages.componentName(entry.type()) + " · " + entry.category());
+                    setText(entry.name() + " · " + entry.category());
                     setIcon(new ComponentIcon(entry.type(), painters.painterFor(entry.type().id()),
-                            appearance.scheme(), ICON_SIZE));
+                            appearance.scheme(), ICON_SIZE, entry.parameters()));
                     putClientProperty("FlatLaf.style", null);
                 } else if (value instanceof Heading heading) {
                     setText(heading.title());
@@ -159,14 +159,14 @@ final class QuickInsertPanel extends JPanel {
 
     /** Re-resolves ids on every refresh: a missing library entry stays saved but cannot be placed. */
     void refresh() {
-        String selectedId = selectedEntry().map(entry -> entry.type().id()).orElse("");
+        String selectedId = selectedEntry().map(PaletteEntry::id).orElse("");
         String query = search.getText();
         List<Row> rows = new ArrayList<>();
         if (query.isBlank()) {
             addGroup(rows, "quickInsert.favorites", palette.favoriteEntries());
             addGroup(rows, "quickInsert.recent", palette.recentEntries());
         } else {
-            palette.entries().stream().filter(entry -> PaletteFilter.matches(entry.type(), query))
+            palette.entries().stream().filter(entry -> PaletteFilter.matches(entry, query))
                     .forEach(entry -> rows.add(new Choice(entry)));
         }
         model.clear();
@@ -174,9 +174,9 @@ final class QuickInsertPanel extends JPanel {
         int selectedIndex = -1;
         for (int index = 0; index < rows.size(); index++) {
             if (rows.get(index) instanceof Choice choice
-                    && (selectedIndex < 0 || choice.entry().type().id().equals(selectedId))) {
+                    && (selectedIndex < 0 || choice.entry().id().equals(selectedId))) {
                 selectedIndex = index;
-                if (choice.entry().type().id().equals(selectedId)) {
+                if (choice.entry().id().equals(selectedId)) {
                     break;
                 }
             }

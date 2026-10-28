@@ -1,6 +1,5 @@
 package cl.almejo.vsim.ui.tools;
 
-import cl.almejo.vsim.core.component.ComponentType;
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.document.Component;
 import cl.almejo.vsim.core.document.DocumentElement;
@@ -86,11 +85,11 @@ public interface ToolContext {
     }
 
     /**
-     * A component of {@code type} chosen in the palette's world (a palette entry, a drop from the palette, a quick
-     * insert) just landed in the circuit; pastes, duplicates, undo and the AI do not call this. By default nothing
-     * listens (the canvas tells «Recientes»).
+     * A component chosen in the palette's world (a palette entry, a drop from the palette, a quick insert) just landed
+     * in the circuit; {@code paletteId} is the entry it came from: a type id, or a preset's ({@code nand}). Pastes,
+     * duplicates, undo and the AI do not call this. By default nothing listens (the canvas tells «Recientes»).
      */
-    default void componentPlaced(ComponentType type) {
+    default void componentPlaced(String paletteId) {
     }
 
     void repaint();

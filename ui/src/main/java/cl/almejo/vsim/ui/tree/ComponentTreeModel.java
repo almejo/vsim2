@@ -114,7 +114,7 @@ public final class ComponentTreeModel {
 
     private static ComponentTreeNode componentNode(Component component, String path, CircuitDocument document,
                                                    ComponentTypeRegistry registry, int depth) {
-        String name = typeName(component.typeId(), registry);
+        String name = TypeNames.of(component, registry);
         String text = component.label().isBlank() ? name
                 : Messages.format("tree.component.labeled", component.label(), name);
         List<ComponentTreeNode> children = new ArrayList<>();
@@ -126,7 +126,7 @@ public final class ComponentTreeModel {
                         depth + 1));
             }
         }
-        return new ComponentTreeNode(ComponentTreeNode.Kind.COMPONENT, path, text, component.typeId(),
+        return new ComponentTreeNode(ComponentTreeNode.Kind.COMPONENT, path, text, paletteId(component),
                 showsValue(path, component.typeId()), children, List.of(component.label(), name));
     }
 
@@ -139,29 +139,38 @@ public final class ComponentTreeModel {
                                                   ComponentTypeRegistry registry) {
         Map<String, List<ComponentTreeNode>> byType = new LinkedHashMap<>();
         for (int index = 0; index < components.size(); index++) {
-            byType.computeIfAbsent(components.get(index).typeId(), typeId -> new ArrayList<>()).add(nodes.get(index));
+            byType.computeIfAbsent(paletteId(components.get(index)), paletteId -> new ArrayList<>())
+                    .add(nodes.get(index));
         }
-        record Group(String typeId, String name, List<ComponentTreeNode> members) {
+        record Group(String paletteId, String name, List<ComponentTreeNode> members) {
         }
         return byType.entrySet().stream()
                 .map(entry -> new Group(entry.getKey(), typeName(entry.getKey(), registry), entry.getValue()))
                 .sorted(Comparator.comparing(Group::name, String.CASE_INSENSITIVE_ORDER)
-                        .thenComparing(Group::typeId))
-                .map(group -> groupNode(ComponentTreeNode.groupPath(parentPath, group.typeId()), group.name(),
-                        group.typeId(), group.members()))
+                        .thenComparing(Group::paletteId))
+                .map(group -> groupNode(ComponentTreeNode.groupPath(parentPath, group.paletteId()), group.name(),
+                        group.paletteId(), group.members()))
                 .toList();
     }
 
     /** A group row: «NOT (3)», counting {@code members}. */
-    private static ComponentTreeNode groupNode(String path, String name, String typeId,
+    private static ComponentTreeNode groupNode(String path, String name, String paletteId,
                                                List<ComponentTreeNode> members) {
         return new ComponentTreeNode(ComponentTreeNode.Kind.GROUP, path,
-                Messages.format("tree.group", name, members.size()), typeId, false, members, List.of());
+                Messages.format("tree.group", name, members.size()), paletteId, false, members, List.of());
     }
 
-    /** The visible type name (the definition name for user components); the raw id when the type is unknown. */
-    private static String typeName(String typeId, ComponentTypeRegistry registry) {
-        return TypeNames.of(typeId, registry);
+    /**
+     * The visible name of a {@link #paletteId} (the definition name for user components); the raw id when the type is
+     * unknown.
+     */
+    private static String typeName(String paletteId, ComponentTypeRegistry registry) {
+        return TypeNames.of(paletteId, registry);
+    }
+
+    /** What groups and names {@code component}: its type id, or {@code nand} for an AND with «Negar salida». */
+    private static String paletteId(Component component) {
+        return StandardComponentTypes.nameId(component.typeId(), component.parameters());
     }
 
     /**
@@ -180,7 +189,7 @@ public final class ComponentTreeModel {
             return Optional.empty();
         }
         return Optional.of(node.kind() == ComponentTreeNode.Kind.GROUP
-                ? groupNode(node.path(), typeName(node.typeId(), registry), node.typeId(), kept)
+                ? groupNode(node.path(), typeName(node.paletteId(), registry), node.paletteId(), kept)
                 : node.withChildren(kept));
     }
 }

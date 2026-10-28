@@ -84,11 +84,14 @@ class PalettePanelTest {
     }
 
     @Test
-    void listsEveryStandardTypeGroupedByCategory() {
-        assertThat(palette.visibleTypeIds()).containsExactlyElementsOf(
+    void listsEveryStandardTypeGroupedByCategoryAndTheGateShortcuts() {
+        List<String> presetIds = StandardComponentTypes.presets().stream().map(preset -> preset.id()).toList();
+        List<String> shown = palette.visibleTypeIds();
+        assertThat(shown.stream().filter(id -> !presetIds.contains(id)).toList()).containsExactlyElementsOf(
                 registry.all().stream()
                         .sorted(java.util.Comparator.comparing(ComponentType::category))
                         .map(ComponentType::id).toList());
+        assertThat(shown).containsAll(presetIds);
     }
 
     @Test
@@ -115,13 +118,14 @@ class PalettePanelTest {
     @Test
     void filterMatchesIdsAndLocalizedNames() {
         palette.setFilter("and");
-        assertThat(palette.visibleTypeIds()).containsExactly("and");
+        assertThat(palette.visibleTypeIds()).containsExactly("and", "nand");
         palette.setFilter("RELOJ");
         assertThat(palette.visibleTypeIds()).containsExactly(StandardComponentTypes.CLOCK);
         palette.setFilter("zzz");
         assertThat(palette.visibleTypeIds()).isEmpty();
         palette.setFilter("  ");
-        assertThat(palette.visibleTypeIds()).hasSize(registry.all().size());
+        assertThat(palette.visibleTypeIds())
+                .hasSize(registry.all().size() + StandardComponentTypes.presets().size());
     }
 
     @Test

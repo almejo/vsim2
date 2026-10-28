@@ -42,7 +42,7 @@ public final class ConfigureDialog {
         JOptionPane pane = new JOptionPane(content, JOptionPane.PLAIN_MESSAGE, JOptionPane.OK_CANCEL_OPTION);
         Window window = owner == null ? null : SwingUtilities.getWindowAncestor(owner);
         JDialog dialog = new JDialog(window, Messages.format("dialog.configure.title",
-                Messages.componentName(type)), Dialog.ModalityType.APPLICATION_MODAL);
+                Messages.componentName(type, component.parameters())), Dialog.ModalityType.APPLICATION_MODAL);
         dialog.setContentPane(pane);
         dialog.setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);
         dialog.addWindowListener(new WindowAdapter() {

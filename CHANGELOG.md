@@ -24,6 +24,11 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 - Hay un solo tipo por compuerta (AND, OR, XOR y Buffer) en vez de uno por cada número de entradas. Los circuitos,
   componentes, librerías y lo copiado antes se abren igual, con los pines en el mismo lugar; al guardarlos se
   escriben con el formato nuevo (versión 4), que las versiones anteriores de VSim 2 no abren.
+- La paleta tiene una entrada por compuerta: AND, OR, XOR, NAND, NOR, XNOR, Buffer y NOT, en vez de una por cada
+  número de entradas. NAND, NOR, XNOR y NOT colocan la compuerta con «Negar salida» marcada, también al arrastrarlas,
+  desde la inserción rápida, «Favoritos» y «Recientes»; los favoritos de antes aparecen con la entrada nueva.
+- El nombre de una compuerta sigue a «Negar salida» en Propiedades, el árbol de componentes y la búsqueda: un AND
+  negado se llama NAND y un Buffer negado, NOT.
 
 ## Sin publicar — Memoria (RAM y ROM)
 

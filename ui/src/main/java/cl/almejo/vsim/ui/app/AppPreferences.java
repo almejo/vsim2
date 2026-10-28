@@ -2,6 +2,7 @@ package cl.almejo.vsim.ui.app;
 
 import cl.almejo.vsim.automation.present.PresentationPace;
 import cl.almejo.vsim.automation.present.PresentationSettings;
+import cl.almejo.vsim.core.io.LegacyGateMigration;
 import cl.almejo.vsim.core.wiring.TidyOptions;
 import cl.almejo.vsim.ui.paint.TextFont;
 import cl.almejo.vsim.ui.print.PageOrientation;
@@ -316,9 +317,13 @@ public final class AppPreferences {
         return base.resolve("vsim2").resolve("components");
     }
 
-    /** Ordered palette favourites, shared by all windows; unavailable component ids remain stored. */
+    /**
+     * Ordered palette favourites, shared by all windows; unavailable component ids remain stored. Ids saved before
+     * the gates took parameters read as today's entries ({@code nand2} is {@code nand}, {@code and3} is {@code and}).
+     */
     public List<String> paletteFavorites() {
-        return read("palette.favourites", "").lines().filter(id -> !id.isBlank()).distinct().toList();
+        return read("palette.favourites", "").lines().filter(id -> !id.isBlank())
+                .map(id -> LegacyGateMigration.paletteIdFor(id).orElse(id)).distinct().toList();
     }
 
     /** Saves stable type ids rather than names, so renaming a user component preserves its favourite. */

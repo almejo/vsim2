@@ -273,6 +273,24 @@ class QuickInsertTest {
     }
 
     @Test
+    void theShortcutsAreFoundByNameAndPlaceTheirGateWithNegateOn() {
+        view.canvas().tool().mousePressed(view.canvas(), at(10, 20, 2));
+        shown.setQuery("xnor");
+        assertThat(shown.results()).extracting(entry -> entry.id()).containsExactly("xnor");
+        shown.acceptSelection();
+
+        view.canvas().tool().mousePressed(view.canvas(), at(40, 20, 2));
+        shown.setQuery("not");
+        assertThat(shown.results()).extracting(entry -> entry.id()).containsExactly("not");
+        shown.acceptSelection();
+
+        assertThat(document.document().components()).extracting(Component::typeId)
+                .containsExactly(StandardComponentTypes.XOR, StandardComponentTypes.BUFFER);
+        assertThat(document.document().components()).allSatisfy(component ->
+                assertThat(component.parameters()).containsEntry(StandardComponentTypes.NEGATE, true));
+    }
+
+    @Test
     void noMatchAndCancelDoNothingAndDisposeRemovesTheDelegateAndLeavesThePreferencesAlone() {
         int listeners = view.services().preferences().listenerCount();
         view.canvas().tool().mousePressed(view.canvas(), at(10, 10, 2));

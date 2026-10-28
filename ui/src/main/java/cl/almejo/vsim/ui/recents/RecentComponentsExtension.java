@@ -25,7 +25,7 @@ public final class RecentComponentsExtension implements EditorExtension {
         Runnable stopFollowing = recents.addListener(() -> palette.setRecents(recents.typeIds()));
         palette.setRecents(recents.typeIds());
         Runnable stopCounting = view.forEachPane(canvas ->
-                canvas.addPlacementListener(type -> recents.used(type.id())));
+                canvas.addPlacementListener(recents::used));
         return () -> {
             stopCounting.run();
             stopFollowing.run();

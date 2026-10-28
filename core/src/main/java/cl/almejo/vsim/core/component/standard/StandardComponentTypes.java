@@ -447,6 +447,11 @@ public final class StandardComponentTypes {
         return PRESETS;
     }
 
+    /** The preset called {@code id} ({@code nand}, {@code not}, …); empty for a type id or an unknown id. */
+    public static Optional<ComponentPreset> preset(String id) {
+        return PRESETS.stream().filter(preset -> preset.id().equals(id)).findFirst();
+    }
+
     /**
      * The id that names a part of {@code typeId} with {@code parameters} (the message key {@code component.<id>}):
      * {@code nand}, {@code nor}, {@code xnor} or {@code not} for a gate or Buffer with «Negar salida» on, the type id
