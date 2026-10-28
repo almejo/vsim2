@@ -4,6 +4,8 @@ import cl.almejo.vsim.core.component.VisibleState;
 import cl.almejo.vsim.core.memory.MemoryContents;
 import cl.almejo.vsim.core.memory.MutableMemoryContents;
 
+import cl.almejo.vsim.ui.i18n.Messages;
+
 import javax.swing.table.AbstractTableModel;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -39,6 +41,9 @@ public final class MemoryGridModel extends AbstractTableModel {
     private final int addressDigits;
     private MemoryRadix radix;
     private MemoryContents contents;
+    /** The contents when the dialog opened (or the last link): the cells that differ are the edited ones. */
+    private MemoryContents original;
+    private long dataVersion;
     private final Deque<MemoryContents> undoStack = new ArrayDeque<>();
     private final Deque<MemoryContents> redoStack = new ArrayDeque<>();
     private boolean readOnly;
@@ -48,6 +53,7 @@ public final class MemoryGridModel extends AbstractTableModel {
 
     public MemoryGridModel(MemoryContents contents, int width, long words, MemoryRadix radix) {
         this.contents = contents;
+        this.original = contents;
         this.width = width;
         this.words = words;
         this.radix = radix;
@@ -89,6 +95,7 @@ public final class MemoryGridModel extends AbstractTableModel {
 
     public void setRadix(MemoryRadix radix) {
         this.radix = radix;
+        dataVersion++;
         fireTableDataChanged();
     }
 
@@ -181,9 +188,93 @@ public final class MemoryGridModel extends AbstractTableModel {
         }
     }
 
-    /** The word shown at {@code address}: the simulation's while one is overlaid, the edited contents' otherwise. */
+    /**
+     * The word shown at {@code address}: the simulation's while one is overlaid, except in a cell the user edited
+     * (that one shows its new initial value, marked as edited), and the edited contents' otherwise.
+     */
     public long valueAt(long address) {
-        return live != null ? live.word(address) : contents.word(address);
+        return live != null && !isEdited(address) ? live.word(address) : contents.word(address);
+    }
+
+    /** Whether the user changed the initial word at {@code address} in this dialog. */
+    public boolean isEdited(long address) {
+        return contents != original && contents.word(address) != original.word(address);
+    }
+
+    /** Forgets which cells are edited (the contents just came from the circuit, such as a link). */
+    public void resetEditedMarks() {
+        original = contents;
+        fireTableDataChanged();
+    }
+
+    /** The tooltip of a cell: initial vs. simulation now for an edited one while live; null for the rest. */
+    public String cellToolTip(int row, int column) {
+        OptionalLong address = addressAt(row, column);
+        if (address.isEmpty() || !isEdited(address.getAsLong())) {
+            return null;
+        }
+        String initial = format(contents.word(address.getAsLong()));
+        return live != null
+                ? Messages.format("memory.cell.editedLive", initial, format(live.word(address.getAsLong())))
+                : Messages.format("memory.cell.edited", format(original.word(address.getAsLong())));
+    }
+
+    // Digits and search
+
+    /** The most digits a word of this width takes in the shown base. */
+    public int maxDigits() {
+        return switch (radix) {
+            case HEX -> (width + 3) / 4;
+            case BINARY -> width;
+            case DECIMAL -> Long.toUnsignedString(width >= Long.SIZE ? -1L : (1L << width) - 1).length();
+        };
+    }
+
+    /**
+     * The characters of {@code typed} that are digits of the shown base (upper-cased), as many as fit after
+     * {@code existingLength} characters already in the field.
+     */
+    public String digitsOnly(String typed, int existingLength) {
+        StringBuilder accepted = new StringBuilder();
+        for (char character : typed.toCharArray()) {
+            char upper = Character.toUpperCase(character);
+            if (Character.digit(upper, radix.base()) >= 0 && upper < 128
+                    && existingLength + accepted.length() < maxDigits()) {
+                accepted.append(upper);
+            }
+        }
+        return accepted.toString();
+    }
+
+    /** Bumps with every change of the words shown (edits, undo, live values), so a search knows it is stale. */
+    public long dataVersion() {
+        return dataVersion;
+    }
+
+    /** The value typed in the find field, in the shown base; empty when it is not one or does not fit the word. */
+    public OptionalLong parseSearch(String text) {
+        OptionalLong value = parseNumber(text, radix.base());
+        return value.isPresent() && fits(value.getAsLong()) ? value : OptionalLong.empty();
+    }
+
+    /** Every word showing {@code value} now (live words included), found through the stored words only. */
+    public MemorySearch search(long value) {
+        boolean zero = value == 0;
+        java.util.stream.LongStream.Builder found = java.util.stream.LongStream.builder();
+        contents.forEachNonZero((address, stored) -> {
+            if (address < words && (zero ? valueAt(address) != 0 : valueAt(address) == value)) {
+                found.add(address);
+            }
+        });
+        if (live != null) {
+            live.forEachNonZero((address, stored) -> {
+                if (address < words && contents.word(address) == 0 && (zero ? valueAt(address) != 0
+                        : valueAt(address) == value)) {
+                    found.add(address);
+                }
+            });
+        }
+        return new MemorySearch(words, zero, found.build().sorted().toArray());
     }
 
     public String hexAddress(long address) {
@@ -375,6 +466,7 @@ public final class MemoryGridModel extends AbstractTableModel {
         }
         redoStack.clear();
         contents = replacement;
+        dataVersion++;
         fireTableDataChanged();
     }
 
@@ -390,6 +482,7 @@ public final class MemoryGridModel extends AbstractTableModel {
         if (!undoStack.isEmpty()) {
             redoStack.push(contents);
             contents = undoStack.pop();
+            dataVersion++;
             fireTableDataChanged();
         }
     }
@@ -398,6 +491,7 @@ public final class MemoryGridModel extends AbstractTableModel {
         if (!redoStack.isEmpty()) {
             undoStack.push(contents);
             contents = redoStack.pop();
+            dataVersion++;
             fireTableDataChanged();
         }
     }
@@ -407,12 +501,14 @@ public final class MemoryGridModel extends AbstractTableModel {
     /** Shows the running simulation's words instead of the initial ones (the edits stay in {@link #edited()}). */
     public void showLive(MemoryContents liveContents) {
         this.live = liveContents;
+        dataVersion++;
         fireTableDataChanged();
     }
 
     public void hideLive() {
         if (live != null) {
             live = null;
+            dataVersion++;
             fireTableDataChanged();
         }
     }
