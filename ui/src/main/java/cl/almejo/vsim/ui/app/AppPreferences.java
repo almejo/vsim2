@@ -159,7 +159,6 @@ public final class AppPreferences {
     static final String FIND_MATCH_CASE = "find.matchCase";
     static final String FIND_REGEX = "find.regex";
     static final String SIMPLIFY_EXPRESSIONS = "expressions.simplify";
-    static final String DESCRIPTION_FOLDED = "properties.descriptionFolded";
     static final String EXTERNAL_EDITOR = "memory.externalEditor";
     static final String PRINT_PAPER = "print.paper";
     static final String PRINT_ORIENTATION = "print.orientation";
@@ -611,20 +610,6 @@ public final class AppPreferences {
             return;
         }
         putFlag(SIMPLIFY_EXPRESSIONS, simplify);
-    }
-
-    // --- Propiedades: Descripción ---
-
-    /** Whether the «Descripción» box of Propiedades is folded (only its title shows). Unfolded by default. */
-    public boolean descriptionFolded() {
-        return node.getBoolean(DESCRIPTION_FOLDED, false);
-    }
-
-    public void setDescriptionFolded(boolean folded) {
-        if (descriptionFolded() == folded) {
-            return;
-        }
-        putFlag(DESCRIPTION_FOLDED, folded);
     }
 
     // --- Memoria: editor externo ---

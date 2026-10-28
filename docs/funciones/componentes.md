@@ -13,11 +13,11 @@ Parte de las [funciones de VSim 2](../funciones.md).
 - El texto sigue a los parámetros: un AND con «Negar salida» muestra la descripción del NAND, el comparador «Con
   signo» explica el complemento a dos, y la RAM agrega un párrafo para «Escritura: Sin reloj», «Datos: Un solo bus
   D», «Conexión: Pines sueltos» o cuando está enlazada a un archivo. Cambia apenas se aplica el cambio.
-- Un clic en el título «▾ Descripción» la pliega (queda solo el título, «▸ Descripción») y otro la despliega; VSim
-  recuerda la elección para todas las piezas y las próximas sesiones. El texto se ajusta al ancho de la barra lateral
-  y, si es largo, se desplaza dentro del recuadro sin empujar lo demás. Con varias cosas elegidas, un cable o un
+- El recuadro, con su título «Descripción», se estira por todo el espacio que queda hacia abajo bajo los parámetros
+  (crece con el panel) y no se pliega. El texto se ajusta al ancho de la barra lateral y solo se desplaza dentro del
+  recuadro si es más largo que ese espacio, sin empujar lo demás. Con varias cosas elegidas, un cable o un
   texto no se muestra.
-- El diálogo «Configurar…» muestra la misma descripción bajo los parámetros, y la sigue al aplicar cada valor.
+- El diálogo «Configurar…» muestra la misma descripción bajo los parámetros, con un alto máximo de 14 líneas (después se desplaza), y la sigue al aplicar cada valor.
 - Al pasar el mouse sobre una pieza de la paleta, el globo muestra el primer párrafo de su descripción.
 - Los componentes propios muestran su propia descripción: se escribe en «Descripción (opcional)» al crear o actualizar
   el componente, y después con el botón «Editar descripción…» de Propiedades (un paso de deshacer; si el componente

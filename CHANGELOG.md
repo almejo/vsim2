@@ -43,6 +43,9 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 
 ### Cambiado
 
+- La «Descripción» de Propiedades se estira por todo el espacio que queda bajo los parámetros (se desplaza solo si el
+  texto es más largo) y ya no se pliega: desaparecen el botón ▾/▸ del título y la preferencia que recordaba si estaba
+  plegada (un valor guardado de antes se ignora). En «Configurar…» sigue con un máximo de 14 líneas.
 - La paleta se reorganiza en nueve categorías que sigue un curso: Compuertas, Cableado, Aritmética, Multiplexores,
   Secuenciales, Memoria, Entrada/Salida, Depuración y Mis componentes. Desaparecen «Básicas», «Bloques» y «Pines de
   componente» (los pines de entrada y de salida pasan a Entrada/Salida). Los circuitos, favoritos y recientes de antes

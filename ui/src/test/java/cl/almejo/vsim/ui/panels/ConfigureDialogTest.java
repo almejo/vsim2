@@ -2,7 +2,6 @@ package cl.almejo.vsim.ui.panels;
 
 import cl.almejo.vsim.core.component.ComponentTypeRegistry;
 import cl.almejo.vsim.core.component.standard.StandardComponentTypes;
-import cl.almejo.vsim.ui.app.AppPreferences;
 import cl.almejo.vsim.ui.theme.FlatLafInstaller;
 import cl.almejo.vsim.ui.theme.ReadableColors;
 import org.junit.jupiter.api.Test;
@@ -32,13 +31,19 @@ class ConfigureDialogTest {
     @Test
     void theDescriptionUnderTheFormFollowsAnAppliedNegateOutput() {
         ParameterForm form = new ParameterForm(registry.require(StandardComponentTypes.AND), Map.of());
-        DescriptionBox box = ConfigureDialog.descriptionBox(registry.require(StandardComponentTypes.AND), form,
-                AppPreferences.inMemory());
+        DescriptionBox box = ConfigureDialog.descriptionBox(registry.require(StandardComponentTypes.AND), form);
         assertThat(box.text()).startsWith("AND");
 
         ((JCheckBox) form.editor(StandardComponentTypes.NEGATE)).doClick();
 
         assertThat(box.text()).startsWith("NAND");
+    }
+
+    @Test
+    void theDescriptionInTheDialogStopsAtItsMaximumHeight() {
+        DescriptionBox box = DescriptionBox.capped("palabra ".repeat(2000));
+
+        assertThat(box.getPreferredSize().height).isLessThanOrEqualTo(box.maximumBodyHeight() + box.headerHeight() + 10);
     }
 
     @Test
