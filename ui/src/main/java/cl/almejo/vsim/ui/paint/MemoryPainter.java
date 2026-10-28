@@ -67,6 +67,11 @@ public final class MemoryPainter implements ComponentPainter {
     private static final int WINDOW_ROWS = 5;
     private static final double TEXT_INSET = 6;
     private static final double TEXT_GAP = 3;
+    /** The chain of a linked memory: two links overlapping by about a fifth of the width. */
+    private static final double CHAIN_WIDTH = 9;
+    private static final double CHAIN_HEIGHT = 5;
+    private static final double CHAIN_LINK_SHARE = 0.6;
+    private static final double CHAIN_STROKE = 1;
     private static final double TOGGLE_SIZE = 8;
     private static final double TOGGLE_FROM_RIGHT = 4;
     /** How far around the square a click still folds (about a pixel and a half at 100 %). */
@@ -94,6 +99,8 @@ public final class MemoryPainter implements ComponentPainter {
     private static final float MINIMUM_SIZE = 3f;
     /** The text of the rows other than the accessed one (the mockup's 75 % opacity). */
     private static final int QUIET_ROW_ALPHA = 190;
+    /** The address of a window row is a label: muted next to the word (about 5:1 on white, still readable). */
+    private static final int ADDRESS_ALPHA = 150;
     /** The tint of the accessed word's box (the mockup's {@code --read-bg}, about 15 %). */
     private static final int ACCESS_TINT_ALPHA = 40;
     private static final float DIMMED_ALPHA = 0.55f;
@@ -160,6 +167,7 @@ public final class MemoryPainter implements ComponentPainter {
         boolean sideways = PainterSupport.turnedSideways(graphics);
         boolean folded = sideways || MemoryTypes.SHOW_CONTENTS_NO.equals(resolved.get(MemoryTypes.SHOW_CONTENTS));
         Decoded decoded = decoded((String) resolved.get(MemoryTypes.CONTENTS));
+        boolean linked = !String.valueOf(resolved.getOrDefault(MemoryTypes.LINK, "")).isEmpty();
 
         Rectangle2D box = bodyBox(shaped);
         Shape outline = new RoundRectangle2D.Double(box.getX(), box.getY(), box.getWidth(), box.getHeight(), 4, 4);
@@ -173,9 +181,9 @@ public final class MemoryPainter implements ComponentPainter {
             }
             String subtitle = subtitle(type, resolved);
             if (sideways) {
-                paintSidewaysTitle(clipped, box, subtitle, name, activity, scheme);
+                paintSidewaysTitle(clipped, box, subtitle, name, activity, linked, scheme);
             } else {
-                paintTitle(clipped, titleBar(box), subtitle, name, memory != null, activity, folded, scheme);
+                paintTitle(clipped, titleBar(box), subtitle, name, memory != null, activity, folded, linked, scheme);
             }
             if (!folded) {
                 paintWindow(clipped, windowBox(box, resolved), resolved, memory, decoded, activity, scheme);
@@ -243,6 +251,34 @@ public final class MemoryPainter implements ComponentPainter {
 
     private static Rectangle2D titleBar(Rectangle2D box) {
         return new Rectangle2D.Double(box.getX(), box.getY(), box.getWidth(), TITLE_HEIGHT);
+    }
+
+    /** The chain of a linked memory (local coordinates, upright title bar): left of the light, inside the title bar. */
+    static Rectangle2D linkGlyphArea(ComponentType specialized) {
+        return linkGlyph(titleBar(bodyBox(specialized)));
+    }
+
+    private static Rectangle2D linkGlyph(Rectangle2D titleBar) {
+        Rectangle2D square = toggleSquare(titleBar);
+        return linkGlyph(titleBar, square.getX() - TEXT_GAP - LIGHT_RADIUS);
+    }
+
+    private static Rectangle2D linkGlyph(Rectangle2D titleBar, double lightX) {
+        double right = lightX - LIGHT_RADIUS - TEXT_GAP;
+        return new Rectangle2D.Double(right - CHAIN_WIDTH, titleBar.getY() + TITLE_MIDDLE - CHAIN_HEIGHT / 2,
+                CHAIN_WIDTH, CHAIN_HEIGHT);
+    }
+
+    /** Two interlocked rounded links, in the text colour, filling {@code area}. */
+    private static void paintChain(Graphics2D graphics, Rectangle2D area, ColorScheme scheme) {
+        double link = area.getWidth() * CHAIN_LINK_SHARE;
+        double inset = CHAIN_STROKE / 2;
+        graphics.setColor(scheme.text());
+        graphics.setStroke(new BasicStroke((float) CHAIN_STROKE));
+        graphics.draw(new RoundRectangle2D.Double(area.getX() + inset, area.getY() + inset, link - CHAIN_STROKE,
+                area.getHeight() - CHAIN_STROKE, area.getHeight(), area.getHeight()));
+        graphics.draw(new RoundRectangle2D.Double(area.getMaxX() - link + inset, area.getY() + inset,
+                link - CHAIN_STROKE, area.getHeight() - CHAIN_STROKE, area.getHeight(), area.getHeight()));
     }
 
     /** The ▾ / ▸ square at the right end of an upright title bar. */
@@ -363,7 +399,8 @@ public final class MemoryPainter implements ComponentPainter {
      * left of the light, the RD / WR pill or «CS = 0» ({@code simulated}: a state from the simulation, not the palette).
      */
     private static void paintTitle(Graphics2D graphics, Rectangle2D titleBar, String subtitle, String name,
-                                   boolean simulated, Activity activity, boolean folded, ColorScheme scheme) {
+                                   boolean simulated, Activity activity, boolean folded, boolean linked,
+                                   ColorScheme scheme) {
         Graphics2D upright = uprightAbout(graphics, titleBar.getCenterX(), titleBar.getCenterY());
         try {
             Rectangle2D square = toggleSquare(titleBar);
@@ -373,6 +410,10 @@ public final class MemoryPainter implements ComponentPainter {
             paintLight(upright, lightX, middleY, activity, scheme);
             double textLeft = titleBar.getX() + TEXT_INSET;
             double statusRight = lightX - LIGHT_RADIUS - TEXT_GAP;
+            if (linked) {
+                paintChain(upright, linkGlyph(titleBar), scheme);
+                statusRight = linkGlyph(titleBar).getX() - TEXT_GAP;
+            }
             double statusLeft = paintStatus(upright, statusRight, middleY, statusRight - textLeft - MINIMUM_NAME_ROOM,
                     simulated, activity, scheme);
             double available = statusLeft - TEXT_GAP - textLeft;
@@ -387,9 +428,12 @@ public final class MemoryPainter implements ComponentPainter {
 
     /** Turned a quarter: subtitle, name and the pill or «CS = 0» centred in the body; the light in its corner. */
     private static void paintSidewaysTitle(Graphics2D graphics, Rectangle2D box, String subtitle, String name,
-                                           Activity activity, ColorScheme scheme) {
+                                           Activity activity, boolean linked, ColorScheme scheme) {
         paintLight(graphics, box.getMaxX() - TOGGLE_FROM_RIGHT - LIGHT_RADIUS, box.getY() + TITLE_MIDDLE, activity,
                 scheme);
+        if (linked) {
+            paintChain(graphics, linkGlyph(titleBar(box), box.getMaxX() - TOGGLE_FROM_RIGHT - LIGHT_RADIUS), scheme);
+        }
         double centerX = box.getCenterX();
         double centerY = box.getCenterY();
         // upright about the centre the body is as wide on screen as it is tall here
@@ -584,12 +628,12 @@ public final class MemoryPainter implements ComponentPainter {
                 graphics.setStroke(THIN_STROKE);
                 graphics.draw(box);
             }
-            Color text = accessed ? scheme.text() : PainterSupport.withAlpha(scheme.text(), QUIET_ROW_ALPHA);
+            Color label = PainterSupport.withAlpha(scheme.text(), ADDRESS_ALPHA);
             boolean written = accessed && activity.access() == VisibleState.MemoryAccess.WRITE;
-            PainterSupport.uprightText(graphics, addressText(address, addressBits), addressLeft, centerY, size, text,
+            PainterSupport.uprightText(graphics, addressText(address, addressBits), addressLeft, centerY, size, label,
                     PainterSupport.ALIGN_LEFT, MONOSPACE);
             PainterSupport.uprightText(graphics, wordAt(memory, decoded, row, address, mask, valueDigits), valueLeft,
-                    centerY, size, written ? scheme.memoryWrite() : text, PainterSupport.ALIGN_LEFT,
+                    centerY, size, written ? scheme.memoryWrite() : scheme.text(), PainterSupport.ALIGN_LEFT,
                     written ? MONOSPACE_BOLD : MONOSPACE);
         }
     }

@@ -17,8 +17,8 @@ funciones, con las fechas en que se hizo. El detalle de cada función está en
 - En el lienzo, la memoria muestra en su barra de título «RAM · 256 × 8», su nombre, una luz de actividad (azul al
   leer, naranja al escribir) con la insignia `RD` o `WR`, o «CS = 0» cuando no está conectada, y un cuadrito ▾ / ▸ que
   con un clic muestra u oculta la ventana de contenido. La ventana lista las palabras alrededor de la dirección actual
-  («dirección  palabra», letra de ancho fijo) con la palabra leída o escrita en un recuadro de su color y una palabra
-  escrita sin definir como «Z». Una memoria sin etiqueta se llama RAM1, RAM2, ROM1… (numeradas por tipo), igual en el
+  («dirección  palabra», letra de ancho fijo, la dirección en un tono apagado y la palabra en el color normal) con la palabra leída o escrita en un recuadro de su color y una palabra
+  escrita sin definir como «Z». Una memoria vinculada a un archivo muestra una cadenita en la barra de título. Una memoria sin etiqueta se llama RAM1, RAM2, ROM1… (numeradas por tipo), igual en el
   lienzo, el mapa, el editor y «Volcar…». Los colores de lectura y escritura son dos roles nuevos de cada esquema de
   colores.
 - Editor de contenido: doble clic sobre la pieza (o «Editar contenido…» en el clic derecho) abre una grilla de

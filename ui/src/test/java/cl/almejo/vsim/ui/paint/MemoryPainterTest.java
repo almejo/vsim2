@@ -30,6 +30,8 @@ class MemoryPainterTest {
     private static final Color WRITE = new Color(0xCC00AA);
     private static final Color WARNING = new Color(0x11DDEE);
     private static final int MARGIN = 8;
+    /** How far a pixel of blue text on white is from white: 150 muted at most, 255 in the full colour. */
+    private static final int STRONG_TEXT_STEP = 170;
     private static final int IMAGE_SIZE = 700;
     private static final double ZOOM = 3;
     private static final GridPoint ORIGIN = new GridPoint(10, 10);
@@ -318,6 +320,70 @@ class MemoryPainterTest {
             assertThat(inTitle).as(access.getKey() + ": the light and the RD / WR pill").isGreaterThan(300);
             assertThat(below).as(access.getKey() + ": the outline of the accessed word").isGreaterThan(300);
         }
+    }
+
+    @Test
+    void theAddressIsDrawnMutedAndTheWordInTheFullTextColour() {
+        Color text = new Color(0x0000FF);
+        ColorScheme blueText = ColorScheme.LIGHT.with(ColorRole.TEXT, text);
+        ComponentType type = StandardComponentTypes.registry().require(StandardComponentTypes.RAM)
+                .specializedFor(Map.of());
+        Component component = type.newComponent(new ElementId("m1"), GridPoint.ORIGIN, Rotation.R0, Map.of(), "");
+        VisibleState idle = new VisibleState.MemoryState(true, VisibleState.MemoryAccess.NONE, 2, 0,
+                List.of(0x11L, 0x22L, 0x33L, 0x44L, 0x55L));
+        BufferedImage image = PaintersTest.blankImage(IMAGE_SIZE, IMAGE_SIZE);
+        Graphics2D graphics = image.createGraphics();
+        graphics.scale(ZOOM, ZOOM);
+        ComponentDrawing.paint(graphics, type, component, idle, blueText, painters);
+        graphics.dispose();
+        int firstRow = (int) (MemoryPainter.titleBar(type).getMaxY() * ZOOM) + 2;
+        int leftmostBluish = IMAGE_SIZE;
+        int leftmostFull = IMAGE_SIZE;
+        // from inside the window on: the pin names to its left are in the full text colour too
+        int windowLeft = (int) ((MemoryPainter.titleBar(type).getX() + 12) * ZOOM);
+        for (int x = windowLeft; x < IMAGE_SIZE; x++) {
+            for (int y = firstRow; y < IMAGE_SIZE; y++) {
+                Color pixel = new Color(image.getRGB(x, y));
+                if (pixel.getBlue() > pixel.getRed() + 40 && pixel.getBlue() > pixel.getGreen() + 40) {
+                    leftmostBluish = Math.min(leftmostBluish, x);
+                }
+                if (pixel.getBlue() - pixel.getRed() >= STRONG_TEXT_STEP) {
+                    leftmostFull = Math.min(leftmostFull, x);
+                }
+            }
+        }
+        assertThat(leftmostBluish).as("the address is drawn").isLessThan(IMAGE_SIZE);
+        assertThat(leftmostFull).as("no address pixel is in the full text colour: only the word is")
+                .isGreaterThan(leftmostBluish + (int) (3 * ZOOM));
+    }
+
+    @Test
+    void aLinkedMemoryShowsAChainInItsTitleBarAndAnUnlinkedOneDoesNot() {
+        Map<String, Object> shown = Map.of();
+        Map<String, Object> shownLinked = Map.of(MemoryTypes.LINK, "/home/a/rom.hex");
+        Map<String, Object> foldedLinked = Map.of(MemoryTypes.LINK, "/home/a/rom.hex",
+                MemoryTypes.SHOW_CONTENTS, MemoryTypes.SHOW_CONTENTS_NO);
+        Map<String, Object> folded = Map.of(MemoryTypes.SHOW_CONTENTS, MemoryTypes.SHOW_CONTENTS_NO);
+        Rectangle2D titleBar = MemoryPainter.titleBar(StandardComponentTypes.registry()
+                .require(StandardComponentTypes.RAM).specializedFor(Map.of()));
+        for (Rotation rotation : List.of(Rotation.R0, Rotation.R180)) {
+            BufferedImage plain = draw(StandardComponentTypes.RAM, rotation, shown, READING, SCHEME);
+            assertThat(countDifferences(plain, draw(StandardComponentTypes.RAM, rotation,
+                    Map.of(MemoryTypes.LINK, ""), READING, SCHEME))).as(rotation + ": empty link is unlinked")
+                    .isZero();
+            assertThat(countDifferences(plain, draw(StandardComponentTypes.RAM, rotation, shownLinked, READING,
+                    SCHEME))).as(rotation + ": the chain").isGreaterThan(30);
+            assertThat(countDifferences(
+                    draw(StandardComponentTypes.RAM, rotation, folded, READING, SCHEME),
+                    draw(StandardComponentTypes.RAM, rotation, foldedLinked, READING, SCHEME)))
+                    .as(rotation + ": the chain of a folded memory").isGreaterThan(30);
+        }
+        Rectangle2D glyph = MemoryPainter.linkGlyphArea(StandardComponentTypes.registry()
+                .require(StandardComponentTypes.RAM).specializedFor(Map.of()));
+        assertThat(titleBar.contains(glyph)).as("inside the title bar").isTrue();
+        assertThat(MemoryPainter.foldToggleArea(StandardComponentTypes.registry()
+                .require(StandardComponentTypes.RAM).specializedFor(Map.of()), Rotation.R0).orElseThrow()
+                .intersects(glyph)).as("not over the square").isFalse();
     }
 
     @Test
